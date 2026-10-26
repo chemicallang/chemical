@@ -26,14 +26,14 @@ public struct ManuallyDrop<T> {
     }
 
     /** Destroy the contained value in place. */
-    public func destroy(&mut self) {
+    public unsafe func destroy(&mut self) {
         unsafe {
             destruct &raw mut self.value
         }
     }
 
     /** Move the value out without running its destructor. */
-    public func take(&mut self) : T {
+    public unsafe func take(&mut self) : T {
         var out = zeroed:unsafe<T>()
         unsafe {
             memcpy(&raw mut out, &raw mut self.value, sizeof(T))

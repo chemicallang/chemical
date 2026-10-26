@@ -484,6 +484,20 @@ func neg_mutex_not_sync_when_inner_is_not_send(env : &mut TestEnv) {
 }
 
 @test
+func neg_maybe_uninit_assume_init_requires_unsafe(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var m = std::maybe_uninit<int>()\n    var x = m.assume_init()\n    return x\n}\n"
+    expect_compile_error_with_mod(env, "maybe_uninit_safe_assume", ch, "requires an unsafe block", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_manually_drop_take_requires_unsafe(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var d = std::manually_drop(1)\n    var x = d.take()\n    return x\n}\n"
+    expect_compile_error_with_mod(env, "manually_drop_safe_take", ch, "requires an unsafe block", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_option_take_requires_mutable_receiver(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "public func main() : int {\n    var o = std::Option.Some<int>(1)\n    const c = o\n    var x = c.take()\n    return x\n}\n"

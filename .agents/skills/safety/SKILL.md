@@ -187,7 +187,9 @@ Next:
   `string` capacity/length growth is overflow-checked (S5.3a), including the
   string NUL byte and capacity doubling. `new T` and `std::box` reject a null
   `malloc` result instead of returning an owner that later writes through null
-  (S5.3b). `Option::take` requires `&mut self` (S1.9a), so it cannot rewrite a
+  (S5.3b). `MaybeUninit::assume_init`/`assume_init_drop` and
+  `ManuallyDrop::take`/`destroy` are `unsafe func` (S2.6b), so uninitialized
+  reads and manual ownership transfer require an explicit unsafe block. `Option::take` requires `&mut self` (S1.9a), so it cannot rewrite a
   shared/immutable binding. `unordered_map`/`ordered_map` check bucket-growth arithmetic and
   table/node allocations, and `ordered_map` seeds its first table at 16
   buckets (S5.3c). Self-aliasing `string` append records and re-bases the

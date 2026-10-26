@@ -228,6 +228,11 @@
 >   it after growth, so `s.append_view(&s.to_view())` remains valid across
 >   reallocation. Tested by doubling a heap-backed string and comparing both
 >   halves.
+> - S2.6b `MaybeUninit`/`ManuallyDrop` unsafe operations: `MaybeUninit::
+>   assume_init`/`assume_init_drop` and `ManuallyDrop::take`/`destroy` are now
+>   `unsafe func`, so safe code cannot read uninitialized storage or move/drop a
+>   manually-managed value without an `unsafe` block. Existing callers already
+>   used `unsafe`; negative tests cover the safe-call rejection.
 > - S1.9a `Option::take` requires `&mut self`: the old `&self` signature wrote
 >   `None` through a shared reference, so a safe API could mutate an immutable
 >   binding (and alias a live shared borrow). A negative test proves an immutable

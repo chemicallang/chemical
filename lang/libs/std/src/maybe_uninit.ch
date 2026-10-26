@@ -31,7 +31,7 @@ public struct MaybeUninit<T> {
      * twice, or before `write`, is undefined behavior; callers must uphold the
      * initialization invariant inside an `unsafe` block.
      */
-    public func assume_init(&mut self) : T {
+    public unsafe func assume_init(&mut self) : T {
         var out = zeroed:unsafe<T>()
         unsafe {
             memcpy(&raw mut out, &raw mut self.value, sizeof(T))
@@ -41,7 +41,7 @@ public struct MaybeUninit<T> {
     }
 
     /** Drop the value if it is initialized. */
-    public func assume_init_drop(&mut self) {
+    public unsafe func assume_init_drop(&mut self) {
         unsafe {
             destruct &raw mut self.value
         }

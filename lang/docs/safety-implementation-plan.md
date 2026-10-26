@@ -228,6 +228,10 @@
 >   it after growth, so `s.append_view(&s.to_view())` remains valid across
 >   reallocation. Tested by doubling a heap-backed string and comparing both
 >   halves.
+> - S1.9a `Option::take` requires `&mut self`: the old `&self` signature wrote
+>   `None` through a shared reference, so a safe API could mutate an immutable
+>   binding (and alias a live shared borrow). A negative test proves an immutable
+>   receiver is rejected; existing callers already hold mutable locals/fields.
 > - S5.4a static array bounds: a constant index into a fixed-size array is
 >   checked at type verification against the declared length and rejected with
 >   `SAFE-BOUNDS-001`, on reads and assignment LHS alike.

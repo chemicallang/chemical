@@ -484,6 +484,13 @@ func neg_mutex_not_sync_when_inner_is_not_send(env : &mut TestEnv) {
 }
 
 @test
+func neg_option_take_requires_mutable_receiver(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var o = std::Option.Some<int>(1)\n    const c = o\n    var x = c.take()\n    return x\n}\n"
+    expect_compile_error_with_mod(env, "option_take_immutable", ch, "mutable implicit self", NEG_MOD_STD_CORE)
+}
+
+@test
 func rwlock_is_send_and_sync_when_inner_qualifies(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send + Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var rw = std::new_rwlock(1)\n    var h = Holder<std::RwLock<int>> { data = null }\n    return h.check()\n}\n"

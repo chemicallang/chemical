@@ -4,7 +4,7 @@ public variant Option<T> {
     Some(value : T)
     None()
 
-    func take(&self) : T {
+    func take(&mut self) : T {
         if(self is Option.None) {
             panic("cannot take on a option that's none")
         }

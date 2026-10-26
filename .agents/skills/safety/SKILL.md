@@ -200,7 +200,8 @@ Next:
   shared/immutable binding. `unordered_map`/`ordered_map` check bucket-growth arithmetic and
   table/node allocations, and `ordered_map` seeds its first table at 16
   buckets (S5.3c). Self-aliasing `string` append records and re-bases the
-  source offset across growth (S5.3d).
+  source offset across growth (S5.3d), and `string::resize` zero-fills newly
+  exposed bytes (S5.3e).
   Dynamic fixed-array indices (S5.4c) are guarded in MIR lowering with
   `index < length` (zero-extended to u64, so negative indices fail) on reads and
   stores; failure calls `abort` and then `Unreachable`. Pointer/vector/operator

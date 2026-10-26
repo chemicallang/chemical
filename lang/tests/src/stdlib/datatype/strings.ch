@@ -125,6 +125,13 @@ func test_strings() {
         var second = string("value : 99 end")
         return c.str.equals(&second);
     })
+    test("string resize zero-initializes grown bytes", () => {
+        var s = string("ab")
+        s.resize(4)
+        if(s.size() != 4) { return false }
+        if(s.get(2) != '\0' || s.get(3) != '\0') { return false }
+        return true
+    })
     test("string can append its own view across reallocation", () => {
         var s = string("01234567890123456789012345678901")
         s.reserve(32)

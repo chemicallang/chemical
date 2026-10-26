@@ -223,6 +223,10 @@
 >   and `ordered_map` seeds the first resize at 16 buckets (matching
 >   `unordered_map`) instead of allocating zero buckets. Allocation-heavy suites
 >   stay green; OOM itself is not force-testable.
+> - S5.3e string resize initialization: growing `string::resize` zero-fills the
+>   newly exposed bytes (after growth moves the storage) before setting the
+>   length, so `get`/`to_view` cannot observe uninitialized characters. A main
+>   suite test checks the grown bytes and length.
 > - S5.3d self-aliasing string append: `append_with_len` records the source
 >   offset when the source points into the destination's storage and recomputes
 >   it after growth, so `s.append_view(&s.to_view())` remains valid across

@@ -203,7 +203,14 @@ public struct string {
         if(value >= ((0 as size_t) - 1)) {
             panic("string length overflow")
         }
+        const old_size = size()
         ensure_mut(value + 1);
+        if(value > old_size) {
+            var d = data()
+            unsafe {
+                memset(&raw mut d[old_size] as *mut void, 0, value - old_size)
+            }
+        }
         switch(state) {
             '1' => {
                 storage.sso.length = value as uchar;

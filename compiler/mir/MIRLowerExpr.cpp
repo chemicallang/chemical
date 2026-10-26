@@ -1499,6 +1499,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                                        : static_cast<ValueId>(idx.id);
                 idx = MIRExprResult::value(builder_->load_indirect(pv, it), it);
             }
+            emit_array_index_bounds_check(base, idx);
             if (base.kind == MIRExprKind::Place) {
                 const TypeId bt = builder_->function().places[base.id].type;
                 if (abi::is_struct_like(module_, bt)) {
@@ -1896,5 +1897,46 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
     }
 }
 
+
+
+void MIRLowerer::emit_array_index_bounds_check(const MIRExprResult& base,
+                                               const MIRExprResult& index) {
+    TypeId array_type = MIR_INVALID_ID;
+    switch (base.kind) {
+        case MIRExprKind::Place:
+            if (base.id < builder_->function().places.size()) {
+                array_type = builder_->function().places[base.id].type;
+            }
+            break;
+        case MIRExprKind::Address:
+        case MIRExprKind::Value:
+            array_type = base.type;
+            break;
+        default:
+            return;
+    }
+    if (array_type == MIR_INVALID_ID || array_type >= module_.types.size()) return;
+    const MIRTypeRecord& rec = module_.types.get(array_type);
+    if (rec.kind != MIRTypeKind::Array) return;
+    if (index.id == MIR_NULL || index.id >= builder_->function().values.size()) return;
+
+    const TypeId u64t = types_.u64_type();
+    const TypeId bool_t = types_.bool_type();
+    const TypeId void_t = types_.void_type();
+    const ValueId idx_u = builder_->cast(static_cast<ValueId>(index.id), u64t);
+    const ValueId len = builder_->const_int(u64t, module_.constants.add_int(u64t, rec.data_count));
+    const ConstantId lt = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt));
+    const ValueId in_bounds = builder_->compare(idx_u, len, lt, bool_t);
+    const BlockId ok_b = builder_->create_block();
+    const BlockId abort_b = builder_->create_block();
+    builder_->cond_br(in_bounds, ok_b, abort_b);
+    builder_->set_block(abort_b);
+    const TypeId abort_ft = types_.function_signature(void_t, {});
+    const SymbolId abort_sym = extern_symbol("abort", abort_ft);
+    builder_->call_scalar(abort_sym, void_t, nullptr, 0);
+    builder_->unreachable();
+    builder_->set_block(ok_b);
+}
 
 } // namespace mir

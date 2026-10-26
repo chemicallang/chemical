@@ -205,6 +205,20 @@ func safety_runtime_panic_harness(env : &mut TestEnv) {
 }
 
 @test
+func array_bounds_dynamic_read_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var a : [3]int = [1, 2, 3]\n    var i = 3\n    return a[i]\n}\n"
+    expect_runtime_panic(env, "array_bounds_dynamic_read_panics", ch)
+}
+
+@test
+func array_bounds_dynamic_store_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var a : [3]int = [1, 2, 3]\n    var i = 4\n    a[i] = 7\n    return 0\n}\n"
+    expect_runtime_panic(env, "array_bounds_dynamic_store_panics", ch)
+}
+
+@test
 func vector_bounds_index_panics(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "public func main() : int {\n    var v = std::vector<int>()\n    v.push(1)\n    var p = v.get_ptr(1)\n    return 0\n}\n"

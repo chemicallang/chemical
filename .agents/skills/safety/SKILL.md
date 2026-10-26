@@ -178,7 +178,10 @@ Next:
   runtime bounds (S5.4b) reject OOB and empty access in `get`/`get_ptr`/
   `get_ref`/`get_mut`/`set`/`remove`/`remove_last`/`take_last`/`last_ptr` with a
   panic; the safety suite covers OOB, empty pop, and empty last-pointer cases.
-  Dynamic fixed-array indices remain pending.
+  Dynamic fixed-array indices (S5.4c) are guarded in MIR lowering with
+  `index < length` (zero-extended to u64, so negative indices fail) on reads and
+  stores; failure calls `abort` and then `Unreachable`. Pointer/vector/operator
+  indexing is excluded because it has its own checks.
   `Box::into_inner` frees storage without re-running the destructor. `unsafe func` (S2.6a) is parsed at top level and
   as a member, and calls from safe code are rejected; `unsafe(expr)`/`unsafe {}`
   are both unsafe call contexts. Next: partial-move/drop elaboration, then the

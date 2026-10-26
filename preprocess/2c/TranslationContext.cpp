@@ -240,6 +240,8 @@ void CTranslationContext::prepare_translate() {
         write("extern void* malloc(unsigned long size);\n");
     }
     write("extern void free(void* block);\n");
+    // MIR inserts a fixed-array bounds check that calls abort() on failure.
+    write("extern void abort(void);\n");
     // The MIR emitter spells a struct copy and an aggregate zeroing as bare
     // `memcpy`/`memset` (the C compiler lowers them to width-sized stores or a
     // libcall). cstd declares the same functions, but the module that calls one

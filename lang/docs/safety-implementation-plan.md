@@ -210,8 +210,15 @@
 >   fields), so that remains pending.
 > - S5.4a static array bounds: a constant index into a fixed-size array is
 >   checked at type verification against the declared length and rejected with
->   `SAFE-BOUNDS-001`, on reads and assignment LHS alike. Dynamic fixed-array
->   indices remain pending.
+>   `SAFE-BOUNDS-001`, on reads and assignment LHS alike.
+> - S5.4c dynamic fixed-array bounds: `MIRLowerer` emits a `Compare` +
+>   `CondBr` guard (`index < length`, zero-extended to u64 so a negative signed
+>   index fails) for every fixed-array index dimension, on reads and stores.
+>   Failure calls the extern `abort` (the default panic profile) and then
+>   `Unreachable`; the C prelude declares `abort`, LLVM emits the extern
+>   declaration, and the interpreter maps it to `host_abort`. Pointer, vector,
+>   and struct/operator indexing keep their own checks. Safety-suite runtime
+>   tests cover dynamic read and store overruns.
 > - S5.4b vector runtime bounds: `vector::get`, `get_ptr`, `get_ref`,
 >   `get_mut`, `set`, `remove`, `remove_last`, `take_last`, and `last_ptr`
 >   reject out-of-range or empty access with `vector index out of bounds` /

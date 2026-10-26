@@ -403,6 +403,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 maybe_register_call_temp(io->parent_val, base);
                 MIRExprResult idx = lower_expr(io->idx, error);
                 if (!idx.ok()) return false;
+                emit_array_index_bounds_check(base, idx);
                 if (base.kind == MIRExprKind::Place) {
                     const TypeId bt = builder_->function().places[base.id].type;
                     if (abi::is_struct_like(module_, bt)) {

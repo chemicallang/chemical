@@ -597,6 +597,15 @@ private:
                                      std::string& error);
     /** Intern an extern C function symbol (malloc/free) with the given signature. */
     SymbolId extern_symbol(const char* name, TypeId ftype);
+
+    /**
+     * Emit a runtime bounds check for an index into a fixed-size array. The
+     * check is a `Compare` + `CondBr` to an `abort()` call and `Unreachable`;
+     * pointer/vector/struct indexing is left to its own API. Values that index
+     * an array through an address (multi-dimensional arrays) use the address's
+     * element type, so every dimension is checked.
+     */
+    void emit_array_index_bounds_check(const MIRExprResult& base, const MIRExprResult& index);
     /** Emit a `malloc(size)` call yielding `ptr_t`. */
     ValueId emit_malloc(TypeId size_v, TypeId u64t, TypeId ptr_t);
     /** Emit a `free(ptr)` call. */

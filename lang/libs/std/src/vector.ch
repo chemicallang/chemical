@@ -31,8 +31,16 @@ public struct vector<T> {
 
     @constructor
     func make_with_capacity(init_cap : size_t) {
+        const elem_size = sizeof(T)
+        if(elem_size != 0 && init_cap > ((0 as size_t) - 1) / elem_size) {
+            panic("vector capacity overflow")
+        }
+        var ptr = malloc(sizeof(T) * init_cap) as *mut T
+        if(ptr == null && init_cap != 0) {
+            panic("vector allocation failed")
+        }
         return vector<T> {
-            data_ptr : malloc(sizeof(T) * init_cap) as *mut T,
+            data_ptr : ptr,
             data_size : 0,
             data_cap : init_cap
         }

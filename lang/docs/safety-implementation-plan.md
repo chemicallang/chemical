@@ -223,6 +223,9 @@
 >   and `ordered_map` seeds the first resize at 16 buckets (matching
 >   `unordered_map`) instead of allocating zero buckets. Allocation-heavy suites
 >   stay green; OOM itself is not force-testable.
+> - S5.3g vector/thread-pool allocations: `vector::make_with_capacity` checks
+>   byte-size overflow and a null initial allocation; thread-pool `submit` and
+>   `create_pool` reject null promise/pool allocations before placement-new.
 > - S5.3f capturing-function allocation: the heap path of
 >   `default_function_instance::make2` rejects a null `malloc` before copying
 >   the captured environment, matching the `new`/`Box` allocation checks.

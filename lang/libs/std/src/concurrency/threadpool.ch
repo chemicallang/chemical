@@ -213,6 +213,9 @@ public namespace std {
 
             public func <T> submit(&mut self, f:std.function<() => T>):Future<T>{
                 var prom=malloc(sizeof(Promise<T>)) as *mut Promise<T>;
+                if(prom == null) {
+                    panic("failed to allocate thread pool promise")
+                }
                 new(prom)Promise<T>();
                 m.lock();
                 q.push_back(Task{ f:|f,prom|() => {
@@ -283,6 +286,9 @@ public namespace std {
         public func create_pool(n:uint) : ThreadPool {
             if(n==0u){ panic("n==0") }
             var p=malloc(sizeof(PoolData)) as *mut PoolData;
+            if(p == null) {
+                panic("failed to allocate thread pool")
+            }
             new(p) PoolData {
                 m:std.mutex(),
                 cv:std.CondVar(),

@@ -202,7 +202,8 @@ Next:
   buckets (S5.3c). Self-aliasing `string` append records and re-bases the
   source offset across growth (S5.3d), and `string::resize` zero-fills newly
   exposed bytes (S5.3e). Capturing-function heap environments also reject a
-  null allocation (S5.3f).
+  null allocation (S5.3f); `vector::make_with_capacity` and thread-pool
+  promise/pool allocations are checked as well (S5.3g).
   Dynamic fixed-array indices (S5.4c) are guarded in MIR lowering with
   `index < length` (zero-extended to u64, so negative indices fail) on reads and
   stores; failure calls `abort` and then `Unreachable`. Pointer/vector/operator

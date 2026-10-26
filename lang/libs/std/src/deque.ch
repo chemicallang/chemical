@@ -98,8 +98,12 @@ public struct deque<T> {
         return null
     }
 
-    func get_ref(&self, index : size_t) : &mut T {
-        return &mut *get_ptr(index)
+    func get_ref(&self, index : size_t) : &T {
+        return unsafe(&*get_ptr(index))
+    }
+
+    func get_mut(&mut self, index : size_t) : &mut T {
+        return unsafe(&mut *get_ptr(index))
     }
 
     func clear(&mut self) {

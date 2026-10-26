@@ -228,6 +228,10 @@
 >   it after growth, so `s.append_view(&s.to_view())` remains valid across
 >   reallocation. Tested by doubling a heap-backed string and comparing both
 >   halves.
+> - S1.10b deque reference soundness: `deque::get_ref` now returns `&T` (it
+>   returned `&mut T` from `&self`), and `deque::get_mut` provides mutation with
+>   a mutable receiver. A negative test rejects `*d.get_ref(0) = ...`; a
+>   positive test covers `get_mut`.
 > - S1.8e `Rc`/`Arc` moved-from guards: after `try_unwrap` sets the owner to
 >   null, `clone`/`downgrade`/`get`/`strong_count`/`weak_count` panic instead of
 >   dereferencing null; `Weak`/`ArcWeak` count accessors do the same. Runtime

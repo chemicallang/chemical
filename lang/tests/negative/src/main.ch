@@ -378,6 +378,25 @@ internal func expect_compile_success(env : &mut TestEnv, name : *char, ch_conten
     cleanup_test_dir(NEG_WORK_DIR, name)
 }
 
+internal func expect_compile_success_with_mod(env : &mut TestEnv, name : *char, ch_content : *char, mod_content : *char) {
+    setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
+
+    var mod_path : char[512]
+    sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name)
+    var out_path : char[512]
+    sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
+
+    var output_buf : char[65536]
+    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
+
+    if(rc != 0) {
+        env.error("expected compiler to succeed but it failed")
+        neg_debug_print(name, unsafe(&raw output_buf[0]))
+    }
+
+    cleanup_test_dir(NEG_WORK_DIR, name)
+}
+
 // Compiles an application module and runs it, checking the process exit code.
 // Used to exercise the `async func main` trampoline end-to-end.
 internal func expect_compile_and_exit(env : &mut TestEnv, name : *char, ch_content : *char, mod_content : *char, expected_exit : int) {

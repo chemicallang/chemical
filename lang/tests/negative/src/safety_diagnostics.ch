@@ -484,6 +484,20 @@ func neg_mutex_not_sync_when_inner_is_not_send(env : &mut TestEnv) {
 }
 
 @test
+func neg_deque_get_ref_is_immutable(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var d = std::deque<int>()\n    d.push(1)\n    *d.get_ref(0) = 2\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "deque_get_ref_immutable", ch, "cannot assign to a non mutable", NEG_MOD_STD_CORE)
+}
+
+@test
+func deque_get_mut_is_allowed(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var d = std::deque<int>()\n    d.push(1)\n    *d.get_mut(0) = 2\n    return *d.get_ref(0)\n}\n"
+    expect_compile_success_with_mod(env, "deque_get_mut_allowed", ch, NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_unsafe_cell_get_ref_requires_unsafe(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "public func main() : int {\n    var c = std::unsafe_cell(1)\n    var r = c.get_ref()\n    return 0\n}\n"

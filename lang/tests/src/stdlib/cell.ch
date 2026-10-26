@@ -5,7 +5,7 @@ func unsafe_cell_interior_mutation(env : &mut TestEnv) {
     var c = std::unsafe_cell(1)
     var p = c.get()
     unsafe { p[0] = 2 }
-    if(*c.get_ref() != 2) {
+    if(unsafe(*c.get_ref()) != 2) {
         env.error("UnsafeCell write through shared reference was not visible")
     }
     var m = c.get_mut()

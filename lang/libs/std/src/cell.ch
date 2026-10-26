@@ -23,7 +23,7 @@ public struct UnsafeCell<T> {
         return &raw mut self.value
     }
 
-    public func get_ref(&self) : &T {
+    public unsafe func get_ref(&self) : &T {
         return &self.value
     }
 

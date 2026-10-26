@@ -76,7 +76,7 @@ public struct Ref<'a, T> {
     }
 
     public func get(&self) : &T {
-        return self.cell.value.get_ref()
+        return unsafe(self.cell.value.get_ref())
     }
 }
 

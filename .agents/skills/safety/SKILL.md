@@ -189,7 +189,9 @@ Next:
   `malloc` result instead of returning an owner that later writes through null
   (S5.3b). `MaybeUninit::assume_init`/`assume_init_drop` and
   `ManuallyDrop::take`/`destroy` are `unsafe func` (S2.6b), so uninitialized
-  reads and manual ownership transfer require an explicit unsafe block. `Option::take` requires `&mut self` (S1.9a), so it cannot rewrite a
+  reads and manual ownership transfer require an explicit unsafe block.
+  `UnsafeCell::get_ref` is `unsafe func` (S2.6c); tracked `RefCell` borrows
+  wrap it internally. `Option::take` requires `&mut self` (S1.9a), so it cannot rewrite a
   shared/immutable binding. `unordered_map`/`ordered_map` check bucket-growth arithmetic and
   table/node allocations, and `ordered_map` seeds its first table at 16
   buckets (S5.3c). Self-aliasing `string` append records and re-bases the

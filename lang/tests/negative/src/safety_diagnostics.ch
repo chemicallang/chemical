@@ -484,6 +484,13 @@ func neg_mutex_not_sync_when_inner_is_not_send(env : &mut TestEnv) {
 }
 
 @test
+func neg_unsafe_cell_get_ref_requires_unsafe(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var c = std::unsafe_cell(1)\n    var r = c.get_ref()\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "unsafe_cell_safe_get_ref", ch, "requires an unsafe block", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_maybe_uninit_assume_init_requires_unsafe(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "public func main() : int {\n    var m = std::maybe_uninit<int>()\n    var x = m.assume_init()\n    return x\n}\n"

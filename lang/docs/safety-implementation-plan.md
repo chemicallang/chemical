@@ -228,6 +228,11 @@
 >   it after growth, so `s.append_view(&s.to_view())` remains valid across
 >   reallocation. Tested by doubling a heap-backed string and comparing both
 >   halves.
+> - S2.6c `UnsafeCell::get_ref` unsafe: the shared-reference accessor could
+>   hand out `&T` while another path mutates the cell, so it is now
+>   `unsafe func`; `RefCell::Ref::get` wraps its tracked borrow in `unsafe`, and
+>   the Cell test uses `unsafe` explicitly. A negative test proves a safe call
+>   is rejected.
 > - S2.6b `MaybeUninit`/`ManuallyDrop` unsafe operations: `MaybeUninit::
 >   assume_init`/`assume_init_drop` and `ManuallyDrop::take`/`destroy` are now
 >   `unsafe func`, so safe code cannot read uninitialized storage or move/drop a

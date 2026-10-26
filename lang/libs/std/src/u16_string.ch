@@ -120,6 +120,10 @@ public struct u16string {
     func move_const_to_buffer(&mut self) {
         const d = storage.constant.data;
         const length = storage.constant.length;
+        // The inline buffer has room for the units plus the terminator.
+        if(length >= U16_STR_BUFF_SIZE) {
+            panic("u16_string constant does not fit the inline buffer")
+        }
         unsafe {
             for(var i = 0; i < length; i++) {
                 storage.sso.buffer[i] = d[i];
@@ -222,8 +226,14 @@ public struct u16string {
         }
         switch(state) {
             '0' => {
-                move_const_to_buffer();
-                storage.sso.buffer[index] = value;
+                // A constant may be longer than the inline buffer; let
+                // ensure_mut choose SSO or heap storage before writing.
+                ensure_mut(size());
+                if(state == '1') {
+                    storage.sso.buffer[index] = value;
+                } else {
+                    storage.heap.data[index] = value;
+                }
             }
             '1' => {
                 storage.sso.buffer[index] = value;
@@ -257,6 +267,12 @@ public struct u16string {
     func append_with_len(&mut self, value : *u16, len : size_t) {
         // offset, where we start writing
         const offset = size()
+        // `ensure_mut` rejects lengths above this limit; checking here keeps
+        // `offset + len` and `len * 2` from wrapping before that check.
+        const max_units = (((0 as size_t) - 1) - 2) / 2
+        if(offset >= max_units || len > max_units - offset - 1) {
+            panic("u16_string length overflow")
+        }
         // the size of the string, after we've written
         const new_size = offset + len
         // +1 for null terminator
@@ -579,10 +595,16 @@ public struct u16string {
             storage.heap.length = sz - 1;
             storage.heap.data[sz - 1] = 0u16;
         } else {
-            // constant -> move to buffer then pop
-            move_const_to_buffer();
-            storage.sso.length = (sz - 1) as uchar;
-            storage.sso.buffer[sz - 1] = 0u16;
+            // A constant view may be longer than the inline buffer, so let
+            // ensure_mut pick SSO or heap storage before dropping the last unit.
+            ensure_mut(sz);
+            if(state == '1') {
+                storage.sso.length = (sz - 1) as uchar;
+                storage.sso.buffer[sz - 1] = 0u16;
+            } else {
+                storage.heap.length = sz - 1;
+                storage.heap.data[sz - 1] = 0u16;
+            }
         }
     }
 
@@ -623,8 +645,11 @@ public struct u16string {
     func mutable_data(&mut self) : *mut u16 {
         switch(state) {
             '0' => {
-                move_const_to_buffer();
-                return &raw mut storage.sso.buffer[0];
+                ensure_mut(size());
+                if(state == '1') {
+                    return &raw mut storage.sso.buffer[0];
+                }
+                return storage.heap.data;
             }
             '1' => {
                 return &raw mut storage.sso.buffer[0];

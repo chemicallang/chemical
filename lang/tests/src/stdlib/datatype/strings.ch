@@ -131,6 +131,35 @@ func test_strings() {
         var out = s.substr(1, (0 as size_t) - 1)
         return out.size() == 2 && out.get(0) == 66u16 && out.get(1) == 67u16
     })
+    test("string set copies a long constant view to heap storage", () => {
+        var a : [40]char
+        a[0] = 'a'
+        a[1] = 'b'
+        a[2] = 'c'
+        a[3] = '\0'
+        var s = std::string(&raw mut a[0], 39, false)
+        s.set(0, 'X')
+        return s.size() == 39 && s.get(0) == 'X' && s.get(1) == 'b'
+    })
+    test("u16 string set copies a long constant view to heap storage", () => {
+        var a : [12]u16 = [65u16, 66u16, 67u16, 68u16, 69u16, 70u16, 71u16, 72u16, 73u16, 74u16, 75u16, 0u16]
+        var s = std::u16string(&raw mut a[0], 11, false)
+        s.set(0, 90u16)
+        return s.size() == 11 && s.get(0) == 90u16 && s.get(1) == 66u16
+    })
+    test("u16 string mutable_data copies a long constant view to heap storage", () => {
+        var a : [12]u16 = [65u16, 66u16, 67u16, 68u16, 69u16, 70u16, 71u16, 72u16, 73u16, 74u16, 75u16, 0u16]
+        var s = std::u16string(&raw mut a[0], 11, false)
+        var p = s.mutable_data()
+        p[0] = 90u16
+        return s.size() == 11 && s.get(0) == 90u16
+    })
+    test("u16 string pop_back copies a long constant view to heap storage", () => {
+        var a : [12]u16 = [65u16, 66u16, 67u16, 68u16, 69u16, 70u16, 71u16, 72u16, 73u16, 74u16, 75u16, 0u16]
+        var s = std::u16string(&raw mut a[0], 11, false)
+        s.pop_back()
+        return s.size() == 10 && s.get(0) == 65u16 && s.get(9) == 74u16
+    })
     test("string erase clamps a huge length without wrapping", () => {
         var s = string("abcdef")
         s.erase(2, (0 as size_t) - 1)

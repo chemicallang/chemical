@@ -242,6 +242,10 @@ public struct string {
     func move_const_to_buffer(&mut self) {
         const d = storage.constant.data;
         const length = storage.constant.length;
+        // The inline buffer has room for the bytes plus the terminator.
+        if(length >= STR_BUFF_SIZE) {
+            panic("string constant does not fit the inline buffer")
+        }
         unsafe {
             if(d != null) {
                 for(var i = 0; i < length; i++) {
@@ -348,8 +352,14 @@ public struct string {
         }
         switch(state) {
             '0' => {
-                move_const_to_buffer();
-                storage.sso.buffer[index] = value;
+                // A constant may be longer than the inline buffer; let
+                // ensure_mut choose SSO or heap storage before writing.
+                ensure_mut(size());
+                if(state == '1') {
+                    storage.sso.buffer[index] = value;
+                } else {
+                    storage.heap.data[index] = value;
+                }
             }
             '1' => {
                 storage.sso.buffer[index] = value;

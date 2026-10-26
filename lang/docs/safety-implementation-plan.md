@@ -277,6 +277,14 @@
 >   exactly once. The legacy `std::replace`/`std::swap` names delegate to the
 >   new implementations. Tests cover destructor-bearing structs, heap strings,
 >   the compatibility aliases, and forgetting.
+> - S5.3m long constant mutation: `string::set` and `u16string::set` send a
+>   long constant view through `ensure_mut` before writing, instead of copying
+>   it into the fixed SSO buffer; `u16string::pop_back` and `mutable_data` do
+>   the same, `move_const_to_buffer` rejects a length that does not fit, and
+>   `append_with_len` checks `offset + len`/`len * 2` before growing.
+>   `string::move_const_to_buffer` has the same defensive length check. Tests
+>   cover string/u16 set, u16 `mutable_data`, and a u16 constant view longer
+>   than the inline buffer.
 > - S5.3l string erase overflow: `string::erase` clamps the erase length with
 >   `len > size - start` instead of `start + len > size`, so a caller-supplied
 >   huge length cannot wrap and move/erase past the string. It also requests

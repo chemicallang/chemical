@@ -212,7 +212,10 @@ Next:
   `std::mem.replace`/`swap` move values without re-initializing memory and
   `std::mem.forget` suppresses a destructor; the legacy `std::replace`/`swap`
   names delegate to them (S3.0a). `string::erase` clamps with subtraction so
-  a huge length cannot wrap and move past the end (S5.3l).
+  a huge length cannot wrap and move past the end (S5.3l). Long constant
+  `u16string` views move through heap storage on `pop_back`/`set`/
+  `mutable_data`, and u16 append length arithmetic is overflow-checked
+  (S5.3m).
   Dynamic fixed-array indices (S5.4c) are guarded in MIR lowering with
   `index < length` (zero-extended to u64, so negative indices fail) on reads and
   stores; failure calls `abort` and then `Unreachable`. Pointer/vector/operator

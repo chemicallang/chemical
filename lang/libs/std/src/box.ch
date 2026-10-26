@@ -27,10 +27,16 @@ public struct Box<T> {
     }
 
     public func get(&self) : &T {
+        if(self.ptr == null) {
+            panic("Box is empty")
+        }
         return unsafe(&*self.ptr)
     }
 
     public func get_mut(&mut self) : &mut T {
+        if(self.ptr == null) {
+            panic("Box is empty")
+        }
         return unsafe(&mut *self.ptr)
     }
 
@@ -44,6 +50,9 @@ public struct Box<T> {
 
     /** Move the value out of the box and free its storage. */
     public func into_inner(&mut self) : T {
+        if(self.ptr == null) {
+            panic("Box is empty")
+        }
         var out = zeroed:unsafe<T>()
         unsafe {
             memcpy(&raw mut out, self.ptr as *mut void, sizeof(T))

@@ -228,6 +228,9 @@
 >   it after growth, so `s.append_view(&s.to_view())` remains valid across
 >   reallocation. Tested by doubling a heap-backed string and comparing both
 >   halves.
+> - S1.8d `Box` moved-from guards: `into_inner` sets the box to empty, and
+>   subsequent `get`/`get_mut`/`into_inner` calls panic instead of dereferencing
+>   null. A runtime safety test covers a second `into_inner`.
 > - S2.6c `UnsafeCell::get_ref` unsafe: the shared-reference accessor could
 >   hand out `&T` while another path mutates the cell, so it is now
 >   `unsafe func`; `RefCell::Ref::get` wraps its tracked borrow in `unsafe`, and

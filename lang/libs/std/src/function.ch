@@ -58,6 +58,9 @@ public struct default_function_instance {
             // we are going to need to allocate the lambda on heap, its too big
             // TODO: malloc call should take alignment malloc(size_data, align_data)
             var allocated = malloc(size_data) as *mut char
+            if(allocated == null) {
+                panic("function capture allocation failed")
+            }
             memcpy(allocated, captured, size_data)
             return default_function_instance {
                 fn_pointer : ptr,

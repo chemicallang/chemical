@@ -358,6 +358,13 @@
 >   destructor. `Mutex<T>` is `Send`/`Sync` when `T: Send` through conditional
 >   unsafe impls; guards stay thread-bound (raw pointers). Tests cover
 >   exclusion, try-lock failure, release on scope exit, and auto-trait bounds.
+> - S1.6f `std::RwLock<T>` / read-write guards: multiple concurrent readers or
+>   one exclusive writer, `read`/`try_read`/`write`/`try_write`, `get_mut`, and
+>   guards that release from their destructor. Storage is a native
+>   `pthread_rwlock_t` on POSIX and an `SRWLOCK` on Windows. `RwLock<T>` is
+>   `Send` when `T: Send` and `Sync` when `T: Send + Sync`; tests cover shared
+>   readers, writer exclusion, release on scope exit, mutation visibility, and
+>   the auto-trait bounds.
 > - S1.6d `std::RefCell<T>`: runtime borrow tracking with `try_borrow` /
 >   `try_borrow_mut` returning `Option<Ref<T>>` / `Option<RefMut<T>>` instead
 >   of panicking. Guards release the state from their destructors, shared

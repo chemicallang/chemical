@@ -167,7 +167,10 @@ Next:
   `try_borrow`/`try_borrow_mut` guards (`Ref`/`RefMut`) that release on drop;
   it is `!Sync` and `Send` follows `T`. `std::Mutex<T>` (S1.6e) adds
   OS-mutex-backed `lock`/`try_lock` with an unlock-on-drop `MutexGuard`, and is
-  `Send`/`Sync` when `T: Send`. `std::Arc<T>`/`ArcWeak<T>` (S1.8c) add
+  `Send`/`Sync` when `T: Send`. `std::RwLock<T>` (S1.6f) adds shared-reader /
+  exclusive-writer guards (`pthread_rwlock_t` on POSIX, `SRWLOCK` on Windows);
+  it is `Send` when `T: Send` and `Sync` when `T: Send + Sync`, and guards
+  release on drop. `std::Arc<T>`/`ArcWeak<T>` (S1.8c) add
   thread-safe shared ownership with mutex-protected counts (atomic swap later),
   unique-owner `get_mut`/`try_unwrap`, and are `Send`/`Sync` when
   `T: Send + Sync`. Static constant indices into fixed arrays are checked at

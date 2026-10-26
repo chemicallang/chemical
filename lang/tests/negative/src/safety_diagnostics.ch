@@ -484,6 +484,27 @@ func neg_mutex_not_sync_when_inner_is_not_send(env : &mut TestEnv) {
 }
 
 @test
+func rwlock_is_send_and_sync_when_inner_qualifies(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send + Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var rw = std::new_rwlock(1)\n    var h = Holder<std::RwLock<int>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_output_not_contains(env, "rwlock_send_sync", ch, "does not satisfy", NEG_MOD_STD_CORE)
+}
+
+@test
+func rwlock_is_send_when_inner_is_send(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\npublic func main() : int {\n    var rw = std::new_rwlock(std::unsafe_cell(1))\n    var h = Holder<std::RwLock<std::UnsafeCell<int>>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_output_not_contains(env, "rwlock_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_rwlock_not_sync_when_inner_is_not_sync(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var rw = std::new_rwlock(std::unsafe_cell(1))\n    var h = Holder<std::RwLock<std::UnsafeCell<int>>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "rwlock_inner_not_sync", ch, "does not satisfy", NEG_MOD_STD_CORE)
+}
+
+@test
 func arc_is_send_and_sync_when_inner_qualifies(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send + Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var a = std::arc(1)\n    var h = Holder<std::Arc<int>> { data = null }\n    return h.check()\n}\n"

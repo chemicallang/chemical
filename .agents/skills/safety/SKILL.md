@@ -185,7 +185,9 @@ Next:
   `loc >= size()` (S5.4e); `deque::get_ptr` rejects `index >= size()` and its
   block growth checks capacity/allocation (S5.4f). `vector` and
   `string` capacity/length growth is overflow-checked (S5.3a), including the
-  string NUL byte and capacity doubling.
+  string NUL byte and capacity doubling. `new T` and `std::box` reject a null
+  `malloc` result instead of returning an owner that later writes through null
+  (S5.3b).
   Dynamic fixed-array indices (S5.4c) are guarded in MIR lowering with
   `index < length` (zero-extended to u64, so negative indices fail) on reads and
   stores; failure calls `abort` and then `Unreachable`. Pointer/vector/operator

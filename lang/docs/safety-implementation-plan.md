@@ -287,6 +287,13 @@
 >   assignment after move). Tests cover double move and field access after a
 >   move. The tracker still runs at symbol-resolution time; replacing it with
 >   MIR move/init dataflow remains M3.1–M3.6.
+> - S3.2b array index moves: moving a destructor-bearing element out of an
+>   array by index is rejected with `SAFE-MOVE-001`, for both constant and
+>   dynamic indices. This closes the copy-out/double-drop hole (`var x =
+>   arr[i]` used to bitwise-copy the element while the array still ran its
+>   element destructors). Whole-array moves, field reads (`arr[i].field`), and
+>   `Copy` element indexing remain allowed. Field-wise drop elaboration for
+>   partial array moves is still pending.
 > - S3.1a move-path trees: every owned place (a destructor-bearing aggregate or
 >   an array of one) now gets a `MIRMovePathNode` tree for its owned fields and
 >   fixed-array elements. Link fields use `MIR_INVALID_ID` for "none" (path 0 is

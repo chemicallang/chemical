@@ -78,6 +78,27 @@ func array_of_destructible_elements_allowed(env : &mut TestEnv) {
 }
 
 @test
+func neg_move_out_of_array_dynamic_index(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    var arr : [2]DT = [DT { x : 1 }, DT { x : 2 }]\n    var idx = 0\n    var moved = arr[idx]\n    return moved.x\n}\n"
+    expect_compile_error(env, "move_out_of_array_dynamic", ch, "SAFE-MOVE-001")
+}
+
+@test
+func neg_move_out_of_array_constant_index(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    var arr : [2]DT = [DT { x : 1 }, DT { x : 2 }]\n    var moved = arr[0]\n    return moved.x\n}\n"
+    expect_compile_error(env, "move_out_of_array_constant", ch, "SAFE-MOVE-001")
+}
+
+@test
+func array_index_copy_is_allowed(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var arr : [2]int = [1, 2]\n    var idx = 0\n    var copied = arr[idx]\n    return copied\n}\n"
+    expect_compile_success(env, "array_index_copy_allowed", ch)
+}
+
+@test
 func neg_move_unknown_type(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct S {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nfunc main() {\n    var a = S { x : 1 }\n    var b = a\n    b = a\n}\n"

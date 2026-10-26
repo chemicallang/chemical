@@ -4206,6 +4206,32 @@ bool SymResLinkBody::mark_moved_value(
             check_implicit_constructors
         );
     }
+    // Moving an element out of an array by index is not representable: the
+    // element would be copied out while the array still runs its element
+    // destructors. Copy elements and field reads remain fine; owned elements
+    // must be moved as a whole array or replaced in place.
+    const bool is_index_expression =
+        value.kind() == ValueKind::IndexOperator ||
+        (value.kind() == ValueKind::AccessChain &&
+         !value.as_access_chain_unsafe()->values.empty() &&
+         value.as_access_chain_unsafe()->values.back()->kind() == ValueKind::IndexOperator);
+    if(is_index_expression) {
+        const auto index_type = value.getType();
+        if(index_type) {
+            const auto canonical_index_type = index_type->canonical();
+            const auto index_linked = canonical_index_type
+                ? canonical_index_type->get_direct_linked_node()
+                : nullptr;
+            if(index_linked && ASTNode::isMembersContainer(index_linked->kind())) {
+                const auto index_container = index_linked->as_members_container_unsafe();
+                if(index_container->destructor_func() != nullptr) {
+                    auto& diag = diagnoser.error(&value).with_code("SAFE-MOVE-001");
+                    diag << "cannot move an element out of an array by index; use a Copy/Clone value or std::replace";
+                    return false;
+                }
+            }
+        }
+    }
     switch(value.kind()) {
         case ValueKind::AccessChain:
             if(value.as_access_chain_unsafe()->values.back()->kind() == ValueKind::FunctionCall) {

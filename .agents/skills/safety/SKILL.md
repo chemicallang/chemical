@@ -74,6 +74,10 @@ Implemented:
   `unsafe(...)` is not an opt-out: the negative suite proves an uninitialized
   move inside `unsafe` is still rejected, and conditional-init use is rejected.
   `MIRTests` is `4563 checks`.
+- S3.2b array index moves: `var x = arr[i]` (and `arr[0]`) is rejected with
+  `SAFE-MOVE-001` when the element owns a destructor; the old lowering copied
+  the element out while the array still dropped it (double free). Whole-array
+  moves, `arr[i].field` reads, and `Copy` elements are still allowed.
 
 - M1 started: `&'a T` / `&'a mut T` reference lifetimes are parsed and carried
   on `ReferenceType` (S1.1a). `func <'a, T>`, `struct Foo<'a>`, and

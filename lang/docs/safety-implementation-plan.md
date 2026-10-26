@@ -270,6 +270,10 @@
 >   `None` through a shared reference, so a safe API could mutate an immutable
 >   binding (and alias a live shared borrow). A negative test proves an immutable
 >   receiver is rejected; existing callers already hold mutable locals/fields.
+> - S5.3i string substring: `string::substring` requires
+>   `start <= end <= size()` (so `copy`/substring slices cannot underflow or
+>   read past the string), checks `actual_len * 2` overflow, and rejects a null
+>   heap allocation. Runtime safety tests cover both invalid ranges.
 > - S5.4a static array bounds: a constant index into a fixed-size array is
 >   checked at type verification against the declared length and rejected with
 >   `SAFE-BOUNDS-001`, on reads and assignment LHS alike.

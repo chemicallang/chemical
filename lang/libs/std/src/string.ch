@@ -572,6 +572,9 @@ public struct string {
     }
 
     func substring(&self, start : size_t, end : size_t) : string {
+        if(start > end || end > size()) {
+            panic("string substring out of bounds")
+        }
         var s : string
         unsafe {
             const actual_len : size_t = end - start;
@@ -585,8 +588,14 @@ public struct string {
                 s.storage.sso.buffer[actual_len] = '\0'
             } else {
                 s.state = '2'
+                if(actual_len > ((0 as size_t) - 1) / 2) {
+                    panic("string capacity overflow")
+                }
                 const new_cap = actual_len * 2
                 var new_heap = malloc(new_cap) as *mut char
+                if(new_heap == null) {
+                    panic("string allocation failed")
+                }
                 const d = data()
                 for(var i = 0; i < actual_len; i++) {
                     new_heap[i] = d[start + i]

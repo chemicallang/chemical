@@ -310,6 +310,20 @@ func compound_field_division_by_zero_panics(env : &mut TestEnv) {
 }
 
 @test
+func string_substring_start_after_end_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var s = std::string(\"abc\")\n    var out = s.substring(2, 1)\n    return 0\n}\n"
+    expect_runtime_panic(env, "string_substring_start_after_end_panics", ch)
+}
+
+@test
+func string_substring_end_past_size_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var s = std::string(\"abc\")\n    var out = s.substring(0, 4)\n    return 0\n}\n"
+    expect_runtime_panic(env, "string_substring_end_past_size_panics", ch)
+}
+
+@test
 func string_bounds_read_panics(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "public func main() : int {\n    var s = std::string(\"abc\")\n    return s.get(3) as int\n}\n"

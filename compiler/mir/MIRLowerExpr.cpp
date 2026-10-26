@@ -233,6 +233,13 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 return lower_operator_overload(e->firstValue, lhs, e->secondValue, rhs, method,
                                                e->getType(), error);
             }
+            const TypeId operand_type = lhs.type != MIR_INVALID_ID ? lhs.type : type;
+            if (bop == MIRBinaryOp::Div || bop == MIRBinaryOp::Rem) {
+                emit_division_check(static_cast<ValueId>(lhs.id),
+                                    static_cast<ValueId>(rhs.id), operand_type, bop);
+            } else if (bop == MIRBinaryOp::Shl || bop == MIRBinaryOp::Shr) {
+                emit_shift_check(static_cast<ValueId>(rhs.id), operand_type);
+            }
             ConstantId opc = module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(bop));
             if (op == MIROpcode::Compare) {
                 return MIRExprResult::value(builder_->compare(lhs.id, rhs.id, opc, type), type);
@@ -1937,6 +1944,83 @@ void MIRLowerer::emit_array_index_bounds_check(const MIRExprResult& base,
     builder_->call_scalar(abort_sym, void_t, nullptr, 0);
     builder_->unreachable();
     builder_->set_block(ok_b);
+}
+
+
+void MIRLowerer::emit_abort_unless(ValueId condition) {
+    const BlockId ok_b = builder_->create_block();
+    const BlockId abort_b = builder_->create_block();
+    builder_->cond_br(condition, ok_b, abort_b);
+    builder_->set_block(abort_b);
+    const TypeId void_t = types_.void_type();
+    const TypeId abort_ft = types_.function_signature(void_t, {});
+    const SymbolId abort_sym = extern_symbol("abort", abort_ft);
+    builder_->call_scalar(abort_sym, void_t, nullptr, 0);
+    builder_->unreachable();
+    builder_->set_block(ok_b);
+}
+
+void MIRLowerer::emit_division_check(ValueId lhs, ValueId rhs, TypeId type,
+                                     MIRBinaryOp op) {
+    if (type == MIR_INVALID_ID || type >= module_.types.size()) return;
+    const MIRTypeRecord& rec = module_.types.get(type);
+    if (rec.kind != MIRTypeKind::Int) return; // floats have defined Inf/NaN results
+
+    const TypeId bool_t = types_.bool_type();
+    const ConstantId ne = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Ne));
+    const ConstantId eq = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq));
+    const ConstantId band = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::BitAnd));
+    const ValueId zero = builder_->const_int(type, module_.constants.add_int(type, 0));
+    const ValueId nonzero = builder_->compare(rhs, zero, ne, bool_t);
+    emit_abort_unless(nonzero);
+
+    if ((rec.flags & TF_SIGNED) == 0) return;
+    // Signed MIN / -1 traps (the only signed division overflow).
+    if (op != MIRBinaryOp::Div && op != MIRBinaryOp::Rem) return;
+    const ValueId minus_one = builder_->const_int(
+        type, module_.constants.add_int(type, ~static_cast<uint64_t>(0)));
+    const uint32_t bits = rec.size * 8u;
+    const uint64_t min_bits = bits >= 64u ? (1ull << 63u) : (1ull << (bits - 1u));
+    const ValueId min_value = builder_->const_int(
+        type, module_.constants.add_int(type, min_bits));
+    const ValueId rhs_is_minus_one = builder_->compare(rhs, minus_one, eq, bool_t);
+    const ValueId lhs_is_min = builder_->compare(lhs, min_value, eq, bool_t);
+    const ValueId overflow = builder_->binary(rhs_is_minus_one, lhs_is_min, band, bool_t);
+    const ValueId safe = builder_->compare(overflow, builder_->const_bool(
+        bool_t, module_.constants.add_bool(bool_t, false)), eq, bool_t);
+    emit_abort_unless(safe);
+}
+
+void MIRLowerer::emit_shift_check(ValueId amount, TypeId type) {
+    if (type == MIR_INVALID_ID || type >= module_.types.size()) return;
+    const MIRTypeRecord& rec = module_.types.get(type);
+    if (rec.kind != MIRTypeKind::Int) return;
+    TypeId amount_type = type;
+    if (amount < builder_->function().values.size()) {
+        const TypeId at = builder_->function().values[amount].type;
+        if (at != MIR_INVALID_ID && at < module_.types.size()) amount_type = at;
+    }
+    const MIRTypeRecord& amount_rec = module_.types.get(amount_type);
+    if (amount_rec.kind != MIRTypeKind::Int) return;
+    const TypeId bool_t = types_.bool_type();
+    const ConstantId lt = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt));
+    const ConstantId ge = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Ge));
+    if ((amount_rec.flags & TF_SIGNED) != 0) {
+        const ValueId zero = builder_->const_int(
+            amount_type, module_.constants.add_int(amount_type, 0));
+        const ValueId non_negative = builder_->compare(amount, zero, ge, bool_t);
+        emit_abort_unless(non_negative);
+    }
+    const ValueId width = builder_->const_int(
+        amount_type, module_.constants.add_int(
+            amount_type, static_cast<uint64_t>(rec.size) * 8u));
+    const ValueId in_range = builder_->compare(amount, width, lt, bool_t);
+    emit_abort_unless(in_range);
 }
 
 } // namespace mir

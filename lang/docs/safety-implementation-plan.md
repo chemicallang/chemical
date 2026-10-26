@@ -219,6 +219,12 @@
 >   declaration, and the interpreter maps it to `host_abort`. Pointer, vector,
 >   and struct/operator indexing keep their own checks. Safety-suite runtime
 >   tests cover dynamic read and store overruns.
+> - S5.5a division/shift checks: integer `/` and `%` reject a zero divisor and
+>   signed `MIN / -1` overflow; `<<`/`>>` reject a negative amount or an amount
+>   >= the operand bit width. Checks are MIR `Compare` + `CondBr` + `abort` +
+>   `Unreachable`, so TCC, LLVM, and the interpreter share them; float division
+>   keeps its defined Inf/NaN behavior. Runtime safety tests cover all five
+>   cases. Debug `+`/`-`/`*` overflow and unary negation remain pending.
 > - S5.4b vector runtime bounds: `vector::get`, `get_ptr`, `get_ref`,
 >   `get_mut`, `set`, `remove`, `remove_last`, `take_last`, and `last_ptr`
 >   reject out-of-range or empty access with `vector index out of bounds` /

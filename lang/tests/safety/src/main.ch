@@ -205,6 +205,41 @@ func safety_runtime_panic_harness(env : &mut TestEnv) {
 }
 
 @test
+func division_by_zero_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var z = 0\n    return 10 / z\n}\n"
+    expect_runtime_panic(env, "division_by_zero_panics", ch)
+}
+
+@test
+func remainder_by_zero_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var z = 0\n    return 10 % z\n}\n"
+    expect_runtime_panic(env, "remainder_by_zero_panics", ch)
+}
+
+@test
+func shift_out_of_range_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var s = 64\n    return 1 << s\n}\n"
+    expect_runtime_panic(env, "shift_out_of_range_panics", ch)
+}
+
+@test
+func negative_shift_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "func get_shift() : int { return -1 }\npublic func main() : int {\n    var s = get_shift()\n    return 1 << s\n}\n"
+    expect_runtime_panic(env, "negative_shift_panics", ch)
+}
+
+@test
+func signed_division_overflow_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var a : i64 = -9223372036854775807 - 1\n    var b : i64 = -1\n    return (a / b) as int\n}\n"
+    expect_runtime_panic(env, "signed_division_overflow_panics", ch)
+}
+
+@test
 func array_bounds_dynamic_read_panics(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "public func main() : int {\n    var a : [3]int = [1, 2, 3]\n    var i = 3\n    return a[i]\n}\n"

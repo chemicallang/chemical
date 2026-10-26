@@ -606,6 +606,15 @@ private:
      * element type, so every dimension is checked.
      */
     void emit_array_index_bounds_check(const MIRExprResult& base, const MIRExprResult& index);
+
+    /** Branch to an `abort()` call and `Unreachable` unless `condition` is true. */
+    void emit_abort_unless(ValueId condition);
+
+    /** Reject integer division/remainder by zero and signed MIN / -1. */
+    void emit_division_check(ValueId lhs, ValueId rhs, TypeId type, MIRBinaryOp op);
+
+    /** Reject shifts whose amount is negative or >= the type's bit width. */
+    void emit_shift_check(ValueId amount, TypeId type);
     /** Emit a `malloc(size)` call yielding `ptr_t`. */
     ValueId emit_malloc(TypeId size_v, TypeId u64t, TypeId ptr_t);
     /** Emit a `free(ptr)` call. */

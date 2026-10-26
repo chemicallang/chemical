@@ -205,6 +205,27 @@ func safety_runtime_panic_harness(env : &mut TestEnv) {
 }
 
 @test
+func vector_capacity_overflow_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var v = std::vector<int>()\n    v.reserve((0 as size_t) - 1)\n    return 0\n}\n"
+    expect_runtime_panic(env, "vector_capacity_overflow_panics", ch)
+}
+
+@test
+func string_capacity_overflow_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var s = std::string(\"x\")\n    s.reserve((0 as size_t) - 1)\n    return 0\n}\n"
+    expect_runtime_panic(env, "string_capacity_overflow_panics", ch)
+}
+
+@test
+func string_length_overflow_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var s = std::string(\"x\")\n    s.resize((0 as size_t) - 1)\n    return 0\n}\n"
+    expect_runtime_panic(env, "string_length_overflow_panics", ch)
+}
+
+@test
 func compound_division_by_zero_panics(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "public func main() : int {\n    var x = 10\n    x /= 0\n    return x\n}\n"

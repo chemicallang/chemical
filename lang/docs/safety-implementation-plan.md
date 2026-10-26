@@ -208,6 +208,12 @@
 >   on a generic `T: Clone` still hits the pre-existing generic-interface
 >   method-resolution limitation (the same issue as bound methods on generic
 >   fields), so that remains pending.
+> - S5.3a container capacity overflow: `vector::reserve` rejects a capacity
+>   whose byte size would overflow and `ensure_capacity_for_one_more` guards
+>   the doubling; `string::move_data_to_heap`/`resize_heap` guard the trailing
+>   NUL byte, `ensure_mut` guards growth, and `resize`/`append_with_len` guard
+>   length arithmetic. Runtime safety tests cover `reserve(SIZE_MAX)` on both
+>   containers and `string.resize(SIZE_MAX)`.
 > - S5.4a static array bounds: a constant index into a fixed-size array is
 >   checked at type verification against the declared length and rejected with
 >   `SAFE-BOUNDS-001`, on reads and assignment LHS alike.

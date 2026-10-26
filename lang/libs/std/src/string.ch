@@ -200,6 +200,9 @@ public struct string {
     }
 
     func resize(&mut self, value : size_t) {
+        if(value >= ((0 as size_t) - 1)) {
+            panic("string length overflow")
+        }
         ensure_mut(value + 1);
         switch(state) {
             '1' => {
@@ -245,6 +248,9 @@ public struct string {
     }
 
     func move_data_to_heap(&mut self, from_data : *char, length : size_t, capacity : size_t) {
+        if(capacity >= ((0 as size_t) - 1) || length > capacity) {
+            panic("string capacity overflow")
+        }
         // +1 is for safety, we need to add a null terminator (always)
         var d = malloc(capacity + 1) as *mut char
         memcpy(d, from_data, length)
@@ -258,6 +264,9 @@ public struct string {
     // this is a private function
     // new_capacity is always > length
     func resize_heap(&mut self, new_capacity : size_t) : bool {
+        if(new_capacity >= ((0 as size_t) - 1)) {
+            panic("string capacity overflow")
+        }
         // +1 for the null terminator
         var d = realloc(storage.heap.data, new_capacity + 1) as *mut char
         if(d == null) {
@@ -273,6 +282,9 @@ public struct string {
 
     // ensures that capacity is larger than length given and memory is mutable
     func ensure_mut(&mut self, length : size_t) {
+        if(length > ((0 as size_t) - 1) / 2) {
+            panic("string capacity overflow")
+        }
         if((state == '0' || state == '1') && length < STR_BUFF_SIZE) {
             if(state == '0') {
                 move_const_to_buffer();
@@ -364,6 +376,10 @@ public struct string {
     func append_with_len(&mut self, value : *char, len : size_t) {
         // offset, where we start writing
         const offset = size()
+        const max_size = (0 as size_t) - 1
+        if(offset >= max_size || len > max_size - offset - 1) {
+            panic("string length overflow")
+        }
         // the size of the string, after we've written
         const new_size = offset + len
         // +1 for null terminator

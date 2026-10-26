@@ -74,6 +74,13 @@ public struct vector<T> {
 
     func reserve(&mut self, new_cap : size_t) {
         if(new_cap <= data_cap) return;
+        const elem_size = sizeof(T)
+        if(elem_size != 0) {
+            const max_elems = ((0 as size_t) - 1) / elem_size
+            if(new_cap > max_elems) {
+                panic("vector capacity overflow")
+            }
+        }
         var new_data = realloc(data_ptr, (sizeof(T) * new_cap)) as *mut T;
         unsafe {
             if (new_data != null) {
@@ -89,6 +96,9 @@ public struct vector<T> {
         if (data_cap == 0) {
             reserve(2)
         } else {
+            if(data_cap > ((0 as size_t) - 1) / 2) {
+                panic("vector capacity overflow")
+            }
             reserve(data_cap * 2)
         }
     }

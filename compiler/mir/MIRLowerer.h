@@ -615,6 +615,9 @@ private:
 
     /** Reject shifts whose amount is negative or >= the type's bit width. */
     void emit_shift_check(ValueId amount, TypeId type);
+
+    /** Apply the division/shift guards for a compound assignment operator. */
+    void emit_compound_assignment_checks(MIRBinaryOp op, ValueId lhs, ValueId rhs, TypeId type);
     /** Emit a `malloc(size)` call yielding `ptr_t`. */
     ValueId emit_malloc(TypeId size_v, TypeId u64t, TypeId ptr_t);
     /** Emit a `free(ptr)` call. */

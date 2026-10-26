@@ -185,8 +185,9 @@ Next:
   stores; failure calls `abort` and then `Unreachable`. Pointer/vector/operator
   indexing is excluded because it has its own checks. Integer `/`/`%` guard
   zero and signed `MIN / -1`; `<<`/`>>` guard negative or `>= bit width`
-  shift amounts (S5.5a). Debug `+`/`-`/`*` overflow and unary negation remain
-  pending.
+  shift amounts (S5.5a), including compound `/=`, `%=`, `<<=`, `>>=` on
+  locals/globals/fields/derefs/elements. Debug `+`/`-`/`*` overflow and unary
+  negation remain pending.
   `Box::into_inner` frees storage without re-running the destructor. `unsafe func` (S2.6a) is parsed at top level and
   as a member, and calls from safe code are rejected; `unsafe(expr)`/`unsafe {}`
   are both unsafe call contexts. Next: partial-move/drop elaboration, then the

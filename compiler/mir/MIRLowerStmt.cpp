@@ -272,6 +272,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         const TypeId ft = types_.map(chain->values.back()->getType());
                         const ValueId cur = have_ptr ? builder_->field_load_ptr(cur_ptr, fc, ft)
                                                      : builder_->field_load(cur_place, fc, ft);
+                        emit_compound_assignment_checks(bop, cur,
+                                                        static_cast<ValueId>(r.id), ft);
                         const ConstantId opc = module_.constants.add_int(
                             MIR_INVALID_ID, static_cast<uint64_t>(bop));
                         if (abi::is_struct_like(module_, ft)) {
@@ -385,6 +387,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         MIR_INVALID_ID, static_cast<uint64_t>(bop));
                     const ValueId cur =
                         builder_->load_indirect(static_cast<ValueId>(p.id), et);
+                    emit_compound_assignment_checks(bop, cur,
+                                                    static_cast<ValueId>(r.id), et);
                     if (abi::is_struct_like(module_, et)) {
                         error = "compound dereference assignment operator overloading is not yet supported";
                         return false;
@@ -486,8 +490,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     return false;
                 }
                 ConstantId opc = MIR_INVALID_ID;
+                MIRBinaryOp bop = MIRBinaryOp::Add;
                 if (compound) {
-                    MIRBinaryOp bop = MIRBinaryOp::Add;
                     if (!compound_binary(as->assOp, bop)) {
                         error = "unsupported compound index assignment operator";
                         return false;
@@ -501,6 +505,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     if (compound) {
                         const ValueId cur =
                             builder_->element_load(bp, static_cast<ValueId>(idx.id), et);
+                        emit_compound_assignment_checks(bop, cur,
+                                                        static_cast<ValueId>(r.id), et);
                         val = builder_->binary(cur, r.id, opc, et);
                     }
                     builder_->element_store(bp, static_cast<ValueId>(idx.id), val);
@@ -510,6 +516,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     if (compound) {
                         const ValueId cur =
                             builder_->index_load(bv, static_cast<ValueId>(idx.id), et);
+                        emit_compound_assignment_checks(bop, cur,
+                                                        static_cast<ValueId>(r.id), et);
                         val = builder_->binary(cur, r.id, opc, et);
                     }
                     builder_->index_store(bv, static_cast<ValueId>(idx.id), val);
@@ -584,6 +592,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         const ConstantId opc = module_.constants.add_int(
                             MIR_INVALID_ID, static_cast<uint64_t>(bop));
                         const ValueId cur = builder_->load_indirect(addr, vt);
+                        emit_compound_assignment_checks(bop, cur, rv, vt);
                         const ValueId nv = builder_->binary(cur, rv, opc, vt);
                         builder_->store_indirect(addr, nv);
                         return true;
@@ -739,6 +748,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     return false;
                 }
                 const ValueId cur = builder_->load(place, place_type);
+                emit_compound_assignment_checks(bop, cur, val, place_type);
                 const ConstantId opc = module_.constants.add_int(
                     MIR_INVALID_ID, static_cast<uint64_t>(bop));
                 val = builder_->binary(cur, val, opc, place_type);

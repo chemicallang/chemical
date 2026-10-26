@@ -223,8 +223,11 @@
 >   signed `MIN / -1` overflow; `<<`/`>>` reject a negative amount or an amount
 >   >= the operand bit width. Checks are MIR `Compare` + `CondBr` + `abort` +
 >   `Unreachable`, so TCC, LLVM, and the interpreter share them; float division
->   keeps its defined Inf/NaN behavior. Runtime safety tests cover all five
->   cases. Debug `+`/`-`/`*` overflow and unary negation remain pending.
+>   keeps its defined Inf/NaN behavior. The same guards run for compound
+>   assignments (`/=`, `%=`, `<<=`, `>>=`) on locals, globals, fields,
+>   dereferences, and array elements. Runtime safety tests cover division,
+>   remainder, shift, signed overflow, and compound local/field/index cases.
+>   Debug `+`/`-`/`*` overflow and unary negation remain pending.
 > - S5.4d string bounds: `string::get`/`set`, `string_view::get`, and
 >   `u16_string::get`/`set` reject `index >= size()` with a panic. Runtime
 >   safety tests cover string read/write and `string_view` reads.

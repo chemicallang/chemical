@@ -205,6 +205,34 @@ func safety_runtime_panic_harness(env : &mut TestEnv) {
 }
 
 @test
+func compound_division_by_zero_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var x = 10\n    x /= 0\n    return x\n}\n"
+    expect_runtime_panic(env, "compound_division_by_zero_panics", ch)
+}
+
+@test
+func compound_shift_out_of_range_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var x = 1\n    x <<= 64\n    return x\n}\n"
+    expect_runtime_panic(env, "compound_shift_out_of_range_panics", ch)
+}
+
+@test
+func compound_index_division_by_zero_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var a : [2]int = [10, 20]\n    var i = 0\n    a[i] /= 0\n    return a[i]\n}\n"
+    expect_runtime_panic(env, "compound_index_division_by_zero_panics", ch)
+}
+
+@test
+func compound_field_division_by_zero_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "struct Holder {\n    var value : int\n}\npublic func main() : int {\n    var h = Holder { value : 10 }\n    h.value /= 0\n    return h.value\n}\n"
+    expect_runtime_panic(env, "compound_field_division_by_zero_panics", ch)
+}
+
+@test
 func string_bounds_read_panics(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "public func main() : int {\n    var s = std::string(\"abc\")\n    return s.get(3) as int\n}\n"

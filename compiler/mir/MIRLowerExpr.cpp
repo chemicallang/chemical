@@ -2023,4 +2023,14 @@ void MIRLowerer::emit_shift_check(ValueId amount, TypeId type) {
     emit_abort_unless(in_range);
 }
 
+
+void MIRLowerer::emit_compound_assignment_checks(MIRBinaryOp op, ValueId lhs,
+                                                 ValueId rhs, TypeId type) {
+    if (op == MIRBinaryOp::Div || op == MIRBinaryOp::Rem) {
+        emit_division_check(lhs, rhs, type, op);
+    } else if (op == MIRBinaryOp::Shl || op == MIRBinaryOp::Shr) {
+        emit_shift_check(rhs, type);
+    }
+}
+
 } // namespace mir

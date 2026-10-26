@@ -1,25 +1,14 @@
 public namespace std {
 /**
- * safer way to replace and move members, however impacts runtime performance
+ * Compatibility alias for `std::mem.replace`.
  */
 public func <T> replace(value : &mut T, repl : T) : T {
-    var temp : T
-    unsafe {
-        memcpy(&raw mut temp, &raw value, sizeof(T))
-        memcpy(&raw mut value, &raw repl, sizeof(T))
-        intrinsics::forget(repl)
-        return temp;
-    }
+    return mem.replace(value, repl)
 }
 
+/** Compatibility alias for `std::mem.swap`. */
 public func <T> swap(a : &mut T, b : &mut T) {
-    var temp : T
-    unsafe {
-        memcpy(&raw mut temp, &raw a, sizeof(T))
-        memcpy(&raw mut a, &raw b, sizeof(T))
-        memcpy(&raw mut b, &raw temp, sizeof(T))
-        intrinsics::forget(temp)
-    }
+    mem.swap(a, b)
 }
 
 public comptime const NPOS = (0 as size_t) - 1;

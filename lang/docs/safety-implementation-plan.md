@@ -270,6 +270,13 @@
 >   `None` through a shared reference, so a safe API could mutate an immutable
 >   binding (and alias a live shared borrow). A negative test proves an immutable
 >   receiver is rejected; existing callers already hold mutable locals/fields.
+> - S3.0a ownership utilities: `std::mem.replace` returns the old value while
+>   moving the replacement in, `std::mem.swap` exchanges two owned values, and
+>   `std::mem.forget` suppresses a destructor. They move through raw bytes and
+>   explicitly forget the moved-from temporary, so each value is dropped
+>   exactly once. The legacy `std::replace`/`std::swap` names delegate to the
+>   new implementations. Tests cover destructor-bearing structs, heap strings,
+>   the compatibility aliases, and forgetting.
 > - S5.3k hash-map node drop: `unordered_map`/`ordered_map` now run the node's
 >   generated destructor before freeing it in `delete`, `clear`, and `erase`
 >   (instead of explicitly destroying fields through a pointer, which MIR

@@ -4226,7 +4226,7 @@ bool SymResLinkBody::mark_moved_value(
                 const auto index_container = index_linked->as_members_container_unsafe();
                 if(index_container->destructor_func() != nullptr) {
                     auto& diag = diagnoser.error(&value).with_code("SAFE-MOVE-001");
-                    diag << "cannot move an element out of an array by index; use a Copy/Clone value or std::replace";
+                    diag << "cannot move an element out of an array by index; use a Copy/Clone value or std::mem::replace";
                     return false;
                 }
             }
@@ -4264,7 +4264,7 @@ bool SymResLinkBody::mark_moved_value(
             switch(value.kind()) {
                 case ValueKind::Identifier:
                     if(!is_movable(value.as_identifier_unsafe())) {
-                        diagnoser.error("cannot move this value without re-initializing memory, please use std::replace or similar function to fix this", &value);
+                        diagnoser.error("cannot move this value without re-initializing memory, please use std::mem::replace or a similar function to fix this", &value);
                         return false;
                     }
                     break;
@@ -4272,7 +4272,7 @@ bool SymResLinkBody::mark_moved_value(
                     auto chain = value.as_access_chain_unsafe();
                     const auto last_value = chain->values.back();
                     if (last_value->kind() == ValueKind::Identifier && !is_movable(last_value->as_identifier_unsafe())) {
-                        diagnoser.error("cannot move this value without re-initializing memory, please use std::replace or similar function to fix this", &value);
+                        diagnoser.error("cannot move this value without re-initializing memory, please use std::mem::replace or a similar function to fix this", &value);
                         return false;
                     }
                     break;
@@ -4304,7 +4304,7 @@ bool SymResLinkBody::mark_moved_value(
         switch(value.kind()) {
             case ValueKind::Identifier:
                 if(!is_movable(value.as_identifier_unsafe())) {
-                    diagnoser.error("cannot move this value without re-initializing memory, please use std::replace or similar function to fix this", &value);
+                    diagnoser.error("cannot move this value without re-initializing memory, please use std::mem::replace or a similar function to fix this", &value);
                     return false;
                 }
                 break;
@@ -4312,7 +4312,7 @@ bool SymResLinkBody::mark_moved_value(
                 auto chain = value.as_access_chain_unsafe();
                 const auto last_value = chain->values.back();
                 if (last_value->kind() == ValueKind::Identifier && !is_movable(last_value->as_identifier_unsafe())) {
-                    diagnoser.error("cannot move this value without re-initializing memory, please use std::replace or similar function to fix this", &value);
+                    diagnoser.error("cannot move this value without re-initializing memory, please use std::mem::replace or a similar function to fix this", &value);
                     return false;
                 }
                 break;

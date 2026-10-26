@@ -209,6 +209,9 @@ Next:
   allocation (S5.3i). `u16string::substr` clamps with subtraction and builds
   its result directly (S5.3j). Hash-map node deletion/replacement runs the
   generated node destructor so key/value drops are not skipped (S5.3k).
+  `std::mem.replace`/`swap` move values without re-initializing memory and
+  `std::mem.forget` suppresses a destructor; the legacy `std::replace`/`swap`
+  names delegate to them (S3.0a).
   Dynamic fixed-array indices (S5.4c) are guarded in MIR lowering with
   `index < length` (zero-extended to u64, so negative indices fail) on reads and
   stores; failure calls `abort` and then `Unreachable`. Pointer/vector/operator

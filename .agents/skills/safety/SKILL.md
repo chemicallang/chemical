@@ -193,7 +193,9 @@ Next:
   `UnsafeCell::get_ref` is `unsafe func` (S2.6c); tracked `RefCell` borrows
   wrap it internally. `Box` panics on `get`/`get_mut`/`into_inner` after
   `into_inner` emptied it (S1.8d); `Rc`/`Arc` and their weak handles panic on
-  use after `try_unwrap`/weak release (S1.8e). `deque::get_ref` returns `&T`
+  use after `try_unwrap`/weak release (S1.8e), and `get_mut` is blocked while
+  either another strong owner or a weak handle exists (S1.8f).
+  `deque::get_ref` returns `&T`
   and `get_mut` requires `&mut self` (S1.10b), matching `vector`. `Option::take` requires `&mut self` (S1.9a), so it cannot rewrite a
   shared/immutable binding. `unordered_map`/`ordered_map` check bucket-growth arithmetic and
   table/node allocations, and `ordered_map` seeds its first table at 16

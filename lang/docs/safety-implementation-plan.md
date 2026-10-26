@@ -232,6 +232,10 @@
 >   returned `&mut T` from `&self`), and `deque::get_mut` provides mutation with
 >   a mutable receiver. A negative test rejects `*d.get_ref(0) = ...`; a
 >   positive test covers `get_mut`.
+> - S1.8f `Rc`/`Arc::get_mut` weak-handle check: `get_mut` now requires both a
+>   single strong owner and zero weak handles, because a `Weak`/`ArcWeak` could
+>   otherwise upgrade while the mutable borrow is live. Tests cover a weak
+>   handle blocking `get_mut` for both owners.
 > - S1.8e `Rc`/`Arc` moved-from guards: after `try_unwrap` sets the owner to
 >   null, `clone`/`downgrade`/`get`/`strong_count`/`weak_count` panic instead of
 >   dereferencing null; `Weak`/`ArcWeak` count accessors do the same. Runtime

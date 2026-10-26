@@ -112,6 +112,22 @@ func arc_get_mut_requires_unique_owner(env : &mut TestEnv) {
 }
 
 @test
+func arc_get_mut_blocked_by_weak_handle(env : &mut TestEnv) {
+    arc_reset()
+    {
+        var a = std::arc(ArcCounter { value : 41 })
+        var w = a.downgrade()
+        var blocked = a.get_mut()
+        if(blocked is Option.Some) {
+            env.error("Arc::get_mut succeeded while a weak handle was alive")
+        }
+    }
+    if(arc_drops != 1) {
+        env.error("Arc::get_mut weak-handle check changed the drop count")
+    }
+}
+
+@test
 func arc_try_unwrap_with_weak_handle(env : &mut TestEnv) {
     arc_reset()
     {

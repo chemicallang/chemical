@@ -136,6 +136,22 @@ func rc_get_mut_requires_unique_owner(env : &mut TestEnv) {
 }
 
 @test
+func rc_get_mut_blocked_by_weak_handle(env : &mut TestEnv) {
+    rc_reset()
+    {
+        var a = std::rc(RcCounter { value : 41 })
+        var w = a.downgrade()
+        var blocked = a.get_mut()
+        if(blocked is Option.Some) {
+            env.error("Rc::get_mut succeeded while a weak handle was alive")
+        }
+    }
+    if(rc_drops != 1) {
+        env.error("Rc::get_mut weak-handle check changed the drop count")
+    }
+}
+
+@test
 func rc_weak_upgrades_while_alive(env : &mut TestEnv) {
     rc_reset()
     {

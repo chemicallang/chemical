@@ -149,7 +149,8 @@ public struct Arc<T> {
 
     /** Mutably access the value only when this is the sole strong owner. */
     public func get_mut(&mut self) : Option<&mut T> {
-        if(self.strong_count() != 1) {
+        // A weak handle could upgrade while the mutable borrow is live.
+        if(self.strong_count() != 1 || self.weak_count() != 0) {
             return Option.None<&mut T>()
         }
         return Option.Some<&mut T>(unsafe(&mut self.ptr.value.value))

@@ -218,6 +218,11 @@
 >   before returning a null pointer; `std::box` does the same for its direct
 >   allocation. (OOM cannot be forced in the ordinary test suite; the null check
 >   is covered by inspection and the allocation-heavy suites staying green.)
+> - S5.3c hash-map allocation/growth: `unordered_map` and `ordered_map` check
+>   the bucket-array capacity arithmetic, reject a null table/node allocation,
+>   and `ordered_map` seeds the first resize at 16 buckets (matching
+>   `unordered_map`) instead of allocating zero buckets. Allocation-heavy suites
+>   stay green; OOM itself is not force-testable.
 > - S5.4a static array bounds: a constant index into a fixed-size array is
 >   checked at type verification against the declared length and rejected with
 >   `SAFE-BOUNDS-001`, on reads and assignment LHS alike.

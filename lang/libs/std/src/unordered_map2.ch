@@ -32,6 +32,9 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
 
     // Resize and rehash
     func resize(&mut self) : void {
+        if(capacity > ((0 as size_t) - 1) / 2) {
+            panic("unordered_map capacity overflow")
+        }
         var newCapacity = capacity * 2;
         // The FIRST resize of an empty map doubles zero, which is still zero, so the
         // new table was a `malloc(0)` and `capacity` stayed 0. Every bucket index is
@@ -43,7 +46,13 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
         if(newCapacity == 0) {
             newCapacity = INITIAL_CAPACITY;
         }
+        if(newCapacity > ((0 as size_t) - 1) / sizeof(*mut unordered_map_node<Key, Value>)) {
+            panic("unordered_map capacity overflow")
+        }
         var newTable = malloc(newCapacity * sizeof(*mut unordered_map_node<Key, Value>)) as *mut *mut unordered_map_node<Key, Value>;
+        if(newTable == null) {
+            panic("failed to allocate unordered_map table")
+        }
 
         // Initialize new table to nullptr (empty buckets)
         memset(newTable, 0, newCapacity * sizeof(*mut unordered_map_node<Key, Value>));
@@ -73,6 +82,9 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
     func make() {
         const cap = 16u
         const allocated = malloc(cap * sizeof(*mut unordered_map_node<Key, Value>)) as *mut *mut unordered_map_node<Key, Value>;
+        if(allocated == null) {
+            panic("failed to allocate unordered_map table")
+        }
         memset(allocated, 0, cap * sizeof(*mut unordered_map_node<Key, Value>));
         return unordered_map<Key, Value> {
             table : allocated,
@@ -119,6 +131,9 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
 
         // Insert the new node at the front of the chain
         const newNode = malloc(sizeof(unordered_map_node<Key, Value>)) as *mut unordered_map_node<Key, Value>;
+        if(newNode == null) {
+            panic("failed to allocate unordered_map node")
+        }
         new (newNode) unordered_map_node<Key, Value> {
             key : key,
             value : value,

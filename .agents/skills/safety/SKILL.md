@@ -187,7 +187,9 @@ Next:
   `string` capacity/length growth is overflow-checked (S5.3a), including the
   string NUL byte and capacity doubling. `new T` and `std::box` reject a null
   `malloc` result instead of returning an owner that later writes through null
-  (S5.3b).
+  (S5.3b). `unordered_map`/`ordered_map` check bucket-growth arithmetic and
+  table/node allocations, and `ordered_map` seeds its first table at 16
+  buckets (S5.3c).
   Dynamic fixed-array indices (S5.4c) are guarded in MIR lowering with
   `index < length` (zero-extended to u64, so negative indices fail) on reads and
   stores; failure calls `abort` and then `Unreachable`. Pointer/vector/operator

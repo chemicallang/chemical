@@ -31,8 +31,20 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
     }
 
     func resize(&mut self) : void {
+        if(capacity > ((0 as size_t) - 1) / 2) {
+            panic("ordered_map capacity overflow")
+        }
         var newCapacity = capacity * 2;
+        if(newCapacity == 0) {
+            newCapacity = 16
+        }
+        if(newCapacity > ((0 as size_t) - 1) / sizeof(*mut ordered_map_node<Key, Value>)) {
+            panic("ordered_map capacity overflow")
+        }
         var newTable = malloc(newCapacity * sizeof(*mut ordered_map_node<Key, Value>)) as *mut *mut ordered_map_node<Key, Value>;
+        if(newTable == null) {
+            panic("failed to allocate ordered_map table")
+        }
         memset(newTable, 0, newCapacity * sizeof(*mut ordered_map_node<Key, Value>));
 
         var node = head;
@@ -53,6 +65,9 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
     func make() {
         const cap = 16u
         const allocated = malloc(cap * sizeof(*mut ordered_map_node<Key, Value>)) as *mut *mut ordered_map_node<Key, Value>;
+        if(allocated == null) {
+            panic("failed to allocate ordered_map table")
+        }
         memset(allocated, 0, cap * sizeof(*mut ordered_map_node<Key, Value>));
         return ordered_map<Key, Value> {
             table : allocated,
@@ -93,6 +108,9 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
         }
 
         const newNode = malloc(sizeof(ordered_map_node<Key, Value>)) as *mut ordered_map_node<Key, Value>;
+        if(newNode == null) {
+            panic("failed to allocate ordered_map node")
+        }
         new (newNode) ordered_map_node<Key, Value> {
             key : key,
             value : value,

@@ -125,6 +125,12 @@ func test_strings() {
         var second = string("value : 99 end")
         return c.str.equals(&second);
     })
+    test("u16 substring clamps a huge length", () => {
+        var a : [3]u16 = [65u16, 66u16, 67u16]
+        var s = std::u16string(&raw mut a[0], 3)
+        var out = s.substr(1, (0 as size_t) - 1)
+        return out.size() == 2 && out.get(0) == 66u16 && out.get(1) == 67u16
+    })
     test("string resize zero-initializes grown bytes", () => {
         var s = string("ab")
         s.resize(4)

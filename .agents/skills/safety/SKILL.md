@@ -206,7 +206,8 @@ Next:
   promise/pool allocations are checked as well (S5.3g). `u16_string` heap,
   append, and substring buffers check `(capacity * 2) + 2` and null
   allocations (S5.3h), and `string::substring` validates its range and heap
-  allocation (S5.3i).
+  allocation (S5.3i). `u16string::substr` clamps with subtraction and builds
+  its result directly (S5.3j).
   Dynamic fixed-array indices (S5.4c) are guarded in MIR lowering with
   `index < length` (zero-extended to u64, so negative indices fail) on reads and
   stores; failure calls `abort` and then `Unreachable`. Pointer/vector/operator

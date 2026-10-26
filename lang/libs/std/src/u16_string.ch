@@ -433,9 +433,9 @@ public struct u16string {
         if(start >= my_size) {
             return result;
         }
-        var real_len = len;
-        if(start + real_len > my_size) {
-            real_len = my_size - start;
+        var real_len = my_size - start;
+        if(len < real_len) {
+            real_len = len;
         }
         if(real_len == 0) { return result; }
         const src = data();
@@ -449,9 +449,20 @@ public struct u16string {
         }
         memcpy(buf, &raw src[start], real_len * 2);
         buf[real_len] = 0u16;
-        // use constructor2 to keep constant/heap invariant: create as heap-backed
-        result.constructor(buf, real_len);
-        // Note: constructor called ensure_mut(size()) which will move to SSO/heap as needed.
+        if(real_len < U16_STR_BUFF_SIZE) {
+            result.state = '1'
+            result.storage.sso.length = real_len as uchar
+            for(var i : size_t = 0; i < real_len; i++) {
+                result.storage.sso.buffer[i] = buf[i]
+            }
+            result.storage.sso.buffer[real_len] = 0u16
+            dealloc buf
+        } else {
+            result.state = '2'
+            result.storage.heap.data = buf
+            result.storage.heap.length = real_len
+            result.storage.heap.capacity = real_len
+        }
         return result;
     }
 

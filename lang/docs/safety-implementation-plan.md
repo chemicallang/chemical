@@ -270,6 +270,11 @@
 >   `None` through a shared reference, so a safe API could mutate an immutable
 >   binding (and alias a live shared borrow). A negative test proves an immutable
 >   receiver is rejected; existing callers already hold mutable locals/fields.
+> - S5.3j u16 substring: `u16string::substr` clamps the requested length with
+>   `len < size - start` instead of `start + len` (which could overflow for a
+>   huge length), builds the SSO/heap result directly, and frees the temporary
+>   SSO buffer. A main-suite test asks for `substr(1, SIZE_MAX)` and checks the
+>   two remaining units.
 > - S5.3i string substring: `string::substring` requires
 >   `start <= end <= size()` (so `copy`/substring slices cannot underflow or
 >   read past the string), checks `actual_len * 2` overflow, and rejects a null

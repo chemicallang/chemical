@@ -42,6 +42,9 @@ public struct Rc<T> {
     }
 
     public func clone(&self) : Rc<T> {
+        if(self.ptr == null) {
+            panic("Rc is empty")
+        }
         var inner = self.ptr
         unsafe {
             inner.strong = inner.strong + 1
@@ -52,6 +55,9 @@ public struct Rc<T> {
     }
 
     public func downgrade(&self) : Weak<T> {
+        if(self.ptr == null) {
+            panic("Rc is empty")
+        }
         var inner = self.ptr
         unsafe {
             inner.weak = inner.weak + 1
@@ -62,14 +68,23 @@ public struct Rc<T> {
     }
 
     public func get(&self) : &T {
+        if(self.ptr == null) {
+            panic("Rc is empty")
+        }
         return unsafe(&self.ptr.value.value)
     }
 
     public func strong_count(&self) : size_t {
+        if(self.ptr == null) {
+            panic("Rc is empty")
+        }
         return unsafe(self.ptr.strong)
     }
 
     public func weak_count(&self) : size_t {
+        if(self.ptr == null) {
+            panic("Rc is empty")
+        }
         return unsafe(self.ptr.weak)
     }
 
@@ -139,10 +154,16 @@ public struct Weak<T> {
     }
 
     public func strong_count(&self) : size_t {
+        if(self.ptr == null) {
+            panic("Weak is empty")
+        }
         return unsafe(self.ptr.strong)
     }
 
     public func weak_count(&self) : size_t {
+        if(self.ptr == null) {
+            panic("Weak is empty")
+        }
         return unsafe(self.ptr.weak)
     }
 }

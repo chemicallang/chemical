@@ -240,6 +240,20 @@ func string_view_skip_past_size_panics(env : &mut TestEnv) {
 }
 
 @test
+func rc_use_after_try_unwrap_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var r = std::rc(1)\n    var first = r.try_unwrap()\n    var second = r.try_unwrap()\n    return 0\n}\n"
+    expect_runtime_panic(env, "rc_use_after_try_unwrap_panics", ch)
+}
+
+@test
+func arc_use_after_try_unwrap_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var a = std::arc(1)\n    var first = a.try_unwrap()\n    var second = a.try_unwrap()\n    return 0\n}\n"
+    expect_runtime_panic(env, "arc_use_after_try_unwrap_panics", ch)
+}
+
+@test
 func box_use_after_into_inner_panics(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "public func main() : int {\n    var b = std::box(5)\n    var first = b.into_inner()\n    var second = b.into_inner()\n    return first + second\n}\n"

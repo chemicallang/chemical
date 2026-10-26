@@ -105,6 +105,9 @@ public struct Arc<T> {
     }
 
     public func clone(&self) : Arc<T> {
+        if(self.ptr == null) {
+            panic("Arc is empty")
+        }
         var inner = self.ptr
         inner.strong.increment()
         return Arc<T> {
@@ -113,6 +116,9 @@ public struct Arc<T> {
     }
 
     public func downgrade(&self) : ArcWeak<T> {
+        if(self.ptr == null) {
+            panic("Arc is empty")
+        }
         var inner = self.ptr
         inner.weak.increment()
         return ArcWeak<T> {
@@ -121,14 +127,23 @@ public struct Arc<T> {
     }
 
     public func get(&self) : &T {
+        if(self.ptr == null) {
+            panic("Arc is empty")
+        }
         return unsafe(&self.ptr.value.value)
     }
 
     public func strong_count(&self) : size_t {
+        if(self.ptr == null) {
+            panic("Arc is empty")
+        }
         return self.ptr.strong.load()
     }
 
     public func weak_count(&self) : size_t {
+        if(self.ptr == null) {
+            panic("Arc is empty")
+        }
         return self.ptr.weak.load()
     }
 
@@ -197,10 +212,16 @@ public struct ArcWeak<T> {
     }
 
     public func strong_count(&self) : size_t {
+        if(self.ptr == null) {
+            panic("ArcWeak is empty")
+        }
         return self.ptr.strong.load()
     }
 
     public func weak_count(&self) : size_t {
+        if(self.ptr == null) {
+            panic("ArcWeak is empty")
+        }
         return self.ptr.weak.load()
     }
 }

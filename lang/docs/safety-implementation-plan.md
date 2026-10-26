@@ -228,6 +228,10 @@
 >   it after growth, so `s.append_view(&s.to_view())` remains valid across
 >   reallocation. Tested by doubling a heap-backed string and comparing both
 >   halves.
+> - S1.8e `Rc`/`Arc` moved-from guards: after `try_unwrap` sets the owner to
+>   null, `clone`/`downgrade`/`get`/`strong_count`/`weak_count` panic instead of
+>   dereferencing null; `Weak`/`ArcWeak` count accessors do the same. Runtime
+>   tests cover a second `try_unwrap` on both owners.
 > - S1.8d `Box` moved-from guards: `into_inner` sets the box to empty, and
 >   subsequent `get`/`get_mut`/`into_inner` calls panic instead of dereferencing
 >   null. A runtime safety test covers a second `into_inner`.

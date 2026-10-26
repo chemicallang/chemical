@@ -192,7 +192,8 @@ Next:
   reads and manual ownership transfer require an explicit unsafe block.
   `UnsafeCell::get_ref` is `unsafe func` (S2.6c); tracked `RefCell` borrows
   wrap it internally. `Box` panics on `get`/`get_mut`/`into_inner` after
-  `into_inner` emptied it (S1.8d). `Option::take` requires `&mut self` (S1.9a), so it cannot rewrite a
+  `into_inner` emptied it (S1.8d); `Rc`/`Arc` and their weak handles panic on
+  use after `try_unwrap`/weak release (S1.8e). `Option::take` requires `&mut self` (S1.9a), so it cannot rewrite a
   shared/immutable binding. `unordered_map`/`ordered_map` check bucket-growth arithmetic and
   table/node allocations, and `ordered_map` seeds its first table at 16
   buckets (S5.3c). Self-aliasing `string` append records and re-bases the

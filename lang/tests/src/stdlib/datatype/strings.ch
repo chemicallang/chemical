@@ -131,6 +131,30 @@ func test_strings() {
         var out = s.substr(1, (0 as size_t) - 1)
         return out.size() == 2 && out.get(0) == 66u16 && out.get(1) == 67u16
     })
+    test("string erase clamps a huge length without wrapping", () => {
+        var s = string("abcdef")
+        s.erase(2, (0 as size_t) - 1)
+        var expected = string("ab")
+        return s.equals(&expected)
+    })
+    test("string erase clamps a huge length on heap storage", () => {
+        var s = string("0123456789012345678901234567890123456789")
+        s.erase(4, (0 as size_t) - 1)
+        var expected = string("0123")
+        return s.equals(&expected)
+    })
+    test("string erase clamps a length past the end", () => {
+        var s = string("abcdef")
+        s.erase(2, 100)
+        var expected = string("ab")
+        return s.equals(&expected)
+    })
+    test("string erase does nothing at the end", () => {
+        var s = string("abcdef")
+        s.erase(6, 3)
+        var expected = string("abcdef")
+        return s.equals(&expected)
+    })
     test("string resize zero-initializes grown bytes", () => {
         var s = string("ab")
         s.resize(4)

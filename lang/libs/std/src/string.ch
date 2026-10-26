@@ -673,9 +673,10 @@ public struct string {
             return;
         }
 
-        // clamp length
+        // Clamp with subtraction: `start + len` can wrap for a huge `len` and
+        // would then move/erase far past the end of the string.
         var erase_len = len;
-        if(start + erase_len > sz) {
+        if(erase_len > sz - start) {
             erase_len = sz - start;
         }
 
@@ -683,8 +684,10 @@ public struct string {
         const tail_len = sz - tail_start;
 
         // ensure mutability if needed
-        // (constant → sso/heap, sso may stay sso)
-        ensure_mut(sz + 1);
+        // (constant → sso/heap, sso may stay sso). The string already stores a
+        // NUL, so its capacity is at least `sz + 1`; asking for `sz` also avoids
+        // wrapping `sz + 1` for a maximum-sized string.
+        ensure_mut(sz);
 
         if(state == '1') {
             // SSO

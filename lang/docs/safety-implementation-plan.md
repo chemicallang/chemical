@@ -277,6 +277,12 @@
 >   exactly once. The legacy `std::replace`/`std::swap` names delegate to the
 >   new implementations. Tests cover destructor-bearing structs, heap strings,
 >   the compatibility aliases, and forgetting.
+> - S5.3l string erase overflow: `string::erase` clamps the erase length with
+>   `len > size - start` instead of `start + len > size`, so a caller-supplied
+>   huge length cannot wrap and move/erase past the string. It also requests
+>   `size` (not `size + 1`) from `ensure_mut`, avoiding the same overflow for a
+>   maximum-sized string. Tests cover SSO, heap, past-end, and end-of-string
+>   erases.
 > - S5.3k hash-map node drop: `unordered_map`/`ordered_map` now run the node's
 >   generated destructor before freeing it in `delete`, `clear`, and `erase`
 >   (instead of explicitly destroying fields through a pointer, which MIR

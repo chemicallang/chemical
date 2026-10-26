@@ -203,7 +203,9 @@ Next:
   source offset across growth (S5.3d), and `string::resize` zero-fills newly
   exposed bytes (S5.3e). Capturing-function heap environments also reject a
   null allocation (S5.3f); `vector::make_with_capacity` and thread-pool
-  promise/pool allocations are checked as well (S5.3g).
+  promise/pool allocations are checked as well (S5.3g). `u16_string` heap,
+  append, and substring buffers check `(capacity * 2) + 2` and null
+  allocations (S5.3h).
   Dynamic fixed-array indices (S5.4c) are guarded in MIR lowering with
   `index < length` (zero-extended to u64, so negative indices fail) on reads and
   stores; failure calls `abort` and then `Unreachable`. Pointer/vector/operator

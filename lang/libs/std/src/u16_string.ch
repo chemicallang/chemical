@@ -131,9 +131,15 @@ public struct u16string {
     }
 
     func move_data_to_heap(&mut self, from_data : *u16, length : size_t, capacity : size_t) {
+        if(capacity > (((0 as size_t) - 1) - 2) / 2 || length > capacity) {
+            panic("u16_string capacity overflow")
+        }
         // capacity multiplied by 2 because we need two bytes for a single character
         // +2 is for safety, we need to add a null terminator (always)
         var d = malloc((capacity * 2) + 2) as *mut u16
+        if(d == null) {
+            panic("u16_string allocation failed")
+        }
         memcpy(d, from_data, length * 2)
         d[length] = 0u16
         storage.heap.data = d;
@@ -145,9 +151,15 @@ public struct u16string {
     // this is a private function
     // new_capacity is always > length
     func resize_heap(&mut self, new_capacity : size_t) {
+        if(new_capacity > (((0 as size_t) - 1) - 2) / 2) {
+            panic("u16_string capacity overflow")
+        }
         // new_capacity multiplied by 2 because we need two bytes for a single character
         // +2 for the null terminator
         var d = realloc(storage.heap.data, (new_capacity * 2) + 2) as *mut u16
+        if(d == null) {
+            panic("u16_string allocation failed")
+        }
         d[storage.heap.length] = 0u16
         storage.heap.data = d;
         storage.heap.capacity = new_capacity
@@ -155,6 +167,9 @@ public struct u16string {
 
     // ensures that capacity is larger than length given and memory is mutable
     func ensure_mut(&mut self, length : size_t) {
+        if(length > (((0 as size_t) - 1) - 2) / 2) {
+            panic("u16_string capacity overflow")
+        }
         if((state == '0' || state == '1') && length < U16_STR_BUFF_SIZE) {
             if(state == '0') {
                 move_const_to_buffer();
@@ -321,8 +336,14 @@ public struct u16string {
         if(len == 0) { return; }
         // worst-case u16 units needed: len (each byte -> at most 1 u16 unit for ASCII,
         // multi-byte sequences produce <=1 or 2 units; allocating len is safe)
+        if(len > (((0 as size_t) - 1) - 2) / 2 - 1) {
+            panic("u16_string capacity overflow")
+        }
         var out_cap = len + 1;
         var out = malloc((out_cap * 2) + 2) as *mut u16;
+        if(out == null) {
+            panic("u16_string allocation failed")
+        }
         var in_i : size_t = 0;
         var out_i : size_t = 0;
         while(in_i < len) {
@@ -419,7 +440,13 @@ public struct u16string {
         if(real_len == 0) { return result; }
         const src = data();
         // create a temporary buffer to copy into result
+        if(real_len > (((0 as size_t) - 1) - 2) / 2) {
+            panic("u16_string capacity overflow")
+        }
         var buf = malloc((real_len * 2) + 2) as *mut u16;
+        if(buf == null) {
+            panic("u16_string allocation failed")
+        }
         memcpy(buf, &raw src[start], real_len * 2);
         buf[real_len] = 0u16;
         // use constructor2 to keep constant/heap invariant: create as heap-backed

@@ -324,6 +324,9 @@ public struct string {
     }
 
     func set(&mut self, index : size_t, value : char) {
+        if(index >= size()) {
+            panic("string index out of bounds")
+        }
         switch(state) {
             '0' => {
                 move_const_to_buffer();
@@ -339,6 +342,9 @@ public struct string {
     }
 
     func get(&self, index : size_t) : char {
+        if(index >= size()) {
+            panic("string index out of bounds")
+        }
         switch(state) {
             '0' => {
                 return storage.constant.data[index];

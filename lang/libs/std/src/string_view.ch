@@ -66,6 +66,9 @@ public namespace std {
         }
 
         func get(&self, index : size_t) : char {
+            if(index >= size()) {
+                panic("string_view index out of bounds")
+            }
             return *(_data + index)
         }
 

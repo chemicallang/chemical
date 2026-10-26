@@ -225,6 +225,9 @@
 >   `Unreachable`, so TCC, LLVM, and the interpreter share them; float division
 >   keeps its defined Inf/NaN behavior. Runtime safety tests cover all five
 >   cases. Debug `+`/`-`/`*` overflow and unary negation remain pending.
+> - S5.4d string bounds: `string::get`/`set`, `string_view::get`, and
+>   `u16_string::get`/`set` reject `index >= size()` with a panic. Runtime
+>   safety tests cover string read/write and `string_view` reads.
 > - S5.4b vector runtime bounds: `vector::get`, `get_ptr`, `get_ref`,
 >   `get_mut`, `set`, `remove`, `remove_last`, `take_last`, and `last_ptr`
 >   reject out-of-range or empty access with `vector index out of bounds` /

@@ -202,6 +202,9 @@ public struct u16string {
     }
 
     func set(&mut self, index : size_t, value : u16) {
+        if(index >= size()) {
+            panic("u16_string index out of bounds")
+        }
         switch(state) {
             '0' => {
                 move_const_to_buffer();
@@ -217,6 +220,9 @@ public struct u16string {
     }
 
     func get(&self, index : size_t) : u16 {
+        if(index >= size()) {
+            panic("u16_string index out of bounds")
+        }
         switch(state) {
             '0' => {
                 return storage.constant.data[index];

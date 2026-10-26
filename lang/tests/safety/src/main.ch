@@ -205,6 +205,27 @@ func safety_runtime_panic_harness(env : &mut TestEnv) {
 }
 
 @test
+func string_bounds_read_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var s = std::string(\"abc\")\n    return s.get(3) as int\n}\n"
+    expect_runtime_panic(env, "string_bounds_read_panics", ch)
+}
+
+@test
+func string_bounds_write_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var s = std::string(\"abc\")\n    s.set(3, 'x')\n    return 0\n}\n"
+    expect_runtime_panic(env, "string_bounds_write_panics", ch)
+}
+
+@test
+func string_view_bounds_read_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var v = std::string_view(\"abc\")\n    return v.get(3) as int\n}\n"
+    expect_runtime_panic(env, "string_view_bounds_read_panics", ch)
+}
+
+@test
 func division_by_zero_panics(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "public func main() : int {\n    var z = 0\n    return 10 / z\n}\n"

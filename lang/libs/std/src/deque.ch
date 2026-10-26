@@ -26,6 +26,9 @@ public struct deque<T> {
 
     func reserve_blocks(&mut self, new_cap : size_t) {
         if(new_cap <= block_cap) return
+        if(new_cap > ((0 as size_t) - 1) / sizeof(deque_block<T>)) {
+            panic("deque capacity overflow")
+        }
         const new_blocks = realloc(blocks, sizeof(deque_block<T>) * new_cap) as *mut deque_block<T>
         unsafe {
             if(new_blocks != null) {
@@ -42,10 +45,16 @@ public struct deque<T> {
             if(block_cap == 0) {
                 reserve_blocks(2)
             } else {
+                if(block_cap > ((0 as size_t) - 1) / 2) {
+                    panic("deque capacity overflow")
+                }
                 reserve_blocks(block_cap * 2)
             }
         }
         const data = malloc(sizeof(T) * DEQUE_CHUNK_SIZE) as *mut T
+        if(data == null) {
+            panic("failed to allocate deque block")
+        }
         blocks[block_count] = deque_block<T> {
             data_ptr : data,
             data_size : 0
@@ -73,6 +82,9 @@ public struct deque<T> {
     func empty(&self) : bool { return data_size == 0 }
 
     func get_ptr(&self, index : size_t) : *mut T {
+        if(index >= data_size) {
+            panic("deque index out of bounds")
+        }
         var remaining = index
         var block_index = 0 as size_t
         while(block_index < block_count) {

@@ -73,10 +73,16 @@ public namespace std {
         }
 
         func subview(&self, start : size_t, end : size_t) : 'self std::string_view {
+            if(start > end || end > _size) {
+                panic("string_view subview out of bounds")
+            }
             return std::string_view(_data + start, end - start)
         }
 
         func skip(&self, count : size_t) : 'self std::string_view {
+            if(count > _size) {
+                panic("string_view skip out of bounds")
+            }
             return std::string_view(_data + count, _size - count)
         }
 

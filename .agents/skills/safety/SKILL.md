@@ -179,7 +179,9 @@ Next:
   `get_ref`/`get_mut`/`set`/`remove`/`remove_last`/`take_last`/`last_ptr` with a
   panic; the safety suite covers OOB, empty pop, and empty last-pointer cases.
   `string`/`string_view`/`u16_string` `get`/`set` (S5.4d) likewise reject
-  `index >= size()`; tests cover string read/write and view reads. `vector` and
+  `index >= size()`; `string_view::subview`/`skip` reject
+  `start > end`, `end > size`, and `count > size`. Tests cover string
+  read/write and view reads, subviews, and skips. `vector` and
   `string` capacity/length growth is overflow-checked (S5.3a), including the
   string NUL byte and capacity doubling.
   Dynamic fixed-array indices (S5.4c) are guarded in MIR lowering with

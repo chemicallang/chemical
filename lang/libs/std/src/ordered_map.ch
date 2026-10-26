@@ -83,8 +83,7 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
         var node = head;
         while (node != null) {
             var nextNode = node.order_next;
-            destruct &node.key;
-            destruct &node.value;
+            destruct node
             dealloc node;
             node = nextNode;
         }
@@ -101,6 +100,7 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
 
         while (currentNode != null) {
             if (compare_now(&currentNode.key, &key)) {
+                destruct &mut currentNode.value
                 currentNode.value = value;
                 return;
             }
@@ -180,8 +180,7 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
                     tail = prev;
                 }
 
-                destruct &currentNode.key;
-                destruct &currentNode.value;
+                destruct currentNode
                 dealloc currentNode;
                 _size--;
                 return true;
@@ -196,8 +195,7 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
         var node = head;
         while (node != null) {
             var nextNode = node.order_next;
-            destruct &node.key;
-            destruct &node.value;
+            destruct node
             dealloc node;
             node = nextNode;
         }

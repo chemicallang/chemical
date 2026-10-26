@@ -1,7 +1,22 @@
 
 using namespace std;
 
+struct OrderedMapDropCounter {
+    var value : int
+    @delete func delete(&mut self) { ordered_map_drops = ordered_map_drops + 1 }
+}
+var ordered_map_drops = 0
+
 func test_ordered_map() {
+    test("ordered_map insert replaces and drops the old value", () => {
+        ordered_map_drops = 0
+        {
+            var map = std::ordered_map<int, OrderedMapDropCounter>()
+            map.insert(1, OrderedMapDropCounter { value : 1 })
+            map.insert(1, OrderedMapDropCounter { value : 2 })
+        }
+        return ordered_map_drops == 2
+    })
     test("ordered_map works with integer keys - 1", () => {
         var map = std::ordered_map<int, int>()
         map.insert(20, 200)

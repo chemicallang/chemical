@@ -100,9 +100,8 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
             var currentNode = table[i];
             while (currentNode != null) {
                 var nextNode = currentNode.next;
-                // Call destructors on the key and value before freeing the node
-                destruct &currentNode.key;
-                destruct &currentNode.value;
+                // Run the node's generated destructor (key/value fields), then free it.
+                destruct currentNode
                 dealloc currentNode;
                 currentNode = nextNode;
             }
@@ -123,6 +122,7 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
         // Check if the key already exists in the chain, and update if so
         while (currentNode != null) {
             if (compare_now(&currentNode.key, &key)) {
+                destruct &mut currentNode.value
                 currentNode.value = value; // Update value
                 return;
             }
@@ -183,9 +183,8 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
                 } else {
                     table[index] = currentNode.next; // Remove from the front of the chain
                 }
-                // Call destructors on the key and value before freeing the node
-                destruct &currentNode.key;
-                destruct &currentNode.value;
+                // Run the node's generated destructor, then free it.
+                destruct currentNode
                 dealloc currentNode;
                 _size--;
                 return true;
@@ -202,9 +201,8 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
             var currentNode = table[i];
             while (currentNode != null) {
                 var nextNode = currentNode.next;
-                // Call destructors on the key and value before freeing the node
-                destruct &currentNode.key;
-                destruct &currentNode.value;
+                // Run the node's generated destructor, then free it.
+                destruct currentNode
                 dealloc currentNode;
                 currentNode = nextNode;
             }

@@ -270,6 +270,12 @@
 >   `None` through a shared reference, so a safe API could mutate an immutable
 >   binding (and alias a live shared borrow). A negative test proves an immutable
 >   receiver is rejected; existing callers already hold mutable locals/fields.
+> - S5.3k hash-map node drop: `unordered_map`/`ordered_map` now run the node's
+>   generated destructor before freeing it in `delete`, `clear`, and `erase`
+>   (instead of explicitly destroying fields through a pointer, which MIR
+>   skipped), and `insert` drops the replaced value. Tests verify that
+>   replacing a destructor-bearing value drops exactly the old and stored
+>   values.
 > - S5.3j u16 substring: `u16string::substr` clamps the requested length with
 >   `len < size - start` instead of `start + len` (which could overflow for a
 >   huge length), builds the SSO/heap result directly, and frees the temporary

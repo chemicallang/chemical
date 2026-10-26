@@ -207,7 +207,8 @@ Next:
   append, and substring buffers check `(capacity * 2) + 2` and null
   allocations (S5.3h), and `string::substring` validates its range and heap
   allocation (S5.3i). `u16string::substr` clamps with subtraction and builds
-  its result directly (S5.3j).
+  its result directly (S5.3j). Hash-map node deletion/replacement runs the
+  generated node destructor so key/value drops are not skipped (S5.3k).
   Dynamic fixed-array indices (S5.4c) are guarded in MIR lowering with
   `index < length` (zero-extended to u64, so negative indices fail) on reads and
   stores; failure calls `abort` and then `Unreachable`. Pointer/vector/operator

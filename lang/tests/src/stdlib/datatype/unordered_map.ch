@@ -1,7 +1,22 @@
 
 using namespace std;
 
+struct UnorderedMapDropCounter {
+    var value : int
+    @delete func delete(&mut self) { unordered_map_drops = unordered_map_drops + 1 }
+}
+var unordered_map_drops = 0
+
 func test_unordered_map() {
+    test("unordered_map insert replaces and drops the old value", () => {
+        unordered_map_drops = 0
+        {
+            var map = std::unordered_map<int, UnorderedMapDropCounter>()
+            map.insert(1, UnorderedMapDropCounter { value : 1 })
+            map.insert(1, UnorderedMapDropCounter { value : 2 })
+        }
+        return unordered_map_drops == 2
+    })
     test("unordered_map works with integer keys - 1", () => {
         var map = std::unordered_map<int, int>()
         map.insert(20, 200)

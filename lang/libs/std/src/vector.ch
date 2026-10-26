@@ -1,5 +1,19 @@
 public namespace std {
 
+@retained
+public func __vector_bounds_check(index : size_t, size : size_t) {
+    if(index >= size) {
+        panic("vector index out of bounds")
+    }
+}
+
+@retained
+public func __vector_nonempty_check(size : size_t) {
+    if(size == 0) {
+        panic("vector is empty")
+    }
+}
+
 public struct vector<T> {
 
     var data_ptr : *mut T
@@ -94,22 +108,27 @@ public struct vector<T> {
     }
 
     func get(&self, index : size_t) : T where T : Copy {
+        __vector_bounds_check(index, data_size)
         return data_ptr[index];
     }
 
     func get_ptr(&self, index : size_t) : *mut T {
+        __vector_bounds_check(index, data_size)
         return &raw mut data_ptr[index];
     }
 
     func get_ref(&self, index : size_t) : &T {
+        __vector_bounds_check(index, data_size)
         return &data_ptr[index]
     }
 
     func get_mut(&mut self, index : size_t) : &mut T {
+        __vector_bounds_check(index, data_size)
         return &mut data_ptr[index]
     }
 
     func set(&mut self, index : size_t, value : T) {
+        __vector_bounds_check(index, data_size)
         data_ptr[index] = value;
     }
 
@@ -126,10 +145,12 @@ public struct vector<T> {
     }
 
     func last_ptr(&self) : *mut T {
+        __vector_nonempty_check(data_size)
         return data_ptr + (data_size - 1);
     }
 
     func remove(&mut self, index : size_t) {
+        __vector_bounds_check(index, data_size)
         const s = data_size;
         const last = s - 1;
         destruct get_ptr(index)
@@ -146,6 +167,7 @@ public struct vector<T> {
     }
 
     func remove_last(&mut self) {
+        __vector_nonempty_check(data_size)
         const s = data_size;
         const last = s - 1;
         const ptr = get_ptr(last);
@@ -158,10 +180,12 @@ public struct vector<T> {
     }
 
     func take_last(&mut self) : T {
+        __vector_nonempty_check(data_size)
         const last = data_size - 1
+        const ptr = get_ptr(last)
         data_size = last;
         unsafe {
-            return *get_ptr(last);
+            return *ptr;
         }
     }
 

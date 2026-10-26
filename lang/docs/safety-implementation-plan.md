@@ -210,8 +210,17 @@
 >   fields), so that remains pending.
 > - S5.4a static array bounds: a constant index into a fixed-size array is
 >   checked at type verification against the declared length and rejected with
->   `SAFE-BOUNDS-001`, on reads and assignment LHS alike. Dynamic-index and vector bounds are still pending; the
->   vector runtime checks remain blocked by the router-plugin OOB below.
+>   `SAFE-BOUNDS-001`, on reads and assignment LHS alike. Dynamic fixed-array
+>   indices remain pending.
+> - S5.4b vector runtime bounds: `vector::get`, `get_ptr`, `get_ref`,
+>   `get_mut`, `set`, `remove`, `remove_last`, `take_last`, and `last_ptr`
+>   reject out-of-range or empty access with `vector index out of bounds` /
+>   `vector is empty`. The helpers are `@retained public` because public generic
+>   members may only call public functions. `take_last` captures the element
+>   pointer before shrinking the length so its own check observes the old size.
+>   Runtime safety tests cover an OOB index, empty `pop_back`, and empty
+>   `last_ptr`; this also fixes the router-plugin `take_last` path that
+>   previously aborted compilation.
 > - S1.4h `Option<T>`/`vector<T>` `Clone`: both impls use an inline
 >   `<T : Clone>` bound (not a trailing where-clause) so the bound is visible
 >   while the generic impl body is linked. `Option` clones through a
@@ -220,9 +229,6 @@
 >   through a pointer + `memcpy` helper with the same inline bound. Tests cover
 >   Some/None, int/string deep copies, empty vectors, and exactly-once drops for
 >   a destructor-bearing element type.
-> - **Known blocker (2026-10-24):** vector runtime bounds checks were attempted
->   and reverted because they exposed an existing router-plugin `get_ptr(0)` on
->   an empty vector during compilation; fix that OOB before enabling checks.
 > - S1.5e generic-interface method dispatch: `provide_child` now resolves a
 >   method on a bare generic `T` through its trait bounds (including generic
 >   interfaces such as `Serializer<...>`), returning the interface declaration

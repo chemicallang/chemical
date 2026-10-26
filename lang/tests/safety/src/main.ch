@@ -204,6 +204,27 @@ func safety_runtime_panic_harness(env : &mut TestEnv) {
     expect_runtime_panic(env, "runtime_panic_harness", ch)
 }
 
+@test
+func vector_bounds_index_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var v = std::vector<int>()\n    v.push(1)\n    var p = v.get_ptr(1)\n    return 0\n}\n"
+    expect_runtime_panic(env, "vector_bounds_index_panics", ch)
+}
+
+@test
+func vector_bounds_empty_pop_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var v = std::vector<int>()\n    v.pop_back()\n    return 0\n}\n"
+    expect_runtime_panic(env, "vector_bounds_empty_pop_panics", ch)
+}
+
+@test
+func vector_bounds_empty_last_ptr_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var v = std::vector<int>()\n    var p = v.last_ptr()\n    return 0\n}\n"
+    expect_runtime_panic(env, "vector_bounds_empty_last_ptr_panics", ch)
+}
+
 public func main(argc : int, argv : **char) {
     test_runner(argc, argv)
 }

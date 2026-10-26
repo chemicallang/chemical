@@ -167,8 +167,12 @@ Next:
   thread-safe shared ownership with mutex-protected counts (atomic swap later),
   unique-owner `get_mut`/`try_unwrap`, and are `Send`/`Sync` when
   `T: Send + Sync`. Static constant indices into fixed arrays are checked at
-  type verification (`SAFE-BOUNDS-001`, S5.4a) on reads and writes; dynamic and
-  vector bounds are still pending. `Box::into_inner` frees storage without re-running the destructor. `unsafe func` (S2.6a) is parsed at top level and
+  type verification (`SAFE-BOUNDS-001`, S5.4a) on reads and writes. Vector
+  runtime bounds (S5.4b) reject OOB and empty access in `get`/`get_ptr`/
+  `get_ref`/`get_mut`/`set`/`remove`/`remove_last`/`take_last`/`last_ptr` with a
+  panic; the safety suite covers OOB, empty pop, and empty last-pointer cases.
+  Dynamic fixed-array indices remain pending.
+  `Box::into_inner` frees storage without re-running the destructor. `unsafe func` (S2.6a) is parsed at top level and
   as a member, and calls from safe code are rejected; `unsafe(expr)`/`unsafe {}`
   are both unsafe call contexts. Next: partial-move/drop elaboration, then the
   borrow checker.

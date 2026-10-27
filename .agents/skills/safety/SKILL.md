@@ -185,9 +185,13 @@ Implemented:
   are followed through field stores and whole-value moves, so
   `h = H { r: &x }` used after `x`'s block is detected. `MIRTests` is `4620
   checks`; negative tests cover the struct-field escape and the same-scope
-  positive (452 tests). SAFE-LIFE-002 is report-only for now (no in-tree hits);
-  the next step is to enforce it. Next in M4: S4.2b variance, then
-  outlives/region constraint solving.
+  positive (452 tests). **SAFE-LIFE-002 is enforced.** The first run over the
+  universal suite exposed 40 false positives from loop back-edges: `block_use`
+  was a plain use set, so a loan defined and used in the same loop block was
+  treated as live-in. The gen/kill computation now only counts uses that occur
+  before the block's definition; the universal suite is 368/368 with zero
+  borrow warnings. Next in M4: S4.2b variance, then outlives/region constraint
+  solving.
 - S2.6d unsafe invariant constructors: `vector::set_len` and
   `default_function_instance::make2` are now `unsafe func`; the audited
   `fs::read_file` and `std::function` `make` paths wrap their calls in

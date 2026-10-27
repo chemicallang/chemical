@@ -83,8 +83,9 @@ func returned_parameter_reference_ok(env : &mut TestEnv) {
 func neg_reference_in_field_outlives_local(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     // The struct's reference field outlives the local it points at.
+    // SAFE-LIFE-002 is enforced (not report-only).
     var ch = "struct H {\n    var r : &int\n}\npublic func main() : int {\n    var h : H\n    {\n        var x = 1\n        h = H { r : &x }\n    }\n    return *h.r\n}\n"
-    expect_compile_warning_id(env, "borrow_field_outlives_local", ch, "SAFE-LIFE-002")
+    expect_compile_error(env, "borrow_field_outlives_local", ch, "SAFE-LIFE-002")
 }
 
 @test

@@ -2014,10 +2014,11 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
                 // that dies at function exit is a hard error. The loan/alias
                 // reports stay report-only until the in-tree migration lands.
                 if (d.code != nullptr &&
-                    std::string_view(d.code) == "SAFE-LIFE-001") {
+                    (std::string_view(d.code) == "SAFE-LIFE-001" ||
+                     std::string_view(d.code) == "SAFE-LIFE-002")) {
                     fatal_lifetime = true;
                     if (lifetime_error.empty()) {
-                        lifetime_error = "SAFE-LIFE-001: " + d.message;
+                        lifetime_error = std::string(d.code) + ": " + d.message;
                         if (d.has_loc && d.loc.file < module.source_files.size()) {
                             lifetime_error += " at " + module.source_files[d.loc.file] +
                                               ":" + std::to_string(d.loc.line) + ":" +

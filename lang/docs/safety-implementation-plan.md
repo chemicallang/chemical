@@ -638,8 +638,10 @@
 > `StorageDead`; references stored in struct fields are followed through field
 > stores and whole moves. `MIRTests` is `4620 checks`; negative tests cover the
 > struct-field escape and the same-scope positive (452 tests). SAFE-LIFE-002 is
-> report-only (no in-tree hits); enforcement is next. Next: S4.2b variance,
-> then outlives/region constraints.
+> **enforced**. The universal suite exposed 40 loop back-edge false positives;
+> `block_use` now uses a gen/kill computation (uses before the block's
+> definition), and universal is 368/368 with zero warnings. Next: S4.2b
+> variance, then outlives/region constraints.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

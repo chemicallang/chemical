@@ -591,21 +591,20 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
         const MIRBlock& block = function.blocks[b];
         if (block.inst_start == MIR_INVALID_ID) continue;
         const uint32_t end = inst_range_end(block);
+        // Upward-exposed uses: a use only contributes to live-in when the loan
+        // has not been defined earlier in this block (standard gen/kill). This
+        // matters for loop bodies whose blocks define and use the same loan.
+        std::vector<bool> defined_in_block(nloans, false);
         for (uint32_t ii = block.inst_start; ii < end && ii < function.instructions.size(); ++ii) {
             const MIRInstruction& inst = function.instructions[ii];
-            if ((inst.opcode() == MIROpcode::Borrow ||
-                 inst.opcode() == MIROpcode::BorrowMut) &&
-                inst.result_or_place != MIR_INVALID_ID) {
-                const auto it = value_loans.find(inst.result_or_place);
-                if (it != value_loans.end()) block_def[b][it->second] = true;
-            }
             const MIROperand* ops = inst.operand_count == 0
                                         ? nullptr
                                         : &function.operands[inst.operand_offset];
             for (uint16_t i = 0; ops != nullptr && i < inst.operand_count; ++i) {
                 if (ops[i].kind() != MIROperandKind::Value) continue;
                 const auto it = value_loans.find(ops[i].id);
-                if (it != value_loans.end() && it->second < nloans) {
+                if (it != value_loans.end() && it->second < nloans &&
+                    !defined_in_block[it->second]) {
                     block_use[b][it->second] = true;
                 }
             }
@@ -614,14 +613,26 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
             if (inst.opcode() == MIROpcode::Load && ops != nullptr &&
                 ops[0].kind() == MIROperandKind::Place) {
                 const auto it = place_loans.find(ops[0].id);
-                if (it != place_loans.end() && it->second < nloans) {
+                if (it != place_loans.end() && it->second < nloans &&
+                    !defined_in_block[it->second]) {
                     block_use[b][it->second] = true;
                 }
                 if (inst.operand_count >= 2 && ops[1].kind() == MIROperandKind::Constant) {
                     const auto fit = field_loans.find(field_key(ops[0].id, ops[1].id));
-                    if (fit != field_loans.end() && fit->second < nloans) {
+                    if (fit != field_loans.end() && fit->second < nloans &&
+                        !defined_in_block[fit->second]) {
                         block_use[b][fit->second] = true;
                     }
+                }
+            }
+            // Definitions kill liveness before them; record after the uses.
+            if ((inst.opcode() == MIROpcode::Borrow ||
+                 inst.opcode() == MIROpcode::BorrowMut) &&
+                inst.result_or_place != MIR_INVALID_ID) {
+                const auto it = value_loans.find(inst.result_or_place);
+                if (it != value_loans.end() && it->second < nloans) {
+                    block_def[b][it->second] = true;
+                    defined_in_block[it->second] = true;
                 }
             }
         }

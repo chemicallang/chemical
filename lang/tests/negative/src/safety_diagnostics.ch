@@ -445,14 +445,14 @@ func neg_rc_is_not_sync(env : &mut TestEnv) {
 func neg_unsafe_function_call_requires_unsafe(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "unsafe func danger() : int { return 1 }\npublic func main() : int {\n    var x = danger()\n    return x\n}\n"
-    expect_compile_error(env, "unsafe_fn_call", ch, "unsafe function")
+    expect_compile_error(env, "unsafe_fn_call", ch, "SAFE-UNSAFE-002")
 }
 
 @test
 func neg_unsafe_method_call_requires_unsafe(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct Reader {\n    var value : int\n    unsafe func read(&self) : int { return self.value }\n}\npublic func main() : int {\n    var r = Reader { value : 1 }\n    return r.read()\n}\n"
-    expect_compile_error(env, "unsafe_method_call", ch, "unsafe function")
+    expect_compile_error(env, "unsafe_method_call", ch, "SAFE-UNSAFE-002")
 }
 
 @test
@@ -501,21 +501,56 @@ func deque_get_mut_is_allowed(env : &mut TestEnv) {
 func neg_unsafe_cell_get_ref_requires_unsafe(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "public func main() : int {\n    var c = std::unsafe_cell(1)\n    var r = c.get_ref()\n    return 0\n}\n"
-    expect_compile_error_with_mod(env, "unsafe_cell_safe_get_ref", ch, "requires an unsafe block", NEG_MOD_STD_CORE)
+    expect_compile_error_with_mod(env, "unsafe_cell_safe_get_ref", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
 }
 
 @test
 func neg_maybe_uninit_assume_init_requires_unsafe(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "public func main() : int {\n    var m = std::maybe_uninit<int>()\n    var x = m.assume_init()\n    return x\n}\n"
-    expect_compile_error_with_mod(env, "maybe_uninit_safe_assume", ch, "requires an unsafe block", NEG_MOD_STD_CORE)
+    expect_compile_error_with_mod(env, "maybe_uninit_safe_assume", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
 }
 
 @test
 func neg_manually_drop_take_requires_unsafe(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "public func main() : int {\n    var d = std::manually_drop(1)\n    var x = d.take()\n    return x\n}\n"
-    expect_compile_error_with_mod(env, "manually_drop_safe_take", ch, "requires an unsafe block", NEG_MOD_STD_CORE)
+    expect_compile_error_with_mod(env, "manually_drop_safe_take", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_vector_set_len_requires_unsafe(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var v = std::vector<int>()\n    v.push(1)\n    v.set_len(2)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "vector_set_len_requires_unsafe", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func vector_set_len_allowed_in_unsafe(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var v = std::vector<int>()\n    v.push(1)\n    unsafe { v.set_len(1) }\n    return v.size() as int\n}\n"
+    expect_compile_success_with_mod(env, "vector_set_len_unsafe_ok", ch, NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_function_instance_make2_requires_unsafe(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "func dtor(obj : *mut void) { }\npublic func main() : int {\n    var f = std::default_function_instance.make2(null, null, dtor, 0, 0)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "function_instance_make2_requires_unsafe", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_partial_local_initialization_rejected(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Owned {\n    var s : std::string\n}\npublic func main() : int {\n    var o : Owned\n    o.s = std::string()\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "partial_local_init", ch, "SAFE-INIT-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func aggregate_initialization_allows_owned_field(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Owned {\n    var s : std::string\n}\npublic func main() : int {\n    var o = Owned { s : std::string() }\n    return 0\n}\n"
+    expect_compile_success_with_mod(env, "aggregate_init_owned_field", ch, NEG_MOD_STD_CORE)
 }
 
 @test

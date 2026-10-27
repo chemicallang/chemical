@@ -708,7 +708,7 @@ void verify_call_mutability(TypeVerifier& verifier, FunctionCall* call) {
     const auto func_decl = linked_kind == ASTNodeKind::FunctionDecl ? linked->as_function_unsafe() : nullptr;
     if(func_decl) {
         if(func_decl->is_unsafe() && !verifier.is_unsafe) {
-            diagnoser.error(call)
+            diagnoser.error(call).with_code("SAFE-UNSAFE-002")
                 << "calling an unsafe function requires an unsafe block";
         }
         const auto self_param = func_decl->get_self_param();

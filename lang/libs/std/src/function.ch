@@ -34,11 +34,15 @@ public struct default_function_instance {
         const destr = intrinsics::get_lambda_cap_destructor(lambda)
         const size_data = intrinsics::sizeof_lambda_captured(lambda);
         const align_data = intrinsics::alignof_lambda_captured(lambda)
-        return make2(ptr, cap, destr as destructor_type, size_data, align_data)
+        return unsafe(make2(ptr, cap, destr as destructor_type, size_data, align_data))
     }
 
+    // Builds a function object from raw pieces: an arbitrary code pointer, a
+    // possibly-unowned capture pointer, and a destructor that will be invoked
+    // on it. Every part of the invariant is unchecked, so this is unsafe and
+    // only the audited `make` path above may call it.
     @make
-    func make2(ptr : *mut void, cap : *mut void, destr : destructor_type, size_data : size_t, align_data : size_t) {
+    unsafe func make2(ptr : *mut void, cap : *mut void, destr : destructor_type, size_data : size_t, align_data : size_t) {
         // we get the captured struct from the lambda
         const captured = cap
         // since lambda has no captured data, we don't need to do anything else

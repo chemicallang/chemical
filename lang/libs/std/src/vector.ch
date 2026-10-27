@@ -216,9 +216,11 @@ public struct vector<T> {
         data_size = 0;
     }
 
-    // TODO: make this method unsafe to use
-    // user must put it in an unsafe block
-    func set_len(&mut self, new_size : size_t) {
+    // Overwrites the length without initializing or destroying elements.
+    // Growing past the capacity exposes uninitialized memory to `get`, and
+    // shrinking skips the destructors of the dropped tail, so the caller must
+    // uphold the vector's invariant.
+    unsafe func set_len(&mut self, new_size : size_t) {
         data_size = new_size
     }
 

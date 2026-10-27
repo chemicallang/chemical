@@ -391,17 +391,70 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
             case MIROpcode::Call:
             case MIROpcode::CallIndirect: {
                 if (ops == nullptr) break;
-                // A reference passed to a call may escape: mark it (the
-                // interprocedural lifetime check is S4.5). Start at operand 1;
-                // operand 1 may be the sret result place.
+                // Start at operand 1; operand 1 may be the sret result place.
                 uint32_t first = 1;
                 if (ops[1].kind() == MIROperandKind::Place &&
                     inst.result_or_place != MIR_INVALID_ID &&
                     ops[1].id == inst.result_or_place) {
                     first = 2;
                 }
+                // S4.5: use the callee's signature. A known callee that does
+                // not return a reference cannot retain it (its own checker
+                // would reject an escape), so the loan ends at the call. A
+                // reference-returning callee may return one of its reference
+                // arguments; the result then carries that loan. Unknown
+                // callees (indirect, extern, no body) keep the conservative
+                // escape mark.
+                bool known = false;
+                bool returns_reference = false;
+                bool extern_like = false;
+                if (inst.opcode() == MIROpcode::Call &&
+                    ops[0].kind() == MIROperandKind::Symbol &&
+                    ops[0].id < module.symbols.size()) {
+                    const MIRSymbolRecord& rec = module.symbols.get(ops[0].id);
+                    extern_like = rec.linkage == MIRLinkage::External;
+                    const TypeId ftype = rec.type;
+                    if (!extern_like && ftype != MIR_INVALID_ID &&
+                        ftype < module.types.types.size()) {
+                        const MIRTypeRecord& fr = module.types.types[ftype];
+                        if (fr.kind == MIRTypeKind::Function) {
+                            known = true;
+                            const TypeId ret = fr.element;
+                            returns_reference =
+                                ret != MIR_INVALID_ID && ret < module.types.types.size() &&
+                                module.types.types[ret].kind == MIRTypeKind::Reference;
+                        }
+                    }
+                }
+                std::vector<uint32_t> ref_loans;
                 for (uint16_t i = first; i < inst.operand_count; ++i) {
-                    use_value(ops[i], lin, true);
+                    if (ops[i].kind() != MIROperandKind::Value) continue;
+                    const auto it = value_loans.find(ops[i].id);
+                    if (it != value_loans.end() && it->second < loans.size()) {
+                        ref_loans.push_back(it->second);
+                    }
+                }
+                if (known && returns_reference && ref_loans.size() == 1 &&
+                    inst.result_or_place != MIR_INVALID_ID) {
+                    // The result aliases the single reference argument.
+                    for (uint16_t i = first; i < inst.operand_count; ++i) {
+                        use_value(ops[i], lin, false);
+                    }
+                    const uint32_t loan = ref_loans[0];
+                    value_loans[inst.result_or_place] = loan;
+                    loans[loan].end = lin;
+                } else if (known && ref_loans.size() <= 1) {
+                    // No reference result (or no reference argument): the
+                    // borrow ends at the call.
+                    for (uint16_t i = first; i < inst.operand_count; ++i) {
+                        use_value(ops[i], lin, false);
+                    }
+                } else {
+                    // Unknown or ambiguous (multiple reference arguments):
+                    // interprocedural escape is not modeled yet.
+                    for (uint16_t i = first; i < inst.operand_count; ++i) {
+                        use_value(ops[i], lin, true);
+                    }
                 }
                 break;
             }
@@ -625,7 +678,9 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 if (it != value_loans.end() && it->second < nloans) {
                     const uint32_t l = it->second;
                     Loan& loan = loans[l];
-                    for (uint32_t other = 0; other < nloans; ++other) {
+                    // An escaped loan's lifetime is unknown; do not report it
+                    // as the *source* of a conflict either.
+                    for (uint32_t other = 0; !loan.escaped && other < nloans; ++other) {
                         if (other == l || !live[other]) continue;
                         if (loans[other].escaped || !loans[other].target.known) continue;
                         if (!(loan.mutable_loan || loans[other].mutable_loan)) continue;

@@ -2010,6 +2010,12 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
             for (const mir::MIRBorrowDiagnostic& d : borrows.diagnostics) {
                 std::cerr << "warn[" << (d.code ? d.code : "SAFE-BORROW-001")
                           << "]: " << d.message;
+                if (check.symbol != mir::MIR_INVALID_ID &&
+                    check.symbol < module.symbols.size()) {
+                    std::cerr << " (in "
+                              << module.symbols.mangled_name(module.symbols.get(check.symbol))
+                              << ")";
+                }
                 if (d.has_loc && d.loc.file < module.source_files.size()) {
                     std::cerr << " at " << module.source_files[d.loc.file] << ":"
                               << d.loc.line << ":" << d.loc.column;

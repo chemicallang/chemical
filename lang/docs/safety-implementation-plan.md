@@ -616,8 +616,14 @@
 > function-local region id (`MIRFunction::region_var_count`, seeded from the
 > signature's declared lifetimes). `MIRTests` is `4617 checks`; negative tests
 > cover mutable/shared alias, sequential, shared, move-while-borrowed and
-> disjoint-branch cases. Next: S4.5 interprocedural escape, S4.2b variance,
-> then outlives/region constraints for NLL enforcement.
+> disjoint-branch cases. S4.5a callee signatures: the per-symbol region table is
+> filled at interning time, so a known callee that returns a reference extends
+> the single reference argument's loan through the result; a
+> non-reference-returning callee ends it at the call. Indirect/extern callees
+> and multiple reference arguments stay conservative (escape). Four report-only
+> `SAFE-BORROW-001` hits remain in generated test-harness code (`__chemda_*`)
+> for the S4.9 migration. Next: S4.2b variance, then outlives/region
+> constraints and enforcement.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

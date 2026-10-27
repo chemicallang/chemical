@@ -90,6 +90,25 @@ struct MIRModule {
         return static_cast<uint32_t>(region_signatures.size() - 1);
     }
     /**
+     * Symbol -> region signature (S4.2/S4.5). Filled when a function is
+     * interned, so a callee's signature is available even before/without its
+     * body. Symbol ids are append-only; the vector grows to the symbol id.
+     */
+    std::vector<uint32_t> symbol_region_signatures;
+    std::mutex symbol_region_mutex;
+    void set_symbol_region_signature(SymbolId symbol, uint32_t signature) {
+        std::lock_guard<std::mutex> lock(symbol_region_mutex);
+        if (symbol >= symbol_region_signatures.size()) {
+            symbol_region_signatures.resize(symbol + 1, MIR_INVALID_ID);
+        }
+        symbol_region_signatures[symbol] = signature;
+    }
+    uint32_t symbol_region_signature(SymbolId symbol) const {
+        return symbol < symbol_region_signatures.size()
+                   ? symbol_region_signatures[symbol]
+                   : MIR_INVALID_ID;
+    }
+    /**
      * The module's ordered declaration list (forward tags, aggregate bodies,
      * typedefs, prototypes, global declarations and vtable type/externs), filled
      * by the front-end collection pass and rendered by the AST-free

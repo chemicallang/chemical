@@ -45,3 +45,21 @@ func disjoint_branch_borrows_do_not_conflict(env : &mut TestEnv) {
     var ch = "public func main() : int {\n    var x = 1\n    var c = true\n    if(c) { var a = &mut x\n *a = 2 } else { var b = &mut x\n *b = 3 }\n    return x\n}\n"
     expect_compile_output_not_contains(env, "borrow_branch_disjoint", ch, "SAFE-BORROW-001", NEG_MOD)
 }
+
+@test
+func neg_reference_returning_call_extends_loan(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // The call result aliases the argument, so the loan stays live until the
+    // result's last use and conflicts with a later mutable borrow.
+    var ch = "func id(p : &int) : &int {\n    return p\n}\npublic func main() : int {\n    var x = 1\n    var a = id(&x)\n    var b = &mut x\n    *b = 2\n    return *a\n}\n"
+    expect_compile_warning_id(env, "borrow_ref_return_call", ch, "SAFE-BORROW-001")
+}
+
+@test
+func value_returning_call_ends_loan(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // A callee that returns a value cannot retain the reference; the loan
+    // ends at the call, so the later mutable borrow is fine.
+    var ch = "func read_int(p : &int) : int {\n    return *p\n}\npublic func main() : int {\n    var x = 1\n    var a = read_int(&x)\n    var b = &mut x\n    *b = 2\n    return a\n}\n"
+    expect_compile_output_not_contains(env, "borrow_value_return_call", ch, "SAFE-BORROW-001", NEG_MOD)
+}

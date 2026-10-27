@@ -154,8 +154,15 @@ Implemented:
   (`MIRFunction::region_var_count`, seeded from the signature's declared
   lifetime count) instead of the placeholder. `MIRTests` is `4617 checks`; the
   negative suite has alias/sequential/shared/move/branch cases.
-  Next in M4: S4.5 interprocedural escape, S4.2b variance, then outlives/region
-  constraint solving for NLL enforcement.
+- S4.5a callee signatures: region signatures are stored per symbol at interning
+  time, so a caller sees a callee's signature before its body. A known callee
+  that returns a reference keeps the single reference argument's loan alive
+  through the call result; a non-reference-returning callee ends the loan at
+  the call. Indirect/extern callees and calls with multiple reference
+  arguments keep the conservative escape mark. Four report-only
+  `SAFE-BORROW-001` hits remain in generated test-harness code (`__chemda_*`);
+  they are the S4.9 migration items. Next in M4: S4.2b variance, then
+  outlives/region constraint solving and enforcement.
 - S2.6d unsafe invariant constructors: `vector::set_len` and
   `default_function_instance::make2` are now `unsafe func`; the audited
   `fs::read_file` and `std::function` `make` paths wrap their calls in
@@ -313,8 +320,8 @@ Next:
   modeled (S3.1c), including construction temporaries and use-after-move
   through assignment. M3 is complete: the next milestone is M4 (regions, NLL,
   borrow checking, dropck enforcement, and async/Pin). The current M4 step is
-  S4.4b (CFG loan liveness + region variables), then S4.5 (escape) and S4.2b
-  variance, followed by outlives/NLL enforcement.
+  S4.5a (callee signature association), then S4.2b variance, followed by
+  outlives/NLL enforcement.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

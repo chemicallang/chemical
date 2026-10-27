@@ -1640,6 +1640,10 @@ SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
                                      static_cast<uint32_t>(mangle_buf_.size()),
                                      mangle_buf_.data(), static_cast<uint32_t>(mangle_buf_.size()));
     func_symbols_[decl] = s;
+    // Signatures are built at interning time (before any body lowering) so a
+    // callee's regions are available to its callers (S4.5).
+    const uint32_t sig = intern_region_signature(decl);
+    if (sig != MIR_INVALID_ID) module_.set_symbol_region_signature(s, sig);
     return s;
 }
 

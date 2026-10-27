@@ -616,6 +616,20 @@ bool MIRLowerer::lower_static_interface_stub(FunctionDeclaration* decl, MIRArena
     stmt_temps_.clear();
 
     func.symbol = intern_function(decl);
+    // Region signatures are built from the declaration before any body
+    // lowering, so MIRBorrowCheck (M4) never has to read the AST.
+    func.region_signature = module_.symbol_region_signature(func.symbol);
+    if (func.region_signature == MIR_INVALID_ID) {
+        func.region_signature = intern_region_signature(decl);
+        if (func.region_signature != MIR_INVALID_ID) {
+            module_.set_symbol_region_signature(func.symbol, func.region_signature);
+        }
+    }
+    if (func.region_signature != MIR_INVALID_ID &&
+        func.region_signature < module_.region_signatures.size()) {
+        func.region_var_count =
+            module_.region_signatures[func.region_signature].lifetime_param_count;
+    }
     func.function_type = module_.symbols.get(func.symbol).type;
 
     MIRBuilder b(arena, module_, func);
@@ -671,14 +685,6 @@ bool MIRLowerer::lower_static_interface_stub(FunctionDeclaration* decl, MIRArena
 bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
                                 MIRFunction& func, std::string& error) {
     MIR_OP(functions);
-    // Region signatures are built from the declaration before any body
-    // lowering, so MIRBorrowCheck (M4) never has to read the AST.
-    func.region_signature = intern_region_signature(decl);
-    if (func.region_signature != MIR_INVALID_ID &&
-        func.region_signature < module_.region_signatures.size()) {
-        func.region_var_count =
-            module_.region_signatures[func.region_signature].lifetime_param_count;
-    }
 #ifdef MIR_OPS_COUNTERS
     struct LowerTimer {
         std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
@@ -709,6 +715,20 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     // func_symbols_ persists across functions in a module so callees keep stable ids
 
     func.symbol = intern_function(decl);
+    // Region signatures are built from the declaration before any body
+    // lowering, so MIRBorrowCheck (M4) never has to read the AST.
+    func.region_signature = module_.symbol_region_signature(func.symbol);
+    if (func.region_signature == MIR_INVALID_ID) {
+        func.region_signature = intern_region_signature(decl);
+        if (func.region_signature != MIR_INVALID_ID) {
+            module_.set_symbol_region_signature(func.symbol, func.region_signature);
+        }
+    }
+    if (func.region_signature != MIR_INVALID_ID &&
+        func.region_signature < module_.region_signatures.size()) {
+        func.region_var_count =
+            module_.region_signatures[func.region_signature].lifetime_param_count;
+    }
     const TypeId ret = decl->returnType ? types_.map(decl->returnType) : types_.void_type();
     sret_ = abi::needs_sret(module_, ret);
     sret_ret_type_ = ret;

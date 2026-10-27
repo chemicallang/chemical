@@ -13,7 +13,7 @@ func test_fs_read_entire_file_async(env : &mut TestEnv) {
     var p = make_child_path(&base, "async_read.txt");
 
     var msg : *char = "async hello";
-    var len = strlen(msg) as size_t;
+    var len = unsafe(strlen(msg)) as size_t;
     var wr = fs::write_text_file(p.data(), msg as *u8, len);
     if(wr is Result.Err) {
         env.error("write_text_file failed");
@@ -40,7 +40,7 @@ func test_fs_write_text_file_async(env : &mut TestEnv) {
     var p = make_child_path(&base, "async_write.txt");
 
     var msg : *char = "written asynchronously";
-    var len = strlen(msg) as size_t;
+    var len = unsafe(strlen(msg)) as size_t;
     var wr = async::block_on(fs::write_text_file_async(p.data(), msg as *u8, len));
     if(wr is Result.Err) {
         env.error("write_text_file_async failed");
@@ -68,7 +68,7 @@ func test_fs_atomic_write_async(env : &mut TestEnv) {
     var p = make_child_path(&base, "async_atomic.txt");
 
     var msg : *char = "atomic async";
-    var len = strlen(msg) as size_t;
+    var len = unsafe(strlen(msg)) as size_t;
     var wr = async::block_on(fs::atomic_write_async(p.data(), msg as *u8, len));
     if(wr is Result.Err) {
         env.error("atomic_write_async failed");

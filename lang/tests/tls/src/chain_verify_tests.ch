@@ -42,9 +42,9 @@ public func INT_mpi_mul_4096_vs_python(env : &mut TestEnv) {
     var mul_len = test_parse_py_hex_label(&raw mut py_out, string_view("MUL="), &raw mut py_mul[0], 1024)
     if(mul_len != 1024) { env.error("failed to parse Python MUL output"); return }
 
-    var ma : Mpi; mpi_init(unsafe(&raw mut ma))
-    var mb : Mpi; mpi_init(unsafe(&raw mut mb))
-    var mx : Mpi; mpi_init(unsafe(&raw mut mx))
+    var ma : Mpi = zeroed:unsafe<Mpi>(); mpi_init(unsafe(&raw mut ma))
+    var mb : Mpi = zeroed:unsafe<Mpi>(); mpi_init(unsafe(&raw mut mb))
+    var mx : Mpi = zeroed:unsafe<Mpi>(); mpi_init(unsafe(&raw mut mx))
     var ret = mpi_read_binary(unsafe(&raw mut ma), &raw a[0], 512)
     if(ret < 0) { env.error("mpi_read_binary failed"); return }
     ret = mpi_read_binary(unsafe(&raw mut mb), &raw b[0], 512)
@@ -89,10 +89,10 @@ public func INT_mpi_exp_mod_4096_vs_python(env : &mut TestEnv) {
     var r_len = test_parse_py_hex_label(&raw mut py_out, string_view("R="), &raw mut py_r[0], 512)
     if(r_len != 512) { env.error("failed to parse Python R output"); return }
 
-    var mn : Mpi; mpi_init(unsafe(&raw mut mn))
-    var ma : Mpi; mpi_init(unsafe(&raw mut ma))
-    var me : Mpi; mpi_init(unsafe(&raw mut me))
-    var mr : Mpi; mpi_init(unsafe(&raw mut mr))
+    var mn : Mpi = zeroed:unsafe<Mpi>(); mpi_init(unsafe(&raw mut mn))
+    var ma : Mpi = zeroed:unsafe<Mpi>(); mpi_init(unsafe(&raw mut ma))
+    var me : Mpi = zeroed:unsafe<Mpi>(); mpi_init(unsafe(&raw mut me))
+    var mr : Mpi = zeroed:unsafe<Mpi>(); mpi_init(unsafe(&raw mut mr))
     var ret = mpi_read_binary(unsafe(&raw mut mn), &raw n[0], 512)
     if(ret < 0) { env.error("mpi_read_binary(n) failed"); return }
     ret = mpi_read_binary(unsafe(&raw mut ma), &raw a[0], 512)
@@ -129,19 +129,19 @@ public func INT_rsa4096_cert_signature_vs_python(env : &mut TestEnv) {
 
     test_python_run_script(&raw script[0], sp, string_view("cert_rsa4096.py"))
 
-    var cert_file = fopen(cert_path.data() as *char, "rb\0" as *char)
+    var cert_file = unsafe(fopen(cert_path.data() as *char, "rb\0" as *char))
     if(cert_file == null) { env.error("cannot open cert"); return }
     var cert_buf : [2048]u8
-    var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file)
-    fclose(cert_file)
+    var cert_len = unsafe(fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file))
+    unsafe { fclose(cert_file) }
     if(cert_len < 100) { env.error("cert DER too small"); return }
 
-    var crt : X509Cert; x509_cert_init(unsafe(&raw mut crt))
+    var crt : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut crt))
     var ret = parse_cert_der(unsafe(&raw mut crt), &raw cert_buf[0], cert_len)
     if(ret < 0) { env.error("parse_cert_der failed"); return }
     if(unsafe(crt.pk_type) != PK_RSA) { env.error("expected RSA key type"); return }
 
-    var rsa_ctx : RSAContext; rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
+    var rsa_ctx : RSAContext = zeroed:unsafe<RSAContext>(); rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
     ret = x509_extract_rsa_pubkey(unsafe(&raw mut crt), unsafe(&raw mut rsa_ctx))
     if(ret < 0) { env.error("x509_extract_rsa_pubkey failed"); return }
     if(rsa_get_len(unsafe(&raw mut rsa_ctx)) != 512) { env.error("RSA modulus len should be 512 bytes"); return }
@@ -172,17 +172,17 @@ public func INT_rsa2048_cert_signature_still_verifies(env : &mut TestEnv) {
 
     test_python_run_script(&raw script[0], sp, string_view("cert_rsa2048.py"))
 
-    var cert_file = fopen(cert_path.data() as *char, "rb\0" as *char)
+    var cert_file = unsafe(fopen(cert_path.data() as *char, "rb\0" as *char))
     if(cert_file == null) { env.error("cannot open cert"); return }
     var cert_buf : [2048]u8
-    var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file)
-    fclose(cert_file)
+    var cert_len = unsafe(fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file))
+    unsafe { fclose(cert_file) }
 
-    var crt : X509Cert; x509_cert_init(unsafe(&raw mut crt))
+    var crt : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut crt))
     var ret = parse_cert_der(unsafe(&raw mut crt), &raw cert_buf[0], cert_len)
     if(ret < 0) { env.error("parse_cert_der failed"); return }
 
-    var rsa_ctx : RSAContext; rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
+    var rsa_ctx : RSAContext = zeroed:unsafe<RSAContext>(); rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
     ret = x509_extract_rsa_pubkey(unsafe(&raw mut crt), unsafe(&raw mut rsa_ctx))
     if(ret < 0) { env.error("x509_extract_rsa_pubkey failed"); return }
     ret = x509_verify_cert_signature(unsafe(&raw mut crt), unsafe(&raw mut rsa_ctx))
@@ -238,10 +238,10 @@ func test_write_chain_python() {
 }
 
 func test_read_der_file(path : *char, buf : *mut u8, max_len : size_t) : size_t {
-    var f = fopen(path, "rb\0" as *char)
+    var f = unsafe(fopen(path, "rb\0" as *char))
     if(f == null) { return 0 }
-    var total = fread(buf as *mut void, 1 as size_t, max_len, f)
-    fclose(f)
+    var total = unsafe(fread(buf as *mut void, 1 as size_t, max_len, f))
+    unsafe { fclose(f) }
     return total
 }
 
@@ -257,9 +257,9 @@ public func INT_x509_chain_leaf_intermediate_root_vs_python(env : &mut TestEnv) 
     var leaf_buf : [2048]u8; var leaf_len = test_read_der_file(leaf_path.data() as *char, &raw mut leaf_buf[0], 2048)
     if(root_len == 0 || inter_len == 0 || leaf_len == 0) { env.error("failed to read chain DER files"); return }
 
-    var root : X509Cert; x509_cert_init(unsafe(&raw mut root))
-    var inter : X509Cert; x509_cert_init(unsafe(&raw mut inter))
-    var leaf : X509Cert; x509_cert_init(unsafe(&raw mut leaf))
+    var root : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut root))
+    var inter : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut inter))
+    var leaf : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut leaf))
     var ret = parse_cert_der(unsafe(&raw mut root), &raw root_buf[0], root_len)
     if(ret < 0) { env.error("parse root failed"); return }
     ret = parse_cert_der(unsafe(&raw mut inter), &raw inter_buf[0], inter_len)
@@ -313,10 +313,10 @@ public func INT_x509_chain_wrong_root_fails_vs_python(env : &mut TestEnv) {
     var wrong_buf : [2048]u8; var wrong_len = test_read_der_file(wrong_path.data() as *char, &raw mut wrong_buf[0], 2048)
     if(wrong_len == 0) { env.error("failed to read wrong root"); return }
 
-    var root : X509Cert; x509_cert_init(unsafe(&raw mut root))
-    var inter : X509Cert; x509_cert_init(unsafe(&raw mut inter))
-    var leaf : X509Cert; x509_cert_init(unsafe(&raw mut leaf))
-    var wrong : X509Cert; x509_cert_init(unsafe(&raw mut wrong))
+    var root : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut root))
+    var inter : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut inter))
+    var leaf : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut leaf))
+    var wrong : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut wrong))
     var ret = parse_cert_der(unsafe(&raw mut root), &raw root_buf[0], root_len)
     if(ret < 0) { env.error("parse root failed"); return }
     ret = parse_cert_der(unsafe(&raw mut inter), &raw inter_buf[0], inter_len)
@@ -346,8 +346,8 @@ public func INT_x509_chain_missing_intermediate_fails_vs_python(env : &mut TestE
     var leaf_buf : [2048]u8; var leaf_len = test_read_der_file(leaf_path.data() as *char, &raw mut leaf_buf[0], 2048)
     if(root_len == 0 || leaf_len == 0) { env.error("failed to read chain DER files"); return }
 
-    var root : X509Cert; x509_cert_init(unsafe(&raw mut root))
-    var leaf : X509Cert; x509_cert_init(unsafe(&raw mut leaf))
+    var root : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut root))
+    var leaf : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut leaf))
     var ret = parse_cert_der(unsafe(&raw mut root), &raw root_buf[0], root_len)
     if(ret < 0) { env.error("parse root failed"); return }
     ret = parse_cert_der(unsafe(&raw mut leaf), &raw leaf_buf[0], leaf_len)

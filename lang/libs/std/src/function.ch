@@ -61,11 +61,11 @@ public struct default_function_instance {
         if(size_data >= 32) {
             // we are going to need to allocate the lambda on heap, its too big
             // TODO: malloc call should take alignment malloc(size_data, align_data)
-            var allocated = malloc(size_data) as *mut char
+            var allocated = unsafe(malloc(size_data)) as *mut char
             if(allocated == null) {
                 panic("function capture allocation failed")
             }
-            memcpy(allocated, captured, size_data)
+            unsafe { memcpy(allocated, captured, size_data) }
             return default_function_instance {
                 fn_pointer : ptr,
                 fn_data_ptr : allocated,
@@ -82,7 +82,7 @@ public struct default_function_instance {
                 dtor : destr,
                 buffer : []
             }
-            memcpy(&raw mut i.buffer[0], captured, size_data)
+            unsafe { memcpy(&raw mut i.buffer[0], captured, size_data) }
             i.fn_data_ptr = &raw mut i.buffer[0]
             return i;
         }

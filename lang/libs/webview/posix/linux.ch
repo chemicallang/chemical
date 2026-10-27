@@ -213,7 +213,7 @@ public struct WebView {
 }
 
 func linux_on_window_destroy(widget : *mut GtkWidget, data : *mut void) {
-    gtk_main_quit()
+    unsafe { gtk_main_quit() }
 }
 
 func linux_on_navigation_complete(web_view : *mut WebKitWebView, event : int, data : *mut void) {
@@ -241,10 +241,10 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
     var window_widget = window::window_native_handle(&raw mut wv.win) as *mut GtkWidget
 
     // Create box layout
-    wv.box = gtk_box_new(0, 0) // horizontal, no spacing
+    wv.box = unsafe(gtk_box_new(0, 0)) // horizontal, no spacing
 
     // Create web view
-    wv.web_view = webkit_web_view_new()
+    wv.web_view = unsafe(webkit_web_view_new())
     if(wv.web_view == null) {
         return std.Result.Err(WebViewError.InitFailed(string("failed to create web view")))
     }
@@ -252,16 +252,16 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
     // Configure web view settings
     // (JavaScript is always enabled in modern WebKitGTK (>= 2.40);
     // webkit_settings_set_javascript_enabled no longer exists there)
-    var settings = webkit_web_view_get_settings(wv.web_view as *mut WebKitWebView)
+    var settings = unsafe(webkit_web_view_get_settings(wv.web_view as *mut WebKitWebView))
     if(settings != null) {
-        webkit_settings_set_allow_file_access_from_file_urls(settings, TRUE)
+        unsafe { webkit_settings_set_allow_file_access_from_file_urls(settings, TRUE) }
     }
 
     // Add web view to box
-    gtk_box_pack_start(wv.box as *mut GtkBox, wv.web_view, TRUE, GTK_FILL, 0)
+    unsafe { gtk_box_pack_start(wv.box as *mut GtkBox, wv.web_view, TRUE, GTK_FILL, 0) }
 
     // Add box to window
-    gtk_container_add(window_widget as *mut GtkContainer, wv.box)
+    unsafe { gtk_container_add(window_widget as *mut GtkContainer, wv.box) }
 
     wv.visible = false
     wv.initialized = true
@@ -280,22 +280,22 @@ func webview_inject_bridge(wv : *mut WebView) {
     if(wv == null) {
         return
     }
-    var manager = webkit_web_view_get_user_content_manager(wv.web_view as *mut WebKitWebView)
+    var manager = unsafe(webkit_web_view_get_user_content_manager(wv.web_view as *mut WebKitWebView))
     if(manager == null) {
         return
     }
     // Register the named message handler. Returns non-zero on success; calling
     // it again for the same name is harmless (WebKit returns 0 / FALSE).
-    webkit_user_content_manager_register_script_message_handler(manager, "__webview__")
+    unsafe { webkit_user_content_manager_register_script_message_handler(manager, "__webview__") }
     // allow_list/block_list are NULL-terminated arrays of content-filter names;
     // null means "apply to all".
-    var script = webkit_user_script_new(
+    var script = unsafe(webkit_user_script_new(
         WEBVIEW_BRIDGE_JS,
         WEBKIT_USER_CONTENT_INJECT_TOP_FRAME,
         WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START,
-        null, null)
+        null, null))
     if(script != null) {
-        webkit_user_content_manager_add_script(manager, script)
+        unsafe { webkit_user_content_manager_add_script(manager, script) }
     }
 }
 
@@ -327,16 +327,16 @@ func linux_on_script_message(
     if(!wv.bind_handler_set || wv.bind_ctx == null) {
         return
     }
-    var jsc_value = webkit_javascript_result_get_js_value(js_result)
+    var jsc_value = unsafe(webkit_javascript_result_get_js_value(js_result))
     if(jsc_value == null) {
         return
     }
-    var msg_cstr = jsc_value_to_string(jsc_value)
+    var msg_cstr = unsafe(jsc_value_to_string(jsc_value))
     if(msg_cstr == null) {
         return
     }
     linux_on_message(wv, msg_cstr)
-    free(msg_cstr as *mut void)
+    unsafe { free(msg_cstr as *mut void) }
 }
 
 // Extract the JSON value for `key` (e.g. "\"params\":") from a bridge message.
@@ -461,20 +461,20 @@ var g_lr_ready : bool = false
 // that polls the bridge on a timer while downloads render).
 func linux_run_js(wv : *mut WebView, script : *char) {
     if(wv.web_view != null) {
-        webkit_web_view_run_javascript(wv.web_view as *mut WebKitWebView, script, null, null, null)
+        unsafe { webkit_web_view_run_javascript(wv.web_view as *mut WebKitWebView, script, null, null, null) }
     }
 }
 
 func linux_store_large_result(id_str : *char, data : *char, size : size_t) {
     // Free previous if any
     if(g_lr_buf != null) {
-        free(g_lr_buf as *mut void)
+        unsafe { free(g_lr_buf as *mut void) }
     }
-    g_lr_buf = malloc(size) as *char
+    g_lr_buf = unsafe(malloc(size)) as *char
     g_lr_alloc = size
     g_lr_size = size
     if(size > 0u && data != null) {
-        memcpy(g_lr_buf as *mut void, data as *mut void, size)
+        unsafe { memcpy(g_lr_buf as *mut void, data as *mut void, size) }
     }
     g_lr_ready = true
 }
@@ -508,7 +508,7 @@ func linux_chunk_result(offset : size_t, length : size_t) : string {
 
 func linux_clear_large_result() {
     if(g_lr_buf != null) {
-        free(g_lr_buf as *mut void)
+        unsafe { free(g_lr_buf as *mut void) }
         g_lr_buf = null
     }
     g_lr_size = 0
@@ -659,25 +659,25 @@ public func webview_bind(wv : *mut WebView, handler : JsBindHandler) : std::Resu
     // freshly allocated holder is garbage. Zeroing makes the implicit delete of
     // the old capture a no-op (dtor null, is_heap false) before set() copies
     // the real handler in.
-    memset(holder as *mut void, 0, sizeof(JsBindHolder))
+    unsafe { memset(holder as *mut void, 0, sizeof(JsBindHolder)) }
     holder.set(handler)
     wv.bind_ctx = holder
     wv.bind_handler_set = true
     if(!wv.bind_signal_connected) {
-        var manager = webkit_web_view_get_user_content_manager(wv.web_view as *mut WebKitWebView)
+        var manager = unsafe(webkit_web_view_get_user_content_manager(wv.web_view as *mut WebKitWebView))
         if(manager == null) {
             delete holder
             wv.bind_ctx = null
             wv.bind_handler_set = false
             return std.Result.Err(WebViewError.InitFailed(string("webview_bind: user content manager unavailable")))
         }
-        g_signal_connect_data(
+        unsafe { g_signal_connect_data(
             manager as *mut void,
             "script-message-received::__webview__",
             linux_on_script_message as *mut void,
             wv as *mut void,
             null,
-            0)
+            0) }
         wv.bind_signal_connected = true
     }
     return std.Result.Ok(std::Unit{})
@@ -726,23 +726,23 @@ public func webview_attach(
     wv.bounds_w = width
     wv.bounds_h = height
 
-    wv.web_view = webkit_web_view_new()
+    wv.web_view = unsafe(webkit_web_view_new())
     if(wv.web_view == null) {
         wv.attached = false
         wv.parent_win = null
         return std.Result.Err(WebViewError.InitFailed(string("failed to create web view")))
     }
-    var settings = webkit_web_view_get_settings(wv.web_view as *mut WebKitWebView)
+    var settings = unsafe(webkit_web_view_get_settings(wv.web_view as *mut WebKitWebView))
     if(settings != null) {
-        webkit_settings_set_allow_file_access_from_file_urls(settings, TRUE)
+        unsafe { webkit_settings_set_allow_file_access_from_file_urls(settings, TRUE) }
     }
 
     // Absolute-position the webview inside a GtkFixed so it occupies its
     // section of the app's existing window.
     var parent_widget = window::window_native_handle(parent) as *mut GtkWidget
-    wv.fixed = gtk_fixed_new()
-    gtk_widget_set_size_request(wv.web_view, width, height)
-    gtk_fixed_put(wv.fixed as *mut GtkFixed, wv.web_view, x, y)
+    wv.fixed = unsafe(gtk_fixed_new())
+    unsafe { gtk_widget_set_size_request(wv.web_view, width, height) }
+    unsafe { gtk_fixed_put(wv.fixed as *mut GtkFixed, wv.web_view, x, y) }
     // A GtkWindow is a GtkBin: it allows ONE direct child. If the app already
     // packed native widgets into a content container (box/grid/fixed), add the
     // webview section INTO that container so native UI and the webview coexist
@@ -751,12 +751,12 @@ public func webview_attach(
     // container (e.g. a GtkBox) — a non-container child would trigger a GTK
     // warning instead.
     var host : *mut GtkWidget = parent_widget
-    var existing_child = gtk_bin_get_child(parent_widget as *mut GtkBin)
+    var existing_child = unsafe(gtk_bin_get_child(parent_widget as *mut GtkBin))
     if(existing_child != null) {
         host = existing_child
     }
-    gtk_container_add(host as *mut GtkContainer, wv.fixed)
-    gtk_widget_show_all(wv.fixed)
+    unsafe { gtk_container_add(host as *mut GtkContainer, wv.fixed) }
+    unsafe { gtk_widget_show_all(wv.fixed) }
 
     webview_inject_bridge(wv)
 
@@ -775,8 +775,8 @@ public func webview_set_bounds(wv : *mut WebView, x : int, y : int, width : int,
     wv.bounds_w = width
     wv.bounds_h = height
     if(wv.fixed != null && wv.web_view != null) {
-        gtk_fixed_move(wv.fixed as *mut GtkFixed, wv.web_view, x, y)
-        gtk_widget_set_size_request(wv.web_view, width, height)
+        unsafe { gtk_fixed_move(wv.fixed as *mut GtkFixed, wv.web_view, x, y) }
+        unsafe { gtk_widget_set_size_request(wv.web_view, width, height) }
     }
 }
 
@@ -814,11 +814,11 @@ public func webview_destroy(wv : *mut WebView) {
         // embed mode: destroy only the webview + fixed container; the app owns
         // the parent window.
         if(wv.web_view != null) {
-            gtk_widget_destroy(wv.web_view)
+            unsafe { gtk_widget_destroy(wv.web_view) }
             wv.web_view = null
         }
         if(wv.fixed != null) {
-            gtk_widget_destroy(wv.fixed)
+            unsafe { gtk_widget_destroy(wv.fixed) }
             wv.fixed = null
         }
         wv.attached = false
@@ -826,7 +826,7 @@ public func webview_destroy(wv : *mut WebView) {
         return
     }
     if(wv.web_view != null) {
-        gtk_widget_destroy(wv.web_view)
+        unsafe { gtk_widget_destroy(wv.web_view) }
         wv.web_view = null
     }
     if(window::window_is_created(&raw mut wv.win)) {
@@ -836,26 +836,26 @@ public func webview_destroy(wv : *mut WebView) {
 
 public func webview_load_url(wv : *mut WebView, url : *char) {
     if(wv.web_view != null) {
-        webkit_web_view_load_uri(wv.web_view as *mut WebKitWebView, url)
+        unsafe { webkit_web_view_load_uri(wv.web_view as *mut WebKitWebView, url) }
     }
 }
 
 public func webview_load_html(wv : *mut WebView, html : *char) {
     if(wv.web_view != null) {
-        webkit_web_view_load_html(wv.web_view as *mut WebKitWebView, html, "about:blank\0" as *char)
+        unsafe { webkit_web_view_load_html(wv.web_view as *mut WebKitWebView, html, "about:blank\0" as *char) }
     }
 }
 
 public func webview_evaluate_js(wv : *mut WebView, script : *char) {
     if(wv.web_view != null) {
-        webkit_web_view_run_javascript(wv.web_view as *mut WebKitWebView, script, null, null, null)
+        unsafe { webkit_web_view_run_javascript(wv.web_view as *mut WebKitWebView, script, null, null, null) }
         // Pump the GLib main loop until no more events are pending so the queued
         // JS (e.g. onReply) actually executes. A single iteration may pick up an
         // unrelated event (e.g. download-thread I/O) and leave the JS evaluation
         // callback still queued; the Promise would then never resolve.
         var safety = 0
-        while(gtk_events_pending() != 0 && safety < 500) {
-            gtk_main_iteration()
+        while(unsafe(gtk_events_pending()) != 0 && safety < 500) {
+            unsafe { gtk_main_iteration() }
             safety = safety + 1
         }
     }
@@ -874,15 +874,15 @@ func linux_js_callback(web_view : *mut WebKitWebView, res : *mut void, user_data
     var ctx = user_data as *mut JsEvalHandler
     if(ctx == null || ctx.cb == null) {
         if(ctx != null) {
-            free(ctx as *mut void)
+            unsafe { free(ctx as *mut void) }
         }
         return
     }
-    var js_result = webkit_web_view_run_javascript_finish(web_view, res, null)
+    var js_result = unsafe(webkit_web_view_run_javascript_finish(web_view, res, null))
     if(js_result != null) {
-        var value = webkit_javascript_result_get_js_value(js_result)
+        var value = unsafe(webkit_javascript_result_get_js_value(js_result))
         if(value != null) {
-            var s = jsc_value_to_string(value)
+            var s = unsafe(jsc_value_to_string(value))
             if(s != null) {
                 ctx.cb(ctx.user_data, s)
             } else {
@@ -891,11 +891,11 @@ func linux_js_callback(web_view : *mut WebKitWebView, res : *mut void, user_data
         } else {
             ctx.cb(ctx.user_data, null)
         }
-        webkit_javascript_result_unref(js_result)
+        unsafe { webkit_javascript_result_unref(js_result) }
     } else {
         ctx.cb(ctx.user_data, null)
     }
-    free(ctx as *mut void)
+    unsafe { free(ctx as *mut void) }
 }
 
 public func webview_evaluate_js_result(
@@ -907,24 +907,24 @@ public func webview_evaluate_js_result(
     if(wv.web_view == null) {
         return
     }
-    var ctx = malloc(sizeof(JsEvalHandler)) as *mut JsEvalHandler
+    var ctx = unsafe(malloc(sizeof(JsEvalHandler))) as *mut JsEvalHandler
     if(ctx == null) {
         return
     }
     ctx.cb = cb
     ctx.user_data = user_data
-    webkit_web_view_run_javascript(
+    unsafe { webkit_web_view_run_javascript(
         wv.web_view as *mut WebKitWebView,
         script,
         null,
         linux_js_callback as *mut void,
         ctx as *mut void
-    )
+    ) }
 }
 
 public func webview_title(wv : *mut WebView) : string {
     if(wv.web_view != null) {
-        var title_ptr = webkit_web_view_get_title(wv.web_view as *mut WebKitWebView)
+        var title_ptr = unsafe(webkit_web_view_get_title(wv.web_view as *mut WebKitWebView))
         if(title_ptr != null) {
             var result = string("")
             var i : size_t = 0
@@ -961,7 +961,7 @@ public func webview_show(wv : *mut WebView) {
         // embed mode: the app owns the parent window; just make sure the
         // webview section itself is visible
         if(wv.fixed != null) {
-            gtk_widget_show_all(wv.fixed)
+            unsafe { gtk_widget_show_all(wv.fixed) }
         }
         wv.visible = true
     } else if(window::window_is_created(&raw mut wv.win)) {
@@ -974,7 +974,7 @@ public func webview_hide(wv : *mut WebView) {
     wv.visible = false
     if(wv.attached) {
         if(wv.fixed != null) {
-            gtk_widget_hide(wv.fixed)
+            unsafe { gtk_widget_hide(wv.fixed) }
         }
     } else if(window::window_is_created(&raw mut wv.win)) {
         window::window_hide(&raw mut wv.win)
@@ -1048,7 +1048,7 @@ func linux_dispatch_idle(data : *mut void) : i32 {
         c.fn(c.arg)
     }
     if(c != null) {
-        free(c as *mut void)
+        unsafe { free(c as *mut void) }
     }
     return 0
 }
@@ -1058,13 +1058,13 @@ public func webview_dispatch(wv : *mut WebView, fn : DispatchCallback, arg : *mu
     if(fn == null) {
         return
     }
-    var c = malloc(sizeof(DispatchClosure)) as *mut DispatchClosure
+    var c = unsafe(malloc(sizeof(DispatchClosure))) as *mut DispatchClosure
     if(c == null) {
         return
     }
     c.fn = fn
     c.arg = arg
-    g_idle_add(linux_dispatch_idle as *mut void, c as *mut void)
+    unsafe { g_idle_add(linux_dispatch_idle as *mut void, c as *mut void) }
 }
 
 // Set window size with a hint (none / min / max / fixed).
@@ -1074,18 +1074,18 @@ public func webview_set_size_hints(wv : *mut WebView, width : int, height : int,
     if(!wv.attached && window::window_is_created(&raw mut wv.win) && wv.web_view != null) {
         var win = window::window_native_handle(&raw mut wv.win) as *mut GtkWindow
         if(hint == webview::SIZE_HINT_FIXED) {
-            gtk_widget_set_size_request(wv.web_view as *mut GtkWidget, width, height)
-            gtk_window_set_resizable(win, 0)
+            unsafe { gtk_widget_set_size_request(wv.web_view as *mut GtkWidget, width, height) }
+            unsafe { gtk_window_set_resizable(win, 0) }
         } else if(hint == webview::SIZE_HINT_MIN) {
-            gtk_widget_set_size_request(wv.web_view as *mut GtkWidget, width, height)
-            gtk_window_set_resizable(win, 1)
+            unsafe { gtk_widget_set_size_request(wv.web_view as *mut GtkWidget, width, height) }
+            unsafe { gtk_window_set_resizable(win, 1) }
         } else if(hint == webview::SIZE_HINT_MAX) {
-            gtk_window_set_default_size(win, width, height)
-            gtk_window_set_resizable(win, 1)
+            unsafe { gtk_window_set_default_size(win, width, height) }
+            unsafe { gtk_window_set_resizable(win, 1) }
         } else {
             // SIZE_HINT_NONE: just apply the size.
-            gtk_window_set_default_size(win, width, height)
-            gtk_window_set_resizable(win, 1)
+            unsafe { gtk_window_set_default_size(win, width, height) }
+            unsafe { gtk_window_set_resizable(win, 1) }
         }
     }
 }
@@ -1095,18 +1095,18 @@ public func webview_init(wv : *mut WebView, js : *char) {
     if(wv.web_view == null) {
         return
     }
-    var manager = webkit_web_view_get_user_content_manager(wv.web_view as *mut WebKitWebView)
+    var manager = unsafe(webkit_web_view_get_user_content_manager(wv.web_view as *mut WebKitWebView))
     if(manager == null) {
         return
     }
-    var script = webkit_user_script_new(
+    var script = unsafe(webkit_user_script_new(
         js,
         WEBKIT_USER_CONTENT_INJECT_TOP_FRAME,
         WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START,
         null,
-        null)
+        null))
     if(script != null) {
-        webkit_user_content_manager_add_script(manager, script)
+        unsafe { webkit_user_content_manager_add_script(manager, script) }
     }
 }
 
@@ -1213,17 +1213,17 @@ const GTK_RESPONSE_ACCEPT = -3
 
 // Show a native folder-picker dialog. Returns the selected path or empty string.
 public func webview_browse_folder(title : *char) : string {
-    var dlg = gtk_file_chooser_native_new(title, null, GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER, "_Open", "_Cancel")
+    var dlg = unsafe(gtk_file_chooser_native_new(title, null, GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER, "_Open", "_Cancel"))
     if(dlg == null) { return string() }
-    var resp = gtk_native_dialog_run(dlg)
+    var resp = unsafe(gtk_native_dialog_run(dlg))
     var result = string()
     if(resp == GTK_RESPONSE_ACCEPT) {
-        var path = gtk_file_chooser_get_filename(dlg as *mut void)
+        var path = unsafe(gtk_file_chooser_get_filename(dlg as *mut void))
         if(path != null) {
             result = string(path)
         }
     }
-    g_object_unref(dlg as *mut void)
+    unsafe { g_object_unref(dlg as *mut void) }
     return result
 }
 

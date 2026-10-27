@@ -43,7 +43,7 @@ func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig, ou
 func append_integer(str : &mut std::string, dig : int) {
     var buffer : [160]char
     const buffStart = &raw mut buffer[0]
-    snprintf(buffStart, sizeof(buffer), "%d", dig)
+    unsafe { snprintf(buffStart, sizeof(buffer), "%d", dig) }
     str.append_char_ptr(buffStart);
 }
 
@@ -65,7 +65,7 @@ func fn_name_match(fn_name : *char, name_list : &std::vector<*char>) : bool {
     if(name_list.empty()) { return true }
     var i : size_t = 0
     while(i < name_list.size()) {
-        if(strcmp(fn_name, name_list.get(i)) == 0) { return true }
+        if(unsafe(strcmp(fn_name, name_list.get(i))) == 0) { return true }
         i += 1
     }
     return false

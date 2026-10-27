@@ -78,7 +78,7 @@ public func INT_tls13_app_keys_vs_py(env : &mut TestEnv) {
         env.error("failed to parse Python output"); return
     } else {}
 
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.max_tls_version = SSL_VERSION_TLS1_3
     ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
@@ -123,7 +123,7 @@ public func INT_ecdsa_verify_py_signature_tls(env : &mut TestEnv) {
     var sig_len = test_parse_py_hex_label(&raw mut py_out, string_view("SIG="), &raw mut py_sig[0], 128)
     if(pub_len != 65 || sig_len < 64) { env.error("failed to parse Python key/sig"); return } else {}
 
-    var ecdsa_ctx : ECDSAContext; ecdsa_init(unsafe(&raw mut ecdsa_ctx))
+    var ecdsa_ctx : ECDSAContext = zeroed:unsafe<ECDSAContext>(); ecdsa_init(unsafe(&raw mut ecdsa_ctx))
     var ret = ecdsa_import_pubkey(unsafe(&raw mut ecdsa_ctx), &raw py_pub[0], 65, TLS_GROUP_SECP256R1 as u16)
     if(ret < 0) { env.error("import pubkey failed"); return } else {}
 
@@ -167,7 +167,7 @@ public func INT_aes256_gcm_non12iv_vs_py(env : &mut TestEnv) {
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 37 || tag_len != 16) { env.error("failed to parse Python output"); return } else {}
 
-    var gcm : GCMContext
+    var gcm : GCMContext = zeroed:unsafe<GCMContext>()
     var ret = gcm_init(unsafe(&raw mut gcm), &raw key[0], 32)
     if(ret < 0) { env.error("gcm_init failed"); return } else {}
     var chem_ct : [64]u8; var chem_tag : [16]u8
@@ -176,7 +176,7 @@ public func INT_aes256_gcm_non12iv_vs_py(env : &mut TestEnv) {
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 37)) { env.error("ciphertext mismatch"); return } else {}
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("tag mismatch"); return } else {}
 
-    var gcm2 : GCMContext; gcm_init(unsafe(&raw mut gcm2), &raw key[0], 32)
+    var gcm2 : GCMContext = zeroed:unsafe<GCMContext>(); gcm_init(unsafe(&raw mut gcm2), &raw key[0], 32)
     var chem_dec : [64]u8
     ret = gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv8[0], 8, &raw aad[0], 13, &raw py_ct[0], 37, &raw py_tag[0], 16, &raw mut chem_dec[0])
     if(ret < 0) { env.error("gcm_auth_decrypt failed"); return } else {}
@@ -186,7 +186,7 @@ public func INT_aes256_gcm_non12iv_vs_py(env : &mut TestEnv) {
 @test
 @test.timeout(60000)
 public func INT_rsa_cross_encrypt_vs_py(env : &mut TestEnv) {
-    var rsa_ctx : RSAContext; rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
+    var rsa_ctx : RSAContext = zeroed:unsafe<RSAContext>(); rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
     var ret = rsa_gen_key(unsafe(&raw mut rsa_ctx), 2048, 65537)
     if(ret < 0) { env.error("rsa_gen_key failed"); return } else {}
 
@@ -226,7 +226,7 @@ public func INT_rsa_cross_encrypt_vs_py(env : &mut TestEnv) {
     if(ret < 0) { env.error("rsa_pkcs1_decrypt failed"); return } else {}
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt_msg[0], 32)) { env.error("decrypted plaintext mismatch"); return } else {}
 
-    var rsa_ctx2 : RSAContext; rsa_init(unsafe(&raw mut rsa_ctx2), RSA_PKCS_V15, 0)
+    var rsa_ctx2 : RSAContext = zeroed:unsafe<RSAContext>(); rsa_init(unsafe(&raw mut rsa_ctx2), RSA_PKCS_V15, 0)
     ret = rsa_import_pubkey(unsafe(&raw mut rsa_ctx2), &raw n_buf[0], n_len, &raw e_buf[0], 4)
     if(ret < 0) { env.error("rsa_import_pubkey failed"); return } else {}
 
@@ -299,7 +299,7 @@ public func INT_rsa_keygen_sign_verify_vs_py(env : &mut TestEnv) {
     // private exponent D to produce a PKCS#1 v1.5 SHA-256 signature that
     // Python (pyca/cryptography) verifies. This exercises the generated key
     // in the signing direction that real servers/clients depend on.
-    var rsa_ctx : RSAContext; rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
+    var rsa_ctx : RSAContext = zeroed:unsafe<RSAContext>(); rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
     var ret = rsa_gen_key(unsafe(&raw mut rsa_ctx), 2048, 65537)
     if(ret < 0) { env.error("rsa_gen_key failed"); return } else {}
 
@@ -325,8 +325,8 @@ public func INT_rsa_keygen_sign_verify_vs_py(env : &mut TestEnv) {
     while(i < 32) { em[224 + i] = digest[i]; i += 1 }
 
     // 3. Signature = EM^D mod N using the generated private exponent
-    var sig_mpi : Mpi; mpi_init(unsafe(&raw mut sig_mpi))
-    var em_mpi : Mpi; mpi_init(unsafe(&raw mut em_mpi))
+    var sig_mpi : Mpi = zeroed:unsafe<Mpi>(); mpi_init(unsafe(&raw mut sig_mpi))
+    var em_mpi : Mpi = zeroed:unsafe<Mpi>(); mpi_init(unsafe(&raw mut em_mpi))
     ret = mpi_read_binary(unsafe(&raw mut em_mpi), &raw em[0], 256)
     if(ret < 0) { env.error("mpi_read_binary EM failed"); return } else {}
     ret = mpi_exp_mod(unsafe(&raw mut sig_mpi), unsafe(&raw mut em_mpi), unsafe(&raw mut rsa_ctx.D), unsafe(&raw mut rsa_ctx.N))
@@ -380,7 +380,7 @@ public func INT_rsa_keygen_sign_verify_vs_py(env : &mut TestEnv) {
     //    Chemical verifies a Python-produced signature — already covered by
     //    INT_rsa_sign_verify. Here we additionally verify the signature with
     //    Chemical's own rsa_pkcs1_verify for a self-consistency roundtrip.
-    var verify_ctx : RSAContext; rsa_init(unsafe(&raw mut verify_ctx), RSA_PKCS_V15, 0)
+    var verify_ctx : RSAContext = zeroed:unsafe<RSAContext>(); rsa_init(unsafe(&raw mut verify_ctx), RSA_PKCS_V15, 0)
     rsa_import_pubkey(unsafe(&raw mut verify_ctx), &raw n_buf[0], 256, &raw e_buf[0], 4)
     ret = rsa_pkcs1_verify(unsafe(&raw mut verify_ctx), &raw digest[0], 32, &raw sig_buf[0], 256)
     if(ret < 0) { env.error("rsa_pkcs1_verify of own signature failed"); return } else {}
@@ -398,7 +398,7 @@ public func INT_aes_cbc_hmac_tls12_vs_py(env : &mut TestEnv) {
     var mac_key_hex : [33]char; test_bytes_to_hex(&raw mac_key[0], 16, &raw mut mac_key_hex[0])
     var pt_hex : [97]char; test_bytes_to_hex(&raw pt[0], 48, &raw mut pt_hex[0])
 
-    var aes_ctx : AESContext
+    var aes_ctx : AESContext = zeroed:unsafe<AESContext>()
     aes_setkey_enc(unsafe(&raw mut aes_ctx), &raw key[0], 16)
     var chem_iv : [16]u8; var ci : size_t = 0; while(ci < 16) { chem_iv[ci] = iv[ci]; ci += 1 }
     var chem_ct : [64]u8
@@ -435,7 +435,7 @@ public func INT_aes_cbc_hmac_tls12_vs_py(env : &mut TestEnv) {
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 48)) { env.error("CBC ciphertext mismatch"); return } else {}
     if(!test_bytes_eq(&raw chem_mac[0], &raw py_mac[0], 32)) { env.error("HMAC mismatch"); return } else {}
 
-    var aes_dec : AESContext; aes_setkey_enc(unsafe(&raw mut aes_dec), &raw key[0], 128)
+    var aes_dec : AESContext = zeroed:unsafe<AESContext>(); aes_setkey_enc(unsafe(&raw mut aes_dec), &raw key[0], 128)
     var dec_iv : [16]u8; ci = 0; while(ci < 16) { dec_iv[ci] = iv[ci]; ci += 1 }
     var chem_dec : [64]u8
     ret = aes_crypt_cbc(unsafe(&raw mut aes_dec), AES_DECRYPT, 48, &raw mut dec_iv[0], &raw py_ct[0], &raw mut chem_dec[0])
@@ -456,13 +456,13 @@ public func INT_x509_cert_parse_vs_py(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     var py_out = test_python_run_script(&raw script[0], sp, string_view("cert_gen.py"))
 
-    var cert_file = fopen("/tmp/chem_test_cert.der\0" as *char, "rb\0" as *char)
+    var cert_file = unsafe(fopen("/tmp/chem_test_cert.der\0" as *char, "rb\0" as *char))
     if(cert_file == null) { env.error("cannot open generated cert"); return } else {}
     var cert_buf : [2048]u8
-    var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file)
-    fclose(cert_file)
+    var cert_len = unsafe(fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file))
+    unsafe { fclose(cert_file) }
 
-    var crt : X509Cert; x509_cert_init(unsafe(&raw mut crt))
+    var crt : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut crt))
     var ret = parse_cert_der(unsafe(&raw mut crt), &raw cert_buf[0], cert_len)
     if(ret < 0) { env.error("parse_cert_der failed"); return } else {}
     if(unsafe(crt.pk_type) != PK_ECKEY) { env.error("expected EC key type"); return } else {}
@@ -483,13 +483,13 @@ public func INT_x509_hostname_verify_vs_py(env : &mut TestEnv) {
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("cert_hostname.py"))
 
-    var cert_file = fopen("/tmp/chem_hostname_cert.der\0" as *char, "rb\0" as *char)
+    var cert_file = unsafe(fopen("/tmp/chem_hostname_cert.der\0" as *char, "rb\0" as *char))
     if(cert_file == null) { env.error("cannot open generated cert"); return } else {}
     var cert_buf : [2048]u8
-    var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file)
-    fclose(cert_file)
+    var cert_len = unsafe(fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file))
+    unsafe { fclose(cert_file) }
 
-    var crt : X509Cert; x509_cert_init(unsafe(&raw mut crt))
+    var crt : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut crt))
     var ret = parse_cert_der(unsafe(&raw mut crt), &raw cert_buf[0], cert_len)
     if(ret < 0) { env.error("parse_cert_der failed"); return } else {}
 
@@ -528,18 +528,18 @@ public func INT_x509_ecdsa_self_sig_verify(env : &mut TestEnv) {
     var pub_len = test_parse_py_hex_label(&raw mut py_out, string_view("PUB="), &raw mut py_pub[0], 65)
     if(pub_len != 65) { env.error("failed to parse pubkey"); return } else {}
 
-    var cert_file = fopen("/tmp/chem_sig_cert.der\0" as *char, "rb\0" as *char)
+    var cert_file = unsafe(fopen("/tmp/chem_sig_cert.der\0" as *char, "rb\0" as *char))
     if(cert_file == null) { env.error("cannot open cert"); return } else {}
     var cert_buf : [2048]u8
-    var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file)
-    fclose(cert_file)
+    var cert_len = unsafe(fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file))
+    unsafe { fclose(cert_file) }
 
-    var crt : X509Cert; x509_cert_init(unsafe(&raw mut crt))
+    var crt : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut crt))
     var ret = parse_cert_der(unsafe(&raw mut crt), &raw cert_buf[0], cert_len)
     if(ret < 0) { env.error("parse_cert_der failed"); return } else {}
     if(unsafe(crt.pk_type) != PK_ECKEY) { env.error("expected EC key type"); return } else {}
 
-    var issuer : ECDSAContext; ecdsa_init(unsafe(&raw mut issuer))
+    var issuer : ECDSAContext = zeroed:unsafe<ECDSAContext>(); ecdsa_init(unsafe(&raw mut issuer))
     ret = ecdsa_import_pubkey(unsafe(&raw mut issuer), &raw py_pub[0], 65, TLS_GROUP_SECP256R1 as u16)
     if(ret < 0) { env.error("import pubkey failed"); return } else {}
 
@@ -579,7 +579,7 @@ public func INT_hmac_long_key_vs_py(env : &mut TestEnv) {
 
 @test
 public func INT_ecdh_p256_shared_vs_py(env : &mut TestEnv) {
-    var chem_ctx : ECDHContext; ecdh_init(unsafe(&raw mut chem_ctx))
+    var chem_ctx : ECDHContext = zeroed:unsafe<ECDHContext>(); ecdh_init(unsafe(&raw mut chem_ctx))
     var chem_priv : [32]u8; test_random_bytes(&raw mut chem_priv[0], 32)
     var chem_pub : [65]u8
     var ret = ecdh_generate_keypair(unsafe(&raw mut chem_ctx), &raw mut chem_priv[0], 32, &raw mut chem_pub[0], 65)
@@ -662,7 +662,7 @@ public func INT_tls13_stream_large_with_small_buffers(env : &mut TestEnv) {
     test_py_run_background(string_view("bigsrv /tmp/tls_19970_cert.pem /tmp/tls_19970_key.pem 19970 102400"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -725,7 +725,7 @@ public func INT_tls13_config_connects_tls12_server(env : &mut TestEnv) {
 
     // IMPORTANT: max_tls_version stays at TLS 1.3 (the default), so the client
     // advertises both versions. The server only supports TLS 1.2.
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
@@ -778,13 +778,13 @@ public func INT_x509_parse_rsa_san_cert(env : &mut TestEnv) {
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("cert_rsa_san.py"))
 
-    var cert_file = fopen("/tmp/chem_rsa_san_cert.der\0" as *char, "rb\0" as *char)
+    var cert_file = unsafe(fopen("/tmp/chem_rsa_san_cert.der\0" as *char, "rb\0" as *char))
     if(cert_file == null) { env.error("cannot open generated rsa san cert"); return } else {}
     var cert_buf : [4096]u8
-    var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 4096, cert_file)
-    fclose(cert_file)
+    var cert_len = unsafe(fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 4096, cert_file))
+    unsafe { fclose(cert_file) }
 
-    var crt : X509Cert; x509_cert_init(unsafe(&raw mut crt))
+    var crt : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut crt))
     var ret = parse_cert_der(unsafe(&raw mut crt), &raw cert_buf[0], cert_len)
     if(ret < 0) { env.error("parse_cert_der failed for 4096-bit RSA SAN cert"); return } else {}
     if(unsafe(crt.san_entries) == null || unsafe(crt.san_count) == 0) {

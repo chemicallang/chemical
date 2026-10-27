@@ -71,7 +71,7 @@ public func font_load(path : *char) : std::Result<Font, FontError> {
 
     var font = Font.make()
     var Ok(data) = read_result else unreachable
-    memcpy(&raw mut font.data, &raw data, sizeof(vector<u8>))
+    unsafe { memcpy(&raw mut font.data, &raw data, sizeof(vector<u8>)) }
     new(&raw data) vector<u8>()
 
     var parse_result = parse_font_header(&raw mut font)

@@ -394,18 +394,18 @@ public namespace tls {
         if(ret < 0) { return ret }
         ret = mpi_mod(unsafe(&raw mut X3), unsafe(&raw mut X3), unsafe(&raw mut p))
         var _x3i : size_t; var _x3b : [32]u8; var _x3size : size_t
-        if(tls_config::EXTENSIVE_DEBUG_LOG) { printf("[X3DBG] after R2: s=%d n=%lu modp=", X3.s, X3.n); _x3i=0;for(_x3i=0;_x3i<32;_x3i+=1){_x3b[_x3i]=0};mpi_write_binary(unsafe(&raw mut X3),&raw mut _x3b[0],32);_x3i=0;while(_x3i<32){printf("%02x",_x3b[_x3i]as int);_x3i+=1};printf("\n") }
+        if(tls_config::EXTENSIVE_DEBUG_LOG) { unsafe { printf("[X3DBG] after R2: s=%d n=%lu modp=", X3.s, X3.n) }; _x3i=0;for(_x3i=0;_x3i<32;_x3i+=1){_x3b[_x3i]=0};mpi_write_binary(unsafe(&raw mut X3),&raw mut _x3b[0],32);_x3i=0;while(_x3i<32){unsafe { printf("%02x",_x3b[_x3i]as int) };_x3i+=1};unsafe { printf("\n") } }
         ret = mpi_sub(unsafe(&raw mut X3), unsafe(&raw mut X3), unsafe(&raw mut J))
-        if(ret < 0) { if(tls_config::EXTENSIVE_DEBUG_LOG) printf("[X3DBG] sub1 failed ret=%d\n",ret); return ret }
-        if(tls_config::EXTENSIVE_DEBUG_LOG) { printf("[X3DBG] after -J: s=%d n=%lu val=", X3.s, X3.n); _x3i=0;for(_x3i=0;_x3i<32;_x3i+=1){_x3b[_x3i]=0};_x3size=mpi_size(unsafe(&raw mut X3));if(_x3size>32){printf("<too big:%lu>",_x3size)}else{mpi_write_binary(unsafe(&raw mut X3),&raw mut _x3b[0],32);_x3i=0;while(_x3i<32){printf("%02x",_x3b[_x3i]as int);_x3i+=1}};printf("\n") }
+        if(ret < 0) { if(tls_config::EXTENSIVE_DEBUG_LOG) unsafe { printf("[X3DBG] sub1 failed ret=%d\n",ret) }; return ret }
+        if(tls_config::EXTENSIVE_DEBUG_LOG) { unsafe { printf("[X3DBG] after -J: s=%d n=%lu val=", X3.s, X3.n) }; _x3i=0;for(_x3i=0;_x3i<32;_x3i+=1){_x3b[_x3i]=0};_x3size=mpi_size(unsafe(&raw mut X3));if(_x3size>32){unsafe { printf("<too big:%lu>",_x3size) }}else{mpi_write_binary(unsafe(&raw mut X3),&raw mut _x3b[0],32);_x3i=0;while(_x3i<32){unsafe { printf("%02x",_x3b[_x3i]as int) };_x3i+=1}};unsafe { printf("\n") } }
         ret = mpi_sub(unsafe(&raw mut X3), unsafe(&raw mut X3), unsafe(&raw mut V))  // subtract V once
-        if(ret < 0) { if(tls_config::EXTENSIVE_DEBUG_LOG) printf("[X3DBG] sub2 failed ret=%d\n",ret); return ret }
-        if(tls_config::EXTENSIVE_DEBUG_LOG) printf("[X3DBG] after -V: s=%d n=%lu\n", X3.s, X3.n)
+        if(ret < 0) { if(tls_config::EXTENSIVE_DEBUG_LOG) unsafe { printf("[X3DBG] sub2 failed ret=%d\n",ret) }; return ret }
+        if(tls_config::EXTENSIVE_DEBUG_LOG) unsafe { printf("[X3DBG] after -V: s=%d n=%lu\n", X3.s, X3.n) }
         ret = mpi_sub(unsafe(&raw mut X3), unsafe(&raw mut X3), unsafe(&raw mut V))  // subtract V again = 2*V
-        if(ret < 0) { if(tls_config::EXTENSIVE_DEBUG_LOG) printf("[X3DBG] sub3 failed ret=%d\n",ret); return ret }
-        if(tls_config::EXTENSIVE_DEBUG_LOG) printf("[X3DBG] after -2V: s=%d n=%lu\n", X3.s, X3.n)
+        if(ret < 0) { if(tls_config::EXTENSIVE_DEBUG_LOG) unsafe { printf("[X3DBG] sub3 failed ret=%d\n",ret) }; return ret }
+        if(tls_config::EXTENSIVE_DEBUG_LOG) unsafe { printf("[X3DBG] after -2V: s=%d n=%lu\n", X3.s, X3.n) }
         ret = mpi_mod(unsafe(&raw mut X3), unsafe(&raw mut X3), unsafe(&raw mut p))
-        if(tls_config::EXTENSIVE_DEBUG_LOG) { printf("[X3DBG] final: s=%d n=%lu val=", X3.s, X3.n); _x3i=0;for(_x3i=0;_x3i<32;_x3i+=1){_x3b[_x3i]=0};_x3size=mpi_size(unsafe(&raw mut X3));if(_x3size>32){printf("<too big:%lu>",_x3size)}else{mpi_write_binary(unsafe(&raw mut X3),&raw mut _x3b[0],32);_x3i=0;while(_x3i<32){printf("%02x",_x3b[_x3i]as int);_x3i+=1}};printf("\n") }
+        if(tls_config::EXTENSIVE_DEBUG_LOG) { unsafe { printf("[X3DBG] final: s=%d n=%lu val=", X3.s, X3.n) }; _x3i=0;for(_x3i=0;_x3i<32;_x3i+=1){_x3b[_x3i]=0};_x3size=mpi_size(unsafe(&raw mut X3));if(_x3size>32){unsafe { printf("<too big:%lu>",_x3size) }}else{mpi_write_binary(unsafe(&raw mut X3),&raw mut _x3b[0],32);_x3i=0;while(_x3i<32){unsafe { printf("%02x",_x3b[_x3i]as int) };_x3i+=1}};unsafe { printf("\n") } }
 
         // Y3 = R_val * (V - X3) - 2 * Y1 * J
         // temp = V - X3
@@ -415,27 +415,27 @@ public namespace tls {
         ret = mpi_mod(unsafe(&raw mut tmp_vy), unsafe(&raw mut tmp_vy), unsafe(&raw mut p))
         if(ret < 0) { return ret }
         var _y3b : [32]u8; var _y3i : size_t; var _y3sz : size_t
-        if(tls_config::EXTENSIVE_DEBUG_LOG) { printf("[Y3DBG] tmp_vy s=%d n=%lu val=", tmp_vy.s, tmp_vy.n); _y3i=0;for(_y3i=0;_y3i<32;_y3i+=1){_y3b[_y3i]=0};_y3sz=mpi_size(unsafe(&raw mut tmp_vy));if(_y3sz>32){printf("<too big:%lu>",_y3sz)}else{mpi_write_binary(unsafe(&raw mut tmp_vy),&raw mut _y3b[0],32);_y3i=0;while(_y3i<32){printf("%02x",_y3b[_y3i]as int);_y3i+=1}};printf("\n") }
+        if(tls_config::EXTENSIVE_DEBUG_LOG) { unsafe { printf("[Y3DBG] tmp_vy s=%d n=%lu val=", tmp_vy.s, tmp_vy.n) }; _y3i=0;for(_y3i=0;_y3i<32;_y3i+=1){_y3b[_y3i]=0};_y3sz=mpi_size(unsafe(&raw mut tmp_vy));if(_y3sz>32){unsafe { printf("<too big:%lu>",_y3sz) }}else{mpi_write_binary(unsafe(&raw mut tmp_vy),&raw mut _y3b[0],32);_y3i=0;while(_y3i<32){unsafe { printf("%02x",_y3b[_y3i]as int) };_y3i+=1}};unsafe { printf("\n") } }
         // Y3 = R_val * (V - X3)
         ret = mpi_mul(unsafe(&raw mut Y3), unsafe(&raw mut R_val), unsafe(&raw mut tmp_vy))
         if(ret < 0) { return ret }
-        if(tls_config::EXTENSIVE_DEBUG_LOG) printf("[Y3DBG] after mul s=%d n=%lu ret=%d\n", Y3.s, Y3.n, ret)
-        if(tls_config::EXTENSIVE_DEBUG_LOG) { _y3i=0;for(_y3i=0;_y3i<32;_y3i+=1){_y3b[_y3i]=0};_y3sz=mpi_size(unsafe(&raw mut Y3));if(_y3sz>32){printf("[Y3DBG] after mul val=<too big:%lu>\n",_y3sz)}else{mpi_write_binary(unsafe(&raw mut Y3),&raw mut _y3b[0],32);printf("[Y3DBG] after mul val=");_y3i=0;while(_y3i<32){printf("%02x",_y3b[_y3i]as int);_y3i+=1};printf("\n")} }
+        if(tls_config::EXTENSIVE_DEBUG_LOG) unsafe { printf("[Y3DBG] after mul s=%d n=%lu ret=%d\n", Y3.s, Y3.n, ret) }
+        if(tls_config::EXTENSIVE_DEBUG_LOG) { _y3i=0;for(_y3i=0;_y3i<32;_y3i+=1){_y3b[_y3i]=0};_y3sz=mpi_size(unsafe(&raw mut Y3));if(_y3sz>32){unsafe { printf("[Y3DBG] after mul val=<too big:%lu>\n",_y3sz) }}else{mpi_write_binary(unsafe(&raw mut Y3),&raw mut _y3b[0],32);unsafe { printf("[Y3DBG] after mul val=") };_y3i=0;while(_y3i<32){unsafe { printf("%02x",_y3b[_y3i]as int) };_y3i+=1};unsafe { printf("\n") }} }
 
 
         // DEBUG ALL INTERMEDIATES
         if(P.Z.n == 8 && tls_config::EXTENSIVE_DEBUG_LOG) { var _b:[32]u8; var _i:size_t
-        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut Z1Z1),&raw mut _b[0],32);printf("[ADDDBG] Z1Z1=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
-        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut U2),&raw mut _b[0],32);printf("[ADDDBG] U2=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
-        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut H),&raw mut _b[0],32);printf("[ADDDBG] H=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
-        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut S2),&raw mut _b[0],32);printf("[ADDDBG] S2=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
-        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut HH),&raw mut _b[0],32);printf("[ADDDBG] HH=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
-        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut I),&raw mut _b[0],32);printf("[ADDDBG] I=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
-        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut J),&raw mut _b[0],32);printf("[ADDDBG] J=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
-        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut R_val),&raw mut _b[0],32);printf("[ADDDBG] R_val=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
-        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut V),&raw mut _b[0],32);printf("[ADDDBG] V=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
-        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut X3),&raw mut _b[0],32);printf("[ADDDBG] X3=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
-        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut Y3),&raw mut _b[0],32);printf("[ADDDBG] Y3=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut Z1Z1),&raw mut _b[0],32);unsafe { printf("[ADDDBG] Z1Z1=") };_i=0;while(_i<32){unsafe { printf("%02x",_b[_i]as int) };_i+=1};unsafe { printf("\n") }
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut U2),&raw mut _b[0],32);unsafe { printf("[ADDDBG] U2=") };_i=0;while(_i<32){unsafe { printf("%02x",_b[_i]as int) };_i+=1};unsafe { printf("\n") }
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut H),&raw mut _b[0],32);unsafe { printf("[ADDDBG] H=") };_i=0;while(_i<32){unsafe { printf("%02x",_b[_i]as int) };_i+=1};unsafe { printf("\n") }
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut S2),&raw mut _b[0],32);unsafe { printf("[ADDDBG] S2=") };_i=0;while(_i<32){unsafe { printf("%02x",_b[_i]as int) };_i+=1};unsafe { printf("\n") }
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut HH),&raw mut _b[0],32);unsafe { printf("[ADDDBG] HH=") };_i=0;while(_i<32){unsafe { printf("%02x",_b[_i]as int) };_i+=1};unsafe { printf("\n") }
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut I),&raw mut _b[0],32);unsafe { printf("[ADDDBG] I=") };_i=0;while(_i<32){unsafe { printf("%02x",_b[_i]as int) };_i+=1};unsafe { printf("\n") }
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut J),&raw mut _b[0],32);unsafe { printf("[ADDDBG] J=") };_i=0;while(_i<32){unsafe { printf("%02x",_b[_i]as int) };_i+=1};unsafe { printf("\n") }
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut R_val),&raw mut _b[0],32);unsafe { printf("[ADDDBG] R_val=") };_i=0;while(_i<32){unsafe { printf("%02x",_b[_i]as int) };_i+=1};unsafe { printf("\n") }
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut V),&raw mut _b[0],32);unsafe { printf("[ADDDBG] V=") };_i=0;while(_i<32){unsafe { printf("%02x",_b[_i]as int) };_i+=1};unsafe { printf("\n") }
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut X3),&raw mut _b[0],32);unsafe { printf("[ADDDBG] X3=") };_i=0;while(_i<32){unsafe { printf("%02x",_b[_i]as int) };_i+=1};unsafe { printf("\n") }
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(unsafe(&raw mut Y3),&raw mut _b[0],32);unsafe { printf("[ADDDBG] Y3=") };_i=0;while(_i<32){unsafe { printf("%02x",_b[_i]as int) };_i+=1};unsafe { printf("\n") }
         }
 
         // Y1J = Y1 * J

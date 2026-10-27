@@ -7,7 +7,7 @@ func test_deref_pass_func_call() {
         var i = 788
         var ref = give_ref(&mut i)
         var str : [20]char = []
-        snprintf(&raw mut str[0], 19, "%d", *ref);
-        return strncmp(&raw str[0], "788", 3) == 0
+        unsafe { snprintf(&raw mut str[0], 19, "%d", *ref) };
+        return unsafe(strncmp(&raw str[0], "788", 3)) == 0
     })
 }

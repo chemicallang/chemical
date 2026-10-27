@@ -71,13 +71,13 @@ public namespace net {
             // INADDR_ANY = 0.0.0.0 -> s_addr already 0
         } else {
             // note: inet_pton expects AF_INET and pointer to in_addr (or out buffer)
-            var ret = inet_pton(AF_INET as int, addr_str, &addr.sin_addr.s_addr as *mut char);
+            var ret = unsafe(inet_pton(AF_INET as int, addr_str, &addr.sin_addr.s_addr as *mut char));
             if(ret != 1) {
                 // inet_pton returns 1 on success; 0 for invalid, -1 for error
                 // fall back to INADDR_ANY if addr was unspecified like "0.0.0.0"
                 // but report error for diagnostics
                 // (optional debug - remove #if when enabling)
-                perror("inet_pton failed");
+                unsafe { perror("inet_pton failed") };
                 // let it remain INADDR_ANY (s_addr = 0)
                 addr.sin_addr.s_addr = 0u;
             }
@@ -95,7 +95,7 @@ public namespace net {
                 // You can format e into string with FormatMessageA if needed (omitted here).
                 // For now we keep going.
             } else {
-                perror("setsockopt(SO_REUSEADDR) failed");
+                unsafe { perror("setsockopt(SO_REUSEADDR) failed") };
             }
         }
 
@@ -108,7 +108,7 @@ public namespace net {
                 printf("bind() failed (WSAGetLastError): %d\n", e as int);
                 panic("bind() failed (WSAGetLastError)");
             } else {
-                perror("bind() failed");
+                unsafe { perror("bind() failed") };
             }
             sock_close(s);
             panic("bind failed");
@@ -120,7 +120,7 @@ public namespace net {
                 var e = WSAGetLastError();
                 panic("listen() failed (WSA error)");
             } else {
-                perror("listen() failed");
+                unsafe { perror("listen() failed") };
             }
             sock_close(s);
             panic("listen failed");

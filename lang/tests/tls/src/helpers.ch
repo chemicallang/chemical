@@ -28,7 +28,7 @@ func environment_get_temp() : *char {
     comptime if(def.windows) {
         return getenv("TEMP")
     } else {
-        return getenv("TMPDIR")
+        return unsafe(getenv("TMPDIR"))
     }
 }
 
@@ -51,13 +51,15 @@ func test_tmp_file(name : string_view) : string {
 // Append a string_view into a byte buffer â€” used to splice resolved temp paths
 // into the generated Python scripts.
 func test_script_append_view(buf : *mut u8, len : *mut size_t, v : string_view) {
+    unsafe {
     var i : size_t = 0
     while(i < v.size()) {
         buf[*len] = v.get(i) as u8
         *len += 1
         i += 1
     }
-}
+
+}}
 
 // -- Cross-platform random bytes --
 func test_random_bytes(buf : *mut u8, len : size_t) {
@@ -124,7 +126,7 @@ func test_py_cmd(args : string_view) : string {
 // directly dangles the SSO buffer on Windows).
 func test_py_run_foreground(args : string_view) {
     var cmd = test_py_cmd(args)
-    system(cmd.data())
+    unsafe { system(cmd.data()) }
 }
 
 // Run a python tls_utils.py command in the background (same lifetime care).
@@ -159,7 +161,7 @@ func test_kill_port(port : int) {
         var cmd = string("fuser -k ")
         cmd.append_integer(port)
         cmd.append_view("/tcp 2>/dev/null")
-        system(cmd.data())
+        unsafe { system(cmd.data()) }
     }
     // Nothing left to wait for on the tracked port: a test that kills and then
     // restarts a server calls test_server_wait() in between to let the socket
@@ -187,7 +189,7 @@ func test_cat_file(path : string_view) {
         var cmd = string("cat ")
         cmd.append_view(&path)
         cmd.append_view(" 2>/dev/null")
-        system(cmd.data())
+        unsafe { system(cmd.data()) }
     }
 }
 
@@ -251,7 +253,7 @@ func test_fuser_available() : bool {
     if(test_fuser_state < 0) {
         test_fuser_state = 0
         // Absent `fuser` makes system() return 127, not a bind failure.
-        if(system("fuser --version >/dev/null 2>&1") == 0) { test_fuser_state = 1 }
+        if(unsafe(system("fuser --version >/dev/null 2>&1")) == 0) { test_fuser_state = 1 }
     }
     return test_fuser_state == 1
 }
@@ -276,7 +278,7 @@ func test_port_listening(port : u16) : bool {
         var cmd = string("fuser -s ")
         cmd.append_integer(port as int)
         cmd.append_view("/tcp 2>/dev/null")
-        return system(cmd.data()) == 0
+        return unsafe(system(cmd.data())) == 0
     }
 }
 
@@ -329,7 +331,7 @@ func test_server_wait() {
     comptime if(def.windows) {
         system("ping -n 2 127.0.0.1 >nul")
     } else {
-        system("sleep 1")
+        unsafe { system("sleep 1") }
     }
 }
 
@@ -343,7 +345,7 @@ func test_run_bg(cmd : *char) {
         var full = string("setsid ")
         full.append_view(string_view(cmd))
         full.append_view(" &")
-        system(full.data())
+        unsafe { system(full.data()) }
     }
 }
 
@@ -381,13 +383,13 @@ func test_write_script_if_changed(path : *char, data : *u8, len : size_t) : bool
 // True when the file at `path` already holds exactly `len` bytes equal to
 // `data`. A missing or unreadable file counts as "does not match".
 func test_file_matches(path : *char, data : *u8, len : size_t) : bool {
-    var f = fopen(path, "rb\0" as *char)
+    var f = unsafe(fopen(path, "rb\0" as *char))
     if(f == null) { return false } else {}
     var i : size_t = 0
     var same = true
     while(i < len) {
         var b : u8 = 0
-        if(fread((&raw mut b) as *mut void, 1 as size_t, 1 as size_t, f) != 1 as size_t) {
+        if(unsafe(fread((&raw mut b) as *mut void, 1 as size_t, 1 as size_t, f)) != 1 as size_t) {
             same = false
             break
         } else {}
@@ -400,11 +402,11 @@ func test_file_matches(path : *char, data : *u8, len : size_t) : bool {
     if(same) {
         // Guard against a longer leftover file matching a prefix.
         var extra : u8 = 0
-        if(fread((&raw mut extra) as *mut void, 1 as size_t, 1 as size_t, f) == 1 as size_t) {
+        if(unsafe(fread((&raw mut extra) as *mut void, 1 as size_t, 1 as size_t, f)) == 1 as size_t) {
             same = false
         } else {}
     } else {}
-    fclose(f)
+    unsafe { fclose(f) }
     return same
 }
 
@@ -434,7 +436,7 @@ func test_python_run_script_file(py_path : *char) : vector<u8> {
         cmd.append_view(" > ")
         cmd.append_view(out_path.to_view())
         cmd.append_view(" 2>/dev/null")
-        system(cmd.data())
+        unsafe { system(cmd.data()) }
     }
 
     var buf : [4096]u8
@@ -503,23 +505,23 @@ func test_bytes_eq(a : *u8, b : *u8, len : size_t) : bool {
 }
 
 func test_write_file(path : *char, data : *u8, len : size_t) : bool {
-    var f = fopen(path, "wb\0" as *char)
+    var f = unsafe(fopen(path, "wb\0" as *char))
     if(f == null) { return false } else {}
-    fwrite(data as *mut void, 1 as size_t, len, f)
-    fclose(f)
+    unsafe { fwrite(data as *mut void, 1 as size_t, len, f) }
+    unsafe { fclose(f) }
     return true
 }
 
 func test_read_file(path : *char, buf : *mut u8, max_len : size_t) : size_t {
-    var f = fopen(path, "rb\0" as *char)
+    var f = unsafe(fopen(path, "rb\0" as *char))
     if(f == null) { return 0 } else {}
     var total : size_t = 0
     while(total < max_len) {
-        var n = fread((buf + total) as *mut void, 1 as size_t, max_len - total, f)
+        var n = unsafe(fread((buf + total) as *mut void, 1 as size_t, max_len - total, f))
         if(n <= 0) { break } else {}
         total += n
     }
-    fclose(f)
+    unsafe { fclose(f) }
     return total
 }
 
@@ -540,6 +542,7 @@ func test_hex_pair_byte(hi : char, lo : char) : u8 {
 // zeros so the caller receives exactly the raw modulus/private exponent.
 func test_parse_n_d_hex_file(path : *char, n_out : *mut u8, n_max : size_t, n_len : *mut size_t,
                              d_out : *mut u8, d_max : size_t, d_len : *mut size_t) {
+                                 unsafe {
     var buf : [4096]u8
     var total = test_read_file(path, &raw mut buf[0], 4096)
     *n_len = 0
@@ -575,7 +578,8 @@ func test_parse_n_d_hex_file(path : *char, n_out : *mut u8, n_max : size_t, n_le
         }
         pos += 1
     }
-}
+
+                             }}
 
 func write_tls_python_utils() {
     test_ensure_tmp_dir()
@@ -1102,7 +1106,7 @@ func write_tls_python_utils() {
     tmp_path.append_integer(process::current_pid())
     tmp_path.append_view(".py")
     if(!test_write_file(tmp_path.data(), py.data() as *u8, py.size())) { return } else {}
-    if(rename(tmp_path.data(), "/tmp/tls_utils.py\0" as *char) != 0) {
+    if(unsafe(rename(tmp_path.data(), "/tmp/tls_utils.py\0" as *char)) != 0) {
         // Rename failed (Windows will not replace a file another process has
         // open): fall back to writing the shared path in place so the suite
         // still has a usable script.

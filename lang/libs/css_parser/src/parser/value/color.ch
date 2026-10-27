@@ -51,13 +51,13 @@ func hashSmallColorValue(view : &std::string_view) : size_t {
 
     // copy the token value
     var arr : char[50] = []
-    strncpy(&raw mut arr[0], view.data(), size);
+    unsafe { strncpy(&raw mut arr[0], view.data(), size) };
     arr[size] = '\0'
 
     // lowercase it
     var i = 0;
     while(i < size) {
-        arr[i] = tolower(arr[i] as int)
+        arr[i] = unsafe(tolower(arr[i] as int))
         i++;
     }
 

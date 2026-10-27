@@ -29,7 +29,7 @@ public struct deque<T> {
         if(new_cap > ((0 as size_t) - 1) / sizeof(deque_block<T>)) {
             panic("deque capacity overflow")
         }
-        const new_blocks = realloc(blocks, sizeof(deque_block<T>) * new_cap) as *mut deque_block<T>
+        const new_blocks = unsafe(realloc(blocks, sizeof(deque_block<T>) * new_cap)) as *mut deque_block<T>
         unsafe {
             if(new_blocks != null) {
                 blocks = new_blocks
@@ -51,7 +51,7 @@ public struct deque<T> {
                 reserve_blocks(block_cap * 2)
             }
         }
-        const data = malloc(sizeof(T) * DEQUE_CHUNK_SIZE) as *mut T
+        const data = unsafe(malloc(sizeof(T) * DEQUE_CHUNK_SIZE)) as *mut T
         if(data == null) {
             panic("failed to allocate deque block")
         }
@@ -68,7 +68,7 @@ public struct deque<T> {
         }
         const block_index = block_count - 1
         const elem_index = blocks[block_index].data_size
-        memcpy(&raw mut blocks[block_index].data_ptr[elem_index], &raw value, sizeof(T))
+        unsafe { memcpy(&raw mut blocks[block_index].data_ptr[elem_index], &raw value, sizeof(T)) }
         intrinsics::forget(value)
         blocks[block_index].data_size = elem_index + 1
         data_size += 1

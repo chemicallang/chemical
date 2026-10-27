@@ -90,7 +90,7 @@ func test_sizeof_alignof() {
         var cs = comptime_size_of<SOT1>();
         var ca = comptime_align_of<SOT1>();
         if(s != cs || a != ca) {
-            printf("difference in runtime and comptime SOT1 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca)
+            unsafe { printf("difference in runtime and comptime SOT1 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca) }
         }
         return s == cs && a == ca
     })
@@ -100,7 +100,7 @@ func test_sizeof_alignof() {
         var cs = comptime_size_of<SOT2>();
         var ca = comptime_align_of<SOT2>();
         if(s != cs || a != ca) {
-            printf("difference in runtime and comptime SOT2 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca)
+            unsafe { printf("difference in runtime and comptime SOT2 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca) }
         }
         return s == cs && a == ca
     })
@@ -110,7 +110,7 @@ func test_sizeof_alignof() {
         var cs = comptime_size_of<SOT3>();
         var ca = comptime_align_of<SOT3>();
         if(s != cs || a != ca) {
-            printf("difference in runtime and comptime SOT3 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca)
+            unsafe { printf("difference in runtime and comptime SOT3 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca) }
         }
         return s == cs && a == ca
     })
@@ -120,7 +120,7 @@ func test_sizeof_alignof() {
         var cs = comptime_size_of<SOT3>();
         var ca = comptime_align_of<SOT3>();
         if(s != cs || a != ca) {
-            printf("difference in runtime and comptime SOT3 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca)
+            unsafe { printf("difference in runtime and comptime SOT3 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca) }
         }
         return s == cs && a == ca
     })
@@ -130,7 +130,7 @@ func test_sizeof_alignof() {
         var cs = comptime_size_of<SOT4>();
         var ca = comptime_align_of<SOT4>();
         if(s != cs || a != ca) {
-            printf("difference in runtime and comptime SOT4 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca)
+            unsafe { printf("difference in runtime and comptime SOT4 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca) }
         }
         return s == cs && a == ca
     })
@@ -140,7 +140,7 @@ func test_sizeof_alignof() {
         var cs = comptime_size_of<SOT5>();
         var ca = comptime_align_of<SOT5>();
         if(s != cs || a != ca) {
-            printf("difference in runtime and comptime SOT5 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca)
+            unsafe { printf("difference in runtime and comptime SOT5 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca) }
         }
         return s == cs && a == ca
     })
@@ -150,7 +150,7 @@ func test_sizeof_alignof() {
         var cs = comptime_size_of<SOT6>();
         var ca = comptime_align_of<SOT6>();
         if(s != cs || a != ca) {
-            printf("difference in runtime and comptime SOT6 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca)
+            unsafe { printf("difference in runtime and comptime SOT6 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca) }
         }
         return s == cs && a == ca
     })
@@ -160,7 +160,7 @@ func test_sizeof_alignof() {
         var cs = comptime_size_of<SOT7>();
         var ca = comptime_align_of<SOT7>();
         if(s != cs || a != ca) {
-            printf("difference in runtime and comptime SOT7 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca)
+            unsafe { printf("difference in runtime and comptime SOT7 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca) }
         }
         return s == cs && a == ca
     })
@@ -170,7 +170,7 @@ func test_sizeof_alignof() {
         var cs = comptime_size_of<SOT8>();
         var ca = comptime_align_of<SOT8>();
         if(s != cs || a != ca) {
-            printf("difference in runtime and comptime SOT8 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca)
+            unsafe { printf("difference in runtime and comptime SOT8 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca) }
         }
         return s == cs && a == ca
     })

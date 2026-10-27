@@ -25,7 +25,7 @@ internal func safety_init_work_dir() {
         }
         safety_work_dir_buf[i] = 0
         SAFETY_WORK_DIR = unsafe(&raw mut safety_work_dir_buf[0])
-        mkdir(SAFETY_WORK_DIR, 0o777 as uint)
+        unsafe { mkdir(SAFETY_WORK_DIR, 0o777 as uint) }
         return
     }
     if(i > 0 && (safety_work_dir_buf[i - 1] == '/' || safety_work_dir_buf[i - 1] == '\\')) {
@@ -40,14 +40,14 @@ internal func safety_init_work_dir() {
     }
     safety_work_dir_buf[i] = 0
     SAFETY_WORK_DIR = unsafe(&raw mut safety_work_dir_buf[0])
-    mkdir(SAFETY_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(SAFETY_WORK_DIR, 0o777 as uint) }
 }
 
 internal func safety_write_file(path : *char, content : *char) {
-    var f = fopen(path, "w")
+    var f = unsafe(fopen(path, "w"))
     if(f != null) {
-        fwrite(content as *void, strlen(content), 1, f)
-        fclose(f)
+        unsafe { fwrite(content as *void, unsafe(strlen(content)), 1, f) }
+        unsafe { fclose(f) }
     }
 }
 
@@ -95,24 +95,24 @@ internal func expect_runtime_panic(env : &mut TestEnv, name : *char, ch_content 
     var mod_path : [512]char
     var exe_path : [512]char
     var ch_path : [512]char
-    sprintf(unsafe(&raw mut dir_path[0]), "%s/%s", SAFETY_WORK_DIR, name)
-    mkdir(unsafe(&raw dir_path[0]), 0o777 as uint)
-    sprintf(unsafe(&raw mut mod_path[0]), "%s/chemical.mod", unsafe(&raw dir_path[0]))
-    sprintf(unsafe(&raw mut ch_path[0]), "%s/test.ch", unsafe(&raw dir_path[0]))
-    sprintf(unsafe(&raw mut exe_path[0]), "%s/test.exe", unsafe(&raw dir_path[0]))
+    unsafe { sprintf(unsafe(&raw mut dir_path[0]), "%s/%s", SAFETY_WORK_DIR, name) }
+    unsafe { mkdir(unsafe(&raw dir_path[0]), 0o777 as uint) }
+    unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/chemical.mod", unsafe(&raw dir_path[0])) }
+    unsafe { sprintf(unsafe(&raw mut ch_path[0]), "%s/test.ch", unsafe(&raw dir_path[0])) }
+    unsafe { sprintf(unsafe(&raw mut exe_path[0]), "%s/test.exe", unsafe(&raw dir_path[0])) }
     safety_write_file(unsafe(&raw mut mod_path[0]), "module safety_test\nsource \".\"\nimport cstd\nimport std\nimport core\n")
     safety_write_file(unsafe(&raw mut ch_path[0]), ch_content)
 
     var compiler_path_buf : [1024]char
-    sprintf(unsafe(&raw mut compiler_path_buf[0]), "%s", intrinsics::get_compiler_path())
+    unsafe { sprintf(unsafe(&raw mut compiler_path_buf[0]), "%s", intrinsics::get_compiler_path()) }
     var compiler_path = string()
-    var compiler_view = std::string_view(unsafe(&raw compiler_path_buf[0]), strlen(unsafe(&raw compiler_path_buf[0])))
+    var compiler_view = std::string_view(unsafe(&raw compiler_path_buf[0]), unsafe(strlen(unsafe(&raw compiler_path_buf[0]))))
     compiler_path.append_view(&compiler_view)
     var module_path = string()
-    var module_view = std::string_view(unsafe(&raw mod_path[0]), strlen(unsafe(&raw mod_path[0])))
+    var module_view = std::string_view(unsafe(&raw mod_path[0]), unsafe(strlen(unsafe(&raw mod_path[0]))))
     module_path.append_view(&module_view)
     var executable_path = string()
-    var executable_view = std::string_view(unsafe(&raw exe_path[0]), strlen(unsafe(&raw exe_path[0])))
+    var executable_view = std::string_view(unsafe(&raw exe_path[0]), unsafe(strlen(unsafe(&raw exe_path[0]))))
     executable_path.append_view(&executable_view)
 
     var compile_args = vector<string>()
@@ -131,7 +131,7 @@ internal func expect_runtime_panic(env : &mut TestEnv, name : *char, ch_content 
     }
 
     var run_path = string()
-    var run_view = std::string_view(unsafe(&raw exe_path[0]), strlen(unsafe(&raw exe_path[0])))
+    var run_view = std::string_view(unsafe(&raw exe_path[0]), unsafe(strlen(unsafe(&raw exe_path[0]))))
     run_path.append_view(&run_view)
     var run_args = vector<string>()
     run_args.push(run_path)
@@ -149,24 +149,24 @@ internal func safety_compile_and_run(env : &mut TestEnv, name : *char, ch_conten
     var mod_path : [512]char
     var exe_path : [512]char
     var ch_path : [512]char
-    sprintf(unsafe(&raw mut dir_path[0]), "%s/%s", SAFETY_WORK_DIR, name)
-    mkdir(unsafe(&raw dir_path[0]), 0o777 as uint)
-    sprintf(unsafe(&raw mut mod_path[0]), "%s/chemical.mod", unsafe(&raw dir_path[0]))
-    sprintf(unsafe(&raw mut ch_path[0]), "%s/test.ch", unsafe(&raw dir_path[0]))
-    sprintf(unsafe(&raw mut exe_path[0]), "%s/test.exe", unsafe(&raw dir_path[0]))
+    unsafe { sprintf(unsafe(&raw mut dir_path[0]), "%s/%s", SAFETY_WORK_DIR, name) }
+    unsafe { mkdir(unsafe(&raw dir_path[0]), 0o777 as uint) }
+    unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/chemical.mod", unsafe(&raw dir_path[0])) }
+    unsafe { sprintf(unsafe(&raw mut ch_path[0]), "%s/test.ch", unsafe(&raw dir_path[0])) }
+    unsafe { sprintf(unsafe(&raw mut exe_path[0]), "%s/test.exe", unsafe(&raw dir_path[0])) }
     safety_write_file(unsafe(&raw mut mod_path[0]), "module safety_test\nsource \".\"\nimport cstd\nimport std\nimport core\n")
     safety_write_file(unsafe(&raw mut ch_path[0]), ch_content)
 
     var compiler_path_buf : [1024]char
-    sprintf(unsafe(&raw mut compiler_path_buf[0]), "%s", intrinsics::get_compiler_path())
+    unsafe { sprintf(unsafe(&raw mut compiler_path_buf[0]), "%s", intrinsics::get_compiler_path()) }
     var compiler_path = string()
-    var compiler_view = std::string_view(unsafe(&raw compiler_path_buf[0]), strlen(unsafe(&raw compiler_path_buf[0])))
+    var compiler_view = std::string_view(unsafe(&raw compiler_path_buf[0]), unsafe(strlen(unsafe(&raw compiler_path_buf[0]))))
     compiler_path.append_view(&compiler_view)
     var module_path = string()
-    var module_view = std::string_view(unsafe(&raw mod_path[0]), strlen(unsafe(&raw mod_path[0])))
+    var module_view = std::string_view(unsafe(&raw mod_path[0]), unsafe(strlen(unsafe(&raw mod_path[0]))))
     module_path.append_view(&module_view)
     var executable_path = string()
-    var executable_view = std::string_view(unsafe(&raw exe_path[0]), strlen(unsafe(&raw exe_path[0])))
+    var executable_view = std::string_view(unsafe(&raw exe_path[0]), unsafe(strlen(unsafe(&raw exe_path[0]))))
     executable_path.append_view(&executable_view)
 
     var compile_args = vector<string>()
@@ -185,7 +185,7 @@ internal func safety_compile_and_run(env : &mut TestEnv, name : *char, ch_conten
     }
 
     var run_path = string()
-    var run_view = std::string_view(unsafe(&raw exe_path[0]), strlen(unsafe(&raw exe_path[0])))
+    var run_view = std::string_view(unsafe(&raw exe_path[0]), unsafe(strlen(unsafe(&raw exe_path[0]))))
     run_path.append_view(&run_view)
     var run_args = vector<string>()
     run_args.push(run_path)
@@ -205,24 +205,24 @@ internal func safety_compile_with_report(env : &mut TestEnv, name : *char, ch_co
     var mod_path : [512]char
     var exe_path : [512]char
     var ch_path : [512]char
-    sprintf(unsafe(&raw mut dir_path[0]), "%s/%s", SAFETY_WORK_DIR, name)
-    mkdir(unsafe(&raw dir_path[0]), 0o777 as uint)
-    sprintf(unsafe(&raw mut mod_path[0]), "%s/chemical.mod", unsafe(&raw dir_path[0]))
-    sprintf(unsafe(&raw mut ch_path[0]), "%s/test.ch", unsafe(&raw dir_path[0]))
-    sprintf(unsafe(&raw mut exe_path[0]), "%s/test.exe", unsafe(&raw dir_path[0]))
+    unsafe { sprintf(unsafe(&raw mut dir_path[0]), "%s/%s", SAFETY_WORK_DIR, name) }
+    unsafe { mkdir(unsafe(&raw dir_path[0]), 0o777 as uint) }
+    unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/chemical.mod", unsafe(&raw dir_path[0])) }
+    unsafe { sprintf(unsafe(&raw mut ch_path[0]), "%s/test.ch", unsafe(&raw dir_path[0])) }
+    unsafe { sprintf(unsafe(&raw mut exe_path[0]), "%s/test.exe", unsafe(&raw dir_path[0])) }
     safety_write_file(unsafe(&raw mut mod_path[0]), "module safety_report_test\nsource \".\"\nimport cstd\nimport std\nimport core\n")
     safety_write_file(unsafe(&raw mut ch_path[0]), ch_content)
 
     var compiler_path_buf : [1024]char
-    sprintf(unsafe(&raw mut compiler_path_buf[0]), "%s", intrinsics::get_compiler_path())
+    unsafe { sprintf(unsafe(&raw mut compiler_path_buf[0]), "%s", intrinsics::get_compiler_path()) }
     var compiler_path = string()
-    var compiler_view = std::string_view(unsafe(&raw compiler_path_buf[0]), strlen(unsafe(&raw compiler_path_buf[0])))
+    var compiler_view = std::string_view(unsafe(&raw compiler_path_buf[0]), unsafe(strlen(unsafe(&raw compiler_path_buf[0]))))
     compiler_path.append_view(&compiler_view)
     var module_path = string()
-    var module_view = std::string_view(unsafe(&raw mod_path[0]), strlen(unsafe(&raw mod_path[0])))
+    var module_view = std::string_view(unsafe(&raw mod_path[0]), unsafe(strlen(unsafe(&raw mod_path[0]))))
     module_path.append_view(&module_view)
     var executable_path = string()
-    var executable_view = std::string_view(unsafe(&raw exe_path[0]), strlen(unsafe(&raw exe_path[0])))
+    var executable_view = std::string_view(unsafe(&raw exe_path[0]), unsafe(strlen(unsafe(&raw exe_path[0]))))
     executable_path.append_view(&executable_view)
 
     var args = vector<string>()
@@ -472,7 +472,7 @@ func vector_bounds_empty_last_ptr_panics(env : &mut TestEnv) {
 @test
 func partial_init_destroys_only_initialized_fields(env : &mut TestEnv) {
     safety_init_work_dir()
-    var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&mut self) { printf(\"drop %d\\n\", self.id) }\n}\nstruct S {\n    var a : Tracker\n    var b : Tracker\n}\npublic func main() : int {\n    unsafe {\n        var s : S\n        s.a = Tracker { id : 1 }\n    }\n    printf(\"end\\n\")\n    return 0\n}\n"
+    var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&mut self) { unsafe { printf(\"drop %d\\n\", self.id) } }\n}\nstruct S {\n    var a : Tracker\n    var b : Tracker\n}\npublic func main() : int {\n    unsafe {\n        var s : S\n        s.a = Tracker { id : 1 }\n    }\n    unsafe { printf(\"end\\n\") }\n    return 0\n}\n"
     var out = string()
     var rc = safety_compile_and_run(env, "partial_init_drop", ch, &mut out)
     if(rc != 0) {
@@ -497,7 +497,7 @@ func partial_init_destroys_only_initialized_fields(env : &mut TestEnv) {
 @test
 func full_field_init_destroys_every_field(env : &mut TestEnv) {
     safety_init_work_dir()
-    var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&mut self) { printf(\"drop %d\\n\", self.id) }\n}\nstruct S {\n    var a : Tracker\n    var b : Tracker\n}\npublic func main() : int {\n    unsafe {\n        var s : S\n        s.a = Tracker { id : 1 }\n        s.b = Tracker { id : 2 }\n    }\n    printf(\"end\\n\")\n    return 0\n}\n"
+    var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&mut self) { unsafe { printf(\"drop %d\\n\", self.id) } }\n}\nstruct S {\n    var a : Tracker\n    var b : Tracker\n}\npublic func main() : int {\n    unsafe {\n        var s : S\n        s.a = Tracker { id : 1 }\n        s.b = Tracker { id : 2 }\n    }\n    unsafe { printf(\"end\\n\") }\n    return 0\n}\n"
     var out = string()
     var rc = safety_compile_and_run(env, "full_field_init_drop", ch, &mut out)
     if(rc != 0) {
@@ -515,7 +515,7 @@ func full_field_init_destroys_every_field(env : &mut TestEnv) {
 @test
 func partial_init_reassignment_destroys_old_value(env : &mut TestEnv) {
     safety_init_work_dir()
-    var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&mut self) { printf(\"drop %d\\n\", self.id) }\n}\nstruct S {\n    var a : Tracker\n    var b : Tracker\n}\npublic func main() : int {\n    unsafe {\n        var s : S\n        s.a = Tracker { id : 1 }\n        s = S { a : Tracker { id : 10 }, b : Tracker { id : 20 } }\n    }\n    printf(\"end\\n\")\n    return 0\n}\n"
+    var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&mut self) { unsafe { printf(\"drop %d\\n\", self.id) } }\n}\nstruct S {\n    var a : Tracker\n    var b : Tracker\n}\npublic func main() : int {\n    unsafe {\n        var s : S\n        s.a = Tracker { id : 1 }\n        s = S { a : Tracker { id : 10 }, b : Tracker { id : 20 } }\n    }\n    unsafe { printf(\"end\\n\") }\n    return 0\n}\n"
     var out = string()
     var rc = safety_compile_and_run(env, "partial_init_reassign", ch, &mut out)
     if(rc != 0) {
@@ -537,7 +537,7 @@ func partial_init_reassignment_destroys_old_value(env : &mut TestEnv) {
 @test
 func partial_array_init_destroys_only_initialized_elements(env : &mut TestEnv) {
     safety_init_work_dir()
-    var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&mut self) { printf(\"drop %d\\n\", self.id) }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [3]Tracker\n        arr[0] = Tracker { id : 1 }\n        arr[2] = Tracker { id : 3 }\n    }\n    printf(\"end\\n\")\n    return 0\n}\n"
+    var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&mut self) { unsafe { printf(\"drop %d\\n\", self.id) } }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [3]Tracker\n        arr[0] = Tracker { id : 1 }\n        arr[2] = Tracker { id : 3 }\n    }\n    unsafe { printf(\"end\\n\") }\n    return 0\n}\n"
     var out = string()
     var rc = safety_compile_and_run(env, "partial_array_init_drop", ch, &mut out)
     if(rc != 0) {
@@ -559,7 +559,7 @@ func partial_array_init_destroys_only_initialized_elements(env : &mut TestEnv) {
 @test
 func partial_array_reassignment_destroys_old_element(env : &mut TestEnv) {
     safety_init_work_dir()
-    var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&mut self) { printf(\"drop %d\\n\", self.id) }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]Tracker\n        arr[0] = Tracker { id : 1 }\n        arr[0] = Tracker { id : 9 }\n    }\n    printf(\"end\\n\")\n    return 0\n}\n"
+    var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&mut self) { unsafe { printf(\"drop %d\\n\", self.id) } }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]Tracker\n        arr[0] = Tracker { id : 1 }\n        arr[0] = Tracker { id : 9 }\n    }\n    unsafe { printf(\"end\\n\") }\n    return 0\n}\n"
     var out = string()
     var rc = safety_compile_and_run(env, "partial_array_reassign_drop", ch, &mut out)
     if(rc != 0) {

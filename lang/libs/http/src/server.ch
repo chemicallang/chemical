@@ -47,7 +47,7 @@ public namespace server {
 
         func handle_conn(&self, s: net::Socket) {
             if (s == 0u || (s as longlong) < 0) {
-                printf("handle_conn: invalid socket {}\n");
+                unsafe { printf("handle_conn: invalid socket {}\n") };
                 net::close_socket(s); return;
             }
 
@@ -56,7 +56,7 @@ public namespace server {
             if(self.tls_cert != null && self.tls_rsa_key != null) {
                 tls_ctx = tls::tls_accept(s, self.tls_cert, self.tls_rsa_key)
                 if(tls_ctx == null) {
-                    printf("TLS handshake failed\n")
+                    unsafe { printf("TLS handshake failed\n") }
                     net::close_socket(s)
                     return
                 }
@@ -176,11 +176,11 @@ public namespace server {
                 self.tls_cert = tls::x509_crt_load_pem_file(self.cfg.cert_file.data())
                 self.tls_rsa_key = tls::rsa_privkey_load_pem_file(self.cfg.key_file.data()) as *mut void
                 if(self.tls_cert == null || self.tls_rsa_key == null) {
-                    printf("Warning: failed to load TLS cert/key, running plain HTTP\n")
+                    unsafe { printf("Warning: failed to load TLS cert/key, running plain HTTP\n") }
                     self.tls_cert = null
                     self.tls_rsa_key = null
                 } else {
-                    printf("HTTPS enabled\n")
+                    unsafe { printf("HTTPS enabled\n") }
                 }
             }
 

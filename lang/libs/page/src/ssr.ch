@@ -2,10 +2,10 @@ public struct SsrText {
     var data : *char
     var size : u64
     func equals(&self, other : &std::string_view) : bool {
-        return size == other.size() && strncmp(data, other.data(), size) == 0;
+        return size == other.size() && unsafe(strncmp(data, other.data(), size)) == 0;
     }
     func equals_text(&self, other : &SsrText) : bool {
-        return size == other.size && strncmp(data, other.data, size) == 0;
+        return size == other.size && unsafe(strncmp(data, other.data, size)) == 0;
     }
 }
 
@@ -107,7 +107,7 @@ public func ssrAttrValueProp(val : &SsrAttributeValue, name : SsrText) : SsrAttr
 func ssrTextOf(val : &SsrAttributeValue) : SsrText {
     switch(val) {
         Text(v) => return v
-        PtrChar(v) => return SsrText { data: v, size: strlen(v) }
+        PtrChar(v) => return SsrText { data: v, size: unsafe(strlen(v)) }
         default => return SsrText { data: null, size: 0 }
     }
 }
@@ -121,7 +121,7 @@ public func ssrTextIncludes(hay : &SsrAttributeValue, needle : &SsrAttributeValu
     if(h.size < n.size) return false
     var i : u64 = 0
     while(i + n.size <= h.size) {
-        if(strncmp(h.data + i, n.data, n.size) == 0) return true
+        if(unsafe(strncmp(h.data + i, n.data, n.size)) == 0) return true
         i = i + 1
     }
     return false
@@ -131,14 +131,14 @@ public func ssrTextStartsWith(hay : &SsrAttributeValue, needle : &SsrAttributeVa
     const h = ssrTextOf(hay)
     const n = ssrTextOf(needle)
     if(n.size > h.size) return false
-    return strncmp(h.data, n.data, n.size) == 0
+    return unsafe(strncmp(h.data, n.data, n.size)) == 0
 }
 
 public func ssrTextEndsWith(hay : &SsrAttributeValue, needle : &SsrAttributeValue) : bool {
     const h = ssrTextOf(hay)
     const n = ssrTextOf(needle)
     if(n.size > h.size) return false
-    return strncmp(h.data + (h.size - n.size), n.data, n.size) == 0
+    return unsafe(strncmp(h.data + (h.size - n.size), n.data, n.size)) == 0
 }
 
 // ASCII case folding for `.toLowerCase()` predicates evaluated at SSR. Only
@@ -208,28 +208,28 @@ public func ssrTextEquals(val : &SsrAttributeValue, expected : SsrText) : bool {
         // An unset value equals "undefined"/"null" in JS semantics, so
         // `props.label !== undefined` correctly evaluates to false for unset.
         None() => return (expected.size == 0) ||
-            (expected.size == 9 && strncmp(expected.data, "undefined", 9) == 0) ||
-            (expected.size == 4 && strncmp(expected.data, "null", 4) == 0)
+            (expected.size == 9 && unsafe(strncmp(expected.data, "undefined", 9)) == 0) ||
+            (expected.size == 4 && unsafe(strncmp(expected.data, "null", 4)) == 0)
         Text(v) => return v.equals_text(&expected)
         PtrChar(v) => {
-            const len = strlen(v)
-            return len == expected.size && strncmp(v, expected.data, expected.size) == 0
+            const len = unsafe(strlen(v))
+            return len == expected.size && unsafe(strncmp(v, expected.data, expected.size)) == 0
         }
         Boolean(v) => {
-            if(v) return expected.size == 4 && strncmp(expected.data, "true", 4) == 0
-            return expected.size == 5 && strncmp(expected.data, "false", 5) == 0
+            if(v) return expected.size == 4 && unsafe(strncmp(expected.data, "true", 4)) == 0
+            return expected.size == 5 && unsafe(strncmp(expected.data, "false", 5)) == 0
         }
         Char(v) => return expected.size == 1 && expected.data[0] == v
         UInteger(v) => {
             // Numeric equality against the decimal representation (JS loose ==).
             var tmp = std::string()
             tmp.append_uinteger(v)
-            return expected.size == tmp.size() && strncmp(expected.data, tmp.data(), expected.size) == 0
+            return expected.size == tmp.size() && unsafe(strncmp(expected.data, tmp.data(), expected.size)) == 0
         }
         Integer(v) => {
             var tmp = std::string()
             tmp.append_integer(v)
-            return expected.size == tmp.size() && strncmp(expected.data, tmp.data(), expected.size) == 0
+            return expected.size == tmp.size() && unsafe(strncmp(expected.data, tmp.data(), expected.size)) == 0
         }
         Double(v, precision) => {
             // Compare against the formatted representation, stripping trailing
@@ -241,7 +241,7 @@ public func ssrTextEquals(val : &SsrAttributeValue, expected : SsrText) : bool {
             if(end > 0 && tmp.get(end - 1) == '.') { end-- }
             if(end == 0) return false
             const view = std::string_view(tmp.data(), end)
-            return expected.size == view.size() && strncmp(expected.data, view.data(), view.size()) == 0
+            return expected.size == view.size() && unsafe(strncmp(expected.data, view.data(), view.size())) == 0
         }
         Multiple(_) => return false
         Spread(_) => return false
@@ -288,7 +288,7 @@ func appendSsrValueText(val : &SsrAttributeValue, out : &mut std::string) : bool
         }
         PtrChar(v) => {
             if(v == null) return true
-            out.append_view(std::string_view(v, strlen(v)))
+            out.append_view(std::string_view(v, unsafe(strlen(v))))
             return true
         }
         default => return false

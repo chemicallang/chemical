@@ -1,5 +1,5 @@
 func is_ident_start(next : char) : bool {
-    return next == '_' || isalpha(next) || (next >= 0x80) || (next == '\\') || (next == '-');
+    return next == '_' || unsafe(isalpha(next)) || (next >= 0x80) || (next == '\\') || (next == '-');
 }
 
 public func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
@@ -66,7 +66,7 @@ public func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             const next = provider.peek()
             const next2 = provider.peek2()
 
-            if(isdigit(next) || (next == '.' && isdigit(next2))) {
+            if(unsafe(isdigit(next)) || (next == '.' && unsafe(isdigit(next2)))) {
                 provider.read_floating_digits()
                 css.tokens_since_colon++;
                 return Token {
@@ -163,7 +163,7 @@ public func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             provider.skip_whitespaces();
             const start = provider.current_data()
             provider.read_alpha();
-            if(strncmp(start, "important", provider.current_data() - start) == 0) {
+            if(unsafe(strncmp(start, "important", provider.current_data() - start)) == 0) {
                 return Token {
                     type : TokenType.Important as int,
                     value : std::string_view(data_ptr, provider.current_data() - data_ptr),
@@ -443,7 +443,7 @@ public func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             return getNextToken2(css, lexer);
         }
         default => {
-            if(isdigit(c)) {
+            if(unsafe(isdigit(c))) {
                 provider.read_floating_digits();
                 css.tokens_since_colon++;
                 return Token {

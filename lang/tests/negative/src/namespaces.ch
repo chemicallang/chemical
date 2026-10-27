@@ -3,7 +3,7 @@
 
 @test
 func neg_namespace_expected(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "namespace Math {\n    func add(a : int, b : int) : int { return a + b }\n}\npublic func main() : int {\n    Math.add(1, 2)\n    return 0\n}\n"
     // This should work - valid namespace
     expect_compile_success(env, "namespace_ok", ch)
@@ -11,21 +11,21 @@ func neg_namespace_expected(env : &mut TestEnv) {
 
 @test
 func neg_namespace_not_found(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "func main() {\n    var x = UnknownNamespace::value\n}\n"
     expect_compile_error(env, "namespace_not_found", ch, "unresolved variable identifier")
 }
 
 @test
 func neg_value_not_namespace(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "var x = 42\nfunc main() {\n    var y = x::something\n}\n"
     expect_compile_error(env, "value_not_namespace", ch, "unresolved child")
 }
 
 @test
 func neg_access_specifier_namespace(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "private namespace Hidden {\n    func do_it() { }\n}\npublic func main() : int {\n    Hidden.do_it()\n    return 0\n}\n"
     // Private namespace in the same file should be accessible
     expect_compile_success(env, "private_namespace_same_file_ok", ch)
@@ -33,14 +33,14 @@ func neg_access_specifier_namespace(env : &mut TestEnv) {
 
 @test
 func neg_symbol_outside_lambda(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "func main() {\n    var fn = ||(a : int) : int => a + outside_var\n}\n"
     expect_compile_error(env, "symbol_outside_lambda", ch, "unresolved variable identifier")
 }
 
 @test
 func neg_alias_incompatible_value(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // an alias is declared with 'type' ("type X = Y"); 'alias' declares a value
     // alias and 'typealias' is not a keyword at all
     var ch = "type MyInt = int\nvar x : MyInt = \"hello\"\nfunc main() {}\n"
@@ -49,7 +49,7 @@ func neg_alias_incompatible_value(env : &mut TestEnv) {
 
 @test
 func neg_incompatible_alias(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "type Number = int\ntype Text = *char\nvar x : Number = Text\nfunc main() {}\n"
     // Note: the expectation must be a phrase the diagnostic really contains.
     // The compiler prints the test's own temp path (which is named after the
@@ -61,14 +61,14 @@ func neg_incompatible_alias(env : &mut TestEnv) {
 
 @test
 func neg_expect_interface_type(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct S {}\nimpl SomeNonExistentInterface for S {}\nfunc main() {}\n"
     expect_compile_error(env, "expect_interface_type", ch, "unresolved type")
 }
 
 @test
 func neg_impl_for_unsupported_type(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // pointer and reference types support interface implementations (see the
     // external_common / common primitive impl tests), but a function type does not
     var ch = "interface Empty {}\nimpl Empty for () => void {\n}\nfunc main() {}\n"
@@ -77,14 +77,14 @@ func neg_impl_for_unsupported_type(env : &mut TestEnv) {
 
 @test
 func impl_for_pointer_type_allowed(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "interface Identity {\n    func id(&self) : int\n}\nimpl Identity for *int {\n    func id(&self) : int { return unsafe(**self) }\n}\npublic func main() : int {\n    var x = 7\n    var p : *int = &raw x\n    return p.id()\n}\n"
     expect_compile_success(env, "impl_for_pointer_type_allowed", ch)
 }
 
 @test
 func neg_impl_unsupported_decl(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "impl int for *char {}\nfunc main() {}\n"
     expect_compile_error(env, "impl_unsupported_decl", ch, "unresolved type")
 }

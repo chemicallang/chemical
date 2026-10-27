@@ -539,7 +539,7 @@ func build_serialize_fn(builder : *mut ASTBuilder, info : *mut SerializableInfo,
 // allocates a "__name<idx>" identifier view on the AST arena
 func alloc_indexed_view(builder : *mut ASTBuilder, fmt : *char, idx : uint) : std::string_view {
     var buf = builder.allocate_str_size(24)
-    var len = snprintf(buf, 24, fmt, idx as int)
+    var len = unsafe(snprintf(buf, 24, fmt, idx as int))
     buf[len] = '\0'
     return std::string_view(buf, len as size_t)
 }

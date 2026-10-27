@@ -1,5 +1,5 @@
 func posix_mkdir(pathname : *char, mode : uint) : int {
-    return mkdir(pathname, mode)
+    return unsafe(mkdir(pathname, mode))
 }
 
 public namespace fs {
@@ -53,7 +53,7 @@ public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
 
 // remove_dir (non-recursive) and remove_dir_all (recursive)
 public func remove_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
-    var r = rmdir(path);
+    var r = unsafe(rmdir(path));
     if(r != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
     return Result.Ok(UnitTy{});
 }
@@ -65,18 +65,18 @@ public func remove_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
 // ---------------------------
 func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
     // Duplicate fd for fdopendir (fdopendir usually consumes the fd)
-    var ddup = dup(dirfd);
+    var ddup = unsafe(dup(dirfd));
     if(ddup < 0) {
         var e = get_errno();
         // printf("dup(%d) failed: errno=%d (%s)\n", dirfd, e, strerror(e));
         return Result.Err(posix_errno_to_fs(e));
     }
 
-    var dir = fdopendir(ddup);
+    var dir = unsafe(fdopendir(ddup));
     if(dir == null) {
         var e = get_errno();
         // printf("fdopendir(%d) failed: errno=%d (%s)\n", ddup, e, strerror(e));
-        close(ddup);
+        unsafe { close(ddup) };
         return Result.Err(posix_errno_to_fs(e));
     }
 
@@ -84,12 +84,12 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
         // IMPORTANT: clear errno before calling readdir so a leftover errno doesn't confuse us
         set_errno(0);
 
-        var ent = readdir(dir);
+        var ent = unsafe(readdir(dir));
         if(ent == null) {
             if(get_errno() != 0) {
                 var re = get_errno();
                 // printf("readdir(dirfd=%d) returned NULL with errno=%d (%s)\n", dirfd, re, strerror(re));
-                closedir(dir);
+                unsafe { closedir(dir) };
                 return Result.Err(posix_errno_to_fs(re));
             }
             // end of directory
@@ -106,14 +106,14 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
         // fstatat relative to dirfd
         var st : Stat;
         set_errno(0);
-        if(fstatat(dirfd, &raw ent.d_name[0], &raw mut st, AT_SYMLINK_NOFOLLOW) != 0) {
+        if(unsafe(fstatat(dirfd, &raw ent.d_name[0], &raw mut st, AT_SYMLINK_NOFOLLOW)) != 0) {
             var e = get_errno();
             // printf("fstatat(dirfd=%d, name='%s') -> errno=%d (%s)\n", dirfd, &ent.d_name[0], e, strerror(e));
             if(e == 2) { // ENOENT
                 // printf("  (ENOENT) entry disappeared between readdir and fstatat — skipping\n");
                 continue;
             } else {
-                closedir(dir);
+                unsafe { closedir(dir) };
                 return Result.Err(posix_errno_to_fs(e));
             }
         }
@@ -123,7 +123,7 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
             // printf("  '%s' is DIR — openat\n", &ent.d_name[0]);
 
             set_errno(0);
-            var childfd = openat(dirfd, &raw ent.d_name[0], O_RDONLY | O_DIRECTORY, 0);
+            var childfd = unsafe(openat(dirfd, &raw ent.d_name[0], O_RDONLY | O_DIRECTORY, 0));
             if(childfd < 0) {
                 var e2 = get_errno();
                 // printf("  openat(dirfd=%d, name='%s') -> errno=%d (%s)\n", dirfd, &ent.d_name[0], e2, strerror(e2));
@@ -131,7 +131,7 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
                     // printf("  (ENOENT) was removed before openat; skipping\n");
                     continue;
                 } else {
-                    closedir(dir);
+                    unsafe { closedir(dir) };
                     return Result.Err(posix_errno_to_fs(e2));
                 }
             }
@@ -141,20 +141,20 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
             var rem = remove_dir_all_at(childfd);
 
             // Always close the child fd we opened
-            close(childfd);
+            unsafe { close(childfd) };
 
-            if(rem is Result.Err) { var Err(e) = rem else unreachable; closedir(dir); return Result.Err(e); }
+            if(rem is Result.Err) { var Err(e) = rem else unreachable; unsafe { closedir(dir) }; return Result.Err(e); }
 
             // Remove the directory entry itself using unlinkat(AT_REMOVEDIR)
             set_errno(0);
-            if(unlinkat(dirfd, &raw ent.d_name[0], AT_REMOVEDIR) != 0) {
+            if(unsafe(unlinkat(dirfd, &raw ent.d_name[0], AT_REMOVEDIR)) != 0) {
                 var e3 = get_errno();
                 // printf("  unlinkat(AT_REMOVEDIR) dirfd=%d name='%s' -> errno=%d (%s)\n", dirfd, &ent.d_name[0], e3, strerror(e3));
                 if(e3 == 2) {
                     // printf("  (ENOENT) entry gone before unlinkat; benign\n");
                     continue;
                 } else {
-                    closedir(dir);
+                    unsafe { closedir(dir) };
                     return Result.Err(posix_errno_to_fs(e3));
                 }
             } else {
@@ -164,14 +164,14 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
         } else {
             // Not a directory: remove with unlinkat
             set_errno(0);
-            if(unlinkat(dirfd, &raw ent.d_name[0], 0) != 0) {
+            if(unsafe(unlinkat(dirfd, &raw ent.d_name[0], 0)) != 0) {
                 var e4 = get_errno();
                 // printf("  unlinkat(dirfd=%d, name='%s') -> errno=%d (%s)\n", dirfd, &ent.d_name[0], e4, strerror(e4));
                 if(e4 == 2) {
                     // printf("  (ENOENT) already removed — skipping\n");
                     continue;
                 } else {
-                    closedir(dir);
+                    unsafe { closedir(dir) };
                     return Result.Err(posix_errno_to_fs(e4));
                 }
             } else {
@@ -180,7 +180,7 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
         }
     }
 
-    closedir(dir);
+    unsafe { closedir(dir) };
     // printf("remove_dir_all_at(dirfd=%d) completed OK\n", dirfd);
     return Result.Ok(UnitTy{});
 }
@@ -191,7 +191,7 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
 public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, FsError> {
     // POSIX
     // printf("remove_dir_all_recursive: opening '%s'\n", path);
-    var dirfd = open(path, O_RDONLY | O_DIRECTORY, 0);
+    var dirfd = unsafe(open(path, O_RDONLY | O_DIRECTORY, 0));
     if(dirfd < 0) {
         var e = get_errno();
         // printf("open('%s') -> errno=%d (%s)\n", path, e, strerror(e));
@@ -201,13 +201,13 @@ public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, Fs
     var rem = remove_dir_all_at(dirfd);
 
     // close dirfd regardless
-    var c = close(dirfd);
+    var c = unsafe(close(dirfd));
 
     if(rem is Result.Err) { var Err(e) = rem else unreachable; return Result.Err(e); }
 
     // remove the directory itself (rmdir)
     set_errno(0);
-    if(rmdir(path) != 0) {
+    if(unsafe(rmdir(path)) != 0) {
         var er = get_errno();
         // printf("rmdir('%s') -> errno=%d (%s)\n", path, er, strerror(er));
         if(er == 2) {
@@ -229,10 +229,10 @@ public func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError
 
 // read_dir: callback style to avoid allocations. Callback signature: fn(name : *char, name_len : size_t, is_dir : bool) -> bool
 public func read_dir(path : *char, callback : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool>) : Result<UnitTy, FsError> {
-    var d = opendir(path);
+    var d = unsafe(opendir(path));
     if(d == null) { return Result.Err(posix_errno_to_fs(get_errno())); }
     while(true) {
-        var ent = readdir(d);
+        var ent = unsafe(readdir(d));
         if(ent == null) { break; }
         var name_ptr = &raw ent.d_name[0];
         var nl : size_t = 0; while(name_ptr[nl] != 0) { nl++ }
@@ -247,13 +247,13 @@ public func read_dir(path : *char, callback : std::function<(name : *char, name_
         if(p > 0 && child[p-1] != '/') { child[p++] = '/'; }
         var q : size_t = 0; while(q <= nl) { child[p + q] = name_ptr[q]; q++ }
         var st : Stat;
-        var r = lstat(&raw child[0], unsafe(&raw mut st));
+        var r = unsafe(lstat(&raw child[0], unsafe(&raw mut st)));
         if(r == 0) { isdir = ((st.st_mode & 0xF000) == 0x4000); }
         // }
         var cont = callback(name_ptr, nl, isdir);
         if(!cont) { break; }
     }
-    closedir(d);
+    unsafe { closedir(d) };
     return Result.Ok(UnitTy{});
 }
 

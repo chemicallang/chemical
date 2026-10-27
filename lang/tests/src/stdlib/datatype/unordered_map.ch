@@ -103,7 +103,7 @@ func test_unordered_map() {
         var rand2 = map.get_ptr(std::string_view("19"))
         var rand3 = map.get_ptr(std::string_view("26"))
         if(fruit == null || veg == null || nut == null || rand1 == null || rand2 == null || rand3 == null) {
-            printf("null returned !!\n");
+            unsafe { printf("null returned !!\n") };
             return false;
         }
         return fruit.equals("apple") && veg.equals("kale") && nut.equals("walnut") && rand1.equals("43") && rand2.equals("39") && rand3.equals("46")
@@ -117,7 +117,7 @@ func test_unordered_map() {
         var veg = map.get_ptr(std::string("veg"))
         var nut = map.get_ptr(std::string("nut"))
         if(fruit == null || veg == null || nut == null) {
-            printf("null returned !!\n");
+            unsafe { printf("null returned !!\n") };
             return false;
         }
         return map.size() == 3 && fruit.equals(std::string("apple")) && veg.equals(std::string("kale")) && nut.equals(std::string("walnut"))
@@ -153,7 +153,7 @@ func test_unordered_map() {
         var rand3 = map.get_ptr(std::string("26"))
 
         if(fruit == null || veg == null || nut == null || rand1 == null || rand2 == null || rand3 == null) {
-            printf("null returned !!\n");
+            unsafe { printf("null returned !!\n") };
             return false;
         }
 

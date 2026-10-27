@@ -37,9 +37,9 @@ func yield_drop(frame : *mut void) {
 }
 
 public func yield_now() : core::async::FutureHandle<core::async::Unit> {
-    var st = malloc(sizeof(YieldState)) as *mut YieldState
+    var st = unsafe(malloc(sizeof(YieldState))) as *mut YieldState
     st.yielded = false
-    var vtbl = malloc(sizeof(core::async::FutureTable<core::async::Unit>)) as *mut core::async::FutureTable<core::async::Unit>
+    var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<core::async::Unit>))) as *mut core::async::FutureTable<core::async::Unit>
     vtbl.poll = yield_poll
     vtbl.drop = yield_drop
     st.vtbl = vtbl

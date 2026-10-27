@@ -181,7 +181,7 @@ func test_channel_close_wakes_pending_recv(env : &mut TestEnv) {
 // path; the condvar must still deliver the channel wakeup).
 async func edge_mixed_channel_and_reactor() : int {
     var fds : [2]int
-    if(async::pipe(&raw mut fds[0]) != 0) {
+    if(unsafe(async::pipe(&raw mut fds[0])) != 0) {
         return -1
     }
     // Registers fds[0] and is never ready (nothing writes), so the executor
@@ -196,8 +196,8 @@ async func edge_mixed_channel_and_reactor() : int {
     })
     var v = await ch.receiver.recv_or(-1)
     var u = await h
-    close(fds[0])
-    close(fds[1])
+    unsafe { close(fds[0]) }
+    unsafe { close(fds[1]) }
     return v
 }
 
@@ -276,22 +276,22 @@ func test_block_on_timeout_ready(env : &mut TestEnv) {
 // A `select` between a timer and a reactor-backed future: the fd must win.
 async func edge_mixed_select_fd() : int {
     var fds : [2]int
-    if(async::pipe(&raw mut fds[0]) != 0) {
+    if(unsafe(async::pipe(&raw mut fds[0])) != 0) {
         return -1
     }
     var w = fds[1]
     var h = async::spawn_blocking<bool>(|w|() => {
         std::concurrent.sleep_ms(10u)
         var c = 'x'
-        write(w, &raw mut c as *void, 1u as ulong)
+        unsafe { write(w, &raw mut c as *void, 1u as ulong) }
         return true
     })
     var v = await async::select<core::async::Unit>(async::sleep(100000u), async::readable(fds[0]))
     var u = await h
     var buf : [1]char
-    read(fds[0], &raw mut buf[0] as *mut void, 1u as ulong)
-    close(fds[0])
-    close(fds[1])
+    unsafe { read(fds[0], &raw mut buf[0] as *mut void, 1u as ulong) }
+    unsafe { close(fds[0]) }
+    unsafe { close(fds[1]) }
     return 1
 }
 

@@ -34,7 +34,7 @@ public func NET_send_all_megabyte_integrity(env : &mut TestEnv) {
     var sender = std.concurrent.spawn(||(arg : *void) => {
         var sock = dial("127.0.0.1", 20450u)
         if(sock == 0 as Socket) { return null }
-        var buf = malloc(1048576u) as *mut u8
+        var buf = unsafe(malloc(1048576u)) as *mut u8
         if(buf == null) { net::close_socket(sock); return null }
         ntx_fill_pattern(buf, 1048576u)
         var off : usize = 0
@@ -58,7 +58,7 @@ public func NET_send_all_megabyte_integrity(env : &mut TestEnv) {
     }
 
     set_recv_timeout(cs, 10, 0)
-    var acc = malloc(1048576u) as *mut u8
+    var acc = unsafe(malloc(1048576u)) as *mut u8
     if(acc == null) { env.error("alloc failed"); close_socket(cs); close_socket(ls); sender.join(); return }
 
     var total : usize = 0
@@ -103,7 +103,7 @@ public func NET_recv_partial_on_early_peer_close(env : &mut TestEnv) {
     var sender = std.concurrent.spawn(||(arg : *void) => {
         var sock = dial("127.0.0.1", 20451u)
         if(sock == 0 as Socket) { return null }
-        var buf = malloc(1000u) as *mut u8
+        var buf = unsafe(malloc(1000u)) as *mut u8
         if(buf == null) { net::close_socket(sock); return null }
         ntx_fill_pattern(buf, 1000u)
         send_all(sock, buf as *char, 1000)

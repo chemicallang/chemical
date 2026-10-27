@@ -21,16 +21,16 @@ public namespace std {
         func constructor() {
             var m = recursive_mutex { storage : [] }
             var attr_storage : [PTHREAD_MUTEXATTR_T_SIZE]u8
-            var rc = pthread_mutexattr_init(&raw mut attr_storage[0])
+            var rc = unsafe(pthread_mutexattr_init(&raw mut attr_storage[0]))
             if(rc != 0) {
                 panic("pthread_mutexattr_init failed")
             }
-            rc = pthread_mutexattr_settype(&raw mut attr_storage[0], PTHREAD_MUTEX_RECURSIVE)
+            rc = unsafe(pthread_mutexattr_settype(&raw mut attr_storage[0], PTHREAD_MUTEX_RECURSIVE))
             if(rc != 0) {
                 panic("pthread_mutexattr_settype failed")
             }
-            rc = pthread_mutex_init(&raw mut m.storage[0], &raw mut attr_storage[0])
-            pthread_mutexattr_destroy(&raw mut attr_storage[0])
+            rc = unsafe(pthread_mutex_init(&raw mut m.storage[0], &raw mut attr_storage[0]))
+            unsafe { pthread_mutexattr_destroy(&raw mut attr_storage[0]) }
             if(rc != 0) {
                 panic("pthread_mutex_init failed")
             }
@@ -38,19 +38,19 @@ public namespace std {
         }
 
         func lock(&mut self) {
-            var rc = pthread_mutex_lock(&raw mut storage[0])
+            var rc = unsafe(pthread_mutex_lock(&raw mut storage[0]))
             if(rc != 0) {
                 panic("pthread_mutex_lock failed")
             }
         }
 
         func try_lock(&mut self) : bool {
-            var rc = pthread_mutex_trylock(&raw mut storage[0])
+            var rc = unsafe(pthread_mutex_trylock(&raw mut storage[0]))
             return rc == 0
         }
 
         func unlock(&mut self) {
-            var rc = pthread_mutex_unlock(&raw mut storage[0])
+            var rc = unsafe(pthread_mutex_unlock(&raw mut storage[0]))
             if(rc != 0) {
                 panic("pthread_mutex_unlock failed")
             }
@@ -58,7 +58,7 @@ public namespace std {
 
         @delete
         func delete(&mut self) {
-            pthread_mutex_destroy(&raw mut storage[0])
+            unsafe { pthread_mutex_destroy(&raw mut storage[0]) }
         }
     }
 }

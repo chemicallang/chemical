@@ -24,7 +24,7 @@ func test_fs_metadata_exists_and_types(env : &mut TestEnv) {
 
     // Test file
     var content : *char = "metadata test";
-    fs::write_text_file(file_path.data(), content as *u8, strlen(content) as size_t);
+    fs::write_text_file(file_path.data(), content as *u8, unsafe(strlen(content)) as size_t);
     expect_true(env, fs::exists(file_path.data()), "file should exist");
     
     var r_file = fs::is_file(file_path.data());
@@ -51,7 +51,7 @@ func test_fs_metadata_properties(env : &mut TestEnv) {
 
     var p = make_child_path(&base, "props.txt");
     var content : *char = "1234567890";
-    var len = strlen(content) as size_t;
+    var len = unsafe(strlen(content)) as size_t;
     fs::write_text_file(p.data(), content as *u8, len);
 
     var r = fs::metadata(p.data());

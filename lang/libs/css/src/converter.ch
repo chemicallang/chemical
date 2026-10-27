@@ -109,8 +109,8 @@ func writeLength(ptr : &mut CSSLengthValueData, str : &mut std::string) {
     str.append_view(&ptr.value)
     // writing the unit
     if(ptr.kind != CSSLengthKind.None && !writeUnitOfKind(str, ptr.kind)) {
-        printf("unknown unit")
-        fflush(null)
+        unsafe { printf("unknown unit") }
+        unsafe { fflush(null) }
     }
 }
 

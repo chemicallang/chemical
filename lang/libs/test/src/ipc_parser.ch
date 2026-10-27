@@ -183,14 +183,14 @@ $quit_all
 */
 func process_message(state : &mut TestFunctionState, msg : *char) {
     if (!msg) {
-        printf("failed message parsing : mesgae is null\n");
+        unsafe { printf("failed message parsing : mesgae is null\n") };
         state.failed_msg_parse = std::string("message is null");
         return;
     }
 
     // Must start with '$' to be one of ours
     if (!read_char(&raw mut msg, '$')) {
-        printf("failed message parsing : expected '$' in start\n");
+        unsafe { printf("failed message parsing : expected '$' in start\n") };
         state.failed_msg_parse.append_expr(`must start with a $, instead received ${msg}`);
         return;
     }
@@ -199,14 +199,14 @@ func process_message(state : &mut TestFunctionState, msg : *char) {
 
     switch (msgType) {
         MessageCommandType.None, default => {
-            printf("failed message parsing : empty message received\n");
+            unsafe { printf("failed message parsing : empty message received\n") };
             return;
         }
         MessageCommandType.Log => {
             var l = TestLog();
             const parseMessage = parseLog(&raw mut msg, &mut l);
             if(parseMessage != null) {
-                printf("failed message parsing : %s\n", parseMessage);
+                unsafe { printf("failed message parsing : %s\n", parseMessage) };
                 state.failed_msg_parse.append_expr(`${parseMessage}`)
             }
             if(l.type !in LogType.Information, LogType.Warning, LogType.Success) {

@@ -19,7 +19,7 @@ public func (provider : &mut SourceProvider) read_regex_value() {
     }
     while(true) {
         const c = provider.peek();
-        if(isalpha(c as int)) {
+        if(unsafe(isalpha(c as int))) {
             provider.readCharacter();
         } else {
             break;

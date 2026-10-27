@@ -51,7 +51,7 @@ func test_fs_write_and_read_to_buffer_roundtrip(env : &mut TestEnv) {
 
     var file_path = make_child_path(&base, "hello.txt");
     var content : *char = "hello fs module";
-    var len = strlen(content) as size_t;
+    var len = unsafe(strlen(content)) as size_t;
 
     var wr = fs::write_text_file(file_path.data(), content as *u8, len);
     if(wr is Result.Err) {
@@ -96,7 +96,7 @@ func test_fs_write_and_read_entire_file_roundtrip(env : &mut TestEnv) {
 
     var file_path = make_child_path(&base, "bytes.bin");
     var content : *char = "0123456789abcdef";
-    var len = strlen(content) as size_t;
+    var len = unsafe(strlen(content)) as size_t;
 
     var wr = fs::write_text_file(file_path.data(), content as *u8, len);
     if(wr is Result.Err) {
@@ -137,7 +137,7 @@ func test_fs_copy_file_copies_contents(env : &mut TestEnv) {
     var dst = make_child_path(&base, "dst.txt");
 
     var content : *char = "copy-me";
-    var len = strlen(content) as size_t;
+    var len = unsafe(strlen(content)) as size_t;
     var wr = fs::write_text_file(src.data(), content as *u8, len);
     if(wr is Result.Err) {
         var Err(e) = wr else unreachable;
@@ -181,7 +181,7 @@ func test_fs_remove_file_makes_file_unreadable(env : &mut TestEnv) {
 
     var p = make_child_path(&base, "toremove.txt");
     var content : *char = "bye";
-    var wr = fs::write_text_file(p.data(), content as *u8, strlen(content) as size_t);
+    var wr = fs::write_text_file(p.data(), content as *u8, unsafe(strlen(content)) as size_t);
     if(wr is Result.Err) {
         var Err(e) = wr else unreachable;
         var m = e.message();
@@ -237,9 +237,9 @@ func test_fs_remove_dir_recursive_removes_nested_files(env : &mut TestEnv) {
     var c1 : *char = "root";
     var c2 : *char = "mid";
     var c3 : *char = "deep";
-    fs::write_text_file(f1.data(), c1 as *u8, strlen(c1) as size_t);
-    fs::write_text_file(f2.data(), c2 as *u8, strlen(c2) as size_t);
-    fs::write_text_file(f3.data(), c3 as *u8, strlen(c3) as size_t);
+    fs::write_text_file(f1.data(), c1 as *u8, unsafe(strlen(c1)) as size_t);
+    fs::write_text_file(f2.data(), c2 as *u8, unsafe(strlen(c2)) as size_t);
+    fs::write_text_file(f3.data(), c3 as *u8, unsafe(strlen(c3)) as size_t);
 
     var rm = fs::remove_dir_all_recursive(base.data());
     if(rm is Result.Err) {
@@ -272,7 +272,7 @@ func test_fs_set_permissions_on_existing_file(env : &mut TestEnv) {
 
     var p = make_child_path(&base, "perm.txt");
     var content : *char = "perm";
-    var wr = fs::write_text_file(p.data(), content as *u8, strlen(content) as size_t);
+    var wr = fs::write_text_file(p.data(), content as *u8, unsafe(strlen(content)) as size_t);
     if(wr is Result.Err) {
         var Err(e) = wr else unreachable;
         var m = e.message();

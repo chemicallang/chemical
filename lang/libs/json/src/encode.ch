@@ -99,7 +99,7 @@ public func write_double_raw(output : &mut std::string, val : double) {
     var buf : char[64]
     // 17 significant digits is the precision required to round-trip any
     // IEEE-754 double exactly (fewer digits silently corrupts values).
-    var len = snprintf(&raw mut buf[0], 64, "%.17g", val)
+    var len = unsafe(snprintf(&raw mut buf[0], 64, "%.17g", val))
     if(len > 0) {
         var i = 0
         while(i < len && i < 64) {
@@ -126,7 +126,7 @@ public func write_float_raw(output : &mut std::string, val : float) {
     var buf : char[64]
     // 9 significant digits is the precision required to round-trip any
     // IEEE-754 single-precision float exactly.
-    var len = snprintf(&raw mut buf[0], 64, "%.9g", val)
+    var len = unsafe(snprintf(&raw mut buf[0], 64, "%.9g", val))
     if(len > 0) {
         var i = 0
         while(i < len && i < 64) {

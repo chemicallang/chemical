@@ -68,6 +68,7 @@ func srv_parse_content_length(buf : *u8, head_start : size_t, head_end : size_t)
 // any trailing bytes of the next pipelined request on the same connection.
 func srv_read_request_stream(ssl : *mut SSLContext, buf : *mut u8, buf_size : size_t,
                               filled : *mut size_t, consumed : *mut size_t) : int {
+                                  unsafe {
     while(true) {
         var head_end = srv_mem_find_crlfcrlf(buf, 0, *filled)
         if(head_end != SRV_NPOS) {
@@ -84,7 +85,8 @@ func srv_read_request_stream(ssl : *mut SSLContext, buf : *mut u8, buf_size : si
         *filled = *filled + n as size_t
     }
     return -1
-}
+
+                              }}
 
 // Send a complete HTTP/1.1 response with a Content-Length body.
 func srv_send_response(ssl : *mut SSLContext, status_line : *char,
@@ -160,7 +162,7 @@ func srv_check_result_file(env : &mut TestEnv, path : *char) {
     env.error("python client reported failure:")
     if(got > 0) {
         buf[got] = 0
-        printf("HCLI: %s\n", &raw buf[0])
+        unsafe { printf("HCLI: %s\n", &raw buf[0]) }
     } else {
         env.error("result file empty or missing")
     }
@@ -177,7 +179,7 @@ func srv_serve_one_connection(env : &mut TestEnv, cs : net::Socket, mode : strin
                                tls12_rsa : bool) : bool {
     var ok = true
 
-    var ssl_mem = malloc(sizeof(SSLContext)) as *mut SSLContext
+    var ssl_mem = unsafe(malloc(sizeof(SSLContext))) as *mut SSLContext
     ssl_init(ssl_mem)
     ssl_set_socket(ssl_mem, cs)
 
@@ -209,7 +211,7 @@ func srv_serve_one_connection(env : &mut TestEnv, cs : net::Socket, mode : strin
     pk_cmd.append_view(hex_path.to_view())
     test_py_run_foreground(pk_cmd.to_view())
 
-    var rsa_ctx : RSAContext
+    var rsa_ctx : RSAContext = zeroed:unsafe<RSAContext>()
     var using_rsa = false
     if(tls12_rsa) {
         var n_buf : [512]u8

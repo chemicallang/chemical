@@ -143,15 +143,15 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
             var en = test_read_file(err_path.data(), &raw mut errbuf[0], 511)
             if(en > 0) {
                 errbuf[en] = 0
-                printf("[SDV py-stderr] %s\n", &raw errbuf[0])
+                unsafe { printf("[SDV py-stderr] %s\n", &raw errbuf[0]) }
             } else {
-                printf("[SDV py-stderr] <empty — process produced no output>\n")
+                unsafe { printf("[SDV py-stderr] <empty — process produced no output>\n") }
             }
             ok = false
             break
         }
 
-        var ssl_mem = malloc(sizeof(SSLContext)) as *mut SSLContext
+        var ssl_mem = unsafe(malloc(sizeof(SSLContext))) as *mut SSLContext
         ssl_init(ssl_mem)
         ssl_set_socket(ssl_mem, cs)
         var cfg = ssl_config_init(SSL_IS_SERVER)
@@ -198,7 +198,7 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
     } else {
         var errbuf2 : [512]u8
         var en2 = test_read_file(err_path.data(), &raw mut errbuf2[0], 511)
-        if(en2 > 0) { errbuf2[en2] = 0; printf("[SDV py-stderr] %s\n", &raw errbuf2[0]) }
+        if(en2 > 0) { errbuf2[en2] = 0; unsafe { printf("[SDV py-stderr] %s\n", &raw errbuf2[0]) } }
     }
 
     cert_free(cert)

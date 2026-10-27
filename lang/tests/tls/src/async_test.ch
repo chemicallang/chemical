@@ -19,7 +19,7 @@ public func INT_tls13_client_async(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19890_cert.pem /tmp/tls_19890_key.pem 19890 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>()
     ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE

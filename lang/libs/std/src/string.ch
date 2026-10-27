@@ -152,7 +152,7 @@ public struct string {
 
     @constructor
     func make_no_len(value : *char) {
-        const length = strlen(value)
+        const length = unsafe(strlen(value))
         var s = string {
             storage : {
                 constant : {
@@ -232,7 +232,7 @@ public struct string {
 
     func equals_with_len(&self, d : *char, l : size_t) : bool {
         const self_size = size();
-        return self_size == l && strncmp(data(), d, self_size) == 0;
+        return self_size == l && unsafe(strncmp(data(), d, self_size)) == 0;
     }
 
     func equals_view(&self, other : &std::string_view) : bool {
@@ -263,8 +263,8 @@ public struct string {
             panic("string capacity overflow")
         }
         // +1 is for safety, we need to add a null terminator (always)
-        var d = malloc(capacity + 1) as *mut char
-        memcpy(d, from_data, length)
+        var d = unsafe(malloc(capacity + 1)) as *mut char
+        unsafe { memcpy(d, from_data, length) }
         d[length] = '\0'
         storage.heap.data = d;
         storage.heap.length = length;
@@ -279,7 +279,7 @@ public struct string {
             panic("string capacity overflow")
         }
         // +1 for the null terminator
-        var d = realloc(storage.heap.data, new_capacity + 1) as *mut char
+        var d = unsafe(realloc(storage.heap.data, new_capacity + 1)) as *mut char
         if(d == null) {
             panic("couldn't realloc in std::string -> resize_heap");
             return false;
@@ -418,12 +418,12 @@ public struct string {
             source = data() + src_offset
         }
         if(state == '1') {
-            memcpy(&raw mut storage.sso.buffer[offset], source, len)
+            unsafe { memcpy(&raw mut storage.sso.buffer[offset], source, len) }
             storage.sso.buffer[new_size] = '\0'
             storage.sso.length = new_size
         } else {
             // state is '2', it cannot be '0'
-            memcpy(&raw mut storage.heap.data[offset], source, len)
+            unsafe { memcpy(&raw mut storage.heap.data[offset], source, len) }
             storage.heap.data[new_size] = '\0';
             storage.heap.length = new_size
         }
@@ -435,7 +435,7 @@ public struct string {
     }
 
     func append_char_ptr(&mut self, value : *char) {
-        append_with_len(value, strlen(value));
+        append_with_len(value, unsafe(strlen(value)));
     }
 
     func append_string(&mut self, value : &string) {
@@ -658,7 +658,7 @@ public struct string {
 
     func starts_with(&self, other : &std::string_view) : bool {
         if (other.size() > size()) return false;
-        return memcmp(data(), other.data(), other.size()) == 0;
+        return unsafe(memcmp(data(), other.data(), other.size())) == 0;
     }
 
     func trim(&self) : std::string_view {
@@ -672,7 +672,7 @@ public struct string {
     func ends_with(&self, other : &std::string_view) : bool {
         // If other_data is longer than data, data cannot end with other_data.
         if (other.size() > size()) return false;
-        return memcmp(data() + size() - other.size(), other.data(), other.size()) == 0;
+        return unsafe(memcmp(data() + size() - other.size(), other.data(), other.size())) == 0;
     }
 
     func erase(&mut self, start : size_t, len : size_t) {
@@ -702,22 +702,22 @@ public struct string {
         if(state == '1') {
             // SSO
             if(tail_len > 0) {
-                memmove(
+                unsafe { memmove(
                     &raw mut storage.sso.buffer[start],
                     &raw storage.sso.buffer[tail_start],
                     tail_len
-                );
+                ) };
             }
             storage.sso.length = (sz - erase_len) as uchar;
             storage.sso.buffer[storage.sso.length] = '\0';
         } else {
             // heap
             if(tail_len > 0) {
-                memmove(
+                unsafe { memmove(
                     &raw mut storage.heap.data[start],
                     &raw storage.heap.data[tail_start],
                     tail_len
-                );
+                ) };
             }
             storage.heap.length = sz - erase_len;
             storage.heap.data[storage.heap.length] = '\0';
@@ -883,7 +883,7 @@ impl core::stream::Stream for StringStream {
     }
 
     func writeStrNoLen(&mut self, value : *char) {
-        str.append_with_len(value, strlen(value))
+        str.append_with_len(value, unsafe(strlen(value)))
     }
 
     func writeFloat(&mut self, value : float) {

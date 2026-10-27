@@ -198,7 +198,7 @@ func (converter : &mut ASTConverter) is_string_type(type : *mut BaseType) : bool
 }
 
 func generate_random_32bit() : uint32_t {
-    return (rand() as uint32_t << 16) | rand() as uint32_t;
+    return (unsafe(rand()) as uint32_t << 16) | unsafe(rand()) as uint32_t;
 }
 
 func (converter : &mut ASTConverter) escapeHtml(text : std::string_view) {

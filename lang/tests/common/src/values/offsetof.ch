@@ -107,7 +107,7 @@ func test_offsetof() {
         var r = offsetof(OFT1, b)
         var c = comptime_off_oft1_b()
         if(r != c) {
-            printf("runtime and comptime OFT1.b differ: %d and %d\n", r, c)
+            unsafe { printf("runtime and comptime OFT1.b differ: %d and %d\n", r, c) }
         }
         return r == c
     })
@@ -115,7 +115,7 @@ func test_offsetof() {
         var r = offsetof(OFT4, z)
         var c = comptime_off_oft4_z()
         if(r != c) {
-            printf("runtime and comptime OFT4.z differ: %d and %d\n", r, c)
+            unsafe { printf("runtime and comptime OFT4.z differ: %d and %d\n", r, c) }
         }
         return r == c
     })
@@ -123,7 +123,7 @@ func test_offsetof() {
         var r = offsetof(OFTVtbl, third)
         var c = comptime_off_oftv_third()
         if(r != c) {
-            printf("runtime and comptime OFTVtbl.third differ: %d and %d\n", r, c)
+            unsafe { printf("runtime and comptime OFTVtbl.third differ: %d and %d\n", r, c) }
         }
         return r == c
     })

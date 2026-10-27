@@ -37,7 +37,7 @@ public func test_posix_reactor_high_fd(env : &mut TestEnv) {
     }
 
     var ch : char = 'x'
-    if(write(w, &raw mut ch as *void, 1u as ulong) != 1) {
+    if(unsafe(write(w, &raw mut ch as *void, 1u as ulong)) != 1) {
         env.error("write to a high-fd pipe failed")
         return
     }
@@ -57,7 +57,7 @@ public func test_posix_reactor_high_fd(env : &mut TestEnv) {
     }
 
     var got : char = 0
-    if(read(r, &raw mut got as *mut void, 1u as ulong) != 1) {
+    if(unsafe(read(r, &raw mut got as *mut void, 1u as ulong)) != 1) {
         env.error("the high fd was not actually readable")
     }
 }
@@ -68,7 +68,7 @@ public func test_posix_reactor_high_fd(env : &mut TestEnv) {
 @test
 public func test_posix_reactor_mod_preserves_events(env : &mut TestEnv) {
     var fds : [2]int
-    if(async::pipe(&raw mut fds[0]) != 0) {
+    if(unsafe(async::pipe(&raw mut fds[0])) != 0) {
         env.error("pipe failed")
         return
     }
@@ -80,16 +80,16 @@ public func test_posix_reactor_mod_preserves_events(env : &mut TestEnv) {
     async::reactor_register(r, async::posix::POLLOUT, async::exec_make_waker(e))
 
     var ch : char = 'x'
-    if(write(w, &raw mut ch as *void, 1u as ulong) != 1) {
+    if(unsafe(write(w, &raw mut ch as *void, 1u as ulong)) != 1) {
         env.error("write failed")
         return
     }
     if(async::reactor_poll(0) <= 0) {
         env.error("reactor MOD must preserve the read registration")
     }
-    read(r, &raw mut ch as *mut void, 1u as ulong)
-    close(r)
-    close(w)
+    unsafe { read(r, &raw mut ch as *mut void, 1u as ulong) }
+    unsafe { close(r) }
+    unsafe { close(w) }
 }
 
 // A closed peer must wake a parked reader (EPOLLHUP / EOF) instead of parking
@@ -97,13 +97,13 @@ public func test_posix_reactor_mod_preserves_events(env : &mut TestEnv) {
 @test
 public func test_posix_reactor_hup_wakes_reader(env : &mut TestEnv) {
     var fds : [2]int
-    if(async::pipe(&raw mut fds[0]) != 0) {
+    if(unsafe(async::pipe(&raw mut fds[0])) != 0) {
         env.error("pipe failed")
         return
     }
     var r = fds[0]
     var w = fds[1]
-    close(w)
+    unsafe { close(w) }
 
     var e = async::executor()
     var wk = async::exec_make_waker(e)
@@ -111,22 +111,22 @@ public func test_posix_reactor_hup_wakes_reader(env : &mut TestEnv) {
     if(async::reactor_poll(0) <= 0) {
         env.error("a closed peer must wake the reader (HUP)")
     }
-    close(r)
+    unsafe { close(r) }
 }
 
 // End-to-end: `await readable(r)` must complete at EOF when the writer is gone.
 async func reactor_readable_at_eof() : int {
     var fds : [2]int
-    if(async::pipe(&raw mut fds[0]) != 0) {
+    if(unsafe(async::pipe(&raw mut fds[0])) != 0) {
         return -1
     }
     var r = fds[0]
     var w = fds[1]
-    close(w)
+    unsafe { close(w) }
     var u = await async::readable(r)
     var buf : [1]char
-    var n = read(r, &raw mut buf[0] as *mut void, 1u) as int
-    close(r)
+    var n = unsafe(read(r, &raw mut buf[0] as *mut void, 1u)) as int
+    unsafe { close(r) }
     return n
 }
 
@@ -143,30 +143,30 @@ public func test_posix_reactor_readable_eof(env : &mut TestEnv) {
 async func reactor_two_pipes() : int {
     var a : [2]int
     var b : [2]int
-    if(async::pipe(&raw mut a[0]) != 0) {
+    if(unsafe(async::pipe(&raw mut a[0])) != 0) {
         return -1
     }
-    if(async::pipe(&raw mut b[0]) != 0) {
+    if(unsafe(async::pipe(&raw mut b[0])) != 0) {
         return -1
     }
     var wa = a[1]
     var wb = b[1]
     var h = async::spawn_blocking<core::async::Unit>(|wa, wb|() => {
         var c = 'x'
-        write(wa, &raw mut c as *void, 1u as ulong)
-        write(wb, &raw mut c as *void, 1u as ulong)
+        unsafe { write(wa, &raw mut c as *void, 1u as ulong) }
+        unsafe { write(wb, &raw mut c as *void, 1u as ulong) }
         return core::async::Unit { }
     })
     var ra = await async::readable(a[0])
     var rb = await async::readable(b[0])
     var buf : [1]char
-    var na = read(a[0], &raw mut buf[0] as *mut void, 1u as ulong) as int
-    var nb = read(b[0], &raw mut buf[0] as *mut void, 1u as ulong) as int
+    var na = unsafe(read(a[0], &raw mut buf[0] as *mut void, 1u as ulong)) as int
+    var nb = unsafe(read(b[0], &raw mut buf[0] as *mut void, 1u as ulong)) as int
     var u = await h
-    close(a[0])
-    close(a[1])
-    close(b[0])
-    close(b[1])
+    unsafe { close(a[0]) }
+    unsafe { close(a[1]) }
+    unsafe { close(b[0]) }
+    unsafe { close(b[1]) }
     if(na == 1 && nb == 1) {
         return 1
     }

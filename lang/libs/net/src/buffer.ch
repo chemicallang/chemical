@@ -34,7 +34,7 @@ public struct Buffer {
         if(read_pos > 4096 && read_pos * 2 > v.size()) {
             var ptr = v.get_ptr(0) as *mut u8;
             var rem = v.size() - read_pos;
-            memmove(ptr, ptr + read_pos, rem);
+            unsafe { memmove(ptr, ptr + read_pos, rem) };
             v.resize(rem);
             read_pos = 0u;
         }

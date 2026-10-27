@@ -67,7 +67,7 @@ func (t : &mut JsSyntaxTokenizer) skip_whitespaces() {
 func (t : &mut JsSyntaxTokenizer) read_identifier() {
     while(true) {
         const c = t.peek()
-        if(c != '\0' && (isalnum(c as int) || c == '-' || c == '_' || c == '$')) {
+        if(c != '\0' && (unsafe(isalnum(c as int)) || c == '-' || c == '_' || c == '$')) {
             t.advance()
         } else {
             return
@@ -78,7 +78,7 @@ func (t : &mut JsSyntaxTokenizer) read_identifier() {
 func (t : &mut JsSyntaxTokenizer) read_digits() {
     while(true) {
         const c = t.peek()
-        if(isdigit(c)) {
+        if(unsafe(isdigit(c))) {
             t.advance()
         } else {
             return
@@ -370,7 +370,7 @@ func (t : &mut JsSyntaxTokenizer) next_token() : Token {
                     is_closing = true
                 } else if(p == '>') {
                     is_jsx = true
-                } else if(isalpha(p as int) || p == '_' || p == '$' || p == '{') {
+                } else if(unsafe(isalpha(p as int)) || p == '_' || p == '$' || p == '{') {
                     is_jsx = true
                 }
 
@@ -428,7 +428,7 @@ func (t : &mut JsSyntaxTokenizer) next_token() : Token {
             return Token { type : JsTokenType.Hash as int, value : std::string_view("#"), position : position }
         }
         default => {
-            if(isalpha(c as int) || c == '_' || c == '$') {
+            if(unsafe(isalpha(c as int)) || c == '_' || c == '$') {
                 t.read_identifier()
                 const val = t.slice_from(start)
                 const hash = fnv1_hash_view(&val)
@@ -482,7 +482,7 @@ func (t : &mut JsSyntaxTokenizer) next_token() : Token {
                         return Token { type : JsTokenType.Identifier as int, value : val, position : position }
                     }
                 }
-            } else if(isdigit(c)) {
+            } else if(unsafe(isdigit(c))) {
                 t.read_digits()
                 return Token { type : JsTokenType.Number as int, value : t.slice_from(start), position : position }
             }

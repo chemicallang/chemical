@@ -1,7 +1,7 @@
 func has_flag(argc : int, argv : **char, flag : *char) : bool {
     var i = 1
     while(i < argc) {
-        if(strcmp(argv[i], flag) == 0) { return true }
+        if(unsafe(strcmp(argv[i], flag)) == 0) { return true }
         i += 1
     }
     return false
@@ -96,7 +96,7 @@ public func main(argc : int, argv : **char) : int {
     if(!skip_seq && argc <= 1) {
         run_executable_tests()
         // print a separator
-        printf("\n");
+        unsafe { printf("\n") };
     }
     // this will trigger tests with @test annotation
     test_runner(argc, argv)

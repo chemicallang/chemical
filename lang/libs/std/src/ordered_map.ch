@@ -41,11 +41,11 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
         if(newCapacity > ((0 as size_t) - 1) / sizeof(*mut ordered_map_node<Key, Value>)) {
             panic("ordered_map capacity overflow")
         }
-        var newTable = malloc(newCapacity * sizeof(*mut ordered_map_node<Key, Value>)) as *mut *mut ordered_map_node<Key, Value>;
+        var newTable = unsafe(malloc(newCapacity * sizeof(*mut ordered_map_node<Key, Value>))) as *mut *mut ordered_map_node<Key, Value>;
         if(newTable == null) {
             panic("failed to allocate ordered_map table")
         }
-        memset(newTable, 0, newCapacity * sizeof(*mut ordered_map_node<Key, Value>));
+        unsafe { memset(newTable, 0, newCapacity * sizeof(*mut ordered_map_node<Key, Value>)) };
 
         var node = head;
         while (node != null) {
@@ -64,11 +64,11 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
     @make
     func make() {
         const cap = 16u
-        const allocated = malloc(cap * sizeof(*mut ordered_map_node<Key, Value>)) as *mut *mut ordered_map_node<Key, Value>;
+        const allocated = unsafe(malloc(cap * sizeof(*mut ordered_map_node<Key, Value>))) as *mut *mut ordered_map_node<Key, Value>;
         if(allocated == null) {
             panic("failed to allocate ordered_map table")
         }
-        memset(allocated, 0, cap * sizeof(*mut ordered_map_node<Key, Value>));
+        unsafe { memset(allocated, 0, cap * sizeof(*mut ordered_map_node<Key, Value>)) };
         return ordered_map<Key, Value> {
             table : allocated,
             capacity : cap,
@@ -107,7 +107,7 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
             currentNode = currentNode.hash_next;
         }
 
-        const newNode = malloc(sizeof(ordered_map_node<Key, Value>)) as *mut ordered_map_node<Key, Value>;
+        const newNode = unsafe(malloc(sizeof(ordered_map_node<Key, Value>))) as *mut ordered_map_node<Key, Value>;
         if(newNode == null) {
             panic("failed to allocate ordered_map node")
         }

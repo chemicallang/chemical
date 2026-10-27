@@ -5,7 +5,7 @@
 func read_exact(fd : int, buf : *void, count : size_t) : ssize_t {
     var got : size_t = 0;
     while (got < count) {
-        var r = read(fd, (buf as *mut char) + got, count - got);
+        var r = unsafe(read(fd, (buf as *mut char) + got, count - got));
         if (r < 0) {
             if (get_errno() == EINTR) continue;
             return -1;
@@ -24,7 +24,7 @@ func read_exact(fd : int, buf : *void, count : size_t) : ssize_t {
 func write_exact(fd : int, buf : *void, count : size_t) : int {
     var written : size_t = 0;
     while (written < count) {
-        var w : ssize_t = write(fd, (buf as *char) + written, count - written);
+        var w : ssize_t = unsafe(write(fd, (buf as *char) + written, count - written));
         if (w < 0) {
             if (get_errno() == EINTR) continue;
             return -1;
@@ -39,7 +39,7 @@ func write_exact(fd : int, buf : *void, count : size_t) : int {
  * Returns 0 on success, -1 on error.
  */
 func send_message_fd(fd : int, data : *void, len : uint32_t) : int {
-    var be : uint32_t = htonl(len);
+    var be : uint32_t = unsafe(htonl(len));
     if (write_exact(fd, &raw be, sizeof(be)) < 0) return -1;
     if (len == 0) return 0;
     if (write_exact(fd, data, len) < 0) return -1;
@@ -48,5 +48,5 @@ func send_message_fd(fd : int, data : *void, len : uint32_t) : int {
 
 /* Convenience: send a NUL-terminated string as a message */
 func send_message_str(fd : int, s : *char) : int {
-    return send_message_fd(fd, s, strlen(s) as uint32_t);
+    return send_message_fd(fd, s, unsafe(strlen(s)) as uint32_t);
 }

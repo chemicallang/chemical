@@ -30,7 +30,7 @@ async func b25_select_waiter(rd : int) : int {
 @test
 public func test_async_spawn_await_timeout_or(env : &mut TestEnv) {
     var fds : [2]int
-    if(async::pipe(&raw mut fds[0]) != 0) {
+    if(unsafe(async::pipe(&raw mut fds[0])) != 0) {
         env.error("async::pipe failed")
         return
     }
@@ -44,7 +44,7 @@ public func test_async_spawn_await_timeout_or(env : &mut TestEnv) {
 @test
 public func test_async_spawn_await_select(env : &mut TestEnv) {
     var fds : [2]int
-    if(async::pipe(&raw mut fds[0]) != 0) {
+    if(unsafe(async::pipe(&raw mut fds[0])) != 0) {
         env.error("async::pipe failed")
         return
     }

@@ -312,8 +312,8 @@ public func <T> spawn_task_drop(frame : *mut void) {
 // with `await spawn(...)` or read it with `async::block_on(spawn(...))`.
 public func <T> spawn(handle : core::async::FutureHandle<T>) : core::async::FutureHandle<T> {
     var e = executor()
-    var st = malloc(sizeof(JoinState<T>)) as *mut JoinState<T>
-    var join_vtbl = malloc(sizeof(core::async::FutureTable<T>)) as *mut core::async::FutureTable<T>
+    var st = unsafe(malloc(sizeof(JoinState<T>))) as *mut JoinState<T>
+    var join_vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
     join_vtbl.poll = spawn_join_poll<T>
     join_vtbl.drop = spawn_join_drop<T>
     new(st) JoinState<T> {
@@ -326,8 +326,8 @@ public func <T> spawn(handle : core::async::FutureHandle<T>) : core::async::Futu
         waker : core::async::Waker.empty(),
         vtbl : join_vtbl
     }
-    var task = malloc(sizeof(SpawnTask<T>)) as *mut SpawnTask<T>
-    var task_vtbl = malloc(sizeof(TaskVTable)) as *mut TaskVTable
+    var task = unsafe(malloc(sizeof(SpawnTask<T>))) as *mut SpawnTask<T>
+    var task_vtbl = unsafe(malloc(sizeof(TaskVTable))) as *mut TaskVTable
     task_vtbl.poll = spawn_task_poll<T>
     task_vtbl.drop = spawn_task_drop<T>
     new(task) SpawnTask<T> {

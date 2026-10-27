@@ -97,7 +97,7 @@ public func <T> channel_push(s : *mut ChannelShared<T>, value : T) : bool {
         s.m.unlock()
         return false
     }
-    var node = malloc(sizeof(ChannelNode<T>)) as *mut ChannelNode<T>
+    var node = unsafe(malloc(sizeof(ChannelNode<T>))) as *mut ChannelNode<T>
     new(node) ChannelNode<T> {
         value : value,
         next : null
@@ -213,8 +213,8 @@ public struct Receiver<T> {
     // Await the next value; when every sender is gone (and the queue is empty)
     // become ready with `fallback` instead.
     public func recv_or(&self, fallback : T) : core::async::FutureHandle<T> {
-        var st = malloc(sizeof(RecvState<T>)) as *mut RecvState<T>
-        var vtbl = malloc(sizeof(core::async::FutureTable<T>)) as *mut core::async::FutureTable<T>
+        var st = unsafe(malloc(sizeof(RecvState<T>))) as *mut RecvState<T>
+        var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
         vtbl.poll = recv_poll<T>
         vtbl.drop = recv_drop<T>
         new(st) RecvState<T> {
@@ -289,7 +289,7 @@ public struct Channel<T> {
 }
 
 public func <T> channel() : Channel<T> {
-    var s = malloc(sizeof(ChannelShared<T>)) as *mut ChannelShared<T>
+    var s = unsafe(malloc(sizeof(ChannelShared<T>))) as *mut ChannelShared<T>
     new(s) ChannelShared<T> {
         m : std::mutex(),
         head : null,

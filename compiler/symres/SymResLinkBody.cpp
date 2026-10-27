@@ -2508,7 +2508,7 @@ void SymResLinkBody::VisitFunctionCall(FunctionCall* call) {
     // contract is not visible to the compiler. Require an explicit unsafe
     // context (S2.6).
     if (safe_context && linked != nullptr && linked->is_extern()) {
-        diagnoser.warn(call).with_code("SAFE-FFI-001")
+        diagnoser.error(call).with_code("SAFE-FFI-001")
             << "calling an extern function requires an unsafe context";
     }
 }

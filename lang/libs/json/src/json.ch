@@ -137,21 +137,21 @@ private:
         if (cur() == '0') {
             advance();
             /* leading zero must not be followed by digit */
-            if (!at_end() && isdigit(cur() as int)) return ParseResult::Err(pos, "leading zero in number");
+            if (!at_end() && unsafe(isdigit(cur() as int))) return ParseResult::Err(pos, "leading zero in number");
         } else {
-            if (!isdigit(cur() as int)) return ParseResult::Err(pos, "invalid number");
-            while (!at_end() && isdigit(cur() as int)) { advance(); }
+            if (!unsafe(isdigit(cur() as int))) return ParseResult::Err(pos, "invalid number");
+            while (!at_end() && unsafe(isdigit(cur() as int))) { advance(); }
         }
         if (!at_end() && cur() == '.') {
             advance();
-            if (at_end() || !isdigit(cur() as int)) return ParseResult::Err(pos, "invalid fraction");
-            while (!at_end() && isdigit(cur() as int)) { advance(); }
+            if (at_end() || !unsafe(isdigit(cur() as int))) return ParseResult::Err(pos, "invalid fraction");
+            while (!at_end() && unsafe(isdigit(cur() as int))) { advance(); }
         }
         if (!at_end() && (cur() == 'e' || cur() == 'E')) {
             advance();
             if (!at_end() && (cur() == '+' || cur() == '-')) advance();
-            if (at_end() || !isdigit(cur() as int)) return ParseResult::Err(pos, "invalid exponent");
-            while (!at_end() && isdigit(cur() as int)) { advance(); }
+            if (at_end() || !unsafe(isdigit(cur() as int))) return ParseResult::Err(pos, "invalid exponent");
+            while (!at_end() && unsafe(isdigit(cur() as int))) { advance(); }
         }
         var nlen : size_t = pos - start;
         handler.on_number(s + start, nlen);
@@ -220,16 +220,16 @@ private:
             if (init_cap < required) init_cap = required;
             if (init_cap > self.max_string) init_cap = self.max_string;
             self.heap_cap = init_cap;
-            self.heap_buf = malloc(self.heap_cap) as *mut char;
-            memcpy(self.heap_buf, &raw mut scratch[0], cur_len);
+            self.heap_buf = unsafe(malloc(self.heap_cap)) as *mut char;
+            unsafe { memcpy(self.heap_buf, &raw mut scratch[0], cur_len) };
             self.str_buf = self.heap_buf;
         } else if (required > self.heap_cap) {
             var newcap : size_t = self.heap_cap * 2;
             if (newcap < required) newcap = required;
             if (newcap > self.max_string) newcap = self.max_string;
-            var newbuf = malloc(newcap) as *mut char;
-            memcpy(newbuf, self.heap_buf, cur_len);
-            free(self.heap_buf);
+            var newbuf = unsafe(malloc(newcap)) as *mut char;
+            unsafe { memcpy(newbuf, self.heap_buf, cur_len) };
+            unsafe { free(self.heap_buf) };
             self.heap_buf = newbuf;
             self.heap_cap = newcap;
             // str_buf has to follow the move. parse_string_value hands THIS
@@ -283,7 +283,7 @@ private:
 
     func free_str_buf(&mut self) {
         if (self.heap_buf != null) {
-            free(self.heap_buf);
+            unsafe { free(self.heap_buf) };
             self.heap_buf = null;
             self.heap_cap = 0;
         }

@@ -49,7 +49,7 @@ public namespace std {
         func make_no_len(value : *char) {
             return string_view {
                 _data : value,
-                _size : strlen(value)
+                _size : unsafe(strlen(value))
             }
         }
 
@@ -101,12 +101,12 @@ public namespace std {
         func ends_with(&self, other : &std::string_view) : bool {
             // If other_data is longer than data, data cannot end with other_data.
             if (other.size() > size()) return false;
-            return memcmp(data() + size() - other.size(), other.data(), other.size()) == 0;
+            return unsafe(memcmp(data() + size() - other.size(), other.data(), other.size())) == 0;
         }
 
         func starts_with(&self, other : &std::string_view) : bool {
             if (other.size() > size()) return false;
-            return memcmp(data(), other.data(), other.size()) == 0;
+            return unsafe(memcmp(data(), other.data(), other.size())) == 0;
         }
 
         func trim(&self) : 'self std::string_view {
@@ -140,7 +140,7 @@ public namespace std {
             var res : i64 = 0
             var sign : i64 = 1
             var i : size_t = 0
-            while (i < _size && isspace(_data[i])) i++
+            while (i < _size && unsafe(isspace(_data[i]))) i++
             if (i == _size) return std::Result.Err(std::string_view("empty string"))
             if (_data[i] == '-') {
                 sign = -1
@@ -148,12 +148,12 @@ public namespace std {
             } else if (_data[i] == '+') {
                 i++
             }
-            if (i == _size || !isdigit(_data[i])) return std::Result.Err(std::string_view("invalid format"))
-            while (i < _size && isdigit(_data[i])) {
+            if (i == _size || !unsafe(isdigit(_data[i]))) return std::Result.Err(std::string_view("invalid format"))
+            while (i < _size && unsafe(isdigit(_data[i]))) {
                 res = res * 10 + (_data[i] - '0') as i64
                 i++
             }
-            while (i < _size && isspace(_data[i])) i++
+            while (i < _size && unsafe(isspace(_data[i]))) i++
             if (i < _size) return std::Result.Err(std::string_view("trailing characters"))
             return std::Result.Ok(res * sign)
         }
@@ -179,15 +179,15 @@ public namespace std {
         func to_u64(&self) : std::Result<u64, std::string_view> {
             var res : u64 = 0
             var i : size_t = 0
-            while (i < _size && isspace(_data[i])) i++
+            while (i < _size && unsafe(isspace(_data[i]))) i++
             if (i == _size) return std::Result.Err(std::string_view("empty string"))
             if (_data[i] == '+') i++
-            if (i == _size || !isdigit(_data[i])) return std::Result.Err(std::string_view("invalid format"))
-            while (i < _size && isdigit(_data[i])) {
+            if (i == _size || !unsafe(isdigit(_data[i]))) return std::Result.Err(std::string_view("invalid format"))
+            while (i < _size && unsafe(isdigit(_data[i]))) {
                 res = res * 10 + (_data[i] - '0') as u64
                 i++
             }
-            while (i < _size && isspace(_data[i])) i++
+            while (i < _size && unsafe(isspace(_data[i]))) i++
             if (i < _size) return std::Result.Err(std::string_view("trailing characters"))
             return std::Result.Ok(res)
         }
@@ -280,7 +280,7 @@ public namespace std {
     impl Eq for string_view {
         func equals(&self, other : &std::string_view) : bool {
             const self_size = _size;
-            return self_size == other.size() && strncmp(data(), other.data(), self_size) == 0;
+            return self_size == other.size() && unsafe(strncmp(data(), other.data(), self_size)) == 0;
         }
     }
 

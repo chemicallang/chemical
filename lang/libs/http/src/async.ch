@@ -53,7 +53,7 @@ public struct HttpResult {
 }
 
 func http_box(client : *mut Client, r : std::Result<Response, std::string>) : *mut HttpResult {
-    var box = malloc(sizeof(HttpResult)) as *mut HttpResult
+    var box = unsafe(malloc(sizeof(HttpResult))) as *mut HttpResult
     if(r is std::Result.Ok) {
         var Ok(resp) = r else unreachable
         var body = std::string()

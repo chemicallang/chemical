@@ -7,61 +7,61 @@ using std::string;
 @test
 func test_mime_html(env : &mut TestEnv) {
     var ct = mime::get_type(".html")
-    if(strcmp(ct.data(), "text/html") != 0) { env.error(".html should be text/html") }
+    if(unsafe(strcmp(ct.data(), "text/html")) != 0) { env.error(".html should be text/html") }
 }
 
 @test
 func test_mime_css(env : &mut TestEnv) {
     var ct = mime::get_type(".css")
-    if(strcmp(ct.data(), "text/css") != 0) { env.error(".css should be text/css") }
+    if(unsafe(strcmp(ct.data(), "text/css")) != 0) { env.error(".css should be text/css") }
 }
 
 @test
 func test_mime_js(env : &mut TestEnv) {
     var ct = mime::get_type(".js")
-    if(strcmp(ct.data(), "application/javascript") != 0) { env.error(".js should be application/javascript") }
+    if(unsafe(strcmp(ct.data(), "application/javascript")) != 0) { env.error(".js should be application/javascript") }
 }
 
 @test
 func test_mime_json(env : &mut TestEnv) {
     var ct = mime::get_type(".json")
-    if(strcmp(ct.data(), "application/json") != 0) { env.error(".json should be application/json") }
+    if(unsafe(strcmp(ct.data(), "application/json")) != 0) { env.error(".json should be application/json") }
 }
 
 @test
 func test_mime_png(env : &mut TestEnv) {
     var ct = mime::get_type(".png")
-    if(strcmp(ct.data(), "image/png") != 0) { env.error(".png should be image/png") }
+    if(unsafe(strcmp(ct.data(), "image/png")) != 0) { env.error(".png should be image/png") }
 }
 
 @test
 func test_mime_jpg(env : &mut TestEnv) {
     var ct = mime::get_type(".jpg")
-    if(strcmp(ct.data(), "image/jpeg") != 0) { env.error(".jpg should be image/jpeg") }
+    if(unsafe(strcmp(ct.data(), "image/jpeg")) != 0) { env.error(".jpg should be image/jpeg") }
 }
 
 @test
 func test_mime_unknown(env : &mut TestEnv) {
     var ct = mime::get_type(".xyz")
-    if(strcmp(ct.data(), "application/octet-stream") != 0) { env.error("unknown ext should be application/octet-stream") }
+    if(unsafe(strcmp(ct.data(), "application/octet-stream")) != 0) { env.error("unknown ext should be application/octet-stream") }
 }
 
 @test
 func test_mime_wav(env : &mut TestEnv) {
     var ct = mime::get_type(".wav")
-    if(strcmp(ct.data(), "audio/wav") != 0) { env.error(".wav should be audio/wav") }
+    if(unsafe(strcmp(ct.data(), "audio/wav")) != 0) { env.error(".wav should be audio/wav") }
 }
 
 @test
 func test_mime_ttf(env : &mut TestEnv) {
     var ct = mime::get_type(".ttf")
-    if(strcmp(ct.data(), "font/ttf") != 0) { env.error(".ttf should be font/ttf") }
+    if(unsafe(strcmp(ct.data(), "font/ttf")) != 0) { env.error(".ttf should be font/ttf") }
 }
 
 @test
 func test_mime_pdf(env : &mut TestEnv) {
     var ct = mime::get_type(".pdf")
-    if(strcmp(ct.data(), "application/pdf") != 0) { env.error(".pdf should be application/pdf") }
+    if(unsafe(strcmp(ct.data(), "application/pdf")) != 0) { env.error(".pdf should be application/pdf") }
 }
 
 // ---------------------------------------------------------------------------

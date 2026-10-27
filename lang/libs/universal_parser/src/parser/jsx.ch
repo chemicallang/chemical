@@ -251,7 +251,7 @@ func (jsParser : &mut JsParser) parseJSXElementBody(parser : *mut Parser, builde
     }
     
     if(!parser.increment_if(JsTokenType.GreaterThan as int)) {
-        printf("%d got token type\n", parser.getToken().type)
+        unsafe { printf("%d got token type\n", parser.getToken().type) }
         parser.error("expected >");
     }
     

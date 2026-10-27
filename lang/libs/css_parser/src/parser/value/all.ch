@@ -2,8 +2,8 @@
 func (map : &mut std::unordered_map<std::string_view, *void>) put(view : &std::string_view, val : *void) {
     var f : *mut void
     if(map.find(view, unsafe(&mut f))) {
-        printf("INSERTED %s ALREADY CONTAINS PARSER\n", view.data());
-        fflush(null)
+        unsafe { printf("INSERTED %s ALREADY CONTAINS PARSER\n", view.data()) };
+        unsafe { fflush(null) }
     }
     map.insert(*view, val)
 }

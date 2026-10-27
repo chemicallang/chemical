@@ -24,9 +24,9 @@ impl MdEmitter for MdConverter {
     }
     func emit_interpolation(&mut self, value : *mut Value) {
         if(self.support.pageNode == null) return
-        if(value == null) { printf("[md-crash-guard] interpolation value is null\n"); fflush(null); return }
+        if(value == null) { unsafe { printf("[md-crash-guard] interpolation value is null\n") }; unsafe { fflush(null) }; return }
         const type = value.getType()
-        if(type == null) { printf("[md-crash-guard] interpolation value type is null\n"); fflush(null); return }
+        if(type == null) { unsafe { printf("[md-crash-guard] interpolation value type is null\n") }; unsafe { fflush(null) }; return }
         var call : *mut FunctionCallNode = null
         switch(type.getKind()) {
             BaseTypeKind.IntN => {

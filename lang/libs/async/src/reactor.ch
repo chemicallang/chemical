@@ -68,7 +68,7 @@ public func reactor_register(fd : int, events : short, waker : core::async::Wake
     if((events & posix::POLLOUT) != 0) {
         ww = waker.clone()
     }
-    var node = malloc(sizeof(ReactorFd)) as *mut ReactorFd
+    var node = unsafe(malloc(sizeof(ReactorFd))) as *mut ReactorFd
     new(node) ReactorFd {
         fd : fd,
         events : events,
@@ -104,7 +104,7 @@ public func reactor_poll(timeout_ms : int) : int {
         e.m.unlock()
         return 0
     }
-    var pfd = malloc(n * sizeof(posix::PollFd)) as *mut posix::PollFd
+    var pfd = unsafe(malloc(n * sizeof(posix::PollFd))) as *mut posix::PollFd
     var idx = 0u
     it = e.head
     while(it != null) {
@@ -181,8 +181,8 @@ public func ready_drop(frame : *mut void) {
 }
 
 func make_ready(fd : int, events : short) : core::async::FutureHandle<core::async::Unit> {
-    var st = malloc(sizeof(ReadyState)) as *mut ReadyState
-    var vtbl = malloc(sizeof(core::async::FutureTable<core::async::Unit>)) as *mut core::async::FutureTable<core::async::Unit>
+    var st = unsafe(malloc(sizeof(ReadyState))) as *mut ReadyState
+    var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<core::async::Unit>))) as *mut core::async::FutureTable<core::async::Unit>
     vtbl.poll = ready_poll
     vtbl.drop = ready_drop
     new(st) ReadyState {

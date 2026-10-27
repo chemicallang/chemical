@@ -3,14 +3,14 @@
 
 @test
 func neg_top_level_call_runtime_func(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "func get_val() : int { return 42 }\nvar x = get_val()\nfunc main() {}\n"
     expect_compile_error(env, "top_level_call_runtime", ch, "cannot call a runtime function at top level")
 }
 
 @test
 func neg_top_level_expr_runtime(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "func get_val() : int { return 42 }\nfunc main() {\n    var y = 10\n}\n// var x = get_val()\n"
     // Just test global variable type inference
     var ch2 = "var x = 42\npublic func main() : int { return 0 }\n"
@@ -19,21 +19,21 @@ func neg_top_level_expr_runtime(env : &mut TestEnv) {
 
 @test
 func neg_top_level_addr_of(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "var x = 42\nvar p = &raw x\nfunc main() {}\n"
     expect_compile_error(env, "top_level_addr_of", ch, "cannot take address of value at runtime outside function body")
 }
 
 @test
 func neg_top_level_deref(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "var x = 42\nvar p = &raw x\nvar v = *p\nfunc main() {}\n"
     expect_compile_error(env, "top_level_deref", ch, "cannot dereference value at runtime outside function body")
 }
 
 @test
 func neg_top_level_inc_dec(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // A bare statement cannot appear in a module at all. The parser rejects it
     // while reading the file, before symbol resolution, so the diagnostic is the
     // parser's -- not SymRes's "cannot increment or decrement value at runtime
@@ -45,7 +45,7 @@ func neg_top_level_inc_dec(env : &mut TestEnv) {
 
 @test
 func neg_top_level_assignment(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // a module cannot contain statements that execute at runtime; the parser
     // rejects a bare statement here for the same reason as neg_top_level_inc_dec
     var ch = "var x = 42\nx = 7\nfunc main() {}\n"
@@ -54,42 +54,42 @@ func neg_top_level_assignment(env : &mut TestEnv) {
 
 @test
 func neg_top_level_bare_value(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "func f() : int { return 1 }\nf()\nfunc main() {}\n"
     expect_compile_error(env, "top_level_bare_value", ch, "top level")
 }
 
 @test
 func neg_top_level_index(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "var arr : [3]int = [1, 2, 3]\nvar x = arr[0]\nfunc main() {}\n"
     expect_compile_error(env, "top_level_index", ch, "cannot index into a value at runtime outside")
 }
 
 @test
 func neg_top_level_lambda(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "var fn = () => 42\nfunc main() {}\n"
     expect_compile_error(env, "top_level_lambda", ch, "lambda functions at top level outside function body aren't supported")
 }
 
 @test
 func neg_global_var_no_type(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "var x\nfunc main() {}\n"
     expect_compile_error(env, "global_var_no_type", ch, "a type or value is required")
 }
 
 @test
 func neg_global_var_infer_missing(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "var x = some_undefined\nfunc main() {}\n"
     expect_compile_error(env, "global_var_infer_missing", ch, "unresolved variable identifier")
 }
 
 @test
 func neg_empty_access_chain(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct S {}\nvar s = S{}\nvar x = s.\nfunc main() {}\n"
     // This might be a parser error - empty access chain
     expect_compile_error(env, "empty_access_chain", ch, "empty")
@@ -97,7 +97,7 @@ func neg_empty_access_chain(env : &mut TestEnv) {
 
 @test
 func neg_top_level_comptime_self_ref(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // a top level `comptime if` is evaluated while the module is still being declared,
     // so its condition must not reference a symbol the module itself declares
     var ch = "var runtime_flag = 5\ncomptime if(runtime_flag) {\n    var x = 5\n}\nfunc main() {}\n"
@@ -106,7 +106,7 @@ func neg_top_level_comptime_self_ref(env : &mut TestEnv) {
 
 @test
 func neg_top_level_alias_incompatible(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // 'type Alias = Foo' is the alias declaration; 'typealias' is not a keyword
     var ch = "struct Foo {}\nstruct Bar {}\ntype Alias = Foo\nvar x : Bar = Alias {}\nfunc main() {}\n"
     expect_compile_error(env, "alias_type_mismatch", ch, "does not satisfy type")

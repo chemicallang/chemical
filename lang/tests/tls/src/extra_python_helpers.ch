@@ -133,7 +133,7 @@ func xpy_fg(args : string_view) {
     cmd.append_view("/tmp/http_extra.py ")
     cmd.append_view(&args)
     cmd.append_view(redir.to_view())
-    system(cmd.data())
+    unsafe { system(cmd.data()) }
 }
 
 // Build "<mode> <cert> <key> <port>" command prefixes for the extra servers.

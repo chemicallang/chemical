@@ -18,10 +18,10 @@ public namespace http {
 
         func print(&self) {
             var i = 0u;
-            printf("headers:\n");
+            unsafe { printf("headers:\n") };
             while(i < headers.size()) {
                 var p = headers.get_ptr(i);
-                printf("\theader '%s' : '%s'\n", p.first.data(), p.second.data());
+                unsafe { printf("\theader '%s' : '%s'\n", p.first.data(), p.second.data()) };
                 i = i + 1u;
             }
         }

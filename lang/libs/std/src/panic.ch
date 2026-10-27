@@ -6,8 +6,8 @@ public struct Location {
 
 @retained
 public func raw_panic(message : *char, location : Location) {
-    printf("panic with message '%s' at '%s:%d:%d'\n", message, location.filename, location.line, location.character);
-    abort()
+    unsafe { printf("panic with message '%s' at '%s:%d:%d'\n", message, location.filename, location.line, location.character) };
+    unsafe { abort() }
 }
 
 @expand

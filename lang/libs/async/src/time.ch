@@ -34,10 +34,10 @@ func sleep_drop(frame : *mut void) {
 }
 
 public func sleep(millis : u64) : core::async::FutureHandle<core::async::Unit> {
-    var st = malloc(sizeof(SleepState)) as *mut SleepState
+    var st = unsafe(malloc(sizeof(SleepState))) as *mut SleepState
     st.start_ms = std::now_milli()
     st.millis = millis as i64
-    var vtbl = malloc(sizeof(core::async::FutureTable<core::async::Unit>)) as *mut core::async::FutureTable<core::async::Unit>
+    var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<core::async::Unit>))) as *mut core::async::FutureTable<core::async::Unit>
     vtbl.poll = sleep_poll
     vtbl.drop = sleep_drop
     st.vtbl = vtbl

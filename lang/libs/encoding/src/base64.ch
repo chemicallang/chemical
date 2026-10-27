@@ -34,16 +34,16 @@ public func base64_decode(b64 : *char, b64_len : size_t, out : *mut u8, out_len 
 // Allocates the output string internally.
 public func base64_encode_to_string(data : *u8, data_len : size_t) : Result<string, EncodingError> {
     var encoded_len = ((data_len + 2) / 3) * 4
-    var buf = malloc(encoded_len + 1) as *mut char
+    var buf = unsafe(malloc(encoded_len + 1)) as *mut char
     if(buf == null) { return Result.Err(EncodingError.InvalidInput()) }
     var r = crypto::base64_encode(data, data_len, buf, encoded_len + 1)
     if(r is Result.Err) {
-        free(buf)
+        unsafe { free(buf) }
         return Result.Err(EncodingError.InvalidInput())
     }
     var Ok(n) = r else unreachable
     var s = string.constructor(buf as *char, n)
-    free(buf)
+    unsafe { free(buf) }
     return Result.Ok(s)
 }
 

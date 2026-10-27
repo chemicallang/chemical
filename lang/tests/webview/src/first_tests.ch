@@ -20,8 +20,8 @@ var g_state_ptr : *mut BridgeTestState = null
 
 func ensure_state() {
     if(g_state_ptr == null) {
-        g_state_ptr = malloc(sizeof(BridgeTestState)) as *mut BridgeTestState
-        memset(g_state_ptr as *mut void, 0, sizeof(BridgeTestState))
+        g_state_ptr = unsafe(malloc(sizeof(BridgeTestState))) as *mut BridgeTestState
+        unsafe { memset(g_state_ptr as *mut void, 0, sizeof(BridgeTestState)) }
     }
 }
 

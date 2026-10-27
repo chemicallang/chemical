@@ -4,7 +4,7 @@ public namespace std {
 
     public func now_milli() : i64 {
         var ts = zeroed<timespec>();
-        clock_gettime(0, &raw mut ts);
+        unsafe { clock_gettime(0, &raw mut ts) };
         return (ts.tv_sec as i64 * 1000i64) + (ts.tv_nsec as i64 / 1000000i64);
     }
 

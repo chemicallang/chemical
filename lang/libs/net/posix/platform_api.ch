@@ -33,30 +33,30 @@ public namespace net {
     func startup() { }
     func cleanup() { }
 
-    func sock_socket(af:int, typ:int, proto:int) : Socket { return socket(af, typ, proto) as Socket }
-    func sock_bind(s:Socket, addr:*char, addrlen:int) : int { return bind(s as int, addr, addrlen) }
-    func sock_listen(s:Socket, backlog:int) : int { return listen(s as int, backlog) }
-    func sock_connect(s:Socket, addr:*char, addrlen:int) : int { return connect(s as int, addr, addrlen) }
-    func sock_accept(s:Socket, addr:*mut char, addrlen:*mut int) : Socket { return accept(s as int, addr, addrlen) as Socket }
-    func sock_recv(s:Socket, buf:*mut char, len:int) : int { return recv(s as int, buf, len, 0) }
+    func sock_socket(af:int, typ:int, proto:int) : Socket { return unsafe(socket(af, typ, proto)) as Socket }
+    func sock_bind(s:Socket, addr:*char, addrlen:int) : int { return unsafe(bind(s as int, addr, addrlen)) }
+    func sock_listen(s:Socket, backlog:int) : int { return unsafe(listen(s as int, backlog)) }
+    func sock_connect(s:Socket, addr:*char, addrlen:int) : int { return unsafe(connect(s as int, addr, addrlen)) }
+    func sock_accept(s:Socket, addr:*mut char, addrlen:*mut int) : Socket { return unsafe(accept(s as int, addr, addrlen)) as Socket }
+    func sock_recv(s:Socket, buf:*mut char, len:int) : int { return unsafe(recv(s as int, buf, len, 0)) }
     // MSG_NOSIGNAL (0x4000 on Linux): raise EPIPE instead of SIGPIPE on broken connection
     comptime const MSG_NOSIGNAL = 0x4000
-    func sock_send(s:Socket, buf:*char, len:int) : int { return send(s as int, buf, len, MSG_NOSIGNAL) }
-    func sock_close(s:Socket) { close(s as int) }
-    func sock_setsockopt(s:Socket, level:int, optname:int, optval:*char, optlen:int) : int { return setsockopt(s as int, level, optname, optval, optlen) }
-    func sock_getaddrinfo(node:*char, service:*char, hints:*mut char, res:*mut *mut char) : int { return getaddrinfo(node, service, hints, res) }
-    func sock_freeaddrinfo(res:*mut char) { freeaddrinfo(res) }
+    func sock_send(s:Socket, buf:*char, len:int) : int { return unsafe(send(s as int, buf, len, MSG_NOSIGNAL)) }
+    func sock_close(s:Socket) { unsafe { close(s as int) } }
+    func sock_setsockopt(s:Socket, level:int, optname:int, optval:*char, optlen:int) : int { return unsafe(setsockopt(s as int, level, optname, optval, optlen)) }
+    func sock_getaddrinfo(node:*char, service:*char, hints:*mut char, res:*mut *mut char) : int { return unsafe(getaddrinfo(node, service, hints, res)) }
+    func sock_freeaddrinfo(res:*mut char) { unsafe { freeaddrinfo(res) } }
 
     // poll wrapper for timed I/O (stub - use non-blocking accept instead)
 
     public func set_nonblocking(s: Socket) {
-        var flags = fcntl(s as int, F_GETFL, 0);
-        fcntl(s as int, F_SETFL, flags | O_NONBLOCK);
+        var flags = unsafe(fcntl(s as int, F_GETFL, 0));
+        unsafe { fcntl(s as int, F_SETFL, flags | O_NONBLOCK) };
     }
 
     public func set_blocking(s: Socket) {
-        var flags = fcntl(s as int, F_GETFL, 0);
-        fcntl(s as int, F_SETFL, flags & ~O_NONBLOCK);
+        var flags = unsafe(fcntl(s as int, F_GETFL, 0));
+        unsafe { fcntl(s as int, F_SETFL, flags & ~O_NONBLOCK) };
     }
 
 }

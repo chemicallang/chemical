@@ -87,7 +87,7 @@ comptime func comptime_murmur(s : *char) : u32 {
 }
 
 func wrap_murmur(s : *char) : u32 {
-    return murmurhash(s, strlen(s), 0)
+    return murmurhash(s, unsafe(strlen(s)), 0)
 }
 
 /**

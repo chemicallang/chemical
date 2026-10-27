@@ -51,7 +51,7 @@ public func make_child_path(parent : &std::string, child : *char) : std::string 
 }
 
 public func bytes_equal(buf : *u8, len : size_t, cstr : *char, msg : *char, env : &mut TestEnv) : bool {
-    var want = strlen(cstr) as size_t;
+    var want = unsafe(strlen(cstr)) as size_t;
     if(len != want) {
         env.error(msg);
         return false;

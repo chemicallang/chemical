@@ -22,7 +22,7 @@ func test_fs_file_low_level_api(env : &mut TestEnv) {
     var Ok(f) = r_open else unreachable;
     
     var data : *char = "chemical low level";
-    var len = strlen(data) as size_t;
+    var len = unsafe(strlen(data)) as size_t;
     var r_write = fs::file_write(&raw mut f, data as *u8, len);
     expect_true(env, !(r_write is Result.Err), "file_write failed");
     var Ok(n_written) = r_write else unreachable;
@@ -56,7 +56,7 @@ func test_fs_atomic_write(env : &mut TestEnv) {
 
     var p = make_child_path(&base, "atomic.txt");
     var data : *char = "atomic content";
-    var len = strlen(data) as size_t;
+    var len = unsafe(strlen(data)) as size_t;
 
     var r = fs::atomic_write(p.data(), data as *u8, len);
     expect_true(env, !(r is Result.Err), "atomic_write failed");
@@ -80,7 +80,7 @@ func test_fs_move_path(env : &mut TestEnv) {
     var dst = make_child_path(&base, "dest.txt");
     var data : *char = "move me";
     
-    fs::write_text_file(src.data(), data as *u8, strlen(data) as size_t);
+    fs::write_text_file(src.data(), data as *u8, unsafe(strlen(data)) as size_t);
 
     var r = fs::move_path(src.data(), dst.data());
     expect_true(env, !(r is Result.Err), "move_path failed");
@@ -89,7 +89,7 @@ func test_fs_move_path(env : &mut TestEnv) {
 
     var rd = fs::read_entire_file(dst.data());
     var Ok(vec) = rd else unreachable;
-    expect_true(env, vec.size() == strlen(data) as size_t, "content size mismatch");
+    expect_true(env, vec.size() == unsafe(strlen(data)) as size_t, "content size mismatch");
 
     fs::remove_dir_all_recursive(base.data());
 }

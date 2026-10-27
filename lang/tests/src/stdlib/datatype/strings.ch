@@ -85,7 +85,7 @@ func test_strings() {
         var first = string("")
         var pi = 3.14f
         first.append_expr(`pi value : ${pi} end`)
-        printf("%s\n", first.data())
+        unsafe { printf("%s\n", first.data()) }
         var second = string("pi value : 3.140 end")
         return first.equals(&second);
     })
@@ -93,7 +93,7 @@ func test_strings() {
         var first = string("")
         var pi = 3.14
         first.append_expr(`pi value : ${pi} end`)
-        printf("%s\n", first.data())
+        unsafe { printf("%s\n", first.data()) }
         var second = string("pi value : 3.140 end")
         return first.equals(&second);
     })

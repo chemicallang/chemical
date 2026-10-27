@@ -38,12 +38,13 @@ func bytes_not_all_zero(buf : *u8, len : size_t) : bool {
 // so we can test the TLS 1.3 record layer without needing two peers.
 
 func setup_symmetric_record_test() : SSLContext {
+    unsafe {
     // NOTE: ssl.conf is intentionally NOT set here.  The record-layer functions
     // (tls13_encrypt_record / tls13_decrypt_record) only need transform_out/in
     // and sequence counters, never ssl.conf.  Setting config from a stack
     // variable would create a dangling pointer when this helper returns.
 
-    var ctx : SSLContext
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>()
     ssl_init(unsafe(&raw mut ctx))
 
     // Known AES-128-GCM key (from FIPS 197 test vector)
@@ -58,7 +59,7 @@ func setup_symmetric_record_test() : SSLContext {
     ]
 
     // Create symmetric transform for encrypt (key_enc) and decrypt (key_dec)
-    var tr : Transform
+    var tr : Transform = zeroed:unsafe<Transform>()
     transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_GCM as u8
     tr.key_len = 16
@@ -80,11 +81,11 @@ func setup_symmetric_record_test() : SSLContext {
     }
 
     // Allocate and assign both directions (same key for self-test)
-    var tr_out = malloc(sizeof(Transform)) as *mut Transform
+    var tr_out = unsafe(malloc(sizeof(Transform))) as *mut Transform
     *tr_out = tr
     unsafe { ctx.transform_out = tr_out }
 
-    var tr_in = malloc(sizeof(Transform)) as *mut Transform
+    var tr_in = unsafe(malloc(sizeof(Transform))) as *mut Transform
     *tr_in = tr
     unsafe { ctx.transform_in = tr_in }
 
@@ -97,7 +98,8 @@ func setup_symmetric_record_test() : SSLContext {
     }
 
     return unsafe(ctx)
-}
+
+}}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Config API Tests
@@ -110,7 +112,7 @@ public func tls_ssl_set_config_works(env : &mut TestEnv) {
     cfg.min_tls_version = SSL_VERSION_TLS1_2
     cfg.max_tls_version = SSL_VERSION_TLS1_3
 
-    var ctx : SSLContext
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>()
     ssl_init(unsafe(&raw mut ctx))
     ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
 
@@ -168,7 +170,7 @@ public func tls13_derive_handshake_keys_works(env : &mut TestEnv) {
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.authmode = SSL_VERIFY_NONE
 
-    var ctx : SSLContext
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>()
     ssl_init(unsafe(&raw mut ctx))
     ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
 
@@ -236,7 +238,7 @@ public func tls13_derive_application_keys_works(env : &mut TestEnv) {
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.authmode = SSL_VERIFY_NONE
 
-    var ctx : SSLContext
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>()
     ssl_init(unsafe(&raw mut ctx))
     ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
 
@@ -553,7 +555,7 @@ public func tls13_update_send_keys_works(env : &mut TestEnv) {
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.authmode = SSL_VERIFY_NONE
 
-    var ctx : SSLContext
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>()
     ssl_init(unsafe(&raw mut ctx))
     ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
 
@@ -632,7 +634,7 @@ public func tls13_update_send_keys_works(env : &mut TestEnv) {
 
 @test
 public func tls_ssl_close_notify_no_socket_works(env : &mut TestEnv) {
-    var ctx : SSLContext
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>()
     ssl_init(unsafe(&raw mut ctx))
     // No socket or config set — just ensures ssl_close_notify doesn't crash
 

@@ -99,8 +99,8 @@ public func blocking_pool() : *mut std::concurrent.ThreadPool {
 // Run `f` on the blocking pool and return its future. Await it with
 // `await spawn_blocking(...)` / `async::block_on(...)`.
 public func <T> spawn_blocking(f : std::function<() => T>) : core::async::FutureHandle<T> {
-    var st = malloc(sizeof(BlockingState<T>)) as *mut BlockingState<T>
-    var vtbl = malloc(sizeof(core::async::FutureTable<T>)) as *mut core::async::FutureTable<T>
+    var st = unsafe(malloc(sizeof(BlockingState<T>))) as *mut BlockingState<T>
+    var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
     vtbl.poll = blocking_poll<T>
     vtbl.drop = blocking_drop<T>
     new(st) BlockingState<T> {

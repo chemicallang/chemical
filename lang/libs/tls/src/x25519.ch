@@ -193,19 +193,19 @@ public namespace tls {
         if(!tls_config::EXTENSIVE_DEBUG_LOG) { return }
         var bytes : [32]u8
         fe_encode(&raw mut bytes[0], f)
-        printf("[FEDBG] %s: ", msg)
+        unsafe { printf("[FEDBG] %s: ", msg) }
         var i : size_t = 0
         while(i < 8) {
-            printf("%08x ", f[i])
+            unsafe { printf("%08x ", f[i]) }
             i += 1
         }
-        printf("|| ")
+        unsafe { printf("|| ") }
         i = 0
         while(i < 32) {
-            printf("%02x", bytes[i] as int)
+            unsafe { printf("%02x", bytes[i] as int) }
             i += 1
         }
-        printf("\n")
+        unsafe { printf("\n") }
     }
 
     // ─── Subtraction mod p (fully reduced) ─────────────────────────────
@@ -456,10 +456,10 @@ public namespace tls {
 
         if(tls_config::EXTENSIVE_DEBUG_LOG) {
             var _enc : [32]u8; fe_encode(&raw mut _enc[0], &raw u_fe[0])
-            printf("[LADDER] u_decoded: ");
-            var _xi : size_t = 0; while(_xi < 8) { printf("%08x ", u_fe[_xi]); _xi += 1 }
-            printf(" => "); _xi = 0; while(_xi < 32) { printf("%02x", _enc[_xi] as int); _xi += 1 }
-            printf("\n")
+            unsafe { printf("[LADDER] u_decoded: ") };
+            var _xi : size_t = 0; while(_xi < 8) { unsafe { printf("%08x ", u_fe[_xi]) }; _xi += 1 }
+            unsafe { printf(" => ") }; _xi = 0; while(_xi < 32) { unsafe { printf("%02x", _enc[_xi] as int) }; _xi += 1 }
+            unsafe { printf("\n") }
         }
 
         // State variables

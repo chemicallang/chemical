@@ -33,7 +33,7 @@ public struct ASTAllocator {
 
     @make
     func make() : ASTAllocator {
-        var state = malloc(sizeof(ASTAllocatorState)) as *mut ASTAllocatorState
+        var state = unsafe(malloc(sizeof(ASTAllocatorState))) as *mut ASTAllocatorState
         new (state) ASTAllocatorState {
             blocks : null,
             block_count : 0,
@@ -53,12 +53,12 @@ public struct ASTAllocator {
             while(new_cap < self.state.cleanup_count + 1) {
                 new_cap *= 2
             }
-            const new_cleanups = malloc(sizeof(CleanupEntry) * new_cap) as *mut CleanupEntry
+            const new_cleanups = unsafe(malloc(sizeof(CleanupEntry) * new_cap)) as *mut CleanupEntry
             if(self.state.cleanup_count > 0) {
-                memcpy(new_cleanups, self.state.cleanups, sizeof(CleanupEntry) * self.state.cleanup_count)
+                unsafe { memcpy(new_cleanups, self.state.cleanups, sizeof(CleanupEntry) * self.state.cleanup_count) }
             }
             if(self.state.cleanups != null) {
-                free(self.state.cleanups as *mut any)
+                unsafe { free(self.state.cleanups as *mut any) }
             }
             self.state.cleanups = new_cleanups
             self.state.cleanup_capacity = new_cap
@@ -85,7 +85,7 @@ public struct ASTAllocator {
             ci += 1
         }
         if(self.state.cleanups != null) {
-            free(self.state.cleanups as *mut any)
+            unsafe { free(self.state.cleanups as *mut any) }
         }
         self.state.cleanups = null
         self.state.cleanup_count = 0
@@ -93,11 +93,11 @@ public struct ASTAllocator {
 
         var i = 0u
         while(i < self.state.block_count) {
-            free(self.state.blocks[i] as *mut any)
+            unsafe { free(self.state.blocks[i] as *mut any) }
             i += 1
         }
         if(self.state.blocks != null) {
-            free(self.state.blocks as *mut any)
+            unsafe { free(self.state.blocks as *mut any) }
         }
         self.state.blocks = null
         self.state.block_count = 0
@@ -107,7 +107,7 @@ public struct ASTAllocator {
     @delete
     func delete(&mut self) {
         deinit()
-        free(self.state as *mut any)
+        unsafe { free(self.state as *mut any) }
         self.state = null
     }
 
@@ -116,7 +116,7 @@ public struct ASTAllocator {
 impl BatchAllocator for ASTAllocator {
 
     func allocate_size(&self, obj_size : size_t, alignment : size_t) : *mut char {
-        const ptr = malloc(obj_size) as *mut char
+        const ptr = unsafe(malloc(obj_size)) as *mut char
         // track the pointer so deinit() can free it later; the interface
         // method takes &self, but we mutate through the *mut state pointer
         var state = self.state
@@ -125,12 +125,12 @@ impl BatchAllocator for ASTAllocator {
             while(new_cap < state.block_count + 1) {
                 new_cap *= 2
             }
-            const new_blocks = malloc(sizeof(*mut void) * new_cap) as *mut *mut void
+            const new_blocks = unsafe(malloc(sizeof(*mut void) * new_cap)) as *mut *mut void
             if(state.block_count > 0) {
-                memcpy(new_blocks, state.blocks, sizeof(*mut void) * state.block_count)
+                unsafe { memcpy(new_blocks, state.blocks, sizeof(*mut void) * state.block_count) }
             }
             if(state.blocks != null) {
-                free(state.blocks as *mut any)
+                unsafe { free(state.blocks as *mut any) }
             }
             state.blocks = new_blocks
             state.block_capacity = new_cap

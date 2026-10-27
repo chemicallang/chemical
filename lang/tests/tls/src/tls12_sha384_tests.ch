@@ -146,7 +146,7 @@ public func tls12_sha384_transform_population_works(env : &mut TestEnv) {
                            &raw mut key_block[0], kb_size, true)
 
     // Layout for GCM: mac_key(0) | client_key(32) | server_key(32) | client_iv(4) | server_iv(4)
-    var tr : Transform
+    var tr : Transform = zeroed:unsafe<Transform>()
     transform_init(unsafe(&raw mut tr))
     tls12_populate_transform(unsafe(&raw mut tr), &raw info, &raw key_block[0], kb_size)
 

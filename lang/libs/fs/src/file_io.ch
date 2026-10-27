@@ -198,7 +198,7 @@ public func write_text_file(path : *char, data : *u8, data_len : size_t) : Resul
 }
 
 public func move_path(src : *char, dst : *char) : Result<UnitTy, FsError> {
-    var r = rename(src, dst);
+    var r = unsafe(rename(src, dst));
     if(r == 0) { return Result.Ok(UnitTy{}); }
     // if rename fails (e.g. cross-device) fallback to copy+remove
     var src_meta = metadata(src);

@@ -33,10 +33,10 @@ internal func neg_init_work_dir() {
 }
 
 internal func write_file(path : *char, content : *char) {
-    var f = fopen(path, "w")
+    var f = unsafe(fopen(path, "w"))
     if(f != null) {
-        fwrite(content as *void, strlen(content), 1, f)
-        fclose(f)
+        unsafe { fwrite(content as *void, unsafe(strlen(content)), 1, f) }
+        unsafe { fclose(f) }
     }
 }
 
@@ -148,15 +148,15 @@ internal func run_compiler_capture(mod_path : *char, out_path : *char, output_bu
 
 internal func setup_test_files(work_dir : *char, name : *char, mod_content : *char, ch_content : *char) : bool {
     var test_dir : char[512]
-    sprintf(unsafe(&raw mut test_dir[0]), "%s/%s", work_dir, name)
+    unsafe { sprintf(unsafe(&raw mut test_dir[0]), "%s/%s", work_dir, name) }
     fs::mkdir(unsafe(&raw test_dir[0]))
 
     var mod_path : char[512]
-    sprintf(unsafe(&raw mut mod_path[0]), "%s/chemical.mod", unsafe(&raw test_dir[0]))
+    unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/chemical.mod", unsafe(&raw test_dir[0])) }
     write_file(unsafe(&raw mod_path[0]), mod_content)
 
     var ch_path : char[512]
-    sprintf(unsafe(&raw mut ch_path[0]), "%s/test.ch", unsafe(&raw test_dir[0]))
+    unsafe { sprintf(unsafe(&raw mut ch_path[0]), "%s/test.ch", unsafe(&raw test_dir[0])) }
     write_file(unsafe(&raw ch_path[0]), ch_content)
 
     return true
@@ -164,18 +164,18 @@ internal func setup_test_files(work_dir : *char, name : *char, mod_content : *ch
 
 internal func cleanup_test_dir(work_dir : *char, name : *char) {
     var path : char[512]
-    sprintf(unsafe(&raw mut path[0]), "%s/%s", work_dir, name)
+    unsafe { sprintf(unsafe(&raw mut path[0]), "%s/%s", work_dir, name) }
     // cross-platform recursive delete (no shelling out to "rm -rf", which
     // does not exist on Windows cmd.exe)
     fs::remove_dir_all_recursive(unsafe(&raw path[0]))
 }
 
 internal func neg_debug_print(name : *char, output : *char) {
-    var dbg = getenv("NEG_DEBUG")
+    var dbg = unsafe(getenv("NEG_DEBUG"))
     if(dbg != null && dbg[0] != 0) {
-        printf("==== [NEG_DEBUG] %s ====\n", name)
-        printf("%s", output)
-        printf("==== [NEG_DEBUG end] ====\n")
+        unsafe { printf("==== [NEG_DEBUG] %s ====\n", name) }
+        unsafe { printf("%s", output) }
+        unsafe { printf("==== [NEG_DEBUG end] ====\n") }
     }
 }
 
@@ -211,9 +211,9 @@ internal func expect_compile_error_with_mod(env : &mut TestEnv, name : *char, ch
     setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
 
     var mod_path : char[512]
-    sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name)
+    unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
     var out_path : char[512]
-    sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
+    unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
 
     var output_buf : char[65536]
     var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
@@ -221,7 +221,7 @@ internal func expect_compile_error_with_mod(env : &mut TestEnv, name : *char, ch
     var out_view = unsafe(&raw output_buf[0])
     // Coded diagnostics render as `error[SAFE-*]:`; uncoded ones as `error:`.
     var has_error = string_contains(out_view, "error:") || string_contains(out_view, "error[")
-    var has_sub = if(strlen(expected_sub) == 0) true else string_contains(out_view, expected_sub)
+    var has_sub = if(unsafe(strlen(expected_sub)) == 0) true else string_contains(out_view, expected_sub)
 
     if(rc == 0) {
         env.error("expected compiler to fail but it succeeded")
@@ -244,9 +244,9 @@ internal func expect_compile_warning_id(env : &mut TestEnv, name : *char, ch_con
     setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
 
     var mod_path : char[512]
-    sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name)
+    unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
     var out_path : char[512]
-    sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
+    unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
 
     var output_buf : char[65536]
     var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
@@ -271,9 +271,9 @@ internal func expect_compile_output_contains(env : &mut TestEnv, name : *char, c
     setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
 
     var mod_path : char[512]
-    sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name)
+    unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
     var out_path : char[512]
-    sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
+    unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
 
     var output_buf : char[65536]
     run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
@@ -294,9 +294,9 @@ internal func expect_compile_output_not_contains(env : &mut TestEnv, name : *cha
     setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
 
     var mod_path : char[512]
-    sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name)
+    unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
     var out_path : char[512]
-    sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
+    unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
 
     var output_buf : char[65536]
     var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
@@ -333,9 +333,9 @@ internal func expect_emitted_symbol(env : &mut TestEnv, name : *char, ch_content
     // Compile the single source file directly: `-o <file>.c` selects the C
     // translation path, and a `.ch` input avoids the build.lab module pipeline.
     var ch_path : char[512]
-    sprintf(unsafe(&raw mut ch_path[0]), "%s/%s/test.ch", NEG_WORK_DIR, name)
+    unsafe { sprintf(unsafe(&raw mut ch_path[0]), "%s/%s/test.ch", NEG_WORK_DIR, name) }
     var c_path : char[512]
-    sprintf(unsafe(&raw mut c_path[0]), "%s/%s/out.c", NEG_WORK_DIR, name)
+    unsafe { sprintf(unsafe(&raw mut c_path[0]), "%s/%s/out.c", NEG_WORK_DIR, name) }
 
     var output_buf : char[65536]
     var rc = run_compiler_capture(unsafe(&raw ch_path[0]), unsafe(&raw c_path[0]), unsafe(&raw mut output_buf[0]), 65536)
@@ -363,9 +363,9 @@ internal func expect_compile_success(env : &mut TestEnv, name : *char, ch_conten
     setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
 
     var mod_path : char[512]
-    sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name)
+    unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
     var out_path : char[512]
-    sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
+    unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
 
     var output_buf : char[65536]
     var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
@@ -382,9 +382,9 @@ internal func expect_compile_success_with_mod(env : &mut TestEnv, name : *char, 
     setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
 
     var mod_path : char[512]
-    sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name)
+    unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
     var out_path : char[512]
-    sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
+    unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
 
     var output_buf : char[65536]
     var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
@@ -410,9 +410,9 @@ internal func expect_compile_and_exit_mode(env : &mut TestEnv, name : *char, ch_
     setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
 
     var mod_path : char[512]
-    sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name)
+    unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
     var out_path : char[512]
-    sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
+    unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
 
     var output_buf : char[65536]
     var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 16384, mode)
@@ -423,7 +423,7 @@ internal func expect_compile_and_exit_mode(env : &mut TestEnv, name : *char, ch_
         return
     }
 
-    var status = system(unsafe(&raw out_path[0]))
+    var status = unsafe(system(unsafe(&raw out_path[0])))
     var exit_code : int
     comptime if(def.windows) {
         exit_code = status
@@ -438,42 +438,42 @@ internal func expect_compile_and_exit_mode(env : &mut TestEnv, name : *char, ch_
 
 @test
 func neg_temp_to_view_with_dtor_errors(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct MyView 'a {\n    var data : *char\n}\nstruct MyObj {\n    func get_view(&self) : 'self MyView {\n        return MyView { data : null }\n    }\n    @delete\n    func delete(&mut self) { }\n}\nfunc main() {\n    var v = MyObj().get_view()\n}\n"
     expect_compile_error(env, "temp_to_view_with_dtor_errors", ch, "lifetime dependency")
 }
 
 @test
 func neg_named_to_view_succeeds(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct MyView 'a {\n    var data : *char\n}\nstruct MyObj {\n    func get_view(&self) : 'self MyView {\n        return MyView { data : null }\n    }\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    var obj = MyObj()\n    var v = obj.get_view()\n    return 0\n}\n"
     expect_compile_success(env, "named_to_view_succeeds", ch)
 }
 
 @test
 func neg_temp_no_lifetime_type_succeeds(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct MyObj {\n    func get_value(&self) : i32 {\n        return 42\n    }\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    var v = MyObj().get_value()\n    return 0\n}\n"
     expect_compile_success(env, "temp_no_lifetime_type_succeeds", ch)
 }
 
 @test
 func neg_temp_no_dtor_succeeds(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct MyView 'a {\n    var data : *char\n}\nstruct MyObj {\n    func get_view(&self) : 'self MyView {\n        return MyView { data : null }\n    }\n}\npublic func main() : int {\n    var v = MyObj().get_view()\n    return 0\n}\n"
     expect_compile_success(env, "temp_no_dtor_succeeds", ch)
 }
 
 @test
 func neg_temp_no_return_lifetime_succeeds(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct MyView 'a {\n    var data : *char\n}\nfunc get_view(v : MyView) : MyView {\n    return v\n}\npublic func main() : int {\n    var v = get_view(MyView { data : null })\n    return 0\n}\n"
     expect_compile_success(env, "temp_no_return_lifetime_succeeds", ch)
 }
 
 @test
 func neg_lambda_param_unresolved_child_prints_error(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // Lambda parameter type can't be inferred and accessing a child on it
     // should print a proper error, not crash with SIGSEGV.
     var ch = "func main() {\n    var cb = ||(x) => {\n        x.some_nonexistent_field\n    }\n}\n"
@@ -486,7 +486,7 @@ func neg_lambda_param_unresolved_child_prints_error(env : &mut TestEnv) {
 // element's buffers, corrupting the original in the vector.
 @test
 func neg_get_on_destructible_struct_direct_errors(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func get(&self, i : int) : T where T : Copy {\n        return unsafe(*data)\n    }\n}\nstruct Row {\n    var p : *char\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    var h = Holder<Row> { data = null }\n    var r = h.get(0)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "get_on_destructible_struct_direct", ch, "does not satisfy where clause constraint", NEG_MOD_CORE)
 }
@@ -496,35 +496,35 @@ func neg_get_on_destructible_struct_direct_errors(env : &mut TestEnv) {
 // implicitly Copy.
 @test
 func neg_copy_requires_explicit_impl(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func get(&self, i : int) : T where T : Copy {\n        return unsafe(*data)\n    }\n}\nstruct Row {\n    var p : *char\n}\npublic func main() : int {\n    var h = Holder<Row> { data = null }\n    var r = h.get(0)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "copy_requires_explicit_impl", ch, "SAFE-COPY-001", NEG_MOD_CORE)
 }
 
 @test
 func copy_explicit_impl_satisfies_bound(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func get(&self, i : int) : T where T : Copy {\n        return unsafe(*data)\n    }\n}\nstruct Row {\n    var p : *char\n}\nimpl Copy for Row {}\npublic func main() : int {\n    var h = Holder<Row> { data = null }\n    var r = h.get(0)\n    return 0\n}\n"
     expect_compile_output_not_contains(env, "copy_explicit_impl", ch, "SAFE-COPY-001", NEG_MOD_CORE)
 }
 
 @test
 func copy_impl_with_destructor_rejected(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Bad {\n    var s : *char\n    @delete\n    func delete(&mut self) { }\n}\nimpl Copy for Bad {}\npublic func main() : int { return 0 }\n"
     expect_compile_error_with_mod(env, "copy_impl_destructor", ch, "SAFE-COPY-002", NEG_MOD_CORE)
 }
 
 @test
 func copy_impl_with_non_copy_field_rejected(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Row {\n    var x : int\n}\nstruct Outer {\n    var row : Row\n}\nimpl Copy for Outer {}\npublic func main() : int { return 0 }\n"
     expect_compile_error_with_mod(env, "copy_impl_non_copy_field", ch, "SAFE-COPY-003", NEG_MOD_CORE)
 }
 
 @test
 func copy_impl_with_copy_fields_compiles(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Row {\n    var x : int\n}\nimpl Copy for Row {}\nstruct Outer {\n    var row : Row\n    var values : [4]int\n}\nimpl Copy for Outer {}\npublic func main() : int { return 0 }\n"
     expect_compile_output_not_contains(env, "copy_impl_valid", ch, "SAFE-COPY", NEG_MOD_CORE)
 }
@@ -533,7 +533,7 @@ func copy_impl_with_copy_fields_compiles(env : &mut TestEnv) {
 // (outer.h.get(0)), which is exactly how `qr.rows.get(0)` triggered the bug.
 @test
 func neg_get_on_destructible_struct_nested_receiver_errors(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func get(&self, i : int) : T where T : Copy {\n        return unsafe(*data)\n    }\n}\nstruct Row {\n    var p : *char\n    @delete\n    func delete(&mut self) { }\n}\nstruct Outer {\n    var h : Holder<Row>\n}\npublic func main() : int {\n    var outer = Outer { h = Holder<Row> { data = null } }\n    var r = outer.h.get(0)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "get_on_destructible_struct_nested", ch, "does not satisfy where clause constraint", NEG_MOD_CORE)
 }

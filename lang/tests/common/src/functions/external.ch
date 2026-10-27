@@ -13,7 +13,7 @@ public func test_external_cpp_function() {
     comptime if(intrinsics::is_clang()) {
         test("can call function from C++", () => {
             // C++ adds dummy 3 to confuse you
-            return check_external_cpp_sum(80, 20) == 103;
+            return unsafe(check_external_cpp_sum(80, 20)) == 103;
         })
     }
 }

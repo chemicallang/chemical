@@ -15,7 +15,7 @@
 public func (provider : &SourceProvider) read_identifier() {
     while(true) {
         const c = provider.peek();
-        if(c != '\0' && (isalnum(c as int) || c == '-' || c == '_' || c == '$')) {
+        if(c != '\0' && (unsafe(isalnum(c as int)) || c == '-' || c == '_' || c == '$')) {
             provider.increment();
         } else {
             break;
@@ -77,7 +77,7 @@ public func (provider : &SourceProvider) read_double_quoted_value() {
 public func (provider : &mut SourceProvider) read_digits() {
     while(true) {
         const next = provider.peek();
-        if(isdigit(next)) {
+        if(unsafe(isdigit(next))) {
             provider.increment();
         } else {
             break;
@@ -121,7 +121,7 @@ public func (provider : &SourceProvider) skip_whitespaces() {
 public func (provider : &SourceProvider) read_alpha() {
     while(true) {
         const c = provider.peek();
-        if(c != '\0' && isalpha(c as int)) {
+        if(c != '\0' && unsafe(isalpha(c as int))) {
             provider.increment();
         } else {
             break;
@@ -133,7 +133,7 @@ public func (provider : &SourceProvider) read_alpha() {
 public func (provider : &SourceProvider) read_alpha_num() {
     while(true) {
         const c = provider.peek();
-        if(c != '\0' && isalnum(c as int)) {
+        if(c != '\0' && unsafe(isalnum(c as int))) {
             provider.increment();
         } else {
             break;
@@ -148,7 +148,7 @@ public func (provider : &SourceProvider) read_alpha_num() {
 public func (provider : &SourceProvider) read_css_id() {
     while(true) {
         const c = provider.peek();
-        if(c != '\0' && (isalnum(c as int) || c == '-' || c == '_')) {
+        if(c != '\0' && (unsafe(isalnum(c as int)) || c == '-' || c == '_')) {
             provider.increment();
         } else {
             break;
@@ -163,7 +163,7 @@ public func (provider : &SourceProvider) read_css_id() {
 public func (provider : &SourceProvider) read_tag_name() {
     while(true) {
         const c = provider.peek();
-        if(c != '\0' && (isalnum(c as int) || c == '_' || c == '-' || c == ':')) {
+        if(c != '\0' && (unsafe(isalnum(c as int)) || c == '_' || c == '-' || c == ':')) {
             provider.increment();
         } else {
             break;

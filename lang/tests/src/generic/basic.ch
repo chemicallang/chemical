@@ -166,7 +166,7 @@ func <T> b20_read_box(b : B20Box<int>) : int {
 }
 
 func <T> b20_make_table() : int {
-    var t = malloc(sizeof(B20Table<int>)) as *mut B20Table<int>
+    var t = unsafe(malloc(sizeof(B20Table<int>))) as *mut B20Table<int>
     t.poll = b20_unit
     return t.poll(1)
 }

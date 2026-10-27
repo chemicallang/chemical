@@ -62,9 +62,9 @@ var g_watchdog_id : int = 0
 func ut_silence_budget_ms() : int {
     if(g_silence_ms > 0) { return g_silence_ms }
     var budget = UT_SILENCE_MS
-    const env = getenv("UT_TIMEOUT_MS\0" as *char)
+    const env = unsafe(getenv("UT_TIMEOUT_MS\0" as *char))
     if(env != null) {
-        const parsed = atoi(env)
+        const parsed = unsafe(atoi(env))
         if(parsed > 0) { budget = parsed }
     }
     g_silence_ms = budget
@@ -84,8 +84,8 @@ func ut_watchdog_tick(data : *mut void) {
     g_silence_left_ms -= UT_WATCHDOG_TICK_MS
     if(g_silence_left_ms > 0) { return }
     g_silence_left_ms = 0
-    printf("universal_test: page sent no bridge call for %d s -- stopping the webview and failing its tests\n",
-        ut_silence_budget_ms() / 1000)
+    unsafe { printf("universal_test: page sent no bridge call for %d s -- stopping the webview and failing its tests\n",
+        ut_silence_budget_ms() / 1000) }
     // Synthesize a result for every test on the stalled page. Tests that did
     // report already have one, and the report keeps the first result per name,
     // so only the genuinely silent ones are charged with the stall.
@@ -219,27 +219,27 @@ func ut_execute(tests : *mut *mut UTFunction, count : size_t, headed : bool) {
     // Returns without opening a WebView. Covers every script element `toString`
     // emits -- head block, body bundle and body tail -- since a syntax error in
     // any of them is the failure this dump exists to find.
-    if(getenv("UT_DUMP_JS\0" as *char) != null) {
+    if(unsafe(getenv("UT_DUMP_JS\0" as *char)) != null) {
         var jsdump = page.toStringHeadJsOnly()
         jsdump.append_view("\n/* ==== body js bundle ==== */\n")
         jsdump.append_string(&page.toStringJsOnly())
         jsdump.append_view("\n/* ==== body js tail ==== */\n")
         jsdump.append_string(&page.toStringJsEndOnly())
-        printf("===UT_JS_START===\n%.*s\n===UT_JS_END===\n", jsdump.size() as int, jsdump.data())
+        unsafe { printf("===UT_JS_START===\n%.*s\n===UT_JS_END===\n", jsdump.size() as int, jsdump.data()) }
         return
     }
 
     // Debug: dump the generated page HTML (UT_DUMP_HTML=1) so the SSR markup
     // (boundary ids, fixture containers, duplicated ids/names) can be inspected.
     // Returns without opening a WebView.
-    if(getenv("UT_DUMP_HTML\0" as *char) != null) {
-        printf("===UT_HTML_START===\n%.*s\n===UT_HTML_END===\n", html.size() as int, html.data())
+    if(unsafe(getenv("UT_DUMP_HTML\0" as *char)) != null) {
+        unsafe { printf("===UT_HTML_START===\n%.*s\n===UT_HTML_END===\n", html.size() as int, html.data()) }
         return
     }
 
     var wv_res = webview::create("universal tests\0" as *char, 900, 700)
     if(wv_res is std::Result.Err) {
-        printf("universal_test: failed to create webview (is a display available?)\n")
+        unsafe { printf("universal_test: failed to create webview (is a display available?)\n") }
         return
     }
     var Ok(wv) = wv_res else unreachable
@@ -260,7 +260,7 @@ func ut_execute(tests : *mut *mut UTFunction, count : size_t, headed : bool) {
     if(g_watchdog_id == 0) {
         // Every timer slot is taken. The page-side error reporting still holds,
         // but say so rather than leaving the host unbounded and unexplained.
-        printf("universal_test: could not arm the webview watchdog (no free timer slot) -- a silent page will hang this run\n")
+        unsafe { printf("universal_test: could not arm the webview watchdog (no free timer slot) -- a silent page will hang this run\n") }
         g_silence_left_ms = 0
     }
 

@@ -119,7 +119,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                         position : position
                     }
 
-                } else if(isalpha(next)) {
+                } else if(unsafe(isalpha(next))) {
 
                     // its a directive
                     // TODO handle this case
@@ -146,7 +146,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     value : view("</"),
                     position : position
                 }
-            } else if(isalpha(p as int)) {
+            } else if(unsafe(isalpha(p as int))) {
                 html.has_lt = true;
                 return Token {
                     type : TokenType.LessThan as int,
@@ -203,7 +203,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     value : view("@("),
                     position : position
                 }
-            } else if(!html.has_lt && isalpha(provider.peek() as int)) {
+            } else if(!html.has_lt && unsafe(isalpha(provider.peek() as int))) {
                 
                 // then we have a keyword, lets parse it
                 const start = provider.current_data(); 
@@ -466,7 +466,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
         }
         default => {
             if(html.has_lt) {
-                if(isalpha(c as int)) {
+                if(unsafe(isalpha(c as int))) {
                     if(html.lexed_tag_name) {
                         provider.read_tag_name();
                         const attr_value = std::string_view(data_ptr, provider.current_data() - data_ptr);
@@ -550,7 +550,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                             }
                         }
                         default => {
-                            if(isdigit(c)) {
+                            if(unsafe(isdigit(c))) {
                                 provider.read_floating_digits();
                                 return Token {
                                     type : TokenType.Number as int,

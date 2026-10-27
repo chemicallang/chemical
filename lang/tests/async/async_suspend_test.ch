@@ -38,10 +38,10 @@ func countdown_poll(frame : *mut void, cx : *mut core::async::Context) : core::a
 func countdown_drop(frame : *mut void) { }
 
 func make_countdown(remaining : int, value : int) : core::async::FutureHandle<int> {
-    var f = malloc(sizeof(Countdown)) as *mut Countdown
+    var f = unsafe(malloc(sizeof(Countdown))) as *mut Countdown
     f.remaining = remaining
     f.value = value
-    var table = malloc(sizeof(core::async::FutureTable<int>)) as *mut core::async::FutureTable<int>
+    var table = unsafe(malloc(sizeof(core::async::FutureTable<int>))) as *mut core::async::FutureTable<int>
     table.poll = countdown_poll
     table.drop = countdown_drop
     return core::async::FutureHandle<int> { frame : f as *mut void, vtbl : table }
@@ -348,13 +348,13 @@ func cancel_child_poll(frame : *mut void, cx : *mut core::async::Context) : core
 
 func cancel_child_drop(frame : *mut void) {
     child_cancel_drops = child_cancel_drops + 1
-    free(frame)
+    unsafe { free(frame) }
 }
 
 func make_cancel_child(n : int) : core::async::FutureHandle<int> {
-    var f = malloc(sizeof(CancelChild)) as *mut CancelChild
+    var f = unsafe(malloc(sizeof(CancelChild))) as *mut CancelChild
     f.remaining = n
-    var t = malloc(sizeof(core::async::FutureTable<int>)) as *mut core::async::FutureTable<int>
+    var t = unsafe(malloc(sizeof(core::async::FutureTable<int>))) as *mut core::async::FutureTable<int>
     t.poll = cancel_child_poll
     t.drop = cancel_child_drop
     return core::async::FutureHandle<int> { frame : f as *mut void, vtbl : t }

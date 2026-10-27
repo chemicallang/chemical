@@ -6,12 +6,12 @@ public namespace async {
 
     @no_mangle
     public func chemical_async_frame_alloc(size : u64, align : u64) : *mut void {
-        return malloc(size)
+        return unsafe(malloc(size))
     }
 
     @no_mangle
     public func chemical_async_frame_free(ptr : *mut void, size : u64, align : u64) {
-        free(ptr)
+        unsafe { free(ptr) }
     }
 
 }

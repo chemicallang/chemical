@@ -53,8 +53,8 @@ public func css_write_length(ptr : &mut CSSLengthValueData, str : &mut std::stri
     }
     str.append_view(&ptr.value)
     if(ptr.kind != CSSLengthKind.None && !css_write_unit_of_kind(str, ptr.kind)) {
-        printf("unknown unit")
-        fflush(null)
+        unsafe { printf("unknown unit") }
+        unsafe { fflush(null) }
     }
 }
 

@@ -31,7 +31,7 @@ func sec_bytes_equal(a : *u8, b : *u8, len : size_t) : bool {
 
 @test
 public func SEC_invalid_curve_attack_rejected(env : &mut TestEnv) {
-    var ctx : ECDHContext; ecdh_init(unsafe(&raw mut ctx))
+    var ctx : ECDHContext = zeroed:unsafe<ECDHContext>(); ecdh_init(unsafe(&raw mut ctx))
     var priv : [32]u8; var pub : [65]u8
     var ret = ecdh_generate_keypair(unsafe(&raw mut ctx), &raw mut priv[0], 32, &raw mut pub[0], 65)
     if(ret < 0) { env.error("keygen failed"); return }
@@ -49,7 +49,7 @@ public func SEC_invalid_curve_attack_rejected(env : &mut TestEnv) {
 
 @test
 public func SEC_invalid_curve_64_corruptions_rejected(env : &mut TestEnv) {
-    var ctx : ECDHContext; ecdh_init(unsafe(&raw mut ctx))
+    var ctx : ECDHContext = zeroed:unsafe<ECDHContext>(); ecdh_init(unsafe(&raw mut ctx))
     var priv : [32]u8; var pub : [65]u8
     ecdh_generate_keypair(unsafe(&raw mut ctx), &raw mut priv[0], 32, &raw mut pub[0], 65)
 
@@ -160,7 +160,7 @@ public func SEC_cert_expired_rejected(env : &mut TestEnv) {
 
 @test
 public func SEC_cert_wrong_hostname_rejected(env : &mut TestEnv) {
-    var cert : X509Cert; x509_cert_init(unsafe(&raw mut cert))
+    var cert : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut cert))
     var ret = parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
@@ -171,7 +171,7 @@ public func SEC_cert_wrong_hostname_rejected(env : &mut TestEnv) {
 
 @test
 public func SEC_cert_chain_untrusted_rejected(env : &mut TestEnv) {
-    var cert : X509Cert; x509_cert_init(unsafe(&raw mut cert))
+    var cert : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut cert))
     parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
 
     var wrong_host = "malicious.example.com\0" as *char
@@ -186,11 +186,11 @@ public func SEC_cert_chain_untrusted_rejected(env : &mut TestEnv) {
 @test
 public func SEC_random_keypair_unique(env : &mut TestEnv) {
     var k0 : [32]u8; var k1 : [32]u8; var k2 : [32]u8
-    var c0 : ECDHContext; ecdh_init(unsafe(&raw mut c0))
+    var c0 : ECDHContext = zeroed:unsafe<ECDHContext>(); ecdh_init(unsafe(&raw mut c0))
     var p0 : [65]u8; ecdh_generate_keypair(unsafe(&raw mut c0), &raw mut k0[0], 32, &raw mut p0[0], 65)
-    var c1 : ECDHContext; ecdh_init(unsafe(&raw mut c1))
+    var c1 : ECDHContext = zeroed:unsafe<ECDHContext>(); ecdh_init(unsafe(&raw mut c1))
     var p1 : [65]u8; ecdh_generate_keypair(unsafe(&raw mut c1), &raw mut k1[0], 32, &raw mut p1[0], 65)
-    var c2 : ECDHContext; ecdh_init(unsafe(&raw mut c2))
+    var c2 : ECDHContext = zeroed:unsafe<ECDHContext>(); ecdh_init(unsafe(&raw mut c2))
     var p2 : [65]u8; ecdh_generate_keypair(unsafe(&raw mut c2), &raw mut k2[0], 32, &raw mut p2[0], 65)
 
     var dupes : size_t = 0
@@ -225,11 +225,11 @@ public func SEC_gcm_different_nonce_different_output(env : &mut TestEnv) {
     fill_bytes(&raw mut iv1[0], 12, 0x01)
     fill_bytes(&raw mut iv2[0], 12, 0x02)
 
-    var g1 : GCMContext; gcm_init(unsafe(&raw mut g1), &raw key[0], 16)
+    var g1 : GCMContext = zeroed:unsafe<GCMContext>(); gcm_init(unsafe(&raw mut g1), &raw key[0], 16)
     var ct1 : [16]u8; var tag1 : [16]u8
     gcm_crypt_and_tag(unsafe(&raw mut g1), &raw iv1[0], 12, null, 0, &raw pt[0], 16, &raw mut ct1[0], &raw mut tag1[0])
 
-    var g2 : GCMContext; gcm_init(unsafe(&raw mut g2), &raw key[0], 16)
+    var g2 : GCMContext = zeroed:unsafe<GCMContext>(); gcm_init(unsafe(&raw mut g2), &raw key[0], 16)
     var ct2 : [16]u8; var tag2 : [16]u8
     gcm_crypt_and_tag(unsafe(&raw mut g2), &raw iv2[0], 12, null, 0, &raw pt[0], 16, &raw mut ct2[0], &raw mut tag2[0])
 
@@ -243,7 +243,7 @@ public func SEC_gcm_tag_16_tamper_positions_detected(env : &mut TestEnv) {
     var iv : [12]u8; fill_bytes(&raw mut iv[0], 12, 0xCA)
     var pt : [8]u8; fill_bytes(&raw mut pt[0], 8, 0x01)
 
-    var g1 : GCMContext; gcm_init(unsafe(&raw mut g1), &raw key[0], 16)
+    var g1 : GCMContext = zeroed:unsafe<GCMContext>(); gcm_init(unsafe(&raw mut g1), &raw key[0], 16)
     var ct : [8]u8; var tag : [16]u8
     gcm_crypt_and_tag(unsafe(&raw mut g1), &raw iv[0], 12, null, 0, &raw pt[0], 8, &raw mut ct[0], &raw mut tag[0])
 
@@ -252,7 +252,7 @@ public func SEC_gcm_tag_16_tamper_positions_detected(env : &mut TestEnv) {
         var bad_tag : [16]u8; var j : size_t = 0
         while(j < 16) { bad_tag[j] = tag[j]; j += 1 }
         bad_tag[pos] = bad_tag[pos] ^ 0xFF
-        var g2 : GCMContext; gcm_init(unsafe(&raw mut g2), &raw key[0], 16)
+        var g2 : GCMContext = zeroed:unsafe<GCMContext>(); gcm_init(unsafe(&raw mut g2), &raw key[0], 16)
         var dec : [8]u8
         var r = gcm_auth_decrypt(unsafe(&raw mut g2), &raw iv[0], 12, null, 0,
                                   &raw ct[0], 8, &raw bad_tag[0], 16, &raw mut dec[0])
@@ -268,7 +268,7 @@ public func SEC_gcm_tag_16_tamper_positions_detected(env : &mut TestEnv) {
 
 @test
 public func SEC_ecdsa_high_s_signature_rejected(env : &mut TestEnv) {
-    var ctx : ECDSAContext; ecdsa_init(unsafe(&raw mut ctx))
+    var ctx : ECDSAContext = zeroed:unsafe<ECDSAContext>(); ecdsa_init(unsafe(&raw mut ctx))
     // A real P-256 point (RFC 6979 A.2.5 sample key). It has to be: the
     // importer checks the curve equation, so a key that is merely 65 bytes of
     // the right shape would be rejected and the verify below would fail for the
@@ -312,11 +312,11 @@ public func SEC_ecdsa_high_s_signature_rejected(env : &mut TestEnv) {
 
 @test
 public func SEC_rsa_signature_tampered_rejected(env : &mut TestEnv) {
-    var cert : X509Cert; x509_cert_init(unsafe(&raw mut cert))
+    var cert : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut cert))
     var ret = parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
-    var rsa : RSAContext; rsa_init(unsafe(&raw mut rsa), RSA_PKCS_V15, 0)
+    var rsa : RSAContext = zeroed:unsafe<RSAContext>(); rsa_init(unsafe(&raw mut rsa), RSA_PKCS_V15, 0)
     ret = x509_extract_rsa_pubkey(unsafe(&raw mut cert), unsafe(&raw mut rsa))
     if(ret != 0) { env.error("RSA extract failed"); return }
 
@@ -337,7 +337,7 @@ public func SEC_rsa_signature_tampered_rejected(env : &mut TestEnv) {
 
 @test
 public func SEC_gcm_record_tamper_detected_all_positions(env : &mut TestEnv) {
-    var tr : Transform; transform_init(unsafe(&raw mut tr))
+    var tr : Transform = zeroed:unsafe<Transform>(); transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_GCM as u8; tr.key_len = 16 as u8
     tr.iv_len = 4 as u8; tr.fixed_iv_len = 4 as u8
     var i : size_t = 0
@@ -367,7 +367,7 @@ public func SEC_gcm_record_tamper_detected_all_positions(env : &mut TestEnv) {
 
 @test
 public func SEC_cbc_mac_rejects_tampered_record(env : &mut TestEnv) {
-    var tr : Transform; transform_init(unsafe(&raw mut tr))
+    var tr : Transform = zeroed:unsafe<Transform>(); transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_CBC as u8; tr.key_len = 16 as u8
     tr.iv_len = 16 as u8; tr.mac_key_len = 32 as u8
     var i : size_t = 0
@@ -409,7 +409,7 @@ public func SEC_protocol_constants_distinct(env : &mut TestEnv) {
 
 @test
 public func SEC_gcm_input_too_short_rejected(env : &mut TestEnv) {
-    var tr : Transform; transform_init(unsafe(&raw mut tr))
+    var tr : Transform = zeroed:unsafe<Transform>(); transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_GCM as u8; tr.key_len = 16 as u8
     var dummy : [64]u8; var seq : [8]u8
     var r = tls12_decrypt_record(unsafe(&raw mut tr), &raw seq[0], 23 as u8, 3 as u8, 3 as u8,

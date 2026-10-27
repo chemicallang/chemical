@@ -4,22 +4,23 @@ using std::string_view
 
 @test
 public func INT_tls13_record_against_python(env : &mut TestEnv) {
+    unsafe {
     var server_key : [16]u8; test_random_bytes(&raw mut server_key[0], 16)
     var server_iv : [12]u8; test_random_bytes(&raw mut server_iv[0], 12)
     var handshake_data : [23]u8; test_random_bytes(&raw mut handshake_data[0], 23)
 
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
 
-    var tr : Transform; transform_init(unsafe(&raw mut tr))
+    var tr : Transform = zeroed:unsafe<Transform>(); transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_GCM as u8
     tr.key_len = 16; tr.iv_len = 12; tr.fixed_iv_len = 12; tr.mac_key_len = 0
     var i : size_t = 0
     while(i<16) { tr.key_enc[i] = server_key[i]; tr.key_dec[i] = server_key[i]; i+=1 }
     i=0; while(i<12) { tr.base_iv_enc[i] = server_iv[i]; tr.base_iv_dec[i] = server_iv[i]; i+=1 }
 
-    var tr_out = malloc(sizeof(Transform)) as *mut Transform; *tr_out = tr
+    var tr_out = unsafe(malloc(sizeof(Transform))) as *mut Transform; *tr_out = tr
     unsafe { ctx.transform_out = tr_out }
-    var tr_in = malloc(sizeof(Transform)) as *mut Transform; *tr_in = tr
+    var tr_in = unsafe(malloc(sizeof(Transform))) as *mut Transform; *tr_in = tr
     unsafe { ctx.transform_in = tr_in }
     i=0; while(i<8){ctx.in_ctr[i]=0; ctx.out_ctr[i]=0; i+=1}
 
@@ -78,7 +79,7 @@ public func INT_tls13_record_against_python(env : &mut TestEnv) {
     if(data_len != 23) { env.error("failed to parse data from Python output"); return } else {}
 
     if(ic_val != (SSL_MSG_HANDSHAKE as uint)) {
-        printf("[REC_TEST] inner_ct: chem=%d py=%d\n", SSL_MSG_HANDSHAKE as int, ic_val as int)
+        unsafe { printf("[REC_TEST] inner_ct: chem=%d py=%d\n", SSL_MSG_HANDSHAKE as int, ic_val as int) }
         env.error("inner content_type mismatch")
         return
     } else {}
@@ -125,17 +126,17 @@ public func INT_tls13_record_against_python(env : &mut TestEnv) {
     var inner_ct : u8 = 0
     var dec_len = tls13_decrypt_record(unsafe(&raw mut ctx), &raw rec_bytes[5], 40, &raw mut dec_buf[0], 256, &raw mut inner_ct)
     if(dec_len < 0) {
-        printf("[REC_TEST] tls13_decrypt_record failed ret=%d\n", dec_len)
+        unsafe { printf("[REC_TEST] tls13_decrypt_record failed ret=%d\n", dec_len) }
         env.error("Chemical TLS 1.3 decrypt failed")
         return
     } else {}
     if(dec_len != 23) {
-        printf("[REC_TEST] dec_len=%d expected 23\n", dec_len)
+        unsafe { printf("[REC_TEST] dec_len=%d expected 23\n", dec_len) }
         env.error("decrypted length wrong")
         return
     } else {}
     if(inner_ct != SSL_MSG_HANDSHAKE as u8) {
-        printf("[REC_TEST] inner_ct=%d expected 22\n", inner_ct as int)
+        unsafe { printf("[REC_TEST] inner_ct=%d expected 22\n", inner_ct as int) }
         env.error("inner content_type wrong")
         return
     } else {}
@@ -143,4 +144,5 @@ public func INT_tls13_record_against_python(env : &mut TestEnv) {
         env.error("decrypted data mismatch")
         return
     } else {}
-}
+
+}}

@@ -677,7 +677,7 @@ public struct HtmlPage {
     // backslashes, newlines/control chars and the `</` sequence that could
     // otherwise break out of an inline <script> block.
     func append_js_escaped_char_ptr(&mut self, value : *char) {
-        const view = std::string_view(value, strlen(value))
+        const view = std::string_view(value, unsafe(strlen(value)))
         if(shared != null && local_js_depth == 0) { appendJsEscaped(&mut shared.js_data, &view); return }
         appendJsEscaped(&mut pageJs, &view)
     }
@@ -736,33 +736,33 @@ public struct HtmlPage {
             var m_start = index;
             var m_len = fromStart - index;
             if (m_len <= range_len) {
-                var temp = if (m_len <= 1024) (p_stack as *mut char) else (malloc(m_len) as *mut char);
-                memcpy(temp as *mut void, (p_buf + m_start) as *mut void, m_len);
-                memmove((p_buf + m_start) as *mut void, (p_buf + fromStart) as *mut void, range_len);
-                memcpy((p_buf + m_start + range_len) as *mut void, temp as *mut void, m_len);
-                if (m_len > 1024) free(temp as *mut void);
+                var temp = if (m_len <= 1024) (p_stack as *mut char) else (unsafe(malloc(m_len)) as *mut char);
+                unsafe { memcpy(temp as *mut void, (p_buf + m_start) as *mut void, m_len) };
+                unsafe { memmove((p_buf + m_start) as *mut void, (p_buf + fromStart) as *mut void, range_len) };
+                unsafe { memcpy((p_buf + m_start + range_len) as *mut void, temp as *mut void, m_len) };
+                if (m_len > 1024) unsafe { free(temp as *mut void) };
             } else {
-                var temp = if (range_len <= 1024) (p_stack as *mut char) else (malloc(range_len) as *mut char);
-                memcpy(temp as *mut void, (p_buf + fromStart) as *mut void, range_len);
-                memmove((p_buf + m_start + range_len) as *mut void, (p_buf + m_start) as *mut void, m_len);
-                memcpy((p_buf + m_start) as *mut void, temp as *mut void, range_len);
-                if (range_len > 1024) free(temp as *mut void);
+                var temp = if (range_len <= 1024) (p_stack as *mut char) else (unsafe(malloc(range_len)) as *mut char);
+                unsafe { memcpy(temp as *mut void, (p_buf + fromStart) as *mut void, range_len) };
+                unsafe { memmove((p_buf + m_start + range_len) as *mut void, (p_buf + m_start) as *mut void, m_len) };
+                unsafe { memcpy((p_buf + m_start) as *mut void, temp as *mut void, range_len) };
+                if (range_len > 1024) unsafe { free(temp as *mut void) };
             }
         } else {
             var m_start = fromEnd;
             var m_len = index - fromEnd;
             if (range_len <= m_len) {
-                var temp = if (range_len <= 1024) (p_stack as *mut char) else (malloc(range_len) as *mut char);
-                memcpy(temp as *mut void, (p_buf + fromStart) as *mut void, range_len);
-                memmove((p_buf + fromStart) as *mut void, (p_buf + m_start) as *mut void, m_len);
-                memcpy((p_buf + fromStart + m_len) as *mut void, temp as *mut void, range_len);
-                if (range_len > 1024) free(temp as *mut void);
+                var temp = if (range_len <= 1024) (p_stack as *mut char) else (unsafe(malloc(range_len)) as *mut char);
+                unsafe { memcpy(temp as *mut void, (p_buf + fromStart) as *mut void, range_len) };
+                unsafe { memmove((p_buf + fromStart) as *mut void, (p_buf + m_start) as *mut void, m_len) };
+                unsafe { memcpy((p_buf + fromStart + m_len) as *mut void, temp as *mut void, range_len) };
+                if (range_len > 1024) unsafe { free(temp as *mut void) };
             } else {
-                var temp = if (m_len <= 1024) (p_stack as *mut char) else (malloc(m_len) as *mut char);
-                memcpy(temp as *mut void, (p_buf + m_start) as *mut void, m_len);
-                memmove((p_buf + fromStart + m_len) as *mut void, (p_buf + fromStart) as *mut void, range_len);
-                memcpy((p_buf + fromStart) as *mut void, temp as *mut void, range_len);
-                if (m_len > 1024) free(temp as *mut void);
+                var temp = if (m_len <= 1024) (p_stack as *mut char) else (unsafe(malloc(m_len)) as *mut char);
+                unsafe { memcpy(temp as *mut void, (p_buf + m_start) as *mut void, m_len) };
+                unsafe { memmove((p_buf + fromStart + m_len) as *mut void, (p_buf + fromStart) as *mut void, range_len) };
+                unsafe { memcpy((p_buf + fromStart) as *mut void, temp as *mut void, range_len) };
+                if (m_len > 1024) unsafe { free(temp as *mut void) };
             }
         }
     }

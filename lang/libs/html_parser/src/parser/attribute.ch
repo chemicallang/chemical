@@ -83,8 +83,8 @@ func (htmlParser : &mut HtmlParser) parseAttribute(parser : *mut Parser, builder
                         }
 
                     } else {
-                        printf("WHAT ::::: breaking at %d with value %s at line %d and char %d\n", got.type, got.value.data(), got.position.line, got.position.character)
-                        fflush(null)
+                        unsafe { printf("WHAT ::::: breaking at %d with value %s at line %d and char %d\n", got.type, got.value.data(), got.position.line, got.position.character) }
+                        unsafe { fflush(null) }
                         break;
                     }
                 }
@@ -93,8 +93,8 @@ func (htmlParser : &mut HtmlParser) parseAttribute(parser : *mut Parser, builder
                 if(rb.type == ChemicalTokenType.RBrace) {
                     parser.increment();
                 } else {
-                    printf("WHAT ::::: type %d with value %s at line %d and char %d\n", next2.type, next2.value.data(), next2.position.line, next2.position.character)
-                    fflush(null)
+                    unsafe { printf("WHAT ::::: type %d with value %s at line %d and char %d\n", next2.type, next2.value.data(), next2.position.line, next2.position.character) }
+                    unsafe { fflush(null) }
                     parser.error("expected a '}' after the multiple chemical expressions");
                 }
 

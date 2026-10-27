@@ -35,7 +35,7 @@ public struct vector<T> {
         if(elem_size != 0 && init_cap > ((0 as size_t) - 1) / elem_size) {
             panic("vector capacity overflow")
         }
-        var ptr = malloc(sizeof(T) * init_cap) as *mut T
+        var ptr = unsafe(malloc(sizeof(T) * init_cap)) as *mut T
         if(ptr == null && init_cap != 0) {
             panic("vector allocation failed")
         }
@@ -89,7 +89,7 @@ public struct vector<T> {
                 panic("vector capacity overflow")
             }
         }
-        var new_data = realloc(data_ptr, (sizeof(T) * new_cap)) as *mut T;
+        var new_data = unsafe(realloc(data_ptr, (sizeof(T) * new_cap))) as *mut T;
         unsafe {
             if (new_data != null) {
                 data_ptr = new_data;
@@ -116,7 +116,7 @@ public struct vector<T> {
         if (s >= data_cap) {
             ensure_capacity_for_one_more()
         }
-        memcpy(&raw mut data_ptr[s], &raw value, sizeof(T))
+        unsafe { memcpy(&raw mut data_ptr[s], &raw value, sizeof(T)) }
         intrinsics::forget(value)
         data_size = s + 1
     }
@@ -175,7 +175,7 @@ public struct vector<T> {
         if(index == last) {
             data_size = last;
         } else {
-            memmove(&raw mut data_ptr[index], &raw data_ptr[index + 1], sizeof(T) * (last - index));
+            unsafe { memmove(&raw mut data_ptr[index], &raw data_ptr[index + 1], sizeof(T) * (last - index)) };
             data_size = last;
         }
     }

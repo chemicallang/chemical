@@ -49,13 +49,13 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
         if(newCapacity > ((0 as size_t) - 1) / sizeof(*mut unordered_map_node<Key, Value>)) {
             panic("unordered_map capacity overflow")
         }
-        var newTable = malloc(newCapacity * sizeof(*mut unordered_map_node<Key, Value>)) as *mut *mut unordered_map_node<Key, Value>;
+        var newTable = unsafe(malloc(newCapacity * sizeof(*mut unordered_map_node<Key, Value>))) as *mut *mut unordered_map_node<Key, Value>;
         if(newTable == null) {
             panic("failed to allocate unordered_map table")
         }
 
         // Initialize new table to nullptr (empty buckets)
-        memset(newTable, 0, newCapacity * sizeof(*mut unordered_map_node<Key, Value>));
+        unsafe { memset(newTable, 0, newCapacity * sizeof(*mut unordered_map_node<Key, Value>)) };
 
         // Rehash all elements into the new table
         for (var i = 0; i < capacity; i++) {
@@ -81,11 +81,11 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
     @make
     func make() {
         const cap = 16u
-        const allocated = malloc(cap * sizeof(*mut unordered_map_node<Key, Value>)) as *mut *mut unordered_map_node<Key, Value>;
+        const allocated = unsafe(malloc(cap * sizeof(*mut unordered_map_node<Key, Value>))) as *mut *mut unordered_map_node<Key, Value>;
         if(allocated == null) {
             panic("failed to allocate unordered_map table")
         }
-        memset(allocated, 0, cap * sizeof(*mut unordered_map_node<Key, Value>));
+        unsafe { memset(allocated, 0, cap * sizeof(*mut unordered_map_node<Key, Value>)) };
         return unordered_map<Key, Value> {
             table : allocated,
             capacity : cap,
@@ -130,7 +130,7 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
         }
 
         // Insert the new node at the front of the chain
-        const newNode = malloc(sizeof(unordered_map_node<Key, Value>)) as *mut unordered_map_node<Key, Value>;
+        const newNode = unsafe(malloc(sizeof(unordered_map_node<Key, Value>))) as *mut unordered_map_node<Key, Value>;
         if(newNode == null) {
             panic("failed to allocate unordered_map node")
         }

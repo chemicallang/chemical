@@ -43,7 +43,7 @@ public func INT_x25519_shared_against_python(env : &mut TestEnv) {
     if(ret < 0) { env.error("x25519_compute_shared failed"); return } else {}
 
     if(!test_bytes_eq(&raw chem_shared[0], &raw py_shared[0], 32)) {
-        printf("[X25519_TEST] shared[0]: chem=%02x py=%02x\n", chem_shared[0] as int, py_shared[0] as int)
+        unsafe { printf("[X25519_TEST] shared[0]: chem=%02x py=%02x\n", chem_shared[0] as int, py_shared[0] as int) }
         env.error("x25519 shared secret mismatch against Python")
         return
     } else {}

@@ -8,6 +8,6 @@ func test_char_ptr_strings() {
     test("check multiline strings work", () => {
         var first = """abcdefghij
 klmnopqrstuvwxyz"""
-        return strlen(first) == 28
+        return unsafe(strlen(first)) == 28
     })
 }

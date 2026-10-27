@@ -47,7 +47,7 @@ public namespace std {
                 GetSystemInfo(&raw info)
                 return info.dwNumberOfProcessors as usize
             } else {
-                var n = sysconf(_SC_NPROCESSORS_ONLN)
+                var n = unsafe(sysconf(_SC_NPROCESSORS_ONLN))
                 return if (n < 1) 1 as usize else n as usize
             }
         }
@@ -55,7 +55,7 @@ public namespace std {
             comptime if (def.windows) {
                 Sleep(ms as u32)
             } else {
-                usleep((ms * 1000) as int)
+                unsafe { usleep((ms * 1000) as int) }
             }
         }
 
@@ -70,14 +70,14 @@ public namespace std {
                 // 5KB buffer. Give workers an explicit 8MB stack like glibc.
                 var attr_storage:[PTHREAD_ATTR_T_SIZE / 8]ulong
                 const attr_ptr = &raw mut attr_storage[0] as *mut u8
-                if(pthread_attr_init(attr_ptr)!=0){
+                if(unsafe(pthread_attr_init(attr_ptr))!=0){
                     panic("pthread_attr_init")
                 }
-                pthread_attr_setstacksize(attr_ptr, (8 * 1024 * 1024) as size_t)
-                if(pthread_create(&raw mut th,attr_ptr,entry,arg)!=0){
+                unsafe { pthread_attr_setstacksize(attr_ptr, (8 * 1024 * 1024) as size_t) }
+                if(unsafe(pthread_create(&raw mut th,attr_ptr,entry,arg))!=0){
                     panic("pthread_create")
                 }
-                pthread_attr_destroy(attr_ptr)
+                unsafe { pthread_attr_destroy(attr_ptr) }
                 return th
             }
         }
@@ -86,7 +86,7 @@ public namespace std {
                 WaitForSingleObject(h as HANDLE, 0xFFFFFFFFu);
                 CloseHandle(h as HANDLE)
             } else {
-                pthread_join(h,null)
+                unsafe { pthread_join(h,null) }
             }
         }
 
@@ -212,7 +212,7 @@ public namespace std {
             var run:bool
 
             public func <T> submit(&mut self, f:std.function<() => T>):Future<T>{
-                var prom=malloc(sizeof(Promise<T>)) as *mut Promise<T>;
+                var prom=unsafe(malloc(sizeof(Promise<T>))) as *mut Promise<T>;
                 if(prom == null) {
                     panic("failed to allocate thread pool promise")
                 }
@@ -290,7 +290,7 @@ public namespace std {
 
         public func create_pool(n:uint) : ThreadPool {
             if(n==0u){ panic("n==0") }
-            var p=malloc(sizeof(PoolData)) as *mut PoolData;
+            var p=unsafe(malloc(sizeof(PoolData))) as *mut PoolData;
             if(p == null) {
                 panic("failed to allocate thread pool")
             }

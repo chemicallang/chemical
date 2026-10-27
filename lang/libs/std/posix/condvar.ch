@@ -60,7 +60,7 @@ public namespace std {
         @constructor
         func constructor() {
             var c = CondVar { storage : [] }
-            var res = pthread_cond_init(&raw mut c.storage[0], null)
+            var res = unsafe(pthread_cond_init(&raw mut c.storage[0], null))
             if(res != 0) {
                 panic("pthread_cond_init failed")
             }
@@ -70,7 +70,7 @@ public namespace std {
         // wait (blocking). Caller must hold mutex before calling.
         // mutex is your std::mutex (the one storing pthread_mutex_t bytes).
         func wait(&mut self, mutex : &mut std::mutex) {
-            var r = pthread_cond_wait(&raw mut storage[0], &raw mut mutex.storage[0])
+            var r = unsafe(pthread_cond_wait(&raw mut storage[0], &raw mut mutex.storage[0]))
             if(r != 0) {
                 panic("pthread_cond_wait failed")
             }
@@ -89,14 +89,14 @@ public namespace std {
         }
 
         func notify_one(&mut self) {
-            var r = pthread_cond_signal(&raw mut storage[0])
+            var r = unsafe(pthread_cond_signal(&raw mut storage[0]))
             if(r != 0) {
                 panic("pthread_cond_signal failed")
             }
         }
 
         func notify_all(&mut self) {
-            var r = pthread_cond_broadcast(&raw mut storage[0])
+            var r = unsafe(pthread_cond_broadcast(&raw mut storage[0]))
             if(r != 0) {
                 panic("pthread_cond_broadcast failed")
             }
@@ -105,7 +105,7 @@ public namespace std {
         // destructor: POSIX needs destroy, Windows does not.
         @delete
         func delete(&mut self) {
-            var r = pthread_cond_destroy(&raw mut storage[0])
+            var r = unsafe(pthread_cond_destroy(&raw mut storage[0]))
             // best-effort, do not panic in destructor
         }
     }

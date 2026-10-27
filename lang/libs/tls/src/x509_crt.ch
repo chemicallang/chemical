@@ -544,7 +544,7 @@ public namespace tls {
         crt.raw_pem_len = der_len
 
         // Copy DER to heap so it persists after caller's buffer is freed
-        var der_copy = malloc(der_len) as *mut u8
+        var der_copy = unsafe(malloc(der_len)) as *mut u8
         if(der_copy != null) {
             var dc : size_t = 0
             while(dc < der_len) { der_copy[dc] = der_data[dc]; dc += 1 }
@@ -768,7 +768,7 @@ public namespace tls {
                             var val_l : size_t = 0
                             ret = asn1_get_tag(der_data, der_len, &raw mut pos, &raw mut val_t, &raw mut val_l)
                             if(is_san && ret == 0 && val_t == ASN1_OCTET_STRING && val_l > 0 && val_l < 2048) {
-                                var san_mem = malloc(val_l) as *mut u8
+                                var san_mem = unsafe(malloc(val_l)) as *mut u8
                                 if(san_mem != null) {
                                     var si : size_t = 0
                                     while(si < val_l) {

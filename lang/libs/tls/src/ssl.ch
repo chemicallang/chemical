@@ -2995,7 +2995,7 @@ public namespace tls {
 
         // Allocate handshake params on the heap
         if(ssl.handshake == null) {
-            var hs_mem = malloc(sizeof(HandshakeParams)) as *mut HandshakeParams
+            var hs_mem = unsafe(malloc(sizeof(HandshakeParams))) as *mut HandshakeParams
             handshake_params_init(hs_mem)
             ssl.handshake = hs_mem
         }
@@ -3231,11 +3231,11 @@ public namespace tls {
         transform_init(unsafe(&raw mut tr))
         tls12_populate_transform(unsafe(&raw mut tr), &raw cs_info, &raw key_block[0], kb_size)
 
-        var tr_mem = malloc(sizeof(Transform)) as *mut Transform
+        var tr_mem = unsafe(malloc(sizeof(Transform))) as *mut Transform
         unsafe { *tr_mem = tr }
         ssl.transform_out = tr_mem
 
-        var tr_in_mem = malloc(sizeof(Transform)) as *mut Transform
+        var tr_in_mem = unsafe(malloc(sizeof(Transform))) as *mut Transform
         unsafe { *tr_in_mem = tr }
         ssl.transform_in = tr_in_mem
 
@@ -3418,7 +3418,7 @@ public namespace tls {
 
         // Ensure handshake params are allocated
         if(ssl.handshake == null) {
-            var hs_mem = malloc(sizeof(HandshakeParams)) as *mut HandshakeParams
+            var hs_mem = unsafe(malloc(sizeof(HandshakeParams))) as *mut HandshakeParams
             if(hs_mem == null) { return ERR_SSL_INTERNAL_ERROR }
             handshake_params_init(hs_mem)
             ssl.handshake = hs_mem
@@ -3447,7 +3447,7 @@ public namespace tls {
         if(ret < 0) { return ret }
 
         // Store ECDHE public key in handshake params for build_client_hello
-        var pub_mem = malloc(65) as *mut u8
+        var pub_mem = unsafe(malloc(65)) as *mut u8
         if(pub_mem == null) { return ERR_SSL_INTERNAL_ERROR }
         var pi : size_t = 0
         while(pi < 65) { pub_mem[pi] = pub_key[pi]; pi += 1 }
@@ -3464,13 +3464,13 @@ public namespace tls {
         // Store x25519 keypair in handshake params
         if(has_x25519) {
             // Store private key (copy to heap so it persists)
-            var x25519_priv_mem = malloc(32) as *mut u8
+            var x25519_priv_mem = unsafe(malloc(32)) as *mut u8
             if(x25519_priv_mem != null) {
                 var xi : size_t = 0
                 while(xi < 32) { x25519_priv_mem[xi] = x25519_priv[xi]; xi += 1 }
                 ssl.handshake.x25519_private = x25519_priv_mem
             }
-            var x25519_pub_mem = malloc(32) as *mut u8
+            var x25519_pub_mem = unsafe(malloc(32)) as *mut u8
             if(x25519_pub_mem != null) {
                 var xi : size_t = 0
                 while(xi < 32) { x25519_pub_mem[xi] = x25519_pub[xi]; xi += 1 }
@@ -3596,7 +3596,7 @@ public namespace tls {
                         if(ssl.handshake.ecdhe_public != null) {
                             unsafe { dealloc ssl.handshake.ecdhe_public }
                         }
-                        var new_pub_mem = malloc(65) as *mut u8
+                        var new_pub_mem = unsafe(malloc(65)) as *mut u8
                         if(new_pub_mem == null) { return ERR_SSL_INTERNAL_ERROR }
                         var npi : size_t = 0
                         while(npi < 65) { new_pub_mem[npi] = new_pub[npi]; npi += 1 }
@@ -3848,7 +3848,7 @@ public namespace tls {
                                     if(alpn_name_len > 0 && alpn_name_len + 1 <= alpn_list_len &&
                                        name_pos + 1 + alpn_name_len <= ee_end) {
                                         // Store negotiated protocol
-                                        var alpn_mem = malloc(alpn_name_len + 1) as *mut u8
+                                        var alpn_mem = unsafe(malloc(alpn_name_len + 1)) as *mut u8
                                         if(alpn_mem != null) {
                                             var alpi : size_t = 0
                                             while(alpi < alpn_name_len) {
@@ -4171,7 +4171,7 @@ public namespace tls {
                            priv_key : *mut void,
                            cipher_suite : int,
                            transport_async : bool) : *mut SSLContext {
-        var ssl_mem = malloc(sizeof(SSLContext)) as *mut SSLContext
+        var ssl_mem = unsafe(malloc(sizeof(SSLContext))) as *mut SSLContext
         if(ssl_mem == null) { return null }
 
         ssl_init(ssl_mem)
@@ -4192,7 +4192,7 @@ public namespace tls {
         cfg.ciphersuite_list[0] = cs(cipher_suite)
         cfg.ciphersuite_count = 1
 
-        var cfg_mem = malloc(sizeof(SSLConfig)) as *mut SSLConfig
+        var cfg_mem = unsafe(malloc(sizeof(SSLConfig))) as *mut SSLConfig
         if(cfg_mem == null) {
             unsafe { dealloc ssl_mem }
             return null
@@ -4256,16 +4256,16 @@ public namespace tls {
     // ─── EC Private Key Loading ──────────────────────────────────────────
     public func ec_privkey_load_hex_file(path : *char) : *mut ECDSAContext {
         var mode = "r\0" as *char
-        var f = fopen(path, mode)
+        var f = unsafe(fopen(path, mode))
         if(f == null) { return null }
         var hex_buf : [100]u8
         var total_read : size_t = 0
         while(total_read < 100) {
-            var n = fread(unsafe(&raw mut hex_buf[total_read]), 1 as size_t, 100 - total_read, f)
+            var n = unsafe(fread(unsafe(&raw mut hex_buf[total_read]), 1 as size_t, 100 - total_read, f))
             if(n <= 0) { break }
             total_read += n
         }
-        fclose(f)
+        unsafe { fclose(f) }
 
         // Decode up to 96 hex digits (48 bytes for P-384) into key_bytes,
         // skipping any non-hex characters (whitespace, newlines).
@@ -4292,7 +4292,7 @@ public namespace tls {
         var curve : u16 = TLS_GROUP_SECP256R1 as u16
         if(hex_count == 96) { curve = TLS_GROUP_SECP384R1 as u16 }
 
-        var ctx = malloc(sizeof(ECDSAContext)) as *mut ECDSAContext
+        var ctx = unsafe(malloc(sizeof(ECDSAContext))) as *mut ECDSAContext
         if(ctx == null) { return null }
         ecdsa_init(ctx)
         var ret = ecdsa_import_privkey(ctx, &raw key_bytes[0], hex_count / 2, curve)
@@ -4313,29 +4313,29 @@ public namespace tls {
     // or null on failure. Caller is responsible for freeing.
     public func x509_crt_load_pem_file(path : *char) : *mut X509Cert {
         var mode = "rb\0" as *char
-        var f = fopen(path, mode)
+        var f = unsafe(fopen(path, mode))
         if(f == null) { return null }
 
         // Read the entire file into a heap buffer. System CA bundles can be
         // hundreds of KB (e.g. Git for Windows' ca-bundle.crt is ~220KB), so a
         // fixed stack buffer would truncate them and corrupt the heap when the
         // truncated PEM/DER bytes get parsed. Cap at 1MB to bound memory.
-        fseek(f, 0, SEEK_END)
-        var file_size = ftell(f)
-        fseek(f, 0, SEEK_SET)
-        if(file_size <= 0) { fclose(f); return null }
+        unsafe { fseek(f, 0, SEEK_END) }
+        var file_size = unsafe(ftell(f))
+        unsafe { fseek(f, 0, SEEK_SET) }
+        if(file_size <= 0) { unsafe { fclose(f) }; return null }
         if(file_size > 1048576) { file_size = 1048576 }
 
-        var buf = malloc(file_size as size_t) as *mut u8
-        if(buf == null) { fclose(f); return null }
+        var buf = unsafe(malloc(file_size as size_t)) as *mut u8
+        if(buf == null) { unsafe { fclose(f) }; return null }
 
         var total_read : size_t = 0
         while(total_read < file_size as size_t) {
-            var n = fread(buf + total_read, 1 as size_t, (file_size as size_t) - total_read, f)
+            var n = unsafe(fread(buf + total_read, 1 as size_t, (file_size as size_t) - total_read, f))
             if(n <= 0) { break }
             total_read += n
         }
-        fclose(f)
+        unsafe { fclose(f) }
 
         if(total_read == 0) {
             unsafe { dealloc buf }
@@ -4407,17 +4407,17 @@ public namespace tls {
     // Supports:-----BEGIN RSA PRIVATE KEY----- (PKCS#1)
     // Returns a heap-allocated RSAContext (caller must rsa_free + dealloc).
     public func rsa_privkey_load_pem_file(path : *char) : *mut RSAContext {
-        var f = fopen(path, "rb")
+        var f = unsafe(fopen(path, "rb"))
         if(f == null) { return null }
-        fseek(f, 0, 2)
-        var file_size = ftell(f)
-        fseek(f, 0, 0)
-        if(file_size <= 0 || file_size > 1048576) { fclose(f); return null }
-        var buf = malloc(file_size as size_t) as *mut u8
-        if(buf == null) { fclose(f); return null }
-        var nread = fread(buf as *mut void, 1 as size_t, file_size as size_t, f)
-        fclose(f)
-        if(nread != file_size as size_t) { free(buf); return null }
+        unsafe { fseek(f, 0, 2) }
+        var file_size = unsafe(ftell(f))
+        unsafe { fseek(f, 0, 0) }
+        if(file_size <= 0 || file_size > 1048576) { unsafe { fclose(f) }; return null }
+        var buf = unsafe(malloc(file_size as size_t)) as *mut u8
+        if(buf == null) { unsafe { fclose(f) }; return null }
+        var nread = unsafe(fread(buf as *mut void, 1 as size_t, file_size as size_t, f))
+        unsafe { fclose(f) }
+        if(nread != file_size as size_t) { unsafe { free(buf) }; return null }
 
         // Find BEGIN marker
         var begin_marker = "-----BEGIN RSA PRIVATE KEY-----" as *char
@@ -4435,7 +4435,7 @@ public namespace tls {
             if(match) { begin_pos = scan_pos; found = true; break }
             scan_pos += 1
         }
-        if(!found) { free(buf); return null }
+        if(!found) { unsafe { free(buf) }; return null }
 
         // Skip past the BEGIN line
         var data_start = begin_pos + begin_len
@@ -4457,7 +4457,7 @@ public namespace tls {
             if(match) { found = true; break }
             end_pos += 1
         }
-        if(!found) { free(buf); return null }
+        if(!found) { unsafe { free(buf) }; return null }
 
         // Strip whitespace from base64 content
         var b64_buf : [4096]u8
@@ -4471,7 +4471,7 @@ public namespace tls {
             }
             i += 1
         }
-        free(buf)
+        unsafe { free(buf) }
 
         // Decode base64 to DER
         var der_buf : [4096]u8
@@ -4481,7 +4481,7 @@ public namespace tls {
 
         // Parse PKCS#1 RSAPrivateKey DER structure
         // SEQUENCE { version INTEGER, n INTEGER, e INTEGER, d INTEGER, p INTEGER, q INTEGER, ... }
-        var rsa = malloc(sizeof(RSAContext)) as *mut RSAContext
+        var rsa = unsafe(malloc(sizeof(RSAContext))) as *mut RSAContext
         if(rsa == null) { return null }
         rsa_init(rsa, RSA_PKCS_V15, 0)
 
@@ -4580,9 +4580,9 @@ public namespace tls {
     // old buffer — on uninitialized bytes that would free garbage. Zeroed
     // strings have state '\0', so the destructor is a no-op.
     func x509_cert_alloc() : *mut X509Cert {
-        var cert_mem = malloc(sizeof(X509Cert)) as *mut X509Cert
+        var cert_mem = unsafe(malloc(sizeof(X509Cert))) as *mut X509Cert
         if(cert_mem != null) {
-            memset(cert_mem as *mut void, 0, sizeof(X509Cert))
+            unsafe { memset(cert_mem as *mut void, 0, sizeof(X509Cert)) }
             x509_cert_init(cert_mem)
         }
         return cert_mem
@@ -4757,7 +4757,7 @@ public namespace tls {
 
         // Allocate handshake params
         if(ssl.handshake == null) {
-            var hs_mem = malloc(sizeof(HandshakeParams)) as *mut HandshakeParams
+            var hs_mem = unsafe(malloc(sizeof(HandshakeParams))) as *mut HandshakeParams
             handshake_params_init(hs_mem)
             ssl.handshake = hs_mem
         }
@@ -4934,11 +4934,11 @@ public namespace tls {
             sw_i += 1
         }
 
-        var tr_in_mem = malloc(sizeof(Transform)) as *mut Transform
+        var tr_in_mem = unsafe(malloc(sizeof(Transform))) as *mut Transform
         unsafe { *tr_in_mem = srv_tr }
         ssl.transform_in = tr_in_mem
 
-        var tr_out_mem = malloc(sizeof(Transform)) as *mut Transform
+        var tr_out_mem = unsafe(malloc(sizeof(Transform))) as *mut Transform
         unsafe { *tr_out_mem = srv_tr }
 
         // Reset receive sequence number for the client's encrypted handshake records
@@ -5011,7 +5011,7 @@ public namespace tls {
 
         // Ensure handshake params
         if(ssl.handshake == null) {
-            var hs_mem = malloc(sizeof(HandshakeParams)) as *mut HandshakeParams
+            var hs_mem = unsafe(malloc(sizeof(HandshakeParams))) as *mut HandshakeParams
             handshake_params_init(hs_mem)
             ssl.handshake = hs_mem
         }
@@ -5584,7 +5584,7 @@ public namespace tls {
             if(ssl.session.ticket != null) {
                 unsafe { dealloc ssl.session.ticket }
             }
-            var tkt_mem = malloc(ticket_len) as *mut u8
+            var tkt_mem = unsafe(malloc(ticket_len)) as *mut u8
             if(tkt_mem == null) { return }
             var ti : size_t = 0
             while(ti < ticket_len) {

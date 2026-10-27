@@ -115,7 +115,7 @@ func test_condvar_notify_one() : bool {
     var cv = std.CondVar();
     var flag = false;
     var waiter_done = false;
-    var arg = malloc(sizeof(WaitArg)) as *mut WaitArg;
+    var arg = unsafe(malloc(sizeof(WaitArg))) as *mut WaitArg;
     arg.m = &raw mut m;
     arg.cv = &raw mut cv;
     arg.flag = &raw mut flag;
@@ -130,7 +130,7 @@ func test_condvar_notify_one() : bool {
     m.unlock();
 
     h.join()
-    free(arg);
+    unsafe { free(arg) };
     return waiter_done;
 }
 

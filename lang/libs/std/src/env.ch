@@ -5,7 +5,7 @@ public namespace std {
  * and returns the value as a std::string.
  */
 public func get_env(name : &std::string_view) : std::Option<std::string> {
-    var ptr = getenv(name.data());
+    var ptr = unsafe(getenv(name.data()));
     if(ptr == null) {
         return std::Option.None<std::string>();
     }

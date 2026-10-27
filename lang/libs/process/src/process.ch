@@ -238,7 +238,7 @@ public func kill_process(child : *mut ChildProcess, signal : int) : UT_Result {
         std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
         return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
     } else {
-        var r = kill(child._unix.pid, signal);
+        var r = unsafe(kill(child._unix.pid, signal));
         if(r != 0) {
             var e = ProcessError.OperationFailed(string("kill failed"))
             std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
@@ -270,7 +270,7 @@ public func is_running(child : *mut ChildProcess) : bool {
         return true
     } else {
         var status : int = 0
-        var ret = waitpid(child._unix.pid, &raw mut status, 1) // WNOHANG = 1
+        var ret = unsafe(waitpid(child._unix.pid, &raw mut status, 1)) // WNOHANG = 1
         if(ret == 0) {
             return true // still running
         }
@@ -307,7 +307,7 @@ public func write_stdin(child : *mut ChildProcess, data : *vector<u8>) : UT_Resu
             return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
         }
         if(data.size() > 0) {
-            var written = write(child._unix.stdin_fd, data.data() as *void, data.size())
+            var written = unsafe(write(child._unix.stdin_fd, data.data() as *void, data.size()))
             if(written < 0) {
                 var e = ProcessError.IoError(string("write to stdin failed"))
                 std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
@@ -331,7 +331,7 @@ public func close_stdin(child : *mut ChildProcess) : UT_Result {
         return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
     } else {
         if(child._unix.stdin_fd >= 0) {
-            close(child._unix.stdin_fd)
+            unsafe { close(child._unix.stdin_fd) }
             child._unix.stdin_fd = -1
         }
         std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
@@ -392,7 +392,7 @@ public func try_wait(child : *mut ChildProcess) : PR_Result {
         return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
     } else {
         var status : int = 0
-        var pid = waitpid(child._unix.pid, &raw mut status, 1) // WNOHANG
+        var pid = unsafe(waitpid(child._unix.pid, &raw mut status, 1)) // WNOHANG
         if(pid == 0) {
             var e = ProcessError.NotRunning()
             pr_err(e, &mut ret)
@@ -423,7 +423,7 @@ public func current_pid() : int {
     comptime if(def.windows) {
         return GetCurrentProcessId() as int
     } else {
-        return getpid()
+        return unsafe(getpid())
     }
 }
 
@@ -432,7 +432,7 @@ public func sleep_ms(ms : int) {
     comptime if(def.windows) {
         Sleep(ms as u32)
     } else {
-        usleep(ms * 1000)
+        unsafe { usleep(ms * 1000) }
     }
 }
 

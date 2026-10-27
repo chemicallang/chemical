@@ -96,7 +96,7 @@ func (htmlParser : &mut HtmlParser) parseElement(parser : *mut Parser, builder :
             const last_id = parser.getToken();
             if(last_id.type == TokenType.TagName) {
                 parser.increment();
-                if(strncmp(last_id.value.data(), id.value.data(), id.value.size()) != 0) {
+                if(unsafe(strncmp(last_id.value.data(), id.value.data(), id.value.size())) != 0) {
                     parser.error("expected correct identifier for ending tag");
                 }
                 const last_gt = parser.getToken();
@@ -106,8 +106,8 @@ func (htmlParser : &mut HtmlParser) parseElement(parser : *mut Parser, builder :
                     parser.error("expected '>' after the ending tag");
                 }
             } else {
-                printf("expected id, got: %d, %s\n", last_id.type, last_id.value.data());
-                fflush(null)
+                unsafe { printf("expected id, got: %d, %s\n", last_id.type, last_id.value.data()) };
+                unsafe { fflush(null) }
                 parser.error("expected identifier after the '</'");
             }
         } else {

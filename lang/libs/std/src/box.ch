@@ -64,7 +64,7 @@ public struct Box<T> {
 }
 
 public func <T> box(value : T) : Box<T> {
-    var ptr = malloc(sizeof(T)) as *mut T
+    var ptr = unsafe(malloc(sizeof(T))) as *mut T
     if(ptr == null) {
         panic("box allocation failed")
     }

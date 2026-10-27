@@ -1,43 +1,43 @@
 impl core::stream::Stream for CommandLineStream {
 
     func writeChar(&self, value : char) {
-        fwrite(&raw value, 1, 1, get_stdout());
+        unsafe { fwrite(&raw value, 1, 1, get_stdout()) };
     }
 
     func writeUChar(&self, value : uchar) {
-        fwrite(&raw value, 1, 1, get_stdout());
+        unsafe { fwrite(&raw value, 1, 1, get_stdout()) };
     }
 
     func writeSigned(&self, value : bigint) {
         var buf : [64]char;
         var len = self.i64_to_chars(&raw mut buf[0], value);
-        fwrite(&raw buf[0], 1, len, get_stdout());
+        unsafe { fwrite(&raw buf[0], 1, len, get_stdout()) };
     }
 
     func writeUnsigned(&self, value : ubigint) {
         var buf : [64]char;
         var len = self.u64_to_chars(&raw mut buf[0], value);
-        fwrite(&raw buf[0], 1, len, get_stdout());
+        unsafe { fwrite(&raw buf[0], 1, len, get_stdout()) };
     }
 
     func writeStr(&self, value : *char, length : ubigint) {
-        fwrite(value, 1, length, get_stdout());
+        unsafe { fwrite(value, 1, length, get_stdout()) };
     }
 
     func writeStrNoLen(&self, value : *char) {
-        fwrite(value, 1, strlen(value), get_stdout());
+        unsafe { fwrite(value, 1, unsafe(strlen(value)), get_stdout()) };
     }
 
     func writeFloat(&self, value : float) {
         var buf : [128]char;
         var len = self.float_to_chars(&raw mut buf[0], value, 6);
-        fwrite(&raw buf[0], 1, len, get_stdout());
+        unsafe { fwrite(&raw buf[0], 1, len, get_stdout()) };
     }
 
     func writeDouble(&self, value : double) {
         var buf : [256]char;
         var len = self.double_to_chars(&raw mut buf[0], value, 6);
-        fwrite(&raw buf[0], 1, len, get_stdout());
+        unsafe { fwrite(&raw buf[0], 1, len, get_stdout()) };
     }
 }
 

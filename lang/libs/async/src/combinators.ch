@@ -67,8 +67,8 @@ public func <T> select_drop(frame : *mut void) {
 // Become ready with whichever of `a`/`b` completes first. The other is
 // cancelled when this future is dropped.
 public func <T> select(a : core::async::FutureHandle<T>, b : core::async::FutureHandle<T>) : core::async::FutureHandle<T> {
-    var st = malloc(sizeof(SelectState<T>)) as *mut SelectState<T>
-    var vtbl = malloc(sizeof(core::async::FutureTable<T>)) as *mut core::async::FutureTable<T>
+    var st = unsafe(malloc(sizeof(SelectState<T>))) as *mut SelectState<T>
+    var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
     vtbl.poll = select_poll<T>
     vtbl.drop = select_drop<T>
     new(st) SelectState<T> {
@@ -122,8 +122,8 @@ public func <T> timeout_or_drop(frame : *mut void) {
 // cancel it and become `fallback` instead. Use a sentinel `fallback` to detect
 // the timeout at the call site.
 public func <T> timeout_or(handle : core::async::FutureHandle<T>, millis : u64, fallback : T) : core::async::FutureHandle<T> {
-    var st = malloc(sizeof(TimeoutOrState<T>)) as *mut TimeoutOrState<T>
-    var vtbl = malloc(sizeof(core::async::FutureTable<T>)) as *mut core::async::FutureTable<T>
+    var st = unsafe(malloc(sizeof(TimeoutOrState<T>))) as *mut TimeoutOrState<T>
+    var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
     vtbl.poll = timeout_or_poll<T>
     vtbl.drop = timeout_or_drop<T>
     new(st) TimeoutOrState<T> {

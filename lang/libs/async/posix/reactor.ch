@@ -159,7 +159,7 @@ public namespace posix {
      }}
 
     func write_epoll_event(base : *mut u8, ev : u32, fd : int) {
-        memset(base as *mut void, 0, epoll_event_size())
+        unsafe { memset(base as *mut void, 0, epoll_event_size()) }
         put_u32(base, 0u, ev)
         put_u32(base, epoll_data_off(), fd as u32)
     }
@@ -176,7 +176,7 @@ public namespace posix {
     func main_epoll_fd() : int {
         comptime if(def.linux) {
             if(g_epoll_fd < 0) {
-                g_epoll_fd = epoll_create1(0)
+                g_epoll_fd = unsafe(epoll_create1(0))
             }
             return g_epoll_fd
         } else {
@@ -228,13 +228,13 @@ public namespace posix {
         comptime if(def.linux) {
             var epfd = main_epoll_fd()
             if(epfd >= 0) {
-                var buf = malloc(16) as *mut u8
+                var buf = unsafe(malloc(16)) as *mut u8
                 write_epoll_event(buf, events_to_epoll(events), fd)
                 var op = EPOLL_CTL_MOD
                 if(is_new) {
                     op = EPOLL_CTL_ADD
                 }
-                epoll_ctl(epfd, op, fd, buf as *mut void)
+                unsafe { epoll_ctl(epfd, op, fd, buf as *mut void) }
                 unsafe {
                     dealloc buf
                 }
@@ -260,7 +260,7 @@ public namespace posix {
             fdset_set(&raw mut wfds, fd)
         }
         var zero = zeroed<TimeVal>()
-        var rc = select(fd + 1, &raw mut rfds, &raw mut wfds, null, &raw mut zero)
+        var rc = unsafe(select(fd + 1, &raw mut rfds, &raw mut wfds, null, &raw mut zero))
         if(rc <= 0) {
             return false
         }
@@ -278,22 +278,22 @@ public namespace posix {
             if(fd < 0) {
                 return false
             }
-            var epfd = epoll_create1(0)
+            var epfd = unsafe(epoll_create1(0))
             if(epfd < 0) {
                 return select_is_ready(fd, events)
             }
-            var buf = malloc(16) as *mut u8
+            var buf = unsafe(malloc(16)) as *mut u8
             write_epoll_event(buf, events_to_epoll(events), fd)
-            if(epoll_ctl(epfd, EPOLL_CTL_ADD, fd, buf as *mut void) != 0) {
+            if(unsafe(epoll_ctl(epfd, EPOLL_CTL_ADD, fd, buf as *mut void)) != 0) {
                 unsafe {
                     dealloc buf
                 }
-                close(epfd)
+                unsafe { close(epfd) }
                 return select_is_ready(fd, events)
             }
-            var out = malloc(16) as *mut u8
-            var rc = epoll_wait(epfd, out as *mut void, 1, 0)
-            close(epfd)
+            var out = unsafe(malloc(16)) as *mut u8
+            var rc = unsafe(epoll_wait(epfd, out as *mut void, 1, 0))
+            unsafe { close(epfd) }
             var ready = false
             if(rc > 0) {
                 ready = epoll_to_revents(get_u32(out, 0u)) != 0
@@ -390,7 +390,7 @@ public namespace posix {
         var tv = zeroed<TimeVal>()
         tv.tv_sec = (timeout_ms / 1000) as long
         tv.tv_usec = ((timeout_ms % 1000) * 1000) as long
-        var rc = select(maxfd + 1, &raw mut rfds, &raw mut wfds, null, &raw mut tv)
+        var rc = unsafe(select(maxfd + 1, &raw mut rfds, &raw mut wfds, null, &raw mut tv))
         if(rc > 0) {
             i = 0u
             while(i < n) {
@@ -419,8 +419,8 @@ public namespace posix {
                 return 0
             }
             var esz = epoll_event_size()
-            var buf = malloc(n * esz) as *mut u8
-            var rc = epoll_wait(epfd, buf as *mut void, n as int, timeout_ms)
+            var buf = unsafe(malloc(n * esz)) as *mut u8
+            var rc = unsafe(epoll_wait(epfd, buf as *mut void, n as int, timeout_ms))
             if(rc > 0) {
                 var i = 0u
                 while(i < rc as ulong) {

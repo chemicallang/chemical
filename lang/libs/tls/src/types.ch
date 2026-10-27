@@ -576,7 +576,7 @@ public namespace tls {
             var ssl : SSLContext
             ssl.conf = null
             ssl.conf_owned = false
-            var sess_mem = malloc(sizeof(Session)) as *mut Session
+            var sess_mem = unsafe(malloc(sizeof(Session))) as *mut Session
             if(sess_mem != null) {
                 sess_mem.ticket = null
                 unsafe { *sess_mem = Session() }

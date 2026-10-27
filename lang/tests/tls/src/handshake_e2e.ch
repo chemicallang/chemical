@@ -25,7 +25,7 @@ public func E2E_tls13_pinned_aes256_gcm_sha384(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20100_cert.pem /tmp/tls_20100_key.pem 20100 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -58,17 +58,17 @@ public func E2E_tls13_pinned_aes256_gcm_sha384(env : &mut TestEnv) {
     // DIAG
     var dhex : [97]char
     test_bytes_to_hex(&raw ctx.tls13_keys.handshake_secret[0], 48, &raw mut dhex[0])
-    printf("DIAG_HS=%s\n", &raw dhex[0])
+    unsafe { printf("DIAG_HS=%s\n", &raw dhex[0]) }
     test_bytes_to_hex(&raw ctx.tls13_keys.master_secret[0], 48, &raw mut dhex[0])
-    printf("DIAG_MS=%s\n", &raw dhex[0])
+    unsafe { printf("DIAG_MS=%s\n", &raw dhex[0]) }
     test_bytes_to_hex(&raw ctx.tls13_keys.resumption_master_secret[0], 48, &raw mut dhex[0])
-    printf("DIAG_CFH=%s\n", &raw dhex[0])
+    unsafe { printf("DIAG_CFH=%s\n", &raw dhex[0]) }
     test_bytes_to_hex(&raw ctx.tls13_keys.exporter_master_secret[0], 48, &raw mut dhex[0])
-    printf("DIAG_FULLH=%s\n", &raw dhex[0])
+    unsafe { printf("DIAG_FULLH=%s\n", &raw dhex[0]) }
     test_bytes_to_hex(&raw ctx.tls13_keys.client_application_traffic_secret[0], 48, &raw mut dhex[0])
-    printf("DIAG_CATS=%s\n", &raw dhex[0])
+    unsafe { printf("DIAG_CATS=%s\n", &raw dhex[0]) }
     test_bytes_to_hex(&raw ctx.tls13_keys.server_application_traffic_secret[0], 48, &raw mut dhex[0])
-    printf("DIAG_SATS=%s\n", &raw dhex[0])
+    unsafe { printf("DIAG_SATS=%s\n", &raw dhex[0]) }
 
     var req = "GET / HTTP/1.0\r\n\r\n"
     ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
@@ -93,7 +93,7 @@ public func E2E_tls13_pinned_chacha20_poly1305(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20101_cert.pem /tmp/tls_20101_key.pem 20101 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -144,7 +144,7 @@ public func E2E_tls13_with_rsa_certificate(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20102_cert.pem /tmp/tls_20102_key.pem 20102 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -188,7 +188,7 @@ public func E2E_tls12_pinned_rsa_aes256_gcm(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20103_cert.pem /tmp/tls_20103_key.pem 20103 1.2 AES256-GCM-SHA384:@SECLEVEL=0"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_2
@@ -237,7 +237,7 @@ public func E2E_tls12_pinned_rsa_aes256_cbc(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20104_cert.pem /tmp/tls_20104_key.pem 20104 1.2 AES256-SHA256:@SECLEVEL=0"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_2
@@ -283,7 +283,7 @@ public func E2E_alpn_negotiation_h2(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20105_cert.pem /tmp/tls_20105_key.pem 20105 1.3 DEFAULT h2"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -342,7 +342,7 @@ public func E2E_verified_handshake_trusted_ca(env : &mut TestEnv) {
     var ca = x509_crt_load_pem_file("/tmp/tls_vca20106_root.pem")
     if(ca == null) { env.error("verified CA: could not load root pem"); return }
 
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.ca_chain = ca
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -399,7 +399,7 @@ public func E2E_verified_handshake_intermediate_chain(env : &mut TestEnv) {
     var root = x509_crt_load_pem_file("/tmp/tls_vic20107_root.pem")
     if(root == null) { env.error("intermediate CA: could not load root pem"); return }
 
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.ca_chain = root
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -438,7 +438,7 @@ public func E2E_multi_roundtrip_single_connection(env : &mut TestEnv) {
     test_py_run_background(string_view("mround /tmp/tls_20108_cert.pem /tmp/tls_20108_key.pem 20108 1.3 5 1"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -489,7 +489,7 @@ public func E2E_many_small_roundtrips_fifty(env : &mut TestEnv) {
     test_py_run_background(string_view("mround /tmp/tls_20109_cert.pem /tmp/tls_20109_key.pem 20109 1.3 50 1"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -537,7 +537,7 @@ public func E2E_upload_96kb_pattern_validated(env : &mut TestEnv) {
     test_py_run_background(string_view("echo /tmp/tls_20110_cert.pem /tmp/tls_20110_key.pem 20110 1 98304"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -595,7 +595,7 @@ public func E2E_upload_exact_max_fragment_16k(env : &mut TestEnv) {
     test_py_run_background(string_view("echo /tmp/tls_20111_cert.pem /tmp/tls_20111_key.pem 20111 1 16384"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -640,13 +640,13 @@ public func E2E_two_connections_interleaved_isolated(env : &mut TestEnv) {
     test_py_run_background(string_view("mround /tmp/tls_20112_cert.pem /tmp/tls_20112_key.pem 20113 1.3 2 1"))
     test_server_wait()
 
-    var ctxA : SSLContext; ssl_init(unsafe(&raw mut ctxA))
+    var ctxA : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctxA))
     var cfgA = ssl_config_init(SSL_IS_CLIENT)
     cfgA.authmode = SSL_VERIFY_NONE
     cfgA.max_tls_version = SSL_VERSION_TLS1_3
     ssl_set_config(unsafe(&raw mut ctxA), &raw mut cfgA)
 
-    var ctxB : SSLContext; ssl_init(unsafe(&raw mut ctxB))
+    var ctxB : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctxB))
     var cfgB = ssl_config_init(SSL_IS_CLIENT)
     cfgB.authmode = SSL_VERIFY_NONE
     cfgB.max_tls_version = SSL_VERSION_TLS1_3
@@ -696,7 +696,7 @@ public func E2E_clean_close_returns_eof(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20114_cert.pem /tmp/tls_20114_key.pem 20114 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -767,7 +767,7 @@ public func E2E_tls13_server_pinned_aes256_gcm(env : &mut TestEnv) {
         return
     }
 
-    var ssl_mem = malloc(sizeof(SSLContext)) as *mut SSLContext
+    var ssl_mem = unsafe(malloc(sizeof(SSLContext))) as *mut SSLContext
     ssl_init(ssl_mem)
     ssl_set_socket(ssl_mem, client_sock)
 
@@ -862,7 +862,7 @@ public func E2E_tls13_server_pinned_p384_aes256_gcm(env : &mut TestEnv) {
         return
     }
 
-    var ssl_mem = malloc(sizeof(SSLContext)) as *mut SSLContext
+    var ssl_mem = unsafe(malloc(sizeof(SSLContext))) as *mut SSLContext
     ssl_init(ssl_mem)
     ssl_set_socket(ssl_mem, client_sock)
 
@@ -956,7 +956,7 @@ public func E2E_tls13_server_fragmented_clienthello(env : &mut TestEnv) {
         return
     }
 
-    var ssl_mem = malloc(sizeof(SSLContext)) as *mut SSLContext
+    var ssl_mem = unsafe(malloc(sizeof(SSLContext))) as *mut SSLContext
     ssl_init(ssl_mem)
     ssl_set_socket(ssl_mem, client_sock)
 

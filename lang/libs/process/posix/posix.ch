@@ -9,10 +9,10 @@ using std::vector;
 // Redirect a file descriptor to /dev/null so un-captured output doesn't
 // leak to the parent's terminal.
 func redirect_to_devnull(fd : int) {
-    var dn = open("/dev/null", O_WRONLY, 0);
+    var dn = unsafe(open("/dev/null", O_WRONLY, 0));
     if(dn >= 0) {
-        dup2(dn, fd);
-        close(dn);
+        unsafe { dup2(dn, fd) };
+        unsafe { close(dn) };
     } else {}
 }
 
@@ -30,18 +30,18 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
     var has_stdin_pipe = false;
 
     if(cfg.capture_stdout) {
-        if(pipe(&raw mut stdout_pipe[0]) != 0) { return false } else {}
+        if(unsafe(pipe(&raw mut stdout_pipe[0])) != 0) { return false } else {}
     } else {}
     if(cfg.capture_stderr || cfg.merge_stdout_stderr) {
-        if(pipe(&raw mut stderr_pipe[0]) != 0) {
-            if(cfg.capture_stdout) { close(stdout_pipe[0]); close(stdout_pipe[1]); } else {}
+        if(unsafe(pipe(&raw mut stderr_pipe[0])) != 0) {
+            if(cfg.capture_stdout) { unsafe { close(stdout_pipe[0]) }; unsafe { close(stdout_pipe[1]) }; } else {}
             return false
         } else {}
     } else {}
     if(cfg.stdin_data.size() > 0) {
-        if(pipe(&raw mut stdin_pipe[0]) != 0) {
-            if(cfg.capture_stdout) { close(stdout_pipe[0]); close(stdout_pipe[1]); } else {}
-            if(cfg.capture_stderr || cfg.merge_stdout_stderr) { close(stderr_pipe[0]); close(stderr_pipe[1]); } else {}
+        if(unsafe(pipe(&raw mut stdin_pipe[0])) != 0) {
+            if(cfg.capture_stdout) { unsafe { close(stdout_pipe[0]) }; unsafe { close(stdout_pipe[1]) }; } else {}
+            if(cfg.capture_stderr || cfg.merge_stdout_stderr) { unsafe { close(stderr_pipe[0]) }; unsafe { close(stderr_pipe[1]) }; } else {}
             return false
         } else {}
         has_stdin_pipe = true;
@@ -59,68 +59,68 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
         use_envp = true;
     } else {}
 
-    var pid = fork();
+    var pid = unsafe(fork());
     if(pid == -1) {
-        if(cfg.capture_stdout) { close(stdout_pipe[0]); close(stdout_pipe[1]); } else {}
-        if(cfg.capture_stderr || cfg.merge_stdout_stderr) { close(stderr_pipe[0]); close(stderr_pipe[1]); } else {}
-        if(has_stdin_pipe) { close(stdin_pipe[0]); close(stdin_pipe[1]); } else {}
+        if(cfg.capture_stdout) { unsafe { close(stdout_pipe[0]) }; unsafe { close(stdout_pipe[1]) }; } else {}
+        if(cfg.capture_stderr || cfg.merge_stdout_stderr) { unsafe { close(stderr_pipe[0]) }; unsafe { close(stderr_pipe[1]) }; } else {}
+        if(has_stdin_pipe) { unsafe { close(stdin_pipe[0]) }; unsafe { close(stdin_pipe[1]) }; } else {}
         return false
     } else {}
 
     if(pid == 0) {
         // ---- Child: async-signal-safe operations only ----
         if(cfg.working_dir.size() > 0) {
-            chdir(cfg.working_dir.data())
+            unsafe { chdir(cfg.working_dir.data()) }
         } else {}
         if(cfg.capture_stdout) {
-            close(stdout_pipe[0])
-            dup2(stdout_pipe[1], 1)
+            unsafe { close(stdout_pipe[0]) }
+            unsafe { dup2(stdout_pipe[1], 1) }
             if(cfg.merge_stdout_stderr) {
-                dup2(stdout_pipe[1], 2)
+                unsafe { dup2(stdout_pipe[1], 2) }
             }
-            close(stdout_pipe[1])
+            unsafe { close(stdout_pipe[1]) }
         } else if(cfg.merge_stdout_stderr) {
-            close(stderr_pipe[0])
-            dup2(stderr_pipe[1], 1)
-            dup2(stderr_pipe[1], 2)
-            close(stderr_pipe[1])
+            unsafe { close(stderr_pipe[0]) }
+            unsafe { dup2(stderr_pipe[1], 1) }
+            unsafe { dup2(stderr_pipe[1], 2) }
+            unsafe { close(stderr_pipe[1]) }
         } else {
             redirect_to_devnull(1)
         }
         if(cfg.merge_stdout_stderr) {
             // fd2 already handled above
         } else if(cfg.capture_stderr) {
-            close(stderr_pipe[0])
-            dup2(stderr_pipe[1], 2)
-            close(stderr_pipe[1])
+            unsafe { close(stderr_pipe[0]) }
+            unsafe { dup2(stderr_pipe[1], 2) }
+            unsafe { close(stderr_pipe[1]) }
         } else {
             redirect_to_devnull(2)
         }
         if(has_stdin_pipe) {
-            close(stdin_pipe[1])
-            dup2(stdin_pipe[0], 0)
-            close(stdin_pipe[0])
+            unsafe { close(stdin_pipe[1]) }
+            unsafe { dup2(stdin_pipe[0], 0) }
+            unsafe { close(stdin_pipe[0]) }
         } else {}
         // execve takes pre-built argv/envp and the parent-resolved path, so the
         // child performs no PATH lookup (no getenv) itself.
         if(use_envp) {
-            execve(prog, &raw argv.ptrs[0], &raw envp.ptrs[0]);
+            unsafe { execve(prog, &raw argv.ptrs[0], &raw envp.ptrs[0]) };
         } else {
-            execve(prog, &raw argv.ptrs[0], get_environ());
+            unsafe { execve(prog, &raw argv.ptrs[0], get_environ()) };
         }
-        _exit(1);
+        unsafe { _exit(1) };
     } else {}
 
     // ---- Parent: feed stdin, then read the child's output ----
     if(has_stdin_pipe) {
-        close(stdin_pipe[0]);
-        write(stdin_pipe[1], cfg.stdin_data.data() as *void, cfg.stdin_data.size());
-        close(stdin_pipe[1]);
+        unsafe { close(stdin_pipe[0]) };
+        unsafe { write(stdin_pipe[1], cfg.stdin_data.data() as *void, cfg.stdin_data.size()) };
+        unsafe { close(stdin_pipe[1]) };
     } else {}
 
-    if(cfg.capture_stdout) { close(stdout_pipe[1]); } else {}
-    if(cfg.capture_stderr && !cfg.merge_stdout_stderr) { close(stderr_pipe[1]); } else {}
-    if(cfg.merge_stdout_stderr && !cfg.capture_stdout) { close(stderr_pipe[1]); } else {}
+    if(cfg.capture_stdout) { unsafe { close(stdout_pipe[1]) }; } else {}
+    if(cfg.capture_stderr && !cfg.merge_stdout_stderr) { unsafe { close(stderr_pipe[1]) }; } else {}
+    if(cfg.merge_stdout_stderr && !cfg.capture_stdout) { unsafe { close(stderr_pipe[1]) }; } else {}
 
     var stdout_data = vector<u8>();
     var stderr_data = vector<u8>();
@@ -141,27 +141,27 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
         if(cfg.capture_stderr && !cfg.merge_stdout_stderr) { read_available(stderr_pipe[0], &raw mut stderr_data); } else {}
         if(cfg.merge_stdout_stderr && !cfg.capture_stdout) { read_available(stderr_pipe[0], &raw mut stdout_data); } else {}
 
-        var ret = waitpid(pid, &raw mut status, 1) // WNOHANG
+        var ret = unsafe(waitpid(pid, &raw mut status, 1)) // WNOHANG
         if(ret != 0) {
             done = true
         } else if(cfg.timeout_ms > 0) {
-            usleep(10000) // 10ms
+            unsafe { usleep(10000) } // 10ms
             elapsed += 10
             if(elapsed >= cfg.timeout_ms) {
                 timed_out = true
-                kill(pid, 9) // SIGKILL
-                waitpid(pid, &raw mut status, 0)
+                unsafe { kill(pid, 9) } // SIGKILL
+                unsafe { waitpid(pid, &raw mut status, 0) }
                 done = true
             }
         } else {
-            usleep(5000)
+            unsafe { usleep(5000) }
         }
     }
 
     // Final drain now that the child is dead (pipe yields remaining data then EOF).
-    if(cfg.capture_stdout) { read_available(stdout_pipe[0], &raw mut stdout_data); close(stdout_pipe[0]); } else {}
-    if(cfg.capture_stderr && !cfg.merge_stdout_stderr) { read_available(stderr_pipe[0], &raw mut stderr_data); close(stderr_pipe[0]); } else {}
-    if(cfg.merge_stdout_stderr && !cfg.capture_stdout) { read_available(stderr_pipe[0], &raw mut stdout_data); close(stderr_pipe[0]); } else {}
+    if(cfg.capture_stdout) { read_available(stdout_pipe[0], &raw mut stdout_data); unsafe { close(stdout_pipe[0]) }; } else {}
+    if(cfg.capture_stderr && !cfg.merge_stdout_stderr) { read_available(stderr_pipe[0], &raw mut stderr_data); unsafe { close(stderr_pipe[0]) }; } else {}
+    if(cfg.merge_stdout_stderr && !cfg.capture_stdout) { read_available(stderr_pipe[0], &raw mut stdout_data); unsafe { close(stderr_pipe[0]) }; } else {}
 
     var exit_code : int = 0;
     var signaled : bool = false;
@@ -181,8 +181,8 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
 
 // Make a file descriptor non-blocking so reads don't stall the timeout loop.
 func set_nonblock(fd : int) {
-    var flags = fcntl(fd, F_GETFL, 0);
-    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    var flags = unsafe(fcntl(fd, F_GETFL, 0));
+    unsafe { fcntl(fd, F_SETFL, flags | O_NONBLOCK) };
 }
 
 // Read whatever is currently available from a non-blocking fd, stopping on
@@ -215,18 +215,18 @@ public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool 
     var stdin_pipe : [2]int;
 
     if(cfg.capture_stdout) {
-        if(pipe(&raw mut stdout_pipe[0]) != 0) { return false } else {}
+        if(unsafe(pipe(&raw mut stdout_pipe[0])) != 0) { return false } else {}
     } else {}
     if(cfg.capture_stderr || cfg.merge_stdout_stderr) {
-        if(pipe(&raw mut stderr_pipe[0]) != 0) {
-            if(cfg.capture_stdout) { close(stdout_pipe[0]); close(stdout_pipe[1]); } else {}
+        if(unsafe(pipe(&raw mut stderr_pipe[0])) != 0) {
+            if(cfg.capture_stdout) { unsafe { close(stdout_pipe[0]) }; unsafe { close(stdout_pipe[1]) }; } else {}
             return false
         } else {}
     } else {}
     // Always create a stdin pipe so write_stdin/close_stdin work.
-    if(pipe(&raw mut stdin_pipe[0]) != 0) {
-        if(cfg.capture_stdout) { close(stdout_pipe[0]); close(stdout_pipe[1]); } else {}
-        if(cfg.capture_stderr) { close(stderr_pipe[0]); close(stderr_pipe[1]); } else {}
+    if(unsafe(pipe(&raw mut stdin_pipe[0])) != 0) {
+        if(cfg.capture_stdout) { unsafe { close(stdout_pipe[0]) }; unsafe { close(stdout_pipe[1]) }; } else {}
+        if(cfg.capture_stderr) { unsafe { close(stderr_pipe[0]) }; unsafe { close(stderr_pipe[1]) }; } else {}
         return false
     } else {}
 
@@ -243,57 +243,57 @@ public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool 
         use_envp = true;
     } else {}
 
-    var pid = fork();
+    var pid = unsafe(fork());
     if(pid == -1) {
-        if(cfg.capture_stdout) { close(stdout_pipe[0]); close(stdout_pipe[1]); } else {}
-        if(cfg.capture_stderr) { close(stderr_pipe[0]); close(stderr_pipe[1]); } else {}
-        close(stdin_pipe[0]); close(stdin_pipe[1]);
+        if(cfg.capture_stdout) { unsafe { close(stdout_pipe[0]) }; unsafe { close(stdout_pipe[1]) }; } else {}
+        if(cfg.capture_stderr) { unsafe { close(stderr_pipe[0]) }; unsafe { close(stderr_pipe[1]) }; } else {}
+        unsafe { close(stdin_pipe[0]) }; unsafe { close(stdin_pipe[1]) };
         return false
     } else {}
 
     if(pid == 0) {
         // ---- Child: async-signal-safe operations only ----
         if(cfg.working_dir.size() > 0) {
-            chdir(cfg.working_dir.data())
+            unsafe { chdir(cfg.working_dir.data()) }
         } else {}
         if(cfg.capture_stdout) {
-            close(stdout_pipe[0])
+            unsafe { close(stdout_pipe[0]) }
             if(cfg.merge_stdout_stderr) {
-                dup2(stdout_pipe[1], 1)
-                dup2(stdout_pipe[1], 2)
-                close(stdout_pipe[1])
+                unsafe { dup2(stdout_pipe[1], 1) }
+                unsafe { dup2(stdout_pipe[1], 2) }
+                unsafe { close(stdout_pipe[1]) }
             } else {
-                dup2(stdout_pipe[1], 1)
-                close(stdout_pipe[1])
+                unsafe { dup2(stdout_pipe[1], 1) }
+                unsafe { close(stdout_pipe[1]) }
             }
         } else {
             redirect_to_devnull(1)
         }
         if(cfg.capture_stderr && !cfg.merge_stdout_stderr) {
-            close(stderr_pipe[0])
-            dup2(stderr_pipe[1], 2)
-            close(stderr_pipe[1])
+            unsafe { close(stderr_pipe[0]) }
+            unsafe { dup2(stderr_pipe[1], 2) }
+            unsafe { close(stderr_pipe[1]) }
         } else if(cfg.merge_stdout_stderr && !cfg.capture_stdout) {
-            close(stderr_pipe[0])
-            dup2(stderr_pipe[1], 1)
-            dup2(stderr_pipe[1], 2)
-            close(stderr_pipe[1])
+            unsafe { close(stderr_pipe[0]) }
+            unsafe { dup2(stderr_pipe[1], 1) }
+            unsafe { dup2(stderr_pipe[1], 2) }
+            unsafe { close(stderr_pipe[1]) }
         } else if(!cfg.merge_stdout_stderr && !cfg.capture_stderr) {
             redirect_to_devnull(2)
         } else {}
         // Child reads from stdin_pipe[0]; parent writes to stdin_pipe[1].
-        close(stdin_pipe[1]); dup2(stdin_pipe[0], 0); close(stdin_pipe[0]);
+        unsafe { close(stdin_pipe[1]) }; unsafe { dup2(stdin_pipe[0], 0) }; unsafe { close(stdin_pipe[0]) };
         if(use_envp) {
-            execve(prog, &raw argv.ptrs[0], &raw envp.ptrs[0]);
+            unsafe { execve(prog, &raw argv.ptrs[0], &raw envp.ptrs[0]) };
         } else {
-            execve(prog, &raw argv.ptrs[0], get_environ());
+            unsafe { execve(prog, &raw argv.ptrs[0], get_environ()) };
         }
-        _exit(1);
+        unsafe { _exit(1) };
     } else {}
 
-    if(cfg.capture_stdout) { close(stdout_pipe[1]); } else {}
-    if(cfg.capture_stderr || cfg.merge_stdout_stderr) { close(stderr_pipe[1]); } else {}
-    close(stdin_pipe[0]); // parent keeps stdin_pipe[1] for writes
+    if(cfg.capture_stdout) { unsafe { close(stdout_pipe[1]) }; } else {}
+    if(cfg.capture_stderr || cfg.merge_stdout_stderr) { unsafe { close(stderr_pipe[1]) }; } else {}
+    unsafe { close(stdin_pipe[0]) }; // parent keeps stdin_pipe[1] for writes
 
     child._unix.pid = pid;
     child._unix.stdout_fd = if(cfg.capture_stdout) stdout_pipe[0] else -1;
@@ -309,28 +309,28 @@ public func posix_wait(child : *mut ChildProcess, out : *mut ProcessResult) : bo
 
     if(child._unix.stdout_fd >= 0) {
         if(!read_all_fd(child._unix.stdout_fd, &raw mut stdout_data)) {
-            close(child._unix.stdout_fd);
+            unsafe { close(child._unix.stdout_fd) };
             return false
         } else {}
-        close(child._unix.stdout_fd);
+        unsafe { close(child._unix.stdout_fd) };
         child._unix.stdout_fd = -1;
     } else {}
     if(child._unix.stderr_fd >= 0) {
         if(!read_all_fd(child._unix.stderr_fd, &raw mut stderr_data)) {
-            close(child._unix.stderr_fd);
+            unsafe { close(child._unix.stderr_fd) };
             return false
         } else {}
-        close(child._unix.stderr_fd);
+        unsafe { close(child._unix.stderr_fd) };
         child._unix.stderr_fd = -1;
     } else {}
     // Close stdin pipe if still open.
     if(child._unix.stdin_fd >= 0) {
-        close(child._unix.stdin_fd);
+        unsafe { close(child._unix.stdin_fd) };
         child._unix.stdin_fd = -1;
     } else {}
 
     var status : int = 0;
-    waitpid(child._unix.pid, &raw mut status, 0);
+    unsafe { waitpid(child._unix.pid, &raw mut status, 0) };
 
     var exit_code : int = 0;
     var signaled : bool = false;
@@ -382,7 +382,7 @@ func build_envp(env : *vector<string>) : ArgvBuffer {
 func read_all_fd(fd : int, data : *mut vector<u8>) : bool {
     var buf : [4096]u8;
     while(true) {
-        var n = read(fd, &raw mut buf[0], 4096);
+        var n = unsafe(read(fd, &raw mut buf[0], 4096));
         if(n < 0) {
             if(n == -1) { continue; } else {}
             return false
@@ -436,7 +436,7 @@ func lookup_program(prog : *char, out : *mut char, out_size : size_t) : *mut cha
         }
         i += 1;
     }
-    var path = getenv("PATH");
+    var path = unsafe(getenv("PATH"));
     if(path == null) {
         var k : size_t = 0;
         while(prog[k] != 0 && k < out_size) { out[k] = prog[k]; k += 1 }
@@ -454,7 +454,7 @@ func lookup_program(prog : *char, out : *mut char, out_size : size_t) : *mut cha
         var pi : size_t = 0;
         while(prog[pi] != 0 && len < out_size) { out[len] = prog[pi]; len += 1; pi += 1 }
         if(len < out_size) { out[len] = 0 }
-        if(access(out, X_OK) == 0) { return out }
+        if(unsafe(access(out, X_OK)) == 0) { return out }
         if(path[seg_end] == 0) { break }
         seg_start = seg_end + 1;
     }

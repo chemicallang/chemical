@@ -4,7 +4,7 @@ func hex_digit_to_int(c : char) : int {
         return c - '0';
     }
     // Normalize to lowercase.
-    c = tolower(c) as char;
+    c = unsafe(tolower(c)) as char;
     if (c >= 'a' && c <= 'f') {
         return c - 'a' + 10;
     }
@@ -109,18 +109,18 @@ func print_color_hex(color : uint32_t) {
         // Opaque color: try to use 3-digit shorthand if possible.
         if (r_shorthand && g_shorthand && b_shorthand) {
             // Each channel is representable in 1 digit.
-            printf("#%X%X%X", r >> 4, g >> 4, b >> 4);
+            unsafe { printf("#%X%X%X", r >> 4, g >> 4, b >> 4) };
         } else {
             // Use full 6-digit form.
-            printf("#%02X%02X%02X", r, g, b);
+            unsafe { printf("#%02X%02X%02X", r, g, b) };
         }
     } else {
         // Transparent color: check for shorthand possibility for all channels.
         var a_shorthand : bool = ((a >> 4) == (a & 0xF));
         if (r_shorthand && g_shorthand && b_shorthand && a_shorthand) {
-            printf("#%X%X%X%X", r >> 4, g >> 4, b >> 4, a >> 4);
+            unsafe { printf("#%X%X%X%X", r >> 4, g >> 4, b >> 4, a >> 4) };
         } else {
-            printf("#%02X%02X%02X%02X", r, g, b, a);
+            unsafe { printf("#%02X%02X%02X%02X", r, g, b, a) };
         }
     }
 }

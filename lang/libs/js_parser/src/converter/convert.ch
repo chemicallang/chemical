@@ -470,7 +470,7 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter, un
             if(unary.prefix) {
                 emitter.emit_text(&unary.operator)
                 // Check if operator needs a space (if it's a word)
-                if(unary.operator.size() > 2 && isalpha(unary.operator.get(0) as int)) {
+                if(unary.operator.size() > 2 && unsafe(isalpha(unary.operator.get(0) as int))) {
                      emitter.emit_text(" ")
                 }
                 convert_js_node(unary.operand, emitter, universal_mode)

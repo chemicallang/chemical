@@ -260,10 +260,13 @@ Implemented:
   fields (`W<&int>`) are checked too; `PhantomData<&T>` is storage-free and
   exempt. `zeroed:unsafe` remains the explicit unsafe escape. Negative tests
   cover direct/generic reference rejection, a plain struct, and PhantomData.
-- S2.6 FFI report: `SAFE-FFI-001` warns on a call to an `@extern` function
-  from a safe context (the callee's contract is invisible to the compiler).
-  Report-only: ~700 call sites remain, mostly the audited std/fs/net/test C
-  wrappers; enforcement waits for that migration.
+- S2.6 FFI enforced: `SAFE-FFI-001` is a hard error for a call to an
+  `@extern` function from a safe context (the callee's contract is invisible
+  to the compiler). Every in-tree call site is now inside a per-call
+  `unsafe(...)` expression or `unsafe { ... }` statement block (883 library
+  calls plus test/build.lab call sites); async functions use expression-level
+  unsafe because the async lowering owns their bodies. The negative test now
+  expects the error, and `extern_call_in_unsafe_ok` covers the accepted form.
 - S4.6b per-use dropck: a known callee returning a destructor-bearing aggregate
   from one reference argument binds that loan to the result place; returning a
   `Ref`/`RefMut` (including through `Option`) keeps the loan live until the
@@ -503,7 +506,7 @@ Codes are stable and grouped by domain:
 | `SAFE-BORROW-*` | aliasing / loans |
 | `SAFE-VALID-001` | zero-initialization would create a null reference |
 | `SAFE-VIS-001` | private struct member initialized outside its type |
-| `SAFE-FFI-001` | extern call in a safe context (report-only) |
+| `SAFE-FFI-001` | extern call in a safe context (enforced) |
 | `SAFE-COPY-001` | user type used with a `Copy` bound but no explicit `impl Copy` |
 | `SAFE-COPY-002` | `impl Copy` on a type with a destructor |
 | `SAFE-COPY-003` | `impl Copy` on a type whose field is not Copy |

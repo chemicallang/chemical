@@ -21,22 +21,22 @@ public namespace osrand {
         } else {
             var path = "/dev/urandom\0" as *char
             var mode = "rb\0" as *char
-            var f = fopen(path, mode)
+            var f = unsafe(fopen(path, mode))
             if(f == null) { return -1 }
 
             var remaining = len
             var offset : size_t = 0
             while(remaining > 0) {
-                var n = fread(buf + offset, 1 as size_t, remaining, f)
+                var n = unsafe(fread(buf + offset, 1 as size_t, remaining, f))
                 if(n <= 0) {
-                    fclose(f)
+                    unsafe { fclose(f) }
                     return -1
                 }
                 offset += n
                 remaining -= n
             }
 
-            fclose(f)
+            unsafe { fclose(f) }
             return 0
         }
     }

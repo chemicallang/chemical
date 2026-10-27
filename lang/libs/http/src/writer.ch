@@ -105,22 +105,22 @@ public namespace http {
                 CloseHandle(fh);
                 return ok != 0;
             } else {
-                var fd = open(path, O_RDONLY, 0);
+                var fd = unsafe(open(path, O_RDONLY, 0));
                 if (fd < 0) { return false; }
-                var size_ll = net::lseek(fd, 0 as longlong, SEEK_END);
-                if (size_ll < 0) { close(fd); return false; }
-                if (net::lseek(fd, 0 as longlong, SEEK_SET) < 0) { close(fd); return false; }
+                var size_ll = unsafe(net::lseek(fd, 0 as longlong, SEEK_END));
+                if (size_ll < 0) { unsafe { close(fd) }; return false; }
+                if (unsafe(net::lseek(fd, 0 as longlong, SEEK_SET)) < 0) { unsafe { close(fd) }; return false; }
                 self.send_headers((size_ll as usize));
                 var remaining = size_ll;
                 var offset: longlong = 0;
                 while (remaining > 0) {
                     var to_send = if(remaining > (1 << 30)) (1 << 30) as size_t else remaining as size_t;
-                    var sent = net::sendfile(self.sock as int, fd, &raw mut offset, to_send);
+                    var sent = unsafe(net::sendfile(self.sock as int, fd, &raw mut offset, to_send));
                     if (sent <= 0) { break; }
                     remaining = size_ll - offset;
                 }
                 var success = (offset == size_ll);
-                close(fd);
+                unsafe { close(fd) };
                 return success;
             }
         }

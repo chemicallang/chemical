@@ -38,7 +38,7 @@ public func get(name : string_view) : Option<string> {
         }
         return Option.Some(string.make_no_len(&raw mut buf[0]))
     } else {
-        var ptr = getenv(name.data());
+        var ptr = unsafe(getenv(name.data()));
         if(ptr == null) {
             return Option.None<string>();
         }
@@ -65,7 +65,7 @@ public func set(name : string_view, value : string_view) : Result<UnitTy, EnvErr
         if(r == 0) { return Result.Err(EnvError.OperationFailed(string("SetEnvironmentVariableA failed"))); }
         return Result.Ok(UnitTy{});
     } else {
-        var r = setenv(name.data(), value.data(), 1);
+        var r = unsafe(setenv(name.data(), value.data(), 1));
         if(r != 0) { return Result.Err(EnvError.OperationFailed(string("setenv failed"))); }
         return Result.Ok(UnitTy{});
     }
@@ -78,7 +78,7 @@ public func unset(name : string_view) : Result<UnitTy, EnvError> {
         if(r == 0) { return Result.Err(EnvError.OperationFailed(string("SetEnvironmentVariableA failed"))); }
         return Result.Ok(UnitTy{});
     } else {
-        var r = unsetenv(name.data());
+        var r = unsafe(unsetenv(name.data()));
         if(r != 0) { return Result.Err(EnvError.OperationFailed(string("unsetenv failed"))); }
         return Result.Ok(UnitTy{});
     }

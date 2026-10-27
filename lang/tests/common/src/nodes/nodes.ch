@@ -221,7 +221,7 @@ func test_nodes() {
     })
     test("address of works", () => {
         var x = 5;
-        printf("checkout the address %p\n", &x);
+        unsafe { printf("checkout the address %p\n", &x) };
         return true;
     });
     test("dereferencing works", () => {

@@ -140,11 +140,11 @@ public struct u16string {
         }
         // capacity multiplied by 2 because we need two bytes for a single character
         // +2 is for safety, we need to add a null terminator (always)
-        var d = malloc((capacity * 2) + 2) as *mut u16
+        var d = unsafe(malloc((capacity * 2) + 2)) as *mut u16
         if(d == null) {
             panic("u16_string allocation failed")
         }
-        memcpy(d, from_data, length * 2)
+        unsafe { memcpy(d, from_data, length * 2) }
         d[length] = 0u16
         storage.heap.data = d;
         storage.heap.length = length;
@@ -160,7 +160,7 @@ public struct u16string {
         }
         // new_capacity multiplied by 2 because we need two bytes for a single character
         // +2 for the null terminator
-        var d = realloc(storage.heap.data, (new_capacity * 2) + 2) as *mut u16
+        var d = unsafe(realloc(storage.heap.data, (new_capacity * 2) + 2)) as *mut u16
         if(d == null) {
             panic("u16_string allocation failed")
         }
@@ -279,13 +279,13 @@ public struct u16string {
         ensure_mut(new_size + 1);
         if(state == '1') {
             // len * 2 (because len is of 2 byte characters, memcpy works for single byte pointers)
-            memcpy(&raw mut storage.sso.buffer[offset], value, len * 2)
+            unsafe { memcpy(&raw mut storage.sso.buffer[offset], value, len * 2) }
             storage.sso.buffer[new_size] = 0u16
             storage.sso.length = new_size
         } else {
             // state is '2', it cannot be '0'
             // len * 2 (because len is of 2 byte characters, memcpy works for single byte pointers)
-            memcpy(&raw mut storage.heap.data[offset], value, len * 2)
+            unsafe { memcpy(&raw mut storage.heap.data[offset], value, len * 2) }
             storage.heap.data[new_size] = 0u16
             storage.heap.length = new_size
         }
@@ -356,7 +356,7 @@ public struct u16string {
             panic("u16_string capacity overflow")
         }
         var out_cap = len + 1;
-        var out = malloc((out_cap * 2) + 2) as *mut u16;
+        var out = unsafe(malloc((out_cap * 2) + 2)) as *mut u16;
         if(out == null) {
             panic("u16_string allocation failed")
         }
@@ -459,11 +459,11 @@ public struct u16string {
         if(real_len > (((0 as size_t) - 1) - 2) / 2) {
             panic("u16_string capacity overflow")
         }
-        var buf = malloc((real_len * 2) + 2) as *mut u16;
+        var buf = unsafe(malloc((real_len * 2) + 2)) as *mut u16;
         if(buf == null) {
             panic("u16_string allocation failed")
         }
-        memcpy(buf, &raw src[start], real_len * 2);
+        unsafe { memcpy(buf, &raw src[start], real_len * 2) };
         buf[real_len] = 0u16;
         if(real_len < U16_STR_BUFF_SIZE) {
             result.state = '1'

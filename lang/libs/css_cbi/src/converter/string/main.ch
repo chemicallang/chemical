@@ -229,7 +229,7 @@ func (converter : &mut ASTConverter) put_class_name_chain(hash : uint32_t, prefi
     converter.put_view_chain(std::string_view(&raw className[0], 9u))
 }
 
-func generate_random_32bit() : uint32_t { return (rand() as uint32_t << 16) | rand() as uint32_t; }
+func generate_random_32bit() : uint32_t { return (unsafe(rand()) as uint32_t << 16) | unsafe(rand()) as uint32_t; }
 
 // Deterministic class seed for non-hashable CSSOMs (those with dynamic values,
 // media queries, nested rules, or keyframes). Previously this used rand(), which

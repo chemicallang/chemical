@@ -263,7 +263,7 @@ public func FULL_https_routing_matrix_all_routes(env : &mut TestEnv) {
 
 // Shared counter for concurrent-client tests.
 struct FullCapCounter {
-    var success : uint;
+    var success : uint = zeroed:unsafe<uint>();
     var lock : std.mutex
 }
 
@@ -855,6 +855,7 @@ func full_parse_content_length(buf : *u8, head_end : size_t) : size_t {
 // Content-Length within the header block, not the body region.
 func full_read_request(ssl : *mut SSLContext, buf : *mut u8, buf_size : size_t,
                        filled : *mut size_t, consumed : *mut size_t) : int {
+                           unsafe {
     while(true) {
         var head_end = srv_mem_find_crlfcrlf(buf, 0, *filled)
         if(head_end != SRV_NPOS) {
@@ -870,7 +871,8 @@ func full_read_request(ssl : *mut SSLContext, buf : *mut u8, buf_size : size_t,
         *filled = *filled + n as size_t
     }
     return -1
-}
+
+                       }}
 
 // A Chemical TLS server accepts five sequential connections from a real
 // Python client â€” GET, POST, PUT, DELETE, PATCH â€” echoing bodies/methods;
@@ -923,12 +925,12 @@ public func FULL_python_client_method_matrix_over_tls(env : &mut TestEnv) {
             env.error("methods matrix: client never connected")
             var errbuf : [512]u8
             var en = test_read_file("/tmp/fm20_err.txt", &raw mut errbuf[0], 511)
-            if(en > 0) { errbuf[en] = 0; printf("[FM20 py-stderr] %s\n", &raw errbuf[0]) }
+            if(en > 0) { errbuf[en] = 0; unsafe { printf("[FM20 py-stderr] %s\n", &raw errbuf[0]) } }
             served_all = false
             break
         }
 
-        var ssl_mem = malloc(sizeof(SSLContext)) as *mut SSLContext
+        var ssl_mem = unsafe(malloc(sizeof(SSLContext))) as *mut SSLContext
         ssl_init(ssl_mem)
         ssl_set_socket(ssl_mem, cs)
         var cfg = ssl_config_init(SSL_IS_SERVER)
@@ -949,7 +951,7 @@ public func FULL_python_client_method_matrix_over_tls(env : &mut TestEnv) {
             env.error(dmsg.data())
             var errbuf2 : [512]u8
             var en2 = test_read_file("/tmp/fm20_err.txt", &raw mut errbuf2[0], 511)
-            if(en2 > 0) { errbuf2[en2] = 0; printf("[FM20 py-stderr] %s\n", &raw errbuf2[0]) }
+            if(en2 > 0) { errbuf2[en2] = 0; unsafe { printf("[FM20 py-stderr] %s\n", &raw errbuf2[0]) } }
             ssl_free(ssl_mem); unsafe { dealloc ssl_mem }
             net::close_socket(cs)
             served_all = false

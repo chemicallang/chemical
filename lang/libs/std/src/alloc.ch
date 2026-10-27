@@ -51,7 +51,7 @@ struct DebugTracker {
 }
 
 func debug_tracker_create() : *mut DebugTracker {
-    var tracker = malloc(sizeof(DebugTracker)) as *mut DebugTracker
+    var tracker = unsafe(malloc(sizeof(DebugTracker))) as *mut DebugTracker
     tracker.head = null
     tracker.count = 0
     tracker.total_bytes = 0
@@ -59,7 +59,7 @@ func debug_tracker_create() : *mut DebugTracker {
 }
 
 func debug_tracker_record_alloc(tracker : *mut DebugTracker, ptr : *mut void, size : size_t) {
-    var record = malloc(sizeof(AllocRecord)) as *mut AllocRecord
+    var record = unsafe(malloc(sizeof(AllocRecord))) as *mut AllocRecord
     record.ptr = ptr
     record.size = size
     record.next = tracker.head
@@ -80,7 +80,7 @@ func debug_tracker_record_dealloc(tracker : *mut DebugTracker, ptr : *mut void) 
             }
             tracker.total_bytes -= curr.size
             tracker.count--
-            free(curr as *mut void)
+            unsafe { free(curr as *mut void) }
             return
         }
         prev = curr
@@ -92,17 +92,17 @@ func debug_tracker_destroy(tracker : *mut DebugTracker) {
     var curr = tracker.head
     while(curr != null) {
         var next_node = curr.next
-        free(curr as *mut void)
+        unsafe { free(curr as *mut void) }
         curr = next_node
     }
-    free(tracker as *mut void)
+    unsafe { free(tracker as *mut void) }
 }
 
 func debug_tracker_print_leaks(tracker : *mut DebugTracker) {
     if(tracker.count > 0) {
-        printf("[Allocator] %zu leaks detected (%zu bytes unfreed)\n", tracker.count, tracker.total_bytes)
+        unsafe { printf("[Allocator] %zu leaks detected (%zu bytes unfreed)\n", tracker.count, tracker.total_bytes) }
     } else {
-        printf("[Allocator] no leaks detected\n")
+        unsafe { printf("[Allocator] no leaks detected\n") }
     }
 }
 
@@ -121,7 +121,7 @@ public struct GlobalAllocator {
     }
 
     func alloc(&self, layout : Layout) : Result<*mut void, AllocError> {
-        var ptr = malloc(layout.size)
+        var ptr = unsafe(malloc(layout.size))
         if(ptr == null) {
             return Result.Err(AllocError.OutOfMemory())
         }
@@ -135,11 +135,11 @@ public struct GlobalAllocator {
         comptime if(def.debug) {
             debug_tracker_record_dealloc(self._debug as *mut DebugTracker, ptr)
         }
-        free(ptr)
+        unsafe { free(ptr) }
     }
 
     func grow(&self, old : *mut void, old_layout : Layout, new_size : size_t) : Result<*mut void, AllocError> {
-        var ptr = realloc(old, new_size)
+        var ptr = unsafe(realloc(old, new_size))
         if(ptr == null) {
             return Result.Err(AllocError.OutOfMemory())
         }
@@ -152,7 +152,7 @@ public struct GlobalAllocator {
     }
 
     func shrink(&self, old : *mut void, old_layout : Layout, new_size : size_t) : Result<*mut void, AllocError> {
-        var ptr = realloc(old, new_size)
+        var ptr = unsafe(realloc(old, new_size))
         if(ptr == null) {
             return Result.Err(AllocError.OutOfMemory())
         }
@@ -170,7 +170,7 @@ public struct GlobalAllocator {
             return result
         }
         var Ok(ptr) = result else unreachable
-        memset(ptr, 0, layout.size)
+        unsafe { memset(ptr, 0, layout.size) }
         return result
     }
 
@@ -191,7 +191,7 @@ public struct GlobalAllocator {
 // Convenience free functions (bypass GlobalAllocator)
 
 public func alloc_bytes(size : size_t) : Result<*mut void, AllocError> {
-    var ptr = malloc(size)
+    var ptr = unsafe(malloc(size))
     if(ptr == null) {
         return Result.Err(AllocError.OutOfMemory())
     }
@@ -199,7 +199,7 @@ public func alloc_bytes(size : size_t) : Result<*mut void, AllocError> {
 }
 
 public func dealloc_bytes(ptr : *mut void) {
-    free(ptr)
+    unsafe { free(ptr) }
 }
 
 public func alloc_zeroed_bytes(size : size_t) : Result<*mut void, AllocError> {
@@ -208,7 +208,7 @@ public func alloc_zeroed_bytes(size : size_t) : Result<*mut void, AllocError> {
         return result
     }
     var Ok(ptr) = result else unreachable
-    memset(ptr, 0, size)
+    unsafe { memset(ptr, 0, size) }
     return result
 }
 

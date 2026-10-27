@@ -54,7 +54,7 @@ func test_net_async_loopback(env : &mut TestEnv) {
         env.error("client recv failed")
     } else {
         buf[9] = '\0'
-        if(strcmp(&raw mut buf[0] as *char, "async-net") != 0) {
+        if(unsafe(strcmp(&raw mut buf[0] as *char, "async-net")) != 0) {
             env.error("echo payload mismatch")
         }
     }

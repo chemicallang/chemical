@@ -340,9 +340,9 @@ impl TestReporter for ConsoleReporter {
         const grp = string_view(outcome.group.data(), outcome.group.size())
         if(self.first_group || !sv_eq_str(&self.cur_group, grp)) {
             if(grp.size() == 0) {
-                printf("%s%sGroup: %s(no-group)%s\n", col_bold(), col_blue(), col_gray(), col_reset())
+                unsafe { printf("%s%sGroup: %s(no-group)%s\n", col_bold(), col_blue(), col_gray(), col_reset()) }
             } else {
-                printf("%s%sGroup: %s%.*s%s\n", col_bold(), col_blue(), col_gray(), grp.size() as int, grp.data(), col_reset())
+                unsafe { printf("%s%sGroup: %s%.*s%s\n", col_bold(), col_blue(), col_gray(), grp.size() as int, grp.data(), col_reset()) }
             }
             self.cur_group.clear()
             self.cur_group.append_view(&grp)
@@ -352,11 +352,11 @@ impl TestReporter for ConsoleReporter {
         var status_color = if(outcome.passed) col_green() else col_red()
         var status_text = if(outcome.passed) "PASS" else "FAIL"
 
-        printf("  %s- %s%.*s%s%s", status_color, col_bold(), outcome.name.size() as int, outcome.name.data(), col_reset(), col_reset())
-        printf(" %d\n", outcome.id)
+        unsafe { printf("  %s- %s%.*s%s%s", status_color, col_bold(), outcome.name.size() as int, outcome.name.data(), col_reset(), col_reset()) }
+        unsafe { printf(" %d\n", outcome.id) }
 
         if(outcome.message.size() > 0) {
-            printf("     failed message parsing with message : %.*s\n", outcome.message.size() as int, outcome.message.data())
+            unsafe { printf("     failed message parsing with message : %.*s\n", outcome.message.size() as int, outcome.message.data()) }
         }
 
         if(self.display.display_logs && outcome.logs_count > 0) {
@@ -367,15 +367,15 @@ impl TestReporter for ConsoleReporter {
                 const icon = log_type_icon(l.type)
                 const lname = log_type_name(l.type)
                 if (l.line > 0 || l.character > 0) {
-                    printf("     %s%s%s %s%s (line %zu:%zu)%s\n",
+                    unsafe { printf("     %s%s%s %s%s (line %zu:%zu)%s\n",
                            lt_color, icon, col_reset(),
                            lt_color, lname,
                            l.line, l.character,
-                           col_reset());
+                           col_reset()) };
                 } else {
-                    printf("     %s%s%s %s%s%s\n",
+                    unsafe { printf("     %s%s%s %s%s%s\n",
                            lt_color, icon, col_reset(),
-                           lt_color, lname, col_reset());
+                           lt_color, lname, col_reset()) };
                 }
                 if (l.message.size() > 0) {
                     print_log_multiline(get_stdout(), l.message.data())
@@ -384,12 +384,12 @@ impl TestReporter for ConsoleReporter {
             }
         }
 
-        printf("    ");
+        unsafe { printf("    ") };
         if(outcome.exit_code != 0) {
-            printf("[%s%d%s] ", status_color, outcome.exit_code, col_reset());
+            unsafe { printf("[%s%d%s] ", status_color, outcome.exit_code, col_reset()) };
         }
-        printf("%s%s%s\n", status_color, status_text, col_reset());
-        printf("\n");
+        unsafe { printf("%s%s%s\n", status_color, status_text, col_reset()) };
+        unsafe { printf("\n") };
     }
 
     func end_runner(&mut self) {
@@ -489,7 +489,7 @@ public struct TestRunnerHandle {
 public func argv_has_flag(argv : **char, argc : int, flag : *char) : bool {
     var i : int = 1
     while(i < argc) {
-        if(strcmp(argv[i], flag) == 0) { return true }
+        if(unsafe(strcmp(argv[i], flag)) == 0) { return true }
         i += 1
     }
     return false
@@ -497,7 +497,7 @@ public func argv_has_flag(argv : **char, argc : int, flag : *char) : bool {
 
 /** Compare a runner name against a C string without allocating. */
 func runner_name_is(name : string_view, expected : *char) : bool {
-    const elen = strlen(expected)
+    const elen = unsafe(strlen(expected))
     if(name.size() != elen) { return false }
     var i : size_t = 0
     while(i < elen) {
@@ -541,7 +541,7 @@ public func (runner : &mut MultiTestRunner) run(argc : int, argv : **char) : int
             continue
         }
         if(!is_child) {
-            printf("\n%s%s==> runner: %.*s%s\n", col_bold(), col_cyan(), h.name.size() as int, h.name.data(), col_reset())
+            unsafe { printf("\n%s%s==> runner: %.*s%s\n", col_bold(), col_cyan(), h.name.size() as int, h.name.data(), col_reset()) }
         }
         h.run_fn(h, &mut console, argc, argv)
         i += 1

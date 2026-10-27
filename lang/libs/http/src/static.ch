@@ -44,8 +44,8 @@ public namespace http {
                 var attrs = GetFileAttributesA(full_path.c_str());
                 if (attrs != 0xFFFFFFFFu && (attrs & 0x10u) != 0u) { is_dir = true; }
             } else {
-                var d = opendir(full_path.c_str());
-                if (d != null) { is_dir = true; closedir(d); }
+                var d = unsafe(opendir(full_path.c_str()));
+                if (d != null) { is_dir = true; unsafe { closedir(d) }; }
             }
 
             if (is_dir) {

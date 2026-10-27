@@ -33,7 +33,7 @@ public namespace std {
         @constructor
         func constructor() {
             var l = rwlock { storage : [] }
-            var res = pthread_rwlock_init(&raw mut l.storage[0], null)
+            var res = unsafe(pthread_rwlock_init(&raw mut l.storage[0], null))
             if(res != 0) {
                 panic("pthread_rwlock_init failed")
             }
@@ -41,29 +41,29 @@ public namespace std {
         }
 
         func read_lock(&mut self) {
-            var res = pthread_rwlock_rdlock(&raw mut storage[0])
+            var res = unsafe(pthread_rwlock_rdlock(&raw mut storage[0]))
             if(res != 0) {
                 panic("pthread_rwlock_rdlock failed")
             }
         }
 
         func try_read_lock(&mut self) : bool {
-            return pthread_rwlock_tryrdlock(&raw mut storage[0]) == 0
+            return unsafe(pthread_rwlock_tryrdlock(&raw mut storage[0])) == 0
         }
 
         func write_lock(&mut self) {
-            var res = pthread_rwlock_wrlock(&raw mut storage[0])
+            var res = unsafe(pthread_rwlock_wrlock(&raw mut storage[0]))
             if(res != 0) {
                 panic("pthread_rwlock_wrlock failed")
             }
         }
 
         func try_write_lock(&mut self) : bool {
-            return pthread_rwlock_trywrlock(&raw mut storage[0]) == 0
+            return unsafe(pthread_rwlock_trywrlock(&raw mut storage[0])) == 0
         }
 
         func read_unlock(&mut self) {
-            var res = pthread_rwlock_unlock(&raw mut storage[0])
+            var res = unsafe(pthread_rwlock_unlock(&raw mut storage[0]))
             if(res != 0) {
                 panic("pthread_rwlock_unlock failed")
             }
@@ -76,7 +76,7 @@ public namespace std {
         @delete
         func delete(&mut self) {
             // best-effort, as with std::mutex
-            pthread_rwlock_destroy(&raw mut storage[0])
+            unsafe { pthread_rwlock_destroy(&raw mut storage[0]) }
         }
     }
 }

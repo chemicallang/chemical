@@ -24,7 +24,7 @@ public func open_zip(path : *char, output : *mut ZipArchive) : std::Result<std::
         return std.Result.Err(ArchiveError.FileNotFound())
     }
     var Ok(fd) = read_result else unreachable
-    memcpy(&raw mut output.data, &raw fd, sizeof(vector<u8>))
+    unsafe { memcpy(&raw mut output.data, &raw fd, sizeof(vector<u8>)) }
     new(&raw fd) vector<u8>()
 
     output.data_loaded = true

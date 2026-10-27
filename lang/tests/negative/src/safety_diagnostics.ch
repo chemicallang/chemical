@@ -342,22 +342,6 @@ func unsafe_deref_warning_has_code(env : &mut TestEnv) {
 }
 
 @test
-func dropck_report_on_borrowed_destructor(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
-    // Report-only dropck prerequisite (S3.4): a destructor on a type that can
-    // hold borrowed data is not yet checked for a live borrow at drop time.
-    var ch = "struct Holder<'a> {\n    var r : &'a int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    return 0\n}\n"
-    expect_compile_warning_id(env, "dropck_borrowed_dtor", ch, "SAFE-DROP-002")
-}
-
-@test
-func dropck_report_not_emitted_without_borrows(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "struct Owned {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    return 0\n}\n"
-    expect_compile_success(env, "dropck_no_borrow_ok", ch)
-}
-
-@test
 func neg_conditional_where_generic_negative_applies(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "using core::ops::Clone;\nstruct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\nstruct Wrapper<T> {\n    var value : T\n}\nimpl<T> !Sync for Wrapper<T> where T: Clone {}\npublic func main() : int {\n    var h = Holder<Wrapper<int>> { data = null }\n    return h.check()\n}\n"

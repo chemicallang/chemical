@@ -102,10 +102,6 @@ public:
 
     void VisitStructDecl(StructDefinition* def);
 
-    // Report-only dropck prerequisite (S3.4): a destructor on a type that can
-    // hold borrowed data is not yet checked for a live borrow at drop time.
-    std::unordered_set<uint64_t> dropck_warned;
-    void check_dropck(MembersContainer* def);
     // Reject moving a destructor-bearing element out of an array by index: the
     // array still runs the element destructor, so the moved copy would be freed
     // twice. Copy elements and field reads remain allowed.

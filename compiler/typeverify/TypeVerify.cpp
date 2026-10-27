@@ -254,30 +254,6 @@ void verify_container_field_types(TypeVerifier& verifier, MembersContainer* cont
     }
 }
 
-void TypeVerifier::check_dropck(MembersContainer* def) {
-    if (!def || def->destructor_func() == nullptr) return;
-    bool borrowed = false;
-    if (def->kind() == ASTNodeKind::StructDecl) {
-        if (!def->as_struct_def_unsafe()->lifetime_params.empty()) borrowed = true;
-    }
-    if (!borrowed) {
-        for (auto* var : def->variables()) {
-            BaseType* t = var ? var->known_type() : nullptr;
-            BaseType* c = t ? t->canonical() : nullptr;
-            if (c && c->kind() == BaseTypeKind::Reference) {
-                borrowed = true;
-                break;
-            }
-        }
-    }
-    if (!borrowed) return;
-    const uint64_t loc = def->encoded_location().encoded;
-    if (!dropck_warned.insert(loc).second) return;
-    diagnoser.warn(def).with_code("SAFE-DROP-002")
-        << "destructor on '" << def->get_node_identifier()
-        << "' may observe borrowed data; dropck enforcement waits for the borrow checker";
-}
-
 void TypeVerifier::check_index_move(Value* value) {
     if (!value) return;
     Value* t = value;
@@ -311,7 +287,6 @@ void TypeVerifier::check_index_move(Value* value) {
 }
 
 void TypeVerifier::VisitStructDecl(StructDefinition* def) {
-    check_dropck(def);
     const auto before = lifetime_scope.size();
     for(const auto lifetime : def->lifetime_params) lifetime_scope.push_back(lifetime);
     RecursiveVisitor::VisitStructDecl(def);
@@ -322,7 +297,6 @@ void TypeVerifier::VisitStructDecl(StructDefinition* def) {
 }
 
 void TypeVerifier::VisitUnionDecl(UnionDef* def) {
-    check_dropck(def);
     RecursiveVisitor::VisitUnionDecl(def);
     verify_container_inherited(*this, def);
     verify_container_composition(*this, def);
@@ -330,7 +304,6 @@ void TypeVerifier::VisitUnionDecl(UnionDef* def) {
 }
 
 void TypeVerifier::VisitVariantDecl(VariantDefinition* def) {
-    check_dropck(def);
     RecursiveVisitor::VisitVariantDecl(def);
     verify_container_inherited(*this, def);
     verify_container_composition(*this, def);

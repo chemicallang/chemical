@@ -487,10 +487,11 @@
 >   MIR gives the variant a root move path with no payload children; moving a
 >   payload out stays a front-end pattern-match effect. Unions remain raw
 >   storage. `MIRTests` covers both roots.
-> - S3.4 dropck prerequisite report: `SAFE-DROP-002` is a report-only warning
->   on a user `@delete` whose type has lifetime parameters or a
->   reference-typed field (it may observe borrowed data at drop time).
->   Enforcement requires regions and lands with M4.
+> - S3.4/S4.6b dropck: the declaration-shape `SAFE-DROP-002` warning is retired.
+>   Per-use dropck binds a destructor-bearing aggregate returned from one
+>   reference argument to that loan; `SAFE-LIFE-002` checks the guard's drop
+>   against the referent's storage end, including variant payloads
+>   (`Option<Ref>`/`RefCell`).
 > - S3.6 single init/move source: the flow-sensitive AST definite-assignment
 >   pass and the AST move tracker are removed. `MIRMoveCheck` is the sole
 >   producer of init/move/drop state. A `MoveOut` MIR marker checks by-value
@@ -499,8 +500,8 @@
 >   destructor-bearing array element by index (`SAFE-MOVE-001`). The
 >   module-scope uninitialized-global check remains in `TypeVerify`. First
 >   assignment now destroys the old value through the runtime drop flag instead
->   of `is_first_init`. `MIRTests` is `4585 checks`. `SAFE-DROP-002` is in the
->   stable-code table.
+>   of `is_first_init`. `MIRTests` is `4585 checks`. `SAFE-DROP-002` is retired
+>   (per-use dropck uses `SAFE-LIFE-002`; the code is not reused).
 > - S1.5m conditional positive auto-trait impls: `unsafe impl<T> Send for
 >   Box<T> where T: Send` is evaluated against the concrete arguments at a
 >   `where T: Send` use site (and recursively for nested boxes), instead of
@@ -665,8 +666,11 @@
 > so `v.push(v.len())` works while a live `&v` + `v.push(2)` is rejected.
 > Known-callee detection uses `MIRSymbolRecord::has_body`, and pre-declared
 > symbols carry their type and region signature. Migrated
-> `universal_cbi/router/emit.ch` (read before `get_mut`). Next: S4.2b variance
-> and dropck/async/Pin/provenance.
+> `universal_cbi/router/emit.ch` (read before `get_mut`). Per-use dropck:
+> destructor-bearing aggregate results from one reference argument carry that
+> loan, so `SAFE-LIFE-002` rejects a `Ref`/`RefMut` (even through `Option`)
+> that outlives its cell; `SAFE-DROP-002` is retired. Next: S4.2b variance,
+> async/Pin, and provenance.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

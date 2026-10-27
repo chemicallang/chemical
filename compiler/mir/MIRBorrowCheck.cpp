@@ -134,6 +134,40 @@ bool targets_overlap(const MIRFunction& fn, const LoanTarget& a, const LoanTarge
     return paths_overlap(fn, a.path, b.path);
 }
 
+/** Does this type (transitively, through variant/union payloads) hold a reference? */
+bool contains_reference(const MIRModule& module, TypeId type, uint32_t depth = 0) {
+    if (type == MIR_INVALID_ID || type >= module.types.types.size() ||
+        depth > 6) {
+        return false;
+    }
+    const MIRTypeRecord& rec = module.types.types[type];
+    if (rec.kind == MIRTypeKind::Reference) return true;
+    if (rec.kind != MIRTypeKind::Struct && rec.kind != MIRTypeKind::Union &&
+        rec.kind != MIRTypeKind::Variant && rec.kind != MIRTypeKind::Array) {
+        return false;
+    }
+    if (rec.kind == MIRTypeKind::Array) {
+        return contains_reference(module, rec.element, depth + 1);
+    }
+    for (uint32_t i = 0; i < rec.data_count; ++i) {
+        const MIRFieldInfo* field = module.types.field_of(type, i);
+        if (field == nullptr) continue;
+        if (contains_reference(module, field->type, depth + 1)) return true;
+    }
+    return false;
+}
+
+/** A destructor-bearing aggregate that stores a reference (dropck-relevant). */
+bool observes_borrow(const MIRModule& module, TypeId type) {
+    if (type == MIR_INVALID_ID || type >= module.types.types.size()) {
+        return false;
+    }
+    const MIRTypeRecord& rec = module.types.types[type];
+    const bool drop_glue =
+        (rec.flags & (TF_HAS_DESTRUCTOR | TF_USER_DESTRUCTOR)) != 0;
+    return drop_glue && contains_reference(module, type);
+}
+
 /** True when `from` outlives `to` (identity, 'static, elided, or a where edge). */
 bool region_outlives(const MIRRegionSignature& sig, MIRRegionId from,
                      MIRRegionId to) {
@@ -415,6 +449,25 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     // A place source is a move: carry references stored in its
                     // fields to the destination.
                     if (ops[1].kind() == MIROperandKind::Place) {
+                        // A whole-place source is a move: carry the reference
+                        // loan/parameter facts to the destination.
+                        {
+                            const auto lit = place_loans.find(ops[1].id);
+                            if (lit != place_loans.end()) {
+                                place_loans[ops[0].id] = lit->second;
+                                loans[lit->second].end = lin;
+                                place_loans.erase(ops[1].id);
+                            } else {
+                                place_loans.erase(ops[0].id);
+                            }
+                            const auto pit = place_params.find(ops[1].id);
+                            if (pit != place_params.end()) {
+                                place_params[ops[0].id] = pit->second;
+                                place_params.erase(ops[1].id);
+                            } else {
+                                place_params.erase(ops[0].id);
+                            }
+                        }
                         std::vector<std::pair<uint64_t, uint32_t>> moved;
                         std::vector<std::pair<uint64_t, uint32_t>> moved_params;
                         for (const auto& fl : field_loans) {
@@ -734,6 +787,25 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     } else if (ref_args.size() == 1) {
                         mapped_loan = ref_args[0].loan;
                         mapped_source = ref_args[0].source_param;
+                    }
+                }
+
+                // A destructor-bearing aggregate returned from a single
+                // reference argument (a borrow guard) carries that loan in its
+                // place, so drop order can be checked by SAFE-LIFE-002.
+                if (known && ref_args.size() == 1 &&
+                    inst.result_or_place != MIR_INVALID_ID &&
+                    inst.result_or_place < function.places.size()) {
+                    const TypeId result_type =
+                        function.places[inst.result_or_place].type;
+                    if (observes_borrow(module, result_type)) {
+                        const uint32_t loan = ref_args[0].loan;
+                        place_loans[inst.result_or_place] = loan;
+                        loans[loan].end = lin;
+                        if (ref_args[0].source_param != MIR_INVALID_ID) {
+                            place_params[inst.result_or_place] =
+                                ref_args[0].source_param;
+                        }
                     }
                 }
 
@@ -1136,6 +1208,14 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 if (ops[i].kind() != MIROperandKind::Value) continue;
                 const auto it = value_loans.find(ops[i].id);
                 if (it != value_loans.end() && it->second < nloans) {
+                    live[it->second] = true;
+                }
+            }
+            if ((inst.opcode() == MIROpcode::Drop ||
+                 inst.opcode() == MIROpcode::Destroy) &&
+                ops != nullptr && ops[0].kind() == MIROperandKind::Place) {
+                const auto it = place_loans.find(ops[0].id);
+                if (it != place_loans.end() && it->second < nloans) {
                     live[it->second] = true;
                 }
             }

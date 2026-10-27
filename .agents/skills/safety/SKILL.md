@@ -106,10 +106,13 @@ Implemented:
   owned value (its tag-aware generated destructor owns the active payload), so
   it gets a root path with no payload children; payload moves remain a
   front-end pattern-match effect. `MIRTests` is `4585 checks`.
-- S3.4 dropck report: `SAFE-DROP-002` warns when a user `@delete` is declared
-  on a type with lifetime parameters or a reference-typed field (the type may
-  observe borrowed data at drop time). Enforcement waits for regions/M4; the
-  warning is report-only and deduplicated per declaration location.
+- S3.4/S4.6b dropck: the declaration-shape `SAFE-DROP-002` warning was retired.
+  Dropck is per-use: a known callee returning a destructor-bearing aggregate
+  from a single reference argument (a borrow guard) attaches that loan to the
+  result place; `SAFE-LIFE-002` then rejects a guard whose drop is still live
+  when the referent's storage ends. This follows variant/union payloads
+  (`Option<Ref>`), so `RefCell` guards are covered, and it respects drop order
+  (same-scope guard drops before the cell and is accepted).
 - S3.6 single init/move source: the flow-sensitive AST definite-assignment
   pass (`locals`/`init_bits`/`scope_stack`, `da_in_unsafe`, `is_first_init`)
   and the AST move tracker (`mark_moved_value`/`check_id`/`check_chain`,
@@ -228,6 +231,11 @@ Implemented:
   presence), and pre-declared top-level symbols carry their function type and
   region signature. Migrated `universal_cbi/router/emit.ch` to read an element
   before taking its mutable borrow.
+- S4.6b per-use dropck: a known callee returning a destructor-bearing aggregate
+  from one reference argument binds that loan to the result place; returning a
+  `Ref`/`RefMut` (including through `Option`) keeps the loan live until the
+  guard's drop, so `SAFE-LIFE-002` rejects a guard that outlives its referent.
+  The old declaration-shape `SAFE-DROP-002` warning is retired.
 - S4.9/S4.10 enforcement: after the tree reached zero hits across every suite,
   `SAFE-BORROW-001` and `SAFE-BORROW-002` were flipped to hard errors. The
   enforcement gate is the same fatal path as the LIFE rules; enforced
@@ -461,7 +469,7 @@ Codes are stable and grouped by domain:
 | `SAFE-COPY-002` | `impl Copy` on a type with a destructor |
 | `SAFE-COPY-003` | `impl Copy` on a type whose field is not Copy |
 | `SAFE-DROP-001` | invalid destructor signature (value self, missing self, non-void return, async) |
-| `SAFE-DROP-002` | report-only: destructor on a type that can hold borrowed data (dropck waits for regions) |
+| `SAFE-DROP-002` | retired: dropck is per-use via `SAFE-LIFE-002` (do not reuse) |
 | `SAFE-AUTO-001` | `Send`/`Sync` implemented without `unsafe impl` |
 | `SAFE-AUTO-002` | invalid/conflicting negative impl (non-auto trait, duplicate, positive+negative, generic target) |
 | `SAFE-MOVE-001` | move of an already-moved value / access or assignment after a move |

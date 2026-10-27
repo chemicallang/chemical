@@ -1,5 +1,5 @@
-// Borrow-checker (S4.4a) negative/positive tests. The checker is report-only
-// today: SAFE-BORROW-* are warnings and compilation still succeeds.
+// Borrow-checker (S4.4-S4.6) negative/positive tests. SAFE-BORROW-* and
+// SAFE-LIFE-* are enforced (compilation fails); positive cases assert success.
 
 @test
 func neg_borrow_mutable_alias_warns(env : &mut TestEnv) {
@@ -157,4 +157,20 @@ func multi_reference_call_unrelated_argument_ok(env : &mut TestEnv) {
     // The result aliases `a`, so a subsequent mutable borrow of `b` is fine.
     var ch = "func <'a, 'b> pick(x : &'a mut int, y : &'b mut int) : &'a mut int {\n    return x\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    var r = pick(&mut a, &mut b)\n    var q = &mut b\n    *q = 9\n    return *r\n}\n"
     expect_compile_output_not_contains(env, "borrow_multi_ref_call_other", ch, "SAFE-BORROW-001", NEG_MOD)
+}
+
+@test
+func neg_ref_guard_outlives_cell(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // A RefCell guard keeps its borrow until it is dropped. Storing the guard
+    // outside the cell's block makes it outlive the cell (dropck via LIFE-002).
+    var ch = "using std::Option;\npublic func main() : int {\n    var guard : Option<std::Ref<int>>\n    {\n        var cell = std::ref_cell(1)\n        guard = cell.try_borrow()\n    }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "borrow_ref_guard_outlives", ch, "SAFE-LIFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func ref_guard_same_scope_drops_first_ok(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "using std::Option;\npublic func main() : int {\n    var cell = std::ref_cell(1)\n    var guard = cell.try_borrow()\n    return 0\n}\n"
+    expect_compile_success_with_mod(env, "borrow_ref_guard_same_scope", ch, NEG_MOD_STD_CORE)
 }

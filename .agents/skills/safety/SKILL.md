@@ -256,6 +256,10 @@ Implemented:
   fields (`W<&int>`) are checked too; `PhantomData<&T>` is storage-free and
   exempt. `zeroed:unsafe` remains the explicit unsafe escape. Negative tests
   cover direct/generic reference rejection, a plain struct, and PhantomData.
+- S2.6 FFI report: `SAFE-FFI-001` warns on a call to an `@extern` function
+  from a safe context (the callee's contract is invisible to the compiler).
+  Report-only: ~700 call sites remain, mostly the audited std/fs/net/test C
+  wrappers; enforcement waits for that migration.
 - S4.6b per-use dropck: a known callee returning a destructor-bearing aggregate
   from one reference argument binds that loan to the result place; returning a
   `Ref`/`RefMut` (including through `Option`) keeps the loan live until the
@@ -491,6 +495,7 @@ Codes are stable and grouped by domain:
 | `SAFE-BORROW-002` | move/drop of a place while a borrow of it is live |
 | `SAFE-BORROW-*` | aliasing / loans |
 | `SAFE-VALID-001` | zero-initialization would create a null reference |
+| `SAFE-FFI-001` | extern call in a safe context (report-only) |
 | `SAFE-COPY-001` | user type used with a `Copy` bound but no explicit `impl Copy` |
 | `SAFE-COPY-002` | `impl Copy` on a type with a destructor |
 | `SAFE-COPY-003` | `impl Copy` on a type whose field is not Copy |

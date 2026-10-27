@@ -628,3 +628,17 @@ func waker_is_send_and_sync(env : &mut TestEnv) {
     var ch = "func <T> needs_send(v : T) : int where T : Send { return 0 }\nfunc <T> needs_sync(v : T) : int where T : Sync { return 0 }\npublic func main() : int {\n    var w = core::async::Waker { data : null, vtbl : null }\n    var w2 = core::async::Waker { data : null, vtbl : null }\n    return needs_send(w) + needs_sync(w2)\n}\n"
     expect_compile_success_with_mod(env, "waker_send_sync", ch, NEG_MOD_CORE)
 }
+
+@test
+func extern_call_warns_without_unsafe(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "@extern func abs(v : int) : int\npublic func main() : int {\n    return abs(-1)\n}\n"
+    expect_compile_warning_id(env, "ffi_extern_call", ch, "SAFE-FFI-001")
+}
+
+@test
+func extern_call_in_unsafe_ok(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "@extern func abs(v : int) : int\npublic func main() : int {\n    return unsafe(abs(-1))\n}\n"
+    expect_compile_success(env, "ffi_extern_call_unsafe", ch)
+}

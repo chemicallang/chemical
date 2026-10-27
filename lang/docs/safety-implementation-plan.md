@@ -686,8 +686,10 @@
 > concrete type contains a reference field (direct, array, variant payload, or
 > a specialized generic field such as `W<&int>`); `PhantomData<&T>` is
 > storage-free and exempt. `zeroed:unsafe` remains the explicit unsafe escape.
-> Next: S4.2b variance, async frame/Pin integration, full provenance, and the
-> rest of M5 validity.
+> S2.6 FFI report: `SAFE-FFI-001` warns on `@extern` calls in safe context
+> (report-only; ~700 call sites, mostly the audited C wrappers, remain).
+> Next: S4.2b variance, async frame/Pin integration, full provenance, M5
+> validity, and the FFI-call migration.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

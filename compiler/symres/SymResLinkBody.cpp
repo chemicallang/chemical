@@ -2504,6 +2504,13 @@ void SymResLinkBody::VisitFunctionCall(FunctionCall* call) {
     if(linked != nullptr && linked->is_delete_fn()) {
         diagnoser.error(call) << "a destructor function cannot be called directly, it runs automatically when the value is deleted";
     }
+    // Calling an extern (C/FFI) function is inherently unchecked: its
+    // contract is not visible to the compiler. Require an explicit unsafe
+    // context (S2.6).
+    if (safe_context && linked != nullptr && linked->is_extern()) {
+        diagnoser.warn(call).with_code("SAFE-FFI-001")
+            << "calling an extern function requires an unsafe context";
+    }
 }
 
 void SymResLinkBody::VisitEmbeddedValue(EmbeddedValue* value) {

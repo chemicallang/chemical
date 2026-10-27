@@ -945,6 +945,13 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 return "(" + c_type_of(module, function.values[v].type) + ")(" +
                        operand_expr(function, module, *a) + ")";
             }
+            case MIROpcode::Borrow:
+            case MIROpcode::BorrowMut: {
+                // the address value already has the right pointer spelling
+                const MIROperand* a = operand_at(function, inst, 0);
+                if (!a) return {};
+                return operand_expr(function, module, *a);
+            }
             // Load and Call are never reached by the single-use pass above (a
             // Load is handled by its own forwarding rules and a Call is not
             // `inlineable_opcode`), but short-circuit reconstruction needs to
@@ -2025,6 +2032,17 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 append_vname(v, out);
                 out += " = &";
                 out += access;
+                out += ";\n";
+                break;
+            }
+            case MIROpcode::Borrow:
+            case MIROpcode::BorrowMut: {
+                const ValueId v = inst.result_or_place;
+                const MIROperand* a = operand_at(function, inst, 0);
+                if (!a) { error = "borrow missing address"; return false; }
+                append_vname_declarator(module, function.values[v].type, v, out);
+                out += " = ";
+                out += operand_expr(function, module, *a);
                 out += ";\n";
                 break;
             }

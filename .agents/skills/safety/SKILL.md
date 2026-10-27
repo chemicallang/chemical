@@ -129,8 +129,16 @@ Implemented:
   `MIRFunction::region_signature` links a function to its record. The lowerer
   builds the signature from the declaration before body lowering, and
   `MIRDump` prints it (`; regions:`). `MIRTests` covers the mapping, module
-  table and dump (`4603 checks`). Next in M4: S4.2b HRTB/region variables and
-  S4.3 MIR borrow lowering (`Borrow`/`BorrowMut`).
+  table and dump (`4603 checks`).
+- S4.3a borrow opcodes: `Borrow`/`BorrowMut` are explicit MIR operations
+  (`Value(addr), Constant(region)`, result is the reference-typed pointer).
+  `ReferenceOfValue` lowering (`&x`, `&mut x`, `&*p`, `&obj.field`,
+  `&arr[i]`) wraps the computed address in the matching borrow; `&raw` stays
+  `AddressOf`. Emitters pass the address through (C/LLVM), the interpreter
+  copies it, and the dataflow treats it as a read. The region operand is a
+  placeholder (`MIR_INVALID_ID`) until NLL assigns region variables (S4.4).
+  `MIRTests` covers the opcodes, dump and C emission (`4610 checks`). Next in
+  M4: S4.2b HRTB/variance/region variables, then S4.4 NLL.
 - S2.6d unsafe invariant constructors: `vector::set_len` and
   `default_function_instance::make2` are now `unsafe func`; the audited
   `fs::read_file` and `std::function` `make` paths wrap their calls in
@@ -288,7 +296,8 @@ Next:
   modeled (S3.1c), including construction temporaries and use-after-move
   through assignment. M3 is complete: the next milestone is M4 (regions, NLL,
   borrow checking, dropck enforcement, and async/Pin). The current M4 step is
-  S4.2a (region signatures), then S4.2b/S4.3.
+  S4.3a (borrow opcodes + lowering), then S4.2b (variance/region variables)
+  and S4.4 NLL.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

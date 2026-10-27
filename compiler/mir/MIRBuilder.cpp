@@ -460,6 +460,18 @@ ValueId MIRBuilder::address_of(PlaceId place, TypeId pointer_type) {
     return v;
 }
 
+ValueId MIRBuilder::borrow(ValueId address, ConstantId region,
+                           TypeId reference_type, bool mutable_borrow) {
+    ValueId v = new_value(reference_type, VF_NONE);
+    TypeId at = address < func_.values.size() ? func_.values[address].type
+                                              : MIR_INVALID_ID;
+    uint32_t i = emit(mutable_borrow ? MIROpcode::BorrowMut : MIROpcode::Borrow, v,
+                      {MIROperand::value(address, at),
+                       MIROperand::constant(region, MIR_INVALID_ID)});
+    note_result_value(v, i);
+    return v;
+}
+
 ValueId MIRBuilder::field_addr(PlaceId base, ConstantId field_index, TypeId field_type) {
     ValueId v = new_value(field_type, VF_ADDRESSABLE);
     TypeId bt = base < func_.places.size() ? func_.places[base].type : MIR_INVALID_ID;

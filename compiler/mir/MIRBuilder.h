@@ -141,6 +141,9 @@ public:
     /** Move an aggregate into a local array element: `base[index] = src`. */
     void element_store_place(PlaceId base, ValueId index, PlaceId value);
     ValueId address_of(PlaceId place, TypeId pointer_type);
+    /** Wrap an address value in an explicit reference borrow (S4.3). */
+    ValueId borrow(ValueId address, ConstantId region, TypeId reference_type,
+                   bool mutable_borrow);
     /** Address of a struct field; result value is typed as `field_type`. */
     ValueId field_addr(PlaceId base, ConstantId field_index, TypeId field_type);
     /** Address of a field through a pointer: `&base->field`. */

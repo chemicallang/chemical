@@ -321,6 +321,77 @@ static bool test_emitter() {
     return true;
 }
 
+// ── borrow opcodes (S4.3) ──────────────────────────────────────────────────
+static bool test_borrow_opcodes() {
+    MIRModule module;
+    MIRTypeRecord ir;
+    ir.kind = MIRTypeKind::Int;
+    ir.flags = TF_SIGNED;
+    ir.size = 4;
+    ir.alignment = 4;
+    const TypeId i32 = module.types.intern(ir);
+
+    MIRTypeRecord vr;
+    vr.kind = MIRTypeKind::Void;
+    const TypeId void_t = module.types.intern(vr);
+
+    MIRTypeRecord pr;
+    pr.kind = MIRTypeKind::Pointer;
+    pr.element = i32;
+    pr.size = 8;
+    pr.alignment = 8;
+    const TypeId ptr_t = module.types.intern(pr);
+
+    MIRTypeRecord rr;
+    rr.kind = MIRTypeKind::Reference;
+    rr.element = i32;
+    rr.size = 8;
+    rr.alignment = 8;
+    const TypeId ref_t = module.types.intern(rr);
+
+    MIRTypeRecord fr;
+    fr.kind = MIRTypeKind::Function;
+    fr.element = void_t;
+    fr.size = 8;
+    fr.alignment = 8;
+    const TypeId ftype = module.types.intern(fr);
+    MIRSymbolRecord srec;
+    srec.kind = MIRSymbolKind::Function;
+    srec.type = ftype;
+    const SymbolId sym = module.symbols.add(srec, "borrows", 7, "borrows", 7);
+
+    MIRArena arena;
+    MIRFunction fn;
+    fn.symbol = sym;
+    fn.function_type = ftype;
+    MIRBuilder b(arena, module, fn);
+    const BlockId entry = b.create_block();
+    fn.entry_block = entry;
+    b.set_block(entry);
+    const PlaceId x = b.alloca(i32);
+    b.store(x, b.const_int(i32, module.constants.add_int(i32, 7)));
+    fn.places[x].init_state = static_cast<uint8_t>(MIRInitState::Initialized);
+    const ValueId addr = b.address_of(x, ptr_t);
+    const ConstantId region = module.constants.add_int(i32, 0);
+    const ValueId shared = b.borrow(addr, region, ref_t, false);
+    const ValueId mutable_borrow = b.borrow(addr, region, ref_t, true);
+    b.ret_void();
+    CHECK(b.ok());
+    CHECK(verify_function(fn).ok());
+
+    const std::string dump = dump_function_str(fn, module);
+    CHECK(dump.find("borrow") != std::string::npos);
+    CHECK(dump.find("borrow_mut") != std::string::npos);
+
+    std::string out, err;
+    CHECK(emit_function_c(fn, module, out, err));
+    CHECK(out.find("&") != std::string::npos);
+    CHECK(!out.empty());
+    (void) shared;
+    (void) mutable_borrow;
+    return true;
+}
+
 // ── emitter: control flow (labels + gotos) ─────────────────────────────────
 static bool test_control_flow_emitter() {
     MIRModule module;
@@ -2224,6 +2295,7 @@ int main() {
     ok &= test_move_paths();
     ok &= test_move_check();
     ok &= test_region_signature();
+    ok &= test_borrow_opcodes();
     ok &= test_control_flow_emitter();
     ok &= test_type_names();
     ok &= test_aggregate_layout();

@@ -127,7 +127,14 @@ enum class MIROpcode : uint16_t {
     // init/move dataflow consumes it and the source flag is cleared separately.
     MoveOut = 55,       // result: none;   operands: Place
 
-    Count = 56,
+    // Explicit reference borrows (S4.3). The address operand is the same value
+    // an `AddressOf`/`FieldAddr`/`IndexAddr` produced; the result is that
+    // pointer with the reference type. Emitters pass it through; the borrow
+    // checker (S4.4) reads the region operand.
+    Borrow = 56,     // result: value(ref); operands: Value(addr), Constant(region)
+    BorrowMut = 57,  // same, mutable
+
+    Count = 58,
 };
 
 /** fixed opcode effects/attributes (see mir-design.md §4.6) */

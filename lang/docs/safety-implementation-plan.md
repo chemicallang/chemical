@@ -601,8 +601,11 @@
 > `MIRModule::region_signatures` side table; `MIRFunction::region_signature`
 > links to it, `MIRDump` prints it for golden tests, and `make_region_signature`
 > maps `'static`/elided/`'self` names (quoted or bare). `MIRTests` covers the
-> mapping/table/dump. Next: S4.2b HRTB/region variables, then S4.3 MIR borrow
-> lowering (`Borrow`/`BorrowMut`) and S4.4 NLL.
+> mapping/table/dump. S4.3a borrow lowering: `Borrow`/`BorrowMut` MIR opcodes
+> (address value + region placeholder, reference-typed result) are emitted for
+> `&x`/`&mut x`/`&*p`/`&field`/`&arr[i]`; raw `&raw` stays `AddressOf`. C/LLVM
+> pass the address through, the interpreter copies it. `MIRTests` is
+> `4610 checks`. Next: S4.2b HRTB/variance/region variables, then S4.4 NLL.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

@@ -1391,6 +1391,12 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     if (dst && sv) builder->CreateStore(sv, dst);
                     break;
                 }
+                case MIROpcode::Borrow:
+                case MIROpcode::BorrowMut: {
+                    const MIROperand* a = arg(0);
+                    if (a) vals[v] = op_val(*a);
+                    break;
+                }
                 case MIROpcode::AddressOf: {
                     const MIROperand* p = arg(0);
                     if (p) vals[v] = op_val(*p);

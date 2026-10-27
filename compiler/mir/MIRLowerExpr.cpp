@@ -1359,6 +1359,21 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         }
         case ValueKind::ReferenceOfValue: {
             auto* r = value->as_reference_of_value_unsafe();
+            const TypeId ref_t = types_.map(r->getType());
+            const ConstantId region = module_.constants.add_int(
+                types_.u32_type(), MIR_INVALID_ID
+            );
+            auto wrap_borrow = [&](MIRExprResult a) -> MIRExprResult {
+                if (!a.ok() || (a.kind != MIRExprKind::Value &&
+                                a.kind != MIRExprKind::Address)) {
+                    return a;
+                }
+                const ValueId b = builder_->borrow(
+                    static_cast<ValueId>(a.id), region, ref_t, r->is_mutable
+                );
+                if (b == MIR_INVALID_ID) return a;
+                return MIRExprResult::value(b, ref_t);
+            };
             // `&x`: an aggregate parameter passed as a hidden pointer yields its
             // referent; everything else takes the address of the expression.
             Value* inner = r->value;
@@ -1381,11 +1396,13 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     if (p != MIR_INVALID_ID) {
                         const TypeId ptrt = types_.pointer_type(
                             builder_->function().places[p].type, true);
-                        return MIRExprResult::value(builder_->address_of(p, ptrt), ptrt);
+                        return wrap_borrow(
+                            MIRExprResult::value(builder_->address_of(p, ptrt), ptrt)
+                        );
                     }
                 }
             }
-            return lower_address_of(r->value, error);
+            return wrap_borrow(lower_address_of(r->value, error));
         }
         case ValueKind::ArrayValue: {
             auto* arr = value->as_array_value_unsafe();

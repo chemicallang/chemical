@@ -1317,6 +1317,14 @@ struct MIRInterpreter::Impl {
                     }
                     break;
                 }
+                case MIROpcode::Borrow:
+                case MIROpcode::BorrowMut: {
+                    const MIROperand* a = op_at(fn, ins, 0);
+                    if (a && a->kind() == MIROperandKind::Value && a->id < f.values.size()) {
+                        f.values[rp] = f.values[a->id];
+                    }
+                    break;
+                }
                 case MIROpcode::AddressOf: {
                     const MIROperand* p = op_at(fn, ins, 0);
                     f.values[rp] = p ? reinterpret_cast<uint64_t>(f.places[p->id]) : 0;

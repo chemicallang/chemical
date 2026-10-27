@@ -12,6 +12,7 @@
 #include "compiler/mir/MIRFacts.h"
 #include "compiler/mir/MIRInterpreter.h"
 #include "compiler/mir/MIRMoveCheck.h"
+#include "compiler/mir/MIRBorrowCheck.h"
 #include "compiler/mir/MIRTraversal.h"
 
 #include <cassert>
@@ -1914,6 +1915,112 @@ static bool test_move_paths() {
 }
 
 
+// ── borrow check (S4.4a) ───────────────────────────────────────────────────
+static bool test_borrow_check() {
+    MIRModule module;
+    MIRTypeRecord ir;
+    ir.kind = MIRTypeKind::Int;
+    ir.flags = TF_SIGNED;
+    ir.size = 4;
+    ir.alignment = 4;
+    const TypeId i32 = module.types.intern(ir);
+    MIRTypeRecord pr;
+    pr.kind = MIRTypeKind::Pointer;
+    pr.element = i32;
+    pr.size = 8;
+    pr.alignment = 8;
+    const TypeId ptr_t = module.types.intern(pr);
+    MIRTypeRecord rr;
+    rr.kind = MIRTypeKind::Reference;
+    rr.element = i32;
+    rr.size = 8;
+    rr.alignment = 8;
+    const TypeId ref_t = module.types.intern(rr);
+    MIRTypeRecord vr;
+    vr.kind = MIRTypeKind::Void;
+    const TypeId void_t = module.types.intern(vr);
+
+    auto make_builder = [&](MIRFunction& fn, MIRArena& arena, auto&& body) {
+        fn.function_type = void_t;
+        MIRBuilder b(arena, module, fn);
+        const BlockId entry = b.create_block();
+        fn.entry_block = entry;
+        b.set_block(entry);
+        body(b);
+        b.ret_void();
+    };
+    const ConstantId region = module.constants.add_int(i32, 0);
+
+    {
+        // Two mutable borrows, both used after the second one: conflict.
+        MIRFunction fn;
+        MIRArena arena;
+        make_builder(fn, arena, [&](MIRBuilder& b) {
+            const PlaceId x = b.alloca(i32);
+            b.store(x, b.const_int(i32, module.constants.add_int(i32, 1)));
+            const ValueId addr = b.address_of(x, ptr_t);
+            const ValueId b1 = b.borrow(addr, region, ref_t, true);
+            const PlaceId p1 = b.alloca(ref_t);
+            b.store(p1, b1);
+            const ValueId b2 = b.borrow(addr, region, ref_t, true);
+            const PlaceId p2 = b.alloca(ref_t);
+            b.store(p2, b2);
+            (void) b.load(p1, ref_t);
+            (void) b.load(p2, ref_t);
+        });
+        const MIRBorrowCheckResult r = check_function_borrows(module, fn);
+        CHECK(!r.ok());
+        CHECK(r.diagnostics[0].code != nullptr);
+        CHECK(std::string(r.diagnostics[0].code) == "SAFE-BORROW-001");
+    }
+
+    {
+        // Sequential mutable borrows: the first dies at its last use.
+        MIRFunction fn;
+        MIRArena arena;
+        make_builder(fn, arena, [&](MIRBuilder& b) {
+            const PlaceId x = b.alloca(i32);
+            b.store(x, b.const_int(i32, module.constants.add_int(i32, 1)));
+            const ValueId addr = b.address_of(x, ptr_t);
+            const ValueId b1 = b.borrow(addr, region, ref_t, true);
+            const PlaceId p1 = b.alloca(ref_t);
+            b.store(p1, b1);
+            (void) b.load(p1, ref_t);
+            const ValueId b2 = b.borrow(addr, region, ref_t, true);
+            const PlaceId p2 = b.alloca(ref_t);
+            b.store(p2, b2);
+            (void) b.load(p2, ref_t);
+        });
+        const MIRBorrowCheckResult r = check_function_borrows(module, fn);
+        for (const auto& d : r.diagnostics) {
+            std::cerr << "sequential borrow diag: " << d.code << " " << d.message << "\n";
+        }
+        CHECK(r.ok());
+    }
+
+    {
+        // Two shared borrows are fine.
+        MIRFunction fn;
+        MIRArena arena;
+        make_builder(fn, arena, [&](MIRBuilder& b) {
+            const PlaceId x = b.alloca(i32);
+            b.store(x, b.const_int(i32, module.constants.add_int(i32, 1)));
+            const ValueId addr = b.address_of(x, ptr_t);
+            const ValueId b1 = b.borrow(addr, region, ref_t, false);
+            const PlaceId p1 = b.alloca(ref_t);
+            b.store(p1, b1);
+            const ValueId b2 = b.borrow(addr, region, ref_t, false);
+            const PlaceId p2 = b.alloca(ref_t);
+            b.store(p2, b2);
+            (void) b.load(p1, ref_t);
+            (void) b.load(p2, ref_t);
+        });
+        CHECK(check_function_borrows(module, fn).ok());
+    }
+
+    return true;
+}
+
 // ── region signatures (S4.2) ───────────────────────────────────────────────
 static bool test_region_signature() {
     using namespace mir;
@@ -2296,6 +2403,7 @@ int main() {
     ok &= test_move_check();
     ok &= test_region_signature();
     ok &= test_borrow_opcodes();
+    ok &= test_borrow_check();
     ok &= test_control_flow_emitter();
     ok &= test_type_names();
     ok &= test_aggregate_layout();

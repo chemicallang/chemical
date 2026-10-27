@@ -79,6 +79,7 @@ static void ct_stat_decl(const char* tag, FunctionDeclaration* d) {
 #include "compiler/mir/MIRTaskContext.h"
 #include "compiler/mir/MIRVerifier.h"
 #include "compiler/mir/MIRMoveCheck.h"
+#include "compiler/mir/MIRBorrowCheck.h"
 #include "compiler/mir/MIRMangleBuffer.h"
 #include "compiler/mir/MIRInterpProgram.h"
 
@@ -1999,6 +2000,22 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
         if (!result.ok()) {
             error = "MIR verifier: " + result.diagnostics.front().message;
             return false;
+        }
+        // S4.4a report-only loan analysis. This never fails the build yet; the
+        // migrate/enforce steps follow once the in-tree tree is clean.
+        const auto borrows = mir::check_function_borrows(module, check);
+        if (!borrows.diagnostics.empty()) {
+            static std::mutex borrow_warn_mutex;
+            std::lock_guard<std::mutex> guard(borrow_warn_mutex);
+            for (const mir::MIRBorrowDiagnostic& d : borrows.diagnostics) {
+                std::cerr << "warn[" << (d.code ? d.code : "SAFE-BORROW-001")
+                          << "]: " << d.message;
+                if (d.has_loc && d.loc.file < module.source_files.size()) {
+                    std::cerr << " at " << module.source_files[d.loc.file] << ":"
+                              << d.loc.line << ":" << d.loc.column;
+                }
+                std::cerr << "\n";
+            }
         }
         const auto moves = mir::check_function_moves(module, check);
         if (!moves.ok()) {

@@ -2998,6 +2998,7 @@ closures interoperate with legacy-emitted declarations.
 | `MIREmitter.h/.cpp` | **MIR→C emission** (AST-free) |
 | `MIRDump.h/.cpp`, `MIRVerifier.h/.cpp` | dump + structural checks |
 | `MIRMoveCheck.h/.cpp` | init/move/drop dataflow (sole state producer) |
+| `MIRBorrowCheck.h/.cpp` | report-only loan/alias analysis (S4.4a) |
 | `MIRRegionSignature.h/.cpp` | per-function region signatures (S4.2; read by the borrow checker) |
 | `compiler/ASTProcessor.cpp` | integration: `mir_translate_after_declaration` + callbacks |
 

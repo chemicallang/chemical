@@ -1,0 +1,38 @@
+// Borrow-checker (S4.4a) negative/positive tests. The checker is report-only
+// today: SAFE-BORROW-* are warnings and compilation still succeeds.
+
+@test
+func neg_borrow_mutable_alias_warns(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var x = 1\n    var a = &mut x\n    var b = &mut x\n    *a = 2\n    *b = 3\n    return x\n}\n"
+    expect_compile_warning_id(env, "borrow_mutable_alias", ch, "SAFE-BORROW-001")
+}
+
+@test
+func neg_borrow_shared_mutable_alias_warns(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var x = 1\n    var a = &x\n    var b = &mut x\n    *b = 2\n    return *a\n}\n"
+    expect_compile_warning_id(env, "borrow_shared_mutable_alias", ch, "SAFE-BORROW-001")
+}
+
+@test
+func sequential_mutable_borrows_do_not_conflict(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // The first borrow dies at its last use; the second starts after it.
+    var ch = "public func main() : int {\n    var x = 1\n    var a = &mut x\n    *a = 2\n    var b = &mut x\n    *b = 3\n    return x\n}\n"
+    expect_compile_success(env, "borrow_sequential_ok", ch)
+}
+
+@test
+func shared_borrows_do_not_conflict(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var x = 1\n    var a = &x\n    var b = &x\n    return *a + *b\n}\n"
+    expect_compile_success(env, "borrow_shared_ok", ch)
+}
+
+@test
+func neg_move_while_borrowed_warns(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct S {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    var s = S { x : 1 }\n    var p = &s\n    var t = s\n    return p.x\n}\n"
+    expect_compile_warning_id(env, "borrow_move_while_live", ch, "SAFE-BORROW-002")
+}

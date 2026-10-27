@@ -137,8 +137,18 @@ Implemented:
   `AddressOf`. Emitters pass the address through (C/LLVM), the interpreter
   copies it, and the dataflow treats it as a read. The region operand is a
   placeholder (`MIR_INVALID_ID`) until NLL assigns region variables (S4.4).
-  `MIRTests` covers the opcodes, dump and C emission (`4610 checks`). Next in
-  M4: S4.2b HRTB/variance/region variables, then S4.4 NLL.
+  `MIRTests` covers the opcodes, dump and C emission (`4610 checks`).
+- S4.4a report-only loan analysis: `compiler/mir/MIRBorrowCheck.{h,cpp}` tracks
+  `Borrow`/`BorrowMut` loans, follows references through reference locals
+  (Store/MoveInit/CopyInit/Load/Copy/Cast), and reports overlapping live loans
+  (`SAFE-BORROW-001`) and moves/drops of a borrowed place (`SAFE-BORROW-002`).
+  `ASTProcessor` prints these as warnings (compilation still succeeds); loans
+  passed to a call are marked escaped and skipped until the interprocedural
+  lifetime check (S4.5). Liveness is a linear last-use walk today; branch/loop
+  precise NLL and region-variable assignment are S4.4b. `MIRTests` is
+  `4615 checks`; the negative suite has alias/sequential/shared/move cases.
+  Next in M4: S4.4b CFG/NLL precision + region variables, S4.5 escape, and
+  S4.2b variance.
 - S2.6d unsafe invariant constructors: `vector::set_len` and
   `default_function_instance::make2` are now `unsafe func`; the audited
   `fs::read_file` and `std::function` `make` paths wrap their calls in
@@ -296,8 +306,8 @@ Next:
   modeled (S3.1c), including construction temporaries and use-after-move
   through assignment. M3 is complete: the next milestone is M4 (regions, NLL,
   borrow checking, dropck enforcement, and async/Pin). The current M4 step is
-  S4.3a (borrow opcodes + lowering), then S4.2b (variance/region variables)
-  and S4.4 NLL.
+  S4.4a (report-only loan analysis), then S4.4b (CFG/NLL precision, region
+  variables), S4.5 (escape/interprocedural) and S4.2b variance.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).
@@ -358,6 +368,8 @@ Codes are stable and grouped by domain:
 | Prefix | Domain |
 |---|---|
 | `SAFE-OWN-*` | moves, drops, partial moves |
+| `SAFE-BORROW-001` | overlapping live loans (at least one mutable) |
+| `SAFE-BORROW-002` | move/drop of a place while a borrow of it is live |
 | `SAFE-BORROW-*` | aliasing / loans |
 | `SAFE-COPY-001` | user type used with a `Copy` bound but no explicit `impl Copy` |
 | `SAFE-COPY-002` | `impl Copy` on a type with a destructor |

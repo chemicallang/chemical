@@ -605,7 +605,15 @@
 > (address value + region placeholder, reference-typed result) are emitted for
 > `&x`/`&mut x`/`&*p`/`&field`/`&arr[i]`; raw `&raw` stays `AddressOf`. C/LLVM
 > pass the address through, the interpreter copies it. `MIRTests` is
-> `4610 checks`. Next: S4.2b HRTB/variance/region variables, then S4.4 NLL.
+> `4610 checks`. S4.4a report-only loan analysis: `MIRBorrowCheck` tracks
+> `Borrow`/`BorrowMut` loans through reference locals and reports overlapping
+> live loans (`SAFE-BORROW-001`) and moves/drops of a borrowed place
+> (`SAFE-BORROW-002`) as warnings. Loans passed to a call are marked escaped
+> and skipped until the interprocedural lifetime check (S4.5); liveness is a
+> linear last-use walk, so CFG/NLL precision and region-variable assignment
+> are S4.4b. `MIRTests` is `4615 checks`; negative tests cover mutable/shared
+> alias, sequential borrows and move-while-borrowed. Next: S4.4b CFG/NLL
+> precision + region variables, S4.5 escape, S4.2b variance.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

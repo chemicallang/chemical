@@ -102,9 +102,25 @@ Implemented:
   `Option::take` / `archive::extract_entry` pattern). A place-to-place `store`
   requires a live source; `memcpy`/`memmove`/`memset` (direct or sret)
   initialize their destination. Unions are raw storage:
-  `type_needs_move_path` does not recurse into union fields. `MIRTests` is
-  `4582 checks`. Pending: variant active-case tracking, dropck (needs
-  regions), and removing the old AST definite-assignment/move tracker.
+  `type_needs_move_path` does not recurse into union fields. A variant is one
+  owned value (its tag-aware generated destructor owns the active payload), so
+  it gets a root path with no payload children; payload moves remain a
+  front-end pattern-match effect. `MIRTests` is `4585 checks`.
+- S3.4 dropck report: `SAFE-DROP-002` warns when a user `@delete` is declared
+  on a type with lifetime parameters or a reference-typed field (the type may
+  observe borrowed data at drop time). Enforcement waits for regions/M4; the
+  warning is report-only and deduplicated per declaration location.
+- S3.6 single init/move source: the flow-sensitive AST definite-assignment
+  pass (`locals`/`init_bits`/`scope_stack`, `da_in_unsafe`, `is_first_init`)
+  and the AST move tracker (`mark_moved_value`/`check_id`/`check_chain`,
+  `moved_identifiers`/`moved_chains`, `is_moved` flags) are removed.
+  `MIRMoveCheck` is the sole init/move/drop source. The lowering emits a
+  `MoveOut` marker for by-value call arguments so a moved/uninitialized
+  argument is checked, clears a pattern payload's source variant, and a
+  `TypeVerify` check rejects moving a destructor-bearing element out of an
+  array by index (`SAFE-MOVE-001`). Module-scope uninitialized globals are
+  still diagnosed in `TypeVerify`. First assignment destroys the old value
+  through the runtime drop flag instead of `is_first_init`.
 - S2.6d unsafe invariant constructors: `vector::set_len` and
   `default_function_instance::make2` are now `unsafe func`; the audited
   `fs::read_file` and `std::function` `make` paths wrap their calls in
@@ -260,8 +276,8 @@ Next:
   as a member, and calls from safe code are rejected; `unsafe(expr)`/`unsafe {}`
   are both unsafe call contexts. Partial initialization and partial moves are
   modeled (S3.1c), including construction temporaries and use-after-move
-  through assignment. Next: variant active-case tracking, dropck, and removing
-  the old AST definite-assignment/move tracker, then the borrow checker.
+  through assignment. M3 is complete: the next milestone is M4 (regions, NLL,
+  borrow checking, dropck enforcement, and async/Pin).
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).
@@ -327,6 +343,7 @@ Codes are stable and grouped by domain:
 | `SAFE-COPY-002` | `impl Copy` on a type with a destructor |
 | `SAFE-COPY-003` | `impl Copy` on a type whose field is not Copy |
 | `SAFE-DROP-001` | invalid destructor signature (value self, missing self, non-void return, async) |
+| `SAFE-DROP-002` | report-only: destructor on a type that can hold borrowed data (dropck waits for regions) |
 | `SAFE-AUTO-001` | `Send`/`Sync` implemented without `unsafe impl` |
 | `SAFE-AUTO-002` | invalid/conflicting negative impl (non-auto trait, duplicate, positive+negative, generic target) |
 | `SAFE-MOVE-001` | move of an already-moved value / access or assignment after a move |

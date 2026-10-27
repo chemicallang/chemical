@@ -25,7 +25,6 @@ public:
     chem::string_view value;
     ASTNode *linked = nullptr;
     bool is_ns;
-    bool is_moved = false;
 
     /**
      * Interpreter inline cache: number of parent-scope hops from the evaluation

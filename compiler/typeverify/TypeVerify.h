@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <unordered_set>
+
 #include "preprocess/visitors/RecursiveVisitor.h"
 #include <unordered_map>
 #include <string>
@@ -77,27 +79,6 @@ public:
      */
     bool is_interpretation_mode = false;
 
-    // -------- Definite Assignment --------
-
-    /// Every local variable declaration encountered in the current function.
-    std::vector<VarInitStatement*> locals;
-
-    /// Parallel boolean array: initialized[i] == true iff locals[i] is definitely initialized.
-    std::vector<bool> init_bits;
-
-    /// Per-block stack of declaration counts for scope cleanup.
-    std::vector<std::vector<VarInitStatement*>> scope_stack;
-
-    /// True while inside an `unsafe { }` block (suppresses DA checks).
-    bool da_in_unsafe = false;
-
-    /// When false, definite-assignment checks are suppressed (e.g. inside nested functions).
-    bool da_enabled = false;
-
-    /// While true, the next identifier visit belongs to the inner of an
-    /// address/reference-of and must not be reported as a standalone read.
-    bool da_addr_inner = false;
-
     /**
      * constructor
      * the allocator must be an ast allocator
@@ -111,22 +92,24 @@ public:
 
     }
 
-    // -------- Definite Assignment helpers --------
+    // -------- Module-scope initialization check --------
 
-    void da_push_scope();
-    void da_pop_scope();
-    void da_add_local(VarInitStatement* v);
-    bool da_is_initialized(VarInitStatement* v);
-    VarInitStatement* da_root_local_var(Value* v);
     VarInitStatement* da_root_module_var(Value* v);
     bool da_type_has_destructor(VarInitStatement* v);
     void da_report_uninit(VarInitStatement* v, const char* action, SourceLocation loc);
-    void da_intersect(const std::vector<bool>& a, const std::vector<bool>& b,
-                      std::vector<bool>& out);
 
     // ------------- Decls ------------
 
     void VisitStructDecl(StructDefinition* def);
+
+    // Report-only dropck prerequisite (S3.4): a destructor on a type that can
+    // hold borrowed data is not yet checked for a live borrow at drop time.
+    std::unordered_set<uint64_t> dropck_warned;
+    void check_dropck(MembersContainer* def);
+    // Reject moving a destructor-bearing element out of an array by index: the
+    // array still runs the element destructor, so the moved copy would be freed
+    // twice. Copy elements and field reads remain allowed.
+    void check_index_move(Value* value);
 
     void VisitUnionDecl(UnionDef* def);
 

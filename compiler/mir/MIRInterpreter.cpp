@@ -1506,6 +1506,9 @@ struct MIRInterpreter::Impl {
                     store_scalar(f.places[p->id], ti(fn.places[p->id].type), operand_bits(f, *c));
                     break;
                 }
+                case MIROpcode::MoveOut:
+                    // dataflow marker only
+                    break;
                 case MIROpcode::Drop:
                 case MIROpcode::Destroy: {
                     const MIROperand* p = op_at(fn, ins, 0);

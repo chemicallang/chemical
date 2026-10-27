@@ -449,6 +449,16 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
             set_subtree(fn, states, path, MIRMoveState::Destroyed);
             break;
         }
+        case MIROpcode::MoveOut: {
+            // A by-value call argument (or another explicit move marker): the
+            // source must be initialized and becomes moved.
+            if (ops == nullptr || inst.operand_count < 1) break;
+            const uint32_t path = path_for_projection(module, fn, ops[0], nullptr, 0);
+            require_initialized(out, fn, function_index, block, inst_index, path,
+                                states, "move from");
+            mark_path_moved(fn, states, path);
+            break;
+        }
         case MIROpcode::Drop: {
             if (ops == nullptr) break;
             const uint32_t path = path_for_projection(module, fn, ops[0], nullptr, 0);

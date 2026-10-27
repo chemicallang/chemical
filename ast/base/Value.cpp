@@ -324,19 +324,6 @@ bool Value::is_func_call() {
     }
 }
 
-bool Value::is_ref_moved() {
-    switch(val_kind()) {
-        case ValueKind::UnsafeValue:
-            return static_cast<UnsafeValue*>(this)->getValue()->is_ref_moved();
-        case ValueKind::AccessChain:
-            return as_access_chain_unsafe()->is_moved();
-        case ValueKind::Identifier:
-            return as_identifier_unsafe()->is_moved;
-        default:
-                return false;
-    }
-}
-
 bool Value::reference() {
     const auto kind = val_kind();
     switch(kind) {

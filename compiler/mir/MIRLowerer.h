@@ -753,6 +753,12 @@ private:
     void mark_path_initialized(PlaceId place, const std::vector<std::string>& path);
     /** A mutable raw pointer escaped from this place: use the whole-value drop. */
     void mark_raw_escaped(PlaceId place);
+    /**
+     * A member write to a non-field-wise local with no owned subobjects:
+     * treat the value as initialized for its whole-value destructor (the
+     * hand-built `var d : Destructible; d.field = ...` pattern).
+     */
+    void mark_member_initialized(PlaceId place);
     /** Destroy every initialized field of a field-wise destructible. */
     void destroy_field_wise(MIRDestructible& d);
     /** Destroy every destructible member of the enclosing `@delete` method. */

@@ -50,8 +50,7 @@ inline bool type_needs_move_path(const MIRTypeTable& types, TypeId type) {
     switch (rec.kind) {
         case MIRTypeKind::Array:
             return type_needs_move_path(types, rec.element);
-        case MIRTypeKind::Struct:
-        case MIRTypeKind::Variant: {
+        case MIRTypeKind::Struct: {
             for (uint32_t i = 0; i < rec.data_count; ++i) {
                 const MIRFieldInfo* field = types.field_of(type, i);
                 if (field != nullptr && type_needs_move_path(types, field->type)) {
@@ -64,6 +63,13 @@ inline bool type_needs_move_path(const MIRTypeTable& types, TypeId type) {
         // so its fields are not independently owned or dropped. Only a union
         // with its own destructor is tracked (the top-level flag above).
         case MIRTypeKind::Union:
+            return false;
+        // A variant is one owned value: its generated destructor reads the tag
+        // and destroys only the active payload. Payloads are not independent
+        // MIR move paths (moving one out is a front-end pattern-match effect).
+        // Only a variant that owns an active payload is tracked (the top-level
+        // destructor flag above).
+        case MIRTypeKind::Variant:
             return false;
         default:
             return false;

@@ -364,6 +364,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         }
                         if (base_place != MIR_INVALID_ID) {
                             mark_path_initialized(base_place, field_path);
+                            mark_member_initialized(base_place);
                         }
                         return true;
                     }
@@ -378,6 +379,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         }
                         if (base_place != MIR_INVALID_ID) {
                             mark_path_initialized(base_place, field_path);
+                            mark_member_initialized(base_place);
                         }
                         return true;
                     }
@@ -392,6 +394,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     }
                     if (base_place != MIR_INVALID_ID) {
                         mark_path_initialized(base_place, field_path);
+                        mark_member_initialized(base_place);
                     }
                     return true;
                 }
@@ -754,7 +757,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             auto destroy_old_dest = [&]() {
                 // a simple assignment destroys the previous value of a
                 // destructible local before overwriting it
-                if (as->assOp != Operation::Assignment || as->is_first_init) return;
+                if (as->assOp != Operation::Assignment) return;
                 for (auto& d : destructibles_) {
                     if (d.place == place) {
                         if (!d.fields.empty() && !d.raw_escaped) {
@@ -1584,9 +1587,10 @@ bool MIRLowerer::lower_scope_value(Scope& scope, PlaceId dest, TypeId dest_t,
                     break;
             }
             if (v) {
-                // a moved branch value (a destructured variant payload) consumes
-                // the source it was moved from
-                if (v->is_ref_moved()) clear_moved_ref(v);
+                // A branch value that is a destructured variant payload is
+                // moved out of its source variant; clear the source's drop flag
+                // so its destructor does not free the payload again.
+                clear_moved_ref(v);
                 MIRExprResult r = lower_expr(v, error);
                 if (!r.ok()) return false;
                 if (r.kind == MIRExprKind::Place) {

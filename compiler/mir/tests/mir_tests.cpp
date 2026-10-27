@@ -1741,6 +1741,35 @@ static bool test_move_paths() {
               MIR_INVALID_ID);
     }
 
+    // A variant is one owned value: its tag-aware destructor owns the active
+    // payload, so the variant gets a root path with no payload children.
+    MIRTypeRecord variant_rec;
+    variant_rec.kind = MIRTypeKind::Variant;
+    variant_rec.flags = TF_HAS_DESTRUCTOR;
+    const TypeId variant_id = module.types.push(variant_rec);
+    std::vector<MIRFieldInfo> variant_fields(2);
+    variant_fields[0].type = inner_id;
+    variant_fields[1].type = inner_id;
+    const uint32_t variant_field_index = module.types.append_fields(variant_fields);
+    module.types.update(variant_id, [&](MIRTypeRecord& rec) {
+        rec.data_count = 2;
+        rec.field_index = variant_field_index;
+    });
+    CHECK(type_needs_move_path(module.types, variant_id));
+    {
+        MIRArena variant_arena;
+        MIRFunction vfn;
+        vfn.function_type = i32;
+        MIRBuilder vb(variant_arena, module, vfn);
+        const BlockId ventry = vb.create_block();
+        vfn.entry_block = ventry;
+        vb.set_block(ventry);
+        const PlaceId vp = vb.alloca(variant_id);
+        CHECK(vfn.places[vp].move_path_id != MIR_INVALID_ID);
+        CHECK(vfn.move_paths[vfn.places[vp].move_path_id].first_child ==
+              MIR_INVALID_ID);
+    }
+
     // outer { owned: inner, count: int, items: [3]inner }
     MIRTypeRecord outer;
     outer.kind = MIRTypeKind::Struct;

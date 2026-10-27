@@ -25,7 +25,6 @@ public:
      * destroy the previous (garbage) value of `lhs`, because doing so would
      * read/destruct uninitialized memory.
      */
-    bool is_first_init = false;
 
     /**
      * @brief Construct a new AssignStatement object.

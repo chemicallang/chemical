@@ -122,7 +122,12 @@ enum class MIROpcode : uint16_t {
     AtomicFence = 54,   // result: none;   operands: Constant(order), Constant(scope),
                         //                 Constant(signal_only)
 
-    Count = 55,
+    // Marks a by-value move out of a place that is not already represented by
+    // MoveInit/Assign (a by-value call argument). Emitters emit no code; the
+    // init/move dataflow consumes it and the source flag is cleared separately.
+    MoveOut = 55,       // result: none;   operands: Place
+
+    Count = 56,
 };
 
 /** fixed opcode effects/attributes (see mir-design.md §4.6) */

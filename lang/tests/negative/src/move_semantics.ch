@@ -5,7 +5,7 @@
 func neg_move_after_use(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct S {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nfunc main() {\n    var a = S { x : 1 }\n    var b = a\n    var c = a\n}\n"
-    expect_compile_error(env, "move_after_use", ch, "cannot move")
+    expect_compile_error(env, "move_after_use", ch, "SAFE-MOVE-001")
 }
 
 @test
@@ -19,7 +19,7 @@ func neg_move_non_struct_to_struct(env : &mut TestEnv) {
 func neg_move_twice(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct S {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nfunc main() {\n    var a = S { x : 1 }\n    var b = a\n    var c = a\n}\n"
-    expect_compile_error(env, "move_twice", ch, "cannot move")
+    expect_compile_error(env, "move_twice", ch, "SAFE-MOVE-001")
 }
 
 @test
@@ -47,7 +47,7 @@ func neg_zeroed_with_dtor(env : &mut TestEnv) {
 func neg_move_into_fun_twice(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct S {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nfunc consume(s : S) { }\nfunc main() {\n    var a = S { x : 1 }\n    consume(a)\n    consume(a)\n}\n"
-    expect_compile_error(env, "move_into_fn_twice", ch, "cannot move")
+    expect_compile_error(env, "move_into_fn_twice", ch, "SAFE-MOVE-001")
 }
 
 @test
@@ -102,7 +102,7 @@ func array_index_copy_is_allowed(env : &mut TestEnv) {
 func neg_move_unknown_type(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct S {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nfunc main() {\n    var a = S { x : 1 }\n    var b = a\n    b = a\n}\n"
-    expect_compile_error(env, "move_unknown", ch, "cannot move")
+    expect_compile_error(env, "move_unknown", ch, "SAFE-MOVE-001")
 }
 
 @test

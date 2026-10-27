@@ -47,64 +47,6 @@
 
 // -------- Definite Assignment helpers --------
 
-void TypeVerifier::da_push_scope() {
-    scope_stack.emplace_back();
-}
-
-void TypeVerifier::da_pop_scope() {
-    if(scope_stack.empty()) return;
-    auto& frame = scope_stack.back();
-    for(auto* v : frame) {
-        for(size_t i = 0; i < locals.size(); i++) {
-            if(locals[i] == v) {
-                locals.erase(locals.begin() + i);
-                init_bits.erase(init_bits.begin() + i);
-                break;
-            }
-        }
-    }
-    scope_stack.pop_back();
-}
-
-void TypeVerifier::da_add_local(VarInitStatement* v) {
-    locals.push_back(v);
-    init_bits.push_back(false);
-    if(!scope_stack.empty()) {
-        scope_stack.back().push_back(v);
-    }
-}
-
-bool TypeVerifier::da_is_initialized(VarInitStatement* v) {
-    for(size_t i = 0; i < locals.size(); i++) {
-        if(locals[i] == v) return init_bits[i];
-    }
-    return false;
-}
-
-VarInitStatement* TypeVerifier::da_root_local_var(Value* v) {
-    if(!v) return nullptr;
-    switch(v->val_kind()) {
-        case ValueKind::Identifier: {
-            auto* id = static_cast<VariableIdentifier*>(v);
-            auto* linked = id->linked;
-            if(linked && linked->kind() == ASTNodeKind::VarInitStmt) {
-                auto* var = static_cast<VarInitStatement*>(linked);
-                for(auto* local : locals) {
-                    if(local == var) return var;
-                }
-            }
-            return nullptr;
-        }
-        case ValueKind::AccessChain: {
-            auto* chain = static_cast<AccessChain*>(v);
-            if(!chain->values.empty()) return da_root_local_var(chain->values[0]);
-            return nullptr;
-        }
-        default:
-            return nullptr;
-    }
-}
-
 bool TypeVerifier::da_type_has_destructor(VarInitStatement* v) {
     auto* t = v->known_type();
     if(!t) return false;
@@ -114,10 +56,10 @@ bool TypeVerifier::da_type_has_destructor(VarInitStatement* v) {
 
 // The top-level variable an access names, or null.
 //
-// This is the counterpart of `da_root_local_var`, and it exists because the local
-// analysis cannot see these at all: a module-scope declaration is never pushed onto
-// `locals`. `is_top_level()` is the AST's own answer for "inside a file or a
-// namespace", so there is no parent walk here to keep in step with it.
+// The flow-sensitive local analysis lives in MIR (`MIRMoveCheck`); a module-scope
+// declaration has no flow to analyse, so the rule is the declaration itself.
+// `is_top_level()` is the AST's own answer for "inside a file or a namespace", so
+// there is no parent walk here to keep in step with it.
 VarInitStatement* TypeVerifier::da_root_module_var(Value* v) {
     if(!v) return nullptr;
     switch(v->val_kind()) {
@@ -147,16 +89,6 @@ void TypeVerifier::da_report_uninit(VarInitStatement* v, const char* action, Sou
     msg += action;
     msg += ")";
     diagnoser.error(loc).with_code("SAFE-INIT-001") << msg;
-}
-
-void TypeVerifier::da_intersect(
-    const std::vector<bool>& a,
-    const std::vector<bool>& b,
-    std::vector<bool>& out) {
-    out.resize(a.size());
-    for(size_t i = 0; i < a.size(); i++) {
-        out[i] = a[i] && (i < b.size() ? b[i] : false);
-    }
 }
 
 static GenericTypeParameter* get_generic_param(BaseType* type) {
@@ -322,7 +254,64 @@ void verify_container_field_types(TypeVerifier& verifier, MembersContainer* cont
     }
 }
 
+void TypeVerifier::check_dropck(MembersContainer* def) {
+    if (!def || def->destructor_func() == nullptr) return;
+    bool borrowed = false;
+    if (def->kind() == ASTNodeKind::StructDecl) {
+        if (!def->as_struct_def_unsafe()->lifetime_params.empty()) borrowed = true;
+    }
+    if (!borrowed) {
+        for (auto* var : def->variables()) {
+            BaseType* t = var ? var->known_type() : nullptr;
+            BaseType* c = t ? t->canonical() : nullptr;
+            if (c && c->kind() == BaseTypeKind::Reference) {
+                borrowed = true;
+                break;
+            }
+        }
+    }
+    if (!borrowed) return;
+    const uint64_t loc = def->encoded_location().encoded;
+    if (!dropck_warned.insert(loc).second) return;
+    diagnoser.warn(def).with_code("SAFE-DROP-002")
+        << "destructor on '" << def->get_node_identifier()
+        << "' may observe borrowed data; dropck enforcement waits for the borrow checker";
+}
+
+void TypeVerifier::check_index_move(Value* value) {
+    if (!value) return;
+    Value* t = value;
+    for (int guard = 0; guard < 4 && t; ++guard) {
+        if (t->val_kind() == ValueKind::UnsafeValue) {
+            t = static_cast<UnsafeValue*>(t)->getValue();
+            continue;
+        }
+        if (t->val_kind() == ValueKind::AccessChain &&
+            t->as_access_chain_unsafe()->values.size() == 1) {
+            t = t->as_access_chain_unsafe()->values[0];
+            continue;
+        }
+        break;
+    }
+    Value* index = nullptr;
+    if (t && t->val_kind() == ValueKind::IndexOperator) {
+        index = t;
+    } else if (t && t->val_kind() == ValueKind::AccessChain &&
+               !t->as_access_chain_unsafe()->values.empty() &&
+               t->as_access_chain_unsafe()->values.back()->val_kind() ==
+                   ValueKind::IndexOperator) {
+        index = t->as_access_chain_unsafe()->values.back();
+    }
+    if (!index) return;
+    BaseType* et = index->getType();
+    BaseType* c = et ? et->canonical() : nullptr;
+    if (!c || !c->requires_destructor()) return;
+    diagnoser.error(value).with_code("SAFE-MOVE-001")
+        << "cannot move an element out of an array by index; use a Copy/Clone value or std::mem::replace";
+}
+
 void TypeVerifier::VisitStructDecl(StructDefinition* def) {
+    check_dropck(def);
     const auto before = lifetime_scope.size();
     for(const auto lifetime : def->lifetime_params) lifetime_scope.push_back(lifetime);
     RecursiveVisitor::VisitStructDecl(def);
@@ -333,6 +322,7 @@ void TypeVerifier::VisitStructDecl(StructDefinition* def) {
 }
 
 void TypeVerifier::VisitUnionDecl(UnionDef* def) {
+    check_dropck(def);
     RecursiveVisitor::VisitUnionDecl(def);
     verify_container_inherited(*this, def);
     verify_container_composition(*this, def);
@@ -340,6 +330,7 @@ void TypeVerifier::VisitUnionDecl(UnionDef* def) {
 }
 
 void TypeVerifier::VisitVariantDecl(VariantDefinition* def) {
+    check_dropck(def);
     RecursiveVisitor::VisitVariantDecl(def);
     verify_container_inherited(*this, def);
     verify_container_composition(*this, def);
@@ -369,6 +360,7 @@ void unsatisfied_type_err(ASTDiagnoser& diagnoser, Value* value, BaseType* type)
 }
 
 void TypeVerifier::VisitArrayValue(ArrayValue* val) {
+    for (auto* value : val->values) check_index_move(value);
     RecursiveVisitor<TypeVerifier>::VisitArrayValue(val);
     auto& elemType = val->known_elem_type();
     if (elemType) {
@@ -515,11 +507,7 @@ void TypeVerifier::VisitAddrOfValue(AddrOfValue* addrOfValue) {
     // when wrapping an index operator or access chain containing one, skip destructible check
     const auto prev_disable = disable_index_destructible_check;
     disable_index_destructible_check = true;
-    // DA: suppress inner read check
-    const auto prev_da_addr_inner = da_addr_inner;
-    da_addr_inner = true;
     RecursiveVisitor::VisitAddrOfValue(addrOfValue);
-    da_addr_inner = prev_da_addr_inner;
     disable_index_destructible_check = prev_disable;
     const auto value = addrOfValue->value;
     if (value->isValueRValueInFrontend() && value->getType()->isStructLikeType() == false) {
@@ -551,11 +539,7 @@ void TypeVerifier::VisitReferenceOfValue(ReferenceOfValue* refValue) {
         // when wrapping an index operator or access chain containing one, skip destructible check
         const auto prev_disable = disable_index_destructible_check;
         disable_index_destructible_check = true;
-        // DA: suppress inner read check
-        const auto prev_da_addr_inner = da_addr_inner;
-        da_addr_inner = true;
         visit_it(refValue->value);
-        da_addr_inner = prev_da_addr_inner;
         disable_index_destructible_check = prev_disable;
     }
     const auto value = refValue->value;
@@ -1465,6 +1449,7 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
 }
 
 void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
+    for (auto* value : call->values) check_index_move(value);
     RecursiveVisitor<TypeVerifier>::VisitFunctionCall(call);
     // verifying the call mutability (self param is mutable and all that...)
     verify_call_mutability(*this, call);
@@ -1671,6 +1656,7 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
 }
 
 void TypeVerifier::VisitStructValue(StructValue* structValue) {
+    for (auto& val : structValue->values) check_index_move(val.second.value);
     RecursiveVisitor<TypeVerifier>::VisitStructValue(structValue);
     for (auto &val: structValue->values) {
         auto& val_ptr = val.second.value;
@@ -1830,26 +1816,12 @@ void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
     auto& type = stmt->type;
     const auto value = stmt->value;
 
-    // DA: track local variable
-    if(da_enabled && !scope_stack.empty()) {
-        da_add_local(stmt);
-    }
-
+    check_index_move(value);
     if(type) {
         visit(type);
     }
     if(value) {
         visit(value);
-    }
-
-    // DA: mark as initialized if it has an initializer
-    if(da_enabled && value) {
-        for(size_t i = 0; i < locals.size(); i++) {
-            if(locals[i] == stmt) {
-                init_bits[i] = true;
-                break;
-            }
-        }
     }
 
     if(type && value) {
@@ -2074,40 +2046,6 @@ void TypeVerifier::VisitIfStmt(IfStatement *stmt) {
         return;
     }
 
-    // DA: visit condition, save state, visit branches, intersect
-    if(da_enabled) {
-        visit_it(stmt->condition);
-        auto before = init_bits;
-
-        init_bits = before;
-        visit_it(stmt->ifBody);
-        auto result = init_bits;
-
-        for(auto& elif : stmt->elseIfs) {
-            visit_it(elif.first);
-            init_bits = before;
-            visit_it(elif.second);
-            std::vector<bool> tmp;
-            da_intersect(result, init_bits, tmp);
-            result = std::move(tmp);
-        }
-
-        if(stmt->elseBody.has_value()) {
-            init_bits = before;
-            visit_it(stmt->elseBody.value());
-            std::vector<bool> tmp;
-            da_intersect(result, init_bits, tmp);
-            result = std::move(tmp);
-        } else {
-            std::vector<bool> tmp;
-            da_intersect(result, before, tmp);
-            result = std::move(tmp);
-        }
-
-        init_bits = result;
-        return;
-    }
-
     if (has_contract && contract_flag == ContractFlag::IsInterpretation) {
         const auto prev = is_interpretation_mode;
         // visit condition
@@ -2185,46 +2123,10 @@ void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
         VisitIndexOperator(assign->lhs->as_index_op_unsafe());
         disable_index_destructible_check = prev_disable;
     } else {
-        // DA: suppress read checks when visiting LHS (it's a write target, not a read)
-        const auto prev_da_addr_inner = da_addr_inner;
-        da_addr_inner = true;
         visit_it(assign->lhs);
-        da_addr_inner = prev_da_addr_inner;
     }
+    check_index_move(assign->value);
     visit_it(assign->value);
-
-    // DA: check for first initialization
-    if(da_enabled) {
-        const bool is_full_assignment =
-            assign->assOp == Operation::Assignment &&
-            (assign->lhs->val_kind() == ValueKind::Identifier ||
-             (assign->lhs->val_kind() == ValueKind::AccessChain &&
-              static_cast<AccessChain*>(assign->lhs)->values.size() == 1));
-
-        if(is_full_assignment) {
-            VarInitStatement* root = da_root_local_var(assign->lhs);
-            if(root && !da_is_initialized(root)) {
-                assign->is_first_init = true;
-                for(size_t i = 0; i < locals.size(); i++) {
-                    if(locals[i] == root) {
-                        init_bits[i] = true;
-                        break;
-                    }
-                }
-            }
-        } else {
-            // member/index write also initializes the root variable
-            VarInitStatement* root = da_root_local_var(assign->lhs);
-            if(root && !da_is_initialized(root)) {
-                for(size_t i = 0; i < locals.size(); i++) {
-                    if(locals[i] == root) {
-                        init_bits[i] = true;
-                        break;
-                    }
-                }
-            }
-        }
-    }
 
     const auto lhs = assign->lhs;
     const auto value = assign->value;
@@ -2289,6 +2191,7 @@ void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
 }
 
 void TypeVerifier::VisitReturnStmt(ReturnStatement *node) {
+    check_index_move(node->value);
     RecursiveVisitor::VisitReturnStmt(node);
     auto& value = node->value;
     if (value) {
@@ -2538,26 +2441,7 @@ void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {
     const auto prev = current_func_type;
     current_func_type = decl;
 
-    // Save DA state for nested function isolation
-    const auto prev_locals = std::move(locals);
-    const auto prev_init_bits = std::move(init_bits);
-    const auto prev_scope_stack = std::move(scope_stack);
-    const auto prev_da_in_unsafe = da_in_unsafe;
-    const auto prev_da_enabled = da_enabled;
-    locals.clear();
-    init_bits.clear();
-    scope_stack.clear();
-    da_in_unsafe = false;
-    da_enabled = true;
-
     RecursiveVisitor::VisitFunctionDecl(decl);
-
-    // Restore DA state
-    locals = std::move(prev_locals);
-    init_bits = std::move(prev_init_bits);
-    scope_stack = std::move(prev_scope_stack);
-    da_in_unsafe = prev_da_in_unsafe;
-    da_enabled = prev_da_enabled;
 
     current_func_type = prev;
     is_public_comptime_context = prev_pub_comptime;
@@ -2571,32 +2455,14 @@ void TypeVerifier::VisitLambdaFunction(LambdaFunction *func) {
     current_func_type = prev;
 }
 
-// -------- Definite Assignment: variable usage checks --------
-
+// -------- Module-scope initialization check --------
+//
+// The flow-sensitive local analysis now lives entirely in MIR (`MIRMoveCheck`),
+// which sees the final places, drop flags and every control-flow edge. Only the
+// module-scope rule stays here: a top-level `var` cannot be initialized by a
+// function call (there is nowhere to run one), so a destructor-bearing global
+// with no initializer and no assignment is a read of never-constructed memory.
 void TypeVerifier::VisitVariableIdentifier(VariableIdentifier* id) {
-    if(!da_enabled || da_addr_inner) return;
-    auto* v = da_root_local_var(id);
-    if(v) {
-        if(!da_is_initialized(v) && !da_in_unsafe) {
-            if(da_type_has_destructor(v)) {
-                da_report_uninit(v, "use of", id->encoded_location());
-            }
-        }
-        return;
-    }
-
-    // MODULE SCOPE has no flow to analyse, so the rule is the declaration itself.
-    //
-    // A top-level `var` cannot be initialized by a function call -- there is nowhere
-    // to run one -- so if it has no initializer and nothing ever assigns it, the value
-    // being read was never constructed. For a type with a destructor that is not a
-    // stale read, it is a read of memory no constructor ever wrote: exactly the shape
-    // that reached `table[index]` with `capacity == 0`.
-    //
-    // `has_assignment` is what keeps this from firing on the legitimate pattern -- a
-    // top-level declaration that a startup function fills in before it is used. That
-    // is symbol resolution's flag, set by any assignment to the declaration.
-    if(da_in_unsafe) return;
     auto* g = da_root_module_var(id);
     if(g && !g->value && !g->attrs.has_assignment && da_type_has_destructor(g)) {
         da_report_uninit(g, "use of", id->encoded_location());
@@ -2608,15 +2474,35 @@ void TypeVerifier::VisitUnsafeValue(UnsafeValue* value) {
     // unsafe functions inside it are allowed just like inside `unsafe { }`.
     const bool prev_unsafe = is_unsafe;
     is_unsafe = true;
-    if(da_enabled) {
-        bool prev_inner = da_addr_inner;
-        da_addr_inner = true;
-        RecursiveVisitor<TypeVerifier>::VisitUnsafeValue(value);
-        da_addr_inner = prev_inner;
-    } else {
-        RecursiveVisitor<TypeVerifier>::VisitUnsafeValue(value);
-    }
+    RecursiveVisitor<TypeVerifier>::VisitUnsafeValue(value);
     is_unsafe = prev_unsafe;
+}
+
+// The flow-sensitive definite-assignment analysis that used to live in these
+// visitors is now `MIRMoveCheck` (it sees places, drop flags and every
+// control-flow edge). The overrides stay as thin recursive delegates.
+void TypeVerifier::VisitWhileLoopStmt(WhileLoop* loop) {
+    RecursiveVisitor<TypeVerifier>::VisitWhileLoopStmt(loop);
+}
+
+void TypeVerifier::VisitDoWhileLoopStmt(DoWhileLoop* loop) {
+    RecursiveVisitor<TypeVerifier>::VisitDoWhileLoopStmt(loop);
+}
+
+void TypeVerifier::VisitForLoopStmt(ForLoop* loop) {
+    RecursiveVisitor<TypeVerifier>::VisitForLoopStmt(loop);
+}
+
+void TypeVerifier::VisitSwitchStmt(SwitchStatement* stmt) {
+    RecursiveVisitor<TypeVerifier>::VisitSwitchStmt(stmt);
+}
+
+void TypeVerifier::VisitScope(Scope* scope) {
+    RecursiveVisitor<TypeVerifier>::VisitScope(scope);
+}
+
+void TypeVerifier::VisitBlockScope(BlockScope* scope) {
+    RecursiveVisitor<TypeVerifier>::VisitBlockScope(scope);
 }
 
 void TypeVerifier::VisitAwaitExpression(AwaitExpression* value) {
@@ -2628,89 +2514,6 @@ void TypeVerifier::VisitAwaitExpression(AwaitExpression* value) {
     RecursiveVisitor<TypeVerifier>::VisitAwaitExpression(value);
 }
 
-// -------- Definite Assignment: control flow --------
-
-void TypeVerifier::VisitWhileLoopStmt(WhileLoop* loop) {
-    if(da_enabled) {
-        visit_it(loop->condition);
-        auto before = init_bits;
-        init_bits = before;
-        visit_it(loop->body);
-        init_bits = before;
-        return;
-    }
-    RecursiveVisitor<TypeVerifier>::VisitWhileLoopStmt(loop);
-}
-
-void TypeVerifier::VisitDoWhileLoopStmt(DoWhileLoop* loop) {
-    if(da_enabled) {
-        auto before = init_bits;
-        init_bits = before;
-        visit_it(loop->body);
-        visit_it(loop->condition);
-        return;
-    }
-    RecursiveVisitor<TypeVerifier>::VisitDoWhileLoopStmt(loop);
-}
-
-void TypeVerifier::VisitForLoopStmt(ForLoop* loop) {
-    if(da_enabled) {
-        da_push_scope();
-        if(loop->initializer) visit_it(loop->initializer);
-        auto before = init_bits;
-        if(loop->conditionExpr) visit_it(loop->conditionExpr);
-        init_bits = before;
-        visit_it(loop->body);
-        init_bits = before;
-        if(loop->incrementerExpr) visit_it(loop->incrementerExpr);
-        da_pop_scope();
-        return;
-    }
-    RecursiveVisitor<TypeVerifier>::VisitForLoopStmt(loop);
-}
-
-void TypeVerifier::VisitSwitchStmt(SwitchStatement* stmt) {
-    if(da_enabled) {
-        visit_it(stmt->expression);
-        auto before = init_bits;
-        auto result = init_bits;
-        for(auto& scope : stmt->scopes) {
-            init_bits = before;
-            visit_it(scope);
-            std::vector<bool> tmp;
-            da_intersect(result, init_bits, tmp);
-            result = std::move(tmp);
-        }
-        if(!stmt->has_default_case()) {
-            std::vector<bool> tmp;
-            da_intersect(result, before, tmp);
-            result = std::move(tmp);
-        }
-        init_bits = result;
-        return;
-    }
-    RecursiveVisitor<TypeVerifier>::VisitSwitchStmt(stmt);
-}
-
-void TypeVerifier::VisitScope(Scope* scope) {
-    if(da_enabled) {
-        da_push_scope();
-        RecursiveVisitor<TypeVerifier>::VisitScope(scope);
-        da_pop_scope();
-        return;
-    }
-    RecursiveVisitor<TypeVerifier>::VisitScope(scope);
-}
-
-void TypeVerifier::VisitBlockScope(BlockScope* scope) {
-    if(da_enabled) {
-        da_push_scope();
-        RecursiveVisitor<TypeVerifier>::VisitBlockScope(scope);
-        da_pop_scope();
-        return;
-    }
-    RecursiveVisitor<TypeVerifier>::VisitBlockScope(scope);
-}
 
 void TypeVerifier::VisitLinkedType(LinkedType* type) {
     if (is_generic_public_context) {
@@ -2837,18 +2640,12 @@ void TypeVerifier::VisitUnsafeBlock(UnsafeBlock* block) {
         }
         const auto prev = *flag;
         *flag = true;
-        const auto prev_da = da_in_unsafe;
-        da_in_unsafe = true;
         RecursiveVisitor<TypeVerifier>::VisitUnsafeBlock(block);
-        da_in_unsafe = prev_da;
         *flag = prev;
     } else {
         const auto prev = is_unsafe;
         is_unsafe = true;
-        const auto prev_da = da_in_unsafe;
-        da_in_unsafe = true;
         RecursiveVisitor<TypeVerifier>::VisitUnsafeBlock(block);
-        da_in_unsafe = prev_da;
         is_unsafe = prev;
     }
 }

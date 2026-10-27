@@ -263,7 +263,6 @@ public:
     /**
      * check if this value is a reference and moved
      */
-    bool is_ref_moved();
 
     /**
      * is an int num value, this includes referenced values

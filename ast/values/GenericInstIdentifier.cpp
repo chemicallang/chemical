@@ -17,6 +17,5 @@ GenericInstIdentifier* GenericInstIdentifier::copy(ASTAllocator &allocator) {
         std::move(args)
     );
     id->linked = linked;
-    id->is_moved = is_moved;
     return id;
 }

@@ -55,6 +55,8 @@ uint16_t opcode_flags(MIROpcode op) {
         case MIROpcode::Drop:
         case MIROpcode::Destroy:
             return OF_Lifetime | OF_Call | OF_Write | OF_MayThrow;
+        case MIROpcode::MoveOut:
+            return OF_Lifetime | OF_Read;
         case MIROpcode::SetDrop:
             return OF_Lifetime | OF_Write;
         case MIROpcode::MemCpy:
@@ -160,6 +162,7 @@ const char* opcode_name(MIROpcode op) {
         case MIROpcode::Copy: return "copy";
         case MIROpcode::Move: return "move";
         case MIROpcode::Drop: return "drop";
+        case MIROpcode::MoveOut: return "move_out";
         case MIROpcode::Destroy: return "destroy";
         case MIROpcode::SetDrop: return "set_drop";
         case MIROpcode::MemCpy: return "memcpy";

@@ -26,7 +26,7 @@ func uninit_member_write_on_destructible_ok(env : &mut TestEnv) {
 func neg_uninit_read_on_destructible_errors(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct Container {\n    @delete func delete(&mut self) { }\n}\nfunc use(c : Container) { }\npublic func main() : int {\n    var c : Container\n    use(c)\n    return 0\n}\n"
-    expect_compile_error(env, "uninit_read_on_destructible", ch, "uninitialized variable")
+    expect_compile_error(env, "uninit_read_on_destructible", ch, "SAFE-INIT-001")
 }
 
 @test
@@ -94,7 +94,7 @@ func neg_uninit_branch_maybe_errors(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     // After `if (true) { c = ... }` the variable is only *maybe* initialized.
     var ch = "struct Container {\n    @delete func delete(&mut self) { }\n}\nfunc use(c : Container) { }\npublic func main() : int {\n    var c : Container\n    if(true) { c = Container {} }\n    use(c)\n    return 0\n}\n"
-    expect_compile_error(env, "uninit_branch_maybe", ch, "uninitialized variable")
+    expect_compile_error(env, "uninit_branch_maybe", ch, "SAFE-MOVE-001")
 }
 
 @test

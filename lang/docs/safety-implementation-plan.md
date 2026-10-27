@@ -481,9 +481,26 @@
 >   `full_field_init_destroys_every_field`,
 >   `partial_init_reassignment_destroys_old_value`,
 >   `partial_array_init_destroys_only_initialized_elements`,
->   `partial_array_reassignment_destroys_old_element`). Remaining in M3:
->   variant active-case tracking, dropck (needs regions) and removing the old
->   AST definite-assignment/move tracker.
+>   `partial_array_reassignment_destroys_old_element`).
+> - S3.3 variant ownership contract: a variant is one owned value. Its
+>   generated destructor reads the tag and destroys only the active payload, so
+>   MIR gives the variant a root move path with no payload children; moving a
+>   payload out stays a front-end pattern-match effect. Unions remain raw
+>   storage. `MIRTests` covers both roots.
+> - S3.4 dropck prerequisite report: `SAFE-DROP-002` is a report-only warning
+>   on a user `@delete` whose type has lifetime parameters or a
+>   reference-typed field (it may observe borrowed data at drop time).
+>   Enforcement requires regions and lands with M4.
+> - S3.6 single init/move source: the flow-sensitive AST definite-assignment
+>   pass and the AST move tracker are removed. `MIRMoveCheck` is the sole
+>   producer of init/move/drop state. A `MoveOut` MIR marker checks by-value
+>   call arguments (uninitialized/moved), the lowering clears a moved pattern
+>   payload's source variant, and a `TypeVerify` check rejects moving a
+>   destructor-bearing array element by index (`SAFE-MOVE-001`). The
+>   module-scope uninitialized-global check remains in `TypeVerify`. First
+>   assignment now destroys the old value through the runtime drop flag instead
+>   of `is_first_init`. `MIRTests` is `4585 checks`. `SAFE-DROP-002` is in the
+>   stable-code table.
 > - S1.5m conditional positive auto-trait impls: `unsafe impl<T> Send for
 >   Box<T> where T: Send` is evaluated against the concrete arguments at a
 >   `where T: Send` use site (and recursively for nested boxes), instead of
@@ -578,8 +595,8 @@
 >   `*v.get_ref(0) = ...` is rejected; a positive test covers `get_mut`.
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >
-> Next: variant active-case tracking, dropck (with regions), and removing the
-> old AST definite-assignment/move tracker, then the borrow checker.
+> M3 is complete. Next: M4 (regions, NLL, borrow checking, dropck enforcement,
+> provenance, async/Pin).
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

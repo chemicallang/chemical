@@ -142,7 +142,11 @@ bool MIRLowerer::lower_call_args_for(FunctionDeclaration* fd, bool self_included
                 BaseType* at = v0->getType();
                 BaseType* canon = at ? at->canonical() : nullptr;
                 if (!(canon && canon->kind() == BaseTypeKind::Array)) {
-                    mark_moved(static_cast<PlaceId>(r.id));
+                    const PlaceId pid = static_cast<PlaceId>(r.id);
+                    const TypeId pt = builder_->function().places[pid].type;
+                    builder_->emit(MIROpcode::MoveOut, MIR_NULL,
+                                   {MIROperand::place(pid, pt)});
+                    mark_moved(pid);
                 }
             }
         }
@@ -455,12 +459,10 @@ void MIRLowerer::register_destructible(PlaceId place, BaseType* type,
     if (flag == MIR_INVALID_ID) {
         flag = builder_->alloca(types_.bool_type(), MIRStorageClass::Local);
     }
-    // A field-wise destructible is destroyed through its per-field flags, so
-    // the whole-value flag never guards a drop; keep it truthful for the
-    // init/move dataflow. Every other destructible keeps the historical
-    // always-armed flag (an uninitialized bare declaration is rejected by the
-    // checker before it can run).
-    builder_->set_drop(flag, field_wise ? whole_value_initialized : true);
+    // The root flag starts armed only when the declaration actually constructs
+    // the value. An uninitialized bare declaration leaves it false, so an
+    // overwrite's guarded drop does nothing until `mark_initialized` arms it.
+    builder_->set_drop(flag, whole_value_initialized);
     destructibles_.push_back({place, flag, dtor, std::move(field_flags)});
 }
 
@@ -589,6 +591,22 @@ void MIRLowerer::mark_raw_escaped(PlaceId place) {
         }
         // The whole-value path takes over: arm the root flag at the escape
         // point (the raw pointer may write subobjects the flags don't see).
+        builder_->set_drop(d.flag, true);
+        return;
+    }
+}
+
+void MIRLowerer::mark_member_initialized(PlaceId place) {
+    if (place >= builder_->function().places.size()) return;
+    const uint32_t path = builder_->function().places[place].move_path_id;
+    if (path == MIR_INVALID_ID) return;
+    // Only a value with no owned subobjects: a user destructor may read any
+    // member, but a whole-value drop must not destroy uninitialized owned
+    // fields.
+    if (builder_->function().move_paths[path].first_child != MIR_INVALID_ID) return;
+    for (auto& d : destructibles_) {
+        if (d.place != place) continue;
+        if (!d.fields.empty()) return;
         builder_->set_drop(d.flag, true);
         return;
     }

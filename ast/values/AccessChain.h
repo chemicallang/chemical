@@ -11,12 +11,6 @@
 #include "ast/base/Value.h"
 #include <unordered_map>
 
-struct AccessChainAttributes {
-
-    bool is_moved;
-
-};
-
 /**
  * access chain represents a way to access things in programming language for example
  * x.y.z is an access chain, z member of the y of the x is being accessed
@@ -27,14 +21,13 @@ class AccessChain : public Value {
 public:
 
     std::vector<Value*> values;
-    AccessChainAttributes attrs;
 
     /**
      * constructor
      */
     constexpr AccessChain(
         SourceLocation location
-    ) : Value(ValueKind::AccessChain, location), attrs(false) {
+    ) : Value(ValueKind::AccessChain, location) {
 
     }
 
@@ -44,7 +37,7 @@ public:
     constexpr AccessChain(
             BaseType* chain_type,
             SourceLocation location
-    ) : Value(ValueKind::AccessChain, chain_type, location), attrs(false) {
+    ) : Value(ValueKind::AccessChain, chain_type, location) {
 
     }
 
@@ -54,7 +47,7 @@ public:
     constexpr AccessChain(
         std::vector<Value*> values,
         SourceLocation location
-    ) : Value(ValueKind::AccessChain, location), values(std::move(values)), attrs(false) {
+    ) : Value(ValueKind::AccessChain, location), values(std::move(values)) {
 
     }
 
@@ -65,16 +58,8 @@ public:
             std::vector<Value*> values,
             BaseType* chain_type,
             SourceLocation location
-    ) : Value(ValueKind::AccessChain, chain_type, location), values(std::move(values)), attrs(false) {
+    ) : Value(ValueKind::AccessChain, chain_type, location), values(std::move(values)) {
 
-    }
-
-    inline bool is_moved() {
-        return attrs.is_moved;
-    }
-
-    inline void set_is_moved(bool is_moved) {
-        attrs.is_moved = is_moved;
     }
 
     /**

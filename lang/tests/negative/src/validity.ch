@@ -23,3 +23,12 @@ func zeroed_phantom_data_reference_ok(env : &mut TestEnv) {
     var ch = "struct P<'a> {\n    var p : std::PhantomData<&'a int>\n}\npublic func main() : int {\n    var x : P = zeroed<P>()\n    return 0\n}\n"
     expect_compile_success_with_mod(env, "zeroed_phantom_data", ch, NEG_MOD_STD_CORE)
 }
+
+@test
+func zeroed_generic_reference_rejected(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // The concrete generic argument is a reference; the specialized field is
+    // still storage, so zeroing it is invalid.
+    var ch = "struct W<T> {\n    var value : T\n}\npublic func main() : int {\n    var w : W<&int> = zeroed<W<&int>>()\n    return 0\n}\n"
+    expect_compile_error(env, "zeroed_generic_reference", ch, "SAFE-VALID-001")
+}

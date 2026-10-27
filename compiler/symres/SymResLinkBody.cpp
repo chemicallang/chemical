@@ -3659,8 +3659,8 @@ static bool zeroed_contains_reference(BaseType* type, int depth = 0) {
             depth + 1);
     }
     // Generic arguments are not storage: `PhantomData<&T>` is zeroable even
-    // though it names a reference. Only concrete fields matter.
-    if (canonical->kind() == BaseTypeKind::Generic) return false;
+    // though it names a reference. Only concrete fields matter, so look
+    // through the (specialized) members container.
     MembersContainer* container = canonical->get_members_container();
     if (container == nullptr) return false;
     for (ASTNode* member : container->variables()) {

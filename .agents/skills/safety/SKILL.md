@@ -252,9 +252,10 @@ Implemented:
   thread-safe wake/clone/drop. Async frame field checking remains.
 - M5.1 value validity (zeroed): `SAFE-VALID-001` rejects `zeroed<T>()` when
   the concrete type contains a reference field (directly, in an array, or in a
-  variant payload): zeroing would create a null reference. `PhantomData<&T>` is
-  storage-free and exempt. `zeroed:unsafe` remains the explicit unsafe escape.
-  Negative tests cover reference rejection, a plain struct, and PhantomData.
+  variant payload): zeroing would create a null reference. Specialized generic
+  fields (`W<&int>`) are checked too; `PhantomData<&T>` is storage-free and
+  exempt. `zeroed:unsafe` remains the explicit unsafe escape. Negative tests
+  cover direct/generic reference rejection, a plain struct, and PhantomData.
 - S4.6b per-use dropck: a known callee returning a destructor-bearing aggregate
   from one reference argument binds that loan to the result place; returning a
   `Ref`/`RefMut` (including through `Option`) keeps the loan live until the

@@ -250,6 +250,9 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
     std::unordered_map<ValueId, LoanTarget> address_targets;
     std::unordered_map<ValueId, uint32_t> value_loans;
     std::unordered_map<PlaceId, uint32_t> place_loans;
+    // Ambiguous reference results may alias any of these loans.
+    std::unordered_map<ValueId, std::vector<uint32_t>> value_aliases;
+    std::unordered_map<PlaceId, std::vector<uint32_t>> place_aliases;
     // Reference values/places that carry a parameter's region (return outlives).
     std::unordered_map<ValueId, uint32_t> value_params;
     std::unordered_map<PlaceId, uint32_t> place_params;
@@ -273,6 +276,14 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
         Loan& loan = loans[it->second];
         loan.end = lin;
         if (may_escape) loan.escaped = true;
+        const auto aliases = value_aliases.find(op.id);
+        if (aliases != value_aliases.end()) {
+            for (uint32_t alias : aliases->second) {
+                if (alias >= loans.size()) continue;
+                loans[alias].end = lin;
+                if (may_escape) loans[alias].escaped = true;
+            }
+        }
     };
     auto target_of_address = [&](const MIROperand& op, LoanTarget& out) -> bool {
         if (op.kind() != MIROperandKind::Value) return false;
@@ -359,6 +370,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 loans.push_back(std::move(loan));
                 if (inst.result_or_place != MIR_INVALID_ID) {
                     value_loans[inst.result_or_place] = idx;
+                    value_aliases.erase(inst.result_or_place);
                 }
                 break;
             }
@@ -407,6 +419,10 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         if (fpi != field_params.end()) {
                             value_params[inst.result_or_place] = fpi->second;
                         }
+                    }
+                    const auto pa = place_aliases.find(ops[0].id);
+                    if (pa != place_aliases.end()) {
+                        value_aliases[inst.result_or_place] = pa->second;
                     }
                 }
                 break;
@@ -467,6 +483,13 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                             } else {
                                 place_params.erase(ops[0].id);
                             }
+                            const auto pal = place_aliases.find(ops[1].id);
+                            if (pal != place_aliases.end()) {
+                                place_aliases[ops[0].id] = pal->second;
+                                place_aliases.erase(ops[1].id);
+                            } else {
+                                place_aliases.erase(ops[0].id);
+                            }
                         }
                         std::vector<std::pair<uint64_t, uint32_t>> moved;
                         std::vector<std::pair<uint64_t, uint32_t>> moved_params;
@@ -525,6 +548,12 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         } else {
                             place_params.erase(ops[0].id);
                         }
+                        const auto va = value_aliases.find(value.id);
+                        if (va != value_aliases.end()) {
+                            place_aliases[ops[0].id] = va->second;
+                        } else {
+                            place_aliases.erase(ops[0].id);
+                        }
                         const auto it = value_loans.find(value.id);
                         if (it != value_loans.end()) {
                             place_loans[ops[0].id] = it->second;
@@ -560,6 +589,15 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         }
                     } else {
                         place_params.erase(ops[0].id);
+                    }
+                    const auto pa = place_aliases.find(ops[1].id);
+                    if (pa != place_aliases.end()) {
+                        place_aliases[ops[0].id] = pa->second;
+                        if (inst.opcode() == MIROpcode::MoveInit) {
+                            place_aliases.erase(ops[1].id);
+                        }
+                    } else {
+                        place_aliases.erase(ops[0].id);
                     }
                 }
                 const auto it = place_loans.find(ops[1].id);
@@ -635,6 +673,12 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     ops[1].kind() == MIROperandKind::Value) {
                     const auto it = value_loans.find(ops[1].id);
                     if (it != value_loans.end()) place_loans[ops[0].id] = it->second;
+                    const auto va = value_aliases.find(ops[1].id);
+                    if (va != value_aliases.end()) {
+                        place_aliases[ops[0].id] = va->second;
+                    } else {
+                        place_aliases.erase(ops[0].id);
+                    }
                 }
                 break;
             }
@@ -655,6 +699,17 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         value_loans[inst.result_or_place] = it->second;
                         loans[it->second].end = lin;
                     }
+                    const auto pa = place_aliases.find(ops[0].id);
+                    if (pa != place_aliases.end()) {
+                        value_aliases[inst.result_or_place] = pa->second;
+                    }
+                }
+                if (ops[0].kind() == MIROperandKind::Value &&
+                    inst.result_or_place != MIR_INVALID_ID) {
+                    const auto va = value_aliases.find(ops[0].id);
+                    if (va != value_aliases.end()) {
+                        value_aliases[inst.result_or_place] = va->second;
+                    }
                 }
                 break;
             }
@@ -670,6 +725,10 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     const auto vp = value_params.find(ops[0].id);
                     if (vp != value_params.end()) {
                         value_params[inst.result_or_place] = vp->second;
+                    }
+                    const auto va = value_aliases.find(ops[0].id);
+                    if (va != value_aliases.end()) {
+                        value_aliases[inst.result_or_place] = va->second;
                     }
                 }
                 break;
@@ -752,6 +811,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 // the correct loan alive instead of dropping both.
                 uint32_t mapped_loan = MIR_INVALID_ID;
                 uint32_t mapped_source = MIR_INVALID_ID;
+                std::vector<uint32_t> ambiguous_loans;
                 if (known && returns_reference &&
                     inst.result_or_place != MIR_INVALID_ID) {
                     if (callee_sig != nullptr &&
@@ -778,6 +838,15 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         } else if (identity.empty() && sources.size() == 1) {
                             mapped_loan = sources[0]->loan;
                             mapped_source = sources[0]->source_param;
+                        } else if (!identity.empty() || !sources.empty()) {
+                            // The result may alias any of these candidates.
+                            const auto& candidates =
+                                !identity.empty() ? identity : sources;
+                            mapped_loan = candidates[0]->loan;
+                            mapped_source = candidates[0]->source_param;
+                            for (const RefArg* ra : candidates) {
+                                ambiguous_loans.push_back(ra->loan);
+                            }
                         } else if (ref_args.size() == 1) {
                             // Elided/static region: the single reference is
                             // still the only possible source.
@@ -815,6 +884,11 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     }
                     value_loans[inst.result_or_place] = mapped_loan;
                     loans[mapped_loan].end = lin;
+                    if (!ambiguous_loans.empty()) {
+                        value_aliases[inst.result_or_place] = ambiguous_loans;
+                    } else {
+                        value_aliases.erase(inst.result_or_place);
+                    }
                     if (mapped_source != MIR_INVALID_ID) {
                         value_params[inst.result_or_place] = mapped_source;
                     }
@@ -938,6 +1012,23 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 if (!reported && !check_param_region(return_param)) {
                     reported = true;
                 }
+                // An ambiguous result may come from any candidate argument.
+                if (!reported && ops != nullptr && inst.operand_count > 0 &&
+                    ops[0].kind() == MIROperandKind::Value) {
+                    const auto al = value_aliases.find(ops[0].id);
+                    if (al != value_aliases.end()) {
+                        for (uint32_t alias : al->second) {
+                            if (alias >= loans.size()) continue;
+                            const uint32_t alias_param =
+                                loans[alias].target.param_index;
+                            if (alias_param != MIR_INVALID_ID &&
+                                !check_param_region(alias_param)) {
+                                reported = true;
+                                break;
+                            }
+                        }
+                    }
+                }
                 // S4.6a: references stored in fields of a returned aggregate
                 // escape with it; check them like a directly returned reference.
                 if (!reported && returned_place != MIR_INVALID_ID) {
@@ -1023,6 +1114,14 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 if (it != value_loans.end() && it->second < nloans &&
                     !defined_in_block[it->second]) {
                     block_use[b][it->second] = true;
+                }
+                const auto al = value_aliases.find(ops[i].id);
+                if (al != value_aliases.end()) {
+                    for (uint32_t alias : al->second) {
+                        if (alias < nloans && !defined_in_block[alias]) {
+                            block_use[b][alias] = true;
+                        }
+                    }
                 }
             }
             // Reading a reference local is a use of its loan even when the
@@ -1209,6 +1308,12 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 const auto it = value_loans.find(ops[i].id);
                 if (it != value_loans.end() && it->second < nloans) {
                     live[it->second] = true;
+                }
+                const auto al = value_aliases.find(ops[i].id);
+                if (al != value_aliases.end()) {
+                    for (uint32_t alias : al->second) {
+                        if (alias < nloans) live[alias] = true;
+                    }
                 }
             }
             if ((inst.opcode() == MIROpcode::Drop ||

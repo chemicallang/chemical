@@ -174,3 +174,18 @@ func ref_guard_same_scope_drops_first_ok(env : &mut TestEnv) {
     var ch = "using std::Option;\npublic func main() : int {\n    var cell = std::ref_cell(1)\n    var guard = cell.try_borrow()\n    return 0\n}\n"
     expect_compile_success_with_mod(env, "borrow_ref_guard_same_scope", ch, NEG_MOD_STD_CORE)
 }
+
+@test
+func neg_ambiguous_reference_result_aliases_all_candidates(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // Both arguments have the return region, so the result may alias either.
+    var ch = "func <'a> pick(x : &'a mut int, y : &'a mut int) : &'a mut int {\n    return x\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    var r = pick(&mut a, &mut b)\n    var q = &mut b\n    *q = 9\n    return *r\n}\n"
+    expect_compile_error(env, "borrow_ambiguous_result_alias", ch, "SAFE-BORROW-001")
+}
+
+@test
+func ambiguous_reference_result_unrelated_place_ok(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "func <'a> pick(x : &'a mut int, y : &'a mut int) : &'a mut int {\n    return x\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    var c = 3\n    var r = pick(&mut a, &mut b)\n    var q = &mut c\n    *q = 9\n    return *r\n}\n"
+    expect_compile_success(env, "borrow_ambiguous_result_other", ch)
+}

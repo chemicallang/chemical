@@ -2188,6 +2188,64 @@ static bool test_borrow_check() {
     }
 
     {
+        // S4.5: when several arguments share the return region, the result may
+        // alias any of them. A later borrow of the second candidate conflicts.
+        MIRTypeRecord afr;
+        afr.kind = MIRTypeKind::Function;
+        afr.element = ref_t;
+        afr.size = 8;
+        afr.alignment = 8;
+        const TypeId aftype = module.types.intern(afr);
+        MIRSymbolRecord arec;
+        arec.kind = MIRSymbolKind::Function;
+        arec.has_body = true;
+        arec.type = aftype;
+        const SymbolId acallee = module.symbols.add(
+            arec, "pick_same", 9, "pick_same", 9);
+
+        MIRFunction fn;
+        MIRArena arena;
+        fn.function_type = void_t;
+        MIRBuilder b(arena, module, fn);
+        const BlockId entry = b.create_block();
+        fn.entry_block = entry;
+        b.set_block(entry);
+        const PlaceId x = b.alloca(i32);
+        const PlaceId y = b.alloca(i32);
+        b.store(x, b.const_int(i32, module.constants.add_int(i32, 1)));
+        b.store(y, b.const_int(i32, module.constants.add_int(i32, 2)));
+        const ValueId ax = b.address_of(x, ptr_t);
+        const ValueId bx = b.borrow(ax, region, ref_t, true);
+        const ValueId ay = b.address_of(y, ptr_t);
+        const ValueId by = b.borrow(ay, region, ref_t, true);
+        MIROperand args2[2] = {
+            MIROperand::value(bx, ref_t),
+            MIROperand::value(by, ref_t),
+        };
+        const ValueId res = b.call_scalar(acallee, ref_t, args2, 2);
+        const ValueId ay2 = b.address_of(y, ptr_t);
+        (void) b.borrow(ay2, region, ref_t, true);
+        (void) b.load_indirect(res, i32);
+        b.ret_void();
+
+        MIRFunction acallee_fn;
+        acallee_fn.function_type = aftype;
+        acallee_fn.region_signature = module.add_region_signature(
+            make_region_signature({"a"}, {"a", "a"}, "a", {})
+        );
+        module.set_symbol_region_signature(acallee, acallee_fn.region_signature);
+
+        const MIRBorrowCheckResult r = check_function_borrows(module, fn);
+        bool found = false;
+        for (const auto& d : r.diagnostics) {
+            if (d.code != nullptr && std::string(d.code) == "SAFE-BORROW-001") {
+                found = true;
+            }
+        }
+        CHECK(found);
+    }
+
+    {
         // S4.6a aggregate: a reference field of an sret-returned aggregate is
         // checked like a directly returned reference.
         MIRTypeRecord ar;

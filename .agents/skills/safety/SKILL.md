@@ -219,13 +219,15 @@ Implemented:
   reference arguments now maps its result to the argument whose declared region
   is the return region (identity first, then a unique `where 'a: 'b` source).
   The other argument loans end at the call, so `pick(&mut a, &mut b)` no longer
-  loses the result loan to the conservative escape path. Ambiguous results
-  still escape. Lambdas carry their enclosing function symbol; borrow
+  loses the result loan to the conservative escape path. When several arguments
+  share the return region, the result carries an alias set of all candidate
+  loans: every use keeps them live, and a return checks each candidate's
+  region. Lambdas carry their enclosing function symbol; borrow
   diagnostics print `inside <parent>` and the source-location provider is
   installed even in `debug_quick`, so a generated lambda warning points at the
   enclosing function. Migrated the one in-tree two-`&mut` test; the tree now
-  has zero `SAFE-BORROW-001` hits. `MIRTests` is `4631 checks`; negative tests
-  cover both the aliased and unrelated-argument cases (460 tests).
+  has zero `SAFE-BORROW-001` hits. `MIRTests` is `4632 checks`; negative tests
+  cover aliased, ambiguous, and unrelated-argument cases (466 tests).
 - S4.3b autoref / S4.7 two-phase: a reference receiver (`&self` / `&mut self`)
   now lowers to `Borrow`/`BorrowMut` instead of an untracked `AddressOf`, and
   method-call arguments are evaluated before the receiver borrow is activated.

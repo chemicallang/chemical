@@ -51,7 +51,7 @@ public func <T> option_take(o : *mut std::Option<T>) : T {
 
 @retained
 public func <T> channel_wake_locked(s : *mut ChannelShared<T>) {
-    if(s.waker.vtbl == null) {
+    if(s.waker.is_empty()) {
         return
     }
     var w = s.waker.clone()
@@ -259,7 +259,7 @@ public func <T> recv_poll(frame : *mut void, cx : *mut core::async::Context) : c
         s.m.unlock()
         return core::async::Poll.Ready<T>(fb)
     }
-    if(cx.waker.vtbl != null) {
+    if(!cx.waker.is_empty()) {
         s.waker = cx.waker.clone()
     }
     s.m.unlock()
@@ -297,7 +297,7 @@ public func <T> channel() : Channel<T> {
         closed : false,
         senders : 1,
         receivers : 1,
-        waker : core::async::Waker { data : null, vtbl : null }
+        waker : core::async::Waker.empty()
     }
     return Channel<T> {
         sender : Sender<T> { shared : s },

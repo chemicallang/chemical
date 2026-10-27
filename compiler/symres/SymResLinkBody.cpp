@@ -3620,6 +3620,22 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
             diagnoser.error(structValue) << "struct with name '" << structValue->linked_extendable()->name_view() << "' has a constructor, use @direct_init to allow direct initialization";
         }
     }
+    // A private field is part of the type's invariant. Direct initialization
+    // from outside the type (or one of its methods) would bypass the
+    // constructor that establishes it.
+    for (auto& entry : structValue->values) {
+        ASTNode* member = structValue->linked_member_or_struct_of(entry.first);
+        if (member == nullptr || member->kind() != ASTNodeKind::StructMember) continue;
+        auto* struct_member = member->as_struct_member_unsafe();
+        if (struct_member->specifier() != AccessSpecifier::Private) continue;
+        auto* curr_func = current_func_type ? current_func_type->as_function() : nullptr;
+        if (curr_func == nullptr || curr_func->parent() == nullptr ||
+            !isParentMethodOf(curr_func, structValue)) {
+            diagnoser.error(entry.second.value).with_code("SAFE-VIS-001")
+                << "cannot initialize private member '" << entry.first
+                << "' from outside its type; use a constructor";
+        }
+    }
     auto refTypeKind = structValue->getRefType()->kind();
     if(refTypeKind == BaseTypeKind::Generic) {
         for (auto& arg: structValue->generic_list()) {

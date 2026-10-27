@@ -17,7 +17,7 @@ func yield_poll(frame : *mut void, cx : *mut core::async::Context) : core::async
         return core::async::Poll.Ready<core::async::Unit>(core::async::Unit { })
     }
     st.yielded = true
-    if(cx.waker.vtbl != null) {
+    if(!cx.waker.is_empty()) {
         cx.waker.wake()
     }
     return core::async::Poll.Pending<core::async::Unit>()

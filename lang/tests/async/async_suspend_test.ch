@@ -270,7 +270,7 @@ func test_async_suspend_cancel_destroys_locals(env : &mut TestEnv) {
     {
         var h = suspend_cancel()
         var cx = core::async::Context {
-            waker : core::async::Waker { data : null, vtbl : null }
+            waker : core::async::Waker.empty()
         }
         var p = h.vtbl.poll(h.frame, &raw mut cx)
         if(p is core::async::Poll.Pending) {
@@ -371,7 +371,7 @@ func test_async_suspend_child_cancelled(env : &mut TestEnv) {
     {
         var h = cancel_parent()
         var cx = core::async::Context {
-            waker : core::async::Waker { data : null, vtbl : null }
+            waker : core::async::Waker.empty()
         }
         var p = h.vtbl.poll(h.frame, &raw mut cx)
         if(p is core::async::Poll.Pending) {
@@ -415,7 +415,7 @@ func test_async_suspend_moved_local(env : &mut TestEnv) {
     {
         var h = moved_local(1)
         var cx = core::async::Context {
-            waker : core::async::Waker { data : null, vtbl : null }
+            waker : core::async::Waker.empty()
         }
         var p = h.vtbl.poll(h.frame, &raw mut cx)
         if(p is core::async::Poll.Pending) { }
@@ -458,7 +458,7 @@ func test_async_suspend_array_cancelled(env : &mut TestEnv) {
     {
         var h = cancel_array()
         var cx = core::async::Context {
-            waker : core::async::Waker { data : null, vtbl : null }
+            waker : core::async::Waker.empty()
         }
         var p = h.vtbl.poll(h.frame, &raw mut cx)
         if(p is core::async::Poll.Pending) {

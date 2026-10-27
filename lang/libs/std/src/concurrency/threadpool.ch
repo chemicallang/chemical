@@ -281,6 +281,11 @@ public namespace std {
                 delete data;
             }
 
+            // The pool owns the raw allocation; construction is unchecked.
+            public unsafe func from_raw(data : *mut PoolData) : ThreadPool {
+                return ThreadPool { data : data }
+            }
+
         }
 
         public func create_pool(n:uint) : ThreadPool {
@@ -302,7 +307,7 @@ public namespace std {
                 p.workers.push_back(h);
                 i=i+1u
             }
-            return ThreadPool { data : p }
+            return unsafe(ThreadPool.from_raw(p))
         }
 
     }

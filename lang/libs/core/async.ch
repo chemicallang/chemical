@@ -21,14 +21,35 @@ public namespace async {
 
     // A cloneable, type-erased wake callback. `data` points at the task.
     public struct Waker {
-        var data : *mut void
-        var vtbl : *WakerVTable
+        private var data : *mut void
+        private var vtbl : *WakerVTable
+
+        // A waker with no task. `wake`/`clone` are no-ops, so this is safe to
+        // construct and use before a task installs its real waker.
+        public func empty() : Waker {
+            return Waker { data : null, vtbl : null }
+        }
+
+        // The only way to build a waker around foreign data/vtable. The
+        // vtable contract is unchecked, so construction is unsafe (S4.1).
+        public unsafe func from_raw(data : *mut void, vtbl : *WakerVTable) : Waker {
+            return Waker { data : data, vtbl : vtbl }
+        }
+
+        public func is_empty(&self) : bool {
+            return vtbl == null
+        }
 
         public func wake(&self) {
-            vtbl.wake(data)
+            if(vtbl != null) {
+                vtbl.wake(data)
+            }
         }
 
         public func clone(&self) : Waker {
+            if(vtbl == null) {
+                return Waker.empty()
+            }
             return vtbl.clone(data)
         }
 

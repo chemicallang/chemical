@@ -625,8 +625,29 @@ func neg_vector_clone_requires_clone(env : &mut TestEnv) {
 @test
 func waker_is_send_and_sync(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "func <T> needs_send(v : T) : int where T : Send { return 0 }\nfunc <T> needs_sync(v : T) : int where T : Sync { return 0 }\npublic func main() : int {\n    var w = core::async::Waker { data : null, vtbl : null }\n    var w2 = core::async::Waker { data : null, vtbl : null }\n    return needs_send(w) + needs_sync(w2)\n}\n"
+    var ch = "func <T> needs_send(v : T) : int where T : Send { return 0 }\nfunc <T> needs_sync(v : T) : int where T : Sync { return 0 }\npublic func main() : int {\n    var w = core::async::Waker.empty()\n    var w2 = core::async::Waker.empty()\n    return needs_send(w) + needs_sync(w2)\n}\n"
     expect_compile_success_with_mod(env, "waker_send_sync", ch, NEG_MOD_CORE)
+}
+
+@test
+func waker_private_fields_cannot_be_initialized_directly(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var w = core::async::Waker { data : null, vtbl : null }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "waker_private_init", ch, "SAFE-VIS-001", NEG_MOD_CORE)
+}
+
+@test
+func waker_from_raw_requires_unsafe(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var w = core::async::Waker.from_raw(null, null)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "waker_from_raw_safe", ch, "SAFE-UNSAFE-002", NEG_MOD_CORE)
+}
+
+@test
+func waker_from_raw_unsafe_and_empty_are_usable(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var w = unsafe(core::async::Waker.from_raw(null, null))\n    var e = core::async::Waker.empty()\n    e.wake()\n    var e2 = e.clone()\n    e2.wake()\n    return 0\n}\n"
+    expect_compile_success_with_mod(env, "waker_constructors", ch, NEG_MOD_CORE)
 }
 
 @test

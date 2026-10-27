@@ -236,8 +236,8 @@ public namespace net {
             // an intermittent "invalid memory access" inside
             // core::async::Waker::clone. Check first; with no waker there is
             // nothing to wake, and the task observes op.done on its next poll.
-            var w = core::async::Waker { data : null, vtbl : null }
-            if(op.waker.vtbl != null) {
+            var w = core::async::Waker.empty()
+            if(!op.waker.is_empty()) {
                 w = op.waker.clone()
             }
             op.m.unlock()
@@ -310,7 +310,7 @@ public namespace net {
                 abandoned : false,
                 ok : false,
                 bytes : 0,
-                waker : core::async::Waker { data : null, vtbl : null },
+                waker : core::async::Waker.empty(),
                 vtbl : vtbl
             }
             return op

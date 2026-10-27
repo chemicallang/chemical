@@ -60,8 +60,8 @@ public func reactor_register(fd : int, events : short, waker : core::async::Wake
         }
         fe = fe.next
     }
-    var rw = core::async::Waker { data : null, vtbl : null }
-    var ww = core::async::Waker { data : null, vtbl : null }
+    var rw = core::async::Waker.empty()
+    var ww = core::async::Waker.empty()
     if((events & posix::POLLIN) != 0) {
         rw = waker.clone()
     }
@@ -122,11 +122,11 @@ public func reactor_poll(timeout_ms : int) : int {
         it = e.head
         while(it != null) {
             var rev = pfd[idx].revents
-            if((rev & (posix::POLLIN | posix::POLLERR | posix::POLLHUP)) != 0 && it.read_waker.vtbl != null) {
+            if((rev & (posix::POLLIN | posix::POLLERR | posix::POLLHUP)) != 0 && !it.read_waker.is_empty()) {
                 var w = it.read_waker.clone()
                 w.wake()
             }
-            if((rev & posix::POLLOUT) != 0 && it.write_waker.vtbl != null) {
+            if((rev & posix::POLLOUT) != 0 && !it.write_waker.is_empty()) {
                 var w2 = it.write_waker.clone()
                 w2.wake()
             }
@@ -160,7 +160,7 @@ public func ready_poll(frame : *mut void, cx : *mut core::async::Context) : core
         return core::async::Poll.Ready<core::async::Unit>(core::async::Unit { })
     }
     st.parked = true
-    if(cx.waker.vtbl != null) {
+    if(!cx.waker.is_empty()) {
         reactor_register(st.fd, st.events, cx.waker.clone())
     }
     return core::async::Poll.Pending<core::async::Unit>()

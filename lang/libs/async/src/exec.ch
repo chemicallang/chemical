@@ -75,7 +75,7 @@ func exec_wake(data : *mut void) {
 }
 
 func exec_clone_waker(data : *mut void) : core::async::Waker {
-    return core::async::Waker { data : data, vtbl : &raw mut g_exec_waker_vtbl }
+    return unsafe(core::async::Waker.from_raw(data, &raw mut g_exec_waker_vtbl))
 }
 
 func exec_drop_waker(data : *mut void) { }
@@ -117,7 +117,7 @@ public func executor() : *mut Executor {
 
 public func exec_make_waker(e : *mut Executor) : core::async::Waker {
     ensure_exec_waker_vtbl()
-    return core::async::Waker { data : e as *mut void, vtbl : &raw mut g_exec_waker_vtbl }
+    return unsafe(core::async::Waker.from_raw(e as *mut void, &raw mut g_exec_waker_vtbl))
 }
 
 // Install a hook that runs whenever the executor is woken. Used by native event
@@ -224,7 +224,7 @@ public func <T> spawn_join_poll(frame : *mut void, cx : *mut core::async::Contex
         st.m.unlock()
         return r
     }
-    if(cx.waker.vtbl != null) {
+    if(!cx.waker.is_empty()) {
         st.waker = cx.waker.clone()
     }
     st.m.unlock()
@@ -269,7 +269,7 @@ public func <T> spawn_task_poll(frame : *mut void, cx : *mut core::async::Contex
         if(!cancelled_now) {
             st.result = r
             st.done = true
-            if(st.waker.vtbl != null) {
+            if(!st.waker.is_empty()) {
                 var w = st.waker.clone()
                 st.m.unlock()
                 w.wake()
@@ -323,7 +323,7 @@ public func <T> spawn(handle : core::async::FutureHandle<T>) : core::async::Futu
         consumed : false,
         cancelled : false,
         result : core::async::Poll.Pending<T>(),
-        waker : core::async::Waker { data : null, vtbl : null },
+        waker : core::async::Waker.empty(),
         vtbl : join_vtbl
     }
     var task = malloc(sizeof(SpawnTask<T>)) as *mut SpawnTask<T>

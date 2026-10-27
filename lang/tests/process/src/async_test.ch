@@ -90,7 +90,7 @@ public func test_process_wait_async_after_kill(env : &mut TestEnv) {
 public func test_process_sleep_ms_async_suspends(env : &mut TestEnv) {
     var h = process::sleep_ms_async(50)
     var cx = core::async::Context {
-        waker : core::async::Waker { data : null, vtbl : null }
+        waker : core::async::Waker.empty()
     }
     var p = h.vtbl.poll(h.frame, &raw mut cx)
     if(!(p is core::async::Poll.Pending)) {

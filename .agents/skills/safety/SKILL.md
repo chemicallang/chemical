@@ -249,7 +249,11 @@ Implemented:
   `from_raw`, `new`/`pin(&mut T)` (`T: Unpin`), safe `get_ref`, `get_mut`
   (`T: Unpin`), `unsafe get_unchecked_mut`, and `into_inner`. `Waker` is
   explicitly `unsafe impl Send`/`Sync` because its vtable contract requires
-  thread-safe wake/clone/drop. Async frame field checking remains.
+  thread-safe wake/clone/drop. Its data/vtable fields are private: safe code
+  uses `Waker.empty()` (null-safe wake/clone) or `unsafe Waker.from_raw(...)`
+  for a real task, and `is_empty()` replaces raw vtable checks. Struct-literal
+  initialization of a private field outside its type is `SAFE-VIS-001`, so the
+  fields cannot be bypassed. Async frame field checking remains.
 - M5.1 value validity (zeroed): `SAFE-VALID-001` rejects `zeroed<T>()` when
   the concrete type contains a reference field (directly, in an array, or in a
   variant payload): zeroing would create a null reference. Specialized generic
@@ -498,6 +502,7 @@ Codes are stable and grouped by domain:
 | `SAFE-BORROW-002` | move/drop of a place while a borrow of it is live |
 | `SAFE-BORROW-*` | aliasing / loans |
 | `SAFE-VALID-001` | zero-initialization would create a null reference |
+| `SAFE-VIS-001` | private struct member initialized outside its type |
 | `SAFE-FFI-001` | extern call in a safe context (report-only) |
 | `SAFE-COPY-001` | user type used with a `Copy` bound but no explicit `impl Copy` |
 | `SAFE-COPY-002` | `impl Copy` on a type with a destructor |

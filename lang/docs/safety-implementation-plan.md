@@ -688,7 +688,11 @@
 > is `!Unpin` via a negative impl, and `core::Pin<T>` has `new`/`pin`
 > (`T: Unpin`), `get_ref`, `get_mut`, unsafe `get_unchecked_mut`, and
 > `into_inner`; `Waker` is explicitly `unsafe impl Send + Sync` (its vtable
-> contract requires thread-safe wake/clone/drop). Async frame fields remain.
+> contract requires thread-safe wake/clone/drop). Waker data/vtable fields are
+> private, safe code uses `Waker.empty()` (null-safe wake/clone) or
+> `unsafe Waker.from_raw(...)`, and `is_empty()` replaces raw vtable checks.
+> `SAFE-VIS-001` rejects struct-literal initialization of a private member
+> outside its type, so the fields cannot be bypassed; async frame fields remain.
 > M5.1 (partial) validity: `SAFE-VALID-001` rejects `zeroed<T>()` when the
 > concrete type contains a reference field (direct, array, variant payload, or
 > a specialized generic field such as `W<&int>`); `PhantomData<&T>` is

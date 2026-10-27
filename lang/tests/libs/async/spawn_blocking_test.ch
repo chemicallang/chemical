@@ -97,7 +97,7 @@ func test_async_spawn_blocking_cancel(env : &mut TestEnv) {
             return 7
         })
         var cx = core::async::Context {
-            waker : core::async::Waker { data : null, vtbl : null }
+            waker : core::async::Waker.empty()
         }
         var p = h.vtbl.poll(h.frame, &raw mut cx)
         if(!(p is core::async::Poll.Pending)) {

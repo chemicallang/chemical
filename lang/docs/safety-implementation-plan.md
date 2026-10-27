@@ -622,8 +622,13 @@
 > non-reference-returning callee ends it at the call. Indirect/extern callees
 > and multiple reference arguments stay conservative (escape). Four report-only
 > `SAFE-BORROW-001` hits remain in generated test-harness code (`__chemda_*`)
-> for the S4.9 migration. Next: S4.2b variance, then outlives/region
-> constraints and enforcement.
+> for the S4.9 migration. S4.5b reference escape on return: `SAFE-LIFE-001`
+> reports returning a reference to a local/temporary/coroutine frame field; a
+> returned parameter/global reference is allowed. It found a genuine dangling
+> reference in the test suite (`get_destruct_or_not` returns `&d` to a local),
+> another report-only migration item. `MIRTests` is `4619 checks`; negative
+> tests cover local/parameter/ref-return calls (449 tests). Next: S4.2b
+> variance, then outlives/region constraints and enforcement.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

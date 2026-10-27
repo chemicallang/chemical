@@ -63,3 +63,17 @@ func value_returning_call_ends_loan(env : &mut TestEnv) {
     var ch = "func read_int(p : &int) : int {\n    return *p\n}\npublic func main() : int {\n    var x = 1\n    var a = read_int(&x)\n    var b = &mut x\n    *b = 2\n    return a\n}\n"
     expect_compile_output_not_contains(env, "borrow_value_return_call", ch, "SAFE-BORROW-001", NEG_MOD)
 }
+
+@test
+func neg_return_local_reference_warns(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "func bad() : &int {\n    var x = 1\n    return &x\n}\npublic func main() : int {\n    var r = bad()\n    return *r\n}\n"
+    expect_compile_warning_id(env, "borrow_return_local_ref", ch, "SAFE-LIFE-001")
+}
+
+@test
+func returned_parameter_reference_ok(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "func id(p : &int) : &int {\n    return p\n}\npublic func main() : int {\n    var x = 5\n    var r = id(&x)\n    return *r\n}\n"
+    expect_compile_output_not_contains(env, "borrow_return_param_ref", ch, "SAFE-LIFE-001", NEG_MOD)
+}

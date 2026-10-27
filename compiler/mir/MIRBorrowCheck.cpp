@@ -461,6 +461,32 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
             case MIROpcode::Return: {
                 if (ops == nullptr || inst.operand_count == 0) break;
                 use_value(ops[0], lin, true);
+                // Returning a reference to a local (or a temporary/coroutine
+                // frame field) escapes storage that dies at function exit.
+                uint32_t loan = MIR_INVALID_ID;
+                if (ops[0].kind() == MIROperandKind::Value) {
+                    const auto it = value_loans.find(ops[0].id);
+                    if (it != value_loans.end()) loan = it->second;
+                } else if (ops[0].kind() == MIROperandKind::Place) {
+                    const auto it = place_loans.find(ops[0].id);
+                    if (it != place_loans.end()) loan = it->second;
+                }
+                if (loan != MIR_INVALID_ID && loan < loans.size()) {
+                    const LoanTarget& target = loans[loan].target;
+                    if (target.known && target.root < function.places.size()) {
+                        const auto sc = static_cast<MIRStorageClass>(
+                            function.places[target.root].storage_class
+                        );
+                        if (sc == MIRStorageClass::Local ||
+                            sc == MIRStorageClass::Temporary ||
+                            sc == MIRStorageClass::FrameField ||
+                            sc == MIRStorageClass::FramePtr) {
+                            report(result.diagnostics, function, function_index,
+                                   order, lin, "SAFE-LIFE-001",
+                                   "returning a reference to a local that does not outlive the function");
+                        }
+                    }
+                }
                 break;
             }
             default:

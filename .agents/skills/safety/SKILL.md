@@ -161,8 +161,16 @@ Implemented:
   the call. Indirect/extern callees and calls with multiple reference
   arguments keep the conservative escape mark. Four report-only
   `SAFE-BORROW-001` hits remain in generated test-harness code (`__chemda_*`);
-  they are the S4.9 migration items. Next in M4: S4.2b variance, then
-  outlives/region constraint solving and enforcement.
+  they are the S4.9 migration items.
+- S4.5b reference escape on return: `SAFE-LIFE-001` reports returning a
+  reference to a local, temporary or coroutine frame field (storage that dies
+  at function exit). A returned parameter/global reference is allowed. The
+  check found a genuine dangling reference in the test suite
+  (`get_destruct_or_not` returns `&d` to a local); it is a report-only
+  migration item (4 hits). `MIRTests` is `4619 checks`; the negative suite has
+  local/parameter/ref-return cases (449 tests).
+  Next in M4: S4.2b variance, then outlives/region constraint solving and
+  enforcement.
 - S2.6d unsafe invariant constructors: `vector::set_len` and
   `default_function_instance::make2` are now `unsafe func`; the audited
   `fs::read_file` and `std::function` `make` paths wrap their calls in
@@ -393,6 +401,7 @@ Codes are stable and grouped by domain:
 | `SAFE-AUTO-001` | `Send`/`Sync` implemented without `unsafe impl` |
 | `SAFE-AUTO-002` | invalid/conflicting negative impl (non-auto trait, duplicate, positive+negative, generic target) |
 | `SAFE-MOVE-001` | move of an already-moved value / access or assignment after a move |
+| `SAFE-LIFE-001` | returning a reference to a local/temporary/frame field |
 | `SAFE-LIFE-*` | lifetimes / escapes |
 | `SAFE-INIT-*` | initialization / definite assignment |
 | `SAFE-VALID-*` | invalid values / transmute / packed |

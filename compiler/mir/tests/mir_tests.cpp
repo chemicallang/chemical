@@ -2058,6 +2058,31 @@ static bool test_borrow_check() {
         CHECK(check_function_borrows(module, fn).ok());
     }
 
+    {
+        // Returning a reference to a local escapes its storage.
+        MIRFunction fn;
+        MIRArena arena;
+        MIRTypeRecord fr;
+        fr.kind = MIRTypeKind::Function;
+        fr.element = ref_t;
+        fr.size = 8;
+        fr.alignment = 8;
+        const TypeId ftype = module.types.intern(fr);
+        fn.function_type = ftype;
+        MIRBuilder b(arena, module, fn);
+        const BlockId entry = b.create_block();
+        fn.entry_block = entry;
+        b.set_block(entry);
+        const PlaceId x = b.alloca(i32);
+        b.store(x, b.const_int(i32, module.constants.add_int(i32, 1)));
+        const ValueId addr = b.address_of(x, ptr_t);
+        const ValueId loan = b.borrow(addr, region, ref_t, false);
+        b.ret(loan);
+        const MIRBorrowCheckResult r = check_function_borrows(module, fn);
+        CHECK(!r.ok());
+        CHECK(std::string(r.diagnostics[0].code) == "SAFE-LIFE-001");
+    }
+
     return true;
 }
 

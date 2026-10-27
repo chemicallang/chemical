@@ -36,3 +36,12 @@ func neg_move_while_borrowed_warns(env : &mut TestEnv) {
     var ch = "struct S {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    var s = S { x : 1 }\n    var p = &s\n    var t = s\n    return p.x\n}\n"
     expect_compile_warning_id(env, "borrow_move_while_live", ch, "SAFE-BORROW-002")
 }
+
+@test
+func disjoint_branch_borrows_do_not_conflict(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // CFG liveness: the two loans are in different arms and die before the
+    // merge, so they are never live together.
+    var ch = "public func main() : int {\n    var x = 1\n    var c = true\n    if(c) { var a = &mut x\n *a = 2 } else { var b = &mut x\n *b = 3 }\n    return x\n}\n"
+    expect_compile_output_not_contains(env, "borrow_branch_disjoint", ch, "SAFE-BORROW-001", NEG_MOD)
+}

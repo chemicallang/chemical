@@ -609,11 +609,15 @@
 > `Borrow`/`BorrowMut` loans through reference locals and reports overlapping
 > live loans (`SAFE-BORROW-001`) and moves/drops of a borrowed place
 > (`SAFE-BORROW-002`) as warnings. Loans passed to a call are marked escaped
-> and skipped until the interprocedural lifetime check (S4.5); liveness is a
-> linear last-use walk, so CFG/NLL precision and region-variable assignment
-> are S4.4b. `MIRTests` is `4615 checks`; negative tests cover mutable/shared
-> alias, sequential borrows and move-while-borrowed. Next: S4.4b CFG/NLL
-> precision + region variables, S4.5 escape, S4.2b variance.
+> and skipped until the interprocedural lifetime check (S4.5). S4.4b: loan
+> liveness is now a CFG worklist (`live_in`/`live_out` per block) with a
+> backward per-block walk for conflict/move positions, so disjoint branches
+> do not conflict; loading a reference local is a use. Each borrow gets a fresh
+> function-local region id (`MIRFunction::region_var_count`, seeded from the
+> signature's declared lifetimes). `MIRTests` is `4617 checks`; negative tests
+> cover mutable/shared alias, sequential, shared, move-while-borrowed and
+> disjoint-branch cases. Next: S4.5 interprocedural escape, S4.2b variance,
+> then outlives/region constraints for NLL enforcement.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

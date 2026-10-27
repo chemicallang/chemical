@@ -674,6 +674,11 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     // Region signatures are built from the declaration before any body
     // lowering, so MIRBorrowCheck (M4) never has to read the AST.
     func.region_signature = intern_region_signature(decl);
+    if (func.region_signature != MIR_INVALID_ID &&
+        func.region_signature < module_.region_signatures.size()) {
+        func.region_var_count =
+            module_.region_signatures[func.region_signature].lifetime_param_count;
+    }
 #ifdef MIR_OPS_COUNTERS
     struct LowerTimer {
         std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();

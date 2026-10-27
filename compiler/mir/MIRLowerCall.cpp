@@ -1651,6 +1651,13 @@ static chem::string_view region_lifetime_of(BaseType* type) {
     return {};
 }
 
+uint32_t MIRLowerer::fresh_region_id() {
+    if (!builder_) return MIR_INVALID_ID;
+    MIRFunction& fn = builder_->function();
+    fn.region_var_count += 1;
+    return fn.region_var_count;
+}
+
 uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
     if (!decl) return MIR_INVALID_ID;
     std::vector<std::string_view> lifetimes;

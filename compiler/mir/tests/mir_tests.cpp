@@ -1999,6 +1999,46 @@ static bool test_borrow_check() {
     }
 
     {
+        // CFG liveness: loans in disjoint branches are never live together.
+        MIRFunction fn;
+        MIRArena arena;
+        fn.function_type = void_t;
+        MIRBuilder b(arena, module, fn);
+        const BlockId entry = b.create_block();
+        const BlockId then_b = b.create_block();
+        const BlockId else_b = b.create_block();
+        const BlockId merge = b.create_block();
+        fn.entry_block = entry;
+        b.set_block(entry);
+        const PlaceId x = b.alloca(i32);
+        b.store(x, b.const_int(i32, module.constants.add_int(i32, 1)));
+        const ValueId addr = b.address_of(x, ptr_t);
+        const ValueId cond = b.const_bool(
+            module.types.intern([] { MIRTypeRecord r; r.kind = MIRTypeKind::Bool; r.size = 1; r.alignment = 1; return r; }()),
+            module.constants.add_bool(MIR_INVALID_ID, true)
+        );
+        b.cond_br(cond, then_b, else_b);
+        auto branch = [&](BlockId block) {
+            b.set_block(block);
+            const ValueId loan = b.borrow(addr, region, ref_t, true);
+            const PlaceId p = b.alloca(ref_t);
+            b.store(p, loan);
+            (void) b.load(p, ref_t);
+            b.br(merge);
+        };
+        branch(then_b);
+        branch(else_b);
+        b.set_block(merge);
+        b.ret_void();
+        CHECK(b.ok());
+        const MIRBorrowCheckResult r = check_function_borrows(module, fn);
+        for (const auto& d : r.diagnostics) {
+            std::cerr << "branch borrow diag: " << d.code << " " << d.message << "\n";
+        }
+        CHECK(r.ok());
+    }
+
+    {
         // Two shared borrows are fine.
         MIRFunction fn;
         MIRArena arena;

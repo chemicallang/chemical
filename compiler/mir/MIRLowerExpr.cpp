@@ -1361,7 +1361,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             auto* r = value->as_reference_of_value_unsafe();
             const TypeId ref_t = types_.map(r->getType());
             const ConstantId region = module_.constants.add_int(
-                types_.u32_type(), MIR_INVALID_ID
+                types_.u32_type(), fresh_region_id()
             );
             auto wrap_borrow = [&](MIRExprResult a) -> MIRExprResult {
                 if (!a.ok() || (a.kind != MIRExprKind::Value &&

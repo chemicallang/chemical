@@ -132,6 +132,13 @@ bool targets_overlap(const MIRFunction& fn, const LoanTarget& a, const LoanTarge
     return paths_overlap(fn, a.path, b.path);
 }
 
+uint32_t linear_of(uint32_t block, uint32_t inst, const std::vector<InstRef>& order) {
+    for (uint32_t i = 0; i < order.size(); ++i) {
+        if (order[i].block == block && order[i].inst == inst) return i;
+    }
+    return MIR_INVALID_ID;
+}
+
 void report(std::vector<MIRBorrowDiagnostic>& out, const MIRFunction& fn,
             uint32_t function_index, const std::vector<InstRef>& order, uint32_t lin,
             const char* code, std::string message) {
@@ -408,67 +415,248 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
         }
     }
 
-    // Conflicts between live loans.
-    for (uint32_t i = 0; i < loans.size(); ++i) {
-        const Loan& a = loans[i];
-        if (a.escaped || !a.target.known) continue;
-        for (uint32_t j = i + 1; j < loans.size(); ++j) {
-            const Loan& b = loans[j];
-            if (b.escaped || !b.target.known) continue;
-            if (!(a.mutable_loan || b.mutable_loan)) continue;
-            if (b.start > a.end || a.start > b.end) continue;
-            if (!targets_overlap(function, a.target, b.target)) continue;
-            const uint32_t at = a.start > b.start ? a.start : b.start;
-            report(result.diagnostics, function, function_index, order, at,
-                   "SAFE-BORROW-001",
-                   "placing a mutable borrow here conflicts with another live borrow of the same place");
+    // ── CFG liveness over loans (S4.4b) ────────────────────────────────────
+    const uint32_t nloans = static_cast<uint32_t>(loans.size());
+    const uint32_t nblocks = static_cast<uint32_t>(function.blocks.size());
+    std::vector<std::vector<bool>> block_use(
+        nblocks, std::vector<bool>(nloans, false)
+    );
+    std::vector<std::vector<bool>> block_def(
+        nblocks, std::vector<bool>(nloans, false)
+    );
+    auto inst_range_end = [&](const MIRBlock& block) -> uint32_t {
+        uint32_t end = block.inst_start + block.inst_count;
+        if (end < function.instructions.size() &&
+            is_terminator(function.instructions[end].opcode())) {
+            return end + 1;
+        }
+        return end;
+    };
+    for (uint32_t b = 0; b < nblocks; ++b) {
+        const MIRBlock& block = function.blocks[b];
+        if (block.inst_start == MIR_INVALID_ID) continue;
+        const uint32_t end = inst_range_end(block);
+        for (uint32_t ii = block.inst_start; ii < end && ii < function.instructions.size(); ++ii) {
+            const MIRInstruction& inst = function.instructions[ii];
+            if ((inst.opcode() == MIROpcode::Borrow ||
+                 inst.opcode() == MIROpcode::BorrowMut) &&
+                inst.result_or_place != MIR_INVALID_ID) {
+                const auto it = value_loans.find(inst.result_or_place);
+                if (it != value_loans.end()) block_def[b][it->second] = true;
+            }
+            const MIROperand* ops = inst.operand_count == 0
+                                        ? nullptr
+                                        : &function.operands[inst.operand_offset];
+            for (uint16_t i = 0; ops != nullptr && i < inst.operand_count; ++i) {
+                if (ops[i].kind() != MIROperandKind::Value) continue;
+                const auto it = value_loans.find(ops[i].id);
+                if (it != value_loans.end() && it->second < nloans) {
+                    block_use[b][it->second] = true;
+                }
+            }
+            // Reading a reference local is a use of its loan even when the
+            // loaded value is discarded.
+            if (inst.opcode() == MIROpcode::Load && ops != nullptr &&
+                ops[0].kind() == MIROperandKind::Place) {
+                const auto it = place_loans.find(ops[0].id);
+                if (it != place_loans.end() && it->second < nloans) {
+                    block_use[b][it->second] = true;
+                }
+            }
         }
     }
 
-    // Moves/drops of a borrowed place.
-    for (uint32_t lin = 0; lin < order.size(); ++lin) {
-        const InstRef ref = order[lin];
-        if (ref.inst >= function.instructions.size()) continue;
-        const MIRInstruction& inst = function.instructions[ref.inst];
-        const MIROperand* ops = operands_of(inst);
-        if (ops == nullptr) continue;
-        PlaceId moved_place = MIR_INVALID_ID;
-        switch (inst.opcode()) {
-            case MIROpcode::MoveInit:
-                // dest, src: the source is the moved place.
-                if (inst.operand_count >= 2 && ops[1].kind() == MIROperandKind::Place) {
-                    moved_place = ops[1].id;
+    std::vector<std::vector<BlockId>> successors(nblocks);
+    for (uint32_t b = 0; b < nblocks; ++b) {
+        const MIRBlock& block = function.blocks[b];
+        if (block.inst_start == MIR_INVALID_ID) continue;
+        const uint32_t term = block.inst_start + block.inst_count;
+        if (term >= function.instructions.size()) continue;
+        const MIRInstruction& t = function.instructions[term];
+        const MIROperand* ops = t.operand_count == 0
+                                    ? nullptr
+                                    : &function.operands[t.operand_offset];
+        switch (t.opcode()) {
+            case MIROpcode::Br:
+                if (ops && t.operand_count >= 1 && ops[0].kind() == MIROperandKind::Block) {
+                    successors[b].push_back(ops[0].id);
                 }
                 break;
-            case MIROpcode::Drop:
-            case MIROpcode::Destroy:
-                if (ops[0].kind() == MIROperandKind::Place) moved_place = ops[0].id;
+            case MIROpcode::CondBr:
+            case MIROpcode::Switch:
+                if (ops) {
+                    for (uint16_t i = 1; i < t.operand_count; ++i) {
+                        if (ops[i].kind() == MIROperandKind::Block) {
+                            successors[b].push_back(ops[i].id);
+                        }
+                    }
+                }
                 break;
-            case MIROpcode::MoveOut:
-                if (ops[0].kind() == MIROperandKind::Place) moved_place = ops[0].id;
-                break;
-            case MIROpcode::Store:
-                // A place source is a move out of that place (whole store).
-                if (inst.operand_count == 2 && ops[1].kind() == MIROperandKind::Place) {
-                    moved_place = ops[1].id;
+            case MIROpcode::Throw:
+                if (ops && t.operand_count >= 2 && ops[1].kind() == MIROperandKind::Block) {
+                    successors[b].push_back(ops[1].id);
                 }
                 break;
             default:
                 break;
         }
-        if (moved_place == MIR_INVALID_ID || moved_place >= function.places.size()) continue;
-        LoanTarget moved;
-        moved.root = moved_place;
-        moved.path = function.places[moved_place].move_path_id;
-        moved.known = true;
-        for (const Loan& loan : loans) {
-            if (loan.escaped || !loan.target.known) continue;
-            if (lin < loan.start || lin > loan.end) continue;
-            if (!targets_overlap(function, loan.target, moved)) continue;
-            report(result.diagnostics, function, function_index, order, lin,
-                   "SAFE-BORROW-002",
-                   "moving or dropping a place while a borrow of it is live");
-            break;
+    }
+
+    std::vector<std::vector<bool>> live_in(
+        nblocks, std::vector<bool>(nloans, false)
+    );
+    std::vector<std::vector<bool>> live_out(
+        nblocks, std::vector<bool>(nloans, false)
+    );
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (uint32_t b = 0; b < nblocks; ++b) {
+            std::vector<bool> out(nloans, false);
+            for (BlockId succ : successors[b]) {
+                if (succ >= nblocks) continue;
+                for (uint32_t l = 0; l < nloans; ++l) {
+                    if (live_in[succ][l]) out[l] = true;
+                }
+            }
+            std::vector<bool> in = block_use[b];
+            for (uint32_t l = 0; l < nloans; ++l) {
+                if (out[l] && !block_def[b][l]) in[l] = true;
+            }
+            if (in != live_in[b] || out != live_out[b]) {
+                live_in[b] = std::move(in);
+                live_out[b] = std::move(out);
+                changed = true;
+            }
+        }
+    }
+
+    auto target_from_address = [&](const MIROperand& op, LoanTarget& out) -> bool {
+        if (op.kind() != MIROperandKind::Value) return false;
+        const auto at = address_targets.find(op.id);
+        if (at != address_targets.end()) {
+            out = at->second;
+            return out.known;
+        }
+        const auto lt = value_loans.find(op.id);
+        if (lt != value_loans.end() && lt->second < loans.size()) {
+            out = loans[lt->second].target;
+            return out.known;
+        }
+        return false;
+    };
+
+    // Walk each block backwards from live_out so a conflict/move is only
+    // reported while a loan is actually live at that instruction.
+    for (uint32_t b = 0; b < nblocks; ++b) {
+        const MIRBlock& block = function.blocks[b];
+        if (block.inst_start == MIR_INVALID_ID) continue;
+        std::vector<bool> live = live_out[b];
+        // The terminator is the last element of the range; include its uses.
+        uint32_t end = inst_range_end(block);
+        for (uint32_t ii = end; ii-- > block.inst_start;) {
+            if (ii >= function.instructions.size()) continue;
+            const MIRInstruction& inst = function.instructions[ii];
+            const MIROperand* ops = inst.operand_count == 0
+                                        ? nullptr
+                                        : &function.operands[inst.operand_offset];
+            // Move/drop while a live loan targets an overlapping place.
+            PlaceId moved_place = MIR_INVALID_ID;
+            switch (inst.opcode()) {
+                case MIROpcode::MoveInit:
+                    if (inst.operand_count >= 2 && ops != nullptr &&
+                        ops[1].kind() == MIROperandKind::Place) {
+                        moved_place = ops[1].id;
+                    }
+                    break;
+                case MIROpcode::MoveOut:
+                case MIROpcode::Drop:
+                case MIROpcode::Destroy:
+                    if (ops != nullptr && ops[0].kind() == MIROperandKind::Place) {
+                        moved_place = ops[0].id;
+                    }
+                    break;
+                case MIROpcode::Store:
+                    if (inst.operand_count == 2 &&
+                        ops[1].kind() == MIROperandKind::Place) {
+                        moved_place = ops[1].id;
+                    }
+                    break;
+                default:
+                    break;
+            }
+            if (moved_place != MIR_INVALID_ID && moved_place < function.places.size()) {
+                LoanTarget moved;
+                moved.root = moved_place;
+                moved.path = function.places[moved_place].move_path_id;
+                moved.known = true;
+                for (uint32_t l = 0; l < nloans; ++l) {
+                    if (!live[l] || loans[l].escaped || !loans[l].target.known) continue;
+                    if (!targets_overlap(function, loans[l].target, moved)) continue;
+                    report(result.diagnostics, function, function_index, order,
+                           linear_of(b, ii, order), "SAFE-BORROW-002",
+                           "moving or dropping a place while a borrow of it is live");
+                    break;
+                }
+            }
+
+            // Uses in this instruction make their loans live before it.
+            for (uint16_t i = 0; ops != nullptr && i < inst.operand_count; ++i) {
+                if (ops[i].kind() != MIROperandKind::Value) continue;
+                const auto it = value_loans.find(ops[i].id);
+                if (it != value_loans.end() && it->second < nloans) {
+                    live[it->second] = true;
+                }
+            }
+            if (inst.opcode() == MIROpcode::Load && ops != nullptr &&
+                ops[0].kind() == MIROperandKind::Place) {
+                const auto it = place_loans.find(ops[0].id);
+                if (it != place_loans.end() && it->second < nloans) {
+                    live[it->second] = true;
+                }
+            }
+
+            // A borrow definition: check conflicts against the loans already
+            // live at this point, then the new loan is not live before it.
+            if ((inst.opcode() == MIROpcode::Borrow ||
+                 inst.opcode() == MIROpcode::BorrowMut) &&
+                inst.result_or_place != MIR_INVALID_ID) {
+                const auto it = value_loans.find(inst.result_or_place);
+                if (it != value_loans.end() && it->second < nloans) {
+                    const uint32_t l = it->second;
+                    Loan& loan = loans[l];
+                    for (uint32_t other = 0; other < nloans; ++other) {
+                        if (other == l || !live[other]) continue;
+                        if (loans[other].escaped || !loans[other].target.known) continue;
+                        if (!(loan.mutable_loan || loans[other].mutable_loan)) continue;
+                        if (!targets_overlap(function, loan.target, loans[other].target)) {
+                            continue;
+                        }
+                        // A borrow *through another reference value* is a
+                        // reborrow; the source loan is frozen, not aliased the
+                        // same way. A fresh `&mut x` address is not a reborrow
+                        // even though it targets the same place.
+                        bool source_is_reborrow = false;
+                        LoanTarget source;
+                        if (ops != nullptr && ops[0].kind() == MIROperandKind::Value) {
+                            const auto st = value_loans.find(ops[0].id);
+                            if (st != value_loans.end() && st->second < loans.size()) {
+                                source = loans[st->second].target;
+                                source_is_reborrow = source.known;
+                            }
+                        }
+                        if (source_is_reborrow && source.root == loans[other].target.root &&
+                            source.path == loans[other].target.path) {
+                            continue;
+                        }
+                        report(result.diagnostics, function, function_index, order,
+                               linear_of(b, ii, order), "SAFE-BORROW-001",
+                               "placing a mutable borrow here conflicts with another live borrow of the same place");
+                        break;
+                    }
+                    live[l] = false;
+                }
+            }
         }
     }
 

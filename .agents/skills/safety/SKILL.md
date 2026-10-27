@@ -144,11 +144,18 @@ Implemented:
   (`SAFE-BORROW-001`) and moves/drops of a borrowed place (`SAFE-BORROW-002`).
   `ASTProcessor` prints these as warnings (compilation still succeeds); loans
   passed to a call are marked escaped and skipped until the interprocedural
-  lifetime check (S4.5). Liveness is a linear last-use walk today; branch/loop
-  precise NLL and region-variable assignment are S4.4b. `MIRTests` is
-  `4615 checks`; the negative suite has alias/sequential/shared/move cases.
-  Next in M4: S4.4b CFG/NLL precision + region variables, S4.5 escape, and
-  S4.2b variance.
+  lifetime check (S4.5).
+- S4.4b CFG liveness + region variables: the loan analysis now computes
+  per-block `live_in`/`live_out` over loans (worklist over the MIR CFG) and
+  walks each block backwards to check conflicts/moves at the exact
+  instruction, so loans in disjoint branches do not conflict. Reading a
+  reference local counts as a use even when the value is discarded. Each
+  `Borrow`/`BorrowMut` gets a fresh function-local region id
+  (`MIRFunction::region_var_count`, seeded from the signature's declared
+  lifetime count) instead of the placeholder. `MIRTests` is `4617 checks`; the
+  negative suite has alias/sequential/shared/move/branch cases.
+  Next in M4: S4.5 interprocedural escape, S4.2b variance, then outlives/region
+  constraint solving for NLL enforcement.
 - S2.6d unsafe invariant constructors: `vector::set_len` and
   `default_function_instance::make2` are now `unsafe func`; the audited
   `fs::read_file` and `std::function` `make` paths wrap their calls in
@@ -306,8 +313,8 @@ Next:
   modeled (S3.1c), including construction temporaries and use-after-move
   through assignment. M3 is complete: the next milestone is M4 (regions, NLL,
   borrow checking, dropck enforcement, and async/Pin). The current M4 step is
-  S4.4a (report-only loan analysis), then S4.4b (CFG/NLL precision, region
-  variables), S4.5 (escape/interprocedural) and S4.2b variance.
+  S4.4b (CFG loan liveness + region variables), then S4.5 (escape) and S4.2b
+  variance, followed by outlives/NLL enforcement.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

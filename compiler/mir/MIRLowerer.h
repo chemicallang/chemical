@@ -901,6 +901,8 @@ private:
     SymbolId intern_function(FunctionDeclaration* decl);
     /** Build this function's region signature from its declaration (S4.2). */
     uint32_t intern_region_signature(FunctionDeclaration* decl);
+    /** Allocate a fresh function-local region variable (S4.4b). */
+    uint32_t fresh_region_id();
     SymbolId intern_global(VarInitStatement* vi);
     SymbolId intern_named_global(const std::string& name);
 

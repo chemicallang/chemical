@@ -46,6 +46,8 @@ struct MIRPlaceDef {
     /** A mutable raw pointer escaped from this place (unsafe: trust writes). */
     bool raw_escaped = false;
     uint32_t move_path_id = MIR_INVALID_ID; // MIR_INVALID_ID = no ownership
+    /** For a by-value/reference parameter place: its declaration index. */
+    uint32_t param_index = MIR_INVALID_ID;
     // For MIRStorageClass::FrameField: the ConstantId of the frame field name.
     uint32_t frame_field = MIR_INVALID_ID;
     /**

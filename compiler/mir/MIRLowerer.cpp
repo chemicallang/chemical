@@ -879,6 +879,8 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
             builder_ = nullptr;
             return false;
         }
+        builder_->function().places[place].param_index =
+            static_cast<uint32_t>(pi);
         bind(p, place);
         bind_name(p->name, place);
         // by-value struct params own their value and are destroyed at exit

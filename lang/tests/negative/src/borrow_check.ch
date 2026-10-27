@@ -94,3 +94,18 @@ func same_scope_field_reference_ok(env : &mut TestEnv) {
     var ch = "struct H {\n    var r : &int\n}\npublic func main() : int {\n    var x = 1\n    var h = H { r : &x }\n    return *h.r\n}\n"
     expect_compile_output_not_contains(env, "borrow_field_same_scope", ch, "SAFE-LIFE-002", NEG_MOD)
 }
+
+@test
+func neg_return_region_does_not_outlive(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // The returned reference comes from 'a but the signature declares 'b.
+    var ch = "func <'a, 'b> bad(x : &'a int) : &'b int {\n    return x\n}\npublic func main() : int {\n    var a = 1\n    var r = bad(&a)\n    return *r\n}\n"
+    expect_compile_error(env, "borrow_return_region", ch, "SAFE-LIFE-003")
+}
+
+@test
+func return_region_with_outlives_ok(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "func <'a, 'b> good(x : &'a int) : &'b int where 'a : 'b {\n    return x\n}\npublic func main() : int {\n    var a = 1\n    var r = good(&a)\n    return *r\n}\n"
+    expect_compile_success(env, "borrow_return_region_ok", ch)
+}

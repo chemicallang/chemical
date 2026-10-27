@@ -2015,7 +2015,8 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
                 // reports stay report-only until the in-tree migration lands.
                 if (d.code != nullptr &&
                     (std::string_view(d.code) == "SAFE-LIFE-001" ||
-                     std::string_view(d.code) == "SAFE-LIFE-002")) {
+                     std::string_view(d.code) == "SAFE-LIFE-002" ||
+                     std::string_view(d.code) == "SAFE-LIFE-003")) {
                     fatal_lifetime = true;
                     if (lifetime_error.empty()) {
                         lifetime_error = std::string(d.code) + ": " + d.message;

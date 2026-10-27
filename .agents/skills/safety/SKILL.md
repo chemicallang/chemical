@@ -190,8 +190,17 @@ Implemented:
   was a plain use set, so a loan defined and used in the same loop block was
   treated as live-in. The gen/kill computation now only counts uses that occur
   before the block's definition; the universal suite is 368/368 with zero
-  borrow warnings. Next in M4: S4.2b variance, then outlives/region constraint
-  solving.
+  borrow warnings.
+- S4.6a return-region outlives: `SAFE-LIFE-003` (enforced) checks that a
+  returned reference sourced from a parameter outlives the declared return
+  region: identity, `'static`, or a transitive `where 'a: 'b` edge. Parameter
+  places carry `MIRPlaceDef::param_index`, and reference values/places track
+  their parameter index through Load/Store/Copy/Cast/MoveInit, so returning a
+  parameter directly or via a local is covered. The borrow pass no longer has
+  a "no Borrow instruction" fast path (a pure `return x` still needs the
+  signature check). `MIRTests` is `4623 checks`; negative tests cover missing
+  and satisfied outlives bounds (454 tests). Next in M4: S4.2b variance, then
+  dropck/async/Pin and provenance.
 - S2.6d unsafe invariant constructors: `vector::set_len` and
   `default_function_instance::make2` are now `unsafe func`; the audited
   `fs::read_file` and `std::function` `make` paths wrap their calls in
@@ -424,6 +433,7 @@ Codes are stable and grouped by domain:
 | `SAFE-MOVE-001` | move of an already-moved value / access or assignment after a move |
 | `SAFE-LIFE-001` | returning a reference to a local/temporary/frame field |
 | `SAFE-LIFE-002` | borrow still live when the referent's local storage ends |
+| `SAFE-LIFE-003` | returned reference does not outlive the declared return lifetime |
 | `SAFE-LIFE-*` | lifetimes / escapes |
 | `SAFE-INIT-*` | initialization / definite assignment |
 | `SAFE-VALID-*` | invalid values / transmute / packed |

@@ -2084,6 +2084,49 @@ static bool test_borrow_check() {
     }
 
     {
+        // S4.6a: a returned parameter reference must outlive the declared
+        // return region (identity / 'static / a where bound).
+        MIRFunction fn;
+        MIRArena arena;
+        MIRTypeRecord fr;
+        fr.kind = MIRTypeKind::Function;
+        fr.element = ref_t;
+        fr.size = 8;
+        fr.alignment = 8;
+        const TypeId ftype = module.types.intern(fr);
+        fn.function_type = ftype;
+        fn.region_signature = module.add_region_signature(
+            make_region_signature({"a", "b"}, {"a"}, "b", {})
+        );
+        MIRBuilder b(arena, module, fn);
+        const BlockId entry = b.create_block();
+        fn.entry_block = entry;
+        b.set_block(entry);
+        const PlaceId px = b.alloca(ref_t, MIRStorageClass::Parameter);
+        fn.places[px].param_index = 0;
+        const ValueId rx = b.load(px, ref_t);
+        b.ret(rx);
+        MIRBorrowCheckResult r = check_function_borrows(module, fn);
+        CHECK(!r.ok());
+        CHECK(std::string(r.diagnostics[0].code) == "SAFE-LIFE-003");
+
+        MIRFunction ok;
+        ok.function_type = ftype;
+        ok.region_signature = module.add_region_signature(
+            make_region_signature({"a", "b"}, {"a"}, "b", {{"a", "b"}})
+        );
+        MIRBuilder ob(arena, module, ok);
+        const BlockId oentry = ob.create_block();
+        ok.entry_block = oentry;
+        ob.set_block(oentry);
+        const PlaceId opx = ob.alloca(ref_t, MIRStorageClass::Parameter);
+        ok.places[opx].param_index = 0;
+        const ValueId orx = ob.load(opx, ref_t);
+        ob.ret(orx);
+        CHECK(check_function_borrows(module, ok).ok());
+    }
+
+    {
         // Returning a reference to a local escapes its storage.
         MIRFunction fn;
         MIRArena arena;

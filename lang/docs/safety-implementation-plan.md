@@ -640,8 +640,14 @@
 > struct-field escape and the same-scope positive (452 tests). SAFE-LIFE-002 is
 > **enforced**. The universal suite exposed 40 loop back-edge false positives;
 > `block_use` now uses a gen/kill computation (uses before the block's
-> definition), and universal is 368/368 with zero warnings. Next: S4.2b
-> variance, then outlives/region constraints.
+> definition), and universal is 368/368 with zero warnings. S4.6a return-region
+> outlives: `SAFE-LIFE-003` (enforced) requires a returned parameter reference
+> to outlive the declared return region (identity, `'static`, or a transitive
+> `where 'a: 'b` edge). Parameter places carry `param_index`; reference values
+> and places propagate it through Load/Store/Copy/Cast/MoveInit. The borrow
+> pass always runs (no "has Borrow" fast path) so a pure `return x` is checked.
+> `MIRTests` is `4623 checks`; negative tests cover the missing/satisfied
+> bound (454 tests). Next: S4.2b variance, then dropck/async/Pin/provenance.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

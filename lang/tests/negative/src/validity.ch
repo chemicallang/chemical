@@ -32,3 +32,20 @@ func zeroed_generic_reference_rejected(env : &mut TestEnv) {
     var ch = "struct W<T> {\n    var value : T\n}\npublic func main() : int {\n    var w : W<&int> = zeroed<W<&int>>()\n    return 0\n}\n"
     expect_compile_error(env, "zeroed_generic_reference", ch, "SAFE-VALID-001")
 }
+
+@test
+func allow_zeroed_does_not_bypass_reference_check(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // @allow_zeroed only permits zeroing constructor/destructor-bearing types;
+    // it cannot make a null reference valid.
+    var ch = "@allow_zeroed\nstruct S {\n    var r : &int\n}\npublic func main() : int {\n    var s : S = zeroed<S>()\n    return 0\n}\n"
+    expect_compile_error(env, "zeroed_allow_reference", ch, "SAFE-VALID-001")
+}
+
+@test
+func zeroed_unsafe_escape_allowed(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // The explicit unsafe form is the escape hatch.
+    var ch = "struct S {\n    var r : &int\n}\npublic func main() : int {\n    var s : S = zeroed:unsafe<S>()\n    return 0\n}\n"
+    expect_compile_success(env, "zeroed_unsafe_reference", ch)
+}

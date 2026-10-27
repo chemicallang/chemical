@@ -270,7 +270,7 @@
       "dealloc_stmts": 0,
       "delete_stmts": 0,
       "destruct_stmts": 0,
-      "extern_calls": 25,
+      "extern_calls": 35,
       "extern_decls": 0,
       "extern_globals": 0,
       "inline_asm": 0,
@@ -278,15 +278,15 @@
       "mutable_globals": 2,
       "new_values": 0,
       "panic_calls": 0,
-      "raw_pointer_addrs": 39,
+      "raw_pointer_addrs": 58,
       "raw_pointer_casts": 1,
       "raw_pointer_derefs": 0,
-      "raw_pointer_types": 10,
+      "raw_pointer_types": 12,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
       "unsafe_blocks": 0,
-      "unsafe_values": 39,
-      "variadic_calls": 10
+      "unsafe_values": 58,
+      "variadic_calls": 15
     },
     "::std": {
       "abort_calls": 1,
@@ -415,7 +415,7 @@
     "dealloc_stmts": 21,
     "delete_stmts": 2,
     "destruct_stmts": 20,
-    "extern_calls": 409,
+    "extern_calls": 419,
     "extern_decls": 699,
     "extern_globals": 7,
     "inline_asm": 0,
@@ -423,14 +423,14 @@
     "mutable_globals": 13,
     "new_values": 0,
     "panic_calls": 77,
-    "raw_pointer_addrs": 447,
+    "raw_pointer_addrs": 466,
     "raw_pointer_casts": 114,
     "raw_pointer_derefs": 96,
-    "raw_pointer_types": 1430,
+    "raw_pointer_types": 1432,
     "union_field_accesses": 0,
     "unreachable_stmts": 0,
     "unsafe_blocks": 41,
-    "unsafe_values": 99,
-    "variadic_calls": 53
+    "unsafe_values": 118,
+    "variadic_calls": 58
   }
 }

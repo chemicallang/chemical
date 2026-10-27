@@ -308,6 +308,13 @@ public:
     bool requires_destructor();
 
     /**
+     * has a user-written `@delete` (as opposed to generated drop glue).
+     * A partially initialized value can only be destroyed field by field when
+     * its destructor is generated; a user destructor expects a whole value.
+     */
+    bool has_user_destructor();
+
+    /**
      * if this is a directly referenced / generic type, get it's ref'ed node
      */
     ASTNode* get_direct_linked_node();

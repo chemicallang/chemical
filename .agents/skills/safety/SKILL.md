@@ -82,17 +82,27 @@ Implemented:
   moves, `arr[i].field` reads, and `Copy` elements are still allowed.
 - S3.1c field-wise initialization state: the "writing one member initializes
   the whole struct" heuristic is gone. A projection store resolves its exact
-  move-path node and, for a user local, requires that subobject to already be
-  initialized (a fresh `var s : S` field-by-field init is `SAFE-INIT-001`; a
-  write into a moved value is `SAFE-MOVE-001`). Construction temporaries built
-  field by field on a fresh alloca promote their aggregate to initialized when
-  every owned child is written, so the un-zeroed-construction optimization
-  stays valid. A destructor-bearing local with no owned children may still be
-  hand-initialized through an untracked scalar field (the std
-  `var s : string; s.state = ...` pattern). Partial moves demote ancestors to
+  move-path node: a write into a moved/destroyed value is `SAFE-MOVE-001`, and
+  a chained read (`s.b.id`) is checked through the derived `field_addr` path.
+  Construction temporaries built field by field promote their aggregate to
+  initialized when every owned child is written, so the un-zeroed-construction
+  optimization stays valid. Partial moves demote ancestors to
   `PartiallyMoved`, so a whole-value drop/move of a partially moved aggregate
-  is rejected. `MIRTests` is `4572 checks`. Field-wise drop elaboration for
-  genuinely partial initialization remains pending (S3.1c-2).
+  is rejected.
+- S3.1d field-wise drop elaboration (one level): a bare local of a struct with
+  generated drop glue (`var s : S`) gives every owned direct field its own drop
+  flag. A field write destroys the old value only when that field is live,
+  scope exit/reassignment destroy only initialized fields, and moving the
+  aggregate clears every flag. A user `@delete` still requires whole-value
+  initialization; array elements and deeper projections still require the
+  destination to be initialized. `TF_USER_DESTRUCTOR`
+  (`BaseType::has_user_destructor`) drives the checker rule. A place-to-place
+  `store` now requires a live source, and `memcpy`/`memmove`/`memset` (direct
+  or as an sret source) initialize their destination; the safety suite checks
+  the runtime drop set and order. Unions are raw storage: `type_needs_move_path`
+  does not recurse into union fields (only a union with its own destructor is
+  tracked). `MIRTests` is `4578 checks`. Pending: variant active-case tracking
+  and field-wise drop for nested/array partial initialization.
 - S2.6d unsafe invariant constructors: `vector::set_len` and
   `default_function_instance::make2` are now `unsafe func`; the audited
   `fs::read_file` and `std::function` `make` paths wrap their calls in
@@ -248,8 +258,8 @@ Next:
   as a member, and calls from safe code are rejected; `unsafe(expr)`/`unsafe {}`
   are both unsafe call contexts. Partial initialization and partial moves are
   modeled (S3.1c), including construction temporaries and use-after-move
-  through assignment. Next: field-wise drop elaboration for genuinely partial
-  initialization plus variants/unions, then the borrow checker.
+  through assignment. Next: variant active-case tracking and nested/array
+  partial initialization, then the borrow checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

@@ -146,13 +146,22 @@ func constant_array_index_in_bounds_is_allowed(env : &mut TestEnv) {
 // ── partial initialization (S3.1c) ──────────────────────────────────────────
 
 @test
-func neg_partial_owned_field_init(env : &mut TestEnv) {
+func partial_owned_field_init_is_allowed(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    // A user local may not be initialized field by field when it owns a
-    // destructor-bearing field: the drop at scope exit would run over the
-    // uninitialized siblings.
-    var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var s : S\n        s.a = string(\"x\")\n    }\n    return 0\n}\n"
-    expect_compile_error_with_mod(env, "partial_owned_field_init", ch, "SAFE-INIT-001", NEG_MOD_STD_CORE)
+    // A struct with generated drop glue can be built field by field: every
+    // owned field carries its own drop flag, so only the initialized ones are
+    // destroyed at scope exit.
+    var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var s : S\n        s.a = string(\"x\")\n        s.b = string(\"y\")\n    }\n    return 0\n}\n"
+    expect_compile_success_with_mod(env, "partial_owned_field_init_ok", ch, NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_partial_init_with_user_destructor(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // A user-written destructor expects a whole value, so field-by-field
+    // initialization stays rejected for such a struct.
+    var ch = "using std::string\nstruct S {\n    var a : string\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var s : S\n        s.a = string(\"x\")\n    }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "partial_user_dtor_init", ch, "SAFE-INIT-001", NEG_MOD_STD_CORE)
 }
 
 @test
@@ -175,6 +184,29 @@ func neg_field_write_after_move(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    var s = S { a : string(\"x\"), b : string(\"y\") }\n    var t = s\n    s.a = string(\"z\")\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "field_write_after_move", ch, "SAFE-MOVE-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_read_uninitialized_nested_field(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // A chained field read (`s.b.id`) goes through a derived field address;
+    // the dataflow must still resolve it to the uninitialized `b` subobject.
+    var ch = "struct T {\n    var id : int\n    @delete func delete(&mut self) { }\n}\nstruct S {\n    var a : T\n    var b : T\n}\npublic func main() : int {\n    unsafe {\n        var s : S\n        s.a = T { id : 1 }\n        return s.b.id\n    }\n}\n"
+    expect_compile_error(env, "read_uninit_nested_field", ch, "SAFE-INIT-001")
+}
+
+@test
+func neg_return_partially_initialized(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct T {\n    var id : int\n    @delete func delete(&mut self) { }\n}\nstruct S {\n    var a : T\n    var b : T\n}\nfunc make() : S {\n    unsafe {\n        var s : S\n        s.a = T { id : 1 }\n        return s\n    }\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "return_partially_initialized", ch, "SAFE-INIT-001")
+}
+
+@test
+func full_field_init_is_returnable(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct T {\n    var id : int\n    @delete func delete(&mut self) { }\n}\nstruct S {\n    var a : T\n    var b : T\n}\nfunc make() : S {\n    unsafe {\n        var s : S\n        s.a = T { id : 1 }\n        s.b = T { id : 2 }\n        return s\n    }\n}\npublic func main() : int { return make().b.id }\n"
+    expect_compile_success(env, "full_field_init_returnable", ch)
 }
 
 @test

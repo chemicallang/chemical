@@ -51,7 +51,6 @@ inline bool type_needs_move_path(const MIRTypeTable& types, TypeId type) {
         case MIRTypeKind::Array:
             return type_needs_move_path(types, rec.element);
         case MIRTypeKind::Struct:
-        case MIRTypeKind::Union:
         case MIRTypeKind::Variant: {
             for (uint32_t i = 0; i < rec.data_count; ++i) {
                 const MIRFieldInfo* field = types.field_of(type, i);
@@ -61,6 +60,11 @@ inline bool type_needs_move_path(const MIRTypeTable& types, TypeId type) {
             }
             return false;
         }
+        // A union has no implicit active member: MIR treats its storage as raw,
+        // so its fields are not independently owned or dropped. Only a union
+        // with its own destructor is tracked (the top-level flag above).
+        case MIRTypeKind::Union:
+            return false;
         default:
             return false;
     }

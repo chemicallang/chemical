@@ -137,6 +137,54 @@ internal func expect_runtime_panic(env : &mut TestEnv, name : *char, ch_content 
     }
 }
 
+// Compile and run `ch_content`; returns the process exit code and captures
+// stdout+stderr into `out`.
+internal func safety_compile_and_run(env : &mut TestEnv, name : *char, ch_content : *char,
+                                     out : &mut string) : int {
+    var dir_path : [512]char
+    var mod_path : [512]char
+    var exe_path : [512]char
+    var ch_path : [512]char
+    sprintf(unsafe(&raw mut dir_path[0]), "%s/%s", SAFETY_WORK_DIR, name)
+    mkdir(unsafe(&raw dir_path[0]), 0o777 as uint)
+    sprintf(unsafe(&raw mut mod_path[0]), "%s/chemical.mod", unsafe(&raw dir_path[0]))
+    sprintf(unsafe(&raw mut ch_path[0]), "%s/test.ch", unsafe(&raw dir_path[0]))
+    sprintf(unsafe(&raw mut exe_path[0]), "%s/test.exe", unsafe(&raw dir_path[0]))
+    safety_write_file(unsafe(&raw mut mod_path[0]), "module safety_test\nsource \".\"\nimport cstd\nimport std\nimport core\n")
+    safety_write_file(unsafe(&raw mut ch_path[0]), ch_content)
+
+    var compiler_path_buf : [1024]char
+    sprintf(unsafe(&raw mut compiler_path_buf[0]), "%s", intrinsics::get_compiler_path())
+    var compiler_path = string()
+    var compiler_view = std::string_view(unsafe(&raw compiler_path_buf[0]), strlen(unsafe(&raw compiler_path_buf[0])))
+    compiler_path.append_view(&compiler_view)
+    var module_path = string()
+    var module_view = std::string_view(unsafe(&raw mod_path[0]), strlen(unsafe(&raw mod_path[0])))
+    module_path.append_view(&module_view)
+    var executable_path = string()
+    var executable_view = std::string_view(unsafe(&raw exe_path[0]), strlen(unsafe(&raw exe_path[0])))
+    executable_path.append_view(&executable_view)
+
+    var compile_args = vector<string>()
+    compile_args.push(compiler_path)
+    compile_args.push(module_path)
+    compile_args.push(string("--no-cache"))
+    compile_args.push(string("-o"))
+    compile_args.push(executable_path)
+    var compile_rc = safety_run_command(compile_args)
+    if(compile_rc != 0) {
+        env.error("expected runtime test to compile")
+        return -1
+    }
+
+    var run_path = string()
+    var run_view = std::string_view(unsafe(&raw exe_path[0]), strlen(unsafe(&raw exe_path[0])))
+    run_path.append_view(&run_view)
+    var run_args = vector<string>()
+    run_args.push(run_path)
+    return safety_run_command_capture(run_args, out)
+}
+
 @test
 func safety_suite_smoke(env : &mut TestEnv) {
     if(1 + 1 != 2) {
@@ -412,6 +460,71 @@ func vector_bounds_empty_last_ptr_panics(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "public func main() : int {\n    var v = std::vector<int>()\n    var p = v.last_ptr()\n    return 0\n}\n"
     expect_runtime_panic(env, "vector_bounds_empty_last_ptr_panics", ch)
+}
+
+@test
+func partial_init_destroys_only_initialized_fields(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&mut self) { printf(\"drop %d\\n\", self.id) }\n}\nstruct S {\n    var a : Tracker\n    var b : Tracker\n}\npublic func main() : int {\n    unsafe {\n        var s : S\n        s.a = Tracker { id : 1 }\n    }\n    printf(\"end\\n\")\n    return 0\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "partial_init_drop", ch, &mut out)
+    if(rc != 0) {
+        env.error("expected the partial-init program to exit successfully")
+        return
+    }
+    var view = out.to_view()
+    var drop_a = std::string_view("drop 1")
+    var drop_b = std::string_view("drop 2")
+    var end = std::string_view("end")
+    if(!view.contains(&drop_a)) {
+        env.error("the initialized field was not destroyed")
+    }
+    if(view.contains(&drop_b)) {
+        env.error("an uninitialized field was destroyed")
+    }
+    if(!view.contains(&end)) {
+        env.error("partial-init program did not finish")
+    }
+}
+
+@test
+func full_field_init_destroys_every_field(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&mut self) { printf(\"drop %d\\n\", self.id) }\n}\nstruct S {\n    var a : Tracker\n    var b : Tracker\n}\npublic func main() : int {\n    unsafe {\n        var s : S\n        s.a = Tracker { id : 1 }\n        s.b = Tracker { id : 2 }\n    }\n    printf(\"end\\n\")\n    return 0\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "full_field_init_drop", ch, &mut out)
+    if(rc != 0) {
+        env.error("expected the full-init program to exit successfully")
+        return
+    }
+    var view = out.to_view()
+    var drop_a = std::string_view("drop 1")
+    var drop_b = std::string_view("drop 2")
+    if(!view.contains(&drop_a) || !view.contains(&drop_b)) {
+        env.error("a fully initialized aggregate did not destroy every field")
+    }
+}
+
+@test
+func partial_init_reassignment_destroys_old_value(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&mut self) { printf(\"drop %d\\n\", self.id) }\n}\nstruct S {\n    var a : Tracker\n    var b : Tracker\n}\npublic func main() : int {\n    unsafe {\n        var s : S\n        s.a = Tracker { id : 1 }\n        s = S { a : Tracker { id : 10 }, b : Tracker { id : 20 } }\n    }\n    printf(\"end\\n\")\n    return 0\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "partial_init_reassign", ch, &mut out)
+    if(rc != 0) {
+        env.error("expected the reassignment program to exit successfully")
+        return
+    }
+    var view = out.to_view()
+    var old = std::string_view("drop 1")
+    var new_a = std::string_view("drop 10")
+    var new_b = std::string_view("drop 20")
+    if(!view.contains(&old)) {
+        env.error("the old initialized field was not destroyed on reassignment")
+    }
+    if(!view.contains(&new_a) || !view.contains(&new_b)) {
+        env.error("the replacement value was not destroyed")
+    }
 }
 
 public func main(argc : int, argv : **char) {

@@ -445,19 +445,36 @@
 >   `element_store_place`, and `archive::zip_contains`/`tar_contains` initialize
 >   their out-parameter entry before passing it to the finder.
 > - S3.1c field-wise initialization state: the "writing one member initializes
->   the whole struct" heuristic is gone. A projection store now resolves the
->   exact move-path node: writing an owned subobject of a user local requires
->   that subobject to be initialized (a fresh `var s : S` field-by-field init
->   is `SAFE-INIT-001`), and a write into a moved value is `SAFE-MOVE-001`.
->   Construction temporaries (aggregate literals built field by field on a
->   fresh alloca) promote their aggregate to initialized once every owned child
->   is written, so the un-zeroed-construction optimization stays valid. A
->   destructor-bearing local with no owned children can still be initialized
->   through an untracked scalar field (the std `var s : string; s.state = ...`
->   pattern); a moved/destroyed such value is still rejected. Partial field
->   moves demote their ancestors to `PartiallyMoved`, so a whole-value
->   drop/move of a partially moved aggregate is rejected. Field-wise drop
->   elaboration for genuinely partial initialization remains pending.
+>   the whole struct" heuristic is gone. A projection store resolves the exact
+>   move-path node: a write into a moved/destroyed value is `SAFE-MOVE-001`,
+>   and reading a chained field (`s.b.id`) is checked through the derived
+>   `field_addr` path.
+> - S3.1d field-wise drop elaboration (one level): a bare local of a struct
+>   with generated drop glue (`var s : S`, no initializer) gives every owned
+>   direct field its own drop flag. A field write runs the old value's
+>   destructor only when that field's flag is live, then arms it; scope exit,
+>   `break`/`continue` and reassignment destroy only the initialized fields.
+>   A whole-value assignment arms every field. A struct with a user `@delete`
+>   still requires whole-value initialization, and array elements/deeper
+>   projections keep requiring the destination sub-place to be initialized.
+>   Moving an aggregate (return, assignment, `forget`) clears every field
+>   flag. `MIRMoveCheck` permits the direct-child writes only when the root
+>   type is a `Struct` without `TF_USER_DESTRUCTOR` (the flag
+>   `BaseType::has_user_destructor` publishes). The lowering also marks a
+>   pointer-based element store's source moved (fixing a double drop in
+>   `vector::set`). `unsafe` bulk memory (`memcpy`/`memmove`/`memset`, direct
+>   or via an aggregate sret return) initializes its destination, and a
+>   2-operand place-to-place store requires a live source (rejecting a
+>   partially initialized return). Partial moves demote ancestors to
+>   `PartiallyMoved`, so a whole-value drop/move of a partially moved
+>   aggregate is rejected. Unions are raw storage (`type_needs_move_path` does
+>   not recurse into union fields) and are tracked only when the union itself
+>   declares a destructor. `MIRTests` covers construction temporaries, direct
+>   field init, user-destructor rejection, field writes after a move, union
+>   paths and the nested-field read; the safety suite checks the runtime drop
+>   set and order (`partial_init_destroys_only_initialized_fields`,
+>   `full_field_init_destroys_every_field`,
+>   `partial_init_reassignment_destroys_old_value`).
 > - S1.5m conditional positive auto-trait impls: `unsafe impl<T> Send for
 >   Box<T> where T: Send` is evaluated against the concrete arguments at a
 >   `where T: Send` use site (and recursively for nested boxes), instead of

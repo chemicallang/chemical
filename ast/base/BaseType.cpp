@@ -144,6 +144,11 @@ FunctionDeclaration* BaseType::get_master_destructor() {
     return container ? container->destructor_func() : nullptr;
 }
 
+bool BaseType::has_user_destructor() {
+    FunctionDeclaration* dtor = get_destructor();
+    return dtor != nullptr && !dtor->is_generated_fn();
+}
+
 bool BaseType::requires_destructor() {
     if(kind() == BaseTypeKind::CapturingFunction) {
         return as_capturing_func_type_unsafe()->instance_type->requires_destructor();

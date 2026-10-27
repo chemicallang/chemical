@@ -44,7 +44,6 @@ static uint32_t append_move_path_node(MIRFunction& fn, const MIRTypeTable& types
                 }
                 break;
             case MIRTypeKind::Struct:
-            case MIRTypeKind::Union:
             case MIRTypeKind::Variant:
                 for (uint32_t i = 0; i < rec.data_count; ++i) {
                     const MIRFieldInfo* field = types.field_of(type, i);
@@ -53,6 +52,7 @@ static uint32_t append_move_path_node(MIRFunction& fn, const MIRTypeTable& types
                     }
                 }
                 break;
+            // unions are raw storage: no owned children
             default:
                 break;
         }

@@ -157,6 +157,7 @@ TypeId MIRTypeBuilder::aggregate_type(MIRTypeKind kind, const void* decl, BaseTy
     uint8_t flags = TF_NONE;
     if (type) {
         if (type->requires_destructor()) flags |= TF_HAS_DESTRUCTOR;
+        if (type->has_user_destructor()) flags |= TF_USER_DESTRUCTOR;
         if (type->get_def_constructor() != nullptr) flags |= TF_HAS_CONSTRUCTOR;
         if (type->requires_moving()) flags |= TF_NONE; // moves tracked via contract later
     }

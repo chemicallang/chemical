@@ -4,6 +4,7 @@
 
 #include <deque>
 #include <string>
+#include <unordered_map>
 
 namespace mir {
 
@@ -147,30 +148,14 @@ bool constant_index(const MIRModule& module, ValueId value,
 }
 
 /**
- * Resolve the move path a load/store operand names. `extra` points at the
- * projection operands after the base; `extra_count` is their count. A dynamic
- * array index falls back to the root path (the element is unknown, but the
- * aggregate itself must still be live).
+ * Project `path` through one field/element operand. A scalar field or a dynamic
+ * array index has no dedicated node and falls back to the aggregate's path.
  */
-uint32_t path_for_projection(const MIRModule& module, const MIRFunction& fn,
-                             const MIROperand& base, const MIROperand* extra,
-                             uint32_t extra_count) {
-    if (base.kind() != MIROperandKind::Place || base.id >= fn.places.size()) {
-        return MIR_INVALID_ID;
-    }
-    const PlaceId place = base.id;
-    // Coroutine frame fields are initialized by the ramp/poll state machine,
-    // not by the poll function's own linear lowering. Their lifetime is checked
-    // by the async lowering (S4.1), not by this per-function dataflow.
-    const auto storage = static_cast<MIRStorageClass>(fn.places[place].storage_class);
-    if (storage == MIRStorageClass::FrameField || storage == MIRStorageClass::FramePtr) {
-        return MIR_INVALID_ID;
-    }
-    uint32_t path = fn.places[place].move_path_id;
+uint32_t project_path(const MIRModule& module, const MIRFunction& fn,
+                      uint32_t path, TypeId aggregate,
+                      const MIROperand* extra, uint32_t extra_count) {
     if (path == MIR_INVALID_ID) return MIR_INVALID_ID;
     if (extra_count == 0) return path;
-
-    const TypeId aggregate = fn.places[place].type;
     if (extra[0].kind() == MIROperandKind::Constant) {
         const uint32_t field = field_index_for_constant(
             module, module.types, aggregate, extra[0].id
@@ -193,10 +178,42 @@ uint32_t path_for_projection(const MIRModule& module, const MIRFunction& fn,
     return path;
 }
 
+/**
+ * Resolve the move path a load/store operand names. `extra` points at the
+ * projection operands after the base; `extra_count` is their count. A dynamic
+ * array index falls back to the root path (the element is unknown, but the
+ * aggregate itself must still be live).
+ */
+uint32_t path_for_projection(const MIRModule& module, const MIRFunction& fn,
+                             const MIROperand& base, const MIROperand* extra,
+                             uint32_t extra_count) {
+    if (base.kind() != MIROperandKind::Place || base.id >= fn.places.size()) {
+        return MIR_INVALID_ID;
+    }
+    const PlaceId place = base.id;
+    // Coroutine frame fields are initialized by the ramp/poll state machine,
+    // not by the poll function's own linear lowering. Their lifetime is checked
+    // by the async lowering (S4.1), not by this per-function dataflow.
+    const auto storage = static_cast<MIRStorageClass>(fn.places[place].storage_class);
+    if (storage == MIRStorageClass::FrameField || storage == MIRStorageClass::FramePtr) {
+        return MIR_INVALID_ID;
+    }
+    const uint32_t path = fn.places[place].move_path_id;
+    if (path == MIR_INVALID_ID) return MIR_INVALID_ID;
+    return project_path(module, fn, path, fn.places[place].type, extra, extra_count);
+}
+
 MIRMoveState state_of(const std::vector<MIRMoveState>& states, uint32_t path) {
     if (path == MIR_INVALID_ID || path >= states.size()) return MIRMoveState::Initialized;
     return states[path];
 }
+
+/**
+ * Derived field/element addresses (`field_addr`/`index_addr`) keep their base
+ * move path. A later `load` through such a value is a read of that path, which
+ * is how chained accesses like `s.field.nested` stay checked.
+ */
+using MIRAddressPaths = std::unordered_map<uint32_t, uint32_t>;
 
 void report(std::vector<MIRMoveDiagnostic>& out, const MIRFunction& fn,
             uint32_t function_index, uint32_t block, uint32_t inst,
@@ -292,7 +309,8 @@ int constant_drop_flag(const MIRModule& module, const MIRFunction& fn, ValueId v
 
 void apply_instruction(const MIRModule& module, const MIRFunction& fn,
                        uint32_t function_index, uint32_t block, uint32_t inst_index,
-                       std::vector<MIRMoveState>& states,
+                       std::vector<MIRMoveState>& states, MIRAddressPaths& address_paths,
+                       MIRAddressPaths& place_address_paths,
                        std::vector<MIRMoveDiagnostic>& out) {
     const MIRInstruction& inst = fn.instructions[inst_index];
     const MIROperand* ops = inst.operand_count == 0
@@ -352,9 +370,58 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
             set_subtree(fn, states, path, MIRMoveState::Destroyed);
             break;
         }
+        case MIROpcode::FieldAddr:
+        case MIROpcode::IndexAddr: {
+            // operands: base, field/index, type. Remember the projected move
+            // path of the derived address so a later load through it is a read
+            // of that place (`s.field.nested` lowers to field_addr + load).
+            if (ops == nullptr || inst.operand_count < 2) break;
+            uint32_t base_path = MIR_INVALID_ID;
+            TypeId aggregate = MIR_INVALID_ID;
+            if (ops[0].kind() == MIROperandKind::Place && ops[0].id < fn.places.size()) {
+                const auto sc = static_cast<MIRStorageClass>(
+                    fn.places[ops[0].id].storage_class
+                );
+                if (sc == MIRStorageClass::FrameField ||
+                    sc == MIRStorageClass::FramePtr) {
+                    break;
+                }
+                base_path = fn.places[ops[0].id].move_path_id;
+                aggregate = fn.places[ops[0].id].type;
+            } else if (ops[0].kind() == MIROperandKind::Value &&
+                       ops[0].id < fn.values.size()) {
+                const auto it = address_paths.find(ops[0].id);
+                if (it == address_paths.end()) break;
+                base_path = it->second;
+                const TypeId pt = fn.values[ops[0].id].type;
+                if (pt != MIR_INVALID_ID && pt < module.types.types.size()) {
+                    const MIRTypeRecord& pr = module.types.types[pt];
+                    if (pr.kind == MIRTypeKind::Pointer ||
+                        pr.kind == MIRTypeKind::Reference) {
+                        aggregate = pr.element;
+                    }
+                }
+            }
+            if (base_path == MIR_INVALID_ID) break;
+            const uint32_t projected = project_path(
+                module, fn, base_path, aggregate, ops + 1, 1
+            );
+            if (projected != MIR_INVALID_ID &&
+                inst.result_or_place != MIR_INVALID_ID) {
+                address_paths[inst.result_or_place] = projected;
+            }
+            break;
+        }
         case MIROpcode::Load: {
             if (ops == nullptr) break;
-            // A load through a pointer value is outside the move-path model.
+            // A load through a derived field/element address reads that place.
+            if (ops[0].kind() == MIROperandKind::Value) {
+                const auto it = address_paths.find(ops[0].id);
+                if (it == address_paths.end()) break;
+                require_initialized(out, fn, function_index, block, inst_index,
+                                    it->second, states, "read from");
+                break;
+            }
             if (ops[0].kind() != MIROperandKind::Place) break;
             const uint32_t extra_count = inst.operand_count > 1 &&
                                                  ops[inst.operand_count - 1].kind() ==
@@ -392,11 +459,39 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
             set_subtree(fn, states, path, MIRMoveState::Initialized);
             break;
         }
+        case MIROpcode::AddressOf: {
+            // A whole-place address: used by `memcpy(&raw mut x, ...)` and
+            // placement-new style initialization. It is not a read, so loads
+            // through it stay outside the move-path model; it is recorded so a
+            // bulk-memory call can mark the destination initialized.
+            if (ops == nullptr || ops[0].kind() != MIROperandKind::Place ||
+                ops[0].id >= fn.places.size()) {
+                break;
+            }
+            const auto sc = static_cast<MIRStorageClass>(
+                fn.places[ops[0].id].storage_class
+            );
+            if (sc == MIRStorageClass::FrameField || sc == MIRStorageClass::FramePtr) {
+                break;
+            }
+            const uint32_t path = fn.places[ops[0].id].move_path_id;
+            if (path != MIR_INVALID_ID && inst.result_or_place != MIR_INVALID_ID) {
+                place_address_paths[inst.result_or_place] = path;
+            }
+            break;
+        }
         case MIROpcode::MemCpy:
         case MIROpcode::MemSet: {
-            if (ops == nullptr || ops[0].kind() != MIROperandKind::Place) break;
-            const uint32_t path = path_for_projection(module, fn, ops[0], nullptr, 0);
+            if (ops == nullptr || inst.operand_count == 0) break;
+            uint32_t path = MIR_INVALID_ID;
+            if (ops[0].kind() == MIROperandKind::Place) {
+                path = path_for_projection(module, fn, ops[0], nullptr, 0);
+            } else if (ops[0].kind() == MIROperandKind::Value) {
+                const auto it = place_address_paths.find(ops[0].id);
+                if (it != place_address_paths.end()) path = it->second;
+            }
             set_subtree(fn, states, path, MIRMoveState::Initialized);
+            refresh_ancestors(fn, states, path);
             break;
         }
         case MIROpcode::Call:
@@ -404,42 +499,89 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
             // Struct-return calls write their result through the place operand
             // immediately after the callee (or after the function value).
             if (ops == nullptr || inst.operand_count < 2) break;
-            const uint32_t result_operand = 1;
-            if (ops[result_operand].kind() != MIROperandKind::Place ||
-                ops[result_operand].id != inst.result_or_place) {
-                break;
+            const bool sret_result =
+                ops[1].kind() == MIROperandKind::Place &&
+                inst.result_or_place != MIR_INVALID_ID &&
+                ops[1].id == inst.result_or_place;
+            // A bulk-memory call is an unsafe initialization primitive: mark its
+            // destination initialized (the source of `memcpy` is a read and is
+            // deliberately not checked through a raw pointer here).
+            if (ops[0].kind() == MIROperandKind::Symbol &&
+                ops[0].id < module.symbols.size()) {
+                const MIRSymbolRecord& callee = module.symbols.get(ops[0].id);
+                const std::string_view name(
+                    module.symbols.name_data(callee), callee.name_length
+                );
+                const bool is_copy = name == "memcpy" || name == "memmove" ||
+                                     name == "__chx_memcpy";
+                const bool is_set = name == "memset" || name == "__chx_memset";
+                const uint32_t first_arg = sret_result ? 2 : 1;
+                if ((is_copy || is_set) && inst.operand_count > first_arg) {
+                    const MIROperand& dst = ops[first_arg];
+                    uint32_t path = MIR_INVALID_ID;
+                    if (dst.kind() == MIROperandKind::Place) {
+                        path = path_for_projection(module, fn, dst, nullptr, 0);
+                    } else if (dst.kind() == MIROperandKind::Value) {
+                        const auto it = place_address_paths.find(dst.id);
+                        if (it != place_address_paths.end()) path = it->second;
+                    }
+                    set_subtree(fn, states, path, MIRMoveState::Initialized);
+                    refresh_ancestors(fn, states, path);
+                }
             }
+            if (!sret_result) break;
             const uint32_t path = path_for_projection(
-                module, fn, ops[result_operand], nullptr, 0
+                module, fn, ops[1], nullptr, 0
             );
             set_subtree(fn, states, path, MIRMoveState::Initialized);
             break;
         }
         case MIROpcode::Store: {
-            if (ops == nullptr || ops[0].kind() != MIROperandKind::Place) break;
-            const uint32_t root = path_for_projection(
-                module, fn, ops[0], nullptr, 0
-            );
-            if (root == MIR_INVALID_ID) break;
+            if (ops == nullptr || inst.operand_count == 0) break;
+            const bool dst_is_place = ops[0].kind() == MIROperandKind::Place;
+            const uint32_t root = dst_is_place
+                                      ? path_for_projection(module, fn, ops[0], nullptr, 0)
+                                      : MIR_INVALID_ID;
             // Whole-place store: place, value. A full assignment reinitializes
             // the value (including after a move or a partial state).
             if (inst.operand_count == 2) {
-                set_subtree(fn, states, root, MIRMoveState::Initialized);
+                if (root != MIR_INVALID_ID) {
+                    set_subtree(fn, states, root, MIRMoveState::Initialized);
+                }
+                // A place source is a move. The destination may be a raw sret
+                // pointer (an aggregate return), so the source is checked even
+                // when the destination has no move path. Constructor temporaries
+                // are compiler-built and may legitimately be empty, so they are
+                // trusted here.
+                if (ops[1].kind() == MIROperandKind::Place &&
+                    ops[1].id < fn.places.size()) {
+                    const auto sc = static_cast<MIRStorageClass>(
+                        fn.places[ops[1].id].storage_class
+                    );
+                    if (sc != MIRStorageClass::Temporary) {
+                        const uint32_t src = path_for_projection(
+                            module, fn, ops[1], nullptr, 0
+                        );
+                        require_initialized(out, fn, function_index, block,
+                                            inst_index, src, states, "move from");
+                        mark_path_moved(fn, states, src);
+                    }
+                }
                 break;
             }
+            if (!dst_is_place || root == MIR_INVALID_ID) break;
             if (inst.operand_count < 3) break;
             // Projection store: base, field/element, value.
             //
             // Constructor temporaries (an aggregate literal is built field by
             // field into a fresh alloca), parameters and globals are written by
             // trusted lowering, so a field write initializes that sub-place and
-            // may complete the aggregate. A user local may not be partially
-            // initialized: until field-wise drop elaboration lands, writing into
-            // an uninitialized local would run its destructor over garbage, so
-            // the exact target sub-place must already be initialized. That
-            // rejects a fresh `var s : S` field-by-field init and a write into a
-            // moved or destroyed value, while a normal overwrite of an
-            // initialized field stays allowed.
+            // may complete the aggregate. A bare user local of a struct with
+            // generated drop glue may also be built field by field (each owned
+            // field has its own drop flag); a user destructor, an array element
+            // and a deeper projection still require the destination to be
+            // initialized, because only one level of partial ownership is
+            // elaborated.
             const uint32_t target = path_for_projection(
                 module, fn, ops[0], ops + 1, 1
             );
@@ -471,14 +613,39 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
                     } else {
                         states[root] = MIRMoveState::Initialized;
                     }
+                } else {
+                    // A scalar field of an aggregate that owns subobjects: a
+                    // write is allowed only while the value itself is live.
+                    const MIRMoveState state = states[root];
+                    if (state == MIRMoveState::Moved ||
+                        state == MIRMoveState::Destroyed) {
+                        report(out, fn, function_index, block, inst_index, root,
+                               state, "write to a field of");
+                    }
                 }
             } else {
-                // Writing an owned subobject: only a fully initialized
-                // sub-place may be overwritten. A fresh uninitialized field
-                // would run its destructor over garbage and would leave the
-                // aggregate partially initialized.
-                require_initialized(out, fn, function_index, block, inst_index,
-                                    target, states, "write to a field of");
+                // Writing an owned subobject. A direct field of a struct with
+                // generated drop glue may be initialized on its own (the
+                // lowering gives every such field a drop flag). Anything else
+                // -- a user destructor, an array element, a deeper projection --
+                // requires the destination sub-place to be fully initialized.
+                const TypeId root_type = fn.move_paths[root].field_type;
+                const bool partial_ok =
+                    target != root &&
+                    fn.move_paths[target].parent_path == root &&
+                    root_type != MIR_INVALID_ID &&
+                    root_type < module.types.types.size() &&
+                    module.types.types[root_type].kind == MIRTypeKind::Struct &&
+                    (module.types.types[root_type].flags & TF_USER_DESTRUCTOR) == 0;
+                const MIRMoveState root_state = states[root];
+                if (partial_ok && root_state != MIRMoveState::Moved &&
+                    root_state != MIRMoveState::Destroyed) {
+                    set_subtree(fn, states, target, MIRMoveState::Initialized);
+                    refresh_ancestors(fn, states, target);
+                } else {
+                    require_initialized(out, fn, function_index, block, inst_index,
+                                        target, states, "write to a field of");
+                }
             }
             // A place source is a move out of that place; a value source is a
             // copy and leaves its own path untouched.
@@ -551,6 +718,8 @@ MIRMoveCheckResult check_function_moves(const MIRModule& module,
     );
     std::vector<bool> seen(function.blocks.size(), false);
     std::deque<BlockId> work;
+    MIRAddressPaths address_paths;
+    MIRAddressPaths place_address_paths;
 
     in[function.entry_block] = std::vector<MIRMoveState>(
         path_count, MIRMoveState::Uninitialized
@@ -583,7 +752,8 @@ MIRMoveCheckResult check_function_moves(const MIRModule& module,
             const uint32_t inst_index = block.inst_start + i;
             if (inst_index >= function.instructions.size()) break;
             apply_instruction(module, function, function_index, block_id, inst_index,
-                              state, result.diagnostics);
+                              state, address_paths, place_address_paths,
+                              result.diagnostics);
         }
         const uint32_t term_index = block.inst_start + block.inst_count;
         if (term_index >= function.instructions.size()) continue;

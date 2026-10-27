@@ -508,6 +508,9 @@ void MIRLowerer::mark_moved(PlaceId place) {
     for (auto& d : destructibles_) {
         if (d.place == place) {
             builder_->set_drop(d.flag, false);
+            for (auto& f : d.fields) {
+                if (f.flag != MIR_INVALID_ID) builder_->set_drop(f.flag, false);
+            }
             return;
         }
     }
@@ -557,8 +560,14 @@ void MIRLowerer::emit_drops() {
 
 void MIRLowerer::emit_drops_from(size_t mark) {
     for (size_t i = destructibles_.size(); i-- > mark;) {
-        const ValueId fv = builder_->load(destructibles_[i].flag, types_.bool_type());
-        builder_->drop(destructibles_[i].place, destructibles_[i].dtor, fv);
+        MIRDestructible& d = destructibles_[i];
+        if (!d.fields.empty()) {
+            // a field-wise destructible destroys only the initialized fields
+            destroy_field_wise(d);
+            continue;
+        }
+        const ValueId fv = builder_->load(d.flag, types_.bool_type());
+        builder_->drop(d.place, d.dtor, fv);
     }
 }
 

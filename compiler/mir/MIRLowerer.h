@@ -707,10 +707,32 @@ private:
     void destroy_call_temps(std::string& error);
     void destroy_call_temps_from(size_t mark, std::string& error);
     SymbolId destructor_symbol(BaseType* type);
-    void register_destructible(PlaceId place, BaseType* type);
+    struct MIRDropField {
+        chem::string_view name;
+        BaseType* type = nullptr;
+        PlaceId flag = MIR_INVALID_ID;
+    };
+    struct MIRDestructible {
+        PlaceId place;
+        PlaceId flag;
+        SymbolId dtor;
+        // Non-empty for a bare local whose struct has generated drop glue: the
+        // value may be built field by field, so each owned field carries its own
+        // drop flag and scope exit destroys only the initialized ones.
+        std::vector<MIRDropField> fields;
+    };
+    void register_destructible(PlaceId place, BaseType* type,
+                               bool whole_value_initialized = true);
     /** Destroy one member of `self` (used to lower a `@delete` method). */
     void emit_member_dtor(ValueId self_ptr, const chem::string_view& member, BaseType* mt,
                           std::string& error);
+    /** Destroy one member only when its per-field drop flag is true. */
+    void emit_member_dtor_cond(ValueId self_ptr, const chem::string_view& member,
+                               BaseType* mt, PlaceId flag);
+    /** Per-field drop flag for `place.field`, or MIR_INVALID_ID. */
+    PlaceId drop_flag_for_field(PlaceId place, const chem::string_view& name);
+    /** Destroy every initialized field of a field-wise destructible. */
+    void destroy_field_wise(MIRDestructible& d);
     /** Destroy every destructible member of the enclosing `@delete` method. */
     void emit_destructor_members(std::string& error);
     /** Destroy the active payload of a variant inside its `@delete` method. */
@@ -1095,11 +1117,6 @@ private:
 
     /** The scratch pool a `MIRScratch<T>` scope draws its buffer from. */
     template <class T> MIRScratchPool<T>& scratch_pool();
-    struct MIRDestructible {
-        PlaceId place;
-        PlaceId flag;
-        SymbolId dtor;
-    };
     std::vector<MIRDestructible> destructibles_;
     std::unordered_map<FunctionDeclaration*, SymbolId> func_symbols_;
     std::unordered_map<std::string, SymbolId, MIRStringHash, MIRStringEq> named_method_symbols_;

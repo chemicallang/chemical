@@ -1701,6 +1701,46 @@ static bool test_move_paths() {
     const TypeId arr_id = module.types.intern(arr);
     CHECK(type_needs_move_path(module.types, arr_id));
 
+    // A union has no implicit active member: its owned fields are raw storage,
+    // so it gets no move path (unless the union itself declares a destructor,
+    // in which case only the whole union is tracked).
+    MIRTypeRecord union_rec;
+    union_rec.kind = MIRTypeKind::Union;
+    const TypeId union_id = module.types.push(union_rec);
+    std::vector<MIRFieldInfo> union_fields(2);
+    union_fields[0].type = inner_id;
+    union_fields[1].type = i32;
+    const uint32_t union_field_index = module.types.append_fields(union_fields);
+    module.types.update(union_id, [&](MIRTypeRecord& rec) {
+        rec.data_count = 2;
+        rec.field_index = union_field_index;
+    });
+    CHECK(!type_needs_move_path(module.types, union_id));
+
+    MIRTypeRecord union_dtor_rec;
+    union_dtor_rec.kind = MIRTypeKind::Union;
+    union_dtor_rec.flags = TF_HAS_DESTRUCTOR;
+    const TypeId union_dtor_id = module.types.push(union_dtor_rec);
+    module.types.update(union_dtor_id, [&](MIRTypeRecord& rec) {
+        rec.data_count = 2;
+        rec.field_index = union_field_index;
+    });
+    CHECK(type_needs_move_path(module.types, union_dtor_id));
+
+    {
+        MIRArena union_arena;
+        MIRFunction ufn;
+        ufn.function_type = i32;
+        MIRBuilder ub(union_arena, module, ufn);
+        const BlockId uentry = ub.create_block();
+        ufn.entry_block = uentry;
+        ub.set_block(uentry);
+        const PlaceId up = ub.alloca(union_dtor_id);
+        CHECK(ufn.places[up].move_path_id != MIR_INVALID_ID);
+        CHECK(ufn.move_paths[ufn.places[up].move_path_id].first_child ==
+              MIR_INVALID_ID);
+    }
+
     // outer { owned: inner, count: int, items: [3]inner }
     MIRTypeRecord outer;
     outer.kind = MIRTypeKind::Struct;
@@ -1921,18 +1961,62 @@ static bool test_move_check() {
     }
 
     {
-        // A user local cannot be partially initialized field by field: the drop
-        // at scope exit would run over an uninitialized sibling.
+        // A local of a struct with generated drop glue may be built field by
+        // field; the aggregate only becomes movable/droppable as a whole once
+        // every owned child is initialized.
         MIRFunction fn;
         build(fn, [&](MIRBuilder& b) {
             const PlaceId src = b.alloca(owned_id);
             const PlaceId local = b.alloca(outer2_id, MIRStorageClass::Local);
+            const PlaceId dst = b.alloca(outer2_id);
+            b.init(src, ctor, nullptr, 0);
+            b.field_store(local, fa, b.load(src, owned_id));
+            b.ret_void();
+        });
+        CHECK(check_function_moves(module, fn).ok());
+
+        MIRFunction partial_move;
+        build(partial_move, [&](MIRBuilder& b) {
+            const PlaceId src = b.alloca(owned_id);
+            const PlaceId local = b.alloca(outer2_id, MIRStorageClass::Local);
+            const PlaceId dst = b.alloca(outer2_id);
+            b.init(src, ctor, nullptr, 0);
+            b.field_store(local, fa, b.load(src, owned_id));
+            b.move_init(dst, local, outer2_id);
+        });
+        MIRMoveCheckResult partial = check_function_moves(module, partial_move);
+        CHECK(!partial.ok());
+        CHECK(std::string(partial.diagnostics[0].code) == "SAFE-INIT-001");
+    }
+
+    {
+        // A user-written destructor expects a whole value, so field-by-field
+        // initialization stays rejected for such a struct.
+        MIRTypeRecord outer3;
+        outer3.kind = MIRTypeKind::Struct;
+        outer3.flags = TF_HAS_DESTRUCTOR | TF_USER_DESTRUCTOR;
+        const TypeId outer3_id = module.types.push(outer3);
+        std::vector<MIRFieldInfo> outer3_fields(2);
+        outer3_fields[0].type = owned_id;
+        outer3_fields[0].name_offset = module.types.append_field_name("a", 1);
+        outer3_fields[0].name_length = 1;
+        outer3_fields[1].type = owned_id;
+        outer3_fields[1].name_offset = module.types.append_field_name("b", 1);
+        outer3_fields[1].name_length = 1;
+        const uint32_t outer3_field_index = module.types.append_fields(outer3_fields);
+        module.types.update(outer3_id, [&](MIRTypeRecord& rec) {
+            rec.data_count = 2;
+            rec.field_index = outer3_field_index;
+        });
+        MIRFunction fn;
+        build(fn, [&](MIRBuilder& b) {
+            const PlaceId src = b.alloca(owned_id);
+            const PlaceId local = b.alloca(outer3_id, MIRStorageClass::Local);
             b.init(src, ctor, nullptr, 0);
             b.field_store(local, fa, b.load(src, owned_id));
         });
         MIRMoveCheckResult r = check_function_moves(module, fn);
         CHECK(!r.ok());
-        CHECK(!r.diagnostics.empty());
         CHECK(std::string(r.diagnostics[0].code) == "SAFE-INIT-001");
         CHECK(r.diagnostics[0].message.find("write to a field of") !=
               std::string::npos);

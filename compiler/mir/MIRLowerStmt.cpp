@@ -95,7 +95,9 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 if (!vtype && vi->value) vtype = vi->value->getType();
                 const MIRTypeRecord& vr = module_.types.get(vt);
                 if (!(vr.flags & TF_TYPEDEF) && abi::is_aggregate(module_, vt)) {
-                    register_destructible(place, vtype);
+                    // A declaration without an initializer may be built field
+                    // by field (the destructible then tracks per-field flags).
+                    register_destructible(place, vtype, vi->value != nullptr);
                 }
             }
             if (vi->value) {
@@ -288,11 +290,17 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         }
                         return true;
                     }
+                    PlaceId fflag = MIR_INVALID_ID;
                     if (as->assOp == Operation::Assignment) {
                         // a simple assignment destroys the previous value of a
                         // destructible field before overwriting it
                         BaseType* fbt = chain->values.back()->getType();
                         const SymbolId fdtor = destructor_symbol(fbt);
+                        fflag = (!have_ptr && cur_place != MIR_INVALID_ID)
+                                    ? drop_flag_for_field(
+                                          cur_place,
+                                          chem::string_view(fname.data(), fname.size()))
+                                    : MIR_INVALID_ID;
                         if (fdtor != MIR_INVALID_ID) {
                             const TypeId ft = types_.map(fbt);
                             const ValueId faddr =
@@ -300,7 +308,20 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                                          : builder_->field_addr(cur_place, fc, ft);
                             const TypeId ptrt = types_.pointer_type(ft, true);
                             MIROperand arg = MIROperand::value(faddr, ptrt);
-                            builder_->call_scalar(fdtor, types_.void_type(), &arg, 1);
+                            if (fflag != MIR_INVALID_ID) {
+                                // a field of a bare local may be uninitialized:
+                                // only destroy the old value when it is live
+                                const ValueId fv = builder_->load(fflag, types_.bool_type());
+                                const BlockId do_b = builder_->create_block();
+                                const BlockId end_b = builder_->create_block();
+                                builder_->cond_br(fv, do_b, end_b);
+                                builder_->set_block(do_b);
+                                builder_->call_scalar(fdtor, types_.void_type(), &arg, 1);
+                                builder_->br(end_b);
+                                builder_->set_block(end_b);
+                            } else {
+                                builder_->call_scalar(fdtor, types_.void_type(), &arg, 1);
+                            }
                         }
                     }
                     if (r.kind == MIRExprKind::Place) {
@@ -329,6 +350,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                             const ValueId sv = builder_->load_indirect(sptr, vt);
                             builder_->field_store_ptr(cur_ptr, fc, sv);
                         }
+                        if (fflag != MIR_INVALID_ID) builder_->set_drop(fflag, true);
                         return true;
                     }
                     if (r.kind == MIRExprKind::Address) {
@@ -340,6 +362,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         } else {
                             builder_->field_store_ptr(cur_ptr, fc, loaded);
                         }
+                        if (fflag != MIR_INVALID_ID) builder_->set_drop(fflag, true);
                         return true;
                     }
                     if (r.kind != MIRExprKind::Value) {
@@ -351,6 +374,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     } else {
                         builder_->field_store_ptr(cur_ptr, fc, r.id);
                     }
+                    if (fflag != MIR_INVALID_ID) builder_->set_drop(fflag, true);
                     return true;
                 }
             }
@@ -462,6 +486,10 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         const ValueId eaddr = builder_->index_addr_ptr(
                             static_cast<ValueId>(base.id),
                             static_cast<ValueId>(idx.id), et);
+                        // The element now owns the source value, so its scope
+                        // destructor must not run at exit (same as the place
+                        // branch above).
+                        mark_moved(static_cast<PlaceId>(r.id));
                         builder_->emit(MIROpcode::Store, MIR_NULL,
                                        {MIROperand::value(eaddr, et),
                                         MIROperand::place(static_cast<PlaceId>(r.id), et)});
@@ -669,8 +697,12 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 if (as->assOp != Operation::Assignment || as->is_first_init) return;
                 for (auto& d : destructibles_) {
                     if (d.place == place) {
-                        const ValueId fv = builder_->load(d.flag, types_.bool_type());
-                        builder_->drop(d.place, d.dtor, fv);
+                        if (!d.fields.empty()) {
+                            destroy_field_wise(d);
+                        } else {
+                            const ValueId fv = builder_->load(d.flag, types_.bool_type());
+                            builder_->drop(d.place, d.dtor, fv);
+                        }
                         break;
                     }
                 }
@@ -681,6 +713,9 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 for (auto& d : destructibles_) {
                     if (d.place == place) {
                         builder_->set_drop(d.flag, true);
+                        for (auto& f : d.fields) {
+                            if (f.flag != MIR_INVALID_ID) builder_->set_drop(f.flag, true);
+                        }
                         break;
                     }
                 }

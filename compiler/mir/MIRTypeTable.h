@@ -45,6 +45,7 @@ enum MIRTypeFlags : uint8_t {
     TF_TRIVIAL_BITWISE = 0x10,
     TF_TYPEDEF = 0x20, // spelled by name without a `struct`/`union` prefix
     TF_VARIADIC = 0x40, // function type: trailing `...` (last param is the tail marker)
+    TF_USER_DESTRUCTOR = 0x80, // the aggregate has a user-written `@delete`
 };
 
 /**

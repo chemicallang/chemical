@@ -1,9 +1,9 @@
 // Copyright (c) Chemical Language Foundation 2025.
 //
-// MIR borrow checking, first slice (S4.4a). This is a report-only loan
-// analysis: it tracks references created by `Borrow`/`BorrowMut`, follows them
-// through reference locals, and reports overlapping mutable loans and
-// moves/drops of a borrowed place.
+// MIR borrow/lifetime checking (S4.4-S4.6). It tracks references created by
+// `Borrow`/`BorrowMut`, follows them through reference locals and aggregate
+// fields, and reports overlapping loans, moves/drops of a borrowed place, and
+// reference escapes (SAFE-BORROW-*/SAFE-LIFE-*).
 //
 // The live range is derived from a linear walk over the function's instructions
 // (the last use of a loan or a value copied from it). That is precise for

@@ -138,13 +138,12 @@ Implemented:
   copies it, and the dataflow treats it as a read. The region operand is a
   placeholder (`MIR_INVALID_ID`) until NLL assigns region variables (S4.4).
   `MIRTests` covers the opcodes, dump and C emission (`4610 checks`).
-- S4.4a report-only loan analysis: `compiler/mir/MIRBorrowCheck.{h,cpp}` tracks
+- S4.4a loan analysis: `compiler/mir/MIRBorrowCheck.{h,cpp}` tracks
   `Borrow`/`BorrowMut` loans, follows references through reference locals
   (Store/MoveInit/CopyInit/Load/Copy/Cast), and reports overlapping live loans
   (`SAFE-BORROW-001`) and moves/drops of a borrowed place (`SAFE-BORROW-002`).
-  `ASTProcessor` prints these as warnings (compilation still succeeds); loans
-  passed to a call are marked escaped and skipped until the interprocedural
-  lifetime check (S4.5).
+  Both are now enforced (hard errors) after the in-tree migration reached zero
+  hits; `ASTProcessor` prints enforced diagnostics as `error[SAFE-*]`.
 - S4.4b CFG liveness + region variables: the loan analysis now computes
   per-block `live_in`/`live_out` over loans (worklist over the MIR CFG) and
   walks each block backwards to check conflicts/moves at the exact
@@ -158,10 +157,9 @@ Implemented:
   time, so a caller sees a callee's signature before its body. A known callee
   that returns a reference keeps the single reference argument's loan alive
   through the call result; a non-reference-returning callee ends the loan at
-  the call. Indirect/extern callees and calls with multiple reference
-  arguments keep the conservative escape mark. Four report-only
-  `SAFE-BORROW-001` hits remain in generated test-harness code (`__chemda_*`);
-  they are the S4.9 migration items.
+  the call. Indirect/extern callees and ambiguous multi-reference results keep
+  the conservative escape mark. Multiple reference arguments are mapped by the
+  return region (identity first, then a unique outlives source).
 - S4.5b reference escape on return: `SAFE-LIFE-001` reports returning a
   reference to a local, temporary or coroutine frame field (storage that dies
   at function exit). A returned parameter/global reference is allowed. It
@@ -221,8 +219,13 @@ Implemented:
   enclosing function. Migrated the one in-tree two-`&mut` test; the tree now
   has zero `SAFE-BORROW-001` hits. `MIRTests` is `4631 checks`; negative tests
   cover both the aliased and unrelated-argument cases (460 tests).
-  Next in M4: enforce BORROW-001/002, then S4.2b variance and
-  dropck/async/Pin/provenance.
+- S4.9/S4.10 enforcement: after the tree reached zero hits across every suite,
+  `SAFE-BORROW-001` and `SAFE-BORROW-002` were flipped to hard errors. The
+  enforcement gate is the same fatal path as the LIFE rules; enforced
+  diagnostics render as `error[SAFE-*]`. The negative suite asserts the error
+  form for alias, shared/mutable alias, move-while-borrowed, single- and
+  multi-reference result loans (`460` tests).
+  Next in M4: S4.2b variance, then dropck/async/Pin and provenance.
 - S2.6d unsafe invariant constructors: `vector::set_len` and
   `default_function_instance::make2` are now `unsafe func`; the audited
   `fs::read_file` and `std::function` `make` paths wrap their calls in

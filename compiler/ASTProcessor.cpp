@@ -2004,30 +2004,34 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
         // S4.4a report-only loan analysis. This never fails the build yet; the
         // migrate/enforce steps follow once the in-tree tree is clean.
         const auto borrows = mir::check_function_borrows(module, check);
-        bool fatal_lifetime = false;
-        std::string lifetime_error;
+        bool fatal_borrow = false;
+        std::string borrow_error;
         if (!borrows.diagnostics.empty()) {
             static std::mutex borrow_warn_mutex;
             std::lock_guard<std::mutex> guard(borrow_warn_mutex);
             for (const mir::MIRBorrowDiagnostic& d : borrows.diagnostics) {
-                // SAFE-LIFE-001 is enforced: returning a reference to storage
-                // that dies at function exit is a hard error. The loan/alias
-                // reports stay report-only until the in-tree migration lands.
-                if (d.code != nullptr &&
-                    (std::string_view(d.code) == "SAFE-LIFE-001" ||
-                     std::string_view(d.code) == "SAFE-LIFE-002" ||
-                     std::string_view(d.code) == "SAFE-LIFE-003")) {
-                    fatal_lifetime = true;
-                    if (lifetime_error.empty()) {
-                        lifetime_error = std::string(d.code) + ": " + d.message;
+                // Enforced borrow/lifetime rules are hard errors. The in-tree
+                // tree is migrated, so SAFE-BORROW-001/002 now join the LIFE
+                // rules; anything still report-only stays a warning.
+                const std::string_view code =
+                    d.code != nullptr ? std::string_view(d.code) : std::string_view();
+                const bool fatal =
+                    code == "SAFE-LIFE-001" || code == "SAFE-LIFE-002" ||
+                    code == "SAFE-LIFE-003" || code == "SAFE-BORROW-001" ||
+                    code == "SAFE-BORROW-002";
+                if (fatal) {
+                    fatal_borrow = true;
+                    if (borrow_error.empty()) {
+                        borrow_error = std::string(d.code) + ": " + d.message;
                         if (d.has_loc && d.loc.file < module.source_files.size()) {
-                            lifetime_error += " at " + module.source_files[d.loc.file] +
-                                              ":" + std::to_string(d.loc.line) + ":" +
-                                              std::to_string(d.loc.column);
+                            borrow_error += " at " + module.source_files[d.loc.file] +
+                                            ":" + std::to_string(d.loc.line) + ":" +
+                                            std::to_string(d.loc.column);
                         }
                     }
                 }
-                std::cerr << "warn[" << (d.code ? d.code : "SAFE-BORROW-001")
+                std::cerr << (fatal ? "error[" : "warn[")
+                          << (d.code ? d.code : "SAFE-BORROW-001")
                           << "]: " << d.message;
                 if (check.symbol != mir::MIR_INVALID_ID &&
                     check.symbol < module.symbols.size()) {
@@ -2048,8 +2052,8 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
                 std::cerr << "\n";
             }
         }
-        if (fatal_lifetime) {
-            error = std::move(lifetime_error);
+        if (fatal_borrow) {
+            error = std::move(borrow_error);
             return false;
         }
         const auto moves = mir::check_function_moves(module, check);

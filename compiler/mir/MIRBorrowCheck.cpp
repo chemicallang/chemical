@@ -159,6 +159,10 @@ void report(std::vector<MIRBorrowDiagnostic>& out, const MIRFunction& fn,
             }
         }
     }
+    if (!d.has_loc && fn.has_decl_loc) {
+        d.loc = fn.decl_loc;
+        d.has_loc = true;
+    }
     out.push_back(std::move(d));
 }
 

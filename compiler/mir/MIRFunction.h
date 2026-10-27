@@ -179,6 +179,7 @@ struct MIRFunction {
         move_paths.clear();
         region_signature = MIR_INVALID_ID;
         region_var_count = 0;
+        has_decl_loc = false;
         sources.clear();
         entry_block = MIR_NULL;
     }

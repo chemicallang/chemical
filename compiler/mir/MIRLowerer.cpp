@@ -724,6 +724,12 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     // func_symbols_ persists across functions in a module so callees keep stable ids
 
     func.symbol = intern_function(decl);
+    if (source_loc_provider_ && decl) {
+        const uint64_t enc = decl->encoded_location().encoded;
+        if (enc != 0 && source_loc_provider_(enc, func.decl_loc)) {
+            func.has_decl_loc = true;
+        }
+    }
     // Region signatures are built from the declaration before any body
     // lowering, so MIRBorrowCheck (M4) never has to read the AST.
     func.region_signature = module_.symbol_region_signature(func.symbol);

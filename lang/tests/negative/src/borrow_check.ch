@@ -141,3 +141,20 @@ func neg_direct_reference_field_return_region(env : &mut TestEnv) {
     var ch = "struct Holder<'a> {\n    var r : &'a int\n}\nfunc <'a, 'b> bad(x : &'a int) : &'b int {\n    var h = Holder<'a> { r : x }\n    return h.r\n}\npublic func main() : int {\n    var a = 1\n    var r = bad(&a)\n    return *r\n}\n"
     expect_compile_error(env, "borrow_direct_field_return_region", ch, "SAFE-LIFE-003")
 }
+
+@test
+func neg_multi_reference_call_maps_return_loan(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // `pick` returns its first reference; the second argument must not hide
+    // the result loan behind the conservative multi-reference escape.
+    var ch = "func <'a, 'b> pick(x : &'a mut int, y : &'b mut int) : &'a mut int {\n    return x\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    var r = pick(&mut a, &mut b)\n    var q = &mut a\n    *q = 9\n    return *r\n}\n"
+    expect_compile_warning_id(env, "borrow_multi_ref_call_map", ch, "SAFE-BORROW-001")
+}
+
+@test
+func multi_reference_call_unrelated_argument_ok(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // The result aliases `a`, so a subsequent mutable borrow of `b` is fine.
+    var ch = "func <'a, 'b> pick(x : &'a mut int, y : &'b mut int) : &'a mut int {\n    return x\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    var r = pick(&mut a, &mut b)\n    var q = &mut b\n    *q = 9\n    return *r\n}\n"
+    expect_compile_output_not_contains(env, "borrow_multi_ref_call_other", ch, "SAFE-BORROW-001", NEG_MOD)
+}

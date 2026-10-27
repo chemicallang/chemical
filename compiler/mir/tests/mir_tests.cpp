@@ -2127,6 +2127,66 @@ static bool test_borrow_check() {
     }
 
     {
+        // S4.5: with two reference arguments, the result loan is mapped to the
+        // argument whose region is the declared return region. A later borrow
+        // of an unrelated argument does not conflict; borrowing the mapped one
+        // does.
+        MIRTypeRecord cfr;
+        cfr.kind = MIRTypeKind::Function;
+        cfr.element = ref_t;
+        cfr.size = 8;
+        cfr.alignment = 8;
+        const TypeId cftype = module.types.intern(cfr);
+        MIRSymbolRecord rec;
+        rec.kind = MIRSymbolKind::Function;
+        rec.type = cftype;
+        const SymbolId callee = module.symbols.add(
+            rec, "pick", 4, "pick", 4);
+
+        MIRFunction fn;
+        MIRArena arena;
+        fn.function_type = void_t;
+        MIRBuilder b(arena, module, fn);
+        const BlockId entry = b.create_block();
+        fn.entry_block = entry;
+        b.set_block(entry);
+        const PlaceId x = b.alloca(i32);
+        const PlaceId y = b.alloca(i32);
+        b.store(x, b.const_int(i32, module.constants.add_int(i32, 1)));
+        b.store(y, b.const_int(i32, module.constants.add_int(i32, 2)));
+        const ValueId ax = b.address_of(x, ptr_t);
+        const ValueId bx = b.borrow(ax, region, ref_t, true);
+        const ValueId ay = b.address_of(y, ptr_t);
+        const ValueId by = b.borrow(ay, region, ref_t, true);
+        MIROperand args[2] = {
+            MIROperand::value(bx, ref_t),
+            MIROperand::value(by, ref_t),
+        };
+        const ValueId res = b.call_scalar(callee, ref_t, args, 2);
+        const ValueId ax2 = b.address_of(x, ptr_t);
+        (void) b.borrow(ax2, region, ref_t, true);
+        (void) b.load_indirect(res, i32);
+        b.ret_void();
+
+        // The callee returns its first argument ('a == 'a).
+        MIRFunction callee_fn;
+        callee_fn.function_type = cftype;
+        callee_fn.region_signature = module.add_region_signature(
+            make_region_signature({"a", "b"}, {"a", "b"}, "a", {})
+        );
+        module.set_symbol_region_signature(callee, callee_fn.region_signature);
+
+        const MIRBorrowCheckResult r = check_function_borrows(module, fn);
+        bool found = false;
+        for (const auto& d : r.diagnostics) {
+            if (d.code != nullptr && std::string(d.code) == "SAFE-BORROW-001") {
+                found = true;
+            }
+        }
+        CHECK(found);
+    }
+
+    {
         // S4.6a aggregate: a reference field of an sret-returned aggregate is
         // checked like a directly returned reference.
         MIRTypeRecord ar;

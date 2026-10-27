@@ -210,7 +210,19 @@ Implemented:
   built before the return type was linked is rebuilt in `lower_function`.
   `MIRTests` is `4630 checks`; negative tests cover aggregate-return region,
   local-field escape, satisfied bound, and direct field return (458 tests).
-  Next in M4: S4.2b variance, then dropck/async/Pin and provenance.
+- S4.5 multi-reference call mapping: a reference-returning callee with several
+  reference arguments now maps its result to the argument whose declared region
+  is the return region (identity first, then a unique `where 'a: 'b` source).
+  The other argument loans end at the call, so `pick(&mut a, &mut b)` no longer
+  loses the result loan to the conservative escape path. Ambiguous results
+  still escape. Lambdas carry their enclosing function symbol; borrow
+  diagnostics print `inside <parent>` and the source-location provider is
+  installed even in `debug_quick`, so a generated lambda warning points at the
+  enclosing function. Migrated the one in-tree two-`&mut` test; the tree now
+  has zero `SAFE-BORROW-001` hits. `MIRTests` is `4631 checks`; negative tests
+  cover both the aliased and unrelated-argument cases (460 tests).
+  Next in M4: enforce BORROW-001/002, then S4.2b variance and
+  dropck/async/Pin/provenance.
 - S2.6d unsafe invariant constructors: `vector::set_len` and
   `default_function_instance::make2` are now `unsafe func`; the audited
   `fs::read_file` and `std::function` `make` paths wrap their calls in

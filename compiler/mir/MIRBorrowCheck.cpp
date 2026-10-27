@@ -659,32 +659,102 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         }
                     }
                 }
-                std::vector<uint32_t> ref_loans;
+                struct RefArg {
+                    uint16_t op_index = 0;
+                    uint32_t param_index = MIR_INVALID_ID;
+                    uint32_t loan = MIR_INVALID_ID;
+                    uint32_t source_param = MIR_INVALID_ID;
+                };
+                std::vector<RefArg> ref_args;
                 for (uint16_t i = first; i < inst.operand_count; ++i) {
                     if (ops[i].kind() != MIROperandKind::Value) continue;
                     const auto it = value_loans.find(ops[i].id);
-                    if (it != value_loans.end() && it->second < loans.size()) {
-                        ref_loans.push_back(it->second);
+                    if (it == value_loans.end() || it->second >= loans.size()) {
+                        continue;
+                    }
+                    RefArg ra;
+                    ra.op_index = i;
+                    ra.param_index = static_cast<uint32_t>(i - first);
+                    ra.loan = it->second;
+                    const auto vp = value_params.find(ops[i].id);
+                    ra.source_param = vp != value_params.end()
+                                          ? vp->second
+                                          : loans[ra.loan].target.param_index;
+                    ref_args.push_back(ra);
+                }
+
+                const MIRRegionSignature* callee_sig = nullptr;
+                if (known) {
+                    const uint32_t sid =
+                        module.symbol_region_signature(ops[0].id);
+                    if (sid != MIR_INVALID_ID &&
+                        sid < module.region_signatures.size()) {
+                        callee_sig = &module.region_signatures[sid];
                     }
                 }
-                if (known && returns_reference && ref_loans.size() == 1 &&
+
+                // A reference result aliases the argument whose declared
+                // region is the return region (or the unique argument whose
+                // region outlives it). This makes `pick(&mut a, &mut b)` keep
+                // the correct loan alive instead of dropping both.
+                uint32_t mapped_loan = MIR_INVALID_ID;
+                uint32_t mapped_source = MIR_INVALID_ID;
+                if (known && returns_reference &&
                     inst.result_or_place != MIR_INVALID_ID) {
-                    // The result aliases the single reference argument.
+                    if (callee_sig != nullptr &&
+                        callee_sig->return_region != MIR_INVALID_ID) {
+                        const MIRRegionId ret = callee_sig->return_region;
+                        std::vector<const RefArg*> identity;
+                        std::vector<const RefArg*> sources;
+                        for (const RefArg& ra : ref_args) {
+                            if (ra.param_index >=
+                                callee_sig->param_regions.size()) {
+                                continue;
+                            }
+                            const MIRRegionId pr =
+                                callee_sig->param_regions[ra.param_index];
+                            if (pr == MIR_INVALID_ID) continue;
+                            if (pr == ret) identity.push_back(&ra);
+                            if (region_outlives(*callee_sig, pr, ret)) {
+                                sources.push_back(&ra);
+                            }
+                        }
+                        if (identity.size() == 1) {
+                            mapped_loan = identity[0]->loan;
+                            mapped_source = identity[0]->source_param;
+                        } else if (identity.empty() && sources.size() == 1) {
+                            mapped_loan = sources[0]->loan;
+                            mapped_source = sources[0]->source_param;
+                        } else if (ref_args.size() == 1) {
+                            // Elided/static region: the single reference is
+                            // still the only possible source.
+                            mapped_loan = ref_args[0].loan;
+                            mapped_source = ref_args[0].source_param;
+                        }
+                    } else if (ref_args.size() == 1) {
+                        mapped_loan = ref_args[0].loan;
+                        mapped_source = ref_args[0].source_param;
+                    }
+                }
+
+                if (mapped_loan != MIR_INVALID_ID) {
                     for (uint16_t i = first; i < inst.operand_count; ++i) {
                         use_value(ops[i], lin, false);
                     }
-                    const uint32_t loan = ref_loans[0];
-                    value_loans[inst.result_or_place] = loan;
-                    loans[loan].end = lin;
-                } else if (known && ref_loans.size() <= 1) {
-                    // No reference result (or no reference argument): the
-                    // borrow ends at the call.
+                    value_loans[inst.result_or_place] = mapped_loan;
+                    loans[mapped_loan].end = lin;
+                    if (mapped_source != MIR_INVALID_ID) {
+                        value_params[inst.result_or_place] = mapped_source;
+                    }
+                } else if (known && ref_args.size() <= 1) {
+                    // Known callee with no retained reference: the borrow ends
+                    // at the call.
                     for (uint16_t i = first; i < inst.operand_count; ++i) {
                         use_value(ops[i], lin, false);
                     }
                 } else {
-                    // Unknown or ambiguous (multiple reference arguments):
-                    // interprocedural escape is not modeled yet.
+                    // Unknown/extern callee, or an ambiguous multi-reference
+                    // result: interprocedural escape is not modeled yet.
                     for (uint16_t i = first; i < inst.operand_count; ++i) {
                         use_value(ops[i], lin, true);
                     }

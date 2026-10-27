@@ -652,8 +652,13 @@
 > recovers the stored source place, and generic return types contribute their
 > first lifetime argument (`Holder<'a>`) to the signature. Negative tests cover
 > aggregate-return region, local-field escape, the satisfied bound, and a direct
-> field return (458 tests). Next: S4.2b variance, then
-> dropck/async/Pin/provenance.
+> field return (458 tests). S4.5 multi-reference mapping: a reference-returning
+> callee with several reference arguments maps the result to the argument whose
+> region is the return region (identity, then a unique outlives source); the
+> migrated two-`&mut` test leaves the in-tree tree with zero BORROW hits. Lambda
+> diagnostics carry their enclosing function and source location in
+> `debug_quick`; `MIRTests` is `4631 checks`, negative tests `460`. Next:
+> enforce BORROW-001/002, then S4.2b variance and dropck/async/Pin/provenance.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

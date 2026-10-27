@@ -163,6 +163,8 @@ struct MIRFunction {
     /** The declaration's source location (for a DISubprogram). */
     MIRSourceLoc decl_loc;
     bool has_decl_loc = false;
+    /** For a generated function (lambda/destructor): the enclosing function. */
+    uint32_t parent_symbol = MIR_INVALID_ID;
 
     uint32_t entry_block = MIR_NULL;
 
@@ -180,6 +182,7 @@ struct MIRFunction {
         region_signature = MIR_INVALID_ID;
         region_var_count = 0;
         has_decl_loc = false;
+        parent_symbol = MIR_INVALID_ID;
         sources.clear();
         entry_block = MIR_NULL;
     }

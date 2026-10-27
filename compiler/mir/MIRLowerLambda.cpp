@@ -431,8 +431,26 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
         static_cast<uint32_t>(lname.size()));
 
     MIRFunction fn;
+    if (lamb != nullptr && source_loc_provider_ != nullptr) {
+        const uint64_t enc = lamb->encoded_location().encoded;
+        if (enc != 0 && source_loc_provider_(enc, fn.decl_loc)) {
+            fn.has_decl_loc = true;
+        }
+    }
+    // `debug_quick` has no source provider, but a lambda diagnostic should
+    // still point at the enclosing function rather than nowhere.
+    if (!fn.has_decl_loc && builder_ != nullptr) {
+        const MIRFunction& outer = builder_->function();
+        if (outer.has_decl_loc) {
+            fn.decl_loc = outer.decl_loc;
+            fn.has_decl_loc = true;
+        }
+    }
     fn.symbol = sym;
     fn.function_type = ftype;
+    if (builder_ != nullptr) {
+        fn.parent_symbol = builder_->function().symbol;
+    }
 
     // save the enclosing function's lowering state
     MIRBuilder* saved_builder = builder_;
@@ -690,8 +708,26 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
         lname.data(), static_cast<uint32_t>(lname.size()));
 
     MIRFunction fn;
+    if (lamb != nullptr && source_loc_provider_ != nullptr) {
+        const uint64_t enc = lamb->encoded_location().encoded;
+        if (enc != 0 && source_loc_provider_(enc, fn.decl_loc)) {
+            fn.has_decl_loc = true;
+        }
+    }
+    // `debug_quick` has no source provider, but a lambda diagnostic should
+    // still point at the enclosing function rather than nowhere.
+    if (!fn.has_decl_loc && builder_ != nullptr) {
+        const MIRFunction& outer = builder_->function();
+        if (outer.has_decl_loc) {
+            fn.decl_loc = outer.decl_loc;
+            fn.has_decl_loc = true;
+        }
+    }
     fn.symbol = sym;
     fn.function_type = ftype;
+    if (builder_ != nullptr) {
+        fn.parent_symbol = builder_->function().symbol;
+    }
 
     // save the enclosing function's lowering state
     MIRBuilder* saved_builder = builder_;

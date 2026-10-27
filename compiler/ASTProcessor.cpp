@@ -2032,8 +2032,14 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
                 if (check.symbol != mir::MIR_INVALID_ID &&
                     check.symbol < module.symbols.size()) {
                     std::cerr << " (in "
-                              << module.symbols.mangled_name(module.symbols.get(check.symbol))
-                              << ")";
+                              << module.symbols.mangled_name(module.symbols.get(check.symbol));
+                    if (check.parent_symbol != mir::MIR_INVALID_ID &&
+                        check.parent_symbol < module.symbols.size()) {
+                        std::cerr << ", inside "
+                                  << module.symbols.mangled_name(
+                                         module.symbols.get(check.parent_symbol));
+                    }
+                    std::cerr << ")";
                 }
                 if (d.has_loc && d.loc.file < module.source_files.size()) {
                     std::cerr << " at " << module.source_files[d.loc.file] << ":"
@@ -2698,24 +2704,24 @@ int ASTProcessor::implement_module(
     });
     mir::MIRLowerer& mir_lowerer = mir_task.lowerer;
     mir_lowerer.set_visitor_mutex(&mir_visitor_mutex);
-    // Source locations and debug metadata (place names, lexical scopes) are only
-    // needed for debug info; the common (release / debug_quick) path pays nothing.
+    // Debug-only metadata (place names, lexical scopes) is recorded only for
+    // debug info. The source-location provider is always installed: it is used
+    // once per declaration/lambda, and safety diagnostics need a location even
+    // in `debug_quick`.
     mir_lowerer.set_debug_info(options->debug_info);
-    if (options->debug_info) {
-        mir_lowerer.set_source_loc_provider([this, &mir_module, &mir_visitor_mutex](uint64_t enc, mir::MIRSourceLoc& out) -> bool {
-            std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
-            if (enc == 0) return false;
-            const SourceLocation loc(enc);
-            const LocationManager::LocationPosData pos = loc_man.getLocationPos(loc);
-            if (pos.fileId == 0) return false;
-            const std::string_view path = loc_man.getPathForFileId(pos.fileId);
-            if (path.empty()) return false;
-            out.file = mir_module.source_file(std::string(path));
-            out.line = pos.start.line;        // 0-based; the emitter adds 1
-            out.column = pos.start.character; // 0-based
-            return true;
-        });
-    }
+    mir_lowerer.set_source_loc_provider([this, &mir_module, &mir_visitor_mutex](uint64_t enc, mir::MIRSourceLoc& out) -> bool {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
+        if (enc == 0) return false;
+        const SourceLocation loc(enc);
+        const LocationManager::LocationPosData pos = loc_man.getLocationPos(loc);
+        if (pos.fileId == 0) return false;
+        const std::string_view path = loc_man.getPathForFileId(pos.fileId);
+        if (path.empty()) return false;
+        out.file = mir_module.source_file(std::string(path));
+        out.line = pos.start.line;        // 0-based; the emitter adds 1
+        out.column = pos.start.character; // 0-based
+        return true;
+    });
     mir_lowerer.set_mangler([&c_visitor, &mir_visitor_mutex](ASTNode* n) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         return mir_mangle_name(c_visitor.mangler, n);
@@ -3092,24 +3098,24 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     mir::MIRTaskContext mir_task(mir_module, mir_types);
     mir::MIRLowerer& mir_lowerer = mir_task.lowerer;
     mir_lowerer.set_visitor_mutex(&mir_visitor_mutex);
-    // Source locations and debug metadata (place names, lexical scopes) are only
-    // needed for debug info; the common (release / debug_quick) path pays nothing.
+    // Debug-only metadata (place names, lexical scopes) is recorded only for
+    // debug info. The source-location provider is always installed: it is used
+    // once per declaration/lambda, and safety diagnostics need a location even
+    // in `debug_quick`.
     mir_lowerer.set_debug_info(options->debug_info);
-    if (options->debug_info) {
-        mir_lowerer.set_source_loc_provider([this, &mir_module, &mir_visitor_mutex](uint64_t enc, mir::MIRSourceLoc& out) -> bool {
-            std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
-            if (enc == 0) return false;
-            const SourceLocation loc(enc);
-            const LocationManager::LocationPosData pos = loc_man.getLocationPos(loc);
-            if (pos.fileId == 0) return false;
-            const std::string_view path = loc_man.getPathForFileId(pos.fileId);
-            if (path.empty()) return false;
-            out.file = mir_module.source_file(std::string(path));
-            out.line = pos.start.line;        // 0-based; the emitter adds 1
-            out.column = pos.start.character; // 0-based
-            return true;
-        });
-    }
+    mir_lowerer.set_source_loc_provider([this, &mir_module, &mir_visitor_mutex](uint64_t enc, mir::MIRSourceLoc& out) -> bool {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
+        if (enc == 0) return false;
+        const SourceLocation loc(enc);
+        const LocationManager::LocationPosData pos = loc_man.getLocationPos(loc);
+        if (pos.fileId == 0) return false;
+        const std::string_view path = loc_man.getPathForFileId(pos.fileId);
+        if (path.empty()) return false;
+        out.file = mir_module.source_file(std::string(path));
+        out.line = pos.start.line;        // 0-based; the emitter adds 1
+        out.column = pos.start.character; // 0-based
+        return true;
+    });
     mir_lowerer.set_mangler([&c_visitor, &mir_visitor_mutex](ASTNode* n) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         return mir_mangle_name(c_visitor.mangler, n);

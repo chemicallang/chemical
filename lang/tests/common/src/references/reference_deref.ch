@@ -147,8 +147,11 @@ func test_deref_and_refs() {
     test("automatic dereferences in expressions work - 3", () => {
         var i = 545
         var ref = give_ref(&mut i)
+        // Consume the first mutable reference before taking the second: two
+        // live mutable loans to the same place are aliasing (SAFE-BORROW-001).
+        var first = *ref
         var ref2 = give_ref(&mut i)
-        return *ref == *ref2;
+        return first == *ref2;
     })
     test("automatic dereferences in expressions work - 2", () => {
         var i = 547

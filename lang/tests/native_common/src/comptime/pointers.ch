@@ -1,53 +1,53 @@
-comptime func comptime_give_char_by_offset(str : *char, offset : int) : char {
+comptime func comptime_give_char_by_offset(str : *char, offset : int) : char { unsafe {
     return *(str + offset);
-}
+ }}
 
-comptime func comptime_give_char_by_ptr_offset(str : *char, offset : int) : char {
+comptime func comptime_give_char_by_ptr_offset(str : *char, offset : int) : char { unsafe {
     var x = str as *char
     x += offset
     return *x;
-}
+ }}
 
-comptime func comptime_ptr_add_zero(str : *char) : char {
+comptime func comptime_ptr_add_zero(str : *char) : char { unsafe {
     return *(str + 0);
-}
+ }}
 
-comptime func comptime_ptr_add_stride(str : *char) : char {
+comptime func comptime_ptr_add_stride(str : *char) : char { unsafe {
     return *(str + 2);
-}
+ }}
 
-comptime func comptime_ptr_arith_if(str : *char, flag : bool) : char {
+comptime func comptime_ptr_arith_if(str : *char, flag : bool) : char { unsafe {
     if(flag) {
         return *(str + 1);
     } else {
         return *str;
     }
-}
+ }}
 
-func give_char_by_offset(str : *char, offset : int) : char {
+func give_char_by_offset(str : *char, offset : int) : char { unsafe {
     return *(str + offset);
-}
+ }}
 
-func give_char_by_ptr_offset(str : *char, offset : int) : char {
+func give_char_by_ptr_offset(str : *char, offset : int) : char { unsafe {
     var x = str as *char
     x += offset
     return *x;
-}
+ }}
 
-func test_inc_dec_work_ptr1() : char {
+func test_inc_dec_work_ptr1() : char { unsafe {
     const str = "hello world"
     var ptr = str as *char;
     ptr++
     return *ptr
-}
+ }}
 
-func test_inc_dec_work_ptr2() : char {
+func test_inc_dec_work_ptr2() : char { unsafe {
     const str = "hello world"
     var ptr = str as *char;
     ptr++
     ptr--
     return *ptr
-}
+ }}
 
 
 func test_pointers_in_comptime() {

@@ -401,7 +401,7 @@ enum AttrValueTarget {
 // policy. HTML emits unquoted, HTML-escaped text (the caller adds the attribute
 // quotes); JS emits quoted JS-escaped text / char literals and `undefined` for
 // None. This replaces the two near-duplicate writers.
-func writeAttrValue(page : &mut HtmlPage, output : &mut std::string, attrVal : &SsrAttributeValue, target : AttrValueTarget) {
+func writeAttrValue(page : &mut HtmlPage, output : &mut std::string, attrVal : &SsrAttributeValue, target : AttrValueTarget) { unsafe {
     switch(attrVal) {
         None() => {
             // Unresolvable value: HTML degrades to nothing; JS props become undefined
@@ -457,7 +457,7 @@ func writeAttrValue(page : &mut HtmlPage, output : &mut std::string, attrVal : &
         }
         Spread(value) => {} // Unreachable for primitive values
     }
-}
+ }}
 
 func writePrimitiveAttrValue(page : &mut HtmlPage, output : &mut std::string, attrVal : &SsrAttributeValue) {
     writeAttrValue(page, output, attrVal, AttrValueTarget.Html)
@@ -536,7 +536,7 @@ func accumulateAttrs(list : &SsrAttributeList, special : &mut SpecialAttrs) {
     }
 }
 
-public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
+public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) { unsafe {
     var special = make_special_attrs()
     accumulateAttrs(list, &mut special)
 
@@ -570,12 +570,12 @@ public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
         writePrimitiveAttrValue(page, &mut *output, &*special.others_values.get(i))
         output.append_view("\"")
     }
-}
+ }}
 
 // Like `renderHtmlAttrs`, but prepends `baseClass` to the element's class list.
 // Used by #styled components so the generated CSS class is applied alongside any
 // user-provided `class` attribute.
-public func renderHtmlAttrsWithBase(page : &mut HtmlPage, list : &SsrAttributeList, baseClass : SsrText) {
+public func renderHtmlAttrsWithBase(page : &mut HtmlPage, list : &SsrAttributeList, baseClass : SsrText) { unsafe {
     var special = make_special_attrs()
     accumulateAttrs(list, &mut special)
 
@@ -615,9 +615,9 @@ public func renderHtmlAttrsWithBase(page : &mut HtmlPage, list : &SsrAttributeLi
         writePrimitiveAttrValue(page, &mut *output, &*special.others_values.get(i))
         output.append_view("\"")
     }
-}
+ }}
 
-public func renderJsAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
+public func renderJsAttrs(page : &mut HtmlPage, list : &SsrAttributeList) { unsafe {
     var special = make_special_attrs()
     accumulateAttrs(list, &mut special)
 
@@ -656,7 +656,7 @@ public func renderJsAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
         output.append(':')
         writeJsPrimitiveAttrValue(page, &mut *output, &*special.others_values.get(i))
     }
-}
+ }}
 
 public func renderHtmlAttrValue(page : &mut HtmlPage, attrVal : &SsrAttributeValue) {
     writePrimitiveAttrValue(page, &mut page.pageHtml, attrVal)

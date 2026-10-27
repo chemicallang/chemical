@@ -52,7 +52,7 @@ async func b24_destructible(nm : B24Named) : int {
 async func b24_addr(p : B24Pair) : int {
     var u = await async::yield_now()
     var ptr = &raw p.x
-    return *ptr + p.y
+    return unsafe(*ptr) + p.y
 }
 
 @test

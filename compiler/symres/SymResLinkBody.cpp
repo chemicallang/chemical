@@ -2806,7 +2806,7 @@ void SymResLinkBody::VisitReferenceOfValue(ReferenceOfValue* refValue) {
         BaseType* inner = deref->getValue() ? deref->getValue()->getType() : nullptr;
         BaseType* canonical = inner ? inner->canonical() : nullptr;
         if (canonical != nullptr && canonical->kind() == BaseTypeKind::Pointer) {
-            diagnoser.warn(refValue).with_code("SAFE-PROV-001")
+            diagnoser.error(refValue).with_code("SAFE-PROV-001")
                 << "creating a reference by dereferencing a raw pointer requires unsafe";
         }
     }
@@ -2888,7 +2888,7 @@ void SymResLinkBody::VisitCastedValue(CastedValue* cValue) {
             (src->kind() == BaseTypeKind::Pointer ||
              src->kind() == BaseTypeKind::IntN ||
              src->kind() == BaseTypeKind::NullPtr)) {
-            diagnoser.warn(cValue).with_code("SAFE-PROV-001")
+            diagnoser.error(cValue).with_code("SAFE-PROV-001")
                 << "creating a reference from a raw pointer requires unsafe";
         }
     }
@@ -2943,7 +2943,7 @@ void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
         BaseType* inner = value->getValue()->getType();
         BaseType* canonical = inner ? inner->canonical() : nullptr;
         if (canonical != nullptr && canonical->kind() == BaseTypeKind::Pointer) {
-            diagnoser.warn(value).with_code("SAFE-UNSAFE-001")
+            diagnoser.error(value).with_code("SAFE-UNSAFE-001")
                 << "de-referencing a raw pointer in safe context requires unsafe";
         }
     }

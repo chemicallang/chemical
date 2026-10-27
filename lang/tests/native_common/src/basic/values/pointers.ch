@@ -48,7 +48,7 @@ func check_int_to_ptr_cast(ptr : *mut int) : bool {
     return ptr == null;
 }
 
-func test_pointer_math() {
+func test_pointer_math() { unsafe {
     test("assignment using a pointer works", () => {
         var i = 2;
         var j = &mut i;
@@ -168,4 +168,4 @@ func test_pointer_math() {
     test("passing pointer to struct created via function call directly works", () => {
         return ret_sum_of_struct_by_ptr(&raw create_pmc22_struct(5, 6)) == 11
     })
-}
+ }}

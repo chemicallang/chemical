@@ -111,7 +111,7 @@ func (cssParser : &mut CSSParser) parseFont(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
     value : &mut CSSValue
-) {
+) { unsafe {
 
     var font = builder.allocate<CSSFontValueData>();
     new (font) CSSFontValueData {
@@ -211,13 +211,13 @@ func (cssParser : &mut CSSParser) parseFont(
 
     parser.parseFontFamiliesList(builder, &mut font.family)
 
-}
+ }}
 
 func (cssParser : &mut CSSParser) parseFontFamily(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
     value : &mut CSSValue
-) {
+) { unsafe {
 
     const token = parser.getToken()
     if(token.type == TokenType.LBrace || token.type == TokenType.DollarLBrace) {
@@ -239,4 +239,4 @@ func (cssParser : &mut CSSParser) parseFontFamily(
 
     parser.parseFontFamiliesList(builder, &mut *family)
 
-}
+ }}

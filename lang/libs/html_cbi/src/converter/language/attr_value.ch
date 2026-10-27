@@ -108,7 +108,7 @@ func (converter : &mut AttrValueConverter) convert_multiple_attr_values(
     builder : *mut ASTBuilder,
     start : **mut Value,
     size : ubigint
-) : *mut Value {
+) : *mut Value { unsafe {
     // construct an array value, array of SsrAttributeValue
     var location = intrinsics::get_raw_location();
     var attrValueType = builder.make_linked_type("SsrAttributeValue", converter.ssrAttributeValueNode, location)
@@ -129,7 +129,7 @@ func (converter : &mut AttrValueConverter) convert_multiple_attr_values(
     multiAttrStructVal.add_value("size", builder.make_ubigint_value(size, location))
 
     return converter.wrapArgAttrValueVariantCall(builder, "Multiple", multiAttrStructVal);
-}
+ }}
 
 func (converter : &mut AttrValueConverter) convert_to_attr_value(builder : *mut ASTBuilder, type : *mut BaseType, value : *mut Value) : *mut Value {
     if(value.getKind() == ValueKind.String) {

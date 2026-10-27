@@ -246,7 +246,7 @@ public namespace std {
             }
 
             @delete
-            func delete(&mut self) {
+            func delete(&mut self) { unsafe {
                 m.lock();
                 run=false;
                 cv.notify_all();
@@ -258,7 +258,7 @@ public namespace std {
                 }
                 workers.clear();
                 q.clear()
-            }
+             }}
 
         }
 

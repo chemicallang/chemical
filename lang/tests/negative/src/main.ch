@@ -40,7 +40,7 @@ internal func write_file(path : *char, content : *char) {
     }
 }
 
-internal func string_contains(haystack : *char, needle : *char) : bool {
+internal func string_contains(haystack : *char, needle : *char) : bool { unsafe {
     var nlen = strlen(needle)
     if(nlen == 0) return true
     while(*haystack != 0) {
@@ -57,9 +57,9 @@ internal func string_contains(haystack : *char, needle : *char) : bool {
         haystack++
     }
     return false
-}
+ }}
 
-internal func run_compiler_capture(mod_path : *char, out_path : *char, output_buf : *mut char, buf_size : int, mode : *char = "") : int {
+internal func run_compiler_capture(mod_path : *char, out_path : *char, output_buf : *mut char, buf_size : int, mode : *char = "") : int { unsafe {
     var cmd : char[2048]
     var mode_flag : *char = ""
     if(mode[0] != 0) {
@@ -144,7 +144,7 @@ internal func run_compiler_capture(mod_path : *char, out_path : *char, output_bu
     }
     var rc = pclose(pipe)
     return rc
-}
+ }}
 
 internal func setup_test_files(work_dir : *char, name : *char, mod_content : *char, ch_content : *char) : bool {
     var test_dir : char[512]
@@ -487,7 +487,7 @@ func neg_lambda_param_unresolved_child_prints_error(env : &mut TestEnv) {
 @test
 func neg_get_on_destructible_struct_direct_errors(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "struct Holder<T> {\n    var data : *mut T\n    func get(&self, i : int) : T where T : Copy {\n        return *data\n    }\n}\nstruct Row {\n    var p : *char\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    var h = Holder<Row> { data = null }\n    var r = h.get(0)\n    return 0\n}\n"
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func get(&self, i : int) : T where T : Copy {\n        return unsafe(*data)\n    }\n}\nstruct Row {\n    var p : *char\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    var h = Holder<Row> { data = null }\n    var r = h.get(0)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "get_on_destructible_struct_direct", ch, "does not satisfy where clause constraint", NEG_MOD_CORE)
 }
 
@@ -497,14 +497,14 @@ func neg_get_on_destructible_struct_direct_errors(env : &mut TestEnv) {
 @test
 func neg_copy_requires_explicit_impl(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "struct Holder<T> {\n    var data : *mut T\n    func get(&self, i : int) : T where T : Copy {\n        return *data\n    }\n}\nstruct Row {\n    var p : *char\n}\npublic func main() : int {\n    var h = Holder<Row> { data = null }\n    var r = h.get(0)\n    return 0\n}\n"
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func get(&self, i : int) : T where T : Copy {\n        return unsafe(*data)\n    }\n}\nstruct Row {\n    var p : *char\n}\npublic func main() : int {\n    var h = Holder<Row> { data = null }\n    var r = h.get(0)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "copy_requires_explicit_impl", ch, "SAFE-COPY-001", NEG_MOD_CORE)
 }
 
 @test
 func copy_explicit_impl_satisfies_bound(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "struct Holder<T> {\n    var data : *mut T\n    func get(&self, i : int) : T where T : Copy {\n        return *data\n    }\n}\nstruct Row {\n    var p : *char\n}\nimpl Copy for Row {}\npublic func main() : int {\n    var h = Holder<Row> { data = null }\n    var r = h.get(0)\n    return 0\n}\n"
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func get(&self, i : int) : T where T : Copy {\n        return unsafe(*data)\n    }\n}\nstruct Row {\n    var p : *char\n}\nimpl Copy for Row {}\npublic func main() : int {\n    var h = Holder<Row> { data = null }\n    var r = h.get(0)\n    return 0\n}\n"
     expect_compile_output_not_contains(env, "copy_explicit_impl", ch, "SAFE-COPY-001", NEG_MOD_CORE)
 }
 
@@ -534,7 +534,7 @@ func copy_impl_with_copy_fields_compiles(env : &mut TestEnv) {
 @test
 func neg_get_on_destructible_struct_nested_receiver_errors(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "struct Holder<T> {\n    var data : *mut T\n    func get(&self, i : int) : T where T : Copy {\n        return *data\n    }\n}\nstruct Row {\n    var p : *char\n    @delete\n    func delete(&mut self) { }\n}\nstruct Outer {\n    var h : Holder<Row>\n}\npublic func main() : int {\n    var outer = Outer { h = Holder<Row> { data = null } }\n    var r = outer.h.get(0)\n    return 0\n}\n"
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func get(&self, i : int) : T where T : Copy {\n        return unsafe(*data)\n    }\n}\nstruct Row {\n    var p : *char\n    @delete\n    func delete(&mut self) { }\n}\nstruct Outer {\n    var h : Holder<Row>\n}\npublic func main() : int {\n    var outer = Outer { h = Holder<Row> { data = null } }\n    var r = outer.h.get(0)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "get_on_destructible_struct_nested", ch, "does not satisfy where clause constraint", NEG_MOD_CORE)
 }
 

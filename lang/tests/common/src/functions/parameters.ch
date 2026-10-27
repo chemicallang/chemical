@@ -1,13 +1,13 @@
-func assign_to_addr(value : *mut int) {
+func assign_to_addr(value : *mut int) { unsafe {
     *value = 25
-}
+ }}
 
 func take_addr_of(value : int) : int {
     assign_to_addr(&raw mut value)
     return value;
 }
 
-func <T> gen_assign_to_addr(value : *mut T) {
+func <T> gen_assign_to_addr(value : *mut T) { unsafe {
     if(T is short) {
         *value = 2
     } else if(T is int) {
@@ -17,7 +17,7 @@ func <T> gen_assign_to_addr(value : *mut T) {
     } else {
         *value = 99
     }
-}
+ }}
 
 func <T> gen_take_addr_of(value : T) : T {
     gen_assign_to_addr(&raw mut value)

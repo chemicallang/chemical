@@ -20,7 +20,7 @@ func hex_digit_to_int(c : char) : int {
  * alpha channel defaults to 0xFF if not provided.
  * Returns true on success, or false if the input is invalid.
  */
-func parse_css_hex_color(str : *char, len : size_t, outColor : *mut uint32_t) : bool {
+func parse_css_hex_color(str : *char, len : size_t, outColor : *mut uint32_t) : bool { unsafe {
 
     var r : uint32_t = 0
     var g : uint32_t = 0
@@ -76,7 +76,7 @@ func parse_css_hex_color(str : *char, len : size_t, outColor : *mut uint32_t) : 
     // Pack the channels into a 32-bit value as 0xRRGGBBAA.
     *outColor = (r << 24) | (g << 16) | (b << 8) | a;
     return true;
-}
+ }}
 
 /*
  * TOOO use snprintf to return a string instead

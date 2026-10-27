@@ -27,7 +27,7 @@ func skip_leading_whitespace_text(parser : *mut Parser) {
     }
 }
 
-func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlChild {
+func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlChild { unsafe {
 
     const current = parser.getToken();
 
@@ -210,7 +210,7 @@ func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, buil
         return null;
     }
 
-}
+ }}
 
 func (htmlParser : &mut HtmlParser) parseIfStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlChild {
     const loc = intrinsics::get_raw_location();

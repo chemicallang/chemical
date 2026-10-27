@@ -8,7 +8,7 @@ func ut_char_lower_ascii(c : char) : char {
 
 // Returns true when the provider is positioned at a case-insensitive
 // "</script" followed by a tag terminator. Used to end the raw script text.
-func ut_at_script_close(provider : &SourceProvider) : bool {
+func ut_at_script_close(provider : &SourceProvider) : bool { unsafe {
     // need bytes [0..8] available ('<' '/' 's' 'c' 'r' 'i' 'p' 't' and the terminator)
     if(provider.data_ptr + 9 > provider.data_end) {
         return false;
@@ -24,7 +24,7 @@ func ut_at_script_close(provider : &SourceProvider) : bool {
     if(ut_char_lower_ascii(*(p + 7)) != 't') { return false; }
     const after = *(p + 8)
     return after == '>' || after == '/' || after == ' ' || after == '\t' || after == '\n' || after == '\r'
-}
+ }}
 
 func is_script_tag_name(tag_value : std::string_view) : bool {
     return tag_value.size() == 6 &&

@@ -187,7 +187,7 @@ func set_nonblock(fd : int) {
 
 // Read whatever is currently available from a non-blocking fd, stopping on
 // EOF or when no more data is immediately readable (EAGAIN).
-func read_available(fd : int, data : *mut vector<u8>) : bool {
+func read_available(fd : int, data : *mut vector<u8>) : bool { unsafe {
     var buf : [4096]u8;
     while(true) {
         var n = read(fd, &raw mut buf[0], 4096);
@@ -205,7 +205,7 @@ func read_available(fd : int, data : *mut vector<u8>) : bool {
         }
     }
     return false
-}
+ }}
 
 // Same parent-side setup rule as posix_execute() above (no getenv()/malloc()
 // in the forked child) to avoid the multi-threaded deadlock.

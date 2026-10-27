@@ -579,7 +579,7 @@ public namespace tls {
             var sess_mem = malloc(sizeof(Session)) as *mut Session
             if(sess_mem != null) {
                 sess_mem.ticket = null
-                *sess_mem = Session()
+                unsafe { *sess_mem = Session() }
             }
             ssl.session = sess_mem
             ssl.state = SSLState.HELLO_REQUEST()
@@ -644,7 +644,7 @@ public namespace tls {
         }
     }
 
-    public func ssl_context_init(ssl : *mut SSLContext) {
+    public func ssl_context_init(ssl : *mut SSLContext) { unsafe {
         ssl.conf = null
         ssl.conf_owned = false
         var sess_mem = malloc(sizeof(Session)) as *mut Session
@@ -705,7 +705,7 @@ public namespace tls {
         ssl.last_alert_level = 0
         ssl.last_alert_desc = 0
         ssl.early_data_status = 0
-    }
+     }}
 
     // ─── Transform (Encryption Context) ─────────────────────────────────────
 

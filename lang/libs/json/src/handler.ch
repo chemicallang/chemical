@@ -72,7 +72,7 @@ public struct ASTJsonHandler {
         }
     }
 
-    func attach_value(&mut self, v : JsonValue) {
+    func attach_value(&mut self, v : JsonValue) { unsafe {
         if (!stack.empty()) {
             var top = stack.last_ptr();
             if (top is JsonValue.Array) {
@@ -95,7 +95,7 @@ public struct ASTJsonHandler {
             root = v;
             have_root = true;
         }
-    }
+     }}
 
 };
 

@@ -148,15 +148,15 @@ public namespace posix {
         }
     }
 
-    func put_u32(base : *mut u8, off : size_t, v : u32) {
+    func put_u32(base : *mut u8, off : size_t, v : u32) { unsafe {
         var p = (base + off) as *mut u32
         *p = v
-    }
+     }}
 
-    func get_u32(base : *mut u8, off : size_t) : u32 {
+    func get_u32(base : *mut u8, off : size_t) : u32 { unsafe {
         var p = (base + off) as *mut u32
         return *p
-    }
+     }}
 
     func write_epoll_event(base : *mut u8, ev : u32, fd : int) {
         memset(base as *mut void, 0, epoll_event_size())

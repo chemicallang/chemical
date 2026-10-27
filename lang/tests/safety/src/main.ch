@@ -235,7 +235,7 @@ internal func safety_compile_with_report(env : &mut TestEnv, name : *char, ch_co
 
 @test
 func safety_report_emits_counts(env : &mut TestEnv) {
-    var ch = "func read_ptr(p : *mut int) : int {\n    return *p\n}\npublic func main() : int {\n    return 0\n}\n"
+    var ch = "func read_ptr(p : *mut int) : int {\n    return unsafe(*p)\n}\npublic func main() : int {\n    return 0\n}\n"
     var out = safety_compile_with_report(env, "report_counts", ch)
     var view = out.to_view()
     var raw_needle = std::string_view("raw_pointer_types")

@@ -1244,7 +1244,7 @@ public struct atomic_flag {
     var _value : u32 = 0
 }
 
-@retained func __chx__flag_test_and_set_u32(ptr : *mut u32) : bool {
+@retained func __chx__flag_test_and_set_u32(ptr : *mut u32) : bool { unsafe {
     comptime if(def.x86_64 || def.i386) {
         var old_val : u32 = 1
         asm("xchgl %0, %1" : "=r"(old_val), "+m"(*ptr) : "0"(old_val) : "memory")
@@ -1259,7 +1259,7 @@ public struct atomic_flag {
         }
         return false
     }
-}
+ }}
 
 @retained func __chx__flag_clear_u32(ptr : *mut u32) : int {
     __chx__store_u32_dispatch(ptr, 0)

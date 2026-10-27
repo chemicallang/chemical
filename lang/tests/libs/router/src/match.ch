@@ -25,7 +25,7 @@ public func test_router_match_literal(env : &mut TestEnv) {
 }
 
 @test
-public func test_router_match_params(env : &mut TestEnv) {
+public func test_router_match_params(env : &mut TestEnv) { unsafe {
     var patterns = std::vector<RoutePattern>()
     patterns.push(make_pattern("/projects/{id}", "projects"))
     const m = match_route(&mut patterns, "/projects/42", "")
@@ -36,7 +36,7 @@ public func test_router_match_params(env : &mut TestEnv) {
     var Param(name, value) = *p else unreachable
     if(!name.equals(std::string_view("id"))) { env.error("param name") }
     if(!value.equals(std::string_view("42"))) { env.error("param value") }
-}
+ }}
 
 @test
 public func test_router_match_miss_fallback(env : &mut TestEnv) {

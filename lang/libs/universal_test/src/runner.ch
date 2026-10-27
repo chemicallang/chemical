@@ -123,7 +123,7 @@ func ut_sv_eq(a : &string, b : string_view) : bool {
     return true
 }
 
-func ut_parse_result(args : string_view, out : *mut UTResult) {
+func ut_parse_result(args : string_view, out : *mut UTResult) { unsafe {
     out.name = string()
     out.ok = false
     out.msg = string()
@@ -150,7 +150,7 @@ func ut_parse_result(args : string_view, out : *mut UTResult) {
             }
         }
     }
-}
+ }}
 
 func ut_bridge(method : string_view, args : string_view) : string {
     if(method.size() == 6) {
@@ -284,7 +284,7 @@ func ut_name_selected(names : &vector<string_view>, name : string_view) : bool {
     return false
 }
 
-func ut_id_selected(ids : &vector<int>, id : int) : bool {
+func ut_id_selected(ids : &vector<int>, id : int) : bool { unsafe {
     var i : size_t = 0
     while(i < ids.size()) {
         const vp = ids.get_ptr(i)
@@ -292,7 +292,7 @@ func ut_id_selected(ids : &vector<int>, id : int) : bool {
         i += 1
     }
     return false
-}
+ }}
 
 // Streams the collected results (in declaration order) to the reporter and
 // returns the number of failed tests.
@@ -337,7 +337,7 @@ func ut_emit(tests : *mut *mut UTFunction, count : size_t, reporter : *mut TestR
 }
 
 // Parses `--test-names a,b`, `--test-ids 1,2`, and `--include-remote`.
-func ut_parse_args(argc : int, argv : **char, names : &mut vector<string_view>, ids : &mut vector<int>, has_names : &mut bool, has_ids : &mut bool, headed : &mut bool, include_remote : &mut bool) {
+func ut_parse_args(argc : int, argv : **char, names : &mut vector<string_view>, ids : &mut vector<int>, has_names : &mut bool, has_ids : &mut bool, headed : &mut bool, include_remote : &mut bool) { unsafe {
     var i : int = 1
     while(i < argc) {
         const arg = argv[i]
@@ -370,7 +370,7 @@ func ut_parse_args(argc : int, argv : **char, names : &mut vector<string_view>, 
         }
         i += 1
     }
-}
+ }}
 
 // `universal_test_runner` is comptime so `ut_all()` is evaluated at the user's
 // call site -- i.e. after the module containing the #universal_test declarations
@@ -386,7 +386,7 @@ public comptime func universal_test_runner(argc : %maybe_runtime<int>, argv : %r
  * Returns the number of failed tests.
  */
 @retained
-public func run_universal_tests_reporting(tests : std::span<UTFunction>, reporter : &mut TestReporter, argc : int, argv : **char) : int {
+public func run_universal_tests_reporting(tests : std::span<UTFunction>, reporter : &mut TestReporter, argc : int, argv : **char) : int { unsafe {
     var span = tests
     if(span.size() == 0) {
         printf("universal_test: no #universal_test declarations found\n")
@@ -451,7 +451,7 @@ public func run_universal_tests_reporting(tests : std::span<UTFunction>, reporte
     var failed = ut_emit(ordered.data() as *mut *mut UTFunction, ordered.size(), &raw mut reporter)
     reporter.end_runner()
     return failed
-}
+ }}
 
 /** Single-runner entry point: streams to a default console reporter. */
 @retained

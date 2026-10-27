@@ -5,7 +5,7 @@ public struct CSSNestedRule {
     var nested_rules : std::vector<*mut CSSNestedRule>
 }
 
-public func parseCSSOM(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSOM {
+public func parseCSSOM(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSOM { unsafe {
     var root = builder.allocate<CSSOM>()
     new (root) CSSOM {
         parent : parser.getParentNode(),
@@ -68,4 +68,4 @@ public func parseCSSOM(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSOM
     root.dyn_values = std::replace(&mut cssParser.dyn_values, std::vector<*mut Value>());
 
     return root;
-}
+ }}

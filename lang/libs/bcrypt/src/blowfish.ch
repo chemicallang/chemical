@@ -107,7 +107,7 @@ public func bf_set_key(key : std::string_view, expanded : [18]uint, initial : [1
 
 const BF_ITOA64 = "./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 
-func bf_encode(dst : &mut std::string, src : [6]uint, size : int) {
+func bf_encode(dst : &mut std::string, src : [6]uint, size : int) { unsafe {
     var src_bytes = src as *u8
     var i = 0
     while(i < size) {
@@ -133,7 +133,7 @@ func bf_encode(dst : &mut std::string, src : [6]uint, size : int) {
         dst.append(BF_ITOA64[c1])
         dst.append(BF_ITOA64[c2 & 0x3fu])
     }
-}
+ }}
 
 var BF_atoi64 : [96]u8 = [
     64u8, 64u8, 64u8, 64u8, 64u8, 64u8, 64u8, 64u8, 64u8, 64u8, 64u8, 64u8, 64u8, 64u8, 0u8, 1u8,
@@ -144,7 +144,7 @@ var BF_atoi64 : [96]u8 = [
     43u8, 44u8, 45u8, 46u8, 47u8, 48u8, 49u8, 50u8, 51u8, 52u8, 53u8, 64u8, 64u8, 64u8, 64u8, 64u8
 ]
 
-func bf_decode(dst : [4]uint, src : std::string_view, size : int) : bool {
+func bf_decode(dst : [4]uint, src : std::string_view, size : int) : bool { unsafe {
     var dptr = dst as *mut u8
     var sidx = 0u
     var count = 0
@@ -179,7 +179,7 @@ func bf_decode(dst : [4]uint, src : std::string_view, size : int) : bool {
         *(dptr + count) = ((b3 & 0x03u) << 6u) | b4; count++
     }
     return true
-}
+ }}
 
 func bf_swap(x : []uint, count : int) {
     for(var i = 0; i < count; i++) {

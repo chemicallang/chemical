@@ -1,9 +1,9 @@
 struct CapLambDestrCounter {
     var counter : *mut int
     @delete
-    func delete(&self) {
+    func delete(&self) { unsafe {
         *counter = *counter + 1;
-    }
+     }}
 }
 
 struct CapLambContainer {

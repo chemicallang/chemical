@@ -8,7 +8,7 @@
  */
 using namespace std;
 
-func isEndMd(provider : *SourceProvider) : bool {
+func isEndMd(provider : *SourceProvider) : bool { unsafe {
     // Check if current position has "endmd"
     const ptr = provider.data_ptr;
     if(ptr + 5 > provider.data_end) return false;
@@ -21,18 +21,18 @@ func isEndMd(provider : *SourceProvider) : bool {
     if(ptr + 5 >= provider.data_end) return true;
     const d5 = *(ptr + 5);
     return d5 == '\0' || d5 == '\n' || d5 == '\r' || d5 == ' ' || d5 == '\t';
-}
+ }}
 
-func countBackticks(provider : *SourceProvider) : int {
+func countBackticks(provider : *SourceProvider) : int { unsafe {
     var count = 0;
     const ptr = provider.data_ptr;
     while(ptr + count < provider.data_end && *(ptr + count) == '`') {
         count++;
     }
     return count;
-}
+ }}
 
-public func getNextToken2(md : &mut MdLexer, lexer : &mut Lexer) : Token {
+public func getNextToken2(md : &mut MdLexer, lexer : &mut Lexer) : Token { unsafe {
     const provider = &raw lexer.provider;
     const position = provider.getPosition();
     const data_ptr = provider.current_data();
@@ -237,4 +237,4 @@ public func getNextToken2(md : &mut MdLexer, lexer : &mut Lexer) : Token {
             return Token { type : MdTokenType.Text as int, value : std::string_view(data_ptr, provider.current_data() - data_ptr), position : position }
         }
     }
-}
+ }}

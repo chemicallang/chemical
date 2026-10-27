@@ -11,7 +11,7 @@ func run_test_fn_ptr(env : &mut TestEnv, ptr : *void, ret_bool : bool) : bool {
     }
 }
 
-func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig, out_has_error : *mut bool) {
+func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig, out_has_error : *mut bool) { unsafe {
 
     var env = create_test_env(tfn, config);
 
@@ -38,7 +38,7 @@ func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig, ou
         *out_has_error = env.has_error
     }
 
-}
+ }}
 
 func append_integer(str : &mut std::string, dig : int) {
     var buffer : [160]char

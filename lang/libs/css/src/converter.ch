@@ -114,7 +114,7 @@ func writeLength(ptr : &mut CSSLengthValueData, str : &mut std::string) {
     }
 }
 
-func (converter : &mut CSSRuntimeConverter) writeBorderRadiusValueData(ptr : &mut CSSBorderRadiusValueData, str : &mut std::string) {
+func (converter : &mut CSSRuntimeConverter) writeBorderRadiusValueData(ptr : &mut CSSBorderRadiusValueData, str : &mut std::string) { unsafe {
 
     if(ptr.first.kind != CSSValueKind.Unknown) {
         converter.writeValue(&mut ptr.first)
@@ -140,7 +140,7 @@ func (converter : &mut CSSRuntimeConverter) writeBorderRadiusValueData(ptr : &mu
         converter.writeBorderRadiusValueData(&mut *ptr.next, str)
     }
 
-}
+ }}
 
 func writeFontStyle(ptr : &CSSFontStyle, str : &mut std::string) {
     switch(ptr) {
@@ -168,7 +168,7 @@ func writeFontWeight(ptr : &CSSFontWeight, str : &mut std::string) {
     }
 }
 
-func writeFontFamilyData(family : &mut CSSFontFamily, str : &mut std::string) {
+func writeFontFamilyData(family : &mut CSSFontFamily, str : &mut std::string) { unsafe {
     const first = family.families.data();
     var start = first
     const end = start + family.families.size()
@@ -179,7 +179,7 @@ func writeFontFamilyData(family : &mut CSSFontFamily, str : &mut std::string) {
         str.append_view(&*start)
         start++
     }
-}
+ }}
 
 func (converter : &mut CSSRuntimeConverter) writeFontValueData(ptr : &CSSFontValueData, str : &mut std::string) {
 
@@ -214,7 +214,7 @@ func (converter : &mut CSSRuntimeConverter) writeFontValueData(ptr : &CSSFontVal
 
 }
 
-func (converter : &mut CSSRuntimeConverter) writeTextShadowValueData(value : &mut CSSTextShadowValueData, str : &mut std::string) {
+func (converter : &mut CSSRuntimeConverter) writeTextShadowValueData(value : &mut CSSTextShadowValueData, str : &mut std::string) { unsafe {
 
     if(value.offsetX.kind != CSSValueKind.Unknown) {
         converter.writeValue(&mut value.offsetX)
@@ -240,9 +240,9 @@ func (converter : &mut CSSRuntimeConverter) writeTextShadowValueData(value : &mu
         converter.writeTextShadowValueData(&mut *value.next, str)
     }
 
-}
+ }}
 
-func (converter : &mut CSSRuntimeConverter) writeBoxShadowValueData(value : &mut CSSBoxShadowValueData, str : &mut std::string) {
+func (converter : &mut CSSRuntimeConverter) writeBoxShadowValueData(value : &mut CSSBoxShadowValueData, str : &mut std::string) { unsafe {
 
     if(value.inset) {
         str.append_view(std::string_view("inset"))
@@ -280,7 +280,7 @@ func (converter : &mut CSSRuntimeConverter) writeBoxShadowValueData(value : &mut
         converter.writeBoxShadowValueData(&mut *value.next, str)
     }
 
-}
+ }}
 
 func writeLengthOrNone(len : &mut CSSLengthValueData, str : &mut std::string) {
     switch(len.kind) {
@@ -365,7 +365,7 @@ func writeOKLCHData(ptr : &mut CSSOKLCHColorData, str : &mut std::string) {
     writeAlphaLengthOrNone(&mut ptr.alpha, str);
 }
 
-func writeColor(ptr : &mut CSSColorValueData, str : &mut std::string) {
+func writeColor(ptr : &mut CSSColorValueData, str : &mut std::string) { unsafe {
     switch(ptr.kind) {
         CSSColorKind.RGB => {
             str.append_view(std::string_view("rgb("))
@@ -430,9 +430,9 @@ func writeColor(ptr : &mut CSSColorValueData, str : &mut std::string) {
         }
 
     }
-}
+ }}
 
-func writeLinearEasing(ptr : &mut CSSLinearEasingPoint, str : &mut std::string) {
+func writeLinearEasing(ptr : &mut CSSLinearEasingPoint, str : &mut std::string) { unsafe {
     var has_value_before = false;
     if(ptr.point.kind != CSSLengthKind.Unknown) {
         writeLength(&mut ptr.point, str)
@@ -459,7 +459,7 @@ func writeLinearEasing(ptr : &mut CSSLinearEasingPoint, str : &mut std::string) 
         str.append(' ')
         writeLinearEasing(&mut *ptr.next, str)
     }
-}
+ }}
 
 func writeCubicBezierEasing(ptr : &mut CSSCubicBezierEasingData, str : &mut std::string) {
     writeLength(&mut ptr.x1, str)
@@ -477,7 +477,7 @@ func writeStepsEasing(ptr : &mut CSSStepsEasingData, str : &mut std::string) {
     str.append_view(&ptr.position.value)
 }
 
-func writeEasing(ptr : &mut CSSEasingFunction, str : &mut std::string) {
+func writeEasing(ptr : &mut CSSEasingFunction, str : &mut std::string) { unsafe {
     switch(ptr.kind) {
         CSSKeywordKind.Var => {
             str.append_view(std::string_view("var("))
@@ -507,9 +507,9 @@ func writeEasing(ptr : &mut CSSEasingFunction, str : &mut std::string) {
             str.append(')')
         }
     }
-}
+ }}
 
-func writeTransition(ptr : &mut CSSTransitionValueData, str : &mut std::string) {
+func writeTransition(ptr : &mut CSSTransitionValueData, str : &mut std::string) { unsafe {
 
     var has_value_before = false;
 
@@ -559,9 +559,9 @@ func writeTransition(ptr : &mut CSSTransitionValueData, str : &mut std::string) 
         writeTransition(&mut *ptr.next, str)
     }
 
-}
+ }}
 
-func (converter : &mut CSSRuntimeConverter) writeAnimationValueData(value : &mut CSSAnimationValueData, str : &mut std::string) {
+func (converter : &mut CSSRuntimeConverter) writeAnimationValueData(value : &mut CSSAnimationValueData, str : &mut std::string) { unsafe {
     var has_val = false
     if(!value.name.empty()) {
         str.append_view(&value.name)
@@ -607,9 +607,9 @@ func (converter : &mut CSSRuntimeConverter) writeAnimationValueData(value : &mut
         str.append(' ')
         converter.writeAnimationValueData(&mut *value.next, str)
     }
-}
+ }}
 
-func (converter : &mut CSSRuntimeConverter) writeTransformNode(ptr : &mut CSSTransformLengthNode, str : &mut std::string) {
+func (converter : &mut CSSRuntimeConverter) writeTransformNode(ptr : &mut CSSTransformLengthNode, str : &mut std::string) { unsafe {
 
     converter.writeValue(&mut ptr.value)
 
@@ -618,9 +618,9 @@ func (converter : &mut CSSRuntimeConverter) writeTransformNode(ptr : &mut CSSTra
         converter.writeTransformNode(&mut *ptr.next, str)
     }
 
-}
+ }}
 
-func (converter : &mut CSSRuntimeConverter) writeTransformValueData(ptr : &mut CSSTransformValueData, str : &mut std::string) {
+func (converter : &mut CSSRuntimeConverter) writeTransformValueData(ptr : &mut CSSTransformValueData, str : &mut std::string) { unsafe {
 
     str.append_view(&ptr.transformFunction.value)
     str.append('(')
@@ -635,7 +635,7 @@ func (converter : &mut CSSRuntimeConverter) writeTransformValueData(ptr : &mut C
         converter.writeTransformValueData(&mut *ptr.next, str)
     }
 
-}
+ }}
 
 func writeBackgroundImageUrl(url : &mut UrlData, str : &mut std::string) {
 
@@ -806,7 +806,7 @@ func (converter : &mut CSSRuntimeConverter) writeConicGradientData(data : &mut C
     }
 }
 
-func (converter : &mut CSSRuntimeConverter) writeBackgroundImageData(ptr : &mut BackgroundImageData, str : &mut std::string) {
+func (converter : &mut CSSRuntimeConverter) writeBackgroundImageData(ptr : &mut BackgroundImageData, str : &mut std::string) { unsafe {
 
     if(ptr.is_url) {
         writeBackgroundImageUrl(&mut ptr.url, str)
@@ -848,7 +848,7 @@ func (converter : &mut CSSRuntimeConverter) writeBackgroundImageData(ptr : &mut 
         }
     }
 
-}
+ }}
 
 func (converter : &mut CSSRuntimeConverter) writeBackgroundValueData(ptr : &mut CSSBackgroundValueData, str : &mut std::string) {
     
@@ -921,7 +921,7 @@ func (converter : &mut CSSRuntimeConverter) writeBackgroundValueData(ptr : &mut 
 
 }
 
-func (converter : &mut CSSRuntimeConverter) writeCalcExpression(expr : &CSSCalcExpression, str : &mut std::string) {
+func (converter : &mut CSSRuntimeConverter) writeCalcExpression(expr : &CSSCalcExpression, str : &mut std::string) { unsafe {
     switch(expr.kind) {
         CSSCalcExpressionKind.Literal => {
             const val = expr.data as *mut CSSValue
@@ -942,7 +942,7 @@ func (converter : &mut CSSRuntimeConverter) writeCalcExpression(expr : &CSSCalcE
             str.append(')')
         }
     }
-}
+ }}
 
 func (converter : &mut CSSRuntimeConverter) writeOutlineValueData(ptr : &mut CSSOutlineValueData, str : &mut std::string) {
     const has_style = ptr.style.kind != CSSValueKind.Unknown;
@@ -970,7 +970,7 @@ func (converter : &mut CSSRuntimeConverter) writeOutlineValueData(ptr : &mut CSS
     }
 }
 
-func (converter : &mut CSSRuntimeConverter) writeBackdropFilterValueData(ptr : &mut CSSBackdropFilterValueData, str : &mut std::string) {
+func (converter : &mut CSSRuntimeConverter) writeBackdropFilterValueData(ptr : &mut CSSBackdropFilterValueData, str : &mut std::string) { unsafe {
     str.append_view(&ptr.function.value)
     if(!ptr.arguments.empty()) {
         str.append('(')
@@ -987,7 +987,7 @@ func (converter : &mut CSSRuntimeConverter) writeBackdropFilterValueData(ptr : &
         str.append(' ')
         converter.writeBackdropFilterValueData(&mut *ptr.next, str)
     }
-}
+ }}
 
 func (converter : &mut CSSRuntimeConverter) append_hex(val : uint) {
     var str = converter.str_ref()
@@ -1055,7 +1055,7 @@ func (converter : &mut CSSRuntimeConverter) writeCssString(text : std::string_vi
     }
 }
 
-func (converter : &mut CSSRuntimeConverter) writeValue(value : &mut CSSValue) {
+func (converter : &mut CSSRuntimeConverter) writeValue(value : &mut CSSValue) { unsafe {
 
     // make this a reference
     var str = converter.str_ref()
@@ -1362,7 +1362,7 @@ func (converter : &mut CSSRuntimeConverter) writeValue(value : &mut CSSValue) {
             fflush(null)
         }
     }
-}
+ }}
 
 func (converter : &mut CSSRuntimeConverter) convertDeclaration(decl : *mut CSSDeclaration) {
 

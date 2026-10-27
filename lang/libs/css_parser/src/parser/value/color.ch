@@ -475,7 +475,7 @@ func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
     builder : *mut ASTBuilder,
     value : &mut CSSValue,
     token : *mut Token
-) : bool {
+) : bool { unsafe {
     const kind = cssParser.getIdentifierColorKind(&token.value)
     if(kind == CSSColorKind.Unknown) {
         return false;
@@ -619,7 +619,7 @@ func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
         alloc_color_val_data(builder, value, &token.value, kind)
         return true;
     }
-}
+ }}
 
 func (cssParser : &mut CSSParser) parseCSSColor(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CSSValue) : bool {
     const token = parser.getToken();

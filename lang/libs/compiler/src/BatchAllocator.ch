@@ -19,12 +19,12 @@ public func (allocator : &mut BatchAllocator) allocate_str_size(size : size_t) :
 }
 
 @retained // TODO: remove retained, once we have runtime magic val
-public func (allocator : &mut BatchAllocator) allocate_str(data : *char, size : size_t) : *mut char {
+public func (allocator : &mut BatchAllocator) allocate_str(data : *char, size : size_t) : *mut char { unsafe {
     const ptr = allocator.allocate_size(sizeof(char) * (size + 1), alignof(char))
     memcpy(ptr, data, size)
     *(ptr + size) = '\0'
     return ptr;
-}
+ }}
 
 @retained // TODO: remove retained, once we have runtime magic val
 public func (allocator : &mut BatchAllocator) allocate_view(view : &std::string_view) : std::string_view {

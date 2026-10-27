@@ -42,7 +42,7 @@ struct CAP_Destructible {
 
 }
 
-func cap_create_destructible(count : *mut int, data : int) : CAP_Destructible {
+func cap_create_destructible(count : *mut int, data : int) : CAP_Destructible { unsafe {
     return CAP_Destructible {
         data : data,
         count : count,
@@ -50,7 +50,7 @@ func cap_create_destructible(count : *mut int, data : int) : CAP_Destructible {
             *count = *count + 1;
         }
     }
-}
+ }}
 
 // ─────────────────────────────────────────────────────────────
 // Minimal capturing-function instance (no standard library

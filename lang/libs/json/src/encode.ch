@@ -45,13 +45,13 @@ public struct JsonMapEncoder {
 
 // comma/bookkeeping shared by all three container impls. public because it is
 // called from public generic declarations (retention rule).
-public func __container_begin_item(buffer : *mut std::string, counts : *mut std::vector<u64>) {
+public func __container_begin_item(buffer : *mut std::string, counts : *mut std::vector<u64>) { unsafe {
     var cnt = counts.get_ptr(counts.size() - 1)
     if(*cnt > 0) {
         buffer.append(',')
     }
     *cnt += 1
-}
+ }}
 
 // ===== Helpers =====
 
@@ -222,45 +222,45 @@ impl std::Encoder<JsonValue> for JsonEncoder {
         return std::Result.Ok(std::Unit {})
     }
 
-    func encode_char(&self, c : char) : std::Result<std::Unit, std::SerializationError> {
+    func encode_char(&self, c : char) : std::Result<std::Unit, std::SerializationError> { unsafe {
         // a char is a single-char JSON string; the char itself must be escaped
         // (quotes/backslashes/control chars would otherwise emit invalid JSON)
         var buf : [1]char = [c]
         json_escape_into(&mut *self.buffer, &raw mut buf[0], 1u64)
         return std::Result.Ok(std::Unit {})
-    }
+     }}
 
-    func encode_u64(&self, i : u64) : std::Result<std::Unit, std::SerializationError> {
+    func encode_u64(&self, i : u64) : std::Result<std::Unit, std::SerializationError> { unsafe {
         write_u64(&mut *self.buffer, i)
         return std::Result.Ok(std::Unit {})
-    }
+     }}
 
-    func encode_i64(&self, i : i64) : std::Result<std::Unit, std::SerializationError> {
+    func encode_i64(&self, i : i64) : std::Result<std::Unit, std::SerializationError> { unsafe {
         write_i64(&mut *self.buffer, i)
         return std::Result.Ok(std::Unit {})
-    }
+     }}
 
-    func encode_double(&self, d : double) : std::Result<std::Unit, std::SerializationError> {
+    func encode_double(&self, d : double) : std::Result<std::Unit, std::SerializationError> { unsafe {
         write_double(&mut *self.buffer, d)
         return std::Result.Ok(std::Unit {})
-    }
+     }}
 
-    func encode_float(&self, f : float) : std::Result<std::Unit, std::SerializationError> {
+    func encode_float(&self, f : float) : std::Result<std::Unit, std::SerializationError> { unsafe {
         write_float(&mut *self.buffer, f)
         return std::Result.Ok(std::Unit {})
-    }
+     }}
 
-    func encode_str_of_len(&self, c : *char, l : u64) : std::Result<std::Unit, std::SerializationError> {
+    func encode_str_of_len(&self, c : *char, l : u64) : std::Result<std::Unit, std::SerializationError> { unsafe {
         json_escape_into(&mut *self.buffer, c, l)
         return std::Result.Ok(std::Unit {})
-    }
+     }}
 
-    func encode_str(&self, c : *char) : std::Result<std::Unit, std::SerializationError> {
+    func encode_str(&self, c : *char) : std::Result<std::Unit, std::SerializationError> { unsafe {
         var len : u64 = 0
         while(c[len] != '\0') { len++ }
         json_escape_into(&mut *self.buffer, c, len)
         return std::Result.Ok(std::Unit {})
-    }
+     }}
 
     func encode_bytes(b : *u8, l : u64) : std::Result<std::Unit, std::SerializationError> {
         return std::Result.Err(std::SerializationError {
@@ -324,14 +324,14 @@ impl std::ArrayEncoder<JsonValue> for JsonArrayEncoder {
 }
 
 impl std::ObjectEncoder<JsonValue> for JsonObjectEncoder {
-    func <V : std::Serializer<JsonValue, JsonEncoder>> field(&self, name : std::string_view, value : &V) : std::Result<std::Unit, std::SerializationError> {
+    func <V : std::Serializer<JsonValue, JsonEncoder>> field(&self, name : std::string_view, value : &V) : std::Result<std::Unit, std::SerializationError> { unsafe {
         __container_begin_item(self.buffer, self.counts)
         json_escape_into(&mut *self.buffer, name.data(), name.size())
         self.buffer.append(':')
         var encoder = JsonEncoder { buffer : self.buffer, counts : self.counts }
         // TODO: returning value.encode doesn't satisfy the result, compiler bug
         return value.serialize(__unsafe_cast_json_encoder<JsonValue>(&encoder)) as std::Result<std::Unit, std::SerializationError>
-    }
+     }}
 }
 
 impl std::MapEncoder<JsonValue> for JsonMapEncoder {

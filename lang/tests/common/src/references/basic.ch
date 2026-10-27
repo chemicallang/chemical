@@ -155,7 +155,7 @@ func copying_trivially_copyable_from_ref_works(c : &RefGiveStruct) : int {
     return d.i
 }
 
-func test_references() {
+func test_references() { unsafe {
     test("copying trivially copyable from by dereference of reference works", () => {
         var c = RefGiveStruct { i : 2394 }
         var r = copying_trivially_copyable_from_ref_works(&c)
@@ -343,7 +343,7 @@ func test_references() {
         var ref : ref_struct_type_def_hidden_ref_test = &p
         return get_i_by_deref_ptr_to_ref_struct(&raw ref) == 9238455
     })
-}
+ }}
 
 struct MultiField {
     var a : int

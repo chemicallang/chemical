@@ -187,13 +187,13 @@ func base64_encode_32bit(hash : uint32_t, out : *mut char) {
     for (var i = 0; i < 6; i++) { out[5 - i] = BASE64_CHARS[hash & 0x3F]; hash >>= 6; }
 }
 
-func put_class_name(hash : uint32_t, prefix : char, ptr : *mut char) {
+func put_class_name(hash : uint32_t, prefix : char, ptr : *mut char) { unsafe {
     *ptr = '.'; *(ptr + 1) = prefix
     base64_encode_32bit(hash, ptr + 2)
     *(ptr + 8) = '{'
-}
+ }}
 
-func allocate_view_with_classname(builder : *mut ASTBuilder, str : &mut std::string, hash : size_t) : std::string_view {
+func allocate_view_with_classname(builder : *mut ASTBuilder, str : &mut std::string, hash : size_t) : std::string_view { unsafe {
     str.append('}')
     const total_size = str.size() + 9;
     const ptr = builder.allocate_str_size(total_size + 1)
@@ -201,7 +201,7 @@ func allocate_view_with_classname(builder : *mut ASTBuilder, str : &mut std::str
     memcpy(ptr + 9, str.data(), str.size())
     *(ptr + total_size) = '\0'
     return std::string_view(ptr, total_size)
-}
+ }}
 
 // Wrap the declarations accumulated in `str` in `:root { ... }`.
 //
@@ -209,7 +209,7 @@ func allocate_view_with_classname(builder : *mut ASTBuilder, str : &mut std::str
 // name, and a statement discards it, so declarations scoped to that class would
 // be dead CSS. Declarations written at the top level of a block describe the
 // document itself, so they belong to :root.
-func allocate_view_with_root_selector(builder : *mut ASTBuilder, str : &mut std::string) : std::string_view {
+func allocate_view_with_root_selector(builder : *mut ASTBuilder, str : &mut std::string) : std::string_view { unsafe {
     str.append('}')
     const prefix = std::string_view(":root{")
     const prefix_size = prefix.size()
@@ -219,7 +219,7 @@ func allocate_view_with_root_selector(builder : *mut ASTBuilder, str : &mut std:
     memcpy(ptr + prefix_size, str.data(), str.size())
     *(ptr + total_size) = '\0'
     return std::string_view(ptr, total_size)
-}
+ }}
 
 func (converter : &mut ASTConverter) put_class_name_chain(hash : uint32_t, prefix : char) {
     var className : char[10] = [];

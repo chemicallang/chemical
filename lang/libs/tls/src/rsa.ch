@@ -170,7 +170,7 @@ public namespace tls {
     // PKCS#1 v1.5 unpadding for encryption (RFC 8017 Section 7.2.2)
     public func pkcs1_v15_decode(input : *u8, input_len : size_t,
                            output : *mut u8, output_len : *mut size_t,
-                           expected_output_len : size_t) : int {
+                           expected_output_len : size_t) : int { unsafe {
         // Minimum: 0x00 || 0x02 || 0x00 (at least 8 bytes PS) = 11 bytes
         if(input_len < 11) { return ERR_RSA_INVALID_PADDING }
         if(input[0] != 0x00) { return ERR_RSA_INVALID_PADDING }
@@ -198,7 +198,7 @@ public namespace tls {
         *output_len = msg_len
 
         return 0
-    }
+     }}
 
     // ─── RSA Public Operation ────────────────────────────────────────────
 
@@ -265,7 +265,7 @@ public namespace tls {
     // SHA-512: 30 51 30 0d 06 09 60 86 48 01 65 03 04 02 03 05 00 04 40 (19 bytes)
 
     // Select the DigestInfo prefix and expected hash length based on digest_len
-    func rsa_get_digest_info(digest_len : size_t, prefix : *mut u8, prefix_len : *mut size_t) {
+    func rsa_get_digest_info(digest_len : size_t, prefix : *mut u8, prefix_len : *mut size_t) { unsafe {
         if(digest_len == 32) {
             var p : [19]u8 = [
                 0x30, 0x31, 0x30, 0x0D, 0x06, 0x09,
@@ -296,7 +296,7 @@ public namespace tls {
         } else {
             *prefix_len = 0
         }
-    }
+     }}
 
     // RSASSA-PKCS1-V1_5-VERIFY: verify signature on digest
     // digest: hash value, hash_len: length of digest (e.g., 32 for SHA-256)
@@ -459,7 +459,7 @@ public namespace tls {
     public func rsa_pkcs1_decrypt(ctx : *mut RSAContext,
                                    input : *u8, input_len : size_t,
                                    output : *mut u8, output_len : *mut size_t,
-                                   expected_max_len : size_t) : int {
+                                   expected_max_len : size_t) : int { unsafe {
         if(input_len != ctx.len) { return ERR_RSA_BAD_INPUT_DATA }
 
         var buf : [RSA_MAX_KEY_BYTES]u8
@@ -478,7 +478,7 @@ public namespace tls {
 
         ret = pkcs1_v15_decode(&raw buf[0], ctx.len, output, output_len, expected_max_len)
         return ret
-    }
+     }}
 
     // ─── RSA Private Key Import ────────────────────────────────────────
 

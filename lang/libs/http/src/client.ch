@@ -235,7 +235,7 @@ public namespace http {
             return self;
         }
 
-        public func request(&self, req_builder: &RequestBuilder) : std::Result<Response, std::string> {
+        public func request(&self, req_builder: &RequestBuilder) : std::Result<Response, std::string> { unsafe {
             var is_https = req_builder.url.scheme.equals_with_len("https", 5)
             var use_proxy = proxy_host.size() > 0u && proxy_port > 0u
             var s: net::Socket = 0
@@ -481,7 +481,7 @@ public namespace http {
             // For plain HTTP: mark buf as owned by Body so it gets freed
             res.body.owns_buf = true
             return std::Result.Ok<Response, std::string>(res)
-        }
+         }}
 
         public func get(&self, url_str: &std::string_view) : std::Result<Response, std::string> {
             var u_opt = URL::parse(url_str);

@@ -28,7 +28,7 @@ func (cssParser : &mut CSSParser) parseBorder(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
     value : &mut CSSValue
-) {
+) { unsafe {
 
     var border = builder.allocate<CSSBorderValueData>()
     new (border) CSSBorderValueData {
@@ -113,4 +113,4 @@ func (cssParser : &mut CSSParser) parseBorder(
         }
     }
 
-}
+ }}

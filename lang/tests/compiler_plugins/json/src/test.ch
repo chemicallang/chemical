@@ -526,7 +526,7 @@ public func json_macro_nested_destructible_roundtrip(env : &mut TestEnv) {
 // ---------------------------------------------------------------------------
 
 @test
-public func json_macro_vector_int_roundtrip(env : &mut TestEnv) {
+public func json_macro_vector_int_roundtrip(env : &mut TestEnv) { unsafe {
     var buffer = std::string()
     var counts = std::vector<u64>()
     var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
@@ -554,7 +554,7 @@ public func json_macro_vector_int_roundtrip(env : &mut TestEnv) {
     if(*(v.values.get_ptr(0)) != 1 || *(v.values.get_ptr(2)) != 3) {
         env.error("vector<int> decoded values mismatch")
     }
-}
+ }}
 
 @test
 public func json_macro_vector_empty_roundtrip(env : &mut TestEnv) {
@@ -613,7 +613,7 @@ public func json_macro_vector_string_roundtrip(env : &mut TestEnv) {
 }
 
 @test
-public func json_macro_nested_vector_roundtrip(env : &mut TestEnv) {
+public func json_macro_nested_vector_roundtrip(env : &mut TestEnv) { unsafe {
     var buffer = std::string()
     var counts = std::vector<u64>()
     var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
@@ -646,7 +646,7 @@ public func json_macro_nested_vector_roundtrip(env : &mut TestEnv) {
     if(row0.size() != 2u || *(row0.get_ptr(1)) != 2) {
         env.error("nested vector inner values mismatch")
     }
-}
+ }}
 
 @test
 public func json_macro_vector_struct_roundtrip(env : &mut TestEnv) {
@@ -678,7 +678,7 @@ public func json_macro_vector_struct_roundtrip(env : &mut TestEnv) {
 }
 
 @test
-public func json_macro_ordered_map_roundtrip(env : &mut TestEnv) {
+public func json_macro_ordered_map_roundtrip(env : &mut TestEnv) { unsafe {
     var buffer = std::string()
     var counts = std::vector<u64>()
     var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
@@ -704,10 +704,10 @@ public func json_macro_ordered_map_roundtrip(env : &mut TestEnv) {
     if(v.m.size() != 2u) { env.error("ordered_map decoded size mismatch"); return }
     var av = v.m.get_ptr(std::string("a"))
     if(av == null || *av != 1) { env.error("ordered_map decoded value mismatch") }
-}
+ }}
 
 @test
-public func json_macro_unordered_map_roundtrip(env : &mut TestEnv) {
+public func json_macro_unordered_map_roundtrip(env : &mut TestEnv) { unsafe {
     var buffer = std::string()
     var counts = std::vector<u64>()
     var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
@@ -729,10 +729,10 @@ public func json_macro_unordered_map_roundtrip(env : &mut TestEnv) {
     if(v.m.size() != 2u) { env.error("unordered_map decoded size mismatch"); return }
     var bv = v.m.get_ptr(std::string("b"))
     if(bv == null || *bv != 2) { env.error("unordered_map decoded value mismatch") }
-}
+ }}
 
 @test
-public func json_macro_large_vector_roundtrip(env : &mut TestEnv) {
+public func json_macro_large_vector_roundtrip(env : &mut TestEnv) { unsafe {
     var buffer = std::string()
     var counts = std::vector<u64>()
     var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
@@ -758,7 +758,7 @@ public func json_macro_large_vector_roundtrip(env : &mut TestEnv) {
     if(*(v.values.get_ptr(0)) != 0 || *(v.values.get_ptr(511)) != 511) {
         env.error("large vector decoded values mismatch")
     }
-}
+ }}
 
 @test
 public func json_generic_span_serialize(env : &mut TestEnv) {

@@ -102,7 +102,7 @@ public func nextJsToken(js : &mut JsLexer, lexer : &mut Lexer, jsx_enabled : boo
     return tok
 }
 
-func nextJsToken_inner(js : &mut JsLexer, lexer : &mut Lexer, jsx_enabled : bool) : Token {
+func nextJsToken_inner(js : &mut JsLexer, lexer : &mut Lexer, jsx_enabled : bool) : Token { unsafe {
     
     if(js.chemical_mode) {
         var nested = lexer.getEmbeddedToken();
@@ -636,7 +636,7 @@ func nextJsToken_inner(js : &mut JsLexer, lexer : &mut Lexer, jsx_enabled : bool
         '^' => { return Token { type : JsTokenType.BitwiseXor as int, value : std::string_view("^"), position : position } }
         '#' => { return Token { type : JsTokenType.Hash as int, value : std::string_view("#"), position : position } }
     }
-}
+ }}
 
 
 

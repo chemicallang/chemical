@@ -80,7 +80,7 @@ func strip_quotes_if_any(value : std::string_view) : std::string_view {
 // optionally followed by a case-sensitivity flag (i / s).
 // `end_line`/`end_char` receive the position just past the closing ']' so the
 // caller can keep building the same compound selector (e.g. `&[data-x="y"]::p`).
-func parseAttributeSelector(parser : *mut Parser, builder : *mut ASTBuilder, start : *mut Token, end_line : *mut uint, end_char : *mut uint) : *mut SimpleSelector {
+func parseAttributeSelector(parser : *mut Parser, builder : *mut ASTBuilder, start : *mut Token, end_line : *mut uint, end_char : *mut uint) : *mut SimpleSelector { unsafe {
     var s = builder.allocate<SimpleSelector>();
     var attr = builder.allocate<AttributeSelectorData>();
     new (attr) AttributeSelectorData();
@@ -145,7 +145,7 @@ func parseAttributeSelector(parser : *mut Parser, builder : *mut ASTBuilder, sta
     s.value = view("");
     s.attr = attr;
     return s;
-}
+ }}
 
 func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *mut CompoundSelector {
     var comp = builder.allocate<CompoundSelector>();

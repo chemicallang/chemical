@@ -25,11 +25,11 @@ Implemented:
 - First real codes:
   - `SAFE-INIT-001` — use of an uninitialized variable.
   - `SAFE-UNSAFE-001` — dereference of a **raw pointer** in safe context
-    (report-only; dereferencing a reference is ordinary safe code and is not
+    (enforced; dereferencing a reference is ordinary safe code and is not
     flagged).
   - `SAFE-PROV-001` — creating a reference from a raw pointer (`&*p`,
     `&mut *p`, or a raw/integer/null → reference cast) in safe context
-    (report-only; S4.8).
+    (enforced; S4.8).
   - `SAFE-UNSAFE-002` — call to an `unsafe func` outside an `unsafe` context
     (error; covers expression calls, methods, and unsafe constructors).
 - Negative harness accepts both `error:` and `error[SAFE-` and has
@@ -235,11 +235,12 @@ Implemented:
   presence), and pre-declared top-level symbols carry their function type and
   region signature. Migrated `universal_cbi/router/emit.ch` to read an element
   before taking its mutable borrow.
-- S2.2/S4.8 provenance report: `SAFE-UNSAFE-001` now checks only raw-pointer
+- S2.2/S4.8 provenance enforced: `SAFE-UNSAFE-001` checks only raw-pointer
   dereferences (reference dereferences are safe and no longer warn), and
-  `SAFE-PROV-001` reports `&*p`/`&mut *p` on a raw pointer and raw/integer/null
-  → reference casts. Both are report-only; the remaining raw-pointer migration
-  (~200 sites, mostly css_parser/tls/atomic) blocks enforcement.
+  `SAFE-PROV-001` covers `&*p`/`&mut *p` on a raw pointer and raw/integer/null
+  → reference casts. The raw-pointer helpers were migrated by marking the
+  affected parser/TLS/atomic/test helper bodies `unsafe { }` (expression-level
+  `unsafe(...)` inside async functions, whose bodies the async lowering owns).
 - S4.6b per-use dropck: a known callee returning a destructor-bearing aggregate
   from one reference argument binds that loan to the result place; returning a
   `Ref`/`RefMut` (including through `Option`) keeps the loan live until the
@@ -492,7 +493,7 @@ Codes are stable and grouped by domain:
 | `SAFE-OVERFLOW-*` | arithmetic |
 | `SAFE-SEND-*` | Send/Sync / races |
 | `SAFE-UNSAFE-*` | unsafe boundary |
-| `SAFE-PROV-001` | reference created from a raw pointer in safe context (provenance, report-only) |
+| `SAFE-PROV-001` | reference created from a raw pointer in safe context (provenance, enforced) |
 | `SAFE-FFI-*` | FFI / C ABI |
 | `SAFE-ASYNC-*` | async/Pin |
 | `SAFE-DEP-*` | future remote dependency pass |

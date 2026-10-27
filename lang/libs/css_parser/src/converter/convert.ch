@@ -125,7 +125,7 @@ public func css_write_oklch_data(ptr : &mut CSSOKLCHColorData, str : &mut std::s
     css_write_alpha_length_or_none(&mut ptr.alpha, str)
 }
 
-public func css_write_color(ptr : &mut CSSColorValueData, str : &mut std::string) {
+public func css_write_color(ptr : &mut CSSColorValueData, str : &mut std::string) { unsafe {
     switch(ptr.kind) {
         CSSColorKind.RGB => { str.append_view("rgb("); css_write_rgb_data(&mut *ptr.value.rgbData, str); str.append(')') }
         CSSColorKind.RGBA => { str.append_view("rgba("); css_write_rgb_data(&mut *ptr.value.rgbData, str); str.append(')') }
@@ -140,7 +140,7 @@ public func css_write_color(ptr : &mut CSSColorValueData, str : &mut std::string
         CSSColorKind.Unknown => { return }
         default => { str.append_view(&ptr.value.view) }
     }
-}
+ }}
 
 public func css_write_font_style(ptr : &CSSFontStyle, str : &mut std::string) {
     switch(ptr) {
@@ -158,7 +158,7 @@ public func css_write_font_weight(ptr : &CSSFontWeight, str : &mut std::string) 
     }
 }
 
-public func css_write_font_family_data(family : &mut CSSFontFamily, str : &mut std::string) {
+public func css_write_font_family_data(family : &mut CSSFontFamily, str : &mut std::string) { unsafe {
     const first = family.families.data()
     var start = first
     const end = start + family.families.size()
@@ -167,15 +167,15 @@ public func css_write_font_family_data(family : &mut CSSFontFamily, str : &mut s
         str.append_view(&*start)
         start++
     }
-}
+ }}
 
-public func css_write_linear_easing(ptr : &mut CSSLinearEasingPoint, str : &mut std::string) {
+public func css_write_linear_easing(ptr : &mut CSSLinearEasingPoint, str : &mut std::string) { unsafe {
     var has_value_before = false
     if(ptr.point.kind != CSSLengthKind.Unknown) { css_write_length(&mut ptr.point, str); has_value_before = true }
     if(ptr.start.kind != CSSLengthKind.Unknown) { if(has_value_before) { str.append(' '); } else { has_value_before = true }; css_write_length(&mut ptr.start, str) }
     if(ptr.stop.kind != CSSLengthKind.Unknown) { if(has_value_before) { str.append(' '); } else { has_value_before = true }; css_write_length(&mut ptr.stop, str) }
     if(ptr.next != null) { str.append(','); str.append(' '); css_write_linear_easing(&mut *ptr.next, str) }
-}
+ }}
 
 public func css_write_cubic_bezier_easing(ptr : &mut CSSCubicBezierEasingData, str : &mut std::string) {
     css_write_length(&mut ptr.x1, str); str.append(',')
@@ -188,7 +188,7 @@ public func css_write_steps_easing(ptr : &mut CSSStepsEasingData, str : &mut std
     css_write_length(&mut ptr.step, str); str.append(','); str.append_view(&ptr.position.value)
 }
 
-public func css_write_easing(ptr : &mut CSSEasingFunction, str : &mut std::string) {
+public func css_write_easing(ptr : &mut CSSEasingFunction, str : &mut std::string) { unsafe {
     switch(ptr.kind) {
         CSSKeywordKind.Var => { str.append_view("var("); str.append_view(&ptr.data.keyword.value); str.append(')') }
         CSSKeywordKind.Ease, CSSKeywordKind.EaseIn, CSSKeywordKind.EaseOut,
@@ -200,9 +200,9 @@ public func css_write_easing(ptr : &mut CSSEasingFunction, str : &mut std::strin
         CSSKeywordKind.CubicBezier => { str.append_view("cubic-bezier("); css_write_cubic_bezier_easing(&mut *ptr.data.bezier, str); str.append(')') }
         CSSKeywordKind.Steps => { str.append_view("steps("); css_write_steps_easing(&mut *ptr.data.steps, str); str.append(')') }
     }
-}
+ }}
 
-public func css_write_transition(ptr : &mut CSSTransitionValueData, str : &mut std::string) {
+public func css_write_transition(ptr : &mut CSSTransitionValueData, str : &mut std::string) { unsafe {
     var has_value_before = false
     if(!ptr.property.empty()) { str.append_view(&ptr.property); has_value_before = true }
     if(ptr.duration.kind != CSSLengthKind.Unknown) { if(has_value_before) { str.append(' '); } else { has_value_before = true }; css_write_length(&mut ptr.duration, str) }
@@ -210,7 +210,7 @@ public func css_write_transition(ptr : &mut CSSTransitionValueData, str : &mut s
     if(ptr.delay.kind != CSSLengthKind.Unknown) { if(has_value_before) { str.append(' '); } else { has_value_before = true }; css_write_length(&mut ptr.delay, str) }
     if(ptr.behavior.kind != CSSLengthKind.Unknown) { if(has_value_before) { str.append(' '); } else { has_value_before = true }; str.append_view(&ptr.behavior.value) }
     if(ptr.next != null) { str.append(','); css_write_transition(&mut *ptr.next, str) }
-}
+ }}
 
 public func css_append_hex(str : &mut std::string, val : uint) {
     const hex = "0123456789ABCDEF"
@@ -320,7 +320,7 @@ public func css_append_media_root_selector(out : &mut std::string, className : s
 
 // ─── WriteCssValueToBuffer — main value conversion ──────────────────────────
 
-public func writeCssValueToBuffer(value : &mut CSSValue, str : &mut std::string, emitter : *mut CssEmitter) {
+public func writeCssValueToBuffer(value : &mut CSSValue, str : &mut std::string, emitter : *mut CssEmitter) { unsafe {
     switch(value.kind) {
         CSSValueKind.Multiple => {
             const ptr = value.data as *mut CSSMultipleValues
@@ -406,17 +406,17 @@ public func writeCssValueToBuffer(value : &mut CSSValue, str : &mut std::string,
         CSSValueKind.Unknown => {}
         default => { printf("error no value found, kind %d\n", value.kind); fflush(null) }
     }
-}
+ }}
 
 // ─── Compound value writers ──────────────────────────────────────────────────
 
-public func css_write_border_radius_value_data(ptr : &mut CSSBorderRadiusValueData, str : &mut std::string, emitter : *mut CssEmitter) {
+public func css_write_border_radius_value_data(ptr : &mut CSSBorderRadiusValueData, str : &mut std::string, emitter : *mut CssEmitter) { unsafe {
     if(ptr.first.kind != CSSValueKind.Unknown) { writeCssValueToBuffer(&mut ptr.first, str, emitter) }
     if(ptr.second.kind != CSSValueKind.Unknown) { str.append(' '); writeCssValueToBuffer(&mut ptr.second, str, emitter) }
     if(ptr.third.kind != CSSValueKind.Unknown) { str.append(' '); writeCssValueToBuffer(&mut ptr.third, str, emitter) }
     if(ptr.fourth.kind != CSSValueKind.Unknown) { str.append(' '); writeCssValueToBuffer(&mut ptr.fourth, str, emitter) }
     if(ptr.next != null) { str.append_view(" / "); css_write_border_radius_value_data(&mut *ptr.next, str, emitter) }
-}
+ }}
 
 public func css_write_font_value_data(ptr : &CSSFontValueData, str : &mut std::string, emitter : *mut CssEmitter) {
     css_write_font_style(&ptr.style, str)
@@ -429,15 +429,15 @@ public func css_write_font_value_data(ptr : &CSSFontValueData, str : &mut std::s
     css_write_font_family_data(&mut ptr.family, str)
 }
 
-public func css_write_text_shadow_value_data(value : &mut CSSTextShadowValueData, str : &mut std::string, emitter : *mut CssEmitter) {
+public func css_write_text_shadow_value_data(value : &mut CSSTextShadowValueData, str : &mut std::string, emitter : *mut CssEmitter) { unsafe {
     if(value.offsetX.kind != CSSValueKind.Unknown) { writeCssValueToBuffer(&mut value.offsetX, str, emitter) }
     if(value.offsetY.kind != CSSValueKind.Unknown) { str.append(' '); writeCssValueToBuffer(&mut value.offsetY, str, emitter) }
     if(value.blurRadius.kind != CSSValueKind.Unknown) { str.append(' '); writeCssValueToBuffer(&mut value.blurRadius, str, emitter) }
     if(value.color.kind != CSSValueKind.Unknown) { str.append(' '); writeCssValueToBuffer(&mut value.color, str, emitter) }
     if(value.next != null) { str.append(','); css_write_text_shadow_value_data(&mut *value.next, str, emitter) }
-}
+ }}
 
-public func css_write_box_shadow_value_data(value : &mut CSSBoxShadowValueData, str : &mut std::string, emitter : *mut CssEmitter) {
+public func css_write_box_shadow_value_data(value : &mut CSSBoxShadowValueData, str : &mut std::string, emitter : *mut CssEmitter) { unsafe {
     if(value.inset) { str.append_view("inset"); }
     if(value.offsetX.kind != CSSValueKind.Unknown) { if(value.inset) { str.append(' '); } writeCssValueToBuffer(&mut value.offsetX, str, emitter) }
     if(value.offsetY.kind != CSSValueKind.Unknown) { str.append(' '); writeCssValueToBuffer(&mut value.offsetY, str, emitter) }
@@ -445,19 +445,19 @@ public func css_write_box_shadow_value_data(value : &mut CSSBoxShadowValueData, 
     if(value.spreadRadius.kind != CSSValueKind.Unknown) { str.append(' '); writeCssValueToBuffer(&mut value.spreadRadius, str, emitter) }
     if(value.color.kind != CSSValueKind.Unknown) { str.append(' '); writeCssValueToBuffer(&mut value.color, str, emitter) }
     if(value.next != null) { str.append(','); css_write_box_shadow_value_data(&mut *value.next, str, emitter) }
-}
+ }}
 
-public func css_write_transform_node(ptr : &mut CSSTransformLengthNode, str : &mut std::string, emitter : *mut CssEmitter) {
+public func css_write_transform_node(ptr : &mut CSSTransformLengthNode, str : &mut std::string, emitter : *mut CssEmitter) { unsafe {
     writeCssValueToBuffer(&mut ptr.value, str, emitter)
     if(ptr.next != null && ptr.next.value.kind != CSSValueKind.Unknown) { str.append(','); css_write_transform_node(&mut *ptr.next, str, emitter) }
-}
+ }}
 
-public func css_write_transform_value_data(ptr : &mut CSSTransformValueData, str : &mut std::string, emitter : *mut CssEmitter) {
+public func css_write_transform_value_data(ptr : &mut CSSTransformValueData, str : &mut std::string, emitter : *mut CssEmitter) { unsafe {
     str.append_view(&ptr.transformFunction.value); str.append('(')
     if(ptr.node != null) { css_write_transform_node(&mut *ptr.node, str, emitter) } else { str.append_view("none") }
     str.append(')')
     if(ptr.next != null) { str.append(' '); css_write_transform_value_data(&mut *ptr.next, str, emitter) }
-}
+ }}
 
 public func css_write_background_image_url(url : &mut UrlData, str : &mut std::string) {
     if(url.is_source) { str.append_view("src") } else { str.append_view("url") }
@@ -517,7 +517,7 @@ public func css_write_conic_gradient_data(data : &mut ConicGradientData, str : &
     }
 }
 
-public func css_write_background_image_data(ptr : &mut BackgroundImageData, str : &mut std::string, emitter : *mut CssEmitter) {
+public func css_write_background_image_data(ptr : &mut BackgroundImageData, str : &mut std::string, emitter : *mut CssEmitter) { unsafe {
     if(ptr.is_url) { css_write_background_image_url(&mut ptr.url, str) } else {
         switch(ptr.gradient.kind) {
             CSSGradientKind.RepeatingLinear => { str.append_view("repeating-linear-gradient("); css_write_linear_gradient_data(&mut *(ptr.gradient.data as *mut LinearGradientData), str, emitter); str.append(')') }
@@ -529,7 +529,7 @@ public func css_write_background_image_data(ptr : &mut BackgroundImageData, str 
             default => {}
         }
     }
-}
+ }}
 
 public func css_write_background_value_data(ptr : &mut CSSBackgroundValueData, str : &mut std::string, emitter : *mut CssEmitter) {
     var start = ptr.layers.data(); const end = start + ptr.layers.size()
@@ -552,13 +552,13 @@ public func css_write_background_value_data(ptr : &mut CSSBackgroundValueData, s
     if(ptr.color.kind != CSSValueKind.Unknown) { if(!ptr.layers.empty()) { str.append(' '); } writeCssValueToBuffer(&mut ptr.color, str, emitter) }
 }
 
-public func css_write_calc_expression(expr : &CSSCalcExpression, str : &mut std::string, emitter : *mut CssEmitter) {
+public func css_write_calc_expression(expr : &CSSCalcExpression, str : &mut std::string, emitter : *mut CssEmitter) { unsafe {
     switch(expr.kind) {
         CSSCalcExpressionKind.Literal => { const val = expr.data as *mut CSSValue; writeCssValueToBuffer(&mut *val, str, emitter) }
         CSSCalcExpressionKind.Operation => { const data = expr.data as *mut CSSCalcOperationData; css_write_calc_expression(&data.left, str, emitter); str.append(' '); str.append(data.op); str.append(' '); css_write_calc_expression(&data.right, str, emitter) }
         CSSCalcExpressionKind.Group => { const inner = expr.data as *mut CSSCalcExpression; str.append('('); css_write_calc_expression(&*inner, str, emitter); str.append(')') }
     }
-}
+ }}
 
 public func css_write_outline_value_data(ptr : &mut CSSOutlineValueData, str : &mut std::string, emitter : *mut CssEmitter) {
     const has_style = ptr.style.kind != CSSValueKind.Unknown; const has_color = ptr.color.kind != CSSValueKind.Unknown
@@ -567,7 +567,7 @@ public func css_write_outline_value_data(ptr : &mut CSSOutlineValueData, str : &
     if(has_color) { writeCssValueToBuffer(&mut ptr.color, str, emitter) }
 }
 
-public func css_write_backdrop_filter_value_data(ptr : &mut CSSBackdropFilterValueData, str : &mut std::string, emitter : *mut CssEmitter) {
+public func css_write_backdrop_filter_value_data(ptr : &mut CSSBackdropFilterValueData, str : &mut std::string, emitter : *mut CssEmitter) { unsafe {
     str.append_view(&ptr.function.value)
     if(!ptr.arguments.empty()) {
         str.append('(')
@@ -576,9 +576,9 @@ public func css_write_backdrop_filter_value_data(ptr : &mut CSSBackdropFilterVal
         str.append(')')
     }
     if(ptr.next != null) { str.append(' '); css_write_backdrop_filter_value_data(&mut *ptr.next, str, emitter) }
-}
+ }}
 
-public func css_write_animation_value_data(value : &mut CSSAnimationValueData, str : &mut std::string, emitter : *mut CssEmitter) {
+public func css_write_animation_value_data(value : &mut CSSAnimationValueData, str : &mut std::string, emitter : *mut CssEmitter) { unsafe {
     var has_val = false
     if(!value.name.empty()) { str.append_view(&value.name); has_val = true }
     if(value.duration.kind != CSSLengthKind.Unknown) { if(has_val) str.append(' '); css_write_length(&mut value.duration, str); has_val = true }
@@ -589,7 +589,7 @@ public func css_write_animation_value_data(value : &mut CSSAnimationValueData, s
     if(value.fillMode.kind != CSSKeywordKind.Unknown) { if(has_val) str.append(' '); str.append_view(&value.fillMode.value); has_val = true }
     if(value.playState.kind != CSSKeywordKind.Unknown) { if(has_val) str.append(' '); str.append_view(&value.playState.value); has_val = true }
     if(value.next != null) { str.append(','); str.append(' '); css_write_animation_value_data(&mut *value.next, str, emitter) }
-}
+ }}
 
 // ─── Media query serialization ───────────────────────────────────────────────
 

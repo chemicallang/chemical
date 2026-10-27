@@ -7,7 +7,7 @@ struct OrderedMapDropCounter {
 }
 var ordered_map_drops = 0
 
-func test_ordered_map() {
+func test_ordered_map() { unsafe {
     test("ordered_map insert replaces and drops the old value", () => {
         ordered_map_drops = 0
         {
@@ -282,4 +282,4 @@ func test_ordered_map() {
         if(!map.empty()) return false
         return !map.contains(1)
     })
-}
+ }}

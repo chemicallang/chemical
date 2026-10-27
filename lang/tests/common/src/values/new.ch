@@ -31,7 +31,7 @@ variant OptIntPlNew {
     None()
 }
 
-func test_new() {
+func test_new() { unsafe {
 
     // test new
     // 1 - with different type
@@ -142,4 +142,4 @@ func test_new() {
         return result == 763
     })
 
-}
+ }}

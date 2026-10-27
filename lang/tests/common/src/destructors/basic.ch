@@ -119,7 +119,7 @@ struct Holder2 {
     var thing : DestructibleAlias
 }
 
-func create_destructible(count : *mut int, data : int) : Destructible {
+func create_destructible(count : *mut int, data : int) : Destructible { unsafe {
     return Destructible {
        data : data,
        count : count,
@@ -127,9 +127,9 @@ func create_destructible(count : *mut int, data : int) : Destructible {
            *count = *count + 1;
        }
     }
-}
+ }}
 
-func create_destructible_alias(count : *mut int, data : int) : DestructibleAlias {
+func create_destructible_alias(count : *mut int, data : int) : DestructibleAlias { unsafe {
     return DestructibleAlias {
        data : data,
        count : count,
@@ -137,13 +137,13 @@ func create_destructible_alias(count : *mut int, data : int) : DestructibleAlias
            *count = *count + 1;
        }
     }
-}
+ }}
 
-func destruct_inc_count(count : *mut int) {
+func destruct_inc_count(count : *mut int) { unsafe {
     *count = *count + 1;
-}
+ }}
 
-func destructible_but_last_if(count : *mut int, data : int) {
+func destructible_but_last_if(count : *mut int, data : int) { unsafe {
     var d = Destructible {
        data : data,
        count : count,
@@ -157,9 +157,9 @@ func destructible_but_last_if(count : *mut int, data : int) {
     } else {
         var j = 12
     }
-}
+ }}
 
-func destructible_but_last_if_returns(count : *mut int, data : int) {
+func destructible_but_last_if_returns(count : *mut int, data : int) { unsafe {
     var d = Destructible {
        data : data,
        count : count,
@@ -175,9 +175,9 @@ func destructible_but_last_if_returns(count : *mut int, data : int) {
         var p = 99
         return;
     }
-}
+ }}
 
-func test_destruction_at_early_return(count : *mut int, early_return : bool) {
+func test_destruction_at_early_return(count : *mut int, early_return : bool) { unsafe {
     var d = Destructible {
        count : count,
        lamb : (count : *mut int) => {
@@ -195,9 +195,9 @@ func test_destruction_at_early_return(count : *mut int, early_return : bool) {
        },
        data : 9990
     }
-}
+ }}
 
-func test_conditional_destruction(count : *mut int, condition : bool) {
+func test_conditional_destruction(count : *mut int, condition : bool) { unsafe {
     var d = Destructible {
        count : count,
        lamb : (count : *mut int) => {
@@ -215,7 +215,7 @@ func test_conditional_destruction(count : *mut int, condition : bool) {
         }
         return;
     }
-}
+ }}
 
 func test_struct_param_destructor(d : Destructible) {
 
@@ -276,7 +276,7 @@ variant OptDestructible2 {
     None()
 }
 
-func test_variant_destruction_simple(count : *mut int) {
+func test_variant_destruction_simple(count : *mut int) { unsafe {
     var d = OptDestructible.Some(Destructible {
         count : count,
         lamb : (count : *mut int) => {
@@ -284,9 +284,9 @@ func test_variant_destruction_simple(count : *mut int) {
         },
         data : 3422
      })
-}
+ }}
 
-func test_variant_destruction_simple2(count : *mut int) {
+func test_variant_destruction_simple2(count : *mut int) { unsafe {
     var d = OptDestructible2.Some(DestructibleAlias {
         count : count,
         lamb : (count : *mut int) => {
@@ -294,7 +294,7 @@ func test_variant_destruction_simple2(count : *mut int) {
         },
         data : 3422
      })
-}
+ }}
 
 func test_variant_param_destructor(d : OptDestructible) {
 
@@ -304,7 +304,7 @@ func test_return_variant_param(d : OptDestructible) : OptDestructible {
     return d;
 }
 
-func test_variant_destruction_at_early_return(count : *mut int, early_return : bool) {
+func test_variant_destruction_at_early_return(count : *mut int, early_return : bool) { unsafe {
     var d = OptDestructible.Some(Destructible {
         count : count,
         lamb : (count : *mut int) => {
@@ -322,9 +322,9 @@ func test_variant_destruction_at_early_return(count : *mut int, early_return : b
         },
         data : 9990
      })
-}
+ }}
 
-func test_variant_conditional_destruction(count : *mut int, condition : bool) {
+func test_variant_conditional_destruction(count : *mut int, condition : bool) { unsafe {
     var d = OptDestructible.Some(Destructible {
         count : count,
         lamb : (count : *mut int) => {
@@ -342,7 +342,7 @@ func test_variant_conditional_destruction(count : *mut int, condition : bool) {
          })
         return;
     }
-}
+ }}
 
 interface DestructibleInterface {
     func give(&self) : int
@@ -356,9 +356,9 @@ func <T : DestructibleInterface> give_destructible_gen_disp(value : T) : int {
 struct FirstDestructibleImpl {
     var counter : *mut int
     @delete
-    func delete(&self) {
+    func delete(&self) { unsafe {
         *counter = *counter + 1;
-    }
+     }}
 }
 
 impl DestructibleInterface for FirstDestructibleImpl {
@@ -370,9 +370,9 @@ impl DestructibleInterface for FirstDestructibleImpl {
 struct SecondDestructibleImpl {
     var counter : *mut int
     @delete
-    func delete(&self) {
+    func delete(&self) { unsafe {
         *counter = *counter + 2;
-    }
+     }}
 }
 
 impl DestructibleInterface for SecondDestructibleImpl {
@@ -381,7 +381,7 @@ impl DestructibleInterface for SecondDestructibleImpl {
     }
 }
 
-func test_destructors() {
+func test_destructors() { unsafe {
     test("destructor is called when struct moved with generic dispatch into a function call - 1", () => {
         var counter = 0;
         var d = FirstDestructibleImpl { counter : &raw mut counter }
@@ -1105,4 +1105,4 @@ func test_destructors() {
         }
         return count == 1
     })
-}
+ }}

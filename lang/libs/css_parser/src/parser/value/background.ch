@@ -454,7 +454,7 @@ func (cssParser : &mut CSSParser) parseBackgroundImage(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
     value : &mut CSSValue
-) {
+) { unsafe {
 
     const data = builder.allocate<MultipleBackgroundImageData>()
     new (data) MultipleBackgroundImageData()
@@ -479,7 +479,7 @@ func (cssParser : &mut CSSParser) parseBackgroundImage(
             break
         }
     }
-}
+ }}
 
 func (cssParser : &mut CSSParser) parsePositionValue(
     parser : *mut Parser,
@@ -582,7 +582,7 @@ func (cssParser : &mut CSSParser) parseBackgroundLayer(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
     layer : &mut CSSBackgroundLayerData
-) : bool {
+) : bool { unsafe {
 
     var any = false;
 
@@ -696,13 +696,13 @@ func (cssParser : &mut CSSParser) parseBackgroundLayer(
 
     return any;
 
-}
+ }}
 
 func (cssParser : &mut CSSParser) parseBackground(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
     value : &mut CSSValue
-) {
+) { unsafe {
 
     const data = builder.allocate<CSSBackgroundValueData>();
     new (data) CSSBackgroundValueData();
@@ -747,4 +747,4 @@ func (cssParser : &mut CSSParser) parseBackground(
 
     }
 
-}
+ }}

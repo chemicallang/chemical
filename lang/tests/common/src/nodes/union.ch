@@ -75,7 +75,7 @@ public struct test_string_union {
 
 }
 
-func test_unions() {
+func test_unions() { unsafe {
     test("int float union works - 1", () => {
         var u : IntFloatUnion
         u.a = 5;
@@ -129,4 +129,4 @@ func test_unions() {
         t.state = '1'
         return (t.size() as int) == (t.storage.sso.length as int)
     })
-}
+ }}

@@ -6,16 +6,16 @@ public struct MdParser {
 }
 
 // Helper to peek at next token without consuming
-func peek_token(parser : *mut Parser) : *mut Token {
+func peek_token(parser : *mut Parser) : *mut Token { unsafe {
     const ptr = parser.getTokenPtr();
     return (*ptr) + 1;
-}
+ }}
 
 // Helper to peek at token at offset i from current
-func peek_token_at(parser : *mut Parser, i : int) : *mut Token {
+func peek_token_at(parser : *mut Parser, i : int) : *mut Token { unsafe {
     const ptr = parser.getTokenPtr();
     return (*ptr) + i;
-}
+ }}
 
 func isEndMdToken(t : int) : bool { return t == MdTokenType.EndMd as int; }
 func isHashToken(t : int) : bool { return t == MdTokenType.Hash as int; }

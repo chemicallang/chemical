@@ -43,7 +43,7 @@ func uninit_addr_of_without_unsafe_ok(env : &mut TestEnv) {
     // Taking the address of an uninitialized value is a legitimate C interop pattern
     // (writing through the pointer initializes it), so it is deliberately not reported.
     // The adjacent test covers the explicit `unsafe(...)` marker form.
-    var ch = "func fill(p : *mut i32) { *p = 1 }\npublic func main() : int {\n    var x : i32\n    fill(&raw mut x)\n    return x\n}\n"
+    var ch = "func fill(p : *mut i32) { unsafe { *p = 1 } }\npublic func main() : int {\n    var x : i32\n    fill(&raw mut x)\n    return x\n}\n"
     expect_compile_success(env, "uninit_addr_of_without_unsafe_ok", ch)
 }
 

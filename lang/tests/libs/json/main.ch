@@ -784,7 +784,7 @@ func test_double_encode_decode_number(env : &mut TestEnv) {
 // ===== Regression: strings longer than the old 4096 scratch limit (YouTube format urls) =====
 
 @test
-func test_long_string_over_old_4096_limit(env : &mut TestEnv) {
+func test_long_string_over_old_4096_limit(env : &mut TestEnv) { unsafe {
     // YouTube "url" fields are often 5K-15K chars; the parser must not reject them.
     var val = std::string()
     for (var i = 0u; i < 5000u; i++) { val.append('a') }
@@ -803,10 +803,10 @@ func test_long_string_over_old_4096_limit(env : &mut TestEnv) {
     if (!(vp is JsonValue.String)) { env.error("expected string value"); return }
     var String(s) = *vp else unreachable
     if (s.size() != 5000u) { env.error("long string length mismatch"); return }
-}
+ }}
 
 @test
-func test_long_escaped_string_over_old_4096_limit(env : &mut TestEnv) {
+func test_long_escaped_string_over_old_4096_limit(env : &mut TestEnv) { unsafe {
     // 5000 unicode escapes, each decoding to a single char -> 5000 char string.
     var esc = std::string()
     for (var i = 0u; i < 5000u; i++) { esc.append_view(std::string_view("\\u0041")) }
@@ -825,7 +825,7 @@ func test_long_escaped_string_over_old_4096_limit(env : &mut TestEnv) {
     if (!(vp is JsonValue.String)) { env.error("expected string value"); return }
     var String(s) = *vp else unreachable
     if (s.size() != 5000u) { env.error("decoded long escaped string length mismatch"); return }
-}
+ }}
 
 @test
 func test_long_string_roundtrip(env : &mut TestEnv) {
@@ -862,7 +862,7 @@ func test_long_string_roundtrip(env : &mut TestEnv) {
 // to hand the block out again. This is the shape that crashed with
 // "invalid memory access" in on_string.
 @test
-func test_string_that_outgrows_the_heap_buffer_stays_intact(env : &mut TestEnv) {
+func test_string_that_outgrows_the_heap_buffer_stays_intact(env : &mut TestEnv) { unsafe {
     const BIG = 3u * 1024u * 1024u
     var doc = std::string()
     doc.append_view(std::string_view("{\"k\":\""))
@@ -887,7 +887,7 @@ func test_string_that_outgrows_the_heap_buffer_stays_intact(env : &mut TestEnv) 
         i += 997u
     }
     if (s.get(s.size() - 1u) != 'x') { env.error("last byte mismatch"); return }
-}
+ }}
 
 // The default ceiling is part of the contract, not an accident: a caller that
 // wants a longer single string has to ask for it. This is also what used to

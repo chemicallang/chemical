@@ -264,7 +264,7 @@ public func (ctx : &BuildContext) directory_module(scope_name : &std::string_vie
     return ctx.new_package(ModuleType.Directory, PackageKind.Library, scope_name, name, dependencies);
 }
 
-func make_deps(vec : &mut std::vector<ModuleDependency>, dependencies : std::span<*mut Module>) {
+func make_deps(vec : &mut std::vector<ModuleDependency>, dependencies : std::span<*mut Module>) { unsafe {
     if(dependencies.empty()) return;
     vec.reserve(dependencies.size())
     var start = dependencies.data()
@@ -273,7 +273,7 @@ func make_deps(vec : &mut std::vector<ModuleDependency>, dependencies : std::spa
         vec.push(ModuleDependency { module : *start as *mut Module, info : null })
         start++;
     }
-}
+ }}
 
 public func (ctx : &BuildContext) new_module_with_deps(type : ModuleType, package_kind : PackageKind, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
     var vec = std::vector<ModuleDependency>()
@@ -368,7 +368,7 @@ public func (ctx : &BuildContext) create_module(scope_name : &std::string_view, 
     return mod;
 }
 
-public func (ctx : &BuildContext) default_get(buildFlag : *mut bool, cached : *mut *mut Module, build : (ctx : *BuildContext) => *mut Module) : *mut Module {
+public func (ctx : &BuildContext) default_get(buildFlag : *mut bool, cached : *mut *mut Module, build : (ctx : *BuildContext) => *mut Module) : *mut Module { unsafe {
     const c = *cached;
     if(c == null && *buildFlag == true) {
         const built = build(&raw ctx)
@@ -378,7 +378,7 @@ public func (ctx : &BuildContext) default_get(buildFlag : *mut bool, cached : *m
     } else {
         return c;
     }
-}
+ }}
 
 public func (ctx : &BuildContext) file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
     if(path.ends_with(".c")) {

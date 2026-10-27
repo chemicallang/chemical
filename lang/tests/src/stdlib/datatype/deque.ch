@@ -1,4 +1,4 @@
-func test_deque() {
+func test_deque() { unsafe {
     test("deque stores and retrieves values across chunks", () => {
         var d = std::deque<int>()
         d.push(10)
@@ -36,4 +36,4 @@ func test_deque() {
         d.clear()
         return d.empty() && d.size() == 0
     })
-}
+ }}

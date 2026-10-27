@@ -6,7 +6,7 @@ public struct WaitArg {
     var done:*mut bool;
 }
 
-func waiter_entry(arg:*void) : *void {
+func waiter_entry(arg:*void) : *void { unsafe {
     var a = arg as *mut WaitArg;
     // non-capturing function, so use pointer data
     a.m.lock();
@@ -14,7 +14,7 @@ func waiter_entry(arg:*void) : *void {
     *a.done = true;
     a.m.unlock();
     return null;
-}
+ }}
 
 // For notify_all test we need a per-thread arg but same struct works
 
@@ -135,7 +135,7 @@ func test_condvar_notify_one() : bool {
 }
 
 // 7) Condvar notify_all wakes many waiters. Use multiple WaitArg copies and join them
-func test_condvar_notify_all() : bool {
+func test_condvar_notify_all() : bool { unsafe {
     var m = std.mutex();
     var cv = std.CondVar();
     var flag = false;
@@ -176,7 +176,7 @@ func test_condvar_notify_all() : bool {
         i = i + 1u;
     }
     return done_count == waiters;
-}
+ }}
 
 func spawn_func(f : std::function<() => *void>) {
     f()
@@ -185,7 +185,7 @@ func spawn_func(f : std::function<() => *void>) {
 type spawn_func_type = (arg : *void) => *void
 
 // 8) Mutex contention correctness: many threads increment counter under mutex
-func test_mutex_contention() : bool {
+func test_mutex_contention() : bool { unsafe {
     var m = std.mutex();
     var counter = 0u;
     var threads = 8u;
@@ -234,7 +234,7 @@ func test_mutex_contention() : bool {
         i++
     }
     return counter == threads * incs_per_thread;
-}
+ }}
 
 // 9) Future destructor safety: construct a future, drop it (let destructor run), then ensure pool still usable
 func test_future_drop_safety() : bool {

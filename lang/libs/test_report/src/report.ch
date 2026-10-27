@@ -234,7 +234,7 @@ func log_type_color(t : LogType) : *char {
     }
 }
 
-func print_log_multiline(out : *mut FILE, msg : *char) {
+func print_log_multiline(out : *mut FILE, msg : *char) { unsafe {
     if (!out || !msg) return;
 
     var p = msg;
@@ -251,7 +251,7 @@ func print_log_multiline(out : *mut FILE, msg : *char) {
         p = nl + 1;
     }
     fflush(out);
-}
+ }}
 
 /* ------------------------------------------------------------------ */
 /*  Console reporter                                                   */
@@ -312,9 +312,9 @@ public func new_console_reporter() : ConsoleReporter {
 
 impl TestReporter for ConsoleReporter {
 
-    func configure(&mut self, display_ : *TestDisplayConfig) {
+    func configure(&mut self, display_ : *TestDisplayConfig) { unsafe {
         self.display = *display_
-    }
+     }}
 
     func begin_runner(&mut self, name : string_view) {
         colors_enabled = enable_terminal_colors()
@@ -403,7 +403,7 @@ impl TestReporter for ConsoleReporter {
         self.grand_fail += self.cur_fail
     }
 
-    func finish(&mut self) : int {
+    func finish(&mut self) : int { unsafe {
         // Nothing was reported: stay silent. This matches the historical
         // behaviour of the test runner when a module registers no tests (e.g.
         // the sequential `--tcc` suite, which uses inline `test()` calls only).
@@ -458,7 +458,7 @@ impl TestReporter for ConsoleReporter {
             return 1
         }
         return 0
-    }
+     }}
 
 }
 

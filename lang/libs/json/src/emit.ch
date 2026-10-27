@@ -1,7 +1,7 @@
 // Compact / pretty JSON emission from a JsonValue into a std::string.
 // Escaping shares the single implementation in encode.ch (json_escape_into).
 
-func (output : &mut std::string) append_value_inner(value : &JsonValue, pretty : bool, indent : int) {
+func (output : &mut std::string) append_value_inner(value : &JsonValue, pretty : bool, indent : int) { unsafe {
     switch(value) {
         default => { output.append_char_ptr("UNKNOWN") }
         Null() => { output.append_char_ptr("null") }
@@ -66,7 +66,7 @@ func (output : &mut std::string) append_value_inner(value : &JsonValue, pretty :
             output.append(']');
         }
     }
-}
+ }}
 
 public func (output : &mut std::string) append_value(value : &JsonValue) {
     output.append_value_inner(value, false, 0)

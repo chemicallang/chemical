@@ -259,9 +259,9 @@ public struct IndexOperator : Value {
 
 }
 
-public func (idx : &mut IndexOperator) get_idx() : *mut Value {
+public func (idx : &mut IndexOperator) get_idx() : *mut Value { unsafe {
     return *idx.get_idx_ptr()
-}
+ }}
 
 public struct Int128Value : Value {}
 

@@ -53,15 +53,15 @@ impl PrimitiveImplInterfaceRef1 for &long {
 }
 
 impl PrimitiveImplInterfaceRef1 for *int {
-    func give_ref(&self) : int {
+    func give_ref(&self) : int { unsafe {
         return **self + 50
-    }
+     }}
 }
 
 impl PrimitiveImplInterfaceRef1 for *long {
-    func give_ref(&self) : int {
+    func give_ref(&self) : int { unsafe {
         return (**self + 60) as int
-    }
+     }}
 }
 
 func param_call_int_prim_impl(a : int) : int {

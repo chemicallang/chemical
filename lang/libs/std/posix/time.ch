@@ -22,7 +22,7 @@ public namespace std {
         }
     }
 
-    internal func now_clock(secs : *mut i64, nanos : *mut i64, clock_id : int) {
+    internal func now_clock(secs : *mut i64, nanos : *mut i64, clock_id : int) { unsafe {
         var ts = zeroed<timespec>()
         var rc = clock_gettime(clock_id, &raw mut ts)
         if(rc != 0) {
@@ -30,7 +30,7 @@ public namespace std {
         }
         *secs = ts.tv_sec as i64
         *nanos = ts.tv_nsec as i64
-    }
+     }}
 
     internal func now_monotonic(secs : *mut i64, nanos : *mut i64) {
         now_clock(secs, nanos, clock_id_monotonic())

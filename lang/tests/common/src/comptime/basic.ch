@@ -136,10 +136,10 @@ struct CompTimeCounter {
         return actual(thing, 1);
     }
     @constructor
-    func actual(thing : *mut int, inc : int) {
+    func actual(thing : *mut int, inc : int) { unsafe {
         *thing = *thing + inc;
         return CompTimeCounter {}
-    }
+     }}
 }
 
 comptime func get_line_no() : ubigint {

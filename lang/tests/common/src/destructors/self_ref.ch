@@ -19,22 +19,22 @@ struct SelfRef {
     }
 
     @delete
-    func delete(&mut self) {
+    func delete(&mut self) { unsafe {
         self.value = -999
         if(self.count != null) {
             *self.count = *self.count + 1
         }
-    }
+     }}
 }
 
 func make_self_ref(initial : int, count : *mut int) : SelfRef {
     return SelfRef { value: initial, count: count }
 }
 
-func read_val_then_add(p : *mut int, extra : int) : SelfRef {
+func read_val_then_add(p : *mut int, extra : int) : SelfRef { unsafe {
     var r = SelfRef { value : *p + extra, count : null }
     return r
-}
+ }}
 
 func test_self_ref_destruct() {
 

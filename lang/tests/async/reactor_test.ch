@@ -10,7 +10,7 @@
 // The test opens pipes until a read end lands above 1100. If the process fd
 // limit is too low to reach that, it returns without failing.
 
-func reactor_make_high_pipe(r : *mut int, w : *mut int) : bool {
+func reactor_make_high_pipe(r : *mut int, w : *mut int) : bool { unsafe {
     var i = 0
     while(i < 4000) {
         var fds : [2]int
@@ -25,7 +25,7 @@ func reactor_make_high_pipe(r : *mut int, w : *mut int) : bool {
         i = i + 1
     }
     return false
-}
+ }}
 
 @test
 public func test_posix_reactor_high_fd(env : &mut TestEnv) {

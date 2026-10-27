@@ -89,7 +89,7 @@ impl<T : std::Serializer<JsonValue, JsonEncoder>> std::Serializer<JsonValue, Jso
 // ---------------------------------------------------------------------------
 
 impl<V : std::Serializer<JsonValue, JsonEncoder>> std::Serializer<JsonValue, JsonEncoder> for std::ordered_map<std::string, V> {
-    func serialize(&self, encoder : &JsonEncoder) : std::Result<std::Unit, std::SerializationError> {
+    func serialize(&self, encoder : &JsonEncoder) : std::Result<std::Unit, std::SerializationError> { unsafe {
         var obj = encoder.object()
         var it = self.iterator()
         while(it.valid()) {
@@ -106,7 +106,7 @@ impl<V : std::Serializer<JsonValue, JsonEncoder>> std::Serializer<JsonValue, Jso
             it.next()
         }
         return std::Result.Ok<std::Unit, std::SerializationError>(std::Unit {})
-    }
+     }}
 }
 
 impl<V> std::Deserializer<std::ordered_map<std::string, V>> for TypeDecoder<std::ordered_map<std::string, V>> {
@@ -146,7 +146,7 @@ impl<V> std::Deserializer<std::ordered_map<std::string, V>> for TypeDecoder<std:
 // ---------------------------------------------------------------------------
 
 impl<V : std::Serializer<JsonValue, JsonEncoder>> std::Serializer<JsonValue, JsonEncoder> for std::unordered_map<std::string, V> {
-    func serialize(&self, encoder : &JsonEncoder) : std::Result<std::Unit, std::SerializationError> {
+    func serialize(&self, encoder : &JsonEncoder) : std::Result<std::Unit, std::SerializationError> { unsafe {
         var obj = encoder.object()
         var it = self.iterator()
         while(it.valid()) {
@@ -163,7 +163,7 @@ impl<V : std::Serializer<JsonValue, JsonEncoder>> std::Serializer<JsonValue, Jso
             it.next()
         }
         return std::Result.Ok<std::Unit, std::SerializationError>(std::Unit {})
-    }
+     }}
 }
 
 impl<V> std::Deserializer<std::unordered_map<std::string, V>> for TypeDecoder<std::unordered_map<std::string, V>> {

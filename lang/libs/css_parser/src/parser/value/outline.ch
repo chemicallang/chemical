@@ -3,7 +3,7 @@ func (cssParser : &mut CSSParser) parseOutline(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
     value : &mut CSSValue
-) {
+) { unsafe {
 
     var outline = builder.allocate<CSSOutlineValueData>()
     new (outline) CSSOutlineValueData {
@@ -88,4 +88,4 @@ func (cssParser : &mut CSSParser) parseOutline(
         }
     }
 
-}
+ }}

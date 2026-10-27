@@ -125,7 +125,7 @@ func test_conditional_not_executed_no_destruct() {
 }
 
 // test destructible struct returned from function in conditional expression
-func maybe_create_destructible(count : *mut int, cond : bool) : Destructible {
+func maybe_create_destructible(count : *mut int, cond : bool) : Destructible { unsafe {
     if(cond) {
         return create_destructible(count, 70)
     }
@@ -134,7 +134,7 @@ func maybe_create_destructible(count : *mut int, cond : bool) : Destructible {
         count : count,
         lamb : (c : *mut int) => { *c = *c + 1; }
     }
-}
+ }}
 
 func test_conditional_func_return_destruct() {
     test("conditional function returning destructible struct destructs correctly", () => {
@@ -223,7 +223,7 @@ variant OptDestruct {
     None
 }
 
-func test_ref_of_deref_pattern() {
+func test_ref_of_deref_pattern() { unsafe {
     test("&*value in pattern match expression works", () => {
         var count = 0
         {
@@ -234,7 +234,7 @@ func test_ref_of_deref_pattern() {
         }
         return count == 1
     })
-}
+ }}
 
 
 
@@ -457,13 +457,13 @@ struct IndexableDestructible {
     }
 }
 
-func create_indexable(count : *mut int) : IndexableDestructible {
+func create_indexable(count : *mut int) : IndexableDestructible { unsafe {
     return IndexableDestructible {
         data : 42,
         count : count,
         lamb : (c : *mut int) => { *c = *c + 1; }
     }
-}
+ }}
 
 // workaround: can't take ref of member directly
 func take_index_ref(ptr : &int) : &int {

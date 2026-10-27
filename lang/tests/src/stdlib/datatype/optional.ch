@@ -23,12 +23,12 @@ func get_opt_value(o : Option<int>) : int {
 struct Deletable {
     var counter : *mut int
     @delete
-    func delete(&self) {
+    func delete(&self) { unsafe {
         *counter = *counter + 1
-    }
+     }}
 }
 
-func test_optional_type() {
+func test_optional_type() { unsafe {
     test("check option type works - 1", () => {
         var o = get_optional_int(true);
         return get_opt_value(o) == 32
@@ -69,4 +69,4 @@ func test_optional_type() {
         if(s !is Option.None) return false;
         return true;
     })
-}
+ }}

@@ -1,5 +1,5 @@
 @retained
-public func fnv1a_hash_32(str : *char) : uint {
+public func fnv1a_hash_32(str : *char) : uint { unsafe {
     var ptr = str;
     var hash : uint = 2166136261U;
     while (true) {
@@ -13,10 +13,10 @@ public func fnv1a_hash_32(str : *char) : uint {
         }
     }
     return hash;
-}
+ }}
 
 @retained
-public func fnv1_hash_view(view : &std::string_view) : size_t {
+public func fnv1_hash_view(view : &std::string_view) : size_t { unsafe {
     var ptr = view.data();
     const end = ptr + view.size()
     var hash : size_t = 0xcbf29ce484222325 as size_t;
@@ -27,10 +27,10 @@ public func fnv1_hash_view(view : &std::string_view) : size_t {
         ptr++
     }
     return hash;
-}
+ }}
 
 @retained
-public func fnv1_hash(s : *char) : size_t {
+public func fnv1_hash(s : *char) : size_t { unsafe {
     var ptr = s;
     var hash : size_t = 0xcbf29ce484222325 as size_t;
     while(true) {
@@ -44,7 +44,7 @@ public func fnv1_hash(s : *char) : size_t {
         }
     }
     return hash;
-}
+ }}
 
 public comptime func comptime_fnv1a_hash_32(s : *char) : uint {
     return fnv1a_hash_32(s);

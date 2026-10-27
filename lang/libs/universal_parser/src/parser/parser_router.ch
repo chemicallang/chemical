@@ -19,10 +19,10 @@
  * to parse.
  */
 
-func js_peek_token(parser : *mut Parser, ahead : int) : *mut Token {
+func js_peek_token(parser : *mut Parser, ahead : int) : *mut Token { unsafe {
     var ptr = parser.getTokenPtr()
     return (*ptr) + ahead
-}
+ }}
 
 func js_token_ident_equals(token : *mut Token, value : std::string_view) : bool {
     if(token.type != JsTokenType.Identifier as int) return false

@@ -25,7 +25,7 @@ func url_encode_view(value : std::string_view, out : &mut std::string) {
 }
 
 public func build_path(patterns : &std::vector<RoutePattern>, id : std::string_view,
-                       params : &std::unordered_map<std::string_view, std::string_view>) : std::string {
+                       params : &std::unordered_map<std::string_view, std::string_view>) : std::string { unsafe {
     for(var i : size_t = 0; i < patterns.size(); i++) {
         const pattern = patterns.get_ptr(i)
         if(!pattern.id.equals(&id)) { continue }
@@ -51,4 +51,4 @@ public func build_path(patterns : &std::vector<RoutePattern>, id : std::string_v
         return out
     }
     return std::string()
-}
+ }}

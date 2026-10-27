@@ -188,7 +188,7 @@ func (cssParser : &mut CSSParser) parseMediaCondition(
 func (cssParser : &mut CSSParser) parseMediaQuery(
     parser : *mut Parser,
     builder : *mut ASTBuilder
-) : *mut MediaQuery {
+) : *mut MediaQuery { unsafe {
     
     const query = builder.allocate<MediaQuery>()
     new (query) MediaQuery()
@@ -243,7 +243,7 @@ func (cssParser : &mut CSSParser) parseMediaQuery(
     }
     
     return query
-}
+ }}
 
 // Parse media query list (comma-separated queries)
 func (cssParser : &mut CSSParser) parseMediaQueryList(

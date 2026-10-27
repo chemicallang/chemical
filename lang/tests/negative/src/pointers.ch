@@ -39,7 +39,7 @@ func neg_null_not_in_pointer_context(env : &mut TestEnv) {
 @test
 func neg_assign_to_const_ptr(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "func main() {\n    var x = 42\n    const p : *int = &raw x\n    *p = 100\n}\n"
+    var ch = "func main() {\n    var x = 42\n    const p : *int = &raw x\n    unsafe { *p = 100 }\n}\n"
     expect_compile_error(env, "assign_via_const_ptr", ch, "cannot assign")
 }
 

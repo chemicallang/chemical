@@ -21,17 +21,17 @@ func read_char_ptr(p : *char) : int {
 
 // `&raw mut` on a reference parameter must yield the referent's address, not
 // the address of the parameter slot.
-func deref_ref_param_ptr(p : &mut int) : int {
+func deref_ref_param_ptr(p : &mut int) : int { unsafe {
     var q = &raw mut p
     return *q
-}
+ }}
 
-func write_ref_param_ptr(p : &mut int, v : int) {
+func write_ref_param_ptr(p : &mut int, v : int) { unsafe {
     var q = &raw mut p
     *q = v
-}
+ }}
 
-func test_addr_of_member_access() {
+func test_addr_of_member_access() { unsafe {
 
     // --- &raw struct member access ---
 
@@ -266,4 +266,4 @@ func test_addr_of_member_access() {
         *p = 30
         return arr[1].x == 30 && arr[1].y == 4
     })
-}
+ }}

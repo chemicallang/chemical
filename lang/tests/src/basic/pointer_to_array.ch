@@ -5,7 +5,7 @@
 //
 // Compiled-only: the interpreter does not model this pointer arithmetic.
 
-func test_pointer_to_array() {
+func test_pointer_to_array() { unsafe {
 
     test("address of a multi-dimensional array row has the right stride", () => {
         var a : [2][2]int = []
@@ -28,4 +28,4 @@ func test_pointer_to_array() {
         var f = e + 2
         return *f == 3
     })
-}
+ }}

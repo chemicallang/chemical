@@ -265,11 +265,11 @@ public namespace tls {
 
     // ─── 32x32 → 64-bit multiplication ──────────────────────────────────
     // Direct multiplication (C/LLVM handles u64 promotion correctly).
-    func mul32(r_lo : *mut u64, r_hi : *mut u64, x : u32, y : u32) {
+    func mul32(r_lo : *mut u64, r_hi : *mut u64, x : u32, y : u32) { unsafe {
         var prod = (x as u64) * (y as u64)
         *r_lo = prod & 0xFFFFFFFFu64
         *r_hi = prod >> 32
-    }
+     }}
 
     // ─── Multiplication mod p ──────────────────────────────────────────
     // Schoolbook multiplication of two 8-limb numbers, then reduce mod p.

@@ -1,6 +1,6 @@
 public namespace server {
 
-public func main(argc : int, argv : **char) : int {
+public func main(argc : int, argv : **char) : int { unsafe {
     var port = 8080u;
     var root = std::string::make_no_len(".");
     var addr = std::string::make_no_len("0.0.0.0");
@@ -74,7 +74,7 @@ public func main(argc : int, argv : **char) : int {
     S.serve(port);
 
     return 0;
-}
+ }}
 
 func argv_offset(argv : **char, offset : int) : **char {
     var p = argv as *mut *char;

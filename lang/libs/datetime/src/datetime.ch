@@ -284,7 +284,7 @@ public namespace datetime {
         // ---- Internal: civil calendar conversions ---------------------------
 
         // Convert days since epoch (1970-01-01) to year/month/day
-        func civil_from_days(days : i64, y : *mut i64, m : *mut i64, d : *mut i64) {
+        func civil_from_days(days : i64, y : *mut i64, m : *mut i64, d : *mut i64) { unsafe {
             var z = days + 719468
             var era = if(z >= 0) z else z - 146096
             era = era / 146097
@@ -302,7 +302,7 @@ public namespace datetime {
             if(*m <= 2) {
                 *y = *y + 1
             }
-        }
+         }}
 
         // Convert year/month/day to days since epoch (1970-01-01)
         func days_from_civil(y : i64, m : i64, d : i64) : i64 {

@@ -402,7 +402,7 @@ public struct HtmlPage {
         parameters.insert(key, PageParameter.Object(ptr))
     }
 
-    public func get_parameter(&self, key : std::string_view) : std::string_view {
+    public func get_parameter(&self, key : std::string_view) : std::string_view { unsafe {
         const p = parameters.get_ptr(&key)
         if(p == null) { return std::string_view() }
         if(p is PageParameter.Text) {
@@ -410,7 +410,7 @@ public struct HtmlPage {
             return view
         }
         return std::string_view()
-    }
+     }}
 
     // The parameter value as an `SsrText`, so it can be injected as an SSR
     // attribute (a `std::string_view` value has no direct attribute

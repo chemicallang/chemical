@@ -40,7 +40,7 @@ func reset_params_state() {
 //   {id, method, params: [body]}
 // So `args` arrives as a JSON array like ["{"tool":"yt-dlp"}"].
 // This function extracts element 0 (the stringified body) and returns it.
-func resolve_and_extract_field(args : string_view, key : string_view) : string {
+func resolve_and_extract_field(args : string_view, key : string_view) : string { unsafe {
     var parser = JsonParser(128, 4096)
     var ph = ASTJsonHandler.make()
     parser.parse(args.data(), args.size(), &mut ph)
@@ -79,7 +79,7 @@ func resolve_and_extract_field(args : string_view, key : string_view) : string {
         }
     }
     return string()
-}
+ }}
 
 // ===========================================================================
 // Test 1: Params array unwrapping — stringified JSON object in array

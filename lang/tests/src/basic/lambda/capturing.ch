@@ -50,18 +50,18 @@ func <T> gen_cap_lamb() : T {
     return lamb()
 }
 
-func wrap_cap_lamb(ptr : *mut int, fn : std::function<() => int>) : std::function<() => void> {
+func wrap_cap_lamb(ptr : *mut int, fn : std::function<() => int>) : std::function<() => void> { unsafe {
     return |ptr, fn|() => {
         var result = fn()
         *ptr = result
     }
-}
+ }}
 
 struct CapLambdContainerStruct {
     var fn : std::function<() => void>
 }
 
-func wrap_cap_lamb_2(ptr : *mut int, fn : std::function<() => int>) : CapLambdContainerStruct {
+func wrap_cap_lamb_2(ptr : *mut int, fn : std::function<() => int>) : CapLambdContainerStruct { unsafe {
     var wrap_fn : std::function<() => void> = |ptr, fn|() => {
         var result = fn()
         *ptr = result
@@ -69,7 +69,7 @@ func wrap_cap_lamb_2(ptr : *mut int, fn : std::function<() => int>) : CapLambdCo
     return CapLambdContainerStruct {
         fn : wrap_fn
     }
-}
+ }}
 
 struct CapLambRefStruct {
     var value : int

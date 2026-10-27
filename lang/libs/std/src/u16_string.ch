@@ -4,14 +4,14 @@ public comptime const U16_STR_BUFF_SIZE = 8;
 
 const EMPTY_U16 : u16 = 0;
 
-public func u16_strlen(ptr : *u16) : size_t {
+public func u16_strlen(ptr : *u16) : size_t { unsafe {
     const start = ptr;
     var current = ptr
     while(*current != 0) {
         current++
     }
     return current - start;
-}
+ }}
 
 public struct u16string {
 

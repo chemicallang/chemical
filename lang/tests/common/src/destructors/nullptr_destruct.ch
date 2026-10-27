@@ -10,9 +10,9 @@ struct NullCheckedDestructible {
     var counter : *mut int
 
     @delete
-    func delete(&mut self) {
+    func delete(&mut self) { unsafe {
         *self.counter = *self.counter + 1
-    }
+     }}
 }
 
 func test_nullptr_destruct() {

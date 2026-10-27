@@ -821,22 +821,22 @@ public struct string {
     func to_u64(&self) : std::Result<u64, std::string_view> { return to_view().to_u64() }
     func to_int(&self) : std::Result<int, std::string_view> { return to_view().to_int() }
     func to_uint(&self) : std::Result<uint, std::string_view> { return to_view().to_uint() }
-    func to_float(&self) : std::Result<float, std::string_view> {
+    func to_float(&self) : std::Result<float, std::string_view> { unsafe {
         var end : *mut char = null
         var res = strtod(data() as *mut char, &raw mut end) as float
         if (end == data()) return std::Result.Err(std::string_view("invalid format"))
         while (end != null && *end != '\0' && isspace(*end as int)) end++
         if (end != null && *end != '\0') return std::Result.Err(std::string_view("trailing characters"))
         return std::Result.Ok(res)
-    }
-    func to_double(&self) : std::Result<double, std::string_view> {
+     }}
+    func to_double(&self) : std::Result<double, std::string_view> { unsafe {
         var end : *mut char = null
         var res = strtod(data() as *mut char, &raw mut end)
         if (end == data()) return std::Result.Err(std::string_view("invalid format"))
         while (end != null && *end != '\0' && isspace(*end as int)) end++
         if (end != null && *end != '\0') return std::Result.Err(std::string_view("trailing characters"))
         return std::Result.Ok(res)
-    }
+     }}
 
     // TODO: unstable, no interface involved, signature not stable
     // TODO: no verification of signature

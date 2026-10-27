@@ -19,7 +19,7 @@ public func test_router_parameter_text_roundtrip(env : &mut TestEnv) {
 }
 
 @test
-public func test_router_parameter_object_roundtrip(env : &mut TestEnv) {
+public func test_router_parameter_object_roundtrip(env : &mut TestEnv) { unsafe {
     var page = HtmlPage()
     var value : int = 42
     page.add_parameter_object("ptr", (&raw mut value) as *mut void)
@@ -31,7 +31,7 @@ public func test_router_parameter_object_roundtrip(env : &mut TestEnv) {
     if(*p != 42) {
         env.error("object value should round-trip")
     }
-}
+ }}
 
 @test
 public func test_router_parameter_miss_paths(env : &mut TestEnv) {

@@ -21,9 +21,9 @@
 struct AutoGenCountedField {
     var counter : *mut int
     @delete
-    func delete(&self) {
+    func delete(&self) { unsafe {
         *counter = *counter + 1
-    }
+     }}
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -72,9 +72,9 @@ struct S3_DataContainer<T> {
 struct S4_EarlyManual {         // defined FIRST
     var counter : *mut int
     @delete
-    func delete(&self) {
+    func delete(&self) { unsafe {
         *counter = *counter + 1
-    }
+     }}
 }
 
 struct S4_MiddleComposer {      // defined SECOND
@@ -115,9 +115,9 @@ struct S6_WrapperWithAuto {
 struct S7_DeepInner {
     var counter : *mut int
     @delete
-    func delete(&self) {
+    func delete(&self) { unsafe {
         *counter = *counter + 1
-    }
+     }}
 }
 
 struct S7_MidLevel {

@@ -58,15 +58,15 @@ public impl ExtPrimitiveImplInterfaceRef1 for &long {
 }
 
 public impl ExtPrimitiveImplInterfaceRef1 for *int {
-    func ext_give_ref(&self) : int {
+    func ext_give_ref(&self) : int { unsafe {
         return **self + 50
-    }
+     }}
 }
 
 public impl ExtPrimitiveImplInterfaceRef1 for *long {
-    func ext_give_ref(&self) : int {
+    func ext_give_ref(&self) : int { unsafe {
         return (**self + 60) as int
-    }
+     }}
 }
 
 public func ext_param_call_int_prim_impl(a : int) : int {

@@ -2,13 +2,13 @@ comptime func get_tests() : []TestFunction {
     return intrinsics::get_tests<TestFunction>() as []TestFunction
 }
 
-func parse_int_or_skip(str : *char, out : *mut int) : int {
+func parse_int_or_skip(str : *char, out : *mut int) : int { unsafe {
     while(*str == ' ' || *str == '\t') { str++ }
     if(*str < '0' || *str > '9') { return -1 }
     return parse_int(str, out)
-}
+ }}
 
-func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) : *char {
+func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) : *char { unsafe {
     var current = args;
     while(current != end) {
         var command = *current;
@@ -168,7 +168,7 @@ func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) :
         current++;
     }
     return null;
-}
+ }}
 
 /**
  * Runs the @test-discovered tests, streaming every finished test to `reporter`.
@@ -178,7 +178,7 @@ func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) :
  * Returns 0 otherwise.
  */
 @retained
-public func run_test_runner_reporting(tests_view : std::span<TestFunction>, reporter : &mut TestReporter, argc : int, argv : **char) : int {
+public func run_test_runner_reporting(tests_view : std::span<TestFunction>, reporter : &mut TestReporter, argc : int, argv : **char) : int { unsafe {
 
     if(argc == 0) {
         // error out, the executable argument not given
@@ -216,7 +216,7 @@ public func run_test_runner_reporting(tests_view : std::span<TestFunction>, repo
 
     reporter.end_runner()
     return 0;
-}
+ }}
 
 /** Single-runner entry point: streams to a default console reporter. */
 @retained

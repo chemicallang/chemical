@@ -33,9 +33,9 @@ struct TempString {
     }
 
     @delete
-    func delete(&mut self) {
+    func delete(&mut self) { unsafe {
         *self.dtor_flag = *self.dtor_flag + 1
-    }
+     }}
 }
 
 func make_temp(s : string_view, flag : *mut int) : TempString {

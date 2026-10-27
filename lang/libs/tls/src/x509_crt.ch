@@ -254,7 +254,7 @@ public namespace tls {
     }
 
     // Get CN from subject
-    public func cert_get_cn(crt : *mut X509Cert, out : *mut string) {
+    public func cert_get_cn(crt : *mut X509Cert, out : *mut string) { unsafe {
         var cn_prefix = string_view("CN=")
         var sub_view = crt.subject.to_view()
         var pos = sub_view.find(&cn_prefix)
@@ -271,7 +271,7 @@ public namespace tls {
         }
         var cn_str = sub_view.subview(start, end)
         *out = string::make_no_len(cn_str.data() as *char)
-    }
+     }}
 
     // ============================================================================
     // ASN.1 Parsing Utilities
@@ -279,7 +279,7 @@ public namespace tls {
 
     // Read ASN.1 tag and length at position pos, return tag and set length/content start
     func asn1_get_tag(data : *u8, data_len : size_t, pos : *mut size_t,
-                       tag : *mut u8, length : *mut size_t) : int {
+                       tag : *mut u8, length : *mut size_t) : int { unsafe {
         if(*pos >= data_len) { return ERR_X509_INVALID_FORMAT }
         var t = data[*pos]; *pos += 1
 
@@ -307,7 +307,7 @@ public namespace tls {
         *tag = t
         *length = len_val
         return 0
-    }
+     }}
 
     // Compare an OID at data+pos of oid_len bytes against reference bytes
     func oid_matches(data : *u8, oid_len : size_t, ref : *u8, ref_len : size_t) : bool {
@@ -322,7 +322,7 @@ public namespace tls {
 
     // Parse a printable/IA5/UTF8 string from ASN.1 into a Chemical string
     func asn1_read_string(data : *u8, data_len : size_t, pos : *mut size_t,
-                           out : *mut string) : int {
+                           out : *mut string) : int { unsafe {
         var tag : u8 = 0
         var len : size_t = 0
         var ret = asn1_get_tag(data, data_len, pos, &raw mut tag, &raw mut len)
@@ -344,11 +344,11 @@ public namespace tls {
         *pos += len
         *out = s
         return 0
-    }
+     }}
 
     // Parse ASN.1 time (UTCTime or GeneralizedTime)
     func asn1_read_time(data : *u8, data_len : size_t, pos : *mut size_t,
-                         out : *mut u8, out_max : size_t) : int {
+                         out : *mut u8, out_max : size_t) : int { unsafe {
         var tag : u8 = 0
         var len : size_t = 0
         var ret = asn1_get_tag(data, data_len, pos, &raw mut tag, &raw mut len)
@@ -370,11 +370,11 @@ public namespace tls {
         out[copy_len] = 0
         *pos += len
         return 0
-    }
+     }}
 
     // Parse an ASN.1 integer
     func asn1_read_integer(data : *u8, data_len : size_t, pos : *mut size_t,
-                            out : *mut *mut u8, out_len : *mut size_t) : int {
+                            out : *mut *mut u8, out_len : *mut size_t) : int { unsafe {
         var tag : u8 = 0
         var len : size_t = 0
         var ret = asn1_get_tag(data, data_len, pos, &raw mut tag, &raw mut len)
@@ -385,7 +385,7 @@ public namespace tls {
         *out_len = len
         *pos += len
         return 0
-    }
+     }}
 
     // ─── RDNs (Relative Distinguished Names) Parsing ─────────────────────────
 
@@ -421,7 +421,7 @@ public namespace tls {
 
     // Parse a single AttributeTypeAndValue: SEQUENCE { OID, value }
     func parse_attribute(data : *u8, data_len : size_t, pos : *mut size_t,
-                          out : *mut string) : int {
+                          out : *mut string) : int { unsafe {
         var seq_tag : u8 = 0
         var seq_len : size_t = 0
         var ret = asn1_get_tag(data, data_len, pos, &raw mut seq_tag, &raw mut seq_len)
@@ -452,11 +452,11 @@ public namespace tls {
             *out = val_str
         }
         return 0
-    }
+     }}
 
     // Parse a Relative Distinguished Name (SET of AttributeTypeAndValue)
     func parse_rdn(data : *u8, data_len : size_t, pos : *mut size_t,
-                    out : *mut string) : int {
+                    out : *mut string) : int { unsafe {
         var set_tag : u8 = 0
         var set_len : size_t = 0
         var ret = asn1_get_tag(data, data_len, pos, &raw mut set_tag, &raw mut set_len)
@@ -483,12 +483,12 @@ public namespace tls {
         }
         *out = result
         return 0
-    }
+     }}
 
     // Parse the full Distinguished Name (SEQUENCE of RDN)
     func parse_distinguished_name(data : *u8, data_len : size_t, pos : *mut size_t,
                                    out : *mut string, raw_out : *mut *mut u8,
-                                   raw_len_out : *mut size_t) : int {
+                                   raw_len_out : *mut size_t) : int { unsafe {
         var start = *pos
         var seq_tag : u8 = 0
         var seq_len : size_t = 0
@@ -530,7 +530,7 @@ public namespace tls {
 
         *out = result
         return 0
-    }
+     }}
 
     // ============================================================================
     // Full DER Certificate Parsing

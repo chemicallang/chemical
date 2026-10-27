@@ -6,7 +6,7 @@
 // Typed retrieval of an `Object` parameter; null on a miss or a type mismatch.
 // The cast is intentionally unchecked (the documented fast PATH). The
 // type-safe layer is macro-generated accessors; see §3.2's type-safety contract.
-public func <T> get_parameter_object(page : &mut HtmlPage, key : std::string_view) : *mut T {
+public func <T> get_parameter_object(page : &mut HtmlPage, key : std::string_view) : *mut T { unsafe {
     const p = page.parameters.get_ptr(&key)
     if(p == null) { return null }
     if(p is PageParameter.Object) {
@@ -14,7 +14,7 @@ public func <T> get_parameter_object(page : &mut HtmlPage, key : std::string_vie
         return ptr as *mut T
     }
     return null
-}
+ }}
 
 // Reads a server query value stored under the `__query_<key>` namespace (§6.5).
 public func (page : &mut HtmlPage) query_param(key : std::string_view) : std::string_view {

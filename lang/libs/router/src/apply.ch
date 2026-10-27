@@ -52,7 +52,7 @@ func router_decode_segment(value : std::string_view) : std::string {
     return out
 }
 
-public func apply_route_url(page : &mut HtmlPage, router : std::string_view, spec : std::string_view) {
+public func apply_route_url(page : &mut HtmlPage, router : std::string_view, spec : std::string_view) { unsafe {
     const url = page.get_parameter(std::string_view("__route_url"))
     // No request URL was handed to the page: leave the declared default in place.
     if(url.size() == 0) { return }
@@ -114,7 +114,7 @@ public func apply_route_url(page : &mut HtmlPage, router : std::string_view, spe
     } else {
         page.mark_route_missing()
     }
-}
+ }}
 
 // Parses the unit/record-separated activation chain emitted by the converter:
 // `reg` + US + `id` (RS between steps), e.g. `r#a` US `x` RS ... An empty field

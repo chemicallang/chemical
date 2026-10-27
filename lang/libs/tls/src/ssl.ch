@@ -303,7 +303,7 @@ public namespace tls {
                                              psk : *u8 = null, psk_len : size_t = 0,
                                              hash_len : size_t = 32,
                                              key_len : size_t = 16,
-                                             cipher_type : u8 = CIPHER_AES_128_GCM as u8) : int {
+                                             cipher_type : u8 = CIPHER_AES_128_GCM as u8) : int { unsafe {
         // Step 1: Early secret
         var zeros : [48]u8
         var i : size_t = 0
@@ -441,7 +441,7 @@ public namespace tls {
         ssl.transform_out = tr_out_mem
 
         var tr_in_mem = malloc(sizeof(Transform)) as *mut Transform
-        *tr_in_mem = tr_in
+        unsafe { *tr_in_mem = tr_in }
         ssl.transform_in = tr_in_mem
 
         // Reset sequence numbers for the handshake phase
@@ -449,7 +449,7 @@ public namespace tls {
         while(i < 8) { ssl.in_ctr[i] = 0; ssl.out_ctr[i] = 0; i += 1 }
 
         return 0
-    }
+     }}
 
     // Derive application traffic keys after handshake completes.
     // Called after both Finished messages have been exchanged.
@@ -467,7 +467,7 @@ public namespace tls {
                                                 res_hash : *u8 = null,
                                                 res_hash_len : size_t = 0,
                                                 key_len : size_t = 16,
-                                                cipher_type : u8 = CIPHER_AES_128_GCM as u8) : int {
+                                                cipher_type : u8 = CIPHER_AES_128_GCM as u8) : int { unsafe {
         var i : size_t = 0
 
         // Resolve context pointers (callee-local copies when coming from struct).
@@ -624,7 +624,7 @@ public namespace tls {
             while(i < 12) { tr_in.base_iv_dec[i] = server_iv[i]; i += 1 }
         }
         var tr_in_mem = malloc(sizeof(Transform)) as *mut Transform
-        *tr_in_mem = tr_in
+        unsafe { *tr_in_mem = tr_in }
         ssl.transform_in = tr_in_mem
 
         // Reset sequence numbers for the application data phase
@@ -632,7 +632,7 @@ public namespace tls {
         while(i < 8) { ssl.in_ctr[i] = 0; ssl.out_ctr[i] = 0; i += 1 }
 
         return 0
-    }
+     }}
 
     // ============================================================================
     // TLS 1.3 Key Update (RFC 8446 Section 7.2)
@@ -1392,7 +1392,7 @@ public namespace tls {
     public func tls13_decrypt_record(ssl : *mut SSLContext,
                                       input : *u8, input_len : size_t,
                                       output : *mut u8, out_max : size_t,
-                                      inner_content_type : *mut u8) : int {
+                                      inner_content_type : *mut u8) : int { unsafe {
         if(ssl.transform_in == null) { return ERR_SSL_INTERNAL_ERROR }
         var tr = ssl.transform_in
 
@@ -1451,7 +1451,7 @@ public namespace tls {
 
         ssl_incr_seq_num(&raw mut ssl.in_ctr[0])
         return actual_len as i32
-    }
+     }}
 
     // ============================================================================
     // Record Layer
@@ -2181,8 +2181,8 @@ public namespace tls {
         var payload = read_record_payload(ssl, hs_buf, payload_len as i32)
         if(payload < (4 as i32)) { return ERR_SSL_DECODE_ERROR }
 
-        *hs_type = hs_buf[0]
-        *hs_len = read_u24(&raw hs_buf[1])
+        unsafe { *hs_type = hs_buf[0] }
+        unsafe { *hs_len = read_u24(&raw hs_buf[1]) }
         return 0
     }
 
@@ -2591,7 +2591,7 @@ public namespace tls {
     func parse_asn1_time(time_str : *u8, max_len : size_t,
                           year : *mut int, month : *mut int, day : *mut int,
                           hour : *mut int, minute : *mut int,
-                          second : *mut int) : int {
+                          second : *mut int) : int { unsafe {
         var len : size_t = 0
         while(len < max_len && time_str[len] != 0) { len += 1 }
 
@@ -2628,7 +2628,7 @@ public namespace tls {
         }
 
         return ERR_X509_INVALID_DATE
-    }
+     }}
 
     // ─── X.509 Date Validity Check ────────────────────────────────────────
     // Check if the certificate's validity period covers the current time.
@@ -2751,7 +2751,7 @@ public namespace tls {
     //   TLS 1.2 body: cert_list_len(3) + per entry [cert_data_len(3) + cert_data]
     // Returns the head of the chain (leaf first) via `out`, or an error code.
     func x509_parse_server_cert_chain(data : *u8, data_len : size_t, tls13 : bool,
-                                      out_head : *mut *mut X509Cert) : int {
+                                      out_head : *mut *mut X509Cert) : int { unsafe {
         var pos : size_t = 0
         if(tls13) {
             // Context: 1-byte length + that many bytes.
@@ -2803,7 +2803,7 @@ public namespace tls {
 
         *out_head = head
         return 0
-    }
+     }}
 
     // ─── X.509 Certificate Chain Verification ─────────────────────────────
     // Verify a certificate chain from leaf to root.
@@ -3232,11 +3232,11 @@ public namespace tls {
         tls12_populate_transform(unsafe(&raw mut tr), &raw cs_info, &raw key_block[0], kb_size)
 
         var tr_mem = malloc(sizeof(Transform)) as *mut Transform
-        *tr_mem = tr
+        unsafe { *tr_mem = tr }
         ssl.transform_out = tr_mem
 
         var tr_in_mem = malloc(sizeof(Transform)) as *mut Transform
-        *tr_in_mem = tr
+        unsafe { *tr_in_mem = tr }
         ssl.transform_in = tr_in_mem
 
         // Reset sequence numbers for handshake encryption phase
@@ -4197,7 +4197,7 @@ public namespace tls {
             unsafe { dealloc ssl_mem }
             return null
         }
-        *cfg_mem = cfg
+        unsafe { *cfg_mem = cfg }
         ssl_set_config(ssl_mem, cfg_mem)
         ssl_mem.conf_owned = true
 
@@ -4935,11 +4935,11 @@ public namespace tls {
         }
 
         var tr_in_mem = malloc(sizeof(Transform)) as *mut Transform
-        *tr_in_mem = srv_tr
+        unsafe { *tr_in_mem = srv_tr }
         ssl.transform_in = tr_in_mem
 
         var tr_out_mem = malloc(sizeof(Transform)) as *mut Transform
-        *tr_out_mem = srv_tr
+        unsafe { *tr_out_mem = srv_tr }
 
         // Reset receive sequence number for the client's encrypted handshake records
         var si9 : size_t = 0

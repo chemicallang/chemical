@@ -21,19 +21,19 @@ struct DerefMemberOuter {
     var inner : DerefMemberHost
 }
 
-func deref_member_read(host : *mut DerefMemberHost) : int {
+func deref_member_read(host : *mut DerefMemberHost) : int { unsafe {
     return (*host).value
-}
+ }}
 
-func deref_member_write(host : *mut DerefMemberHost, value : int) {
+func deref_member_write(host : *mut DerefMemberHost, value : int) { unsafe {
     (*host).value = value
-}
+ }}
 
-func deref_member_read_nested(outer : *mut DerefMemberOuter) : int {
+func deref_member_read_nested(outer : *mut DerefMemberOuter) : int { unsafe {
     return (*outer).inner.other
-}
+ }}
 
-func test_deref_member_access() {
+func test_deref_member_access() { unsafe {
 
     test("(*ptr).field reads the member through the pointer", () => {
         var host = DerefMemberHost { value : 7, other : 11 }
@@ -83,4 +83,4 @@ func test_deref_member_access() {
         var outer = DerefMemberOuter { inner : DerefMemberHost { value : 2, other : 9 } }
         return deref_member_read_nested(&raw mut outer) == 9
     })
-}
+ }}

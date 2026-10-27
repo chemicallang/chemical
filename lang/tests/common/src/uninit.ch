@@ -9,9 +9,9 @@
 // generated behavior is correct (e.g. first-assignment must not destruct garbage).
 // -------------------------------------------------------
 
-func take_int_ptr(p : *mut int) {
+func take_int_ptr(p : *mut int) { unsafe {
     *p = 99
-}
+ }}
 
 // A trivially-destructible struct, used to verify first-assignment does not
 // destroy the garbage initial value.

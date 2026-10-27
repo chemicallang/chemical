@@ -1311,7 +1311,7 @@ func (converter : &mut JsConverter) router_validate_block(block : *mut JsBlock) 
 
 // ── server emission ────────────────────────────────────────────────────────
 
-func (converter : &mut JsConverter) emit_router_server(rd : *mut JsRouterDecl) {
+func (converter : &mut JsConverter) emit_router_server(rd : *mut JsRouterDecl) { unsafe {
     const builder = converter.builder
     const location = intrinsics::get_raw_location()
 
@@ -1444,7 +1444,7 @@ func (converter : &mut JsConverter) emit_router_server(rd : *mut JsRouterDecl) {
 
     converter.vec = outerVec
     converter.vec.push(guard)
-}
+ }}
 
 // The direct nested `route` declarations of a route body (Phase 6). Empty when
 // the route has none.
@@ -1657,7 +1657,7 @@ func router_body_is_static(route : *mut JsRouteDecl) : bool {
 //     whether its client JS is already de-duplicated into a shared sink.
 func (converter : &mut JsConverter) emit_route_server(routerName : std::string_view, route : *mut JsRouteDecl,
                                                       defaultId : std::string_view, inheritedParams : std::string_view,
-                                                      client : bool) {
+                                                      client : bool) { unsafe {
     const builder = converter.builder
     const location = intrinsics::get_raw_location()
 
@@ -2005,4 +2005,4 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
     var closeTag = std::string()
     closeTag.append_view("</span></div>")
     converter.router_emit_target(&closeTag)
-}
+ }}

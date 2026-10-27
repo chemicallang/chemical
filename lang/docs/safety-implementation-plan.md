@@ -11,9 +11,9 @@
 > - `Diag::with_code`, related-information rendering; `Diagnoser`/
 >   `ASTDiagnoser` code plumbing.
 > - `SAFE-INIT-001` on use of an uninitialized variable.
-> - `SAFE-UNSAFE-001` on safe-context **raw-pointer** dereference (report-only;
+> - `SAFE-UNSAFE-001` on safe-context **raw-pointer** dereference (enforced;
 >   reference dereferences are safe and not flagged) and `SAFE-PROV-001` on
->   raw-pointer-derived references/casts (report-only).
+>   raw-pointer-derived references/casts (enforced).
 > - Negative harness accepts coded errors and has `expect_compile_warning_id`.
 > - `lang/tests/safety/` module + `--safety` suite, wired through
 >   `lang/tests/build.lab` and `scripts/test.sh`; negative output path is
@@ -672,8 +672,9 @@
 > loan, so `SAFE-LIFE-002` rejects a `Ref`/`RefMut` (even through `Option`)
 > that outlives its cell; `SAFE-DROP-002` is retired. Provenance reporting:
 > `SAFE-UNSAFE-001` only flags raw-pointer dereferences, and `SAFE-PROV-001`
-> flags `&*p`/`&mut *p` and raw/int/null → reference casts; both remain
-> report-only until the remaining raw-pointer migration (~200 sites) lands.
+> flags `&*p`/`&mut *p` and raw/int/null → reference casts; both are now
+> enforced after migrating the parser/TLS/atomic/test helpers (function-level
+> unsafe boundaries; expression-level inside async functions).
 > Next: S4.2b variance, async/Pin, and full provenance.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.

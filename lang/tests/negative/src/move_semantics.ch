@@ -55,7 +55,7 @@ func neg_deref_non_copy_generic(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     // De-referencing a `*T` where `T` is a generic parameter that is not `Copy`
     // is rejected (the value would be copied out of borrowed memory).
-    var ch = "struct NonCopy {\n    @delete\n    func delete(&mut self) { }\n}\nfunc <T> get_val(p : *T) : T {\n    return *p\n}\nfunc main() {\n    var n = NonCopy {}\n    var p = &raw n\n    var v = get_val(p)\n}\n"
+    var ch = "struct NonCopy {\n    @delete\n    func delete(&mut self) { }\n}\nfunc <T> get_val(p : *T) : T {\n    return unsafe(*p)\n}\nfunc main() {\n    var n = NonCopy {}\n    var p = &raw n\n    var v = get_val(p)\n}\n"
     expect_compile_error(env, "deref_non_copy_generic", ch, "Copy")
 }
 

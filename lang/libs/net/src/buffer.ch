@@ -19,7 +19,7 @@ public struct Buffer {
         if(v.capacity() < need) { v.reserve(need * 2) }
     }
 
-    public func append_bytes(&mut self, src:*u8, n: usize) {
+    public func append_bytes(&mut self, src:*u8, n: usize) { unsafe {
         v.reserve(v.size() + n)
         var curr = src;
         const end = curr + n;
@@ -27,7 +27,7 @@ public struct Buffer {
             v.push(*curr)
             curr++
         }
-    }
+     }}
 
     func consume(&mut self, n: usize) {
         read_pos = read_pos + n;

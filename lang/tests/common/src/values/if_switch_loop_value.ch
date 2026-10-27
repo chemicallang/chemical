@@ -35,9 +35,9 @@ struct if_val_fake_string_33 {
         return null;
     }
     @delete
-    func delete(&mut self) {
+    func delete(&mut self) { unsafe {
         *d_count = *d_count + 1
-    }
+     }}
 }
 
 func if_val_fake_atoi(a : *char) : int { return 0; }

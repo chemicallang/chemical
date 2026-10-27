@@ -171,14 +171,14 @@ public struct JsonArrayDecoder {
 
 impl std::ArrayDecoder<JsonValue> for JsonArrayDecoder {
 
-    func item_decoder(&mut self) : std::Result<JsonDecoder, std::SerializationError> {
+    func item_decoder(&mut self) : std::Result<JsonDecoder, std::SerializationError> { unsafe {
         if(self.index >= self.elements.size()) {
         return std::Result.Err(se_err("array index out of bounds"))
         }
         const i = self.index;
         self.index++;
         return std::Result.Ok(JsonDecoder { value : &*(self.elements.data() + i) })
-    }
+     }}
 
     func remaining(&self) : u64 {
         return if(self.index >= self.elements.size()) 0u64 else self.elements.size() - self.index

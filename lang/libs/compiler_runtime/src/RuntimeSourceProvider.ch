@@ -14,7 +14,7 @@
 using namespace std;
 
 @no_mangle
-public func compiler_SourceProviderincrement(provider : *mut SourceProvider) {
+public func compiler_SourceProviderincrement(provider : *mut SourceProvider) { unsafe {
     if(provider.data_ptr < provider.data_end) {
         const c = *provider.data_ptr
         provider.data_ptr += 1
@@ -25,10 +25,10 @@ public func compiler_SourceProviderincrement(provider : *mut SourceProvider) {
             provider.lineCharacterNumber += 1
         }
     }
-}
+ }}
 
 @no_mangle
-public func compiler_SourceProviderreadCharacter(provider : *mut SourceProvider) : char {
+public func compiler_SourceProviderreadCharacter(provider : *mut SourceProvider) : char { unsafe {
     if(provider.data_ptr >= provider.data_end) return '\0'
     const c = *provider.data_ptr
     provider.data_ptr += 1
@@ -39,10 +39,10 @@ public func compiler_SourceProviderreadCharacter(provider : *mut SourceProvider)
         provider.lineCharacterNumber += 1
     }
     return c
-}
+ }}
 
 @no_mangle
-public func compiler_SourceProviderreadCodePoint(provider : *mut SourceProvider) : u32 {
+public func compiler_SourceProviderreadCodePoint(provider : *mut SourceProvider) : u32 { unsafe {
     if(provider.data_ptr >= provider.data_end) return 0
     const b0 = *provider.data_ptr
     const c0 = b0 as u32
@@ -70,10 +70,10 @@ public func compiler_SourceProviderreadCodePoint(provider : *mut SourceProvider)
         i += 1
     }
     return cp
-}
+ }}
 
 @no_mangle
-public func compiler_SourceProviderutf8_decode_peek(provider : *mut SourceProvider, out_len : &mut size_t) : u32 {
+public func compiler_SourceProviderutf8_decode_peek(provider : *mut SourceProvider, out_len : &mut size_t) : u32 { unsafe {
     if(provider.data_ptr >= provider.data_end) {
         *out_len = 0
         return 0
@@ -100,7 +100,7 @@ public func compiler_SourceProviderutf8_decode_peek(provider : *mut SourceProvid
     }
     *out_len = len
     return cp
-}
+ }}
 
 @no_mangle
 public func compiler_SourceProviderincrementCodepoint(provider : *mut SourceProvider, cp : u32, len : size_t) {
@@ -117,19 +117,19 @@ public func compiler_SourceProvidereof(provider : *mut SourceProvider) : bool {
 }
 
 @no_mangle
-public func compiler_SourceProviderpeek(provider : *mut SourceProvider) : char {
+public func compiler_SourceProviderpeek(provider : *mut SourceProvider) : char { unsafe {
     if(provider.data_ptr >= provider.data_end) return '\0'
     return *provider.data_ptr
-}
+ }}
 
 @no_mangle
-public func compiler_SourceProviderincrement_char(provider : *mut SourceProvider, c : char) : bool {
+public func compiler_SourceProviderincrement_char(provider : *mut SourceProvider, c : char) : bool { unsafe {
     if(provider.data_ptr < provider.data_end && *provider.data_ptr == c) {
         compiler_SourceProviderincrement(provider)
         return true
     }
     return false
-}
+ }}
 
 @no_mangle
 public func compiler_SourceProvidergetLineNumber(provider : *mut SourceProvider) : uint {

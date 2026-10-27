@@ -86,43 +86,43 @@ func http_box(client : *mut Client, r : std::Result<Response, std::string>) : *m
 
 public async func request_async(client : *mut Client, req_builder : *mut RequestBuilder) : *mut HttpResult {
     return await async::spawn_blocking<*mut HttpResult>(|client, req_builder|() => {
-        return http_box(client, client.request(&mut *req_builder))
+        return http_box(client, client.request(unsafe(&mut *req_builder)))
     })
 }
 
 public async func get_async(client : *mut Client, url_str : *std::string_view) : *mut HttpResult {
     return await async::spawn_blocking<*mut HttpResult>(|client, url_str|() => {
-        return http_box(client, client.get(&mut *url_str))
+        return http_box(client, client.get(unsafe(&mut *url_str)))
     })
 }
 
 public async func post_async(client : *mut Client, url_str : *std::string_view, body : *std::string_view, content_type : *char = "text/plain") : *mut HttpResult {
     return await async::spawn_blocking<*mut HttpResult>(|client, url_str, body, content_type|() => {
-        return http_box(client, client.post(&mut *url_str, &mut *body, content_type))
+        return http_box(client, client.post(unsafe(&mut *url_str), unsafe(&mut *body), content_type))
     })
 }
 
 public async func put_async(client : *mut Client, url_str : *std::string_view, body : *std::string_view, content_type : *char = "text/plain") : *mut HttpResult {
     return await async::spawn_blocking<*mut HttpResult>(|client, url_str, body, content_type|() => {
-        return http_box(client, client.put(&mut *url_str, &mut *body, content_type))
+        return http_box(client, client.put(unsafe(&mut *url_str), unsafe(&mut *body), content_type))
     })
 }
 
 public async func patch_async(client : *mut Client, url_str : *std::string_view, body : *std::string_view, content_type : *char = "text/plain") : *mut HttpResult {
     return await async::spawn_blocking<*mut HttpResult>(|client, url_str, body, content_type|() => {
-        return http_box(client, client.patch(&mut *url_str, &mut *body, content_type))
+        return http_box(client, client.patch(unsafe(&mut *url_str), unsafe(&mut *body), content_type))
     })
 }
 
 public async func delete_async(client : *mut Client, url_str : *std::string_view) : *mut HttpResult {
     return await async::spawn_blocking<*mut HttpResult>(|client, url_str|() => {
-        return http_box(client, client.delete(&mut *url_str))
+        return http_box(client, client.delete(unsafe(&mut *url_str)))
     })
 }
 
 public async func head_async(client : *mut Client, url_str : *std::string_view) : *mut HttpResult {
     return await async::spawn_blocking<*mut HttpResult>(|client, url_str|() => {
-        return http_box(client, client.head(&mut *url_str))
+        return http_box(client, client.head(unsafe(&mut *url_str)))
     })
 }
 

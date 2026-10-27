@@ -29,7 +29,7 @@
  */
 using namespace std;
 
-public func get_next_token_runtime(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
+public func get_next_token_runtime(html : &mut HtmlLexer, lexer : &mut Lexer) : Token { unsafe {
     if(html.is_comment) {
         const provider = &mut lexer.provider
         const position = provider.getPosition();
@@ -93,7 +93,7 @@ public func get_next_token_runtime(html : &mut HtmlLexer, lexer : &mut Lexer) : 
     const t = getNextToken2(html, lexer)
     html.after_chem_expr = false
     return t
-}
+ }}
 
 public func tokenize_html_impl(view : std::string_view) : std::vector<Token> {
     var tokens = std::vector<Token>()

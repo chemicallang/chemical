@@ -65,12 +65,12 @@ public namespace std {
             return _size == 0;
         }
 
-        func get(&self, index : size_t) : char {
+        func get(&self, index : size_t) : char { unsafe {
             if(index >= size()) {
                 panic("string_view index out of bounds")
             }
             return *(_data + index)
-        }
+         }}
 
         func subview(&self, start : size_t, end : size_t) : 'self std::string_view {
             if(start > end || end > _size) {

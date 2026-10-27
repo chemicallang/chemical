@@ -601,7 +601,7 @@ func linux_on_drag_data_received(
     info : DWORD,
     time : DWORD,
     user_data : *mut void
-) {
+) { unsafe {
     var ctx = window_ctx_get(widget)
     if(ctx == null || ctx.drop_cb == null || data == null) {
         return
@@ -615,7 +615,7 @@ func linux_on_drag_data_received(
             g_free(path as *mut void)
         }
     }
-}
+ }}
 
 // ===========================================================================
 // public API

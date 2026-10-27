@@ -213,7 +213,7 @@ func test_not_branching_fix() : bool {
     return false;
 }
 
-func test_bodmas() {
+func test_bodmas() { unsafe {
     test("not branching regression", () => {
         return test_not_branching_fix();
     });
@@ -566,7 +566,7 @@ func test_bodmas() {
         return y == ~42
     })
 
-}
+ }}
 
 // test vectors (., .., a, .a)
 var dot_u16 : [3]u16 = ['.' as u16, 0u16, 0u16];

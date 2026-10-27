@@ -111,7 +111,7 @@ public namespace tls {
 
     public func ecdsa_sign(ctx : *mut ECDSAContext,
                             hash : *u8, hash_len : size_t,
-                            sig_out : *mut u8, sig_out_len : *mut u16) : int {
+                            sig_out : *mut u8, sig_out_len : *mut u16) : int { unsafe {
         if(tls_config::DEBUG_LOG) printf("[ECDSA_DBG] has_priv=%d curve=%d\n", ctx.has_private as int, ctx.curve_id as int)
         if(!ctx.has_private) { if(tls_config::DEBUG_LOG) printf("[ECDSA_DBG] no private key!\n"); return ERR_ECDSA_VERIFY_FAILED }
         var coord_bytes : size_t = 32
@@ -232,7 +232,7 @@ public namespace tls {
 
         *sig_out_len = pos as u16
         return 0
-    }
+     }}
 
     // ─── Parse ECDSA Signature (ASN.1 DER) ───────────────────────────────
 

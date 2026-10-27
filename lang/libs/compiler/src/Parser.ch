@@ -26,21 +26,21 @@ public interface Parser {
 
 }
 
-public func (parser : &mut Parser) getToken() : *mut Token {
+public func (parser : &mut Parser) getToken() : *mut Token { unsafe {
     return *parser.getTokenPtr();
-}
+ }}
 
-public func (parser : &mut Parser) setToken(token : *mut Token) {
+public func (parser : &mut Parser) setToken(token : *mut Token) { unsafe {
     var ptr = parser.getTokenPtr()
     *ptr = token;
-}
+ }}
 
-public func (parser : &mut Parser) increment() {
+public func (parser : &mut Parser) increment() { unsafe {
     var ptr = parser.getTokenPtr();
     *ptr = (*ptr) + 1
-}
+ }}
 
-public func (parser : &mut Parser) increment_if(type : int) : bool {
+public func (parser : &mut Parser) increment_if(type : int) : bool { unsafe {
     var ptr = parser.getTokenPtr();
     var token = *ptr;
     if(token.type == type) {
@@ -49,9 +49,9 @@ public func (parser : &mut Parser) increment_if(type : int) : bool {
     } else {
         return false;
     }
-}
+ }}
 
-public func (parser : &mut Parser) get_incrementing_if(type : int) : *mut Token {
+public func (parser : &mut Parser) get_incrementing_if(type : int) : *mut Token { unsafe {
     var ptr = parser.getTokenPtr();
     var token = *ptr;
     if(token.type == type) {
@@ -60,16 +60,16 @@ public func (parser : &mut Parser) get_incrementing_if(type : int) : *mut Token 
     } else {
         return null;
     }
-}
+ }}
 
-public func (parser : &mut Parser) getParentNode() : *mut ASTNode {
+public func (parser : &mut Parser) getParentNode() : *mut ASTNode { unsafe {
     return *parser.getParentNodePtr();
-}
+ }}
 
-public func (parser : &mut Parser) setParentNode(node : *mut ASTNode) {
+public func (parser : &mut Parser) setParentNode(node : *mut ASTNode) { unsafe {
     var ptr = parser.getParentNodePtr();
     *ptr = node;
-}
+ }}
 
 public func (parser : &mut Parser) error(msg : std::string_view) {
     return parser.error_at(msg, parser.getToken())

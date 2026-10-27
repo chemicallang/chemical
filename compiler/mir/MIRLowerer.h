@@ -531,6 +531,13 @@ public:
     void set_debug_info(bool on) { debug_info_ = on; }
 
     /**
+     * Enable checked signed arithmetic (`--overflow-checks`). Off by default:
+     * release builds wrap, the checked profile traps before the wrapped value
+     * is stored. Floats and unsigned arithmetic are always defined.
+     */
+    void set_overflow_checks(bool on) { overflow_checks_ = on; }
+
+    /**
      * The `FileScope`s of the files that were parsed for the module currently
      * being lowered. A non-retained function's body lives on the module
      * allocator, which is cleared once its module is compiled, so a body
@@ -620,6 +627,12 @@ private:
 
     /** Reject shifts whose amount is negative or >= the type's bit width. */
     void emit_shift_check(ValueId amount, TypeId type);
+
+    /** Trap (checked profile only) when a signed arithmetic result overflowed. */
+    void emit_overflow_check(MIRBinaryOp op, ValueId lhs, ValueId rhs,
+                             ValueId result, TypeId type);
+    /** Trap (checked profile only) on signed unary negation of MIN. */
+    void emit_negation_check(ValueId operand, TypeId type);
 
     /** Apply the division/shift guards for a compound assignment operator. */
     void emit_compound_assignment_checks(MIRBinaryOp op, ValueId lhs, ValueId rhs, TypeId type);
@@ -1200,6 +1213,8 @@ private:
     std::function<bool(uint64_t, MIRSourceLoc&)> source_loc_provider_;
     /** Record debug-only metadata (place names, lexical scopes). See set_debug_info. */
     bool debug_info_ = false;
+    /** Trap on signed add/sub/mul/neg overflow. See set_overflow_checks. */
+    bool overflow_checks_ = false;
     /**
      * Files parsed for the module currently being lowered, or null when unknown.
      * Guards body inspection against module-allocator reuse — see

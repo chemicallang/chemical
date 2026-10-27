@@ -326,7 +326,14 @@
 >   assignments (`/=`, `%=`, `<<=`, `>>=`) on locals, globals, fields,
 >   dereferences, and array elements. Runtime safety tests cover division,
 >   remainder, shift, signed overflow, and compound local/field/index cases.
->   Debug `+`/`-`/`*` overflow and unary negation remain pending.
+> - S5.5b checked signed arithmetic: `--overflow-checks` traps signed `+`,
+>   `-`, `*` and unary negation (including compound assignments) before the
+>   wrapped value is stored; unsigned arithmetic keeps its defined wrapping and
+>   the flag is off by default so release builds stay two's-complement. The
+>   add/sub guards use the width-independent sign-bit identity, mul uses a
+>   guarded quotient, and a literal `-2147483648i32` stays valid (only a
+>   runtime negation of `MIN` traps). Safety-suite runtime tests cover all
+>   four operations, compound forms, and a checked run without overflow.
 > - S5.4d string bounds: `string::get`/`set`, `string_view::get`, and
 >   `u16_string::get`/`set` reject `index >= size()` with a panic;
 >   `string_view::subview` requires `start <= end <= size` and `skip` requires

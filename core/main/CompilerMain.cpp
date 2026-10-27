@@ -75,6 +75,7 @@ void print_help() {
                  "--ignore-errors     -[empty]      ignore any errors that happen and compile any way\n"
                  "--safety-report     -[empty]      read-only safety audit (raw pointers, unsafe ops, FFI, panics, allocators)\n"
                  "--safety-report json -[empty]     emit one JSON object per module (JSONL)\n"
+                 "--overflow-checks   -[empty]      trap on signed add/sub/mul/neg overflow\n"
                  "--arg-[arg]         -arg-[arg]    can be used to provide arguments to build.lab\n"
                  //                 "--verify            -o            do not compile, only verify source code\n"
                  "--jit               -jit          do just in time compilation using Tiny CC\n"
@@ -383,6 +384,7 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("test", "test", CmdOptionType::NoValue),
             CmdOption("safety-report", CmdOptionType::SingleValue),
             CmdOption("safety-report-json", CmdOptionType::NoValue),
+            CmdOption("overflow-checks", "foverflow-checks", CmdOptionType::NoValue),
             CmdOption("benchmark", "bm", CmdOptionType::NoValue),
             CmdOption("benchmark-files", "bm-files", CmdOptionType::NoValue),
             CmdOption("benchmark-modules", "bm-modules", CmdOptionType::NoValue),
@@ -550,6 +552,7 @@ int compiler_main(int argc, char *argv[]) {
             opts->safety_report = true;
             opts->safety_report_json = true;
         }
+        opts->overflow_checks = options.has_value("overflow-checks", "foverflow-checks");
         if(opts->safety_report) {
             // The audit must see parsed declarations, not cached objects.
             opts->is_caching_enabled = false;

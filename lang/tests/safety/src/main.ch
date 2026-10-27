@@ -89,7 +89,8 @@ internal func safety_run_command_capture(args : vector<string>, out : &mut strin
 
 // Compile `ch_content` into `name` and run it. The program is expected to
 // terminate abnormally (panic/abort or a nonzero exit code).
-internal func expect_runtime_panic(env : &mut TestEnv, name : *char, ch_content : *char) {
+internal func expect_runtime_panic(env : &mut TestEnv, name : *char, ch_content : *char,
+                                  checked : bool = false) {
     var dir_path : [512]char
     var mod_path : [512]char
     var exe_path : [512]char
@@ -120,6 +121,9 @@ internal func expect_runtime_panic(env : &mut TestEnv, name : *char, ch_content 
     compile_args.push(string("--no-cache"))
     compile_args.push(string("-o"))
     compile_args.push(executable_path)
+    if(checked) {
+        compile_args.push(string("--overflow-checks"))
+    }
     var compile_rc = safety_run_command(compile_args)
     if(compile_rc != 0) {
         env.error("expected runtime test to compile")
@@ -140,7 +144,7 @@ internal func expect_runtime_panic(env : &mut TestEnv, name : *char, ch_content 
 // Compile and run `ch_content`; returns the process exit code and captures
 // stdout+stderr into `out`.
 internal func safety_compile_and_run(env : &mut TestEnv, name : *char, ch_content : *char,
-                                     out : &mut string) : int {
+                                     out : &mut string, checked : bool = false) : int {
     var dir_path : [512]char
     var mod_path : [512]char
     var exe_path : [512]char
@@ -171,6 +175,9 @@ internal func safety_compile_and_run(env : &mut TestEnv, name : *char, ch_conten
     compile_args.push(string("--no-cache"))
     compile_args.push(string("-o"))
     compile_args.push(executable_path)
+    if(checked) {
+        compile_args.push(string("--overflow-checks"))
+    }
     var compile_rc = safety_run_command(compile_args)
     if(compile_rc != 0) {
         env.error("expected runtime test to compile")
@@ -572,4 +579,58 @@ func partial_array_reassignment_destroys_old_element(env : &mut TestEnv) {
 
 public func main(argc : int, argv : **char) {
     test_runner(argc, argv)
+}
+
+
+@test
+func checked_add_overflow_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var a : i32 = 2147483647i32\n    a = a + 1\n    return 0\n}\n"
+    expect_runtime_panic(env, "checked_add_overflow", ch, true)
+}
+
+@test
+func checked_sub_overflow_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var a : i32 = -2147483648i32\n    a = a - 1\n    return 0\n}\n"
+    expect_runtime_panic(env, "checked_sub_overflow", ch, true)
+}
+
+@test
+func checked_mul_overflow_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var a : i32 = 1073741824i32\n    a = a * 2\n    return 0\n}\n"
+    expect_runtime_panic(env, "checked_mul_overflow", ch, true)
+}
+
+@test
+func checked_neg_overflow_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var a : i32 = -2147483648i32\n    var b = -a\n    return 0\n}\n"
+    expect_runtime_panic(env, "checked_neg_overflow", ch, true)
+}
+
+@test
+func checked_compound_add_overflow_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var a : i32 = 2147483647i32\n    a += 1\n    return 0\n}\n"
+    expect_runtime_panic(env, "checked_compound_add", ch, true)
+}
+
+@test
+func checked_compound_mul_overflow_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var a : i32 = 1073741824i32\n    a *= 2\n    return 0\n}\n"
+    expect_runtime_panic(env, "checked_compound_mul", ch, true)
+}
+
+@test
+func checked_arithmetic_without_overflow_runs(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var a : i32 = 2147483646i32\n    a = a + 1\n    var b : i32 = -2147483647i32\n    b = b - 1\n    var c : i32 = 1073741823i32\n    c = c * 2\n    var d = 5\n    d = -d\n    var e : u32 = 4294967295u32\n    e = e + 1u32\n    if(a != 2147483647i32 || b != -2147483648i32 || c != 2147483646i32 || d != -5 || e != 0u32) { return 1 }\n    return 0\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "checked_arithmetic_ok", ch, &mut out, true)
+    if(rc != 0) {
+        env.error("checked arithmetic without overflow should run cleanly")
+    }
 }

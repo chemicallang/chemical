@@ -48,6 +48,13 @@ public:
     bool debug_info = false;
 
     /**
+     * Enable checked signed arithmetic (add/sub/mul/unary neg). Off by default
+     * so release builds keep two's-complement wrapping; pass
+     * `--overflow-checks` for the debug/checked profile.
+     */
+    bool overflow_checks = false;
+
+    /**
      * emit the translated c
      */
     bool emit_c = false;

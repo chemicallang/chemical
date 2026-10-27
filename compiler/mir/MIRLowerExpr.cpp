@@ -168,7 +168,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 return lower_unary_operator_overload(n->getValue(), in, "neg", n->getType(), error);
             }
             ConstantId op = module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRUnaryOp::Neg));
-            return MIRExprResult::value(builder_->unary(in.id, op, type), type);
+            const ValueId negated = builder_->unary(in.id, op, type);
+            emit_negation_check(static_cast<ValueId>(in.id), type);
+            return MIRExprResult::value(negated, type);
         }
         case ValueKind::NotValue: {
             auto* n = value->as_not_value_unsafe();
@@ -244,7 +246,10 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             if (op == MIROpcode::Compare) {
                 return MIRExprResult::value(builder_->compare(lhs.id, rhs.id, opc, type), type);
             }
-            return MIRExprResult::value(builder_->binary(lhs.id, rhs.id, opc, type), type);
+            const ValueId result = builder_->binary(lhs.id, rhs.id, opc, type);
+            emit_overflow_check(bop, static_cast<ValueId>(lhs.id),
+                                static_cast<ValueId>(rhs.id), result, operand_type);
+            return MIRExprResult::value(result, type);
         }
         case ValueKind::CastedValue: {
             auto* c = value->as_casted_value_unsafe();
@@ -2040,6 +2045,150 @@ void MIRLowerer::emit_shift_check(ValueId amount, TypeId type) {
     emit_abort_unless(in_range);
 }
 
+
+namespace {
+
+bool checked_signed_int(const MIRModule& module, TypeId type, uint32_t& bits) {
+    if (type == MIR_INVALID_ID || type >= module.types.size()) return false;
+    const MIRTypeRecord& rec = module.types.get(type);
+    if (rec.kind != MIRTypeKind::Int || (rec.flags & TF_SIGNED) == 0) return false;
+    bits = rec.size * 8u;
+    return true;
+}
+
+uint64_t signed_min_bits(uint32_t bits) {
+    return bits >= 64u ? (1ull << 63u) : (1ull << (bits - 1u));
+}
+
+bool constant_value(const MIRFunction& fn, ValueId value, int depth) {
+    if (depth > 8 || value >= fn.values.size()) return false;
+    const uint32_t def = fn.values[value].def_inst;
+    if (def >= fn.instructions.size()) return false;
+    const MIRInstruction& inst = fn.instructions[def];
+    switch (inst.opcode()) {
+        case MIROpcode::ConstInt:
+        case MIROpcode::ConstFloat:
+        case MIROpcode::ConstDouble:
+        case MIROpcode::ConstBool:
+        case MIROpcode::ConstNull:
+        case MIROpcode::ConstString:
+            return true;
+        case MIROpcode::Cast:
+        case MIROpcode::Copy: {
+            if (inst.operand_count == 0) return false;
+            const MIROperand& src = fn.operands[inst.operand_offset];
+            return src.kind() == MIROperandKind::Value
+                       ? constant_value(fn, src.id, depth + 1)
+                       : false;
+        }
+        default:
+            return false;
+    }
+}
+
+} // namespace
+
+void MIRLowerer::emit_overflow_check(MIRBinaryOp op, ValueId lhs, ValueId rhs,
+                                     ValueId result, TypeId type) {
+    if (!overflow_checks_) return;
+    uint32_t bits = 0;
+    if (!checked_signed_int(module_, type, bits)) return;
+    if (op != MIRBinaryOp::Add && op != MIRBinaryOp::Sub &&
+        op != MIRBinaryOp::Mul) {
+        return;
+    }
+
+    const TypeId bool_t = types_.bool_type();
+    const ConstantId eq = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq));
+    const ConstantId ne = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Ne));
+    const ConstantId lt = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt));
+    const ConstantId bxor = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::BitXor));
+    const ConstantId band = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::BitAnd));
+    const ConstantId bdiv = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Div));
+    const ValueId zero = builder_->const_int(
+        type, module_.constants.add_int(type, 0));
+
+    if (op == MIRBinaryOp::Add || op == MIRBinaryOp::Sub) {
+        // a + b overflows iff the operands have the same sign and the result
+        // differs; a - b overflows iff a and b differ and the result differs
+        // from a. These are width-independent and never overflow themselves.
+        const ValueId a = op == MIRBinaryOp::Add
+                              ? builder_->binary(lhs, result, bxor, type)
+                              : builder_->binary(lhs, rhs, bxor, type);
+        const ValueId b = op == MIRBinaryOp::Add
+                              ? builder_->binary(rhs, result, bxor, type)
+                              : builder_->binary(lhs, result, bxor, type);
+        const ValueId sign = builder_->binary(a, b, band, type);
+        const ValueId overflow = builder_->compare(sign, zero, lt, bool_t);
+        const ValueId safe = builder_->compare(
+            overflow, builder_->const_bool(bool_t, module_.constants.add_bool(bool_t, false)),
+            eq, bool_t);
+        emit_abort_unless(safe);
+        return;
+    }
+
+    // Signed multiplication. `lhs == 0` is always safe; `lhs == -1` overflows
+    // exactly when `rhs == MIN`; otherwise the wrapped result divided by lhs
+    // must equal rhs. The division is only reached when lhs is neither 0 nor
+    // -1, so it cannot trap.
+    const PlaceId ok = builder_->alloca(bool_t, MIRStorageClass::Temporary);
+    builder_->store(ok, builder_->const_bool(
+        bool_t, module_.constants.add_bool(bool_t, true)));
+    const ValueId lhs_is_zero = builder_->compare(lhs, zero, eq, bool_t);
+    const BlockId safe_b = builder_->create_block();
+    const BlockId lhs_nonzero_b = builder_->create_block();
+    builder_->cond_br(lhs_is_zero, safe_b, lhs_nonzero_b);
+    builder_->set_block(lhs_nonzero_b);
+
+    const uint64_t minus_one_bits = ~static_cast<uint64_t>(0);
+    const ValueId minus_one = builder_->const_int(
+        type, module_.constants.add_int(type, minus_one_bits));
+    const ValueId lhs_is_minus_one = builder_->compare(lhs, minus_one, eq, bool_t);
+    const BlockId minus_one_b = builder_->create_block();
+    const BlockId divide_b = builder_->create_block();
+    builder_->cond_br(lhs_is_minus_one, minus_one_b, divide_b);
+
+    builder_->set_block(minus_one_b);
+    const ValueId min_value = builder_->const_int(
+        type, module_.constants.add_int(type, signed_min_bits(bits)));
+    const ValueId rhs_not_min = builder_->compare(rhs, min_value, ne, bool_t);
+    builder_->store(ok, rhs_not_min);
+    builder_->br(safe_b);
+
+    builder_->set_block(divide_b);
+    const ValueId quotient = builder_->binary(result, lhs, bdiv, type);
+    const ValueId exact = builder_->compare(quotient, rhs, eq, bool_t);
+    builder_->store(ok, exact);
+    builder_->br(safe_b);
+
+    builder_->set_block(safe_b);
+    emit_abort_unless(builder_->load(ok, bool_t));
+}
+
+void MIRLowerer::emit_negation_check(ValueId operand, TypeId type) {
+    if (!overflow_checks_) return;
+    uint32_t bits = 0;
+    if (!checked_signed_int(module_, type, bits)) return;
+    // `-2147483648i32` is a valid literal even though the positive magnitude
+    // is MIN after truncation. Only a runtime negation of MIN traps.
+    if (builder_ != nullptr &&
+        constant_value(builder_->function(), operand, 0)) {
+        return;
+    }
+    const TypeId bool_t = types_.bool_type();
+    const ConstantId ne = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Ne));
+    const ValueId min_value = builder_->const_int(
+        type, module_.constants.add_int(type, signed_min_bits(bits)));
+    const ValueId safe = builder_->compare(operand, min_value, ne, bool_t);
+    emit_abort_unless(safe);
+}
 
 void MIRLowerer::emit_compound_assignment_checks(MIRBinaryOp op, ValueId lhs,
                                                  ValueId rhs, TypeId type) {

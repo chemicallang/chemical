@@ -421,8 +421,11 @@ Next:
   indexing is excluded because it has its own checks. Integer `/`/`%` guard
   zero and signed `MIN / -1`; `<<`/`>>` guard negative or `>= bit width`
   shift amounts (S5.5a), including compound `/=`, `%=`, `<<=`, `>>=` on
-  locals/globals/fields/derefs/elements. Debug `+`/`-`/`*` overflow and unary
-  negation remain pending.
+  locals/globals/fields/derefs/elements. Checked signed `+`, `-`, `*` and
+  unary negation (S5.5b) run under `--overflow-checks`, including compound
+  assignments; add/sub use the sign-bit identity, mul a guarded quotient, and
+  a literal `-2147483648i32` remains valid while a runtime `-MIN` traps.
+  Unsigned arithmetic keeps defined wrapping and the flag is off by default.
   `Box::into_inner` frees storage without re-running the destructor. `unsafe func` (S2.6a) is parsed at top level and
   as a member, and calls from safe code are rejected; `unsafe(expr)`/`unsafe {}`
   are both unsafe call contexts. Partial initialization and partial moves are

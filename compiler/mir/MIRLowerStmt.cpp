@@ -300,6 +300,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                             return false;
                         }
                         const ValueId nv = builder_->binary(cur, r.id, opc, ft);
+                        emit_overflow_check(bop, cur, static_cast<ValueId>(r.id), nv, ft);
                         if (!have_ptr) {
                             builder_->field_store(cur_place, fc, nv);
                         } else {
@@ -452,6 +453,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         return false;
                     }
                     const ValueId nv = builder_->binary(cur, r.id, opc, et);
+                    emit_overflow_check(bop, cur, static_cast<ValueId>(r.id), nv, et);
                     builder_->store_indirect(static_cast<ValueId>(p.id), nv);
                 } else {
                     builder_->store_indirect(static_cast<ValueId>(p.id), r.id);
@@ -608,7 +610,9 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                             builder_->element_load(bp, static_cast<ValueId>(idx.id), et);
                         emit_compound_assignment_checks(bop, cur,
                                                         static_cast<ValueId>(r.id), et);
-                        val = builder_->binary(cur, r.id, opc, et);
+                        const ValueId nv = builder_->binary(cur, r.id, opc, et);
+                        emit_overflow_check(bop, cur, static_cast<ValueId>(r.id), nv, et);
+                        val = nv;
                     } else {
                         destroy_old_element();
                     }
@@ -622,7 +626,9 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                             builder_->index_load(bv, static_cast<ValueId>(idx.id), et);
                         emit_compound_assignment_checks(bop, cur,
                                                         static_cast<ValueId>(r.id), et);
-                        val = builder_->binary(cur, r.id, opc, et);
+                        const ValueId nv = builder_->binary(cur, r.id, opc, et);
+                        emit_overflow_check(bop, cur, static_cast<ValueId>(r.id), nv, et);
+                        val = nv;
                     }
                     builder_->index_store(bv, static_cast<ValueId>(idx.id), val);
                 }
@@ -698,6 +704,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         const ValueId cur = builder_->load_indirect(addr, vt);
                         emit_compound_assignment_checks(bop, cur, rv, vt);
                         const ValueId nv = builder_->binary(cur, rv, opc, vt);
+                    emit_overflow_check(bop, cur, rv, nv, vt);
                         builder_->store_indirect(addr, nv);
                         return true;
                     }
@@ -860,7 +867,9 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 emit_compound_assignment_checks(bop, cur, val, place_type);
                 const ConstantId opc = module_.constants.add_int(
                     MIR_INVALID_ID, static_cast<uint64_t>(bop));
-                val = builder_->binary(cur, val, opc, place_type);
+                const ValueId nv = builder_->binary(cur, val, opc, place_type);
+                emit_overflow_check(bop, cur, val, nv, place_type);
+                val = nv;
             } else if (r.type != place_type) {
                 val = builder_->cast(val, place_type);
             }

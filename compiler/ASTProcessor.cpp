@@ -2721,6 +2721,7 @@ int ASTProcessor::implement_module(
     // once per declaration/lambda, and safety diagnostics need a location even
     // in `debug_quick`.
     mir_lowerer.set_debug_info(options->debug_info);
+    mir_lowerer.set_overflow_checks(options->overflow_checks);
     mir_lowerer.set_source_loc_provider([this, &mir_module, &mir_visitor_mutex](uint64_t enc, mir::MIRSourceLoc& out) -> bool {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         if (enc == 0) return false;
@@ -3115,6 +3116,7 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     // once per declaration/lambda, and safety diagnostics need a location even
     // in `debug_quick`.
     mir_lowerer.set_debug_info(options->debug_info);
+    mir_lowerer.set_overflow_checks(options->overflow_checks);
     mir_lowerer.set_source_loc_provider([this, &mir_module, &mir_visitor_mutex](uint64_t enc, mir::MIRSourceLoc& out) -> bool {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         if (enc == 0) return false;

@@ -1,0 +1,169 @@
+{
+  "type": "daily",
+  "id": "2026-10-27-linux-arm64",
+  "date": "2026-10-27",
+  "generated_at": "2026-10-27T08:46:44Z",
+  "duration_ms": 209242,
+  "status": "success",
+  "status_reason": null,
+  "platform": {
+    "os": "linux",
+    "arch": "arm64",
+    "libc": "glibc"
+  },
+  "commit": {
+    "sha": "e7c8b3e8ba78f2089c20437c4127e34f3fa02f96",
+    "short": "e7c8b3e8ba78",
+    "subject": "safety: route long constant string mutation through heap (S5.3m)",
+    "author_date": "2026-10-27T00:53:16+05:00"
+  },
+  "compiler_version": {
+    "TCCCompiler": "Chemical v0.5.18",
+    "Compiler": "Chemical v0.5.18"
+  },
+  "backends": {
+    "Interpreter": {
+      "build": {
+        "status": "success",
+        "reason": null
+      },
+      "benchmarks": [
+        {
+          "name": "hello_bare",
+          "status": "unavailable",
+          "reason": "interpreter requires a build.lab interpretation job; standalone hello world is not interpretable via the CLI",
+          "duration_ms": null,
+          "run": null
+        },
+        {
+          "name": "hello_std",
+          "status": "unavailable",
+          "reason": "interpreter requires a build.lab interpretation job; standalone hello world is not interpretable via the CLI",
+          "duration_ms": null,
+          "run": null
+        }
+      ],
+      "modules": [],
+      "files": [],
+      "tests": {
+        "status": "build_failure",
+        "reason": "test suite compilation failed with exit code 134",
+        "total": null,
+        "passed": null,
+        "failed": null,
+        "succeeded": null,
+        "duration_ms": 418,
+        "complete": false,
+        "sequential": null,
+        "runner": null,
+        "failed_tests": [],
+        "crashed_tests": [],
+        "timed_out_tests": []
+      },
+      "tests_build_ms": 418,
+      "tests_build_status": "failed"
+    },
+    "Compiler": {
+      "build": {
+        "status": "success",
+        "reason": null
+      },
+      "benchmarks": [
+        {
+          "name": "hello_bare",
+          "status": "success",
+          "reason": null,
+          "duration_ms": 34,
+          "run": {
+            "status": "success",
+            "reason": null,
+            "output": "hello world",
+            "expected": "hello world"
+          }
+        },
+        {
+          "name": "hello_std",
+          "status": "success",
+          "reason": null,
+          "duration_ms": 693,
+          "run": {
+            "status": "failed",
+            "reason": "expected 'hello world', got '' (exit 0)",
+            "output": "",
+            "expected": "hello world"
+          }
+        }
+      ],
+      "modules": [],
+      "files": [],
+      "tests": {
+        "status": "build_failure",
+        "reason": "test suite compilation failed with exit code 134",
+        "total": null,
+        "passed": null,
+        "failed": null,
+        "succeeded": null,
+        "duration_ms": 450,
+        "complete": false,
+        "sequential": null,
+        "runner": null,
+        "failed_tests": [],
+        "crashed_tests": [],
+        "timed_out_tests": []
+      },
+      "tests_build_ms": 450,
+      "tests_build_status": "failed"
+    },
+    "TCCCompiler": {
+      "build": {
+        "status": "success",
+        "reason": null
+      },
+      "benchmarks": [
+        {
+          "name": "hello_bare",
+          "status": "success",
+          "reason": null,
+          "duration_ms": 11,
+          "run": {
+            "status": "success",
+            "reason": null,
+            "output": "hello world",
+            "expected": "hello world"
+          }
+        },
+        {
+          "name": "hello_std",
+          "status": "success",
+          "reason": null,
+          "duration_ms": 204,
+          "run": {
+            "status": "failed",
+            "reason": "expected 'hello world', got '' (exit 0)",
+            "output": "",
+            "expected": "hello world"
+          }
+        }
+      ],
+      "modules": [],
+      "files": [],
+      "tests": {
+        "status": "build_failure",
+        "reason": "test suite compilation failed with exit code 134",
+        "total": null,
+        "passed": null,
+        "failed": null,
+        "succeeded": null,
+        "duration_ms": 452,
+        "complete": false,
+        "sequential": null,
+        "runner": null,
+        "failed_tests": [],
+        "crashed_tests": [],
+        "timed_out_tests": []
+      },
+      "tests_build_ms": 452,
+      "tests_build_status": "failed"
+    }
+  }
+}

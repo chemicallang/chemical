@@ -25,7 +25,8 @@ enum class MIRMoveState : uint8_t {
     Initialized,
     Moved,
     Destroyed,
-    Maybe, // the paths reaching this point disagree
+    PartiallyMoved, // some owned children were moved out of the aggregate
+    Maybe,          // the paths reaching this point disagree
 };
 
 struct MIRMoveDiagnostic {

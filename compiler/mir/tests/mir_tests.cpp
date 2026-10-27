@@ -1877,6 +1877,119 @@ static bool test_move_check() {
         CHECK(cr.ok());
     }
 
+    // ── partial initialization (S3.1c) ──────────────────────────────────────
+    // outer2 { a: owned, b: owned }: a tracked aggregate with two owned fields.
+    MIRTypeRecord outer2;
+    outer2.kind = MIRTypeKind::Struct;
+    const TypeId outer2_id = module.types.push(outer2);
+    std::vector<MIRFieldInfo> outer2_fields(2);
+    outer2_fields[0].type = owned_id;
+    outer2_fields[0].name_offset = module.types.append_field_name("a", 1);
+    outer2_fields[0].name_length = 1;
+    outer2_fields[1].type = owned_id;
+    outer2_fields[1].name_offset = module.types.append_field_name("b", 1);
+    outer2_fields[1].name_length = 1;
+    const uint32_t outer2_field_index = module.types.append_fields(outer2_fields);
+    module.types.update(outer2_id, [&](MIRTypeRecord& rec) {
+        rec.data_count = 2;
+        rec.field_index = outer2_field_index;
+    });
+    const ConstantId fa = module.constants.add_string(MIR_INVALID_ID, "a", 1);
+    const ConstantId fb = module.constants.add_string(MIR_INVALID_ID, "b", 1);
+
+    {
+        // A construction temporary may be written field by field on a fresh
+        // alloca: the aggregate becomes initialized once every owned child is.
+        MIRFunction fn;
+        build(fn, [&](MIRBuilder& b) {
+            const PlaceId src = b.alloca(owned_id);
+            const PlaceId temp = b.alloca(outer2_id, MIRStorageClass::Temporary);
+            const PlaceId dst = b.alloca(outer2_id);
+            b.init(src, ctor, nullptr, 0);
+            b.field_store(temp, fa, b.load(src, owned_id));
+            b.field_store(temp, fb, b.load(src, owned_id));
+            b.move_init(dst, temp, outer2_id);
+        });
+        MIRMoveCheckResult r = check_function_moves(module, fn);
+        if (!r.ok()) {
+            for (const auto& d : r.diagnostics) {
+                std::cerr << "temp-construct diag: " << d.code << " " << d.message
+                          << " path=" << d.path << " inst=" << d.inst_index << "\n";
+            }
+        }
+        CHECK(r.ok());
+    }
+
+    {
+        // A user local cannot be partially initialized field by field: the drop
+        // at scope exit would run over an uninitialized sibling.
+        MIRFunction fn;
+        build(fn, [&](MIRBuilder& b) {
+            const PlaceId src = b.alloca(owned_id);
+            const PlaceId local = b.alloca(outer2_id, MIRStorageClass::Local);
+            b.init(src, ctor, nullptr, 0);
+            b.field_store(local, fa, b.load(src, owned_id));
+        });
+        MIRMoveCheckResult r = check_function_moves(module, fn);
+        CHECK(!r.ok());
+        CHECK(!r.diagnostics.empty());
+        CHECK(std::string(r.diagnostics[0].code) == "SAFE-INIT-001");
+        CHECK(r.diagnostics[0].message.find("write to a field of") !=
+              std::string::npos);
+    }
+
+    {
+        // Overwriting an initialized field of a fully initialized value is fine.
+        MIRFunction fn;
+        build(fn, [&](MIRBuilder& b) {
+            const PlaceId src = b.alloca(owned_id);
+            const PlaceId local = b.alloca(outer2_id);
+            b.init(src, ctor, nullptr, 0);
+            b.init(local, ctor, nullptr, 0);
+            b.field_store(local, fa, b.load(src, owned_id));
+        });
+        CHECK(check_function_moves(module, fn).ok());
+    }
+
+    {
+        // A destructor-bearing local with no owned children may still be
+        // initialized by hand through an untracked scalar field; ownership has
+        // nothing to prove, so the value becomes usable and drop is allowed.
+        MIRFunction fn;
+        build(fn, [&](MIRBuilder& b) {
+            const PlaceId src = b.alloca(owned_id);
+            const PlaceId local = b.alloca(owned_id, MIRStorageClass::Local);
+            b.init(src, ctor, nullptr, 0);
+            b.field_store(local, fa, b.load(src, owned_id));
+            b.drop(local, dtor);
+        });
+        MIRMoveCheckResult r = check_function_moves(module, fn);
+        if (!r.ok()) {
+            for (const auto& d : r.diagnostics) {
+                std::cerr << "scalar-init diag: " << d.code << " " << d.message
+                          << " path=" << d.path << " inst=" << d.inst_index << "\n";
+            }
+        }
+        CHECK(r.ok());
+    }
+
+    {
+        // A field write into a moved value is a use-after-move.
+        MIRFunction fn;
+        build(fn, [&](MIRBuilder& b) {
+            const PlaceId src = b.alloca(owned_id);
+            const PlaceId local = b.alloca(outer2_id);
+            const PlaceId dst = b.alloca(outer2_id);
+            b.init(src, ctor, nullptr, 0);
+            b.init(local, ctor, nullptr, 0);
+            b.move_init(dst, local, outer2_id);
+            b.field_store(local, fa, b.load(src, owned_id));
+        });
+        MIRMoveCheckResult r = check_function_moves(module, fn);
+        CHECK(!r.ok());
+        CHECK(std::string(r.diagnostics[0].code) == "SAFE-MOVE-001");
+    }
+
     return true;
 }
 

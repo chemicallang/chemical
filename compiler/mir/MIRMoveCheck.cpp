@@ -19,6 +19,7 @@ const char* state_name(MIRMoveState s) {
         case MIRMoveState::Initialized: return "initialized";
         case MIRMoveState::Moved: return "moved";
         case MIRMoveState::Destroyed: return "destroyed";
+        case MIRMoveState::PartiallyMoved: return "partially moved";
         case MIRMoveState::Maybe: return "conditionally initialized";
     }
     return "unknown";
@@ -35,6 +36,59 @@ void set_subtree(const MIRFunction& fn, std::vector<MIRMoveState>& states,
         const uint32_t next = fn.move_paths[child].next_sibling;
         set_subtree(fn, states, child, state);
         child = next;
+    }
+}
+
+/**
+ * Mark `path` (and its owned children) moved, and demote every ancestor to
+ * `PartiallyMoved`: the parent still owns its other subobjects but can no longer
+ * be destroyed or moved as a whole. Partial moves are rejected earlier by the
+ * front end, but the MIR dataflow still has to keep the aggregate state honest.
+ */
+void mark_path_moved(const MIRFunction& fn, std::vector<MIRMoveState>& states,
+                     uint32_t path) {
+    if (path == MIR_INVALID_ID || path >= states.size()) return;
+    set_subtree(fn, states, path, MIRMoveState::Moved);
+    uint32_t parent = fn.move_paths[path].parent_path;
+    while (parent != MIR_INVALID_ID && parent < states.size()) {
+        if (states[parent] == MIRMoveState::Initialized ||
+            states[parent] == MIRMoveState::PartiallyMoved) {
+            states[parent] = MIRMoveState::PartiallyMoved;
+        }
+        parent = fn.move_paths[parent].parent_path;
+    }
+}
+
+/**
+ * Recompute every ancestor of a child that was just written or moved. A parent
+ * is `Initialized` only when all of its owned children are; otherwise an
+ * initialized parent is demoted to `PartiallyMoved` (a sibling was moved or is
+ * still uninitialized). This is what keeps a construction temporary that writes
+ * every field on a fresh (un-zeroed) alloca recognized as fully initialized.
+ */
+void refresh_ancestors(const MIRFunction& fn, std::vector<MIRMoveState>& states,
+                       uint32_t path) {
+    if (path == MIR_INVALID_ID || path >= fn.move_paths.size()) return;
+    uint32_t parent = fn.move_paths[path].parent_path;
+    while (parent != MIR_INVALID_ID && parent < fn.move_paths.size()) {
+        bool all = true;
+        for (uint32_t child = fn.move_paths[parent].first_child;
+             child != MIR_INVALID_ID && child < fn.move_paths.size();
+             child = fn.move_paths[child].next_sibling) {
+            if (states[child] != MIRMoveState::Initialized) {
+                all = false;
+                break;
+            }
+        }
+        if (all) {
+            if (states[parent] != MIRMoveState::Moved &&
+                states[parent] != MIRMoveState::Destroyed) {
+                states[parent] = MIRMoveState::Initialized;
+            }
+        } else if (states[parent] == MIRMoveState::Initialized) {
+            states[parent] = MIRMoveState::PartiallyMoved;
+        }
+        parent = fn.move_paths[parent].parent_path;
     }
 }
 
@@ -261,7 +315,7 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
             require_initialized(out, fn, function_index, block, inst_index, src,
                                 states, "move from");
             set_subtree(fn, states, dst, MIRMoveState::Initialized);
-            set_subtree(fn, states, src, MIRMoveState::Moved);
+            mark_path_moved(fn, states, src);
             break;
         }
         case MIROpcode::Destroy: {
@@ -363,35 +417,78 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
         }
         case MIROpcode::Store: {
             if (ops == nullptr || ops[0].kind() != MIROperandKind::Place) break;
-            // Whole-place store: place, value.
+            const uint32_t root = path_for_projection(
+                module, fn, ops[0], nullptr, 0
+            );
+            if (root == MIR_INVALID_ID) break;
+            // Whole-place store: place, value. A full assignment reinitializes
+            // the value (including after a move or a partial state).
             if (inst.operand_count == 2) {
-                const uint32_t path = path_for_projection(module, fn, ops[0], nullptr, 0);
-                set_subtree(fn, states, path, MIRMoveState::Initialized);
+                set_subtree(fn, states, root, MIRMoveState::Initialized);
                 break;
             }
             if (inst.operand_count < 3) break;
-            const uint32_t extra_count = 1;
-            const uint32_t path = path_for_projection(
-                module, fn, ops[0], ops + 1, extra_count
+            // Projection store: base, field/element, value.
+            //
+            // Constructor temporaries (an aggregate literal is built field by
+            // field into a fresh alloca), parameters and globals are written by
+            // trusted lowering, so a field write initializes that sub-place and
+            // may complete the aggregate. A user local may not be partially
+            // initialized: until field-wise drop elaboration lands, writing into
+            // an uninitialized local would run its destructor over garbage, so
+            // the exact target sub-place must already be initialized. That
+            // rejects a fresh `var s : S` field-by-field init and a write into a
+            // moved or destroyed value, while a normal overwrite of an
+            // initialized field stays allowed.
+            const uint32_t target = path_for_projection(
+                module, fn, ops[0], ops + 1, 1
             );
+            const auto storage = static_cast<MIRStorageClass>(
+                fn.places[ops[0].id].storage_class
+            );
+            if (storage == MIRStorageClass::Temporary ||
+                storage == MIRStorageClass::Parameter ||
+                storage == MIRStorageClass::Global) {
+                set_subtree(fn, states, target, MIRMoveState::Initialized);
+                refresh_ancestors(fn, states, target);
+            } else if (target == root) {
+                // A projection with no owned move path (a scalar/union field, a
+                // dynamic index, or a projection into a nested untracked
+                // aggregate). Writing it does not initialize any owned sibling.
+                // When the aggregate owns nothing at all, the value is usable
+                // for ownership purposes after a manual field write (the
+                // long-standing `var s : string; s.state = ...` pattern); when
+                // it does own subobjects, the root stays uninitialized until
+                // every owned child is written.
+                if (fn.move_paths[root].first_child == MIR_INVALID_ID) {
+                    const MIRMoveState state = states[root];
+                    if (state == MIRMoveState::Moved ||
+                        state == MIRMoveState::Destroyed ||
+                        state == MIRMoveState::PartiallyMoved ||
+                        state == MIRMoveState::Maybe) {
+                        report(out, fn, function_index, block, inst_index, root,
+                               state, "write to a field of");
+                    } else {
+                        states[root] = MIRMoveState::Initialized;
+                    }
+                }
+            } else {
+                // Writing an owned subobject: only a fully initialized
+                // sub-place may be overwritten. A fresh uninitialized field
+                // would run its destructor over garbage and would leave the
+                // aggregate partially initialized.
+                require_initialized(out, fn, function_index, block, inst_index,
+                                    target, states, "write to a field of");
+            }
             // A place source is a move out of that place; a value source is a
             // copy and leaves its own path untouched.
             if (ops[2].kind() == MIROperandKind::Place) {
-                const uint32_t src = path_for_projection(module, fn, ops[2], nullptr, 0);
-                require_initialized(out, fn, function_index, block, inst_index, src,
-                                    states, "move from");
-                set_subtree(fn, states, src, MIRMoveState::Moved);
-            }
-            set_subtree(fn, states, path, MIRMoveState::Initialized);
-            // A field/element store also makes the aggregate live; its other
-            // children are handled by zero/default initialization or by later
-            // stores. (Recursive initialization would hide an uninitialized
-            // sibling, so only the root is updated here.)
-            if (ops[0].kind() == MIROperandKind::Place && ops[0].id < fn.places.size()) {
-                const uint32_t root = fn.places[ops[0].id].move_path_id;
-                if (root != MIR_INVALID_ID && root < states.size()) {
-                    states[root] = MIRMoveState::Initialized;
-                }
+                const uint32_t src = path_for_projection(
+                    module, fn, ops[2], nullptr, 0
+                );
+                require_initialized(out, fn, function_index, block, inst_index,
+                                    src, states, "move from");
+                mark_path_moved(fn, states, src);
             }
             break;
         }

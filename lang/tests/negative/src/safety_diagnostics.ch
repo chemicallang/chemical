@@ -540,20 +540,6 @@ func neg_function_instance_make2_requires_unsafe(env : &mut TestEnv) {
 }
 
 @test
-func neg_partial_local_initialization_rejected(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "struct Owned {\n    var s : std::string\n}\npublic func main() : int {\n    var o : Owned\n    o.s = std::string()\n    return 0\n}\n"
-    expect_compile_error_with_mod(env, "partial_local_init", ch, "SAFE-INIT-001", NEG_MOD_STD_CORE)
-}
-
-@test
-func aggregate_initialization_allows_owned_field(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "struct Owned {\n    var s : std::string\n}\npublic func main() : int {\n    var o = Owned { s : std::string() }\n    return 0\n}\n"
-    expect_compile_success_with_mod(env, "aggregate_init_owned_field", ch, NEG_MOD_STD_CORE)
-}
-
-@test
 func neg_option_take_requires_mutable_receiver(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "public func main() : int {\n    var o = std::Option.Some<int>(1)\n    const c = o\n    var x = c.take()\n    return x\n}\n"

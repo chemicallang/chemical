@@ -9,7 +9,7 @@ This skill is the working guide for the full safety parity program. The canonica
 plan is [`lang/docs/safety-implementation-plan.md`](../../../lang/docs/safety-implementation-plan.md).
 The source tree wins over any status note here.
 
-## Current status (2026-10-23)
+## Current status (2026-10-27)
 
 **M0 (S0.1–S0.6) is implemented. M1 has started.**
 
@@ -26,6 +26,8 @@ Implemented:
   - `SAFE-INIT-001` — use of an uninitialized variable.
   - `SAFE-UNSAFE-001` — dereference of a raw pointer in safe context
     (report-only warning today).
+  - `SAFE-UNSAFE-002` — call to an `unsafe func` outside an `unsafe` context
+    (error; covers expression calls, methods, and unsafe constructors).
 - Negative harness accepts both `error:` and `error[SAFE-` and has
   `expect_compile_warning_id`.
 - Safety suite at `lang/tests/safety/` (`--safety`), wired through
@@ -78,6 +80,24 @@ Implemented:
   `SAFE-MOVE-001` when the element owns a destructor; the old lowering copied
   the element out while the array still dropped it (double free). Whole-array
   moves, `arr[i].field` reads, and `Copy` elements are still allowed.
+- S3.1c field-wise initialization state: the "writing one member initializes
+  the whole struct" heuristic is gone. A projection store resolves its exact
+  move-path node and, for a user local, requires that subobject to already be
+  initialized (a fresh `var s : S` field-by-field init is `SAFE-INIT-001`; a
+  write into a moved value is `SAFE-MOVE-001`). Construction temporaries built
+  field by field on a fresh alloca promote their aggregate to initialized when
+  every owned child is written, so the un-zeroed-construction optimization
+  stays valid. A destructor-bearing local with no owned children may still be
+  hand-initialized through an untracked scalar field (the std
+  `var s : string; s.state = ...` pattern). Partial moves demote ancestors to
+  `PartiallyMoved`, so a whole-value drop/move of a partially moved aggregate
+  is rejected. `MIRTests` is `4572 checks`. Field-wise drop elaboration for
+  genuinely partial initialization remains pending (S3.1c-2).
+- S2.6d unsafe invariant constructors: `vector::set_len` and
+  `default_function_instance::make2` are now `unsafe func`; the audited
+  `fs::read_file` and `std::function` `make` paths wrap their calls in
+  `unsafe`. Safe-context calls carry `SAFE-UNSAFE-002`, and the negative suite
+  asserts the code for expression calls, methods, and both constructors.
 
 - M1 started: `&'a T` / `&'a mut T` reference lifetimes are parsed and carried
   on `ReferenceType` (S1.1a). `func <'a, T>`, `struct Foo<'a>`, and
@@ -226,8 +246,10 @@ Next:
   negation remain pending.
   `Box::into_inner` frees storage without re-running the destructor. `unsafe func` (S2.6a) is parsed at top level and
   as a member, and calls from safe code are rejected; `unsafe(expr)`/`unsafe {}`
-  are both unsafe call contexts. Next: partial-move/drop elaboration, then the
-  borrow checker.
+  are both unsafe call contexts. Partial initialization and partial moves are
+  modeled (S3.1c), including construction temporaries and use-after-move
+  through assignment. Next: field-wise drop elaboration for genuinely partial
+  initialization plus variants/unions, then the borrow checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

@@ -444,6 +444,20 @@
 >   Element-assignment lowering now marks the moved source before
 >   `element_store_place`, and `archive::zip_contains`/`tar_contains` initialize
 >   their out-parameter entry before passing it to the finder.
+> - S3.1c field-wise initialization state: the "writing one member initializes
+>   the whole struct" heuristic is gone. A projection store now resolves the
+>   exact move-path node: writing an owned subobject of a user local requires
+>   that subobject to be initialized (a fresh `var s : S` field-by-field init
+>   is `SAFE-INIT-001`), and a write into a moved value is `SAFE-MOVE-001`.
+>   Construction temporaries (aggregate literals built field by field on a
+>   fresh alloca) promote their aggregate to initialized once every owned child
+>   is written, so the un-zeroed-construction optimization stays valid. A
+>   destructor-bearing local with no owned children can still be initialized
+>   through an untracked scalar field (the std `var s : string; s.state = ...`
+>   pattern); a moved/destroyed such value is still rejected. Partial field
+>   moves demote their ancestors to `PartiallyMoved`, so a whole-value
+>   drop/move of a partially moved aggregate is rejected. Field-wise drop
+>   elaboration for genuinely partial initialization remains pending.
 > - S1.5m conditional positive auto-trait impls: `unsafe impl<T> Send for
 >   Box<T> where T: Send` is evaluated against the concrete arguments at a
 >   `where T: Send` use site (and recursively for nested boxes), instead of
@@ -470,6 +484,16 @@
 >   function from a safe context is a type error. Method calls are covered
 >   through the linked function declaration. Tests cover expression/block
 >   calls, unsafe methods, and both direct-call negative cases.
+> - S2.6d unsafe invariant constructors: `vector::set_len` is now
+>   `unsafe func` (growing past capacity exposes uninitialized elements and
+>   shrinking skips the tail destructors), and the audited
+>   `fs::read_file` caller wraps it in `unsafe`. `default_function_instance
+>   .make2` (which turns an arbitrary code pointer, capture pointer and
+>   destructor into a `std::function`) is `unsafe func` too; its only caller is
+>   the audited `make` lambda path, which wraps the call in `unsafe`.
+>   Safe-context calls to an `unsafe func` now carry the stable
+>   `SAFE-UNSAFE-002` code, and the negative tests assert that code for
+>   expression calls, method calls, and both new constructors.
 > - S1.8c `std::Arc<T>` / `ArcWeak<T>`: thread-safe reference counting with
 >   `clone`, `get`, `get_mut`, `try_unwrap`, `downgrade`, `upgrade`, and
 >   strong/weak counts. Counts are
@@ -528,8 +552,8 @@
 >   `*v.get_ref(0) = ...` is rejected; a positive test covers `get_mut`.
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >
-> Next: conditional-state/drop-flag modelling, then conditional negative impls
-> and the M1 ownership/move checker.
+> Next: field-wise drop elaboration and variants/unions, then the borrow
+> checker.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

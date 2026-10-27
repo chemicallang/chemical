@@ -142,3 +142,47 @@ func constant_array_index_in_bounds_is_allowed(env : &mut TestEnv) {
     var ch = "public func main() : int {\n    var a : [3]int\n    a[2] = 1\n    return a[2]\n}\n"
     expect_compile_success(env, "array_in_bounds", ch)
 }
+
+// ── partial initialization (S3.1c) ──────────────────────────────────────────
+
+@test
+func neg_partial_owned_field_init(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // A user local may not be initialized field by field when it owns a
+    // destructor-bearing field: the drop at scope exit would run over the
+    // uninitialized siblings.
+    var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var s : S\n        s.a = string(\"x\")\n    }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "partial_owned_field_init", ch, "SAFE-INIT-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func partial_owned_field_init_after_whole_value_is_allowed(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    var s = S { a : string(\"x\"), b : string(\"y\") }\n    s.a = string(\"z\")\n    return s.a.size() as int\n}\n"
+    expect_compile_success_with_mod(env, "partial_after_whole_ok", ch, NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_partial_array_element_init(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // Same rule for a fixed-array element of a destructible type.
+    var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]DT\n        arr[0] = DT { x : 1 }\n    }\n    return 0\n}\n"
+    expect_compile_error(env, "partial_array_element_init", ch, "SAFE-INIT-001")
+}
+
+@test
+func neg_field_write_after_move(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    var s = S { a : string(\"x\"), b : string(\"y\") }\n    var t = s\n    s.a = string(\"z\")\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "field_write_after_move", ch, "SAFE-MOVE-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func scalar_field_init_of_owned_free_local_is_allowed(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // A destructor-bearing type with no owned fields can still be initialized
+    // by hand (the `var s : string; s.state = ...` pattern in std): ownership
+    // has nothing to track, so the value is usable after a field write.
+    var ch = "struct C {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var c : C\n        c.x = 5\n        return c.x\n    }\n}\n"
+    expect_compile_success(env, "scalar_field_init_ok", ch)
+}

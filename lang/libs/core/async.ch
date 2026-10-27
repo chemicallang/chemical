@@ -40,6 +40,11 @@ public namespace async {
         }
     }
 
+    // The waker vtable contract requires wake/clone/drop to be callable from
+    // any thread; the raw pointers are an implementation detail (S4.1).
+    unsafe impl Send for Waker {}
+    unsafe impl Sync for Waker {}
+
     // Passed to every poll; carries the waker for the current task.
     public struct Context {
         var waker : Waker

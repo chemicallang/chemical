@@ -621,3 +621,10 @@ func neg_vector_clone_requires_clone(env : &mut TestEnv) {
     var ch = "public func main() : int {\n    var v = std::vector<std::NonNull<int>>()\n    var c = v.clone()\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "vector_clone_bound", ch, "Clone", NEG_MOD_STD_CORE)
 }
+
+@test
+func waker_is_send_and_sync(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "func <T> needs_send(v : T) : int where T : Send { return 0 }\nfunc <T> needs_sync(v : T) : int where T : Sync { return 0 }\npublic func main() : int {\n    var w = core::async::Waker { data : null, vtbl : null }\n    var w2 = core::async::Waker { data : null, vtbl : null }\n    return needs_send(w) + needs_sync(w2)\n}\n"
+    expect_compile_success_with_mod(env, "waker_send_sync", ch, NEG_MOD_CORE)
+}

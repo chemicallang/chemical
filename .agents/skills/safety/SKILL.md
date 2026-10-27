@@ -247,8 +247,9 @@ Implemented:
   fields (pointers/references are Unpin; negative impls are allowed), and
   `core::PhantomPinned` opts out via `impl !Unpin`. `core::Pin<T>` provides
   `from_raw`, `new`/`pin(&mut T)` (`T: Unpin`), safe `get_ref`, `get_mut`
-  (`T: Unpin`), `unsafe get_unchecked_mut`, and `into_inner`. Async frame
-  field checking and Waker `Send + Sync` ownership remain.
+  (`T: Unpin`), `unsafe get_unchecked_mut`, and `into_inner`. `Waker` is
+  explicitly `unsafe impl Send`/`Sync` because its vtable contract requires
+  thread-safe wake/clone/drop. Async frame field checking remains.
 - S4.6b per-use dropck: a known callee returning a destructor-bearing aggregate
   from one reference argument binds that loan to the result place; returning a
   `Ref`/`RefMut` (including through `Option`) keeps the loan live until the

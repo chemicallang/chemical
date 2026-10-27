@@ -680,7 +680,8 @@
 > S4.1 (partial): `core::Unpin` is a structural safe auto trait, `PhantomPinned`
 > is `!Unpin` via a negative impl, and `core::Pin<T>` has `new`/`pin`
 > (`T: Unpin`), `get_ref`, `get_mut`, unsafe `get_unchecked_mut`, and
-> `into_inner`. Async frame fields and Waker `Send + Sync` remain.
+> `into_inner`; `Waker` is explicitly `unsafe impl Send + Sync` (its vtable
+> contract requires thread-safe wake/clone/drop). Async frame fields remain.
 > Next: S4.2b variance, async frame/Pin integration, and full provenance.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.

@@ -335,10 +335,37 @@ func neg_destructor_non_self_param_rejected(env : &mut TestEnv) {
 @test
 func unsafe_deref_warning_has_code(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    // Report-only safety rule: the program still compiles, but the warning
-    // carries a stable code so clients can act on it.
+    // Report-only rule: only raw pointers need unsafe; references do not.
     var ch = "public func main() : int {\n    var x : int = 1\n    var p = &raw x\n    return *p\n}\n"
     expect_compile_warning_id(env, "unsafe_deref_warning_code", ch, "SAFE-UNSAFE-001")
+}
+
+@test
+func reference_deref_is_safe(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var x = 1\n    var r = &x\n    return *r\n}\n"
+    expect_compile_success(env, "reference_deref_safe", ch)
+}
+
+@test
+func raw_pointer_reborrow_warns(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var x = 1\n    var p = &raw mut x\n    var r = &*p\n    return *r\n}\n"
+    expect_compile_warning_id(env, "prov_raw_reborrow", ch, "SAFE-PROV-001")
+}
+
+@test
+func raw_pointer_reference_cast_warns(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var x = 1\n    var p = &raw mut x\n    var r = p as &int\n    return *r\n}\n"
+    expect_compile_warning_id(env, "prov_raw_cast", ch, "SAFE-PROV-001")
+}
+
+@test
+func raw_pointer_reborrow_in_unsafe_ok(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var x = 1\n    var p = &raw mut x\n    var r = unsafe(&*p)\n    return *r\n}\n"
+    expect_compile_success(env, "prov_raw_reborrow_unsafe", ch)
 }
 
 @test

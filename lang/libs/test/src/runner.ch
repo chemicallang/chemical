@@ -140,7 +140,7 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
                     const test_retry = test_start.retry as int
                     var timeout_ms = 60000;
                     if(test_start.timeout > 0) { timeout_ms = test_start.timeout as int }
-                    launch_test_with_retries(exe_path, test_id, &mut *fn_state, test_retry, timeout_ms as uint);
+                    launch_test_with_retries(exe_path, test_id, unsafe(&mut *fn_state), test_retry, timeout_ms as uint);
                     if(reporter != null) {
                         emit_state(reporter, fn_state)
                     }
@@ -206,7 +206,7 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
 
             // actual launch on the thread pool
             var job = pool.submit<int>(|exe_path, test_id, fn_state, test_retry, timeout_ms|() => {
-                launch_test_with_retries(exe_path, test_id, &mut *fn_state, test_retry, timeout_ms as uint);
+                launch_test_with_retries(exe_path, test_id, unsafe(&mut *fn_state), test_retry, timeout_ms as uint);
                 return 0;
             })
             asyncJobs.push(job)

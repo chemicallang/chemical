@@ -236,7 +236,7 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
         }
 
         func current(&self, c : ordered_map_iterator<Key, Value>) : &ordered_map_node<Key, Value> {
-            return &*c.node
+            return unsafe(&*c.node)
         }
 
         func next(&self, c : ordered_map_iterator<Key, Value>) : ordered_map_iterator<Key, Value> {

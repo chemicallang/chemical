@@ -189,7 +189,7 @@ public namespace std {
                 if(P.q.size()>0u){
                     var first_ele = P.q.get_ptr(0);
                     // move the task out by replacing it with a dummy, then remove
-                    var t = std::replace(&mut *first_ele, Task { f : ||() => {} });
+                    var t = std::replace(unsafe(&mut *first_ele), Task { f : ||() => {} });
                     P.q.remove(0);
                     opt = std.Option.Some<Task>(t)
                 }

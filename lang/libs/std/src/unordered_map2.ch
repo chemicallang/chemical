@@ -255,7 +255,7 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
         }
 
         func current(&self, c : unordered_map_iterator<Key, Value>) : &unordered_map_node<Key, Value> {
-            return &*c.node
+            return unsafe(&*c.node)
         }
 
         func next(&self, c : unordered_map_iterator<Key, Value>) : unordered_map_iterator<Key, Value> {

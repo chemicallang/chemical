@@ -12,12 +12,12 @@ struct HiddenPtrSelf {
     }
     func mutate_via_ptr(&mut self) {
         var ptr = &raw mut self
-        var s = ptr as &mut HiddenPtrSelf
+        var s = unsafe(ptr as &mut HiddenPtrSelf)
         s.data = 99
     }
     func read_via_ptr(&self) : int {
         var ptr = &raw self
-        var s = ptr as &HiddenPtrSelf
+        var s = unsafe(ptr as &HiddenPtrSelf)
         return s.data
     }
 }

@@ -194,8 +194,8 @@ public namespace net {
             // Windows: ai_flags(4) ai_family(4) ai_socktype(4) ai_protocol(4) ai_addrlen(8) ai_canonname(8) ai_addr(8) ai_next(8)
             //   => ai_addr at +32, ai_addrlen at +16, ai_next at +40
             const AI_ADDR_OFFSET = if(def.windows) 32 else 24
-            var ai_addr_ptr = *(((curr as usize) + AI_ADDR_OFFSET) as *mut *mut char);
-            var ai_addrlen = *(((curr as usize) + 16u) as *mut usize);
+            var ai_addr_ptr = unsafe(*(((curr as usize) + AI_ADDR_OFFSET) as *mut *mut char));
+            var ai_addrlen = unsafe(*(((curr as usize) + 16u) as *mut usize));
             
             s = sock_socket(AF_INET as int, SOCK_STREAM as int, IPPROTO_TCP as int);
             if(s != 0 as Socket && (s as longlong) >= 0) {
@@ -210,7 +210,7 @@ public namespace net {
             }
             
             // move to next (ai_next is at +40 on both POSIX and Windows x64)
-            curr = *(((curr as usize) + 40u) as *mut *mut char);
+            curr = unsafe(*(((curr as usize) + 40u) as *mut *mut char));
             s = 0 as Socket;
         }
 

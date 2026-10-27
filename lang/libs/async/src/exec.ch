@@ -150,7 +150,7 @@ public func executor_poll_tasks(e : *mut Executor, max : uint) : uint {
             break
         }
         var pe = e.queue.get_ptr(0)
-        var t = std::replace(&mut *pe, RawTask { frame : null, vtbl : null })
+        var t = std::replace(unsafe(&mut *pe), RawTask { frame : null, vtbl : null })
         e.queue.remove(0)
         e.m.unlock()
         var cx = core::async::Context { waker : exec_make_waker(e) }

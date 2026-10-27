@@ -10,7 +10,7 @@ func waiter_entry(arg:*void) : *void {
     var a = arg as *mut WaitArg;
     // non-capturing function, so use pointer data
     a.m.lock();
-    while (!a.flag) { a.cv.wait(&mut *a.m); }
+    while (!a.flag) { a.cv.wait(unsafe(&mut *a.m)); }
     *a.done = true;
     a.m.unlock();
     return null;
@@ -199,7 +199,7 @@ func test_mutex_contention() : bool {
         var func_ptr = malloc(sizeof(*void)) as *mut *mut any
         *arg = incs_per_thread;
         var inc_entry : std::function<(a : *void) => *void> = |&mut counter, arg, &mut m, func_ptr|() => {
-            var times = *(arg as *mut usize);
+            var times = unsafe(*(arg as *mut usize));
             var j = 0u;
             while (j < times) {
                 m.lock();

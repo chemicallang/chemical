@@ -2798,6 +2798,18 @@ void SymResLinkBody::VisitReferenceOfValue(ReferenceOfValue* refValue) {
     value->report_addr_taken_of_chain_id();
     // lets determine the type of this value
     refValue->determine_type();
+    // A reference derived from a raw pointer (`&*p`, `&mut *p`) inherits
+    // provenance that safe code cannot establish (S4.8).
+    if (safe_context && value != nullptr &&
+        value->val_kind() == ValueKind::DereferenceValue) {
+        auto* deref = value->as_dereference_value_unsafe();
+        BaseType* inner = deref->getValue() ? deref->getValue()->getType() : nullptr;
+        BaseType* canonical = inner ? inner->canonical() : nullptr;
+        if (canonical != nullptr && canonical->kind() == BaseTypeKind::Pointer) {
+            diagnoser.warn(refValue).with_code("SAFE-PROV-001")
+                << "creating a reference by dereferencing a raw pointer requires unsafe";
+        }
+    }
 }
 
 void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
@@ -2866,6 +2878,20 @@ void SymResLinkBody::VisitCastedValue(CastedValue* cValue) {
     if(source_type == nullptr || type == nullptr) {
         return;
     }
+    // Creating a reference from a raw pointer (or an integer/null) is a
+    // provenance-establishing operation and requires unsafe (S4.8).
+    {
+        BaseType* dst = type->canonical();
+        BaseType* src = source_type->canonical();
+        if (safe_context && dst != nullptr && src != nullptr &&
+            dst->kind() == BaseTypeKind::Reference &&
+            (src->kind() == BaseTypeKind::Pointer ||
+             src->kind() == BaseTypeKind::IntN ||
+             src->kind() == BaseTypeKind::NullPtr)) {
+            diagnoser.warn(cValue).with_code("SAFE-PROV-001")
+                << "creating a reference from a raw pointer requires unsafe";
+        }
+    }
     const auto source_is_aggregate = source_type->canonical()->get_members_container() != nullptr;
     if(!source_is_aggregate) {
         // the opposite direction: a primitive value cannot be reinterpreted as a struct,
@@ -2909,12 +2935,18 @@ void SymResLinkBody::VisitCastedValue(CastedValue* cValue) {
 }
 
 void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
-    if(safe_context) {
-        diagnoser.warn(value).with_code("SAFE-UNSAFE-001")
-            << "de-referencing a pointer in safe context is prohibited";
-    }
     visit(value->getValue());
-    // determining the type for this dereference value
+    // Dereferencing a *reference* is the normal safe operation; only a raw
+    // pointer dereference needs an unsafe context. Resolve the operand first:
+    // its type may be linked during the visit.
+    if (safe_context && value->getValue() != nullptr) {
+        BaseType* inner = value->getValue()->getType();
+        BaseType* canonical = inner ? inner->canonical() : nullptr;
+        if (canonical != nullptr && canonical->kind() == BaseTypeKind::Pointer) {
+            diagnoser.warn(value).with_code("SAFE-UNSAFE-001")
+                << "de-referencing a raw pointer in safe context requires unsafe";
+        }
+    }
     auto& typeBuilder = getTypeBuilder();
     if(!value->determine_type(typeBuilder)) {
         diagnoser.error("couldn't determine type for de-referencing", value);

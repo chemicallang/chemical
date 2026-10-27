@@ -2004,10 +2004,27 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
         // S4.4a report-only loan analysis. This never fails the build yet; the
         // migrate/enforce steps follow once the in-tree tree is clean.
         const auto borrows = mir::check_function_borrows(module, check);
+        bool fatal_lifetime = false;
+        std::string lifetime_error;
         if (!borrows.diagnostics.empty()) {
             static std::mutex borrow_warn_mutex;
             std::lock_guard<std::mutex> guard(borrow_warn_mutex);
             for (const mir::MIRBorrowDiagnostic& d : borrows.diagnostics) {
+                // SAFE-LIFE-001 is enforced: returning a reference to storage
+                // that dies at function exit is a hard error. The loan/alias
+                // reports stay report-only until the in-tree migration lands.
+                if (d.code != nullptr &&
+                    std::string_view(d.code) == "SAFE-LIFE-001") {
+                    fatal_lifetime = true;
+                    if (lifetime_error.empty()) {
+                        lifetime_error = "SAFE-LIFE-001: " + d.message;
+                        if (d.has_loc && d.loc.file < module.source_files.size()) {
+                            lifetime_error += " at " + module.source_files[d.loc.file] +
+                                              ":" + std::to_string(d.loc.line) + ":" +
+                                              std::to_string(d.loc.column);
+                        }
+                    }
+                }
                 std::cerr << "warn[" << (d.code ? d.code : "SAFE-BORROW-001")
                           << "]: " << d.message;
                 if (check.symbol != mir::MIR_INVALID_ID &&
@@ -2022,6 +2039,10 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
                 }
                 std::cerr << "\n";
             }
+        }
+        if (fatal_lifetime) {
+            error = std::move(lifetime_error);
+            return false;
         }
         const auto moves = mir::check_function_moves(module, check);
         if (!moves.ok()) {

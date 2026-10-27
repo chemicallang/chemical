@@ -164,13 +164,21 @@ Implemented:
   they are the S4.9 migration items.
 - S4.5b reference escape on return: `SAFE-LIFE-001` reports returning a
   reference to a local, temporary or coroutine frame field (storage that dies
-  at function exit). A returned parameter/global reference is allowed. The
-  check found a genuine dangling reference in the test suite
-  (`get_destruct_or_not` returns `&d` to a local); it is a report-only
-  migration item (4 hits). `MIRTests` is `4619 checks`; the negative suite has
-  local/parameter/ref-return cases (449 tests).
-  Next in M4: S4.2b variance, then outlives/region constraint solving and
-  enforcement.
+  at function exit). A returned parameter/global reference is allowed. It
+  found a genuine dangling reference in the test suite
+  (`get_destruct_or_not` returned `&d` to a local); the dead function was
+  removed and **SAFE-LIFE-001 is now enforced** (a hard error). `MIRTests` is
+  `4619 checks`; the negative suite has local/parameter/ref-return cases
+  (450 tests).
+- S3/M3 refinement (found by the server/tls suite): a local of a struct with a
+  user `@delete` may be built field by field (the hand-written constructor
+  pattern) as long as it is moved/returned as a whole; direct-child writes are
+  tracked in the dataflow, the whole-value drop flag stays disarmed, and a
+  partial value that is not moved leaks (safe). A partial move/return is still
+  `SAFE-INIT-001`/`SAFE-MOVE-001`. Also fixed a double drop on
+  `*ptr = owned_local` (the dereference-assignment path now marks the source
+  moved), which the tls module exposed.
+  Next in M4: S4.2b variance, then outlives/region constraint solving.
 - S2.6d unsafe invariant constructors: `vector::set_len` and
   `default_function_instance::make2` are now `unsafe func`; the audited
   `fs::read_file` and `std::function` `make` paths wrap their calls in
@@ -328,8 +336,8 @@ Next:
   modeled (S3.1c), including construction temporaries and use-after-move
   through assignment. M3 is complete: the next milestone is M4 (regions, NLL,
   borrow checking, dropck enforcement, and async/Pin). The current M4 step is
-  S4.5a (callee signature association), then S4.2b variance, followed by
-  outlives/NLL enforcement.
+  S4.5b (enforced local-reference return escape), then S4.2b variance and
+  outlives/region constraints.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

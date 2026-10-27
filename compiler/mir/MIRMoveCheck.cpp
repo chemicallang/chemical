@@ -392,15 +392,34 @@ void apply_projection_store(const MIRModule& module, const MIRFunction& fn,
     // A direct child or grandchild of a place the lowering gave per-child drop
     // flags may be initialized on its own; anything deeper (or a place without
     // flags) requires the destination sub-place to be fully initialized.
+    //
+    // A hand-written constructor may build a local of a struct with a user
+    // `@delete` field by field. That local has no per-field flags and its
+    // whole-value drop flag stays disarmed (it is returned/moved as a whole),
+    // so direct-child writes are tracked in the dataflow without permitting a
+    // partial drop. A partial value that is not moved simply leaks, which is
+    // safe; moves/returns still require every owned child to be initialized.
     uint32_t depth = 0;
     uint32_t p = target;
     while (p != root && p != MIR_INVALID_ID && depth <= 2) {
         p = fn.move_paths[p].parent_path;
         ++depth;
     }
+    bool user_dtor_local = false;
+    if (p == root && depth == 1 && root_place < fn.places.size()) {
+        const auto sc = static_cast<MIRStorageClass>(
+            fn.places[root_place].storage_class
+        );
+        const TypeId root_type = fn.move_paths[root].field_type;
+        user_dtor_local =
+            sc == MIRStorageClass::Local && root_type != MIR_INVALID_ID &&
+            root_type < module.types.types.size() &&
+            module.types.types[root_type].kind == MIRTypeKind::Struct &&
+            (module.types.types[root_type].flags & TF_USER_DESTRUCTOR) != 0;
+    }
     const bool partial_ok =
         p == root && depth <= 2 && root_place < fn.places.size() &&
-        fn.places[root_place].field_wise_drop;
+        (fn.places[root_place].field_wise_drop || user_dtor_local);
     const MIRMoveState root_state = states[root];
     if (partial_ok && root_state != MIRMoveState::Moved &&
         root_state != MIRMoveState::Destroyed) {

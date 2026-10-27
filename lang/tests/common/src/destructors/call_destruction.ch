@@ -445,15 +445,6 @@ func test_destruct_array_param() {
     })
 }
 
-// test destructible struct as reference return from function call used in conditional
-func get_destruct_or_not(count : *mut int, flag : bool) : &Destructible {
-    var d = create_destructible(count, 310)
-    if(flag) {
-        return &d
-    }
-    return &d
-}
-
 // struct with destructor and Index implementation
 struct IndexableDestructible {
     var data : int

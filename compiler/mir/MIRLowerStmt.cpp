@@ -407,6 +407,9 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 if (!r.ok()) return false;
                 const TypeId et = types_.map(lhs->getType());
                 if (r.kind == MIRExprKind::Place) {
+                    // The destination now owns the source value; its scope
+                    // destructor must not run again (same as field/index stores).
+                    mark_moved(static_cast<PlaceId>(r.id));
                     builder_->emit(MIROpcode::Store, MIR_NULL,
                                    {MIROperand::value(static_cast<ValueId>(p.id), p.type),
                                     MIROperand::place(static_cast<PlaceId>(r.id), et)});

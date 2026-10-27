@@ -65,10 +65,11 @@ func value_returning_call_ends_loan(env : &mut TestEnv) {
 }
 
 @test
-func neg_return_local_reference_warns(env : &mut TestEnv) {
+func neg_return_local_reference_errors(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // SAFE-LIFE-001 is enforced (not report-only).
     var ch = "func bad() : &int {\n    var x = 1\n    return &x\n}\npublic func main() : int {\n    var r = bad()\n    return *r\n}\n"
-    expect_compile_warning_id(env, "borrow_return_local_ref", ch, "SAFE-LIFE-001")
+    expect_compile_error(env, "borrow_return_local_ref", ch, "SAFE-LIFE-001")
 }
 
 @test

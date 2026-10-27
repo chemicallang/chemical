@@ -156,12 +156,22 @@ func partial_owned_field_init_is_allowed(env : &mut TestEnv) {
 }
 
 @test
-func neg_partial_init_with_user_destructor(env : &mut TestEnv) {
+func neg_move_partially_initialized_user_dtor(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    // A user-written destructor expects a whole value, so field-by-field
-    // initialization stays rejected for such a struct.
-    var ch = "using std::string\nstruct S {\n    var a : string\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var s : S\n        s.a = string(\"x\")\n    }\n    return 0\n}\n"
-    expect_compile_error_with_mod(env, "partial_user_dtor_init", ch, "SAFE-INIT-001", NEG_MOD_STD_CORE)
+    // A user-destructor local may be built field by field (a constructor
+    // pattern), but it must not be moved as a whole while an owned field is
+    // still uninitialized.
+    var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n    @delete func delete(&mut self) { }\n}\nfunc take(s : S) { }\npublic func main() : int {\n    unsafe {\n        var s : S\n        s.a = string(\"x\")\n        take(s)\n    }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "move_partial_user_dtor", ch, "SAFE-INIT-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func partial_init_user_dtor_constructor_ok(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // The hand-written constructor pattern: build a local field by field and
+    // return it (moved as a whole) once every owned field is initialized.
+    var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n    @delete func delete(&mut self) { }\n}\nfunc make() : S {\n    unsafe {\n        var s : S\n        s.a = string(\"x\")\n        s.b = string(\"y\")\n        return s\n    }\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_success_with_mod(env, "user_dtor_constructor_ok", ch, NEG_MOD_STD_CORE)
 }
 
 @test

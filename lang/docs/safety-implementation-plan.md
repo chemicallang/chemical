@@ -625,10 +625,14 @@
 > for the S4.9 migration. S4.5b reference escape on return: `SAFE-LIFE-001`
 > reports returning a reference to a local/temporary/coroutine frame field; a
 > returned parameter/global reference is allowed. It found a genuine dangling
-> reference in the test suite (`get_destruct_or_not` returns `&d` to a local),
-> another report-only migration item. `MIRTests` is `4619 checks`; negative
-> tests cover local/parameter/ref-return calls (449 tests). Next: S4.2b
-> variance, then outlives/region constraints and enforcement.
+> reference in the test suite (`get_destruct_or_not` returned `&d` to a local);
+> the dead function was removed and **SAFE-LIFE-001 is enforced**. `MIRTests`
+> is `4619 checks`; negative tests cover local/parameter/ref-return calls (450
+> tests). The server/tls suite also exposed two M3 refinements: a user-`@delete`
+> local may be built field by field when it is moved/returned as a whole
+> (partial values leak, safe; partial moves stay rejected), and
+> `*ptr = owned_local` now marks the source moved (fixing a double drop).
+> Next: S4.2b variance, then outlives/region constraints.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

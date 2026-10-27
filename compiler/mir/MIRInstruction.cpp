@@ -60,6 +60,9 @@ uint16_t opcode_flags(MIROpcode op) {
         case MIROpcode::Borrow:
         case MIROpcode::BorrowMut:
             return OF_Lifetime | OF_Read;
+        case MIROpcode::StorageLive:
+        case MIROpcode::StorageDead:
+            return OF_Lifetime;
         case MIROpcode::SetDrop:
             return OF_Lifetime | OF_Write;
         case MIROpcode::MemCpy:
@@ -168,6 +171,8 @@ const char* opcode_name(MIROpcode op) {
         case MIROpcode::MoveOut: return "move_out";
         case MIROpcode::Borrow: return "borrow";
         case MIROpcode::BorrowMut: return "borrow_mut";
+        case MIROpcode::StorageLive: return "storage_live";
+        case MIROpcode::StorageDead: return "storage_dead";
         case MIROpcode::Destroy: return "destroy";
         case MIROpcode::SetDrop: return "set_drop";
         case MIROpcode::MemCpy: return "memcpy";

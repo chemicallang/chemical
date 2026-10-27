@@ -194,6 +194,11 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
     std::unordered_map<ValueId, LoanTarget> address_targets;
     std::unordered_map<ValueId, uint32_t> value_loans;
     std::unordered_map<PlaceId, uint32_t> place_loans;
+    // A reference stored in a struct field: key = (place << 32) | field constant.
+    std::unordered_map<uint64_t, uint32_t> field_loans;
+    auto field_key = [](PlaceId base, ConstantId field) -> uint64_t {
+        return (static_cast<uint64_t>(base) << 32) | static_cast<uint64_t>(field);
+    };
     std::vector<Loan> loans;
 
     auto operands_of = [&](const MIRInstruction& inst) {
@@ -307,6 +312,16 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         value_loans[inst.result_or_place] = it->second;
                         loans[it->second].end = lin;
                     }
+                    // A reference stored in a struct field.
+                    if (inst.operand_count >= 2 &&
+                        ops[1].kind() == MIROperandKind::Constant &&
+                        inst.result_or_place != MIR_INVALID_ID) {
+                        const auto fit = field_loans.find(field_key(ops[0].id, ops[1].id));
+                        if (fit != field_loans.end()) {
+                            value_loans[inst.result_or_place] = fit->second;
+                            loans[fit->second].end = lin;
+                        }
+                    }
                 }
                 break;
             }
@@ -314,8 +329,46 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 if (ops == nullptr || inst.operand_count < 2) break;
                 const MIROperand& value = ops[inst.operand_count - 1];
                 use_value(value, lin, false);
+                // A field store of a reference value records a field loan.
+                if (inst.operand_count >= 3 &&
+                    ops[0].kind() == MIROperandKind::Place &&
+                    ops[1].kind() == MIROperandKind::Constant) {
+                    const uint64_t key = field_key(ops[0].id, ops[1].id);
+                    if (value.kind() == MIROperandKind::Value) {
+                        const auto vit = value_loans.find(value.id);
+                        if (vit != value_loans.end()) {
+                            field_loans[key] = vit->second;
+                        } else {
+                            field_loans.erase(key);
+                        }
+                    } else {
+                        field_loans.erase(key);
+                    }
+                }
                 // Whole-place store of a reference value: the place now holds it.
                 if (inst.operand_count == 2 && ops[0].kind() == MIROperandKind::Place) {
+                    // A place source is a move: carry references stored in its
+                    // fields to the destination.
+                    if (ops[1].kind() == MIROperandKind::Place) {
+                        std::vector<std::pair<uint64_t, uint32_t>> moved;
+                        for (const auto& fl : field_loans) {
+                            if (static_cast<PlaceId>(fl.first >> 32) != ops[1].id) continue;
+                            const ConstantId field =
+                                static_cast<ConstantId>(fl.first & 0xFFFFFFFFu);
+                            moved.emplace_back(field_key(ops[0].id, field), fl.second);
+                        }
+                        for (const auto& m : moved) {
+                            field_loans[m.first] = m.second;
+                            loans[m.second].end = lin;
+                        }
+                        for (auto it2 = field_loans.begin(); it2 != field_loans.end();) {
+                            if (static_cast<PlaceId>(it2->first >> 32) == ops[1].id) {
+                                it2 = field_loans.erase(it2);
+                            } else {
+                                ++it2;
+                            }
+                        }
+                    }
                     if (value.kind() == MIROperandKind::Value) {
                         const auto it = value_loans.find(value.id);
                         if (it != value_loans.end()) {
@@ -349,6 +402,29 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     loans[it->second].end = lin;
                     if (inst.opcode() == MIROpcode::MoveInit) {
                         place_loans.erase(ops[1].id);
+                    }
+                }
+                // Transfer references stored in fields of the moved/copied value.
+                {
+                    std::vector<std::pair<uint64_t, uint32_t>> moved;
+                    for (const auto& fl : field_loans) {
+                        const PlaceId base = static_cast<PlaceId>(fl.first >> 32);
+                        if (base != ops[1].id) continue;
+                        const ConstantId field = static_cast<ConstantId>(fl.first & 0xFFFFFFFFu);
+                        moved.emplace_back(field_key(ops[0].id, field), fl.second);
+                    }
+                    for (const auto& m : moved) {
+                        field_loans[m.first] = m.second;
+                        loans[m.second].end = lin;
+                    }
+                    if (inst.opcode() == MIROpcode::MoveInit) {
+                        for (auto it2 = field_loans.begin(); it2 != field_loans.end();) {
+                            if (static_cast<PlaceId>(it2->first >> 32) == ops[1].id) {
+                                it2 = field_loans.erase(it2);
+                            } else {
+                                ++it2;
+                            }
+                        }
                     }
                 }
                 break;
@@ -541,6 +617,12 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 if (it != place_loans.end() && it->second < nloans) {
                     block_use[b][it->second] = true;
                 }
+                if (inst.operand_count >= 2 && ops[1].kind() == MIROperandKind::Constant) {
+                    const auto fit = field_loans.find(field_key(ops[0].id, ops[1].id));
+                    if (fit != field_loans.end() && fit->second < nloans) {
+                        block_use[b][fit->second] = true;
+                    }
+                }
             }
         }
     }
@@ -639,6 +721,20 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
             const MIROperand* ops = inst.operand_count == 0
                                         ? nullptr
                                         : &function.operands[inst.operand_offset];
+            // A local's storage ends while a loan that refers to it is still
+            // live: the reference outlives its referent (S4.4c).
+            if (inst.opcode() == MIROpcode::StorageDead && ops != nullptr &&
+                ops[0].kind() == MIROperandKind::Place) {
+                for (uint32_t l = 0; l < nloans; ++l) {
+                    if (!live[l] || loans[l].escaped || !loans[l].target.known) continue;
+                    if (loans[l].target.root != ops[0].id) continue;
+                    report(result.diagnostics, function, function_index, order,
+                           linear_of(b, ii, order), "SAFE-LIFE-002",
+                           "a borrow is still live when the storage of the local it refers to ends");
+                    break;
+                }
+            }
+
             // Move/drop while a live loan targets an overlapping place.
             PlaceId moved_place = MIR_INVALID_ID;
             switch (inst.opcode()) {
@@ -692,6 +788,12 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 const auto it = place_loans.find(ops[0].id);
                 if (it != place_loans.end() && it->second < nloans) {
                     live[it->second] = true;
+                }
+                if (inst.operand_count >= 2 && ops[1].kind() == MIROperandKind::Constant) {
+                    const auto fit = field_loans.find(field_key(ops[0].id, ops[1].id));
+                    if (fit != field_loans.end() && fit->second < nloans) {
+                        live[fit->second] = true;
+                    }
                 }
             }
 

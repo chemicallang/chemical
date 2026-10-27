@@ -78,3 +78,18 @@ func returned_parameter_reference_ok(env : &mut TestEnv) {
     var ch = "func id(p : &int) : &int {\n    return p\n}\npublic func main() : int {\n    var x = 5\n    var r = id(&x)\n    return *r\n}\n"
     expect_compile_output_not_contains(env, "borrow_return_param_ref", ch, "SAFE-LIFE-001", NEG_MOD)
 }
+
+@test
+func neg_reference_in_field_outlives_local(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // The struct's reference field outlives the local it points at.
+    var ch = "struct H {\n    var r : &int\n}\npublic func main() : int {\n    var h : H\n    {\n        var x = 1\n        h = H { r : &x }\n    }\n    return *h.r\n}\n"
+    expect_compile_warning_id(env, "borrow_field_outlives_local", ch, "SAFE-LIFE-002")
+}
+
+@test
+func same_scope_field_reference_ok(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct H {\n    var r : &int\n}\npublic func main() : int {\n    var x = 1\n    var h = H { r : &x }\n    return *h.r\n}\n"
+    expect_compile_output_not_contains(env, "borrow_field_same_scope", ch, "SAFE-LIFE-002", NEG_MOD)
+}

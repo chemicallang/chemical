@@ -1878,7 +1878,9 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     break;
                 }
                 case MIROpcode::MoveOut:
-                    // dataflow marker only: no runtime effect
+                case MIROpcode::StorageLive:
+                case MIROpcode::StorageDead:
+                    // dataflow markers only: no runtime effect
                     break;
                 case MIROpcode::Drop:
                 case MIROpcode::Destroy: {

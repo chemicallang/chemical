@@ -178,7 +178,16 @@ Implemented:
   `SAFE-INIT-001`/`SAFE-MOVE-001`. Also fixed a double drop on
   `*ptr = owned_local` (the dereference-assignment path now marks the source
   moved), which the tls module exposed.
-  Next in M4: S4.2b variance, then outlives/region constraint solving.
+- S4.4c storage lifetimes: the lowering emits `StorageLive`/`StorageDead`
+  markers for every local in each lexical scope (no runtime effect). The loan
+  analysis reports `SAFE-LIFE-002` when a loan is still live at the
+  `StorageDead` of the local it refers to. References stored in struct fields
+  are followed through field stores and whole-value moves, so
+  `h = H { r: &x }` used after `x`'s block is detected. `MIRTests` is `4620
+  checks`; negative tests cover the struct-field escape and the same-scope
+  positive (452 tests). SAFE-LIFE-002 is report-only for now (no in-tree hits);
+  the next step is to enforce it. Next in M4: S4.2b variance, then
+  outlives/region constraint solving.
 - S2.6d unsafe invariant constructors: `vector::set_len` and
   `default_function_instance::make2` are now `unsafe func`; the audited
   `fs::read_file` and `std::function` `make` paths wrap their calls in
@@ -410,6 +419,7 @@ Codes are stable and grouped by domain:
 | `SAFE-AUTO-002` | invalid/conflicting negative impl (non-auto trait, duplicate, positive+negative, generic target) |
 | `SAFE-MOVE-001` | move of an already-moved value / access or assignment after a move |
 | `SAFE-LIFE-001` | returning a reference to a local/temporary/frame field |
+| `SAFE-LIFE-002` | borrow still live when the referent's local storage ends |
 | `SAFE-LIFE-*` | lifetimes / escapes |
 | `SAFE-INIT-*` | initialization / definite assignment |
 | `SAFE-VALID-*` | invalid values / transmute / packed |

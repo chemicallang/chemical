@@ -156,6 +156,7 @@ bool MIRLowerer::lower_async_function(FunctionDeclaration* decl, MIRArena& arena
     var_places_.clear();
     name_places_.clear();
     destructibles_.clear();
+    scope_places_.clear();
     call_temps_.clear();
     stmt_temps_.clear();
     pattern_bases_.clear();
@@ -543,6 +544,7 @@ bool MIRLowerer::async_lower_poll_body(FunctionDeclaration* decl, std::string& e
     var_places_.clear();
     name_places_.clear();
     destructibles_.clear();
+    scope_places_.clear();
     call_temps_.clear();
     stmt_temps_.clear();
     pattern_bases_.clear();
@@ -898,6 +900,7 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
     var_places_.clear();
     name_places_.clear();
     destructibles_.clear();
+    scope_places_.clear();
     call_temps_.clear();
     stmt_temps_.clear();
     pattern_bases_.clear();

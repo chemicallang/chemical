@@ -472,6 +472,16 @@ ValueId MIRBuilder::borrow(ValueId address, ConstantId region,
     return v;
 }
 
+void MIRBuilder::storage_live(PlaceId place) {
+    TypeId pt = place < func_.places.size() ? func_.places[place].type : MIR_INVALID_ID;
+    emit(MIROpcode::StorageLive, MIR_NULL, {MIROperand::place(place, pt)});
+}
+
+void MIRBuilder::storage_dead(PlaceId place) {
+    TypeId pt = place < func_.places.size() ? func_.places[place].type : MIR_INVALID_ID;
+    emit(MIROpcode::StorageDead, MIR_NULL, {MIROperand::place(place, pt)});
+}
+
 ValueId MIRBuilder::field_addr(PlaceId base, ConstantId field_index, TypeId field_type) {
     ValueId v = new_value(field_type, VF_ADDRESSABLE);
     TypeId bt = base < func_.places.size() ? func_.places[base].type : MIR_INVALID_ID;

@@ -560,6 +560,13 @@ void MIRLowerer::emit_drops() {
     emit_drops_from(0);
 }
 
+void MIRLowerer::emit_storage_dead_from(size_t mark) {
+    for (size_t i = scope_places_.size(); i-- > mark;) {
+        if (builder_->current_block_terminated()) break;
+        builder_->storage_dead(scope_places_[i]);
+    }
+}
+
 void MIRLowerer::emit_drops_from(size_t mark) {
     for (size_t i = destructibles_.size(); i-- > mark;) {
         MIRDestructible& d = destructibles_[i];
@@ -613,6 +620,7 @@ bool MIRLowerer::lower_static_interface_stub(FunctionDeclaration* decl, MIRArena
     var_places_.clear();
     name_places_.clear();
     destructibles_.clear();
+    scope_places_.clear();
     stmt_temps_.clear();
 
     func.symbol = intern_function(decl);
@@ -711,6 +719,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     name_places_.clear();
     aggregate_param_ptrs_.clear();
     destructibles_.clear();
+    scope_places_.clear();
     stmt_temps_.clear();
     // func_symbols_ persists across functions in a module so callees keep stable ids
 

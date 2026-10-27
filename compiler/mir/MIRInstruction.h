@@ -134,7 +134,12 @@ enum class MIROpcode : uint16_t {
     Borrow = 56,     // result: value(ref); operands: Value(addr), Constant(region)
     BorrowMut = 57,  // same, mutable
 
-    Count = 58,
+    // Lexical storage lifetime markers (S4.4c). No runtime effect; the borrow
+    // checker uses them to detect a reference outliving its referent's local.
+    StorageLive = 58, // operands: Place
+    StorageDead = 59, // operands: Place
+
+    Count = 60,
 };
 
 /** fixed opcode effects/attributes (see mir-design.md §4.6) */

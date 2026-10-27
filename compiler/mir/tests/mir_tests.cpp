@@ -2059,6 +2059,31 @@ static bool test_borrow_check() {
     }
 
     {
+        // StorageDead while a loan is still live: the reference outlives the
+        // local it refers to.
+        MIRFunction fn;
+        MIRArena arena;
+        make_builder(fn, arena, [&](MIRBuilder& b) {
+            const PlaceId x = b.alloca(i32);
+            b.storage_live(x);
+            b.store(x, b.const_int(i32, module.constants.add_int(i32, 1)));
+            const ValueId addr = b.address_of(x, ptr_t);
+            const ValueId loan = b.borrow(addr, region, ref_t, false);
+            const PlaceId p = b.alloca(ref_t);
+            b.store(p, loan);
+            b.storage_dead(x);
+            // A use after the storage ends keeps the loan live across the marker.
+            (void) b.load(p, ref_t);
+        });
+        const MIRBorrowCheckResult r = check_function_borrows(module, fn);
+        bool found = false;
+        for (const auto& d : r.diagnostics) {
+            if (d.code != nullptr && std::string(d.code) == "SAFE-LIFE-002") found = true;
+        }
+        CHECK(found);
+    }
+
+    {
         // Returning a reference to a local escapes its storage.
         MIRFunction fn;
         MIRArena arena;
@@ -2305,8 +2330,9 @@ static bool test_move_check() {
     }
 
     {
-        // A user-written destructor expects a whole value, so field-by-field
-        // initialization stays rejected for such a struct.
+        // A user-written destructor local may be built field by field (the
+        // hand-written constructor pattern); it is only unsafe to move it as a
+        // whole before every owned child is initialized.
         MIRTypeRecord outer3;
         outer3.kind = MIRTypeKind::Struct;
         outer3.flags = TF_HAS_DESTRUCTOR | TF_USER_DESTRUCTOR;
@@ -2330,11 +2356,20 @@ static bool test_move_check() {
             b.init(src, ctor, nullptr, 0);
             b.field_store(local, fa, b.load(src, owned_id));
         });
-        MIRMoveCheckResult r = check_function_moves(module, fn);
+        CHECK(check_function_moves(module, fn).ok());
+
+        MIRFunction partial_move;
+        build(partial_move, [&](MIRBuilder& b) {
+            const PlaceId src = b.alloca(owned_id);
+            const PlaceId local = b.alloca(outer3_id, MIRStorageClass::Local);
+            const PlaceId dst = b.alloca(outer3_id);
+            b.init(src, ctor, nullptr, 0);
+            b.field_store(local, fa, b.load(src, owned_id));
+            b.move_init(dst, local, outer3_id);
+        });
+        MIRMoveCheckResult r = check_function_moves(module, partial_move);
         CHECK(!r.ok());
         CHECK(std::string(r.diagnostics[0].code) == "SAFE-INIT-001");
-        CHECK(r.diagnostics[0].message.find("write to a field of") !=
-              std::string::npos);
     }
 
     // [2]owned

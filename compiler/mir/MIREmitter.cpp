@@ -2216,6 +2216,10 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
             case MIROpcode::MoveOut:
                 // dataflow marker only: the value is consumed by the call
                 break;
+            case MIROpcode::StorageLive:
+            case MIROpcode::StorageDead:
+                // lexical storage markers: no runtime effect
+                break;
             case MIROpcode::Drop: {
                 const MIROperand* p = operand_at(function, inst, 0);
                 const MIROperand* d = operand_at(function, inst, 1);

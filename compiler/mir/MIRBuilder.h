@@ -144,6 +144,9 @@ public:
     /** Wrap an address value in an explicit reference borrow (S4.3). */
     ValueId borrow(ValueId address, ConstantId region, TypeId reference_type,
                    bool mutable_borrow);
+    /** Lexical storage lifetime markers (S4.4c); no runtime effect. */
+    void storage_live(PlaceId place);
+    void storage_dead(PlaceId place);
     /** Address of a struct field; result value is typed as `field_type`. */
     ValueId field_addr(PlaceId base, ConstantId field_index, TypeId field_type);
     /** Address of a field through a pointer: `&base->field`. */

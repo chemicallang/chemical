@@ -1515,7 +1515,9 @@ struct MIRInterpreter::Impl {
                     break;
                 }
                 case MIROpcode::MoveOut:
-                    // dataflow marker only
+                case MIROpcode::StorageLive:
+                case MIROpcode::StorageDead:
+                    // dataflow markers only
                     break;
                 case MIROpcode::Drop:
                 case MIROpcode::Destroy: {

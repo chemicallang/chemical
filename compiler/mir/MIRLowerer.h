@@ -761,6 +761,10 @@ private:
     void mark_member_initialized(PlaceId place);
     /** Destroy every initialized field of a field-wise destructible. */
     void destroy_field_wise(MIRDestructible& d);
+    /** Emit StorageDead for every place registered at/after `mark`. */
+    void emit_storage_dead_from(size_t mark);
+    /** Places registered in the current lexical scope (S4.4c). */
+    std::vector<PlaceId> scope_places_;
     /** Destroy every destructible member of the enclosing `@delete` method. */
     void emit_destructor_members(std::string& error);
     /** Destroy the active payload of a variant inside its `@delete` method. */

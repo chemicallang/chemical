@@ -632,7 +632,14 @@
 > local may be built field by field when it is moved/returned as a whole
 > (partial values leak, safe; partial moves stay rejected), and
 > `*ptr = owned_local` now marks the source moved (fixing a double drop).
-> Next: S4.2b variance, then outlives/region constraints.
+> S4.4c storage lifetimes: the lowering emits `StorageLive`/`StorageDead` for
+> every local in each lexical scope (no runtime effect). The loan analysis
+> reports `SAFE-LIFE-002` when a loan is still live at the referent local's
+> `StorageDead`; references stored in struct fields are followed through field
+> stores and whole moves. `MIRTests` is `4620 checks`; negative tests cover the
+> struct-field escape and the same-scope positive (452 tests). SAFE-LIFE-002 is
+> report-only (no in-tree hits); enforcement is next. Next: S4.2b variance,
+> then outlives/region constraints.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

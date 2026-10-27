@@ -442,6 +442,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     auto saved_var = std::move(var_places_);
     auto saved_name = std::move(name_places_);
     auto saved_destructibles = std::move(destructibles_);
+    auto saved_scope_places = std::move(scope_places_);
     auto saved_call_temps = std::move(call_temps_);
     auto saved_stmt_temps = std::move(stmt_temps_);
     auto saved_pattern_bases = std::move(pattern_bases_);
@@ -466,6 +467,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     var_places_.clear();
     name_places_.clear();
     destructibles_.clear();
+    scope_places_.clear();
     call_temps_.clear();
     stmt_temps_.clear();
     pattern_bases_.clear();
@@ -557,6 +559,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     var_places_ = std::move(saved_var);
     name_places_ = std::move(saved_name);
     destructibles_ = std::move(saved_destructibles);
+    scope_places_ = std::move(saved_scope_places);
     call_temps_ = std::move(saved_call_temps);
     stmt_temps_ = std::move(saved_stmt_temps);
     pattern_bases_ = std::move(saved_pattern_bases);
@@ -698,6 +701,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     auto saved_var = std::move(var_places_);
     auto saved_name = std::move(name_places_);
     auto saved_destructibles = std::move(destructibles_);
+    auto saved_scope_places = std::move(scope_places_);
     auto saved_call_temps = std::move(call_temps_);
     auto saved_stmt_temps = std::move(stmt_temps_);
     const bool saved_sret = sret_;
@@ -717,6 +721,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     var_places_.clear();
     name_places_.clear();
     destructibles_.clear();
+    scope_places_.clear();
     call_temps_.clear();
     stmt_temps_.clear();
     pattern_bases_.clear();
@@ -807,6 +812,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     var_places_ = std::move(saved_var);
     name_places_ = std::move(saved_name);
     destructibles_ = std::move(saved_destructibles);
+    scope_places_ = std::move(saved_scope_places);
     call_temps_ = std::move(saved_call_temps);
     stmt_temps_ = std::move(saved_stmt_temps);
     sret_ = saved_sret;

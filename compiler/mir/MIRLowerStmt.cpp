@@ -81,6 +81,16 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             }
             bind(vi, place);
             bind_name(vi->name_view(), place);
+            {
+                const auto sc = static_cast<MIRStorageClass>(
+                    builder_->function().places[place].storage_class
+                );
+                if (sc != MIRStorageClass::FrameField &&
+                    sc != MIRStorageClass::FramePtr) {
+                    builder_->storage_live(place);
+                    scope_places_.push_back(place);
+                }
+            }
             if (async_ && vi->value && vi->value->kind() == ValueKind::AwaitExpr) {
                 auto it = async_site_index_.find(vi);
                 if (it != async_site_index_.end()) {
@@ -1487,6 +1497,7 @@ bool MIRLowerer::lower_scope_nodes_scoped(std::vector<ASTNode*>& nodes, uint64_t
 
 bool MIRLowerer::lower_scope_nodes(std::vector<ASTNode*>& nodes, std::string& error) {
     const size_t mark = destructibles_.size();
+    const size_t spmark = scope_places_.size();
     for (ASTNode* n : nodes) {
         // statements after a terminator (break/continue/return) are unreachable
         if (builder_->current_block_terminated()) break;
@@ -1499,6 +1510,8 @@ bool MIRLowerer::lower_scope_nodes(std::vector<ASTNode*>& nodes, std::string& er
     if (!builder_->current_block_terminated()) {
         emit_drops_from(mark);
     }
+    if (!builder_->current_block_terminated()) emit_storage_dead_from(spmark);
+    scope_places_.resize(spmark);
     destructibles_.resize(mark);
     return true;
 }
@@ -1552,6 +1565,7 @@ bool MIRLowerer::lower_scope_value(Scope& scope, PlaceId dest, TypeId dest_t,
     }
     const size_t mark = destructibles_.size();
     const size_t smark = stmt_temps_.size();
+    const size_t spmark = scope_places_.size();
     auto finish = [&]() -> bool {
         if (!builder_->current_block_terminated()) {
             emit_drops_from(mark);
@@ -1559,6 +1573,8 @@ bool MIRLowerer::lower_scope_value(Scope& scope, PlaceId dest, TypeId dest_t,
         } else {
             stmt_temps_.resize(smark);
         }
+        if (!builder_->current_block_terminated()) emit_storage_dead_from(spmark);
+        scope_places_.resize(spmark);
         destructibles_.resize(mark);
         if (ls_builder) ls_builder->pop_lexical_scope();
         return true;

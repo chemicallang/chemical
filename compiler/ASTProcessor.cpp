@@ -80,6 +80,7 @@ static void ct_stat_decl(const char* tag, FunctionDeclaration* d) {
 #include "compiler/mir/MIRVerifier.h"
 #include "compiler/mir/MIRMoveCheck.h"
 #include "compiler/mir/MIRBorrowCheck.h"
+#include "compiler/mir/MIRPrototype.h"
 #include "compiler/mir/MIRMangleBuffer.h"
 #include "compiler/mir/MIRInterpProgram.h"
 
@@ -2304,10 +2305,17 @@ bool mir_translate_after_declaration(
         rec.kind = mir::MIRSymbolKind::Function;
         rec.linkage = decl->is_linkage_public() ? mir::MIRLinkage::External
                                                 : mir::MIRLinkage::Internal;
+        rec.has_body = !decl->is_extern();
+        rec.type = mir::mir_function_signature(types, module, decl);
         mir::SymbolId sym = module.symbols.add(
             rec, name.data(), static_cast<uint32_t>(name.size()),
             name.data(), static_cast<uint32_t>(name.size()));
         lowerer.set_function_symbol(decl, sym);
+        // Callers need the region signature before the body is lowered (S4.5).
+        const uint32_t sig = lowerer.prepare_region_signature(decl);
+        if (sig != mir::MIR_INVALID_ID) {
+            module.set_symbol_region_signature(sym, sig);
+        }
     }
 
     bool had_errors = false;

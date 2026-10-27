@@ -219,6 +219,15 @@ Implemented:
   enclosing function. Migrated the one in-tree two-`&mut` test; the tree now
   has zero `SAFE-BORROW-001` hits. `MIRTests` is `4631 checks`; negative tests
   cover both the aliased and unrelated-argument cases (460 tests).
+- S4.3b autoref / S4.7 two-phase: a reference receiver (`&self` / `&mut self`)
+  now lowers to `Borrow`/`BorrowMut` instead of an untracked `AddressOf`, and
+  method-call arguments are evaluated before the receiver borrow is activated.
+  `v.push(v.len())` stays accepted (the shared argument loan ends first), while
+  a live `&v` followed by `v.push(2)` is a hard `SAFE-BORROW-001`. Known-callee
+  detection now uses the new `MIRSymbolRecord::has_body` (linkage is not body
+  presence), and pre-declared top-level symbols carry their function type and
+  region signature. Migrated `universal_cbi/router/emit.ch` to read an element
+  before taking its mutable borrow.
 - S4.9/S4.10 enforcement: after the tree reached zero hits across every suite,
   `SAFE-BORROW-001` and `SAFE-BORROW-002` were flipped to hard errors. The
   enforcement gate is the same fatal path as the LIFE rules; enforced

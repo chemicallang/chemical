@@ -351,6 +351,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     MIRSymbolRecord drec;
     drec.kind = MIRSymbolKind::Function;
     drec.linkage = MIRLinkage::Internal;
+    drec.has_body = true;
     drec.type = types_.function_signature(types_.void_type(), {void_ptr});
     const SymbolId dtor_sym = module_.symbols.add(
         drec, dname.data(), static_cast<uint32_t>(dname.size()), dname.data(),
@@ -425,6 +426,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     MIRSymbolRecord rec;
     rec.kind = MIRSymbolKind::Function;
     rec.linkage = MIRLinkage::Internal;
+    rec.has_body = true;
     rec.type = ftype;
     const SymbolId sym = module_.symbols.add(
         rec, lname.data(), static_cast<uint32_t>(lname.size()), lname.data(),
@@ -702,6 +704,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     MIRSymbolRecord rec;
     rec.kind = MIRSymbolKind::Function;
     rec.linkage = MIRLinkage::Internal;
+    rec.has_body = true;
     rec.type = ftype;
     const SymbolId sym = module_.symbols.add(
         rec, lname.data(), static_cast<uint32_t>(lname.size()),

@@ -1375,18 +1375,27 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
         return MIRExprResult::value(dv, dtype);
     }
 
-    MIRArgScope _ag_scope(*this);
-    std::vector<MIROperand>& args = _ag_scope.v;
-    if (!append_receiver_arg(recv, recv_type, fd, args, error)) {
-        return MIRExprResult::error();
-    }
+    // Two-phase approximation: evaluate the call arguments before the
+    // receiver borrow is activated. `v.push(v.len())` needs this; a mutable
+    // borrow in the arguments is still seen as a conflicting live loan.
     const size_t cmark = call_temps_.size();
-    if (!lower_call_args_for(fd, true, call->values, args, error)) {
+    MIRArgScope _arg_scope(*this);
+    std::vector<MIROperand>& call_args = _arg_scope.v;
+    if (!lower_call_args_for(fd, true, call->values, call_args, error)) {
         return MIRExprResult::error();
     }
-    if (!append_default_args(fd, call->values.size(), true, args, error)) {
+    if (!append_default_args(fd, call->values.size(), true, call_args, error)) {
         return MIRExprResult::error();
     }
+    MIRArgScope _recv_scope(*this);
+    std::vector<MIROperand>& recv_args = _recv_scope.v;
+    if (!append_receiver_arg(recv, recv_type, fd, recv_args, error)) {
+        return MIRExprResult::error();
+    }
+    MIRArgScope _final_scope(*this);
+    std::vector<MIROperand>& args = _final_scope.v;
+    args.insert(args.end(), recv_args.begin(), recv_args.end());
+    args.insert(args.end(), call_args.begin(), call_args.end());
 
     const SymbolId sym = intern_method_function(fd, recv_type);
     const TypeId type = types_.map(call->getType());
@@ -1411,6 +1420,28 @@ bool MIRLowerer::append_receiver_arg(MIRExprResult recv, BaseType* recv_type,
             x_type = self_t->as_pointer_type()->type;
         }
     }
+
+    // A reference receiver is a real borrow: the checker must see the loan
+    // (autoref), not just an address. The receiver borrow is created after the
+    // arguments (see lower_method_call) so shared argument borrows are
+    // two-phase-compatible.
+    auto push_receiver_address = [&](ValueId address, TypeId address_type) {
+        if (self_t != nullptr && self_t->kind() == BaseTypeKind::Reference) {
+            const TypeId ref_t = types_.map(self_t);
+            if (ref_t != MIR_INVALID_ID) {
+                const ConstantId region = module_.constants.add_int(
+                    types_.u32_type(), fresh_region_id());
+                const ValueId borrowed = builder_->borrow(
+                    address, region, ref_t,
+                    self_t->as_reference_type()->is_mutable);
+                if (borrowed != MIR_INVALID_ID) {
+                    args.push_back(MIROperand::value(borrowed, ref_t));
+                    return;
+                }
+            }
+        }
+        args.push_back(MIROperand::value(address, address_type));
+    };
 
     if (by_value) {
         if (recv.kind == MIRExprKind::Place) {
@@ -1463,12 +1494,12 @@ bool MIRLowerer::append_receiver_arg(MIRExprResult recv, BaseType* recv_type,
             args.push_back(MIROperand::value(builder_->load(recv.id, rt), rt));
         } else {
             const TypeId ptrt = types_.pointer_type(rt, true);
-            args.push_back(MIROperand::value(builder_->address_of(recv.id, ptrt), ptrt));
+            push_receiver_address(builder_->address_of(recv.id, ptrt), ptrt);
         }
     } else if (recv.kind == MIRExprKind::Address) {
         // an lvalue address (field / element): already a pointer to the receiver
         const TypeId ptrt = types_.pointer_type(recv.type, true);
-        args.push_back(MIROperand::value(static_cast<ValueId>(recv.id), ptrt));
+        push_receiver_address(static_cast<ValueId>(recv.id), ptrt);
     } else {
         // an rvalue: materialize a temporary and pass its address
         const MIRTypeRecord& rr = module_.types.get(recv.type);
@@ -1485,7 +1516,7 @@ bool MIRLowerer::append_receiver_arg(MIRExprResult recv, BaseType* recv_type,
             const PlaceId tmp = builder_->alloca(rt, MIRStorageClass::Temporary);
             builder_->store(tmp, static_cast<ValueId>(recv.id));
             const TypeId ptrt = types_.pointer_type(rt, true);
-            args.push_back(MIROperand::value(builder_->address_of(tmp, ptrt), ptrt));
+            push_receiver_address(builder_->address_of(tmp, ptrt), ptrt);
         }
     }
     return true;
@@ -1628,6 +1659,7 @@ SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
     // place its symbol — and therefore its linkage — is decided.
     rec.linkage = (decl->is_extern() || decl->is_linkage_public()) ? MIRLinkage::External
                                                                   : MIRLinkage::Internal;
+    rec.has_body = !decl->is_extern();
     rec.type = ftype;
 
     // NOTE: mangled name is filled by the serial symbol builder (PR3b) using

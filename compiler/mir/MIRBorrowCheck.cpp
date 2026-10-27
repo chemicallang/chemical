@@ -645,7 +645,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     ops[0].kind() == MIROperandKind::Symbol &&
                     ops[0].id < module.symbols.size()) {
                     const MIRSymbolRecord& rec = module.symbols.get(ops[0].id);
-                    extern_like = rec.linkage == MIRLinkage::External;
+                    extern_like = !rec.has_body;
                     const TypeId ftype = rec.type;
                     if (!extern_like && ftype != MIR_INVALID_ID &&
                         ftype < module.types.types.size()) {

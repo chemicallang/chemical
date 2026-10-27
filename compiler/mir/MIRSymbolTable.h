@@ -39,6 +39,8 @@ enum class MIRLinkage : uint8_t {
 struct MIRSymbolRecord {
     MIRSymbolKind kind = MIRSymbolKind::Function;
     MIRLinkage linkage = MIRLinkage::Internal;
+    /** A definition (body) exists; false for `@extern`/bodyless declarations. */
+    bool has_body = false;
     TypeId type = MIR_INVALID_ID;
     uint32_t name_offset = 0;
     uint32_t name_length = 0;

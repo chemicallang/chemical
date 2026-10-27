@@ -659,7 +659,13 @@
 > diagnostics carry their enclosing function and source location in
 > `debug_quick`; `MIRTests` is `4631 checks`, negative tests `460`. After the
 > migration reached zero hits in every suite, `SAFE-BORROW-001`/`002` were
-> enforced as hard errors (rendered as `error[SAFE-*]`). Next: S4.2b variance
+> enforced as hard errors (rendered as `error[SAFE-*]`). Autoref is tracked:
+> reference receivers lower to `Borrow`/`BorrowMut`, and method arguments are
+> evaluated before the receiver borrow is activated (two-phase approximation),
+> so `v.push(v.len())` works while a live `&v` + `v.push(2)` is rejected.
+> Known-callee detection uses `MIRSymbolRecord::has_body`, and pre-declared
+> symbols carry their type and region signature. Migrated
+> `universal_cbi/router/emit.ch` (read before `get_mut`). Next: S4.2b variance
 > and dropck/async/Pin/provenance.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.

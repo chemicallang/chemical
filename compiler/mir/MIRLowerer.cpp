@@ -303,10 +303,13 @@ SymbolId MIRLowerer::intern_method_function(FunctionDeclaration* decl, BaseType*
     rec.kind = MIRSymbolKind::Function;
     rec.linkage = (decl->is_extern() || decl->is_linkage_public()) ? MIRLinkage::External
                                                                   : MIRLinkage::Internal;
+    rec.has_body = !decl->is_extern();
     rec.type = ftype;
     SymbolId s = module_.symbols.add(rec, name.data(), static_cast<uint32_t>(name.size()),
                                      name.data(), static_cast<uint32_t>(name.size()));
     named_method_symbols_[name] = s;
+    const uint32_t sig = intern_region_signature(decl);
+    if (sig != MIR_INVALID_ID) module_.set_symbol_region_signature(s, sig);
     return s;
 }
 

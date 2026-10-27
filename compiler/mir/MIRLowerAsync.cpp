@@ -498,6 +498,7 @@ bool MIRLowerer::async_lower_poll_body(FunctionDeclaration* decl, std::string& e
     MIRSymbolRecord rec;
     rec.kind = MIRSymbolKind::Function;
     rec.linkage = MIRLinkage::Internal;
+    rec.has_body = true;
     SymbolId sym = module_.symbols.add(rec, poll_name.data(),
                                        static_cast<uint32_t>(poll_name.size()), poll_name.data(),
                                        static_cast<uint32_t>(poll_name.size()));

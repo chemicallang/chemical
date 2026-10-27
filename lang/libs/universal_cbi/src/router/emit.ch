@@ -361,7 +361,10 @@ func (converter : &mut JsConverter) router_url_entries(rd : *mut JsRouterDecl) :
         const key = out.get(a)
         var b = a
         while(b > 0 && router_entry_precedes(key, out.get(b - 1))) {
-            *out.get_mut(b) = out.get(b - 1)
+            // Read before taking the mutable element borrow: holding a
+            // `get_mut` loan across `out.get` is aliasing (SAFE-BORROW-001).
+            const prev = out.get(b - 1)
+            *out.get_mut(b) = prev
             b = b - 1
         }
         *out.get_mut(b) = key

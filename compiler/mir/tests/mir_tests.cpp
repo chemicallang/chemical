@@ -2139,6 +2139,7 @@ static bool test_borrow_check() {
         const TypeId cftype = module.types.intern(cfr);
         MIRSymbolRecord rec;
         rec.kind = MIRSymbolKind::Function;
+        rec.has_body = true;
         rec.type = cftype;
         const SymbolId callee = module.symbols.add(
             rec, "pick", 4, "pick", 4);

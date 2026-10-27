@@ -338,6 +338,11 @@ public:
         func_symbols_[decl] = symbol;
     }
 
+    /** Intern a declaration's region signature before any body is lowered. */
+    uint32_t prepare_region_signature(FunctionDeclaration* decl) {
+        return intern_region_signature(decl);
+    }
+
     /**
      * Register a top-level global that the module being lowered *declares*.
      *

@@ -134,6 +134,28 @@ bool targets_overlap(const MIRFunction& fn, const LoanTarget& a, const LoanTarge
     return paths_overlap(fn, a.path, b.path);
 }
 
+/** True when `from` outlives `to` (identity, 'static, elided, or a where edge). */
+bool region_outlives(const MIRRegionSignature& sig, MIRRegionId from,
+                     MIRRegionId to) {
+    if (from == MIR_INVALID_ID || from == to || from == MIR_REGION_STATIC) {
+        return true;
+    }
+    if (from == MIR_REGION_ELIDED && to == MIR_REGION_ELIDED) return true;
+    std::vector<MIRRegionId> stack{from};
+    std::vector<MIRRegionId> seen;
+    while (!stack.empty()) {
+        const MIRRegionId cur = stack.back();
+        stack.pop_back();
+        if (std::find(seen.begin(), seen.end(), cur) != seen.end()) continue;
+        seen.push_back(cur);
+        if (cur == to) return true;
+        for (const auto& edge : sig.outlives) {
+            if (edge.first == cur) stack.push_back(edge.second);
+        }
+    }
+    return false;
+}
+
 uint32_t linear_of(uint32_t block, uint32_t inst, const std::vector<InstRef>& order) {
     for (uint32_t i = 0; i < order.size(); ++i) {
         if (order[i].block == block && order[i].inst == inst) return i;
@@ -199,6 +221,8 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
     std::unordered_map<PlaceId, uint32_t> place_params;
     // A reference stored in a struct field: key = (place << 32) | field constant.
     std::unordered_map<uint64_t, uint32_t> field_loans;
+    // A reference field sourced from a parameter (return-outlives check).
+    std::unordered_map<uint64_t, uint32_t> field_params;
     auto field_key = [](PlaceId base, ConstantId field) -> uint64_t {
         return (static_cast<uint64_t>(base) << 32) | static_cast<uint64_t>(field);
     };
@@ -339,10 +363,15 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     if (inst.operand_count >= 2 &&
                         ops[1].kind() == MIROperandKind::Constant &&
                         inst.result_or_place != MIR_INVALID_ID) {
-                        const auto fit = field_loans.find(field_key(ops[0].id, ops[1].id));
+                        const uint64_t fkey = field_key(ops[0].id, ops[1].id);
+                        const auto fit = field_loans.find(fkey);
                         if (fit != field_loans.end()) {
                             value_loans[inst.result_or_place] = fit->second;
                             loans[fit->second].end = lin;
+                        }
+                        const auto fpi = field_params.find(fkey);
+                        if (fpi != field_params.end()) {
+                            value_params[inst.result_or_place] = fpi->second;
                         }
                     }
                 }
@@ -357,15 +386,28 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     ops[0].kind() == MIROperandKind::Place &&
                     ops[1].kind() == MIROperandKind::Constant) {
                     const uint64_t key = field_key(ops[0].id, ops[1].id);
+                    uint32_t loan = MIR_INVALID_ID;
+                    uint32_t param = MIR_INVALID_ID;
                     if (value.kind() == MIROperandKind::Value) {
                         const auto vit = value_loans.find(value.id);
-                        if (vit != value_loans.end()) {
-                            field_loans[key] = vit->second;
-                        } else {
-                            field_loans.erase(key);
-                        }
+                        if (vit != value_loans.end()) loan = vit->second;
+                        const auto vp = value_params.find(value.id);
+                        if (vp != value_params.end()) param = vp->second;
+                    } else if (value.kind() == MIROperandKind::Place) {
+                        const auto vit = place_loans.find(value.id);
+                        if (vit != place_loans.end()) loan = vit->second;
+                        const auto pp = place_params.find(value.id);
+                        if (pp != place_params.end()) param = pp->second;
+                    }
+                    if (loan != MIR_INVALID_ID) {
+                        field_loans[key] = loan;
                     } else {
                         field_loans.erase(key);
+                    }
+                    if (param != MIR_INVALID_ID) {
+                        field_params[key] = param;
+                    } else {
+                        field_params.erase(key);
                     }
                 }
                 // Whole-place store of a reference value: the place now holds it.
@@ -374,19 +416,50 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     // fields to the destination.
                     if (ops[1].kind() == MIROperandKind::Place) {
                         std::vector<std::pair<uint64_t, uint32_t>> moved;
+                        std::vector<std::pair<uint64_t, uint32_t>> moved_params;
                         for (const auto& fl : field_loans) {
                             if (static_cast<PlaceId>(fl.first >> 32) != ops[1].id) continue;
                             const ConstantId field =
                                 static_cast<ConstantId>(fl.first & 0xFFFFFFFFu);
                             moved.emplace_back(field_key(ops[0].id, field), fl.second);
                         }
+                        for (const auto& fp : field_params) {
+                            if (static_cast<PlaceId>(fp.first >> 32) != ops[1].id) continue;
+                            const ConstantId field =
+                                static_cast<ConstantId>(fp.first & 0xFFFFFFFFu);
+                            moved_params.emplace_back(field_key(ops[0].id, field), fp.second);
+                        }
+                        for (auto it2 = field_loans.begin(); it2 != field_loans.end();) {
+                            if (static_cast<PlaceId>(it2->first >> 32) == ops[0].id) {
+                                it2 = field_loans.erase(it2);
+                            } else {
+                                ++it2;
+                            }
+                        }
+                        for (auto it2 = field_params.begin(); it2 != field_params.end();) {
+                            if (static_cast<PlaceId>(it2->first >> 32) == ops[0].id) {
+                                it2 = field_params.erase(it2);
+                            } else {
+                                ++it2;
+                            }
+                        }
                         for (const auto& m : moved) {
                             field_loans[m.first] = m.second;
                             loans[m.second].end = lin;
                         }
+                        for (const auto& m : moved_params) {
+                            field_params[m.first] = m.second;
+                        }
                         for (auto it2 = field_loans.begin(); it2 != field_loans.end();) {
                             if (static_cast<PlaceId>(it2->first >> 32) == ops[1].id) {
                                 it2 = field_loans.erase(it2);
+                            } else {
+                                ++it2;
+                            }
+                        }
+                        for (auto it2 = field_params.begin(); it2 != field_params.end();) {
+                            if (static_cast<PlaceId>(it2->first >> 32) == ops[1].id) {
+                                it2 = field_params.erase(it2);
                             } else {
                                 ++it2;
                             }
@@ -432,6 +505,8 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         if (inst.opcode() == MIROpcode::MoveInit) {
                             place_params.erase(ops[1].id);
                         }
+                    } else {
+                        place_params.erase(ops[0].id);
                     }
                 }
                 const auto it = place_loans.find(ops[1].id);
@@ -445,20 +520,53 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 // Transfer references stored in fields of the moved/copied value.
                 {
                     std::vector<std::pair<uint64_t, uint32_t>> moved;
+                    std::vector<std::pair<uint64_t, uint32_t>> moved_params;
                     for (const auto& fl : field_loans) {
                         const PlaceId base = static_cast<PlaceId>(fl.first >> 32);
                         if (base != ops[1].id) continue;
                         const ConstantId field = static_cast<ConstantId>(fl.first & 0xFFFFFFFFu);
                         moved.emplace_back(field_key(ops[0].id, field), fl.second);
                     }
+                    for (const auto& fp : field_params) {
+                        const PlaceId base = static_cast<PlaceId>(fp.first >> 32);
+                        if (base != ops[1].id) continue;
+                        const ConstantId field = static_cast<ConstantId>(fp.first & 0xFFFFFFFFu);
+                        moved_params.emplace_back(field_key(ops[0].id, field), fp.second);
+                    }
+                    // The destination is overwritten (or freshly constructed):
+                    // drop its previous field facts instead of merging them.
+                    for (auto it2 = field_loans.begin(); it2 != field_loans.end();) {
+                        if (static_cast<PlaceId>(it2->first >> 32) == ops[0].id) {
+                            it2 = field_loans.erase(it2);
+                        } else {
+                            ++it2;
+                        }
+                    }
+                    for (auto it2 = field_params.begin(); it2 != field_params.end();) {
+                        if (static_cast<PlaceId>(it2->first >> 32) == ops[0].id) {
+                            it2 = field_params.erase(it2);
+                        } else {
+                            ++it2;
+                        }
+                    }
                     for (const auto& m : moved) {
                         field_loans[m.first] = m.second;
                         loans[m.second].end = lin;
+                    }
+                    for (const auto& m : moved_params) {
+                        field_params[m.first] = m.second;
                     }
                     if (inst.opcode() == MIROpcode::MoveInit) {
                         for (auto it2 = field_loans.begin(); it2 != field_loans.end();) {
                             if (static_cast<PlaceId>(it2->first >> 32) == ops[1].id) {
                                 it2 = field_loans.erase(it2);
+                            } else {
+                                ++it2;
+                            }
+                        }
+                        for (auto it2 = field_params.begin(); it2 != field_params.end();) {
+                            if (static_cast<PlaceId>(it2->first >> 32) == ops[1].id) {
+                                it2 = field_params.erase(it2);
                             } else {
                                 ++it2;
                             }
@@ -584,26 +692,87 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 break;
             }
             case MIROpcode::Return: {
-                if (ops == nullptr || inst.operand_count == 0) break;
-                use_value(ops[0], lin, true);
                 uint32_t loan = MIR_INVALID_ID;
                 uint32_t return_param = MIR_INVALID_ID;
-                if (ops[0].kind() == MIROperandKind::Value) {
-                    const auto it = value_loans.find(ops[0].id);
-                    if (it != value_loans.end()) loan = it->second;
-                    const auto vp = value_params.find(ops[0].id);
-                    if (vp != value_params.end()) return_param = vp->second;
-                } else if (ops[0].kind() == MIROperandKind::Place) {
-                    const auto it = place_loans.find(ops[0].id);
-                    if (it != place_loans.end()) loan = it->second;
-                    if (ops[0].id < function.places.size()) {
-                        return_param = function.places[ops[0].id].param_index;
+                PlaceId returned_place = MIR_INVALID_ID;
+                if (inst.operand_count > 0) {
+                    use_value(ops[0], lin, true);
+                    if (ops[0].kind() == MIROperandKind::Value) {
+                        const auto it = value_loans.find(ops[0].id);
+                        if (it != value_loans.end()) loan = it->second;
+                        const auto vp = value_params.find(ops[0].id);
+                        if (vp != value_params.end()) return_param = vp->second;
+                    } else if (ops[0].kind() == MIROperandKind::Place) {
+                        returned_place = ops[0].id;
+                        const auto it = place_loans.find(ops[0].id);
+                        if (it != place_loans.end()) loan = it->second;
+                        if (ops[0].id < function.places.size()) {
+                            return_param = function.places[ops[0].id].param_index;
+                        }
+                        if (return_param == MIR_INVALID_ID) {
+                            const auto pp = place_params.find(ops[0].id);
+                            if (pp != place_params.end()) return_param = pp->second;
+                        }
                     }
-                    if (return_param == MIR_INVALID_ID) {
-                        const auto pp = place_params.find(ops[0].id);
-                        if (pp != place_params.end()) return_param = pp->second;
+                } else {
+                    // Aggregate returns use a hidden sret pointer: the value is
+                    // stored to it immediately before `return` (which has no
+                    // operand). Recover the source aggregate so its reference
+                    // fields are checked too. The sret pointer is the first
+                    // materialized parameter of the entry block.
+                    auto is_sret_param = [&](ValueId value) -> bool {
+                        if (value >= function.values.size()) return false;
+                        const uint32_t def = function.values[value].def_inst;
+                        if (def >= function.instructions.size()) return false;
+                        if (function.instructions[def].opcode() != MIROpcode::Param) {
+                            return false;
+                        }
+                        if (function.entry_block >= function.blocks.size()) {
+                            return false;
+                        }
+                        return def == function.blocks[function.entry_block].inst_start;
+                    };
+                    for (uint32_t k = lin; k-- > 0;) {
+                        const MIRInstruction& prev =
+                            function.instructions[order[k].inst];
+                        if (is_terminator(prev.opcode())) break;
+                        if (prev.opcode() != MIROpcode::Store ||
+                            prev.operand_count != 2) {
+                            continue;
+                        }
+                        const MIROperand* pops = operands_of(prev);
+                        if (pops != nullptr &&
+                            pops[0].kind() == MIROperandKind::Value &&
+                            pops[1].kind() == MIROperandKind::Place &&
+                            is_sret_param(pops[0].id)) {
+                            returned_place = pops[1].id;
+                            break;
+                        }
                     }
                 }
+
+                const MIRRegionSignature* sig = nullptr;
+                if (function.region_signature != MIR_INVALID_ID &&
+                    function.region_signature < module.region_signatures.size()) {
+                    sig = &module.region_signatures[function.region_signature];
+                }
+                bool reported = false;
+                auto check_param_region = [&](uint32_t param_index) -> bool {
+                    if (param_index == MIR_INVALID_ID || sig == nullptr ||
+                        sig->return_region == MIR_INVALID_ID ||
+                        param_index >= sig->param_regions.size()) {
+                        return true;
+                    }
+                    const MIRRegionId from = sig->param_regions[param_index];
+                    if (region_outlives(*sig, from, sig->return_region)) {
+                        return true;
+                    }
+                    report(result.diagnostics, function, function_index, order, lin,
+                           "SAFE-LIFE-003",
+                           "returned reference does not outlive the declared return lifetime (add a where 'a: 'b bound)");
+                    return false;
+                };
+
                 if (loan != MIR_INVALID_ID && loan < loans.size()) {
                     const LoanTarget& target = loans[loan].target;
                     if (target.known && target.root < function.places.size()) {
@@ -617,51 +786,55 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                             report(result.diagnostics, function, function_index,
                                    order, lin, "SAFE-LIFE-001",
                                    "returning a reference to a local that does not outlive the function");
+                            reported = true;
                         }
                         if (target.param_index != MIR_INVALID_ID) {
                             return_param = target.param_index;
                         }
                     }
                 }
-                // S4.6a: a reference sourced from a parameter must outlive the
-                // declared return region (identity, 'static, or a where bound).
-                if (return_param != MIR_INVALID_ID &&
-                    function.region_signature != MIR_INVALID_ID &&
-                    function.region_signature < module.region_signatures.size()) {
-                    const MIRRegionSignature& sig =
-                        module.region_signatures[function.region_signature];
-                    const MIRRegionId ret = sig.return_region;
-                    if (ret != MIR_INVALID_ID &&
-                        return_param < sig.param_regions.size()) {
-                        const MIRRegionId from = sig.param_regions[return_param];
-                        bool ok = from == MIR_INVALID_ID || from == ret ||
-                                  from == MIR_REGION_STATIC ||
-                                  (from == MIR_REGION_ELIDED &&
-                                   ret == MIR_REGION_ELIDED);
-                        if (!ok) {
-                            std::vector<MIRRegionId> stack{from};
-                            std::vector<MIRRegionId> seen;
-                            while (!stack.empty() && !ok) {
-                                const MIRRegionId cur = stack.back();
-                                stack.pop_back();
-                                if (std::find(seen.begin(), seen.end(), cur) !=
-                                    seen.end()) {
-                                    continue;
-                                }
-                                seen.push_back(cur);
-                                if (cur == ret) {
-                                    ok = true;
-                                    break;
-                                }
-                                for (const auto& edge : sig.outlives) {
-                                    if (edge.first == cur) stack.push_back(edge.second);
-                                }
-                            }
+                if (!reported && !check_param_region(return_param)) {
+                    reported = true;
+                }
+                // S4.6a: references stored in fields of a returned aggregate
+                // escape with it; check them like a directly returned reference.
+                if (!reported && returned_place != MIR_INVALID_ID) {
+                    for (const auto& fl : field_loans) {
+                        if (static_cast<PlaceId>(fl.first >> 32) !=
+                            returned_place) {
+                            continue;
                         }
-                        if (!ok) {
+                        const uint32_t field_loan = fl.second;
+                        if (field_loan >= loans.size()) continue;
+                        const LoanTarget& target = loans[field_loan].target;
+                        if (!target.known ||
+                            target.root >= function.places.size()) {
+                            continue;
+                        }
+                        const auto sc = static_cast<MIRStorageClass>(
+                            function.places[target.root].storage_class
+                        );
+                        if (sc == MIRStorageClass::Local ||
+                            sc == MIRStorageClass::Temporary ||
+                            sc == MIRStorageClass::FrameField ||
+                            sc == MIRStorageClass::FramePtr) {
                             report(result.diagnostics, function, function_index,
-                                   order, lin, "SAFE-LIFE-003",
-                                   "returned reference does not outlive the declared return lifetime (add a where 'a: 'b bound)");
+                                   order, lin, "SAFE-LIFE-001",
+                                   "returning a reference to a local that does not outlive the function");
+                            reported = true;
+                            break;
+                        }
+                    }
+                }
+                if (!reported && returned_place != MIR_INVALID_ID) {
+                    for (const auto& fp : field_params) {
+                        if (static_cast<PlaceId>(fp.first >> 32) !=
+                            returned_place) {
+                            continue;
+                        }
+                        if (!check_param_region(fp.second)) {
+                            reported = true;
+                            break;
                         }
                     }
                 }

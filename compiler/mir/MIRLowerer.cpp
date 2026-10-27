@@ -596,6 +596,24 @@ static FunctionDeclaration* lower_static_iface_base_method(FunctionDeclaration* 
     return iface->direct_child_function(decl->name_view());
 }
 
+namespace {
+
+/** The declaration spells a lifetime on its return type (`&'a T` / `Foo<'a>`). */
+bool declaration_has_return_lifetime(BaseType* type) {
+    if (type == nullptr) return false;
+    if (type->kind() == BaseTypeKind::Reference) {
+        return !type->as_reference_type()->lifetime.empty();
+    }
+    if (type->kind() == BaseTypeKind::Generic) {
+        for (chem::string_view lt : type->as_generic_type()->lifetime_args) {
+            if (!lt.empty()) return true;
+        }
+    }
+    return false;
+}
+
+} // namespace
+
 bool MIRLowerer::lower_static_interface_stub(FunctionDeclaration* decl, MIRArena& arena,
                                              MIRFunction& func, std::string& error) {
     if (!decl) {
@@ -627,6 +645,25 @@ bool MIRLowerer::lower_static_interface_stub(FunctionDeclaration* decl, MIRArena
     // Region signatures are built from the declaration before any body
     // lowering, so MIRBorrowCheck (M4) never has to read the AST.
     func.region_signature = module_.symbol_region_signature(func.symbol);
+    // A generic declaration is interned before its return type is linked, so a
+    // cached signature can lack the return region. Rebuild from the linked
+    // declaration when that happened (S4.6a aggregate returns).
+    if (func.region_signature != MIR_INVALID_ID &&
+        func.region_signature < module_.region_signatures.size() &&
+        module_.region_signatures[func.region_signature].return_region ==
+            MIR_INVALID_ID &&
+        decl->returnType != nullptr) {
+        if (declaration_has_return_lifetime(decl->returnType)) {
+            const uint32_t fresh = intern_region_signature(decl);
+            if (fresh != MIR_INVALID_ID &&
+                fresh < module_.region_signatures.size() &&
+                module_.region_signatures[fresh].return_region !=
+                    MIR_INVALID_ID) {
+                func.region_signature = fresh;
+                module_.set_symbol_region_signature(func.symbol, fresh);
+            }
+        }
+    }
     if (func.region_signature == MIR_INVALID_ID) {
         func.region_signature = intern_region_signature(decl);
         if (func.region_signature != MIR_INVALID_ID) {
@@ -733,6 +770,25 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     // Region signatures are built from the declaration before any body
     // lowering, so MIRBorrowCheck (M4) never has to read the AST.
     func.region_signature = module_.symbol_region_signature(func.symbol);
+    // A generic declaration is interned before its return type is linked, so a
+    // cached signature can lack the return region. Rebuild from the linked
+    // declaration when that happened (S4.6a aggregate returns).
+    if (func.region_signature != MIR_INVALID_ID &&
+        func.region_signature < module_.region_signatures.size() &&
+        module_.region_signatures[func.region_signature].return_region ==
+            MIR_INVALID_ID &&
+        decl->returnType != nullptr) {
+        if (declaration_has_return_lifetime(decl->returnType)) {
+            const uint32_t fresh = intern_region_signature(decl);
+            if (fresh != MIR_INVALID_ID &&
+                fresh < module_.region_signatures.size() &&
+                module_.region_signatures[fresh].return_region !=
+                    MIR_INVALID_ID) {
+                func.region_signature = fresh;
+                module_.set_symbol_region_signature(func.symbol, fresh);
+            }
+        }
+    }
     if (func.region_signature == MIR_INVALID_ID) {
         func.region_signature = intern_region_signature(decl);
         if (func.region_signature != MIR_INVALID_ID) {

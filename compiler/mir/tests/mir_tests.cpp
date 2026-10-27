@@ -2127,6 +2127,120 @@ static bool test_borrow_check() {
     }
 
     {
+        // S4.6a aggregate: a reference field of an sret-returned aggregate is
+        // checked like a directly returned reference.
+        MIRTypeRecord ar;
+        ar.kind = MIRTypeKind::Struct;
+        ar.size = 8;
+        ar.alignment = 8;
+        const TypeId agg_t = module.types.intern(ar);
+        MIRTypeRecord sfr;
+        sfr.kind = MIRTypeKind::Function;
+        sfr.element = void_t;
+        sfr.size = 8;
+        sfr.alignment = 8;
+        const TypeId sftype = module.types.intern(sfr);
+        const ConstantId field = module.constants.add_int(i32, 7);
+
+        MIRFunction fn;
+        MIRArena arena;
+        fn.function_type = sftype;
+        fn.region_signature = module.add_region_signature(
+            make_region_signature({"a", "b"}, {"a"}, "b", {})
+        );
+        MIRBuilder b(arena, module, fn);
+        const BlockId entry = b.create_block();
+        fn.entry_block = entry;
+        b.set_block(entry);
+        const ValueId sret = b.param(ptr_t);
+        const PlaceId px = b.alloca(ref_t, MIRStorageClass::Parameter);
+        fn.places[px].param_index = 0;
+        const ValueId rv = b.load(px, ref_t);
+        const PlaceId holder = b.alloca(agg_t);
+        b.field_store(holder, field, rv);
+        b.emit(MIROpcode::Store, MIR_NULL,
+               {MIROperand::value(sret, ptr_t),
+                MIROperand::place(holder, agg_t)});
+        b.ret_void();
+        MIRBorrowCheckResult r = check_function_borrows(module, fn);
+        CHECK(!r.ok());
+        CHECK(std::string(r.diagnostics[0].code) == "SAFE-LIFE-003");
+
+        // With 'a: 'b the same aggregate return is accepted.
+        MIRFunction ok;
+        MIRArena oarena;
+        ok.function_type = sftype;
+        ok.region_signature = module.add_region_signature(
+            make_region_signature({"a", "b"}, {"a"}, "b", {{"a", "b"}})
+        );
+        MIRBuilder ob(oarena, module, ok);
+        const BlockId oentry = ob.create_block();
+        ok.entry_block = oentry;
+        ob.set_block(oentry);
+        const ValueId osret = ob.param(ptr_t);
+        const PlaceId opx = ob.alloca(ref_t, MIRStorageClass::Parameter);
+        ok.places[opx].param_index = 0;
+        const ValueId orv = ob.load(opx, ref_t);
+        const PlaceId oholder = ob.alloca(agg_t);
+        ob.field_store(oholder, field, orv);
+        ob.emit(MIROpcode::Store, MIR_NULL,
+                {MIROperand::value(osret, ptr_t),
+                 MIROperand::place(oholder, agg_t)});
+        ob.ret_void();
+        CHECK(check_function_borrows(module, ok).ok());
+
+        // A reference field built from a local is still a local escape.
+        MIRFunction local;
+        MIRArena larena;
+        local.function_type = sftype;
+        MIRBuilder lb(larena, module, local);
+        const BlockId lentry = lb.create_block();
+        local.entry_block = lentry;
+        lb.set_block(lentry);
+        const ValueId lsret = lb.param(ptr_t);
+        const PlaceId lx = lb.alloca(i32);
+        lb.store(lx, lb.const_int(i32, module.constants.add_int(i32, 1)));
+        const ValueId laddr = lb.address_of(lx, ptr_t);
+        const ValueId lloan = lb.borrow(laddr, region, ref_t, false);
+        const PlaceId lholder = lb.alloca(agg_t);
+        lb.field_store(lholder, field, lloan);
+        lb.emit(MIROpcode::Store, MIR_NULL,
+                {MIROperand::value(lsret, ptr_t),
+                 MIROperand::place(lholder, agg_t)});
+        lb.ret_void();
+        MIRBorrowCheckResult lr = check_function_borrows(module, local);
+        CHECK(!lr.ok());
+        CHECK(std::string(lr.diagnostics[0].code) == "SAFE-LIFE-001");
+
+        // Returning the reference field directly uses the same parameter map.
+        MIRFunction direct;
+        MIRArena darena;
+        MIRTypeRecord dfr;
+        dfr.kind = MIRTypeKind::Function;
+        dfr.element = ref_t;
+        dfr.size = 8;
+        dfr.alignment = 8;
+        direct.function_type = module.types.intern(dfr);
+        direct.region_signature = module.add_region_signature(
+            make_region_signature({"a", "b"}, {"a"}, "b", {})
+        );
+        MIRBuilder db(darena, module, direct);
+        const BlockId dentry = db.create_block();
+        direct.entry_block = dentry;
+        db.set_block(dentry);
+        const PlaceId dpx = db.alloca(ref_t, MIRStorageClass::Parameter);
+        direct.places[dpx].param_index = 0;
+        const ValueId drv = db.load(dpx, ref_t);
+        const PlaceId dholder = db.alloca(agg_t);
+        db.field_store(dholder, field, drv);
+        const ValueId df = db.field_load(dholder, field, ref_t);
+        db.ret(df);
+        MIRBorrowCheckResult dr = check_function_borrows(module, direct);
+        CHECK(!dr.ok());
+        CHECK(std::string(dr.diagnostics[0].code) == "SAFE-LIFE-003");
+    }
+
+    {
         // Returning a reference to a local escapes its storage.
         MIRFunction fn;
         MIRArena arena;

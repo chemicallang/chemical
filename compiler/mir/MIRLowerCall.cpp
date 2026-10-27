@@ -1648,11 +1648,27 @@ SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
 }
 
 static chem::string_view region_lifetime_of(BaseType* type) {
-    BaseType* canonical = type ? type->canonical() : nullptr;
-    if (canonical && canonical->kind() == BaseTypeKind::Reference) {
-        return canonical->as_reference_type()->lifetime;
-    }
-    return {};
+    if (type == nullptr) return {};
+    // Direct `&'a T` first; then aggregate/generic lifetime arguments such as
+    // `Holder<'a>` or `View<'a, T>`. MIR types erase lifetimes, so the region
+    // signature is the only carrier of the declared argument. A type with more
+    // than one lifetime argument uses the first one until the full variance
+    // model (S4.2b) lands.
+    auto first_of = [](BaseType* t) -> chem::string_view {
+        if (t == nullptr) return {};
+        if (t->kind() == BaseTypeKind::Reference) {
+            return t->as_reference_type()->lifetime;
+        }
+        if (t->kind() == BaseTypeKind::Generic) {
+            for (chem::string_view lt : t->as_generic_type()->lifetime_args) {
+                if (!lt.empty()) return lt;
+            }
+        }
+        return {};
+    };
+    chem::string_view lt = first_of(type);
+    if (!lt.empty()) return lt;
+    return first_of(type->canonical());
 }
 
 uint32_t MIRLowerer::fresh_region_id() {

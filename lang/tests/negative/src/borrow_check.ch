@@ -109,3 +109,35 @@ func return_region_with_outlives_ok(env : &mut TestEnv) {
     var ch = "func <'a, 'b> good(x : &'a int) : &'b int where 'a : 'b {\n    return x\n}\npublic func main() : int {\n    var a = 1\n    var r = good(&a)\n    return *r\n}\n"
     expect_compile_success(env, "borrow_return_region_ok", ch)
 }
+
+@test
+func neg_aggregate_return_region_does_not_outlive(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // The reference is carried in a returned struct field, not returned
+    // directly; SAFE-LIFE-003 still applies.
+    var ch = "struct Holder<'a> {\n    var r : &'a int\n}\nfunc <'a, 'b> bad(x : &'a int) : Holder<'b> {\n    return Holder<'b> { r : x }\n}\npublic func main() : int {\n    var a = 1\n    var h = bad(&a)\n    return *h.r\n}\n"
+    expect_compile_error(env, "borrow_aggregate_return_region", ch, "SAFE-LIFE-003")
+}
+
+@test
+func aggregate_return_region_with_outlives_ok(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<'a> {\n    var r : &'a int\n}\nfunc <'a, 'b> good(x : &'a int) : Holder<'b> where 'a : 'b {\n    return Holder<'b> { r : x }\n}\npublic func main() : int {\n    var a = 1\n    var h = good(&a)\n    return *h.r\n}\n"
+    expect_compile_success(env, "borrow_aggregate_return_region_ok", ch)
+}
+
+@test
+func neg_aggregate_return_local_field(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // A struct field referencing a local escapes with the returned struct.
+    var ch = "struct Holder<'a> {\n    var r : &'a int\n}\nfunc bad() : Holder<'static> {\n    var a = 1\n    var h = Holder<'static> { r : &a }\n    return h\n}\npublic func main() : int {\n    var h = bad()\n    return *h.r\n}\n"
+    expect_compile_error(env, "borrow_aggregate_return_local", ch, "SAFE-LIFE-001")
+}
+
+@test
+func neg_direct_reference_field_return_region(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // Returning the reference field itself goes through field_params.
+    var ch = "struct Holder<'a> {\n    var r : &'a int\n}\nfunc <'a, 'b> bad(x : &'a int) : &'b int {\n    var h = Holder<'a> { r : x }\n    return h.r\n}\npublic func main() : int {\n    var a = 1\n    var r = bad(&a)\n    return *r\n}\n"
+    expect_compile_error(env, "borrow_direct_field_return_region", ch, "SAFE-LIFE-003")
+}

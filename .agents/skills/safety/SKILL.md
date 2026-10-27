@@ -199,8 +199,18 @@ Implemented:
   parameter directly or via a local is covered. The borrow pass no longer has
   a "no Borrow instruction" fast path (a pure `return x` still needs the
   signature check). `MIRTests` is `4623 checks`; negative tests cover missing
-  and satisfied outlives bounds (454 tests). Next in M4: S4.2b variance, then
-  dropck/async/Pin and provenance.
+  and satisfied outlives bounds (454 tests).
+- S4.6a aggregate returns: references carried in fields of a returned struct are
+  checked too. Field stores record both `field_loans` and `field_params`; whole
+  aggregate moves transfer them; a returned reference field is loaded with its
+  parameter index. Aggregate returns use the hidden sret pointer (the value is
+  stored to the first entry parameter, then `return` has no operand), so the
+  borrow pass recovers the returned source place. Region signatures now read a
+  generic type's first lifetime argument (`Holder<'a>`), and a cached signature
+  built before the return type was linked is rebuilt in `lower_function`.
+  `MIRTests` is `4630 checks`; negative tests cover aggregate-return region,
+  local-field escape, satisfied bound, and direct field return (458 tests).
+  Next in M4: S4.2b variance, then dropck/async/Pin and provenance.
 - S2.6d unsafe invariant constructors: `vector::set_len` and
   `default_function_instance::make2` are now `unsafe func`; the audited
   `fs::read_file` and `std::function` `make` paths wrap their calls in

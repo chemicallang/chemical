@@ -646,8 +646,14 @@
 > `where 'a: 'b` edge). Parameter places carry `param_index`; reference values
 > and places propagate it through Load/Store/Copy/Cast/MoveInit. The borrow
 > pass always runs (no "has Borrow" fast path) so a pure `return x` is checked.
-> `MIRTests` is `4623 checks`; negative tests cover the missing/satisfied
-> bound (454 tests). Next: S4.2b variance, then dropck/async/Pin/provenance.
+> `MIRTests` is `4630 checks`; negative tests cover the missing/satisfied
+> bound (454 tests). Aggregate returns are covered too: field stores record
+> `field_params`/`field_loans`, whole-value moves transfer them, the sret return
+> recovers the stored source place, and generic return types contribute their
+> first lifetime argument (`Holder<'a>`) to the signature. Negative tests cover
+> aggregate-return region, local-field escape, the satisfied bound, and a direct
+> field return (458 tests). Next: S4.2b variance, then
+> dropck/async/Pin/provenance.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

@@ -310,7 +310,8 @@ SymbolId MIRLowerer::intern_method_function(FunctionDeclaration* decl, BaseType*
     return s;
 }
 
-MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
+MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error,
+                                          bool raw_mutable) {
     Value* t = inner;
     if (t && t->val_kind() == ValueKind::AccessChain) {
         auto* c = t->as_access_chain_unsafe();
@@ -327,6 +328,7 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
             bool have_ptr = false;
             if (first.kind == MIRExprKind::Place) {
                 cur_place = static_cast<PlaceId>(first.id);
+                if (raw_mutable) mark_raw_escaped(cur_place);
             } else if (first.kind == MIRExprKind::Value ||
                        first.kind == MIRExprKind::Address) {
                 cur_ptr = static_cast<ValueId>(first.id);
@@ -398,6 +400,7 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
         const TypeId et = types_.map(io->getType());
         const TypeId ptrt = types_.pointer_type(et, true);
         if (base.kind == MIRExprKind::Place) {
+            if (raw_mutable) mark_raw_escaped(static_cast<PlaceId>(base.id));
             return MIRExprResult::value(
                 builder_->index_addr(static_cast<PlaceId>(base.id),
                                      static_cast<ValueId>(idx.id), et),
@@ -458,6 +461,7 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
         }
         const PlaceId p = place_for_linked(id->linked);
         if (p != MIR_INVALID_ID) {
+            if (raw_mutable) mark_raw_escaped(p);
             const TypeId pt = builder_->function().places[p].type;
             const MIRTypeRecord& pr = module_.types.get(pt);
             const TypeId ast_t = types_.map(id->getType());
@@ -508,9 +512,7 @@ void MIRLowerer::mark_moved(PlaceId place) {
     for (auto& d : destructibles_) {
         if (d.place == place) {
             builder_->set_drop(d.flag, false);
-            for (auto& f : d.fields) {
-                if (f.flag != MIR_INVALID_ID) builder_->set_drop(f.flag, false);
-            }
+            set_drop_fields(d.fields, false);
             return;
         }
     }
@@ -561,7 +563,7 @@ void MIRLowerer::emit_drops() {
 void MIRLowerer::emit_drops_from(size_t mark) {
     for (size_t i = destructibles_.size(); i-- > mark;) {
         MIRDestructible& d = destructibles_[i];
-        if (!d.fields.empty()) {
+        if (!d.fields.empty() && !d.raw_escaped) {
             // a field-wise destructible destroys only the initialized fields
             destroy_field_wise(d);
             continue;

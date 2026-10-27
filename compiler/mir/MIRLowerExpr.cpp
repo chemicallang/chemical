@@ -1355,7 +1355,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         }
         case ValueKind::AddrOfValue: {
             auto* a = value->as_addr_of_value_unsafe();
-            return lower_address_of(a->value, error);
+            return lower_address_of(a->value, error, a->is_mutable);
         }
         case ValueKind::ReferenceOfValue: {
             auto* r = value->as_reference_of_value_unsafe();

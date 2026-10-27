@@ -89,20 +89,22 @@ Implemented:
   optimization stays valid. Partial moves demote ancestors to
   `PartiallyMoved`, so a whole-value drop/move of a partially moved aggregate
   is rejected.
-- S3.1d field-wise drop elaboration (one level): a bare local of a struct with
-  generated drop glue (`var s : S`) gives every owned direct field its own drop
-  flag. A field write destroys the old value only when that field is live,
-  scope exit/reassignment destroy only initialized fields, and moving the
-  aggregate clears every flag. A user `@delete` still requires whole-value
-  initialization; array elements and deeper projections still require the
-  destination to be initialized. `TF_USER_DESTRUCTOR`
-  (`BaseType::has_user_destructor`) drives the checker rule. A place-to-place
-  `store` now requires a live source, and `memcpy`/`memmove`/`memset` (direct
-  or as an sret source) initialize their destination; the safety suite checks
-  the runtime drop set and order. Unions are raw storage: `type_needs_move_path`
-  does not recurse into union fields (only a union with its own destructor is
-  tracked). `MIRTests` is `4578 checks`. Pending: variant active-case tracking
-  and field-wise drop for nested/array partial initialization.
+- S3.1d field-wise drop elaboration: a bare local of a struct with generated
+  drop glue (`var s : S`) gives every owned field its own drop flag, including
+  one level of grandchildren (`s.inner.x`); a fixed array of destructible
+  elements (<= 64) gets one flag per element. A write destroys the old value
+  only when the target is live, scope exit/reassignment destroy only
+  initialized entries (array elements last-to-first), and moving the aggregate
+  clears every flag. A user `@delete`, a large array, a dynamic index and
+  projections deeper than one extra level still require the destination to be
+  initialized. A mutable raw escape (`&raw mut x`, `&raw mut x[i]`) switches
+  the place to the whole-value drop and makes the dataflow trust it (the
+  `Option::take` / `archive::extract_entry` pattern). A place-to-place `store`
+  requires a live source; `memcpy`/`memmove`/`memset` (direct or sret)
+  initialize their destination. Unions are raw storage:
+  `type_needs_move_path` does not recurse into union fields. `MIRTests` is
+  `4582 checks`. Pending: variant active-case tracking, dropck (needs
+  regions), and removing the old AST definite-assignment/move tracker.
 - S2.6d unsafe invariant constructors: `vector::set_len` and
   `default_function_instance::make2` are now `unsafe func`; the audited
   `fs::read_file` and `std::function` `make` paths wrap their calls in
@@ -258,8 +260,8 @@ Next:
   as a member, and calls from safe code are rejected; `unsafe(expr)`/`unsafe {}`
   are both unsafe call contexts. Partial initialization and partial moves are
   modeled (S3.1c), including construction temporaries and use-after-move
-  through assignment. Next: variant active-case tracking and nested/array
-  partial initialization, then the borrow checker.
+  through assignment. Next: variant active-case tracking, dropck, and removing
+  the old AST definite-assignment/move tracker, then the borrow checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

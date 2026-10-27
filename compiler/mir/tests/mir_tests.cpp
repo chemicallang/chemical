@@ -1969,6 +1969,7 @@ static bool test_move_check() {
             const PlaceId src = b.alloca(owned_id);
             const PlaceId local = b.alloca(outer2_id, MIRStorageClass::Local);
             const PlaceId dst = b.alloca(outer2_id);
+            fn.places[local].field_wise_drop = true;
             b.init(src, ctor, nullptr, 0);
             b.field_store(local, fa, b.load(src, owned_id));
             b.ret_void();
@@ -1980,6 +1981,7 @@ static bool test_move_check() {
             const PlaceId src = b.alloca(owned_id);
             const PlaceId local = b.alloca(outer2_id, MIRStorageClass::Local);
             const PlaceId dst = b.alloca(outer2_id);
+            partial_move.places[local].field_wise_drop = true;
             b.init(src, ctor, nullptr, 0);
             b.field_store(local, fa, b.load(src, owned_id));
             b.move_init(dst, local, outer2_id);
@@ -2020,6 +2022,68 @@ static bool test_move_check() {
         CHECK(std::string(r.diagnostics[0].code) == "SAFE-INIT-001");
         CHECK(r.diagnostics[0].message.find("write to a field of") !=
               std::string::npos);
+    }
+
+    // [2]owned
+    MIRTypeRecord owned_arr;
+    owned_arr.kind = MIRTypeKind::Array;
+    owned_arr.element = owned_id;
+    owned_arr.data_count = 2;
+    const TypeId owned_arr_id = module.types.intern(owned_arr);
+    const ConstantId ci0 = module.constants.add_int(i32, 0);
+    const ConstantId ci1 = module.constants.add_int(i32, 1);
+
+    {
+        // A bare local fixed array with per-element flags may be filled by
+        // constant index, but is only movable once every element is live.
+        MIRFunction fn;
+        build(fn, [&](MIRBuilder& b) {
+            const PlaceId src = b.alloca(owned_id);
+            const PlaceId arr = b.alloca(owned_arr_id, MIRStorageClass::Local);
+            const PlaceId dst = b.alloca(owned_arr_id);
+            fn.places[arr].field_wise_drop = true;
+            b.init(src, ctor, nullptr, 0);
+            b.element_store(arr, b.const_int(i32, ci0), b.load(src, owned_id));
+            b.move_init(dst, arr, owned_arr_id);
+        });
+        MIRMoveCheckResult r = check_function_moves(module, fn);
+        CHECK(!r.ok());
+        CHECK(std::string(r.diagnostics[0].code) == "SAFE-INIT-001");
+    }
+
+    {
+        MIRFunction fn;
+        build(fn, [&](MIRBuilder& b) {
+            const PlaceId src = b.alloca(owned_id);
+            const PlaceId arr = b.alloca(owned_arr_id, MIRStorageClass::Local);
+            const PlaceId dst = b.alloca(owned_arr_id);
+            fn.places[arr].field_wise_drop = true;
+            b.init(src, ctor, nullptr, 0);
+            b.element_store(arr, b.const_int(i32, ci0), b.load(src, owned_id));
+            b.element_store(arr, b.const_int(i32, ci1), b.load(src, owned_id));
+            b.move_init(dst, arr, owned_arr_id);
+        });
+        MIRMoveCheckResult r = check_function_moves(module, fn);
+        if (!r.ok()) {
+            for (const auto& d : r.diagnostics) {
+                std::cerr << "array-init diag: " << d.code << " " << d.message
+                          << " path=" << d.path << " inst=" << d.inst_index << "\n";
+            }
+        }
+        CHECK(r.ok());
+    }
+
+    {
+        // Without the lowering's per-element flags, an array element write is
+        // rejected (the whole array must be initialized first).
+        MIRFunction fn;
+        build(fn, [&](MIRBuilder& b) {
+            const PlaceId src = b.alloca(owned_id);
+            const PlaceId arr = b.alloca(owned_arr_id, MIRStorageClass::Local);
+            b.init(src, ctor, nullptr, 0);
+            b.element_store(arr, b.const_int(i32, ci0), b.load(src, owned_id));
+        });
+        CHECK(!check_function_moves(module, fn).ok());
     }
 
     {

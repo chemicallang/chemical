@@ -241,6 +241,15 @@ void require_initialized(std::vector<MIRMoveDiagnostic>& out, const MIRFunction&
                          uint32_t path, const std::vector<MIRMoveState>& states,
                          const char* action) {
     if (path == MIR_INVALID_ID) return;
+    // A mutable raw pointer escaped from this place: its writes bypass the
+    // move-path dataflow, so the value is trusted from that point on (the
+    // `&raw mut` itself is an unsafe operation).
+    if (path < fn.move_paths.size()) {
+        const PlaceId root_place = fn.move_paths[path].root_place;
+        if (root_place < fn.places.size() && fn.places[root_place].raw_escaped) {
+            return;
+        }
+    }
     const MIRMoveState state = state_of(states, path);
     // `Maybe` means the paths reaching this point disagree. A value that is
     // only conditionally initialized may not be read, moved or unconditionally
@@ -305,6 +314,102 @@ int constant_drop_flag(const MIRModule& module, const MIRFunction& fn, ValueId v
         return c.kind == MIRConstantKind::Bool ? (c.bits ? 1 : 0) : -1;
     }
     return -1;
+}
+
+uint32_t root_of_path(const MIRFunction& fn, uint32_t path) {
+    while (path != MIR_INVALID_ID && path < fn.move_paths.size() &&
+           fn.move_paths[path].parent_path != MIR_INVALID_ID) {
+        path = fn.move_paths[path].parent_path;
+    }
+    return path;
+}
+
+/**
+ * Apply a single-projection store (`p.field = v` / `p[i] = v` / a store through
+ * a derived field address) to the move-path state. `base_path` is the move path
+ * of the base subobject and `aggregate` its type.
+ */
+void apply_projection_store(const MIRModule& module, const MIRFunction& fn,
+                            uint32_t function_index, uint32_t block,
+                            uint32_t inst_index, uint32_t base_path,
+                            TypeId aggregate, const MIROperand& projection,
+                            std::vector<MIRMoveState>& states,
+                            std::vector<MIRMoveDiagnostic>& out) {
+    const uint32_t target = project_path(
+        module, fn, base_path, aggregate, &projection, 1
+    );
+    const uint32_t root = root_of_path(fn, base_path);
+    if (target == MIR_INVALID_ID || root == MIR_INVALID_ID) return;
+    const PlaceId root_place = fn.move_paths[root].root_place;
+    MIRStorageClass storage = MIRStorageClass::Local;
+    if (root_place < fn.places.size()) {
+        storage = static_cast<MIRStorageClass>(fn.places[root_place].storage_class);
+    }
+    if (storage == MIRStorageClass::Temporary ||
+        storage == MIRStorageClass::Parameter ||
+        storage == MIRStorageClass::Global) {
+        set_subtree(fn, states, target, MIRMoveState::Initialized);
+        refresh_ancestors(fn, states, target);
+        return;
+    }
+    if (target == root) {
+        // A projection with no owned move path (a scalar/union field, a dynamic
+        // index, or a projection into a nested untracked aggregate). Writing it
+        // does not initialize any owned sibling. When the aggregate owns nothing
+        // at all, the value is usable for ownership purposes after a manual
+        // field write (the `var s : string; s.state = ...` pattern); when it
+        // does own subobjects, the root stays uninitialized until every owned
+        // child is written.
+        if (fn.move_paths[root].first_child == MIR_INVALID_ID) {
+            const MIRMoveState state = states[root];
+            if (state == MIRMoveState::Moved ||
+                state == MIRMoveState::Destroyed ||
+                state == MIRMoveState::PartiallyMoved ||
+                state == MIRMoveState::Maybe) {
+                report(out, fn, function_index, block, inst_index, root, state,
+                       "write to a field of");
+            } else {
+                states[root] = MIRMoveState::Initialized;
+            }
+        } else {
+            // A dynamic array index cannot update any element flag, so it may
+            // only write into a fully initialized array. A scalar field of a
+            // tracked struct is allowed while the value is live.
+            const MIRMoveState state = states[root];
+            const TypeId bt = fn.move_paths[root].field_type;
+            const bool is_array = bt != MIR_INVALID_ID &&
+                                  bt < module.types.types.size() &&
+                                  module.types.types[bt].kind == MIRTypeKind::Array;
+            if (state == MIRMoveState::Moved ||
+                state == MIRMoveState::Destroyed ||
+                (is_array && state != MIRMoveState::Initialized)) {
+                report(out, fn, function_index, block, inst_index, root, state,
+                       "write to a field of");
+            }
+        }
+        return;
+    }
+    // A direct child or grandchild of a place the lowering gave per-child drop
+    // flags may be initialized on its own; anything deeper (or a place without
+    // flags) requires the destination sub-place to be fully initialized.
+    uint32_t depth = 0;
+    uint32_t p = target;
+    while (p != root && p != MIR_INVALID_ID && depth <= 2) {
+        p = fn.move_paths[p].parent_path;
+        ++depth;
+    }
+    const bool partial_ok =
+        p == root && depth <= 2 && root_place < fn.places.size() &&
+        fn.places[root_place].field_wise_drop;
+    const MIRMoveState root_state = states[root];
+    if (partial_ok && root_state != MIRMoveState::Moved &&
+        root_state != MIRMoveState::Destroyed) {
+        set_subtree(fn, states, target, MIRMoveState::Initialized);
+        refresh_ancestors(fn, states, target);
+    } else {
+        require_initialized(out, fn, function_index, block, inst_index, target,
+                            states, "write to a field of");
+    }
 }
 
 void apply_instruction(const MIRModule& module, const MIRFunction& fn,
@@ -393,14 +498,9 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
                 const auto it = address_paths.find(ops[0].id);
                 if (it == address_paths.end()) break;
                 base_path = it->second;
-                const TypeId pt = fn.values[ops[0].id].type;
-                if (pt != MIR_INVALID_ID && pt < module.types.types.size()) {
-                    const MIRTypeRecord& pr = module.types.types[pt];
-                    if (pr.kind == MIRTypeKind::Pointer ||
-                        pr.kind == MIRTypeKind::Reference) {
-                        aggregate = pr.element;
-                    }
-                }
+                // A FieldAddr/IndexAddr value names the projected subobject, so
+                // its MIR type is the aggregate that owns the next projection.
+                aggregate = fn.values[ops[0].id].type;
             }
             if (base_path == MIR_INVALID_ID) break;
             const uint32_t projected = project_path(
@@ -569,82 +669,24 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
                 }
                 break;
             }
-            if (!dst_is_place || root == MIR_INVALID_ID) break;
             if (inst.operand_count < 3) break;
-            // Projection store: base, field/element, value.
-            //
-            // Constructor temporaries (an aggregate literal is built field by
-            // field into a fresh alloca), parameters and globals are written by
-            // trusted lowering, so a field write initializes that sub-place and
-            // may complete the aggregate. A bare user local of a struct with
-            // generated drop glue may also be built field by field (each owned
-            // field has its own drop flag); a user destructor, an array element
-            // and a deeper projection still require the destination to be
-            // initialized, because only one level of partial ownership is
-            // elaborated.
-            const uint32_t target = path_for_projection(
-                module, fn, ops[0], ops + 1, 1
-            );
-            const auto storage = static_cast<MIRStorageClass>(
-                fn.places[ops[0].id].storage_class
-            );
-            if (storage == MIRStorageClass::Temporary ||
-                storage == MIRStorageClass::Parameter ||
-                storage == MIRStorageClass::Global) {
-                set_subtree(fn, states, target, MIRMoveState::Initialized);
-                refresh_ancestors(fn, states, target);
-            } else if (target == root) {
-                // A projection with no owned move path (a scalar/union field, a
-                // dynamic index, or a projection into a nested untracked
-                // aggregate). Writing it does not initialize any owned sibling.
-                // When the aggregate owns nothing at all, the value is usable
-                // for ownership purposes after a manual field write (the
-                // long-standing `var s : string; s.state = ...` pattern); when
-                // it does own subobjects, the root stays uninitialized until
-                // every owned child is written.
-                if (fn.move_paths[root].first_child == MIR_INVALID_ID) {
-                    const MIRMoveState state = states[root];
-                    if (state == MIRMoveState::Moved ||
-                        state == MIRMoveState::Destroyed ||
-                        state == MIRMoveState::PartiallyMoved ||
-                        state == MIRMoveState::Maybe) {
-                        report(out, fn, function_index, block, inst_index, root,
-                               state, "write to a field of");
-                    } else {
-                        states[root] = MIRMoveState::Initialized;
-                    }
-                } else {
-                    // A scalar field of an aggregate that owns subobjects: a
-                    // write is allowed only while the value itself is live.
-                    const MIRMoveState state = states[root];
-                    if (state == MIRMoveState::Moved ||
-                        state == MIRMoveState::Destroyed) {
-                        report(out, fn, function_index, block, inst_index, root,
-                               state, "write to a field of");
-                    }
-                }
-            } else {
-                // Writing an owned subobject. A direct field of a struct with
-                // generated drop glue may be initialized on its own (the
-                // lowering gives every such field a drop flag). Anything else
-                // -- a user destructor, an array element, a deeper projection --
-                // requires the destination sub-place to be fully initialized.
-                const TypeId root_type = fn.move_paths[root].field_type;
-                const bool partial_ok =
-                    target != root &&
-                    fn.move_paths[target].parent_path == root &&
-                    root_type != MIR_INVALID_ID &&
-                    root_type < module.types.types.size() &&
-                    module.types.types[root_type].kind == MIRTypeKind::Struct &&
-                    (module.types.types[root_type].flags & TF_USER_DESTRUCTOR) == 0;
-                const MIRMoveState root_state = states[root];
-                if (partial_ok && root_state != MIRMoveState::Moved &&
-                    root_state != MIRMoveState::Destroyed) {
-                    set_subtree(fn, states, target, MIRMoveState::Initialized);
-                    refresh_ancestors(fn, states, target);
-                } else {
-                    require_initialized(out, fn, function_index, block, inst_index,
-                                        target, states, "write to a field of");
+            if (dst_is_place && root != MIR_INVALID_ID) {
+                apply_projection_store(module, fn, function_index, block,
+                                       inst_index, root,
+                                       fn.places[ops[0].id].type, ops[1],
+                                       states, out);
+            } else if (!dst_is_place &&
+                       ops[0].kind() == MIROperandKind::Value) {
+                // A store through a derived field address (`s.inner.x = v`
+                // lowers to field_addr(s, inner) + store(..., x, v)).
+                const auto it = address_paths.find(ops[0].id);
+                if (it != address_paths.end() && ops[0].id < fn.values.size()) {
+                    // The address names the projected subobject; its MIR type
+                    // is the aggregate that owns the next projection.
+                    const TypeId aggregate = fn.values[ops[0].id].type;
+                    apply_projection_store(module, fn, function_index, block,
+                                           inst_index, it->second, aggregate,
+                                           ops[1], states, out);
                 }
             }
             // A place source is a move out of that place; a value source is a

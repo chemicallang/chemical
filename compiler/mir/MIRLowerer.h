@@ -676,7 +676,8 @@ private:
      * their symbol must be resolved against the receiver's container.
      */
     SymbolId intern_method_function(FunctionDeclaration* decl, BaseType* recv_type);
-    MIRExprResult lower_address_of(Value* inner, std::string& error);
+    MIRExprResult lower_address_of(Value* inner, std::string& error,
+                                    bool raw_mutable = false);
     bool member_name(Value* v, std::string& out, std::string& error);
     /**
      * The member name a `Value` names, as a view into AST-owned storage (empty
@@ -711,6 +712,10 @@ private:
         chem::string_view name;
         BaseType* type = nullptr;
         PlaceId flag = MIR_INVALID_ID;
+        // `MIR_INVALID_ID` for a struct field; the element index otherwise.
+        uint32_t array_index = MIR_INVALID_ID;
+        // Nested owned fields of a generated-glue struct (one extra level).
+        std::vector<MIRDropField> children;
     };
     struct MIRDestructible {
         PlaceId place;
@@ -720,6 +725,9 @@ private:
         // value may be built field by field, so each owned field carries its own
         // drop flag and scope exit destroys only the initialized ones.
         std::vector<MIRDropField> fields;
+        // A mutable raw pointer to the value (or a subobject) escaped: writes
+        // may bypass the per-field flags, so fall back to the whole-value drop.
+        bool raw_escaped = false;
     };
     void register_destructible(PlaceId place, BaseType* type,
                                bool whole_value_initialized = true);
@@ -729,8 +737,22 @@ private:
     /** Destroy one member only when its per-field drop flag is true. */
     void emit_member_dtor_cond(ValueId self_ptr, const chem::string_view& member,
                                BaseType* mt, PlaceId flag);
-    /** Per-field drop flag for `place.field`, or MIR_INVALID_ID. */
-    PlaceId drop_flag_for_field(PlaceId place, const chem::string_view& name);
+    /** Per-element drop flag for `place[index]`, or MIR_INVALID_ID. */
+    PlaceId drop_flag_for_element(PlaceId place, uint64_t index);
+    /** Build the drop node for one owned field (recursing one level). */
+    MIRDropField build_drop_field(const chem::string_view& name, BaseType* type,
+                                  int depth);
+    /** Destroy every initialized field in a drop-node list. */
+    void destroy_drop_fields(ValueId self_ptr, std::vector<MIRDropField>& fields);
+    /** Arm/clear every flag in a drop-node list. */
+    void set_drop_fields(std::vector<MIRDropField>& fields, bool value);
+    /** Find the drop node for a field path (`inner.x`), or nullptr. */
+    MIRDropField* drop_field_for_path(PlaceId place,
+                                      const std::vector<std::string>& path);
+    /** Arm every flag under a field path (whole-subobject initialization). */
+    void mark_path_initialized(PlaceId place, const std::vector<std::string>& path);
+    /** A mutable raw pointer escaped from this place: use the whole-value drop. */
+    void mark_raw_escaped(PlaceId place);
     /** Destroy every initialized field of a field-wise destructible. */
     void destroy_field_wise(MIRDestructible& d);
     /** Destroy every destructible member of the enclosing `@delete` method. */

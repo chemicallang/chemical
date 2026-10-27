@@ -449,32 +449,41 @@
 >   move-path node: a write into a moved/destroyed value is `SAFE-MOVE-001`,
 >   and reading a chained field (`s.b.id`) is checked through the derived
 >   `field_addr` path.
-> - S3.1d field-wise drop elaboration (one level): a bare local of a struct
->   with generated drop glue (`var s : S`, no initializer) gives every owned
->   direct field its own drop flag. A field write runs the old value's
->   destructor only when that field's flag is live, then arms it; scope exit,
->   `break`/`continue` and reassignment destroy only the initialized fields.
->   A whole-value assignment arms every field. A struct with a user `@delete`
->   still requires whole-value initialization, and array elements/deeper
->   projections keep requiring the destination sub-place to be initialized.
->   Moving an aggregate (return, assignment, `forget`) clears every field
->   flag. `MIRMoveCheck` permits the direct-child writes only when the root
->   type is a `Struct` without `TF_USER_DESTRUCTOR` (the flag
->   `BaseType::has_user_destructor` publishes). The lowering also marks a
->   pointer-based element store's source moved (fixing a double drop in
->   `vector::set`). `unsafe` bulk memory (`memcpy`/`memmove`/`memset`, direct
->   or via an aggregate sret return) initializes its destination, and a
->   2-operand place-to-place store requires a live source (rejecting a
->   partially initialized return). Partial moves demote ancestors to
->   `PartiallyMoved`, so a whole-value drop/move of a partially moved
->   aggregate is rejected. Unions are raw storage (`type_needs_move_path` does
->   not recurse into union fields) and are tracked only when the union itself
->   declares a destructor. `MIRTests` covers construction temporaries, direct
->   field init, user-destructor rejection, field writes after a move, union
->   paths and the nested-field read; the safety suite checks the runtime drop
->   set and order (`partial_init_destroys_only_initialized_fields`,
+> - S3.1d field-wise drop elaboration: a bare local of a struct with generated
+>   drop glue (`var s : S`, no initializer) gives every owned field its own
+>   drop flag, including one level of generated-glue grandchild
+>   (`s.inner.x`). A fixed array of destructible elements (<= 64) likewise
+>   gets one flag per element. A write runs the old value's destructor only
+>   when the target flag is live, then arms it; scope exit, `break`/`continue`
+>   and reassignment destroy only the initialized entries (array elements
+>   last-to-first, struct fields in declaration order). A whole-value
+>   assignment, whole-field move or `forget` arms/clears the whole subtree.
+>   A struct with a user `@delete`, a large array, a dynamic array index and a
+>   projection deeper than one extra level still require the destination to be
+>   initialized. A mutable raw pointer escaping from the value (`&raw mut x`,
+>   `&raw mut x[i]`) switches it to the whole-value drop and makes the
+>   dataflow trust the place (the `std` `Option::take` / `archive::extract_entry`
+>   pattern); a 2-operand place-to-place store still requires a live source
+>   (rejecting a partially initialized return). `MIRMoveCheck` only accepts a
+>   partial write when the destination place carries
+>   `MIRPlaceDef::field_wise_drop`. The lowering also marks a pointer-based
+>   element store's source moved (fixing a double drop in `vector::set`).
+>   `unsafe` bulk memory (`memcpy`/`memmove`/`memset`, direct or via an
+>   aggregate sret return) initializes its destination. Partial moves demote
+>   ancestors to `PartiallyMoved`, so a whole-value drop/move of a partially
+>   moved aggregate is rejected. Unions are raw storage
+>   (`type_needs_move_path` does not recurse into union fields) and are tracked
+>   only when the union itself declares a destructor. `MIRTests` covers
+>   construction temporaries, direct field init, user-destructor rejection,
+>   field writes after a move, union paths, the nested-field read and array
+>   partial init; the safety suite checks the runtime drop set/order
+>   (`partial_init_destroys_only_initialized_fields`,
 >   `full_field_init_destroys_every_field`,
->   `partial_init_reassignment_destroys_old_value`).
+>   `partial_init_reassignment_destroys_old_value`,
+>   `partial_array_init_destroys_only_initialized_elements`,
+>   `partial_array_reassignment_destroys_old_element`). Remaining in M3:
+>   variant active-case tracking, dropck (needs regions) and removing the old
+>   AST definite-assignment/move tracker.
 > - S1.5m conditional positive auto-trait impls: `unsafe impl<T> Send for
 >   Box<T> where T: Send` is evaluated against the concrete arguments at a
 >   `where T: Send` use site (and recursively for nested boxes), instead of
@@ -569,8 +578,8 @@
 >   `*v.get_ref(0) = ...` is rejected; a positive test covers `get_mut`.
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >
-> Next: field-wise drop elaboration and variants/unions, then the borrow
-> checker.
+> Next: variant active-case tracking, dropck (with regions), and removing the
+> old AST definite-assignment/move tracker, then the borrow checker.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

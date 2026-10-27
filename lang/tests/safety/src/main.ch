@@ -527,6 +527,49 @@ func partial_init_reassignment_destroys_old_value(env : &mut TestEnv) {
     }
 }
 
+@test
+func partial_array_init_destroys_only_initialized_elements(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&mut self) { printf(\"drop %d\\n\", self.id) }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [3]Tracker\n        arr[0] = Tracker { id : 1 }\n        arr[2] = Tracker { id : 3 }\n    }\n    printf(\"end\\n\")\n    return 0\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "partial_array_init_drop", ch, &mut out)
+    if(rc != 0) {
+        env.error("expected the partial-array program to exit successfully")
+        return
+    }
+    var view = out.to_view()
+    var one = std::string_view("drop 1")
+    var three = std::string_view("drop 3")
+    var two = std::string_view("drop 2")
+    if(!view.contains(&one) || !view.contains(&three)) {
+        env.error("initialized array elements were not destroyed")
+    }
+    if(view.contains(&two)) {
+        env.error("an uninitialized array element was destroyed")
+    }
+}
+
+@test
+func partial_array_reassignment_destroys_old_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&mut self) { printf(\"drop %d\\n\", self.id) }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]Tracker\n        arr[0] = Tracker { id : 1 }\n        arr[0] = Tracker { id : 9 }\n    }\n    printf(\"end\\n\")\n    return 0\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "partial_array_reassign_drop", ch, &mut out)
+    if(rc != 0) {
+        env.error("expected the array reassignment program to exit successfully")
+        return
+    }
+    var view = out.to_view()
+    var old = std::string_view("drop 1")
+    var replacement = std::string_view("drop 9")
+    if(!view.contains(&old)) {
+        env.error("the old array element was not destroyed on reassignment")
+    }
+    if(!view.contains(&replacement)) {
+        env.error("the replacement array element was not destroyed")
+    }
+}
+
 public func main(argc : int, argv : **char) {
     test_runner(argc, argv)
 }

@@ -172,11 +172,21 @@ func partial_owned_field_init_after_whole_value_is_allowed(env : &mut TestEnv) {
 }
 
 @test
-func neg_partial_array_element_init(env : &mut TestEnv) {
+func partial_array_element_init_is_allowed(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    // Same rule for a fixed-array element of a destructible type.
+    // A bare fixed array of destructible elements can be filled by constant
+    // index; each element has its own drop flag.
     var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]DT\n        arr[0] = DT { x : 1 }\n    }\n    return 0\n}\n"
-    expect_compile_error(env, "partial_array_element_init", ch, "SAFE-INIT-001")
+    expect_compile_success(env, "partial_array_element_init_ok", ch)
+}
+
+@test
+func neg_partial_array_dynamic_index(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // A dynamic index cannot update a per-element drop flag, so it may only
+    // write into an already fully initialized array.
+    var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]DT\n        var i = 0\n        arr[i] = DT { x : 1 }\n    }\n    return 0\n}\n"
+    expect_compile_error(env, "partial_array_dynamic_index", ch, "SAFE-INIT-001")
 }
 
 @test
@@ -193,6 +203,22 @@ func neg_read_uninitialized_nested_field(env : &mut TestEnv) {
     // the dataflow must still resolve it to the uninitialized `b` subobject.
     var ch = "struct T {\n    var id : int\n    @delete func delete(&mut self) { }\n}\nstruct S {\n    var a : T\n    var b : T\n}\npublic func main() : int {\n    unsafe {\n        var s : S\n        s.a = T { id : 1 }\n        return s.b.id\n    }\n}\n"
     expect_compile_error(env, "read_uninit_nested_field", ch, "SAFE-INIT-001")
+}
+
+@test
+func neg_read_uninitialized_grandchild_field(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // A nested write through a derived field address must not initialize the
+    // sibling leaf; reading the sibling is still an uninitialized read.
+    var ch = "struct T {\n    var id : int\n    @delete func delete(&mut self) { }\n}\nstruct Inner {\n    var a : T\n    var b : T\n}\nstruct Outer {\n    var inner : Inner\n}\npublic func main() : int {\n    unsafe {\n        var o : Outer\n        o.inner.a = T { id : 1 }\n        return o.inner.b.id\n    }\n}\n"
+    expect_compile_error(env, "read_uninit_grandchild", ch, "SAFE-INIT-001")
+}
+
+@test
+func nested_field_init_is_allowed(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct T {\n    var id : int\n    @delete func delete(&mut self) { }\n}\nstruct Inner {\n    var a : T\n    var b : T\n}\nstruct Outer {\n    var inner : Inner\n}\npublic func main() : int {\n    unsafe {\n        var o : Outer\n        o.inner.a = T { id : 1 }\n        o.inner.b = T { id : 2 }\n        return o.inner.b.id\n    }\n}\n"
+    expect_compile_success(env, "nested_field_init_ok", ch)
 }
 
 @test

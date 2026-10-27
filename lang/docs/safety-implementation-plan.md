@@ -677,7 +677,11 @@
 > flags `&*p`/`&mut *p` and raw/int/null → reference casts; both are now
 > enforced after migrating the parser/TLS/atomic/test helpers (function-level
 > unsafe boundaries; expression-level inside async functions).
-> Next: S4.2b variance, async/Pin, and full provenance.
+> S4.1 (partial): `core::Unpin` is a structural safe auto trait, `PhantomPinned`
+> is `!Unpin` via a negative impl, and `core::Pin<T>` has `new`/`pin`
+> (`T: Unpin`), `get_ref`, `get_mut`, unsafe `get_unchecked_mut`, and
+> `into_inner`. Async frame fields and Waker `Send + Sync` remain.
+> Next: S4.2b variance, async frame/Pin integration, and full provenance.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

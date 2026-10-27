@@ -748,6 +748,13 @@ static bool check_generic_impl_bounds(
                 }
                 // fall through to the standard bound diagnostic
             }
+            if(iface->interface_bits.has(InterfaceBits::UNPIN_BIT)) {
+                std::unordered_set<MembersContainer*> visiting;
+                if(type_satisfies_unpin(concrete, visiting, &index,
+                                        (ASTNode*) interface_key)) {
+                    return true;
+                }
+            }
             if(iface->interface_bits.has(InterfaceBits::CLONE_BIT) && container != nullptr) {
                 auto* copy_interface = instantiator.getCoreNodes().copy_interface;
                 if(copy_interface != nullptr) {

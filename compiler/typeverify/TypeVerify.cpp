@@ -1140,6 +1140,12 @@ static bool trait_constraint_satisfied(TypeVerifier& verifier, BaseType* concret
                                          (ASTNode*) iface, (ASTNode*) iface);
     }
 
+    if (iface->interface_bits.has(InterfaceBits::UNPIN_BIT)) {
+        std::unordered_set<MembersContainer*> visiting;
+        return type_satisfies_unpin(concrete, visiting, &verifier.index,
+                                    (ASTNode*) iface);
+    }
+
     if (iface->interface_bits.has(InterfaceBits::CLONE_BIT)) {
         auto* container = concrete->get_members_container();
         if (container == nullptr) return true;
@@ -1383,6 +1389,19 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
                         << trait_type->representation()
                         << "' (" << (kind == AutoTraitKind::Send ? "Send" : "Sync")
                         << " is derived from all fields; raw pointers are neither)";
+                }
+                continue;
+            }
+
+            if (interface_def->interface_bits.has(InterfaceBits::UNPIN_BIT)) {
+                std::unordered_set<MembersContainer*> visiting;
+                if (!type_satisfies_unpin(concrete_type, visiting, &verifier.index,
+                                          (ASTNode*) interface_def)) {
+                    diagnoser.error(call) << "type '" << concrete_type->representation()
+                        << "' does not satisfy where clause constraint '"
+                        << constraint.param_name << " : "
+                        << trait_type->representation()
+                        << "' (a PhantomPinned field makes it !Unpin)";
                 }
                 continue;
             }
@@ -1952,9 +1971,11 @@ void TypeVerifier::VisitImplDecl(ImplDefinition* implDecl) {
             const auto interface = interface_node->as_interface_def_unsafe();
             if (implDecl->attrs.is_negative) {
                 if (!(interface->interface_bits.has(InterfaceBits::SEND_BIT) ||
-                      interface->interface_bits.has(InterfaceBits::SYNC_BIT))) {
+                      interface->interface_bits.has(InterfaceBits::SYNC_BIT) ||
+                      interface->interface_bits.has(InterfaceBits::UNPIN_BIT) ||
+                      interface->name_view() == "Unpin")) {
                     diagnoser.error(implDecl).with_code("SAFE-AUTO-002")
-                        << "negative implementations are only supported for Send and Sync";
+                        << "negative implementations are only supported for Send, Sync and Unpin";
                 } else if (!implDecl->evaluated_nodes().empty()) {
                     diagnoser.error(implDecl).with_code("SAFE-AUTO-002")
                         << "a negative implementation cannot define members";

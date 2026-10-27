@@ -1137,9 +1137,11 @@ void TopLevelLinkSignature::VisitGenericImplDecl(GenericImplDecl* node) {
         }
         auto* iface = iface_node->as_interface_def_unsafe();
         if(!(iface->interface_bits.has(InterfaceBits::SEND_BIT) ||
-             iface->interface_bits.has(InterfaceBits::SYNC_BIT))) {
+             iface->interface_bits.has(InterfaceBits::SYNC_BIT) ||
+             iface->interface_bits.has(InterfaceBits::UNPIN_BIT) ||
+             iface->name_view() == "Unpin")) {
             diagnoser.error(node->master_impl).with_code("SAFE-AUTO-002")
-                << "negative implementations are only supported for Send and Sync";
+                << "negative implementations are only supported for Send, Sync and Unpin";
             return;
         }
         auto* target_type = node->master_impl->struct_type
@@ -1630,9 +1632,11 @@ void index_implementation(SymbolResolver& linker, ImplDefinition* node) {
             // Negative impls are only meaningful for the Send/Sync auto
             // traits, and only for concrete targets for now.
             if (!(linked->interface_bits.has(InterfaceBits::SEND_BIT) ||
-                  linked->interface_bits.has(InterfaceBits::SYNC_BIT))) {
+                  linked->interface_bits.has(InterfaceBits::SYNC_BIT) ||
+                  linked->interface_bits.has(InterfaceBits::UNPIN_BIT) ||
+                  linked->name_view() == "Unpin")) {
                 linker.error(node).with_code("SAFE-AUTO-002")
-                    << "negative implementations are only supported for Send and Sync";
+                    << "negative implementations are only supported for Send, Sync and Unpin";
                 return;
             }
             auto* target_type = node->struct_type ? const_cast<BaseType*>(node->struct_type.getType()) : nullptr;

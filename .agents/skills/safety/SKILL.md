@@ -243,6 +243,12 @@ Implemented:
   → reference casts. The raw-pointer helpers were migrated by marking the
   affected parser/TLS/atomic/test helper bodies `unsafe { }` (expression-level
   `unsafe(...)` inside async functions, whose bodies the async lowering owns).
+- S4.1 (partial) Pin/Unpin: `core::Unpin` is a safe auto trait derived from
+  fields (pointers/references are Unpin; negative impls are allowed), and
+  `core::PhantomPinned` opts out via `impl !Unpin`. `core::Pin<T>` provides
+  `from_raw`, `new`/`pin(&mut T)` (`T: Unpin`), safe `get_ref`, `get_mut`
+  (`T: Unpin`), `unsafe get_unchecked_mut`, and `into_inner`. Async frame
+  field checking and Waker `Send + Sync` ownership remain.
 - S4.6b per-use dropck: a known callee returning a destructor-bearing aggregate
   from one reference argument binds that loan to the result place; returning a
   `Ref`/`RefMut` (including through `Option`) keeps the loan live until the

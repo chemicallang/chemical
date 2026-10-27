@@ -74,6 +74,10 @@ void SymbolResolver::link_core_nodes() {
         if(syncNode && syncNode->kind() == ASTNodeKind::InterfaceDecl) {
             syncNode->as_interface_def_unsafe()->interface_bits.set(InterfaceBits::SYNC_BIT);
         }
+        const auto unpinNode = find("Unpin");
+        if(unpinNode && unpinNode->kind() == ASTNodeKind::InterfaceDecl) {
+            unpinNode->as_interface_def_unsafe()->interface_bits.set(InterfaceBits::UNPIN_BIT);
+        }
     }
 
     const auto coreNode = find("core");

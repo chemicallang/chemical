@@ -682,7 +682,12 @@
 > (`T: Unpin`), `get_ref`, `get_mut`, unsafe `get_unchecked_mut`, and
 > `into_inner`; `Waker` is explicitly `unsafe impl Send + Sync` (its vtable
 > contract requires thread-safe wake/clone/drop). Async frame fields remain.
-> Next: S4.2b variance, async frame/Pin integration, and full provenance.
+> M5.1 (partial) validity: `SAFE-VALID-001` rejects `zeroed<T>()` when the
+> concrete type contains a reference field (direct, array, or variant payload);
+> `PhantomData<&T>` is storage-free and exempt. `zeroed:unsafe` remains the
+> explicit unsafe escape.
+> Next: S4.2b variance, async frame/Pin integration, full provenance, and the
+> rest of M5 validity.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

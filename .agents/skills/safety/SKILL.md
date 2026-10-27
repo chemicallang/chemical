@@ -250,6 +250,11 @@ Implemented:
   (`T: Unpin`), `unsafe get_unchecked_mut`, and `into_inner`. `Waker` is
   explicitly `unsafe impl Send`/`Sync` because its vtable contract requires
   thread-safe wake/clone/drop. Async frame field checking remains.
+- M5.1 value validity (zeroed): `SAFE-VALID-001` rejects `zeroed<T>()` when
+  the concrete type contains a reference field (directly, in an array, or in a
+  variant payload): zeroing would create a null reference. `PhantomData<&T>` is
+  storage-free and exempt. `zeroed:unsafe` remains the explicit unsafe escape.
+  Negative tests cover reference rejection, a plain struct, and PhantomData.
 - S4.6b per-use dropck: a known callee returning a destructor-bearing aggregate
   from one reference argument binds that loan to the result place; returning a
   `Ref`/`RefMut` (including through `Option`) keeps the loan live until the
@@ -484,6 +489,7 @@ Codes are stable and grouped by domain:
 | `SAFE-BORROW-001` | overlapping live loans (at least one mutable) |
 | `SAFE-BORROW-002` | move/drop of a place while a borrow of it is live |
 | `SAFE-BORROW-*` | aliasing / loans |
+| `SAFE-VALID-001` | zero-initialization would create a null reference |
 | `SAFE-COPY-001` | user type used with a `Copy` bound but no explicit `impl Copy` |
 | `SAFE-COPY-002` | `impl Copy` on a type with a destructor |
 | `SAFE-COPY-003` | `impl Copy` on a type whose field is not Copy |

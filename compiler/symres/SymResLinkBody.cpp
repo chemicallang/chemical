@@ -3647,6 +3647,52 @@ void SymResLinkBody::VisitExpressiveString(ExpressiveString* value) {
     }
 }
 
+static bool zeroed_contains_reference(BaseType* type, int depth = 0) {
+    if (type == nullptr || depth > 6) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr) return false;
+    if (canonical->kind() == BaseTypeKind::Reference) return true;
+    if (canonical->kind() == BaseTypeKind::Array) {
+        return zeroed_contains_reference(
+            const_cast<BaseType*>(
+                canonical->as_array_type_unsafe()->elem_type.getType()),
+            depth + 1);
+    }
+    // Generic arguments are not storage: `PhantomData<&T>` is zeroable even
+    // though it names a reference. Only concrete fields matter.
+    if (canonical->kind() == BaseTypeKind::Generic) return false;
+    MembersContainer* container = canonical->get_members_container();
+    if (container == nullptr) return false;
+    for (ASTNode* member : container->variables()) {
+        switch (member->kind()) {
+            case ASTNodeKind::StructMember: {
+                auto* field = (StructMember*) member;
+                if (zeroed_contains_reference(
+                        const_cast<BaseType*>(field->type.getType()), depth + 1)) {
+                    return true;
+                }
+                break;
+            }
+            case ASTNodeKind::VariantMember: {
+                auto* variant = (VariantMember*) member;
+                for (auto& entry : variant->values) {
+                    auto* param = entry.second;
+                    if (param != nullptr &&
+                        zeroed_contains_reference(
+                            const_cast<BaseType*>(param->type.getType()),
+                            depth + 1)) {
+                        return true;
+                    }
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+    return false;
+}
+
 void SymResLinkBody::VisitZeroedValue(ZeroedValue* value) {
 
     auto type = value->getType();
@@ -3663,6 +3709,11 @@ void SymResLinkBody::VisitZeroedValue(ZeroedValue* value) {
 
     // typechecking code (better move there)
     if(value->is_unsafe) return;
+    if (zeroed_contains_reference(type)) {
+        diagnoser.error(value).with_code("SAFE-VALID-001")
+            << "zero-initialization would create a null reference; use MaybeUninit or an explicit constructor";
+        return;
+    }
     const auto can_type = type->canonical();
     const auto linked = can_type->get_direct_linked_node();
     if(linked) {

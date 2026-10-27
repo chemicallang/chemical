@@ -116,6 +116,8 @@ enum MIRFunctionFlags : uint32_t {
  */
 struct MIRFunction {
     SymbolId symbol = MIR_INVALID_ID;
+    /** Index into `MIRModule::region_signatures` (S4.2), or MIR_INVALID_ID. */
+    uint32_t region_signature = MIR_INVALID_ID;
     TypeId function_type = MIR_INVALID_ID;
     uint32_t flags = 0; // MF_WEAK_STUB; e.g. has sret, is lambda, is comptime-eliminated
 
@@ -171,6 +173,7 @@ struct MIRFunction {
         lexical_scopes.clear();
         owned_places.clear();
         move_paths.clear();
+        region_signature = MIR_INVALID_ID;
         sources.clear();
         entry_block = MIR_NULL;
     }

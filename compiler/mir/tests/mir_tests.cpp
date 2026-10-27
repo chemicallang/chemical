@@ -1843,6 +1843,47 @@ static bool test_move_paths() {
 }
 
 
+// ── region signatures (S4.2) ───────────────────────────────────────────────
+static bool test_region_signature() {
+    using namespace mir;
+    MIRRegionSignature sig = make_region_signature(
+        {"a", "b"},
+        {"a", "b", "", "elided", "static"},
+        "a",
+        {{"a", "b"}, {"a", "unknown"}, {"b", "static"}}
+    );
+    CHECK(sig.lifetime_param_count == 2);
+    CHECK(sig.param_regions.size() == 5);
+    CHECK(sig.param_regions[0] == 1);
+    CHECK(sig.param_regions[1] == 2);
+    CHECK(sig.param_regions[2] == MIR_INVALID_ID);
+    CHECK(sig.param_regions[3] == MIR_REGION_ELIDED);
+    CHECK(sig.param_regions[4] == MIR_REGION_STATIC);
+    CHECK(sig.return_region == 1);
+    CHECK(sig.outlives.size() == 2);
+    CHECK(sig.outlives[0].first == 1 && sig.outlives[0].second == 2);
+    CHECK(sig.outlives[1].first == 2 && sig.outlives[1].second == 0);
+
+    // The lexer stores lifetime names without the quote; both spellings map.
+    MIRRegionSignature quoted = make_region_signature({"'x"}, {"'x"}, "'x", {});
+    CHECK(quoted.param_regions.size() == 1);
+    CHECK(quoted.param_regions[0] == 1);
+    CHECK(quoted.return_region == 1);
+
+    // The module side table links a function to its signature, and the dump
+    // exposes it for golden tests/tooling.
+    MIRModule module;
+    const uint32_t id = module.add_region_signature(std::move(sig));
+    CHECK(id == 0);
+    MIRFunction fn;
+    fn.region_signature = id;
+    const std::string dump = dump_function_str(fn, module);
+    CHECK(dump.find("; regions: decls=2 ret=1") != std::string::npos);
+    CHECK(dump.find("params=[1,2,-,elided,static]") != std::string::npos);
+    CHECK(dump.find("outlives=[1:2,2:0]") != std::string::npos);
+    return true;
+}
+
 // ── MIR init/move dataflow ─────────────────────────────────────────────────
 static bool test_move_check() {
     MIRModule module;
@@ -2182,6 +2223,7 @@ int main() {
     ok &= test_interpreter_roundtrip();
     ok &= test_move_paths();
     ok &= test_move_check();
+    ok &= test_region_signature();
     ok &= test_control_flow_emitter();
     ok &= test_type_names();
     ok &= test_aggregate_layout();

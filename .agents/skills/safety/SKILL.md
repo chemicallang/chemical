@@ -121,6 +121,16 @@ Implemented:
   array by index (`SAFE-MOVE-001`). Module-scope uninitialized globals are
   still diagnosed in `TypeVerify`. First assignment destroys the old value
   through the runtime drop flag instead of `is_first_init`.
+- M4 started, S4.2a region signatures: `compiler/mir/MIRRegionSignature.{h,cpp}`
+  defines `MIRRegionSignature` (declared lifetime count, per-parameter region,
+  return region, `'a: 'b` outlives, HRTB binders reserved) and the pure
+  `make_region_signature` mapping (`static`/`elided`/`self`, quoted or bare
+  spellings). `MIRModule::region_signatures` is an append-only side table;
+  `MIRFunction::region_signature` links a function to its record. The lowerer
+  builds the signature from the declaration before body lowering, and
+  `MIRDump` prints it (`; regions:`). `MIRTests` covers the mapping, module
+  table and dump (`4603 checks`). Next in M4: S4.2b HRTB/region variables and
+  S4.3 MIR borrow lowering (`Borrow`/`BorrowMut`).
 - S2.6d unsafe invariant constructors: `vector::set_len` and
   `default_function_instance::make2` are now `unsafe func`; the audited
   `fs::read_file` and `std::function` `make` paths wrap their calls in
@@ -277,7 +287,8 @@ Next:
   are both unsafe call contexts. Partial initialization and partial moves are
   modeled (S3.1c), including construction temporaries and use-after-move
   through assignment. M3 is complete: the next milestone is M4 (regions, NLL,
-  borrow checking, dropck enforcement, and async/Pin).
+  borrow checking, dropck enforcement, and async/Pin). The current M4 step is
+  S4.2a (region signatures), then S4.2b/S4.3.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

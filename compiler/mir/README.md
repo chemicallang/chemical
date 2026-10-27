@@ -2997,6 +2997,8 @@ closures interoperate with legacy-emitted declarations.
 | `MIRLowerer.h/.cpp` | **AST→MIR lowering** (includes AST headers) |
 | `MIREmitter.h/.cpp` | **MIR→C emission** (AST-free) |
 | `MIRDump.h/.cpp`, `MIRVerifier.h/.cpp` | dump + structural checks |
+| `MIRMoveCheck.h/.cpp` | init/move/drop dataflow (sole state producer) |
+| `MIRRegionSignature.h/.cpp` | per-function region signatures (S4.2; read by the borrow checker) |
 | `compiler/ASTProcessor.cpp` | integration: `mir_translate_after_declaration` + callbacks |
 
 `MIRLowerer` gets the mangler and interpreter through callbacks

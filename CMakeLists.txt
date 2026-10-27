@@ -673,6 +673,7 @@ set(COMMON_SOURCES
         compiler/mir/MIRDump.cpp
         compiler/mir/MIRVerifier.cpp
         compiler/mir/MIRMoveCheck.cpp
+        compiler/mir/MIRRegionSignature.cpp
         compiler/mir/MIRFacts.cpp
         compiler/mir/MIRTypeBuilder.cpp
         compiler/mir/MIRLowerer.cpp
@@ -921,6 +922,7 @@ add_executable(MIRTests
         compiler/mir/MIRDump.cpp
         compiler/mir/MIRVerifier.cpp
         compiler/mir/MIRMoveCheck.cpp
+        compiler/mir/MIRRegionSignature.cpp
         compiler/mir/MIREmitter.cpp
         compiler/mir/MIRDeclPrinter.cpp
         compiler/mir/MIRFacts.cpp

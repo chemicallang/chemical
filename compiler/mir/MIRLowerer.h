@@ -899,6 +899,8 @@ private:
     PlaceId async_resident_place(ASTNode* node) const;
 
     SymbolId intern_function(FunctionDeclaration* decl);
+    /** Build this function's region signature from its declaration (S4.2). */
+    uint32_t intern_region_signature(FunctionDeclaration* decl);
     SymbolId intern_global(VarInitStatement* vi);
     SymbolId intern_named_global(const std::string& name);
 

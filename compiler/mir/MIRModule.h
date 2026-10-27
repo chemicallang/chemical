@@ -15,6 +15,7 @@
 #include "MIRGlobalDecl.h"
 #include "MIRDeclList.h"
 #include "MIRFunction.h"
+#include "MIRRegionSignature.h"
 
 #include <span>
 #include <mutex>
@@ -75,6 +76,19 @@ struct MIRModule {
     std::vector<MIRGlobal> globals;
     /** Interface vtable type/definition records (see MIRVtableTable.h). */
     MIRVtableTable vtables;
+    /**
+     * Per-function region signatures (S4.2). Region ids are function-local; the
+     * table itself is module-lifetime so `MIRBorrowCheck` never reads the AST.
+     * Append-only; lowering workers may add concurrently.
+     */
+    std::vector<MIRRegionSignature> region_signatures;
+    std::mutex region_signatures_mutex;
+
+    uint32_t add_region_signature(MIRRegionSignature signature) {
+        std::lock_guard<std::mutex> lock(region_signatures_mutex);
+        region_signatures.push_back(std::move(signature));
+        return static_cast<uint32_t>(region_signatures.size() - 1);
+    }
     /**
      * The module's ordered declaration list (forward tags, aggregate bodies,
      * typedefs, prototypes, global declarations and vtable type/externs), filled

@@ -1643,6 +1643,55 @@ SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
     return s;
 }
 
+static chem::string_view region_lifetime_of(BaseType* type) {
+    BaseType* canonical = type ? type->canonical() : nullptr;
+    if (canonical && canonical->kind() == BaseTypeKind::Reference) {
+        return canonical->as_reference_type()->lifetime;
+    }
+    return {};
+}
+
+uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
+    if (!decl) return MIR_INVALID_ID;
+    std::vector<std::string_view> lifetimes;
+    if (decl->generic_parent) {
+        for (chem::string_view name : decl->generic_parent->lifetime_params) {
+            lifetimes.emplace_back(name.data(), name.size());
+        }
+    }
+    std::vector<std::string_view> param_lifetimes;
+    param_lifetimes.reserve(decl->params.size());
+    for (FunctionParam* param : decl->params) {
+        chem::string_view lt = region_lifetime_of(param ? param->type : nullptr);
+        // `&self` is elided by the signature pass without writing a name on the
+        // receiver; the region is the same one the elided output uses.
+        if (lt.empty() && param &&
+            (param->name_view() == "self" || param->name_view() == "this")) {
+            lt = "elided";
+        }
+        param_lifetimes.emplace_back(lt.data(), lt.size());
+    }
+    chem::string_view return_lt = decl->return_lifetime;
+    if (return_lt.empty()) return_lt = region_lifetime_of(decl->returnType);
+    std::vector<std::pair<std::string_view, std::string_view>> outlives;
+    if (decl->where_clause) {
+        for (const LifetimeBound& bound : decl->where_clause->lifetime_bounds) {
+            for (chem::string_view target : bound.bounds) {
+                outlives.emplace_back(
+                    std::string_view(bound.param_name.data(), bound.param_name.size()),
+                    std::string_view(target.data(), target.size())
+                );
+            }
+        }
+    }
+    MIRRegionSignature sig = make_region_signature(
+        lifetimes, param_lifetimes,
+        std::string_view(return_lt.data(), return_lt.size()),
+        outlives
+    );
+    return module_.add_region_signature(std::move(sig));
+}
+
 MIRExprResult MIRLowerer::lower_atomic_intrinsic(FunctionCall* call, FunctionDeclaration* fd,
                                                  std::string& error) {
     const AtomicIntrinsic kind = atomic_intrinsic_of(fd);

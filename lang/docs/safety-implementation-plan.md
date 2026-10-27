@@ -595,8 +595,14 @@
 >   `*v.get_ref(0) = ...` is rejected; a positive test covers `get_mut`.
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >
-> M3 is complete. Next: M4 (regions, NLL, borrow checking, dropck enforcement,
-> provenance, async/Pin).
+> M3 is complete. M4 started (S4.2a): `MIRRegionSignature` (per-parameter
+> region, return region, `'a: 'b` outlives, HRTB binders reserved) is built
+> from declarations before body lowering and stored in the module-lifetime
+> `MIRModule::region_signatures` side table; `MIRFunction::region_signature`
+> links to it, `MIRDump` prints it for golden tests, and `make_region_signature`
+> maps `'static`/elided/`'self` names (quoted or bare). `MIRTests` covers the
+> mapping/table/dump. Next: S4.2b HRTB/region variables, then S4.3 MIR borrow
+> lowering (`Borrow`/`BorrowMut`) and S4.4 NLL.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

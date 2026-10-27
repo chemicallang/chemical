@@ -87,6 +87,33 @@ void dump_function(const MIRFunction& function, const MIRModule& module,
                    std::ostream& out) {
     (void) module; // reserved for symbol/type name resolution in the dump
     out << "func s" << function.symbol << " : ty" << function.function_type << " {\n";
+    if (function.region_signature != MIR_INVALID_ID &&
+        function.region_signature < module.region_signatures.size()) {
+        const MIRRegionSignature& rs =
+            module.region_signatures[function.region_signature];
+        out << "  ; regions: decls=" << rs.lifetime_param_count << " ret=";
+        if (rs.return_region == MIR_INVALID_ID) out << "-";
+        else out << rs.return_region;
+        out << " params=[";
+        for (size_t i = 0; i < rs.param_regions.size(); ++i) {
+            if (i) out << ",";
+            const MIRRegionId r = rs.param_regions[i];
+            if (r == MIR_INVALID_ID) out << "-";
+            else if (r == MIR_REGION_STATIC) out << "static";
+            else if (r == MIR_REGION_ELIDED) out << "elided";
+            else out << r;
+        }
+        out << "]";
+        if (!rs.outlives.empty()) {
+            out << " outlives=[";
+            for (size_t i = 0; i < rs.outlives.size(); ++i) {
+                if (i) out << ",";
+                out << rs.outlives[i].first << ":" << rs.outlives[i].second;
+            }
+            out << "]";
+        }
+        out << "\n";
+    }
     for_each_block(function, [&](uint32_t, const MIRBlock& block) {
         out << "bb" << block.id << ":";
         if (block.arg_count) {

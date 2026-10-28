@@ -43,7 +43,7 @@ public func yield_now() : core::async::FutureHandle<core::async::Unit> {
     vtbl.poll = yield_poll
     vtbl.drop = yield_drop
     st.vtbl = vtbl
-    return core::async::FutureHandle<core::async::Unit> { frame : st as *mut void, vtbl : vtbl }
+    return unsafe(core::async::future_handle_raw<core::async::Unit>(st as *mut void, vtbl))
 }
 
 }

@@ -44,6 +44,14 @@ struct Loan {
      * parameter's own region is the right fallback.
      */
     MIRRegionId region = MIR_INVALID_ID;
+    /**
+     * A reference held in a coroutine frame field (S4.1). The borrow may have
+     * been created before a suspension, so the poll function sees only the
+     * frame field. While live, moving/dropping another frame field is a
+     * use-after-move of the referent.
+     */
+    bool frame_loan = false;
+    PlaceId frame_field_place = MIR_INVALID_ID;
 };
 
 struct InstRef {
@@ -208,6 +216,29 @@ bool observes_borrow(const MIRModule& module, TypeId type) {
     return drop_glue && contains_reference(module, type);
 }
 
+/**
+ * A type that borrows storage through a raw pointer instead of a reference:
+ * `std::string_view`, `std::span`, `std::Chunk`. These types deliberately do
+ * not expose a reference field (they are C-compatible pointer+length pairs),
+ * so the ordinary reference loan tracking would let them outlive their source.
+ */
+bool is_borrow_view_type(const MIRModule& module, TypeId type) {
+    if (type == MIR_INVALID_ID || type >= module.types.types.size()) {
+        return false;
+    }
+    const MIRTypeRecord& rec = module.types.types[type];
+    if (rec.kind != MIRTypeKind::Struct && rec.kind != MIRTypeKind::Union) {
+        return false;
+    }
+    const std::string_view name = module.types.name_view(type);
+    if (name.empty()) return false;
+    // MIR names are the emitted C names (`std_stdstring_view`,
+    // `std_stdspan__cgs__0`), so match the type token as a substring.
+    return name.find("string_view") != std::string_view::npos ||
+           name.find("span") != std::string_view::npos ||
+           name.find("Chunk") != std::string_view::npos;
+}
+
 /** True when `from` outlives `to` (identity, 'static, elided, or a where edge). */
 bool region_outlives(const MIRRegionSignature& sig, MIRRegionId from,
                      MIRRegionId to) {
@@ -347,6 +378,71 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
         }
     }
 
+    // A borrowing-view parameter (`string_view`, `span`, `Chunk`) borrows
+    // caller storage. Seed a caller-owned loan so a local copy or a derived
+    // view (`var p = path; p.subview(...)`) keeps the caller's provenance
+    // instead of looking like a view of the parameter slot itself.
+    for (uint32_t p = 0; p < function.places.size(); ++p) {
+        const MIRPlaceDef& pd = function.places[p];
+        if (pd.storage_class != static_cast<uint8_t>(MIRStorageClass::Parameter)) {
+            continue;
+        }
+        if (!is_borrow_view_type(module, pd.type)) continue;
+        if (place_loans.find(p) != place_loans.end()) continue;
+        Loan loan;
+        loan.target.root = p;
+        loan.target.path = pd.move_path_id;
+        loan.target.param_index = pd.param_index;
+        loan.target.known = true;
+        loan.escaped = true;
+        const uint32_t idx = static_cast<uint32_t>(loans.size());
+        loans.push_back(std::move(loan));
+        place_loans[p] = idx;
+        if (pd.param_index != MIR_INVALID_ID) {
+            place_params[p] = pd.param_index;
+        }
+    }
+
+    // A coroutine poll/resume function receives references through frame
+    // fields that were created before the suspension. Treat each reference
+    // frame field as a live loan rooted at the frame pointer so a move/drop of
+    // another frame field while it is live is rejected (S4.1).
+
+    PlaceId frame_root = MIR_INVALID_ID;
+    for (uint32_t p = 0; p < function.places.size(); ++p) {
+        if (function.places[p].storage_class ==
+            static_cast<uint8_t>(MIRStorageClass::FramePtr)) {
+            frame_root = p;
+            break;
+        }
+    }
+    std::unordered_map<ConstantId, PlaceId> frame_field_places;
+    if (frame_root != MIR_INVALID_ID) {
+        for (uint32_t p = 0; p < function.places.size(); ++p) {
+            const MIRPlaceDef& pd = function.places[p];
+            if (pd.storage_class != static_cast<uint8_t>(MIRStorageClass::FrameField)) {
+                continue;
+            }
+            if (pd.frame_field != MIR_INVALID_ID) {
+                frame_field_places[pd.frame_field] = p;
+            }
+            if (pd.type >= module.types.types.size()) continue;
+            const MIRTypeKind kind = module.types.types[pd.type].kind;
+            if (kind != MIRTypeKind::Reference && kind != MIRTypeKind::Pointer) {
+                continue;
+            }
+            Loan loan;
+            loan.target.root = frame_root;
+            loan.target.known = true;
+            loan.frame_loan = true;
+            loan.frame_field_place = p;
+            const uint32_t idx = static_cast<uint32_t>(loans.size());
+            loans.push_back(std::move(loan));
+            place_loans[p] = idx;
+
+        }
+    }
+
     auto operands_of = [&](const MIRInstruction& inst) {
         return inst.operand_count == 0 ? static_cast<const MIROperand*>(nullptr)
                                        : &function.operands[inst.operand_offset];
@@ -366,6 +462,48 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 if (may_escape) loans[alias].escaped = true;
             }
         }
+    };
+    // Follow a raw pointer value to the known call that produced it. A
+    // pointer-returning method with one reference argument (`string.data()`,
+    // `vector.get_ptr()`) aliases that argument, so a view built from the
+    // pointer retains the argument's loan.
+    auto pointer_value_source = [&](ValueId vid, uint32_t& loan_out,
+                                    uint32_t& source_out) -> bool {
+        uint32_t v = vid;
+        for (uint32_t depth = 0; depth < 4; ++depth) {
+            if (v >= function.values.size()) return false;
+            const uint32_t di = function.values[v].def_inst;
+            if (di >= function.instructions.size()) return false;
+            const MIRInstruction& def = function.instructions[di];
+            const MIROperand* dops = def.operand_count == 0
+                                         ? nullptr
+                                         : &function.operands[def.operand_offset];
+            if (def.opcode() == MIROpcode::Cast && dops != nullptr &&
+                dops[0].kind() == MIROperandKind::Value) {
+                v = dops[0].id;
+                continue;
+            }
+            if (def.opcode() != MIROpcode::Call || dops == nullptr ||
+                def.operand_count < 2 || dops[0].kind() != MIROperandKind::Symbol) {
+                return false;
+            }
+            uint32_t found = MIR_INVALID_ID;
+            for (uint16_t i = 1; i < def.operand_count; ++i) {
+                if (dops[i].kind() != MIROperandKind::Value) continue;
+                const auto it = value_loans.find(dops[i].id);
+                if (it == value_loans.end() || it->second >= loans.size()) continue;
+                if (found != MIR_INVALID_ID) return false; // ambiguous
+                found = it->second;
+                const auto vp = value_params.find(dops[i].id);
+                source_out = vp != value_params.end()
+                                 ? vp->second
+                                 : loans[found].target.param_index;
+            }
+            if (found == MIR_INVALID_ID) return false;
+            loan_out = found;
+            return true;
+        }
+        return false;
     };
     auto target_of_address = [&](const MIROperand& op, LoanTarget& out) -> bool {
         if (op.kind() != MIROperandKind::Value) return false;
@@ -395,11 +533,23 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     break;
                 }
                 LoanTarget t;
-                t.root = ops[0].id;
+                const PlaceId address_place = ops[0].id;
+                t.root = address_place;
                 t.path = function.places[t.root].move_path_id;
                 t.param_index = function.places[t.root].param_index;
                 t.known = true;
                 t.projections.clear();
+                // A borrow of a borrowing-view temporary is transparent: the
+                // temporary itself owns no storage, so the loan must target the
+                // view's source (`to_view().trim()` returns the original
+                // string's loan, not the temporary's).
+                if (is_borrow_view_type(module, function.places[t.root].type)) {
+                    const auto view_loan = place_loans.find(address_place);
+                    if (view_loan != place_loans.end() &&
+                        view_loan->second < loans.size()) {
+                        t = loans[view_loan->second].target;
+                    }
+                }
                 if (inst.result_or_place != MIR_INVALID_ID) {
                     address_targets[inst.result_or_place] = t;
                 }
@@ -483,6 +633,21 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 }
                 break;
             }
+            case MIROpcode::Param: {
+                if (frame_root != MIR_INVALID_ID &&
+                    inst.result_or_place != MIR_INVALID_ID &&
+                    inst.result_or_place < function.values.size() &&
+                    frame_root < function.places.size() &&
+                    function.values[inst.result_or_place].type ==
+                        function.places[frame_root].type) {
+                    LoanTarget t;
+                    t.root = frame_root;
+                    t.path = function.places[frame_root].move_path_id;
+                    t.known = true;
+                    address_targets[inst.result_or_place] = t;
+                }
+                break;
+            }
             case MIROpcode::Load: {
                 if (ops == nullptr || inst.operand_count == 0) break;
                 // A dereference through a reference/pointer value uses the loan.
@@ -495,29 +660,34 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     ops[0].id < function.places.size() &&
                     inst.result_or_place != MIR_INVALID_ID) {
                     const MIRPlaceDef& pd = function.places[ops[0].id];
+                    const bool is_frame_ptr =
+                        pd.storage_class ==
+                        static_cast<uint8_t>(MIRStorageClass::FramePtr);
                     uint32_t pidx = pd.param_index;
                     if (pidx == MIR_INVALID_ID) {
                         const auto pp = place_params.find(ops[0].id);
                         if (pp != place_params.end()) pidx = pp->second;
                     }
-                    if (pidx != MIR_INVALID_ID &&
+                    const bool is_ref_param =
+                        pidx != MIR_INVALID_ID &&
                         pd.type < module.types.types.size() &&
                         (module.types.types[pd.type].kind == MIRTypeKind::Reference ||
-                         module.types.types[pd.type].kind == MIRTypeKind::Pointer)) {
-                        value_params[inst.result_or_place] = pidx;
+                         module.types.types[pd.type].kind == MIRTypeKind::Pointer);
+                    if (is_ref_param || is_frame_ptr) {
+                        if (is_ref_param) {
+                            value_params[inst.result_or_place] = pidx;
+                        }
                         // The loaded value is the parameter's referent pointer.
                         // Remember which parameter place it came from so a
                         // field load through it (`self.field`) can resolve the
-                        // S4.2b field facts.
-                        if (pd.storage_class ==
-                            static_cast<uint8_t>(MIRStorageClass::Parameter)) {
-                            LoanTarget t;
-                            t.root = ops[0].id;
-                            t.path = pd.move_path_id;
-                            t.param_index = pidx;
-                            t.known = true;
-                            address_targets[inst.result_or_place] = t;
-                        }
+                        // S4.2b field facts. The coroutine frame pointer is
+                        // tracked the same way for the S4.1 frame checks.
+                        LoanTarget t;
+                        t.root = ops[0].id;
+                        t.path = pd.move_path_id;
+                        t.param_index = pidx;
+                        t.known = true;
+                        address_targets[inst.result_or_place] = t;
                     }
                 }
                 // Loading a reference local yields another value carrying its loan.
@@ -545,9 +715,24 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         have_key = true;
                     } else if (ops[0].kind() == MIROperandKind::Value) {
                         const auto at = address_targets.find(ops[0].id);
+
                         if (at != address_targets.end() && at->second.known) {
                             fkey = field_key(at->second.root, ops[1].id);
                             have_key = true;
+                            if (at->second.root < function.places.size() &&
+                                function.places[at->second.root].storage_class ==
+                                    static_cast<uint8_t>(MIRStorageClass::FramePtr)) {
+
+                                const auto fp = frame_field_places.find(ops[1].id);
+                                if (fp != frame_field_places.end()) {
+                                    const auto pl = place_loans.find(fp->second);
+                                    if (pl != place_loans.end()) {
+                                        value_loans[inst.result_or_place] = pl->second;
+                                        loans[pl->second].end = lin;
+
+                                    }
+                                }
+                            }
                         }
                     }
                     if (have_key) {
@@ -568,6 +753,20 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 if (ops == nullptr || inst.operand_count < 2) break;
                 const MIROperand& value = ops[inst.operand_count - 1];
                 use_value(value, lin, false);
+                // The coroutine frame pointer is spilled to its FramePtr place
+                // in the prologue; remember the SSA value so field loads through
+                // it resolve to the frame (S4.1).
+                if (ops[0].kind() == MIROperandKind::Place &&
+                    value.kind() == MIROperandKind::Value &&
+                    ops[0].id < function.places.size() &&
+                    function.places[ops[0].id].storage_class ==
+                        static_cast<uint8_t>(MIRStorageClass::FramePtr)) {
+                    LoanTarget t;
+                    t.root = ops[0].id;
+                    t.path = function.places[ops[0].id].move_path_id;
+                    t.known = true;
+                    address_targets[value.id] = t;
+                }
                 // A field store of a reference value records a field loan.
                 if (inst.operand_count >= 3 &&
                     ops[0].kind() == MIROperandKind::Place &&
@@ -874,6 +1073,60 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 }
                 break;
             }
+            case MIROpcode::Init: {
+                if (ops == nullptr || inst.operand_count < 2) break;
+                if (ops[0].kind() != MIROperandKind::Place ||
+                    ops[1].kind() != MIROperandKind::Symbol ||
+                    ops[0].id >= function.places.size()) {
+                    break;
+                }
+                const TypeId dest_type = function.places[ops[0].id].type;
+                if (!is_borrow_view_type(module, dest_type)) break;
+                uint32_t view_loan = MIR_INVALID_ID;
+                uint32_t view_source = MIR_INVALID_ID;
+                for (uint16_t i = 2; i < inst.operand_count; ++i) {
+                    if (ops[i].kind() != MIROperandKind::Value) continue;
+                    const auto vl = value_loans.find(ops[i].id);
+                    if (vl != value_loans.end() && vl->second < loans.size()) {
+                        view_loan = vl->second;
+                        const auto vp = value_params.find(ops[i].id);
+                        if (vp != value_params.end()) view_source = vp->second;
+                        else view_source = loans[view_loan].target.param_index;
+                        break;
+                    }
+                }
+                if (view_loan == MIR_INVALID_ID) {
+                    for (uint16_t i = 2; i < inst.operand_count; ++i) {
+                        if (ops[i].kind() != MIROperandKind::Value) continue;
+                        const auto at = address_targets.find(ops[i].id);
+                        if (at != address_targets.end() && at->second.known) {
+                            Loan source;
+                            source.target = at->second;
+                            source.start = lin;
+                            source.end = lin;
+                            view_loan = static_cast<uint32_t>(loans.size());
+                            view_source = at->second.param_index;
+                            loans.push_back(std::move(source));
+                            break;
+                        }
+                        uint32_t source_loan = MIR_INVALID_ID;
+                        uint32_t source_param = MIR_INVALID_ID;
+                        if (pointer_value_source(ops[i].id, source_loan, source_param)) {
+                            view_loan = source_loan;
+                            view_source = source_param;
+                            break;
+                        }
+                    }
+                }
+                if (view_loan != MIR_INVALID_ID) {
+                    place_loans[ops[0].id] = view_loan;
+                    loans[view_loan].end = lin;
+                    if (view_source != MIR_INVALID_ID) {
+                        place_params[ops[0].id] = view_source;
+                    }
+                }
+                break;
+            }
             case MIROpcode::Call:
             case MIROpcode::CallIndirect: {
                 if (ops == nullptr) break;
@@ -893,6 +1146,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 // escape mark.
                 bool known = false;
                 bool returns_reference = false;
+                bool returns_view = false;
                 bool extern_like = false;
                 if (inst.opcode() == MIROpcode::Call &&
                     ops[0].kind() == MIROperandKind::Symbol &&
@@ -909,6 +1163,17 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                             returns_reference =
                                 ret != MIR_INVALID_ID && ret < module.types.types.size() &&
                                 module.types.types[ret].kind == MIRTypeKind::Reference;
+                            // An sret aggregate return has a `void` function
+                            // type; the view fact is on the result place/value.
+                            TypeId result_type = ret;
+                            if (inst.result_or_place != MIR_INVALID_ID) {
+                                if (inst.result_or_place < function.places.size()) {
+                                    result_type = function.places[inst.result_or_place].type;
+                                } else if (inst.result_or_place < function.values.size()) {
+                                    result_type = function.values[inst.result_or_place].type;
+                                }
+                            }
+                            returns_view = is_borrow_view_type(module, result_type);
                         }
                     }
                 }
@@ -946,6 +1211,11 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         callee_sig = &callee_sig_copy;
                     }
                 }
+                // `: 'static T` means the callee returns storage it owns (an
+                // arena copy, a literal), so no argument loan is retained.
+                const bool static_return =
+                    callee_sig != nullptr &&
+                    callee_sig->return_region == MIR_REGION_STATIC;
 
                 // A reference result aliases the argument whose declared
                 // region is the return region (or the unique argument whose
@@ -954,7 +1224,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 uint32_t mapped_loan = MIR_INVALID_ID;
                 uint32_t mapped_source = MIR_INVALID_ID;
                 std::vector<uint32_t> ambiguous_loans;
-                if (known && returns_reference &&
+                if (known && (returns_reference || returns_view) &&
                     inst.result_or_place != MIR_INVALID_ID) {
                     if (callee_sig != nullptr &&
                         callee_sig->return_region != MIR_INVALID_ID) {
@@ -989,13 +1259,14 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                             for (const RefArg* ra : candidates) {
                                 ambiguous_loans.push_back(ra->loan);
                             }
-                        } else if (ref_args.size() == 1) {
-                            // Elided/static region: the single reference is
-                            // still the only possible source.
+                        } else if (!static_return && ref_args.size() == 1) {
+                            // Elided region: the single reference is the only
+                            // possible source. A `'static` result owns its
+                            // storage, so it retains no argument loan.
                             mapped_loan = ref_args[0].loan;
                             mapped_source = ref_args[0].source_param;
                         }
-                    } else if (ref_args.size() == 1) {
+                    } else if (!static_return && ref_args.size() == 1) {
                         mapped_loan = ref_args[0].loan;
                         mapped_source = ref_args[0].source_param;
                     }
@@ -1020,7 +1291,52 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     }
                 }
 
-                if (mapped_loan != MIR_INVALID_ID) {
+                // A borrowing view (`string_view`, `span`, `Chunk`) carries its
+                // source as a raw pointer, so it has no reference field for the
+                // ordinary tracking. Attach the source loan to the result place:
+                // a reference argument (the `&self` of `to_view`) or an
+                // `&raw`/address target (`span(&raw mut a[0], 3)`).
+                if (known && returns_view && !static_return &&
+                    inst.result_or_place != MIR_INVALID_ID &&
+                    inst.result_or_place < function.places.size()) {
+                    uint32_t view_loan = mapped_loan;
+                    uint32_t view_source = mapped_source;
+                    if (view_loan == MIR_INVALID_ID) {
+                        for (uint16_t i = first; i < inst.operand_count; ++i) {
+                            if (ops[i].kind() != MIROperandKind::Value) continue;
+                            const auto at = address_targets.find(ops[i].id);
+                            if (at != address_targets.end() && at->second.known) {
+                                Loan source;
+                                source.target = at->second;
+                                source.start = lin;
+                                source.end = lin;
+                                view_loan = static_cast<uint32_t>(loans.size());
+                                view_source = at->second.param_index;
+                                loans.push_back(std::move(source));
+                                break;
+                            }
+                            uint32_t source_loan = MIR_INVALID_ID;
+                            uint32_t source_param = MIR_INVALID_ID;
+                            if (pointer_value_source(ops[i].id, source_loan, source_param)) {
+                                view_loan = source_loan;
+                                view_source = source_param;
+                                break;
+                            }
+                        }
+                    }
+                    if (view_loan != MIR_INVALID_ID) {
+                        place_loans[inst.result_or_place] = view_loan;
+                        loans[view_loan].end = lin;
+                        if (view_source != MIR_INVALID_ID) {
+                            place_params[inst.result_or_place] = view_source;
+                        }
+                        if (!ambiguous_loans.empty()) {
+                            place_aliases[inst.result_or_place] = ambiguous_loans;
+                        }
+                    }
+                }
+
+                if (mapped_loan != MIR_INVALID_ID && returns_reference) {
                     for (uint16_t i = first; i < inst.operand_count; ++i) {
                         use_value(ops[i], lin, false);
                     }
@@ -1106,6 +1422,18 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                             returned_place = pops[1].id;
                             break;
                         }
+                    }
+                }
+                // A borrowing view returned through the sret pointer carries
+                // its source loan on the returned place (S4.2b view tracking).
+                if (returned_place != MIR_INVALID_ID) {
+                    if (loan == MIR_INVALID_ID) {
+                        const auto it = place_loans.find(returned_place);
+                        if (it != place_loans.end()) loan = it->second;
+                    }
+                    if (return_param == MIR_INVALID_ID) {
+                        const auto it = place_params.find(returned_place);
+                        if (it != place_params.end()) return_param = it->second;
                     }
                 }
 
@@ -1457,6 +1785,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 ops[0].kind() == MIROperandKind::Place) {
                 for (uint32_t l = 0; l < nloans; ++l) {
                     if (!live[l] || loans[l].escaped || !loans[l].target.known) continue;
+                    if (loans[l].frame_loan) continue; // frame storage owns the view
                     if (loans[l].target.root != ops[0].id) continue;
                     report(result.diagnostics, function, function_index, order,
                            linear_of(b, ii, order), "SAFE-LIFE-002",
@@ -1495,9 +1824,24 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 moved.root = moved_place;
                 moved.path = function.places[moved_place].move_path_id;
                 moved.known = true;
+
                 for (uint32_t l = 0; l < nloans; ++l) {
                     if (!live[l] || loans[l].escaped || !loans[l].target.known) continue;
-                    if (!targets_overlap(function, loans[l].target, moved)) continue;
+                    if (!has_back_edge && loans[l].end != MIR_INVALID_ID &&
+                        loans[l].end < linear_of(b, ii, order)) {
+                        continue;
+                    }
+
+                    bool overlap = targets_overlap(function, loans[l].target, moved);
+                    if (!overlap && loans[l].frame_loan) {
+                        const MIRPlaceDef& mp = function.places[moved_place];
+                        if (mp.storage_class ==
+                                static_cast<uint8_t>(MIRStorageClass::FrameField) &&
+                            moved_place != loans[l].frame_field_place) {
+                            overlap = true;
+                        }
+                    }
+                    if (!overlap) continue;
                     report(result.diagnostics, function, function_index, order,
                            linear_of(b, ii, order), "SAFE-BORROW-002",
                            "moving or dropping a place while a borrow of it is live");

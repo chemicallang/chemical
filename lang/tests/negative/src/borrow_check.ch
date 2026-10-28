@@ -256,3 +256,61 @@ func neg_method_reference_field_wrong_lifetime(env : &mut TestEnv) {
     var ch = "struct Pair<'a, 'b> {\n    var x : &'a int\n    var y : &'b int\n    func get(&self) : &'b int {\n        return self.x\n    }\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    var p = Pair<'static, 'static> { x : &a, y : &b }\n    return *p.get()\n}\n"
     expect_compile_error(env, "borrow_method_field_wrong_region", ch, "SAFE-LIFE-003")
 }
+
+@test
+func neg_string_view_outlives_local(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A view is a raw pointer + length, so the ordinary reference-field check
+    // cannot see it. The S4.2b view tracking attaches the source loan.
+    var ch = "public func bad() : std::string_view {\n    var s = std::string(\"hello\")\n    return s.to_view()\n}\npublic func main() : int {\n    var v = bad()\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "view_outlives_local", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_span_outlives_local(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func bad() : std::span<int> {\n    var a : [3]int = [1, 2, 3]\n    return std::span<int>(&raw mut a[0], 3)\n}\npublic func main() : int {\n    var v = bad()\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "span_outlives_local", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func view_from_parameter_or_same_scope_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func from_param(s : &std::string) : std::string_view {\n    return s.to_view()\n}\nfunc same_scope() : size_t {\n    var s = std::string(\"hello\")\n    var v = s.to_view()\n    return v.size()\n}\npublic func main() : int {\n    var s = std::string(\"x\")\n    var v = from_param(&s)\n    return (v.size() + same_scope()) as int\n}\n"
+    expect_compile_success_with_mod(env, "view_ok", ch, NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_future_handle_cannot_be_forged(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The frame/vtable pair is the async runtime's unchecked contract; safe
+    // code must go through spawn/spawn_blocking.
+    var ch = "public func main() : int {\n    var x : int = 7\n    var h = core::async::FutureHandle<int> { frame : &raw mut x as *mut void, vtbl : null }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "future_handle_forged", ch, "SAFE-VIS-001", NEG_MOD_CORE)
+}
+
+@test
+func neg_async_move_while_borrowed(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A mutable borrow crosses `.await`; moving the referent in the resume
+    // function while the frame reference is still used is a use-after-move.
+    var ch = "async func bad() : std::string {\n    var x = std::string(\"hello\")\n    var p = &mut x\n    var _ = await async::yield_now()\n    var y = x\n    p.append('!')\n    return y\n}\npublic func main() : int {\n    var r = async::block_on<std::string>(bad())\n    return r.size() as int\n}\n"
+    expect_compile_error_with_mod(env, "async_move_while_borrowed", ch, "SAFE-BORROW-002", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func async_borrow_across_await_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The borrow ends before the local is returned, so the move is safe.
+    var ch = "async func ok() : std::string {\n    var x = std::string(\"hello\")\n    var p = &mut x\n    var _ = await async::yield_now()\n    p.append('!')\n    return x\n}\npublic func main() : int {\n    var r = async::block_on<std::string>(ok())\n    return r.size() as int\n}\n"
+    expect_compile_success_with_mod(env, "async_borrow_across_await", ch, NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_view_from_data_pointer_escapes(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A view built from `s.data()` must inherit the receiver's loan even though
+    // the pointer is produced by an intermediate call.
+    var ch = "func bad() : std::string_view {\n    var s = std::string(\"hello\")\n    return std::string_view(s.data(), s.size())\n}\npublic func main() : int {\n    var v = bad()\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "view_from_data_escapes", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
+}

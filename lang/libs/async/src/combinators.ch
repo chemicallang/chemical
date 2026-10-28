@@ -37,12 +37,12 @@ public struct SelectState<T> {
 @retained
 public func <T> select_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
     var st = frame as *mut SelectState<T>
-    var pa = st.a.vtbl.poll(st.a.frame, cx)
+    var pa = st.a.vtbl_ptr().poll(st.a.frame_ptr(), cx)
     if(pa is core::async::Poll.Ready) {
         var va = poll_take_ready<T>(&raw mut pa)
         return core::async::Poll.Ready<T>(va)
     }
-    var pb = st.b.vtbl.poll(st.b.frame, cx)
+    var pb = st.b.vtbl_ptr().poll(st.b.frame_ptr(), cx)
     if(pb is core::async::Poll.Ready) {
         var vb = poll_take_ready<T>(&raw mut pb)
         return core::async::Poll.Ready<T>(vb)
@@ -76,7 +76,7 @@ public func <T> select(a : core::async::FutureHandle<T>, b : core::async::Future
         b : b,
         vtbl : vtbl
     }
-    return core::async::FutureHandle<T> { frame : st as *mut void, vtbl : vtbl }
+    return unsafe(core::async::future_handle_raw<T>(st as *mut void, vtbl))
 }
 
 // ---- timeout ---------------------------------------------------------------
@@ -92,7 +92,7 @@ public struct TimeoutOrState<T> {
 @retained
 public func <T> timeout_or_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
     var st = frame as *mut TimeoutOrState<T>
-    var p = st.inner.vtbl.poll(st.inner.frame, cx)
+    var p = st.inner.vtbl_ptr().poll(st.inner.frame_ptr(), cx)
     if(p is core::async::Poll.Ready) {
         var v = poll_take_ready<T>(&raw mut p)
         return core::async::Poll.Ready<T>(v)
@@ -133,7 +133,7 @@ public func <T> timeout_or(handle : core::async::FutureHandle<T>, millis : u64, 
         millis : millis as i64,
         vtbl : vtbl
     }
-    return core::async::FutureHandle<T> { frame : st as *mut void, vtbl : vtbl }
+    return unsafe(core::async::future_handle_raw<T>(st as *mut void, vtbl))
 }
 
 // Synchronous variant: drive `handle` to completion on the current thread, but
@@ -144,7 +144,7 @@ public func <T> block_on_timeout(handle : core::async::FutureHandle<T>, millis :
     var cx = core::async::Context { waker : exec_make_waker(e) }
     var start = std::now_milli()
     var out : std::Option<T> = loop {
-        var r = handle.vtbl.poll(handle.frame, &raw mut cx)
+        var r = handle.vtbl_ptr().poll(handle.frame_ptr(), &raw mut cx)
         if(r is core::async::Poll.Ready) {
             var v = poll_take_ready<T>(&raw mut r)
             break std::Option.Some<T>(v)

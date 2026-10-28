@@ -222,7 +222,7 @@ public struct Receiver<T> {
             fallback : std::Option.Some<T>(fallback),
             vtbl : vtbl
         }
-        return core::async::FutureHandle<T> { frame : st as *mut void, vtbl : vtbl }
+        return unsafe(core::async::future_handle_raw<T>(st as *mut void, vtbl))
     }
 
     @delete

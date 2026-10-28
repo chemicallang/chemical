@@ -88,8 +88,27 @@ public namespace async {
     // live-local destructors exactly once (Sections 8.5, 13.3).
     @direct_init
     public struct FutureHandle<T> {
-        var frame : *mut void
-        var vtbl  : *mut FutureTable<T>
+        private var frame : *mut void
+        private var vtbl  : *mut FutureTable<T>
+
+        // The frame/vtable pair is a raw runtime contract (the frame layout and
+        // vtable entries are unchecked), so safe code may not forge it. The
+        // unsafe `future_handle_raw` below is the one construction boundary;
+        // all safe uses go through `spawn`/`spawn_blocking`/`spawn_local`.
+        public unsafe func set_raw(&mut self, frame_ : *mut void, vtbl_ : *mut FutureTable<T>) {
+            frame = frame_
+            vtbl = vtbl_
+        }
+
+        /** The opaque coroutine frame. Dereferencing it is unsafe. */
+        public func frame_ptr(&self) : *mut void {
+            return frame
+        }
+
+        /** The future's poll/drop table. Dereferencing it is unsafe. */
+        public func vtbl_ptr(&self) : *mut FutureTable<T> {
+            return vtbl
+        }
 
         @delete
         func delete(&mut self) {
@@ -98,6 +117,18 @@ public namespace async {
                 frame = null
             }
         }
+    }
+
+    /**
+     * The one unchecked constructor for a future handle. The fields are
+     * private so safe code cannot forge the frame/vtable pair; runtime
+     * libraries call this inside `unsafe`.
+     */
+    public unsafe func <T> future_handle_raw(frame : *mut void,
+                                              vtbl : *mut FutureTable<T>) : FutureHandle<T> {
+        var h = zeroed:unsafe<FutureHandle<T>>()
+        unsafe { h.set_raw(frame, vtbl) }
+        return h
     }
 
     // A zero-sized "no value" result.

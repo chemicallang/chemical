@@ -262,7 +262,7 @@ public func <T> spawn_task_poll(frame : *mut void, cx : *mut core::async::Contex
     if(cancelled) {
         return core::async::Poll.Ready<core::async::Unit>(core::async::Unit { })
     }
-    var r = t.inner.vtbl.poll(t.inner.frame, cx)
+    var r = t.inner.vtbl_ptr().poll(t.inner.frame_ptr(), cx)
     if(r is core::async::Poll.Ready) {
         st.m.lock()
         var cancelled_now = st.cancelled
@@ -336,7 +336,7 @@ public func <T> spawn(handle : core::async::FutureHandle<T>) : core::async::Futu
         vtbl : task_vtbl
     }
     exec_enqueue_task(e, task as *mut void, task_vtbl)
-    return core::async::FutureHandle<T> { frame : st as *mut void, vtbl : join_vtbl }
+    return unsafe(core::async::future_handle_raw<T>(st as *mut void, join_vtbl))
 }
 
 // Submit a task to the executor for a UI/event loop to drive. The executor is

@@ -721,8 +721,22 @@
 > `a[0]`/`a[1]` are disjoint even for non-owning element types while a dynamic
 > index still overlaps; reborrowing through `&mut *r` is accepted.
 > `MIRTests` is `4638 checks`; negative tests `491`.
-> Next: variance invariants in nested positions, HRTB encoding, async frame/Pin
-> integration, full provenance, and the rest of M5 validity.
+> S4.2b view/async soundness: borrowing views (`string_view`, `span`,
+> `Chunk`) now carry their source loan across call and `Init` boundaries, so a
+> view of a local (or of `&raw` array storage) cannot escape
+> (`SAFE-LIFE-001`), while a view of a parameter, a `'static`-returning
+> allocator (`BatchAllocator.allocate_view`) or a same-scope local is allowed.
+> `FutureHandle` fields are private; construction is the unsafe
+> `future_handle_raw`/`set_raw` boundary, so safe code cannot forge the
+> frame/vtable pair (`SAFE-VIS-001`). Async poll/resume functions treat
+> reference frame fields as live loans and reject moving/dropping another
+> frame field while the reference is still used (`SAFE-BORROW-002`); a borrow
+> that ends before the move is accepted. A view built from a pointer-returning
+> method (`s.data()`) inherits the receiver's loan too. `MIRTests` is `4638
+> checks`; negative tests `498`; async suite `53`.
+> Next: variance invariants in nested positions, HRTB encoding, temporary
+> lifetime extension, full provenance, Pin projections, and the rest of M5
+> validity.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

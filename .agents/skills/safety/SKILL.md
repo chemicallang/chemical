@@ -244,6 +244,18 @@ Implemented:
   projections, so `a[0]`/`a[1]` are disjoint (even for `Copy` elements) while a
   dynamic index overlaps; `&mut *r` reborrows are accepted. `MIRTests` is
   `4638 checks`; negative tests `491`.
+- S4.2b view/async soundness: borrowing views (`string_view`, `span`, `Chunk`)
+  carry their source loan across `Call`/`Init` and aggregate returns, so a view
+  of a local or `&raw` array storage cannot escape (`SAFE-LIFE-001`); a view of
+  a parameter, a `'static`-returning allocator (`BatchAllocator.allocate_view`),
+  or a same-scope local is accepted. `FutureHandle` fields are private and safe
+  construction goes through the unsafe `future_handle_raw`/`set_raw` boundary,
+  so the frame/vtable pair cannot be forged (`SAFE-VIS-001`). Async poll/resume
+  functions treat reference frame fields as live loans and reject moving or
+  dropping another frame field while the reference is still used
+  (`SAFE-BORROW-002`); a borrow that ends before the move is accepted. A view
+  built from a pointer-returning method (`s.data()`) inherits the receiver's
+  loan too. Negative tests `498`; async suite `53`.
 - S4.3b autoref / S4.7 two-phase: a reference receiver (`&self` / `&mut self`)
   now lowers to `Borrow`/`BorrowMut` instead of an untracked `AddressOf`, and
   method-call arguments are evaluated before the receiver borrow is activated.

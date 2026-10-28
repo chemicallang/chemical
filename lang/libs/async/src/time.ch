@@ -41,7 +41,7 @@ public func sleep(millis : u64) : core::async::FutureHandle<core::async::Unit> {
     vtbl.poll = sleep_poll
     vtbl.drop = sleep_drop
     st.vtbl = vtbl
-    return core::async::FutureHandle<core::async::Unit> { frame : st as *mut void, vtbl : vtbl }
+    return unsafe(core::async::future_handle_raw<core::async::Unit>(st as *mut void, vtbl))
 }
 
 }

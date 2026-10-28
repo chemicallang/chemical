@@ -17,7 +17,7 @@ public func <T> block_on(handle : core::async::FutureHandle<T>) : T {
         waker : exec_make_waker(e)
     }
     var out : T = loop {
-        var r = handle.vtbl.poll(handle.frame, &raw mut cx)
+        var r = handle.vtbl_ptr().poll(handle.frame_ptr(), &raw mut cx)
         if(r is core::async::Poll.Ready) {
             // Extract through a pointer+memcpy rather than a variant pattern
             // binding: moving a struct `T` out of a pattern mis-lowers on LLVM

@@ -328,7 +328,7 @@ public namespace net {
 
         func iocp_op_handle(op : *mut IocpOp) : core::async::FutureHandle<int> {
             var v = op.vtbl
-            return core::async::FutureHandle<int> { frame : op as *mut void, vtbl : v }
+            return unsafe(core::async::future_handle_raw<int>(op as *mut void, v))
         }
 
         // Post one overlapped WSARecv. Resolves with the bytes read (0 = EOF,

@@ -191,7 +191,7 @@ func make_ready(fd : int, events : short) : core::async::FutureHandle<core::asyn
         parked : false,
         vtbl : vtbl
     }
-    return core::async::FutureHandle<core::async::Unit> { frame : st as *mut void, vtbl : vtbl }
+    return unsafe(core::async::future_handle_raw<core::async::Unit>(st as *mut void, vtbl))
 }
 
 // A registered file descriptor. `readable`/`writable` complete when the fd is

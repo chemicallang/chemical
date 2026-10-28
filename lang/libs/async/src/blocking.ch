@@ -129,7 +129,7 @@ public func <T> spawn_blocking(f : std::function<() => T>) : core::async::Future
             }
         }
     })
-    return core::async::FutureHandle<T> { frame : st as *mut void, vtbl : vtbl }
+    return unsafe(core::async::future_handle_raw<T>(st as *mut void, vtbl))
 }
 
 }

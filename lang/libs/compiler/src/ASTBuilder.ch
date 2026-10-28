@@ -926,7 +926,7 @@ public func (builder : &mut ASTBuilder) allocate_str(data : *char, size : size_t
     return builder.allocator.allocate_str(data, size);
 }
 
-public func (builder : &mut ASTBuilder) allocate_view(view : &std::string_view) : std::string_view {
+public func (builder : &mut ASTBuilder) allocate_view(view : &std::string_view) : 'static std::string_view {
     return builder.allocator.allocate_view(view);
 }
 

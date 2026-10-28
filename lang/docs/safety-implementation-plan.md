@@ -734,9 +734,15 @@
 > that ends before the move is accepted. A view built from a pointer-returning
 > method (`s.data()`) inherits the receiver's loan too. `MIRTests` is `4638
 > checks`; negative tests `498`; async suite `53`.
-> Next: variance invariants in nested positions, HRTB encoding, temporary
-> lifetime extension, full provenance, Pin projections, and the rest of M5
-> validity.
+> M5.5b float→int: every `as` cast from float/double to an integer width now
+> lowers to explicit blocks that map NaN to zero and saturate values below the
+> destination minimum / above its maximum, instead of C/LLVM out-of-range
+> `fptosi` UB. LLVM float `Ne` is `fcmp une` (C semantics: `NaN != NaN`), so
+> the NaN branch is also correct there. Runtime tests cover large positive and
+> negative values, unsigned saturation, in-range truncation, and NaN.
+> Next: M5.6 panic/unwind + `UnwindSafe`, remaining M5 validity (enum/bool
+> tags, packed references), M6 `Send`/`Sync` enforcement, M2 C ABI, and the
+> variance/HRTB/temporary-lifetime precision items.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

@@ -634,3 +634,25 @@ func checked_arithmetic_without_overflow_runs(env : &mut TestEnv) {
         env.error("checked arithmetic without overflow should run cleanly")
     }
 }
+
+@test
+func float_to_int_saturates(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var big = 1000000000000000000000000000000000000000.0\n    var neg = -1000000000000000000000000000000000000000.0\n    var a = big as int\n    var b = neg as int\n    var c = big as uint\n    if(a != 2147483647) { return 1 }\n    if(b != -2147483648) { return 2 }\n    if(c != 4294967295u) { return 3 }\n    var d = 42.9 as int\n    if(d != 42) { return 4 }\n    return 0\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "float_to_int_saturates", ch, &mut out)
+    if(rc != 0) {
+        env.error("float to int saturation returned a non-zero exit code")
+    }
+}
+
+@test
+func float_nan_to_int_is_zero(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var z = 0.0\n    var nan = z / z\n    var i = nan as int\n    var u = nan as uint\n    if(i != 0) { return 1 }\n    if(u != 0u) { return 2 }\n    return 0\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "float_nan_to_int_zero", ch, &mut out)
+    if(rc != 0) {
+        env.error("NaN to int did not produce zero")
+    }
+}

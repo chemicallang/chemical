@@ -6,6 +6,8 @@
 
 #include "MIRLowererHelpers.h"
 
+#include <cmath>
+
 namespace mir {
 
 MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
@@ -268,6 +270,26 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     builder_->copy_ptr_to_place(tmp, ptr);
                 }
                 return MIRExprResult::place(tmp, type);
+            }
+            // Float -> integer is defined and saturating; never emit a raw C
+            // cast (out of range and NaN are UB in C/LLVM fptosi).
+            if (in.type != MIR_INVALID_ID && in.type < module_.types.size() &&
+                type != MIR_INVALID_ID && type < module_.types.size() &&
+                module_.types.get(in.type).kind == MIRTypeKind::Float &&
+                module_.types.get(type).kind == MIRTypeKind::Int) {
+                if (in.kind == MIRExprKind::Place) {
+                    const TypeId pt = builder_->function().places[in.id].type;
+                    const ValueId loaded = builder_->load(
+                        static_cast<PlaceId>(in.id), pt);
+                    return MIRExprResult::value(
+                        lower_float_to_int(loaded, pt, type), type);
+                }
+                if (in.kind == MIRExprKind::Value ||
+                    in.kind == MIRExprKind::Address) {
+                    return MIRExprResult::value(
+                        lower_float_to_int(static_cast<ValueId>(in.id),
+                                           in.type, type), type);
+                }
             }
             if (in.kind == MIRExprKind::Place) {
                 // a cast of an aggregate place to a pointer/interface type
@@ -1980,6 +2002,96 @@ void MIRLowerer::emit_abort_unless(ValueId condition) {
     builder_->call_scalar(abort_sym, void_t, nullptr, 0);
     builder_->unreachable();
     builder_->set_block(ok_b);
+}
+
+ValueId MIRLowerer::lower_float_to_int(ValueId value, TypeId src, TypeId dst) {
+    if (!builder_ || dst == MIR_INVALID_ID || dst >= module_.types.size()) {
+        return value;
+    }
+    const MIRTypeRecord& d = module_.types.get(dst);
+    if (d.kind != MIRTypeKind::Int) return value;
+    const TypeId f64 = types_.double_type();
+    const TypeId bool_t = types_.bool_type();
+    const ValueId x = (src == f64) ? value : builder_->cast(value, f64);
+    const bool is_signed = (d.flags & TF_SIGNED) != 0;
+    const uint32_t bits = d.size * 8;
+    if (bits == 0 || bits > 64) return builder_->cast(x, dst);
+
+    double lo_d = 0.0;
+    double hi_d = 0.0;
+    uint64_t lo_i = 0;
+    uint64_t hi_i = 0;
+    if (is_signed) {
+        lo_d = -std::ldexp(1.0, static_cast<int>(bits) - 1);
+        hi_d = std::ldexp(1.0, static_cast<int>(bits) - 1);
+        lo_i = (bits >= 64) ? (uint64_t(1) << 63) : (uint64_t(1) << (bits - 1));
+        hi_i = (bits >= 64)
+                   ? 0x7FFFFFFFFFFFFFFFull
+                   : ((uint64_t(1) << (bits - 1)) - 1);
+    } else {
+        lo_d = 0.0;
+        hi_d = std::ldexp(1.0, static_cast<int>(bits));
+        lo_i = 0;
+        hi_i = (bits >= 64) ? ~uint64_t(0)
+                            : ((uint64_t(1) << bits) - 1);
+    }
+
+    auto dconst = [&](double v) {
+        return builder_->const_double(f64,
+                                      module_.constants.add_double(f64, v));
+    };
+    auto iconst = [&](uint64_t v) {
+        return builder_->const_int(dst, module_.constants.add_int(dst, v));
+    };
+    auto predicate = [&](MIRBinaryOp op) {
+        return module_.constants.add_int(
+            MIR_INVALID_ID, static_cast<uint64_t>(op));
+    };
+
+    const ValueId nan = builder_->compare(x, x, predicate(MIRBinaryOp::Ne), bool_t);
+    const ValueId low = builder_->compare(x, dconst(lo_d),
+                                          predicate(MIRBinaryOp::Lt), bool_t);
+    const ValueId high = builder_->compare(x, dconst(hi_d),
+                                           predicate(MIRBinaryOp::Ge), bool_t);
+
+    // `Select` is not in the C emitter's straight-line subset, so lower the
+    // four outcomes with ordinary blocks. The result place is live across the
+    // branches and read after the merge.
+    const PlaceId out = builder_->alloca(dst, MIRStorageClass::Temporary);
+    const BlockId nan_b = builder_->create_block();
+    const BlockId low_check_b = builder_->create_block();
+    const BlockId low_b = builder_->create_block();
+    const BlockId high_check_b = builder_->create_block();
+    const BlockId high_b = builder_->create_block();
+    const BlockId mid_b = builder_->create_block();
+    const BlockId done_b = builder_->create_block();
+
+    builder_->cond_br(nan, nan_b, low_check_b);
+
+    builder_->set_block(nan_b);
+    builder_->store(out, iconst(0));
+    builder_->br(done_b);
+
+    builder_->set_block(low_check_b);
+    builder_->cond_br(low, low_b, high_check_b);
+
+    builder_->set_block(low_b);
+    builder_->store(out, iconst(lo_i));
+    builder_->br(done_b);
+
+    builder_->set_block(high_check_b);
+    builder_->cond_br(high, high_b, mid_b);
+
+    builder_->set_block(high_b);
+    builder_->store(out, iconst(hi_i));
+    builder_->br(done_b);
+
+    builder_->set_block(mid_b);
+    builder_->store(out, builder_->cast(x, dst));
+    builder_->br(done_b);
+
+    builder_->set_block(done_b);
+    return builder_->load(out, dst);
 }
 
 void MIRLowerer::emit_division_check(ValueId lhs, ValueId rhs, TypeId type,

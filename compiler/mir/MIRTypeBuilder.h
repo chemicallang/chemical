@@ -164,6 +164,12 @@ public:
         return intern(r);
     }
 
+    /** The C `double` type (8-byte float), used by defined float→int casts. */
+    TypeId double_type() { return intern_simple(MIRTypeKind::Float, 8, 8); }
+
+    /** The C `float` type (4-byte float). */
+    TypeId float_type() { return intern_simple(MIRTypeKind::Float, 4, 4); }
+
 private:
     TypeId intern(const MIRTypeRecord& rec) { return module_.types.intern(rec); }
 

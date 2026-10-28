@@ -256,6 +256,11 @@ Implemented:
   (`SAFE-BORROW-002`); a borrow that ends before the move is accepted. A view
   built from a pointer-returning method (`s.data()`) inherits the receiver's
   loan too. Negative tests `498`; async suite `53`.
+- M5.5b float→int: `as` casts from float/double to integer widths lower to
+  explicit blocks (NaN → 0, out-of-range → destination minimum/maximum) instead
+  of C/LLVM `fptosi` UB. LLVM float `Ne` is `fcmp une`, matching C's
+  `NaN != NaN`. Runtime tests cover saturation, truncation, and NaN; safety
+  suite `47`.
 - S4.3b autoref / S4.7 two-phase: a reference receiver (`&self` / `&mut self`)
   now lowers to `Borrow`/`BorrowMut` instead of an untracked `AddressOf`, and
   method-call arguments are evaluated before the receiver borrow is activated.

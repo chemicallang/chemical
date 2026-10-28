@@ -631,6 +631,13 @@ private:
     /** Trap (checked profile only) when a signed arithmetic result overflowed. */
     void emit_overflow_check(MIRBinaryOp op, ValueId lhs, ValueId rhs,
                              ValueId result, TypeId type);
+
+    /**
+     * Lower a float→integer cast to defined, saturating semantics: NaN → 0,
+     * values below the destination range clamp to its minimum, values above it
+     * clamp to its maximum. Never relies on C/LLVM out-of-range float→int UB.
+     */
+    ValueId lower_float_to_int(ValueId value, TypeId src, TypeId dst);
     /** Trap (checked profile only) on signed unary negation of MIN. */
     void emit_negation_check(ValueId operand, TypeId type);
 

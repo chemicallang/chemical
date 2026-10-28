@@ -1571,7 +1571,9 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                             case MIRBinaryOp::Gt: vals[v] = builder->CreateFCmpOGT(av, bv); break;
                             case MIRBinaryOp::Ge: vals[v] = builder->CreateFCmpOGE(av, bv); break;
                             case MIRBinaryOp::Eq: vals[v] = builder->CreateFCmpOEQ(av, bv); break;
-                            case MIRBinaryOp::Ne: vals[v] = builder->CreateFCmpONE(av, bv); break;
+                            // C's `!=` is true when either operand is NaN
+                            // (unordered not-equal); `ONE` would be ordered.
+                            case MIRBinaryOp::Ne: vals[v] = builder->CreateFCmpUNE(av, bv); break;
                             default: vals[v] = av; break;
                         }
                     } else {

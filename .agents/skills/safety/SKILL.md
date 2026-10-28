@@ -277,6 +277,12 @@ Implemented:
   `unsafe(...)` is valid as an expression statement. Negative tests `503`;
   TCC main `2351`, LLVM main `2349`. A compiler-side `span` implicit-overload /
   `intrinsics::size` nondeterminism remains a compile-time follow-up.
+- M5.3/S2.5 guards: `Layout` has private size/alignment with
+  `size()`/`align()`/`validate()`; `GlobalAllocator` rejects zero/non-power-of-two
+  alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
+  functions passing/returning struct/union/variant by value until target C ABI
+  classification is implemented (pointer FFI is still allowed). Safety suite
+  `51`, negative tests `504`.
 - S4.3b autoref / S4.7 two-phase: a reference receiver (`&self` / `&mut self`)
   now lowers to `Borrow`/`BorrowMut` instead of an untracked `AddressOf`, and
   method-call arguments are evaluated before the receiver borrow is activated.

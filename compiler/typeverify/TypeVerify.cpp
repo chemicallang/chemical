@@ -656,6 +656,30 @@ bool check_chain_mutability(TypeVerifier& verifier, const std::vector<Value*>& v
     return true; // Reached root and it passed requirements (or was handled).
 }
 
+/**
+ * A struct/union/variant passed or returned by value through an `@extern`
+ * function. Chemical's internal prototype ABI (sret / pointer parameters) is
+ * not the target C ABI for these types, so the call would corrupt memory. Until
+ * target-aware C ABI classification lands, reject the call explicitly.
+ */
+static bool is_extern_by_value_aggregate(BaseType* type) {
+    if (type == nullptr) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr) return false;
+    switch (canonical->kind()) {
+        case BaseTypeKind::Struct:
+        case BaseTypeKind::Union:
+            return true;
+        default:
+            break;
+    }
+    ASTNode* linked = canonical->get_direct_linked_canonical_node();
+    return linked != nullptr &&
+           (linked->kind() == ASTNodeKind::StructDecl ||
+            linked->kind() == ASTNodeKind::UnionDecl ||
+            linked->kind() == ASTNodeKind::VariantDecl);
+}
+
 void verify_call_mutability(TypeVerifier& verifier, FunctionCall* call) {
     auto& diagnoser = verifier.diagnoser;
     const auto parent_val = call->parent_val;
@@ -673,6 +697,23 @@ void verify_call_mutability(TypeVerifier& verifier, FunctionCall* call) {
         func_decl = linked->as_gen_func_decl_unsafe()->master_impl;
     }
     if(func_decl) {
+        if (func_decl->is_extern()) {
+            bool bad_abi = is_extern_by_value_aggregate(
+                const_cast<BaseType*>(func_decl->returnType.getType()));
+            for (FunctionParam* p : func_decl->params) {
+                if (p != nullptr && is_extern_by_value_aggregate(p->type)) {
+                    bad_abi = true;
+                    break;
+                }
+            }
+            if (bad_abi) {
+                diagnoser.error(call).with_code("SAFE-FFI-002")
+                    << "extern function '" << func_decl->name_view()
+                    << "' passes or returns a struct/union/variant by value; "
+                       "the target C ABI for aggregates is not implemented yet "
+                       "(pass a pointer instead)";
+            }
+        }
         if(func_decl->is_unsafe() && !verifier.is_unsafe) {
             diagnoser.error(call).with_code("SAFE-UNSAFE-002")
                 << "calling an unsafe function requires an unsafe block";

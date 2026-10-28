@@ -1,17 +1,49 @@
 public namespace std {
 public namespace alloc {
 
-@direct_init
 public struct Layout {
-    var size : size_t
-    var align_ : size_t
+    // The layout invariant is established by `make`/`of` and validated again
+    // before the allocator uses it: a power-of-two non-zero alignment and a
+    // size no larger than isize::MAX. Safe code cannot mutate these fields.
+    private var _size : size_t
+    private var _align : size_t
 
     @retained
     @constructor
-    func make(s : size_t, a : size_t) {
-        return Layout {
-            size : s,
-            align_ : a
+    public func make(s : size_t, a : size_t) {
+        comptime if(intrinsics::is_runtime()) {
+            if(a == 0) {
+                unsafe { __chc_panic("Layout alignment must not be zero", null, 0u, 0u) }
+            }
+            if((a & (a - 1)) != 0) {
+                unsafe { __chc_panic("Layout alignment must be a power of two", null, 0u, 0u) }
+            }
+            const max_size = ((1 as size_t) << (sizeof(size_t) * 8 - 1)) - 1
+            if(s > max_size) {
+                unsafe { __chc_panic("Layout size exceeds isize::MAX", null, 0u, 0u) }
+            }
+        }
+        var layout = zeroed:unsafe<Layout>()
+        layout._size = s
+        layout._align = a
+        return layout
+    }
+
+    public func size(&self) : size_t {
+        return _size
+    }
+
+    public func align(&self) : size_t {
+        return _align
+    }
+
+    public func validate(&self) {
+        if(_align == 0 || (_align & (_align - 1)) != 0) {
+            panic("invalid Layout alignment")
+        }
+        const max_size = ((1 as size_t) << (sizeof(size_t) * 8 - 1)) - 1
+        if(_size > max_size) {
+            panic("invalid Layout size")
         }
     }
 
@@ -121,17 +153,19 @@ public struct GlobalAllocator {
     }
 
     func alloc(&self, layout : Layout) : Result<*mut void, AllocError> {
-        var ptr = unsafe(malloc(layout.size))
+        layout.validate()
+        var ptr = unsafe(malloc(layout.size()))
         if(ptr == null) {
             return Result.Err(AllocError.OutOfMemory())
         }
         comptime if(def.debug) {
-            debug_tracker_record_alloc(self._debug as *mut DebugTracker, ptr, layout.size)
+            debug_tracker_record_alloc(self._debug as *mut DebugTracker, ptr, layout.size())
         }
         return Result.Ok(ptr)
     }
 
     func dealloc(&self, ptr : *mut void, layout : Layout) {
+        layout.validate()
         comptime if(def.debug) {
             debug_tracker_record_dealloc(self._debug as *mut DebugTracker, ptr)
         }
@@ -139,6 +173,7 @@ public struct GlobalAllocator {
     }
 
     func grow(&self, old : *mut void, old_layout : Layout, new_size : size_t) : Result<*mut void, AllocError> {
+        old_layout.validate()
         var ptr = unsafe(realloc(old, new_size))
         if(ptr == null) {
             return Result.Err(AllocError.OutOfMemory())
@@ -152,6 +187,7 @@ public struct GlobalAllocator {
     }
 
     func shrink(&self, old : *mut void, old_layout : Layout, new_size : size_t) : Result<*mut void, AllocError> {
+        old_layout.validate()
         var ptr = unsafe(realloc(old, new_size))
         if(ptr == null) {
             return Result.Err(AllocError.OutOfMemory())
@@ -170,7 +206,7 @@ public struct GlobalAllocator {
             return result
         }
         var Ok(ptr) = result else unreachable
-        unsafe { memset(ptr, 0, layout.size) }
+        unsafe { memset(ptr, 0, layout.size()) }
         return result
     }
 

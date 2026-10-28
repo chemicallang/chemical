@@ -4,17 +4,17 @@ func test_allocator() {
 
     test("Layout.of<int> has correct size", () => {
         var layout = std::alloc::Layout.of<int>()
-        return layout.size == sizeof(int)
+        return layout.size() == sizeof(int)
     })
 
     test("Layout.of<double> has correct size", () => {
         var layout = std::alloc::Layout.of<double>()
-        return layout.size == sizeof(double)
+        return layout.size() == sizeof(double)
     })
 
     test("Layout has correct alignment", () => {
         var layout = std::alloc::Layout.of<int>()
-        return layout.align_ == alignof(int)
+        return layout.align() == alignof(int)
     })
 
     test("GlobalAllocator can alloc and dealloc", () => {
@@ -66,8 +66,8 @@ func test_allocator() {
         var typed = old_ptr as *mut int
         typed[0] = 42
 
-        var big_layout = std::alloc::Layout { size : sizeof(int) * 2, align_ : alignof(int) }
-        var grow_result = a.grow(old_ptr, small_layout, big_layout.size)
+        var big_layout = std::alloc::Layout.make(sizeof(int) * 2, alignof(int))
+        var grow_result = a.grow(old_ptr, small_layout, big_layout.size())
         if(grow_result is Result.Err) {
             a.dealloc(old_ptr, small_layout)
             return false
@@ -81,7 +81,7 @@ func test_allocator() {
 
     test("GlobalAllocator shrink works", () => {
         var a = std::alloc::GlobalAllocator.make()
-        var big_layout = std::alloc::Layout { size : sizeof(int) * 4, align_ : alignof(int) }
+        var big_layout = std::alloc::Layout.make(sizeof(int) * 4, alignof(int))
         var result = a.alloc(big_layout)
         if(result is Result.Err) {
             return false
@@ -90,8 +90,8 @@ func test_allocator() {
         var typed = old_ptr as *mut int
         typed[0] = 99
 
-        var small_layout = std::alloc::Layout { size : sizeof(int) * 2, align_ : alignof(int) }
-        var shrink_result = a.shrink(old_ptr, big_layout, small_layout.size)
+        var small_layout = std::alloc::Layout.make(sizeof(int) * 2, alignof(int))
+        var shrink_result = a.shrink(old_ptr, big_layout, small_layout.size())
         if(shrink_result is Result.Err) {
             a.dealloc(old_ptr, big_layout)
             return false

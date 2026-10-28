@@ -771,8 +771,17 @@
 > value under some module orderings; the vector overload now precedes the array
 > overload, which reduces the failure. Fix the selection/`intrinsics::size`
 > fallback before relying on that overload in new code.
+> S5.3/S2.5 safety guard: `Layout` now keeps its size/alignment private,
+> exposes `size()`/`align()`/`validate()`, and `GlobalAllocator` rejects a
+> zero/non-power-of-two alignment or a size above `isize::MAX` before touching
+> memory. Until target C ABI classification lands, `SAFE-FFI-002` rejects an
+> `@extern` function that passes or returns a struct/union/variant **by value**
+> (the internal sret/pointer prototype ABI is not the C ABI); pointer-based FFI
+> remains allowed. A runtime test covers the invalid-layout panic and a
+> negative test covers the aggregate FFI rejection. Safety suite `51`; negative
+> tests `504`; `MIRTests` `4638 checks`.
 > `catch_unwind`/`UnwindSafe` and the unwinding/drop-on-unwind profile remain
-> S5.6b. Safety suite `50`; `MIRTests` `4638 checks`.
+> S5.6b. Safety suite `51`; `MIRTests` `4638 checks`.
 > Next: S5.6b (`catch_unwind`/unwinding + `UnwindSafe`/`RefUnwindSafe`/
 > `AssertUnwindSafe`), remaining M5 validity (enum/bool tags, packed
 > references), M6 `Send`/`Sync` enforcement, M2 C ABI, and the

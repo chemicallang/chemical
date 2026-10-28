@@ -284,6 +284,10 @@ public:
             msg += std::to_string((int) val_kind);
             msg += ", type kind ";
             msg += std::to_string(value->getType() ? (int) value->getType()->kind() : -1);
+            if(val_kind == ValueKind::IntN) {
+                msg += ", int value ";
+                msg += std::to_string(value->as_int_num_value_unsafe()->get_num_value());
+            }
             msg += ")";
             call_scope->error(chem::string_view(msg.data(), msg.size()), (Value*) call);
             return new (allocator.allocate<IntNumValue>()) IntNumValue(0, typeBuilder.getU64Type(), loc);;

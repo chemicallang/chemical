@@ -379,6 +379,7 @@ struct MIRInterpreter::Impl {
         if (std::strcmp(name, "strlen") == 0) return &host_strlen;
         if (std::strcmp(name, "strcmp") == 0) return &host_strcmp;
         if (std::strcmp(name, "abort") == 0) return &host_abort;
+        if (std::strncmp(name, "__chc_", 6) == 0) return &host_abort;
         if (std::strcmp(name, "exit") == 0) return &host_exit;
         if (std::strcmp(name, "putchar") == 0) return &host_putchar;
         return nullptr;

@@ -259,8 +259,15 @@ Implemented:
 - M5.5b float→int: `as` casts from float/double to integer widths lower to
   explicit blocks (NaN → 0, out-of-range → destination minimum/maximum) instead
   of C/LLVM `fptosi` UB. LLVM float `Ne` is `fcmp une`, matching C's
-  `NaN != NaN`. Runtime tests cover saturation, truncation, and NaN; safety
-  suite `47`.
+  `NaN != NaN`. Runtime tests cover saturation, truncation, and NaN.
+- S5.6a panic runtime ABI: every module carries `__chc_panic`,
+  `__chc_bounds_fail`, `__chc_overflow_fail`, `__chc_div_zero_fail`,
+  `__chc_shift_fail` and `__chc_alloc_fail`. MIR checks pass the current
+  file/line/column; the abort profile reports `panic: <reason> at
+  <file>:<line>:<col>` on both C and LLVM. `std::panic::raw_panic` uses
+  `__chc_panic`. No unwinding profile yet, so no unwind can cross FFI.
+  Runtime tests assert the bounds reason and panic message; safety suite `49`,
+  `MIRTests` `4638 checks`.
 - S4.3b autoref / S4.7 two-phase: a reference receiver (`&self` / `&mut self`)
   now lowers to `Borrow`/`BorrowMut` instead of an untracked `AddressOf`, and
   method-call arguments are evaluated before the receiver borrow is activated.

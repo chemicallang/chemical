@@ -203,6 +203,14 @@ public:
     }
     /** Declare/define the LLVM function for a MIR function symbol. */
     llvm::Function* mir_function(const mir::MIRModule& module, uint32_t symbol);
+    /**
+     * Define the internal panic/failure runtime entries (`__chc_panic`,
+     * `__chc_bounds_fail`, ...). They are emitted per module with internal
+     * linkage, so every module's checks resolve locally and no runtime object
+     * needs to be linked. The default profile aborts.
+     */
+    void mir_ensure_panic_runtime();
+    bool mir_panic_runtime_created_ = false;
     /** Emit the LLVM definition of a MIR function body. */
     bool mir_emit_function(const mir::MIRModule& module, const mir::MIRFunction& fn);
 
@@ -234,6 +242,7 @@ public:
         mir_vtable_methods_.clear();
         mir_vtable_slot_types_.clear();
         mir_agg_plans_.clear();
+        mir_panic_runtime_created_ = false;
         mir_di_file_ = nullptr;
         mir_di_sp_ = nullptr;
         mir_di_files_.clear();

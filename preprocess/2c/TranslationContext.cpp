@@ -240,8 +240,39 @@ void CTranslationContext::prepare_translate() {
         write("extern void* malloc(unsigned long size);\n");
     }
     write("extern void free(void* block);\n");
-    // MIR inserts a fixed-array bounds check that calls abort() on failure.
+    // MIR inserts a fixed-array bounds check that calls __chc_bounds_fail.
     write("extern void abort(void);\n");
+    // Panic/failure runtime ABI. Every generated C file carries the abort
+    // profile: a failed check reports its reason and source location, then
+    // terminates. The functions are `static inline` so a module that never
+    // fails a check does not leave an unused external definition behind.
+    // An unwinding profile can replace these entry points without changing
+    // the MIR call sites.
+    write("extern int printf(const char* format, ...);\n"
+          "static inline void __chc_panic(const char* message, const char* file, uint32_t line, uint32_t column) {\n"
+          "    if (message == 0) { message = \"(null)\"; }\n"
+          "    if (file != 0) {\n"
+          "        printf(\"panic: %s at %s:%u:%u\\n\", message, file, (unsigned)(line + 1u), (unsigned)(column + 1u));\n"
+          "    } else {\n"
+          "        printf(\"panic: %s\\n\", message);\n"
+          "    }\n"
+          "    abort();\n"
+          "}\n"
+          "static inline void __chc_bounds_fail(const char* file, uint32_t line, uint32_t column) {\n"
+          "    __chc_panic(\"index out of bounds\", file, line, column);\n"
+          "}\n"
+          "static inline void __chc_overflow_fail(const char* file, uint32_t line, uint32_t column) {\n"
+          "    __chc_panic(\"integer overflow\", file, line, column);\n"
+          "}\n"
+          "static inline void __chc_div_zero_fail(const char* file, uint32_t line, uint32_t column) {\n"
+          "    __chc_panic(\"division by zero\", file, line, column);\n"
+          "}\n"
+          "static inline void __chc_shift_fail(const char* file, uint32_t line, uint32_t column) {\n"
+          "    __chc_panic(\"shift amount out of range\", file, line, column);\n"
+          "}\n"
+          "static inline void __chc_alloc_fail(const char* file, uint32_t line, uint32_t column) {\n"
+          "    __chc_panic(\"allocation failed\", file, line, column);\n"
+          "}\n");
     // The MIR emitter spells a struct copy and an aggregate zeroing as bare
     // `memcpy`/`memset` (the C compiler lowers them to width-sized stores or a
     // libcall). cstd declares the same functions, but the module that calls one

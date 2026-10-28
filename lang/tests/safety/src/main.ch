@@ -656,3 +656,37 @@ func float_nan_to_int_is_zero(env : &mut TestEnv) {
         env.error("NaN to int did not produce zero")
     }
 }
+
+@test
+func bounds_failure_reports_reason(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "func get_index() : int { return 2 }\npublic func main() : int {\n    var a : [2]int = [1, 2]\n    var i = get_index()\n    return a[i]\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "bounds_failure_reports_reason", ch, &mut out)
+    if(rc == 0) {
+        env.error("expected the bounds check to terminate the program")
+        return
+    }
+    var view = out.to_view()
+    var needle = std::string_view("index out of bounds")
+    if(!view.contains(&needle)) {
+        env.error("bounds failure did not report its reason")
+    }
+}
+
+@test
+func panic_reports_message(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    panic(\"safety panic message\")\n    return 0\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "panic_reports_message", ch, &mut out)
+    if(rc == 0) {
+        env.error("expected panic to terminate the program")
+        return
+    }
+    var view = out.to_view()
+    var needle = std::string_view("safety panic message")
+    if(!view.contains(&needle)) {
+        env.error("panic did not report its message")
+    }
+}

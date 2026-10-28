@@ -21,7 +21,7 @@
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
       "unsafe_blocks": 20,
-      "unsafe_values": 23,
+      "unsafe_values": 26,
       "variadic_calls": 0
     },
     "::core": {
@@ -289,13 +289,13 @@
       "variadic_calls": 15
     },
     "::std": {
-      "abort_calls": 1,
+      "abort_calls": 0,
       "allocator_calls": 28,
       "dealloc_stmts": 9,
       "delete_stmts": 1,
       "destruct_stmts": 20,
-      "extern_calls": 121,
-      "extern_decls": 31,
+      "extern_calls": 120,
+      "extern_decls": 32,
       "extern_globals": 0,
       "inline_asm": 0,
       "memory_calls": 32,
@@ -305,12 +305,12 @@
       "raw_pointer_addrs": 116,
       "raw_pointer_casts": 48,
       "raw_pointer_derefs": 30,
-      "raw_pointer_types": 236,
+      "raw_pointer_types": 238,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
-      "unsafe_blocks": 74,
+      "unsafe_blocks": 73,
       "unsafe_values": 72,
-      "variadic_calls": 15
+      "variadic_calls": 14
     },
     "::test": {
       "abort_calls": 0,
@@ -410,13 +410,13 @@
     }
   },
   "totals": {
-    "abort_calls": 1,
+    "abort_calls": 0,
     "allocator_calls": 48,
     "dealloc_stmts": 21,
     "delete_stmts": 2,
     "destruct_stmts": 20,
-    "extern_calls": 419,
-    "extern_decls": 699,
+    "extern_calls": 418,
+    "extern_decls": 700,
     "extern_globals": 7,
     "inline_asm": 0,
     "memory_calls": 33,
@@ -426,11 +426,11 @@
     "raw_pointer_addrs": 466,
     "raw_pointer_casts": 114,
     "raw_pointer_derefs": 96,
-    "raw_pointer_types": 1435,
+    "raw_pointer_types": 1437,
     "union_field_accesses": 0,
     "unreachable_stmts": 0,
-    "unsafe_blocks": 263,
-    "unsafe_values": 299,
-    "variadic_calls": 58
+    "unsafe_blocks": 262,
+    "unsafe_values": 302,
+    "variadic_calls": 57
   }
 }

@@ -4,10 +4,12 @@ public struct Location {
     var character : uint
 }
 
+@extern
+public func __chc_panic(message : *char, file : *char, line : uint, column : uint)
+
 @retained
 public func raw_panic(message : *char, location : Location) {
-    unsafe { printf("panic with message '%s' at '%s:%d:%d'\n", message, location.filename, location.line, location.character) };
-    unsafe { abort() }
+    unsafe { __chc_panic(message, location.filename, location.line, location.character) }
 }
 
 @expand

@@ -619,8 +619,13 @@ private:
      */
     void emit_array_index_bounds_check(const MIRExprResult& base, const MIRExprResult& index);
 
-    /** Branch to an `abort()` call and `Unreachable` unless `condition` is true. */
-    void emit_abort_unless(ValueId condition);
+    /**
+     * Branch to a cold failure block when `condition` is false. `fail_symbol`
+     * names the runtime failure entry (`__chc_bounds_fail`,
+     * `__chc_overflow_fail`, ...); the block passes the current source
+     * location so the abort profile can report where the check failed.
+     */
+    void emit_abort_unless(ValueId condition, const char* fail_symbol);
 
     /** Reject integer division/remainder by zero and signed MIN / -1. */
     void emit_division_check(ValueId lhs, ValueId rhs, TypeId type, MIRBinaryOp op);

@@ -740,8 +740,23 @@
 > `fptosi` UB. LLVM float `Ne` is `fcmp une` (C semantics: `NaN != NaN`), so
 > the NaN branch is also correct there. Runtime tests cover large positive and
 > negative values, unsigned saturation, in-range truncation, and NaN.
-> Next: M5.6 panic/unwind + `UnwindSafe`, remaining M5 validity (enum/bool
-> tags, packed references), M6 `Send`/`Sync` enforcement, M2 C ABI, and the
+> S5.6a panic runtime ABI: every module, including a bare module, carries
+> `__chc_panic`, `__chc_bounds_fail`, `__chc_overflow_fail`,
+> `__chc_div_zero_fail`, `__chc_shift_fail` and `__chc_alloc_fail`. MIR checks
+> call the reason-specific entry with the current source file/line/column, and
+> the default abort profile prints `panic: <reason> at <file>:<line>:<col>` on
+> both C and LLVM before aborting. `std::panic::raw_panic` routes through
+> `__chc_panic`; the profile never unwinds, so FFI boundaries cannot be crossed
+> by an unwind. Runtime tests assert the bounds reason and panic message.
+> The audit baseline records the new explicit `__chc_panic` boundary
+> (`extern_decls` +1, `raw_pointer_types` +2, `unsafe_values` +3; the removed
+> `printf`/`abort` body drops one variadic call and the last `abort_calls`
+> count).
+> `catch_unwind`/`UnwindSafe` and the unwinding/drop-on-unwind profile remain
+> S5.6b. Safety suite `49`; `MIRTests` `4638 checks`.
+> Next: S5.6b (`catch_unwind`/unwinding + `UnwindSafe`/`RefUnwindSafe`/
+> `AssertUnwindSafe`), remaining M5 validity (enum/bool tags, packed
+> references), M6 `Send`/`Sync` enforcement, M2 C ABI, and the
 > variance/HRTB/temporary-lifetime precision items.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.

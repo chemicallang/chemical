@@ -1973,33 +1973,60 @@ void MIRLowerer::emit_array_index_bounds_check(const MIRExprResult& base,
 
     const TypeId u64t = types_.u64_type();
     const TypeId bool_t = types_.bool_type();
-    const TypeId void_t = types_.void_type();
     const ValueId idx_u = builder_->cast(static_cast<ValueId>(index.id), u64t);
     const ValueId len = builder_->const_int(u64t, module_.constants.add_int(u64t, rec.data_count));
     const ConstantId lt = module_.constants.add_int(
         MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt));
     const ValueId in_bounds = builder_->compare(idx_u, len, lt, bool_t);
-    const BlockId ok_b = builder_->create_block();
-    const BlockId abort_b = builder_->create_block();
-    builder_->cond_br(in_bounds, ok_b, abort_b);
-    builder_->set_block(abort_b);
-    const TypeId abort_ft = types_.function_signature(void_t, {});
-    const SymbolId abort_sym = extern_symbol("abort", abort_ft);
-    builder_->call_scalar(abort_sym, void_t, nullptr, 0);
-    builder_->unreachable();
-    builder_->set_block(ok_b);
+    emit_abort_unless(in_bounds, "__chc_bounds_fail");
 }
 
 
-void MIRLowerer::emit_abort_unless(ValueId condition) {
+void MIRLowerer::emit_abort_unless(ValueId condition, const char* fail_symbol) {
     const BlockId ok_b = builder_->create_block();
     const BlockId abort_b = builder_->create_block();
     builder_->cond_br(condition, ok_b, abort_b);
     builder_->set_block(abort_b);
+
+    // Every program carries the panic runtime (emitted by the C/LLVM backend),
+    // so a failed check reports the reason and source location instead of a
+    // bare `abort()`. The runtime's default profile aborts; an unwinding
+    // profile can reuse the same entry points later.
     const TypeId void_t = types_.void_type();
-    const TypeId abort_ft = types_.function_signature(void_t, {});
-    const SymbolId abort_sym = extern_symbol("abort", abort_ft);
-    builder_->call_scalar(abort_sym, void_t, nullptr, 0);
+    const TypeId char_ptr_t = types_.pointer_type(types_.char_type());
+    const TypeId u32_t = types_.u32_type();
+    ValueId file_v = builder_->const_null(
+        char_ptr_t, module_.constants.add_null(char_ptr_t));
+    uint32_t line = 0;
+    uint32_t column = 0;
+    const uint32_t source_index = builder_->current_source();
+    if (source_index != MIR_NO_SOURCE &&
+        source_index < builder_->function().sources.size()) {
+        const MIRSourceLoc& loc = builder_->function().sources[source_index];
+        if (loc.file < module_.source_files.size() &&
+            !module_.source_files[loc.file].empty()) {
+            const std::string& path = module_.source_files[loc.file];
+            const ConstantId path_c = module_.constants.add_string(
+                char_ptr_t, path.data(), static_cast<uint32_t>(path.size()));
+            file_v = builder_->const_string(char_ptr_t, path_c);
+        }
+        line = loc.line;
+        column = loc.column;
+    }
+    const ValueId line_v = builder_->const_int(
+        u32_t, module_.constants.add_int(u32_t, line));
+    const ValueId column_v = builder_->const_int(
+        u32_t, module_.constants.add_int(u32_t, column));
+
+    MIROperand args[3] = {
+        MIROperand::value(file_v, char_ptr_t),
+        MIROperand::value(line_v, u32_t),
+        MIROperand::value(column_v, u32_t),
+    };
+    const TypeId fail_ft = types_.function_signature(
+        void_t, {char_ptr_t, u32_t, u32_t});
+    const SymbolId fail_sym = extern_symbol(fail_symbol, fail_ft);
+    builder_->call_scalar(fail_sym, void_t, args, 3);
     builder_->unreachable();
     builder_->set_block(ok_b);
 }
@@ -2109,7 +2136,7 @@ void MIRLowerer::emit_division_check(ValueId lhs, ValueId rhs, TypeId type,
         MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::BitAnd));
     const ValueId zero = builder_->const_int(type, module_.constants.add_int(type, 0));
     const ValueId nonzero = builder_->compare(rhs, zero, ne, bool_t);
-    emit_abort_unless(nonzero);
+    emit_abort_unless(nonzero, "__chc_div_zero_fail");
 
     if ((rec.flags & TF_SIGNED) == 0) return;
     // Signed MIN / -1 traps (the only signed division overflow).
@@ -2125,7 +2152,7 @@ void MIRLowerer::emit_division_check(ValueId lhs, ValueId rhs, TypeId type,
     const ValueId overflow = builder_->binary(rhs_is_minus_one, lhs_is_min, band, bool_t);
     const ValueId safe = builder_->compare(overflow, builder_->const_bool(
         bool_t, module_.constants.add_bool(bool_t, false)), eq, bool_t);
-    emit_abort_unless(safe);
+    emit_abort_unless(safe, "__chc_overflow_fail");
 }
 
 void MIRLowerer::emit_shift_check(ValueId amount, TypeId type) {
@@ -2148,13 +2175,13 @@ void MIRLowerer::emit_shift_check(ValueId amount, TypeId type) {
         const ValueId zero = builder_->const_int(
             amount_type, module_.constants.add_int(amount_type, 0));
         const ValueId non_negative = builder_->compare(amount, zero, ge, bool_t);
-        emit_abort_unless(non_negative);
+        emit_abort_unless(non_negative, "__chc_shift_fail");
     }
     const ValueId width = builder_->const_int(
         amount_type, module_.constants.add_int(
             amount_type, static_cast<uint64_t>(rec.size) * 8u));
     const ValueId in_range = builder_->compare(amount, width, lt, bool_t);
-    emit_abort_unless(in_range);
+    emit_abort_unless(in_range, "__chc_shift_fail");
 }
 
 
@@ -2241,7 +2268,7 @@ void MIRLowerer::emit_overflow_check(MIRBinaryOp op, ValueId lhs, ValueId rhs,
         const ValueId safe = builder_->compare(
             overflow, builder_->const_bool(bool_t, module_.constants.add_bool(bool_t, false)),
             eq, bool_t);
-        emit_abort_unless(safe);
+        emit_abort_unless(safe, "__chc_overflow_fail");
         return;
     }
 
@@ -2280,7 +2307,7 @@ void MIRLowerer::emit_overflow_check(MIRBinaryOp op, ValueId lhs, ValueId rhs,
     builder_->br(safe_b);
 
     builder_->set_block(safe_b);
-    emit_abort_unless(builder_->load(ok, bool_t));
+    emit_abort_unless(builder_->load(ok, bool_t), "__chc_overflow_fail");
 }
 
 void MIRLowerer::emit_negation_check(ValueId operand, TypeId type) {
@@ -2299,7 +2326,7 @@ void MIRLowerer::emit_negation_check(ValueId operand, TypeId type) {
     const ValueId min_value = builder_->const_int(
         type, module_.constants.add_int(type, signed_min_bits(bits)));
     const ValueId safe = builder_->compare(operand, min_value, ne, bool_t);
-    emit_abort_unless(safe);
+    emit_abort_unless(safe, "__chc_overflow_fail");
 }
 
 void MIRLowerer::emit_compound_assignment_checks(MIRBinaryOp op, ValueId lhs,

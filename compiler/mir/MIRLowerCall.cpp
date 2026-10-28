@@ -229,7 +229,7 @@ ValueId MIRLowerer::emit_malloc(TypeId size_v, TypeId u64t, TypeId ptr_t) {
         ptr_t, module_.constants.add_null(ptr_t));
     const ConstantId ne = module_.constants.add_int(
         MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Ne));
-    emit_abort_unless(builder_->compare(ptr, null_v, ne, bool_t));
+    emit_abort_unless(builder_->compare(ptr, null_v, ne, bool_t), "__chc_alloc_fail");
     return ptr;
 }
 

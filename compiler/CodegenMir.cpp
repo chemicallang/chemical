@@ -240,12 +240,85 @@ bool Codegen::mir_vtable_method_index(const std::string& type_name, const std::s
     return false;
 }
 
+void Codegen::mir_ensure_panic_runtime() {
+    if (mir_panic_runtime_created_) return;
+    mir_panic_runtime_created_ = true;
+
+    llvm::Type* ptr_ty = builder->getPtrTy();
+    llvm::Type* i32_ty = builder->getInt32Ty();
+    llvm::Type* void_ty = builder->getVoidTy();
+
+    llvm::FunctionCallee abort_fn = module->getOrInsertFunction(
+        "abort", llvm::FunctionType::get(void_ty, {}, false));
+    llvm::FunctionCallee fflush_fn = module->getOrInsertFunction(
+        "fflush", llvm::FunctionType::get(i32_ty, {ptr_ty}, false));
+    llvm::FunctionCallee printf_fn = module->getOrInsertFunction(
+        "printf", llvm::FunctionType::get(i32_ty, {ptr_ty}, true));
+    llvm::Value* null_stream = llvm::ConstantPointerNull::get(builder->getPtrTy());
+
+    // `__chc_panic(message, file, line, column)` is the single reporting entry.
+    // The failure entries below call it with their own reason, so the LLVM
+    // abort profile reports the same reason + source location as the C one.
+    llvm::Function* panic_fn = module->getFunction("__chc_panic");
+    if (panic_fn == nullptr) {
+        llvm::FunctionType* ft = llvm::FunctionType::get(
+            void_ty, {ptr_ty, ptr_ty, i32_ty, i32_ty}, false);
+        panic_fn = llvm::Function::Create(
+            ft, llvm::GlobalValue::InternalLinkage, "__chc_panic", module.get());
+        panic_fn->addFnAttr(llvm::Attribute::NoReturn);
+        panic_fn->addFnAttr(llvm::Attribute::NoUnwind);
+        llvm::BasicBlock* entry = llvm::BasicBlock::Create(*ctx, "entry", panic_fn);
+        llvm::IRBuilder<> b(entry);
+        llvm::Value* format = b.CreateGlobalStringPtr(
+            "panic: %s at %s:%u:%u\n");
+        llvm::Value* unknown = b.CreateGlobalStringPtr("<unknown>");
+        llvm::Value* null_message = b.CreateGlobalStringPtr("(null)");
+        llvm::Value* message = b.CreateSelect(
+            b.CreateIsNull(panic_fn->getArg(0)), null_message, panic_fn->getArg(0));
+        llvm::Value* file = b.CreateSelect(
+            b.CreateIsNull(panic_fn->getArg(1)), unknown, panic_fn->getArg(1));
+        llvm::Value* line = b.CreateAdd(panic_fn->getArg(2), b.getInt32(1));
+        llvm::Value* column = b.CreateAdd(panic_fn->getArg(3), b.getInt32(1));
+        b.CreateCall(printf_fn, {format, message, file, line, column});
+        b.CreateCall(fflush_fn, {null_stream});
+        b.CreateCall(abort_fn, {});
+        b.CreateUnreachable();
+    }
+
+    struct FailureEntry {
+        const char* name;
+        const char* message;
+    };
+    static const FailureEntry failures[] = {
+        {"__chc_bounds_fail", "index out of bounds"},
+        {"__chc_overflow_fail", "integer overflow"},
+        {"__chc_div_zero_fail", "division by zero"},
+        {"__chc_shift_fail", "shift amount out of range"},
+        {"__chc_alloc_fail", "allocation failed"},
+    };
+    for (const FailureEntry& entry : failures) {
+        if (module->getFunction(entry.name) != nullptr) continue;
+        llvm::FunctionType* ft = llvm::FunctionType::get(
+            void_ty, {ptr_ty, i32_ty, i32_ty}, false);
+        llvm::Function* fn = llvm::Function::Create(
+            ft, llvm::GlobalValue::InternalLinkage, entry.name, module.get());
+        fn->addFnAttr(llvm::Attribute::NoReturn);
+        fn->addFnAttr(llvm::Attribute::NoUnwind);
+        llvm::BasicBlock* bb = llvm::BasicBlock::Create(*ctx, "entry", fn);
+        llvm::IRBuilder<> b(bb);
+        llvm::Value* message = b.CreateGlobalStringPtr(entry.message);
+        b.CreateCall(panic_fn, {message, fn->getArg(0), fn->getArg(1), fn->getArg(2)});
+        b.CreateUnreachable();
+    }
+}
+
 llvm::Function* Codegen::mir_function(const mir::MIRModule& m, uint32_t symbol) {
     auto it = mir_fn_cache_.find(symbol);
     if (it != mir_fn_cache_.end()) return it->second;
     if (symbol >= m.symbols.size()) return nullptr;
     const MIRSymbolRecord& rec = m.symbols.get(symbol);
     const std::string name = m.symbols.mangled_name(rec);
+    if (name.rfind("__chc_", 0) == 0) mir_ensure_panic_runtime();
 
     const MIRFunction* body = nullptr;
     for (const MIRFunction& f : m.functions) {

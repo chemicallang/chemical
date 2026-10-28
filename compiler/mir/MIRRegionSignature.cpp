@@ -24,6 +24,12 @@ MIRRegionId map_lifetime(const std::vector<std::string_view>& lifetime_params,
 
 } // namespace
 
+MIRRegionId region_id_for_lifetime(
+    const std::vector<std::string_view>& lifetime_params,
+    std::string_view name) {
+    return map_lifetime(lifetime_params, name);
+}
+
 MIRRegionSignature make_region_signature(
     const std::vector<std::string_view>& lifetime_params,
     const std::vector<std::string_view>& param_lifetimes,

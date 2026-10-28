@@ -1,6 +1,6 @@
 # Chemical Full Safety Parity Plan (v4.1)
 
-> **Status:** In progress — S0.1 (guardrails) underway.
+> **Status:** In progress — M0 and M3 complete; M1/M2/M4/M5 in progress.
 > **Supersedes:** v2/v3/v3.1/v3.2 (git history).
 >
 > ## Implementation status (2026-10-23)
@@ -703,8 +703,26 @@
 > the negative test expects the error and the unsafe form is covered. The
 > audit baseline grew by the new explicit unsafe boundaries (263 blocks/299
 > values in the safety module), reviewed and updated intentionally.
-> Next: S4.2b variance, async frame/Pin integration, full provenance, and the
-> rest of M5 validity.
+> S4.2b aggregate field regions + variance: `compiler/safety/Variance.h`
+> computes reference/pointer/array/function/generic variance (`&mut T` and
+> `*mut T` pointees invariant, `Cell`/`UnsafeCell` invariant, unions invariant)
+> and the lifetime-parameter occurrence set of a field type.
+> `MIRRegionSignature::param_field_regions` records, per aggregate parameter,
+> each direct reference field's interned name constant and the declared region
+> resolved through the parameter type's lifetime arguments. The borrow checker
+> seeds caller-owned field loans, follows `p.field` and a method's
+> `self.field` (through a loaded reference parameter), and `SAFE-LIFE-003` now
+> rejects returning a field whose lifetime argument does not outlive the
+> declared return region. Positive/negative tests cover by-value aggregate
+> parameters, `&self` methods, and the satisfying `where 'a: 'b` edge.
+> `region_signatures` is a mutex-copied deque, so parallel lowering cannot
+> observe a dangling reference while another worker interns a signature.
+> S4.5 precision: borrow overlap uses constant field/array projections, so
+> `a[0]`/`a[1]` are disjoint even for non-owning element types while a dynamic
+> index still overlaps; reborrowing through `&mut *r` is accepted.
+> `MIRTests` is `4638 checks`; negative tests `491`.
+> Next: variance invariants in nested positions, HRTB encoding, async frame/Pin
+> integration, full provenance, and the rest of M5 validity.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

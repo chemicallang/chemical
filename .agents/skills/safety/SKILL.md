@@ -228,6 +228,22 @@ Implemented:
   enclosing function. Migrated the one in-tree two-`&mut` test; the tree now
   has zero `SAFE-BORROW-001` hits. `MIRTests` is `4632 checks`; negative tests
   cover aliased, ambiguous, and unrelated-argument cases (466 tests).
+- S4.2b aggregate field regions + variance: `compiler/safety/Variance.h`
+  computes declared variance (`&mut T`/`*mut T` pointee invariant,
+  `Cell`/`UnsafeCell` invariant, unions invariant; function parameters
+  contravariant) and the lifetime-parameter occurrences of a field type.
+  `MIRRegionSignature::param_field_regions` records each direct reference field
+  of an aggregate parameter (or a `&self` referent) with the interned field-name
+  constant and the region selected through the parameter type's lifetime
+  arguments (or the container's lifetime names for a method `&self`). The
+  borrow checker seeds caller-owned field loans, resolves `p.field` / a method's
+  `self.field` through a loaded reference parameter, and `SAFE-LIFE-003` now
+  rejects returning the wrong lifetime argument. `region_signatures` is a
+  mutex-copied deque so parallel lowering cannot invalidate a signature
+  reference. S4.5 precision: borrow overlap uses constant field/array
+  projections, so `a[0]`/`a[1]` are disjoint (even for `Copy` elements) while a
+  dynamic index overlaps; `&mut *r` reborrows are accepted. `MIRTests` is
+  `4638 checks`; negative tests `491`.
 - S4.3b autoref / S4.7 two-phase: a reference receiver (`&self` / `&mut self`)
   now lowers to `Borrow`/`BorrowMut` instead of an untracked `AddressOf`, and
   method-call arguments are evaluated before the receiver borrow is activated.

@@ -18,6 +18,7 @@
 #include "MIRRegionSignature.h"
 
 #include <span>
+#include <deque>
 #include <mutex>
 #include <vector>
 
@@ -79,15 +80,28 @@ struct MIRModule {
     /**
      * Per-function region signatures (S4.2). Region ids are function-local; the
      * table itself is module-lifetime so `MIRBorrowCheck` never reads the AST.
-     * Append-only; lowering workers may add concurrently.
+     * Append-only; lowering workers may add concurrently. A deque keeps
+     * references stable across appends, so a checker may hold one while another
+     * worker interns a signature.
      */
-    std::vector<MIRRegionSignature> region_signatures;
-    std::mutex region_signatures_mutex;
+    std::deque<MIRRegionSignature> region_signatures;
+    mutable std::mutex region_signatures_mutex;
 
     uint32_t add_region_signature(MIRRegionSignature signature) {
         std::lock_guard<std::mutex> lock(region_signatures_mutex);
         region_signatures.push_back(std::move(signature));
         return static_cast<uint32_t>(region_signatures.size() - 1);
+    }
+    /**
+     * Copy one signature under the table lock. Lowering workers append while
+     * other workers read callee signatures, so a caller must never hold a
+     * reference into the container across a possible append.
+     */
+    bool region_signature_at(uint32_t id, MIRRegionSignature& out) const {
+        std::lock_guard<std::mutex> lock(region_signatures_mutex);
+        if (id >= region_signatures.size()) return false;
+        out = region_signatures[id];
+        return true;
     }
     /**
      * Symbol -> region signature (S4.2/S4.5). Filled when a function is

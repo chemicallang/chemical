@@ -2407,6 +2407,17 @@ static bool test_region_signature() {
     CHECK(sig.outlives.size() == 2);
     CHECK(sig.outlives[0].first == 1 && sig.outlives[0].second == 2);
     CHECK(sig.outlives[1].first == 2 && sig.outlives[1].second == 0);
+    CHECK(sig.param_field_regions.empty());
+    // S4.2b: aggregate-parameter field regions are an ordinary appended fact.
+    MIRRegionSignature field_sig;
+    field_sig.param_field_regions.resize(1);
+    field_sig.param_field_regions[0].push_back(
+        {3, 7, 2, MIRVariance::Covariant});
+    CHECK(field_sig.has_regions());
+    CHECK(field_sig.param_field_regions[0][0].field_index == 3);
+    CHECK(field_sig.param_field_regions[0][0].region == 2);
+    CHECK(region_id_for_lifetime({"a", "b"}, "b") == 2);
+    CHECK(region_id_for_lifetime({"a", "b"}, "missing") == MIR_INVALID_ID);
 
     // The lexer stores lifetime names without the quote; both spellings map.
     MIRRegionSignature quoted = make_region_signature({"'x"}, {"'x"}, "'x", {});

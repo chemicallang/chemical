@@ -11,11 +11,24 @@ namespace mir {
 
 namespace {
 
+struct LoanProjection {
+    /** Constant field or array index, or MIR_INVALID_ID when it is dynamic. */
+    uint32_t index = MIR_INVALID_ID;
+    bool array = false;
+};
+
 struct LoanTarget {
     PlaceId root = MIR_INVALID_ID;
     uint32_t path = MIR_INVALID_ID;
     uint32_t param_index = MIR_INVALID_ID; // set for a parameter-rooted target
     bool known = false;
+    /**
+     * Constant projections from the root, used for borrow-overlap precision
+     * (S4.5). The move-path tree only exists for owned aggregates, so an
+     * array of `Copy` elements would otherwise make `a[0]` and `a[1]` the
+     * same target.
+     */
+    std::vector<LoanProjection> projections;
 };
 
 struct Loan {
@@ -25,6 +38,12 @@ struct Loan {
     uint32_t end = MIR_INVALID_ID;
     uint32_t borrow_lin = MIR_INVALID_ID;
     bool escaped = false; // passed to a call: interprocedural escape is S4.5
+    /**
+     * Declared region for a reference read out of an aggregate parameter's
+     * field (S4.2b). `MIR_INVALID_ID` for ordinary source borrows, where the
+     * parameter's own region is the right fallback.
+     */
+    MIRRegionId region = MIR_INVALID_ID;
 };
 
 struct InstRef {
@@ -132,6 +151,27 @@ bool targets_overlap(const MIRFunction& fn, const LoanTarget& a, const LoanTarge
     if (!a.known || !b.known) return false;
     if (a.root != b.root) return false;
     return paths_overlap(fn, a.path, b.path);
+}
+
+/**
+ * Borrow-overlap check using constant projections (S4.5). `a[0]` and `a[1]`
+ * are disjoint even when the array element type has no move path; a dynamic
+ * index is conservatively unknown and overlaps everything below its root.
+ */
+bool borrow_targets_overlap(const LoanTarget& a, const LoanTarget& b) {
+    if (!a.known || !b.known) return false;
+    if (a.root != b.root) return false;
+    const size_t n = std::min(a.projections.size(), b.projections.size());
+    for (size_t i = 0; i < n; ++i) {
+        const LoanProjection& pa = a.projections[i];
+        const LoanProjection& pb = b.projections[i];
+        if (pa.index == MIR_INVALID_ID || pb.index == MIR_INVALID_ID) return true;
+        if (pa.array != pb.array) return true;
+        if (pa.index != pb.index) return false;
+    }
+    // One target is a prefix of (or equal to) the other: the prefix overlaps
+    // the whole sub-place.
+    return true;
 }
 
 /** Does this type (transitively, through variant/union payloads) hold a reference? */
@@ -265,6 +305,48 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
     };
     std::vector<Loan> loans;
 
+    // S4.2b: an aggregate parameter's direct reference fields carry a declared
+    // region from the parameter type's lifetime arguments. Seed them as
+    // caller-owned loans so `return p.field` is checked against the function's
+    // declared return lifetime. `escaped` keeps the local-storage checks from
+    // treating caller-owned storage as a local.
+    MIRRegionSignature fn_region_sig;
+    const bool has_fn_region_sig =
+        function.region_signature != MIR_INVALID_ID &&
+        module.region_signature_at(function.region_signature, fn_region_sig);
+    if (has_fn_region_sig) {
+        const MIRRegionSignature& param_sig = fn_region_sig;
+        for (uint32_t p = 0; p < function.places.size(); ++p) {
+            const MIRPlaceDef& pd = function.places[p];
+            if (pd.storage_class != static_cast<uint8_t>(MIRStorageClass::Parameter)) {
+                continue;
+            }
+            if (pd.param_index == MIR_INVALID_ID ||
+                pd.param_index >= param_sig.param_field_regions.size()) {
+                continue;
+            }
+            for (const MIRParamFieldRegion& fr :
+                 param_sig.param_field_regions[pd.param_index]) {
+                if (fr.field_name == MIR_INVALID_ID) continue;
+                const uint64_t key = field_key(p, fr.field_name);
+                if (field_loans.find(key) != field_loans.end()) continue;
+                Loan loan;
+                loan.target.root = p;
+                loan.target.path = pd.move_path_id;
+                loan.target.param_index = pd.param_index;
+                loan.target.known = true;
+                loan.start = 0;
+                loan.end = 0;
+                loan.escaped = true;
+                loan.region = fr.region;
+                const uint32_t idx = static_cast<uint32_t>(loans.size());
+                loans.push_back(std::move(loan));
+                field_loans[key] = idx;
+                field_params[key] = pd.param_index;
+            }
+        }
+    }
+
     auto operands_of = [&](const MIRInstruction& inst) {
         return inst.operand_count == 0 ? static_cast<const MIROperand*>(nullptr)
                                        : &function.operands[inst.operand_offset];
@@ -317,6 +399,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 t.path = function.places[t.root].move_path_id;
                 t.param_index = function.places[t.root].param_index;
                 t.known = true;
+                t.projections.clear();
                 if (inst.result_or_place != MIR_INVALID_ID) {
                     address_targets[inst.result_or_place] = t;
                 }
@@ -346,10 +429,36 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     }
                 }
                 if (!base.known) break;
+                // A pointer/reference base addresses the pointee aggregate;
+                // resolve field names and indices against the pointee type.
+                if (aggregate != MIR_INVALID_ID && aggregate < module.types.types.size()) {
+                    const MIRTypeRecord& ar = module.types.types[aggregate];
+                    if (ar.kind == MIRTypeKind::Pointer ||
+                        ar.kind == MIRTypeKind::Reference) {
+                        aggregate = ar.element;
+                    }
+                }
                 LoanTarget projected = base;
                 projected.path = project_path(
                     module, function, base.path, aggregate, ops[1]
                 );
+                if (inst.opcode() == MIROpcode::FieldAddr) {
+                    uint32_t field_index = MIR_INVALID_ID;
+                    if (ops[1].kind() == MIROperandKind::Constant) {
+                        field_index = field_index_for_constant(
+                            module, module.types, aggregate, ops[1].id);
+                    }
+                    projected.projections.push_back({field_index, false});
+                } else {
+                    uint64_t index = 0;
+                    if (ops[1].kind() == MIROperandKind::Value &&
+                        constant_index(module, ops[1].id, function, index)) {
+                        projected.projections.push_back(
+                            {static_cast<uint32_t>(index), true});
+                    } else {
+                        projected.projections.push_back({MIR_INVALID_ID, true});
+                    }
+                }
                 if (inst.result_or_place != MIR_INVALID_ID) {
                     address_targets[inst.result_or_place] = projected;
                 }
@@ -396,6 +505,19 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         (module.types.types[pd.type].kind == MIRTypeKind::Reference ||
                          module.types.types[pd.type].kind == MIRTypeKind::Pointer)) {
                         value_params[inst.result_or_place] = pidx;
+                        // The loaded value is the parameter's referent pointer.
+                        // Remember which parameter place it came from so a
+                        // field load through it (`self.field`) can resolve the
+                        // S4.2b field facts.
+                        if (pd.storage_class ==
+                            static_cast<uint8_t>(MIRStorageClass::Parameter)) {
+                            LoanTarget t;
+                            t.root = ops[0].id;
+                            t.path = pd.move_path_id;
+                            t.param_index = pidx;
+                            t.known = true;
+                            address_targets[inst.result_or_place] = t;
+                        }
                     }
                 }
                 // Loading a reference local yields another value carrying its loan.
@@ -405,11 +527,30 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         value_loans[inst.result_or_place] = it->second;
                         loans[it->second].end = lin;
                     }
-                    // A reference stored in a struct field.
-                    if (inst.operand_count >= 2 &&
-                        ops[1].kind() == MIROperandKind::Constant &&
-                        inst.result_or_place != MIR_INVALID_ID) {
-                        const uint64_t fkey = field_key(ops[0].id, ops[1].id);
+                    const auto pa = place_aliases.find(ops[0].id);
+                    if (pa != place_aliases.end()) {
+                        value_aliases[inst.result_or_place] = pa->second;
+                    }
+                }
+                // A reference stored in a struct field, either through a place
+                // base (`p.field`) or a pointer/reference base (`self.field`
+                // after loading a reference parameter).
+                if (inst.operand_count >= 2 &&
+                    ops[1].kind() == MIROperandKind::Constant &&
+                    inst.result_or_place != MIR_INVALID_ID) {
+                    uint64_t fkey = 0;
+                    bool have_key = false;
+                    if (ops[0].kind() == MIROperandKind::Place) {
+                        fkey = field_key(ops[0].id, ops[1].id);
+                        have_key = true;
+                    } else if (ops[0].kind() == MIROperandKind::Value) {
+                        const auto at = address_targets.find(ops[0].id);
+                        if (at != address_targets.end() && at->second.known) {
+                            fkey = field_key(at->second.root, ops[1].id);
+                            have_key = true;
+                        }
+                    }
+                    if (have_key) {
                         const auto fit = field_loans.find(fkey);
                         if (fit != field_loans.end()) {
                             value_loans[inst.result_or_place] = fit->second;
@@ -419,10 +560,6 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         if (fpi != field_params.end()) {
                             value_params[inst.result_or_place] = fpi->second;
                         }
-                    }
-                    const auto pa = place_aliases.find(ops[0].id);
-                    if (pa != place_aliases.end()) {
-                        value_aliases[inst.result_or_place] = pa->second;
                     }
                 }
                 break;
@@ -718,6 +855,10 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 use_value(ops[0], lin, false);
                 if (ops[0].kind() == MIROperandKind::Value &&
                     inst.result_or_place != MIR_INVALID_ID) {
+                    const auto at = address_targets.find(ops[0].id);
+                    if (at != address_targets.end()) {
+                        address_targets[inst.result_or_place] = at->second;
+                    }
                     const auto it = value_loans.find(ops[0].id);
                     if (it != value_loans.end()) {
                         value_loans[inst.result_or_place] = it->second;
@@ -796,12 +937,13 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 }
 
                 const MIRRegionSignature* callee_sig = nullptr;
+                MIRRegionSignature callee_sig_copy;
                 if (known) {
                     const uint32_t sid =
                         module.symbol_region_signature(ops[0].id);
                     if (sid != MIR_INVALID_ID &&
-                        sid < module.region_signatures.size()) {
-                        callee_sig = &module.region_signatures[sid];
+                        module.region_signature_at(sid, callee_sig_copy)) {
+                        callee_sig = &callee_sig_copy;
                     }
                 }
 
@@ -968,18 +1110,15 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 }
 
                 const MIRRegionSignature* sig = nullptr;
-                if (function.region_signature != MIR_INVALID_ID &&
-                    function.region_signature < module.region_signatures.size()) {
-                    sig = &module.region_signatures[function.region_signature];
+                if (has_fn_region_sig) {
+                    sig = &fn_region_sig;
                 }
                 bool reported = false;
-                auto check_param_region = [&](uint32_t param_index) -> bool {
-                    if (param_index == MIR_INVALID_ID || sig == nullptr ||
-                        sig->return_region == MIR_INVALID_ID ||
-                        param_index >= sig->param_regions.size()) {
+                auto check_region = [&](MIRRegionId from) -> bool {
+                    if (sig == nullptr || sig->return_region == MIR_INVALID_ID ||
+                        from == MIR_INVALID_ID) {
                         return true;
                     }
-                    const MIRRegionId from = sig->param_regions[param_index];
                     if (region_outlives(*sig, from, sig->return_region)) {
                         return true;
                     }
@@ -987,6 +1126,14 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                            "SAFE-LIFE-003",
                            "returned reference does not outlive the declared return lifetime (add a where 'a: 'b bound)");
                     return false;
+                };
+                auto check_param_region = [&](uint32_t param_index) -> bool {
+                    if (param_index == MIR_INVALID_ID || sig == nullptr ||
+                        sig->return_region == MIR_INVALID_ID ||
+                        param_index >= sig->param_regions.size()) {
+                        return true;
+                    }
+                    return check_region(sig->param_regions[param_index]);
                 };
 
                 if (loan != MIR_INVALID_ID && loan < loans.size()) {
@@ -1009,11 +1156,24 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         }
                     }
                 }
-                if (!reported && !check_param_region(return_param)) {
+                // A reference read from an aggregate parameter's field has its
+                // own declared region (S4.2b); prefer it over the parameter's
+                // single region.
+                const bool has_field_region =
+                    loan != MIR_INVALID_ID && loan < loans.size() &&
+                    loans[loan].region != MIR_INVALID_ID;
+                if (!reported && has_field_region) {
+                    if (!check_region(loans[loan].region)) {
+                        reported = true;
+                    }
+                }
+                if (!reported && !has_field_region &&
+                    !check_param_region(return_param)) {
                     reported = true;
                 }
                 // An ambiguous result may come from any candidate argument.
-                if (!reported && ops != nullptr && inst.operand_count > 0 &&
+                if (!reported && !has_field_region && ops != nullptr &&
+                    inst.operand_count > 0 &&
                     ops[0].kind() == MIROperandKind::Value) {
                     const auto al = value_aliases.find(ops[0].id);
                     if (al != value_aliases.end()) {
@@ -1063,6 +1223,15 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     for (const auto& fp : field_params) {
                         if (static_cast<PlaceId>(fp.first >> 32) !=
                             returned_place) {
+                            continue;
+                        }
+                        const auto lit = field_loans.find(fp.first);
+                        if (lit != field_loans.end() && lit->second < loans.size() &&
+                            loans[lit->second].region != MIR_INVALID_ID) {
+                            if (!check_region(loans[lit->second].region)) {
+                                reported = true;
+                                break;
+                            }
                             continue;
                         }
                         if (!check_param_region(fp.second)) {
@@ -1187,6 +1356,40 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 break;
             default:
                 break;
+        }
+    }
+
+    // Proper DFS back-edge detection (an edge to a block on the current DFS
+    // stack). Block ids alone are not layout/topological order, so an
+    // `edge to a lower id` test produces false loops at merge blocks.
+    bool has_back_edge = false;
+    {
+        std::vector<uint8_t> color(nblocks, 0); // 0 unvisited, 1 on stack, 2 done
+        struct DfsFrame { uint32_t node; size_t next; };
+        std::vector<DfsFrame> stack;
+        for (uint32_t start = 0; start < nblocks && !has_back_edge; ++start) {
+            if (color[start] != 0) continue;
+            color[start] = 1;
+            stack.push_back({start, 0});
+            while (!stack.empty()) {
+                DfsFrame& f = stack.back();
+                const std::vector<BlockId>& out = successors[f.node];
+                if (f.next >= out.size()) {
+                    color[f.node] = 2;
+                    stack.pop_back();
+                    continue;
+                }
+                const BlockId succ = out[f.next++];
+                if (succ >= nblocks) continue;
+                if (color[succ] == 1) {
+                    has_back_edge = true;
+                    break;
+                }
+                if (color[succ] == 0) {
+                    color[succ] = 1;
+                    stack.push_back({succ, 0});
+                }
+            }
         }
     }
 
@@ -1352,8 +1555,15 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     for (uint32_t other = 0; !loan.escaped && other < nloans; ++other) {
                         if (other == l || !live[other]) continue;
                         if (loans[other].escaped || !loans[other].target.known) continue;
+                        // `live` is a CFG over-approximation; in an acyclic
+                        // function a loan whose last use precedes this point is
+                        // dead even if a stale `place_loans` entry marks it.
+                        if (!has_back_edge && loans[other].end != MIR_INVALID_ID &&
+                            loans[other].end < linear_of(b, ii, order)) {
+                            continue;
+                        }
                         if (!(loan.mutable_loan || loans[other].mutable_loan)) continue;
-                        if (!targets_overlap(function, loan.target, loans[other].target)) {
+                        if (!borrow_targets_overlap(loan.target, loans[other].target)) {
                             continue;
                         }
                         // A borrow *through another reference value* is a

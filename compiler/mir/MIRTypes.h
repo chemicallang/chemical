@@ -79,6 +79,18 @@ enum class MIRInitState : uint8_t {
     Destroyed = 4,
 };
 
+/**
+ * Parameter variance (S4.2b). The numeric values are shared with the
+ * front-end `Variance` enum (compiler/safety/Variance.h); MIR stores only the
+ * result, never AST pointers.
+ */
+enum class MIRVariance : uint8_t {
+    Bivariant = 0,
+    Covariant = 1,
+    Contravariant = 2,
+    Invariant = 3,
+};
+
 /** bit flags stored in MIRValueDef::flags */
 enum MIRValueFlags : uint8_t {
     VF_NONE = 0x00,

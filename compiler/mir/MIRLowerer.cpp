@@ -651,17 +651,17 @@ bool MIRLowerer::lower_static_interface_stub(FunctionDeclaration* decl, MIRArena
     // A generic declaration is interned before its return type is linked, so a
     // cached signature can lack the return region. Rebuild from the linked
     // declaration when that happened (S4.6a aggregate returns).
+    MIRRegionSignature current_sig;
     if (func.region_signature != MIR_INVALID_ID &&
-        func.region_signature < module_.region_signatures.size() &&
-        module_.region_signatures[func.region_signature].return_region ==
-            MIR_INVALID_ID &&
+        module_.region_signature_at(func.region_signature, current_sig) &&
+        current_sig.return_region == MIR_INVALID_ID &&
         decl->returnType != nullptr) {
         if (declaration_has_return_lifetime(decl->returnType)) {
             const uint32_t fresh = intern_region_signature(decl);
+            MIRRegionSignature fresh_sig;
             if (fresh != MIR_INVALID_ID &&
-                fresh < module_.region_signatures.size() &&
-                module_.region_signatures[fresh].return_region !=
-                    MIR_INVALID_ID) {
+                module_.region_signature_at(fresh, fresh_sig) &&
+                fresh_sig.return_region != MIR_INVALID_ID) {
                 func.region_signature = fresh;
                 module_.set_symbol_region_signature(func.symbol, fresh);
             }
@@ -673,10 +673,11 @@ bool MIRLowerer::lower_static_interface_stub(FunctionDeclaration* decl, MIRArena
             module_.set_symbol_region_signature(func.symbol, func.region_signature);
         }
     }
-    if (func.region_signature != MIR_INVALID_ID &&
-        func.region_signature < module_.region_signatures.size()) {
-        func.region_var_count =
-            module_.region_signatures[func.region_signature].lifetime_param_count;
+    if (func.region_signature != MIR_INVALID_ID) {
+        MIRRegionSignature sig_copy;
+        if (module_.region_signature_at(func.region_signature, sig_copy)) {
+            func.region_var_count = sig_copy.lifetime_param_count;
+        }
     }
     func.function_type = module_.symbols.get(func.symbol).type;
 
@@ -776,17 +777,17 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     // A generic declaration is interned before its return type is linked, so a
     // cached signature can lack the return region. Rebuild from the linked
     // declaration when that happened (S4.6a aggregate returns).
+    MIRRegionSignature current_sig;
     if (func.region_signature != MIR_INVALID_ID &&
-        func.region_signature < module_.region_signatures.size() &&
-        module_.region_signatures[func.region_signature].return_region ==
-            MIR_INVALID_ID &&
+        module_.region_signature_at(func.region_signature, current_sig) &&
+        current_sig.return_region == MIR_INVALID_ID &&
         decl->returnType != nullptr) {
         if (declaration_has_return_lifetime(decl->returnType)) {
             const uint32_t fresh = intern_region_signature(decl);
+            MIRRegionSignature fresh_sig;
             if (fresh != MIR_INVALID_ID &&
-                fresh < module_.region_signatures.size() &&
-                module_.region_signatures[fresh].return_region !=
-                    MIR_INVALID_ID) {
+                module_.region_signature_at(fresh, fresh_sig) &&
+                fresh_sig.return_region != MIR_INVALID_ID) {
                 func.region_signature = fresh;
                 module_.set_symbol_region_signature(func.symbol, fresh);
             }
@@ -798,10 +799,11 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
             module_.set_symbol_region_signature(func.symbol, func.region_signature);
         }
     }
-    if (func.region_signature != MIR_INVALID_ID &&
-        func.region_signature < module_.region_signatures.size()) {
-        func.region_var_count =
-            module_.region_signatures[func.region_signature].lifetime_param_count;
+    if (func.region_signature != MIR_INVALID_ID) {
+        MIRRegionSignature sig_copy;
+        if (module_.region_signature_at(func.region_signature, sig_copy)) {
+            func.region_var_count = sig_copy.lifetime_param_count;
+        }
     }
     const TypeId ret = decl->returnType ? types_.map(decl->returnType) : types_.void_type();
     sret_ = abi::needs_sret(module_, ret);

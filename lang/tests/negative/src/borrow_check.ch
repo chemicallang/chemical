@@ -189,3 +189,70 @@ func ambiguous_reference_result_unrelated_place_ok(env : &mut TestEnv) {
     var ch = "func <'a> pick(x : &'a mut int, y : &'a mut int) : &'a mut int {\n    return x\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    var c = 3\n    var r = pick(&mut a, &mut b)\n    var q = &mut c\n    *q = 9\n    return *r\n}\n"
     expect_compile_success(env, "borrow_ambiguous_result_other", ch)
 }
+
+@test
+func aggregate_parameter_field_uses_declared_lifetime(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // S4.2b: the aggregate's second lifetime argument ('b) is the region of
+    // `y`, so returning it as 'b is accepted.
+    var ch = "struct Pair<'a, 'b> {\n    var x : &'a int\n    var y : &'b int\n}\nfunc <'a, 'b> second(p : Pair<'a, 'b>) : &'b int {\n    return p.y\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    var p = Pair<'static, 'static> { x : &a, y : &b }\n    var r = second(p)\n    return *r\n}\n"
+    expect_compile_success(env, "borrow_aggregate_param_field_region", ch)
+}
+
+@test
+func neg_aggregate_parameter_field_wrong_lifetime(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // S4.2b: `x` is tied to 'a, not the declared return region 'b.
+    var ch = "struct Pair<'a, 'b> {\n    var x : &'a int\n    var y : &'b int\n}\nfunc <'a, 'b> bad(p : Pair<'a, 'b>) : &'b int {\n    return p.x\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    var p = Pair<'static, 'static> { x : &a, y : &b }\n    var r = bad(p)\n    return *r\n}\n"
+    expect_compile_error(env, "borrow_aggregate_param_field_wrong", ch, "SAFE-LIFE-003")
+}
+
+@test
+func aggregate_parameter_field_with_outlives_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // S4.2b: a `where 'a: 'b` edge makes the 'a field a valid 'b result.
+    var ch = "struct Pair<'a, 'b> {\n    var x : &'a int\n    var y : &'b int\n}\nfunc <'a, 'b> good(p : Pair<'a, 'b>) : &'b int where 'a : 'b {\n    return p.x\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    var p = Pair<'static, 'static> { x : &a, y : &b }\n    var r = good(p)\n    return *r\n}\n"
+    expect_compile_success(env, "borrow_aggregate_param_field_outlives", ch)
+}
+
+@test
+func disjoint_constant_array_indices_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // S4.5: constant indices into the same array are disjoint even when the
+    // element type is Copy (no move-path tree).
+    var ch = "public func main() : int {\n    var a : [3]int = [1, 2, 3]\n    var x = &mut a[0]\n    var y = &mut a[1]\n    *x = 10\n    *y = 20\n    return a[0] + a[1]\n}\n"
+    expect_compile_success(env, "borrow_disjoint_const_indices", ch)
+}
+
+@test
+func neg_dynamic_array_indices_overlap(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // S4.5: dynamic indices are not proven distinct, so the borrows overlap.
+    var ch = "public func main() : int {\n    var a : [3]int = [1, 2, 3]\n    var i = 0\n    var j = 1\n    var x = &mut a[i]\n    var y = &mut a[j]\n    *x = 10\n    *y = 20\n    return a[0] + a[1]\n}\n"
+    expect_compile_error(env, "borrow_dynamic_indices_overlap", ch, "SAFE-BORROW-001")
+}
+
+@test
+func mutable_reborrow_through_reference_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // S4.5: `&mut *r` is a reborrow of `r`'s loan, not a second alias.
+    var ch = "public func main() : int {\n    var x = 1\n    var r = &mut x\n    var q = &mut *r\n    *q = 5\n    return x\n}\n"
+    expect_compile_success(env, "borrow_mutable_reborrow", ch)
+}
+
+@test
+func method_reference_field_matches_return_lifetime(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // S4.2b: `&self` is a reference to an aggregate, so the container's
+    // lifetime arguments still select the field's region.
+    var ch = "struct Pair<'a, 'b> {\n    var x : &'a int\n    var y : &'b int\n    func get(&self) : &'b int {\n        return self.y\n    }\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    var p = Pair<'static, 'static> { x : &a, y : &b }\n    return *p.get()\n}\n"
+    expect_compile_success(env, "borrow_method_field_region", ch)
+}
+
+@test
+func neg_method_reference_field_wrong_lifetime(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // S4.2b: `self.x` is tied to 'a, not the declared return region 'b.
+    var ch = "struct Pair<'a, 'b> {\n    var x : &'a int\n    var y : &'b int\n    func get(&self) : &'b int {\n        return self.x\n    }\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    var p = Pair<'static, 'static> { x : &a, y : &b }\n    return *p.get()\n}\n"
+    expect_compile_error(env, "borrow_method_field_wrong_region", ch, "SAFE-LIFE-003")
+}

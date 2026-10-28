@@ -5,6 +5,8 @@
 // AST-aware: this is the front-end lowering boundary, never a backend.
 
 #include "MIRLowererHelpers.h"
+#include "compiler/safety/Variance.h"
+#include "ast/structures/GenericStructDecl.h"
 
 namespace mir {
 
@@ -1718,6 +1720,37 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
             lifetimes.emplace_back(name.data(), name.size());
         }
     }
+    // A method inside a generic struct/union/variant inherits the container's
+    // lifetime parameters; the function declaration itself has no
+    // `generic_parent` for those. They are the regions its `&self` fields use.
+    {
+        auto add_container_lifetime = [&](chem::string_view name) {
+            if (name.empty()) return;
+            const chem::string_view bare = strip_lifetime_quote(name);
+            for (std::string_view existing : lifetimes) {
+                if (chem::string_view(existing.data(), existing.size()) == bare) {
+                    return;
+                }
+            }
+            lifetimes.emplace_back(bare.data(), bare.size());
+        };
+        ASTNode* parent = decl->parent();
+        if (parent != nullptr) {
+            if (auto* container = parent->as_extendable_member_container()) {
+                if (container->generic_parent != nullptr) {
+                    for (chem::string_view name :
+                         container->generic_parent->lifetime_params) {
+                        add_container_lifetime(name);
+                    }
+                } else if (container->kind() == ASTNodeKind::StructDecl) {
+                    for (chem::string_view name :
+                         container->as_struct_def_unsafe()->lifetime_params) {
+                        add_container_lifetime(name);
+                    }
+                }
+            }
+        }
+    }
     std::vector<std::string_view> param_lifetimes;
     param_lifetimes.reserve(decl->params.size());
     for (FunctionParam* param : decl->params) {
@@ -1748,6 +1781,108 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
         std::string_view(return_lt.data(), return_lt.size()),
         outlives
     );
+
+    // S4.2b: an aggregate parameter can carry references in its fields. Their
+    // declared lifetime is the aggregate's lifetime argument, not the
+    // parameter's own region (an aggregate parameter has none). Record the
+    // field name constant and the resolved region so MIRBorrowCheck can treat
+    // `return p.field` exactly like a reference parameter return.
+    VarianceAnalysis variance;
+    sig.param_field_regions.resize(decl->params.size());
+    for (size_t pi = 0; pi < decl->params.size(); ++pi) {
+        FunctionParam* param = decl->params[pi];
+        BaseType* pt = param ? param->type : nullptr;
+        if (pt == nullptr) continue;
+        BaseType* canonical = pt->canonical();
+        if (canonical == nullptr) continue;
+        BaseType* aggregate = canonical;
+        if (canonical->kind() == BaseTypeKind::Reference) {
+            // `&self` / `&Pair<'a, 'b>`: the fields belong to the referent.
+            aggregate = canonical->as_reference_type_unsafe()->type;
+        }
+        if (aggregate == nullptr) continue;
+        BaseType* agg_canonical = aggregate->canonical();
+        if (agg_canonical == nullptr) continue;
+        StructDefinition* sd = aggregate->get_direct_linked_struct();
+        if (sd == nullptr) continue;
+        // A generic instantiation can be a signature-only shallow copy whose
+        // body is not finalized yet. The master declaration always has the
+        // field list and the lifetime parameters, so use it for the mapping.
+        StructDefinition* body = sd;
+        if (sd->generic_parent != nullptr &&
+            sd->generic_parent->kind() == ASTNodeKind::GenericStructDecl) {
+            StructDefinition* master =
+                sd->generic_parent->as_gen_struct_def_unsafe()->master_impl;
+            if (master != nullptr && (sd->variables().empty() ||
+                                      sd->lifetime_params.empty())) {
+                body = master;
+            }
+        }
+        std::vector<chem::string_view> decl_lifetimes = body->lifetime_params;
+        if (decl_lifetimes.empty() && body->generic_parent != nullptr) {
+            decl_lifetimes = body->generic_parent->lifetime_params;
+        }
+        if (decl_lifetimes.empty()) {
+            continue;
+        }        auto* gt = agg_canonical->kind() == BaseTypeKind::Generic
+                       ? agg_canonical->as_generic_type_unsafe()
+                       : (aggregate->kind() == BaseTypeKind::Generic
+                              ? aggregate->as_generic_type_unsafe()
+                              : nullptr);
+        // Prefer the written lifetime arguments (`Pair<'a, 'b>`). A method's
+        // `&self` often carries only the concrete/linked struct type, so fall
+        // back to the declaration's own lifetime names: the method signature
+        // already includes the container's lifetime parameters by name.
+        std::vector<chem::string_view> actual_lifetimes;
+        if (gt != nullptr && gt->lifetime_args.size() == decl_lifetimes.size()) {
+            actual_lifetimes = gt->lifetime_args;
+        } else {
+            actual_lifetimes = decl_lifetimes;
+        }
+        if (actual_lifetimes.size() != decl_lifetimes.size()) continue;
+        const TypeId tid = types_.map(aggregate);
+        if (tid == MIR_INVALID_ID || tid >= module_.types.types.size()) continue;
+        const MIRTypeRecord& rec = module_.types.types[tid];
+        for (BaseDefMember* member : body->variables()) {
+            auto* sm = member ? member->as_struct_member() : nullptr;
+            if (sm == nullptr) continue;
+            BaseType* ft = const_cast<BaseType*>(sm->type.getType());
+            if (ft == nullptr) continue;
+            const chem::string_view fname = sm->name_view();
+            BaseType* ftc = ft->canonical();
+            if (ftc == nullptr || ftc->kind() != BaseTypeKind::Reference) {
+                // Only direct reference fields produce a reference value on a
+                // load. Nested aggregates are followed in a later step.
+                continue;
+            }
+            const std::vector<Variance> uses =
+                variance.lifetime_uses(ftc, decl_lifetimes);
+            uint32_t field_index = MIR_INVALID_ID;
+            const std::string_view fname_sv(fname.data(), fname.size());
+            for (uint32_t i = 0; i < rec.data_count; ++i) {
+                const MIRFieldInfo* fi = module_.types.field_of(tid, i);
+                if (fi != nullptr && module_.types.field_name_view(*fi) == fname_sv) {
+                    field_index = i;
+                    break;
+                }
+            }
+            const ConstantId field_name = module_.constants.add_string(
+                MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
+            for (size_t li = 0; li < uses.size() && li < actual_lifetimes.size(); ++li) {
+                if (uses[li] == Variance::Bivariant) continue;
+                const chem::string_view actual = actual_lifetimes[li];
+                const MIRRegionId region = region_id_for_lifetime(
+                    lifetimes, std::string_view(actual.data(), actual.size()));
+                if (region == MIR_INVALID_ID) continue;
+                MIRParamFieldRegion fr;
+                fr.field_index = field_index;
+                fr.field_name = field_name;
+                fr.region = region;
+                fr.variance = static_cast<MIRVariance>(uses[li]);
+                sig.param_field_regions[pi].push_back(fr);
+            }
+        }
+    }
     return module_.add_region_signature(std::move(sig));
 }
 

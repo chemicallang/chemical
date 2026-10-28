@@ -22,7 +22,9 @@ public struct RcInner<T> {
 @direct_init
 public struct Rc<T> {
 
-    var ptr : *mut RcInner<T>
+    // The allocation and its counts are the invariant; safe code must not be
+    // able to retarget or corrupt them.
+    private var ptr : *mut RcInner<T>
 
     @delete
     func delete(&mut self) {
@@ -62,9 +64,7 @@ public struct Rc<T> {
         unsafe {
             inner.weak = inner.weak + 1
         }
-        return Weak<T> {
-            ptr : inner
-        }
+        return unsafe(weak_unchecked<T>(inner))
     }
 
     public func get(&self) : &T {
@@ -122,7 +122,7 @@ public struct Rc<T> {
 @direct_init
 public struct Weak<T> {
 
-    var ptr : *mut RcInner<T>
+    private var ptr : *mut RcInner<T>
 
     @delete
     func delete(&mut self) {
@@ -149,9 +149,7 @@ public struct Weak<T> {
         unsafe {
             inner.strong = inner.strong + 1
         }
-        return Option.Some<Rc<T>>(Rc<T> {
-            ptr : inner
-        })
+        return Option.Some<Rc<T>>(unsafe(rc_unchecked<T>(inner)))
     }
 
     public func strong_count(&self) : size_t {
@@ -175,7 +173,17 @@ public func <T> rc(value : T) : Rc<T> {
         weak : 0 as size_t,
         value : manually_drop(value)
     }
+    return unsafe(rc_unchecked<T>(inner))
+}
+
+public unsafe func <T> rc_unchecked(inner : *mut RcInner<T>) : Rc<T> {
     return Rc<T> {
+        ptr : inner
+    }
+}
+
+public unsafe func <T> weak_unchecked(inner : *mut RcInner<T>) : Weak<T> {
+    return Weak<T> {
         ptr : inner
     }
 }

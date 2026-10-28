@@ -40,7 +40,7 @@ public namespace std {
     @maxalign
     public struct rwlock {
 
-        var storage : [SRWLOCK_SIZE]u8
+        internal var storage : [SRWLOCK_SIZE]u8
 
         @constructor
         func constructor() {

@@ -2928,12 +2928,23 @@ void SymResLinkBody::VisitCastedValue(CastedValue* cValue) {
         src->kind() == BaseTypeKind::IntN) {
         if (auto* enumDecl = dst->get_direct_linked_enum()) {
             auto number = value->get_number();
-            if (number.has_value() &&
-                !enum_contains_value(enumDecl, number.value(), getAllocator(),
-                                     const_cast<TypeBuilder&>(getTypeBuilder()))) {
-                diagnoser.error(cValue).with_code("SAFE-VALID-003")
-                    << "integer value is not a declared member of enum '"
-                    << enumDecl->name_view() << "'";
+            if (number.has_value()) {
+                if (!enum_contains_value(enumDecl, number.value(), getAllocator(),
+                                         const_cast<TypeBuilder&>(getTypeBuilder()))) {
+                    diagnoser.error(cValue).with_code("SAFE-VALID-003")
+                        << "integer value is not a declared member of enum '"
+                        << enumDecl->name_view() << "'";
+                    return;
+                }
+            } else if (safe_context) {
+                // Runtime integers can hold any bit pattern. Until the
+                // checked conversion lowering exists, accepting this cast in
+                // safe code would let a switch/tag-aware optimization see an
+                // undeclared tag. The caller must take the explicit unsafe
+                // boundary; a checked API will replace this in M5.2b.
+                diagnoser.error(cValue).with_code("SAFE-VALID-005")
+                    << "integer-to-enum cast at runtime requires an explicit "
+                       "unsafe boundary until checked conversion is available";
                 return;
             }
         }
@@ -3625,6 +3636,19 @@ void SymResLinkBody::VisitStringValue(StringValue* strValue) {
     }
 }
 
+// An unsafe function is an explicit boundary and may establish a type
+// invariant that private fields protect. Generic free functions are represented
+// by a GenericFuncDecl whose master implementation carries `unsafe`.
+static bool is_unsafe_current_function(FunctionTypeBody* fn_type) {
+    if (fn_type == nullptr) return false;
+    if (auto* fn = fn_type->as_function()) return fn->is_unsafe();
+    ASTNode* parent = fn_type->get_parent();
+    if (parent != nullptr && parent->kind() == ASTNodeKind::GenericFuncDecl) {
+        return parent->as_gen_func_decl_unsafe()->master_impl->is_unsafe();
+    }
+    return false;
+}
+
 bool isParentMethodOf(FunctionDeclaration* decl, StructValue* structVal) {
     // if(!decl->is_constructor_fn()) return false;
     const auto p = decl->parent();
@@ -3680,13 +3704,31 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
         ASTNode* member = structValue->linked_member_or_struct_of(entry.first);
         if (member == nullptr || member->kind() != ASTNodeKind::StructMember) continue;
         auto* struct_member = member->as_struct_member_unsafe();
-        if (struct_member->specifier() != AccessSpecifier::Private) continue;
+        const AccessSpecifier spec = struct_member->specifier();
+        if (spec == AccessSpecifier::Public) continue;
         auto* curr_func = current_func_type ? current_func_type->as_function() : nullptr;
-        if (curr_func == nullptr || curr_func->parent() == nullptr ||
-            !isParentMethodOf(curr_func, structValue)) {
+        const bool inside_type = curr_func != nullptr && curr_func->parent() != nullptr &&
+                                 isParentMethodOf(curr_func, structValue);
+        if (inside_type || is_unsafe_current_function(current_func_type)) continue;
+        if (spec == AccessSpecifier::Private) {
             diagnoser.error(entry.second.value).with_code("SAFE-VIS-001")
                 << "cannot initialize private member '" << entry.first
                 << "' from outside its type; use a constructor";
+            continue;
+        }
+        // Internal fields belong to the implementation module. A user module
+        // must use the type's public API instead of forging its storage.
+        if (spec == AccessSpecifier::Internal) {
+            ModuleScope* member_scope = struct_member->get_mod_scope();
+            ModuleScope* current_scope = (curr_func != nullptr && curr_func->parent() != nullptr)
+                                             ? curr_func->parent()->get_mod_scope()
+                                             : nullptr;
+            if (member_scope != nullptr && current_scope != nullptr &&
+                member_scope != current_scope) {
+                diagnoser.error(entry.second.value).with_code("SAFE-VIS-001")
+                    << "cannot initialize internal member '" << entry.first
+                    << "' outside its implementation module; use a constructor";
+            }
         }
     }
     auto refTypeKind = structValue->getRefType()->kind();

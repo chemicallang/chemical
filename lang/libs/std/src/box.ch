@@ -14,7 +14,9 @@ public namespace std {
 @direct_init
 public struct Box<T> {
 
-    var ptr : *mut T
+    // The box owns exactly one `T`; the pointer is private so safe code cannot
+    // retarget it at another box's storage and cause a double free.
+    private var ptr : *mut T
 
     @delete
     func delete(&mut self) {
@@ -72,6 +74,14 @@ public func <T> box(value : T) : Box<T> {
         memcpy(ptr as *mut void, &raw value as *void, sizeof(T))
         intrinsics::forget(value)
     }
+    return unsafe(box_unchecked<T>(ptr))
+}
+
+/**
+ * Unsafe constructor for an already-owned, non-null pointer. Safe code uses
+ * `box`, which checks the allocation and establishes the ownership invariant.
+ */
+public unsafe func <T> box_unchecked(ptr : *mut T) : Box<T> {
     return Box<T> {
         ptr : ptr
     }

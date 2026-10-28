@@ -51,7 +51,9 @@ impl Eq for string {
 @retained
 public struct string {
 
-    union {
+    // The tagged storage is the string invariant. Only string's own methods
+    // may choose a representation or mutate the tag.
+    private union {
         struct {
             var data : *char;
             var length : size_t
@@ -66,7 +68,7 @@ public struct string {
             var length : uchar;
         } sso;
     } storage;
-    var state : char
+    private var state : char
 
     @constructor
     comptime func make(value : %literal_string) {

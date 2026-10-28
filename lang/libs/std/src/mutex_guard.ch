@@ -15,8 +15,8 @@ public namespace std {
 @direct_init
 public struct Mutex<T> {
 
-    var m : mutex
-    var value : UnsafeCell<T>
+    internal var m : mutex
+    internal var value : UnsafeCell<T>
 
     public func lock(&self) : MutexGuard<T> {
         var mp = unsafe(&raw mut self.m)
@@ -48,8 +48,8 @@ public struct Mutex<T> {
 
 public struct MutexGuard<T> {
 
-    var mtx : *mut mutex
-    var value : *mut T
+    internal var mtx : *mut mutex
+    internal var value : *mut T
 
     @delete
     func delete(&mut self) {

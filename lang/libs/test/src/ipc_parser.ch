@@ -152,13 +152,35 @@ func read_str(msg_ptr : *mut *char, into : &mut std::string) : *char { unsafe {
     return null
  }}
 
+func parse_log_type(value : int) : LogType {
+    switch(value) {
+        LogType.Information as int => return LogType.Information
+        LogType.Warning as int => return LogType.Warning
+        LogType.Success as int => return LogType.Success
+        LogType.Error as int => return LogType.Error
+        LogType.Panic as int => return LogType.Panic
+        LogType.UnknownFailure as int => return LogType.UnknownFailure
+        LogType.ConfigFailure as int => return LogType.ConfigFailure
+        LogType.IOFailure as int => return LogType.IOFailure
+        LogType.NetworkFailure as int => return LogType.NetworkFailure
+        LogType.MemoryFailure as int => return LogType.MemoryFailure
+        LogType.RuntimeFailure as int => return LogType.RuntimeFailure
+        LogType.OutOfBoundFailure as int => return LogType.OutOfBoundFailure
+        LogType.ResourceFailure as int => return LogType.ResourceFailure
+        LogType.TodoFailure as int => return LogType.TodoFailure
+        LogType.SecurityFailure as int => return LogType.SecurityFailure
+        LogType.WTFFailure as int => return LogType.WTFFailure
+        default => return LogType.UnknownFailure
+    }
+}
+
 func parseLog(msg_ptr : *mut *char, log : &mut TestLog) : *char {
     if (!msg_ptr) {
         return "message pointer is null";
     }
 
     if (!read_char(msg_ptr, ',')) { return "couldn't read a comma ','"; }
-    log.type = parse_int_from_str(msg_ptr) as LogType;
+    log.type = parse_log_type(parse_int_from_str(msg_ptr));
 
     if (!read_char(msg_ptr, ',')) { return "couldn't read a comma ','"; }
     log.line = parse_int_from_str(msg_ptr) as ubigint;

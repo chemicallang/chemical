@@ -83,7 +83,9 @@ public struct ArcInner<T> {
 @direct_init
 public struct Arc<T> {
 
-    var ptr : *mut ArcInner<T>
+    // The allocation and its counts are the invariant; safe code must not be
+    // able to retarget or corrupt them.
+    private var ptr : *mut ArcInner<T>
 
     @delete
     func delete(&mut self) {
@@ -121,9 +123,7 @@ public struct Arc<T> {
         }
         var inner = self.ptr
         inner.weak.increment()
-        return ArcWeak<T> {
-            ptr : inner
-        }
+        return unsafe(arc_weak_unchecked<T>(inner))
     }
 
     public func get(&self) : &T {
@@ -180,7 +180,7 @@ public struct Arc<T> {
 @direct_init
 public struct ArcWeak<T> {
 
-    var ptr : *mut ArcInner<T>
+    private var ptr : *mut ArcInner<T>
 
     @delete
     func delete(&mut self) {
@@ -207,9 +207,7 @@ public struct ArcWeak<T> {
             return Option.None<Arc<T>>()
         }
         inner.strong.increment()
-        return Option.Some<Arc<T>>(Arc<T> {
-            ptr : inner
-        })
+        return Option.Some<Arc<T>>(unsafe(arc_unchecked<T>(inner)))
     }
 
     public func strong_count(&self) : size_t {
@@ -233,7 +231,17 @@ public func <T> arc(value : T) : Arc<T> {
         weak : ArcCount.make(0 as size_t),
         value : manually_drop(value)
     }
+    return unsafe(arc_unchecked<T>(inner))
+}
+
+public unsafe func <T> arc_unchecked(inner : *mut ArcInner<T>) : Arc<T> {
     return Arc<T> {
+        ptr : inner
+    }
+}
+
+public unsafe func <T> arc_weak_unchecked(inner : *mut ArcInner<T>) : ArcWeak<T> {
+    return ArcWeak<T> {
         ptr : inner
     }
 }

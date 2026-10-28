@@ -2,8 +2,9 @@ public namespace std {
 
 public struct span<T> {
 
-    var _data : *T
-    var _size : size_t
+    // The pointer/length pair is the span invariant; user code uses get/size.
+    internal var _data : *T
+    internal var _size : size_t
 
     @implicit
     @constructor

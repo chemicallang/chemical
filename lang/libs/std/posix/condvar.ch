@@ -55,7 +55,7 @@ public namespace std {
     @maxalign
     public struct CondVar {
 
-        var storage : [PTHREAD_COND_T_SIZE]u8;
+        internal var storage : [PTHREAD_COND_T_SIZE]u8;
 
         @constructor
         func constructor() {

@@ -58,31 +58,28 @@ struct HeapRange {
     bool live = true;
 };
 
-// FrameArena/const/global allocations are registered through the active
-// interpreter's heap range table. The interpreter is single-threaded per
-// engine (parallel comptime jobs have their own Impl), so a thread-local
-// pointer is enough and keeps FrameArena independent of Impl's definition.
-thread_local std::vector<HeapRange>* g_mem_ranges = nullptr;
-thread_local std::vector<std::vector<HeapRange>*> g_mem_range_stack;
-
-static void mem_register(void* p, size_t n) {
-    if (!g_mem_ranges || !p) return;
+// Every frame arena is tied to the range table of the interpreter that owns
+// it. A thread-local "current interpreter" pointer is not sufficient here:
+// nested comptime engines coexist on one thread, and an outer frame allocation
+// must never be registered in the inner engine's table.
+static void mem_register(std::vector<HeapRange>* ranges, void* p, size_t n) {
+    if (!ranges || !p) return;
     const uintptr_t begin = reinterpret_cast<uintptr_t>(p);
     const uintptr_t end = begin + (n ? n : 1);
-    for (HeapRange& r : *g_mem_ranges) {
+    for (HeapRange& r : *ranges) {
         if (r.begin == begin && r.end == end) {
             r.live = true;
             return;
         }
     }
-    g_mem_ranges->push_back(HeapRange{begin, end, true});
+    ranges->push_back(HeapRange{begin, end, true});
 }
 
-static void mem_unregister(void* p) {
-    if (!g_mem_ranges || !p) return;
+static void mem_unregister(std::vector<HeapRange>* ranges, void* p) {
+    if (!ranges || !p) return;
     const uintptr_t at = reinterpret_cast<uintptr_t>(p);
-    for (auto it = g_mem_ranges->begin(); it != g_mem_ranges->end();) {
-        if (it->begin == at) it = g_mem_ranges->erase(it);
+    for (auto it = ranges->begin(); it != ranges->end();) {
+        if (it->begin == at) it = ranges->erase(it);
         else ++it;
     }
 }
@@ -90,6 +87,7 @@ static void mem_unregister(void* p) {
 // ── frame arena ────────────────────────────────────────────────────────────
 
 struct FrameArena {
+    std::vector<HeapRange>* ranges = nullptr;
     std::vector<uint8_t*> blocks;
     std::vector<std::pair<uint8_t*, size_t>> allocations;
     size_t first_cap = 0;
@@ -115,12 +113,12 @@ struct FrameArena {
         // an index/pointer that walks past a local into the next place is an
         // out-of-bounds access even though it stays inside the host block.
         allocations.emplace_back(p, requested);
-        mem_register(p, requested);
+        mem_register(ranges, p, requested);
         return p;
     }
 
     void reset() {
-        for (const auto& a : allocations) mem_unregister(a.first);
+        for (const auto& a : allocations) mem_unregister(ranges, a.first);
         allocations.clear();
         if (!blocks.empty()) {
             cur = blocks[0];
@@ -132,7 +130,7 @@ struct FrameArena {
     }
 
     ~FrameArena() {
-        for (const auto& a : allocations) mem_unregister(a.first);
+        for (const auto& a : allocations) mem_unregister(ranges, a.first);
         for (uint8_t* b : blocks) std::free(b);
     }
 
@@ -248,23 +246,7 @@ struct MIRInterpreter::Impl {
     bool stack_exhausted = false;
     std::string unsupported_error;
 
-    explicit Impl(const MIRModule& m) : module(m) {
-        // A nested engine must not leak its frame ranges into the outer one.
-        // Destruction clears the pointer before members are torn down; the
-        // FrameArena destructors then simply skip unregistration.
-        g_mem_range_stack.push_back(&heap_ranges);
-        g_mem_ranges = &heap_ranges;
-    }
-    ~Impl() {
-        if (!g_mem_range_stack.empty() && g_mem_range_stack.back() == &heap_ranges) {
-            g_mem_range_stack.pop_back();
-        } else {
-            for (auto it = g_mem_range_stack.begin(); it != g_mem_range_stack.end(); ++it) {
-                if (*it == &heap_ranges) { g_mem_range_stack.erase(it); break; }
-            }
-        }
-        g_mem_ranges = g_mem_range_stack.empty() ? nullptr : g_mem_range_stack.back();
-    }
+    explicit Impl(const MIRModule& m) : module(m) {}
 
     // ── type facts ─────────────────────────────────────────────────────────
     void build_types() {
@@ -336,7 +318,7 @@ struct MIRInterpreter::Impl {
         if (const_blocks.empty() || const_block_used_ + need > const_block_cap_) {
             const size_t cap = need > kConstBlockSize ? need : kConstBlockSize;
             const_blocks.emplace_back(std::make_unique<char[]>(cap));
-            mem_register(const_blocks.back().get(), cap);
+            mem_register(&heap_ranges, const_blocks.back().get(), cap);
             const_block_cap_ = cap;
             const_block_used_ = 0;
         }
@@ -516,7 +498,7 @@ struct MIRInterpreter::Impl {
                 storage = it->second;
             } else {
                 storage = static_cast<uint8_t*>(std::calloc(1, sz));
-                mem_register(storage, sz);
+                mem_register(&heap_ranges, storage, sz);
                 global_by_name[name] = storage;
             }
             if (g.init != MIR_INVALID_ID) eval_const_into(storage, r.type, g.init);
@@ -564,7 +546,7 @@ struct MIRInterpreter::Impl {
                 } else {
                     uint8_t* st =
                         static_cast<uint8_t*>(std::calloc(1, glb_size(r.type, MIR_INVALID_ID)));
-                    mem_register(st, glb_size(r.type, MIR_INVALID_ID));
+                    mem_register(&heap_ranges, st, glb_size(r.type, MIR_INVALID_ID));
                     global_by_name[name] = st;
                     global_addr[s] = st;
                 }
@@ -709,7 +691,7 @@ struct MIRInterpreter::Impl {
                     return;
                 }
                 char* buf = static_cast<char*>(std::malloc(e.data_count + 1));
-                mem_register(buf, e.data_count + 1);
+                mem_register(&heap_ranges, buf, e.data_count + 1);
                 std::memcpy(buf, module.const_exprs.data.data_at(e.data_offset), e.data_count);
                 buf[e.data_count] = '\0';
                 store_scalar(dst, info, reinterpret_cast<uint64_t>(buf));
@@ -1346,6 +1328,7 @@ struct MIRInterpreter::Impl {
         const MIRFunction& fn = module.functions[fn_index];
         if (depth == pool.size()) pool.push_back(std::make_unique<Frame>());
         Frame& f = *pool[depth++];
+        f.arena.ranges = &heap_ranges;
         f.arena.reset();
         f.prepare(&fn, types);
         const std::vector<FieldSlot>& fslots = ensure_field_slots(fn_index);

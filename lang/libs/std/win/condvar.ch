@@ -27,7 +27,7 @@ public namespace std {
     @maxalign
     public struct CondVar {
 
-        var storage : [CONDITION_VARIABLE_SIZE]u8
+        internal var storage : [CONDITION_VARIABLE_SIZE]u8
 
         @constructor
         func constructor() {

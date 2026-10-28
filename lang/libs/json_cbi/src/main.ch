@@ -1,5 +1,15 @@
 // ===== Parse Phase =====
 
+func access_specifier_from_int(value : int) : AccessSpecifier {
+    switch(value) {
+        AccessSpecifier.Private as int => return AccessSpecifier.Private
+        AccessSpecifier.Protected as int => return AccessSpecifier.Protected
+        AccessSpecifier.Internal as int => return AccessSpecifier.Internal
+        AccessSpecifier.Public as int => return AccessSpecifier.Public
+        default => return AccessSpecifier.Private
+    }
+}
+
 @no_mangle
 public func json_parseMacroTopLevelNode(parser : *mut Parser, builder : *mut ASTBuilder, spec : int) : *mut ASTNode {
     const location = parser.getEncodedLocation(parser.getToken())
@@ -64,7 +74,7 @@ public func json_parseMacroTopLevelNode(parser : *mut Parser, builder : *mut AST
     const values_arr : []*mut Value = []
 
     const node = builder.make_top_level_embedded_node(
-        spec as AccessSpecifier,
+        access_specifier_from_int(spec),
         std::string_view("json"),
         info,
         known_type_fn,

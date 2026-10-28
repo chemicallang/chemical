@@ -582,10 +582,14 @@
 >   `@no_drop` is copied to generic instantiations. Tests cover write/overwrite,
 >   unwritten storage, drop suppression, ownership transfer, and `Send`
 >   following the inner value.
-> - S1.6b `std::NonNull<T>`: a non-null raw-pointer wrapper with
->   `make`/`non_null`, `as_ptr` and `is_null`. It is neither `Send` nor `Sync`
->   (the field is a raw pointer), matching the conservative auto-trait rule;
->   tests cover construction, pointer identity and writes through `as_ptr`.
+> - S1.6b `std::NonNull<T>`: a non-null raw-pointer wrapper with a private
+>   field, safe `non_null`/`non_null_try`, explicit unsafe
+>   `non_null_unchecked`, `as_ptr` and `is_null`. It is neither `Send` nor
+>   `Sync` (the field is a raw pointer), matching the conservative auto-trait
+>   rule; tests cover construction, null rejection, pointer identity and writes
+>   through `as_ptr`. Private-field initialization is rejected cross-module
+>   (`SAFE-VIS-001`), and unsafe functions may establish the invariant only at
+>   an explicit boundary.
 > - S1.5l nested auto-trait overrides: structural `Send`/`Sync` derivation now
 >   honors an explicit positive impl on a nested field's container (for example
 >   `unsafe impl Send for Raw` makes a struct containing `Raw` Send even though
@@ -685,14 +689,17 @@
 > enforced after migrating the parser/TLS/atomic/test helpers (function-level
 > unsafe boundaries; expression-level inside async functions).
 > S4.1 (partial): `core::Unpin` is a structural safe auto trait, `PhantomPinned`
-> is `!Unpin` via a negative impl, and `core::Pin<T>` has `new`/`pin`
-> (`T: Unpin`), `get_ref`, `get_mut`, unsafe `get_unchecked_mut`, and
-> `into_inner`; `Waker` is explicitly `unsafe impl Send + Sync` (its vtable
+> is `!Unpin` via a negative impl, and `core::Pin<T>` has a private pointer,
+> safe `new`/`pin` (`T: Unpin`), unsafe `from_raw`, `get_ref`, `get_mut`, unsafe
+> `get_unchecked_mut`, and `into_inner`; `Waker` is explicitly
+> `unsafe impl Send + Sync` (its vtable
 > contract requires thread-safe wake/clone/drop). Waker data/vtable fields are
 > private, safe code uses `Waker.empty()` (null-safe wake/clone) or
 > `unsafe Waker.from_raw(...)`, and `is_empty()` replaces raw vtable checks.
 > `SAFE-VIS-001` rejects struct-literal initialization of a private member
 > outside its type, so the fields cannot be bypassed; async frame fields remain.
+> `Chunk<T>` is similarly unconstructible in safe code; `chunk_unchecked` is
+> the unsafe boundary used by trusted iterators.
 > M5.1 (partial) validity: `SAFE-VALID-001` rejects `zeroed<T>()` when the
 > concrete type contains a reference field (direct, array, variant payload, or
 > a specialized generic field such as `W<&int>`); `PhantomData<&T>` is
@@ -780,15 +787,23 @@
 > (the internal sret/pointer prototype ABI is not the C ABI); pointer-based FFI
 > remains allowed. A runtime test covers the invalid-layout panic and a
 > negative test covers the aggregate FFI rejection. Safety suite `51`; negative
-> tests `509`; `MIRTests` `4638 checks`.
+> tests `528`; `MIRTests` `4638 checks`.
 > M5.2a validity guards: `SAFE-VALID-002` rejects an integer/float/pointer to
 > `bool` cast in safe code (the `atomic` CAS helpers now use `!= 0`);
 > `SAFE-VALID-003` rejects an integer literal whose value is not a declared
 > enum member; `SAFE-VALID-004` rejects `zeroed<Enum>()` when no member has
-> value 0. Runtime integer-to-enum values are still accepted and require a
-> checked conversion in the next M5.2 slice. `NonNull` remains documented as a
-> pointer wrapper with no extra validity guarantee; its non-null API contract
-> is still pending.
+> value 0; `SAFE-VALID-005` rejects a runtime integer-to-enum cast in safe code.
+> The in-tree lexer/parser/plugin casts (`js_cbi_lexer`, `universal_parser`,
+> `css_parser`, `json_cbi`, the test IPC parser) were replaced with integer
+> comparisons or total mapping helpers instead of forging an enum, so the
+> safety surface did not grow. A checked conversion API remains the next M5.2b
+> slice. `NonNull`, `Box`, `Rc`/`Weak`, and `Arc`/`ArcWeak` now have private
+> pointer fields and checked/unsafe constructors; `vector`, `deque`, `span`,
+> `string_view`, map iterators and map storage, raw OS lock storage, and
+> `Pin`/`Chunk` storage are private/internal, while `string`/`u16string` tagged
+> storage and `RefCell`/`Cell`/lock state are private/internal. Direct field access and aggregate init from a user module
+> are `SAFE-VIS-001`, closing safe-code retargeting/double-free, length/capacity
+> and borrow-state corruption paths.
 > Compiler comptime determinism: `InterpretScope` now carries a unique id and
 > identifier lookup checks the current scope before its cached-depth fast path;
 > `resolve_ref` follows a bounded reference chain; `MIRComptime` folds an
@@ -802,16 +817,18 @@
 > aggregate, `memcpy`/`memmove`/`memset`) before touching memory, and reports
 > an interpreter error instead of aborting. Frame places are registered
 > individually, and globals/constant blocks/string tables are registered as
-> they are created; a nested interpreter registry is stacked so a nested
-> comptime driver cannot unregister the outer frame. Negative tests cover a
-> comptime heap out-of-bounds write and a use-after-free read. Provenance
-> beyond range (cross-frame stale pointers) and
+> they are created. Each frame arena is tied to its owning interpreter's range
+> table (not a thread-local "current engine"), which fixed a real nested-engine
+> bug where an outer frame allocation was registered in an inner comptime
+> engine and then reported as an out-of-bounds write under some file orders.
+> Negative tests cover a comptime heap out-of-bounds write and a use-after-free
+> read. Provenance beyond range (cross-frame stale pointers) and
 > bounds-checked host `strlen`/`printf`/foreign pointers remain M5.7b.
 > `catch_unwind`/`UnwindSafe` and the unwinding/drop-on-unwind profile remain
-> S5.6b. Safety suite `51`; negative tests `509`; main TCC `2353`, LLVM `2351`;
-> interpret `1909`; `MIRTests` `4638 checks`.
-> Next: M5.7b provenance/foreign-pointer hardening, runtime/checked
-> integer-to-enum conversion and the `NonNull` contract, S5.6b
+> S5.6b. Safety suite `51`; negative tests `528`; main TCC `2354`, LLVM `2352`;
+> interpret `1910`; `MIRTests` `4638 checks`.
+> Next: M5.7b provenance/foreign-pointer hardening, the checked runtime
+> integer-to-enum conversion (M5.2b), S5.6b
 > (`catch_unwind`/unwinding + `UnwindSafe`/`RefUnwindSafe`/`AssertUnwindSafe`),
 > remaining M5 validity (packed references), M6 `Send`/`Sync` enforcement, M2
 > C ABI, and the variance/HRTB/temporary-lifetime precision items.
@@ -1069,8 +1086,11 @@ Re-baseline explicitly; checked-in logs may lag.
 
 1. Raw-pointer-derived references/casts unchecked (`&*p`, `p as &mut T`,
    `0 as &T`).
-2. Aggregate init/`@direct_init` does not enforce field privacy; `FutureHandle`,
-   `Waker`, `Layout`, `NonNull` can be forged.
+2. Aggregate init/`@direct_init` privacy is enforced for `Layout`, `NonNull`,
+   `Box`, `Rc`/`Weak`, `Arc`/`ArcWeak`, `vector`, `deque`, `span`,
+   `string_view`, `string`, `u16string`, maps and lock/cell state;
+   `FutureHandle`/`Waker`/remaining iterator and function-capture types still
+   need the same audit.
 3. `vector::get_ref(&self) -> &mut T`.
 4. `string_view`/`span`/`Chunk`/`dyn`/`std::function`/`FutureHandle` erase
    lifetimes.

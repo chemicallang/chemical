@@ -1443,7 +1443,7 @@ public struct NonNull<T> {
 cat > /tmp/nonnull_test.ch << 'EOF'
 func main() {
     var x = 42
-    match std::NonNull::make(&raw mut x) {
+    match std::non_null_try(&raw mut x) {
         Option::Some(ref nn) => {
             printf("value: %d\n", *nn.get())
         }

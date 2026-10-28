@@ -85,13 +85,20 @@ public func (provider : &SourceProvider) read_js_quoted_value(quote : char) {
 // Does a token type END an expression? If so, a following `/` is division;
 // otherwise `/` begins a regular-expression literal.
 func js_token_is_value(type : int) : bool {
-    switch(type as JsTokenType) {
-        JsTokenType.Identifier, JsTokenType.Number, JsTokenType.String, JsTokenType.TemplateLiteral,
-        JsTokenType.RParen, JsTokenType.RBracket, JsTokenType.RBrace,
-        JsTokenType.This, JsTokenType.Super, JsTokenType.True, JsTokenType.False,
-        JsTokenType.Null, JsTokenType.Undefined, JsTokenType.Regex => { return true }
-        default => { return false }
-    }
+    return type == (JsTokenType.Identifier as int) ||
+           type == (JsTokenType.Number as int) ||
+           type == (JsTokenType.String as int) ||
+           type == (JsTokenType.TemplateLiteral as int) ||
+           type == (JsTokenType.RParen as int) ||
+           type == (JsTokenType.RBracket as int) ||
+           type == (JsTokenType.RBrace as int) ||
+           type == (JsTokenType.This as int) ||
+           type == (JsTokenType.Super as int) ||
+           type == (JsTokenType.True as int) ||
+           type == (JsTokenType.False as int) ||
+           type == (JsTokenType.Null as int) ||
+           type == (JsTokenType.Undefined as int) ||
+           type == (JsTokenType.Regex as int)
 }
 
 // `public` entry point: records whether a following `/` may start a regex (based

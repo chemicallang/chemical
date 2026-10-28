@@ -28,7 +28,7 @@ public namespace std {
 
     @maxalign
     public struct recursive_mutex {
-        var storage : [CRITICAL_SECTION_SIZE]u8
+        internal var storage : [CRITICAL_SECTION_SIZE]u8
 
         @constructor
         func constructor() {

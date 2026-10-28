@@ -14,9 +14,10 @@ public comptime const INITIAL_CAPACITY : size_t = 16u
 
 public struct unordered_map<Key : Hashable + Eq, Value> {
 
-    var table : *mut *mut unordered_map_node<Key, Value>; // Array of buckets (pointers to linked lists)
-    var capacity : size_t;
-    var _size : size_t;
+    // The bucket table and its size fields are the map invariant.
+    internal var table : *mut *mut unordered_map_node<Key, Value>; // Array of buckets (pointers to linked lists)
+    internal var capacity : size_t;
+    internal var _size : size_t;
 
     func hash_now(&self, key : &Key) : size_t {
         return key.hash()
@@ -304,9 +305,9 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
 
 public struct unordered_map_iterator<Key, Value> {
 
-    var map : *unordered_map<Key, Value>;
-    var bucket : size_t;
-    var node : *mut unordered_map_node<Key, Value>;
+    internal var map : *unordered_map<Key, Value>;
+    internal var bucket : size_t;
+    internal var node : *mut unordered_map_node<Key, Value>;
 
     func next(&mut self) {
         if (node == null) {

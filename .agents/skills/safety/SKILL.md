@@ -282,27 +282,31 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `51`, negative tests `509`.
+  `51`, negative tests `528`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
-  `zeroed<Enum>()` when no member is 0. Runtime integer-to-enum values and the
-  `NonNull` non-null contract remain follow-ups. `InterpretScope` now validates
+  `zeroed<Enum>()` when no member is 0; `SAFE-VALID-005` rejects a runtime
+  integer-to-enum cast in safe code. In-tree lexer/parser/plugin casts were
+  replaced with integer comparisons or total mapping helpers; checked
+  conversion remains M5.2b. `NonNull` has a private field and checked/unsafe
+  constructors.
+  `InterpretScope` now validates
   its identifier depth cache with a unique scope id and checks the current
   scope first; `resolve_ref` follows reference chains; array-returning
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `51`, negative `509`; TCC main `2353`, LLVM
-  main `2351`, interpret `1909`.
+  TCC/LLVM lib runs. Safety suite `51`, negative `528`; TCC main `2354`, LLVM
+  main `2352`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
   range-checked, frame places are registered individually, and globals,
   constant blocks and comptime string buffers are registered. Violations set
-  an interpreter error (no host abort). Nested interpreter registries are
-  stacked so a nested comptime driver cannot unregister the outer frame.
-  Negative tests cover comptime heap OOB and use-after-free. Provenance beyond
-  range and foreign pointers are M5.7b.
+  an interpreter error (no host abort). Each frame arena carries its owning
+  interpreter's range table; this fixed nested-engine misregistration under
+  some file orders. Negative tests cover comptime heap OOB and use-after-free.
+  Provenance beyond range and foreign pointers are M5.7b.
 - S4.3b autoref / S4.7 two-phase: a reference receiver (`&self` / `&mut self`)
   now lowers to `Borrow`/`BorrowMut` instead of an untracked `AddressOf`, and
   method-call arguments are evaluated before the receiver borrow is activated.
@@ -320,8 +324,9 @@ Implemented:
   `unsafe(...)` inside async functions, whose bodies the async lowering owns).
 - S4.1 (partial) Pin/Unpin: `core::Unpin` is a safe auto trait derived from
   fields (pointers/references are Unpin; negative impls are allowed), and
-  `core::PhantomPinned` opts out via `impl !Unpin`. `core::Pin<T>` provides
-  `from_raw`, `new`/`pin(&mut T)` (`T: Unpin`), safe `get_ref`, `get_mut`
+  `core::PhantomPinned` opts out via `impl !Unpin`. `core::Pin<T>` has a
+  private pointer, unsafe `from_raw`, `new`/`pin(&mut T)` (`T: Unpin`), safe
+  `get_ref`, `get_mut`
   (`T: Unpin`), `unsafe get_unchecked_mut`, and `into_inner`. `Waker` is
   explicitly `unsafe impl Send`/`Sync` because its vtable contract requires
   thread-safe wake/clone/drop. Its data/vtable fields are private: safe code
@@ -432,8 +437,11 @@ Next:
   `Cell` wraps it with `T: Copy` reads. Structural auto-trait derivation now
   consults the implementation index for unconditional generic negative impls
   through nested fields and honors explicit positive impls on nested fields
-  (S1.5l). `std::NonNull<T>` (S1.6b) wraps a non-null raw pointer and is
-  deliberately neither `Send` nor `Sync`. `std::MaybeUninit<T>` and
+  (S1.5l). `std::NonNull<T>` (S1.6b) has a private field, safe
+  `non_null`/`non_null_try`, unsafe `non_null_unchecked`, and is deliberately
+  neither `Send` nor `Sync`. `Box`, `Rc`/`Weak`, and `Arc`/`ArcWeak` also keep
+  their pointer fields private; `vector` storage is internal and `string`/
+  `u16string` tagged storage is private. `std::MaybeUninit<T>` and
   `std::ManuallyDrop<T>` (S1.6c) use the `@no_drop` container flag, which
   suppresses generated and explicit destructors, so their raw storage can be
   written and later moved out with `memcpy`/`intrinsics::forget`.
@@ -583,7 +591,8 @@ Codes are stable and grouped by domain:
 | `SAFE-VALID-002` | non-bool to `bool` cast in safe code |
 | `SAFE-VALID-003` | integer literal is not a declared enum member |
 | `SAFE-VALID-004` | `zeroed<Enum>()` has no declared zero tag |
-| `SAFE-VIS-001` | private struct member initialized outside its type |
+| `SAFE-VALID-005` | runtime integer-to-enum cast in safe code |
+| `SAFE-VIS-001` | private/internal member initialized or accessed outside its type/module |
 | `SAFE-FFI-001` | extern call in a safe context (enforced) |
 | `SAFE-COPY-001` | user type used with a `Copy` bound but no explicit `impl Copy` |
 | `SAFE-COPY-002` | `impl Copy` on a type with a destructor |

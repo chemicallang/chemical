@@ -13,8 +13,8 @@ public namespace std {
 @direct_init
 public struct RwLock<T> {
 
-    var lock : rwlock
-    var value : UnsafeCell<T>
+    internal var lock : rwlock
+    internal var value : UnsafeCell<T>
 
     public func read(&self) : RwLockReadGuard<T> {
         var lp = unsafe(&raw mut self.lock)
@@ -69,8 +69,8 @@ public struct RwLock<T> {
 
 public struct RwLockReadGuard<T> {
 
-    var lock : *mut rwlock
-    var value : *mut T
+    internal var lock : *mut rwlock
+    internal var value : *mut T
 
     @delete
     func delete(&mut self) {
@@ -86,8 +86,8 @@ public struct RwLockReadGuard<T> {
 
 public struct RwLockWriteGuard<T> {
 
-    var lock : *mut rwlock
-    var value : *mut T
+    internal var lock : *mut rwlock
+    internal var value : *mut T
 
     @delete
     func delete(&mut self) {

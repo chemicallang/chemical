@@ -23,9 +23,11 @@ public namespace core {
     @direct_init
     public struct Pin<T> {
 
-        var ptr : *mut T
+        internal var ptr : *mut T
 
-        public func from_raw(ptr : *mut T) : Pin<T> {
+        // A raw pointer does not prove that the pointee is pinned, live or
+        // aligned; callers must take an explicit unsafe boundary.
+        public unsafe func from_raw(ptr : *mut T) : Pin<T> {
             return Pin<T> { ptr : ptr }
         }
 

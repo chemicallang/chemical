@@ -12,8 +12,8 @@ public interface Linear<T> {
 
 public struct Chunk<T> {
 
-    var ptr : *T
-    var len : u64
+    private var ptr : *T
+    private var len : u64
 
     func data(&self) : *T {
         return ptr
@@ -23,6 +23,17 @@ public struct Chunk<T> {
         return len
     }
 
+}
+
+/**
+ * Unsafe constructor for a chunk cursor. The implementor must ensure the
+ * pointer covers `len` initialized elements for the lifetime of the chunk.
+ */
+public unsafe func <T> chunk_unchecked(ptr : *T, len : u64) : Chunk<T> {
+    return Chunk<T> {
+        ptr : ptr,
+        len : len
+    }
 }
 
 public interface Chunked<T, ChunkCursor> {

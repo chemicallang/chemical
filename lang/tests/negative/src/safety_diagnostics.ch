@@ -429,7 +429,7 @@ func neg_non_null_is_not_sync(env : &mut TestEnv) {
 @test
 func neg_manually_drop_follows_inner_send(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\npublic func main() : int {\n    var d = std::manually_drop(std::NonNull<int> { ptr = null })\n    var h = Holder<std::ManuallyDrop<std::NonNull<int>>> { data = null }\n    return h.check()\n}\n"
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\npublic func main() : int {\n    var d = std::manually_drop(unsafe(std::non_null_unchecked<int>(null)))\n    var h = Holder<std::ManuallyDrop<std::NonNull<int>>> { data = null }\n    return h.check()\n}\n"
     expect_compile_error_with_mod(env, "manually_drop_inner_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
 }
 
@@ -443,14 +443,14 @@ func neg_maybe_uninit_follows_inner_send(env : &mut TestEnv) {
 @test
 func neg_box_follows_inner_send(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\npublic func main() : int {\n    var b = std::box(std::NonNull<int> { ptr = null })\n    var h = Holder<std::Box<std::NonNull<int>>> { data = null }\n    return h.check()\n}\n"
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\npublic func main() : int {\n    var b = std::box(unsafe(std::non_null_unchecked<int>(null)))\n    var h = Holder<std::Box<std::NonNull<int>>> { data = null }\n    return h.check()\n}\n"
     expect_compile_error_with_mod(env, "box_inner_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
 }
 
 @test
 func neg_box_follows_inner_sync(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var b = std::box(std::NonNull<int> { ptr = null })\n    var h = Holder<std::Box<std::NonNull<int>>> { data = null }\n    return h.check()\n}\n"
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var b = std::box(unsafe(std::non_null_unchecked<int>(null)))\n    var h = Holder<std::Box<std::NonNull<int>>> { data = null }\n    return h.check()\n}\n"
     expect_compile_error_with_mod(env, "box_inner_sync", ch, "does not satisfy", NEG_MOD_STD_CORE)
 }
 
@@ -506,7 +506,7 @@ func mutex_is_sync_when_inner_is_send(env : &mut TestEnv) {
 @test
 func neg_mutex_not_sync_when_inner_is_not_send(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var m = std::new_mutex(std::NonNull<int> { ptr = null })\n    var h = Holder<std::Mutex<std::NonNull<int>>> { data = null }\n    return h.check()\n}\n"
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var m = std::new_mutex(unsafe(std::non_null_unchecked<int>(null)))\n    var h = Holder<std::Mutex<std::NonNull<int>>> { data = null }\n    return h.check()\n}\n"
     expect_compile_error_with_mod(env, "mutex_inner_not_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
 }
 
@@ -604,14 +604,14 @@ func arc_is_send_and_sync_when_inner_qualifies(env : &mut TestEnv) {
 @test
 func neg_arc_not_send_when_inner_is_not_send(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\npublic func main() : int {\n    var a = std::arc(std::NonNull<int> { ptr = null })\n    var h = Holder<std::Arc<std::NonNull<int>>> { data = null }\n    return h.check()\n}\n"
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\npublic func main() : int {\n    var a = std::arc(unsafe(std::non_null_unchecked<int>(null)))\n    var h = Holder<std::Arc<std::NonNull<int>>> { data = null }\n    return h.check()\n}\n"
     expect_compile_error_with_mod(env, "arc_inner_not_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
 }
 
 @test
 func neg_option_clone_requires_clone(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "public func main() : int {\n    var o = std::Option.Some<std::NonNull<int>>(std::NonNull<int> { ptr = null })\n    var c = o.clone()\n    return 0\n}\n"
+    var ch = "public func main() : int {\n    var o = std::Option.Some<std::NonNull<int>>(unsafe(std::non_null_unchecked<int>(null)))\n    var c = o.clone()\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "option_clone_bound", ch, "Clone", NEG_MOD_STD_CORE)
 }
 
@@ -745,4 +745,137 @@ func neg_comptime_heap_use_after_free_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    comptime {\n        var p = unsafe(malloc(4)) as *mut int\n        unsafe(free(p))\n        var x = p[0]\n    }\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "comptime_heap_uaf", ch, "out-of-bounds read", NEG_MOD_CSTD)
+}
+
+@test
+func neg_non_null_private_field_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var nn = std::NonNull<int> { ptr = null }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "non_null_private_field", ch, "SAFE-VIS-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_non_null_unchecked_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var nn = std::non_null_unchecked<int>(null)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "non_null_unchecked_safe", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_runtime_enum_cast_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "enum E : int {\n    A = 1,\n    B = 2\n}\nfunc bad(n : int) : int {\n    var e = n as E\n    return 0\n}\npublic func main() : int {\n    return bad(1)\n}\n"
+    expect_compile_error(env, "runtime_enum_cast_safe", ch, "SAFE-VALID-005")
+}
+
+@test
+func neg_box_private_field_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var b = std::Box<int> { ptr = null }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "box_private_field", ch, "SAFE-VIS-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_box_unchecked_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var b = std::box_unchecked<int>(null)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "box_unchecked_safe", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_rc_private_field_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var r = std::Rc<int> { ptr = null }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "rc_private_field", ch, "SAFE-VIS-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_weak_private_field_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var w = std::Weak<int> { ptr = null }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "weak_private_field", ch, "SAFE-VIS-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_arc_private_field_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var a = std::Arc<int> { ptr = null }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "arc_private_field", ch, "SAFE-VIS-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_arc_weak_private_field_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var w = std::ArcWeak<int> { ptr = null }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "arc_weak_private_field", ch, "SAFE-VIS-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_vector_internal_storage_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var v = std::vector<int>()\n    v.data_size = 5\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "vector_internal_size", ch, "cannot access internal member", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_string_private_state_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var s = std::string()\n    s.state = '1'\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "string_private_state", ch, "cannot access private member", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_refcell_internal_state_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var c = std::ref_cell(1)\n    c.state = 0\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "refcell_internal_state", ch, "cannot access internal member", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_span_internal_size_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var s = std::span<int>()\n    s._size = 10\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "span_internal_size", ch, "cannot access internal member", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_map_internal_size_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var m = std::unordered_map<int, int>()\n    m._size = 10\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "map_internal_size", ch, "cannot access internal member", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_string_private_storage_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var s = std::string()\n    s.storage.sso.length = 0\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "string_private_storage", ch, "cannot access private member", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_raw_mutex_internal_storage_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var m = std::mutex()\n    m.storage = []\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "raw_mutex_internal_storage", ch, "cannot access internal member", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_pin_from_raw_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var p = core::Pin.from_raw<int>(null)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "pin_from_raw_safe", ch, "SAFE-UNSAFE-002", NEG_MOD_CORE)
+}
+
+@test
+func neg_pin_internal_pointer_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var x = 1\n    var p = core::Pin<int> { ptr = &raw mut x }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "pin_internal_ptr", ch, "SAFE-VIS-001", NEG_MOD_CORE)
+}
+
+@test
+func neg_chunk_private_fields_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var c = core::iterable::Chunk<int> { ptr = null, len = 1 }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "chunk_private_fields", ch, "SAFE-VIS-001", NEG_MOD_CORE)
 }

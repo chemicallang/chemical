@@ -16,9 +16,11 @@ public func __vector_nonempty_check(size : size_t) {
 
 public struct vector<T> {
 
-    var data_ptr : *mut T
-    var data_size : size_t
-    var data_cap : size_t
+    // Internal storage invariant: only the vector implementation (same module)
+    // may read or write these fields. Safe user code goes through get/push/etc.
+    internal var data_ptr : *mut T
+    internal var data_size : size_t
+    internal var data_cap : size_t
 
     @constructor
     func make() {

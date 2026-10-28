@@ -9,10 +9,10 @@ public struct deque_block<T> {
 
 public struct deque<T> {
 
-    var blocks : *mut deque_block<T>
-    var block_count : size_t
-    var block_cap : size_t
-    var data_size : size_t
+    internal var blocks : *mut deque_block<T>
+    internal var block_count : size_t
+    internal var block_cap : size_t
+    internal var data_size : size_t
 
     @constructor
     func make() {
@@ -129,7 +129,7 @@ public struct deque<T> {
         func begin_chunks(&self) : size_t { return 0 }
         func valid_chunk(&self, c : size_t) : bool { return c < block_count }
         func current_chunk(&self, c : size_t) : core::iterable::Chunk<T> {
-            return core::iterable::Chunk<T> { ptr : blocks[c].data_ptr, len : blocks[c].data_size }
+            return unsafe(core::iterable::chunk_unchecked<T>(blocks[c].data_ptr, blocks[c].data_size as u64))
         }
         func next_chunk(&self, c : size_t) : size_t { return c + 1 }
         func rbegin_chunks(&self) : size_t {

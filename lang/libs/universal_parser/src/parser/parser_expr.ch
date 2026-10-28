@@ -14,7 +14,7 @@ func (jsParser : &mut JsParser) parsePostfixContinuation(parser : *mut Parser, b
         if(t.type == JsTokenType.Dot as int) {
             parser.increment();
             const idToken = parser.getToken();
-            if(!isIdOrKw(idToken.type as JsTokenType)) {
+            if(!isIdOrKwInt(idToken.type)) {
                 parser.error("expected identifier after dot");
                 break;
             }
@@ -605,25 +605,84 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
     return jsParser.parsePostfixContinuation(parser, builder, node);
 }
 
+// Integer token kinds from the CBI lexer may include values outside the JS
+// enum (for example EOF or host-specific punctuation). Compare as integers
+// instead of forging an enum value.
+func isIdOrKwInt(type : int) : bool {
+    return type == (JsTokenType.Identifier as int) ||
+           type == (JsTokenType.Function as int) ||
+           type == (JsTokenType.Return as int) ||
+           type == (JsTokenType.If as int) ||
+           type == (JsTokenType.Else as int) ||
+           type == (JsTokenType.Const as int) ||
+           type == (JsTokenType.Let as int) ||
+           type == (JsTokenType.For as int) ||
+           type == (JsTokenType.While as int) ||
+           type == (JsTokenType.Break as int) ||
+           type == (JsTokenType.Continue as int) ||
+           type == (JsTokenType.Switch as int) ||
+           type == (JsTokenType.Case as int) ||
+           type == (JsTokenType.Default as int) ||
+           type == (JsTokenType.Do as int) ||
+           type == (JsTokenType.State as int) ||
+           type == (JsTokenType.Try as int) ||
+           type == (JsTokenType.Catch as int) ||
+           type == (JsTokenType.Finally as int) ||
+           type == (JsTokenType.Throw as int) ||
+           type == (JsTokenType.True as int) ||
+           type == (JsTokenType.False as int) ||
+           type == (JsTokenType.Null as int) ||
+           type == (JsTokenType.Undefined as int) ||
+           type == (JsTokenType.Typeof as int) ||
+           type == (JsTokenType.Void as int) ||
+           type == (JsTokenType.Delete as int) ||
+           type == (JsTokenType.In as int) ||
+           type == (JsTokenType.InstanceOf as int) ||
+           type == (JsTokenType.New as int) ||
+           type == (JsTokenType.Of as int) ||
+           type == (JsTokenType.This as int) ||
+           type == (JsTokenType.Async as int) ||
+           type == (JsTokenType.Await as int) ||
+           type == (JsTokenType.Class as int) ||
+           type == (JsTokenType.Extends as int) ||
+           type == (JsTokenType.Super as int) ||
+           type == (JsTokenType.Static as int) ||
+           type == (JsTokenType.Import as int) ||
+           type == (JsTokenType.Export as int) ||
+           type == (JsTokenType.Yield as int) ||
+           type == (JsTokenType.Debugger as int)
+}
+
 // JS operator precedence (higher binds tighter). Mirrors the ECMAScript
 // grammar: || < && < | < ^ < & < equality < relational < shift < additive <
 // multiplicative. Returns 0 for tokens that are not binary operators.
 func binary_operator_precedence(tokenType : int) : int {
-    switch(tokenType as JsTokenType) {
-        JsTokenType.LogicalOr => return 1
-        JsTokenType.LogicalAnd => return 2
-        JsTokenType.BitwiseOr => return 3
-        JsTokenType.BitwiseXor => return 4
-        JsTokenType.BitwiseAnd => return 5
-        JsTokenType.EqualEqual, JsTokenType.StrictEqual, JsTokenType.NotEqual, JsTokenType.StrictNotEqual => return 6
-        JsTokenType.LessThan, JsTokenType.GreaterThan, JsTokenType.LessThanEqual, JsTokenType.GreaterThanEqual, JsTokenType.In, JsTokenType.InstanceOf => return 7
-        JsTokenType.LeftShift, JsTokenType.RightShift, JsTokenType.RightShiftUnsigned => return 8
-        JsTokenType.Plus, JsTokenType.Minus => return 9
-        JsTokenType.Star, JsTokenType.Slash, JsTokenType.Percent => return 10
-        JsTokenType.Exponent => return 11
-        JsTokenType.NullishCoalescing => return 1  // same level as ||, left-associative
-        default => return 0
-    }
+    if(tokenType == (JsTokenType.LogicalOr as int) ||
+       tokenType == (JsTokenType.NullishCoalescing as int)) { return 1 }
+    if(tokenType == (JsTokenType.LogicalAnd as int)) { return 2 }
+    if(tokenType == (JsTokenType.BitwiseOr as int)) { return 3 }
+    if(tokenType == (JsTokenType.BitwiseXor as int)) { return 4 }
+    if(tokenType == (JsTokenType.BitwiseAnd as int)) { return 5 }
+    if(tokenType == (JsTokenType.EqualEqual as int) ||
+       tokenType == (JsTokenType.StrictEqual as int) ||
+       tokenType == (JsTokenType.NotEqual as int) ||
+       tokenType == (JsTokenType.StrictNotEqual as int)) { return 6 }
+    if(tokenType == (JsTokenType.LessThan as int) ||
+       tokenType == (JsTokenType.GreaterThan as int) ||
+       tokenType == (JsTokenType.LessThanEqual as int) ||
+       tokenType == (JsTokenType.GreaterThanEqual as int) ||
+       tokenType == (JsTokenType.In as int) ||
+       tokenType == (JsTokenType.InstanceOf as int)) { return 7 }
+    if(tokenType == (JsTokenType.LeftShift as int) ||
+       tokenType == (JsTokenType.RightShift as int) ||
+       tokenType == (JsTokenType.RightShiftUnsigned as int)) { return 8 }
+    if(tokenType == (JsTokenType.Plus as int) ||
+       tokenType == (JsTokenType.Minus as int)) { return 9 }
+    if(tokenType == (JsTokenType.Star as int) ||
+       tokenType == (JsTokenType.Slash as int) ||
+       tokenType == (JsTokenType.Percent as int)) { return 10 }
+    if(tokenType == (JsTokenType.Exponent as int)) { return 11 }
+    return 0
 }
 
 // Precedence-climbing binary expression parser. Parses operators with

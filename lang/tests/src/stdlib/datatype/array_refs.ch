@@ -4,7 +4,7 @@ func array_ref_size(array : std::span<int>) : size_t {
 }
 
 func array_ref_at(array : std::span<int>, ind : int) : int {
-    return array._data[ind]
+    return unsafe(*array.get(ind as size_t))
 }
 
 func test_array_refs() {

@@ -10,7 +10,7 @@ public namespace std {
 @direct_init
 public struct UnsafeCell<T> {
 
-    var value : T
+    internal var value : T
 
     @make
     func make(value : T) {
@@ -51,7 +51,7 @@ impl<T> !Sync for UnsafeCell<T> {}
 @direct_init
 public struct Cell<T> {
 
-    var inner : UnsafeCell<T>
+    internal var inner : UnsafeCell<T>
 
     @make
     func make(value : T) {

@@ -66,7 +66,6 @@ func (cssParser : &mut CSSParser) parseCustomPropertyValue(
     value : &mut CSSValue
 ) {
     var raw = std::string()
-    var prev_type = TokenType.Unexpected;
     var prev_val = std::string_view("");
     var first = true;
 
@@ -87,7 +86,6 @@ func (cssParser : &mut CSSParser) parseCustomPropertyValue(
         }
 
         raw.append_view(&token.value)
-        prev_type = token.type as TokenType
         prev_val = token.value
         first = false
         parser.increment()
@@ -107,7 +105,6 @@ func (cssParser : &mut CSSParser) parseRawPropertyValue(
     value : &mut CSSValue
 ) {
     var raw = std::string()
-    var prev_type = TokenType.Unexpected;
     var prev_val = std::string_view("");
     var first = true;
 
@@ -128,7 +125,6 @@ func (cssParser : &mut CSSParser) parseRawPropertyValue(
         }
 
         raw.append_view(&token.value)
-        prev_type = token.type as TokenType
         prev_val = token.value
         first = false
         parser.increment()
@@ -148,7 +144,6 @@ func (cssParser : &mut CSSParser) parseRawFunctionValue(
     value : &mut CSSValue
 ) {
     var raw = std::string()
-    var prev_type = TokenType.Unexpected;
     var prev_val = std::string_view("");
     var first = true;
     var depth = 0;
@@ -177,7 +172,6 @@ func (cssParser : &mut CSSParser) parseRawFunctionValue(
             depth--;
         }
 
-        prev_type = token.type as TokenType
         prev_val = token.value
         first = false
         parser.increment()

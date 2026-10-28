@@ -7,6 +7,8 @@
 #include "compiler/lab/LabBuildCompiler.h"
 #include "ast/structures/EnumMember.h"
 #include "ast/structures/Namespace.h"
+#include "ast/structures/UnnamedUnion.h"
+#include "ast/structures/UnnamedStruct.h"
 
 VarInitStatement* declaration(Value* value) {
     if(Value::isIdentifier(value->val_kind())) {
@@ -72,6 +74,34 @@ void VariableIdentifier::process_linked(ASTDiagnoser* diagnoser, FunctionTypeBod
             // TODO enable this, so we can check user uses :: for static access
             // linker.error("cannot link identifier with namespace " + value + "', Please use '::' to link with namespace", this);
             break;
+        }
+        case ASTNodeKind::UnnamedUnion: {
+            const auto mem = linked->as_unnamed_union_unsafe();
+            if(!curr_func) return;
+            if(mem->specifier == AccessSpecifier::Private) {
+                if(linked->parent() != curr_func->get_parent()) {
+                    diagnoser->error(this) << "cannot access private member '" << value << "'";
+                }
+            } else if(mem->specifier == AccessSpecifier::Internal) {
+                if(curr_func->get_parent()->get_mod_scope() != linked->get_mod_scope()) {
+                    diagnoser->error(this) << "cannot access internal member '" << value << "' outside module";
+                }
+            }
+            return;
+        }
+        case ASTNodeKind::UnnamedStruct: {
+            const auto mem = linked->as_unnamed_struct_unsafe();
+            if(!curr_func) return;
+            if(mem->specifier == AccessSpecifier::Private) {
+                if(linked->parent() != curr_func->get_parent()) {
+                    diagnoser->error(this) << "cannot access private member '" << value << "'";
+                }
+            } else if(mem->specifier == AccessSpecifier::Internal) {
+                if(curr_func->get_parent()->get_mod_scope() != linked->get_mod_scope()) {
+                    diagnoser->error(this) << "cannot access internal member '" << value << "' outside module";
+                }
+            }
+            return;
         }
         case ASTNodeKind::StructMember: {
             const auto mem = linked->as_struct_member_unsafe();

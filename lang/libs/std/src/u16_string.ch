@@ -15,7 +15,9 @@ public func u16_strlen(ptr : *u16) : size_t { unsafe {
 
 public struct u16string {
 
-    union {
+    // The tagged storage is the u16string invariant. Only its own methods may
+    // choose a representation or mutate the tag.
+    private union {
         struct {
             var data : *u16;
             var length : size_t
@@ -30,7 +32,7 @@ public struct u16string {
             var length : uchar;
         } sso;
     } storage;
-    var state : char
+    private var state : char
 
     @constructor
     func constructor(value : *u16, length : size_t) {

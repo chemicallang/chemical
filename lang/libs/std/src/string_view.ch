@@ -4,8 +4,9 @@ public namespace std {
     @retained
     public struct string_view 'a {
 
-        var _data : *char
-        var _size : size_t
+        // The pointer/length pair is the string_view invariant.
+        internal var _data : *char
+        internal var _size : size_t
 
         @implicit
         @constructor

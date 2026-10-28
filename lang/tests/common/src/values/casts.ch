@@ -180,4 +180,9 @@ func test_enum_validity() {
         var c = zeroed<CastColor>()
         return c == CastColor.Red
     })
+    test("runtime enum cast through an explicit unsafe boundary", () => {
+        var n = 1
+        var c = unsafe(n as CastColor)
+        return c == CastColor.Green
+    })
 }

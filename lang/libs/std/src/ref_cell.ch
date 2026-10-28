@@ -18,8 +18,8 @@ public namespace std {
 @direct_init
 public struct RefCell<T> {
 
-    var state : int
-    var value : UnsafeCell<T>
+    internal var state : int
+    internal var value : UnsafeCell<T>
 
     func release_shared(&self) {
         var s = unsafe(&raw mut self.state)
@@ -68,7 +68,7 @@ public struct RefCell<T> {
 
 public struct Ref<'a, T> {
 
-    var cell : &'a RefCell<T>
+    internal var cell : &'a RefCell<T>
 
     @delete
     func delete(&mut self) {
@@ -82,7 +82,7 @@ public struct Ref<'a, T> {
 
 public struct RefMut<'a, T> {
 
-    var cell : &'a RefCell<T>
+    internal var cell : &'a RefCell<T>
 
     @delete
     func delete(&mut self) {

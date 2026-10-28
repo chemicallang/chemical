@@ -19,7 +19,7 @@ public namespace std {
     @maxalign
     public struct mutex {
 
-        var storage : [PTHREAD_MUTEX_T_SIZE]u8;
+        internal var storage : [PTHREAD_MUTEX_T_SIZE]u8;
 
         // constructor: initialize native mutex
         @constructor

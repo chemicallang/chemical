@@ -12,11 +12,12 @@ public comptime const ORDERED_LOAD_FACTOR_THRESHOLD : float = 0.75f
 
 public struct ordered_map<Key : Hashable + Eq, Value> {
 
-    var table : *mut *mut ordered_map_node<Key, Value>;
-    var capacity : size_t;
-    var _size : size_t;
-    var head : *mut ordered_map_node<Key, Value>;
-    var tail : *mut ordered_map_node<Key, Value>;
+    // The bucket table, size and insertion-order links are the map invariant.
+    internal var table : *mut *mut ordered_map_node<Key, Value>;
+    internal var capacity : size_t;
+    internal var _size : size_t;
+    internal var head : *mut ordered_map_node<Key, Value>;
+    internal var tail : *mut ordered_map_node<Key, Value>;
 
     func hash_now(&self, key : &Key) : size_t {
         return key.hash()
@@ -269,7 +270,7 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
 
 public struct ordered_map_iterator<Key, Value> {
 
-    var node : *mut ordered_map_node<Key, Value>;
+    internal var node : *mut ordered_map_node<Key, Value>;
 
     func next(&mut self) {
         if (node == null) return;

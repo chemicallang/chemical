@@ -181,6 +181,9 @@ internal func neg_debug_print(name : *char, output : *char) {
 
 internal const NEG_MOD = "module neg_test\nsource \".\"\n"
 
+// variant that imports cstd (malloc/free and the C runtime decls)
+internal const NEG_MOD_CSTD = "module neg_test\nsource \".\"\nimport cstd\n"
+
 // variant that imports core so the `Copy` marker interface is in scope
 internal const NEG_MOD_CORE = "module neg_test\nsource \".\"\nimport core\n"
 internal const NEG_MOD_STD_CORE = "module neg_test\nsource \".\"\nimport std\nimport core\n"

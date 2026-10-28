@@ -52,15 +52,52 @@ struct Callee {
     uint64_t (*host)(void*, const uint64_t*, uint32_t) = nullptr;
 };
 
+struct HeapRange {
+    uintptr_t begin = 0;
+    uintptr_t end = 0;
+    bool live = true;
+};
+
+// FrameArena/const/global allocations are registered through the active
+// interpreter's heap range table. The interpreter is single-threaded per
+// engine (parallel comptime jobs have their own Impl), so a thread-local
+// pointer is enough and keeps FrameArena independent of Impl's definition.
+thread_local std::vector<HeapRange>* g_mem_ranges = nullptr;
+thread_local std::vector<std::vector<HeapRange>*> g_mem_range_stack;
+
+static void mem_register(void* p, size_t n) {
+    if (!g_mem_ranges || !p) return;
+    const uintptr_t begin = reinterpret_cast<uintptr_t>(p);
+    const uintptr_t end = begin + (n ? n : 1);
+    for (HeapRange& r : *g_mem_ranges) {
+        if (r.begin == begin && r.end == end) {
+            r.live = true;
+            return;
+        }
+    }
+    g_mem_ranges->push_back(HeapRange{begin, end, true});
+}
+
+static void mem_unregister(void* p) {
+    if (!g_mem_ranges || !p) return;
+    const uintptr_t at = reinterpret_cast<uintptr_t>(p);
+    for (auto it = g_mem_ranges->begin(); it != g_mem_ranges->end();) {
+        if (it->begin == at) it = g_mem_ranges->erase(it);
+        else ++it;
+    }
+}
+
 // ── frame arena ────────────────────────────────────────────────────────────
 
 struct FrameArena {
     std::vector<uint8_t*> blocks;
+    std::vector<std::pair<uint8_t*, size_t>> allocations;
     size_t first_cap = 0;
     uint8_t* cur = nullptr;
     size_t remain = 0;
 
     uint8_t* alloc(size_t n) {
+        const size_t requested = n ? n : 1;
         n = (n + 15u) & ~size_t(15u);
         if (n == 0) n = 16;
         if (n > remain) {
@@ -74,10 +111,17 @@ struct FrameArena {
         uint8_t* p = cur;
         cur += n;
         remain -= n;
+        // Register the individual place rather than the whole arena block:
+        // an index/pointer that walks past a local into the next place is an
+        // out-of-bounds access even though it stays inside the host block.
+        allocations.emplace_back(p, requested);
+        mem_register(p, requested);
         return p;
     }
 
     void reset() {
+        for (const auto& a : allocations) mem_unregister(a.first);
+        allocations.clear();
         if (!blocks.empty()) {
             cur = blocks[0];
             remain = first_cap;
@@ -88,6 +132,7 @@ struct FrameArena {
     }
 
     ~FrameArena() {
+        for (const auto& a : allocations) mem_unregister(a.first);
         for (uint8_t* b : blocks) std::free(b);
     }
 
@@ -122,6 +167,15 @@ struct Frame {
 
 struct MIRInterpreter::Impl {
     const MIRModule& module;
+
+    /**
+     * Heap blocks owned by interpreted `malloc`/`realloc`. Freed blocks stay as
+     * tombstone ranges so a stale pointer is rejected instead of reading
+     * storage that was recycled by the host allocator. Frame/global pointers are
+     * covered by the existing pointer sanity check; the registry is the first
+     * M5.7 slice for host-heap bounds/UAF.
+     */
+    std::vector<HeapRange> heap_ranges;
 
     std::vector<TypeInfo> types;
     std::vector<uint64_t> const_bits;
@@ -194,7 +248,23 @@ struct MIRInterpreter::Impl {
     bool stack_exhausted = false;
     std::string unsupported_error;
 
-    explicit Impl(const MIRModule& m) : module(m) {}
+    explicit Impl(const MIRModule& m) : module(m) {
+        // A nested engine must not leak its frame ranges into the outer one.
+        // Destruction clears the pointer before members are torn down; the
+        // FrameArena destructors then simply skip unregistration.
+        g_mem_range_stack.push_back(&heap_ranges);
+        g_mem_ranges = &heap_ranges;
+    }
+    ~Impl() {
+        if (!g_mem_range_stack.empty() && g_mem_range_stack.back() == &heap_ranges) {
+            g_mem_range_stack.pop_back();
+        } else {
+            for (auto it = g_mem_range_stack.begin(); it != g_mem_range_stack.end(); ++it) {
+                if (*it == &heap_ranges) { g_mem_range_stack.erase(it); break; }
+            }
+        }
+        g_mem_ranges = g_mem_range_stack.empty() ? nullptr : g_mem_range_stack.back();
+    }
 
     // ── type facts ─────────────────────────────────────────────────────────
     void build_types() {
@@ -266,6 +336,7 @@ struct MIRInterpreter::Impl {
         if (const_blocks.empty() || const_block_used_ + need > const_block_cap_) {
             const size_t cap = need > kConstBlockSize ? need : kConstBlockSize;
             const_blocks.emplace_back(std::make_unique<char[]>(cap));
+            mem_register(const_blocks.back().get(), cap);
             const_block_cap_ = cap;
             const_block_used_ = 0;
         }
@@ -368,6 +439,30 @@ struct MIRInterpreter::Impl {
     static uint64_t host_exit(void*, const uint64_t*, uint32_t);
     static uint64_t host_putchar(void*, const uint64_t*, uint32_t);
 
+    void heap_add(void* p, size_t n) {
+        if (p == nullptr) return;
+        const uintptr_t begin = reinterpret_cast<uintptr_t>(p);
+        const uintptr_t end = begin + (n ? n : 1);
+        for (HeapRange& r : heap_ranges) {
+            if (r.begin == begin && r.end == end) {
+                r.live = true;
+                return;
+            }
+        }
+        heap_ranges.push_back(HeapRange{begin, end, true});
+    }
+
+    void heap_free(void* p) {
+        if (p == nullptr) return;
+        const uintptr_t at = reinterpret_cast<uintptr_t>(p);
+        for (HeapRange& r : heap_ranges) {
+            if (at >= r.begin && at < r.end) {
+                r.live = false;
+                return;
+            }
+        }
+    }
+
     static uint64_t (*host_for(const char* name))(void*, const uint64_t*, uint32_t) {
         if (std::strcmp(name, "printf") == 0) return &host_printf;
         if (std::strcmp(name, "malloc") == 0) return &host_malloc;
@@ -421,6 +516,7 @@ struct MIRInterpreter::Impl {
                 storage = it->second;
             } else {
                 storage = static_cast<uint8_t*>(std::calloc(1, sz));
+                mem_register(storage, sz);
                 global_by_name[name] = storage;
             }
             if (g.init != MIR_INVALID_ID) eval_const_into(storage, r.type, g.init);
@@ -468,6 +564,7 @@ struct MIRInterpreter::Impl {
                 } else {
                     uint8_t* st =
                         static_cast<uint8_t*>(std::calloc(1, glb_size(r.type, MIR_INVALID_ID)));
+                    mem_register(st, glb_size(r.type, MIR_INVALID_ID));
                     global_by_name[name] = st;
                     global_addr[s] = st;
                 }
@@ -612,6 +709,7 @@ struct MIRInterpreter::Impl {
                     return;
                 }
                 char* buf = static_cast<char*>(std::malloc(e.data_count + 1));
+                mem_register(buf, e.data_count + 1);
                 std::memcpy(buf, module.const_exprs.data.data_at(e.data_offset), e.data_count);
                 buf[e.data_count] = '\0';
                 store_scalar(dst, info, reinterpret_cast<uint64_t>(buf));
@@ -1132,12 +1230,61 @@ struct MIRInterpreter::Impl {
         return v < 0x0000800000000000ULL;
     }
 
+    /**
+     * Check that [p, p+n) is inside one live host-heap block. An address that
+     * is not in the heap registry falls back to the pointer sanity check, so
+     * frame/global/constant storage keeps working; a registered block is
+     * checked exactly, including its tombstones after free/realloc.
+     */
+    bool check_mem(const void* p, size_t n) {
+        if (p == nullptr) return n == 0;
+        const uintptr_t at = reinterpret_cast<uintptr_t>(p);
+        if (n != 0 && at > UINTPTR_MAX - n) return false;
+        const uintptr_t end = at + n;
+        bool in_registry = false;
+        for (const HeapRange& r : heap_ranges) {
+            if (at < r.begin || at >= r.end) continue;
+            in_registry = true;
+            // A live allocation that fully contains the access wins even if
+            // an older tombstone happens to share the address after reuse.
+            if (r.live && end <= r.end) return true;
+        }
+        if (in_registry) {
+            unsupported_error = "MIR interpreter: out-of-bounds heap access";
+            return false;
+        }
+        return valid_ptr(p);
+    }
+
+    /**
+     * Bounded `strlen` for a registered heap block. Foreign/unregistered
+     * pointers keep the host behavior; a registered block that has no NUL
+     * before its end is a real out-of-bounds read and is reported instead of
+     * letting the host scan into the next allocation.
+     */
+    size_t checked_strlen(const char* s) {
+        if (s == nullptr) return 0;
+        if (!check_mem(s, 1)) return 0;
+        const uintptr_t at = reinterpret_cast<uintptr_t>(s);
+        for (const HeapRange& r : heap_ranges) {
+            if (at < r.begin || at >= r.end || !r.live) continue;
+            for (uintptr_t q = at; q < r.end; ++q) {
+                if (*reinterpret_cast<const char*>(q) == '\0')
+                    return static_cast<size_t>(q - at);
+            }
+            unsupported_error = "MIR interpreter: unterminated heap string";
+            return 0;
+        }
+        return std::strlen(s);
+    }
+
     void read_value(Frame& f, ValueId rp, uint8_t* src, const TypeInfo& rti) {
-        if (!valid_ptr(src)) {
-            std::fprintf(stderr, "[MIR] read_value bad src=%p fn=%s\n", src,
-                         symbol_name(f.fn->symbol).c_str());
-            std::fflush(stderr);
-            std::abort();
+        const size_t bytes = rti.size ? rti.size : (rti.is_double ? 8u : 1u);
+        if (!check_mem(src, bytes)) {
+            unsupported_error = "MIR interpreter: out-of-bounds read in '" +
+                                symbol_name(f.fn->symbol) + "'";
+            f.values[rp] = 0;
+            return;
         }
         if (!src) { f.values[rp] = 0; return; }
         if (rti.is_aggregate) {
@@ -1152,11 +1299,11 @@ struct MIRInterpreter::Impl {
 
     // Write `src` (a Value scalar/pointer, or a Place) into `dst` typed `dti`.
     void store_into(Frame& f, uint8_t* dst, const TypeInfo& dti, const MIROperand& src) {
-        if (!valid_ptr(dst)) {
-            std::fprintf(stderr, "[MIR] store_into bad dst=%p fn=%s\n", dst,
-                         symbol_name(f.fn->symbol).c_str());
-            std::fflush(stderr);
-            std::abort();
+        const size_t bytes = dti.size ? dti.size : 1u;
+        if (!check_mem(dst, bytes)) {
+            unsupported_error = "MIR interpreter: out-of-bounds write in '" +
+                                symbol_name(f.fn->symbol) + "'";
+            return;
         }
         if (src.kind() == MIROperandKind::Place) {
             uint8_t* s = f.places[src.id];
@@ -1222,6 +1369,7 @@ struct MIRInterpreter::Impl {
         uint64_t result = 0;
         bool returned = false;
         while (!returned) {
+            if (!unsupported_error.empty()) { returned = true; break; }
             const MIRInstruction& ins = fn.instructions[ip];
             const uint32_t rp = ins.result_or_place;
             switch (ins.opcode()) {
@@ -1459,6 +1607,16 @@ struct MIRInterpreter::Impl {
                     uint8_t* s = (src->kind() == MIROperandKind::Place)
                                      ? f.places[src->id]
                                      : reinterpret_cast<uint8_t*>(operand_bits(f, *src));
+                    if (s && d && dt.size &&
+                        !check_mem(d, dt.size)) {
+                        unsupported_error = "MIR interpreter: out-of-bounds copy destination";
+                        break;
+                    }
+                    if (s && d && dt.size &&
+                        !check_mem(s, dt.size)) {
+                        unsupported_error = "MIR interpreter: out-of-bounds copy source";
+                        break;
+                    }
                     if (s && d && dt.size) std::memcpy(d, s, dt.size);
                     break;
                 }
@@ -1472,6 +1630,10 @@ struct MIRInterpreter::Impl {
                         uint8_t* s = (src->kind() == MIROperandKind::Place)
                                          ? f.places[src->id]
                                          : reinterpret_cast<uint8_t*>(operand_bits(f, *src));
+                        if (s && d && dt.size && (!check_mem(d, dt.size) || !check_mem(s, dt.size))) {
+                            unsupported_error = "MIR interpreter: out-of-bounds aggregate copy";
+                            break;
+                        }
                         if (s && d && dt.size) std::memcpy(d, s, dt.size);
                     } else {
                         store_scalar(d, dt, operand_bits(f, *src));
@@ -1489,6 +1651,10 @@ struct MIRInterpreter::Impl {
                                      : reinterpret_cast<uint8_t*>(operand_bits(f, *src));
                     const size_t n = sz ? static_cast<size_t>(operand_bits(f, *sz))
                                         : ti(fn.places[dest->id].type).size;
+                    if (d && s && n && (!check_mem(d, n) || !check_mem(s, n))) {
+                        unsupported_error = "MIR interpreter: out-of-bounds memcpy";
+                        break;
+                    }
                     if (d && s && n) std::memmove(d, s, n);
                     break;
                 }
@@ -1505,6 +1671,10 @@ struct MIRInterpreter::Impl {
                     if (sz) n = static_cast<size_t>(operand_bits(f, *sz));
                     else if (dest->kind() == MIROperandKind::Place) n = ti(fn.places[dest->id].type).size;
                     else break;
+                    if (d && n && !check_mem(d, n)) {
+                        unsupported_error = "MIR interpreter: out-of-bounds memset";
+                        break;
+                    }
                     if (d && n) std::memset(d, b, n);
                     break;
                 }
@@ -1636,42 +1806,73 @@ struct MIRInterpreter::Impl {
 // ── host functions ─────────────────────────────────────────────────────────
 uint64_t MIRInterpreter::Impl::host_malloc(void* self, const uint64_t* a, uint32_t n) {
     const size_t sz = n ? static_cast<size_t>(a[0]) : 1;
-    return reinterpret_cast<uint64_t>(std::malloc(sz ? sz : 1));
+    auto* impl = static_cast<Impl*>(self);
+    void* p = std::malloc(sz ? sz : 1);
+    if (impl) impl->heap_add(p, sz ? sz : 1);
+    return reinterpret_cast<uint64_t>(p);
 }
-uint64_t MIRInterpreter::Impl::host_free(void*, const uint64_t*, uint32_t) { return 0; }
-uint64_t MIRInterpreter::Impl::host_realloc(void*, const uint64_t* a, uint32_t n) {
+uint64_t MIRInterpreter::Impl::host_free(void* self, const uint64_t* a, uint32_t n) {
+    if (self && n) static_cast<Impl*>(self)->heap_free(reinterpret_cast<void*>(a[0]));
+    return 0;
+}
+uint64_t MIRInterpreter::Impl::host_realloc(void* self, const uint64_t* a, uint32_t n) {
     if (n < 2) return 0;
-    return reinterpret_cast<uint64_t>(
-        std::realloc(reinterpret_cast<void*>(a[0]), static_cast<size_t>(a[1])));
+    auto* impl = static_cast<Impl*>(self);
+    const size_t sz = static_cast<size_t>(a[1]);
+    void* old = reinterpret_cast<void*>(a[0]);
+    void* p = std::realloc(old, sz ? sz : 1);
+    if (p && impl) {
+        impl->heap_free(old);
+        impl->heap_add(p, sz ? sz : 1);
+    }
+    return reinterpret_cast<uint64_t>(p);
 }
-uint64_t MIRInterpreter::Impl::host_memcpy(void*, const uint64_t* a, uint32_t n) {
+uint64_t MIRInterpreter::Impl::host_memcpy(void* self, const uint64_t* a, uint32_t n) {
     if (n < 3) return (a && n) ? a[0] : 0;
+    auto* impl = static_cast<Impl*>(self);
+    if (impl && (!impl->check_mem(reinterpret_cast<void*>(a[0]), static_cast<size_t>(a[2])) ||
+                 !impl->check_mem(reinterpret_cast<void*>(a[1]), static_cast<size_t>(a[2])))) {
+        return 0;
+    }
     std::memcpy(reinterpret_cast<void*>(a[0]), reinterpret_cast<void*>(a[1]),
                 static_cast<size_t>(a[2]));
     return a[0];
 }
-uint64_t MIRInterpreter::Impl::host_memmove(void*, const uint64_t* a, uint32_t n) {
+uint64_t MIRInterpreter::Impl::host_memmove(void* self, const uint64_t* a, uint32_t n) {
     if (n < 3) return (a && n) ? a[0] : 0;
+    auto* impl = static_cast<Impl*>(self);
+    if (impl && (!impl->check_mem(reinterpret_cast<void*>(a[0]), static_cast<size_t>(a[2])) ||
+                 !impl->check_mem(reinterpret_cast<void*>(a[1]), static_cast<size_t>(a[2])))) {
+        return 0;
+    }
     std::memmove(reinterpret_cast<void*>(a[0]), reinterpret_cast<void*>(a[1]),
                  static_cast<size_t>(a[2]));
     return a[0];
 }
-uint64_t MIRInterpreter::Impl::host_memset(void*, const uint64_t* a, uint32_t n) {
+uint64_t MIRInterpreter::Impl::host_memset(void* self, const uint64_t* a, uint32_t n) {
     if (n < 3) return (a && n) ? a[0] : 0;
+    auto* impl = static_cast<Impl*>(self);
+    if (impl && !impl->check_mem(reinterpret_cast<void*>(a[0]), static_cast<size_t>(a[2]))) {
+        return 0;
+    }
     std::memset(reinterpret_cast<void*>(a[0]), static_cast<int>(a[1]),
                 static_cast<size_t>(a[2]));
     return a[0];
 }
-uint64_t MIRInterpreter::Impl::host_strlen(void*, const uint64_t* a, uint32_t n) {
+uint64_t MIRInterpreter::Impl::host_strlen(void* self, const uint64_t* a, uint32_t n) {
     if (!n) return 0;
+    auto* impl = static_cast<Impl*>(self);
     const char* s = reinterpret_cast<const char*>(a[0]);
-    return s ? std::strlen(s) : 0;
+    return impl ? impl->checked_strlen(s) : (s ? std::strlen(s) : 0);
 }
-uint64_t MIRInterpreter::Impl::host_strcmp(void*, const uint64_t* a, uint32_t n) {
+uint64_t MIRInterpreter::Impl::host_strcmp(void* self, const uint64_t* a, uint32_t n) {
     if (n < 2) return 0;
+    auto* impl = static_cast<Impl*>(self);
     const char* x = reinterpret_cast<const char*>(a[0]);
     const char* y = reinterpret_cast<const char*>(a[1]);
     if (!x || !y) return x == y ? 0 : (x ? 1 : static_cast<uint64_t>(-1));
+    if (impl && (impl->checked_strlen(x) == 0 || impl->checked_strlen(y) == 0) &&
+        !impl->unsupported_error.empty()) return 0;
     return static_cast<uint64_t>(static_cast<int64_t>(std::strcmp(x, y)));
 }
 uint64_t MIRInterpreter::Impl::host_putchar(void*, const uint64_t* a, uint32_t n) {

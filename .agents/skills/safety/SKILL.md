@@ -282,7 +282,7 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `51`, negative tests `507`.
+  `51`, negative tests `509`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -293,8 +293,16 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `51`, negative `507`; TCC main `2353`, LLVM
+  TCC/LLVM lib runs. Safety suite `51`, negative `509`; TCC main `2353`, LLVM
   main `2351`, interpret `1909`.
+- M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
+  tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
+  range-checked, frame places are registered individually, and globals,
+  constant blocks and comptime string buffers are registered. Violations set
+  an interpreter error (no host abort). Nested interpreter registries are
+  stacked so a nested comptime driver cannot unregister the outer frame.
+  Negative tests cover comptime heap OOB and use-after-free. Provenance beyond
+  range and foreign pointers are M5.7b.
 - S4.3b autoref / S4.7 two-phase: a reference receiver (`&self` / `&mut self`)
   now lowers to `Borrow`/`BorrowMut` instead of an untracked `AddressOf`, and
   method-call arguments are evaluated before the receiver borrow is activated.

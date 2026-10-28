@@ -732,3 +732,17 @@ func neg_zeroed_enum_without_zero_rejected(env : &mut TestEnv) {
     var ch = "enum Color : int {\n    Red = 1,\n    Green = 2\n}\npublic func main() : int {\n    var c = zeroed<Color>()\n    return 0\n}\n"
     expect_compile_error(env, "zeroed_enum_without_zero", ch, "SAFE-VALID-004")
 }
+
+@test
+func neg_comptime_heap_out_of_bounds_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    comptime {\n        var p = unsafe(malloc(4)) as *mut int\n        p[1] = 1\n        unsafe(free(p))\n    }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "comptime_heap_oob", ch, "out-of-bounds write", NEG_MOD_CSTD)
+}
+
+@test
+func neg_comptime_heap_use_after_free_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    comptime {\n        var p = unsafe(malloc(4)) as *mut int\n        unsafe(free(p))\n        var x = p[0]\n    }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "comptime_heap_uaf", ch, "out-of-bounds read", NEG_MOD_CSTD)
+}

@@ -780,7 +780,7 @@
 > (the internal sret/pointer prototype ABI is not the C ABI); pointer-based FFI
 > remains allowed. A runtime test covers the invalid-layout panic and a
 > negative test covers the aggregate FFI rejection. Safety suite `51`; negative
-> tests `507`; `MIRTests` `4638 checks`.
+> tests `509`; `MIRTests` `4638 checks`.
 > M5.2a validity guards: `SAFE-VALID-002` rejects an integer/float/pointer to
 > `bool` cast in safe code (the `atomic` CAS helpers now use `!= 0`);
 > `SAFE-VALID-003` rejects an integer literal whose value is not a declared
@@ -797,14 +797,24 @@
 > `const` uses its AST initializer rather than a shared name lookup. This closes
 > the intermittent `span`/`string_view` `intrinsics::size` rejection; TCC and
 > LLVM libs were each run repeatedly with `719/719`.
+> M5.7a interpreter memory guard: the MIR interpreter keeps a live/tombstone
+> range for every host `malloc`/`realloc` block, checks reads/writes (scalar,
+> aggregate, `memcpy`/`memmove`/`memset`) before touching memory, and reports
+> an interpreter error instead of aborting. Frame places are registered
+> individually, and globals/constant blocks/string tables are registered as
+> they are created; a nested interpreter registry is stacked so a nested
+> comptime driver cannot unregister the outer frame. Negative tests cover a
+> comptime heap out-of-bounds write and a use-after-free read. Provenance
+> beyond range (cross-frame stale pointers) and
+> bounds-checked host `strlen`/`printf`/foreign pointers remain M5.7b.
 > `catch_unwind`/`UnwindSafe` and the unwinding/drop-on-unwind profile remain
-> S5.6b. Safety suite `51`; negative tests `507`; main TCC `2353`, LLVM `2351`;
+> S5.6b. Safety suite `51`; negative tests `509`; main TCC `2353`, LLVM `2351`;
 > interpret `1909`; `MIRTests` `4638 checks`.
-> Next: runtime/checked integer-to-enum conversion and `NonNull` contract,
-> S5.6b (`catch_unwind`/unwinding + `UnwindSafe`/`RefUnwindSafe`/
-> `AssertUnwindSafe`), remaining M5 validity (packed references), M6
-> `Send`/`Sync` enforcement, M2 C ABI, and the variance/HRTB/temporary-lifetime
-> precision items.
+> Next: M5.7b provenance/foreign-pointer hardening, runtime/checked
+> integer-to-enum conversion and the `NonNull` contract, S5.6b
+> (`catch_unwind`/unwinding + `UnwindSafe`/`RefUnwindSafe`/`AssertUnwindSafe`),
+> remaining M5 validity (packed references), M6 `Send`/`Sync` enforcement, M2
+> C ABI, and the variance/HRTB/temporary-lifetime precision items.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

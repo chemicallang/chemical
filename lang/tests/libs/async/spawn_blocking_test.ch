@@ -9,7 +9,7 @@ var sb_runs : int = 0;
 
 @test
 func test_async_spawn_blocking_eager(env : &mut TestEnv) {
-    var v = async::block_on(async::spawn_blocking<int>(() => 42))
+    var v = async::block_on(unsafe(async::spawn_blocking<int>(() => 42)))
     if(v != 42) {
         env.error("spawn_blocking eager result mismatch")
     }
@@ -18,7 +18,7 @@ func test_async_spawn_blocking_eager(env : &mut TestEnv) {
 @test
 func test_async_spawn_blocking_captures(env : &mut TestEnv) {
     var base = 40
-    var v = async::block_on(async::spawn_blocking<int>(|base|() => base + 2))
+    var v = async::block_on(unsafe(async::spawn_blocking<int>(|base|() => base + 2)))
     if(v != 42) {
         env.error("spawn_blocking capturing result mismatch")
     }
@@ -26,7 +26,7 @@ func test_async_spawn_blocking_captures(env : &mut TestEnv) {
 
 @test
 func test_async_spawn_blocking_destructible_result(env : &mut TestEnv) {
-    var s = async::block_on(async::spawn_blocking<std::string>(() => std::string("hello")))
+    var s = async::block_on(unsafe(async::spawn_blocking<std::string>(() => std::string("hello"))))
     if(s.size() != 5u) {
         env.error("spawn_blocking string result size mismatch")
     }
@@ -38,14 +38,14 @@ func test_async_spawn_blocking_destructible_result(env : &mut TestEnv) {
 @test
 func test_async_spawn_blocking_destructible_capture(env : &mut TestEnv) {
     var name = std::string("hello-world")
-    var v = async::block_on(async::spawn_blocking<int>(|name|() => name.size() as int))
+    var v = async::block_on(unsafe(async::spawn_blocking<int>(|name|() => name.size() as int)))
     if(v != 11) {
         env.error("spawn_blocking destructible capture size mismatch")
     }
 }
 
 async func sb_capture_and_return(name : std::string) : std::string {
-    var r = await async::spawn_blocking<std::string>(|name|() => name.copy())
+    var r = await unsafe(async::spawn_blocking<std::string>(|name|() => name.copy()))
     return r
 }
 
@@ -59,7 +59,7 @@ func test_async_spawn_blocking_capture_and_return(env : &mut TestEnv) {
 
 // Await a blocking task from inside a compiler-lowered async function.
 async func sb_await_in_async(x : int) : int {
-    var v = await async::spawn_blocking<int>(|x|() => x * 3)
+    var v = await unsafe(async::spawn_blocking<int>(|x|() => x * 3))
     return v + 1
 }
 
@@ -77,7 +77,7 @@ func test_async_spawn_blocking_many(env : &mut TestEnv) {
     var total = 0
     var i = 0
     while(i < 8) {
-        total = total + async::block_on(async::spawn_blocking<int>(|i|() => i * i))
+        total = total + async::block_on(unsafe(async::spawn_blocking<int>(|i|() => i * i)))
         i = i + 1
     }
     if(total != 140) {
@@ -91,11 +91,11 @@ func test_async_spawn_blocking_many(env : &mut TestEnv) {
 func test_async_spawn_blocking_cancel(env : &mut TestEnv) {
     var before = sb_runs
     {
-        var h = async::spawn_blocking<int>(() => {
+        var h = unsafe(async::spawn_blocking<int>(() => {
             std::concurrent.sleep_ms(50u)
             sb_runs = sb_runs + 1
             return 7
-        })
+        }))
         var cx = core::async::Context {
             waker : core::async::Waker.empty()
         }

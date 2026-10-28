@@ -59,7 +59,7 @@ public namespace std {
             }
         }
 
-        func spawn_native(entry:(arg : *void) => *void,arg:*void) : usize {
+        unsafe func spawn_native(entry:(arg : *void) => *void,arg:*void) : usize {
             comptime if(def.windows){
                 var tid:ulong=0u;
                 return CreateThread(null,0u,entry,arg,0u,&raw mut tid) as usize
@@ -91,16 +91,31 @@ public namespace std {
         }
 
         public struct Thread {
-            var handle : usize
-            func join(&self) {
+            // The native handle is unverified; safe code must not forge a
+            // thread and call join on an arbitrary value.
+            private var handle : usize
+            private var valid : bool
+
+            public unsafe func from_raw(h : usize) : Thread {
+                return Thread { handle : h, valid : true }
+            }
+
+            func join(&mut self) {
+                if(!valid) {
+                    panic("thread handle is invalid or already joined")
+                }
+                valid = false
                 join_native(handle)
             }
         }
 
-        public func spawn(entry:(arg : *void) => *void, arg:*void) : Thread {
-            return Thread {
-                handle : spawn_native(entry, arg)
-            }
+        // Moving a raw entry/argument pair to another thread is only sound
+        // when the caller has proved the pointee outlives the thread and that
+        // the entry reaches no non-Send state. The compiler cannot check that
+        // through `*void`, so thread creation is an explicit unsafe boundary
+        // until scoped/Send-typed threads land (M6.3).
+        public unsafe func spawn(entry:(arg : *void) => *void, arg:*void) : Thread {
+            return unsafe(Thread.from_raw(unsafe(spawn_native(entry, arg))))
         }
 
         public struct Promise<T> {
@@ -211,7 +226,7 @@ public namespace std {
             var workers:std.vector<usize>;
             var run:bool
 
-            public func <T> submit(&mut self, f:std.function<() => T>):Future<T>{
+            public unsafe func <T> submit(&mut self, f:std.function<() => T>):Future<T>{
                 var prom=unsafe(malloc(sizeof(Promise<T>))) as *mut Promise<T>;
                 if(prom == null) {
                     panic("failed to allocate thread pool promise")
@@ -238,7 +253,7 @@ public namespace std {
                 return Future<T>(prom)
             }
 
-            public func submit_void(&mut self, f:std.function<() => void>){
+            public unsafe func submit_void(&mut self, f:std.function<() => void>){
                 m.lock();
                 q.push_back(Task{ f:f });
                 cv.notify_one();
@@ -268,12 +283,12 @@ public namespace std {
 
             private var data : *mut PoolData
 
-            public func <T> submit(&self, f:std.function<() => T>):Future<T> {
-                return data.submit<T>(f)
+            public unsafe func <T> submit(&self, f:std.function<() => T>):Future<T> {
+                return unsafe(data.submit<T>(f))
             }
 
-            public func submit_void(&self, f:std.function<() => void>) {
-                data.submit_void(f)
+            public unsafe func submit_void(&self, f:std.function<() => void>) {
+                unsafe { data.submit_void(f) }
             }
 
             @delete
@@ -303,7 +318,7 @@ public namespace std {
             };
             var i:uint=0u;
             while(i<n){
-                var h=spawn_native(worker_main, p as *void);
+                var h=unsafe(spawn_native(worker_main, p as *void));
                 p.workers.push_back(h);
                 i=i+1u
             }

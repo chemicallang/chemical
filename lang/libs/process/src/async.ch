@@ -24,17 +24,17 @@ using std::vector;
 // `std::replace` takes the value out and leaves a zeroed capture behind, whose
 // destructor is a no-op.
 public async func execute_async(cfg : ProcessConfig) : PR_Result {
-    var result = await async::spawn_blocking<PR_Result>(|cfg|() => execute(std::replace<ProcessConfig>(&mut cfg, zeroed:unsafe<ProcessConfig>())))
+    var result = await unsafe(async::spawn_blocking<PR_Result>(|cfg|() => execute(std::replace<ProcessConfig>(&mut cfg, zeroed:unsafe<ProcessConfig>()))))
     return result
 }
 
 public async func spawn_async(cfg : ProcessConfig) : CP_Result {
-    var result = await async::spawn_blocking<CP_Result>(|cfg|() => spawn(std::replace<ProcessConfig>(&mut cfg, zeroed:unsafe<ProcessConfig>())))
+    var result = await unsafe(async::spawn_blocking<CP_Result>(|cfg|() => spawn(std::replace<ProcessConfig>(&mut cfg, zeroed:unsafe<ProcessConfig>()))))
     return result
 }
 
 public async func wait_async(child : *mut ChildProcess) : PR_Result {
-    var result = await async::spawn_blocking<PR_Result>(|child|() => wait(child))
+    var result = await unsafe(async::spawn_blocking<PR_Result>(|child|() => wait(child)))
     return result
 }
 

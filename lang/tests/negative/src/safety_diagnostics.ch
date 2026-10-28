@@ -663,3 +663,44 @@ func extern_call_in_unsafe_ok(env : &mut TestEnv) {
     var ch = "@extern func abs(v : int) : int\npublic func main() : int {\n    return unsafe(abs(-1))\n}\n"
     expect_compile_success(env, "ffi_extern_call_unsafe", ch)
 }
+
+@test
+func neg_generic_unsafe_function_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Generic calls link to the GenericFuncDecl wrapper, not the concrete
+    // FunctionDeclaration copy. The parser must put `unsafe` on its master.
+    var ch = "unsafe func <T> danger(x : T) : T { return x }\npublic func main() : int {\n    var x = danger<int>(1)\n    return x\n}\n"
+    expect_compile_error(env, "generic_unsafe_fn_call", ch, "SAFE-UNSAFE-002")
+}
+
+@test
+func neg_thread_spawn_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // `spawn` moves a raw entry/argument pair to another thread; the compiler
+    // cannot prove the pointee outlives the thread or that captures are Send.
+    var ch = "func entry(arg : *void) : *void { return null }\npublic func main() : int {\n    var t = std::concurrent.spawn(entry, null)\n    t.join()\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "thread_spawn_requires_unsafe", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_async_spawn_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The future frame's captures are erased, so `spawn` cannot check
+    // Send/'static; submitting it is an explicit unsafe boundary.
+    var ch = "async func one() : int { return 1 }\npublic func main() : int {\n    var h = async::spawn<int>(one())\n    return async::block_on<int>(h) - 1\n}\n"
+    expect_compile_error_with_mod(env, "async_spawn_requires_unsafe", ch, "SAFE-UNSAFE-002", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_thread_from_raw_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var t = std::concurrent.Thread.from_raw(0 as usize)\n    t.join()\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "thread_from_raw_requires_unsafe", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_thread_handle_cannot_be_forged(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var t = std::concurrent.Thread { handle : 0 as usize }\n    t.join()\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "thread_handle_forged", ch, "SAFE-VIS-001", NEG_MOD_STD_CORE)
+}

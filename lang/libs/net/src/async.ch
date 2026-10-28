@@ -68,14 +68,14 @@ public func async_listener(addr_str : *char, port : uint) : AsyncSocket {
 
 // Resolves with the connected fd (>0), or 0 on failure.
 public func dial_async(addr_str : *char, port : uint) : core::async::FutureHandle<int> {
-    return async::spawn_blocking<int>(|addr_str, port|() => {
+    return unsafe(async::spawn_blocking<int>(|addr_str, port|() => {
         var s = dial(addr_str, port)
         if(s == 0 as Socket) {
             return 0
         }
         set_nonblocking(s)
         return s as int
-    })
+    }))
 }
 
 // ---- accept ----------------------------------------------------------------

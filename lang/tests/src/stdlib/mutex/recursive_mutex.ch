@@ -55,7 +55,7 @@ func test_recursive_mutex_concurrent() : bool {
                 m.unlock()
                 m.unlock()
             }
-            pool.submit_void(task)
+            unsafe(pool.submit_void(task))
             i += 1u
         }
     }

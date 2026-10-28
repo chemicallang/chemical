@@ -280,7 +280,7 @@ public namespace net {
             }
             if(!g_async_iocp_started) {
                 g_async_iocp_started = true
-                std::concurrent.spawn(async_iocp_dispatch_entry, &raw mut g_async_iocp)
+                unsafe(std::concurrent.spawn(async_iocp_dispatch_entry, &raw mut g_async_iocp))
             }
             g_async_iocp_lock.unlock()
             return &raw mut g_async_iocp

@@ -62,7 +62,7 @@ func tls13_dummy_accept_main(arg : *void) : *void {
 // crash itself is the bug to fix.)
 @test
 public func https_tls13_server_handshake_is_not_implemented(env : &mut TestEnv) {
-    var th = std.concurrent.spawn(tls13_dummy_accept_main, null);
+    var th = unsafe(std.concurrent.spawn(tls13_dummy_accept_main, null));
     std.concurrent.sleep_ms(150u);
 
     var client = http::Client();

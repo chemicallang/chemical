@@ -104,6 +104,6 @@ func test_async_large_variant_return_await(env : &mut TestEnv) {
 @test
 func test_async_large_variant_spawn_blocking(env : &mut TestEnv) {
     var z = 1
-    var r = async::block_on<B26Result>(async::spawn_blocking<B26Result>(|z|() => b26_mk_hr(204, string("No Content"))))
+    var r = async::block_on<B26Result>(unsafe(async::spawn_blocking<B26Result>(|z|() => b26_mk_hr(204, string("No Content")))))
     b26_check(env, r, 204, 11, 10)
 }

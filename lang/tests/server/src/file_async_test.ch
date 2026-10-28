@@ -58,7 +58,7 @@ public func INT_server_async_file_get(env : &mut TestEnv) {
     var cfg = server::ServerConfig()
     cfg.addr = string("127.0.0.1:19881")
     var srv = server::Server(cfg)
-    var server_f = async::spawn<int>(server::serve_files_async(&raw mut srv, root.data(), 19881u))
+    var server_f = unsafe(async::spawn<int>(server::serve_files_async(&raw mut srv, root.data(), 19881u)))
     var unit = async::block_on<core::async::Unit>(async::yield_now())
 
     var box = server_async_get(string_view("http://127.0.0.1:19881/chemical_tier6_server_test.txt"))
@@ -91,7 +91,7 @@ public func INT_server_async_404(env : &mut TestEnv) {
     var cfg = server::ServerConfig()
     cfg.addr = string("127.0.0.1:19882")
     var srv = server::Server(cfg)
-    var server_f = async::spawn<int>(server::serve_files_async(&raw mut srv, root.data(), 19882u))
+    var server_f = unsafe(async::spawn<int>(server::serve_files_async(&raw mut srv, root.data(), 19882u)))
     var unit = async::block_on<core::async::Unit>(async::yield_now())
 
     var box = server_async_get(string_view("http://127.0.0.1:19882/definitely_missing_tier6_file.txt"))

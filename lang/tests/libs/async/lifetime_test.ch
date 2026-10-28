@@ -156,7 +156,7 @@ func test_select_cancels_loser_destroys_locals(env : &mut TestEnv) {
 func test_spawn_cancel_destroys_task_locals(env : &mut TestEnv) {
     life_drops = 0;
     {
-        var h = async::spawn<int>(life_sleeper(100000u, 3))
+        var h = unsafe(async::spawn<int>(life_sleeper(100000u, 3)))
         // Drive the executor so the task runs up to its suspension.
         var u = async::block_on<core::async::Unit>(async::yield_now())
         // `h` is dropped here, cancelling the task.
@@ -177,7 +177,7 @@ async func life_make_str(n : int) : std::string {
 
 @test
 func test_spawn_destructible_payload(env : &mut TestEnv) {
-    var s = async::block_on<std::string>(async::spawn<std::string>(life_make_str(1)))
+    var s = async::block_on<std::string>(unsafe(async::spawn<std::string>(life_make_str(1))))
     if(s.size() != 10u) {
         env.error("spawned destructible payload size mismatch")
     }

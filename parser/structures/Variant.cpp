@@ -8,6 +8,7 @@
 #include "ast/base/TypeBuilder.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/GenericVariantDecl.h"
+#include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/VariantMemberParam.h"
 
@@ -114,9 +115,7 @@ bool Parser::parseAnyVariantMember(ASTAllocator& allocator, ASTAllocator& body_a
                 const auto unsafe_func = parseFunctionStructureTokens(
                     allocator, body_allocator, specifier, false, comptime
                 );
-                if(unsafe_func != nullptr && unsafe_func->kind() == ASTNodeKind::FunctionDecl) {
-                    unsafe_func->as_function_unsafe()->set_unsafe(true);
-                }
+                mark_parsed_function_unsafe(unsafe_func);
                 if(unsafe_func) {
                     def->get_parsed_nodes_container().emplace_back(unsafe_func);
                     return true;

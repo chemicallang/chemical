@@ -129,9 +129,9 @@ public namespace server {
                 // so restore blocking here
                 net::set_blocking(s);
 
-                S.pool.submit_void(|S, s|() => {
+                unsafe(S.pool.submit_void(|S, s|() => {
                     S.handle_conn(s);
-                });
+                }));
             }
             net::close_socket(S.listen_sock);
             S.listen_sock = 0u;
@@ -194,7 +194,7 @@ public namespace server {
 
         func serve_async(&mut self, port : uint = 8080u) : std.concurrent.Thread {
             start(port);
-            return std.concurrent.spawn(accept_main, &raw mut self);
+            return unsafe(std.concurrent.spawn(accept_main, &raw mut self));
         }
 
         func serve(&mut self, port : uint = 8080u) {
@@ -204,9 +204,9 @@ public namespace server {
                 new (cp) net::iocp::CompletionPort(self.cfg.worker_count);
                 var i = 0u;
                 while(i < self.cfg.worker_count) {
-                    self.pool.submit_void(|cp|() => {
+                    unsafe(self.pool.submit_void(|cp|() => {
                         while(true) { cp.poll(500); }
-                    });
+                    }));
                     i = i + 1u;
                 }
                 printf("Server running with IOCP on %s\n", self.cfg.addr.data());

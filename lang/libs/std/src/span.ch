@@ -8,15 +8,15 @@ public struct span<T> {
     @implicit
     @constructor
     @expand
-    comptime func make2(array : []%maybe_runtime<T>) {
-        return constructor<T>(array, intrinsics::size(array))
+    comptime func make2(vec : %maybe_runtime<&vector<T>>) {
+        return constructor<T>(vec.data(), vec.size())
     }
 
     @implicit
     @constructor
     @expand
-    comptime func make2(vec : %maybe_runtime<&vector<T>>) {
-        return constructor<T>(vec.data(), vec.size())
+    comptime func make2(array : []%maybe_runtime<T>) {
+        return constructor<T>(array, intrinsics::size(array))
     }
 
     @constructor

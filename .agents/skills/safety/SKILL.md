@@ -266,8 +266,17 @@ Implemented:
   file/line/column; the abort profile reports `panic: <reason> at
   <file>:<line>:<col>` on both C and LLVM. `std::panic::raw_panic` uses
   `__chc_panic`. No unwinding profile yet, so no unwind can cross FFI.
-  Runtime tests assert the bounds reason and panic message; safety suite `49`,
+  Runtime tests assert the bounds reason and panic message; safety suite `50`,
   `MIRTests` `4638 checks`.
+- S6.1a raw thread/async submission: `std::concurrent.spawn`,
+  `ThreadPool.submit`/`submit_void`, and `async::spawn`/`spawn_local`/
+  `spawn_blocking` are `unsafe` until erased-capture `Send`/`'static` tracking
+  lands. `Thread`'s handle is private and only the unsafe `from_raw` constructs
+  it. The parser/type-checker now honors `unsafe` on generic functions (the
+  flag lives on the `GenericFuncDecl` master, not only a concrete copy), and
+  `unsafe(...)` is valid as an expression statement. Negative tests `503`;
+  TCC main `2351`, LLVM main `2349`. A compiler-side `span` implicit-overload /
+  `intrinsics::size` nondeterminism remains a compile-time follow-up.
 - S4.3b autoref / S4.7 two-phase: a reference receiver (`&self` / `&mut self`)
   now lowers to `Borrow`/`BorrowMut` instead of an untracked `AddressOf`, and
   method-call arguments are evaluated before the receiver borrow is activated.

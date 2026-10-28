@@ -200,10 +200,10 @@ func test_uuid_v7_concurrency(env : &mut TestEnv) {
     var arg3 = UUIDThreadArg { v : &raw mut v3 };
     var arg4 = UUIDThreadArg { v : &raw mut v4 };
 
-    var t1 = std::concurrent::spawn(uuid_thread_entry, &mut arg1 as *mut void);
-    var t2 = std::concurrent::spawn(uuid_thread_entry, &mut arg2 as *mut void);
-    var t3 = std::concurrent::spawn(uuid_thread_entry, &mut arg3 as *mut void);
-    var t4 = std::concurrent::spawn(uuid_thread_entry, &mut arg4 as *mut void);
+    var t1 = unsafe(std::concurrent::spawn(uuid_thread_entry, &mut arg1 as *mut void));
+    var t2 = unsafe(std::concurrent::spawn(uuid_thread_entry, &mut arg2 as *mut void));
+    var t3 = unsafe(std::concurrent::spawn(uuid_thread_entry, &mut arg3 as *mut void));
+    var t4 = unsafe(std::concurrent::spawn(uuid_thread_entry, &mut arg4 as *mut void));
 
     t1.join();
     t2.join();

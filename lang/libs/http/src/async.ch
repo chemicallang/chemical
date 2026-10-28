@@ -85,45 +85,45 @@ func http_box(client : *mut Client, r : std::Result<Response, std::string>) : *m
 }
 
 public async func request_async(client : *mut Client, req_builder : *mut RequestBuilder) : *mut HttpResult {
-    return await async::spawn_blocking<*mut HttpResult>(|client, req_builder|() => {
+    return await unsafe(async::spawn_blocking<*mut HttpResult>(|client, req_builder|() => {
         return http_box(client, client.request(unsafe(&mut *req_builder)))
-    })
+    }))
 }
 
 public async func get_async(client : *mut Client, url_str : *std::string_view) : *mut HttpResult {
-    return await async::spawn_blocking<*mut HttpResult>(|client, url_str|() => {
+    return await unsafe(async::spawn_blocking<*mut HttpResult>(|client, url_str|() => {
         return http_box(client, client.get(unsafe(&mut *url_str)))
-    })
+    }))
 }
 
 public async func post_async(client : *mut Client, url_str : *std::string_view, body : *std::string_view, content_type : *char = "text/plain") : *mut HttpResult {
-    return await async::spawn_blocking<*mut HttpResult>(|client, url_str, body, content_type|() => {
+    return await unsafe(async::spawn_blocking<*mut HttpResult>(|client, url_str, body, content_type|() => {
         return http_box(client, client.post(unsafe(&mut *url_str), unsafe(&mut *body), content_type))
-    })
+    }))
 }
 
 public async func put_async(client : *mut Client, url_str : *std::string_view, body : *std::string_view, content_type : *char = "text/plain") : *mut HttpResult {
-    return await async::spawn_blocking<*mut HttpResult>(|client, url_str, body, content_type|() => {
+    return await unsafe(async::spawn_blocking<*mut HttpResult>(|client, url_str, body, content_type|() => {
         return http_box(client, client.put(unsafe(&mut *url_str), unsafe(&mut *body), content_type))
-    })
+    }))
 }
 
 public async func patch_async(client : *mut Client, url_str : *std::string_view, body : *std::string_view, content_type : *char = "text/plain") : *mut HttpResult {
-    return await async::spawn_blocking<*mut HttpResult>(|client, url_str, body, content_type|() => {
+    return await unsafe(async::spawn_blocking<*mut HttpResult>(|client, url_str, body, content_type|() => {
         return http_box(client, client.patch(unsafe(&mut *url_str), unsafe(&mut *body), content_type))
-    })
+    }))
 }
 
 public async func delete_async(client : *mut Client, url_str : *std::string_view) : *mut HttpResult {
-    return await async::spawn_blocking<*mut HttpResult>(|client, url_str|() => {
+    return await unsafe(async::spawn_blocking<*mut HttpResult>(|client, url_str|() => {
         return http_box(client, client.delete(unsafe(&mut *url_str)))
-    })
+    }))
 }
 
 public async func head_async(client : *mut Client, url_str : *std::string_view) : *mut HttpResult {
-    return await async::spawn_blocking<*mut HttpResult>(|client, url_str|() => {
+    return await unsafe(async::spawn_blocking<*mut HttpResult>(|client, url_str|() => {
         return http_box(client, client.head(unsafe(&mut *url_str)))
-    })
+    }))
 }
 
 // ---- body ------------------------------------------------------------------
@@ -135,15 +135,15 @@ public func read_chunk_async(b : *mut Body, dst : *mut u8, cap : usize) : core::
 }
 
 public async func body_read_async(b : *mut Body, dst : *mut u8, cap : usize) : int {
-    return await async::spawn_blocking<int>(|b, dst, cap|() => {
+    return await unsafe(async::spawn_blocking<int>(|b, dst, cap|() => {
         return b.read(dst, cap)
-    })
+    }))
 }
 
 public async func read_to_string_async(b : *mut Body) : std::Option<std::string> {
-    return await async::spawn_blocking<std::Option<std::string>>(|b|() => {
+    return await unsafe(async::spawn_blocking<std::Option<std::string>>(|b|() => {
         return b.read_to_string()
-    })
+    }))
 }
 
 }
@@ -165,7 +165,7 @@ public async func serve_coro(srv : *mut Server, port : uint = 8080u) : int {
     // on LLVM — B25.)
     net::set_recv_timeout(listener_fd as net::Socket, 0, 200000)
     while(srv.run) {
-        var accepted = await async::spawn_blocking<int>(|listener_fd|() => net::accept_socket(listener_fd as net::Socket) as int)
+        var accepted = await unsafe(async::spawn_blocking<int>(|listener_fd|() => net::accept_socket(listener_fd as net::Socket) as int))
         if(accepted <= 0) {
             continue
         }
@@ -175,10 +175,10 @@ public async func serve_coro(srv : *mut Server, port : uint = 8080u) : int {
         // the request/body reader uses blocking recv
         net::set_blocking(fd)
         var s = srv
-        var h = async::spawn_blocking<core::async::Unit>(|s, fd|() => {
+        var h = unsafe(async::spawn_blocking<core::async::Unit>(|s, fd|() => {
             s.handle_conn(fd)
             return core::async::Unit { }
-        })
+        }))
     }
     net::close_socket(listener_fd as net::Socket)
     srv.listen_sock = 0u

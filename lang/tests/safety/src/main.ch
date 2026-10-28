@@ -690,3 +690,10 @@ func panic_reports_message(env : &mut TestEnv) {
         env.error("panic did not report its message")
     }
 }
+
+@test
+func thread_double_join_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "func entry(arg : *void) : *void { return null }\npublic func main() : int {\n    var t = unsafe(std::concurrent.spawn(entry, null))\n    t.join()\n    t.join()\n    return 0\n}\n"
+    expect_runtime_panic(env, "thread_double_join_panics", ch)
+}

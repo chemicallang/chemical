@@ -279,7 +279,7 @@ public func FULL_https_concurrent_clients_parallel_handshakes(env : &mut TestEnv
         lock = std.mutex()
     }
 
-    var t1 = std.concurrent.spawn(||(arg : *void) => {
+    var t1 = unsafe(std.concurrent.spawn(||(arg : *void) => {
         var c = arg as *mut FullCapCounter
         var client = http::Client()
         client.insecure_skip_verify()
@@ -296,9 +296,9 @@ public func FULL_https_concurrent_clients_parallel_handshakes(env : &mut TestEnv
             }
         }
         return null
-    }, &raw mut cap)
+    }, &raw mut cap))
 
-    var t2 = std.concurrent.spawn(||(arg : *void) => {
+    var t2 = unsafe(std.concurrent.spawn(||(arg : *void) => {
         var c = arg as *mut FullCapCounter
         var client = http::Client()
         client.insecure_skip_verify()
@@ -315,9 +315,9 @@ public func FULL_https_concurrent_clients_parallel_handshakes(env : &mut TestEnv
             }
         }
         return null
-    }, &raw mut cap)
+    }, &raw mut cap))
 
-    var t3 = std.concurrent.spawn(||(arg : *void) => {
+    var t3 = unsafe(std.concurrent.spawn(||(arg : *void) => {
         var c = arg as *mut FullCapCounter
         var client = http::Client()
         client.insecure_skip_verify()
@@ -334,9 +334,9 @@ public func FULL_https_concurrent_clients_parallel_handshakes(env : &mut TestEnv
             }
         }
         return null
-    }, &raw mut cap)
+    }, &raw mut cap))
 
-    var t4 = std.concurrent.spawn(||(arg : *void) => {
+    var t4 = unsafe(std.concurrent.spawn(||(arg : *void) => {
         var c = arg as *mut FullCapCounter
         var client = http::Client()
         client.insecure_skip_verify()
@@ -353,7 +353,7 @@ public func FULL_https_concurrent_clients_parallel_handshakes(env : &mut TestEnv
             }
         }
         return null
-    }, &raw mut cap)
+    }, &raw mut cap))
 
     t1.join()
     t2.join()

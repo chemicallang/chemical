@@ -31,7 +31,7 @@ public func NET_send_all_megabyte_integrity(env : &mut TestEnv) {
     var ls = listen_addr("127.0.0.1", PORT)
     if(ls == 0 as Socket) { env.error("listen failed"); return }
 
-    var sender = std.concurrent.spawn(||(arg : *void) => {
+    var sender = unsafe(std.concurrent.spawn(||(arg : *void) => {
         var sock = dial("127.0.0.1", 20450u)
         if(sock == 0 as Socket) { return null }
         var buf = unsafe(malloc(1048576u)) as *mut u8
@@ -46,7 +46,7 @@ public func NET_send_all_megabyte_integrity(env : &mut TestEnv) {
         unsafe { dealloc buf }
         close_socket(sock)
         return null
-    }, null)
+    }, null))
 
     std::concurrent::sleep_ms(200u)
     var cs = accept_socket(ls)
@@ -100,7 +100,7 @@ public func NET_recv_partial_on_early_peer_close(env : &mut TestEnv) {
     var ls = listen_addr("127.0.0.1", PORT)
     if(ls == 0 as Socket) { env.error("listen failed"); return }
 
-    var sender = std.concurrent.spawn(||(arg : *void) => {
+    var sender = unsafe(std.concurrent.spawn(||(arg : *void) => {
         var sock = dial("127.0.0.1", 20451u)
         if(sock == 0 as Socket) { return null }
         var buf = unsafe(malloc(1000u)) as *mut u8
@@ -110,7 +110,7 @@ public func NET_recv_partial_on_early_peer_close(env : &mut TestEnv) {
         unsafe { dealloc buf }
         close_socket(sock)
         return null
-    }, null)
+    }, null))
 
     std::concurrent::sleep_ms(200u)
     var cs = accept_socket(ls)
@@ -153,14 +153,14 @@ public func NET_dial_resolves_localhost_hostname(env : &mut TestEnv) {
     var ls = listen_addr("127.0.0.1", PORT)
     if(ls == 0 as Socket) { env.error("listen failed"); return }
 
-    var connector = std.concurrent.spawn(||(arg : *void) => {
+    var connector = unsafe(std.concurrent.spawn(||(arg : *void) => {
         var sock = dial("localhost", 20452u)
         if(sock == 0 as Socket) { return null }
         var msg = "ping-hostname\0"
         send_all(sock, msg as *char, 13)
         close_socket(sock)
         return null
-    }, null)
+    }, null))
 
     std::concurrent::sleep_ms(200u)
     var cs = accept_socket(ls)

@@ -7,6 +7,7 @@
 #include "parser/Parser.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericFuncDecl.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/structures/UnnamedStruct.h"
@@ -125,9 +126,7 @@ ASTNode* parseAccessSpecifiedMemberStmt(Parser& parser, ASTAllocator& allocator,
                 const auto fn = parser.parseFunctionStructureTokens(
                     allocator, body_allocator, specifier, false, comptime
                 );
-                if(fn != nullptr && fn->kind() == ASTNodeKind::FunctionDecl) {
-                    fn->as_function_unsafe()->set_unsafe(true);
-                }
+                mark_parsed_function_unsafe(fn);
                 return fn;
             }
             return nullptr;
@@ -176,9 +175,7 @@ ASTNode* parseMemberStmt(Parser& parser, ASTAllocator& allocator, ASTAllocator& 
                 const auto fn = parser.parseFunctionStructureTokens(
                     allocator, body_allocator, specifier, false, comptime
                 );
-                if(fn != nullptr && fn->kind() == ASTNodeKind::FunctionDecl) {
-                    fn->as_function_unsafe()->set_unsafe(true);
-                }
+                mark_parsed_function_unsafe(fn);
                 return fn;
             }
             return nullptr;

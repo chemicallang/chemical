@@ -25,9 +25,9 @@ async func edge_never() : int {
 
 // A never-ready task must not starve the ready ones (executor rotation).
 async func edge_run() : int {
-    var h0 = async::spawn<int>(edge_never())
-    var h1 = async::spawn<int>(edge_task(3, 10))
-    var h2 = async::spawn<int>(edge_task(3, 20))
+    var h0 = unsafe(async::spawn<int>(edge_never()))
+    var h1 = unsafe(async::spawn<int>(edge_task(3, 10)))
+    var h2 = unsafe(async::spawn<int>(edge_task(3, 20)))
     var a = await h1
     var b = await h2
     return a + b
@@ -158,11 +158,11 @@ func test_select_both_ready_takes_first(env : &mut TestEnv) {
 async func edge_close_wakes_recv() : int {
     var ch = async::channel<int>()
     var s = ch.sender.clone_sender()
-    var h = async::spawn_blocking<bool>(|s|() => {
+    var h = unsafe(async::spawn_blocking<bool>(|s|() => {
         std::concurrent.sleep_ms(20u)
         s.close()
         return true
-    })
+    }))
     var v = await ch.receiver.recv_or(-5)
     var u = await h
     return v
@@ -186,14 +186,14 @@ async func edge_mixed_channel_and_reactor() : int {
     }
     // Registers fds[0] and is never ready (nothing writes), so the executor
     // parks in the reactor.
-    var h0 = async::spawn<core::async::Unit>(async::readable(fds[0]))
+    var h0 = unsafe(async::spawn<core::async::Unit>(async::readable(fds[0])))
     var ch = async::channel<int>()
     var s = ch.sender.clone_sender()
-    var h = async::spawn_blocking<bool>(|s|() => {
+    var h = unsafe(async::spawn_blocking<bool>(|s|() => {
         std::concurrent.sleep_ms(20u)
         s.send(42)
         return true
-    })
+    }))
     var v = await ch.receiver.recv_or(-1)
     var u = await h
     unsafe { close(fds[0]) }
@@ -217,13 +217,13 @@ async func edge_inner(x : int) : int {
 }
 
 async func edge_outer(x : int) : int {
-    var h = async::spawn<int>(edge_inner(x))
+    var h = unsafe(async::spawn<int>(edge_inner(x)))
     var v = await h
     return v * 2
 }
 
 async func edge_nested() : int {
-    var h = async::spawn<int>(edge_outer(20))
+    var h = unsafe(async::spawn<int>(edge_outer(20)))
     return await h
 }
 
@@ -280,12 +280,12 @@ async func edge_mixed_select_fd() : int {
         return -1
     }
     var w = fds[1]
-    var h = async::spawn_blocking<bool>(|w|() => {
+    var h = unsafe(async::spawn_blocking<bool>(|w|() => {
         std::concurrent.sleep_ms(10u)
         var c = 'x'
         unsafe { write(w, &raw mut c as *void, 1u as ulong) }
         return true
-    })
+    }))
     var v = await async::select<core::async::Unit>(async::sleep(100000u), async::readable(fds[0]))
     var u = await h
     var buf : [1]char
@@ -312,7 +312,7 @@ async func edge_make_opt(x : int) : std::Option<int> {
 
 @test
 func test_spawn_variant_payload(env : &mut TestEnv) {
-    var d = async::block_on<std::Option<int>>(async::spawn<std::Option<int>>(edge_make_opt(5)))
+    var d = async::block_on<std::Option<int>>(unsafe(async::spawn<std::Option<int>>(edge_make_opt(5))))
     if(d is std::Option.None) {
         env.error("spawned Option payload should be Some")
         return
@@ -321,7 +321,7 @@ func test_spawn_variant_payload(env : &mut TestEnv) {
     if(v != 5) {
         env.error("spawned Option payload value mismatch")
     }
-    var e = async::block_on<std::Option<int>>(async::spawn<std::Option<int>>(edge_make_opt(0)))
+    var e = async::block_on<std::Option<int>>(unsafe(async::spawn<std::Option<int>>(edge_make_opt(0))))
     if(!(e is std::Option.None)) {
         env.error("spawned Option payload should preserve None")
     }

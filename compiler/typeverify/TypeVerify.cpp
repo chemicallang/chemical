@@ -662,7 +662,16 @@ void verify_call_mutability(TypeVerifier& verifier, FunctionCall* call) {
     const auto linked = parent_val->get_chain_last_linked();
     // enum member being used as a no value
     const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
-    const auto func_decl = linked_kind == ASTNodeKind::FunctionDecl ? linked->as_function_unsafe() : nullptr;
+    // A call through an uninstantiated generic declaration links to the
+    // GenericFuncDecl, not its FunctionDeclaration copy. Read the master's
+    // `unsafe` flag; otherwise every `unsafe func <T> ...` is callable from
+    // safe code (SAFE-UNSAFE-002 hole).
+    FunctionDeclaration* func_decl = nullptr;
+    if (linked_kind == ASTNodeKind::FunctionDecl) {
+        func_decl = linked->as_function_unsafe();
+    } else if (linked_kind == ASTNodeKind::GenericFuncDecl) {
+        func_decl = linked->as_gen_func_decl_unsafe()->master_impl;
+    }
     if(func_decl) {
         if(func_decl->is_unsafe() && !verifier.is_unsafe) {
             diagnoser.error(call).with_code("SAFE-UNSAFE-002")

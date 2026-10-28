@@ -198,7 +198,7 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
     }
 
     // Plain worker template â€” two instances.
-    var t1 = std.concurrent.spawn(||(arg : *void) => {
+    var t1 = unsafe(std.concurrent.spawn(||(arg : *void) => {
         var c = arg as *mut MtxCounter
         var client = http::Client()
         var u = string("http://127.0.0.1:20437/")
@@ -214,9 +214,9 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
             }
         }
         return null
-    }, &raw mut cap)
+    }, &raw mut cap))
 
-    var t2 = std.concurrent.spawn(||(arg : *void) => {
+    var t2 = unsafe(std.concurrent.spawn(||(arg : *void) => {
         var c = arg as *mut MtxCounter
         var client = http::Client()
         var u = string("http://127.0.0.1:20437/")
@@ -232,10 +232,10 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
             }
         }
         return null
-    }, &raw mut cap)
+    }, &raw mut cap))
 
     // TLS workers â€” two instances.
-    var t3 = std.concurrent.spawn(||(arg : *void) => {
+    var t3 = unsafe(std.concurrent.spawn(||(arg : *void) => {
         var c = arg as *mut MtxCounter
         var client = http::Client()
         client.insecure_skip_verify()
@@ -252,9 +252,9 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
             }
         }
         return null
-    }, &raw mut cap)
+    }, &raw mut cap))
 
-    var t4 = std.concurrent.spawn(||(arg : *void) => {
+    var t4 = unsafe(std.concurrent.spawn(||(arg : *void) => {
         var c = arg as *mut MtxCounter
         var client = http::Client()
         client.insecure_skip_verify()
@@ -271,7 +271,7 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
             }
         }
         return null
-    }, &raw mut cap)
+    }, &raw mut cap))
 
     t1.join()
     t2.join()
@@ -310,7 +310,7 @@ public func MATRIX_parallel_upload_download_streams(env : &mut TestEnv) {
     }
 
     // Uploader: three 32 KB POST /echo roundtrips verified byte-for-byte.
-    var up = std.concurrent.spawn(||(arg : *void) => {
+    var up = unsafe(std.concurrent.spawn(||(arg : *void) => {
         var s = arg as *mut MtxUpDown
         var client = http::Client()
         client.insecure_skip_verify()
@@ -336,10 +336,10 @@ public func MATRIX_parallel_upload_download_streams(env : &mut TestEnv) {
             }
         }
         return null
-    }, &raw mut st)
+    }, &raw mut st))
 
     // Downloader: three 64 KB GETs verified by length + pattern spot checks.
-    var down = std.concurrent.spawn(||(arg : *void) => {
+    var down = unsafe(std.concurrent.spawn(||(arg : *void) => {
         var s = arg as *mut MtxUpDown
         var client = http::Client()
         client.insecure_skip_verify()
@@ -366,7 +366,7 @@ public func MATRIX_parallel_upload_download_streams(env : &mut TestEnv) {
             }
         }
         return null
-    }, &raw mut st)
+    }, &raw mut st))
 
     up.join()
     down.join()

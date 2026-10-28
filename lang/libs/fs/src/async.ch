@@ -13,23 +13,23 @@ public namespace fs {
 using std::Result;
 
 public async func read_entire_file_async(path : *char) : Result<std::vector<u8>, FsError> {
-    var result = await async::spawn_blocking<Result<std::vector<u8>, FsError>>(
+    var result = await unsafe(async::spawn_blocking<Result<std::vector<u8>, FsError>>(
         |path|() => read_entire_file(path)
-    )
+    ))
     return result
 }
 
 public async func write_text_file_async(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
-    var result = await async::spawn_blocking<Result<UnitTy, FsError>>(
+    var result = await unsafe(async::spawn_blocking<Result<UnitTy, FsError>>(
         |path, data, data_len|() => write_text_file(path, data, data_len)
-    )
+    ))
     return result
 }
 
 public async func atomic_write_async(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
-    var result = await async::spawn_blocking<Result<UnitTy, FsError>>(
+    var result = await unsafe(async::spawn_blocking<Result<UnitTy, FsError>>(
         |path, data, data_len|() => atomic_write(path, data, data_len)
-    )
+    ))
     return result
 }
 

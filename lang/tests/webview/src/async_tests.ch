@@ -28,7 +28,7 @@ var g_ui_await_value : int = 0
 // polls it — the UI thread, when driven by `window_pump`.
 async func async_ui_await_blocking() : int {
     g_ui_await_ran = 1
-    var v = await async::spawn_blocking<int>(() => 20)
+    var v = await unsafe(async::spawn_blocking<int>(() => 20))
     g_ui_await_value = v + 1
     return g_ui_await_value
 }
@@ -52,7 +52,7 @@ func pump_until(done : () => bool, max_iters : int) : bool {
 @test
 public func test_spawn_local_eager(env : &mut TestEnv) {
     g_ui_eager_ran = 0
-    var h = async::spawn_local<int>(async_ui_eager(41))
+    var h = unsafe(async::spawn_local<int>(async_ui_eager(41)))
     var ok = pump_until(() => g_ui_eager_ran > 0, 1000)
     if(!ok) {
         env.error("spawn_local future was not polled by window_pump")
@@ -68,7 +68,7 @@ public func test_spawn_local_eager(env : &mut TestEnv) {
 public func test_spawn_local_await_blocking(env : &mut TestEnv) {
     g_ui_await_ran = 0
     g_ui_await_value = 0
-    var h = async::spawn_local<int>(async_ui_await_blocking())
+    var h = unsafe(async::spawn_local<int>(async_ui_await_blocking()))
     var ok = pump_until(() => g_ui_await_value == 21, 2000)
     if(!ok) {
         env.error("spawn_local continuation after await did not run")
@@ -81,7 +81,7 @@ public func test_spawn_local_value_is_joinable(env : &mut TestEnv) {
     // The eager future also produces a join result; drive it to completion
     // through the pump, then read it via block_on (already complete, so it
     // returns immediately without parking the UI thread).
-    var h = async::spawn_local<int>(async_ui_eager(9))
+    var h = unsafe(async::spawn_local<int>(async_ui_eager(9)))
     window::window_pump()
     var v = async::block_on<int>(h)
     if(v != 10) {
@@ -96,7 +96,7 @@ public func test_spawn_local_cancel_no_crash(env : &mut TestEnv) {
     // must observe cancellation and reclaim them without crashing.
     var i = 0
     while(i < 8) {
-        var h = async::spawn_local<int>(async_ui_eager(i))
+        var h = unsafe(async::spawn_local<int>(async_ui_eager(i)))
         i = i + 1
     }
     window::window_pump()
@@ -128,7 +128,7 @@ public func test_window_run_async_drives_executor(env : &mut TestEnv) {
 
     g_ui_eager_ran = 0
     g_run_async_quit = 0
-    var h = async::spawn_local<int>(async_ui_eager(1))
+    var h = unsafe(async::spawn_local<int>(async_ui_eager(1)))
     // Quit the loop shortly after it starts; the executor tick runs in between.
     window::window_set_timer(50, run_async_quit_cb, null)
     window::window_run_async()

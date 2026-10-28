@@ -205,10 +205,10 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
             }
 
             // actual launch on the thread pool
-            var job = pool.submit<int>(|exe_path, test_id, fn_state, test_retry, timeout_ms|() => {
+            var job = unsafe(pool.submit<int>(|exe_path, test_id, fn_state, test_retry, timeout_ms|() => {
                 launch_test_with_retries(exe_path, test_id, unsafe(&mut *fn_state), test_retry, timeout_ms as uint);
                 return 0;
-            })
+            }))
             asyncJobs.push(job)
 
             test_start++;

@@ -18,9 +18,9 @@ async func chan_worker_sum() : int {
     var s2 = ch.sender.clone_sender()
     var s3 = ch.sender.clone_sender()
     var s4 = ch.sender.clone_sender()
-    var h1 = async::spawn_blocking<bool>(|s2|() => s2.send(1))
-    var h2 = async::spawn_blocking<bool>(|s3|() => s3.send(2))
-    var h3 = async::spawn_blocking<bool>(|s4|() => s4.send(3))
+    var h1 = unsafe(async::spawn_blocking<bool>(|s2|() => s2.send(1)))
+    var h2 = unsafe(async::spawn_blocking<bool>(|s3|() => s3.send(2)))
+    var h3 = unsafe(async::spawn_blocking<bool>(|s4|() => s4.send(3)))
     var total = 0
     var i = 0
     while(i < 3) {

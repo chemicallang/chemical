@@ -10,6 +10,7 @@
 #include "ast/statements/DeallocStmt.h"
 #include "ast/structures/Scope.h"
 #include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/ComptimeBlock.h"
 #include "ast/structures/BlockScope.h"
 #include "ast/values/CastedValue.h"
@@ -19,6 +20,7 @@
 #include "ast/values/BoolValue.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/AwaitExpression.h"
+#include "ast/values/ValueNode.h"
 
 AccessSpecifier get_specifier_from(TokenType type) {
     switch(type) {
@@ -46,9 +48,7 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, Acces
                 const auto fn = parseFunctionStructureTokens(
                     allocator, mod_allocator, spec, true, comptime
                 );
-                if(fn != nullptr && fn->kind() == ASTNodeKind::FunctionDecl) {
-                    fn->as_function_unsafe()->set_unsafe(true);
-                }
+                mark_parsed_function_unsafe(fn);
                 return fn;
             }
             error("expected an unsafe function declaration");
@@ -129,10 +129,16 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
                 const auto fn = parseFunctionStructureTokens(
                     allocator, mod_allocator, AccessSpecifier::Internal, true, comptime
                 );
-                if(fn != nullptr && fn->kind() == ASTNodeKind::FunctionDecl) {
-                    fn->as_function_unsafe()->set_unsafe(true);
-                }
+                mark_parsed_function_unsafe(fn);
                 return fn;
+            }
+            if((token + 1)->type == TokenType::LParen) {
+                token++;
+                auto unsafe_value = parseUnsafeValue(allocator);
+                if(unsafe_value == nullptr) return nullptr;
+                return new (allocator.allocate<ValueNode>()) ValueNode(
+                    unsafe_value, parent_node, unsafe_value->encoded_location()
+                );
             }
             return (ASTNode*) parseUnsafeBlock(allocator);
         case TokenType::ConstKw:
@@ -201,10 +207,16 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
                 const auto fn = parseFunctionStructureTokens(
                     allocator, mod_allocator, AccessSpecifier::Internal, false, false
                 );
-                if(fn != nullptr && fn->kind() == ASTNodeKind::FunctionDecl) {
-                    fn->as_function_unsafe()->set_unsafe(true);
-                }
+                mark_parsed_function_unsafe(fn);
                 return fn;
+            }
+            if((token + 1)->type == TokenType::LParen) {
+                token++;
+                auto unsafe_value = parseUnsafeValue(allocator);
+                if(unsafe_value == nullptr) return nullptr;
+                return new (allocator.allocate<ValueNode>()) ValueNode(
+                    unsafe_value, parent_node, unsafe_value->encoded_location()
+                );
             }
             return (ASTNode*) parseUnsafeBlock(allocator);
         case TokenType::BreakKw:

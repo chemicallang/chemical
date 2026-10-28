@@ -17,7 +17,7 @@ public func INT_http_async_loopback(env : &mut TestEnv) {
         res.write_string(std::string::make_no_len("world"));
     });
 
-    var server_f = async::spawn<int>(server::serve_coro(&raw mut srv, 19891u));
+    var server_f = unsafe(async::spawn<int>(server::serve_coro(&raw mut srv, 19891u)));
     // Let the server bind + start accepting before the client dials.
     var unit = async::block_on<core::async::Unit>(async::yield_now());
 

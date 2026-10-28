@@ -98,7 +98,11 @@ public func blocking_pool() : *mut std::concurrent.ThreadPool {
 
 // Run `f` on the blocking pool and return its future. Await it with
 // `await spawn_blocking(...)` / `async::block_on(...)`.
-public func <T> spawn_blocking(f : std::function<() => T>) : core::async::FutureHandle<T> {
+//
+// The closure's captures are moved to a worker thread. `std::function` erases
+// their types, so the compiler cannot prove `Send`/`'static`; this is an
+// unsafe boundary until capture-type tracking lands (S6.5).
+public unsafe func <T> spawn_blocking(f : std::function<() => T>) : core::async::FutureHandle<T> {
     var st = unsafe(malloc(sizeof(BlockingState<T>))) as *mut BlockingState<T>
     var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
     vtbl.poll = blocking_poll<T>
@@ -113,7 +117,7 @@ public func <T> spawn_blocking(f : std::function<() => T>) : core::async::Future
         vtbl : vtbl
     }
     var pool = blocking_pool()
-    pool.submit_void(|st|() => {
+    unsafe { pool.submit_void(|st|() => {
         var r = st.task()
         st.m.lock()
         var was_abandoned = st.abandoned
@@ -129,6 +133,7 @@ public func <T> spawn_blocking(f : std::function<() => T>) : core::async::Future
             }
         }
     })
+    }
     return unsafe(core::async::future_handle_raw<T>(st as *mut void, vtbl))
 }
 

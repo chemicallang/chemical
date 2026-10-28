@@ -115,6 +115,13 @@ MIRExprResult MIRLowerer::inline_comptime_template(FunctionDeclaration* fd, MIRE
                                                    FunctionCall* call,
                                                    const std::vector<Value*>& call_values,
                                                    std::string& error) {
+    // Templates splice into the caller's scope and publish/fold through the
+    // shared comptime scope. Parallel lowering workers must not interleave
+    // their binding journals / intrinsic folds (span's implicit constructor
+    // calls `intrinsics::size(array)`), or one worker observes another's
+    // argument value and reports an invalid intrinsic.
+    std::unique_lock<std::recursive_mutex> visitor_lock;
+    if (visitor_mutex_) visitor_lock = std::unique_lock<std::recursive_mutex>(*visitor_mutex_);
     if (!fd || !fd->body.has_value()) {
         error = "comptime template has no body";
         return MIRExprResult::error();

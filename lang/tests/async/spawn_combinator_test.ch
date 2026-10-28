@@ -34,7 +34,7 @@ public func test_async_spawn_await_timeout_or(env : &mut TestEnv) {
         env.error("async::pipe failed")
         return
     }
-    var h = async::spawn<int>(b25_timeout_waiter(fds[0]))
+    var h = unsafe(async::spawn<int>(b25_timeout_waiter(fds[0])))
     var v = async::block_on<int>(h)
     if(v != 7) {
         env.error("spawned coroutine awaiting timeout_or did not complete")
@@ -48,7 +48,7 @@ public func test_async_spawn_await_select(env : &mut TestEnv) {
         env.error("async::pipe failed")
         return
     }
-    var h = async::spawn<int>(b25_select_waiter(fds[0]))
+    var h = unsafe(async::spawn<int>(b25_select_waiter(fds[0])))
     var v = async::block_on<int>(h)
     if(v != 9) {
         env.error("spawned coroutine awaiting select did not complete")

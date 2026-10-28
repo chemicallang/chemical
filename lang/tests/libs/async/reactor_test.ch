@@ -17,7 +17,7 @@ async func reactor_readable_roundtrip() : int {
     }
     var rfd = fds[0]
     var wfd = fds[1]
-    var h = async::spawn_blocking<core::async::Unit>(|wfd|() => reactor_write_later(wfd))
+    var h = unsafe(async::spawn_blocking<core::async::Unit>(|wfd|() => reactor_write_later(wfd)))
     var r0 = await async::readable(rfd)
     var buf : [8]char
     var n = unsafe(read(rfd, &raw mut buf[0] as *mut void, 8u)) as int
@@ -47,7 +47,7 @@ async func reactor_asyncfd_readable() : bool {
     }
     var afd = async::AsyncFd { fd : fds[0] }
     var wfd = fds[1]
-    var h = async::spawn_blocking<core::async::Unit>(|wfd|() => reactor_write_later(wfd))
+    var h = unsafe(async::spawn_blocking<core::async::Unit>(|wfd|() => reactor_write_later(wfd)))
     var r2 = await afd.readable()
     var u = await h
     unsafe { close(fds[0]) }

@@ -101,3 +101,19 @@ public:
 
 };
 
+/**
+ * Record the `unsafe` keyword on a parsed function declaration. Generic
+ * functions are represented by a `GenericFuncDecl` wrapper before
+ * instantiation, so the flag belongs on its master implementation; setting it
+ * only on a concrete `FunctionDeclaration` silently left every
+ * `unsafe func <T> ...` callable from safe code.
+ */
+inline void mark_parsed_function_unsafe(ASTNode* node) {
+    if (node == nullptr) return;
+    if (node->kind() == ASTNodeKind::FunctionDecl) {
+        node->as_function_unsafe()->set_unsafe(true);
+    } else if (node->kind() == ASTNodeKind::GenericFuncDecl) {
+        node->as_gen_func_decl_unsafe()->master_impl->set_unsafe(true);
+    }
+}
+

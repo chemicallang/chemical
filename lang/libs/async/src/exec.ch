@@ -310,7 +310,12 @@ public func <T> spawn_task_drop(frame : *mut void) {
 
 // Submit `handle` to the executor and return a join handle. Await the result
 // with `await spawn(...)` or read it with `async::block_on(spawn(...))`.
-public func <T> spawn(handle : core::async::FutureHandle<T>) : core::async::FutureHandle<T> {
+//
+// The executor is process-wide: the task may be polled on another thread. The
+// frame's captures are type-erased, so their `Send`/`'static` properties cannot
+// be checked here; submission is an unsafe boundary until erased-capture Send
+// tracking lands (S6.5).
+public unsafe func <T> spawn(handle : core::async::FutureHandle<T>) : core::async::FutureHandle<T> {
     var e = executor()
     var st = unsafe(malloc(sizeof(JoinState<T>))) as *mut JoinState<T>
     var join_vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
@@ -345,8 +350,11 @@ public func <T> spawn(handle : core::async::FutureHandle<T>) : core::async::Futu
 // from the native event loop on the UI thread and posts off-thread wakeups
 // back to that loop, so a task submitted here is polled on the UI thread and
 // its continuation after an `await` runs there too.
-public func <T> spawn_local(handle : core::async::FutureHandle<T>) : core::async::FutureHandle<T> {
-    return spawn<T>(handle)
+//
+// Until the executor actually enforces that affinity and captures are checked,
+// this has the same unchecked-capture contract as `spawn` and is unsafe.
+public unsafe func <T> spawn_local(handle : core::async::FutureHandle<T>) : core::async::FutureHandle<T> {
+    return unsafe(spawn<T>(handle))
 }
 
 }

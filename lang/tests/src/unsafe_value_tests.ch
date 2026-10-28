@@ -21,6 +21,8 @@ func make_tracked() : UnsafeTracked {
     return UnsafeTracked { tag : 7 }
 }
 
+unsafe func unsafe_noop() { }
+
 // returning a local wrapped in `unsafe(...)` is a MOVE: the moved-from local
 // must not be destroyed, while the caller's value is destroyed exactly once.
 func return_unsafe_tracked() : UnsafeTracked {
@@ -77,4 +79,9 @@ func test_unsafe_value_semantics() {
     test("value declared uninitialized and first-initialized destructs once", () => {
         return g_unsafe_dtor_count == 1
     })
+
+    // 4) `unsafe(expr)` is also accepted at statement position (it wraps a
+    //    call statement, including a call to an unsafe function).
+    unsafe(unsafe_noop())
+    test("unsafe(...) is usable as an expression statement", () => true)
 }

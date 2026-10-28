@@ -11,14 +11,14 @@ func test_recv_timeout_on_idle_socket(env : &mut TestEnv) {
     if(listen_sock == 0 as net::Socket) { env.error("listen failed"); return }
 
     // Connect in a background thread
-    var t = std::concurrent::spawn(||(arg : *void) => {
+    var t = unsafe(std::concurrent::spawn(||(arg : *void) => {
         var sock = net::dial("127.0.0.1", 19990u)
         if(sock == 0 as net::Socket) { }
         // Stay connected but send nothing
         std::concurrent::sleep_ms(500u)
         // Hang up
         return null
-    }, null)
+    }, null))
     std::concurrent::sleep_ms(100u)
 
     // Accept the connection
@@ -48,7 +48,7 @@ func test_socket_echo(env : &mut TestEnv) {
     if(listen_sock == 0 as net::Socket) { env.error("listen failed"); return }
 
     // Spawn a client thread that connects, sends "ping", then waits
-    var t = std::concurrent::spawn(||(arg : *void) => {
+    var t = unsafe(std::concurrent::spawn(||(arg : *void) => {
         var sock = net::dial("127.0.0.1", 19991u)
         if(sock == 0 as net::Socket) { return null }
         // Wait for the server to be ready to recv
@@ -58,7 +58,7 @@ func test_socket_echo(env : &mut TestEnv) {
         std::concurrent::sleep_ms(300u)
         net::close_socket(sock)
         return null
-    }, null)
+    }, null))
     std::concurrent::sleep_ms(100u)
 
     // Accept
@@ -918,7 +918,7 @@ func test_multiple_clients_concurrent(env : &mut TestEnv) {
         count_lock = std.mutex()
     }
     
-    var t1 = std.concurrent.spawn(||(arg : *void) => {
+    var t1 = unsafe(std.concurrent.spawn(||(arg : *void) => {
         var cap = arg as *mut TestCaptured2345
         var client = http::Client();
         for(var i=0u; i<10u; i++) {
@@ -930,9 +930,9 @@ func test_multiple_clients_concurrent(env : &mut TestEnv) {
             }
         }
         return null;
-    }, &raw mut captured);
+    }, &raw mut captured));
     
-    var t2 = std.concurrent.spawn(||(arg : *void) => {
+    var t2 = unsafe(std.concurrent.spawn(||(arg : *void) => {
         var cap = arg as *mut TestCaptured2345
         var client = http::Client();
         for(var i=0u; i<10u; i++) {
@@ -944,9 +944,9 @@ func test_multiple_clients_concurrent(env : &mut TestEnv) {
             }
         }
         return null;
-    }, &raw mut captured);
+    }, &raw mut captured));
     
-    var t3 = std.concurrent.spawn(||(arg : *void) => {
+    var t3 = unsafe(std.concurrent.spawn(||(arg : *void) => {
         var cap = arg as *mut TestCaptured2345
         var client = http::Client();
         for(var i=0u; i<10u; i++) {
@@ -958,7 +958,7 @@ func test_multiple_clients_concurrent(env : &mut TestEnv) {
             }
         }
         return null;
-    }, &raw mut captured);
+    }, &raw mut captured));
     
     t1.join();
     t2.join();

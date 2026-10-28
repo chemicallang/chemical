@@ -414,8 +414,8 @@ func concurrent_fetch_add_u64(env : &mut TestEnv) {
     var counter : u64 = 0
     var iters : u64 = 10000
     var args = FetchAddArgs{ptr: &raw mut counter, iters: iters}
-    var t1 = std::concurrent::spawn(fetch_add_worker_u64, &raw mut args as *void)
-    var t2 = std::concurrent::spawn(fetch_add_worker_u64, &raw mut args as *void)
+    var t1 = unsafe(std::concurrent::spawn(fetch_add_worker_u64, &raw mut args as *void))
+    var t2 = unsafe(std::concurrent::spawn(fetch_add_worker_u64, &raw mut args as *void))
     t1.join()
     t2.join()
     var expected : u64 = iters * 2
@@ -442,8 +442,8 @@ func concurrent_fetch_add_u32(env : &mut TestEnv) {
     var counter : u32 = 0
     var iters : u32 = 10000
     var args = FetchAddArgsU32{ptr: &raw mut counter, iters: iters}
-    var t1 = std::concurrent::spawn(fetch_add_worker_u32, &raw mut args as *void)
-    var t2 = std::concurrent::spawn(fetch_add_worker_u32, &raw mut args as *void)
+    var t1 = unsafe(std::concurrent::spawn(fetch_add_worker_u32, &raw mut args as *void))
+    var t2 = unsafe(std::concurrent::spawn(fetch_add_worker_u32, &raw mut args as *void))
     t1.join()
     t2.join()
     var expected : u32 = iters * 2
@@ -470,8 +470,8 @@ func concurrent_exchange_u64(env : &mut TestEnv) {
     var val : u64 = 0
     var iters : u64 = 10000
     var args = ExchangeArgs{ptr: &raw mut val, iters: iters}
-    var t1 = std::concurrent::spawn(exchange_worker, &raw mut args as *void)
-    var t2 = std::concurrent::spawn(exchange_worker, &raw mut args as *void)
+    var t1 = unsafe(std::concurrent::spawn(exchange_worker, &raw mut args as *void))
+    var t2 = unsafe(std::concurrent::spawn(exchange_worker, &raw mut args as *void))
     t1.join()
     t2.join()
     // After both threads complete, val must be one of {0..iters-1}
@@ -503,8 +503,8 @@ func concurrent_cas_u64(env : &mut TestEnv) {
     var counter : u64 = 0
     var iters : u64 = 10000
     var args = CasArgs{ptr: &raw mut counter, iters: iters}
-    var t1 = std::concurrent::spawn(cas_worker, &raw mut args as *void)
-    var t2 = std::concurrent::spawn(cas_worker, &raw mut args as *void)
+    var t1 = unsafe(std::concurrent::spawn(cas_worker, &raw mut args as *void))
+    var t2 = unsafe(std::concurrent::spawn(cas_worker, &raw mut args as *void))
     t1.join()
     t2.join()
     // CAS may lose updates under contention, but counter must be <= iters*2 and >= iters
@@ -531,8 +531,8 @@ func concurrent_fetch_sub_u64(env : &mut TestEnv) {
     var counter : u64 = 20000
     var iters : u64 = 10000
     var args = FetchSubArgs{ptr: &raw mut counter, iters: iters}
-    var t1 = std::concurrent::spawn(fetch_sub_worker, &raw mut args as *void)
-    var t2 = std::concurrent::spawn(fetch_sub_worker, &raw mut args as *void)
+    var t1 = unsafe(std::concurrent::spawn(fetch_sub_worker, &raw mut args as *void))
+    var t2 = unsafe(std::concurrent::spawn(fetch_sub_worker, &raw mut args as *void))
     t1.join()
     t2.join()
     var expected : u64 = 0
@@ -563,8 +563,8 @@ func concurrent_atomic_flag(env : &mut TestEnv) {
     var flag = atomic_flag{_value: 0}
     var count : u64 = 10000
     var args = FlagArgs{ptr: &raw mut flag, count: count}
-    var t1 = std::concurrent::spawn(flag_set_worker, &raw mut args as *void)
-    var t2 = std::concurrent::spawn(flag_set_worker, &raw mut args as *void)
+    var t1 = unsafe(std::concurrent::spawn(flag_set_worker, &raw mut args as *void))
+    var t2 = unsafe(std::concurrent::spawn(flag_set_worker, &raw mut args as *void))
     t1.join()
     t2.join()
     // Flag should be clear after both threads done

@@ -748,12 +748,31 @@
 > both C and LLVM before aborting. `std::panic::raw_panic` routes through
 > `__chc_panic`; the profile never unwinds, so FFI boundaries cannot be crossed
 > by an unwind. Runtime tests assert the bounds reason and panic message.
-> The audit baseline records the new explicit `__chc_panic` boundary
-> (`extern_decls` +1, `raw_pointer_types` +2, `unsafe_values` +3; the removed
-> `printf`/`abort` body drops one variadic call and the last `abort_calls`
-> count).
+> The audit baseline records the new explicit `__chc_panic` boundary and the
+> thread/async unsafe wrappers (audit totals: `extern_decls` +1,
+> `raw_pointer_types` +2, `unsafe_values` +9; the removed `printf`/`abort`
+> body drops one variadic call and the last `abort_calls` count).
+> S6.1a raw thread/async submission: `std::concurrent.spawn`,
+> `ThreadPool.submit`/`submit_void`, and `async::spawn`/`spawn_local`/
+> `spawn_blocking` are now `unsafe` boundaries. Their captures are erased
+> (`*void`, `std::function`, coroutine frames), so the compiler cannot prove
+> `Send`/`'static`; safe submission would move a non-`Send` capture to another
+> thread. `Thread`'s handle is private and construction goes through the unsafe
+> `Thread.from_raw`, so safe code cannot forge a thread handle either. All
+> in-tree call sites were migrated to explicit `unsafe(...)`. This slice also
+> fixed `SAFE-UNSAFE-002` for generic functions: the parser marked only a
+> concrete `FunctionDeclaration`, so `unsafe func <T> ...` (and
+> `future_handle_raw`, `spawn`, ...) were callable from safe code through the
+> `GenericFuncDecl` wrapper. `unsafe(...)` is now also accepted as an
+> expression statement. Negative tests cover generic unsafe calls, raw thread
+> spawn, async spawn, `Thread.from_raw`, and forged thread handles (`503`).
+> Known compiler follow-up (not a generated-code safety hole): implicit `span`
+> constructor selection can still choose the array overload for a non-array
+> value under some module orderings; the vector overload now precedes the array
+> overload, which reduces the failure. Fix the selection/`intrinsics::size`
+> fallback before relying on that overload in new code.
 > `catch_unwind`/`UnwindSafe` and the unwinding/drop-on-unwind profile remain
-> S5.6b. Safety suite `49`; `MIRTests` `4638 checks`.
+> S5.6b. Safety suite `50`; `MIRTests` `4638 checks`.
 > Next: S5.6b (`catch_unwind`/unwinding + `UnwindSafe`/`RefUnwindSafe`/
 > `AssertUnwindSafe`), remaining M5 validity (enum/bool tags, packed
 > references), M6 `Send`/`Sync` enforcement, M2 C ABI, and the

@@ -151,12 +151,12 @@ async func reactor_two_pipes() : int {
     }
     var wa = a[1]
     var wb = b[1]
-    var h = async::spawn_blocking<core::async::Unit>(|wa, wb|() => {
+    var h = unsafe(async::spawn_blocking<core::async::Unit>(|wa, wb|() => {
         var c = 'x'
         unsafe { write(wa, &raw mut c as *void, 1u as ulong) }
         unsafe { write(wb, &raw mut c as *void, 1u as ulong) }
         return core::async::Unit { }
-    })
+    }))
     var ra = await async::readable(a[0])
     var rb = await async::readable(b[0])
     var buf : [1]char

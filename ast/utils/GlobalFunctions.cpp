@@ -280,7 +280,12 @@ public:
         }
         const auto val_kind = value->val_kind();
         if(val_kind != ValueKind::String && val_kind != ValueKind::ArrayValue) {
-            call_scope->error("intrinsics::size called with invalid arguments", call);
+            std::string msg = "intrinsics::size called with invalid arguments (value kind ";
+            msg += std::to_string((int) val_kind);
+            msg += ", type kind ";
+            msg += std::to_string(value->getType() ? (int) value->getType()->kind() : -1);
+            msg += ")";
+            call_scope->error(chem::string_view(msg.data(), msg.size()), (Value*) call);
             return new (allocator.allocate<IntNumValue>()) IntNumValue(0, typeBuilder.getU64Type(), loc);;
         }
         switch(val_kind) {

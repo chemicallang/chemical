@@ -23,7 +23,7 @@ func waiter_entry(arg:*void) : *void { unsafe {
 func test_basic_single_thread() : bool {
     var pool = std::concurrent::create_pool(1u);
     var fn : std::function<() => u64> = ||() => { return 123u64 }
-    var fut = pool.submit<u64>(fn);
+    var fut = unsafe(pool.submit<u64>(fn));
     var r = fut.get();
     return r == 123u64;
 }
@@ -31,9 +31,9 @@ func test_basic_single_thread() : bool {
 // 2) Multiple futures with different sleep durations ensure values are correct
 func test_multiple_futures_values() : bool {
     var pool = std::concurrent::create_pool(4u);
-    var f1 = pool.submit<u64>(() => { std::concurrent::sleep_ms(50u); return 1u64 });
-    var f2 = pool.submit<u64>(() => { std::concurrent::sleep_ms(10u); return 2u64 });
-    var f3 = pool.submit<u64>(() => { return 3u64 });
+    var f1 = unsafe(pool.submit<u64>(() => { std::concurrent::sleep_ms(50u); return 1u64 }));
+    var f2 = unsafe(pool.submit<u64>(() => { std::concurrent::sleep_ms(10u); return 2u64 }));
+    var f3 = unsafe(pool.submit<u64>(() => { return 3u64 }));
     var r1 = f1.get();
     var r2 = f2.get();
     var r3 = f3.get();
@@ -55,7 +55,7 @@ func test_submit_void_and_mutexed_counter() : bool {
                 *counter = *counter + 1u;
                 m.unlock()
             };
-            pool.submit_void(inc);
+            unsafe(pool.submit_void(inc));
             i = i + 1u;
         }
         // pool going out of scope, automatic destruction and join of all workers
@@ -78,7 +78,7 @@ func test_destruction_waits() : bool {
                 *counter = *counter + 1u;
                 m.unlock()
             };
-            pool.submit_void(f);
+            unsafe(pool.submit_void(f));
             i = i + 1u;
         }
         // pool goes out of scope, automatic destruction and join of all workers
@@ -101,7 +101,7 @@ func test_stress_many_tasks() : bool {
                 *counter = *counter + 1u;
                 m.unlock()
             };
-            pool.submit_void(inc);
+            unsafe(pool.submit_void(inc));
             i = i + 1u;
         }
         // pool goes out of scope, automatic destruction and join of all workers
@@ -121,7 +121,7 @@ func test_condvar_notify_one() : bool {
     arg.flag = &raw mut flag;
     arg.done = &raw mut waiter_done;
 
-    var h = std::concurrent::spawn(waiter_entry, arg as *void);
+    var h = unsafe(std::concurrent::spawn(waiter_entry, arg as *void));
     std::concurrent::sleep_ms(50u);
 
     m.lock();
@@ -154,7 +154,7 @@ func test_condvar_notify_all() : bool { unsafe {
         var done_ptr = malloc(sizeof(bool)) as *mut bool;
         *done_ptr = false;
         a.done = done_ptr;
-        var h = std::concurrent::spawn(waiter_entry, a as *void);
+        var h = unsafe(std::concurrent::spawn(waiter_entry, a as *void));
         handles.push_back(h);
         args.push_back(a);
         i = i + 1u;
@@ -218,7 +218,7 @@ func test_mutex_contention() : bool { unsafe {
         memcpy(heap_func, &raw inc_entry, sizeof(inc_entry))
         heap_pointers.push_back(heap_func)
         *func_ptr = heap_func
-        var h = std::concurrent::spawn(spawn_func as spawn_func_type, heap_func);
+        var h = unsafe(std::concurrent::spawn(spawn_func as spawn_func_type, heap_func));
         handles.push_back(h);
         i = i + 1u;
     }
@@ -239,14 +239,14 @@ func test_mutex_contention() : bool { unsafe {
 // 9) Future destructor safety: construct a future, drop it (let destructor run), then ensure pool still usable
 func test_future_drop_safety() : bool {
     var pool = std::concurrent::create_pool(2u);
-    var fut = pool.submit<u64>(() => { std::concurrent::sleep_ms(30u); return 42u64 });
+    var fut = unsafe(pool.submit<u64>(() => { std::concurrent::sleep_ms(30u); return 42u64 }));
     // let fut go out of scope by creating a local block
     var x = 0
     if(x == 0){
         var tmp = fut; // tmp will be destroyed at end of block; if Promise cleanup is correct, no leak/crash
     }
     // submit another job and get result
-    var f2 = pool.submit<u64>(() => { return 7u64 });
+    var f2 = unsafe(pool.submit<u64>(() => { return 7u64 }));
     var r = f2.get();
     return r == 7u64;
 }
@@ -257,7 +257,7 @@ func test_future_drop_safety() : bool {
 func test_submit_single() : bool {
     var pool = std::concurrent::create_pool(2u);
     // Best-effort: try to submit a non-capturing job
-    var f = pool.submit<u64>(() => { return 99u64 });
+    var f = unsafe(pool.submit<u64>(() => { return 99u64 }));
     var r = f.get();
     return r == 99u64;
 }
@@ -279,8 +279,8 @@ func test_closure_captures() : bool {
     var value = 100u64;
     var byval: std.function<() => u64> = |value|() => { return value + 23u }; // capture by value
     var byref: std.function<() => u64> = |&mut value|() => { *value = *value + 1u; return *value };
-    var f1 = pool.submit<u64>(byval);
-    var f2 = pool.submit<u64>(byref);
+    var f1 = unsafe(pool.submit<u64>(byval));
+    var f2 = unsafe(pool.submit<u64>(byref));
     var r1 = f1.get();
     var r2 = f2.get();
     // byval shouldn't have changed original 'value', byref incremented it once
@@ -314,11 +314,11 @@ func test_mixed_quick_tasks() : bool {
                 *counter = *counter + 1u;
                 m.unlock()
             };
-            pool.submit_void(inc);
+            unsafe(pool.submit_void(inc));
             i = i + 1u;
         }
         // also submit some futures
-        var f = pool.submit<u64>(() => { return 13u64 });
+        var f = unsafe(pool.submit<u64>(() => { return 13u64 }));
         r = f.get();
         // pool goes out of scope, causing workers to join in destruction
     }

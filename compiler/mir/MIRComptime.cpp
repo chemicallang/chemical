@@ -943,6 +943,16 @@ Value* MIRComptime::evaluate_value(const MIRComptimeContext& ctx, Value* v,
         FunctionDeclaration* callee = call->safe_linked_func();
         if (callee && callee->is_comptime() && callee->body.has_value() &&
             !callee->is_expand_fn()) {
+            // An array/slice result is a pointer+extent value, not a scalar cell.
+            // The engine's scalar result bridge cannot reconstruct the AST
+            // ArrayValue (it would hand back the extent or an address), so fold
+            // a single-return array-producing comptime call through the AST
+            // expression layer, which preserves the array value.
+            BaseType* ret = callee->returnType ? callee->returnType->canonical() : nullptr;
+            if (ret && ret->kind() == BaseTypeKind::Array &&
+                single_return_expr(callee->body.value()) != nullptr) {
+                return v->evaluated_value(*ctx.scope);
+            }
             if (impl_->lowering) {
                 // reached during another callee's lowering: use a fresh driver so
                 // the in-progress lowerer state is not clobbered

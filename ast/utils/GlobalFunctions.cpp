@@ -241,9 +241,18 @@ static Value* evaluate_val_once(Value* val, InterpretScope *call_scope) {
 }
 
 static Value* resolve_ref(Value* val, InterpretScope *call_scope) {
-    const auto value = evaluate_val_once(val, call_scope);
-    if(value && value->reference()) {
-        return evaluate_val_once(value, call_scope);
+    // Follow identifier/reference chains until a concrete value is reached.
+    // A parameter can be bound to another identifier (for example a comptime
+    // constructor argument that is a local const); one extra hop is not enough,
+    // and stopping early made `intrinsics::size` see an Identifier instead of
+    // the string/array it names. The hop bound prevents a cyclic AST from
+    // looping forever.
+    Value* value = val;
+    for (int hop = 0; value != nullptr && hop < 16; ++hop) {
+        Value* next = evaluate_val_once(value, call_scope);
+        if (next == nullptr) return nullptr;
+        if (next == value || !next->reference()) return next;
+        value = next;
     }
     return value;
 }

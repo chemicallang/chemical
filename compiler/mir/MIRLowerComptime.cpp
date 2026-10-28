@@ -24,6 +24,7 @@
 #include "ast/structures/Scope.h"
 #include "ast/structures/If.h"
 #include "ast/statements/Return.h"
+#include "ast/statements/VarInit.h"
 #include "ast/types/RuntimeType.h"
 #include "ast/types/MaybeRuntimeType.h"
 
@@ -175,7 +176,28 @@ MIRExprResult MIRLowerer::inline_comptime_template(FunctionDeclaration* fd, MIRE
             if (!b.r.ok()) { ok = false; break; }
         } else {
             Value* cv = arg;
-            if (comptime_value_eval_) {
+            // A plain local `const` has a stable AST initializer. Prefer that
+            // over evaluating the identifier through the shared comptime scope:
+            // spliced comptime bodies can carry same-named locals from another
+            // frame, and the scope lookup would then fold an unrelated value
+            // (for example a test-count integer instead of a `get_tests()` array).
+            Value* const_base = arg;
+            if (const_base && const_base->val_kind() == ValueKind::AccessChain) {
+                auto* chain = const_base->as_access_chain_unsafe();
+                if (chain->values.size() == 1) const_base = chain->values.front();
+            }
+            bool used_const_initializer = false;
+            if (const_base && const_base->val_kind() == ValueKind::Identifier) {
+                ASTNode* linked = const_base->as_identifier_unsafe()->linked_node();
+                if (linked && linked->kind() == ASTNodeKind::VarInitStmt) {
+                    auto* init = linked->as_var_init_unsafe();
+                    if (init->is_const() && init->value) {
+                        cv = init->value;
+                        used_const_initializer = true;
+                    }
+                }
+            }
+            if (!used_const_initializer && comptime_value_eval_) {
                 if (Value* e = comptime_value_eval_(arg)) cv = e;
             }
             if (is_maybe && cv && cv->val_kind() == ValueKind::Identifier) {

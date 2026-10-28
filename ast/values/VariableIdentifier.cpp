@@ -170,19 +170,38 @@ VariableIdentifier* VariableIdentifier::copy(ASTAllocator& allocator) {
 }
 
 Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
-    // Fast path: use the cached parent-hop depth recorded by a previous lookup.
+    // The current scope always shadows an outer binding. Check it before the
+    // cache: a comptime body is spliced into different scopes, so the same AST
+    // identifier can observe a local binding (depth 0) on one evaluation and a
+    // parent binding on another. Relying on a previously cached depth skipped
+    // the new local and folded an unrelated value (seen as `intrinsics::size`
+    // receiving a string length instead of the string).
+    if (auto local = scope.values.find(value); local != scope.values.end()) {
+        cached_value_depth.store(0, std::memory_order_relaxed);
+        cached_scope_id.store(scope.id, std::memory_order_relaxed);
+        value_depth_cached.store(true, std::memory_order_release);
+        return local->second;
+    }
+    // Fast path: use the cached parent-hop depth, but only when the owning
+    // scope is still the same object. Stack-allocated InterpretScope objects
+    // are reused at the same address for different call frames, so the depth
+    // alone is not a stable identity.
     if(value_depth_cached.load(std::memory_order_acquire)) {
         if(auto* owner = scope.ancestor_at(cached_value_depth.load(std::memory_order_relaxed))) {
-            auto cached = owner->values.find(value);
-            if(cached != owner->values.end()) {
-                return cached->second;
+            if(owner->id == cached_scope_id.load(std::memory_order_relaxed)) {
+                auto cached = owner->values.find(value);
+                if(cached != owner->values.end()) {
+                    return cached->second;
+                }
             }
         }
     }
     unsigned depth = 0;
     auto found = scope.find_value(value, &depth);
     if (found != nullptr) {
+        auto* owner = scope.ancestor_at(depth);
         cached_value_depth.store(depth, std::memory_order_relaxed);
+        cached_scope_id.store(owner ? owner->id : 0, std::memory_order_relaxed);
         value_depth_cached.store(true, std::memory_order_release);
         return found;
     }

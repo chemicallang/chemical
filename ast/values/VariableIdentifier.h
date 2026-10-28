@@ -34,6 +34,7 @@ public:
      * scopes on every read/write. Reset (to false) on copy.
      */
     std::atomic<unsigned> cached_value_depth{0};
+    std::atomic<uint64_t> cached_scope_id{0};
     std::atomic<bool> value_depth_cached{false};
 
     /**

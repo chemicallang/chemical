@@ -711,3 +711,24 @@ func neg_extern_aggregate_by_value_rejected(env : &mut TestEnv) {
     var ch = "@extern struct Pair {\n    var a : int\n    var b : int\n}\n@extern func take(p : Pair) : int\npublic func main() : int {\n    var p = Pair { a : 1, b : 2 }\n    return unsafe(take(p))\n}\n"
     expect_compile_error(env, "extern_aggregate_by_value", ch, "SAFE-FFI-002")
 }
+
+@test
+func neg_int_to_bool_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var b = 2 as bool\n    return b as int\n}\n"
+    expect_compile_error(env, "int_to_bool_rejected", ch, "SAFE-VALID-002")
+}
+
+@test
+func neg_invalid_enum_literal_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "enum Color : int {\n    Red,\n    Green\n}\npublic func main() : int {\n    var c = 99 as Color\n    return c as int\n}\n"
+    expect_compile_error(env, "invalid_enum_literal", ch, "SAFE-VALID-003")
+}
+
+@test
+func neg_zeroed_enum_without_zero_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "enum Color : int {\n    Red = 1,\n    Green = 2\n}\npublic func main() : int {\n    var c = zeroed<Color>()\n    return 0\n}\n"
+    expect_compile_error(env, "zeroed_enum_without_zero", ch, "SAFE-VALID-004")
+}

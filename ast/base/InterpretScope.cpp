@@ -32,6 +32,14 @@
 #define ANSI_COLOR_RED     "\x1b[91m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
+namespace {
+std::atomic<uint64_t> scope_id_counter{0};
+}
+
+uint64_t InterpretScope::next_scope_id() {
+    return scope_id_counter.fetch_add(1, std::memory_order_relaxed) + 1;
+}
+
 Value* InterpretScope::getNullValue() {
     return global->typeBuilder.getNullValue();
 }

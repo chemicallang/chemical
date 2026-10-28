@@ -2871,6 +2871,27 @@ void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
     }
 }
 
+static bool enum_contains_value(EnumDeclaration* decl, uint64_t value,
+                                ASTAllocator& allocator, TypeBuilder& typeBuilder) {
+    if (decl == nullptr) return false;
+    for (const auto& entry : decl->members) {
+        EnumMember* member = entry.second;
+        if (member == nullptr) continue;
+        if (member->init_value != nullptr) {
+            Value* evaluated = member->evaluate(allocator, typeBuilder,
+                                                member->encoded_location());
+            auto number = evaluated ? evaluated->get_number() : std::nullopt;
+            if (number.has_value() && number.value() == value) return true;
+        } else if (static_cast<uint64_t>(member->get_index_dirty()) == value) {
+            return true;
+        }
+    }
+    if (auto* inherited = decl->get_inherited_enum_decl()) {
+        return enum_contains_value(inherited, value, allocator, typeBuilder);
+    }
+    return false;
+}
+
 void SymResLinkBody::VisitCastedValue(CastedValue* cValue) {
     const auto type = cValue->getType();
     const auto value = cValue->value;
@@ -2884,6 +2905,38 @@ void SymResLinkBody::VisitCastedValue(CastedValue* cValue) {
     const auto source_type = value->getType();
     if(source_type == nullptr || type == nullptr) {
         return;
+    }
+    BaseType* const dst = type->canonical();
+    BaseType* const src = source_type->canonical();
+    // `bool` has exactly two valid representations. C/LLVM normalize an
+    // integer-to-bool conversion today, but a backend is free to preserve the
+    // extra bits (and an invalid bool is undefined when passed through FFI), so
+    // make the conversion explicit and checked at the source.
+    if (safe_context && dst != nullptr && src != nullptr &&
+        dst->kind() == BaseTypeKind::Bool && src->kind() != BaseTypeKind::Bool &&
+        src->get_members_container() == nullptr) {
+        diagnoser.error(cValue).with_code("SAFE-VALID-002")
+            << "conversion to bool from a non-bool type requires an explicit comparison "
+               "(`value != 0`) or an unsafe cast";
+        return;
+    }
+    // Integer literals cast to an enum must name a declared member. Runtime
+    // integer-to-enum values need a checked conversion; until that lowering
+    // exists, reject the compile-time-invalid case instead of accepting a tag
+    // that a switch/tag-aware optimization may assume unreachable.
+    if (safe_context && dst != nullptr && src != nullptr &&
+        src->kind() == BaseTypeKind::IntN) {
+        if (auto* enumDecl = dst->get_direct_linked_enum()) {
+            auto number = value->get_number();
+            if (number.has_value() &&
+                !enum_contains_value(enumDecl, number.value(), getAllocator(),
+                                     const_cast<TypeBuilder&>(getTypeBuilder()))) {
+                diagnoser.error(cValue).with_code("SAFE-VALID-003")
+                    << "integer value is not a declared member of enum '"
+                    << enumDecl->name_view() << "'";
+                return;
+            }
+        }
     }
     // Creating a reference from a raw pointer (or an integer/null) is a
     // provenance-establishing operation and requires unsafe (S4.8).
@@ -3738,6 +3791,17 @@ void SymResLinkBody::VisitZeroedValue(ZeroedValue* value) {
         return;
     }
     const auto can_type = type->canonical();
+    // Zeroed storage has an all-zero tag. For an integer-backed enum that is
+    // only valid when the enum actually declares a member with value 0.
+    if (auto* enumDecl = can_type->get_direct_linked_enum()) {
+        if (!enum_contains_value(enumDecl, 0, getAllocator(),
+                                 const_cast<TypeBuilder&>(getTypeBuilder()))) {
+            diagnoser.error(value).with_code("SAFE-VALID-004")
+                << "zero-initialization would create an invalid value of enum '"
+                << enumDecl->name_view() << "' (no member has value 0)";
+            return;
+        }
+    }
     const auto linked = can_type->get_direct_linked_node();
     if(linked) {
         const auto container = linked->get_master_members_container();

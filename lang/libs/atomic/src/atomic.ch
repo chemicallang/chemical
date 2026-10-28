@@ -732,7 +732,7 @@ public comptime func atomic_store_u64(x : %runtime<*mut u64>, y : %maybe_runtime
 public comptime func atomic_compare_exchange_weak_u64(x : %runtime<*mut u64>, expected : %runtime<*mut u64>, y : %maybe_runtime<u64>, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return (__chx__cas_u64_dispatch(x, expected, y)) as bool
+            return (__chx__cas_u64_dispatch(x, expected, y)) != 0
         } else {
             return (intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
         }
@@ -745,7 +745,7 @@ public comptime func atomic_compare_exchange_weak_u64(x : %runtime<*mut u64>, ex
 public comptime func atomic_compare_exchange_strong_u64(x : %runtime<*mut u64>, expected : %runtime<*mut u64>, y : %maybe_runtime<u64>, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return (__chx__cas_u64_dispatch(x, expected, y)) as bool
+            return (__chx__cas_u64_dispatch(x, expected, y)) != 0
         } else {
             return (intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
         }
@@ -866,7 +866,7 @@ public comptime func atomic_store_u32(x : %runtime<*mut u32>, y : %maybe_runtime
 public comptime func atomic_compare_exchange_weak_u32(x : %runtime<*mut u32>, expected : %runtime<*mut u32>, y : %maybe_runtime<u32>, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return (__chx__cas_u32_dispatch(x, expected, y)) as bool
+            return (__chx__cas_u32_dispatch(x, expected, y)) != 0
         } else {
             return (intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
         }
@@ -879,7 +879,7 @@ public comptime func atomic_compare_exchange_weak_u32(x : %runtime<*mut u32>, ex
 public comptime func atomic_compare_exchange_strong_u32(x : %runtime<*mut u32>, expected : %runtime<*mut u32>, y : %maybe_runtime<u32>, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return (__chx__cas_u32_dispatch(x, expected, y)) as bool
+            return (__chx__cas_u32_dispatch(x, expected, y)) != 0
         } else {
             return (intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
         }
@@ -1000,7 +1000,7 @@ public comptime func atomic_store_u16(x : %runtime<*mut u16>, y : %maybe_runtime
 public comptime func atomic_compare_exchange_weak_u16(x : %runtime<*mut u16>, expected : %runtime<*mut u16>, y : %maybe_runtime<u16>, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return (__chx__cas_u16_dispatch(x, expected, y)) as bool
+            return (__chx__cas_u16_dispatch(x, expected, y)) != 0
         } else {
             return (intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
         }
@@ -1013,7 +1013,7 @@ public comptime func atomic_compare_exchange_weak_u16(x : %runtime<*mut u16>, ex
 public comptime func atomic_compare_exchange_strong_u16(x : %runtime<*mut u16>, expected : %runtime<*mut u16>, y : %maybe_runtime<u16>, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return (__chx__cas_u16_dispatch(x, expected, y)) as bool
+            return (__chx__cas_u16_dispatch(x, expected, y)) != 0
         } else {
             return (intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
         }
@@ -1134,7 +1134,7 @@ public comptime func atomic_store_u8(x : %runtime<*mut u8>, y : %maybe_runtime<u
 public comptime func atomic_compare_exchange_weak_u8(x : %runtime<*mut u8>, expected : %runtime<*mut u8>, y : %maybe_runtime<u8>, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return (__chx__cas_u8_dispatch(x, expected, y)) as bool
+            return (__chx__cas_u8_dispatch(x, expected, y)) != 0
         } else {
             return (intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
         }
@@ -1147,7 +1147,7 @@ public comptime func atomic_compare_exchange_weak_u8(x : %runtime<*mut u8>, expe
 public comptime func atomic_compare_exchange_strong_u8(x : %runtime<*mut u8>, expected : %runtime<*mut u8>, y : %maybe_runtime<u8>, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return (__chx__cas_u8_dispatch(x, expected, y)) as bool
+            return (__chx__cas_u8_dispatch(x, expected, y)) != 0
         } else {
             return (intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
         }

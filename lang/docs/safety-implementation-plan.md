@@ -766,11 +766,12 @@
 > `GenericFuncDecl` wrapper. `unsafe(...)` is now also accepted as an
 > expression statement. Negative tests cover generic unsafe calls, raw thread
 > spawn, async spawn, `Thread.from_raw`, and forged thread handles (`503`).
-> Known compiler follow-up (not a generated-code safety hole): implicit `span`
-> constructor selection can still choose the array overload for a non-array
-> value under some module orderings; the vector overload now precedes the array
-> overload, which reduces the failure. Fix the selection/`intrinsics::size`
-> fallback before relying on that overload in new code.
+> The implicit `span`/`string_view` constructor selection could choose an
+> overload for an unresolved value under some module orderings. The
+> `InterpretScope` identity cache, bounded reference-chain resolution,
+> array-return comptime folding and const-initializer preference now make it
+> deterministic; repeated TCC/LLVM lib runs reached `719/719`. See the M5.2a
+> status entry below.
 > S5.3/S2.5 safety guard: `Layout` now keeps its size/alignment private,
 > exposes `size()`/`align()`/`validate()`, and `GlobalAllocator` rejects a
 > zero/non-power-of-two alignment or a size above `isize::MAX` before touching
@@ -779,13 +780,31 @@
 > (the internal sret/pointer prototype ABI is not the C ABI); pointer-based FFI
 > remains allowed. A runtime test covers the invalid-layout panic and a
 > negative test covers the aggregate FFI rejection. Safety suite `51`; negative
-> tests `504`; `MIRTests` `4638 checks`.
+> tests `507`; `MIRTests` `4638 checks`.
+> M5.2a validity guards: `SAFE-VALID-002` rejects an integer/float/pointer to
+> `bool` cast in safe code (the `atomic` CAS helpers now use `!= 0`);
+> `SAFE-VALID-003` rejects an integer literal whose value is not a declared
+> enum member; `SAFE-VALID-004` rejects `zeroed<Enum>()` when no member has
+> value 0. Runtime integer-to-enum values are still accepted and require a
+> checked conversion in the next M5.2 slice. `NonNull` remains documented as a
+> pointer wrapper with no extra validity guarantee; its non-null API contract
+> is still pending.
+> Compiler comptime determinism: `InterpretScope` now carries a unique id and
+> identifier lookup checks the current scope before its cached-depth fast path;
+> `resolve_ref` follows a bounded reference chain; `MIRComptime` folds an
+> array-returning single-return comptime call through the AST instead of the
+> scalar engine bridge; and a comptime-template argument that is a plain local
+> `const` uses its AST initializer rather than a shared name lookup. This closes
+> the intermittent `span`/`string_view` `intrinsics::size` rejection; TCC and
+> LLVM libs were each run repeatedly with `719/719`.
 > `catch_unwind`/`UnwindSafe` and the unwinding/drop-on-unwind profile remain
-> S5.6b. Safety suite `51`; `MIRTests` `4638 checks`.
-> Next: S5.6b (`catch_unwind`/unwinding + `UnwindSafe`/`RefUnwindSafe`/
-> `AssertUnwindSafe`), remaining M5 validity (enum/bool tags, packed
-> references), M6 `Send`/`Sync` enforcement, M2 C ABI, and the
-> variance/HRTB/temporary-lifetime precision items.
+> S5.6b. Safety suite `51`; negative tests `507`; main TCC `2353`, LLVM `2351`;
+> interpret `1909`; `MIRTests` `4638 checks`.
+> Next: runtime/checked integer-to-enum conversion and `NonNull` contract,
+> S5.6b (`catch_unwind`/unwinding + `UnwindSafe`/`RefUnwindSafe`/
+> `AssertUnwindSafe`), remaining M5 validity (packed references), M6
+> `Send`/`Sync` enforcement, M2 C ABI, and the variance/HRTB/temporary-lifetime
+> precision items.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

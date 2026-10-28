@@ -53,6 +53,7 @@ public func run_common_tests() {
     test_satisfies();
     test_casts();
     test_bool_casts();
+    test_enum_validity();
 
     // Comptime tests
     test_comptime_expressions();

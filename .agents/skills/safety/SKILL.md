@@ -9,7 +9,7 @@ This skill is the working guide for the full safety parity program. The canonica
 plan is [`lang/docs/safety-implementation-plan.md`](../../../lang/docs/safety-implementation-plan.md).
 The source tree wins over any status note here.
 
-## Current status (2026-10-27)
+## Current status (2026-10-28)
 
 **M0 (S0.1–S0.6) is implemented. M1 has started.**
 
@@ -276,13 +276,25 @@ Implemented:
   flag lives on the `GenericFuncDecl` master, not only a concrete copy), and
   `unsafe(...)` is valid as an expression statement. Negative tests `503`;
   TCC main `2351`, LLVM main `2349`. A compiler-side `span` implicit-overload /
-  `intrinsics::size` nondeterminism remains a compile-time follow-up.
+  `intrinsics::size` nondeterminism is fixed by the M5.2a determinism slice.
 - M5.3/S2.5 guards: `Layout` has private size/alignment with
   `size()`/`align()`/`validate()`; `GlobalAllocator` rejects zero/non-power-of-two
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `51`, negative tests `504`.
+  `51`, negative tests `507`.
+- M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
+  casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
+  integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
+  `zeroed<Enum>()` when no member is 0. Runtime integer-to-enum values and the
+  `NonNull` non-null contract remain follow-ups. `InterpretScope` now validates
+  its identifier depth cache with a unique scope id and checks the current
+  scope first; `resolve_ref` follows reference chains; array-returning
+  single-return comptime calls fold through the AST; template arguments that
+  are local consts use their AST initializer. The intermittent
+  `span`/`string_view` `intrinsics::size` rejection is gone in repeated
+  TCC/LLVM lib runs. Safety suite `51`, negative `507`; TCC main `2353`, LLVM
+  main `2351`, interpret `1909`.
 - S4.3b autoref / S4.7 two-phase: a reference receiver (`&self` / `&mut self`)
   now lowers to `Borrow`/`BorrowMut` instead of an untracked `AddressOf`, and
   method-call arguments are evaluated before the receiver borrow is activated.
@@ -560,6 +572,9 @@ Codes are stable and grouped by domain:
 | `SAFE-BORROW-002` | move/drop of a place while a borrow of it is live |
 | `SAFE-BORROW-*` | aliasing / loans |
 | `SAFE-VALID-001` | zero-initialization would create a null reference |
+| `SAFE-VALID-002` | non-bool to `bool` cast in safe code |
+| `SAFE-VALID-003` | integer literal is not a declared enum member |
+| `SAFE-VALID-004` | `zeroed<Enum>()` has no declared zero tag |
 | `SAFE-VIS-001` | private struct member initialized outside its type |
 | `SAFE-FFI-001` | extern call in a safe context (enforced) |
 | `SAFE-COPY-001` | user type used with a `Copy` bound but no explicit `impl Copy` |

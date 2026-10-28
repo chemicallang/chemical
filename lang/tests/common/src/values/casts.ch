@@ -166,3 +166,18 @@ func test_bool_casts() {
         return widened == 1L
     })
 }
+enum CastColor : int {
+    Red,
+    Green
+}
+
+func test_enum_validity() {
+    test("valid enum literal cast", () => {
+        var c = 1 as CastColor
+        return c == CastColor.Green
+    })
+    test("zeroed enum with a zero member", () => {
+        var c = zeroed<CastColor>()
+        return c == CastColor.Red
+    })
+}

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <utility>
+#include <cstdint>
 
 #include "ASTNode.h"
 #include "ast/base/ASTAllocator.h"
@@ -57,9 +58,18 @@ public:
         InterpretScope* parent,
         ASTAllocator& allocator,
         GlobalInterpretScope* global
-    ) : parent(parent), allocator(allocator), global(global) {
+    ) : parent(parent), allocator(allocator), global(global), id(next_scope_id()) {
 
     }
+
+    /**
+     * A monotonically increasing identity for this scope object. The
+     * interpreter's identifier cache validates it before trusting a cached
+     * parent-hop depth: a stack-allocated InterpretScope can be reused at the
+     * same address for a different call frame, so the address alone is not a
+     * stable identity.
+     */
+    uint64_t id = 0;
 
     /**
      * use default move constructor
@@ -88,6 +98,8 @@ public:
      * declares a value with this name in current scope
      */
     void declare(const chem::string_view& name, Value* value);
+
+    static uint64_t next_scope_id();
 
     /**
      * return value with name, or nullptr.

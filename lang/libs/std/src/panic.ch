@@ -1,3 +1,6 @@
+// Panic policy: every panic aborts. There is no unwinding profile or
+// catch_unwind/UnwindSafe surface; a panic in a worker thread or destructor
+// terminates the process.
 public struct Location {
     var filename : *char
     var line : uint

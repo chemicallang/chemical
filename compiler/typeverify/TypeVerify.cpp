@@ -1479,6 +1479,41 @@ static bool generic_negative_impl_applies(TypeVerifier& verifier,
     return true;
 }
 
+/** `'static` is stored by the parser without the leading quote. */
+static bool is_static_lifetime(chem::string_view lifetime) {
+    return lifetime == "'static" || lifetime == "static";
+}
+
+/**
+ * A `T: 'static` bound requires every reference reachable from T to be
+ * explicitly `'static` (an elided or named lifetime is not enough for storage
+ * that outlives the current stack frame). Generic instantiations also carry
+ * their lifetime arguments after erasure, so recurse through them.
+ */
+static bool type_satisfies_static_bound(const BaseType* type) {
+    if (type == nullptr) return true;
+    auto* mutable_type = const_cast<BaseType*>(type);
+    switch (mutable_type->kind()) {
+        case BaseTypeKind::Reference:
+            return is_static_lifetime(mutable_type->as_reference_type_unsafe()->lifetime);
+        case BaseTypeKind::Array:
+            return type_satisfies_static_bound(
+                mutable_type->as_array_type_unsafe()->elem_type.getType());
+        case BaseTypeKind::Generic: {
+            auto* generic = mutable_type->as_generic_type_unsafe();
+            for (auto& lifetime : generic->lifetime_args) {
+                if (!is_static_lifetime(lifetime)) return false;
+            }
+            for (auto& argument : generic->types) {
+                if (!type_satisfies_static_bound(argument.getType())) return false;
+            }
+            return true;
+        }
+        default:
+            return true;
+    }
+}
+
 static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
     auto func = call->safe_linked_func();
     if (!func || !func->where_clause) return;
@@ -1541,6 +1576,19 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
         auto linked = concrete_type->get_direct_linked_node();
         if (linked && linked->kind() == ASTNodeKind::GenericTypeParam) {
             continue; // TODO: handle when T is still generic
+        }
+
+        // Lifetime bounds on a type parameter. `T: 'static` is the thread
+        // submission boundary: a reference that can point into the caller's
+        // stack cannot outlive the new thread.
+        for (auto& lifetime_bound : constraint.lifetime_bounds) {
+            if (is_static_lifetime(lifetime_bound) &&
+                !type_satisfies_static_bound(concrete_type)) {
+                diagnoser.error(call).with_code("SAFE-LIFE-004")
+                    << "type '" << concrete_type->representation()
+                    << "' does not satisfy where clause constraint '"
+                    << constraint.param_name << " : 'static'";
+            }
         }
 
         // Check each trait constraint

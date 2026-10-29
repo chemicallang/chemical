@@ -11,7 +11,7 @@ The source tree wins over any status note here.
 
 ## Current status (2026-10-28)
 
-**M0 (S0.1–S0.6) is implemented. M1 has started.**
+**M0 (S0.1–S0.6) and M3 are implemented. M1/M2/M4/M5 are advanced; M6 has started. S5.6b (unwinding) is withdrawn by policy: panic always aborts.**
 
 Implemented:
 
@@ -273,7 +273,7 @@ Implemented:
   `__chc_shift_fail` and `__chc_alloc_fail`. MIR checks pass the current
   file/line/column; the abort profile reports `panic: <reason> at
   <file>:<line>:<col>` on both C and LLVM. `std::panic::raw_panic` uses
-  `__chc_panic`. No unwinding profile yet, so no unwind can cross FFI.
+  `__chc_panic`. Panic aborts by policy; there is no unwinding profile, so no unwind can cross FFI.
   Runtime tests assert the bounds reason and panic message; safety suite `50`,
   `MIRTests` `4638 checks`.
 - S6.1a raw thread/async submission: `std::concurrent.spawn`,
@@ -304,7 +304,7 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `53`, negative tests `572`.
+  `53`, negative tests `575`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -324,8 +324,8 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `53`, negative `572`; TCC main `2354`, LLVM
-  main `2352`, libs `719`, plugins `1305`, async `53`, interpret `1910`.
+  TCC/LLVM lib runs. Safety suite `53`, negative `575`; TCC main `2354`, LLVM
+  main `2352`, libs `726`, plugins `1305`, async `53`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
   range-checked, frame places are registered individually, and globals,
@@ -342,6 +342,15 @@ Implemented:
   `call_sret` buffers, and `argv` are registered as foreign ranges for the
   exact call/run lifetime. Negative tests cover foreign integer pointers,
   cross-frame pointers, and foreign `printf("%s")` arguments.
+- M6 safe threads (first slice): `std::thread.spawn` accepts a non-capturing
+  `(T) => U` entry with `T: Send + 'static`, `U: Send + 'static`;
+  `spawn_void` is the void-returning form. `JoinHandle<T>` joins explicitly or
+  from its destructor and is `Send` when `T: Send`; `Thread.join` is public.
+  `T: 'static` is enforced for generic bounds (`SAFE-LIFE-004`), so a stack
+  reference cannot be submitted. Conditional audited `Send`/`Sync` impls were
+  added for `vector`, `deque`, `unordered_map`, and `ordered_map`. Capturing
+  closures/erased captures still use the explicit unsafe
+  `std::concurrent.spawn` path until M6.5; scoped threads and TSAN remain.
 - S4.3b autoref / S4.7 two-phase: a reference receiver (`&self` / `&mut self`)
   now lowers to `Borrow`/`BorrowMut` instead of an untracked `AddressOf`, and
   method-call arguments are evaluated before the receiver borrow is activated.
@@ -365,7 +374,7 @@ Implemented:
   carry one explicit unsafe boundary around their raw context/job operations.
   Wrapping generic bodies exposed a missing `ValueNode::copy`, now implemented.
   In-tree stdlib/CBI/plugin/build.lab call sites were migrated; audit baseline
-  is `unsafe_blocks 573`, `unsafe_values 441`; negative `572`.
+  is `unsafe_blocks 573`, `unsafe_values 441`; negative `575`.
 - S2.2/S4.8 function pointers: `FunctionTypeData::requires_unsafe` is part of
   function type identity and is set for `unsafe func` and `@extern`. Calling a
   value of such a type in safe context is `SAFE-UNSAFE-002`; coercing it to a
@@ -464,6 +473,8 @@ Implemented:
 
 Next:
 
+- M6.3/M6.5: scoped threads and erased/async `Send`; add TSAN/data-race
+  coverage. Then remaining M4 precision, M5 packed references, and M2 C ABI.
 - S1.2 `'static`/bounds and S1.3a `PhantomData` are done; temporary lifetime
   extension and variance analysis move with the borrow checker (M4).
   S1.4a opt-in `Copy` is enforced (`SAFE-COPY-001`) and the in-tree tree is
@@ -684,6 +695,7 @@ Codes are stable and grouped by domain:
 | `SAFE-LIFE-001` | returning a reference to a local/temporary/frame field |
 | `SAFE-LIFE-002` | borrow still live when the referent's local storage ends |
 | `SAFE-LIFE-003` | returned reference does not outlive the declared return lifetime |
+| `SAFE-LIFE-004` | a type does not satisfy a `'static` generic bound (e.g. a stack reference submitted to a thread) |
 | `SAFE-LIFE-*` | lifetimes / escapes |
 | `SAFE-INIT-*` | initialization / definite assignment |
 | `SAFE-VALID-*` | invalid values / transmute / packed |

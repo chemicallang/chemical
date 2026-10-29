@@ -310,4 +310,7 @@ public struct ordered_map_iterator<Key, Value> {
 
 };
 
+
+unsafe impl<Key, Value> Send for ordered_map<Key, Value> where Key: Send, Value: Send { }
+unsafe impl<Key, Value> Sync for ordered_map<Key, Value> where Key: Sync, Value: Sync { }
 }

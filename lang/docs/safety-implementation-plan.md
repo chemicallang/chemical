@@ -1,9 +1,12 @@
 # Chemical Full Safety Parity Plan (v4.1)
 
-> **Status:** In progress — M0 and M3 complete; M1/M2/M4/M5 in progress.
+> **Status:** In progress — M0 and M3 complete; M1/M2/M4/M5/M6 in progress.
+> S5.6b (unwinding) is withdrawn by policy: panic always aborts; no unwind
+> runtime, `catch_unwind`, or `UnwindSafe` traits are planned unless the C
+> backend later makes unwinding practical.
 > **Supersedes:** v2/v3/v3.1/v3.2 (git history).
 >
-> ## Implementation status (2026-10-23)
+> ## Implementation status (2026-10-29)
 >
 > **Landed**
 > - `Diag` optional stable `code`; coded output is `error[SAFE-*]:` /
@@ -911,14 +914,30 @@
 > audited bootstrap inside that helper (and a few generic/array test cases).
 > Negative tests cover missing bounds, explicit impls, arrays,
 > nested enums, references, and the safe/unsafe boundary.
-> `catch_unwind`/`UnwindSafe` and the unwinding/drop-on-unwind profile remain
-> S5.6b. Safety suite `53`; negative tests `572`; main TCC `2354`, LLVM `2352`;
-> libs `719`; plugins `1305`; async `53`; interpret `1910`;
+> **S5.6b policy decision (2026-10-29):** panic always aborts. The runtime has
+> one profile; there is no unwinding, drop-on-unwind, `catch_unwind`, or
+> `UnwindSafe`/`RefUnwindSafe`/`AssertUnwindSafe` surface. A panic in a
+> destructor or a worker thread aborts the process. This also makes FFI unwind
+> barriers unnecessary. The decision is revisited only if a future backend
+> makes unwinding cheap enough to justify the C-translation complexity.
+> **M6 safe threads (first slice):** `std::thread.spawn` submits a
+> non-capturing `(T) => U` entry with `T: Send + 'static` and
+> `U: Send + 'static`; `std::thread.spawn_void` is the void-returning form.
+> `std::thread.JoinHandle<T>` joins on explicit `join()` or destructor and is
+> `Send` when `T: Send`; `std::concurrent.Thread.join` is now public. A
+> non-`Send` argument (`Rc`, raw pointer) is rejected by the existing auto-trait
+> checker, and `T: 'static` is now enforced for generic bounds
+> (`SAFE-LIFE-004`): a reference into the caller's stack cannot escape into a
+> thread. `vector`, `deque`, `unordered_map`, and `ordered_map` gained audited
+> conditional `Send`/`Sync` impls; `string`/`u16string` remain owned values.
+> Capturing closures and erased captures still use the explicit unsafe
+> `std::concurrent.spawn` path until M6.5.
+> Next in M6: scoped threads, erased/async `Send`, guard/auto-trait audit,
+> and TSAN/data-race tests. Then remaining M5 validity (packed references),
+> M2 C ABI, and the variance/HRTB/temporary-lifetime precision items.
+> Safety suite `53`; negative tests `575`; main TCC `2354`, LLVM `2352`;
+> libs `726`; plugins `1305`; async `53`; interpret `1910`;
 > `MIRTests` `4638 checks`.
-> Next: synchronized-global wrapper policy, S5.6b
-> (`catch_unwind`/unwinding + `UnwindSafe`/`RefUnwindSafe`/`AssertUnwindSafe`),
-> remaining M5 validity (packed references), M6 `Send`/`Sync` enforcement, M2
-> C ABI, and the variance/HRTB/temporary-lifetime precision items.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >
@@ -955,7 +974,7 @@
 | Unsafe surface | Explicit `unsafe { }` blocks and `unsafe func`/`unsafe impl`. Safe code cannot perform unsafe operations implicitly. `unsafe` never disables ownership, initialization, or borrow checking. |
 | Raw pointers | `*T`/`*mut T`: creation/copy/compare/null-check safe; dereference, projection, method call, indexing, arithmetic, allocation, deallocation require `unsafe`. |
 | Borrow checking | Rust-faithful NLL + HRTB + variance + dropck, delivered in report→migrate→enforce stages. Unsupported patterns are rejected with a `SAFE-*` diagnostic, never silently accepted. |
-| Runtime model | Bounds checks always on; integer overflow checked in debug and wrapping in release; division/shift always checked; failures panic. Checked/wrapping/saturating APIs available. Unwinding/`catch_unwind` supported for parity. |
+| Runtime model | Bounds checks always on; integer overflow checked in debug and wrapping in release; division/shift always checked; failures panic. Checked/wrapping/saturating APIs available. Panic aborts; unwinding/`catch_unwind` are not part of the current target. |
 | Standard library | Full safe surface for shipped libraries: `Box`, `Vec`, `String`/`&str`, `Rc`, `Arc`, `Cell`, `RefCell`, `Mutex`, `RwLock`, `Condvar`, atomics, collections, I/O, net/TLS/HTTP, async. `unsafe` confined to reviewed internals/FFI. |
 | GC | Owned mode first. Native GC is a later mode; it relaxes lifetimes but keeps aliasing/race rules. |
 | Opt-out | None. No module flag, CLI escape, or per-dependency exemption. |
@@ -1089,11 +1108,11 @@ required language feature (§5.3).
 ### 3.4 Panic/unwind model
 
 - Recoverable failures use `Option`/`Result`.
-- `panic` is safe. Default profile aborts; an unwinding profile supports
-  `catch_unwind` and drop-on-unwind for parity.
+- `panic` is safe and aborts. There is one profile; no unwinding,
+  `catch_unwind`, or drop-on-unwind.
 - Bounds, debug overflow, division by zero, invalid shifts, failed
   `RefCell`/`Mutex` borrows panic.
-- Panicking in `Drop` is defined: abort if already unwinding; otherwise unwind.
+- Panicking in `Drop` aborts immediately; there is no unwinding state.
 - No-panic effects (proposal 0005) are a separate milestone.
 
 ### 3.5 GC boundary
@@ -1213,7 +1232,7 @@ positive tests.
 | Borrowing | shared/mutable references, lifetime syntax/elision/inference, `'static`, variance, NLL, reborrowing, two-phase borrows, temporary lifetime extension, HRTB |
 | Types | structs, tuple structs, tuples, variants/enums, unions (unsafe), arrays, slices, `str`, `Sized`/`?Sized`, `PhantomData`, `Pin`/`Unpin` |
 | Traits | interfaces/traits, default methods, supertraits, associated types, GATs, auto traits, negative impls, `unsafe trait`, `dyn Trait`/object safety/upcasting, `impl Trait` (argument/return, RPITIT), where clauses, generic impls, arbitrary self types (`self: Pin<&mut Self>`, `self: Box<Self>`) |
-| Core traits | `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Hash`/`Hasher`, `Display`, `Debug`, `From`/`Into`/`TryFrom`/`TryInto`, `Borrow`, `ToOwned`, `Error`, `FromIterator`/`Extend`, `DoubleEndedIterator`/`ExactSizeIterator`, `UnwindSafe`/`RefUnwindSafe`/`AssertUnwindSafe` |
+| Core traits | `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Hash`/`Hasher`, `Display`, `Debug`, `From`/`Into`/`TryFrom`/`TryInto`, `Borrow`, `ToOwned`, `Error`, `FromIterator`/`Extend`, `DoubleEndedIterator`/`ExactSizeIterator` (`UnwindSafe` deferred with unwinding) |
 | Generics | type/lifetime/const parameters, defaults, const generics (`[T; N]`), monomorphization |
 | Closures | `Fn`/`FnMut`/`FnOnce`, capture modes, `move`, HRTB, `'static` bounds |
 | Patterns/control | `if let`, `while let`, `let else`, `match` exhaustiveness, `?`/Try, ranges, `for`/`IntoIterator` |
@@ -1224,7 +1243,7 @@ positive tests.
 | Async | `Future`, `Pin`, `Unpin`, `.await`, executors, `Send` futures, cancellation, async closures, `async fn` in traits/RPITIT, arbitrary self types |
 | FFI | `extern "C"`, target-aware C ABI, `repr(C/transparent/packed)`, callbacks, variadics, `static mut`, unions, `CString`/`CStr` |
 | Unsafe | `unsafe` blocks/functions/impls/traits, raw pointers, casts/provenance, `transmute`, `assume_init`, `zeroed<T>()`, inline asm |
-| Panic | `panic`, abort/unwind profiles, `catch_unwind`, `UnwindSafe`/`RefUnwindSafe`/`AssertUnwindSafe`, drop-on-unwind, no unwinding across FFI |
+| Panic | `panic`, abort-only profile, source/reason reporting; unwinding, `catch_unwind`, and `UnwindSafe` are deferred |
 | Derive | `Copy`/`Clone`/`Default`/`PartialEq`/`Eq`/`Hash`/`Debug` equivalent generation |
 | Const/comptime | const generics, const evaluation, comptime functions, hardened interpreter |
 | Std API | shipped library surface in §11; parity backlog tracked per API |
@@ -1251,7 +1270,7 @@ for the parity corpus.
   dropping a union drops nothing. `Drop` fields in a union are rejected unless
   wrapped.
 - Destructors run exactly once on every initialized path, reverse order.
-  Abort profile: no drops on abort; unwinding profile: drops run during unwind.
+  Panic aborts: no destructors run during a panic; normal-path drops are unchanged.
 
 ### 5.2 Borrowing and lifetimes
 
@@ -1302,7 +1321,7 @@ func <'a, T, U, F> map(x : &'a T, f : F) : U
 - Core traits: `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Hash`/`Hasher`,
   `Display`, `Debug`, `From`/`Into`/`TryFrom`/`TryInto`, `Borrow`, `ToOwned`,
   `Error`, `FromIterator`/`Extend`, `DoubleEndedIterator`/`ExactSizeIterator`,
-  `UnwindSafe`/`RefUnwindSafe`/`AssertUnwindSafe`.
+  (UnwindSafe traits are deferred with unwinding.)
 - `Sized`/`?Sized`, `Unpin`, `Send`, `Sync`, `Copy`, `Drop`, `Clone`, `Default`.
 
 ### 5.4 Unsafe and FFI
@@ -1395,7 +1414,7 @@ TCC and LLVM.
 - `Waker` construction from raw parts is unsafe; `Waker: Send + Sync`; safe
   `wake` requires a validated owned handle.
 - `PhantomPinned`/`!Unpin` and Pin projection rules are required.
-- `catch_unwind`/cancellation drop exactly once.
+- Cancellation/drop runs exactly once on the normal (non-panicking) path; a panic aborts instead of unwinding.
 
 ---
 
@@ -1536,6 +1555,8 @@ passes.
 - Update negative harness to accept `error:` and `error[SAFE-`.
 - Report mode prints one summary line per file; full detail behind
   `--safety-report=json`; never flood the 16 KB negative buffer.
+- `SAFE-LIFE-004`: a type does not satisfy a `'static` generic bound (for
+  example, a stack reference submitted to a thread).
 - IDs: `SAFE-OWN-*`, `SAFE-BORROW-*`, `SAFE-LIFE-*`, `SAFE-INIT-*`,
   `SAFE-VALID-*`, `SAFE-BOUNDS-*`, `SAFE-OVERFLOW-*`, `SAFE-SEND-*`,
   `SAFE-UNSAFE-*`, `SAFE-FFI-*`, `SAFE-ASYNC-*`, `SAFE-DEP-*`.
@@ -1684,15 +1705,18 @@ Async is in scope:
 - FFI wrappers validate null before creating references.
 - Debug null checks not a substitute for construction.
 
-### 8.6 Panic/unwind/runtime ABI
+### 8.6 Panic/runtime ABI (abort-only)
 
-- Every program, including bare module, links `__chc_panic`,
-  `__chc_bounds_fail`, `__chc_overflow_fail` with source/message.
-- Default abort profile; unwinding profile supports `catch_unwind` and
-  drop-on-unwind.
-- Panic in `Drop`: abort if already unwinding; otherwise unwind.
-- No unwinding across FFI.
-- `std::panic` convenience wrapper.
+- Every program, including a bare module, links `__chc_panic`,
+  `__chc_bounds_fail`, `__chc_overflow_fail`, `__chc_div_zero_fail`,
+  `__chc_shift_fail`, and `__chc_alloc_fail` with source/message.
+- There is one profile: panic aborts. There is no unwinding runtime,
+  drop-on-unwind, `catch_unwind`, or `UnwindSafe`/`RefUnwindSafe`/
+  `AssertUnwindSafe` support.
+- A panic in `Drop` or in a worker thread aborts the process.
+- No unwinding can cross FFI because no unwind exists.
+- `std::panic` is a convenience wrapper over the abort entry, not a recovery
+  mechanism. Revisit only if a future backend makes unwinding practical.
 
 ### 8.7 Interpreter/comptime
 
@@ -1980,7 +2004,7 @@ Every safety commit:
 - Release wrapping/bounds/float→int on TCC/LLVM.
 - FFI full ABI by-value/callbacks/variadics/layout.
 - Comptime/interpreter OOB/UAF/uninit; unsupported opcodes hard error.
-- Runtime-fail tests run under both abort and unwinding profiles; expected exit
+- Runtime-fail tests run under the abort profile; expected exit
   code/signal differs and is part of the manifest.
 - Determinism across workers/seed.
 - `--check` parity; LSP deferred but tracked.
@@ -2183,7 +2207,7 @@ indicative; full parity is a large program (see §15.9).
 | S1.2 | Elision/static/bounds/temp extension | Corpus. |
 | S1.3 | Variance/PhantomData/PhantomPinned | Soundness. |
 | S1.4 | Opt-in Copy/Drop/Clone/Default/unsafe trait | Drop/negative/unsafe-trait tests. |
-| S1.5 | Auto traits/negative impls/UnwindSafe | Tests. |
+| S1.5 | Auto traits/negative impls (`Send`/`Sync`/`Unpin`; `UnwindSafe` deferred) | Tests. |
 | S1.6 | NonNull/MaybeUninit/ManuallyDrop/UnsafeCell | Unit/drop. |
 | S1.7 | Trait definitions (Deref/Index/Iterator/Fn) | Trait tests. |
 | S1.8 | Box<T> | Box tests. |
@@ -2253,7 +2277,7 @@ indicative; full parity is a large program (see §15.9).
 | S5.3 | Allocation/layout | Safe-call tests. |
 | S5.4 | Bounds enforcement | OOB tests. |
 | S5.5 | Overflow/C semantics | Tests. |
-| S5.6 | Panic/unwind/catch_unwind + UnwindSafe/RefUnwindSafe/AssertUnwindSafe | Runtime tests, both profiles. |
+| S5.6 | Panic/runtime ABI: abort-only policy | Panic reason/location tests; no unwind profile. |
 | S5.7 | Interpreter/comptime final hardening | No crash. |
 
 ### M6 — Send/Sync/threads (1–2 months)
@@ -2436,8 +2460,8 @@ otherwise:
    bounds and closures.
 5. **GAT/impl Trait interaction:** stage order; both must be in place before
    generic iterator/borrow abstractions.
-6. **Panic unwinding:** abort default; unwinding profile required for
-   `catch_unwind` parity; implement both and test.
+6. **Panic unwinding:** out of scope by policy. Panic always aborts; revisit
+   only if a backend makes unwinding practical.
 7. **Derive mechanism:** CBI plugin vs built-in; either is acceptable if
    diagnostics are good and compile time stays low.
 8. **No-panic effects:** separate approved proposal; schedule after full memory
@@ -2485,4 +2509,10 @@ and const-generic prerequisites; schedules interpreter hardening early; defers
 LSP but keeps `--check`; treats 5 MB as a post-release shrink target (M9); and
 keeps remote modules out of scope. The plan is a multi-milestone program
 (~300–450 commits, 18–24 months one engineer, 12–16 with two streams), not a
-single-drop change.*
+single-drop change.
+
+*Revision note v4.2 (2026-10-29): S5.6b unwinding is withdrawn by policy.
+Panic always aborts; there is no unwinding runtime, `catch_unwind`,
+drop-on-unwind, or `UnwindSafe` surface. M6 has started with a safe
+non-capturing `std::thread.spawn`/`spawn_void`, `JoinHandle`, `Send + 'static`
+enforcement, and `SAFE-LIFE-004`; scoped/erased/async `Send` and TSAN remain.*

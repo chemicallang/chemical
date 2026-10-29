@@ -268,4 +268,7 @@ impl<T : core::ops::Clone> core::ops::Clone for vector<T> {
         return out
     }
 }
+
+unsafe impl<T> Send for vector<T> where T: Send { }
+unsafe impl<T> Sync for vector<T> where T: Sync { }
 }

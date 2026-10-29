@@ -100,7 +100,7 @@ public namespace std {
                 return Thread { handle : h, valid : true }
             }
 
-            func join(&mut self) {
+            public func join(&mut self) {
                 if(!valid) {
                     panic("thread handle is invalid or already joined")
                 }
@@ -341,6 +341,124 @@ public namespace std {
         }
     }
 
+    }
+
+    public namespace thread {
+
+        @direct_init
+        public struct ResultCell<T> {
+            internal var value : std::Option<T>
+        }
+
+        @direct_init
+        public struct SpawnData<T, U> {
+            internal var f : (value : T) => U
+            internal var arg : std::ManuallyDrop<T>
+            internal var result : *mut ResultCell<U>
+        }
+
+        @direct_init
+        public struct VoidSpawnData<T> {
+            internal var f : (value : T) => void
+            internal var arg : std::ManuallyDrop<T>
+        }
+
+        func <T, U> thread_entry(arg : *void) : *void {
+            unsafe {
+                var data = arg as *mut SpawnData<T, U>
+                var value = data.arg.take()
+                var result = data.f(value)
+                data.result.value = std::Option.Some<U>(result)
+                delete data
+                return null
+            }
+        }
+
+        func <T> void_thread_entry(arg : *void) : *void {
+            unsafe {
+                var data = arg as *mut VoidSpawnData<T>
+                var value = data.arg.take()
+                data.f(value)
+                delete data
+                return null
+            }
+        }
+
+        public struct JoinHandle<T> {
+            internal var thread : std::concurrent.Thread
+            internal var result : *mut ResultCell<T>
+            internal var joined : bool
+
+            public func join(&mut self) : T {
+                if(!joined) {
+                    thread.join()
+                    joined = true
+                }
+                if(result == null) {
+                    panic("thread result is already taken")
+                }
+                var out = unsafe((*result).value.take())
+                unsafe { delete result }
+                result = null
+                return out
+            }
+
+            @delete
+            func delete(&mut self) {
+                if(!joined) {
+                    thread.join()
+                    joined = true
+                }
+                if(result != null) {
+                    unsafe { delete result }
+                    result = null
+                }
+            }
+        }
+
+        unsafe impl<T> Send for JoinHandle<T> where T: Send { }
+
+        // Both parameters are explicit until return-type inference from a
+        // function pointer lands: `spawn<int, int>(worker, 41)`.
+        public func <T, U> spawn(f : (value : T) => U, arg : T) : JoinHandle<U> where T : Send + 'static, U : Send + 'static {
+            var cell = unsafe(malloc(sizeof(ResultCell<U>))) as *mut ResultCell<U>
+            if(cell == null) {
+                panic("failed to allocate thread result")
+            }
+            unsafe { new(cell) ResultCell<U> { value : std::Option.None<U>() } }
+            var data = unsafe(malloc(sizeof(SpawnData<T, U>))) as *mut SpawnData<T, U>
+            if(data == null) {
+                unsafe { free(cell) }
+                panic("failed to allocate thread state")
+            }
+            unsafe {
+                new(data) SpawnData<T, U> {
+                    f : f,
+                    arg : std::ManuallyDrop<T> { value : arg },
+                    result : cell
+                }
+            }
+            var t = unsafe(std::concurrent.spawn(thread_entry<T, U>, data as *void))
+            return JoinHandle<U> {
+                thread : t,
+                result : cell,
+                joined : false
+            }
+        }
+
+        public func <T> spawn_void(f : (value : T) => void, arg : T) : std::concurrent.Thread where T : Send + 'static {
+            var data = unsafe(malloc(sizeof(VoidSpawnData<T>))) as *mut VoidSpawnData<T>
+            if(data == null) {
+                panic("failed to allocate thread state")
+            }
+            unsafe {
+                new(data) VoidSpawnData<T> {
+                    f : f,
+                    arg : std::ManuallyDrop<T> { value : arg }
+                }
+            }
+            return unsafe(std::concurrent.spawn(void_thread_entry<T>, data as *void))
+        }
     }
 
 }

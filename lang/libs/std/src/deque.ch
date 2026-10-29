@@ -159,4 +159,7 @@ public struct deque<T> {
 
 }
 
+
+unsafe impl<T> Send for deque<T> where T: Send { }
+unsafe impl<T> Sync for deque<T> where T: Sync { }
 }

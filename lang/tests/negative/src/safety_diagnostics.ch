@@ -1159,3 +1159,25 @@ func neg_comptime_printf_foreign_string_rejected(env : &mut TestEnv) {
     var ch = "public func main() : int {\n    comptime {\n        printf(\"%s\", 0x1234 as *char)\n    }\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "comptime_printf_foreign_string", ch, "foreign", NEG_MOD_CSTD)
 }
+
+
+@test
+func neg_thread_spawn_non_send_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func worker(x : std::Rc<int>) : int {\n    return x.strong_count() as int\n}\npublic func main() : int {\n    var h = std::thread.spawn<std::Rc<int>, int>(worker, std::rc(1))\n    return h.join() - 1\n}\n"
+    expect_compile_error_with_mod(env, "thread_spawn_non_send", ch, "does not satisfy where clause constraint 'T : Send'", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_thread_spawn_non_static_reference_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func worker(x : &int) : int {\n    return *x\n}\npublic func main() : int {\n    var x = 1\n    var h = std::thread.spawn<&int, int>(worker, &x)\n    return h.join() - 1\n}\n"
+    expect_compile_error_with_mod(env, "thread_spawn_non_static", ch, "SAFE-LIFE-004", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_thread_spawn_void_non_static_reference_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func worker(x : &int) {\n}\npublic func main() : int {\n    var x = 1\n    var t = std::thread.spawn_void(worker, &x)\n    t.join()\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "thread_spawn_void_non_static", ch, "SAFE-LIFE-004", NEG_MOD_STD_CORE)
+}

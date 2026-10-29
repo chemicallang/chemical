@@ -371,4 +371,7 @@ public struct unordered_map_iterator<Key, Value> {
 
 };
 
+
+unsafe impl<Key, Value> Send for unordered_map<Key, Value> where Key: Send, Value: Send { }
+unsafe impl<Key, Value> Sync for unordered_map<Key, Value> where Key: Sync, Value: Sync { }
 }

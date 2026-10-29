@@ -462,6 +462,21 @@ inline void link_val(SymResLinkBody &symRes, Value* value, BaseType* expected_ty
     }
 }
 
+void SymResLinkBody::check_volatile_access(ASTNode* linked, Value* at) {
+    if (!safe_context || linked == nullptr) return;
+    bool is_volatile = false;
+    if (linked->kind() == ASTNodeKind::StructMember) {
+        is_volatile = linked->as_struct_member_unsafe()->is_volatile();
+    } else if (linked->kind() == ASTNodeKind::VarInitStmt) {
+        is_volatile = linked->as_var_init_unsafe()->is_volatile();
+    }
+    if (is_volatile) {
+        diagnoser.error(at).with_code("SAFE-VALID-006")
+            << "access to a @volatile value requires an explicit unsafe boundary "
+               "(@volatile is not atomic)";
+    }
+}
+
 bool find_link_in_parent(VariableIdentifier* id, Value* parent, SymResLinkBody& visitor) {
     auto& value = id->value;
     auto child = provide_child(visitor.getChildResolver(), parent, value, nullptr);
@@ -524,7 +539,9 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
         if(id == nullptr) {
             break;
         }
-        find_link_in_parent(id, values[i - 1], *this);
+        if (find_link_in_parent(id, values[i - 1], *this)) {
+            check_volatile_access(id->linked, id);
+        }
         i++;
     }
 
@@ -606,6 +623,7 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
         if(identifier->getType() == nullptr) {
             identifier->setType(identifier->linked->known_type());
         }
+        check_volatile_access(identifier->linked, identifier);
         identifier->process_linked(&diagnoser, current_func_type);
         return;
     }
@@ -633,6 +651,7 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
         } else {
             identifier->linked = sym->activeNode;
             identifier->setType(identifier->linked->known_type());
+            check_volatile_access(identifier->linked, identifier);
             identifier->process_linked(&diagnoser, current_func_type);
             return;
         }
@@ -641,6 +660,7 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
     if(linked) {
         identifier->linked = linked;
         identifier->setType(linked->known_type());
+        check_volatile_access(identifier->linked, identifier);
         identifier->process_linked(&diagnoser, current_func_type);
         return;
     } else {

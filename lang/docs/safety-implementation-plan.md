@@ -796,6 +796,8 @@
 > MIR lowering against every declared member (including inherited members) and
 > an invalid tag aborts through `__chc_enum_fail` with the source location.
 > `SAFE-VALID-005` is retired; the literal-only `SAFE-VALID-003` check remains.
+> `SAFE-VALID-006` requires an unsafe boundary for `@volatile` reads/writes,
+> because volatile is not atomic and concurrent use is a data race.
 > The in-tree lexer/parser/plugin casts (`js_cbi_lexer`, `universal_parser`,
 > `css_parser`, `json_cbi`, the test IPC parser) were replaced with integer
 > comparisons or total mapping helpers instead of forging an enum. `NonNull`, `Box`, `Rc`/`Weak`, and `Arc`/`ArcWeak` now have private
@@ -837,7 +839,7 @@
 > read. Provenance beyond range (cross-frame stale pointers) and
 > bounds-checked host `strlen`/`printf`/foreign pointers remain M5.7b.
 > `catch_unwind`/`UnwindSafe` and the unwinding/drop-on-unwind profile remain
-> S5.6b. Safety suite `53`; negative tests `535`; main TCC `2354`, LLVM `2352`;
+> S5.6b. Safety suite `53`; negative tests `536`; main TCC `2354`, LLVM `2352`;
 > interpret `1910`; `MIRTests` `4638 checks`.
 > Next: M5.7b provenance/foreign-pointer hardening, S5.6b
 > (`catch_unwind`/unwinding + `UnwindSafe`/`RefUnwindSafe`/`AssertUnwindSafe`),

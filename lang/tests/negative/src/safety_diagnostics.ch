@@ -928,3 +928,10 @@ func neg_u16string_raw_constructor_requires_unsafe(env : &mut TestEnv) {
     var ch = "public func main() : int {\n    var p : *u16 = null\n    var v = std::u16string(p, 1)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "u16string_raw_ctor", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
 }
+
+@test
+func neg_volatile_access_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    @volatile\n    var flag : u32 = 0\n    flag = 1\n    return flag as int\n}\n"
+    expect_compile_error(env, "volatile_access_safe", ch, "SAFE-VALID-006")
+}

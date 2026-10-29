@@ -213,6 +213,13 @@ public:
 
     void VisitAccessChain(AccessChain* chain, bool check_validity, bool assignment);
 
+    /**
+     * Volatile access is not atomic: sharing a plain volatile field across
+     * threads is a data race, and MMIO access is a hardware contract. Require
+     * the explicit unsafe boundary outside an unsafe block/function.
+     */
+    void check_volatile_access(ASTNode* linked, Value* at);
+
     void VisitVariableIdentifier(VariableIdentifier* identifier, bool check_access);
 
     /**

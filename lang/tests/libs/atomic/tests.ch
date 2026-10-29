@@ -368,19 +368,23 @@ func u8_overflow_wrap(env : &mut TestEnv) {
 func volatile_flag_spin(env : &mut TestEnv) {
     @volatile
     var flag : u32 = 0
-    // Verify @volatile variable can be read and written
-    if(flag != 0) { env.error("volatile_flag_spin"); return }
-    flag = 1
-    if(flag != 1) { env.error("volatile_flag_spin"); return }
+    // Verify @volatile variable can be read and written through the unsafe boundary.
+    unsafe {
+        if(flag != 0) { env.error("volatile_flag_spin"); return }
+        flag = 1
+        if(flag != 1) { env.error("volatile_flag_spin"); return }
+    }
 }
 
 @test
 func volatile_in_atomic_struct(env : &mut TestEnv) {
     // Test @volatile on a struct field used for atomic-like operations
     var cell = atomic_cell_make()
-    if(cell.value != 0) { env.error("volatile_in_atomic_struct"); return }
-    cell.value = 42
-    if(cell.value != 42) { env.error("volatile_in_atomic_struct"); return }
+    unsafe {
+        if(cell.value != 0) { env.error("volatile_in_atomic_struct"); return }
+        cell.value = 42
+        if(cell.value != 42) { env.error("volatile_in_atomic_struct"); return }
+    }
 }
 
 struct AtomicCell {

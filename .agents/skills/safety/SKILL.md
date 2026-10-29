@@ -277,12 +277,20 @@ Implemented:
   `unsafe(...)` is valid as an expression statement. Negative tests `503`;
   TCC main `2351`, LLVM main `2349`. A compiler-side `span` implicit-overload /
   `intrinsics::size` nondeterminism is fixed by the M5.2a determinism slice.
+- S1.4 unsafe interfaces + raw constructors: `unsafe interface` declares a
+  contract whose implementor must write `unsafe impl` (`SAFE-TRAIT-001`);
+  `core::iterable::Linear` is such an interface because `data()` feeds for-in
+  pointer arithmetic; `Allocator` is unsafe because an impl supplies raw
+  allocation pointers. Raw pointer/length constructors for `string`,
+  `string_view`, `span`, and `u16string` are `unsafe func`, so safe code cannot
+  forge a view of arbitrary memory; literal/reference constructors remain safe,
+  and audited in-tree call sites wrap the trusted construction in `unsafe(...)`.
 - M5.3/S2.5 guards: `Layout` has private size/alignment with
   `size()`/`align()`/`validate()`; `GlobalAllocator` rejects zero/non-power-of-two
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `51`, negative tests `530`.
+  `51`, negative tests `535`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -297,7 +305,7 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `51`, negative `530`; TCC main `2354`, LLVM
+  TCC/LLVM lib runs. Safety suite `51`, negative `535`; TCC main `2354`, LLVM
   main `2352`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
@@ -592,7 +600,7 @@ Codes are stable and grouped by domain:
 | `SAFE-VALID-003` | integer literal is not a declared enum member |
 | `SAFE-VALID-004` | `zeroed<Enum>()` has no declared zero tag |
 | `SAFE-VALID-005` | runtime integer-to-enum cast in safe code |
-| `SAFE-ITER-001` | safe `Linear` impl would expose a raw for-in pointer |
+| `SAFE-TRAIT-001` | implementation of an `unsafe interface` was not `unsafe impl` |
 | `SAFE-VIS-001` | private/internal member initialized or accessed outside its type/module |
 | `SAFE-FFI-001` | extern call in a safe context (enforced) |
 | `SAFE-COPY-001` | user type used with a `Copy` bound but no explicit `impl Copy` |

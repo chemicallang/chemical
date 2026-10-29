@@ -10,7 +10,8 @@ public variant EnvError {
         switch(self) {
             OperationFailed(msg) => {
                 var s = string("EnvError: operation failed: ")
-                s.append_view(string_view(msg.data(), msg.size()))
+                const msg_view = unsafe(string_view(msg.data(), msg.size()))
+                s.append_view(&msg_view)
                 return s
             }
         }

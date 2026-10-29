@@ -240,7 +240,7 @@ public func ssrTextEquals(val : &SsrAttributeValue, expected : SsrText) : bool {
             while(end > 0 && tmp.get(end - 1) == '0') { end-- }
             if(end > 0 && tmp.get(end - 1) == '.') { end-- }
             if(end == 0) return false
-            const view = std::string_view(tmp.data(), end)
+            const view = unsafe(std::string_view(tmp.data(), end))
             return expected.size == view.size() && unsafe(strncmp(expected.data, view.data(), view.size())) == 0
         }
         Multiple(_) => return false
@@ -283,12 +283,14 @@ func appendSsrValueText(val : &SsrAttributeValue, out : &mut std::string) : bool
             return true
         }
         Text(v) => {
-            out.append_view(std::string_view(v.data, v.size))
+            const text_view = unsafe(std::string_view(v.data, v.size))
+            out.append_view(&text_view)
             return true
         }
         PtrChar(v) => {
             if(v == null) return true
-            out.append_view(std::string_view(v, unsafe(strlen(v))))
+            const ptr_view = unsafe(std::string_view(v, unsafe(strlen(v))))
+            out.append_view(&ptr_view)
             return true
         }
         default => return false
@@ -425,7 +427,7 @@ func writeAttrValue(page : &mut HtmlPage, output : &mut std::string, attrVal : &
         Integer(value) => output.append_integer(value)
         Double(value, precision) => output.append_double(value, precision)
         Text(value) => {
-            const view = std::string_view(value.data, value.size)
+            const view = unsafe(std::string_view(value.data, value.size))
             if(target == AttrValueTarget.Js) {
                 output.append('"')
                 appendJsEscaped(output, &view)
@@ -435,7 +437,7 @@ func writeAttrValue(page : &mut HtmlPage, output : &mut std::string, attrVal : &
             }
         }
         PtrChar(value) => {
-            const view = std::string_view(value, strlen(value))
+            const view = unsafe(std::string_view(value, strlen(value)))
             if(target == AttrValueTarget.Js) {
                 output.append('"')
                 appendJsEscaped(output, &view)

@@ -142,7 +142,7 @@ func snapshot_html() : std::string {
     var page = HtmlPage()
     render_snapshot_app(&mut page)
     const h = page.getHtml()
-    return std::string(h.data(), h.size())
+    return unsafe(std::string(h.data(), h.size()))
 }
 
 @test

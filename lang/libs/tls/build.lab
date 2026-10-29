@@ -30,7 +30,7 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
 
     var deps : []*mut Module = [ core_module, cstd_module, std_module, async_module, net_module, crypto_module, encoding_module, datetime_module, osrand_module ]
     var srcPath = lab::rel_path_to("src")
-    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("tls"), srcPath.to_view(), std::span<*mut Module>(deps, 9));
+    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("tls"), srcPath.to_view(), unsafe(std::span<*mut Module>(deps, 9)));
 
     comptime if(def.windows) {
         var winPath = lab::rel_path_to("win")

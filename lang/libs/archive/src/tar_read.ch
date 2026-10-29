@@ -201,7 +201,7 @@ public func tar_contains(archive : *mut TarArchive, name : *char) : bool {
 }
 
 public func tar_extract_entry(archive : *mut TarArchive, entry : *mut ArchiveEntry, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
-    var full_path = string(dest_dir)
+    var full_path = unsafe(string(dest_dir))
     if(full_path.size() > 0 && full_path.get(full_path.size() - 1) != '/' as char) {
         full_path.append('/')
     }

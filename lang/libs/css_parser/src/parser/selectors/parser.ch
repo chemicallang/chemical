@@ -265,7 +265,8 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
                          val.append(')')
                      }
                  }
-                 simple.value = builder.allocate_view(std::string_view(val.data(), val.size()));
+                 const raw_view = unsafe(std::string_view(val.data(), val.size()))
+                 simple.value = builder.allocate_view(&raw_view);
              } else {
                  // Unexpected token after :
                  break;

@@ -61,7 +61,8 @@ func test_conversions() {
     })
     test("std::string_view to_i32 slice", () => {
         var s = "abc123def"
-        var view = string_view(s).subview(3, 6)
+        var raw_view = unsafe(string_view(s))
+        var view = raw_view.subview(3, 6)
         var Ok(val) = view.to_i32() else return false
         return val == 123
     })

@@ -220,12 +220,12 @@ func test_bcrypt_check_password_edge_cases(env : &mut TestEnv) {
         env.error("check_password must return false for hash < 29 chars")
     }
     // Hash with invalid prefix ($2x$ is not $2b$)
-    var invalid_prefix = std::string::make_no_len("$2x$04$abcdefghijklmnopqrstuvabcdefghijklmnopqrstuvabcdefghijklm")
+    var invalid_prefix = unsafe(std::string.make_no_len("$2x$04$abcdefghijklmnopqrstuvabcdefghijklmnopqrstuvabcdefghijklm"))
     if(bcrypt::check_password(std::string_view("password"), invalid_prefix.to_view())) {
         env.error("check_password must return false for hash with $2x$ prefix")
     }
     // Malformed hash that starts with $ but has no '2'
-    var malformed = std::string::make_no_len("$3b$04$abcdefghijklmnopqrstuvabcdefghijklmnopqrstuvabcdefghijklm")
+    var malformed = unsafe(std::string.make_no_len("$3b$04$abcdefghijklmnopqrstuvabcdefghijklmnopqrstuvabcdefghijklm"))
     if(bcrypt::check_password(std::string_view("password"), malformed.to_view())) {
         env.error("check_password must return false when hash[1] != '2'")
     }
@@ -286,14 +286,14 @@ func test_bcrypt_bf_crypt_invalid_settings(env : &mut TestEnv) {
         env.error("bf_crypt must return empty for setting < 7 chars")
     }
     // Setting with valid structure but invalid base64 chars in salt
-    var invalid_b64 = std::string::make_no_len("$2b$04$!!!!!!!!!!!!!!!!!!!!!!")
+    var invalid_b64 = unsafe(std::string.make_no_len("$2b$04$!!!!!!!!!!!!!!!!!!!!!!"))
     var r5 = bcrypt::bf_crypt(std::string_view("pw"), invalid_b64.to_view())
     if(!r5.empty()) {
         env.error("bf_crypt must return empty for invalid base64 in salt")
     }
 
     // Setting with valid structure but salt too short for 16 bytes
-    var short_salt = std::string::make_no_len("$2b$04$ABCD")
+    var short_salt = unsafe(std::string.make_no_len("$2b$04$ABCD"))
     var r6 = bcrypt::bf_crypt(std::string_view("pw"), short_salt.to_view())
     if(!r6.empty()) {
         env.error("bf_crypt must return empty for salt shorter than 16 bytes")

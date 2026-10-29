@@ -2,7 +2,7 @@ public namespace core {
 
 public namespace iterable {
 
-public interface Linear<T> {
+public unsafe interface Linear<T> {
 
     func data(&self) : *T
 

@@ -9,7 +9,7 @@ public func get_env(name : &std::string_view) : std::Option<std::string> {
     if(ptr == null) {
         return std::Option.None<std::string>();
     }
-    return std::Option.Some<std::string>(std::string.make_no_len(ptr));
+    return std::Option.Some<std::string>(unsafe(std::string.make_no_len(ptr)));
 }
 
 }

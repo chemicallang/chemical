@@ -1,6 +1,6 @@
 
 func (str : &std::string) view() : std::string_view {
-    return std::string_view(str.data(), str.size());
+    return unsafe(std::string_view(str.data(), str.size()));
 }
 
 // The lexer hands attribute values over with their delimiters still attached, so
@@ -80,7 +80,7 @@ func decode_html_entities(text : std::string_view) : std::string {
         if(maxi > text.size()) { maxi = text.size(); }
         while(semi < maxi && text.get(semi) != ';') { semi++; }
         if(semi >= maxi) { out.append(ch); i++; continue; }
-        const name = std::string_view(text.data() + i + 1, semi - i - 1);
+        const name = unsafe(std::string_view(text.data() + i + 1, semi - i - 1));
         var code = html_named_entity_code(name);
         if(code < 0) { code = html_entity_numeric_code(name); }
         if(code < 0) { out.append(ch); i++; continue; }
@@ -133,7 +133,7 @@ func (converter : &mut ASTConverter) resolve_and_put_prop(element : *mut HtmlEle
     var dotPos : uint = 0;
     while(dotPos < path.size() && path.data()[dotPos] != '.') dotPos++;
 
-    var attrName = if(dotPos == path.size()) path else std::string_view(path.data(), dotPos);
+    var attrName = if(dotPos == path.size()) path else unsafe(std::string_view(path.data(), dotPos));
     
     var attr = find_attribute(element, attrName);
     if(attr == null) return;
@@ -167,7 +167,7 @@ func (converter : &mut ASTConverter) resolve_and_put_prop(element : *mut HtmlEle
                 var nextDot = remStart;
                 while(nextDot < path.size() && path.data()[nextDot] != '.') nextDot++;
                 
-                var part = std::string_view(path.data() + remStart, nextDot - remStart);
+                var part = unsafe(std::string_view(path.data() + remStart, nextDot - remStart));
                 
                 var id = builder.make_identifier(&part, null, false, loc);
                 const chain = builder.make_access_chain(&std::span<*mut Value>([ current, id ]), loc)

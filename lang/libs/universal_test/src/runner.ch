@@ -466,7 +466,7 @@ type UTHandleRunFn = (h : *mut TestRunnerHandle, reporter : &mut TestReporter, a
 @retained
 public func universal_handle_run(h : *mut TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) : int {
     var ptr = h.tests_ptr as *mut UTFunction
-    var span = std::span<UTFunction>(ptr, h.tests_count)
+    var span = unsafe(std::span<UTFunction>(ptr, h.tests_count))
     return run_universal_tests_reporting(span, reporter, argc, argv)
 }
 

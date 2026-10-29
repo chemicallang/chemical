@@ -10,18 +10,18 @@ public struct span<T> {
     @constructor
     @expand
     comptime func make2(vec : %maybe_runtime<&vector<T>>) {
-        return constructor<T>(vec.data(), vec.size())
+        return unsafe(constructor<T>(vec.data(), vec.size()))
     }
 
     @implicit
     @constructor
     @expand
     comptime func make2(array : []%maybe_runtime<T>) {
-        return constructor<T>(array, intrinsics::size(array))
+        return unsafe(constructor<T>(array, intrinsics::size(array)))
     }
 
     @constructor
-    func constructor(array_ptr : *T, array_size : size_t) {
+    unsafe func constructor(array_ptr : *T, array_size : size_t) {
         return span<T> {
             _data : array_ptr,
             _size : array_size

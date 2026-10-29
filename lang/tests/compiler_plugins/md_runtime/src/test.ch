@@ -6,7 +6,7 @@ func no_highlight(lang : std::string_view, code : std::string_view) : std::strin
 }
 
 func no_rewrite(url : std::string_view) : std::string {
-    return std::string(url.data(), url.size())
+    return unsafe(std::string(url.data(), url.size()))
 }
 
 func md_view_equals(env : &mut TestEnv, got : &std::string_view, expected : &std::string_view) {
@@ -26,7 +26,7 @@ func md_view_equals(env : &mut TestEnv, got : &std::string_view, expected : &std
 }
 
 func md_render_equals(env : &mut TestEnv, input : &std::string_view, expected : &std::string_view) {
-    var view = std::string_view(input.data(), input.size())
+    var view = unsafe(std::string_view(input.data(), input.size()))
     var html = md::to_html(view, no_highlight, no_rewrite)
     md_view_equals(env, html.to_view(), expected)
 }
@@ -156,7 +156,7 @@ public func test_md_highlighter_is_used(env : &mut TestEnv) {
         return std::string()
     }
     var rewrite : (url : std::string_view) => std::string = (url) => {
-        return std::string(url.data(), url.size())
+        return unsafe(std::string(url.data(), url.size()))
     }
     var html = md::to_html(input, highlight, rewrite)
     var expected = std::string_view("<pre class=\"md-pre\"><code class=\"md-code-block language-cpp\"><span class=\"hl\">int x;\n</span></code></pre>\n")

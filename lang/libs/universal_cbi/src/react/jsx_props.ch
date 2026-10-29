@@ -83,7 +83,7 @@ func resolve_nested_prop_as_text(
     if(propPath.empty()) return 0;
     var dotPos : uint = 0;
     while(dotPos < propPath.size() && propPath.data()[dotPos] != '.') dotPos++;
-    const attrName = if(dotPos == propPath.size()) propPath else std::string_view(propPath.data(), dotPos);
+    const attrName = if(dotPos == propPath.size()) propPath else unsafe(std::string_view(propPath.data(), dotPos));
     const attr = find_jsx_attribute(element, attrName);
     if(attr == null || attr.value == null) return 0;
     if(attr.value.kind == JsNodeKind.Literal) {

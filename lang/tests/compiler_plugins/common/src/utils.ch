@@ -97,7 +97,8 @@ public func css_equals(env : &mut TestEnv, str : &std::string, view : &std::stri
     const start = str.data() + start_offset
     const end = str.data() + str.size() - end_offset;
 
-    view_equals(env, std::string_view(start, end - start), view)
+    const actual = unsafe(std::string_view(start, end - start))
+    view_equals(env, &actual, view)
 
 }
 
@@ -115,7 +116,8 @@ public func css_at_rule_equals(env : &mut TestEnv, str : &std::string, view : &s
     const start = str.data() + start_offset
     const end = str.data() + str.size();
 
-    view_equals(env, std::string_view(start, end - start), view)
+    const actual = unsafe(std::string_view(start, end - start))
+    view_equals(env, &actual, view)
 
 }
 

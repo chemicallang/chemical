@@ -139,7 +139,7 @@ impl std::Decoder for JsonDecoder {
     func array(&self) : std::Result<JsonArrayDecoder, std::SerializationError> {
         if(self.value is JsonValue.Array) {
             var Array(v) = self.value else unreachable
-            return std::Result.Ok(JsonArrayDecoder { elements : std::span<JsonValue>(v.data(), v.size()), index : 0u64 })
+            return std::Result.Ok(JsonArrayDecoder { elements : unsafe(std::span<JsonValue>(v.data(), v.size())), index : 0u64 })
         }
         return std::Result.Err(se_err("expected array"))
     }

@@ -42,6 +42,10 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, Acces
         case TokenType::AsyncKw:
             return (ASTNode*) parseFunctionStructureTokens(allocator, mod_allocator, spec, true, comptime);
         case TokenType::UnsafeKw:
+            if((token + 1)->type == TokenType::InterfaceKw) {
+                token++;
+                return (ASTNode*) parseInterfaceStructureTokens(allocator, spec, true);
+            }
             if((token + 1)->type == TokenType::FuncKw ||
                (token + 1)->type == TokenType::AsyncKw) {
                 token++;
@@ -51,7 +55,7 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, Acces
                 mark_parsed_function_unsafe(fn);
                 return fn;
             }
-            error("expected an unsafe function declaration");
+            error("expected an unsafe function or interface declaration");
             return nullptr;
         case TokenType::ComptimeKw:
             if(comptime) {
@@ -119,6 +123,10 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
                     return parseTopLevelStatement(allocator, true);
             }
         case TokenType::UnsafeKw:
+            if((token + 1)->type == TokenType::InterfaceKw) {
+                token++;
+                return (ASTNode*) parseInterfaceStructureTokens(allocator, AccessSpecifier::Internal, true);
+            }
             if((token + 1)->type == TokenType::ImplKw) {
                 token++;
                 return (ASTNode*) parseImplTokens(allocator, mod_allocator, AccessSpecifier::Internal, true);
@@ -197,6 +205,10 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
         case TokenType::ImportKw:
             return (ASTNode*) parseImportStatement(allocator);
         case TokenType::UnsafeKw:
+            if((token + 1)->type == TokenType::InterfaceKw) {
+                token++;
+                return (ASTNode*) parseInterfaceStructureTokens(allocator, AccessSpecifier::Internal, true);
+            }
             if((token + 1)->type == TokenType::ImplKw) {
                 token++;
                 return (ASTNode*) parseImplTokens(allocator, mod_allocator, AccessSpecifier::Internal, true);

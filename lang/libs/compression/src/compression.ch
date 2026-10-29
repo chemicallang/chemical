@@ -59,7 +59,7 @@ public func (c : &mut RleCompressor) decompress(data : *u8, data_len : size_t, o
 }
 
 public func (c : &mut RleCompressor) name() : std::string_view {
-    return std::string_view("RLE", 3);
+    return unsafe(std::string_view("RLE", 3));
 }
 
 // ---------------------------------------------------------------------------

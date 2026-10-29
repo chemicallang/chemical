@@ -26,12 +26,12 @@ public struct ProcessResult {
 
     /// Get stdout as a string view (assumes UTF-8).
     public func stdout_str(&self) : string_view {
-        return string_view(self.output.stdout_data.data() as *char, self.output.stdout_data.size())
+        return unsafe(string_view(self.output.stdout_data.data() as *char, self.output.stdout_data.size()))
     }
 
     /// Get stderr as a string view (assumes UTF-8).
     public func stderr_str(&self) : string_view {
-        return string_view(self.output.stderr_data.data() as *char, self.output.stderr_data.size())
+        return unsafe(string_view(self.output.stderr_data.data() as *char, self.output.stderr_data.size()))
     }
 
     /// Get the exit code.

@@ -941,7 +941,7 @@ public:
     /**
      * parses a interface structure
      */
-    ASTNode* parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
+    ASTNode* parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool is_unsafe = false);
 
     /**
      * parse namespace tokens

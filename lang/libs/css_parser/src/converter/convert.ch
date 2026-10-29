@@ -8,7 +8,7 @@
 using namespace std;
 
 public func (str : &std::string) view() : std::string_view {
-    return std::string_view(str.data(), str.size());
+    return unsafe(std::string_view(str.data(), str.size()));
 }
 
 // ─── Standalone helper functions ─────────────────────────────────────────────

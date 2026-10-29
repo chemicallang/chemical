@@ -1127,6 +1127,19 @@ void TopLevelLinkSignature::VisitGenericImplDecl(GenericImplDecl* node) {
     LinkMembersContainerNoScope(node->master_impl);
     table.scope_end();
 
+    if(node->master_impl->interface_type) {
+        auto* iface_node = node->master_impl->interface_type->get_direct_linked_canonical_node();
+        if(iface_node != nullptr && iface_node->kind() == ASTNodeKind::InterfaceDecl) {
+            auto* iface = iface_node->as_interface_def_unsafe();
+            if(iface->is_unsafe() && !node->master_impl->attrs.is_unsafe) {
+                diagnoser.error(node->master_impl).with_code("SAFE-TRAIT-001")
+                    << "implementation of unsafe interface '" << iface->name_view()
+                    << "' must be declared `unsafe impl`";
+                return;
+            }
+        }
+    }
+
     if(node->master_impl->attrs.is_negative) {
         auto* iface_node = node->master_impl->interface_type
             ? node->master_impl->interface_type->get_direct_linked_canonical_node() : nullptr;
@@ -1628,6 +1641,12 @@ void index_implementation(SymbolResolver& linker, ImplDefinition* node) {
     }
     if (linked_node->kind() == ASTNodeKind::InterfaceDecl) {
         const auto linked = linked_node->as_interface_def_unsafe();
+        if (linked->is_unsafe() && !node->attrs.is_unsafe) {
+            linker.error(node).with_code("SAFE-TRAIT-001")
+                << "implementation of unsafe interface '" << linked->name_view()
+                << "' must be declared `unsafe impl`";
+            return;
+        }
         if (node->attrs.is_negative) {
             // Negative impls are only meaningful for the Send/Sync auto
             // traits, and only for concrete targets for now.

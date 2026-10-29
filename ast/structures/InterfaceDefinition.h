@@ -65,6 +65,13 @@ struct InterfaceDefinitionAttrs {
      */
     bool retained_body = false;
 
+    /**
+     * `unsafe interface` — implementing this interface is an unsafe contract.
+     * A safe impl is rejected; the implementor takes responsibility for the
+     * interface's invariants (e.g. a raw-pointer iterator contract).
+     */
+    bool is_unsafe = false;
+
 };
 
 class InterfaceDefinition : public ExtendableMembersContainerNode {
@@ -110,10 +117,11 @@ public:
             chem::string_view identifier,
             ASTNode* parent_node,
             SourceLocation location,
-            AccessSpecifier specifier = AccessSpecifier::Internal
+            AccessSpecifier specifier = AccessSpecifier::Internal,
+            bool is_unsafe = false
     ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::InterfaceDecl, parent_node, location),
         attrs(specifier, false, false, false), linked_type(this) {
-
+        attrs.is_unsafe = is_unsafe;
     }
 
     [[nodiscard]]
@@ -155,6 +163,10 @@ public:
 
     inline bool is_extern() {
         return attrs.is_extern;
+    }
+
+    inline bool is_unsafe() const {
+        return attrs.is_unsafe;
     }
 
     inline void set_extern(bool value) {

@@ -63,7 +63,7 @@ public func json_parseMacroTopLevelNode(parser : *mut Parser, builder : *mut AST
         }
     }
     path_buf[total] = '\0'
-    var struct_name = std::string_view(path_buf, total as size_t)
+    var struct_name = unsafe(std::string_view(path_buf, total as size_t))
 
     var info = builder.allocate<SerializableInfo>()
     new (info) SerializableInfo {
@@ -331,7 +331,7 @@ func resolve_type_path(resolver : *mut SymbolResolver, path : &std::string_view)
                 break
             }
         }
-        var seg = std::string_view(path.data() + seg_start, sep - seg_start)
+        var seg = unsafe(std::string_view(path.data() + seg_start, sep - seg_start))
         if(first) {
             node = resolver.resolve(&seg)
             first = false
@@ -551,7 +551,7 @@ func alloc_indexed_view(builder : *mut ASTBuilder, fmt : *char, idx : uint) : st
     var buf = builder.allocate_str_size(24)
     var len = unsafe(snprintf(buf, 24, fmt, idx as int))
     buf[len] = '\0'
-    return std::string_view(buf, len as size_t)
+    return unsafe(std::string_view(buf, len as size_t))
 }
 
 // appends to `body`:

@@ -278,14 +278,14 @@ func make_deps(vec : &mut std::vector<ModuleDependency>, dependencies : std::spa
 public func (ctx : &BuildContext) new_module_with_deps(type : ModuleType, package_kind : PackageKind, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
     var vec = std::vector<ModuleDependency>()
     make_deps(&mut vec, dependencies)
-    return ctx.new_package(type, package_kind, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()))
+    return ctx.new_package(type, package_kind, scope_name, name, unsafe(std::span<ModuleDependency>(vec.data(), vec.size())))
 }
 
 // a single .c file
 public func (ctx : &BuildContext) c_file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
     var vec = std::vector<ModuleDependency>()
     make_deps(&mut vec, dependencies)
-    const mod = ctx.new_package(ModuleType.CFile, PackageKind.Library, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()));
+    const mod = ctx.new_package(ModuleType.CFile, PackageKind.Library, scope_name, name, unsafe(std::span<ModuleDependency>(vec.data(), vec.size())));
     ctx.add_path(mod, path)
     return mod;
 }
@@ -294,7 +294,7 @@ public func (ctx : &BuildContext) c_file_module(scope_name : &std::string_view, 
 public func (ctx : &BuildContext) cpp_file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
     var vec = std::vector<ModuleDependency>()
     make_deps(&mut vec, dependencies)
-    const mod = ctx.new_package(ModuleType.CPPFile, PackageKind.Library, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()));
+    const mod = ctx.new_package(ModuleType.CPPFile, PackageKind.Library, scope_name, name, unsafe(std::span<ModuleDependency>(vec.data(), vec.size())));
     ctx.add_path(mod, path)
     return mod;
 }
@@ -509,8 +509,8 @@ public namespace lab {
 
     // TODO: remove retained, once runtime magic val support is available
     @retained
-    public func curr_dir_of(path : *char, len : size_t) : std::string {
-        return parent_path(std::string_view(path, len))
+    public unsafe func curr_dir_of(path : *char, len : size_t) : std::string {
+        return parent_path(unsafe(std::string_view(path, len)))
     }
 
     @expand
@@ -518,13 +518,13 @@ public namespace lab {
         const call_loc = intrinsics::get_call_loc(9999) // this gets the first runtime call location to this function
         const loc_path = intrinsics::get_loc_file_path(call_loc)
         const loc_path_size = intrinsics::size(loc_path)
-        return curr_dir_of(loc_path, loc_path_size)
+        return unsafe(curr_dir_of(loc_path, loc_path_size))
     }
 
     // TODO: remove retained, once runtime magic val support is available
     @retained
-    public func view_of(path : *char, len : size_t) : std::string_view {
-        return std::string_view(path, len)
+    public unsafe func view_of(path : *char, len : size_t) : std::string_view {
+        return unsafe(std::string_view(path, len))
     }
 
     @expand
@@ -532,7 +532,7 @@ public namespace lab {
         const call_loc = intrinsics::get_call_loc(9999) // this gets the first runtime call location to this function
         const loc_path = intrinsics::get_loc_file_path(call_loc)
         const loc_path_size = intrinsics::size(loc_path)
-        return view_of(loc_path, loc_path_size)
+        return unsafe(view_of(loc_path, loc_path_size))
     }
 
     // TODO: remove retained, once runtime magic val support is available

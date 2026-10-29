@@ -196,7 +196,7 @@ func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, buil
             HtmlChild : HtmlChild {
                 kind : HtmlChildKind.Comment
             },
-            value : std::string_view(str_ptr, size)
+            value : unsafe(std::string_view(str_ptr, size))
         }
 
         return comment;

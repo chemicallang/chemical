@@ -56,7 +56,7 @@ public variant AllocError {
     OutOfMemory()
 }
 
-public interface Allocator {
+public unsafe interface Allocator {
 
     func alloc(&self, layout : Layout) : Result<*mut void, AllocError>
 

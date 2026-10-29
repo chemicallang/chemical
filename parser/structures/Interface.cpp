@@ -8,7 +8,7 @@
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/GenericInterfaceDecl.h"
 
-ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
+ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool is_unsafe) {
 
     auto& tok = *token;
 
@@ -21,7 +21,7 @@ ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSp
             return nullptr;
         }
 
-        auto decl = new (allocator.allocate<InterfaceDefinition>()) InterfaceDefinition(loc_id(allocator, id), parent_node, loc_single(tok), specifier);
+        auto decl = new (allocator.allocate<InterfaceDefinition>()) InterfaceDefinition(loc_id(allocator, id), parent_node, loc_single(tok), specifier, is_unsafe);
         annotate(decl);
 
 #ifdef LSP_BUILD

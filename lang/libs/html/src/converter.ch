@@ -21,7 +21,7 @@ func strip_quotes(value : std::string_view) : std::string_view {
         const first = value.data()[0]
         const last = value.data()[value.size() - 1]
         if((first == '\"' || first == '\'' || first == '`') && first == last) {
-            return std::string_view(value.data() + 1, value.size() - 2)
+            return unsafe(std::string_view(value.data() + 1, value.size() - 2))
         }
     }
     return value

@@ -110,7 +110,7 @@ public func getNextToken2(md : &mut MdLexer, lexer : &mut Lexer) : Token { unsaf
                 while(provider.peek() != '\n' && provider.peek() != '\0') {
                     provider.readCharacter();
                 }
-                const code_line = std::string_view(data_ptr, provider.current_data() - data_ptr);
+                const code_line = unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr));
                 if(provider.peek() == '\n') {
                     provider.readCharacter();
                 }
@@ -170,7 +170,7 @@ public func getNextToken2(md : &mut MdLexer, lexer : &mut Lexer) : Token { unsaf
                     while(provider.peek() != '\n' && provider.peek() != '\r' && provider.peek() != '\0' && provider.peek() != ' ') {
                         provider.readCharacter();
                     }
-                    const lang = std::string_view(lang_start, provider.current_data() - lang_start);
+                    const lang = unsafe(std::string_view(lang_start, provider.current_data() - lang_start));
                     // Skip rest of line
                     while(provider.peek() != '\n' && provider.peek() != '\0') {
                         provider.readCharacter();
@@ -220,7 +220,7 @@ public func getNextToken2(md : &mut MdLexer, lexer : &mut Lexer) : Token { unsaf
             while(provider.peek() >= '0' && provider.peek() <= '9') {
                 provider.readCharacter();
             }
-            return Token { type : MdTokenType.Number as int, value : std::string_view(data_ptr, provider.current_data() - data_ptr), position : position }
+            return Token { type : MdTokenType.Number as int, value : unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr)), position : position }
         }
         default => {
             while(true) {
@@ -234,7 +234,7 @@ public func getNextToken2(md : &mut MdLexer, lexer : &mut Lexer) : Token { unsaf
                 }
                 provider.readCharacter();
             }
-            return Token { type : MdTokenType.Text as int, value : std::string_view(data_ptr, provider.current_data() - data_ptr), position : position }
+            return Token { type : MdTokenType.Text as int, value : unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr)), position : position }
         }
     }
  }}

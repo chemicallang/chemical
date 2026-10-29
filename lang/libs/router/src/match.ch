@@ -82,7 +82,7 @@ public func normalize_path_view(path : std::string_view, base : std::string_view
 // store the result (the view variant is what matching uses).
 public func normalize_path(path : std::string_view, base : std::string_view) : std::string {
     const v = normalize_path_view(path, base)
-    return std::string(v.data(), v.size())
+    return unsafe(std::string(v.data(), v.size()))
 }
 
 func split_path_segments(path : std::string_view, base : std::string_view) : std::vector<std::string_view> {

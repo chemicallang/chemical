@@ -81,7 +81,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
         if(written > 0) {
             return Token {
                 type : TokenType.Text as int,
-                value : std::string_view(start, written),
+                value : unsafe(std::string_view(start, written)),
                 position : position
             }
         }
@@ -165,7 +165,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 provider.read_literal_text();
                 return Token {
                     type : TokenType.Text as int,
-                    value : std::string_view(start, provider.current_data() - start),
+                    value : unsafe(std::string_view(start, provider.current_data() - start)),
                     position : position
                 }
             }
@@ -208,7 +208,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 // then we have a keyword, lets parse it
                 const start = provider.current_data(); 
                 provider.read_tag_name();
-                const value = std::string_view(start, provider.current_data() - start);
+                const value = unsafe(std::string_view(start, provider.current_data() - start));
                 const hash = fnv1_hash_view(&value);
 
                 switch(hash) {
@@ -245,7 +245,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                         provider.read_literal_text();
                         return Token {
                             type : TokenType.Text as int,
-                            value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                            value : unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr)),
                             position : position
                         }
                     }
@@ -254,7 +254,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             } else {
                 return Token {
                     type : TokenType.Text as int,
-                    value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                    value : unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr)),
                     position : position
                 }
             }
@@ -281,7 +281,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 provider.read_literal_text();
                 return Token {
                     type : TokenType.Text as int,
-                    value : std::string_view(start, provider.current_data() - start),
+                    value : unsafe(std::string_view(start, provider.current_data() - start)),
                     position : position
                 }
             }
@@ -315,7 +315,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 provider.read_literal_text();
                 return Token {
                     type : TokenType.Text as int,
-                    value : std::string_view(start, provider.current_data() - start),
+                    value : unsafe(std::string_view(start, provider.current_data() - start)),
                     position : position
                 }
             }
@@ -356,7 +356,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     if(next != '@' && !closes_chem && !html.expecting_html_block) {
                         return Token {
                             type : TokenType.Text as int,
-                            value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                            value : unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr)),
                             position : position
                         }
                     }
@@ -371,7 +371,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 if(was_after_chem && !is_boundary) {
                     return Token {
                         type : TokenType.Text as int,
-                        value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                        value : unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr)),
                         position : position
                     }
                 }
@@ -394,7 +394,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     !ut_run_has_newline(data_ptr, provider.current_data())) {
                     return Token {
                         type : TokenType.Text as int,
-                        value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                        value : unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr)),
                         position : position
                     }
                 }
@@ -427,7 +427,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 provider.read_literal_text()
                 return Token {
                     type : TokenType.Text as int,
-                    value : std::string_view(start, provider.current_data() - start),
+                    value : unsafe(std::string_view(start, provider.current_data() - start)),
                     position : position
                 }
             }
@@ -459,7 +459,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 provider.read_literal_text()
                 return Token {
                     type : TokenType.Text as int,
-                    value : std::string_view(start, provider.current_data() - start),
+                    value : unsafe(std::string_view(start, provider.current_data() - start)),
                     position : position
                 }
             }
@@ -469,7 +469,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 if(unsafe(isalpha(c as int))) {
                     if(html.lexed_tag_name) {
                         provider.read_tag_name();
-                        const attr_value = std::string_view(data_ptr, provider.current_data() - data_ptr);
+                        const attr_value = unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr));
                         // Remember a `type` attribute so its value token (below)
                         // can be classified. Only meaningful for a <script>, but
                         // harmless to record for every tag.
@@ -482,7 +482,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     } else {
                         html.lexed_tag_name = true;
                         provider.read_tag_name();
-                        const tag_value = std::string_view(data_ptr, provider.current_data() - data_ptr);
+                        const tag_value = unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr));
                         if(!html.in_end_tag) {
                             const is_pre = tag_value.size() == 3 &&
                                 tag_value.get(0) == 'p' &&
@@ -531,7 +531,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                         }
                         '\'' => {
                             provider.read_single_quoted_value()
-                            const sq = std::string_view(data_ptr, provider.current_data() - data_ptr);
+                            const sq = unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr));
                             ut_note_script_type_value(html, sq);
                             return Token {
                                 type : TokenType.SingleQuotedValue as int,
@@ -541,7 +541,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                         }
                         '"' => {
                             provider.read_double_quoted_value()
-                            const dq = std::string_view(data_ptr, provider.current_data() - data_ptr);
+                            const dq = unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr));
                             ut_note_script_type_value(html, dq);
                             return Token {
                                 type : TokenType.DoubleQuotedValue as int,
@@ -554,7 +554,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                                 provider.read_floating_digits();
                                 return Token {
                                     type : TokenType.Number as int,
-                                    value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                                    value : unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr)),
                                     position : position
                                 }
                             } else {
@@ -576,7 +576,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 const run_end = ut_text_run_end(html, provider, start, provider.current_data());
                 return Token {
                     type : TokenType.Text as int,
-                    value : std::string_view(start, run_end - start),
+                    value : unsafe(std::string_view(start, run_end - start)),
                     position : position
                 }
             }

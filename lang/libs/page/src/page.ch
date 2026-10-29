@@ -127,7 +127,7 @@ func ensure_route_snapshots() {
 }
 
 func route_snapshot_key(key : std::string_view) : std::string {
-    return std::string(key.data(), key.size())
+    return unsafe(std::string(key.data(), key.size()))
 }
 
 public struct HtmlPage {
@@ -375,8 +375,8 @@ public struct HtmlPage {
     // `route_param_owned`, whose node-based storage keeps the stored view valid
     // for the rest of the render.
     public func add_parameter_owned(&mut self, key : std::string_view, value : std::string_view) {
-        route_param_owned.insert(std::string(key.data(), key.size()), std::string(value.data(), value.size()))
-        var lookup = std::string(key.data(), key.size())
+        route_param_owned.insert(unsafe(std::string(key.data(), key.size())), unsafe(std::string(value.data(), value.size())))
+        var lookup = unsafe(std::string(key.data(), key.size()))
         const p = route_param_owned.get_ptr(&lookup)
         if(p == null) { return }
         parameters.insert(key, PageParameter.Text(p.to_view()))
@@ -388,11 +388,11 @@ public struct HtmlPage {
     // stores both key and value in page-owned storage and is read back with
     // `get_owned_parameter`.
     public func add_owned_parameter(&mut self, key : std::string_view, value : std::string_view) {
-        route_param_owned.insert(std::string(key.data(), key.size()), std::string(value.data(), value.size()))
+        route_param_owned.insert(unsafe(std::string(key.data(), key.size())), unsafe(std::string(value.data(), value.size())))
     }
 
     public func get_owned_parameter(&self, key : std::string_view) : std::string_view {
-        var lookup = std::string(key.data(), key.size())
+        var lookup = unsafe(std::string(key.data(), key.size()))
         const p = route_param_owned.get_ptr(&lookup)
         if(p == null) { return std::string_view() }
         return p.to_view()
@@ -446,7 +446,7 @@ public struct HtmlPage {
         const len = pageHtml.size() - start
         var k = route_snapshot_key(key)
         var lk = std::lock_guard(&mut route_snapshots_mutex)
-        route_snapshots.insert(k, RouteSnapshot { data : std::string(pageHtml.data() + start, len) })
+        route_snapshots.insert(k, RouteSnapshot { data : unsafe(std::string(pageHtml.data() + start, len)) })
         route_snapshot_misses = route_snapshot_misses + 1
     }
 
@@ -677,13 +677,13 @@ public struct HtmlPage {
     // backslashes, newlines/control chars and the `</` sequence that could
     // otherwise break out of an inline <script> block.
     func append_js_escaped_char_ptr(&mut self, value : *char) {
-        const view = std::string_view(value, unsafe(strlen(value)))
+        const view = unsafe(std::string_view(value, unsafe(strlen(value))))
         if(shared != null && local_js_depth == 0) { appendJsEscaped(&mut shared.js_data, &view); return }
         appendJsEscaped(&mut pageJs, &view)
     }
 
     func append_js_escaped(&mut self, value : *char, len : size_t) {
-        const view = std::string_view(value, len)
+        const view = unsafe(std::string_view(value, len))
         if(shared != null && local_js_depth == 0) { appendJsEscaped(&mut shared.js_data, &view); return }
         appendJsEscaped(&mut pageJs, &view)
     }
@@ -3125,7 +3125,7 @@ window.$__universal_flush = function() {
         fs::mkdir(path.data());
 
         // creating the route file at
-        var htmlFile = std::string(path.data(), path.size())
+        var htmlFile = unsafe(std::string(path.data(), path.size()))
         htmlFile.append('/');
         htmlFile.append_view(name);
         htmlFile.append_char_ptr(".html")
@@ -3137,7 +3137,7 @@ window.$__universal_flush = function() {
         // {name}.css
         if(!pageCss.empty()) {
             // mutated through `append` below, so must be a `var`
-            var cssFile = std::string(path.data(), path.size())
+            var cssFile = unsafe(std::string(path.data(), path.size()))
             cssFile.append('/');
             cssFile.append_view(name)
             cssFile.append_view(".css")
@@ -3146,7 +3146,7 @@ window.$__universal_flush = function() {
 
         // {name}_head.js
         if(!pageHeadJs.empty()) {
-            var jsHeadFile = std::string(path.data(), path.size())
+            var jsHeadFile = unsafe(std::string(path.data(), path.size()))
             jsHeadFile.append('/');
             jsHeadFile.append_view(name)
             jsHeadFile.append_view("_head.js")
@@ -3156,7 +3156,7 @@ window.$__universal_flush = function() {
         // {name}.js
         var finalizedJs = getFinalizedPageJs()
         if(!finalizedJs.empty()) {
-            var jsFile = std::string(path.data(), path.size())
+            var jsFile = unsafe(std::string(path.data(), path.size()))
             jsFile.append('/');
             jsFile.append_view(name)
             jsFile.append_view(".js")
@@ -3166,7 +3166,7 @@ window.$__universal_flush = function() {
         // {name}.routes.json — static-export deep-link manifest (§13.2.3)
         if(route_manifest.size() > 0) {
             var manifest = route_manifest_document(*name, std::string_view(""))
-            var manifestFile = std::string(path.data(), path.size())
+            var manifestFile = unsafe(std::string(path.data(), path.size()))
             manifestFile.append('/');
             manifestFile.append_view(name)
             manifestFile.append_view(".routes.json")
@@ -3202,7 +3202,7 @@ public func site_routes_aggregate(documents : &std::vector<std::string_view>) : 
 public func write_site_routes(dir : std::string_view, page_names : &std::vector<std::string_view>) : int {
     var owned = std::vector<std::string>()
     for(var i : size_t = 0; i < page_names.size(); i++) {
-        var manifestPath = std::string(dir.data(), dir.size())
+        var manifestPath = unsafe(std::string(dir.data(), dir.size()))
         manifestPath.append('/')
         manifestPath.append_view(&page_names.get(i))
         manifestPath.append_view(std::string_view(".routes.json"))
@@ -3210,14 +3210,14 @@ public func write_site_routes(dir : std::string_view, page_names : &std::vector<
         var read_result = fs::read_entire_file(manifestPath.data())
         if(read_result is Result.Err) { continue }
         var Ok(bytes) = read_result else unreachable
-        owned.push(std::string(bytes.data() as *char, bytes.size()))
+        owned.push(unsafe(std::string(bytes.data() as *char, bytes.size())))
     }
     var docs = std::vector<std::string_view>()
     for(var i : size_t = 0; i < owned.size(); i++) {
         docs.push(owned.get_ptr(i).to_view())
     }
     const agg = site_routes_aggregate(&docs)
-    var sitePath = std::string(dir.data(), dir.size())
+    var sitePath = unsafe(std::string(dir.data(), dir.size()))
     sitePath.append_view(std::string_view("/routes.json"))
     fs::write_text_file(sitePath.data(), agg.data() as *u8, agg.size())
     return owned.size() as int

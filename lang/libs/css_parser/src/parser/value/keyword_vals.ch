@@ -1255,14 +1255,14 @@ func (parser : &mut Parser) not_id_val_err(prop : &std::string_view) {
     errStr.append('\'')
     const n = std::string_view(", property requires an identifier value")
     errStr.append_with_len(n.data(), n.size())
-    parser.error(std::string_view(errStr.data(), errStr.size()))
+    parser.error(unsafe(std::string_view(errStr.data(), errStr.size())))
 }
 
 func (parser : &mut Parser) wrong_val_kw_err(prop : &std::string_view) {
     var errStr = std::string("unknown value for '")
     errStr.append_with_len(prop.data(), prop.size())
     errStr.append('\'');
-    parser.error(std::string_view(errStr.data(), errStr.size()))
+    parser.error(unsafe(std::string_view(errStr.data(), errStr.size())))
 }
 
 func (token : &mut Token) fnv1() : size_t {

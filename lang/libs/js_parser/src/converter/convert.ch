@@ -113,10 +113,11 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter, un
                 emitter.emit_char(val.get(0));
                 if(universal_mode) {
                     // universal round-trips raw literal text
-                    const innerText = std::string_view(val.data() + 1, val.size() - 2)
+                    const innerText = unsafe(std::string_view(val.data() + 1, val.size() - 2))
                     emitter.emit_text(&innerText);
                 } else {
-                    escape_js_text(std::string_view(val.data() + 1, val.size() - 2), emitter);
+                    const escaped_view = unsafe(std::string_view(val.data() + 1, val.size() - 2))
+                    escape_js_text(escaped_view, emitter);
                 }
                 emitter.emit_char(val.get(0));
             } else {

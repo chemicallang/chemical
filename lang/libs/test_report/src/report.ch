@@ -337,7 +337,7 @@ impl TestReporter for ConsoleReporter {
         if(!outcome.passed && self.display.successful_only) { return }
 
         // group header whenever the group changes
-        const grp = string_view(outcome.group.data(), outcome.group.size())
+        const grp = unsafe(string_view(outcome.group.data(), outcome.group.size()))
         if(self.first_group || !sv_eq_str(&self.cur_group, grp)) {
             if(grp.size() == 0) {
                 unsafe { printf("%s%sGroup: %s(no-group)%s\n", col_bold(), col_blue(), col_gray(), col_reset()) }

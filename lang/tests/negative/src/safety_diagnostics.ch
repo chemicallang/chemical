@@ -884,7 +884,7 @@ func neg_chunk_private_fields_rejected(env : &mut TestEnv) {
 func neg_linear_safe_impl_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct BadLinear {\n    var data : [3]int\n}\nimpl core::iterable::Linear<int> for BadLinear {\n    func data(&self) : *int { return null }\n    func size(&self) : u64 { return 3 }\n}\npublic func main() : int {\n    var b = BadLinear { data : [1, 2, 3] }\n    var total = 0\n    for(var x in b) { total += x }\n    return total\n}\n"
-    expect_compile_error_with_mod(env, "linear_safe_impl", ch, "SAFE-ITER-001", NEG_MOD_CORE)
+    expect_compile_error_with_mod(env, "linear_safe_impl", ch, "SAFE-TRAIT-001", NEG_MOD_CORE)
 }
 
 @test
@@ -892,4 +892,39 @@ func neg_global_allocator_debug_private(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var a = std::alloc::GlobalAllocator.make()\n    a._debug = null\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "allocator_debug_private", ch, "cannot access private member", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_generic_safe_impl_of_unsafe_interface(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "unsafe interface BadIface {\n    func value(&self) : int\n}\nstruct G<T> {\n    var x : T\n}\nimpl <T> BadIface for G<T> {\n    func value(&self) : int { return 0 }\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "generic_safe_unsafe_iface", ch, "SAFE-TRAIT-001", NEG_MOD_CORE)
+}
+
+@test
+func neg_string_view_raw_constructor_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var p : *char = null\n    var v = std::string_view(p, 1)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "string_view_raw_ctor", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_span_raw_constructor_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var p : *int = null\n    var v = std::span<int>(p, 1)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "span_raw_ctor", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_string_raw_constructor_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var p : *char = null\n    var v = std::string(p, 1)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "string_raw_ctor", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_u16string_raw_constructor_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var p : *u16 = null\n    var v = std::u16string(p, 1)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "u16string_raw_ctor", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
 }

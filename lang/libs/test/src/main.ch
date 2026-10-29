@@ -234,7 +234,7 @@ type TestHandleRunFn = (h : *mut TestRunnerHandle, reporter : &mut TestReporter,
 @retained
 public func test_handle_run(h : *mut TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) : int {
     var ptr = h.tests_ptr as *mut TestFunction
-    var span = std::span<TestFunction>(ptr, h.tests_count)
+    var span = unsafe(std::span<TestFunction>(ptr, h.tests_count))
     return run_test_runner_reporting(span, reporter, argc, argv)
 }
 

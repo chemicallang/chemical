@@ -143,6 +143,6 @@ impl JsonSaxHandler for ASTJsonHandler {
     }
 
     func on_key(&mut self, s : *char, len : size_t) {
-        key_stack.push(std::string(s, len))
+        key_stack.push(unsafe(std::string(s, len)))
     }
 }

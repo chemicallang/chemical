@@ -267,7 +267,7 @@ public func zip_extract_entry(archive : *mut ZipArchive, entry : *mut ArchiveEnt
         return std.Result.Err(ArchiveError.DecompressionFailed(string("failed to read entry for extraction")))
     }
 
-    var full_path = string(dest_dir)
+    var full_path = unsafe(string(dest_dir))
     if(full_path.size() > 0) {
         var last = full_path.get(full_path.size() - 1)
         if(last != '/' as char) {
@@ -277,7 +277,7 @@ public func zip_extract_entry(archive : *mut ZipArchive, entry : *mut ArchiveEnt
     full_path.append_string(&entry.name)
 
     if(!entry.is_directory) {
-        var parent = fs::parent_path_view(std::string_view(full_path.data(), full_path.size()))
+        var parent = fs::parent_path_view(unsafe(std::string_view(full_path.data(), full_path.size())))
         fs::create_dir_all(parent.c_str())
     }
 

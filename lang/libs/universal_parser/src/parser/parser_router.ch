@@ -31,7 +31,8 @@ func js_token_ident_equals(token : *mut Token, value : std::string_view) : bool 
 
 func js_token_ident_equals_cstr(token : *mut Token, value : *char) : bool {
     if(token.type != JsTokenType.Identifier as int) return false
-    return token.value.equals(std::string_view(value))
+    const v = unsafe(std::string_view(value))
+    return token.value.equals(&v)
 }
 
 // Strips one layer of surrounding quotes from a lexed string token.
@@ -39,7 +40,7 @@ func js_strip_quotes(value : std::string_view) : std::string_view {
     if(value.size() < 2) return value
     const first = value.get(0)
     if(first != '"' && first != '\'' && first != '`') return value
-    return std::string_view(value.data() + 1, value.size() - 2)
+    return unsafe(std::string_view(value.data() + 1, value.size() - 2))
 }
 
 // Returns the hook name ("onActivate"/"onDeactivate"/"onBeforeActivate") for an
@@ -130,7 +131,7 @@ func js_parse_route_decl(parser : *mut Parser, builder : *mut ASTBuilder, jsPars
         var rawBuf = std::string("#")
         rawBuf.append_view(&stripped)
         const rawPtr = builder.allocate_str(rawBuf.data(), rawBuf.size())
-        raw = std::string_view(rawPtr, rawBuf.size())
+        raw = unsafe(std::string_view(rawPtr, rawBuf.size()))
         id = builder.allocate_view(&stripped)
         parser.increment()
     } else if(shape.type == JsTokenType.String as int) {

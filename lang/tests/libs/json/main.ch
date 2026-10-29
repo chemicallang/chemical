@@ -74,7 +74,7 @@ func test_number_formats(env : &mut TestEnv) {
     ];
     const tests_view = std::span<*char>(tests)
     for (var i = 0; i < tests_view.size(); i++) {
-        var input = std::string_view(tests[i]);
+        var input = unsafe(std::string_view(tests[i]));
         test_parsed_json_equals(env, &input, &input);
     }
 }
@@ -123,7 +123,8 @@ func test_form_urlencoded_fails_gracefully(env : &mut TestEnv) {
     if (r.ok) {
         env.error("Expected error for form-urlencoded data being parsed as JSON");
     } else {
-        if (!std::string_view(r.msg).equals("invalid literal")) {
+        const msg_view = unsafe(std::string_view(r.msg))
+        if (!msg_view.equals("invalid literal")) {
              env.error(r.msg);
         }
     }

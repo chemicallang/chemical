@@ -178,7 +178,7 @@ func trim_view(view : std::string_view) : std::string_view {
         if(end == 0) break;
         end--;
     }
-    return std::string_view(view.data() + start, end - start + 1);
+    return unsafe(std::string_view(view.data() + start, end - start + 1));
 }
 
 func skipWhitespace(parser : *mut Parser) {
@@ -451,7 +451,7 @@ func (md : &mut MdParser) parseHeader(parser : *mut Parser) : *mut MdNode {
                 }
                 if(spaces < txtNode.value.size()) {
                     // Update view to skip spaces
-                     txtNode.value = std::string_view(txtNode.value.data() + spaces, txtNode.value.size() - spaces);
+                     txtNode.value = unsafe(std::string_view(txtNode.value.data() + spaces, txtNode.value.size() - spaces));
                 } else {
                     // All spaces, better to just remove this node? For now just empty it
                     txtNode.value = std::string_view("");
@@ -609,7 +609,7 @@ func (md : &mut MdParser) parseBlockquote(parser : *mut Parser) : *mut MdNode {
         if (first.kind == MdNodeKind.Text) {
             var txtNode = first as *mut MdText;
             if (txtNode.value.size() > 0 && txtNode.value.data()[0] == ' ') {
-                 txtNode.value = std::string_view(txtNode.value.data() + 1, txtNode.value.size() - 1);
+                 txtNode.value = unsafe(std::string_view(txtNode.value.data() + 1, txtNode.value.size() - 1));
             }
         }
     }
@@ -1137,7 +1137,7 @@ func (md : &mut MdParser) parseBoldOrItalic(parser : *mut Parser, marker : char)
         var text = builder.allocate<MdText>()
         new (text) MdText {
             base : MdNode { kind : MdNodeKind.Text },
-            value : std::string_view(ptr, count as size_t)
+            value : unsafe(unsafe(std::string_view(ptr, count as size_t)))
         }
         return text as *mut MdNode;
     }
@@ -1566,7 +1566,8 @@ func (md : &mut MdParser) parseLink(parser : *mut Parser) : *mut MdNode {
                              // Lexer probably includes them? Yes usually text token. 
                              // But wait, if text token is "Title", it has quotes.
                              if(ttxt.data()[ttxt.size()-1] == '"') {
-                                 title = builder.allocate_view(std::string_view(ttxt.data() + 1, ttxt.size() - 2));
+                                 const title_raw2 = unsafe(unsafe(std::string_view(ttxt.data() + 1, ttxt.size() - 2)))
+                                 title = builder.allocate_view(&title_raw2);
                              } else {
                                  title = builder.allocate_view(&ttxt);
                              }
@@ -1670,7 +1671,8 @@ func (md : &mut MdParser) parseImage(parser : *mut Parser) : *mut MdNode {
                              const ttxt = parser.getToken().value;
                              if(ttxt.size() >= 2 && ttxt.data()[0] == '"') {
                                  if(ttxt.data()[ttxt.size()-1] == '"') {
-                                     title = builder.allocate_view(std::string_view(ttxt.data() + 1, ttxt.size() - 2));
+                                     const title_raw = unsafe(unsafe(std::string_view(ttxt.data() + 1, ttxt.size() - 2)))
+                                     title = builder.allocate_view(&title_raw);
                                  } else {
                                      title = builder.allocate_view(&ttxt);
                                  }
@@ -1793,7 +1795,8 @@ func (md : &mut MdParser) parseReferenceDefinition(parser : *mut Parser) : *mut 
     if(isTextToken(parser.getToken().type)) {
         const ttxt = parser.getToken().value;
         if(ttxt.size() >= 2 && ttxt.data()[0] == '"' && ttxt.data()[ttxt.size()-1] == '"') {
-            title = md.builder.allocate_view(std::string_view(ttxt.data() + 1, ttxt.size() - 2));
+            const title_raw = unsafe(unsafe(std::string_view(ttxt.data() + 1, ttxt.size() - 2)))
+            title = md.builder.allocate_view(&title_raw);
             parser.increment();
         }
     }

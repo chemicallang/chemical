@@ -693,13 +693,13 @@ func decode_html_entities(text : std::string_view) : std::string {
             var semicolon = i + 1;
             while(semicolon < text.size() && text.data()[semicolon] != ';') semicolon++;
             if(semicolon < text.size()) {
-                var entity_body = std::string_view(text.data() + i + 1, semicolon - i - 1);
+                var entity_body = unsafe(std::string_view(text.data() + i + 1, semicolon - i - 1));
                 if(entity_body.size() > 0 && entity_body.data()[0] == '#') {
-                    var num_part = std::string_view(entity_body.data() + 1, entity_body.size() - 1);
+                    var num_part = unsafe(std::string_view(entity_body.data() + 1, entity_body.size() - 1));
                     var is_hex = false;
                     if(num_part.size() > 0 && (num_part.data()[0] == 'x' || num_part.data()[0] == 'X')) {
                         is_hex = true;
-                        num_part = std::string_view(num_part.data() + 1, num_part.size() - 1);
+                        num_part = unsafe(std::string_view(num_part.data() + 1, num_part.size() - 1));
                     }
                     var cp : uint32_t = 0;
                     if(is_hex) {

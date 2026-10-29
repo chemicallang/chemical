@@ -100,7 +100,7 @@ public func css_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder)
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseCSSOM(parser, builder);
         const type = builder.make_string_type(loc)
-        const value = builder.make_embedded_value(std::string_view("css"), root, type, std::span<*mut ASTNode>(null, 0), std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), loc);
+        const value = builder.make_embedded_value(std::string_view("css"), root, type, unsafe(std::span<*mut ASTNode>(null, 0)), unsafe(std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size())), loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the css macro");
         }
@@ -118,7 +118,7 @@ public func css_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) 
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseCSSOM(parser, builder);
         const nodes_arr : []*mut ASTNode = []
-        const node = builder.make_embedded_node(AccessSpecifier.Internal, std::string_view("css"), root, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), root.parent, loc);
+        const node = builder.make_embedded_node(AccessSpecifier.Internal, std::string_view("css"), root, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), unsafe(std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size())), root.parent, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the css macro");
         }
@@ -141,7 +141,7 @@ public func globalcss_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
         var root = parseCSSOM(parser, builder);
         root.shared = true
         const nodes_arr : []*mut ASTNode = []
-        const node = builder.make_embedded_node(AccessSpecifier.Internal, std::string_view("css"), root, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), root.parent, loc);
+        const node = builder.make_embedded_node(AccessSpecifier.Internal, std::string_view("css"), root, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), unsafe(std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size())), root.parent, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the globalcss macro");
         }

@@ -309,7 +309,7 @@ func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder
         }
         TokenType.SingleQuotedValue, TokenType.DoubleQuotedValue => {
             parser.increment();
-            const val = std::string_view(token.value.data() + 1, token.value.size() - 2);
+            const val = unsafe(std::string_view(token.value.data() + 1, token.value.size() - 2));
             var str_data = builder.allocate<CSSStringValueData>();
             new (str_data) CSSStringValueData {
                 value : builder.allocate_view(&val)

@@ -18,7 +18,7 @@ func html_view_equals(env : &mut TestEnv, got : &std::string_view, expected : &s
 }
 
 func test_html_roundtrip(env : &mut TestEnv, input : &std::string_view) {
-    var view = std::string_view(input.data(), input.size())
+    var view = unsafe(std::string_view(input.data(), input.size()))
     var out = html::parse_html(view)
     html_view_equals(env, out.to_view(), &view)
 }

@@ -125,7 +125,7 @@ func (t : &mut JsSyntaxTokenizer) read_template() {
 }
 
 func (t : &mut JsSyntaxTokenizer) slice_from(start : size_t) : std::string_view {
-    return std::string_view(t.src.data() + start, t.pos - start)
+    return unsafe(std::string_view(t.src.data() + start, t.pos - start))
 }
 
 func (t : &mut JsSyntaxTokenizer) next_token() : Token {

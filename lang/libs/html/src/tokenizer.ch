@@ -45,7 +45,7 @@ public func get_next_token_runtime(html : &mut HtmlLexer, lexer : &mut Lexer) : 
         }
         return Token {
             type : TokenType.CommentText as int,
-            value : std::string_view(data_ptr, (provider.current_data() - end_offset) - data_ptr),
+            value : unsafe(std::string_view(data_ptr, (provider.current_data() - end_offset) - data_ptr)),
             position : position
         }
     }
@@ -67,7 +67,7 @@ public func get_next_token_runtime(html : &mut HtmlLexer, lexer : &mut Lexer) : 
             provider.read_literal_text();
             return Token {
                 type : TokenType.Text as int,
-                value : std::string_view(start, provider.current_data() - start),
+                value : unsafe(std::string_view(start, provider.current_data() - start)),
                 position : position
             }
         }
@@ -84,7 +84,7 @@ public func get_next_token_runtime(html : &mut HtmlLexer, lexer : &mut Lexer) : 
             provider.read_literal_text();
             return Token {
                 type : TokenType.Text as int,
-                value : std::string_view(start, provider.current_data() - start),
+                value : unsafe(std::string_view(start, provider.current_data() - start)),
                 position : position
             }
         }

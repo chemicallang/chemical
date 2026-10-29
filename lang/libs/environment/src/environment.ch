@@ -42,7 +42,7 @@ public func get(name : string_view) : Option<string> {
         if(ptr == null) {
             return Option.None<string>();
         }
-        return Option.Some(string.make_no_len(ptr));
+        return Option.Some(unsafe(string.make_no_len(ptr)));
     }
 }
 
@@ -153,7 +153,7 @@ public func all() : vector<string> {
         if(ep == null) { return result }
         var i : int = 0;
         while(ep[i] != null) {
-            result.push(string.make_no_len(ep[i] as *char))
+            result.push(unsafe(string.make_no_len(ep[i] as *char)))
             i += 1;
         }
     }

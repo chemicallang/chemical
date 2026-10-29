@@ -59,22 +59,25 @@ func test_uuid_formatting(env : &mut TestEnv) {
     var expected = "01234567-89ab-cdef-0123-456789abcdef";
 
     var s = u.to_string();
-    expect_true(env, s.to_view().equals(std::string_view(expected)), "to_string() formatted representation does not match expected");
+    const expected_view = unsafe(std::string_view(expected))
+    expect_true(env, s.to_view().equals(&expected_view), "to_string() formatted representation does not match expected");
 
     var reused = std::string();
     u.format_to(&mut reused);
-    expect_true(env, reused.to_view().equals(std::string_view(expected)), "format_to() formatted representation does not match expected");
+    const expected_view2 = unsafe(std::string_view(expected))
+    expect_true(env, reused.to_view().equals(&expected_view2), "format_to() formatted representation does not match expected");
 }
 
 @test
 func test_uuid_parsing_valid(env : &mut TestEnv) {
     var input_str = "01234567-89ab-cdef-0123-456789abcdef";
-    var result = uuid::parse(std::string_view(input_str));
+    var result = uuid::parse(unsafe(std::string_view(input_str)));
 
     switch (result) {
         Ok(u) => {
             var s = u.to_string();
-            expect_true(env, s.to_view().equals(std::string_view(input_str)), "Parsed UUID formatted back does not match original input");
+            const input_view = unsafe(std::string_view(input_str))
+            expect_true(env, s.to_view().equals(&input_view), "Parsed UUID formatted back does not match original input");
         }
         Err(err) => {
             env.error("Failed to parse valid UUID");
@@ -86,7 +89,7 @@ func test_uuid_parsing_valid(env : &mut TestEnv) {
 func test_uuid_parsing_mixed_case(env : &mut TestEnv) {
     // Upper case parsing
     var input_upper = "01234567-89AB-CDEF-0123-456789ABCDEF";
-    var result_upper = uuid::parse(std::string_view(input_upper));
+    var result_upper = uuid::parse(unsafe(std::string_view(input_upper)));
     expect_true(env, result_upper is std::Result.Ok, "Parsing should succeed for upper case input");
 
     switch (result_upper) {
@@ -99,7 +102,7 @@ func test_uuid_parsing_mixed_case(env : &mut TestEnv) {
 
     // Mixed case parsing
     var input_mixed = "01234567-89aB-CdEf-0123-456789aBcDeF";
-    var result_mixed = uuid::parse(std::string_view(input_mixed));
+    var result_mixed = uuid::parse(unsafe(std::string_view(input_mixed)));
     expect_true(env, result_mixed is std::Result.Ok, "Parsing should succeed for mixed case input");
 }
 

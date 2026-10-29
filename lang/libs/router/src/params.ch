@@ -78,7 +78,7 @@ public func parse_query(raw : std::string_view, out : &mut std::unordered_map<st
     while(i < raw.size()) {
         var start = i
         while(i < raw.size() && raw.get(i) != '&') { i = i + 1 }
-        var part = std::string_view(raw.data() + start, i - start)
+        var part = unsafe(std::string_view(raw.data() + start, i - start))
         if(i < raw.size()) { i = i + 1 }   // consume '&'
         if(part.size() == 0) { continue }
 
@@ -89,8 +89,8 @@ public func parse_query(raw : std::string_view, out : &mut std::unordered_map<st
         if(eq == std::NPOS) {
             out.insert(part, std::string_view(""))
         } else {
-            out.insert(std::string_view(part.data(), eq),
-                       std::string_view(part.data() + eq + 1, part.size() - eq - 1))
+            out.insert(unsafe(std::string_view(part.data(), eq)),
+                       unsafe(std::string_view(part.data() + eq + 1, part.size() - eq - 1)))
         }
     }
 }

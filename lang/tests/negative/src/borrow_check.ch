@@ -269,7 +269,7 @@ func neg_string_view_outlives_local(env : &mut TestEnv) {
 @test
 func neg_span_outlives_local(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "public func bad() : std::span<int> {\n    var a : [3]int = [1, 2, 3]\n    return std::span<int>(&raw mut a[0], 3)\n}\npublic func main() : int {\n    var v = bad()\n    return 0\n}\n"
+    var ch = "public func bad() : std::span<int> {\n    var a : [3]int = [1, 2, 3]\n    return unsafe(std::span<int>(&raw mut a[0], 3))\n}\npublic func main() : int {\n    var v = bad()\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "span_outlives_local", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
 }
 
@@ -311,6 +311,6 @@ func neg_view_from_data_pointer_escapes(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // A view built from `s.data()` must inherit the receiver's loan even though
     // the pointer is produced by an intermediate call.
-    var ch = "func bad() : std::string_view {\n    var s = std::string(\"hello\")\n    return std::string_view(s.data(), s.size())\n}\npublic func main() : int {\n    var v = bad()\n    return 0\n}\n"
+    var ch = "func bad() : std::string_view {\n    var s = std::string(\"hello\")\n    return unsafe(std::string_view(s.data(), s.size()))\n}\npublic func main() : int {\n    var v = bad()\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "view_from_data_escapes", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
 }

@@ -17,7 +17,7 @@ using namespace std;
 using namespace html;
 
 func runtime_roundtrip(env : &mut TestEnv, input : &std::string_view) {
-    var view = std::string_view(input.data(), input.size())
+    var view = unsafe(std::string_view(input.data(), input.size()))
     var out = html::parse_html(view)
     html_view_equals(env, out.to_view(), &view)
 }

@@ -35,7 +35,7 @@ public struct u16string {
     private var state : char
 
     @constructor
-    func constructor(value : *u16, length : size_t) {
+    unsafe func constructor(value : *u16, length : size_t) {
         var s = u16string {
             storage : {
                 constant : {
@@ -52,7 +52,7 @@ public struct u16string {
     // the ensure parameter is added just to differentiate signature from constructor above it
     // this allows to keep literal strings as constants
     @constructor
-    func constructor2(value : *u16, length : size_t, ensure : bool) {
+    unsafe func constructor2(value : *u16, length : size_t, ensure : bool) {
         var s = u16string {
             storage : {
                 constant : {
@@ -83,7 +83,7 @@ public struct u16string {
     }
 
     @constructor
-    func make_no_len(value : *u16) {
+    unsafe func make_no_len(value : *u16) {
         const length = u16_strlen(value)
         var s = u16string {
             storage : {

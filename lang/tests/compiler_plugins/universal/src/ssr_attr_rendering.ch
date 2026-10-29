@@ -9,14 +9,16 @@
 // --- Helper ---
 
 func make_ssr_attr(name : *char, value : SsrAttributeValue) : SsrAttribute {
+    const name_view = unsafe(std::string_view(name))
     return SsrAttribute {
-        name : make_ssr_text_ut(&std::string_view(name)),
+        name : make_ssr_text_ut(&name_view),
         value : value
     }
 }
 
 func make_ssr_text_val(text : *char) : SsrAttributeValue {
-    return SsrAttributeValue.Text(make_ssr_text_ut(&std::string_view(text)))
+    const text_view = unsafe(std::string_view(text))
+    return SsrAttributeValue.Text(make_ssr_text_ut(&text_view))
 }
 
 func make_ssr_ptr_char_val(ptr : *char) : SsrAttributeValue {

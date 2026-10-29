@@ -57,7 +57,7 @@ public struct SharedAssets {
         fs::mkdir(dir.data())
 
         if(!js_data.empty()) {
-            var js_path = std::string(dir.data(), dir.size())
+            var js_path = unsafe(std::string(dir.data(), dir.size()))
             js_path.append('/')
             js_path.append_view(base_name)
             js_path.append_view(".js")
@@ -65,7 +65,7 @@ public struct SharedAssets {
         }
 
         if(!css_data.empty()) {
-            var css_path = std::string(dir.data(), dir.size())
+            var css_path = unsafe(std::string(dir.data(), dir.size()))
             css_path.append('/')
             css_path.append_view(base_name)
             css_path.append_view(".css")

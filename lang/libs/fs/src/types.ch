@@ -34,7 +34,7 @@ public variant FsError {
             WouldBlock() => return std::string("FsError.WouldBlock")
             PathTooLong() => return std::string("FsError.PathTooLong")
             Unsupported() => return std::string("FsError.Unsupported")   // used only for extremely exotic requests
-            Other(msg) => return std::string(msg);
+            Other(msg) => return unsafe(std::string(msg));
         }
     }
 

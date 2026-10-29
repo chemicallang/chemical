@@ -68,7 +68,7 @@ func (cssParser : &mut CSSParser) parseKeyframesRule(om : &mut CSSOM, parser : *
                         size += next_tok.value.size();
                         parser.increment();
                     }
-                    var sel_view = std::string_view(start, size);
+                    var sel_view = unsafe(std::string_view(start, size));
                     selector.append_view(&sel_view);
                 } else if(sel_token.type == TokenType.Percentage) {
                     selector.append_view(&sel_token.value);

@@ -117,7 +117,7 @@ public func html_unquote_attribute_value(value : std::string_view) : std::string
         const first = value.data()[0]
         const last = value.data()[value.size() - 1u]
         if((first == '"' || first == '\'' || first == '`') && first == last) {
-            return std::string_view(value.data() + 1, value.size() - 2u)
+            return unsafe(std::string_view(value.data() + 1, value.size() - 2u))
         }
     }
     return value

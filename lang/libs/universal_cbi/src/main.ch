@@ -90,7 +90,7 @@ public func universal_parse_style_block(parser : *mut Parser, builder : *mut AST
         parser.error("expected } to close the style block");
     }
     const type = builder.make_string_type(loc)
-    const value = builder.make_embedded_value(std::string_view("css"), root, type, std::span<*mut ASTNode>(null, 0), std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), loc)
+    const value = builder.make_embedded_value(std::string_view("css"), root, type, unsafe(std::span<*mut ASTNode>(null, 0)), unsafe(std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size())), loc)
     if(dyn_values != null) { dyn_values.push(value) }
     var chem = builder.allocate<JsChemicalValue>()
     new (chem) JsChemicalValue {

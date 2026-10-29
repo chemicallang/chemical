@@ -31,7 +31,7 @@ public func parse(text : std::string_view) : std::Result<JsonValue, JsonParseErr
     if(!r.ok) {
         return std::Result.Err<JsonValue, JsonParseError>(JsonParseError {
             pos : r.pos,
-            message : std::string(r.msg)
+            message : unsafe(std::string(r.msg))
         })
     }
     // move the root out of the handler, leaving it as Null

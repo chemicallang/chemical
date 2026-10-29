@@ -18,7 +18,7 @@ func js_view_equals(env : &mut TestEnv, got : &std::string_view, expected : &std
 }
 
 func test_js_roundtrip(env : &mut TestEnv, input : &std::string_view) {
-    var view = std::string_view(input.data(), input.size())
+    var view = unsafe(std::string_view(input.data(), input.size()))
     var out = js::parse_js(view)
     js_view_equals(env, out.to_view(), &view)
 }

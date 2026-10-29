@@ -251,7 +251,7 @@ func (converter : &mut JsConverter) router_collect_url_entries(routes : &std::ve
         full.append_view(&inherited)
         full.append_view(&r.pattern)
         const fullPtr = builder.allocate_str(full.data(), full.size())
-        const fullView = std::string_view(fullPtr, full.size())
+        const fullView = unsafe(std::string_view(fullPtr, full.size()))
 
         var selfRegs = std::vector<std::string_view>()
         var selfIds = std::vector<std::string_view>()
@@ -263,7 +263,7 @@ func (converter : &mut JsConverter) router_collect_url_entries(routes : &std::ve
             var regStr = std::string()
             regStr.append_view(&ownerRegistry)
             const regPtr = builder.allocate_str(regStr.data(), regStr.size())
-            selfRegs.push(std::string_view(regPtr, regStr.size()))
+            selfRegs.push(unsafe(std::string_view(regPtr, regStr.size())))
             selfIds.push(builder.allocate_view(&r.id))
         }
 
@@ -296,7 +296,7 @@ func (converter : &mut JsConverter) router_collect_url_entries(routes : &std::ve
             childReg.append('#')
             childReg.append_view(&r.id)
             const childPtr = builder.allocate_str(childReg.data(), childReg.size())
-            const childView = std::string_view(childPtr, childReg.size())
+            const childView = unsafe(std::string_view(childPtr, childReg.size()))
 
             // Nested `route *` fallback: a prefix entry on this route's full
             // pattern, activating the layout and then the nested fallback, so an

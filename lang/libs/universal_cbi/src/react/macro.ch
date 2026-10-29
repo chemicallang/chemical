@@ -105,7 +105,7 @@ public func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
 
         const nodes_arr : []*mut ASTNode = []
 
-        const node = builder.make_top_level_embedded_node(spec, std::string_view("universal"), comp, node_known_type_func, node_child_res_func, cross_mod_sym_decl_proxy_fn, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(comp.dyn_values.data(), comp.dyn_values.size()), parser.getParentNode(), location);
+        const node = builder.make_top_level_embedded_node(spec, std::string_view("universal"), comp, node_known_type_func, node_child_res_func, cross_mod_sym_decl_proxy_fn, unsafe(std::span<*mut ASTNode>(nodes_arr)), unsafe(std::span<*mut Value>(comp.dyn_values.data(), comp.dyn_values.size())), parser.getParentNode(), location);
 
         const controller = parser.getAnnotationController();
 

@@ -72,7 +72,7 @@ public struct string {
 
     @constructor
     comptime func make(value : %literal_string) {
-        return constructor2(value, intrinsics::size(value), false)
+        return unsafe(constructor2(value, intrinsics::size(value), false))
     }
 
     @implicit
@@ -85,7 +85,7 @@ public struct string {
     }
 
     @constructor
-    func constructor(value : *char, length : size_t) {
+    unsafe func constructor(value : *char, length : size_t) {
         var s = string {
             storage : {
                 constant : {
@@ -122,7 +122,7 @@ public struct string {
     // the ensure parameter is added just to differentiate signature from constructor above it
     // this allows to keep literal strings as constants
     @constructor
-    func constructor2(value : *char, length : size_t, ensure : bool) {
+    unsafe func constructor2(value : *char, length : size_t, ensure : bool) {
         var s = string {
             storage : {
                 constant : {
@@ -153,7 +153,7 @@ public struct string {
     }
 
     @constructor
-    func make_no_len(value : *char) {
+    unsafe func make_no_len(value : *char) {
         const length = unsafe(strlen(value))
         var s = string {
             storage : {
@@ -645,12 +645,12 @@ public struct string {
     }
 
     func find(&self, needle : &std::string_view) : size_t {
-        var view = std::string_view(data(), size())
+        var view = unsafe(std::string_view(data(), size()))
         return internal_view_find(&view, needle);
     }
 
     func find_last(&self, needle : &std::string_view) : size_t {
-        var view = std::string_view(data(), size())
+        var view = unsafe(std::string_view(data(), size()))
         return internal_view_find_last(&view, needle);
     }
 
@@ -810,7 +810,7 @@ public struct string {
     }
 
     func to_view(&self) : 'self std::string_view {
-        return std::string_view(data(), size())
+        return unsafe(std::string_view(data(), size()))
     }
 
     func to_i8(&self) : std::Result<i8, std::string_view> { return to_view().to_i8() }

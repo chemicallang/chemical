@@ -11,7 +11,7 @@ public namespace std {
         @implicit
         @constructor
         comptime func make(value : %literal_string) {
-            return constructor(value, intrinsics::size(value))
+            return unsafe(constructor(value, intrinsics::size(value)))
         }
 
         @constructor
@@ -23,7 +23,7 @@ public namespace std {
         }
 
         @constructor
-        func constructor(value : *char, length : size_t) {
+        unsafe func constructor(value : *char, length : size_t) {
             return string_view {
                 _data : value,
                 _size : length
@@ -31,7 +31,7 @@ public namespace std {
         }
 
         @constructor
-        func ref_make(value : &char, length : size_t) {
+        unsafe func ref_make(value : &char, length : size_t) {
             return string_view {
                 _data : &raw value,
                 _size : length
@@ -47,7 +47,7 @@ public namespace std {
         }
 
         @constructor
-        func make_no_len(value : *char) {
+        unsafe func make_no_len(value : *char) {
             return string_view {
                 _data : value,
                 _size : unsafe(strlen(value))
@@ -77,14 +77,14 @@ public namespace std {
             if(start > end || end > _size) {
                 panic("string_view subview out of bounds")
             }
-            return std::string_view(_data + start, end - start)
+            return unsafe(std::string_view(_data + start, end - start))
         }
 
         func skip(&self, count : size_t) : 'self std::string_view {
             if(count > _size) {
                 panic("string_view skip out of bounds")
             }
-            return std::string_view(_data + count, _size - count)
+            return unsafe(std::string_view(_data + count, _size - count))
         }
 
         func find(&self, needle : &std::string_view) : size_t {
@@ -113,7 +113,7 @@ public namespace std {
         func trim(&self) : 'self std::string_view {
             var s = 0u;
             while (s < _size && (get(s) == ' ' || get(s) == '\t' || get(s) == '\n' || get(s) == '\r')) s++;
-            if (s == _size) return std::string_view("", 0);
+            if (s == _size) return unsafe(std::string_view("", 0));
             var e = _size - 1;
             while (e > s && (get(e) == ' ' || get(e) == '\t' || get(e) == '\n' || get(e) == '\r')) e--;
             return subview(s, e + 1);

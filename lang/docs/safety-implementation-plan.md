@@ -787,7 +787,7 @@
 > (the internal sret/pointer prototype ABI is not the C ABI); pointer-based FFI
 > remains allowed. A runtime test covers the invalid-layout panic and a
 > negative test covers the aggregate FFI rejection. Safety suite `51`; negative
-> tests `530`; `MIRTests` `4638 checks`.
+> tests `531`; `MIRTests` `4638 checks`.
 > M5.2a validity guards: `SAFE-VALID-002` rejects an integer/float/pointer to
 > `bool` cast in safe code (the `atomic` CAS helpers now use `!= 0`);
 > `SAFE-VALID-003` rejects an integer literal whose value is not a declared
@@ -804,10 +804,17 @@
 > storage and `RefCell`/`Cell`/lock state are private/internal. Direct field
 > access and aggregate init from a user module are `SAFE-VIS-001`, closing
 > safe-code retargeting/double-free, length/capacity and borrow-state
-> corruption paths. `SAFE-ITER-001` requires `Linear` implementations to be
-> `unsafe impl` because `data()` feeds for-in pointer arithmetic; the std
-> vector/span impls are marked accordingly. Nested `unsafe impl` is parsed
-> inside container bodies.
+> corruption paths. General `unsafe interface` support now enforces
+> `SAFE-TRAIT-001`: implementing an unsafe interface requires `unsafe impl`.
+> `core::iterable::Linear` is an unsafe interface because `data()` feeds for-in
+> pointer arithmetic; `Allocator` is unsafe because an impl supplies raw
+> allocation pointers. The std vector/span impls are marked accordingly. Nested
+> `unsafe impl` is parsed inside container bodies. Raw pointer/length
+> constructors for `string`, `string_view`, `span`, and `u16string` are now
+> `unsafe func`; a safe caller must use `unsafe(...)` or a checked/literal
+> constructor. The in-tree call sites that construct a view of already-owned,
+> valid storage were audited and wrapped, so the safety audit baseline was
+> updated rather than silently ignoring the growth.
 > Compiler comptime determinism: `InterpretScope` now carries a unique id and
 > identifier lookup checks the current scope before its cached-depth fast path;
 > `resolve_ref` follows a bounded reference chain; `MIRComptime` folds an
@@ -829,7 +836,7 @@
 > read. Provenance beyond range (cross-frame stale pointers) and
 > bounds-checked host `strlen`/`printf`/foreign pointers remain M5.7b.
 > `catch_unwind`/`UnwindSafe` and the unwinding/drop-on-unwind profile remain
-> S5.6b. Safety suite `51`; negative tests `530`; main TCC `2354`, LLVM `2352`;
+> S5.6b. Safety suite `51`; negative tests `535`; main TCC `2354`, LLVM `2352`;
 > interpret `1910`; `MIRTests` `4638 checks`.
 > Next: M5.7b provenance/foreign-pointer hardening, the checked runtime
 > integer-to-enum conversion (M5.2b), S5.6b

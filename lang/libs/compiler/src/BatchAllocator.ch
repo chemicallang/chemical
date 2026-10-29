@@ -28,5 +28,5 @@ public func (allocator : &mut BatchAllocator) allocate_str(data : *char, size : 
 
 @retained // TODO: remove retained, once we have runtime magic val
 public func (allocator : &mut BatchAllocator) allocate_view(view : &std::string_view) : 'static std::string_view {
-    return std::string_view(allocator.allocate_str(view.data(), view.size()), view.size());
+    return unsafe(std::string_view(allocator.allocate_str(view.data(), view.size()), view.size()));
 }

@@ -19,16 +19,16 @@ public func test_router_site_routes_aggregate(env : &mut TestEnv) {
 
 @test
 public func test_router_write_site_routes(env : &mut TestEnv) {
-    var dir = std::string(intrinsics::get_build_dir())
+    var dir = unsafe(std::string(intrinsics::get_build_dir()))
     dir.append_view(std::string_view("/site_routes_test"))
     fs::mkdir(dir.data())
 
-    var p1 = std::string(dir.data(), dir.size())
+    var p1 = unsafe(std::string(dir.data(), dir.size()))
     p1.append_view(std::string_view("/index.routes.json"))
     const d1 = std::string_view("{\"name\":\"index\",\"base\":\"\",\"routers\":[]}")
     fs::write_text_file(p1.data(), d1.data() as *u8, d1.size())
 
-    var p2 = std::string(dir.data(), dir.size())
+    var p2 = unsafe(std::string(dir.data(), dir.size()))
     p2.append_view(std::string_view("/about.routes.json"))
     const d2 = std::string_view("{\"name\":\"about\",\"base\":\"\",\"routers\":[]}")
     fs::write_text_file(p2.data(), d2.data() as *u8, d2.size())
@@ -42,7 +42,7 @@ public func test_router_write_site_routes(env : &mut TestEnv) {
         env.error("write_site_routes should aggregate the two present manifests")
     }
 
-    var sitePath = std::string(dir.data(), dir.size())
+    var sitePath = unsafe(std::string(dir.data(), dir.size()))
     sitePath.append_view(std::string_view("/routes.json"))
     var rr = fs::read_entire_file(sitePath.data())
     if(rr is Result.Err) {
@@ -50,7 +50,7 @@ public func test_router_write_site_routes(env : &mut TestEnv) {
         return
     }
     var Ok(bytes) = rr else unreachable
-    var content = std::string(bytes.data() as *char, bytes.size())
+    var content = unsafe(std::string(bytes.data() as *char, bytes.size()))
     const idx = std::string_view("{\"name\":\"index\"")
     if(content.find(&idx) == std::NPOS) {
         env.error("the aggregate should contain the index document")

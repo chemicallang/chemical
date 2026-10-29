@@ -117,7 +117,7 @@
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
       "unsafe_blocks": 2,
-      "unsafe_values": 1,
+      "unsafe_values": 2,
       "variadic_calls": 0
     },
     "::environment": {
@@ -141,7 +141,7 @@
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
       "unsafe_blocks": 0,
-      "unsafe_values": 3,
+      "unsafe_values": 6,
       "variadic_calls": 0
     },
     "::fs": {
@@ -165,7 +165,7 @@
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
       "unsafe_blocks": 12,
-      "unsafe_values": 40,
+      "unsafe_values": 41,
       "variadic_calls": 0
     },
     "::lab": {
@@ -189,7 +189,7 @@
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
       "unsafe_blocks": 2,
-      "unsafe_values": 2,
+      "unsafe_values": 9,
       "variadic_calls": 0
     },
     "::osrand": {
@@ -261,7 +261,7 @@
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
       "unsafe_blocks": 90,
-      "unsafe_values": 22,
+      "unsafe_values": 24,
       "variadic_calls": 2
     },
     "::safety_tests": {
@@ -285,7 +285,7 @@
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
       "unsafe_blocks": 22,
-      "unsafe_values": 71,
+      "unsafe_values": 82,
       "variadic_calls": 15
     },
     "::std": {
@@ -309,7 +309,7 @@
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
       "unsafe_blocks": 77,
-      "unsafe_values": 75,
+      "unsafe_values": 86,
       "variadic_calls": 14
     },
     "::test": {
@@ -333,7 +333,7 @@
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
       "unsafe_blocks": 36,
-      "unsafe_values": 31,
+      "unsafe_values": 32,
       "variadic_calls": 24
     },
     "::test_env": {
@@ -430,7 +430,7 @@
     "union_field_accesses": 0,
     "unreachable_stmts": 0,
     "unsafe_blocks": 266,
-    "unsafe_values": 312,
+    "unsafe_values": 349,
     "variadic_calls": 57
   }
 }

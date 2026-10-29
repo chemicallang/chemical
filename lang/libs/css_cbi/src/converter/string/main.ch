@@ -226,7 +226,8 @@ func (converter : &mut ASTConverter) put_class_name_chain(hash : uint32_t, prefi
     className[0] = '.'; className[1] = prefix
     base64_encode_32bit(hash, &raw mut className[2])
     className[8] = '{'; className[9] = '\0'
-    converter.put_view_chain(std::string_view(&raw className[0], 9u))
+    const class_name_view = unsafe(std::string_view(&raw className[0], 9u))
+    converter.put_view_chain(&class_name_view)
 }
 
 func generate_random_32bit() : uint32_t { return (unsafe(rand()) as uint32_t << 16) | unsafe(rand()) as uint32_t; }
@@ -449,8 +450,9 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM, seed : ubigin
         className[0] = '.'; className[1] = 'r'
         base64_encode_32bit(hash, &raw mut className[2])
         className[8] = '{'; className[9] = '\0'
-        const total = builder.allocate_view(std::string_view(&raw className[0], 9u));
-        const classView = std::string_view(total.data() + 1, 7u);
+        const total_raw = unsafe(std::string_view(&raw className[0], 9u))
+        const total = builder.allocate_view(&total_raw);
+        const classView = unsafe(std::string_view(total.data() + 1, 7u));
         om.className = classView
 
         if(converter.is_global_block && size > 0) {
@@ -537,7 +539,7 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM, seed : ubigin
             converter.put_append_css_value_chain(&rootView)
         } else {
             const totalView = allocate_view_with_classname(builder, &mut *str, hash)
-            om.className = std::string_view(totalView.data() + 1, 7u)
+            om.className = unsafe(std::string_view(totalView.data() + 1, 7u))
             converter.put_append_css_value_chain(&totalView)
         }
         

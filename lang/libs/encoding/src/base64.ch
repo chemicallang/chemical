@@ -42,7 +42,7 @@ public func base64_encode_to_string(data : *u8, data_len : size_t) : Result<stri
         return Result.Err(EncodingError.InvalidInput())
     }
     var Ok(n) = r else unreachable
-    var s = string.constructor(buf as *char, n)
+    var s = unsafe(string.constructor(buf as *char, n))
     unsafe { free(buf) }
     return Result.Ok(s)
 }

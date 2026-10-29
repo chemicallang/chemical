@@ -179,7 +179,7 @@ public func ut_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder, s
 
     const utMacroName = std::string_view("universal_test")
     const nodes_arr : []*mut ASTNode = []
-    const node = builder.make_top_level_embedded_node(spec, &utMacroName, decl, ut_known_type, ut_child_res, ut_cross_mod, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(decl.fixture.dyn_values.data(), decl.fixture.dyn_values.size()), parser.getParentNode(), loc)
+    const node = builder.make_top_level_embedded_node(spec, &utMacroName, decl, ut_known_type, ut_child_res, ut_cross_mod, std::span<*mut ASTNode>(nodes_arr), unsafe(std::span<*mut Value>(decl.fixture.dyn_values.data(), decl.fixture.dyn_values.size())), parser.getParentNode(), loc)
 
     // register the test for discovery (args: name, isolate, group, steps, fixture_fn)
     const controller = parser.getAnnotationController()
@@ -192,7 +192,7 @@ public func ut_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder, s
         args.push(builder.make_string_value(&decl.steps, loc) as *mut Value)
         const fnId = builder.make_identifier(&fnName, funcDecl as *mut ASTNode, false, loc)
         args.push(fnId as *mut Value)
-        controller.collect(node, def, std::span<*mut Value>(args.data(), args.size()))
+        controller.collect(node, def, unsafe(std::span<*mut Value>(args.data(), args.size())))
     }
 
     return node
@@ -205,7 +205,7 @@ public func ut_parseMacroNodeStatement(parser : *mut Parser, builder : *mut ASTB
     if(decl == null) { return null }
     const utMacroName = std::string_view("universal_test")
     const nodes_arr : []*mut ASTNode = []
-    return builder.make_embedded_node(AccessSpecifier.Internal, &utMacroName, decl, ut_known_type, ut_child_res, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(decl.fixture.dyn_values.data(), decl.fixture.dyn_values.size()), parser.getParentNode(), loc)
+    return builder.make_embedded_node(AccessSpecifier.Internal, &utMacroName, decl, ut_known_type, ut_child_res, std::span<*mut ASTNode>(nodes_arr), unsafe(std::span<*mut Value>(decl.fixture.dyn_values.data(), decl.fixture.dyn_values.size())), parser.getParentNode(), loc)
 }
 
 @no_mangle

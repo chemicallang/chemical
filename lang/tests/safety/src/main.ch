@@ -106,13 +106,13 @@ internal func expect_runtime_panic(env : &mut TestEnv, name : *char, ch_content 
     var compiler_path_buf : [1024]char
     unsafe { sprintf(unsafe(&raw mut compiler_path_buf[0]), "%s", intrinsics::get_compiler_path()) }
     var compiler_path = string()
-    var compiler_view = std::string_view(unsafe(&raw compiler_path_buf[0]), unsafe(strlen(unsafe(&raw compiler_path_buf[0]))))
+    var compiler_view = unsafe(std::string_view(unsafe(&raw compiler_path_buf[0]), unsafe(strlen(unsafe(&raw compiler_path_buf[0])))))
     compiler_path.append_view(&compiler_view)
     var module_path = string()
-    var module_view = std::string_view(unsafe(&raw mod_path[0]), unsafe(strlen(unsafe(&raw mod_path[0]))))
+    var module_view = unsafe(std::string_view(unsafe(&raw mod_path[0]), unsafe(strlen(unsafe(&raw mod_path[0])))))
     module_path.append_view(&module_view)
     var executable_path = string()
-    var executable_view = std::string_view(unsafe(&raw exe_path[0]), unsafe(strlen(unsafe(&raw exe_path[0]))))
+    var executable_view = unsafe(std::string_view(unsafe(&raw exe_path[0]), unsafe(strlen(unsafe(&raw exe_path[0])))))
     executable_path.append_view(&executable_view)
 
     var compile_args = vector<string>()
@@ -131,7 +131,7 @@ internal func expect_runtime_panic(env : &mut TestEnv, name : *char, ch_content 
     }
 
     var run_path = string()
-    var run_view = std::string_view(unsafe(&raw exe_path[0]), unsafe(strlen(unsafe(&raw exe_path[0]))))
+    var run_view = unsafe(std::string_view(unsafe(&raw exe_path[0]), unsafe(strlen(unsafe(&raw exe_path[0])))))
     run_path.append_view(&run_view)
     var run_args = vector<string>()
     run_args.push(run_path)
@@ -160,13 +160,13 @@ internal func safety_compile_and_run(env : &mut TestEnv, name : *char, ch_conten
     var compiler_path_buf : [1024]char
     unsafe { sprintf(unsafe(&raw mut compiler_path_buf[0]), "%s", intrinsics::get_compiler_path()) }
     var compiler_path = string()
-    var compiler_view = std::string_view(unsafe(&raw compiler_path_buf[0]), unsafe(strlen(unsafe(&raw compiler_path_buf[0]))))
+    var compiler_view = unsafe(std::string_view(unsafe(&raw compiler_path_buf[0]), unsafe(strlen(unsafe(&raw compiler_path_buf[0])))))
     compiler_path.append_view(&compiler_view)
     var module_path = string()
-    var module_view = std::string_view(unsafe(&raw mod_path[0]), unsafe(strlen(unsafe(&raw mod_path[0]))))
+    var module_view = unsafe(std::string_view(unsafe(&raw mod_path[0]), unsafe(strlen(unsafe(&raw mod_path[0])))))
     module_path.append_view(&module_view)
     var executable_path = string()
-    var executable_view = std::string_view(unsafe(&raw exe_path[0]), unsafe(strlen(unsafe(&raw exe_path[0]))))
+    var executable_view = unsafe(std::string_view(unsafe(&raw exe_path[0]), unsafe(strlen(unsafe(&raw exe_path[0])))))
     executable_path.append_view(&executable_view)
 
     var compile_args = vector<string>()
@@ -185,7 +185,7 @@ internal func safety_compile_and_run(env : &mut TestEnv, name : *char, ch_conten
     }
 
     var run_path = string()
-    var run_view = std::string_view(unsafe(&raw exe_path[0]), unsafe(strlen(unsafe(&raw exe_path[0]))))
+    var run_view = unsafe(std::string_view(unsafe(&raw exe_path[0]), unsafe(strlen(unsafe(&raw exe_path[0])))))
     run_path.append_view(&run_view)
     var run_args = vector<string>()
     run_args.push(run_path)
@@ -216,13 +216,13 @@ internal func safety_compile_with_report(env : &mut TestEnv, name : *char, ch_co
     var compiler_path_buf : [1024]char
     unsafe { sprintf(unsafe(&raw mut compiler_path_buf[0]), "%s", intrinsics::get_compiler_path()) }
     var compiler_path = string()
-    var compiler_view = std::string_view(unsafe(&raw compiler_path_buf[0]), unsafe(strlen(unsafe(&raw compiler_path_buf[0]))))
+    var compiler_view = unsafe(std::string_view(unsafe(&raw compiler_path_buf[0]), unsafe(strlen(unsafe(&raw compiler_path_buf[0])))))
     compiler_path.append_view(&compiler_view)
     var module_path = string()
-    var module_view = std::string_view(unsafe(&raw mod_path[0]), unsafe(strlen(unsafe(&raw mod_path[0]))))
+    var module_view = unsafe(std::string_view(unsafe(&raw mod_path[0]), unsafe(strlen(unsafe(&raw mod_path[0])))))
     module_path.append_view(&module_view)
     var executable_path = string()
-    var executable_view = std::string_view(unsafe(&raw exe_path[0]), unsafe(strlen(unsafe(&raw exe_path[0]))))
+    var executable_view = unsafe(std::string_view(unsafe(&raw exe_path[0]), unsafe(strlen(unsafe(&raw exe_path[0])))))
     executable_path.append_view(&executable_view)
 
     var args = vector<string>()
@@ -269,7 +269,7 @@ func deque_bounds_panics(env : &mut TestEnv) {
 @test
 func span_bounds_panics(env : &mut TestEnv) {
     safety_init_work_dir()
-    var ch = "public func main() : int {\n    var a : [2]int = [1, 2]\n    var s = std::span<int>(&raw mut a[0], 2)\n    var p = s.get(2)\n    return 0\n}\n"
+    var ch = "public func main() : int {\n    var a : [2]int = [1, 2]\n    var s = unsafe(std::span<int>(&raw mut a[0], 2))\n    var p = s.get(2)\n    return 0\n}\n"
     expect_runtime_panic(env, "span_bounds_panics", ch)
 }
 

@@ -73,7 +73,8 @@ public func styled_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilde
             // tag string — strip the surrounding double quotes
             var raw = inner.value
             if(raw.size() >= 2) {
-                tag = builder.allocate_view(std::string_view(raw.data() + 1, raw.size() - 2))
+                const raw_view = unsafe(std::string_view(raw.data() + 1, raw.size() - 2))
+                tag = builder.allocate_view(&raw_view)
             } else {
                 tag = builder.allocate_view(std::string_view("div"))
             }
@@ -149,7 +150,7 @@ public func styled_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilde
         styled_node_child_res_func,
         styled_cross_mod_proxy_fn,
         std::span<*mut ASTNode>(nodes_arr),
-        std::span<*mut Value>(cssom.dyn_values.data(), cssom.dyn_values.size()),
+        unsafe(std::span<*mut Value>(cssom.dyn_values.data(), cssom.dyn_values.size())),
         parser.getParentNode(),
         loc
     )

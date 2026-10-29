@@ -101,7 +101,7 @@ func get_main_module(ctx : *mut AppBuildContext, job : *mut LabJob) : *mut Modul
     ctx.set_environment_testing(job, true)
 
     const zero_deps_arr : []*mut Module = []
-    const zero_deps = std::span<*mut Module>(zero_deps_arr, 0)
+    const zero_deps = unsafe(std::span<*mut Module>(zero_deps_arr, 0))
 
     // the core module
     var core_module = coreMod.build(ctx, job)
@@ -383,7 +383,7 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
 
     const debug = true;
     if(debug) {
-        const curr_path_str = std::string(intrinsics::get_current_file_path());
+        const curr_path_str = unsafe(std::string(intrinsics::get_current_file_path()));
         unsafe { printf("[build.lab] current file path : %s\n", curr_path_str.data()) };
         const curr_dir_path = lab::curr_dir();
         unsafe { printf("[build.lab] current dir path : %s\n", curr_dir_path.data()) };
@@ -405,7 +405,7 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
     }
 
     const zero_deps_arr : []*mut Module = []
-    const zero_deps = std::span<*mut Module>(zero_deps_arr, 0)
+    const zero_deps = unsafe(std::span<*mut Module>(zero_deps_arr, 0))
 
 
     const headers_path = build_dir_path(ctx, std::string_view("headers.ch"));

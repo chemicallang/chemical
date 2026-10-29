@@ -3452,7 +3452,7 @@ public func calc_in_transform_works(env : &mut TestEnv) {
     }
     var got = page.toStringCssOnly();
     var expected = std::string();
-    var classView = std::string_view(got.data(), 8)
+    var classView = unsafe(std::string_view(got.data(), 8))
     expected.append_view(&classView)
     expected.append_view("{ transform:translateX(calc(-100% - 24px)); }");
     compl_css_equals(env, &got, expected.to_view());
@@ -3469,7 +3469,7 @@ public func attribute_selector_combinator_works(env : &mut TestEnv) {
     }
     var got = page.toStringCssOnly();
     var expected = std::string();
-    var classView = std::string_view(got.data(), 8)
+    var classView = unsafe(std::string_view(got.data(), 8))
     expected.append_view(".some-class input[type=\"checkbox\"] { display:block; }");
     compl_css_equals(env, &got, expected.to_view());
 }

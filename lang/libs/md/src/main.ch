@@ -88,7 +88,7 @@ public func file_to_html(path : *char, highlighter : (lang : std::string_view, c
         return Result.Err<std::string, MdError>(MdError.FileReadFailed)
     }
     var Ok(bytes) = r else unreachable
-    const view = std::string_view(bytes.data() as *char, bytes.size())
+    const view = unsafe(std::string_view(bytes.data() as *char, bytes.size()))
     const html = md::to_html(view, highlighter, link_rewriter)
     return Result.Ok<std::string, MdError>(html)
 }

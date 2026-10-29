@@ -2940,17 +2940,10 @@ void SymResLinkBody::VisitCastedValue(CastedValue* cValue) {
                         << enumDecl->name_view() << "'";
                     return;
                 }
-            } else if (safe_context) {
-                // Runtime integers can hold any bit pattern. Until the
-                // checked conversion lowering exists, accepting this cast in
-                // safe code would let a switch/tag-aware optimization see an
-                // undeclared tag. The caller must take the explicit unsafe
-                // boundary; a checked API will replace this in M5.2b.
-                diagnoser.error(cValue).with_code("SAFE-VALID-005")
-                    << "integer-to-enum cast at runtime requires an explicit "
-                       "unsafe boundary until checked conversion is available";
-                return;
             }
+            // Runtime integer-to-enum casts are accepted and MIR lowering
+            // emits a validity check against every declared member (M5.2b).
+            // Invalid tags abort through the panic runtime.
         }
     }
     // Creating a reference from a raw pointer (or an integer/null) is a

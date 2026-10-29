@@ -5,6 +5,7 @@
 // AST-aware: this is the front-end lowering boundary, never a backend.
 
 #include "MIRLowererHelpers.h"
+#include "ast/structures/EnumDeclaration.h"
 
 #include <cmath>
 
@@ -270,6 +271,94 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     builder_->copy_ptr_to_place(tmp, ptr);
                 }
                 return MIRExprResult::place(tmp, type);
+            }
+            // A runtime integer-to-enum cast is checked against every declared
+            // member before the bit pattern becomes an enum value. This is the
+            // M5.2b replacement for rejecting the cast in safe code: an invalid
+            // tag aborts through the panic runtime instead of reaching a
+            // switch/tag-aware optimization.
+            if (c->getType() != nullptr) {
+                auto* enum_decl = c->getType()->canonical()->get_direct_linked_enum();
+                auto* source_ast = c->value ? c->value->getType() : nullptr;
+                const bool source_is_int = source_ast != nullptr &&
+                    source_ast->canonical()->kind() == BaseTypeKind::IntN;
+                if (enum_decl != nullptr && source_is_int) {
+                    ValueId raw = MIR_INVALID_ID;
+                    TypeId raw_type = in.type;
+                    if (in.kind == MIRExprKind::Place) {
+                        raw = builder_->load(static_cast<PlaceId>(in.id), in.type);
+                    } else if (in.kind == MIRExprKind::Value ||
+                               in.kind == MIRExprKind::Address) {
+                        raw = static_cast<ValueId>(in.id);
+                    }
+                    if (raw != MIR_INVALID_ID) {
+                        if (raw_type == MIR_INVALID_ID) raw_type = type;
+                        const TypeId bool_t = types_.bool_type();
+                        const PlaceId valid = builder_->alloca(
+                            bool_t, MIRStorageClass::Temporary);
+                        builder_->store(
+                            valid, builder_->const_bool(
+                                       bool_t, module_.constants.add_bool(bool_t, false)));
+                        const BlockId done = builder_->create_block();
+                        const ConstantId eq = module_.constants.add_int(
+                            MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq));
+                        std::vector<EnumDeclaration*> decls;
+                        for (EnumDeclaration* d = enum_decl;
+                             d != nullptr && decls.size() < 256;
+                             d = d->get_inherited_enum_decl()) {
+                            bool seen = false;
+                            for (auto* prior : decls) if (prior == d) { seen = true; break; }
+                            if (seen) break;
+                            decls.push_back(d);
+                        }
+                        for (EnumDeclaration* d : decls) {
+                            for (auto& entry : d->members) {
+                                EnumMember* member = entry.second;
+                                if (member == nullptr) continue;
+                                MIRExprResult member_value;
+                                if (member->init_value != nullptr) {
+                                    member_value = lower_expr(member->init_value, error);
+                                    if (!member_value.ok()) return member_value;
+                                } else {
+                                    member_value = MIRExprResult::value(
+                                        builder_->const_int(
+                                            raw_type,
+                                            module_.constants.add_int(
+                                                raw_type,
+                                                static_cast<uint64_t>(
+                                                    member->get_index_dirty()))),
+                                        raw_type);
+                                }
+                                ValueId mv = static_cast<ValueId>(member_value.id);
+                                if (member_value.kind == MIRExprKind::Place) {
+                                    mv = builder_->load(
+                                        static_cast<PlaceId>(member_value.id),
+                                        member_value.type);
+                                }
+                                if (member_value.type != MIR_INVALID_ID &&
+                                    member_value.type != raw_type) {
+                                    mv = builder_->cast(mv, raw_type);
+                                }
+                                const ValueId equal = builder_->compare(
+                                    raw, mv, eq, bool_t);
+                                const BlockId hit = builder_->create_block();
+                                const BlockId next = builder_->create_block();
+                                builder_->cond_br(equal, hit, next);
+                                builder_->set_block(hit);
+                                builder_->store(
+                                    valid, builder_->const_bool(
+                                               bool_t, module_.constants.add_bool(
+                                                           bool_t, true)));
+                                builder_->br(done);
+                                builder_->set_block(next);
+                            }
+                        }
+                        builder_->br(done);
+                        builder_->set_block(done);
+                        emit_abort_unless(builder_->load(valid, bool_t), "__chc_enum_fail");
+                        return MIRExprResult::value(builder_->cast(raw, type), type);
+                    }
+                }
             }
             // Float -> integer is defined and saturating; never emit a raw C
             // cast (out of range and NaN are UB in C/LLVM fptosi).

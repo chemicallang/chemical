@@ -786,18 +786,19 @@
 > `@extern` function that passes or returns a struct/union/variant **by value**
 > (the internal sret/pointer prototype ABI is not the C ABI); pointer-based FFI
 > remains allowed. A runtime test covers the invalid-layout panic and a
-> negative test covers the aggregate FFI rejection. Safety suite `51`; negative
-> tests `531`; `MIRTests` `4638 checks`.
+> negative test covers the aggregate FFI rejection. Safety suite `53`; negative
+> tests `535`; `MIRTests` `4638 checks`.
 > M5.2a validity guards: `SAFE-VALID-002` rejects an integer/float/pointer to
 > `bool` cast in safe code (the `atomic` CAS helpers now use `!= 0`);
 > `SAFE-VALID-003` rejects an integer literal whose value is not a declared
 > enum member; `SAFE-VALID-004` rejects `zeroed<Enum>()` when no member has
-> value 0; `SAFE-VALID-005` rejects a runtime integer-to-enum cast in safe code.
+> value 0. M5.2b is implemented: a runtime integer-to-enum cast is checked in
+> MIR lowering against every declared member (including inherited members) and
+> an invalid tag aborts through `__chc_enum_fail` with the source location.
+> `SAFE-VALID-005` is retired; the literal-only `SAFE-VALID-003` check remains.
 > The in-tree lexer/parser/plugin casts (`js_cbi_lexer`, `universal_parser`,
 > `css_parser`, `json_cbi`, the test IPC parser) were replaced with integer
-> comparisons or total mapping helpers instead of forging an enum, so the
-> safety surface did not grow. A checked conversion API remains the next M5.2b
-> slice. `NonNull`, `Box`, `Rc`/`Weak`, and `Arc`/`ArcWeak` now have private
+> comparisons or total mapping helpers instead of forging an enum. `NonNull`, `Box`, `Rc`/`Weak`, and `Arc`/`ArcWeak` now have private
 > pointer fields and checked/unsafe constructors; `vector`, `deque`, `span`,
 > `string_view`, map iterators and map storage, raw OS lock storage, and
 > `Pin`/`Chunk` storage are private/internal, while `string`/`u16string` tagged
@@ -836,10 +837,9 @@
 > read. Provenance beyond range (cross-frame stale pointers) and
 > bounds-checked host `strlen`/`printf`/foreign pointers remain M5.7b.
 > `catch_unwind`/`UnwindSafe` and the unwinding/drop-on-unwind profile remain
-> S5.6b. Safety suite `51`; negative tests `535`; main TCC `2354`, LLVM `2352`;
+> S5.6b. Safety suite `53`; negative tests `535`; main TCC `2354`, LLVM `2352`;
 > interpret `1910`; `MIRTests` `4638 checks`.
-> Next: M5.7b provenance/foreign-pointer hardening, the checked runtime
-> integer-to-enum conversion (M5.2b), S5.6b
+> Next: M5.7b provenance/foreign-pointer hardening, S5.6b
 > (`catch_unwind`/unwinding + `UnwindSafe`/`RefUnwindSafe`/`AssertUnwindSafe`),
 > remaining M5 validity (packed references), M6 `Send`/`Sync` enforcement, M2
 > C ABI, and the variance/HRTB/temporary-lifetime precision items.

@@ -290,14 +290,15 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `51`, negative tests `535`.
+  `53`, negative tests `535`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
-  `zeroed<Enum>()` when no member is 0; `SAFE-VALID-005` rejects a runtime
-  integer-to-enum cast in safe code. In-tree lexer/parser/plugin casts were
-  replaced with integer comparisons or total mapping helpers; checked
-  conversion remains M5.2b. `NonNull` has a private field and checked/unsafe
+  `zeroed<Enum>()` when no member is 0. M5.2b is implemented: MIR lowering
+  checks a runtime integer-to-enum cast against every declared member and calls
+  `__chc_enum_fail` (panic) for an invalid tag. `SAFE-VALID-005` is retired;
+  the literal-only `SAFE-VALID-003` check remains. In-tree lexer/parser/plugin
+  casts were replaced with integer comparisons or total mapping helpers. `NonNull` has a private field and checked/unsafe
   constructors.
   `InterpretScope` now validates
   its identifier depth cache with a unique scope id and checks the current
@@ -305,7 +306,7 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `51`, negative `535`; TCC main `2354`, LLVM
+  TCC/LLVM lib runs. Safety suite `53`, negative `535`; TCC main `2354`, LLVM
   main `2352`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
@@ -599,7 +600,7 @@ Codes are stable and grouped by domain:
 | `SAFE-VALID-002` | non-bool to `bool` cast in safe code |
 | `SAFE-VALID-003` | integer literal is not a declared enum member |
 | `SAFE-VALID-004` | `zeroed<Enum>()` has no declared zero tag |
-| `SAFE-VALID-005` | runtime integer-to-enum cast in safe code |
+| `SAFE-VALID-005` | retired: runtime int-to-enum casts are now checked in MIR |
 | `SAFE-TRAIT-001` | implementation of an `unsafe interface` was not `unsafe impl` |
 | `SAFE-VIS-001` | private/internal member initialized or accessed outside its type/module |
 | `SAFE-FFI-001` | extern call in a safe context (enforced) |

@@ -762,10 +762,10 @@ func neg_non_null_unchecked_requires_unsafe(env : &mut TestEnv) {
 }
 
 @test
-func neg_runtime_enum_cast_requires_unsafe(env : &mut TestEnv) {
+func runtime_enum_cast_is_checked(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "enum E : int {\n    A = 1,\n    B = 2\n}\nfunc bad(n : int) : int {\n    var e = n as E\n    return 0\n}\npublic func main() : int {\n    return bad(1)\n}\n"
-    expect_compile_error(env, "runtime_enum_cast_safe", ch, "SAFE-VALID-005")
+    expect_compile_success(env, "runtime_enum_cast_safe", ch)
 }
 
 @test

@@ -704,3 +704,21 @@ func invalid_layout_alignment_panics(env : &mut TestEnv) {
     var ch = "public func main() : int {\n    var l = std::alloc::Layout.make(1 as size_t, 3 as size_t)\n    var a = std::alloc::GlobalAllocator.make()\n    var r = a.alloc(l)\n    return 0\n}\n"
     expect_runtime_panic(env, "invalid_layout_alignment_panics", ch)
 }
+
+@test
+func enum_valid_cast_runs(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "enum E : int {\n    A = 1,\n    B = 2\n}\npublic func main() : int {\n    var n : int = 2\n    var e = n as E\n    if(e != E.B) { return 2 }\n    return 0\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "enum_valid_cast", ch, &mut out)
+    if(rc != 0) {
+        env.error("expected a valid enum cast to run")
+    }
+}
+
+@test
+func enum_invalid_cast_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "enum E : int {\n    A = 1,\n    B = 2\n}\npublic func main() : int {\n    var n : int = 3\n    var e = n as E\n    return 0\n}\n"
+    expect_runtime_panic(env, "enum_invalid_cast", ch)
+}

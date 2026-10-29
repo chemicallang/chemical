@@ -932,10 +932,14 @@
 > conditional `Send`/`Sync` impls; `string`/`u16string` remain owned values.
 > Capturing closures and erased captures still use the explicit unsafe
 > `std::concurrent.spawn` path until M6.5.
-> Next in M6: scoped threads, erased/async `Send`, guard/auto-trait audit,
-> and TSAN/data-race tests. Then remaining M5 validity (packed references),
+> Next in M6: erased/async `Send`, guard/auto-trait audit, and TSAN/data-race
+> tests. Scoped threads are blocked on M4 HRTB/region support: without a
+> higher-ranked scope lifetime, a body-local reference could outlive the join
+> that is supposed to protect it. The current safe API therefore requires
+> `'static` values only; capturing closures and non-`'static` scoped borrows stay
+> on the explicit unsafe path. Then remaining M5 validity (packed references),
 > M2 C ABI, and the variance/HRTB/temporary-lifetime precision items.
-> Safety suite `53`; negative tests `575`; main TCC `2354`, LLVM `2352`;
+> Safety suite `53`; negative tests `577`; main TCC `2354`, LLVM `2352`;
 > libs `726`; plugins `1305`; async `53`; interpret `1910`;
 > `MIRTests` `4638 checks`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.

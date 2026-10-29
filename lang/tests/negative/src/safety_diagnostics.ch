@@ -1181,3 +1181,17 @@ func neg_thread_spawn_void_non_static_reference_rejected(env : &mut TestEnv) {
     var ch = "func worker(x : &int) {\n}\npublic func main() : int {\n    var x = 1\n    var t = std::thread.spawn_void(worker, &x)\n    t.join()\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "thread_spawn_void_non_static", ch, "SAFE-LIFE-004", NEG_MOD_STD_CORE)
 }
+
+@test
+func neg_thread_spawn_struct_with_non_static_reference_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct Holder {\n    var r : &int\n}\nfunc worker(h : Holder) : int {\n    return *h.r\n}\npublic func main() : int {\n    var x = 1\n    var h = Holder { r : &x }\n    var t = std::thread.spawn<Holder, int>(worker, h)\n    return t.join() - 1\n}\n"
+    expect_compile_error_with_mod(env, "thread_spawn_struct_non_static", ch, "SAFE-LIFE-004", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_thread_spawn_vector_of_non_send_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func worker(v : std::vector<std::Rc<int> >) : int {\n    return v.size() as int\n}\npublic func main() : int {\n    var v = std::vector<std::Rc<int> >()\n    v.push(std::rc(1))\n    var t = std::thread.spawn<std::vector<std::Rc<int> >, int>(worker, v)\n    return t.join() - 1\n}\n"
+    expect_compile_error_with_mod(env, "thread_spawn_vector_non_send", ch, "does not satisfy where clause constraint 'T : Send'", NEG_MOD_STD_CORE)
+}

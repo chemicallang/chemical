@@ -934,4 +934,10 @@ impl core::stream::Stream for StringStream {
 
 }
 
+
+
+// Owned byte/UTF-16 storage: moving the value is safe, and shared reads do
+// not mutate the storage. // SAFETY: every &self method above is read-only.
+unsafe impl Send for string { }
+unsafe impl Sync for string { }
 }

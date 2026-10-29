@@ -1490,7 +1490,9 @@ static bool is_static_lifetime(chem::string_view lifetime) {
  * that outlives the current stack frame). Generic instantiations also carry
  * their lifetime arguments after erasure, so recurse through them.
  */
-static bool type_satisfies_static_bound(const BaseType* type) {
+static bool type_satisfies_static_bound(
+        const BaseType* type,
+        std::unordered_set<MembersContainer*>& visiting) {
     if (type == nullptr) return true;
     auto* mutable_type = const_cast<BaseType*>(type);
     switch (mutable_type->kind()) {
@@ -1498,20 +1500,44 @@ static bool type_satisfies_static_bound(const BaseType* type) {
             return is_static_lifetime(mutable_type->as_reference_type_unsafe()->lifetime);
         case BaseTypeKind::Array:
             return type_satisfies_static_bound(
-                mutable_type->as_array_type_unsafe()->elem_type.getType());
+                mutable_type->as_array_type_unsafe()->elem_type.getType(), visiting);
         case BaseTypeKind::Generic: {
             auto* generic = mutable_type->as_generic_type_unsafe();
             for (auto& lifetime : generic->lifetime_args) {
                 if (!is_static_lifetime(lifetime)) return false;
             }
             for (auto& argument : generic->types) {
-                if (!type_satisfies_static_bound(argument.getType())) return false;
+                if (!type_satisfies_static_bound(argument.getType(), visiting)) return false;
             }
-            return true;
+            break;
         }
         default:
-            return true;
+            break;
     }
+    auto* container = mutable_type->get_members_container();
+    if (container == nullptr) return true;
+    if (!visiting.insert(container).second) return true;
+    for (auto* member : container->variables()) {
+        if (member->kind() == ASTNodeKind::StructMember) {
+            auto* field = (StructMember*) member;
+            if (!type_satisfies_static_bound(field->type.getType(), visiting)) {
+                visiting.erase(container);
+                return false;
+            }
+        } else if (member->kind() == ASTNodeKind::VariantMember) {
+            auto* variant = (VariantMember*) member;
+            for (auto& entry : variant->values) {
+                auto* parameter = entry.second;
+                if (parameter != nullptr &&
+                    !type_satisfies_static_bound(parameter->type.getType(), visiting)) {
+                    visiting.erase(container);
+                    return false;
+                }
+            }
+        }
+    }
+    visiting.erase(container);
+    return true;
 }
 
 static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
@@ -1582,8 +1608,9 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
         // submission boundary: a reference that can point into the caller's
         // stack cannot outlive the new thread.
         for (auto& lifetime_bound : constraint.lifetime_bounds) {
+            std::unordered_set<MembersContainer*> static_visiting;
             if (is_static_lifetime(lifetime_bound) &&
-                !type_satisfies_static_bound(concrete_type)) {
+                !type_satisfies_static_bound(concrete_type, static_visiting)) {
                 diagnoser.error(call).with_code("SAFE-LIFE-004")
                     << "type '" << concrete_type->representation()
                     << "' does not satisfy where clause constraint '"

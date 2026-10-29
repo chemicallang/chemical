@@ -37,6 +37,9 @@ AccessSpecifier get_specifier_from(TokenType type) {
 }
 
 ASTNode* Parser::parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, AccessSpecifier spec, bool comptime) {
+    if(token->type == TokenType::Identifier && token->value == chem::string_view("static")) {
+        return parseStaticDeclaration(allocator, spec, comptime);
+    }
     switch (token->type) {
         case TokenType::FuncKw:
         case TokenType::AsyncKw:
@@ -93,6 +96,9 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, Acces
 }
 
 ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) {
+    if(token->type == TokenType::Identifier && token->value == chem::string_view("static")) {
+        return parseStaticDeclaration(allocator, AccessSpecifier::Internal, comptime);
+    }
     const auto tokenType = token->type;
     switch(tokenType) {
         case TokenType::ImportKw:

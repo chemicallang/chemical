@@ -23,7 +23,7 @@ public struct Layout {
                 unsafe { __chc_panic("Layout size exceeds isize::MAX", null, 0u, 0u) }
             }
         }
-        var layout = zeroed:unsafe<Layout>()
+        var layout : Layout = unsafe(std::mem.zeroed_unchecked<Layout>())
         layout._size = s
         layout._align = a
         return layout

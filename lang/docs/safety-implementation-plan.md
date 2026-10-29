@@ -858,7 +858,7 @@
 > operations. Wrapping generic bodies exposed a missing `ValueNode::copy`, which
 > is now implemented so generic expression-statement bodies survive
 > finalization. In-tree stdlib/CBI/plugin/build.lab call sites were migrated;
-> safety audit baseline is `unsafe_blocks 573`, `unsafe_values 386`.
+> safety audit baseline is `unsafe_blocks 573`, `unsafe_values 441`.
 > S2.2/S4.8 function-pointer safety: function types now carry
 > `requires_unsafe`. It is set for `unsafe func` and `@extern` declarations and
 > is part of function-type identity, so an unsafe/extern callee cannot be
@@ -874,13 +874,15 @@
 > back to the signed result, so the default/release profile is defined
 > two's-complement wrapping; LLVM already emits wrapping integer ops. The
 > explicit `--overflow-checks` debug profile still traps add/sub/mul/neg.
-> Global/static model (first slice): `SAFE-GLOBAL-001` requires an unsafe
-> boundary for every access to a mutable top-level `var` or an `@extern` global;
+> Global/static model: `SAFE-GLOBAL-001` requires an unsafe boundary for every
+> access to a mutable top-level `var`, `static mut`, or `@extern` global;
 > thread-local and comptime globals are exempt. `SAFE-GLOBAL-002` requires an
 > immutable global's type to be `Sync` (immutable globals are shared across
-> threads). In-tree globals were migrated with audited unsafe boundaries or
-> existing synchronization; negative tests cover mutable, extern, non-Sync, and
-> safe/unsafe cases. `atomic_flag._value` is now private and construction goes
+> threads). Contextual `static` / `static mut` syntax is parsed without adding a
+> lexer keyword (no CBI token shift): `static` is immutable storage and
+> `static mut` is mutable storage. In-tree globals were migrated with audited
+> unsafe boundaries or existing synchronization; negative tests cover mutable,
+> extern, non-Sync, static, static-mut, and safe/unsafe cases. `atomic_flag._value` is now private and construction goes
 > through `atomic_flag.make(value)` (S5.3/type-invariant cleanup). Named unsafe
 > flags such as `unsafe "no_lifetime_check"` are removed; `unsafe` only marks a
 > boundary and never disables lifetime checking. The temporary-lifetime check
@@ -893,16 +895,17 @@
 > `unsafe impl Zeroable`. `MaybeUninit<T>` is unconditionally zeroable;
 > `ManuallyDrop<T>` requires `T: Zeroable`. `@allow_zeroed` is removed and its
 > in-tree uses migrated. `std::vector::resize` now has a `T: Zeroable` bound
-> instead of zeroing arbitrary `T`. The explicit `zeroed:unsafe<T>()` unchecked
-> form is still present for audited FFI/TLS storage and remains the next
-> cleanup item. Negative tests cover missing bounds, explicit impls, arrays,
+> instead of zeroing arbitrary `T`. Production call sites that need an
+> uninitialized/zeroed temporary now use the explicit unsafe
+> `std::mem.zeroed_unchecked<T>()`; `zeroed:unsafe<T>()` remains only as the
+> audited bootstrap inside that helper (and a few generic/array test cases).
+> Negative tests cover missing bounds, explicit impls, arrays,
 > nested enums, references, and the safe/unsafe boundary.
 > `catch_unwind`/`UnwindSafe` and the unwinding/drop-on-unwind profile remain
-> S5.6b. Safety suite `53`; negative tests `566`; main TCC `2354`, LLVM `2352`;
+> S5.6b. Safety suite `53`; negative tests `569`; main TCC `2354`, LLVM `2352`;
 > libs `719`; plugins `1305`; async `53`; interpret `1910`;
 > `MIRTests` `4638 checks`.
-> Next: remove the remaining `zeroed:unsafe` call sites, then the
-> `static`/`static mut` syntax and synchronization wrappers, M5.7b
+> Next: synchronized-global wrapper policy, M5.7b
 > provenance/foreign-pointer hardening, S5.6b
 > (`catch_unwind`/unwinding + `UnwindSafe`/`RefUnwindSafe`/`AssertUnwindSafe`),
 > remaining M5 validity (packed references), M6 `Send`/`Sync` enforcement, M2

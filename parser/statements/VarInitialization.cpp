@@ -128,16 +128,20 @@ ASTNode* Parser::parseVarInitializationTokens(
         bool topLevel,
         bool matchExpr,
         bool allowDeclarations,
-        bool comptime
+        bool comptime,
+        bool static_decl,
+        bool static_mut
 ) {
 
-    auto& start_tok = *token;
-    auto is_const = start_tok.type == TokenType::ConstKw;
-    if(!is_const && start_tok.type != TokenType::VarKw) {
+    auto* start_tok = token;
+    auto is_const = static_decl ? !static_mut : start_tok->type == TokenType::ConstKw;
+    if(!static_decl && !is_const && start_tok->type != TokenType::VarKw) {
         return nullptr;
     }
 
-    token++;
+    if(!static_decl) {
+        token++;
+    }
 
     const auto is_ref = token->type == TokenType::AmpersandSym;
     if(is_ref) {
@@ -233,4 +237,25 @@ ASTNode* Parser::parseVarInitializationTokens(
     parent_node = prev_parent_node;
 
     return stmt;
+}
+ASTNode* Parser::parseStaticDeclaration(
+        ASTAllocator& allocator,
+        AccessSpecifier specifier,
+        bool comptime
+) {
+    auto* static_token = token;
+    if(static_token->type != TokenType::Identifier || static_token->value != chem::string_view("static")) {
+        return nullptr;
+    }
+    token++;
+    bool is_mut = false;
+    if(token->type == TokenType::MutKw) {
+        is_mut = true;
+        token++;
+    }
+    // `static` and `static mut` use the ordinary variable declaration grammar
+    // after the contextual keyword.
+    return parseVarInitializationTokens(
+        allocator, specifier, true, false, true, comptime, true, is_mut
+    );
 }

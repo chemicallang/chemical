@@ -17,7 +17,7 @@ public func INT_tls13_client(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19876_cert.pem /tmp/tls_19876_key.pem 19876 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -78,7 +78,7 @@ public func INT_x25519_handshake(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19878_cert.pem /tmp/tls_19878_key.pem 19878 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -122,7 +122,7 @@ public func INT_tls12_client(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19877_cert.pem /tmp/tls_19877_key.pem 19877 1.2 AES128-GCM-SHA256:@SECLEVEL=0"))
     test_server_wait()
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_2
@@ -178,7 +178,7 @@ public func INT_tls13_key_update_e2e(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19910_cert.pem /tmp/tls_19910_key.pem 19910 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -234,7 +234,7 @@ public func INT_tls13_peer_cert(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19911_cert.pem /tmp/tls_19911_key.pem 19911 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -277,7 +277,7 @@ public func INT_tls13_session_ticket(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19912_cert.pem /tmp/tls_19912_key.pem 19912 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -336,7 +336,7 @@ public func INT_tls13_session_resumption(env : &mut TestEnv) {
     test_server_wait()
 
     // ── Connection 1: full handshake + ticket acquisition ───────────
-    var ctx1 : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx1))
+    var ctx1 : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx1))
     var cfg1 = ssl_config_init(SSL_IS_CLIENT)
     cfg1.authmode = SSL_VERIFY_NONE
     cfg1.max_tls_version = SSL_VERSION_TLS1_3
@@ -372,7 +372,7 @@ public func INT_tls13_session_resumption(env : &mut TestEnv) {
     ssl_close_notify(unsafe(&raw mut ctx1))
 
     // ── Connection 2: offer the ticket for resumption ────────────────
-    var ctx2 : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx2))
+    var ctx2 : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx2))
     var cfg2 = ssl_config_init(SSL_IS_CLIENT)
     cfg2.authmode = SSL_VERIFY_NONE
     cfg2.max_tls_version = SSL_VERSION_TLS1_3
@@ -443,7 +443,7 @@ public func INT_ssl_delete_cleanup(env : &mut TestEnv) {
     ssl_init(ssl_mem)
 
     // Attach resources so the destructor has something to release.
-    var tr : Transform = zeroed:unsafe<Transform>(); transform_init(unsafe(&raw mut tr))
+    var tr : Transform = unsafe(std::mem.zeroed_unchecked<Transform>()); transform_init(unsafe(&raw mut tr))
     var tr_out = unsafe(malloc(sizeof(Transform))) as *mut Transform
     *tr_out = tr
     ssl_mem.transform_out = tr_out
@@ -638,7 +638,7 @@ public func INT_ecdsa_client_handshake(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19883_cert.pem /tmp/tls_19883_key.pem 19883 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -681,7 +681,7 @@ public func INT_x509_extract_ecdsa_pubkey_works(env : &mut TestEnv) {
     var ec_cert = x509_crt_load_pem_file("/tmp/tls_ec_pub.crt")
     if(ec_cert == null) { env.error("failed to load EC cert"); return }
 
-    var ecdsa : ECDSAContext = zeroed:unsafe<ECDSAContext>()
+    var ecdsa : ECDSAContext = unsafe(std::mem.zeroed_unchecked<ECDSAContext>())
     ecdsa_init(unsafe(&raw mut ecdsa))
     var ret = x509_extract_ecdsa_pubkey(ec_cert, unsafe(&raw mut ecdsa))
     if(ret != 0) {
@@ -709,7 +709,7 @@ public func INT_x509_extract_ecdsa_pubkey_works(env : &mut TestEnv) {
         cert_free(ec_cert); unsafe { dealloc ec_cert }
         env.error("failed to load RSA cert"); return
     }
-    var e2 : ECDSAContext = zeroed:unsafe<ECDSAContext>()
+    var e2 : ECDSAContext = unsafe(std::mem.zeroed_unchecked<ECDSAContext>())
     ecdsa_init(unsafe(&raw mut e2))
     ret = x509_extract_ecdsa_pubkey(rsa_cert, unsafe(&raw mut e2))
     if(ret == 0) { env.error("x509_extract_ecdsa_pubkey should reject an RSA cert") }
@@ -741,7 +741,7 @@ public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
                             &raw mut d_buf[0], 512, &raw mut d_len)
     if(n_len == 0 || d_len == 0) { env.error("failed to parse RSA N/D"); return }
 
-    var rsa_ctx : RSAContext = zeroed:unsafe<RSAContext>()
+    var rsa_ctx : RSAContext = unsafe(std::mem.zeroed_unchecked<RSAContext>())
     rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
     var kret = rsa_import_privkey(unsafe(&raw mut rsa_ctx), &raw n_buf[0], n_len, &raw d_buf[0], d_len)
     if(kret < 0) { env.error("failed to import RSA private key"); return }
@@ -820,7 +820,7 @@ public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
                             &raw mut d_buf[0], 512, &raw mut d_len)
     if(n_len == 0 || d_len == 0) { env.error("failed to parse RSA N/D"); return }
 
-    var rsa_ctx : RSAContext = zeroed:unsafe<RSAContext>()
+    var rsa_ctx : RSAContext = unsafe(std::mem.zeroed_unchecked<RSAContext>())
     rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
     var kret = rsa_import_privkey(unsafe(&raw mut rsa_ctx), &raw n_buf[0], n_len, &raw d_buf[0], d_len)
     if(kret < 0) { env.error("failed to import RSA private key"); return }
@@ -890,7 +890,7 @@ public func INT_tls12_client_cbc(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19887_cert.pem /tmp/tls_19887_key.pem 19887 1.2 AES128-SHA256:@SECLEVEL=0"))
     test_server_wait()
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_2
@@ -932,7 +932,7 @@ public func INT_tls13_large_payload_transfer(env : &mut TestEnv) {
     test_py_run_background(string_view("bigsrv /tmp/tls_19888_cert.pem /tmp/tls_19888_key.pem 19888 131072"))
     test_server_wait()
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3

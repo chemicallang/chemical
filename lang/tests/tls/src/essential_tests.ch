@@ -88,7 +88,7 @@ public func tls_aes128_ecb_nist_known_answer(env : &mut TestEnv) {
     var plaintext : [16]u8 = [0x6B, 0xC1, 0xBE, 0xE2, 0x2E, 0x40, 0x9F, 0x96, 0xE9, 0x3D, 0x7E, 0x11, 0x73, 0x93, 0x17, 0x2A]
     var expected_ct : [16]u8 = [0x3A, 0xD7, 0x7B, 0xB4, 0x0D, 0x7A, 0x36, 0x60, 0xA8, 0x9E, 0xCA, 0xF3, 0x24, 0x66, 0xEF, 0x97]
     var actual_ct : [16]u8
-    var ctx : tls::AESContext = zeroed:unsafe<tls::AESContext>()
+    var ctx : tls::AESContext = unsafe(std::mem.zeroed_unchecked<tls::AESContext>())
     tls::aes_init(unsafe(&raw mut ctx))
     tls::aes_setkey_enc(unsafe(&raw mut ctx), &raw key[0], 16)
     tls::aes_crypt_ecb(unsafe(&raw mut ctx), tls::AES_ENCRYPT, &raw plaintext[0], &raw mut actual_ct[0])
@@ -103,11 +103,11 @@ public func tls_aes128_ecb_encrypt_decrypt_roundtrip(env : &mut TestEnv) {
     var plaintext : [16]u8 = [0x6B, 0xC1, 0xBE, 0xE2, 0x2E, 0x40, 0x9F, 0x96, 0xE9, 0x3D, 0x7E, 0x11, 0x73, 0x93, 0x17, 0x2A]
     var ciphertext : [16]u8
     var decrypted : [16]u8
-    var enc_ctx : tls::AESContext = zeroed:unsafe<tls::AESContext>()
+    var enc_ctx : tls::AESContext = unsafe(std::mem.zeroed_unchecked<tls::AESContext>())
     tls::aes_init(unsafe(&raw mut enc_ctx))
     tls::aes_setkey_enc(unsafe(&raw mut enc_ctx), &raw key[0], 16)
     tls::aes_crypt_ecb(unsafe(&raw mut enc_ctx), tls::AES_ENCRYPT, &raw plaintext[0], &raw mut ciphertext[0])
-    var dec_ctx : tls::AESContext = zeroed:unsafe<tls::AESContext>()
+    var dec_ctx : tls::AESContext = unsafe(std::mem.zeroed_unchecked<tls::AESContext>())
     tls::aes_init(unsafe(&raw mut dec_ctx))
     tls::aes_setkey_dec(unsafe(&raw mut dec_ctx), &raw key[0], 16)
     tls::aes_crypt_ecb(unsafe(&raw mut dec_ctx), tls::AES_DECRYPT, &raw ciphertext[0], &raw mut decrypted[0])
@@ -126,7 +126,7 @@ public func tls_aes128_cbc_nist_known_answer(env : &mut TestEnv) {
     var i : size_t = 0
     while(i < 16) { iv_copy[i] = iv[i]; i += 1 }
     var actual_ct : [16]u8
-    var ctx : tls::AESContext = zeroed:unsafe<tls::AESContext>()
+    var ctx : tls::AESContext = unsafe(std::mem.zeroed_unchecked<tls::AESContext>())
     tls::aes_init(unsafe(&raw mut ctx))
     tls::aes_setkey_enc(unsafe(&raw mut ctx), &raw key[0], 16)
     tls::aes_crypt_cbc(unsafe(&raw mut ctx), tls::AES_ENCRYPT, 16, &raw mut iv_copy[0], &raw plaintext[0], &raw mut actual_ct[0])
@@ -141,7 +141,7 @@ public func tls_aes256_ecb_nist_known_answer(env : &mut TestEnv) {
     var plaintext : [16]u8 = [0x6B, 0xC1, 0xBE, 0xE2, 0x2E, 0x40, 0x9F, 0x96, 0xE9, 0x3D, 0x7E, 0x11, 0x73, 0x93, 0x17, 0x2A]
     var expected_ct : [16]u8 = [0xF3, 0xEE, 0xD1, 0xBD, 0xB5, 0xD2, 0xA0, 0x3C, 0x06, 0x4B, 0x5A, 0x7E, 0x3D, 0xB1, 0x81, 0xF8]
     var actual_ct : [16]u8
-    var ctx : tls::AESContext = zeroed:unsafe<tls::AESContext>()
+    var ctx : tls::AESContext = unsafe(std::mem.zeroed_unchecked<tls::AESContext>())
     tls::aes_init(unsafe(&raw mut ctx))
     tls::aes_setkey_enc(unsafe(&raw mut ctx), &raw key[0], 32)
     tls::aes_crypt_ecb(unsafe(&raw mut ctx), tls::AES_ENCRYPT, &raw plaintext[0], &raw mut actual_ct[0])
@@ -159,7 +159,7 @@ public func tls_aes128_gcm_encrypt_decrypt_roundtrip(env : &mut TestEnv) {
     var key : [16]u8 = [0xFE, 0xFF, 0xE9, 0x92, 0x86, 0x65, 0x73, 0x1C, 0x6D, 0x6A, 0x8F, 0x94, 0x67, 0x30, 0x83, 0x08]
     var iv : [12]u8 = [0xCA, 0xFE, 0xBA, 0xBE, 0xFA, 0xCE, 0xDB, 0xAD, 0xDE, 0xCA, 0xF8, 0x88]
     var plaintext : [16]u8 = [0xD9, 0x31, 0x32, 0x25, 0xF8, 0x84, 0x06, 0xE5, 0xA5, 0x59, 0x09, 0xC5, 0xAF, 0xF2, 0x69, 0x04]
-    var gcm_ctx : tls::GCMContext = zeroed:unsafe<tls::GCMContext>()
+    var gcm_ctx : tls::GCMContext = unsafe(std::mem.zeroed_unchecked<tls::GCMContext>())
     var ret = tls::gcm_init(unsafe(&raw mut gcm_ctx), &raw key[0], 16)
     if(ret < 0) { env.error("gcm_init failed"); return }
 
@@ -184,7 +184,7 @@ public func tls_aes128_gcm_encrypt_decrypt_roundtrip(env : &mut TestEnv) {
 
     // Decrypt and verify roundtrip
     var decrypted : [16]u8
-    var gcm_ctx2 : tls::GCMContext = zeroed:unsafe<tls::GCMContext>()
+    var gcm_ctx2 : tls::GCMContext = unsafe(std::mem.zeroed_unchecked<tls::GCMContext>())
     tls::gcm_init(unsafe(&raw mut gcm_ctx2), &raw key[0], 16)
     ret = tls::gcm_auth_decrypt(unsafe(&raw mut gcm_ctx2), &raw iv[0], 12,
                                  null, 0,
@@ -203,7 +203,7 @@ public func tls_aes128_gcm_aad_roundtrip(env : &mut TestEnv) {
     var iv : [12]u8 = [0xCA, 0xFE, 0xBA, 0xBE, 0xFA, 0xCE, 0xDB, 0xAD, 0xDE, 0xCA, 0xF8, 0x88]
     var plaintext : [16]u8 = [0xD9, 0x31, 0x32, 0x25, 0xF8, 0x84, 0x06, 0xE5, 0xA5, 0x59, 0x09, 0xC5, 0xAF, 0xF2, 0x69, 0x04]
     var aad : [20]u8 = [0xFE, 0xED, 0xFA, 0xCE, 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED, 0xFA, 0xCE, 0xDE, 0xAD, 0xBE, 0xEF, 0xAB, 0xAD, 0xDA, 0xD2]
-    var gcm_ctx : tls::GCMContext = zeroed:unsafe<tls::GCMContext>()
+    var gcm_ctx : tls::GCMContext = unsafe(std::mem.zeroed_unchecked<tls::GCMContext>())
     tls::gcm_init(unsafe(&raw mut gcm_ctx), &raw key[0], 16)
 
     var ciphertext : [16]u8
@@ -216,7 +216,7 @@ public func tls_aes128_gcm_aad_roundtrip(env : &mut TestEnv) {
 
     // Decrypt with same AAD should succeed
     var decrypted : [16]u8
-    var gcm_ctx2 : tls::GCMContext = zeroed:unsafe<tls::GCMContext>()
+    var gcm_ctx2 : tls::GCMContext = unsafe(std::mem.zeroed_unchecked<tls::GCMContext>())
     tls::gcm_init(unsafe(&raw mut gcm_ctx2), &raw key[0], 16)
     ret = tls::gcm_auth_decrypt(unsafe(&raw mut gcm_ctx2), &raw iv[0], 12,
                                  &raw aad[0], 20,
@@ -234,7 +234,7 @@ public func tls_aes128_gcm_tampered_tag_fails(env : &mut TestEnv) {
     var key : [16]u8 = [0xFE, 0xFF, 0xE9, 0x92, 0x86, 0x65, 0x73, 0x1C, 0x6D, 0x6A, 0x8F, 0x94, 0x67, 0x30, 0x83, 0x08]
     var iv : [12]u8 = [0xCA, 0xFE, 0xBA, 0xBE, 0xFA, 0xCE, 0xDB, 0xAD, 0xDE, 0xCA, 0xF8, 0x88]
     var plaintext : [16]u8 = [0xD9, 0x31, 0x32, 0x25, 0xF8, 0x84, 0x06, 0xE5, 0xA5, 0x59, 0x09, 0xC5, 0xAF, 0xF2, 0x69, 0x04]
-    var gcm_ctx : tls::GCMContext = zeroed:unsafe<tls::GCMContext>()
+    var gcm_ctx : tls::GCMContext = unsafe(std::mem.zeroed_unchecked<tls::GCMContext>())
     tls::gcm_init(unsafe(&raw mut gcm_ctx), &raw key[0], 16)
 
     var ciphertext : [16]u8
@@ -248,7 +248,7 @@ public func tls_aes128_gcm_tampered_tag_fails(env : &mut TestEnv) {
     tag[0] = tag[0] ^ 0xFF
 
     var decrypted : [16]u8
-    var gcm_ctx2 : tls::GCMContext = zeroed:unsafe<tls::GCMContext>()
+    var gcm_ctx2 : tls::GCMContext = unsafe(std::mem.zeroed_unchecked<tls::GCMContext>())
     tls::gcm_init(unsafe(&raw mut gcm_ctx2), &raw key[0], 16)
     var ret = tls::gcm_auth_decrypt(unsafe(&raw mut gcm_ctx2), &raw iv[0], 12,
                                       null, 0,
@@ -425,7 +425,7 @@ public func tls12_compute_finished_server_known_answer(env : &mut TestEnv) {
 public func tls12_record_gcm_encrypt_decrypt_roundtrip(env : &mut TestEnv) {
     var key : [16]u8 = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10]
     var base_iv : [12]u8 = [0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C]
-    var tr : tls::Transform = zeroed:unsafe<tls::Transform>()
+    var tr : tls::Transform = unsafe(std::mem.zeroed_unchecked<tls::Transform>())
     tls::transform_init(unsafe(&raw mut tr))
     tr.cipher_type = tls::CIPHER_AES_128_GCM as u8
     tr.key_len = 16 as u8
@@ -471,7 +471,7 @@ public func tls12_record_gcm_encrypt_decrypt_roundtrip(env : &mut TestEnv) {
 public func tls12_record_cbc_encrypt_decrypt_roundtrip(env : &mut TestEnv) {
     var key : [16]u8 = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10]
     var iv : [16]u8 = [0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20]
-    var tr : tls::Transform = zeroed:unsafe<tls::Transform>()
+    var tr : tls::Transform = unsafe(std::mem.zeroed_unchecked<tls::Transform>())
     tls::transform_init(unsafe(&raw mut tr))
     tr.cipher_type = tls::CIPHER_AES_128_CBC as u8
     tr.key_len = 16 as u8
@@ -528,7 +528,7 @@ public func BUG_ssl_read_does_not_decrypt_data(env : &mut TestEnv) {
     //
     // Verify tls12_decrypt_record works (the function ssl_read_record calls).
 
-    var tr : tls::Transform = zeroed:unsafe<tls::Transform>()
+    var tr : tls::Transform = unsafe(std::mem.zeroed_unchecked<tls::Transform>())
     tls::transform_init(unsafe(&raw mut tr))
     tr.cipher_type = tls::CIPHER_AES_128_GCM as u8
     tr.key_len = 16 as u8
@@ -572,7 +572,7 @@ public func BUG_ssl_write_sends_plaintext_not_encrypted(env : &mut TestEnv) {
     //
     // Verify tls12_encrypt_record produces ciphertext different from plaintext.
 
-    var tr : tls::Transform = zeroed:unsafe<tls::Transform>()
+    var tr : tls::Transform = unsafe(std::mem.zeroed_unchecked<tls::Transform>())
     tls::transform_init(unsafe(&raw mut tr))
     tr.cipher_type = tls::CIPHER_AES_128_GCM as u8
     tr.key_len = 16 as u8
@@ -637,7 +637,7 @@ public func BUG_tls13_handshake_is_stub(env : &mut TestEnv) {
     if(accepted != 0 as net::Socket) { net::close_socket(accepted) }
     net::close_socket(server_sock)
 
-    var ctx : tls::SSLContext = zeroed:unsafe<tls::SSLContext>()
+    var ctx : tls::SSLContext = unsafe(std::mem.zeroed_unchecked<tls::SSLContext>())
     tls::ssl_init(unsafe(&raw mut ctx))
     tls::ssl_set_hostname(unsafe(&raw mut ctx), "example.com\0" as *char)
     var config = tls::ssl_config_init(tls::SSL_IS_CLIENT)
@@ -695,7 +695,7 @@ public func BUG_send_record_plaintext_fallback_not_encrypted(env : &mut TestEnv)
     // VERIFIED FIXED: tls12_encrypt_record returns ERR_SSL_INTERNAL_ERROR
     // for unknown cipher types instead of copying plaintext.
 
-    var tr : tls::Transform = zeroed:unsafe<tls::Transform>()
+    var tr : tls::Transform = unsafe(std::mem.zeroed_unchecked<tls::Transform>())
     tls::transform_init(unsafe(&raw mut tr))
 
     var plaintext : [5]u8 = [0x48, 0x65, 0x6C, 0x6C, 0x6F]
@@ -747,12 +747,12 @@ public func tls_ecdh_shared_secret_deterministic(env : &mut TestEnv) {
         0x2B,0xCE,0x33,0x57,0x6B,0x31,0x5E,0xCE,0xCB,0xB6,0x40,0x68,0x37,0xBF,0x51,0xF5
     ]
 
-    var alice : tls::ECDHContext = zeroed:unsafe<tls::ECDHContext>(); tls::ecdh_init(unsafe(&raw mut alice))
+    var alice : tls::ECDHContext = unsafe(std::mem.zeroed_unchecked<tls::ECDHContext>()); tls::ecdh_init(unsafe(&raw mut alice))
     var ret = tls::mpi_read_binary(unsafe(&raw mut alice.priv_key), &raw alice_priv[0], 32)
     if(ret < 0) { env.error("import alice key failed"); return }
     alice.is_init = true
 
-    var bob : tls::ECDHContext = zeroed:unsafe<tls::ECDHContext>(); tls::ecdh_init(unsafe(&raw mut bob))
+    var bob : tls::ECDHContext = unsafe(std::mem.zeroed_unchecked<tls::ECDHContext>()); tls::ecdh_init(unsafe(&raw mut bob))
     ret = tls::mpi_read_binary(unsafe(&raw mut bob.priv_key), &raw bob_priv[0], 32)
     if(ret < 0) { env.error("import bob key failed"); return }
     bob.is_init = true
@@ -788,7 +788,7 @@ public func tls_transform_populate_sets_correct_fields(env : &mut TestEnv) {
     var i : size_t = 0
     while(i < 128) { kb[i] = (i + 1) as u8; i += 1 }
 
-    var tr : tls::Transform = zeroed:unsafe<tls::Transform>()
+    var tr : tls::Transform = unsafe(std::mem.zeroed_unchecked<tls::Transform>())
     tls::transform_init(unsafe(&raw mut tr))
     var ret = tls::tls12_populate_transform(unsafe(&raw mut tr), &raw info, &raw kb[0], 128)
     if(ret < 0) { env.error("tls12_populate_transform failed"); return }
@@ -811,14 +811,14 @@ public func tls_transform_populate_sets_correct_fields(env : &mut TestEnv) {
 @test
 public func tls_ecdh_keypair_uses_csprng(env : &mut TestEnv) {
     // Two consecutive keypair generations must produce different private keys
-    var ctx1 : tls::ECDHContext = zeroed:unsafe<tls::ECDHContext>()
+    var ctx1 : tls::ECDHContext = unsafe(std::mem.zeroed_unchecked<tls::ECDHContext>())
     tls::ecdh_init(unsafe(&raw mut ctx1))
     var priv1 : [32]u8
     var pub1 : [65]u8
     var ret = tls::ecdh_generate_keypair(unsafe(&raw mut ctx1), &raw mut priv1[0], 32, &raw mut pub1[0], 65)
     if(ret < 0) { env.error("ecdh_generate_keypair #1 failed"); return }
 
-    var ctx2 : tls::ECDHContext = zeroed:unsafe<tls::ECDHContext>()
+    var ctx2 : tls::ECDHContext = unsafe(std::mem.zeroed_unchecked<tls::ECDHContext>())
     tls::ecdh_init(unsafe(&raw mut ctx2))
     var priv2 : [32]u8
     var pub2 : [65]u8
@@ -839,7 +839,7 @@ public func tls_ecdh_keypair_uses_csprng(env : &mut TestEnv) {
 
 @test
 public func tls_ecdh_rejects_zero_peer(env : &mut TestEnv) {
-    var ctx : tls::ECDHContext = zeroed:unsafe<tls::ECDHContext>()
+    var ctx : tls::ECDHContext = unsafe(std::mem.zeroed_unchecked<tls::ECDHContext>())
     tls::ecdh_init(unsafe(&raw mut ctx))
     var priv : [32]u8
     var pub : [65]u8
@@ -860,7 +860,7 @@ public func tls_ecdh_rejects_zero_peer(env : &mut TestEnv) {
 @test
 public func tls_cert_free_no_crash(env : &mut TestEnv) {
     // cert_free should safely handle an initialized stack cert with no malloc'd buffers
-    var cert : tls::X509Cert = zeroed:unsafe<tls::X509Cert>()
+    var cert : tls::X509Cert = unsafe(std::mem.zeroed_unchecked<tls::X509Cert>())
     tls::x509_cert_init(unsafe(&raw mut cert))
     tls::cert_free(unsafe(&raw mut cert))
 
@@ -875,7 +875,7 @@ public func tls_cert_free_no_crash(env : &mut TestEnv) {
 @test
 public func tls_rsa_free_no_crash(env : &mut TestEnv) {
     // rsa_free should zero all MPI fields without crashing
-    var ctx : tls::RSAContext = zeroed:unsafe<tls::RSAContext>()
+    var ctx : tls::RSAContext = unsafe(std::mem.zeroed_unchecked<tls::RSAContext>())
     tls::rsa_init(unsafe(&raw mut ctx), tls::RSA_PKCS_V15, 0)
     tls::rsa_free(unsafe(&raw mut ctx))
     // After free, key length should be zero

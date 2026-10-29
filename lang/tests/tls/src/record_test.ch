@@ -9,9 +9,9 @@ public func INT_tls13_record_against_python(env : &mut TestEnv) {
     var server_iv : [12]u8; test_random_bytes(&raw mut server_iv[0], 12)
     var handshake_data : [23]u8; test_random_bytes(&raw mut handshake_data[0], 23)
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
 
-    var tr : Transform = zeroed:unsafe<Transform>(); transform_init(unsafe(&raw mut tr))
+    var tr : Transform = unsafe(std::mem.zeroed_unchecked<Transform>()); transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_GCM as u8
     tr.key_len = 16; tr.iv_len = 12; tr.fixed_iv_len = 12; tr.mac_key_len = 0
     var i : size_t = 0

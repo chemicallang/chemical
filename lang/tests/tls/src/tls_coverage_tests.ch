@@ -28,7 +28,7 @@ func tc_bytes_not_zero(buf : *u8, len : size_t) : bool {
 
 func setup_chacha_record_test() : SSLContext {
     unsafe {
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>()
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>())
     ssl_init(unsafe(&raw mut ctx))
 
     var key : [32]u8
@@ -38,7 +38,7 @@ func setup_chacha_record_test() : SSLContext {
     var iv : [12]u8 = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
                         0x08, 0x09, 0x0a, 0x0b]
 
-    var tr : Transform = zeroed:unsafe<Transform>()
+    var tr : Transform = unsafe(std::mem.zeroed_unchecked<Transform>())
     transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_CHACHA20_POLY1305 as u8
     tr.key_len = 32
@@ -268,7 +268,7 @@ public func ALPN_set_works(env : &mut TestEnv) {
 
 @test
 public func ALPN_negotiated_default_null(env : &mut TestEnv) {
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>()
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>())
     ssl_init(unsafe(&raw mut ctx))
 
     var negotiated = ssl_get_alpn_negotiated(unsafe(&raw mut ctx))
@@ -285,7 +285,7 @@ public func ALPN_negotiated_default_null(env : &mut TestEnv) {
 // Generates its own RSA-2048 key: 1.7-30s, see RSA_keygen_consistent_len_works.
 @test.timeout(120000)
 public func SERVER_CONFIG_set_own_rsa_key_works(env : &mut TestEnv) {
-    var rsa_ctx : RSAContext = zeroed:unsafe<RSAContext>()
+    var rsa_ctx : RSAContext = unsafe(std::mem.zeroed_unchecked<RSAContext>())
     rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
     var ret = rsa_gen_key(unsafe(&raw mut rsa_ctx), 2048, 65537)
     if(ret < 0) { env.error("rsa_gen_key failed"); return }
@@ -380,7 +380,7 @@ public func RANDOM_32bit_varies(env : &mut TestEnv) {
 
 @test
 public func CERT_DATE_check_works(env : &mut TestEnv) {
-    var cert : X509Cert = zeroed:unsafe<X509Cert>()
+    var cert : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>())
     x509_cert_init(unsafe(&raw mut cert))
 
     var ret = parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
@@ -403,7 +403,7 @@ public func GCM_empty_plaintext_roundtrip(env : &mut TestEnv) {
     var iv : [12]u8 = [0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad,
                         0xde, 0xca, 0xf8, 0x88]
 
-    var gcm_ctx : GCMContext = zeroed:unsafe<GCMContext>()
+    var gcm_ctx : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>())
     gcm_init(unsafe(&raw mut gcm_ctx), &raw key[0], 16)
 
     var ct : [1]u8
@@ -417,7 +417,7 @@ public func GCM_empty_plaintext_roundtrip(env : &mut TestEnv) {
         env.error("GCM tag for empty plaintext should be non-zero")
     }
 
-    var gcm_ctx2 : GCMContext = zeroed:unsafe<GCMContext>()
+    var gcm_ctx2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>())
     gcm_init(unsafe(&raw mut gcm_ctx2), &raw key[0], 16)
     var dec : [1]u8
     ret = gcm_auth_decrypt(unsafe(&raw mut gcm_ctx2), &raw mut iv[0], 12,
@@ -436,14 +436,14 @@ public func GCM_wrong_key_fails(env : &mut TestEnv) {
                         0x08, 0x09, 0x0A, 0x0B]
     var pt : [8]u8 = [0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11]
 
-    var gcm1 : GCMContext = zeroed:unsafe<GCMContext>()
+    var gcm1 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>())
     gcm_init(unsafe(&raw mut gcm1), &raw key1[0], 16)
     var ct : [8]u8
     var tag : [16]u8
     gcm_crypt_and_tag(unsafe(&raw mut gcm1), &raw mut iv[0], 12, null, 0,
                        &raw mut pt[0], 8, &raw mut ct[0], &raw mut tag[0])
 
-    var gcm2 : GCMContext = zeroed:unsafe<GCMContext>()
+    var gcm2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>())
     gcm_init(unsafe(&raw mut gcm2), &raw key2[0], 16)
     var dec : [8]u8
     var ret = gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw mut iv[0], 12, null, 0,
@@ -463,14 +463,14 @@ public func GCM_wrong_iv_fails(env : &mut TestEnv) {
                          0xF7, 0xF6, 0xF5, 0xF4]
     var pt : [8]u8 = [0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11]
 
-    var gcm1 : GCMContext = zeroed:unsafe<GCMContext>()
+    var gcm1 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>())
     gcm_init(unsafe(&raw mut gcm1), &raw key[0], 16)
     var ct : [8]u8
     var tag : [16]u8
     gcm_crypt_and_tag(unsafe(&raw mut gcm1), &raw mut iv1[0], 12, null, 0,
                        &raw mut pt[0], 8, &raw mut ct[0], &raw mut tag[0])
 
-    var gcm2 : GCMContext = zeroed:unsafe<GCMContext>()
+    var gcm2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>())
     gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16)
     var dec : [8]u8
     var ret = gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw mut iv2[0], 12, null, 0,
@@ -490,14 +490,14 @@ public func GCM_wrong_aad_fails(env : &mut TestEnv) {
     var aad2 : [4]u8 = [0x11, 0x22, 0x33, 0x44]
     var pt : [8]u8 = [0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11]
 
-    var gcm1 : GCMContext = zeroed:unsafe<GCMContext>()
+    var gcm1 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>())
     gcm_init(unsafe(&raw mut gcm1), &raw key[0], 16)
     var ct : [8]u8
     var tag : [16]u8
     gcm_crypt_and_tag(unsafe(&raw mut gcm1), &raw mut iv[0], 12,
                        &raw mut aad1[0], 4, &raw mut pt[0], 8, &raw mut ct[0], &raw mut tag[0])
 
-    var gcm2 : GCMContext = zeroed:unsafe<GCMContext>()
+    var gcm2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>())
     gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16)
     var dec : [8]u8
     var ret = gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw mut iv[0], 12,
@@ -565,7 +565,7 @@ public func SHA256_deterministic(env : &mut TestEnv) {
 // decrypt add ~10ms and ~140ms.
 @test.timeout(120000)
 public func RSA_pkcs1_encrypt_decrypt_roundtrip(env : &mut TestEnv) {
-    var rsa_ctx : RSAContext = zeroed:unsafe<RSAContext>()
+    var rsa_ctx : RSAContext = unsafe(std::mem.zeroed_unchecked<RSAContext>())
     rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
     var ret = rsa_gen_key(unsafe(&raw mut rsa_ctx), 2048, 65537)
     if(ret < 0) { env.error("rsa_gen_key failed"); return }
@@ -606,7 +606,7 @@ public func RSA_pkcs1_encrypt_decrypt_roundtrip(env : &mut TestEnv) {
 // bits (~38% of the time), and each re-search is another prime hunt.
 @test.timeout(120000)
 public func RSA_keygen_consistent_len_works(env : &mut TestEnv) {
-    var rsa_ctx : RSAContext = zeroed:unsafe<RSAContext>()
+    var rsa_ctx : RSAContext = unsafe(std::mem.zeroed_unchecked<RSAContext>())
     rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
     var ret = rsa_gen_key(unsafe(&raw mut rsa_ctx), 2048, 65537)
     if(ret < 0) { env.error("rsa_gen_key 2048 failed"); return }
@@ -621,9 +621,9 @@ public func RSA_keygen_consistent_len_works(env : &mut TestEnv) {
 
 @test
 public func BIGNUM_copy_works(env : &mut TestEnv) {
-    var a : Mpi = zeroed:unsafe<Mpi>(); mpi_init(unsafe(&raw mut a))
+    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut a))
     mpi_lset(unsafe(&raw mut a), 12345)
-    var b : Mpi = zeroed:unsafe<Mpi>(); mpi_init(unsafe(&raw mut b))
+    var b : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut b))
     mpi_copy(unsafe(&raw mut b), unsafe(&raw mut a))
     if(mpi_cmp_int(unsafe(&raw mut b), 12345) != 0) {
         env.error("copy should preserve value")
@@ -632,7 +632,7 @@ public func BIGNUM_copy_works(env : &mut TestEnv) {
 
 @test
 public func BIGNUM_shift_left_right_roundtrip(env : &mut TestEnv) {
-    var a : Mpi = zeroed:unsafe<Mpi>(); mpi_init(unsafe(&raw mut a))
+    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut a))
     mpi_lset(unsafe(&raw mut a), 42)
     mpi_shift_l(unsafe(&raw mut a), 8)
     if(mpi_cmp_int(unsafe(&raw mut a), 10752) != 0) {
@@ -646,9 +646,9 @@ public func BIGNUM_shift_left_right_roundtrip(env : &mut TestEnv) {
 
 @test
 public func BIGNUM_gcd_works(env : &mut TestEnv) {
-    var a : Mpi = zeroed:unsafe<Mpi>(); mpi_init(unsafe(&raw mut a))
-    var b : Mpi = zeroed:unsafe<Mpi>(); mpi_init(unsafe(&raw mut b))
-    var g : Mpi = zeroed:unsafe<Mpi>(); mpi_init(unsafe(&raw mut g))
+    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut a))
+    var b : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut b))
+    var g : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut g))
     mpi_lset(unsafe(&raw mut a), 48)
     mpi_lset(unsafe(&raw mut b), 18)
     mpi_gcd(unsafe(&raw mut g), unsafe(&raw mut a), unsafe(&raw mut b))
@@ -659,7 +659,7 @@ public func BIGNUM_gcd_works(env : &mut TestEnv) {
 
 @test
 public func BIGNUM_is_zero_works(env : &mut TestEnv) {
-    var a : Mpi = zeroed:unsafe<Mpi>(); mpi_init(unsafe(&raw mut a))
+    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut a))
     mpi_lset(unsafe(&raw mut a), 0)
     if(!mpi_is_zero(unsafe(&raw mut a))) {
         env.error("0 should be zero")
@@ -676,7 +676,7 @@ public func BIGNUM_is_zero_works(env : &mut TestEnv) {
 
 @test
 public func SSL_init_multiple_times_works(env : &mut TestEnv) {
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>()
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>())
     ssl_init(unsafe(&raw mut ctx))
     ssl_init(unsafe(&raw mut ctx))
     if(unsafe(ctx.transport_connected)) {
@@ -706,7 +706,7 @@ public func SSL_config_multiple_endpoints(env : &mut TestEnv) {
 
 @test
 public func SSL_hostname_set_works(env : &mut TestEnv) {
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>()
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>())
     ssl_init(unsafe(&raw mut ctx))
     ssl_set_hostname(unsafe(&raw mut ctx), "myserver.example.com\0" as *char)
     if(unsafe(ctx.hostname_len) == 0) {
@@ -716,7 +716,7 @@ public func SSL_hostname_set_works(env : &mut TestEnv) {
 
 @test
 public func SSL_close_notify_after_free_works(env : &mut TestEnv) {
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>()
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>())
     ssl_init(unsafe(&raw mut ctx))
     ssl_close_notify(unsafe(&raw mut ctx))
     ssl_free(unsafe(&raw mut ctx))
@@ -728,7 +728,7 @@ public func SSL_close_notify_after_free_works(env : &mut TestEnv) {
 
 @test
 public func X509_cert_init_defaults_works(env : &mut TestEnv) {
-    var cert : X509Cert = zeroed:unsafe<X509Cert>()
+    var cert : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>())
     x509_cert_init(unsafe(&raw mut cert))
 
     if(unsafe(cert.version) != 0) { env.error("version should be 0") }
@@ -742,7 +742,7 @@ public func X509_cert_init_defaults_works(env : &mut TestEnv) {
 
 @test
 public func X509_parse_der_fields_works(env : &mut TestEnv) {
-    var cert : X509Cert = zeroed:unsafe<X509Cert>()
+    var cert : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>())
     x509_cert_init(unsafe(&raw mut cert))
 
     var ret = parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
@@ -759,7 +759,7 @@ public func X509_parse_der_fields_works(env : &mut TestEnv) {
 
 @test
 public func X509_cert_get_cn_works(env : &mut TestEnv) {
-    var cert : X509Cert = zeroed:unsafe<X509Cert>()
+    var cert : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>())
     x509_cert_init(unsafe(&raw mut cert))
     parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
 
@@ -773,7 +773,7 @@ public func X509_cert_get_cn_works(env : &mut TestEnv) {
 
 @test
 public func X509_empty_cert_hostname_fails(env : &mut TestEnv) {
-    var cert : X509Cert = zeroed:unsafe<X509Cert>()
+    var cert : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>())
     x509_cert_init(unsafe(&raw mut cert))
 
     var ret = x509_verify_hostname(unsafe(&raw mut cert), "example.com" as *char)
@@ -788,7 +788,7 @@ public func X509_empty_cert_hostname_fails(env : &mut TestEnv) {
 
 @test
 public func TLS12_RECORD_empty_plaintext_works(env : &mut TestEnv) {
-    var tr : Transform = zeroed:unsafe<Transform>()
+    var tr : Transform = unsafe(std::mem.zeroed_unchecked<Transform>())
     transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_GCM as u8
     tr.key_len = 16
@@ -837,7 +837,7 @@ public func TLS12_finished_client_and_server_differ(env : &mut TestEnv) {
 
 @test
 public func TLS13_key_schedule_init_zeroes(env : &mut TestEnv) {
-    var ks : TLS13KeySchedule = zeroed:unsafe<TLS13KeySchedule>()
+    var ks : TLS13KeySchedule = unsafe(std::mem.zeroed_unchecked<TLS13KeySchedule>())
     tls13_key_schedule_init(unsafe(&raw mut ks))
 
     var i : size_t = 0
@@ -856,12 +856,12 @@ public func TLS13_derive_keys_deterministic(env : &mut TestEnv) {
     var i : size_t = 0
     while(i < 32) { ss[i] = i as u8; th[i] = (i + 0x55) as u8; i += 1 }
 
-    var ctx1 : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx1))
+    var ctx1 : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx1))
     var cfg1 = ssl_config_init(SSL_IS_CLIENT)
     ssl_set_config(unsafe(&raw mut ctx1), &raw mut cfg1)
     tls13_derive_handshake_keys(unsafe(&raw mut ctx1), &raw ss[0], 32, &raw th[0])
 
-    var ctx2 : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx2))
+    var ctx2 : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx2))
     var cfg2 = ssl_config_init(SSL_IS_CLIENT)
     ssl_set_config(unsafe(&raw mut ctx2), &raw mut cfg2)
     tls13_derive_handshake_keys(unsafe(&raw mut ctx2), &raw ss[0], 32, &raw th[0])
@@ -938,14 +938,14 @@ public func CIPHERSUITE_tls12_cbc_not_aead(env : &mut TestEnv) {
 
 @test
 public func ECDH_generate_and_compute_shared_works(env : &mut TestEnv) {
-    var ctx1 : ECDHContext = zeroed:unsafe<ECDHContext>()
+    var ctx1 : ECDHContext = unsafe(std::mem.zeroed_unchecked<ECDHContext>())
     ecdh_init(unsafe(&raw mut ctx1))
     var priv1 : [32]u8
     var pub1 : [65]u8
     var ret = ecdh_generate_keypair(unsafe(&raw mut ctx1), &raw mut priv1[0], 32, &raw mut pub1[0], 65)
     if(ret < 0) { env.error("ecdh_generate_keypair 1 failed"); return }
 
-    var ctx2 : ECDHContext = zeroed:unsafe<ECDHContext>()
+    var ctx2 : ECDHContext = unsafe(std::mem.zeroed_unchecked<ECDHContext>())
     ecdh_init(unsafe(&raw mut ctx2))
     var priv2 : [32]u8
     var pub2 : [65]u8
@@ -967,19 +967,19 @@ public func ECDH_generate_and_compute_shared_works(env : &mut TestEnv) {
 
 @test
 public func ECDH_different_keys_different_shared(env : &mut TestEnv) {
-    var ctx1 : ECDHContext = zeroed:unsafe<ECDHContext>()
+    var ctx1 : ECDHContext = unsafe(std::mem.zeroed_unchecked<ECDHContext>())
     ecdh_init(unsafe(&raw mut ctx1))
     var priv1 : [32]u8
     var pub1 : [65]u8
     ecdh_generate_keypair(unsafe(&raw mut ctx1), &raw mut priv1[0], 32, &raw mut pub1[0], 65)
 
-    var ctx2 : ECDHContext = zeroed:unsafe<ECDHContext>()
+    var ctx2 : ECDHContext = unsafe(std::mem.zeroed_unchecked<ECDHContext>())
     ecdh_init(unsafe(&raw mut ctx2))
     var priv2 : [32]u8
     var pub2 : [65]u8
     ecdh_generate_keypair(unsafe(&raw mut ctx2), &raw mut priv2[0], 32, &raw mut pub2[0], 65)
 
-    var ctx3 : ECDHContext = zeroed:unsafe<ECDHContext>()
+    var ctx3 : ECDHContext = unsafe(std::mem.zeroed_unchecked<ECDHContext>())
     ecdh_init(unsafe(&raw mut ctx3))
     var priv3 : [32]u8
     var pub3 : [65]u8
@@ -1129,7 +1129,7 @@ public func SESSION_init_works(env : &mut TestEnv) {
 
 @test
 public func STATE_all_variants_exist(env : &mut TestEnv) {
-    var s : SSLState = zeroed:unsafe<SSLState>()
+    var s : SSLState = unsafe(std::mem.zeroed_unchecked<SSLState>())
     s = SSLState.HELLO_REQUEST()
     if(!(s is SSLState.HELLO_REQUEST)) { env.error("HELLO_REQUEST"); return }
     s = SSLState.CLIENT_HELLO()

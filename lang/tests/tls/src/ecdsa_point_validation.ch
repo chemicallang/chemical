@@ -75,7 +75,7 @@ public func INT_ecdsa_import_pubkey_rejects_off_curve_point(env : &mut TestEnv) 
     var point : [65]u8
     point[0]=4; var i:size_t=0
     while(i<32){point[1+i]=px[i];point[33+i]=by[i];i+=1}
-    var ctx : ECDSAContext = zeroed:unsafe<ECDSAContext>(); ecdsa_init(unsafe(&raw mut ctx))
+    var ctx : ECDSAContext = unsafe(std::mem.zeroed_unchecked<ECDSAContext>()); ecdsa_init(unsafe(&raw mut ctx))
     var ret = ecdsa_import_pubkey(unsafe(&raw mut ctx), &raw point[0], 65, TLS_GROUP_SECP256R1 as u16)
     if(ret == 0) {
         // THE BUG: an off-curve point was accepted.
@@ -117,7 +117,7 @@ public func INT_ecdsa_off_curve_key_verifies_nothing(env : &mut TestEnv) {
     var good : [65]u8
     good[0]=4; var i:size_t=0
     while(i<32){good[1+i]=n2x[i];good[33+i]=n2y[i];i+=1}
-    var good_ctx : ECDSAContext = zeroed:unsafe<ECDSAContext>(); ecdsa_init(unsafe(&raw mut good_ctx))
+    var good_ctx : ECDSAContext = unsafe(std::mem.zeroed_unchecked<ECDSAContext>()); ecdsa_init(unsafe(&raw mut good_ctx))
     if(ecdsa_import_pubkey(unsafe(&raw mut good_ctx), &raw good[0], 65, TLS_GROUP_SECP256R1 as u16) != 0) {
         env.error("could not import the on-curve key python gave us")
         return
@@ -131,7 +131,7 @@ public func INT_ecdsa_off_curve_key_verifies_nothing(env : &mut TestEnv) {
     var point : [65]u8
     point[0]=4; var j:size_t=0
     while(j<32){point[1+j]=px[j];point[33+j]=by[j];j+=1}
-    var ctx : ECDSAContext = zeroed:unsafe<ECDSAContext>(); ecdsa_init(unsafe(&raw mut ctx))
+    var ctx : ECDSAContext = unsafe(std::mem.zeroed_unchecked<ECDSAContext>()); ecdsa_init(unsafe(&raw mut ctx))
     if(ecdsa_import_pubkey(unsafe(&raw mut ctx), &raw point[0], 65, TLS_GROUP_SECP256R1 as u16) == 0) {
         if(ecdsa_verify(unsafe(&raw mut ctx), &raw hash[0], 32, &raw sig[0], sig_len) == 0) {
             env.error("an off-curve key VERIFIED a real signature - that is a serious bug")

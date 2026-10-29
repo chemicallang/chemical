@@ -263,7 +263,7 @@ public func FULL_https_routing_matrix_all_routes(env : &mut TestEnv) {
 
 // Shared counter for concurrent-client tests.
 struct FullCapCounter {
-    var success : uint = zeroed:unsafe<uint>();
+    var success : uint = unsafe(std::mem.zeroed_unchecked<uint>());
     var lock : std.mutex
 }
 

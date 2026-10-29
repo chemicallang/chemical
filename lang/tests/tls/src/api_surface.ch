@@ -46,7 +46,7 @@ public func API_ecp_curve_selection_params(env : &mut TestEnv) {
     ecp_select_curve(0)
     if(ecp_curve_id() != 0) { env.error("curve id should be 0 for P-256"); return }
 
-    var p : Mpi = zeroed:unsafe<Mpi>(); var n : Mpi = zeroed:unsafe<Mpi>(); var gx : Mpi = zeroed:unsafe<Mpi>(); var gy : Mpi = zeroed:unsafe<Mpi>(); var b : Mpi
+    var p : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); var n : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); var gx : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); var gy : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); var b : Mpi
     ecp_curve_p(unsafe(&raw mut p)); ecp_curve_n(unsafe(&raw mut n))
     ecp_curve_gx(unsafe(&raw mut gx)); ecp_curve_gy(unsafe(&raw mut gy)); ecp_curve_b(unsafe(&raw mut b))
 
@@ -61,9 +61,9 @@ public func API_ecp_curve_selection_params(env : &mut TestEnv) {
     if(mpi_cmp(unsafe(&raw mut gy), unsafe(&raw mut p)) >= 0) { env.error("P-256 Gy must be < p"); return }
 
     // Curve equation check: y^2 mod p == (x^3 + a*x + b) mod p with a = p-3.
-    var y2 : Mpi = zeroed:unsafe<Mpi>(); var x3 : Mpi = zeroed:unsafe<Mpi>(); var ax : Mpi = zeroed:unsafe<Mpi>(); var a : Mpi
-    var rhs : Mpi = zeroed:unsafe<Mpi>()
-    var three : Mpi = zeroed:unsafe<Mpi>()
+    var y2 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); var x3 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); var ax : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); var a : Mpi
+    var rhs : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>())
+    var three : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>())
     mpi_lset(unsafe(&raw mut three), 3)
     mpi_sub(unsafe(&raw mut a), unsafe(&raw mut p), unsafe(&raw mut three))
     mpi_mul(unsafe(&raw mut y2), unsafe(&raw mut gy), unsafe(&raw mut gy))
@@ -83,7 +83,7 @@ public func API_ecp_curve_selection_params(env : &mut TestEnv) {
     ecp_select_curve(1)
     if(ecp_curve_id() != 1) { env.error("curve id should be 1 for P-384"); return }
 
-    var p384 : Mpi = zeroed:unsafe<Mpi>(); var gx384 : Mpi = zeroed:unsafe<Mpi>(); var b384 : Mpi
+    var p384 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); var gx384 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); var b384 : Mpi
     ecp_curve_p(unsafe(&raw mut p384))
     ecp_curve_gx(unsafe(&raw mut gx384))
     ecp_curve_b(unsafe(&raw mut b384))
@@ -100,7 +100,7 @@ public func API_ecp_curve_selection_params(env : &mut TestEnv) {
 // ─── ssl_read_new_session_ticket without a transport fails cleanly ──────────
 @test
 public func API_ssl_read_new_session_ticket_no_socket_fails(env : &mut TestEnv) {
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
 
     var ret = ssl_read_new_session_ticket(unsafe(&raw mut ctx))
     if(ret >= 0) {
@@ -126,7 +126,7 @@ public func E2E_tls12_session_ticket_received_and_stored(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20130_cert.pem /tmp/tls_20130_key.pem 20130 1.2 AES128-GCM-SHA256:@SECLEVEL=0"))
     test_server_wait()
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_2

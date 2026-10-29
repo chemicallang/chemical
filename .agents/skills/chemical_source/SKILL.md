@@ -1433,6 +1433,18 @@ switch(self) {
 }
 ```
 
+### Global `static` declarations
+
+```chemical
+static counter : int = 0          // immutable global storage
+static mut scratch : int = 0      // mutable global storage; access requires unsafe
+```
+
+`static mut` is the same safety category as a mutable top-level `var`; safe code
+must access it through `unsafe(...)` / `unsafe { ... }`. A plain `static` must
+have a `Sync` type. `static` is contextual and does not reserve the word
+elsewhere.
+
 ### `using` Declarations in Test Files
 
 Test files at global scope need `using` declarations to access standard library types:

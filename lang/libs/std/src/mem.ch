@@ -4,6 +4,15 @@ public namespace std {
 public namespace mem {
 
 /**
+ * Explicit unchecked zero-initialization for audited library internals that
+ * immediately initialize or overwrite the value. Safe code must use
+ * `zeroed<T>()` with `T: Zeroable`.
+ */
+public unsafe func <T> zeroed_unchecked() : T {
+    return zeroed:unsafe<T>()
+}
+
+/**
  * Move `src` into `*dest` and return the previous value.
  *
  * The old value is moved out before the store, so its destructor runs exactly

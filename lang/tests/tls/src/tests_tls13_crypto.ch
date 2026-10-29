@@ -44,7 +44,7 @@ func setup_symmetric_record_test() : SSLContext {
     // and sequence counters, never ssl.conf.  Setting config from a stack
     // variable would create a dangling pointer when this helper returns.
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>()
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>())
     ssl_init(unsafe(&raw mut ctx))
 
     // Known AES-128-GCM key (from FIPS 197 test vector)
@@ -59,7 +59,7 @@ func setup_symmetric_record_test() : SSLContext {
     ]
 
     // Create symmetric transform for encrypt (key_enc) and decrypt (key_dec)
-    var tr : Transform = zeroed:unsafe<Transform>()
+    var tr : Transform = unsafe(std::mem.zeroed_unchecked<Transform>())
     transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_GCM as u8
     tr.key_len = 16
@@ -112,7 +112,7 @@ public func tls_ssl_set_config_works(env : &mut TestEnv) {
     cfg.min_tls_version = SSL_VERSION_TLS1_2
     cfg.max_tls_version = SSL_VERSION_TLS1_3
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>()
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>())
     ssl_init(unsafe(&raw mut ctx))
     ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
 
@@ -170,7 +170,7 @@ public func tls13_derive_handshake_keys_works(env : &mut TestEnv) {
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.authmode = SSL_VERIFY_NONE
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>()
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>())
     ssl_init(unsafe(&raw mut ctx))
     ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
 
@@ -238,7 +238,7 @@ public func tls13_derive_application_keys_works(env : &mut TestEnv) {
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.authmode = SSL_VERIFY_NONE
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>()
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>())
     ssl_init(unsafe(&raw mut ctx))
     ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
 
@@ -555,7 +555,7 @@ public func tls13_update_send_keys_works(env : &mut TestEnv) {
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.authmode = SSL_VERIFY_NONE
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>()
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>())
     ssl_init(unsafe(&raw mut ctx))
     ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
 
@@ -634,7 +634,7 @@ public func tls13_update_send_keys_works(env : &mut TestEnv) {
 
 @test
 public func tls_ssl_close_notify_no_socket_works(env : &mut TestEnv) {
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>()
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>())
     ssl_init(unsafe(&raw mut ctx))
     // No socket or config set — just ensures ssl_close_notify doesn't crash
 

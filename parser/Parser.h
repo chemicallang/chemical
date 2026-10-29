@@ -621,6 +621,20 @@ public:
             bool topLevel,
             bool matchExpr,
             bool allowDeclarations,
+            bool comptime,
+            bool static_decl = false,
+            bool static_mut = false
+    );
+
+    /**
+     * Parse a contextual `static` / `static mut` top-level declaration. The
+     * word stays an ordinary identifier everywhere else, so this does not
+     * shift the CBI token enum. `static` is immutable storage and `static mut`
+     * is mutable storage (which the safety pass requires unsafe to access).
+     */
+    ASTNode* parseStaticDeclaration(
+            ASTAllocator& allocator,
+            AccessSpecifier specifier,
             bool comptime
     );
 

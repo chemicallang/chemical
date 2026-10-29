@@ -211,7 +211,7 @@ func srv_serve_one_connection(env : &mut TestEnv, cs : net::Socket, mode : strin
     pk_cmd.append_view(hex_path.to_view())
     test_py_run_foreground(pk_cmd.to_view())
 
-    var rsa_ctx : RSAContext = zeroed:unsafe<RSAContext>()
+    var rsa_ctx : RSAContext = unsafe(std::mem.zeroed_unchecked<RSAContext>())
     var using_rsa = false
     if(tls12_rsa) {
         var n_buf : [512]u8

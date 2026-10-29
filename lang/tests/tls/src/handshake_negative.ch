@@ -30,7 +30,7 @@ public func NEG_verified_handshake_untrusted_ca_fails(env : &mut TestEnv) {
     var wrong_ca = x509_crt_load_pem_file("/tmp/tls_negb20120_root.pem")
     if(wrong_ca == null) { env.error("untrusted CA: could not load CA-B root"); return }
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.ca_chain = wrong_ca
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -73,7 +73,7 @@ public func NEG_hostname_mismatch_fails_when_verifying(env : &mut TestEnv) {
     var ca = x509_crt_load_pem_file("/tmp/tls_hnm20121_root.pem")
     if(ca == null) { env.error("hostname mismatch: could not load root"); return }
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.ca_chain = ca
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -110,7 +110,7 @@ public func NEG_no_common_cipher_alert40_tls12(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20122_cert.pem /tmp/tls_20122_key.pem 20122 1.2"))
     test_server_wait()
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.min_tls_version = SSL_VERSION_TLS1_2
@@ -151,7 +151,7 @@ public func NEG_version_mismatch_alert70(env : &mut TestEnv) {
     test_py_run_background(string_view("srv2 /tmp/tls_20123_cert.pem /tmp/tls_20123_key.pem 20123"))
     test_server_wait()
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.min_tls_version = SSL_VERSION_TLS1_2
@@ -187,7 +187,7 @@ public func NEG_plain_tcp_peer_handshake_fails_gracefully(env : &mut TestEnv) {
     test_py_run_background(string_view("plaintcp 20124 HELLO 1"))
     test_server_wait()
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
@@ -285,7 +285,7 @@ public func NEG_oversized_write_fragments_cleanly(env : &mut TestEnv) {
     test_py_run_background(string_view("echo /tmp/tls_20126_cert.pem /tmp/tls_20126_key.pem 20126 1 20001"))
     test_server_wait()
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -335,7 +335,7 @@ public func NEG_double_close_notify_safe(env : &mut TestEnv) {
     test_py_run_background(string_view("mround /tmp/tls_20127_cert.pem /tmp/tls_20127_key.pem 20127 1.3 1 1"))
     test_server_wait()
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -365,7 +365,7 @@ public func NEG_double_close_notify_safe(env : &mut TestEnv) {
 // ─── Read/write guards on a context that was never connected ────────────────
 @test
 public func NEG_ssl_ops_without_connection_return_errors(env : &mut TestEnv) {
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
 
     var buf : [64]u8
     var rret = ssl_read(unsafe(&raw mut ctx), unsafe(&raw mut buf[0]), 64)
@@ -384,7 +384,7 @@ public func NEG_ssl_ops_without_connection_return_errors(env : &mut TestEnv) {
 @test
 public func NEG_connect_refused_returns_error_fast(env : &mut TestEnv) {
     // Nothing listens here; dial must fail and surface a negative code.
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     ssl_set_config(unsafe(&raw mut ctx), &raw mut config)

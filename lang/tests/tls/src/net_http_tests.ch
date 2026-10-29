@@ -896,7 +896,7 @@ func test_high_concurrency_stress(env : &mut TestEnv) {
 }
 
 struct TestCaptured2345 {
-    var success_count : uint = zeroed:unsafe<uint>();
+    var success_count : uint = unsafe(std::mem.zeroed_unchecked<uint>());
     var count_lock : std.mutex
 }
 

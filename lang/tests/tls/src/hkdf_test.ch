@@ -59,7 +59,7 @@ public func INT_hkdf_against_python(env : &mut TestEnv) {
         env.error("failed to parse all keys from Python output"); return
     } else {}
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.max_tls_version = SSL_VERSION_TLS1_3
     ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)

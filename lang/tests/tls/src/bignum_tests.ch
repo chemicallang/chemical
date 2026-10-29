@@ -90,21 +90,21 @@ func bt_random_mpi(m : *mut Mpi, nbytes : size_t, top : u8) {
 // must produce a negative quotient and remainder (truncation toward zero).
 func bt_div_check(env : &mut TestEnv, a_hex : *char, b_hex : *char,
                   q_hex : *char, r_hex : *char, neg : int) {
-    var A : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut A)
-    var B : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut B)
+    var A : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut A)
+    var B : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut B)
     if(!bt_hex_to_mpi(a_hex, &raw mut A)) { env.error("vector a did not parse"); return } else {}
     if(!bt_hex_to_mpi(b_hex, &raw mut B)) { env.error("vector b did not parse"); return } else {}
     if(neg == 1) { A.s = -1 }
 
-    var Q : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut Q)
-    var R : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut R)
+    var Q : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut Q)
+    var R : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut R)
     var ret = mpi_div(&raw mut Q, &raw mut R, &raw mut A, &raw mut B)
     if(ret != 0) { env.error("mpi_div returned an error"); return } else {}
     if(!bt_mpi_eq_hex(&raw mut Q, q_hex)) { env.error("quotient mismatch"); return } else {}
     if(!bt_mpi_eq_hex(&raw mut R, r_hex)) { env.error("remainder mismatch"); return } else {}
 
-    var prod : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut prod)
-    var sum : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut sum)
+    var prod : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut prod)
+    var sum : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut sum)
     mpi_mul(&raw mut prod, &raw mut Q, &raw mut B)
     mpi_add(&raw mut sum, &raw mut prod, &raw mut R)
     if(mpi_cmp(&raw mut sum, &raw mut A) != 0) { env.error("q*b + r != a"); return } else {}
@@ -170,20 +170,20 @@ public func TEST_bignum_div_known_answers(env : &mut TestEnv) {
 
 @test
 public func TEST_bignum_div_aliases_and_nulls(env : &mut TestEnv) {
-    var A : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut A)
-    var B : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut B)
+    var A : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut A)
+    var B : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut B)
     bt_random_mpi(&raw mut A, 64, 0x9C)
     bt_random_mpi(&raw mut B, 32, 0x81)
 
     // The quotient and remainder written over their own inputs. mpi_mod relies
     // on the r == a form (mpi_mod(x, x, n)), which is how the Montgomery setup
     // and the Miller-Rabin squaring loop call it.
-    var A2 : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut A2); mpi_copy(&raw mut A2, &raw mut A)
-    var B2 : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut B2); mpi_copy(&raw mut B2, &raw mut B)
+    var A2 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut A2); mpi_copy(&raw mut A2, &raw mut A)
+    var B2 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut B2); mpi_copy(&raw mut B2, &raw mut B)
     var ret = mpi_div(&raw mut A2, &raw mut B2, &raw mut A, &raw mut B)
     if(ret != 0) { env.error("aliased mpi_div failed"); return } else {}
-    var prod : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut prod)
-    var sum : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut sum)
+    var prod : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut prod)
+    var sum : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut sum)
     mpi_mul(&raw mut prod, &raw mut A2, &raw mut B)
     mpi_add(&raw mut sum, &raw mut prod, &raw mut B2)
     if(mpi_cmp(&raw mut sum, &raw mut A) != 0) { env.error("aliased division broke q*b + r == a"); return } else {}
@@ -194,7 +194,7 @@ public func TEST_bignum_div_aliases_and_nulls(env : &mut TestEnv) {
     if(mpi_div(&raw mut A2, null, &raw mut A, &raw mut B) != 0) { env.error("null r rejected"); return } else {}
 
     // Division by zero.
-    var zero : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut zero)
+    var zero : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut zero)
     if(mpi_div(&raw mut A2, &raw mut B2, &raw mut A, &raw mut zero) != ERR_MPI_DIVISION_BY_ZERO) {
         env.error("division by zero must return ERR_MPI_DIVISION_BY_ZERO"); return
     } else {}
@@ -217,19 +217,19 @@ public func TEST_bignum_div_mod_invariants(env : &mut TestEnv) {
         // 1..40 limbs of dividend, 1..20 limbs of divisor.
         var bbytes = 4 * (1 + (round % 20))
         var abytes = 4 * (1 + ((round * 7) % 40))
-        var A : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut A)
-        var B : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut B)
+        var A : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut A)
+        var B : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut B)
         bt_random_mpi(&raw mut A, abytes, 0x8F)
         bt_random_mpi(&raw mut B, bbytes, 0x03)
 
-        var Q : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut Q)
-        var R : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut R)
+        var Q : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut Q)
+        var R : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut R)
         if(mpi_div(&raw mut Q, &raw mut R, &raw mut A, &raw mut B) != 0) {
             env.error("mpi_div failed on random input"); return
         } else {}
 
-        var prod : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut prod)
-        var sum : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut sum)
+        var prod : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut prod)
+        var sum : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut sum)
         mpi_mul(&raw mut prod, &raw mut Q, &raw mut B)
         mpi_add(&raw mut sum, &raw mut prod, &raw mut R)
         if(mpi_cmp(&raw mut sum, &raw mut A) != 0) { env.error("q*b + r != a"); return } else {}
@@ -238,8 +238,8 @@ public func TEST_bignum_div_mod_invariants(env : &mut TestEnv) {
 
         // mpi_mod returns the non-negative residue, including for negative
         // dividends, and must stay in [0, b).
-        var neg : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut neg); mpi_copy(&raw mut neg, &raw mut A); neg.s = -1
-        var modv : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut modv)
+        var neg : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut neg); mpi_copy(&raw mut neg, &raw mut A); neg.s = -1
+        var modv : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut modv)
         if(mpi_mod(&raw mut modv, &raw mut neg, &raw mut B) != 0) {
             env.error("mpi_mod failed"); return
         } else {}
@@ -247,8 +247,8 @@ public func TEST_bignum_div_mod_invariants(env : &mut TestEnv) {
             env.error("mpi_mod result out of [0, b)"); return
         } else {}
         // a + (-a mod b) must be a multiple of b.
-        var chk : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut chk)
-        var rem : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut rem)
+        var chk : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut chk)
+        var rem : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut rem)
         mpi_add(&raw mut chk, &raw mut A, &raw mut modv)
         if(mpi_mod(&raw mut rem, &raw mut chk, &raw mut B) != 0) {
             env.error("mpi_mod failed on the check"); return
@@ -267,14 +267,14 @@ public func TEST_bignum_mod_small_matches_generic(env : &mut TestEnv) {
                              65537 as u32, 0x80000000u32, 0xFFFFFFFFu32]
     var d : size_t = 0
     while(d < 8) {
-        var A : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut A)
+        var A : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut A)
         bt_random_mpi(&raw mut A, 128, 0xB3)
 
         var small = mpi_mod_small(&raw mut A, divisors[d])
 
-        var D : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut D)
+        var D : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut D)
         mpi_lset(&raw mut D, divisors[d] as i64)
-        var R : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut R)
+        var R : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut R)
         if(mpi_mod(&raw mut R, &raw mut A, &raw mut D) != 0) {
             env.error("mpi_mod failed in the mod_small cross-check"); return
         } else {}
@@ -286,7 +286,7 @@ public func TEST_bignum_mod_small_matches_generic(env : &mut TestEnv) {
         var small_vals : [4]i64 = [0 as i64, 1 as i64, 2 as i64, 4294967295 as i64]
         var s : size_t = 0
         while(s < 4) {
-            var V : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut V); mpi_lset(&raw mut V, small_vals[s])
+            var V : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut V); mpi_lset(&raw mut V, small_vals[s])
             var want = (small_vals[s] % (divisors[d] as i64)) as u32
             if(mpi_mod_small(&raw mut V, divisors[d]) != want) {
                 env.error("mpi_mod_small wrong for a small value"); return
@@ -298,7 +298,7 @@ public func TEST_bignum_mod_small_matches_generic(env : &mut TestEnv) {
 
     // Documented contract: a zero divisor is not used by the library (the
     // small-prime sieve only feeds primes) and yields 0 rather than trapping.
-    var A : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut A)
+    var A : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut A)
     bt_random_mpi(&raw mut A, 32, 0x91)
     if(mpi_mod_small(&raw mut A, 0u32) != 0u32) {
         env.error("mpi_mod_small(_, 0) should be defined as 0"); return
@@ -312,7 +312,7 @@ public func TEST_bignum_mod_small_matches_generic(env : &mut TestEnv) {
 func bt_exp_reference(out : *mut Mpi, a : *mut Mpi, e : u32, n : *mut Mpi) {
     mpi_lset(out, 1)
     var i : u32 = 0
-    var tmp : Mpi = zeroed:unsafe<Mpi>(); mpi_init(unsafe(&raw mut tmp))
+    var tmp : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut tmp))
     while(i < e) {
         mpi_mul(unsafe(&raw mut tmp), out, a)
         mpi_mod(out, unsafe(&raw mut tmp), n)
@@ -327,21 +327,21 @@ public func TEST_bignum_exp_mod_matches_repeated_multiplication(env : &mut TestE
         // Both parities of modulus: odd takes the Montgomery path, even takes
         // the mpi_exp_mod_fallback path.
         var nbytes : size_t = 4 + (round % 4) * 4
-        var A : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut A)
-        var N : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut N)
+        var A : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut A)
+        var N : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut N)
         bt_random_mpi(&raw mut A, nbytes, 0x37)
         bt_random_mpi(&raw mut N, nbytes, 0x80)
         if((round % 2) == 1) { N.p[0] = N.p[0] & 0xFFFFFFFEu32 }  // force even
 
         var e : u32 = 1 + ((round * 5) % 40)
-        var E : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut E); mpi_lset(&raw mut E, e as i64)
+        var E : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut E); mpi_lset(&raw mut E, e as i64)
 
-        var got : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut got)
+        var got : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut got)
         if(mpi_exp_mod(&raw mut got, &raw mut A, &raw mut E, &raw mut N) != 0) {
             env.error("mpi_exp_mod failed"); return
         } else {}
 
-        var want : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut want)
+        var want : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut want)
         bt_exp_reference(&raw mut want, &raw mut A, e, &raw mut N)
         if(mpi_cmp(&raw mut got, &raw mut want) != 0) {
             env.error("mpi_exp_mod != repeated multiplication"); return
@@ -349,7 +349,7 @@ public func TEST_bignum_exp_mod_matches_repeated_multiplication(env : &mut TestE
 
         // Aliasing the base with the result, as mpi_is_prime does when it
         // re-squares in place.
-        var alias : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut alias); mpi_copy(&raw mut alias, &raw mut A)
+        var alias : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut alias); mpi_copy(&raw mut alias, &raw mut A)
         if(mpi_exp_mod(&raw mut alias, &raw mut alias, &raw mut E, &raw mut N) != 0) {
             env.error("mpi_exp_mod with a == x failed"); return
         } else {}
@@ -363,10 +363,10 @@ public func TEST_bignum_exp_mod_matches_repeated_multiplication(env : &mut TestE
 
 @test
 public func TEST_bignum_exp_mod_edge_cases(env : &mut TestEnv) {
-    var N : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut N)
-    var A : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut A)
-    var E : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut E)
-    var X : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut X)
+    var N : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut N)
+    var A : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut A)
+    var E : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut E)
+    var X : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut X)
 
     bt_hex_to_mpi("1c1d8fac1b1e4f9a3d5c7e9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d91", &raw mut N)
     // Top byte 0x0A keeps the base just below the modulus (N starts 0x1c), the
@@ -384,26 +384,26 @@ public func TEST_bignum_exp_mod_edge_cases(env : &mut TestEnv) {
     if(mpi_cmp(&raw mut X, &raw mut A) != 0) { env.error("a^1 mod n != a"); return } else {}
 
     // A base of zero is zero for any positive exponent.
-    var zero : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut zero)
+    var zero : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut zero)
     mpi_lset(&raw mut E, 5)
     if(mpi_exp_mod(&raw mut X, &raw mut zero, &raw mut E, &raw mut N) != 0) { env.error("0^5 failed"); return } else {}
     if(!mpi_is_zero(&raw mut X)) { env.error("0^e mod n != 0"); return } else {}
 
     // Modulus 1 collapses everything to zero.
-    var one : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
+    var one : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
     if(mpi_exp_mod(&raw mut X, &raw mut A, &raw mut E, &raw mut one) != 0) { env.error("mod 1 failed"); return } else {}
     if(!mpi_is_zero(&raw mut X)) { env.error("a^e mod 1 != 0"); return } else {}
 
     // A non-positive modulus is rejected.
-    var bad : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut bad)
+    var bad : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut bad)
     if(mpi_exp_mod(&raw mut X, &raw mut A, &raw mut E, &raw mut bad) != ERR_MPI_BAD_INPUT_DATA) {
         env.error("modulus 0 must be rejected"); return
     } else {}
 
     // A base larger than the modulus must be reduced, not truncated to the
     // modulus' limb count.
-    var big : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut big)
-    var prod : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut prod)
+    var big : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut big)
+    var prod : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut prod)
     mpi_lset(&raw mut prod, 7)
     mpi_add(&raw mut big, &raw mut N, &raw mut prod)    // big = N + 7
     mpi_lset(&raw mut E, 1)
@@ -418,18 +418,18 @@ public func TEST_bignum_mod_inv_invariants(env : &mut TestEnv) {
     var round : size_t = 0
     while(round < 40) {
         // Odd modulus (binary extended GCD) and even modulus (Euclidean loop).
-        var A : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut A)
-        var N : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut N)
+        var A : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut A)
+        var N : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut N)
         bt_random_mpi(&raw mut A, 32, 0x3B)
         bt_random_mpi(&raw mut N, 32, 0x81)
         N.p[0] = (N.p[0] | 1u32)
         if((round % 4) == 3) { N.p[0] = N.p[0] & 0xFFFFFFFEu32 }
 
-        var X : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut X)
+        var X : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut X)
         var ret = mpi_mod_inv(&raw mut X, &raw mut A, &raw mut N)
         if(ret == 0) {
-            var chk : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut chk)
-            var one : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
+            var chk : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut chk)
+            var one : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
             mpi_mul(&raw mut chk, &raw mut X, &raw mut A)
             if(mpi_mod(&raw mut chk, &raw mut chk, &raw mut N) != 0) {
                 env.error("inverse check modulo failed"); return
@@ -442,7 +442,7 @@ public func TEST_bignum_mod_inv_invariants(env : &mut TestEnv) {
             } else {}
         } else {
             // A rejection is only allowed when no inverse exists.
-            var g : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut g)
+            var g : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut g)
             mpi_gcd(&raw mut g, &raw mut A, &raw mut N)
             if(mpi_cmp_int(&raw mut g, 1) == 0) {
                 env.error("rejected an invertible value"); return
@@ -452,23 +452,23 @@ public func TEST_bignum_mod_inv_invariants(env : &mut TestEnv) {
     }
 
     // Fixed points and degenerate inputs.
-    var N : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut N)
+    var N : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut N)
     bt_hex_to_mpi("fffffffffffffffffffffffffffffffeffffffffffffffff", &raw mut N)
-    var X : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut X)
+    var X : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut X)
 
-    var one : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
+    var one : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
     if(mpi_mod_inv(&raw mut X, &raw mut one, &raw mut N) != 0) { env.error("inv(1) failed"); return } else {}
     if(mpi_cmp_int(&raw mut X, 1) != 0) { env.error("inv(1) != 1"); return } else {}
 
     // inv(n-1) == n-1, since (n-1)^2 == 1 mod n.
-    var nm1 : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut nm1)
+    var nm1 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut nm1)
     mpi_sub(&raw mut nm1, &raw mut N, &raw mut one)
     if(mpi_mod_inv(&raw mut X, &raw mut nm1, &raw mut N) != 0) { env.error("inv(n-1) failed"); return } else {}
     if(mpi_cmp(&raw mut X, &raw mut nm1) != 0) { env.error("inv(n-1) != n-1"); return } else {}
 
     // No inverse for a shared factor.
-    var three : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut three); mpi_lset(&raw mut three, 3)
-    var nine : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut nine); mpi_lset(&raw mut nine, 9)
+    var three : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut three); mpi_lset(&raw mut three, 3)
+    var nine : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut nine); mpi_lset(&raw mut nine, 9)
     if(mpi_mod_inv(&raw mut X, &raw mut three, &raw mut nine) == 0) {
         env.error("inv(3) mod 9 must fail"); return
     } else {}
@@ -488,7 +488,7 @@ public func TEST_bignum_mod_inv_invariants(env : &mut TestEnv) {
 // immediately.
 @test
 public func TEST_rsa_crt_decrypt_matches_plain(env : &mut TestEnv) {
-    var crt : RSAContext = zeroed:unsafe<RSAContext>(); rsa_init(&raw mut crt, RSA_PKCS_V15, 0)
+    var crt : RSAContext = unsafe(std::mem.zeroed_unchecked<RSAContext>()); rsa_init(&raw mut crt, RSA_PKCS_V15, 0)
     if(rsa_gen_key(&raw mut crt, 1024, 65537) < 0) { env.error("rsa_gen_key failed"); return } else {}
 
     var msg : [32]u8
@@ -510,7 +510,7 @@ public func TEST_rsa_crt_decrypt_matches_plain(env : &mut TestEnv) {
 
     // Same key, but with only N and D imported: no CRT parameters, so
     // rsa_private takes the plain exponentiation path.
-    var plain : RSAContext = zeroed:unsafe<RSAContext>(); rsa_init(&raw mut plain, RSA_PKCS_V15, 0)
+    var plain : RSAContext = unsafe(std::mem.zeroed_unchecked<RSAContext>()); rsa_init(&raw mut plain, RSA_PKCS_V15, 0)
     var nbuf : [128]u8
     var dbuf : [128]u8
     mpi_write_binary(&raw mut crt.N, &raw mut nbuf[0], 128)
@@ -530,19 +530,19 @@ public func TEST_rsa_crt_decrypt_matches_plain(env : &mut TestEnv) {
 
     // The CRT parameters themselves must be consistent, since a wrong
     // QP would silently corrupt decryption for some inputs.
-    var p1 : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut p1)
-    var q1 : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut q1)
-    var one : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
+    var p1 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut p1)
+    var q1 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut q1)
+    var one : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
     mpi_sub(&raw mut p1, &raw mut crt.P, &raw mut one)
     mpi_sub(&raw mut q1, &raw mut crt.Q, &raw mut one)
-    var t : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut t)
+    var t : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut t)
     if(mpi_mod(&raw mut t, &raw mut crt.DP, &raw mut p1) != 0 || mpi_cmp(&raw mut t, &raw mut crt.DP) != 0) {
         env.error("DP != D mod (P-1)"); return
     } else {}
     if(mpi_mod(&raw mut t, &raw mut crt.DQ, &raw mut q1) != 0 || mpi_cmp(&raw mut t, &raw mut crt.DQ) != 0) {
         env.error("DQ != D mod (Q-1)"); return
     } else {}
-    var qqp : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut qqp)
+    var qqp : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut qqp)
     mpi_mul(&raw mut qqp, &raw mut crt.QP, &raw mut crt.Q)
     if(mpi_mod(&raw mut qqp, &raw mut qqp, &raw mut crt.P) != 0) {
         env.error("QP check failed"); return
@@ -637,8 +637,8 @@ func bt_check_py_hex(env : &mut TestEnv, out : *vector<u8>, label : string_view,
 // 256-bit operands; Python computes q and r with divmod().
 @test
 public func INT_bignum_division_vs_python(env : &mut TestEnv) {
-    var A : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut A)
-    var B : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut B)
+    var A : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut A)
+    var B : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut B)
     bt_random_mpi(&raw mut A, 32, 0xF1)
     bt_random_mpi(&raw mut B, 16, 0x01)   // top limb 1: full 31-bit normalisation
 
@@ -654,8 +654,8 @@ public func INT_bignum_division_vs_python(env : &mut TestEnv) {
     var out = test_python_run_script(&raw mut script[0], sp, string_view("bn_div.py"))
     if(out.size() == 0) { env.error("python produced no output"); return } else {}
 
-    var Q : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut Q)
-    var R : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut R)
+    var Q : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut Q)
+    var R : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut R)
     if(mpi_div(&raw mut Q, &raw mut R, &raw mut A, &raw mut B) != 0) {
         env.error("mpi_div failed"); return
     } else {}
@@ -668,7 +668,7 @@ public func INT_bignum_division_vs_python(env : &mut TestEnv) {
 
     // The same reduction through mpi_mod, which is what the modular
     // exponentiation's Montgomery setup calls.
-    var M : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut M)
+    var M : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut M)
     if(mpi_mod(&raw mut M, &raw mut A, &raw mut B) != 0) { env.error("mpi_mod failed"); return } else {}
     if(!bt_check_py_hex(env, &raw mut out, string_view("R="), &raw mut M)) {
         env.error("mpi_mod mismatch vs Python"); return
@@ -678,9 +678,9 @@ public func INT_bignum_division_vs_python(env : &mut TestEnv) {
 // 192-bit base and modulus, 64-bit exponent, compared against pow().
 @test
 public func INT_bignum_exp_mod_vs_python(env : &mut TestEnv) {
-    var A : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut A)
-    var N : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut N)
-    var E : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut E)
+    var A : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut A)
+    var N : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut N)
+    var E : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut E)
     bt_random_mpi(&raw mut A, 24, 0x6D)
     bt_random_mpi(&raw mut N, 24, 0x80)
     bt_random_mpi(&raw mut E, 8, 0x01)
@@ -699,7 +699,7 @@ public func INT_bignum_exp_mod_vs_python(env : &mut TestEnv) {
     var out = test_python_run_script(&raw mut script[0], sp, string_view("bn_exp.py"))
     if(out.size() == 0) { env.error("python produced no output"); return } else {}
 
-    var X : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut X)
+    var X : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut X)
     if(mpi_exp_mod(&raw mut X, &raw mut A, &raw mut E, &raw mut N) != 0) {
         env.error("mpi_exp_mod failed"); return
     } else {}
@@ -711,19 +711,19 @@ public func INT_bignum_exp_mod_vs_python(env : &mut TestEnv) {
 // Random 256-bit odd modulus, compared against Python's modular inverse.
 @test
 public func INT_bignum_mod_inv_vs_python(env : &mut TestEnv) {
-    var A : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut A)
-    var N : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut N)
+    var A : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut A)
+    var N : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut N)
     bt_random_mpi(&raw mut A, 32, 0x2F)
     bt_random_mpi(&raw mut N, 32, 0x80)
     N.p[0] = (N.p[0] | 1u32)
     // Make an inverse certain to exist and keep the value inside the modulus.
-    var g : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut g)
+    var g : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut g)
     mpi_gcd(&raw mut g, &raw mut A, &raw mut N)
     if(mpi_cmp_int(&raw mut g, 1) != 0) {
-        var one : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
+        var one : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
         mpi_add(&raw mut A, &raw mut A, &raw mut one)
     } else {}
-    var rem : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut rem)
+    var rem : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut rem)
     mpi_mod(&raw mut rem, &raw mut A, &raw mut N)
     mpi_copy(&raw mut A, &raw mut rem)
 
@@ -738,7 +738,7 @@ public func INT_bignum_mod_inv_vs_python(env : &mut TestEnv) {
     var out = test_python_run_script(&raw mut script[0], sp, string_view("bn_inv.py"))
     if(out.size() == 0) { env.error("python produced no output"); return } else {}
 
-    var X : Mpi = zeroed:unsafe<Mpi>(); mpi_init(&raw mut X)
+    var X : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(&raw mut X)
     if(mpi_mod_inv(&raw mut X, &raw mut A, &raw mut N) != 0) {
         env.error("mpi_mod_inv failed on a coprime pair"); return
     } else {}
@@ -752,7 +752,7 @@ public func INT_bignum_mod_inv_vs_python(env : &mut TestEnv) {
 // reference shares no code with the path under test.
 @test
 public func INT_rsa_crt_vs_python(env : &mut TestEnv) {
-    var ctx : RSAContext = zeroed:unsafe<RSAContext>(); rsa_init(&raw mut ctx, RSA_PKCS_V15, 0)
+    var ctx : RSAContext = unsafe(std::mem.zeroed_unchecked<RSAContext>()); rsa_init(&raw mut ctx, RSA_PKCS_V15, 0)
     if(rsa_gen_key(&raw mut ctx, 1024, 65537) < 0) { env.error("rsa_gen_key failed"); return } else {}
 
     var msg : [16]u8
@@ -826,7 +826,7 @@ public func TEST_rsa_rejects_oversized_keys(env : &mut TestEnv) {
     over[0] = 0x80
     over[1024] = 0x01
 
-    var ctx : RSAContext = zeroed:unsafe<RSAContext>(); rsa_init(&raw mut ctx, RSA_PKCS_V15, 0)
+    var ctx : RSAContext = unsafe(std::mem.zeroed_unchecked<RSAContext>()); rsa_init(&raw mut ctx, RSA_PKCS_V15, 0)
     var nptr = &raw mut over[0]
     var eptr = &raw mut e_buf[0]
 
@@ -860,7 +860,7 @@ public func TEST_rsa_rejects_oversized_keys(env : &mut TestEnv) {
 // pass for values the peer never signed.
 @test
 public func TEST_rsa_check_pubkey_rejects_invalid(env : &mut TestEnv) {
-    var ctx : RSAContext = zeroed:unsafe<RSAContext>(); rsa_init(&raw mut ctx, RSA_PKCS_V15, 0)
+    var ctx : RSAContext = unsafe(std::mem.zeroed_unchecked<RSAContext>()); rsa_init(&raw mut ctx, RSA_PKCS_V15, 0)
 
     var n_buf : [16]u8
     var i : size_t = 0
@@ -903,7 +903,7 @@ public func TEST_rsa_check_pubkey_rejects_invalid(env : &mut TestEnv) {
 // path works at that size, and that nothing adjacent on the stack is written.
 @test
 public func TEST_rsa_verify_handles_large_modulus(env : &mut TestEnv) {
-    var ctx : RSAContext = zeroed:unsafe<RSAContext>(); rsa_init(&raw mut ctx, RSA_PKCS_V15, 0)
+    var ctx : RSAContext = unsafe(std::mem.zeroed_unchecked<RSAContext>()); rsa_init(&raw mut ctx, RSA_PKCS_V15, 0)
 
     var n_len : size_t = 640
     var n_buf : [640]u8

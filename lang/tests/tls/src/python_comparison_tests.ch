@@ -31,7 +31,7 @@ public func INT_aes128_ecb_vs_python(env : &mut TestEnv) {
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 32)
     if(ct_len != 32) { env.error("failed to parse Python output"); return }
 
-    var ctx : AESContext = zeroed:unsafe<AESContext>(); aes_init(unsafe(&raw mut ctx))
+    var ctx : AESContext = unsafe(std::mem.zeroed_unchecked<AESContext>()); aes_init(unsafe(&raw mut ctx))
     aes_setkey_enc(unsafe(&raw mut ctx), &raw key[0], 16)
     var chem_ct : [32]u8
     aes_crypt_ecb(unsafe(&raw mut ctx), AES_ENCRYPT, &raw pt[0], &raw mut chem_ct[0])
@@ -64,7 +64,7 @@ public func INT_aes256_ecb_vs_python(env : &mut TestEnv) {
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 32)
     if(ct_len != 32) { env.error("failed to parse Python output"); return }
 
-    var ctx : AESContext = zeroed:unsafe<AESContext>(); aes_init(unsafe(&raw mut ctx))
+    var ctx : AESContext = unsafe(std::mem.zeroed_unchecked<AESContext>()); aes_init(unsafe(&raw mut ctx))
     aes_setkey_enc(unsafe(&raw mut ctx), &raw key[0], 32)
     var chem_ct : [32]u8
     aes_crypt_ecb(unsafe(&raw mut ctx), AES_ENCRYPT, &raw pt[0], &raw mut chem_ct[0])
@@ -100,7 +100,7 @@ public func INT_aes128_ecb_decrypt_vs_python(env : &mut TestEnv) {
     var pt2_len = test_parse_py_hex_label(&raw mut py_out, string_view("PT2="), &raw mut py_pt2[0], 16)
     if(ct_len != 16 || pt2_len != 16) { env.error("failed to parse Python output"); return }
 
-    var ctx : AESContext = zeroed:unsafe<AESContext>(); aes_init(unsafe(&raw mut ctx))
+    var ctx : AESContext = unsafe(std::mem.zeroed_unchecked<AESContext>()); aes_init(unsafe(&raw mut ctx))
     aes_setkey_dec(unsafe(&raw mut ctx), &raw key[0], 16)
     var chem_dec : [16]u8
     aes_crypt_ecb(unsafe(&raw mut ctx), AES_DECRYPT, &raw py_ct[0], &raw mut chem_dec[0])
@@ -122,7 +122,7 @@ public func INT_tls12_record_gcm_vs_python(env : &mut TestEnv) {
     var pt_hex : [33]char; test_bytes_to_hex(&raw pt[0], 16, &raw mut pt_hex[0])
     var seq_hex : [17]char; test_bytes_to_hex(&raw seq[0], 8, &raw mut seq_hex[0])
 
-    var tr : Transform = zeroed:unsafe<Transform>(); transform_init(unsafe(&raw mut tr))
+    var tr : Transform = unsafe(std::mem.zeroed_unchecked<Transform>()); transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_GCM as u8; tr.key_len = 16; tr.iv_len = 4; tr.fixed_iv_len = 4; tr.mac_key_len = 0
     var i : size_t = 0; while(i < 16) { tr.key_enc[i] = key[i]; i += 1 }
     i = 0; while(i < 4) { tr.base_iv_enc[i] = iv[i]; i += 1 }
@@ -166,7 +166,7 @@ public func INT_tls12_record_gcm_vs_python(env : &mut TestEnv) {
     if(pt_len != 16) { env.error("failed to parse Python output"); return }
     if(!test_bytes_eq(&raw py_pt[0], &raw pt[0], 16)) { env.error("TLS 1.2 GCM record decrypt mismatch vs Python"); return }
 
-    var tr_dec : Transform = zeroed:unsafe<Transform>(); transform_init(unsafe(&raw mut tr_dec))
+    var tr_dec : Transform = unsafe(std::mem.zeroed_unchecked<Transform>()); transform_init(unsafe(&raw mut tr_dec))
     tr_dec.cipher_type = CIPHER_AES_128_GCM as u8; tr_dec.key_len = 16; tr_dec.iv_len = 4; tr_dec.fixed_iv_len = 4; tr_dec.mac_key_len = 0
     i = 0; while(i < 16) { tr_dec.key_dec[i] = key[i]; i += 1 }
     i = 0; while(i < 4) { tr_dec.base_iv_dec[i] = iv[i]; i += 1 }
@@ -247,13 +247,13 @@ public func INT_x509_rsa_signature_vs_python(env : &mut TestEnv) {
     var cert_len = unsafe(fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file))
     unsafe { fclose(cert_file) }
 
-    var crt : X509Cert = zeroed:unsafe<X509Cert>(); x509_cert_init(unsafe(&raw mut crt))
+    var crt : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>()); x509_cert_init(unsafe(&raw mut crt))
     var ret = parse_cert_der(unsafe(&raw mut crt), &raw cert_buf[0], cert_len)
     if(ret < 0) { env.error("parse_cert_der failed"); return }
     if(unsafe(crt.pk_type) != PK_RSA) { env.error("expected RSA key type"); return }
 
     // Import the RSA public key and verify signature
-    var rsa_ctx : RSAContext = zeroed:unsafe<RSAContext>(); rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
+    var rsa_ctx : RSAContext = unsafe(std::mem.zeroed_unchecked<RSAContext>()); rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
     ret = x509_extract_rsa_pubkey(unsafe(&raw mut crt), unsafe(&raw mut rsa_ctx))
     if(ret < 0) { env.error("x509_extract_rsa_pubkey failed"); return }
 
@@ -270,8 +270,8 @@ public func INT_tls13_record_bidirectional_python(env : &mut TestEnv) {
     var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
     var pt : [32]u8; test_random_bytes(&raw mut pt[0], 32)
 
-    var ctx : SSLContext = zeroed:unsafe<SSLContext>(); ssl_init(unsafe(&raw mut ctx))
-    var tr : Transform = zeroed:unsafe<Transform>(); transform_init(unsafe(&raw mut tr))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
+    var tr : Transform = unsafe(std::mem.zeroed_unchecked<Transform>()); transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_GCM as u8; tr.key_len = 16; tr.iv_len = 12; tr.fixed_iv_len = 12
     var i : size_t = 0
     while(i < 16) { tr.key_enc[i] = key[i]; tr.key_dec[i] = key[i]; i += 1 }
@@ -481,7 +481,7 @@ public func INT_aes_cbc_128_decrypt_vs_python(env : &mut TestEnv) {
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 64)
     if(ct_len == 0) { env.error("failed to parse Python output"); return }
 
-    var ctx : AESContext = zeroed:unsafe<AESContext>(); aes_init(unsafe(&raw mut ctx))
+    var ctx : AESContext = unsafe(std::mem.zeroed_unchecked<AESContext>()); aes_init(unsafe(&raw mut ctx))
     aes_setkey_dec(unsafe(&raw mut ctx), &raw key[0], 16)
     var dec_iv : [16]u8; var di : size_t = 0; while(di < 16) { dec_iv[di] = iv[di]; di += 1 }
     var chem_dec : [64]u8
@@ -520,7 +520,7 @@ public func INT_aes_cbc_256_decrypt_vs_python(env : &mut TestEnv) {
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 64)
     if(ct_len == 0) { env.error("failed to parse Python output"); return }
 
-    var ctx : AESContext = zeroed:unsafe<AESContext>(); aes_init(unsafe(&raw mut ctx))
+    var ctx : AESContext = unsafe(std::mem.zeroed_unchecked<AESContext>()); aes_init(unsafe(&raw mut ctx))
     aes_setkey_dec(unsafe(&raw mut ctx), &raw key[0], 32)
     var dec_iv : [16]u8; var di : size_t = 0; while(di < 16) { dec_iv[di] = iv[di]; di += 1 }
     var chem_dec : [64]u8
@@ -612,7 +612,7 @@ public func INT_gcm_large_plaintext_vs_python(env : &mut TestEnv) {
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 1024)
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 1024 || tag_len != 16) { env.error("failed to parse Python output"); return }
-    var gcm : GCMContext = zeroed:unsafe<GCMContext>(); gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
+    var gcm : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
     var chem_ct : [2048]u8; var chem_tag : [16]u8
     gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, &raw aad[0], 16, &raw pt[0], 1024, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 1024)) { env.error("GCM large ct mismatch vs Python"); return }
@@ -680,7 +680,7 @@ public func INT_gcm_iv8_vs_python(env : &mut TestEnv) {
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 37 || tag_len != 16) { env.error("failed to parse Python output"); return }
 
-    var gcm : GCMContext = zeroed:unsafe<GCMContext>(); gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
+    var gcm : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
     var chem_ct : [64]u8; var chem_tag : [16]u8
     gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv8[0], 8, &raw aad[0], 13, &raw pt[0], 37, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 37)) { env.error("GCM 8-byte IV ct mismatch vs Python"); return }
@@ -720,7 +720,7 @@ public func INT_gcm_iv16_vs_python(env : &mut TestEnv) {
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 32 || tag_len != 16) { env.error("failed to parse Python output"); return }
 
-    var gcm : GCMContext = zeroed:unsafe<GCMContext>(); gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
+    var gcm : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
     var chem_ct : [64]u8; var chem_tag : [16]u8
     gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv16[0], 16, null, 0, &raw pt[0], 32, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 32)) { env.error("GCM 16-byte IV ct mismatch vs Python"); return }
@@ -765,7 +765,7 @@ public func INT_aes256_gcm_encrypt_vs_python(env : &mut TestEnv) {
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 64 || tag_len != 16) { env.error("failed to parse Python output"); return }
 
-    var gcm : GCMContext = zeroed:unsafe<GCMContext>(); gcm_init(unsafe(&raw mut gcm), &raw key[0], 32)
+    var gcm : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut gcm), &raw key[0], 32)
     var chem_ct : [128]u8; var chem_tag : [16]u8
     gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, &raw aad[0], 8, &raw pt[0], 64, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 64)) { env.error("AES-256-GCM ct mismatch vs Python"); return }
@@ -841,7 +841,7 @@ public func INT_gcm_no_aad_vs_python(env : &mut TestEnv) {
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 32 || tag_len != 16) { env.error("failed to parse Python output"); return }
 
-    var gcm : GCMContext = zeroed:unsafe<GCMContext>(); gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
+    var gcm : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
     var chem_ct : [64]u8; var chem_tag : [16]u8
     gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], 32, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 32)) { env.error("GCM no AAD ct mismatch vs Python"); return }
@@ -886,13 +886,13 @@ public func INT_gcm_auth_decrypt_vs_python(env : &mut TestEnv) {
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 48 || tag_len != 16) { env.error("failed to parse Python output"); return }
 
-    var gcm : GCMContext = zeroed:unsafe<GCMContext>(); gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
+    var gcm : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
     var chem_ct : [64]u8; var chem_tag : [16]u8
     gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, &raw aad[0], 8, &raw pt[0], 48, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 48)) { env.error("GCM auth ct mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM auth tag mismatch vs Python"); return }
 
-    var gcm2 : GCMContext = zeroed:unsafe<GCMContext>(); gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16)
+    var gcm2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16)
     var chem_dec : [64]u8
     var dret = gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, &raw aad[0], 8, &raw chem_ct[0], 48, &raw chem_tag[0], 16, &raw mut chem_dec[0])
     if(dret < 0) { env.error("gcm_auth_decrypt failed"); return }
@@ -928,7 +928,7 @@ public func INT_hmac_md5_empty_key_vs_python(env : &mut TestEnv) {
 @test
 @test.timeout(60000)
 public func INT_rsa_pkcs1_encrypt_determinism_vs_python(env : &mut TestEnv) {
-    var rsa_ctx : RSAContext = zeroed:unsafe<RSAContext>(); rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
+    var rsa_ctx : RSAContext = unsafe(std::mem.zeroed_unchecked<RSAContext>()); rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
     var ret = rsa_gen_key(unsafe(&raw mut rsa_ctx), 2048, 65537)
     if(ret < 0) { env.error("rsa_gen_key failed"); return }
 

@@ -43,11 +43,11 @@ func zeroable_impl_does_not_bypass_reference_check(env : &mut TestEnv) {
 }
 
 @test
-func zeroed_unsafe_escape_allowed(env : &mut TestEnv) {
+func zeroed_unchecked_escape_allowed(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // The explicit unsafe form is the escape hatch.
-    var ch = "struct S {\n    var r : &int\n}\npublic func main() : int {\n    var s : S = zeroed:unsafe<S>()\n    return 0\n}\n"
-    expect_compile_success(env, "zeroed_unsafe_reference", ch)
+    var ch = "struct S {\n    var r : &int\n}\npublic func main() : int {\n    var s : S = unsafe(std::mem.zeroed_unchecked<S>())\n    return 0\n}\n"
+    expect_compile_success_with_mod(env, "zeroed_unchecked_reference", ch, NEG_MOD_STD_CORE)
 }
 
 @test

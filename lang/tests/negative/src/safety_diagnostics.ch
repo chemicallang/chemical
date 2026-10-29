@@ -1117,3 +1117,24 @@ func neg_command_line_stream_raw_write_requires_unsafe(env : &mut TestEnv) {
     var ch = "using namespace std;\npublic func main() : int {\n    var s = CommandLineStream {}\n    s.writeStr(null, 0)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "command_line_stream_raw_write", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
 }
+
+@test
+func neg_static_mut_access(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "static mut g : int = 7\npublic func main() : int {\n    return g\n}\n"
+    expect_compile_error(env, "static_mut_access", ch, "SAFE-GLOBAL-001")
+}
+
+@test
+func static_immutable_access_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "static g : int = 7\npublic func main() : int {\n    return g\n}\n"
+    expect_compile_success(env, "static_immutable_access", ch)
+}
+
+@test
+func neg_static_non_sync(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "static g : *int = null\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error(env, "static_non_sync", ch, "SAFE-GLOBAL-002")
+}

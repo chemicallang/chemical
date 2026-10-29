@@ -60,7 +60,7 @@ struct MIRRegionSignature {
      * parameters and for aggregates without lifetime-parameterised fields.
      */
     std::vector<std::vector<MIRParamFieldRegion>> param_field_regions;
-    /** HRTB binders (`for<'a> Fn(...)`); the parser/encoding step is pending. */
+    /** HRTB binders recorded for a declaration's own lifetime parameters. */
     std::vector<MIRRegionId> hrtb_binders;
 
     bool has_regions() const {

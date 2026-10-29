@@ -761,6 +761,21 @@
 > even when the field is reached through an address. Runtime tests cover the
 > destructor order for direct and aggregate borrows; negative tests cover both
 > non-extending forms. Safety suite `54`; negative tests `581`.
+> S4.2 higher-ranked function types: `for<'a, 'b> (x : &'a T) => R` parses into
+> `FunctionType::binder_lifetimes`; the binders are in scope only inside that
+> function type, duplicates are rejected, and `SAFE-BORROW-099` rejects an
+> unknown/nested use. Function-type satisfaction treats an elided or generic
+> source lifetime as instantiating the target binder, but rejects a concrete
+> `'static`/outer lifetime (it is more restrictive than `for<'a>`). A
+> lifetime-only generic function used as a value (`func <'a> read(x : &'a T)`)
+> is instantiated once and can be passed to a higher-ranked callback.
+> `MIRRegionSignature::hrtb_binders` records a declaration's own lifetime
+> parameters, and `MIRDump` prints them.
+> **Supported HRTB subset:** read-only callbacks with at most one direct
+> shared borrowed parameter and no borrowed result. Mutable parameters,
+> multiple borrows, and borrowed returns require full region inference and are
+> rejected with `SAFE-BORROW-099`; this is deliberate, never silently accepted.
+> Safety suite `55`; negative tests `588`; `MIRTests` `4641 checks`.
 > M5.5b float→int: every `as` cast from float/double to an integer width now
 > lowers to explicit blocks that map NaN to zero and saturate values below the
 > destination minimum / above its maximum, instead of C/LLVM out-of-range
@@ -956,17 +971,19 @@
 > fails rather than silently dropping the sanitizer. Guard-transfer negative
 > tests cover `MutexGuard` and `RwLockWriteGuard`.
 > Next in M6: erased/async `Send` and remaining guard/auto-trait audit.
-> Next in M4: HRTB/region inference, dropck/async/Pin precision, and the
-> temporary-lifetime edge cases beyond variable initializers.
-> Scoped threads are blocked on M4 HRTB/region support: without a
-> higher-ranked scope lifetime, a body-local reference could outlive the join
-> that is supposed to protect it. The current safe API therefore requires
-> `'static` values only; capturing closures and non-`'static` scoped borrows stay
-> on the explicit unsafe path. Then remaining M5 validity (packed references),
-> M2 C ABI, and the variance/HRTB/temporary-lifetime precision items.
-> Safety suite `54`; negative tests `581`; main TCC `2354`, LLVM `2352`;
+> Next in M4: full HRTB region inference for mutable/returning callbacks,
+> dropck/async/Pin precision, and temporary-lifetime edge cases beyond variable
+> initializers.
+> Scoped threads are blocked on full M4 HRTB/region inference for
+> capturing/multi-borrow callbacks: without a higher-ranked scope lifetime, a
+> body-local reference could outlive the join that is supposed to protect it.
+> The current safe API therefore requires `'static` values only; capturing
+> closures and non-`'static` scoped borrows stay on the explicit unsafe path.
+> Then remaining M5 validity (packed references), M2 C ABI, and the
+> variance/HRTB/temporary-lifetime precision items.
+> Safety suite `55`; negative tests `588`; main TCC `2354`, LLVM `2352`;
 > libs `726`; plugins `1305`; async `53`; interpret `1910`;
-> `MIRTests` `4638 checks`.
+> `MIRTests` `4641 checks`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >
@@ -1169,7 +1186,7 @@ but keep aliasing/race checks. GC is a later mode.
 | Thread safety | No model | Raw pthread/OS wrappers, atomics, `std::concurrent`; no `Send`/`Sync`. |
 | Trait objects | Partial | Basic dynamic dispatch works; lifetimes/coercion of `dyn` unmodelled. |
 | Slices/unsized | Absent | Arrays/raw pointers only. |
-| Tuples/const generics/associated types/impl Trait/HRTB | Absent | Required for full parity. |
+| Tuples/const generics/associated types/impl Trait/HRTB | Partial | HRTB read-only single-borrow function types are implemented; tuples/const generics/GATs/impl Trait remain absent for full parity. |
 | `&str`/UTF-8 | Absent | `string`/`string_view` are byte containers. |
 | Async | Shipped | Self-referential frames; no `Pin`; `FutureHandle<T>` erases borrows. |
 | Derive macros | Absent | CBI macros exist; no built-in derive. |
@@ -1586,6 +1603,9 @@ passes.
   `--safety-report=json`; never flood the 16 KB negative buffer.
 - `SAFE-LIFE-004`: a type does not satisfy a `'static` generic bound (for
   example, a stack reference submitted to a thread).
+- `SAFE-BORROW-099`: an unsupported or unproven borrow/lifetime pattern. The
+  current HRTB subset uses it for mutable/multiple/returning higher-ranked
+  callbacks until full region inference lands.
 - IDs: `SAFE-OWN-*`, `SAFE-BORROW-*`, `SAFE-LIFE-*`, `SAFE-INIT-*`,
   `SAFE-VALID-*`, `SAFE-BOUNDS-*`, `SAFE-OVERFLOW-*`, `SAFE-SEND-*`,
   `SAFE-UNSAFE-*`, `SAFE-FFI-*`, `SAFE-ASYNC-*`, `SAFE-DEP-*`.
@@ -2545,4 +2565,5 @@ Panic always aborts; there is no unwinding runtime, `catch_unwind`,
 drop-on-unwind, or `UnwindSafe` surface. M6 has started with a safe
 non-capturing `std::thread.spawn`/`spawn_void`, `JoinHandle`, `Send + 'static`
 enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send` remain.*
-*Revision note v4.3 (2026-10-29): S4.2/S1.2 temporary lifetime extension is implemented for variable initializers, including aggregate fields; statement-scoped temporaries now end their storage and are rejected when borrowed past the statement. HRTB/regions, dropck/async/Pin precision, scoped threads, and erased/async `Send` remain.*
+*Revision note v4.3 (2026-10-29): S4.2/S1.2 temporary lifetime extension is implemented for variable initializers, including aggregate fields; statement-scoped temporaries now end their storage and are rejected when borrowed past the statement.*
+*Revision note v4.4 (2026-10-29): S4.2 higher-ranked function types are implemented for read-only callbacks: `for<'a>` parsing, binder scope, elided/generic source compatibility, lifetime-only generic function values, and `MIRRegionSignature::hrtb_binders`. Mutable/multiple/returning higher-ranked callbacks are rejected with `SAFE-BORROW-099` until full region inference; dropck/async/Pin, scoped threads, and erased/async `Send` remain.*

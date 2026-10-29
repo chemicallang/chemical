@@ -2408,6 +2408,10 @@ static bool test_region_signature() {
     CHECK(sig.outlives[0].first == 1 && sig.outlives[0].second == 2);
     CHECK(sig.outlives[1].first == 2 && sig.outlives[1].second == 0);
     CHECK(sig.param_field_regions.empty());
+    // HRTB binders are encoded alongside the declared regions.
+    sig.hrtb_binders.push_back(1);
+    CHECK(sig.has_regions());
+    CHECK(sig.hrtb_binders.size() == 1 && sig.hrtb_binders[0] == 1);
     // S4.2b: aggregate-parameter field regions are an ordinary appended fact.
     MIRRegionSignature field_sig;
     field_sig.param_field_regions.resize(1);
@@ -2436,6 +2440,7 @@ static bool test_region_signature() {
     CHECK(dump.find("; regions: decls=2 ret=1") != std::string::npos);
     CHECK(dump.find("params=[1,2,-,elided,static]") != std::string::npos);
     CHECK(dump.find("outlives=[1:2,2:0]") != std::string::npos);
+    CHECK(dump.find("hrtb=[1]") != std::string::npos);
     return true;
 }
 

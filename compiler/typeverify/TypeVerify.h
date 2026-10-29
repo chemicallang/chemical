@@ -125,6 +125,7 @@ public:
     void VisitReturnStmt(ReturnStatement *stmt);
 
     void VisitFunctionDecl(FunctionDeclaration *decl);
+    void VisitFunctionType(FunctionType* type);
     void VisitReferenceType(ReferenceType* type);
 
     void VisitDeleteStmt(DestructStmt* stmt);

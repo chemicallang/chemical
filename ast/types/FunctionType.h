@@ -63,6 +63,14 @@ public:
 
     std::vector<FunctionParam*> params;
     TypeLoc returnType = nullptr;
+    /**
+     * Higher-ranked lifetime binders for a function *type*:
+     * `for<'a, 'b> (x : &'a T) => R`. The names are in scope only inside this
+     * function type; an empty list is an ordinary function type. Function
+     * declarations with lifetime parameters (`func <'a> f`) are also
+     * higher-ranked when used as values, via their generic parent.
+     */
+    std::vector<chem::string_view> binder_lifetimes;
     // if the function is variadic, the last type in params is the type given to the variadic parameter
     /**
      * function type data
@@ -120,6 +128,11 @@ public:
         data.isCapturing = capturing;
     }
 
+    [[nodiscard]]
+    inline bool is_higher_ranked() const {
+        return !binder_lifetimes.empty();
+    }
+
     inline void setIsVariadic(bool variadic) {
         data.isVariadic = variadic;
     }
@@ -156,6 +169,7 @@ public:
         other.params = params;
         other.returnType = returnType;
         other.data = data;
+        other.binder_lifetimes = binder_lifetimes;
     }
 
     /**
@@ -170,6 +184,7 @@ public:
         }
         other.returnType = returnType.copy(allocator);
         other.data = data;
+        other.binder_lifetimes = binder_lifetimes;
     }
 
     /**

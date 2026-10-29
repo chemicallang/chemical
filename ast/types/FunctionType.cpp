@@ -7,6 +7,11 @@
 #include "ast/values/VariableIdentifier.h"
 #include "ast/types/VoidType.h"
 #include "ast/types/CapturingFunctionType.h"
+#include "ast/types/ArrayType.h"
+#include "ast/types/PointerType.h"
+#include "ast/types/ReferenceType.h"
+#include "ast/types/GenericType.h"
+#include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/GenericStructDecl.h"
@@ -14,12 +19,150 @@
 #include "ast/structures/GenericVariantDecl.h"
 #include "compiler/ASTDiagnoser.h"
 
+namespace {
+
+chem::string_view bare_lifetime(chem::string_view name) {
+    if (!name.empty() && name.front() == '\'') {
+        return chem::string_view(name.data() + 1, name.size() - 1);
+    }
+    return name;
+}
+
+bool is_binder(chem::string_view name,
+               const std::vector<chem::string_view>& binders) {
+    const auto bare = bare_lifetime(name);
+    for (const auto binder : binders) {
+        if (bare_lifetime(binder) == bare) return true;
+    }
+    return false;
+}
+
+std::vector<chem::string_view> effective_binders(FunctionType* type) {
+    if (!type->binder_lifetimes.empty()) return type->binder_lifetimes;
+    auto* decl = type->as_function();
+    if (decl != nullptr && decl->generic_parent != nullptr) {
+        return decl->generic_parent->lifetime_params;
+    }
+    return {};
+}
+
+/**
+ * Can a reference with `source` lifetime satisfy a reference with `target`
+ * lifetime? A bound or elided source lifetime is generic and can be
+ * instantiated at the target binder. A `'static` source cannot: it is more
+ * restrictive than `for<'a>`.
+ */
+bool hrtb_lifetime_compatible(
+        chem::string_view source,
+        chem::string_view target,
+        const std::vector<chem::string_view>& source_binders,
+        const std::vector<chem::string_view>& target_binders) {
+    const auto s = bare_lifetime(source);
+    const auto t = bare_lifetime(target);
+    if (t.empty() || t == "elided" || t == "self") return true;
+    if (t == "static") {
+        // A generic/elided source can accept the static requirement.
+        return s.empty() || s == "elided" || s == "self" ||
+               s == "static" || is_binder(s, source_binders);
+    }
+    if (is_binder(t, target_binders)) {
+        if (s == "static") return false;
+        return s.empty() || s == "elided" || s == "self" ||
+               is_binder(s, source_binders);
+    }
+    return s == t;
+}
+
+bool hrtb_types_compatible(
+        BaseType* source,
+        BaseType* target,
+        const std::vector<chem::string_view>& source_binders,
+        const std::vector<chem::string_view>& target_binders) {
+    if (source == nullptr || target == nullptr) return source == target;
+    if (source->kind() != target->kind()) return false;
+    switch (source->kind()) {
+        case BaseTypeKind::Reference: {
+            auto* s = source->as_reference_type_unsafe();
+            auto* t = target->as_reference_type_unsafe();
+            if (s->is_mutable != t->is_mutable) return false;
+            if (!hrtb_lifetime_compatible(s->lifetime, t->lifetime,
+                                          source_binders, target_binders)) {
+                return false;
+            }
+            return hrtb_types_compatible(s->type, t->type,
+                                         source_binders, target_binders);
+        }
+        case BaseTypeKind::Pointer: {
+            auto* s = source->as_pointer_type_unsafe();
+            auto* t = target->as_pointer_type_unsafe();
+            if (s->is_mutable != t->is_mutable) return false;
+            return hrtb_types_compatible(s->type, t->type,
+                                         source_binders, target_binders);
+        }
+        case BaseTypeKind::Array: {
+            auto* s = source->as_array_type_unsafe();
+            auto* t = target->as_array_type_unsafe();
+            return hrtb_types_compatible(s->elem_type, t->elem_type,
+                                         source_binders, target_binders);
+        }
+        case BaseTypeKind::Generic: {
+            auto* s = source->as_generic_type_unsafe();
+            auto* t = target->as_generic_type_unsafe();
+            if (s->lifetime_args.size() != t->lifetime_args.size()) return false;
+            for (size_t i = 0; i < s->lifetime_args.size(); ++i) {
+                if (!hrtb_lifetime_compatible(s->lifetime_args[i],
+                                              t->lifetime_args[i],
+                                              source_binders, target_binders)) {
+                    return false;
+                }
+            }
+            if (s->types.size() != t->types.size()) return false;
+            for (size_t i = 0; i < s->types.size(); ++i) {
+                if (!hrtb_types_compatible(s->types[i], t->types[i],
+                                           source_binders, target_binders)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        case BaseTypeKind::Function: {
+            auto* s = source->as_function_type_unsafe();
+            auto* t = target->as_function_type_unsafe();
+            // Nested higher-ranked function types need their own binder
+            // environment; keep the conservative boundary rather than
+            // accepting a pattern whose regions are not modeled.
+            if (!s->binder_lifetimes.empty() || !t->binder_lifetimes.empty()) {
+                return false;
+            }
+            if (s->params.size() != t->params.size()) return false;
+            for (size_t i = 0; i < s->params.size(); ++i) {
+                if (s->params[i] == nullptr || t->params[i] == nullptr) {
+                    if (s->params[i] != t->params[i]) return false;
+                    continue;
+                }
+                if (!hrtb_types_compatible(s->params[i]->type, t->params[i]->type,
+                                           source_binders, target_binders)) {
+                    return false;
+                }
+            }
+            return hrtb_types_compatible(s->returnType, t->returnType,
+                                         source_binders, target_binders);
+        }
+        default:
+            return source->is_same(target);
+    }
+}
+
+} // namespace
+
 bool CapturingFunctionType::satisfies(BaseType *type) {
     switch(type->kind()) {
         case BaseTypeKind::Function:
-            return func_type->satisfies(type->as_function_type_unsafe());
+            // `satisfies` is evaluated on the target with the source as the
+            // argument; preserve that direction for higher-ranked targets.
+            return type->as_function_type_unsafe()->satisfies(func_type);
         case BaseTypeKind::CapturingFunction:
-            return func_type->satisfies(type->as_capturing_func_type_unsafe()->func_type);
+            return type->as_capturing_func_type_unsafe()->func_type->satisfies(func_type);
         default:
             return false;
     }
@@ -31,7 +174,29 @@ bool FunctionType::satisfies(BaseType *type) {
             return true;
         case BaseTypeKind::Function: {
             const auto func = type->as_function_type_unsafe();
-            return equal_type(func);
+            if (!equal_type(func)) return false;
+            // `satisfies` is called on the *target* type with the source as the
+            // argument. An ordinary target accepts a higher-ranked source (the
+            // source is more general), but a higher-ranked target needs a
+            // source that can be instantiated at its binder.
+            if (binder_lifetimes.empty()) return true;
+            const auto source_binders = effective_binders(func);
+            if (params.size() != func->params.size()) return false;
+            for (size_t i = 0; i < params.size(); ++i) {
+                if (params[i] == nullptr || func->params[i] == nullptr) {
+                    if (params[i] != func->params[i]) return false;
+                    continue;
+                }
+                if (!hrtb_types_compatible(func->params[i]->type,
+                                           params[i]->type,
+                                           source_binders,
+                                           binder_lifetimes)) {
+                    return false;
+                }
+            }
+            return hrtb_types_compatible(func->returnType, returnType,
+                                         source_binders,
+                                         binder_lifetimes);
         }
         default:
             return false;
@@ -171,6 +336,7 @@ bool FunctionType::equal(FunctionType *other) const {
 FunctionType *FunctionType::copy(ASTAllocator& allocator) {
     const auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(returnType.copy(allocator), isExtensionFn(), isVariadic(), isCapturing(), data.signature_resolved);
     func_type->data = data;
+    func_type->binder_lifetimes = binder_lifetimes;
     for (auto &param: params) {
         func_type->params.emplace_back(param->copy(allocator));
     }

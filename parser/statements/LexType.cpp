@@ -468,6 +468,50 @@ TypeLoc Parser::parseTypeLocNoPostOps(ASTAllocator& allocator) {
             }
             return { type, loc_single(unsafeToken) };
         }
+        case TokenType::ForKw: {
+            // Higher-ranked function type: `for<'a, 'b> (x : &'a T) => R`.
+            // The binders are in scope only in this function type.
+            const auto forToken = token;
+            token++;
+            if (!consumeToken(TokenType::LessThanSym)) {
+                error("expected '<' after 'for' in a higher-ranked function type");
+                return getErroredType(allocator);
+            }
+            std::vector<chem::string_view> binders;
+            while (token->type == TokenType::Lifetime) {
+                const auto name = allocate_view(allocator, token->value);
+                for (const auto existing : binders) {
+                    if (existing == name) {
+                        error("duplicate higher-ranked lifetime parameter");
+                        break;
+                    }
+                }
+                binders.emplace_back(name);
+                token++;
+                if (!consumeToken(TokenType::CommaSym)) break;
+            }
+            if (binders.empty()) {
+                error("expected at least one lifetime parameter after 'for<'");
+                return getErroredType(allocator);
+            }
+            if (!consumeGenericClose()) {
+                unexpected_error("expected '>' after higher-ranked lifetime parameters");
+                return getErroredType(allocator);
+            }
+            if (token->type != TokenType::LParen) {
+                error("expected a function type after the higher-ranked lifetime parameters");
+                return getErroredType(allocator);
+            }
+            TypeLoc fn = parseLambdaTypeLoc(allocator, false);
+            if (!fn || fn.getType() == nullptr ||
+                fn.getType()->kind() != BaseTypeKind::Function) {
+                error("expected a function type after the higher-ranked lifetime parameters");
+                return getErroredType(allocator);
+            }
+            auto* func = const_cast<BaseType*>(fn.getType())->as_function_type();
+            func->binder_lifetimes = std::move(binders);
+            return { func, loc_single(forToken) };
+        }
         case TokenType::StructKw:
             return parseStructTypeLoc(allocator);
         case TokenType::UnionKw:

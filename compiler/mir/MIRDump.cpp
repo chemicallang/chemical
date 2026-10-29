@@ -111,6 +111,14 @@ void dump_function(const MIRFunction& function, const MIRModule& module,
                 }
                 out << "]";
             }
+            if (!rs.hrtb_binders.empty()) {
+                out << " hrtb=[";
+                for (size_t i = 0; i < rs.hrtb_binders.size(); ++i) {
+                    if (i) out << ",";
+                    out << rs.hrtb_binders[i];
+                }
+                out << "]";
+            }
             out << "\n";
         }
     }

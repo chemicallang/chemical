@@ -714,8 +714,26 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
     }
     const auto linked = tld_find(value);
     if(linked) {
-        identifier->linked = linked;
-        identifier->setType(linked->known_type());
+        ASTNode* resolved = linked;
+        // A generic function with only lifetime parameters has no type
+        // arguments to infer. Using it as a value (`apply(read_gen, &x)`) still
+        // needs a concrete declaration to emit; instantiate its single
+        // higher-ranked shape now.
+        if (linked->kind() == ASTNodeKind::GenericFuncDecl) {
+            auto* gen = linked->as_gen_func_decl_unsafe();
+            if (gen->generic_params.empty()) {
+                std::vector<TypeLoc> generic_args;
+                auto* concrete = gen->register_generic_args(
+                    generic_instantiator,
+                    generic_args,
+                    identifier->encoded_location(),
+                    InstantiationRequirement::SignatureFinalization
+                );
+                if (concrete != nullptr) resolved = concrete;
+            }
+        }
+        identifier->linked = resolved;
+        identifier->setType(resolved->known_type());
         check_unsafe_member_access(identifier->linked, identifier);
         identifier->process_linked(&diagnoser, current_func_type);
         return;

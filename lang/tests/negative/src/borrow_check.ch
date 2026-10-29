@@ -334,3 +334,64 @@ func neg_temporary_not_extended_through_assignment(env : &mut TestEnv) {
     var ch = "struct D {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nstruct H {\n    var r : &D\n}\nfunc make() : D { return D { x : 7 } }\npublic func main() : int {\n    var d = make()\n    var h = H { r : &d }\n    h = H { r : &make() }\n    return h.r.x\n}\n"
     expect_compile_error(env, "temporary_assignment_not_extended", ch, "SAFE-LIFE-002")
 }
+
+@test
+func hrtb_elided_source_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A function with an elided reference lifetime is generic over that
+    // lifetime and satisfies `for<'a>`.
+    var ch = "func read_int(x : &int) : int { return *x }\nfunc apply(f : for<'a> (v : &'a int) => int, x : &int) : int {\n    return f(x)\n}\npublic func main() : int {\n    var x = 41\n    if(apply(read_int, &x) != 41) { return 1 }\n    return 0\n}\n"
+    expect_compile_success(env, "hrtb_elided_source", ch)
+}
+
+@test
+func neg_hrtb_static_source_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // `&'static int` is more restrictive than `for<'a> &'a int`; accepting it
+    // would let the callee demand static storage from a short-lived argument.
+    var ch = "func read_static(x : &'static int) : int { return *x }\nfunc apply(f : for<'a> (v : &'a int) => int, x : &int) : int {\n    return f(x)\n}\npublic func main() : int {\n    var x = 41\n    return apply(read_static, &x)\n}\n"
+    expect_compile_error(env, "hrtb_static_source", ch, "SAFE-BORROW-099")
+}
+
+@test
+func neg_hrtb_mutable_parameter_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Mutable borrowed inputs can be stored through another caller-owned
+    // reference; without full region inference this must be rejected.
+    var ch = "func touch(v : &mut int) { *v = *v + 1 }\nfunc apply(f : for<'a> (v : &'a mut int) => void, x : &mut int) {\n    f(x)\n}\npublic func main() : int {\n    var x = 1\n    apply(touch, &mut x)\n    return x\n}\n"
+    expect_compile_error(env, "hrtb_mutable_param", ch, "SAFE-BORROW-099")
+}
+
+@test
+func neg_hrtb_borrowed_return_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Returning a borrow tied to the higher-ranked input needs the caller's
+    // region for the result; that inference is not implemented yet.
+    var ch = "func first_int(x : &int) : &int { return x }\nfunc apply(f : for<'a> (v : &'a int) => &'a int, x : &int) : &int {\n    return f(x)\n}\npublic func main() : int {\n    var x = 41\n    return *apply(first_int, &x)\n}\n"
+    expect_compile_error(env, "hrtb_borrowed_return", ch, "SAFE-BORROW-099")
+}
+
+@test
+func neg_hrtb_multiple_references_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Two higher-ranked borrows could be stored into one another; full region
+    // constraints are required before accepting them.
+    var ch = "func sum2(a : &int, b : &int) : int { return *a + *b }\nfunc apply(f : for<'a> (x : &'a int, y : &'a int) => int, a : &int, b : &int) : int {\n    return f(a, b)\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    return apply(sum2, &a, &b)\n}\n"
+    expect_compile_error(env, "hrtb_multiple_refs", ch, "SAFE-BORROW-099")
+}
+
+@test
+func neg_hrtb_duplicate_binder_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func main() : int {\n    var f : for<'a, 'a> (v : &'a int) => int = null\n    return 0\n}\n"
+    expect_compile_error(env, "hrtb_duplicate_binder", ch, "duplicate higher-ranked lifetime parameter")
+}
+
+@test
+func neg_hrtb_binder_does_not_leak(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // `'a` is bound only by the function type; it must not be usable in the
+    // enclosing function body.
+    var ch = "func apply(f : for<'a> (v : &'a int) => int) : int {\n    var r : &'a int = null\n    return 0\n}\npublic func main() : int {\n    return apply(null)\n}\n"
+    expect_compile_error(env, "hrtb_binder_leak", ch, "unknown lifetime parameter 'a'")
+}

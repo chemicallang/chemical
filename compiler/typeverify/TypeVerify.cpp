@@ -1,6 +1,7 @@
 
 #include "TypeVerify.h"
 #include "TypeVerifyAPI.h"
+#include <algorithm>
 #include <unordered_set>
 #include "ast/values/FunctionCall.h"
 #include "ast/values/IntNumValue.h"
@@ -353,6 +354,13 @@ void unsatisfied_type_err(ASTDiagnoser& diagnoser, Value* value, BaseType* type)
                 << "cannot coerce an unsafe function pointer to a safe function type; "
                    "declare the target with an `unsafe (...)` function type or wrap "
                    "the operation in an unsafe boundary";
+            return;
+        }
+        if (expected_fn != nullptr && !expected_fn->binder_lifetimes.empty()) {
+            diagnoser.error(value).with_code("SAFE-BORROW-099")
+                << "function value does not satisfy the higher-ranked lifetime contract of type '"
+                << type->representation()
+                << "'; an elided or generic lifetime is required, not a concrete one";
             return;
         }
         diagnoser.error(value) << "value with type '" << val_type->representation() << "' does not satisfy type '" << type->representation() << "'";
@@ -2601,32 +2609,34 @@ void TypeVerifier::VisitDeleteStmt(DestructStmt* node) {
     }
 }
 
-static void collect_reference_types(BaseType* type, std::vector<ReferenceType*>& refs) {
+static void collect_reference_types(BaseType* type, std::vector<ReferenceType*>& refs,
+                                    bool descend_functions = true) {
     if (type == nullptr) return;
     switch (type->kind()) {
         case BaseTypeKind::Reference: {
             auto* ref = type->as_reference_type_unsafe();
             refs.push_back(ref);
-            collect_reference_types(ref->type, refs);
+            collect_reference_types(ref->type, refs, descend_functions);
             break;
         }
         case BaseTypeKind::Pointer:
-            collect_reference_types(type->as_pointer_type_unsafe()->type, refs);
+            collect_reference_types(type->as_pointer_type_unsafe()->type, refs, descend_functions);
             break;
         case BaseTypeKind::Array:
-            collect_reference_types(type->as_array_type_unsafe()->elem_type, refs);
+            collect_reference_types(type->as_array_type_unsafe()->elem_type, refs, descend_functions);
             break;
         case BaseTypeKind::Generic: {
             auto* gen = type->as_generic_type_unsafe();
-            for (auto& arg : gen->types) collect_reference_types(arg, refs);
+            for (auto& arg : gen->types) collect_reference_types(arg, refs, descend_functions);
             break;
         }
         case BaseTypeKind::Function: {
+            if (!descend_functions) break;
             auto* fn = type->as_function_type_unsafe();
             for (auto& param : fn->params) {
-                if (param) collect_reference_types(param->type, refs);
+                if (param) collect_reference_types(param->type, refs, descend_functions);
             }
-            collect_reference_types(fn->returnType, refs);
+            collect_reference_types(fn->returnType, refs, descend_functions);
             break;
         }
         default:
@@ -2646,10 +2656,10 @@ static constexpr chem::string_view kElidedLifetime("elided");
 void apply_signature_lifetime_elision(FunctionDeclaration* decl, ASTDiagnoser& diagnoser) {
     std::vector<ReferenceType*> params;
     for (auto* param : decl->params) {
-        if (param) collect_reference_types(const_cast<BaseType*>(param->type.getType()), params);
+        if (param) collect_reference_types(const_cast<BaseType*>(param->type.getType()), params, false);
     }
     std::vector<ReferenceType*> returns;
-    collect_reference_types(const_cast<BaseType*>(decl->returnType.getType()), returns);
+    collect_reference_types(const_cast<BaseType*>(decl->returnType.getType()), returns, false);
     if (returns.empty()) return;
 
     bool has_self_ref = false;
@@ -2709,6 +2719,175 @@ static bool is_lifetime_in_scope(const std::vector<chem::string_view>& scope, co
         if(declared == lifetime) return true;
     }
     return false;
+}
+
+static chem::string_view hrtb_bare_lifetime(chem::string_view lifetime) {
+    if (!lifetime.empty() && lifetime.front() == '\'') {
+        return chem::string_view(lifetime.data() + 1, lifetime.size() - 1);
+    }
+    return lifetime;
+}
+
+static bool hrtb_is_binder(chem::string_view lifetime,
+                           const std::vector<chem::string_view>& binders) {
+    const auto bare = hrtb_bare_lifetime(lifetime);
+    for (const auto binder : binders) {
+        if (hrtb_bare_lifetime(binder) == bare) return true;
+    }
+    return false;
+}
+
+/** Does `type` mention a higher-ranked lifetime anywhere? */
+static bool hrtb_type_mentions_lifetime(
+        BaseType* type,
+        const std::vector<chem::string_view>& binders) {
+    if (type == nullptr) return false;
+    switch (type->kind()) {
+        case BaseTypeKind::Reference: {
+            auto* ref = type->as_reference_type_unsafe();
+            if (hrtb_is_binder(ref->lifetime, binders)) return true;
+            return hrtb_type_mentions_lifetime(ref->type, binders);
+        }
+        case BaseTypeKind::Pointer:
+            return hrtb_type_mentions_lifetime(
+                type->as_pointer_type_unsafe()->type, binders);
+        case BaseTypeKind::Array:
+            return hrtb_type_mentions_lifetime(
+                type->as_array_type_unsafe()->elem_type, binders);
+        case BaseTypeKind::Generic: {
+            auto* gen = type->as_generic_type_unsafe();
+            for (const auto lt : gen->lifetime_args) {
+                if (hrtb_is_binder(lt, binders)) return true;
+            }
+            for (auto& arg : gen->types) {
+                if (hrtb_type_mentions_lifetime(arg, binders)) return true;
+            }
+            return false;
+        }
+        case BaseTypeKind::Function: {
+            auto* fn = type->as_function_type_unsafe();
+            for (auto* param : fn->params) {
+                if (param && hrtb_type_mentions_lifetime(param->type, binders)) {
+                    return true;
+                }
+            }
+            return hrtb_type_mentions_lifetime(fn->returnType, binders);
+        }
+        default:
+            return false;
+    }
+}
+
+/** Would a higher-ranked return keep a borrow alive past the call? */
+static bool hrtb_return_borrows(
+        BaseType* type,
+        const std::vector<chem::string_view>& binders) {
+    if (type == nullptr) return false;
+    switch (type->kind()) {
+        case BaseTypeKind::Reference: {
+            auto* ref = type->as_reference_type_unsafe();
+            const auto bare = hrtb_bare_lifetime(ref->lifetime);
+            if (bare.empty() || bare == "elided" || bare == "self" ||
+                hrtb_is_binder(bare, binders)) {
+                return true;
+            }
+            return hrtb_return_borrows(ref->type, binders);
+        }
+        case BaseTypeKind::Pointer:
+            return hrtb_return_borrows(type->as_pointer_type_unsafe()->type, binders);
+        case BaseTypeKind::Array:
+            return hrtb_return_borrows(type->as_array_type_unsafe()->elem_type, binders);
+        case BaseTypeKind::Generic: {
+            auto* gen = type->as_generic_type_unsafe();
+            for (const auto lt : gen->lifetime_args) {
+                const auto bare = hrtb_bare_lifetime(lt);
+                if (bare.empty() || bare == "elided" || bare == "self" ||
+                    hrtb_is_binder(bare, binders)) {
+                    return true;
+                }
+            }
+            for (auto& arg : gen->types) {
+                if (hrtb_return_borrows(arg, binders)) return true;
+            }
+            return false;
+        }
+        case BaseTypeKind::Function: {
+            auto* fn = type->as_function_type_unsafe();
+            for (auto* param : fn->params) {
+                if (param && hrtb_return_borrows(param->type, binders)) return true;
+            }
+            return hrtb_return_borrows(fn->returnType, binders);
+        }
+        default:
+            return false;
+    }
+}
+
+void TypeVerifier::VisitFunctionType(FunctionType* type) {
+    const auto before = lifetime_scope.size();
+    if (type != nullptr) {
+        for (const auto binder : type->binder_lifetimes) {
+            lifetime_scope.push_back(binder);
+        }
+        if (!type->binder_lifetimes.empty()) {
+            // Region inference for a higher-ranked call is not implemented yet.
+            // Keep the supported subset sound: at most one shared borrowed
+            // parameter, and no borrowed result. A mutable input or a second
+            // reference could let the callback store one borrow in another
+            // caller-owned place, which requires full region constraints.
+            std::vector<ReferenceType*> param_refs;
+            for (auto* param : type->params) {
+                if (param != nullptr) {
+                    collect_reference_types(param->type, param_refs, false);
+                }
+            }
+            const bool unsupported_param_count = param_refs.size() > 1;
+            const bool unsupported_mutable = std::any_of(
+                param_refs.begin(), param_refs.end(),
+                [](ReferenceType* ref) { return ref->is_mutable; });
+            if (unsupported_param_count || unsupported_mutable) {
+                auto& d = diagnoser.error(current_func_type
+                                              ? current_func_type->get_location()
+                                              : SourceLocation(0));
+                d.with_code("SAFE-BORROW-099");
+                d << "higher-ranked function types currently support at most one shared reference parameter";
+            }
+            for (auto* param : type->params) {
+                if (param == nullptr) continue;
+                BaseType* pt = param->type;
+                const bool direct_binder_ref =
+                    pt != nullptr && pt->kind() == BaseTypeKind::Reference &&
+                    hrtb_is_binder(pt->as_reference_type_unsafe()->lifetime,
+                                   type->binder_lifetimes);
+                if (direct_binder_ref &&
+                    hrtb_type_mentions_lifetime(
+                        pt->as_reference_type_unsafe()->type,
+                        type->binder_lifetimes)) {
+                    auto& d = diagnoser.error(current_func_type
+                                                  ? current_func_type->get_location()
+                                                  : SourceLocation(0));
+                    d.with_code("SAFE-BORROW-099");
+                    d << "a higher-ranked reference pointee must not carry the same higher-ranked lifetime";
+                } else if (!direct_binder_ref &&
+                           hrtb_type_mentions_lifetime(pt, type->binder_lifetimes)) {
+                    auto& d = diagnoser.error(current_func_type
+                                                  ? current_func_type->get_location()
+                                                  : SourceLocation(0));
+                    d.with_code("SAFE-BORROW-099");
+                    d << "a higher-ranked parameter must be a direct shared reference; nested higher-ranked borrows require region inference";
+                }
+            }
+            if (hrtb_return_borrows(type->returnType, type->binder_lifetimes)) {
+                auto& d = diagnoser.error(current_func_type
+                                              ? current_func_type->get_location()
+                                              : SourceLocation(0));
+                d.with_code("SAFE-BORROW-099");
+                d << "a higher-ranked function type cannot return a borrowed value until HRTB region inference is implemented";
+            }
+        }
+    }
+    RecursiveVisitor::VisitFunctionType(type);
+    lifetime_scope.resize(before);
 }
 
 void TypeVerifier::VisitReferenceType(ReferenceType* type) {

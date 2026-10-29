@@ -771,3 +771,16 @@ func temporary_lifetime_extension_runs(env : &mut TestEnv) {
         env.error("temporary did not live to the end of its block")
     }
 }
+
+@test
+func higher_ranked_callback_runs(env : &mut TestEnv) {
+    safety_init_work_dir()
+    // A lifetime-generic function value is accepted by a `for<'a>` function
+    // pointer and called with a short-lived stack reference.
+    var ch = "func <'a> read_int(x : &'a int) : int { return *x }\nfunc apply(f : for<'a> (v : &'a int) => int, x : &int) : int {\n    return f(x)\n}\npublic func main() : int {\n    var x = 41\n    var f : for<'a> (v : &'a int) => int = read_int\n    if(f(&x) != 41) { return 1 }\n    if(apply(read_int, &x) != 41) { return 2 }\n    return 0\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "higher_ranked_callback", ch, &mut out)
+    if(rc != 0) {
+        env.error("higher-ranked callback did not compile and run")
+    }
+}

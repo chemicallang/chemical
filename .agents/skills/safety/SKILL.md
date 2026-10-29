@@ -275,6 +275,18 @@ Implemented:
   count as uses of the stored field loan, covering pointer-based field access.
   Runtime tests check direct and aggregate destructor order; negative tests
   cover both non-extending forms. Safety suite `54`; negative tests `581`.
+- S4.2 higher-ranked function types: `for<'a, 'b> (x : &'a T) => R` parses into
+  `FunctionType::binder_lifetimes`; binders are scoped to the function type,
+  duplicate binders are rejected, and lifetime-only generic function values
+  (`func <'a> read(x : &'a T)`) instantiate once so they can be passed to a
+  higher-ranked callback. Function-type satisfaction accepts elided/generic
+  source lifetimes and rejects concrete `'static`/outer lifetimes.
+  `MIRRegionSignature::hrtb_binders` records a declaration's own lifetime
+  parameters and `MIRDump` prints them. The supported subset is a read-only
+  callback with at most one direct shared borrowed parameter and no borrowed
+  result; mutable/multiple/returning HRTB is rejected with `SAFE-BORROW-099`
+  until full region inference. Safety suite `55`; negative tests `588`;
+  `MIRTests` `4641 checks`.
 - M5.5b float→int: `as` casts from float/double to integer widths lower to
   explicit blocks (NaN → 0, out-of-range → destination minimum/maximum) instead
   of C/LLVM `fptosi` UB. LLVM float `Ne` is `fcmp une`, matching C's
@@ -315,7 +327,7 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `54`, negative tests `581`.
+  `55`, negative tests `588`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -335,7 +347,7 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `54`, negative `581`; TCC main `2354`, LLVM
+  TCC/LLVM lib runs. Safety suite `55`, negative `588`; TCC main `2354`, LLVM
   main `2352`, libs `726`, plugins `1305`, async `53`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
@@ -489,8 +501,11 @@ Implemented:
 Next:
 
 - M6.5: erased/async `Send`. Scoped threads are
-  blocked on M4 HRTB/region support: a body-local reference must not outlive
-  the scope join, which needs a higher-ranked scope lifetime. Capturing
+  blocked on full M4 HRTB/region inference: a body-local reference must not
+  outlive the scope join, which needs a higher-ranked scope lifetime for
+  capturing/multi-borrow callbacks. Read-only single-borrow function-type HRTB
+  is implemented; mutable/returning/multi-borrow callbacks are rejected with
+  `SAFE-BORROW-099`. Capturing
   closures and non-`'static` scoped borrows remain on the explicit unsafe path.
   Then remaining M4 precision, M5 packed references, and M2 C ABI.
 - S1.2 `'static`/bounds and S1.3a `PhantomData` are done; temporary lifetime
@@ -691,6 +706,7 @@ Codes are stable and grouped by domain:
 | `SAFE-OWN-*` | moves, drops, partial moves |
 | `SAFE-BORROW-001` | overlapping live loans (at least one mutable) |
 | `SAFE-BORROW-002` | move/drop of a place while a borrow of it is live |
+| `SAFE-BORROW-099` | unsupported borrow/lifetime pattern (for example a mutable or borrowed-result HRTB callback) |
 | `SAFE-BORROW-*` | aliasing / loans |
 | `SAFE-VALID-001` | zero-initialization would create a null reference |
 | `SAFE-VALID-002` | non-bool to `bool` cast in safe code |

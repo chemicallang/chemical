@@ -1850,6 +1850,15 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
         std::string_view(return_lt.data(), return_lt.size()),
         outlives
     );
+    // A generic function's own lifetime parameters are universally quantified
+    // at every use site (the higher-ranked contract of a function value).
+    // Container lifetimes are not: they come from the enclosing instantiation.
+    if (decl->generic_parent != nullptr) {
+        const size_t own = decl->generic_parent->lifetime_params.size();
+        for (size_t i = 0; i < own && i < sig.lifetime_param_count; ++i) {
+            sig.hrtb_binders.push_back(static_cast<MIRRegionId>(i + 1));
+        }
+    }
 
     // S4.2b: an aggregate parameter can carry references in its fields. Their
     // declared lifetime is the aggregate's lifetime argument, not the

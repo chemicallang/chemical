@@ -820,6 +820,8 @@ private:
     void destroy_call_temp(Value* v, MIRExprResult r);
     /** Register a struct temporary for destruction at the end of the statement. */
     void register_stmt_temp(PlaceId place, BaseType* type);
+    /** Register a borrowed temporary as a block-local destructible (S4.2 TLE). */
+    void register_extended_temp(PlaceId place, BaseType* type);
     /** Cancel a pending statement-temp destruction (the value was moved out). */
     void cancel_stmt_temp(PlaceId place);
     /** Destroy all statement temporaries registered since `mark`. */
@@ -1236,6 +1238,18 @@ private:
     std::unordered_map<std::string, SymbolId, MIRStringHash, MIRStringEq> extern_symbols_;
     /** Struct temporaries whose destruction is deferred to the statement end. */
     std::vector<std::pair<PlaceId, BaseType*>> stmt_temps_;
+    /**
+     * Temporary lifetime extension (S4.2/S1.2). While lowering a `var`
+     * initializer `binding_init_` is true; a `&`/`&mut` operand sets
+     * `temp_extension_operand_` so a call result borrowed by that operand is
+     * registered as a block-local destructible instead of a statement temp.
+     * `extension_anchor_` is the variable being initialized, so the extended
+     * temporary is inserted before its owner in the cleanup order (the owner is
+     * created after the temporary and must drop first).
+     */
+    bool binding_init_ = false;
+    bool temp_extension_operand_ = false;
+    PlaceId extension_anchor_ = MIR_INVALID_ID;
     FunctionTypeBody* current_func_ = nullptr;
     /** The `self` parameter of the function currently being lowered (if any). */
     FunctionParam* current_self_param_ = nullptr;

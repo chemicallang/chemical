@@ -314,3 +314,23 @@ func neg_view_from_data_pointer_escapes(env : &mut TestEnv) {
     var ch = "func bad() : std::string_view {\n    var s = std::string(\"hello\")\n    return unsafe(std::string_view(s.data(), s.size()))\n}\npublic func main() : int {\n    var v = bad()\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "view_from_data_escapes", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
 }
+
+@test
+func neg_temporary_not_extended_through_call_argument(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Temporary lifetime extension applies to a borrow in the let/var
+    // initializer, not to a temporary passed as a call argument. The callee
+    // returns the reference, so it is still live when the argument temporary
+    // dies at the end of the statement.
+    var ch = "struct D {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nfunc make() : D { return D { x : 7 } }\nfunc id(p : &D) : &D { return p }\npublic func main() : int {\n    var r = id(&make())\n    return r.x\n}\n"
+    expect_compile_error(env, "temporary_call_arg_not_extended", ch, "SAFE-LIFE-002")
+}
+
+@test
+func neg_temporary_not_extended_through_assignment(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Only a variable's initializer extends a borrowed temporary. Assigning an
+    // aggregate literal later is still a statement-scoped temporary.
+    var ch = "struct D {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nstruct H {\n    var r : &D\n}\nfunc make() : D { return D { x : 7 } }\npublic func main() : int {\n    var d = make()\n    var h = H { r : &d }\n    h = H { r : &make() }\n    return h.r.x\n}\n"
+    expect_compile_error(env, "temporary_assignment_not_extended", ch, "SAFE-LIFE-002")
+}

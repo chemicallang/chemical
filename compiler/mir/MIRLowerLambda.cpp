@@ -465,6 +465,9 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     auto saved_scope_places = std::move(scope_places_);
     auto saved_call_temps = std::move(call_temps_);
     auto saved_stmt_temps = std::move(stmt_temps_);
+    const bool saved_binding_init = binding_init_;
+    const bool saved_temp_extension = temp_extension_operand_;
+    const PlaceId saved_extension_anchor = extension_anchor_;
     auto saved_pattern_bases = std::move(pattern_bases_);
     auto saved_pattern_results = std::move(pattern_results_);
     const bool saved_sret = sret_;
@@ -490,6 +493,9 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     scope_places_.clear();
     call_temps_.clear();
     stmt_temps_.clear();
+    binding_init_ = false;
+    temp_extension_operand_ = false;
+    extension_anchor_ = MIR_INVALID_ID;
     pattern_bases_.clear();
     pattern_results_.clear();
     break_targets_.clear();
@@ -582,6 +588,9 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     scope_places_ = std::move(saved_scope_places);
     call_temps_ = std::move(saved_call_temps);
     stmt_temps_ = std::move(saved_stmt_temps);
+    binding_init_ = saved_binding_init;
+    temp_extension_operand_ = saved_temp_extension;
+    extension_anchor_ = saved_extension_anchor;
     pattern_bases_ = std::move(saved_pattern_bases);
     pattern_results_ = std::move(saved_pattern_results);
     sret_ = saved_sret;
@@ -743,6 +752,9 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     auto saved_scope_places = std::move(scope_places_);
     auto saved_call_temps = std::move(call_temps_);
     auto saved_stmt_temps = std::move(stmt_temps_);
+    const bool saved_binding_init = binding_init_;
+    const bool saved_temp_extension = temp_extension_operand_;
+    const PlaceId saved_extension_anchor = extension_anchor_;
     const bool saved_sret = sret_;
     const ValueId saved_sret_ptr = sret_ptr_;
     const TypeId saved_sret_ret = sret_ret_type_;
@@ -763,6 +775,9 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     scope_places_.clear();
     call_temps_.clear();
     stmt_temps_.clear();
+    binding_init_ = false;
+    temp_extension_operand_ = false;
+    extension_anchor_ = MIR_INVALID_ID;
     pattern_bases_.clear();
     pattern_results_.clear();
     break_targets_.clear();
@@ -854,6 +869,9 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     scope_places_ = std::move(saved_scope_places);
     call_temps_ = std::move(saved_call_temps);
     stmt_temps_ = std::move(saved_stmt_temps);
+    binding_init_ = saved_binding_init;
+    temp_extension_operand_ = saved_temp_extension;
+    extension_anchor_ = saved_extension_anchor;
     sret_ = saved_sret;
     sret_ptr_ = saved_sret_ptr;
     sret_ret_type_ = saved_sret_ret;

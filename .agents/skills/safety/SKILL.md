@@ -264,6 +264,17 @@ Implemented:
   (`SAFE-BORROW-002`); a borrow that ends before the move is accepted. A view
   built from a pointer-returning method (`s.data()`) inherits the receiver's
   loan too. Negative tests `498`; async suite `53`.
+- S4.2/S1.2 temporary lifetime extension: a call result borrowed by a `var`
+  initializer is registered as a block-local destructible instead of a
+  statement temporary. The extended temporary is inserted before its owner in
+  cleanup order, so `var h = H { r : &make() }` drops `h` first and keeps the
+  temporary alive for `h`'s destructor. Extension intentionally does **not**
+  apply through call arguments or later assignments; those temporaries end at
+  the statement and `SAFE-LIFE-002` rejects a reference used after the end.
+  Statement temporaries now emit `StorageDead`, and `FieldAddr` + `Load` reads
+  count as uses of the stored field loan, covering pointer-based field access.
+  Runtime tests check direct and aggregate destructor order; negative tests
+  cover both non-extending forms. Safety suite `54`; negative tests `581`.
 - M5.5b float→int: `as` casts from float/double to integer widths lower to
   explicit blocks (NaN → 0, out-of-range → destination minimum/maximum) instead
   of C/LLVM `fptosi` UB. LLVM float `Ne` is `fcmp une`, matching C's
@@ -304,7 +315,7 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `53`, negative tests `579`.
+  `54`, negative tests `581`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -324,7 +335,7 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `53`, negative `579`; TCC main `2354`, LLVM
+  TCC/LLVM lib runs. Safety suite `54`, negative `581`; TCC main `2354`, LLVM
   main `2352`, libs `726`, plugins `1305`, async `53`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
@@ -377,7 +388,7 @@ Implemented:
   carry one explicit unsafe boundary around their raw context/job operations.
   Wrapping generic bodies exposed a missing `ValueNode::copy`, now implemented.
   In-tree stdlib/CBI/plugin/build.lab call sites were migrated; audit baseline
-  is `unsafe_blocks 573`, `unsafe_values 441`; negative `579`.
+  is `unsafe_blocks 573`, `unsafe_values 441`; negative `581`.
 - S2.2/S4.8 function pointers: `FunctionTypeData::requires_unsafe` is part of
   function type identity and is set for `unsafe func` and `@extern`. Calling a
   value of such a type in safe context is `SAFE-UNSAFE-002`; coercing it to a
@@ -446,7 +457,8 @@ Implemented:
   diagnostics render as `error[SAFE-*]`. The negative suite asserts the error
   form for alias, shared/mutable alias, move-while-borrowed, single- and
   multi-reference result loans (`460` tests).
-  Next in M4: S4.2b variance, then dropck/async/Pin and provenance.
+  S4.2b variance and temporary lifetime extension are now implemented; HRTB,
+  dropck/async/Pin precision, and remaining provenance work stay in M4.
 - S2.6d unsafe invariant constructors: `vector::set_len` and
   `default_function_instance::make2` are now `unsafe func`; the audited
   `fs::read_file` and `std::function` `make` paths wrap their calls in

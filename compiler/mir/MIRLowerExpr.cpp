@@ -1518,7 +1518,14 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     }
                 }
             }
-            return wrap_borrow(lower_address_of(r->value, error));
+            MIRExprResult address;
+            {
+                const bool saved = temp_extension_operand_;
+                temp_extension_operand_ = binding_init_;
+                address = lower_address_of(r->value, error);
+                temp_extension_operand_ = saved;
+            }
+            return wrap_borrow(address);
         }
         case ValueKind::ArrayValue: {
             auto* arr = value->as_array_value_unsafe();

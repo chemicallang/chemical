@@ -159,6 +159,9 @@ bool MIRLowerer::lower_async_function(FunctionDeclaration* decl, MIRArena& arena
     scope_places_.clear();
     call_temps_.clear();
     stmt_temps_.clear();
+    binding_init_ = false;
+    temp_extension_operand_ = false;
+    extension_anchor_ = MIR_INVALID_ID;
     pattern_bases_.clear();
     pattern_results_.clear();
     async_ = true;
@@ -548,6 +551,9 @@ bool MIRLowerer::async_lower_poll_body(FunctionDeclaration* decl, std::string& e
     scope_places_.clear();
     call_temps_.clear();
     stmt_temps_.clear();
+    binding_init_ = false;
+    temp_extension_operand_ = false;
+    extension_anchor_ = MIR_INVALID_ID;
     pattern_bases_.clear();
     pattern_results_.clear();
     async_child_places_.assign(async_plan_.sites.size(), MIR_INVALID_ID);
@@ -904,6 +910,9 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
     scope_places_.clear();
     call_temps_.clear();
     stmt_temps_.clear();
+    binding_init_ = false;
+    temp_extension_operand_ = false;
+    extension_anchor_ = MIR_INVALID_ID;
     pattern_bases_.clear();
     pattern_results_.clear();
 

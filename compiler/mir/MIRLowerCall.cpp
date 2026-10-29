@@ -102,7 +102,18 @@ bool MIRLowerer::lower_call_args_for(FunctionDeclaration* fd, bool self_included
             FunctionParam* ap = ast_fn->params[i + offset];
             param_type = ap ? ap->type : nullptr;
         }
-        MIRExprResult r = lower_arg_converted(values[i], param_type, error);
+        MIRExprResult r;
+        {
+            // A temporary passed as a call argument is not lifetime-extended;
+            // it lives only until the call returns (Rust TLE rule).
+            const bool saved_binding = binding_init_;
+            const bool saved_extension = temp_extension_operand_;
+            binding_init_ = false;
+            temp_extension_operand_ = false;
+            r = lower_arg_converted(values[i], param_type, error);
+            binding_init_ = saved_binding;
+            temp_extension_operand_ = saved_extension;
+        }
         if (!r.ok()) return false;
         // a non-pointer value passed to a reference parameter must be
         // materialized in a temporary whose address is passed
@@ -679,7 +690,61 @@ void MIRLowerer::register_stmt_temp(PlaceId place, BaseType* type) {
     for (auto& t : stmt_temps_) {
         if (t.first == place) return;
     }
+    for (const MIRDestructible& d : destructibles_) {
+        if (d.place == place) return;
+    }
+    if (temp_extension_operand_) {
+        register_extended_temp(place, type);
+        return;
+    }
     stmt_temps_.emplace_back(place, type);
+}
+
+void MIRLowerer::register_extended_temp(PlaceId place, BaseType* type) {
+    for (const MIRDestructible& d : destructibles_) {
+        if (d.place == place) return;
+    }
+    // A temp first seen outside an extending position is moved to the block
+    // cleanup list; it must not also be destroyed at the statement end.
+    for (size_t i = 0; i < stmt_temps_.size(); ++i) {
+        if (stmt_temps_[i].first == place) {
+            stmt_temps_.erase(stmt_temps_.begin() + static_cast<long>(i));
+            break;
+        }
+    }
+    const size_t before = destructibles_.size();
+    register_destructible(place, type, true);
+    if (destructibles_.size() == before) return;
+
+    // The temporary is created while evaluating the initializer, so it is
+    // dropped after the variable it initializes. Keep the cleanup vector in
+    // reverse-creation order by inserting it immediately before its owner.
+    MIRDestructible entry = std::move(destructibles_.back());
+    destructibles_.pop_back();
+    size_t at = destructibles_.size();
+    if (extension_anchor_ != MIR_INVALID_ID) {
+        for (size_t i = 0; i < destructibles_.size(); ++i) {
+            if (destructibles_[i].place == extension_anchor_) {
+                at = i;
+                break;
+            }
+        }
+    }
+    destructibles_.insert(destructibles_.begin() + static_cast<long>(at),
+                          std::move(entry));
+
+    // End the temporary's storage with the block as well (S4.4c), using the
+    // same position so the StorageDead order mirrors the cleanup order.
+    size_t sat = scope_places_.size();
+    if (extension_anchor_ != MIR_INVALID_ID) {
+        for (size_t i = 0; i < scope_places_.size(); ++i) {
+            if (scope_places_[i] == extension_anchor_) {
+                sat = i;
+                break;
+            }
+        }
+    }
+    scope_places_.insert(scope_places_.begin() + static_cast<long>(sat), place);
 }
 
 void MIRLowerer::cancel_stmt_temp(PlaceId place) {
@@ -696,6 +761,10 @@ void MIRLowerer::flush_stmt_temps(size_t mark) {
         const SymbolId dtor = destructor_symbol(stmt_temps_[i].second);
         if (dtor == MIR_INVALID_ID) continue;
         builder_->destroy(stmt_temps_[i].first, dtor);
+        // The temporary's storage ends with the statement. This is what lets
+        // SAFE-LIFE-002 reject a reference that outlives a non-extended
+        // temporary (`f(&make())` used after the call).
+        builder_->storage_dead(stmt_temps_[i].first);
     }
     stmt_temps_.resize(mark);
 }

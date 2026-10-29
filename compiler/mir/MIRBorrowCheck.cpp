@@ -1638,6 +1638,31 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     }
                 }
             }
+            // Taking the address of a reference field (`h.r`, `self.r`) reads
+            // the loan stored in that field. The subsequent Load is through a
+            // pointer value, so the place+constant Load case above does not see
+            // it.
+            if ((inst.opcode() == MIROpcode::FieldAddr ||
+                 inst.opcode() == MIROpcode::IndexAddr) &&
+                ops != nullptr && inst.operand_count >= 2 &&
+                ops[1].kind() == MIROperandKind::Constant) {
+                PlaceId root = MIR_INVALID_ID;
+                if (ops[0].kind() == MIROperandKind::Place) {
+                    root = ops[0].id;
+                } else if (ops[0].kind() == MIROperandKind::Value) {
+                    const auto at = address_targets.find(ops[0].id);
+                    if (at != address_targets.end() && at->second.known) {
+                        root = at->second.root;
+                    }
+                }
+                if (root != MIR_INVALID_ID) {
+                    const auto fit = field_loans.find(field_key(root, ops[1].id));
+                    if (fit != field_loans.end() && fit->second < nloans &&
+                        !defined_in_block[fit->second]) {
+                        block_use[b][fit->second] = true;
+                    }
+                }
+            }
             // Definitions kill liveness before them; record after the uses.
             if ((inst.opcode() == MIROpcode::Borrow ||
                  inst.opcode() == MIROpcode::BorrowMut) &&
@@ -1879,6 +1904,27 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 }
                 if (inst.operand_count >= 2 && ops[1].kind() == MIROperandKind::Constant) {
                     const auto fit = field_loans.find(field_key(ops[0].id, ops[1].id));
+                    if (fit != field_loans.end() && fit->second < nloans) {
+                        live[fit->second] = true;
+                    }
+                }
+            }
+            // Address of a reference field: the field loan is live from here.
+            if ((inst.opcode() == MIROpcode::FieldAddr ||
+                 inst.opcode() == MIROpcode::IndexAddr) &&
+                ops != nullptr && inst.operand_count >= 2 &&
+                ops[1].kind() == MIROperandKind::Constant) {
+                PlaceId root = MIR_INVALID_ID;
+                if (ops[0].kind() == MIROperandKind::Place) {
+                    root = ops[0].id;
+                } else if (ops[0].kind() == MIROperandKind::Value) {
+                    const auto at = address_targets.find(ops[0].id);
+                    if (at != address_targets.end() && at->second.known) {
+                        root = at->second.root;
+                    }
+                }
+                if (root != MIR_INVALID_ID) {
+                    const auto fit = field_loans.find(field_key(root, ops[1].id));
                     if (fit != field_loans.end() && fit->second < nloans) {
                         live[fit->second] = true;
                     }

@@ -131,16 +131,17 @@
 > - Still pending in S1.1: enforcement of outlives constraints in the borrow
 >   checker. Lifetimes are resolved/elided for declaration validity but not yet
 >   related by region constraints.
-> - S1.2 temporary lifetime extension is deferred to M4, where regions and
->   destruction points exist; it cannot be verified before the borrow checker.
+> - S1.2 temporary lifetime extension was deferred to M4, where regions and
+>   destruction points exist; the initializer form is implemented there (see
+>   the S4.2/S1.2 status below).
 > - S1.3a `std::PhantomData<T>`: added as a zero-sized marker and verified as a
 >   field type (`std::PhantomData<&'a T>`) in a lifetime-generic struct,
 >   including explicit `PhantomData<&'static int> {}` construction. The parser
 >   now handles a lifetime inside a reference type in `isGenericEndAhead`, so
 >   `View<&'a T>`-style generic arguments are recognized.
-> - S1.3b variance analysis is deferred to the region/borrow-checker work in
->   M4; without regions there is no consumer for inferred variance. The
->   `PhantomData` representation it depends on is in place.
+> - S1.3b variance analysis moved to the region/borrow-checker work in M4 and is
+>   implemented there as S4.2b; the `PhantomData` representation it depends on
+>   is in place.
 >
 > - S1.4a opt-in `Copy` enforced: user-defined types no longer count as
 >   `Copy` merely because they lack a destructor. Primitive types, pointers,
@@ -746,6 +747,20 @@
 > that ends before the move is accepted. A view built from a pointer-returning
 > method (`s.data()`) inherits the receiver's loan too. `MIRTests` is `4638
 > checks`; negative tests `498`; async suite `53`.
+> S4.2/S1.2 temporary lifetime extension: a call result borrowed by a `var`
+> initializer (`var r = &make()`, `var h = H { r : &make() }`) is now a
+> block-local destructible rather than a statement temporary. The extended
+> temporary is inserted before its owner in the cleanup order, so the owner
+> drops first and the temporary stays alive until the owner is gone.
+> Extension does **not** apply through call arguments or later assignments:
+> those temporaries are destroyed at the end of the statement, and statement
+> temporaries now emit `StorageDead`, so `SAFE-LIFE-002` rejects a reference
+> that outlives one (`f(&make())` used later, or an aggregate assigned a
+> reference to `&make()`). Reading a reference field through `FieldAddr` +
+> `Load` now counts as a use of the field's loan, so the escape is detected
+> even when the field is reached through an address. Runtime tests cover the
+> destructor order for direct and aggregate borrows; negative tests cover both
+> non-extending forms. Safety suite `54`; negative tests `581`.
 > M5.5b float→int: every `as` cast from float/double to an integer width now
 > lowers to explicit blocks that map NaN to zero and saturate values below the
 > destination minimum / above its maximum, instead of C/LLVM out-of-range
@@ -941,13 +956,15 @@
 > fails rather than silently dropping the sanitizer. Guard-transfer negative
 > tests cover `MutexGuard` and `RwLockWriteGuard`.
 > Next in M6: erased/async `Send` and remaining guard/auto-trait audit.
+> Next in M4: HRTB/region inference, dropck/async/Pin precision, and the
+> temporary-lifetime edge cases beyond variable initializers.
 > Scoped threads are blocked on M4 HRTB/region support: without a
 > higher-ranked scope lifetime, a body-local reference could outlive the join
 > that is supposed to protect it. The current safe API therefore requires
 > `'static` values only; capturing closures and non-`'static` scoped borrows stay
 > on the explicit unsafe path. Then remaining M5 validity (packed references),
 > M2 C ABI, and the variance/HRTB/temporary-lifetime precision items.
-> Safety suite `53`; negative tests `579`; main TCC `2354`, LLVM `2352`;
+> Safety suite `54`; negative tests `581`; main TCC `2354`, LLVM `2352`;
 > libs `726`; plugins `1305`; async `53`; interpret `1910`;
 > `MIRTests` `4638 checks`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
@@ -2528,3 +2545,4 @@ Panic always aborts; there is no unwinding runtime, `catch_unwind`,
 drop-on-unwind, or `UnwindSafe` surface. M6 has started with a safe
 non-capturing `std::thread.spawn`/`spawn_void`, `JoinHandle`, `Send + 'static`
 enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send` remain.*
+*Revision note v4.3 (2026-10-29): S4.2/S1.2 temporary lifetime extension is implemented for variable initializers, including aggregate fields; statement-scoped temporaries now end their storage and are rejected when borrowed past the statement. HRTB/regions, dropck/async/Pin precision, scoped threads, and erased/async `Send` remain.*

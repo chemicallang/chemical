@@ -127,9 +127,25 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 }
                 // convert to the declared type first (implicit constructors, e.g.
                 // `var s : std::string = \`...\``)
-                MIRExprResult r = vi->known_type()
-                                      ? lower_arg_converted(vi->value, vi->known_type(), error)
-                                      : lower_expr(vi->value, error);
+                // Temporary lifetime extension (S4.2/S1.2): a call result
+                // borrowed by this initializer (`var r = &make()`, or a
+                // reference field in an aggregate literal) lives until the end
+                // of the enclosing block, not just the statement.
+                MIRExprResult r;
+                {
+                    const bool saved_binding = binding_init_;
+                    const bool saved_extension = temp_extension_operand_;
+                    const PlaceId saved_anchor = extension_anchor_;
+                    binding_init_ = true;
+                    temp_extension_operand_ = false;
+                    extension_anchor_ = place;
+                    r = vi->known_type()
+                            ? lower_arg_converted(vi->value, vi->known_type(), error)
+                            : lower_expr(vi->value, error);
+                    binding_init_ = saved_binding;
+                    temp_extension_operand_ = saved_extension;
+                    extension_anchor_ = saved_anchor;
+                }
                 if (!r.ok()) return false;
                 if (r.kind == MIRExprKind::Place) {
                     const PlaceId src = static_cast<PlaceId>(r.id);

@@ -725,3 +725,49 @@ func enum_invalid_cast_panics(env : &mut TestEnv) {
     var ch = "enum E : int {\n    A = 1,\n    B = 2\n}\npublic func main() : int {\n    var n : int = 3\n    var e = n as E\n    return 0\n}\n"
     expect_runtime_panic(env, "enum_invalid_cast", ch)
 }
+
+@test
+func temporary_lifetime_extension_runs(env : &mut TestEnv) {
+    safety_init_work_dir()
+    // A borrowed call result lives until the end of the enclosing block. The
+    // destructor output proves it outlives the statement that created it, and
+    // an aggregate owner drops before the temporary it refers to.
+    var ch = "struct D {\n    var x : int\n    @delete\n    func delete(&mut self) { unsafe { printf(\"temp %d\\n\", self.x) } }\n}\nstruct H {\n    var r : &D\n    @delete\n    func delete(&mut self) { unsafe { printf(\"holder %d\\n\", self.r.x) } }\n}\nfunc make(id : int) : D { return D { x : id } }\npublic func main() : int {\n    {\n        var r = &make(7)\n        if(r.x != 7) { return 1 }\n        unsafe { printf(\"inside\\n\") }\n    }\n    {\n        var h = H { r : &make(9) }\n        if(h.r.x != 9) { return 2 }\n        unsafe { printf(\"holder-live\\n\") }\n    }\n    unsafe { printf(\"after\\n\") }\n    return 0\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "temporary_lifetime_extension", ch, &mut out)
+    if(rc != 0) {
+        env.error("expected temporary lifetime extension to compile and run")
+        return
+    }
+    var view = out.to_view()
+    var inside = std::string_view("inside")
+    var temp7 = std::string_view("temp 7")
+    var holder_live = std::string_view("holder-live")
+    var holder9 = std::string_view("holder 9")
+    var temp9 = std::string_view("temp 9")
+    var after = std::string_view("after")
+    var i_inside = view.find(&inside)
+    var i_temp7 = view.find(&temp7)
+    var i_holder_live = view.find(&holder_live)
+    var i_holder9 = view.find(&holder9)
+    var i_temp9 = view.find(&temp9)
+    var i_after = view.find(&after)
+    if(i_inside == std::NPOS || i_temp7 == std::NPOS ||
+       i_holder_live == std::NPOS || i_holder9 == std::NPOS ||
+       i_temp9 == std::NPOS || i_after == std::NPOS) {
+        env.error("temporary lifetime extension output is missing")
+        return
+    }
+    if(i_temp7 < i_inside) {
+        env.error("borrowed call temporary was destroyed at the end of its statement")
+    }
+    if(i_holder9 < i_holder_live) {
+        env.error("holder was destroyed before it was used")
+    }
+    if(i_temp9 < i_holder9) {
+        env.error("temporary was destroyed before the holder that refers to it")
+    }
+    if(i_after < i_temp9) {
+        env.error("temporary did not live to the end of its block")
+    }
+}

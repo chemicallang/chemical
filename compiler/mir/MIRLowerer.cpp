@@ -507,7 +507,15 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error,
     MIRExprResult in = lower_expr(inner, error);
     if (!in.ok()) return in;
     // `&create()` keeps the call's temporary alive until the statement ends
+    // (or the enclosing block when TLE applies), and the address-of operator
+    // must return that temporary's address rather than the place itself.
     maybe_register_call_temp(inner, in);
+    if (in.kind == MIRExprKind::Place) {
+        const PlaceId place = static_cast<PlaceId>(in.id);
+        const TypeId pt = builder_->function().places[place].type;
+        const TypeId ptrt = types_.pointer_type(pt, true);
+        return MIRExprResult::value(builder_->address_of(place, ptrt), ptrt);
+    }
     return in;
 }
 
@@ -643,6 +651,9 @@ bool MIRLowerer::lower_static_interface_stub(FunctionDeclaration* decl, MIRArena
     destructibles_.clear();
     scope_places_.clear();
     stmt_temps_.clear();
+    binding_init_ = false;
+    temp_extension_operand_ = false;
+    extension_anchor_ = MIR_INVALID_ID;
 
     func.symbol = intern_function(decl);
     // Region signatures are built from the declaration before any body
@@ -762,6 +773,9 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     destructibles_.clear();
     scope_places_.clear();
     stmt_temps_.clear();
+    binding_init_ = false;
+    temp_extension_operand_ = false;
+    extension_anchor_ = MIR_INVALID_ID;
     // func_symbols_ persists across functions in a module so callees keep stable ids
 
     func.symbol = intern_function(decl);

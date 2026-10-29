@@ -547,104 +547,110 @@ public func feature_js_last_wins_dedup(env : &mut TestEnv) {
 
 @test
 public func feature_special_attrs_64_others_overflow(env : &mut TestEnv) {
-    var page = HtmlPage()
-    // Names must outlive the attributes: build them all first, then point at
-    // the stable vector storage (previously names were per-iteration locals).
-    var names = std::vector<std::string>()
-    var i = 0
-    while(i < 70) {
-        var name = std::string("a")
-        name.append_integer(i as bigint)
-        names.push(name)
-        i++
-    }
-    var attrs = std::vector<SsrAttribute>()
-    i = 0
-    while(i < 70) {
-        var np = names.get_ptr(i as size_t)
-        attrs.push(SsrAttribute {
-            name : make_ssr_text_ut(&np.to_view()),
-            value : make_ssr_text_val("v")
-        })
-        i++
-    }
-    var list = SsrAttributeList {
-        data : attrs.data() as *SsrAttribute,
-        size : attrs.size()
-    }
-    renderHtmlAttrs(&mut page, &list)
-    var html = std::string()
-    html.append_view(page.getHtml())
-    // Count how many of a0-a69 appear
-    var count = 0
-    var j = 0
-    while(j < 70) {
-        var name = std::string("a")
-        name.append_integer(j as bigint)
-        if(html.contains(&name.to_view())) {
-            count++
+        unsafe {
+        var page = HtmlPage()
+        // Names must outlive the attributes: build them all first, then point at
+        // the stable vector storage (previously names were per-iteration locals).
+        var names = std::vector<std::string>()
+        var i = 0
+        while(i < 70) {
+            var name = std::string("a")
+            name.append_integer(i as bigint)
+            names.push(name)
+            i++
         }
-        j++
+        var attrs = std::vector<SsrAttribute>()
+        i = 0
+        while(i < 70) {
+            var np = names.get_ptr(i as size_t)
+            attrs.push(SsrAttribute {
+                name : make_ssr_text_ut(&np.to_view()),
+                value : make_ssr_text_val("v")
+            })
+            i++
+        }
+        var list = SsrAttributeList {
+            data : attrs.data() as *SsrAttribute,
+            size : attrs.size()
+        }
+        renderHtmlAttrs(&mut page, &list)
+        var html = std::string()
+        html.append_view(page.getHtml())
+        // Count how many of a0-a69 appear
+        var count = 0
+        var j = 0
+        while(j < 70) {
+            var name = std::string("a")
+            name.append_integer(j as bigint)
+            if(html.contains(&name.to_view())) {
+                count++
+            }
+            j++
+        }
+        // Growable storage: every attribute is rendered (previously truncated at 64)
+        if(count == 70) {
+            env.success("SpecialAttrs: all 70 attrs rendered")
+        } else {
+            env.error("SpecialAttrs dropped attributes")
+            env.info(html.data())
+        }
+
+        }
     }
-    // Growable storage: every attribute is rendered (previously truncated at 64)
-    if(count == 70) {
-        env.success("SpecialAttrs: all 70 attrs rendered")
-    } else {
-        env.error("SpecialAttrs dropped attributes")
-        env.info(html.data())
-    }
-}
 
 // --- SpecialAttrs: >32 classes are all preserved (growable storage) ---
 
 @test
 public func feature_special_attrs_32_classes_overflow(env : &mut TestEnv) {
-    var page = HtmlPage()
-    // Stable class names (see the others test above for why).
-    var names = std::vector<std::string>()
-    var i = 0
-    while(i < 40) {
-        var name = std::string("c")
-        name.append_integer(i as bigint)
-        names.push(name)
-        i++
-    }
-    var attrs = std::vector<SsrAttribute>()
-    i = 0
-    while(i < 40) {
-        var np = names.get_ptr(i as size_t)
-        attrs.push(SsrAttribute {
-            name : make_ssr_text_ut(&np.to_view()),
-            value : make_ssr_text_val("cls")
-        })
-        i++
-    }
-    var list = SsrAttributeList {
-        data : attrs.data() as *SsrAttribute,
-        size : attrs.size()
-    }
-    renderHtmlAttrs(&mut page, &list)
-    var html = std::string()
-    html.append_view(page.getHtml())
-    var count = 0
-    var j = 0
-    while(j < 40) {
-        var name = std::string("c")
-        name.append_integer(j as bigint)
-        // Each class attr name should appear in the merged class value
-        if(html.contains(&name.to_view())) {
-            count++
+        unsafe {
+        var page = HtmlPage()
+        // Stable class names (see the others test above for why).
+        var names = std::vector<std::string>()
+        var i = 0
+        while(i < 40) {
+            var name = std::string("c")
+            name.append_integer(i as bigint)
+            names.push(name)
+            i++
         }
-        j++
+        var attrs = std::vector<SsrAttribute>()
+        i = 0
+        while(i < 40) {
+            var np = names.get_ptr(i as size_t)
+            attrs.push(SsrAttribute {
+                name : make_ssr_text_ut(&np.to_view()),
+                value : make_ssr_text_val("cls")
+            })
+            i++
+        }
+        var list = SsrAttributeList {
+            data : attrs.data() as *SsrAttribute,
+            size : attrs.size()
+        }
+        renderHtmlAttrs(&mut page, &list)
+        var html = std::string()
+        html.append_view(page.getHtml())
+        var count = 0
+        var j = 0
+        while(j < 40) {
+            var name = std::string("c")
+            name.append_integer(j as bigint)
+            // Each class attr name should appear in the merged class value
+            if(html.contains(&name.to_view())) {
+                count++
+            }
+            j++
+        }
+        // Growable storage: every class is rendered (previously truncated at 32)
+        if(count == 40) {
+            env.success("SpecialAttrs classes: all 40 classes rendered")
+        } else {
+            env.error("SpecialAttrs dropped classes")
+            env.info(html.data())
+        }
+
+        }
     }
-    // Growable storage: every class is rendered (previously truncated at 32)
-    if(count == 40) {
-        env.success("SpecialAttrs classes: all 40 classes rendered")
-    } else {
-        env.error("SpecialAttrs dropped classes")
-        env.info(html.data())
-    }
-}
 
 // --- HTML renders Boolean(false) child value as nothing ---
 

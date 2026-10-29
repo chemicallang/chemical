@@ -69,11 +69,11 @@ struct ImplDispatchCounter {
 }
 
 func call_impl_probe_concrete(c : *mut ImplDispatchCounter) : int {
-    return c.probe()
+    unsafe { return c.probe() }
 }
 
 func <P : ImplDispatchProbe> call_impl_probe_generic(c : *mut P) : int {
-    return c.probe()
+    unsafe { return c.probe() }
 }
 
 func test_impl_only_method_call() {

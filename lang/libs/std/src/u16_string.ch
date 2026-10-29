@@ -137,38 +137,44 @@ public struct u16string {
     }
 
     func move_data_to_heap(&mut self, from_data : *u16, length : size_t, capacity : size_t) {
-        if(capacity > (((0 as size_t) - 1) - 2) / 2 || length > capacity) {
-            panic("u16_string capacity overflow")
+        unsafe {
+            if(capacity > (((0 as size_t) - 1) - 2) / 2 || length > capacity) {
+                panic("u16_string capacity overflow")
+            }
+            // capacity multiplied by 2 because we need two bytes for a single character
+            // +2 is for safety, we need to add a null terminator (always)
+            var d = unsafe(malloc((capacity * 2) + 2)) as *mut u16
+            if(d == null) {
+                panic("u16_string allocation failed")
+            }
+            unsafe { memcpy(d, from_data, length * 2) }
+            d[length] = 0u16
+            storage.heap.data = d;
+            storage.heap.length = length;
+            storage.heap.capacity = capacity
+            state = '2'
+    
         }
-        // capacity multiplied by 2 because we need two bytes for a single character
-        // +2 is for safety, we need to add a null terminator (always)
-        var d = unsafe(malloc((capacity * 2) + 2)) as *mut u16
-        if(d == null) {
-            panic("u16_string allocation failed")
-        }
-        unsafe { memcpy(d, from_data, length * 2) }
-        d[length] = 0u16
-        storage.heap.data = d;
-        storage.heap.length = length;
-        storage.heap.capacity = capacity
-        state = '2'
     }
 
     // this is a private function
     // new_capacity is always > length
     func resize_heap(&mut self, new_capacity : size_t) {
-        if(new_capacity > (((0 as size_t) - 1) - 2) / 2) {
-            panic("u16_string capacity overflow")
+        unsafe {
+            if(new_capacity > (((0 as size_t) - 1) - 2) / 2) {
+                panic("u16_string capacity overflow")
+            }
+            // new_capacity multiplied by 2 because we need two bytes for a single character
+            // +2 for the null terminator
+            var d = unsafe(realloc(storage.heap.data, (new_capacity * 2) + 2)) as *mut u16
+            if(d == null) {
+                panic("u16_string allocation failed")
+            }
+            d[storage.heap.length] = 0u16
+            storage.heap.data = d;
+            storage.heap.capacity = new_capacity
+    
         }
-        // new_capacity multiplied by 2 because we need two bytes for a single character
-        // +2 for the null terminator
-        var d = unsafe(realloc(storage.heap.data, (new_capacity * 2) + 2)) as *mut u16
-        if(d == null) {
-            panic("u16_string allocation failed")
-        }
-        d[storage.heap.length] = 0u16
-        storage.heap.data = d;
-        storage.heap.capacity = new_capacity
     }
 
     // ensures that capacity is larger than length given and memory is mutable
@@ -223,89 +229,101 @@ public struct u16string {
     }
 
     func set(&mut self, index : size_t, value : u16) {
-        if(index >= size()) {
-            panic("u16_string index out of bounds")
-        }
-        switch(state) {
-            '0' => {
-                // A constant may be longer than the inline buffer; let
-                // ensure_mut choose SSO or heap storage before writing.
-                ensure_mut(size());
-                if(state == '1') {
+        unsafe {
+            if(index >= size()) {
+                panic("u16_string index out of bounds")
+            }
+            switch(state) {
+                '0' => {
+                    // A constant may be longer than the inline buffer; let
+                    // ensure_mut choose SSO or heap storage before writing.
+                    ensure_mut(size());
+                    if(state == '1') {
+                        storage.sso.buffer[index] = value;
+                    } else {
+                        storage.heap.data[index] = value;
+                    }
+                }
+                '1' => {
                     storage.sso.buffer[index] = value;
-                } else {
+                }
+                '2' => {
                     storage.heap.data[index] = value;
                 }
             }
-            '1' => {
-                storage.sso.buffer[index] = value;
-            }
-            '2' => {
-                storage.heap.data[index] = value;
-            }
+    
         }
     }
 
     func get(&self, index : size_t) : u16 {
-        if(index >= size()) {
-            panic("u16_string index out of bounds")
-        }
-        switch(state) {
-            '0' => {
-                return storage.constant.data[index];
+        unsafe {
+            if(index >= size()) {
+                panic("u16_string index out of bounds")
             }
-            '1' => {
-                return storage.sso.buffer[index];
+            switch(state) {
+                '0' => {
+                    return storage.constant.data[index];
+                }
+                '1' => {
+                    return storage.sso.buffer[index];
+                }
+                '2' => {
+                    return storage.heap.data[index]
+                }
+                default => {
+                    return 0
+                }
             }
-            '2' => {
-                return storage.heap.data[index]
-            }
-            default => {
-                return 0
-            }
+    
         }
     }
 
     func append_with_len(&mut self, value : *u16, len : size_t) {
-        // offset, where we start writing
-        const offset = size()
-        // `ensure_mut` rejects lengths above this limit; checking here keeps
-        // `offset + len` and `len * 2` from wrapping before that check.
-        const max_units = (((0 as size_t) - 1) - 2) / 2
-        if(offset >= max_units || len > max_units - offset - 1) {
-            panic("u16_string length overflow")
-        }
-        // the size of the string, after we've written
-        const new_size = offset + len
-        // +1 for null terminator
-        ensure_mut(new_size + 1);
-        if(state == '1') {
-            // len * 2 (because len is of 2 byte characters, memcpy works for single byte pointers)
-            unsafe { memcpy(&raw mut storage.sso.buffer[offset], value, len * 2) }
-            storage.sso.buffer[new_size] = 0u16
-            storage.sso.length = new_size
-        } else {
-            // state is '2', it cannot be '0'
-            // len * 2 (because len is of 2 byte characters, memcpy works for single byte pointers)
-            unsafe { memcpy(&raw mut storage.heap.data[offset], value, len * 2) }
-            storage.heap.data[new_size] = 0u16
-            storage.heap.length = new_size
+        unsafe {
+            // offset, where we start writing
+            const offset = size()
+            // `ensure_mut` rejects lengths above this limit; checking here keeps
+            // `offset + len` and `len * 2` from wrapping before that check.
+            const max_units = (((0 as size_t) - 1) - 2) / 2
+            if(offset >= max_units || len > max_units - offset - 1) {
+                panic("u16_string length overflow")
+            }
+            // the size of the string, after we've written
+            const new_size = offset + len
+            // +1 for null terminator
+            ensure_mut(new_size + 1);
+            if(state == '1') {
+                // len * 2 (because len is of 2 byte characters, memcpy works for single byte pointers)
+                unsafe { memcpy(&raw mut storage.sso.buffer[offset], value, len * 2) }
+                storage.sso.buffer[new_size] = 0u16
+                storage.sso.length = new_size
+            } else {
+                // state is '2', it cannot be '0'
+                // len * 2 (because len is of 2 byte characters, memcpy works for single byte pointers)
+                unsafe { memcpy(&raw mut storage.heap.data[offset], value, len * 2) }
+                storage.heap.data[new_size] = 0u16
+                storage.heap.length = new_size
+            }
+    
         }
     }
 
     // append a single u16 unit (caller provides correct unit)
     func append_u16_unit(&mut self, u : u16) {
-        const offset = size();
-        const new_size = offset + 1;
-        ensure_mut(new_size + 1);
-        if(state == '1') {
-            storage.sso.buffer[offset] = u;
-            storage.sso.buffer[new_size] = 0u16;
-            storage.sso.length = new_size;
-        } else {
-            storage.heap.data[offset] = u;
-            storage.heap.data[new_size] = 0u16;
-            storage.heap.length = new_size;
+        unsafe {
+            const offset = size();
+            const new_size = offset + 1;
+            ensure_mut(new_size + 1);
+            if(state == '1') {
+                storage.sso.buffer[offset] = u;
+                storage.sso.buffer[new_size] = 0u16;
+                storage.sso.length = new_size;
+            } else {
+                storage.heap.data[offset] = u;
+                storage.heap.data[new_size] = 0u16;
+                storage.heap.length = new_size;
+            }
+    
         }
     }
 
@@ -317,123 +335,129 @@ public struct u16string {
 
     // append a Unicode code point (uint32), handling surrogate pairs
     func append_codepoint(&mut self, cp : u32) {
-        if(cp <= 0xFFFFu32) {
-            // avoid writing surrogate code points directly
-            if(cp >= 0xD800u32 && cp <= 0xDFFFu32) {
-                // invalid scalar — insert replacement char
+        unsafe {
+            if(cp <= 0xFFFFu32) {
+                // avoid writing surrogate code points directly
+                if(cp >= 0xD800u32 && cp <= 0xDFFFu32) {
+                    // invalid scalar — insert replacement char
+                    append_u16_unit(0xFFFDu16);
+                } else {
+                    append_u16_unit(cp as u16);
+                }
+            } else if(cp <= 0x10FFFFu32) {
+                var v = cp - 0x10000u32;
+                var high = (0xD800u32 + (v >> 10)) as u16;
+                var low  = (0xDC00u32 + (v & 0x3FFu32)) as u16;
+                const offset = size();
+                const new_size = offset + 2;
+                ensure_mut(new_size + 1);
+                if(state == '1') {
+                    storage.sso.buffer[offset] = high;
+                    storage.sso.buffer[offset + 1] = low;
+                    storage.sso.buffer[new_size] = 0u16;
+                    storage.sso.length = new_size;
+                } else {
+                    storage.heap.data[offset] = high;
+                    storage.heap.data[offset + 1] = low;
+                    storage.heap.data[new_size] = 0u16;
+                    storage.heap.length = new_size;
+                }
+            } else {
+                // invalid code point
                 append_u16_unit(0xFFFDu16);
-            } else {
-                append_u16_unit(cp as u16);
             }
-        } else if(cp <= 0x10FFFFu32) {
-            var v = cp - 0x10000u32;
-            var high = (0xD800u32 + (v >> 10)) as u16;
-            var low  = (0xDC00u32 + (v & 0x3FFu32)) as u16;
-            const offset = size();
-            const new_size = offset + 2;
-            ensure_mut(new_size + 1);
-            if(state == '1') {
-                storage.sso.buffer[offset] = high;
-                storage.sso.buffer[offset + 1] = low;
-                storage.sso.buffer[new_size] = 0u16;
-                storage.sso.length = new_size;
-            } else {
-                storage.heap.data[offset] = high;
-                storage.heap.data[offset + 1] = low;
-                storage.heap.data[new_size] = 0u16;
-                storage.heap.length = new_size;
-            }
-        } else {
-            // invalid code point
-            append_u16_unit(0xFFFDu16);
+    
         }
     }
 
     // append UTF-8 view: convert to UTF-16 and append
     func append_utf8_view(&mut self, ptr : *char, len : size_t) {
-        if(len == 0) { return; }
-        // worst-case u16 units needed: len (each byte -> at most 1 u16 unit for ASCII,
-        // multi-byte sequences produce <=1 or 2 units; allocating len is safe)
-        if(len > (((0 as size_t) - 1) - 2) / 2 - 1) {
-            panic("u16_string capacity overflow")
-        }
-        var out_cap = len + 1;
-        var out = unsafe(malloc((out_cap * 2) + 2)) as *mut u16;
-        if(out == null) {
-            panic("u16_string allocation failed")
-        }
-        var in_i : size_t = 0;
-        var out_i : size_t = 0;
-        while(in_i < len) {
-            var b0 = (ptr[in_i] as uchar) & 0xFF;
-            var cp : u32 = 0u32;
+        unsafe {
+            if(len == 0) { return; }
+            // worst-case u16 units needed: len (each byte -> at most 1 u16 unit for ASCII,
+            // multi-byte sequences produce <=1 or 2 units; allocating len is safe)
+            if(len > (((0 as size_t) - 1) - 2) / 2 - 1) {
+                panic("u16_string capacity overflow")
+            }
+            var out_cap = len + 1;
+            var out = unsafe(malloc((out_cap * 2) + 2)) as *mut u16;
+            if(out == null) {
+                panic("u16_string allocation failed")
+            }
+            var in_i : size_t = 0;
+            var out_i : size_t = 0;
+            while(in_i < len) {
+                var b0 = (ptr[in_i] as uchar) & 0xFF;
+                var cp : u32 = 0u32;
 
-            if((b0 & 0x80) == 0) {
-                cp = b0 as u32;
-                in_i = in_i + 1;
-            } else if((b0 & 0xE0) == 0xC0 && (in_i + 1) < len) {
-                var b1 = (ptr[in_i + 1] as uchar) & 0xFF;
-                if((b1 & 0xC0) != 0x80) {
+                if((b0 & 0x80) == 0) {
+                    cp = b0 as u32;
+                    in_i = in_i + 1;
+                } else if((b0 & 0xE0) == 0xC0 && (in_i + 1) < len) {
+                    var b1 = (ptr[in_i + 1] as uchar) & 0xFF;
+                    if((b1 & 0xC0) != 0x80) {
+                        cp = 0xFFFDu32;
+                        in_i = in_i + 1;
+                    } else {
+                        cp = (((b0 & 0x1F) as u32) << 6) | ((b1 & 0x3F) as u32);
+                        if(cp < 0x80u32) { cp = 0xFFFDu32; }
+                        in_i = in_i + 2;
+                    }
+                } else if((b0 & 0xF0) == 0xE0 && (in_i + 2) < len) {
+                    var b1 = (ptr[in_i + 1] as uchar) & 0xFF;
+                    var b2 = (ptr[in_i + 2] as uchar) & 0xFF;
+                    if(((b1 & 0xC0) != 0x80) || ((b2 & 0xC0) != 0x80)) {
+                        cp = 0xFFFDu32;
+                        in_i = in_i + 1;
+                    } else {
+                        cp = (((b0 & 0x0F) as u32) << 12) |
+                            (((b1 & 0x3F) as u32) << 6) |
+                            ((b2 & 0x3F) as u32);
+                        if(cp < 0x800u32 || (cp >= 0xD800u32 && cp <= 0xDFFFu32)) { cp = 0xFFFDu32; }
+                        in_i = in_i + 3;
+                    }
+                } else if((b0 & 0xF8) == 0xF0 && (in_i + 3) < len) {
+                    var b1 = (ptr[in_i + 1] as uchar) & 0xFF;
+                    var b2 = (ptr[in_i + 2] as uchar) & 0xFF;
+                    var b3 = (ptr[in_i + 3] as uchar) & 0xFF;
+                    if(((b1 & 0xC0) != 0x80) || ((b2 & 0xC0) != 0x80) || ((b3 & 0xC0) != 0x80)) {
+                        cp = 0xFFFDu32;
+                        in_i = in_i + 1;
+                    } else {
+                        cp = (((b0 & 0x07) as u32) << 18) |
+                            (((b1 & 0x3F) as u32) << 12) |
+                            (((b2 & 0x3F) as u32) << 6) |
+                            ((b3 & 0x3F) as u32);
+                        if(cp < 0x10000u32 || cp > 0x10FFFFu32) { cp = 0xFFFDu32; }
+                        in_i = in_i + 4;
+                    }
+                } else {
                     cp = 0xFFFDu32;
                     in_i = in_i + 1;
-                } else {
-                    cp = (((b0 & 0x1F) as u32) << 6) | ((b1 & 0x3F) as u32);
-                    if(cp < 0x80u32) { cp = 0xFFFDu32; }
-                    in_i = in_i + 2;
                 }
-            } else if((b0 & 0xF0) == 0xE0 && (in_i + 2) < len) {
-                var b1 = (ptr[in_i + 1] as uchar) & 0xFF;
-                var b2 = (ptr[in_i + 2] as uchar) & 0xFF;
-                if(((b1 & 0xC0) != 0x80) || ((b2 & 0xC0) != 0x80)) {
-                    cp = 0xFFFDu32;
-                    in_i = in_i + 1;
+
+                // encode cp to UTF-16 units in out buffer
+                if(cp <= 0xFFFFu32) {
+                    out[out_i] = cp as u16;
+                    out_i = out_i + 1;
                 } else {
-                    cp = (((b0 & 0x0F) as u32) << 12) |
-                        (((b1 & 0x3F) as u32) << 6) |
-                        ((b2 & 0x3F) as u32);
-                    if(cp < 0x800u32 || (cp >= 0xD800u32 && cp <= 0xDFFFu32)) { cp = 0xFFFDu32; }
-                    in_i = in_i + 3;
+                    var v = cp - 0x10000u32;
+                    var high = (0xD800u32 + (v >> 10)) as u16;
+                    var low  = (0xDC00u32 + (v & 0x3FFu32)) as u16;
+                    out[out_i] = high;
+                    out_i = out_i + 1;
+                    out[out_i] = low;
+                    out_i = out_i + 1;
                 }
-            } else if((b0 & 0xF8) == 0xF0 && (in_i + 3) < len) {
-                var b1 = (ptr[in_i + 1] as uchar) & 0xFF;
-                var b2 = (ptr[in_i + 2] as uchar) & 0xFF;
-                var b3 = (ptr[in_i + 3] as uchar) & 0xFF;
-                if(((b1 & 0xC0) != 0x80) || ((b2 & 0xC0) != 0x80) || ((b3 & 0xC0) != 0x80)) {
-                    cp = 0xFFFDu32;
-                    in_i = in_i + 1;
-                } else {
-                    cp = (((b0 & 0x07) as u32) << 18) |
-                        (((b1 & 0x3F) as u32) << 12) |
-                        (((b2 & 0x3F) as u32) << 6) |
-                        ((b3 & 0x3F) as u32);
-                    if(cp < 0x10000u32 || cp > 0x10FFFFu32) { cp = 0xFFFDu32; }
-                    in_i = in_i + 4;
-                }
-            } else {
-                cp = 0xFFFDu32;
-                in_i = in_i + 1;
             }
 
-            // encode cp to UTF-16 units in out buffer
-            if(cp <= 0xFFFFu32) {
-                out[out_i] = cp as u16;
-                out_i = out_i + 1;
-            } else {
-                var v = cp - 0x10000u32;
-                var high = (0xD800u32 + (v >> 10)) as u16;
-                var low  = (0xDC00u32 + (v & 0x3FFu32)) as u16;
-                out[out_i] = high;
-                out_i = out_i + 1;
-                out[out_i] = low;
-                out_i = out_i + 1;
-            }
+            // append converted units
+            append_with_len(out, out_i);
+
+            // free temporary buffer
+            dealloc out;
+    
         }
-
-        // append converted units
-        append_with_len(out, out_i);
-
-        // free temporary buffer
-        dealloc out;
     }
 
     func copy(&self) : u16string {
@@ -446,140 +470,155 @@ public struct u16string {
 
     // substring copy by u16 unit indices
     func substr(&self, start : size_t, len : size_t) : u16string {
-        var result = u16string.empty_str();
-        const my_size = size();
-        if(start >= my_size) {
-            return result;
-        }
-        var real_len = my_size - start;
-        if(len < real_len) {
-            real_len = len;
-        }
-        if(real_len == 0) { return result; }
-        const src = data();
-        // create a temporary buffer to copy into result
-        if(real_len > (((0 as size_t) - 1) - 2) / 2) {
-            panic("u16_string capacity overflow")
-        }
-        var buf = unsafe(malloc((real_len * 2) + 2)) as *mut u16;
-        if(buf == null) {
-            panic("u16_string allocation failed")
-        }
-        unsafe { memcpy(buf, &raw src[start], real_len * 2) };
-        buf[real_len] = 0u16;
-        if(real_len < U16_STR_BUFF_SIZE) {
-            result.state = '1'
-            result.storage.sso.length = real_len as uchar
-            for(var i : size_t = 0; i < real_len; i++) {
-                result.storage.sso.buffer[i] = buf[i]
+        unsafe {
+            var result = u16string.empty_str();
+            const my_size = size();
+            if(start >= my_size) {
+                return result;
             }
-            result.storage.sso.buffer[real_len] = 0u16
-            dealloc buf
-        } else {
-            result.state = '2'
-            result.storage.heap.data = buf
-            result.storage.heap.length = real_len
-            result.storage.heap.capacity = real_len
+            var real_len = my_size - start;
+            if(len < real_len) {
+                real_len = len;
+            }
+            if(real_len == 0) { return result; }
+            const src = data();
+            // create a temporary buffer to copy into result
+            if(real_len > (((0 as size_t) - 1) - 2) / 2) {
+                panic("u16_string capacity overflow")
+            }
+            var buf = unsafe(malloc((real_len * 2) + 2)) as *mut u16;
+            if(buf == null) {
+                panic("u16_string allocation failed")
+            }
+            unsafe { memcpy(buf, &raw src[start], real_len * 2) };
+            buf[real_len] = 0u16;
+            if(real_len < U16_STR_BUFF_SIZE) {
+                result.state = '1'
+                result.storage.sso.length = real_len as uchar
+                for(var i : size_t = 0; i < real_len; i++) {
+                    result.storage.sso.buffer[i] = buf[i]
+                }
+                result.storage.sso.buffer[real_len] = 0u16
+                dealloc buf
+            } else {
+                result.state = '2'
+                result.storage.heap.data = buf
+                result.storage.heap.length = real_len
+                result.storage.heap.capacity = real_len
+            }
+            return result;
+    
         }
-        return result;
     }
 
     // convert from UTF-16 to UTF-8; returns newly allocated buffer and length
     func to_utf8(&self) : std::string {
-        const n = size();
-        if(n == 0) {
-            // returning empty string
-            return std::string()
-        }
-        // safe upper-bound: each u16 unit -> up to 3 bytes in UTF-8 (BMP),
-        // surrogate pairs (2 units) -> 4 bytes, so n*3 + 1 is safe.
-        var out_cap = (n * 3) + 1;
-        var out = std::string();
-        out.reserve(out_cap + 1);
-        var i : size_t = 0;
-        const src = data();
-        while(i < n) {
-            var w = src[i] as u32;
-            if(w >= 0xD800u32 && w <= 0xDBFFu32 && (i + 1) < n) {
-                // possible high surrogate
-                var w2 = src[i + 1] as u32;
-                if(w2 >= 0xDC00u32 && w2 <= 0xDFFFu32) {
-                    var cp = (((w - 0xD800u32) << 10) | (w2 - 0xDC00u32)) + 0x10000u32;
-                    // encode cp as 4 bytes
-                    out.append((0xF0u32 | ((cp >> 18) & 0x07u32)) as char);
-                    out.append((0x80u32 | ((cp >> 12) & 0x3Fu32)) as char);
-                    out.append((0x80u32 | ((cp >> 6) & 0x3Fu32)) as char)
-                    out.append((0x80u32 | (cp & 0x3Fu32)) as char);
-                    i = i + 2;
-                    continue;
-                }
+        unsafe {
+            const n = size();
+            if(n == 0) {
+                // returning empty string
+                return std::string()
             }
+            // safe upper-bound: each u16 unit -> up to 3 bytes in UTF-8 (BMP),
+            // surrogate pairs (2 units) -> 4 bytes, so n*3 + 1 is safe.
+            var out_cap = (n * 3) + 1;
+            var out = std::string();
+            out.reserve(out_cap + 1);
+            var i : size_t = 0;
+            const src = data();
+            while(i < n) {
+                var w = src[i] as u32;
+                if(w >= 0xD800u32 && w <= 0xDBFFu32 && (i + 1) < n) {
+                    // possible high surrogate
+                    var w2 = src[i + 1] as u32;
+                    if(w2 >= 0xDC00u32 && w2 <= 0xDFFFu32) {
+                        var cp = (((w - 0xD800u32) << 10) | (w2 - 0xDC00u32)) + 0x10000u32;
+                        // encode cp as 4 bytes
+                        out.append((0xF0u32 | ((cp >> 18) & 0x07u32)) as char);
+                        out.append((0x80u32 | ((cp >> 12) & 0x3Fu32)) as char);
+                        out.append((0x80u32 | ((cp >> 6) & 0x3Fu32)) as char)
+                        out.append((0x80u32 | (cp & 0x3Fu32)) as char);
+                        i = i + 2;
+                        continue;
+                    }
+                }
 
-            // non-surrogate or isolated surrogate: encode w to UTF-8
-            if(w <= 0x7Fu32) {
-                out.append((w & 0x7Fu32) as char);
-            } else if(w <= 0x7FFu32) {
-                out.append((0xC0u32 | ((w >> 6) & 0x1Fu32)) as char);
-                out.append((0x80u32 | (w & 0x3Fu32)) as char);
-            } else {
-                // BMP up to U+FFFF (including possible lone surrogates treated as replacement)
-                if(w >= 0xD800u32 && w <= 0xDFFFu32) {
-                    // isolated surrogate -> replacement char U+FFFD
-                    w = 0xFFFDu32;
+                // non-surrogate or isolated surrogate: encode w to UTF-8
+                if(w <= 0x7Fu32) {
+                    out.append((w & 0x7Fu32) as char);
+                } else if(w <= 0x7FFu32) {
+                    out.append((0xC0u32 | ((w >> 6) & 0x1Fu32)) as char);
+                    out.append((0x80u32 | (w & 0x3Fu32)) as char);
+                } else {
+                    // BMP up to U+FFFF (including possible lone surrogates treated as replacement)
+                    if(w >= 0xD800u32 && w <= 0xDFFFu32) {
+                        // isolated surrogate -> replacement char U+FFFD
+                        w = 0xFFFDu32;
+                    }
+                    out.append((0xE0u32 | ((w >> 12) & 0x0Fu32)) as char);
+                    out.append((0x80u32 | ((w >> 6) & 0x3Fu32)) as char);
+                    out.append((0x80u32 | (w & 0x3Fu32)) as char);
                 }
-                out.append((0xE0u32 | ((w >> 12) & 0x0Fu32)) as char);
-                out.append((0x80u32 | ((w >> 6) & 0x3Fu32)) as char);
-                out.append((0x80u32 | (w & 0x3Fu32)) as char);
+                i = i + 1;
             }
-            i = i + 1;
+            return out
+    
         }
-        return out
     }
 
     // find substring (naive, by u16 code units). returns first index or -1
     func find(&self, sub : u16string) : int {
-        const n = size();
-        const m = sub.size();
-        if(m == 0) { return 0; }
-        if(m > n) { return -1; }
-        const src = data();
-        const pat = sub.data();
-        var i : size_t = 0;
-        while(i + m <= n) {
-            var j : size_t = 0;
-            while(j < m && src[i + j] == pat[j]) { j = j + 1; }
-            if(j == m) { return i as int; }
-            i = i + 1;
+        unsafe {
+            const n = size();
+            const m = sub.size();
+            if(m == 0) { return 0; }
+            if(m > n) { return -1; }
+            const src = data();
+            const pat = sub.data();
+            var i : size_t = 0;
+            while(i + m <= n) {
+                var j : size_t = 0;
+                while(j < m && src[i + j] == pat[j]) { j = j + 1; }
+                if(j == m) { return i as int; }
+                i = i + 1;
+            }
+            return -1;
+    
         }
-        return -1;
     }
 
     func starts_with(&self, prefix : u16string) : bool {
-        const p_len = prefix.size();
-        const my_len = size();
-        if(p_len > my_len) { return false; }
-        const src = data();
-        const pre = prefix.data();
-        var i : size_t = 0;
-        while(i < p_len) {
-            if(src[i] != pre[i]) { return false; }
-            i = i + 1;
+        unsafe {
+            const p_len = prefix.size();
+            const my_len = size();
+            if(p_len > my_len) { return false; }
+            const src = data();
+            const pre = prefix.data();
+            var i : size_t = 0;
+            while(i < p_len) {
+                if(src[i] != pre[i]) { return false; }
+                i = i + 1;
+            }
+            return true;
+    
         }
-        return true;
     }
 
     func ends_with(&self, suffix : u16string) : bool {
-        const s_len = suffix.size();
-        const my_len = size();
-        if(s_len > my_len) { return false; }
-        const src = data();
-        const suf = suffix.data();
-        var i : size_t = 0;
-        while(i < s_len) {
-            if(src[my_len - s_len + i] != suf[i]) { return false; }
-            i = i + 1;
+        unsafe {
+            const s_len = suffix.size();
+            const my_len = size();
+            if(s_len > my_len) { return false; }
+            const src = data();
+            const suf = suffix.data();
+            var i : size_t = 0;
+            while(i < s_len) {
+                if(src[my_len - s_len + i] != suf[i]) { return false; }
+                i = i + 1;
+            }
+            return true;
+    
         }
-        return true;
     }
 
     // convenience push_back/pop_back
@@ -588,25 +627,28 @@ public struct u16string {
     }
 
     func pop_back(&mut self) {
-        const sz = size();
-        if(sz == 0) { return; }
-        if(state == '1') {
-            storage.sso.length = (sz - 1) as uchar;
-            storage.sso.buffer[sz - 1] = 0u16;
-        } else if(state == '2') {
-            storage.heap.length = sz - 1;
-            storage.heap.data[sz - 1] = 0u16;
-        } else {
-            // A constant view may be longer than the inline buffer, so let
-            // ensure_mut pick SSO or heap storage before dropping the last unit.
-            ensure_mut(sz);
+        unsafe {
+            const sz = size();
+            if(sz == 0) { return; }
             if(state == '1') {
                 storage.sso.length = (sz - 1) as uchar;
                 storage.sso.buffer[sz - 1] = 0u16;
-            } else {
+            } else if(state == '2') {
                 storage.heap.length = sz - 1;
                 storage.heap.data[sz - 1] = 0u16;
+            } else {
+                // A constant view may be longer than the inline buffer, so let
+                // ensure_mut pick SSO or heap storage before dropping the last unit.
+                ensure_mut(sz);
+                if(state == '1') {
+                    storage.sso.length = (sz - 1) as uchar;
+                    storage.sso.buffer[sz - 1] = 0u16;
+                } else {
+                    storage.heap.length = sz - 1;
+                    storage.heap.data[sz - 1] = 0u16;
+                }
             }
+    
         }
     }
 
@@ -666,31 +708,37 @@ public struct u16string {
     }
 
     func clear(&mut self) {
-        switch(state) {
-            '0' => {
-                unsafe {
-                    storage.constant.data = &raw EMPTY_U16
+        unsafe {
+            switch(state) {
+                '0' => {
+                    unsafe {
+                        storage.constant.data = &raw EMPTY_U16
+                    }
+                    storage.constant.length = 0
                 }
-                storage.constant.length = 0
-            }
-            '1' => {
-                storage.sso.buffer[0] = 0u16
-                storage.sso.length = 0
-            }
-            '2' => {
-                storage.heap.data[0] = 0u16
-                storage.heap.length = 0;
-            }
-            default => {
+                '1' => {
+                    storage.sso.buffer[0] = 0u16
+                    storage.sso.length = 0
+                }
+                '2' => {
+                    storage.heap.data[0] = 0u16
+                    storage.heap.length = 0;
+                }
+                default => {
 
+                }
             }
+    
         }
     }
 
     @delete
     func delete(&mut self) {
-        if(state == '2') {
-            dealloc storage.heap.data;
+        unsafe {
+            if(state == '2') {
+                dealloc storage.heap.data;
+            }
+    
         }
     }
 

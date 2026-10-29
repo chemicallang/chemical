@@ -166,9 +166,11 @@ func <T> b20_read_box(b : B20Box<int>) : int {
 }
 
 func <T> b20_make_table() : int {
-    var t = unsafe(malloc(sizeof(B20Table<int>))) as *mut B20Table<int>
-    t.poll = b20_unit
-    return t.poll(1)
+    unsafe {
+        var t = unsafe(malloc(sizeof(B20Table<int>))) as *mut B20Table<int>
+        t.poll = b20_unit
+        return t.poll(1)
+    }
 }
 
 func b20_wrapper_cb(w : B20Wrapper<int, int>) : int { return w.a + w.b }

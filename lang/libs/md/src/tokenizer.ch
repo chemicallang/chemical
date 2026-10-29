@@ -16,41 +16,44 @@
 using namespace std;
 
 public func tokenize_md_impl(view : std::string_view) : std::vector<Token> {
-    var tokens = std::vector<Token>()
+        unsafe {
+        var tokens = std::vector<Token>()
 
-    var provider = SourceProvider {
-        data_ptr : view.data() as *mut char,
-        data_len : view.size(),
-        data_end : view.data() as *mut char + view.size(),
-        lineNumber : 0,
-        lineCharacterNumber : 0
-    }
-
-    var lexer = Lexer {
-        LexerState : LexerState {
-            other_mode : false,
-            user_mode : false
-        },
-        provider : provider,
-        user_lexer : UserLexerFn { instance : null, subroutine : null }
-    }
-
-    var md = MdLexer {
-        in_fenced_code : false,
-        fence_char : '\0',
-        fence_count : 0,
-        chemical_mode : false,
-        lb_count : 0
-    }
-
-    while(true) {
-        const t = getNextToken2(&mut md, &mut lexer)
-        if(t.type == MdTokenType.EndOfFile as int) {
-            tokens.push(t)
-            break
+        var provider = SourceProvider {
+            data_ptr : view.data() as *mut char,
+            data_len : view.size(),
+            data_end : view.data() as *mut char + view.size(),
+            lineNumber : 0,
+            lineCharacterNumber : 0
         }
-        tokens.push(t)
-    }
 
-    return tokens
-}
+        var lexer = Lexer {
+            LexerState : LexerState {
+                other_mode : false,
+                user_mode : false
+            },
+            provider : provider,
+            user_lexer : UserLexerFn { instance : null, subroutine : null }
+        }
+
+        var md = MdLexer {
+            in_fenced_code : false,
+            fence_char : '\0',
+            fence_count : 0,
+            chemical_mode : false,
+            lb_count : 0
+        }
+
+        while(true) {
+            const t = getNextToken2(&mut md, &mut lexer)
+            if(t.type == MdTokenType.EndOfFile as int) {
+                tokens.push(t)
+                break
+            }
+            tokens.push(t)
+        }
+
+        return tokens
+
+        }
+    }

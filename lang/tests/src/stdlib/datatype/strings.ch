@@ -6,212 +6,215 @@ struct StringContainerAppendExpr {
 }
 
 func test_strings() {
-    test("two std::strings are equal", () => {
-        var first = string("hello world");
-        var second = string("hello world");
-        return first.equals(&second)
-    })
-    test("two std::strings are not equal", () => {
-        var first = string("hello world");
-        var second = string("not hello world");
-        return !first.equals(&second)
-    })
-    test("two std::strings are not equal", () => {
-        var first = string("hello world");
-        var second = string("not hello world");
-        return !first.equals(&second)
-    })
-    test("can append in std::string", () => {
-        var first = string("hello world");
-        var second = string("hello worldwo");
-        first.append('w');
-        first.append('o')
-        return first.equals(&second)
-    })
-    test("std::string has correct size", () => {
-        var first = string("hello world");
-        var second = string("hello worldwo");
-        return first.size() == 11 && second.size() == 13;
-    })
-    test("can verify each character in a data pointer of string", () => {
-        var first = string("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-        var second = string("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-        var first_data = first.data();
-        var second_data = second.data();
-        for(var i = 1; i <= 102; i++) {
-            if(first_data[i] != second_data[i]) {
-                return false;
+        unsafe {
+        test("two std::strings are equal", () => {
+            var first = string("hello world");
+            var second = string("hello world");
+            return first.equals(&second)
+        })
+        test("two std::strings are not equal", () => {
+            var first = string("hello world");
+            var second = string("not hello world");
+            return !first.equals(&second)
+        })
+        test("two std::strings are not equal", () => {
+            var first = string("hello world");
+            var second = string("not hello world");
+            return !first.equals(&second)
+        })
+        test("can append in std::string", () => {
+            var first = string("hello world");
+            var second = string("hello worldwo");
+            first.append('w');
+            first.append('o')
+            return first.equals(&second)
+        })
+        test("std::string has correct size", () => {
+            var first = string("hello world");
+            var second = string("hello worldwo");
+            return first.size() == 11 && second.size() == 13;
+        })
+        test("can verify each character in a data pointer of string", () => {
+            var first = string("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+            var second = string("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+            var first_data = first.data();
+            var second_data = second.data();
+            for(var i = 1; i <= 102; i++) {
+                if(first_data[i] != second_data[i]) {
+                    return false;
+                }
             }
+            return true;
+        })
+        test("can append in std::string", () => {
+            var first = string("");
+            for(var i = 1; i <= 102; i++) {
+                first.append('x');
+            }
+            var second = string("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+            return first.equals(&second);
+        })
+        test("appending expressive string into std::string, i32 - 1", () => {
+            var first = string("")
+            var count = 33
+            first.append_expr(`I have ${count} apples`)
+            var second = string("I have 33 apples")
+            return first.equals(&second);
+        })
+        test("appending expressive string into std::string, i32 - 2", () => {
+            var first = string("")
+            var count = 65
+            first.append_expr(`${count} apples I have, said Yoda`)
+            var second = string("65 apples I have, said Yoda")
+            return first.equals(&second);
+        })
+        test("appending expressive string into std::string, *char - 3", () => {
+            var first = string("")
+            var my_str = "something of value"
+            first.append_expr(`start: ${my_str} end`)
+            var second = string("start: something of value end")
+            return first.equals(&second);
+        })
+        test("appending expressive string into std::string, char - 4", () => {
+            var first = string("")
+            var letter = 'l'
+            first.append_expr(`letter : ${letter} end`)
+            var second = string("letter : l end")
+            return first.equals(&second);
+        })
+        test("appending expressive string into std::string, float - 5", () => {
+            var first = string("")
+            var pi = 3.14f
+            first.append_expr(`pi value : ${pi} end`)
+            unsafe { printf("%s\n", first.data()) }
+            var second = string("pi value : 3.140 end")
+            return first.equals(&second);
+        })
+        test("appending expressive string into std::string, double - 6", () => {
+            var first = string("")
+            var pi = 3.14
+            first.append_expr(`pi value : ${pi} end`)
+            unsafe { printf("%s\n", first.data()) }
+            var second = string("pi value : 3.140 end")
+            return first.equals(&second);
+        })
+        test("appending expressive string into std::string, u32 - 6", () => {
+            var first = string("")
+            var val = 99u
+            first.append_expr(`value : ${val} end`)
+            var second = string("value : 99 end")
+            return first.equals(&second);
+        })
+        test("appending expressive string into std::string, i64 - 7", () => {
+            var first = string("")
+            var val = 99i64
+            first.append_expr(`value : ${val} end`)
+            var second = string("value : 99 end")
+            return first.equals(&second);
+        })
+        test("appending expressive string into std::string, u64 - 8", () => {
+            var first = string("")
+            var val = 99u64
+            first.append_expr(`value : ${val} end`)
+            var second = string("value : 99 end")
+            return first.equals(&second);
+        })
+        test("appending expressing string using a container of std::string works", () => {
+            var c = StringContainerAppendExpr()
+            var val = 99i64
+            c.str.append_expr(`value : ${val} end`)
+            var second = string("value : 99 end")
+            return c.str.equals(&second);
+        })
+        test("u16 substring clamps a huge length", () => {
+            var a : [3]u16 = [65u16, 66u16, 67u16]
+            var s = unsafe(std::u16string(&raw mut a[0], 3))
+            var out = s.substr(1, (0 as size_t) - 1)
+            return out.size() == 2 && out.get(0) == 66u16 && out.get(1) == 67u16
+        })
+        test("string set copies a long constant view to heap storage", () => {
+            var a : [40]char
+            a[0] = 'a'
+            a[1] = 'b'
+            a[2] = 'c'
+            a[3] = '\0'
+            var s = unsafe(std::string(&raw mut a[0], 39, false))
+            s.set(0, 'X')
+            return s.size() == 39 && s.get(0) == 'X' && s.get(1) == 'b'
+        })
+        test("u16 string set copies a long constant view to heap storage", () => {
+            var a : [12]u16 = [65u16, 66u16, 67u16, 68u16, 69u16, 70u16, 71u16, 72u16, 73u16, 74u16, 75u16, 0u16]
+            var s = unsafe(std::u16string(&raw mut a[0], 11, false))
+            s.set(0, 90u16)
+            return s.size() == 11 && s.get(0) == 90u16 && s.get(1) == 66u16
+        })
+        test("u16 string mutable_data copies a long constant view to heap storage", () => {
+            var a : [12]u16 = [65u16, 66u16, 67u16, 68u16, 69u16, 70u16, 71u16, 72u16, 73u16, 74u16, 75u16, 0u16]
+            var s = unsafe(std::u16string(&raw mut a[0], 11, false))
+            var p = s.mutable_data()
+            p[0] = 90u16
+            return s.size() == 11 && s.get(0) == 90u16
+        })
+        test("u16 string pop_back copies a long constant view to heap storage", () => {
+            var a : [12]u16 = [65u16, 66u16, 67u16, 68u16, 69u16, 70u16, 71u16, 72u16, 73u16, 74u16, 75u16, 0u16]
+            var s = unsafe(std::u16string(&raw mut a[0], 11, false))
+            s.pop_back()
+            return s.size() == 10 && s.get(0) == 65u16 && s.get(9) == 74u16
+        })
+        test("string erase clamps a huge length without wrapping", () => {
+            var s = string("abcdef")
+            s.erase(2, (0 as size_t) - 1)
+            var expected = string("ab")
+            return s.equals(&expected)
+        })
+        test("string erase clamps a huge length on heap storage", () => {
+            var s = string("0123456789012345678901234567890123456789")
+            s.erase(4, (0 as size_t) - 1)
+            var expected = string("0123")
+            return s.equals(&expected)
+        })
+        test("string erase clamps a length past the end", () => {
+            var s = string("abcdef")
+            s.erase(2, 100)
+            var expected = string("ab")
+            return s.equals(&expected)
+        })
+        test("string erase does nothing at the end", () => {
+            var s = string("abcdef")
+            s.erase(6, 3)
+            var expected = string("abcdef")
+            return s.equals(&expected)
+        })
+        test("string resize zero-initializes grown bytes", () => {
+            var s = string("ab")
+            s.resize(4)
+            if(s.size() != 4) { return false }
+            if(s.get(2) != '\0' || s.get(3) != '\0') { return false }
+            return true
+        })
+        test("string can append its own view across reallocation", () => {
+            var s = string("01234567890123456789012345678901")
+            s.reserve(32)
+            var view = s.to_view()
+            s.append_view(&view)
+            if(s.size() != 64) { return false }
+            var out = s.to_view()
+            for(var i : size_t = 0; i < 32; i++) {
+                if(out.get(i) != out.get(i + 32)) { return false }
+            }
+            return true
+        })
+        test("struct with std::string member generated constructor and destructor work", () => {
+            var c = StringContainerAppendExpr()
+            c.str = string("hello generated constructor")
+            if(!c.str.equals(&string("hello generated constructor"))) { return false }
+            c.str = string("reassigned")
+            if(!c.str.equals(&string("reassigned"))) { return false }
+            var c2 = StringContainerAppendExpr()
+            c2.str = string("second")
+            if(!c2.str.equals(&string("second"))) { return false }
+            return true
+        })
+
         }
-        return true;
-    })
-    test("can append in std::string", () => {
-        var first = string("");
-        for(var i = 1; i <= 102; i++) {
-            first.append('x');
-        }
-        var second = string("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-        return first.equals(&second);
-    })
-    test("appending expressive string into std::string, i32 - 1", () => {
-        var first = string("")
-        var count = 33
-        first.append_expr(`I have ${count} apples`)
-        var second = string("I have 33 apples")
-        return first.equals(&second);
-    })
-    test("appending expressive string into std::string, i32 - 2", () => {
-        var first = string("")
-        var count = 65
-        first.append_expr(`${count} apples I have, said Yoda`)
-        var second = string("65 apples I have, said Yoda")
-        return first.equals(&second);
-    })
-    test("appending expressive string into std::string, *char - 3", () => {
-        var first = string("")
-        var my_str = "something of value"
-        first.append_expr(`start: ${my_str} end`)
-        var second = string("start: something of value end")
-        return first.equals(&second);
-    })
-    test("appending expressive string into std::string, char - 4", () => {
-        var first = string("")
-        var letter = 'l'
-        first.append_expr(`letter : ${letter} end`)
-        var second = string("letter : l end")
-        return first.equals(&second);
-    })
-    test("appending expressive string into std::string, float - 5", () => {
-        var first = string("")
-        var pi = 3.14f
-        first.append_expr(`pi value : ${pi} end`)
-        unsafe { printf("%s\n", first.data()) }
-        var second = string("pi value : 3.140 end")
-        return first.equals(&second);
-    })
-    test("appending expressive string into std::string, double - 6", () => {
-        var first = string("")
-        var pi = 3.14
-        first.append_expr(`pi value : ${pi} end`)
-        unsafe { printf("%s\n", first.data()) }
-        var second = string("pi value : 3.140 end")
-        return first.equals(&second);
-    })
-    test("appending expressive string into std::string, u32 - 6", () => {
-        var first = string("")
-        var val = 99u
-        first.append_expr(`value : ${val} end`)
-        var second = string("value : 99 end")
-        return first.equals(&second);
-    })
-    test("appending expressive string into std::string, i64 - 7", () => {
-        var first = string("")
-        var val = 99i64
-        first.append_expr(`value : ${val} end`)
-        var second = string("value : 99 end")
-        return first.equals(&second);
-    })
-    test("appending expressive string into std::string, u64 - 8", () => {
-        var first = string("")
-        var val = 99u64
-        first.append_expr(`value : ${val} end`)
-        var second = string("value : 99 end")
-        return first.equals(&second);
-    })
-    test("appending expressing string using a container of std::string works", () => {
-        var c = StringContainerAppendExpr()
-        var val = 99i64
-        c.str.append_expr(`value : ${val} end`)
-        var second = string("value : 99 end")
-        return c.str.equals(&second);
-    })
-    test("u16 substring clamps a huge length", () => {
-        var a : [3]u16 = [65u16, 66u16, 67u16]
-        var s = unsafe(std::u16string(&raw mut a[0], 3))
-        var out = s.substr(1, (0 as size_t) - 1)
-        return out.size() == 2 && out.get(0) == 66u16 && out.get(1) == 67u16
-    })
-    test("string set copies a long constant view to heap storage", () => {
-        var a : [40]char
-        a[0] = 'a'
-        a[1] = 'b'
-        a[2] = 'c'
-        a[3] = '\0'
-        var s = unsafe(std::string(&raw mut a[0], 39, false))
-        s.set(0, 'X')
-        return s.size() == 39 && s.get(0) == 'X' && s.get(1) == 'b'
-    })
-    test("u16 string set copies a long constant view to heap storage", () => {
-        var a : [12]u16 = [65u16, 66u16, 67u16, 68u16, 69u16, 70u16, 71u16, 72u16, 73u16, 74u16, 75u16, 0u16]
-        var s = unsafe(std::u16string(&raw mut a[0], 11, false))
-        s.set(0, 90u16)
-        return s.size() == 11 && s.get(0) == 90u16 && s.get(1) == 66u16
-    })
-    test("u16 string mutable_data copies a long constant view to heap storage", () => {
-        var a : [12]u16 = [65u16, 66u16, 67u16, 68u16, 69u16, 70u16, 71u16, 72u16, 73u16, 74u16, 75u16, 0u16]
-        var s = unsafe(std::u16string(&raw mut a[0], 11, false))
-        var p = s.mutable_data()
-        p[0] = 90u16
-        return s.size() == 11 && s.get(0) == 90u16
-    })
-    test("u16 string pop_back copies a long constant view to heap storage", () => {
-        var a : [12]u16 = [65u16, 66u16, 67u16, 68u16, 69u16, 70u16, 71u16, 72u16, 73u16, 74u16, 75u16, 0u16]
-        var s = unsafe(std::u16string(&raw mut a[0], 11, false))
-        s.pop_back()
-        return s.size() == 10 && s.get(0) == 65u16 && s.get(9) == 74u16
-    })
-    test("string erase clamps a huge length without wrapping", () => {
-        var s = string("abcdef")
-        s.erase(2, (0 as size_t) - 1)
-        var expected = string("ab")
-        return s.equals(&expected)
-    })
-    test("string erase clamps a huge length on heap storage", () => {
-        var s = string("0123456789012345678901234567890123456789")
-        s.erase(4, (0 as size_t) - 1)
-        var expected = string("0123")
-        return s.equals(&expected)
-    })
-    test("string erase clamps a length past the end", () => {
-        var s = string("abcdef")
-        s.erase(2, 100)
-        var expected = string("ab")
-        return s.equals(&expected)
-    })
-    test("string erase does nothing at the end", () => {
-        var s = string("abcdef")
-        s.erase(6, 3)
-        var expected = string("abcdef")
-        return s.equals(&expected)
-    })
-    test("string resize zero-initializes grown bytes", () => {
-        var s = string("ab")
-        s.resize(4)
-        if(s.size() != 4) { return false }
-        if(s.get(2) != '\0' || s.get(3) != '\0') { return false }
-        return true
-    })
-    test("string can append its own view across reallocation", () => {
-        var s = string("01234567890123456789012345678901")
-        s.reserve(32)
-        var view = s.to_view()
-        s.append_view(&view)
-        if(s.size() != 64) { return false }
-        var out = s.to_view()
-        for(var i : size_t = 0; i < 32; i++) {
-            if(out.get(i) != out.get(i + 32)) { return false }
-        }
-        return true
-    })
-    test("struct with std::string member generated constructor and destructor work", () => {
-        var c = StringContainerAppendExpr()
-        c.str = string("hello generated constructor")
-        if(!c.str.equals(&string("hello generated constructor"))) { return false }
-        c.str = string("reassigned")
-        if(!c.str.equals(&string("reassigned"))) { return false }
-        var c2 = StringContainerAppendExpr()
-        c2.str = string("second")
-        if(!c2.str.equals(&string("second"))) { return false }
-        return true
-    })
-}
+    }

@@ -166,89 +166,95 @@ public func spawn(cfg : ProcessConfig) : CP_Result {
 }
 
 public func wait(child : *mut ChildProcess) : PR_Result {
-    var ret = zeroed:unsafe<PR_Result>()
-    // Allow wait() after kill() — process was killed but needs to be reaped.
-    // Only reject if the process handle has already been cleaned up.
-    comptime if(def.windows) {
-        if(!child.is_running && child.win.h_process == null) {
-            var e = ProcessError.NotRunning()
-            pr_err(e, &mut ret)
-            return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
-        } else {}
-    } else {
-        // Allow wait() after kill(): the process was signalled but still needs
-        // to be reaped. Only reject once it has already been waited on (pid 0).
-        if(child._unix.pid == 0) {
-            var e = ProcessError.NotRunning()
-            pr_err(e, &mut ret)
-            return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
-        } else {}
-    }
-    comptime if(def.windows) {
-        var result = zeroed:unsafe<ProcessResult>()
-        if(win_wait(child, &raw mut result)) {
-            pr_ok(&mut result, &mut ret)
-            return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+        unsafe {
+        var ret = zeroed:unsafe<PR_Result>()
+        // Allow wait() after kill() — process was killed but needs to be reaped.
+        // Only reject if the process handle has already been cleaned up.
+        comptime if(def.windows) {
+            if(!child.is_running && child.win.h_process == null) {
+                var e = ProcessError.NotRunning()
+                pr_err(e, &mut ret)
+                return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+            } else {}
         } else {
-            var e = ProcessError.OperationFailed(string("wait failed"))
-            pr_err(e, &mut ret)
-            return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+            // Allow wait() after kill(): the process was signalled but still needs
+            // to be reaped. Only reject once it has already been waited on (pid 0).
+            if(child._unix.pid == 0) {
+                var e = ProcessError.NotRunning()
+                pr_err(e, &mut ret)
+                return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+            } else {}
         }
-    } else {
-        var result = zeroed:unsafe<ProcessResult>()
-        if(posix_wait(child, &raw mut result)) {
-            pr_ok(&mut result, &mut ret)
-            return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+        comptime if(def.windows) {
+            var result = zeroed:unsafe<ProcessResult>()
+            if(win_wait(child, &raw mut result)) {
+                pr_ok(&mut result, &mut ret)
+                return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+            } else {
+                var e = ProcessError.OperationFailed(string("wait failed"))
+                pr_err(e, &mut ret)
+                return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+            }
         } else {
-            var e = ProcessError.OperationFailed(string("wait failed"))
-            pr_err(e, &mut ret)
-            return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+            var result = zeroed:unsafe<ProcessResult>()
+            if(posix_wait(child, &raw mut result)) {
+                pr_ok(&mut result, &mut ret)
+                return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+            } else {
+                var e = ProcessError.OperationFailed(string("wait failed"))
+                pr_err(e, &mut ret)
+                return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+            }
+        }
+
         }
     }
-}
 
 public func kill_process(child : *mut ChildProcess, signal : int) : UT_Result {
-    var ret = zeroed:unsafe<UT_Result>()
-    if(!child.is_running) {
-        var e = ProcessError.NotRunning()
-        std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace(&mut e, ProcessError.NotRunning())))
-        return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
-    } else {}
-    comptime if(def.windows) {
-        var r = TerminateProcess(child.win.h_process, 1u32);
-        if(r == 0) {
-            var e = ProcessError.OperationFailed(string("TerminateProcess failed"))
-            std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
+        unsafe {
+        var ret = zeroed:unsafe<UT_Result>()
+        if(!child.is_running) {
+            var e = ProcessError.NotRunning()
+            std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace(&mut e, ProcessError.NotRunning())))
             return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
         } else {}
-        // Close pipe handles so win_read_all doesn't block on orphaned children.
-        if(child.win.h_stdin_write != null) {
-            CloseHandle(child.win.h_stdin_write)
-            child.win.h_stdin_write = null
-        }
-        if(child.win.h_stdout_read != null) {
-            CloseHandle(child.win.h_stdout_read)
-            child.win.h_stdout_read = null
-        }
-        if(child.win.h_stderr_read != null) {
-            CloseHandle(child.win.h_stderr_read)
-            child.win.h_stderr_read = null
-        }
-        child.is_running = false
-        std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
-        return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
-    } else {
-        var r = unsafe(kill(child._unix.pid, signal));
-        if(r != 0) {
-            var e = ProcessError.OperationFailed(string("kill failed"))
-            std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
+        comptime if(def.windows) {
+            var r = TerminateProcess(child.win.h_process, 1u32);
+            if(r == 0) {
+                var e = ProcessError.OperationFailed(string("TerminateProcess failed"))
+                std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
+                return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
+            } else {}
+            // Close pipe handles so win_read_all doesn't block on orphaned children.
+            if(child.win.h_stdin_write != null) {
+                CloseHandle(child.win.h_stdin_write)
+                child.win.h_stdin_write = null
+            }
+            if(child.win.h_stdout_read != null) {
+                CloseHandle(child.win.h_stdout_read)
+                child.win.h_stdout_read = null
+            }
+            if(child.win.h_stderr_read != null) {
+                CloseHandle(child.win.h_stderr_read)
+                child.win.h_stderr_read = null
+            }
+            child.is_running = false
+            std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
             return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
-        } else {}
-        child.is_running = false
-        std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
-        return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
+        } else {
+            var r = unsafe(kill(child._unix.pid, signal));
+            if(r != 0) {
+                var e = ProcessError.OperationFailed(string("kill failed"))
+                std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
+                return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
+            } else {}
+            child.is_running = false
+            std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
+            return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
+        }
+
+        }
     }
-}
 
 // ---------------------------------------------------------------------------
 // Process status & I/O
@@ -256,163 +262,175 @@ public func kill_process(child : *mut ChildProcess, signal : int) : UT_Result {
 
 /// Non-blocking check whether a child process is still running.
 public func is_running(child : *mut ChildProcess) : bool {
-    if(!child.is_running) {
-        return false
-    }
-    comptime if(def.windows) {
-        // WaitForSingleObject with 0 timeout = non-blocking poll.
-        var rc = WaitForSingleObject(child.win.h_process, 0u32)
-        if(rc == 0u32) {
-            // Process has exited.
+        unsafe {
+        if(!child.is_running) {
+            return false
+        }
+        comptime if(def.windows) {
+            // WaitForSingleObject with 0 timeout = non-blocking poll.
+            var rc = WaitForSingleObject(child.win.h_process, 0u32)
+            if(rc == 0u32) {
+                // Process has exited.
+                child.is_running = false
+                return false
+            }
+            return true
+        } else {
+            var status : int = 0
+            var ret = unsafe(waitpid(child._unix.pid, &raw mut status, 1)) // WNOHANG = 1
+            if(ret == 0) {
+                return true // still running
+            }
             child.is_running = false
             return false
         }
-        return true
-    } else {
-        var status : int = 0
-        var ret = unsafe(waitpid(child._unix.pid, &raw mut status, 1)) // WNOHANG = 1
-        if(ret == 0) {
-            return true // still running
+
         }
-        child.is_running = false
-        return false
     }
-}
 
 /// Write data to the child process's stdin pipe.
 /// Returns Err if the child has no stdin pipe or the write fails.
 public func write_stdin(child : *mut ChildProcess, data : *vector<u8>) : UT_Result {
-    var ret = zeroed:unsafe<UT_Result>()
-    comptime if(def.windows) {
-        if(child.win.h_stdin_write == null) {
-            var e = ProcessError.InvalidArgs(string("no stdin pipe"))
-            std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
-            return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
-        }
-        if(data.size() > 0) {
-            var written : DWORD = 0
-            var ok = WriteFile(child.win.h_stdin_write, data.data() as *void, data.size() as DWORD, &raw mut written, null)
-            if(ok == 0) {
-                var e = ProcessError.IoError(string("write to stdin failed"))
+        unsafe {
+        var ret = zeroed:unsafe<UT_Result>()
+        comptime if(def.windows) {
+            if(child.win.h_stdin_write == null) {
+                var e = ProcessError.InvalidArgs(string("no stdin pipe"))
                 std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
                 return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
             }
-        }
-        std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
-        return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
-    } else {
-        if(child._unix.stdin_fd < 0) {
-            var e = ProcessError.InvalidArgs(string("no stdin pipe"))
-            std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
+            if(data.size() > 0) {
+                var written : DWORD = 0
+                var ok = WriteFile(child.win.h_stdin_write, data.data() as *void, data.size() as DWORD, &raw mut written, null)
+                if(ok == 0) {
+                    var e = ProcessError.IoError(string("write to stdin failed"))
+                    std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
+                    return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
+                }
+            }
+            std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
             return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
-        }
-        if(data.size() > 0) {
-            var written = unsafe(write(child._unix.stdin_fd, data.data() as *void, data.size()))
-            if(written < 0) {
-                var e = ProcessError.IoError(string("write to stdin failed"))
+        } else {
+            if(child._unix.stdin_fd < 0) {
+                var e = ProcessError.InvalidArgs(string("no stdin pipe"))
                 std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
                 return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
             }
+            if(data.size() > 0) {
+                var written = unsafe(write(child._unix.stdin_fd, data.data() as *void, data.size()))
+                if(written < 0) {
+                    var e = ProcessError.IoError(string("write to stdin failed"))
+                    std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
+                    return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
+                }
+            }
+            std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
+            return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
         }
-        std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
-        return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
+
+        }
     }
-}
 
 /// Close the stdin pipe of a child process (sends EOF to the child).
 public func close_stdin(child : *mut ChildProcess) : UT_Result {
-    var ret = zeroed:unsafe<UT_Result>()
-    comptime if(def.windows) {
-        if(child.win.h_stdin_write != null) {
-            CloseHandle(child.win.h_stdin_write)
-            child.win.h_stdin_write = null
+        unsafe {
+        var ret = zeroed:unsafe<UT_Result>()
+        comptime if(def.windows) {
+            if(child.win.h_stdin_write != null) {
+                CloseHandle(child.win.h_stdin_write)
+                child.win.h_stdin_write = null
+            }
+            std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
+            return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
+        } else {
+            if(child._unix.stdin_fd >= 0) {
+                unsafe { close(child._unix.stdin_fd) }
+                child._unix.stdin_fd = -1
+            }
+            std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
+            return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
         }
-        std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
-        return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
-    } else {
-        if(child._unix.stdin_fd >= 0) {
-            unsafe { close(child._unix.stdin_fd) }
-            child._unix.stdin_fd = -1
+
         }
-        std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
-        return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
     }
-}
 
 /// Reap the child process and return its exit status without blocking.
 /// If the process is still running, returns NotRunning error.
 public func try_wait(child : *mut ChildProcess) : PR_Result {
-    var ret = zeroed:unsafe<PR_Result>()
-    if(!child.is_running) {
-        var e = ProcessError.NotRunning()
-        pr_err(e, &mut ret)
-        return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
-    }
-    comptime if(def.windows) {
-        // Non-blocking: check with 0 timeout
-        var rc = WaitForSingleObject(child.win.h_process, 0u32)
-        if(rc == WAIT_TIMEOUT) {
+        unsafe {
+        var ret = zeroed:unsafe<PR_Result>()
+        if(!child.is_running) {
             var e = ProcessError.NotRunning()
             pr_err(e, &mut ret)
             return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
         }
-        // Process has exited
-        var exit_code : DWORD = 0
-        GetExitCodeProcess(child.win.h_process, &raw mut exit_code)
-        // Read any remaining output
-        var stdout_data = vector<u8>()
-        var stderr_data = vector<u8>()
-        if(child.win.h_stdout_read != null) {
-            win_read_all(child.win.h_stdout_read, &raw mut stdout_data)
-            CloseHandle(child.win.h_stdout_read)
-            child.win.h_stdout_read = null
-        }
-        if(child.win.h_stderr_read != null) {
-            win_read_all(child.win.h_stderr_read, &raw mut stderr_data)
-            CloseHandle(child.win.h_stderr_read)
-            child.win.h_stderr_read = null
-        }
-        if(child.win.h_stdin_write != null) {
-            CloseHandle(child.win.h_stdin_write)
-            child.win.h_stdin_write = null
-        }
-        CloseHandle(child.win.h_process)
-        CloseHandle(child.win.h_thread)
-        child.win.h_process = null
-        child.win.h_thread = null
-        child.is_running = false
-        var result = zeroed:unsafe<ProcessResult>()
-        result.output.stdout_data = stdout_data
-        result.output.stderr_data = stderr_data
-        result.status.code = exit_code as int
-        result.status.signaled = false
-        result.status.signal = 0
-        result.success = (exit_code == 0)
-        pr_ok(&mut result, &mut ret)
-        return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
-    } else {
-        var status : int = 0
-        var pid = unsafe(waitpid(child._unix.pid, &raw mut status, 1)) // WNOHANG
-        if(pid == 0) {
-            var e = ProcessError.NotRunning()
-            pr_err(e, &mut ret)
+        comptime if(def.windows) {
+            // Non-blocking: check with 0 timeout
+            var rc = WaitForSingleObject(child.win.h_process, 0u32)
+            if(rc == WAIT_TIMEOUT) {
+                var e = ProcessError.NotRunning()
+                pr_err(e, &mut ret)
+                return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+            }
+            // Process has exited
+            var exit_code : DWORD = 0
+            GetExitCodeProcess(child.win.h_process, &raw mut exit_code)
+            // Read any remaining output
+            var stdout_data = vector<u8>()
+            var stderr_data = vector<u8>()
+            if(child.win.h_stdout_read != null) {
+                win_read_all(child.win.h_stdout_read, &raw mut stdout_data)
+                CloseHandle(child.win.h_stdout_read)
+                child.win.h_stdout_read = null
+            }
+            if(child.win.h_stderr_read != null) {
+                win_read_all(child.win.h_stderr_read, &raw mut stderr_data)
+                CloseHandle(child.win.h_stderr_read)
+                child.win.h_stderr_read = null
+            }
+            if(child.win.h_stdin_write != null) {
+                CloseHandle(child.win.h_stdin_write)
+                child.win.h_stdin_write = null
+            }
+            CloseHandle(child.win.h_process)
+            CloseHandle(child.win.h_thread)
+            child.win.h_process = null
+            child.win.h_thread = null
+            child.is_running = false
+            var result = zeroed:unsafe<ProcessResult>()
+            result.output.stdout_data = stdout_data
+            result.output.stderr_data = stderr_data
+            result.status.code = exit_code as int
+            result.status.signaled = false
+            result.status.signal = 0
+            result.success = (exit_code == 0)
+            pr_ok(&mut result, &mut ret)
+            return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+        } else {
+            var status : int = 0
+            var pid = unsafe(waitpid(child._unix.pid, &raw mut status, 1)) // WNOHANG
+            if(pid == 0) {
+                var e = ProcessError.NotRunning()
+                pr_err(e, &mut ret)
+                return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+            }
+            var result = zeroed:unsafe<ProcessResult>()
+            var exit_code : int = 0
+            var signaled : bool = false
+            var signal_no : int = 0
+            if(WIFEXITED(status)) { exit_code = WEXITSTATUS(status) }
+            else if(WIFSIGNALED(status)) { signaled = true; signal_no = WTERMSIG(status); exit_code = -1 }
+            child.is_running = false
+            result.status.code = exit_code
+            result.status.signaled = signaled
+            result.status.signal = signal_no
+            result.success = (exit_code == 0 && !signaled)
+            pr_ok(&mut result, &mut ret)
             return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
         }
-        var result = zeroed:unsafe<ProcessResult>()
-        var exit_code : int = 0
-        var signaled : bool = false
-        var signal_no : int = 0
-        if(WIFEXITED(status)) { exit_code = WEXITSTATUS(status) }
-        else if(WIFSIGNALED(status)) { signaled = true; signal_no = WTERMSIG(status); exit_code = -1 }
-        child.is_running = false
-        result.status.code = exit_code
-        result.status.signaled = signaled
-        result.status.signal = signal_no
-        result.success = (exit_code == 0 && !signaled)
-        pr_ok(&mut result, &mut ret)
-        return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+
+        }
     }
-}
 
 // ---------------------------------------------------------------------------
 // Process-wide utilities
@@ -438,11 +456,14 @@ public func sleep_ms(ms : int) {
 
 /// Get the PID of a child process.
 public func child_pid(child : *mut ChildProcess) : int {
-    comptime if(def.windows) {
-        return child.win.pid
-    } else {
-        return child._unix.pid
+        unsafe {
+        comptime if(def.windows) {
+            return child.win.pid
+        } else {
+            return child._unix.pid
+        }
+
+        }
     }
-}
 
 } // end namespace process

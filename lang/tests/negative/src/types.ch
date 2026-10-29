@@ -50,7 +50,7 @@ func pointer_arithmetic_allowed(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // Pointer arithmetic is a core language operation (used across the TLS
     // and archive libraries, e.g. `data + pos`).
-    var ch = "public func main() {\n    var x = 42\n    var p : *int = &raw x\n    var y = p + 1\n}\n"
+    var ch = "public func main() {\n    var x = 42\n    var p : *int = &raw x\n    var y = unsafe(p + 1)\n}\n"
     expect_compile_success(env, "ptr_arithmetic_ok", ch)
 }
 

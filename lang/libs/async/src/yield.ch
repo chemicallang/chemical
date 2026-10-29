@@ -12,38 +12,47 @@ struct YieldState {
 }
 
 func yield_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<core::async::Unit> {
-    var st = frame as *mut YieldState
-    if(st.yielded) {
-        return core::async::Poll.Ready<core::async::Unit>(core::async::Unit { })
-    }
-    st.yielded = true
-    if(!cx.waker.is_empty()) {
-        cx.waker.wake()
-    }
-    return core::async::Poll.Pending<core::async::Unit>()
-}
-
-func yield_drop(frame : *mut void) {
-    var st = frame as *mut YieldState
-    var vtbl = st.vtbl
-    unsafe {
-        dealloc st
-    }
-    if(vtbl != null) {
         unsafe {
-            dealloc vtbl
+        var st = frame as *mut YieldState
+        if(st.yielded) {
+            return core::async::Poll.Ready<core::async::Unit>(core::async::Unit { })
+        }
+        st.yielded = true
+        if(!cx.waker.is_empty()) {
+            cx.waker.wake()
+        }
+        return core::async::Poll.Pending<core::async::Unit>()
+
         }
     }
-}
+
+func yield_drop(frame : *mut void) {
+        unsafe {
+        var st = frame as *mut YieldState
+        var vtbl = st.vtbl
+        unsafe {
+            dealloc st
+        }
+        if(vtbl != null) {
+            unsafe {
+                dealloc vtbl
+            }
+        }
+
+        }
+    }
 
 public func yield_now() : core::async::FutureHandle<core::async::Unit> {
-    var st = unsafe(malloc(sizeof(YieldState))) as *mut YieldState
-    st.yielded = false
-    var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<core::async::Unit>))) as *mut core::async::FutureTable<core::async::Unit>
-    vtbl.poll = yield_poll
-    vtbl.drop = yield_drop
-    st.vtbl = vtbl
-    return unsafe(core::async::future_handle_raw<core::async::Unit>(st as *mut void, vtbl))
-}
+        unsafe {
+        var st = unsafe(malloc(sizeof(YieldState))) as *mut YieldState
+        st.yielded = false
+        var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<core::async::Unit>))) as *mut core::async::FutureTable<core::async::Unit>
+        vtbl.poll = yield_poll
+        vtbl.drop = yield_drop
+        st.vtbl = vtbl
+        return unsafe(core::async::future_handle_raw<core::async::Unit>(st as *mut void, vtbl))
+
+        }
+    }
 
 }

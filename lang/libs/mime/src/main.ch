@@ -44,32 +44,35 @@ public namespace mime {
     // Extract the file extension from a path (including the dot), or "" if none.
     // Example: "/foo/bar.css" -> ".css"
     public func extension(path : *char) : std.string {
-        var last_dot : size_t = 0
-        var found_dot = false
-        var last_slash : size_t = 0
-        var found_slash = false
-        var i : size_t = 0
-        // find end of string
-        while(path[i] != 0) { i += 1 }
-        var len = i
-        i = len
-        while(i > 0) {
-            i -= 1
-            var c = path[i]
-            if(c == '.' && !found_dot) { last_dot = i; found_dot = true }
-            else if(c == '/' || c == '\\') { last_slash = i; found_slash = true; break }
-        }
-        if(found_dot && (!found_slash || last_dot > last_slash)) {
-            // Create a string from the dot onwards
-            var result = std.string()
-            var j = last_dot
-            while(j < len) {
-                result.append(path[j] as char)
-                j += 1
+        unsafe {
+            var last_dot : size_t = 0
+            var found_dot = false
+            var last_slash : size_t = 0
+            var found_slash = false
+            var i : size_t = 0
+            // find end of string
+            while(path[i] != 0) { i += 1 }
+            var len = i
+            i = len
+            while(i > 0) {
+                i -= 1
+                var c = path[i]
+                if(c == '.' && !found_dot) { last_dot = i; found_dot = true }
+                else if(c == '/' || c == '\\') { last_slash = i; found_slash = true; break }
             }
-            return result
+            if(found_dot && (!found_slash || last_dot > last_slash)) {
+                // Create a string from the dot onwards
+                var result = std.string()
+                var j = last_dot
+                while(j < len) {
+                    result.append(path[j] as char)
+                    j += 1
+                }
+                return result
+            }
+            return std.string()
+    
         }
-        return std.string()
     }
 
     // Check if a MIME type is a text type.

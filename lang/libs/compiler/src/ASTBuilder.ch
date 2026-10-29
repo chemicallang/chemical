@@ -259,9 +259,12 @@ public struct IndexOperator : Value {
 
 }
 
-public func (idx : &mut IndexOperator) get_idx() : *mut Value { unsafe {
-    return *idx.get_idx_ptr()
- }}
+public func (idx : &mut IndexOperator) get_idx() : *mut Value {
+        unsafe {     unsafe {
+        return *idx.get_idx_ptr()
+     }
+        }
+    }
 
 public struct Int128Value : Value {}
 
@@ -913,29 +916,44 @@ public struct ASTBuilder {
 
 @retained
 public func (builder : &mut ASTBuilder) allocate_size(obj_size : size_t, alignment : size_t) : *mut char {
-    return builder.allocator.allocate_size(obj_size, alignment);
-}
+        unsafe {
+        return builder.allocator.allocate_size(obj_size, alignment);
+
+        }
+    }
 
 // adds +1 to size to accomodate for the last null terminator \0 in string
 // allocates string with size
 public func (builder : &mut ASTBuilder) allocate_str_size(size : size_t) : *mut char {
-    return builder.allocator.allocate_str_size(size);
-}
+        unsafe {
+        return builder.allocator.allocate_str_size(size);
+
+        }
+    }
 
 public func (builder : &mut ASTBuilder) allocate_str(data : *char, size : size_t) : *mut char {
-    return builder.allocator.allocate_str(data, size);
-}
+        unsafe {
+        return builder.allocator.allocate_str(data, size);
+
+        }
+    }
 
 public func (builder : &mut ASTBuilder) allocate_view(view : &std::string_view) : 'static std::string_view {
-    return builder.allocator.allocate_view(view);
-}
+        unsafe {
+        return builder.allocator.allocate_view(view);
+
+        }
+    }
 
 public func <T> (builder : &mut ASTBuilder) allocate() : *mut T {
-    // TODO get destructor function
-    var delete_fn = intrinsics::get_child_fn<T>("delete") as (obj : *void) => void;
-    if(delete_fn != null) {
-        return builder.allocate_with_cleanup(sizeof(T), alignof(T), delete_fn)
-    } else {
-        return builder.allocate_size(sizeof(T), alignof(T))
+        unsafe {
+        // TODO get destructor function
+        var delete_fn = intrinsics::get_child_fn<T>("delete") as (obj : *void) => void;
+        if(delete_fn != null) {
+            return builder.allocate_with_cleanup(sizeof(T), alignof(T), delete_fn)
+        } else {
+            return builder.allocate_size(sizeof(T), alignof(T))
+        }
+
+        }
     }
-}

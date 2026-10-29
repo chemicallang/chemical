@@ -1,79 +1,85 @@
 
 func parseSimpleSelector(parser : *mut Parser, builder : *mut ASTBuilder, start : Token) : *mut SimpleSelector {
-    var s = builder.allocate<SimpleSelector>(); // Need to ensure alignment/allocation matches struct
-    s.attr = null;
+        unsafe {
+        var s = builder.allocate<SimpleSelector>(); // Need to ensure alignment/allocation matches struct
+        s.attr = null;
 
-    switch(start.type) {
-        TokenType.Identifier, TokenType.PropertyName => {
-            s.kind = SimpleSelectorKind.Tag
-            s.value = builder.allocate_view(&start.value)
-        }
-        TokenType.Multiply => {
-            s.kind = SimpleSelectorKind.Universal
-            s.value = std::string_view("*")
-        }
-        TokenType.Ampersand => {
-            s.kind = SimpleSelectorKind.Ampersand
-            s.value = std::string_view("&")
-        }
-        TokenType.Dot => {
-            parser.increment(); // consume dot
-            const next = parser.getToken();
-            if(next.type != TokenType.Identifier) {
-                parser.error("expected identifier after '.'");
-                return null;
+        switch(start.type) {
+            TokenType.Identifier, TokenType.PropertyName => {
+                s.kind = SimpleSelectorKind.Tag
+                s.value = builder.allocate_view(&start.value)
             }
-            s.kind = SimpleSelectorKind.Class
-            s.value = builder.allocate_view(&next.value)
-        }
-        TokenType.Hash => {
-            parser.increment(); 
-            const next = parser.getToken();
-            // Hash token includes the name usually in lexer? 
-            // Lexer: 'number' or 'id' logic.
-            // Let's check nextToken.ch
-            // Case '#': if Selector mode, reads css_id -> TokenType.Id with value.
-            // So 'start' token already has the value (e.g., "#id").
-            // Wait, looking at `nextToken.ch`:
-            // `TokenType.Id` includes `#`?
-            // "value : std::string_view(start, provider.current_data() - start)"
-            // Yes, it includes `#`.
-            // But strict parser might separate `#` and `name`?
-            // Lexer says: `TokenType.Id` for `#...`.
-            // So we don't need to consume next token if it came as `TokenType.Id`.
-            // But if it came as `#` (HexColor context problem?), Lexer handles context.
-            // We set context to Selector. So we should get `TokenType.Id`.
-            s.kind = SimpleSelectorKind.Id
-            // Value includes `#`?
-            // If we want just name, we strip it. CSSOM usually keeps `#` for ID selector string?
-            // Or just name. `SimpleSelector` value usually implies just the name for ID/Class?
-            // Let's keep strict check.
-            if(start.value.get(0) == '#') {
-                 s.value = builder.allocate_view(start.value.skip(1))
-            } else {
-                 s.value = builder.allocate_view(&start.value)
+            TokenType.Multiply => {
+                s.kind = SimpleSelectorKind.Universal
+                s.value = std::string_view("*")
             }
-        }
-        // Attribute selectors are handled in parseCompoundSelector, which keeps
-        // the live parser position. parseSimpleSelector is kept for completeness.
+            TokenType.Ampersand => {
+                s.kind = SimpleSelectorKind.Ampersand
+                s.value = std::string_view("&")
+            }
+            TokenType.Dot => {
+                parser.increment(); // consume dot
+                const next = parser.getToken();
+                if(next.type != TokenType.Identifier) {
+                    parser.error("expected identifier after '.'");
+                    return null;
+                }
+                s.kind = SimpleSelectorKind.Class
+                s.value = builder.allocate_view(&next.value)
+            }
+            TokenType.Hash => {
+                parser.increment(); 
+                const next = parser.getToken();
+                // Hash token includes the name usually in lexer? 
+                // Lexer: 'number' or 'id' logic.
+                // Let's check nextToken.ch
+                // Case '#': if Selector mode, reads css_id -> TokenType.Id with value.
+                // So 'start' token already has the value (e.g., "#id").
+                // Wait, looking at `nextToken.ch`:
+                // `TokenType.Id` includes `#`?
+                // "value : std::string_view(start, provider.current_data() - start)"
+                // Yes, it includes `#`.
+                // But strict parser might separate `#` and `name`?
+                // Lexer says: `TokenType.Id` for `#...`.
+                // So we don't need to consume next token if it came as `TokenType.Id`.
+                // But if it came as `#` (HexColor context problem?), Lexer handles context.
+                // We set context to Selector. So we should get `TokenType.Id`.
+                s.kind = SimpleSelectorKind.Id
+                // Value includes `#`?
+                // If we want just name, we strip it. CSSOM usually keeps `#` for ID selector string?
+                // Or just name. `SimpleSelector` value usually implies just the name for ID/Class?
+                // Let's keep strict check.
+                if(start.value.get(0) == '#') {
+                     s.value = builder.allocate_view(start.value.skip(1))
+                } else {
+                     s.value = builder.allocate_view(&start.value)
+                }
+            }
+            // Attribute selectors are handled in parseCompoundSelector, which keeps
+            // the live parser position. parseSimpleSelector is kept for completeness.
         
-        default => {
-             return null;
+            default => {
+                 return null;
+            }
+        }
+        return s;
+
         }
     }
-    return s;
-}
 
 func strip_quotes_if_any(value : std::string_view) : std::string_view {
-    if(value.size() >= 2) {
-        const first = value.get(0);
-        const last = value.get(value.size() - 1);
-        if((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
-            return value.subview(1, value.size() - 1);
+        unsafe {
+        if(value.size() >= 2) {
+            const first = value.get(0);
+            const last = value.get(value.size() - 1);
+            if((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
+                return value.subview(1, value.size() - 1);
+            }
+        }
+        return value;
+
         }
     }
-    return value;
-}
 
 // Parses an attribute selector starting at the '[' token: [attr], [attr=value],
 // [attr^="pre"], [attr$="suf"], [attr*="sub"], [attr~="word"], [attr|="prefix"],
@@ -148,251 +154,260 @@ func parseAttributeSelector(parser : *mut Parser, builder : *mut ASTBuilder, sta
  }}
 
 func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *mut CompoundSelector {
-    var comp = builder.allocate<CompoundSelector>();
-    new (comp) CompoundSelector {
-         simple_selectors : std::vector<*mut SimpleSelector>()
-    }
-    
-    var last_line : uint = 0;
-    var last_char : uint = 0;
-    var pseudo_end_line : uint = 0;
-    var pseudo_end_char : uint = 0;
-    var first = true;
-    var attr_parsed = false;
-    var pseudo_parsed = false;
-    
-    while(true) {
-        const token = parser.getToken();
-        
-        // Adjacency check for subsequent simple selectors
-        if(!first) {
-            // If space between tokens, loop ends (it's a combinator)
-            if(token.position.line > last_line) {
-                 break;
-            }
-            if(token.position.line == last_line && token.position.character > last_char) { 
-                 break;
-            }
+        unsafe {
+        var comp = builder.allocate<CompoundSelector>();
+        new (comp) CompoundSelector {
+             simple_selectors : std::vector<*mut SimpleSelector>()
         }
+    
+        var last_line : uint = 0;
+        var last_char : uint = 0;
+        var pseudo_end_line : uint = 0;
+        var pseudo_end_char : uint = 0;
+        var first = true;
+        var attr_parsed = false;
+        var pseudo_parsed = false;
+    
+        while(true) {
+            const token = parser.getToken();
         
-        var simple : *mut SimpleSelector = null;
-
-        
-        if(token.type == TokenType.ClassName) {
-             simple = builder.allocate<SimpleSelector>();
-             simple.kind = SimpleSelectorKind.Class;
-             simple.value = builder.allocate_view(&token.value);
-             parser.increment();
-        } else if(token.type == TokenType.Id) {
-             simple = builder.allocate<SimpleSelector>();
-             simple.kind = SimpleSelectorKind.Id;
-             simple.value = builder.allocate_view(&token.value); // strip #
-             parser.increment();
-        } else if(token.type == TokenType.Identifier || token.type == TokenType.PropertyName) {
-             simple = builder.allocate<SimpleSelector>();
-             simple.kind = SimpleSelectorKind.Tag;
-             simple.value = builder.allocate_view(&token.value);
-             parser.increment();
-        } else if(token.type == TokenType.Ampersand) {
-             simple = builder.allocate<SimpleSelector>();
-             simple.kind = SimpleSelectorKind.Ampersand;
-             simple.value = std::string_view("&");
-             parser.increment();
-        } else if(token.type == TokenType.Multiply) {
-             simple = builder.allocate<SimpleSelector>();
-             simple.kind = SimpleSelectorKind.Universal;
-             simple.value = std::string_view("*");
-             parser.increment();
-        } else if(token.type == TokenType.LBracket) {
-             var attrEndLine : uint = 0
-             var attrEndChar : uint = 0
-             simple = parseAttributeSelector(parser, builder, token, &raw mut attrEndLine, &raw mut attrEndChar);
-             if(simple == null) {
-                 break;
-             }
-             // The attribute selector consumed through ']' — advance the
-             // adjacency cursor to just past it so a directly-following
-             // pseudo/class stays in the same compound.
-             last_line = attrEndLine
-             last_char = attrEndChar
-             attr_parsed = true
-        } else if(token.type == TokenType.Colon) {
-             if(simple != null) {
-                 break;
-             }
-             parser.increment();
-             const next = parser.getToken();
-             if(next.type == TokenType.Colon) {
-                 // Pseudo-element (::)
-                 parser.increment();
-                 const nameToken = parser.getToken();
-                 if(nameToken.type == TokenType.Identifier || nameToken.type == TokenType.PropertyName) {
-                     simple = builder.allocate<SimpleSelector>();
-                     simple.kind = SimpleSelectorKind.PseudoElement;
-                     simple.value = builder.allocate_view(&nameToken.value);
-                     pseudo_end_line = nameToken.position.line
-                     pseudo_end_char = nameToken.position.character + nameToken.value.size()
-                     pseudo_parsed = true
-                     parser.increment();
-                 } else {
-                      // Unexpected token after ::
-                      break; 
-                 }
-             } else if(next.type == TokenType.Identifier || next.type == TokenType.PropertyName) {
-                 // Pseudo-class (:)
-                 simple = builder.allocate<SimpleSelector>();
-                 simple.kind = SimpleSelectorKind.PseudoClass;
-                 
-                 var val = std::string(next.value)
-                 pseudo_end_line = next.position.line
-                 pseudo_end_char = next.position.character + next.value.size()
-                 pseudo_parsed = true
-                 parser.increment()
-                 if(parser.increment_if(TokenType.LParen as int)) {
-                     val.append('(')
-                     while(true) {
-                         const t2 = parser.getToken()
-                         if(t2.type == TokenType.RParen || t2.type == TokenType.EndOfFile) break
-                         val.append_view(&t2.value)
-                         pseudo_end_line = t2.position.line
-                         pseudo_end_char = t2.position.character + t2.value.size()
-                         parser.increment()
-                     }
-                     const rp = parser.get_incrementing_if(TokenType.RParen as int)
-                     if(rp != null) {
-                         pseudo_end_line = rp.position.line
-                         pseudo_end_char = rp.position.character + rp.value.size()
-                         val.append(')')
-                     }
-                 }
-                 const raw_view = unsafe(std::string_view(val.data(), val.size()))
-                 simple.value = builder.allocate_view(&raw_view);
-             } else {
-                 // Unexpected token after :
-                 break;
-             }
-        } else {
-             break; 
-        }
-        
-        if(simple != null) {
-            comp.simple_selectors.push(simple);
-            if(pseudo_parsed) {
-                last_line = pseudo_end_line;
-                last_char = pseudo_end_char;
-            } else if(!attr_parsed) {
-                last_line = token.position.line;
-                last_char = token.position.character + token.value.size();
-                if(token.type == TokenType.ClassName || token.type == TokenType.Id) {
-                    last_char++; // account for '.' or '#' prefix not included in value
+            // Adjacency check for subsequent simple selectors
+            if(!first) {
+                // If space between tokens, loop ends (it's a combinator)
+                if(token.position.line > last_line) {
+                     break;
+                }
+                if(token.position.line == last_line && token.position.character > last_char) { 
+                     break;
                 }
             }
-            attr_parsed = false;
-            pseudo_parsed = false;
-            first = false;
-        } else {
-            break; 
+        
+            var simple : *mut SimpleSelector = null;
+
+        
+            if(token.type == TokenType.ClassName) {
+                 simple = builder.allocate<SimpleSelector>();
+                 simple.kind = SimpleSelectorKind.Class;
+                 simple.value = builder.allocate_view(&token.value);
+                 parser.increment();
+            } else if(token.type == TokenType.Id) {
+                 simple = builder.allocate<SimpleSelector>();
+                 simple.kind = SimpleSelectorKind.Id;
+                 simple.value = builder.allocate_view(&token.value); // strip #
+                 parser.increment();
+            } else if(token.type == TokenType.Identifier || token.type == TokenType.PropertyName) {
+                 simple = builder.allocate<SimpleSelector>();
+                 simple.kind = SimpleSelectorKind.Tag;
+                 simple.value = builder.allocate_view(&token.value);
+                 parser.increment();
+            } else if(token.type == TokenType.Ampersand) {
+                 simple = builder.allocate<SimpleSelector>();
+                 simple.kind = SimpleSelectorKind.Ampersand;
+                 simple.value = std::string_view("&");
+                 parser.increment();
+            } else if(token.type == TokenType.Multiply) {
+                 simple = builder.allocate<SimpleSelector>();
+                 simple.kind = SimpleSelectorKind.Universal;
+                 simple.value = std::string_view("*");
+                 parser.increment();
+            } else if(token.type == TokenType.LBracket) {
+                 var attrEndLine : uint = 0
+                 var attrEndChar : uint = 0
+                 simple = parseAttributeSelector(parser, builder, token, &raw mut attrEndLine, &raw mut attrEndChar);
+                 if(simple == null) {
+                     break;
+                 }
+                 // The attribute selector consumed through ']' — advance the
+                 // adjacency cursor to just past it so a directly-following
+                 // pseudo/class stays in the same compound.
+                 last_line = attrEndLine
+                 last_char = attrEndChar
+                 attr_parsed = true
+            } else if(token.type == TokenType.Colon) {
+                 if(simple != null) {
+                     break;
+                 }
+                 parser.increment();
+                 const next = parser.getToken();
+                 if(next.type == TokenType.Colon) {
+                     // Pseudo-element (::)
+                     parser.increment();
+                     const nameToken = parser.getToken();
+                     if(nameToken.type == TokenType.Identifier || nameToken.type == TokenType.PropertyName) {
+                         simple = builder.allocate<SimpleSelector>();
+                         simple.kind = SimpleSelectorKind.PseudoElement;
+                         simple.value = builder.allocate_view(&nameToken.value);
+                         pseudo_end_line = nameToken.position.line
+                         pseudo_end_char = nameToken.position.character + nameToken.value.size()
+                         pseudo_parsed = true
+                         parser.increment();
+                     } else {
+                          // Unexpected token after ::
+                          break; 
+                     }
+                 } else if(next.type == TokenType.Identifier || next.type == TokenType.PropertyName) {
+                     // Pseudo-class (:)
+                     simple = builder.allocate<SimpleSelector>();
+                     simple.kind = SimpleSelectorKind.PseudoClass;
+                 
+                     var val = std::string(next.value)
+                     pseudo_end_line = next.position.line
+                     pseudo_end_char = next.position.character + next.value.size()
+                     pseudo_parsed = true
+                     parser.increment()
+                     if(parser.increment_if(TokenType.LParen as int)) {
+                         val.append('(')
+                         while(true) {
+                             const t2 = parser.getToken()
+                             if(t2.type == TokenType.RParen || t2.type == TokenType.EndOfFile) break
+                             val.append_view(&t2.value)
+                             pseudo_end_line = t2.position.line
+                             pseudo_end_char = t2.position.character + t2.value.size()
+                             parser.increment()
+                         }
+                         const rp = parser.get_incrementing_if(TokenType.RParen as int)
+                         if(rp != null) {
+                             pseudo_end_line = rp.position.line
+                             pseudo_end_char = rp.position.character + rp.value.size()
+                             val.append(')')
+                         }
+                     }
+                     const raw_view = unsafe(std::string_view(val.data(), val.size()))
+                     simple.value = builder.allocate_view(&raw_view);
+                 } else {
+                     // Unexpected token after :
+                     break;
+                 }
+            } else {
+                 break; 
+            }
+        
+            if(simple != null) {
+                comp.simple_selectors.push(simple);
+                if(pseudo_parsed) {
+                    last_line = pseudo_end_line;
+                    last_char = pseudo_end_char;
+                } else if(!attr_parsed) {
+                    last_line = token.position.line;
+                    last_char = token.position.character + token.value.size();
+                    if(token.type == TokenType.ClassName || token.type == TokenType.Id) {
+                        last_char++; // account for '.' or '#' prefix not included in value
+                    }
+                }
+                attr_parsed = false;
+                pseudo_parsed = false;
+                first = false;
+            } else {
+                break; 
+            }
+        }
+    
+        if(comp.simple_selectors.empty()) return null;
+        return comp;
+
         }
     }
-    
-    if(comp.simple_selectors.empty()) return null;
-    return comp;
-}
 
 func parseComplexSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ComplexSelector {
-    var head = builder.allocate<ComplexSelector>();
-    head.combinator = Combinator.None;
-    head.next = null;
+        unsafe {
+        var head = builder.allocate<ComplexSelector>();
+        head.combinator = Combinator.None;
+        head.next = null;
     
-    head.compound = parseCompoundSelector(parser, builder);
-    if(head.compound == null) return null;
+        head.compound = parseCompoundSelector(parser, builder);
+        if(head.compound == null) return null;
     
-    var curr = head;
+        var curr = head;
     
-    while(true) {
-        const token = parser.getToken();
-        var combinator = Combinator.None;
-        var consumed = false;
+        while(true) {
+            const token = parser.getToken();
+            var combinator = Combinator.None;
+            var consumed = false;
         
-        switch(token.type) {
-            TokenType.Plus => {
-                combinator = Combinator.NextSibling;
-                parser.increment();
-                consumed = true;
+            switch(token.type) {
+                TokenType.Plus => {
+                    combinator = Combinator.NextSibling;
+                    parser.increment();
+                    consumed = true;
+                }
+                TokenType.GeneralSibling => {
+                    combinator = Combinator.SubsequentSibling;
+                    parser.increment();
+                    consumed = true;
+                }
+                TokenType.GreaterThan => {
+                    combinator = Combinator.Child;
+                    parser.increment();
+                    consumed = true;
+                }
+                TokenType.Comma, TokenType.LBrace, TokenType.EndOfFile => {
+                    return head;
+                }
+                default => {
+                    // If we have a compound selector next, it's a Descendant combinator (space)
+                    // We check if it parses as compound.
+                    // implied space.
+                    combinator = Combinator.Descendant;
+                }
             }
-            TokenType.GeneralSibling => {
-                combinator = Combinator.SubsequentSibling;
-                parser.increment();
-                consumed = true;
+        
+            // If we consumed a explicit combinator, we expect a compound selector next.
+            // If implied (Descendant), we try to parse.
+        
+            var next_compound = parseCompoundSelector(parser, builder); // recursing doesn't use initial_token
+            if(next_compound == null) {
+                if(consumed) {
+                     parser.error("expected selector after combinator");
+                }
+                break;
             }
-            TokenType.GreaterThan => {
-                combinator = Combinator.Child;
-                parser.increment();
-                consumed = true;
-            }
-            TokenType.Comma, TokenType.LBrace, TokenType.EndOfFile => {
-                return head;
-            }
-            default => {
-                // If we have a compound selector next, it's a Descendant combinator (space)
-                // We check if it parses as compound.
-                // implied space.
-                combinator = Combinator.Descendant;
-            }
+        
+            // Link
+            curr.combinator = combinator; // The combinator linking current to next
+            var next_node = builder.allocate<ComplexSelector>();
+            next_node.compound = next_compound;
+            next_node.combinator = Combinator.None;
+            next_node.next = null;
+        
+            curr.next = next_node;
+            curr = next_node;
         }
-        
-        // If we consumed a explicit combinator, we expect a compound selector next.
-        // If implied (Descendant), we try to parse.
-        
-        var next_compound = parseCompoundSelector(parser, builder); // recursing doesn't use initial_token
-        if(next_compound == null) {
-            if(consumed) {
-                 parser.error("expected selector after combinator");
-            }
-            break;
+    
+        return head;
+
         }
-        
-        // Link
-        curr.combinator = combinator; // The combinator linking current to next
-        var next_node = builder.allocate<ComplexSelector>();
-        next_node.compound = next_compound;
-        next_node.combinator = Combinator.None;
-        next_node.next = null;
-        
-        curr.next = next_node;
-        curr = next_node;
     }
-    
-    return head;
-}
 
 func parseSelectorList(parser : *mut Parser, builder : *mut ASTBuilder) : *mut SelectorList {
-    var list = builder.allocate<SelectorList>();
-    new (list) SelectorList {
-        selectors : std::vector<*mut ComplexSelector>()
-    }
-    
-    // var first = true;
-    
-    while(true) {
-        var sel = parseComplexSelector(parser, builder);
-        // first = false;
-        
-        if(sel != null) {
-            list.selectors.push(sel);
-        } else {
-            // Error?
-            break;
+        unsafe {
+        var list = builder.allocate<SelectorList>();
+        new (list) SelectorList {
+            selectors : std::vector<*mut ComplexSelector>()
         }
+    
+        // var first = true;
+    
+        while(true) {
+            var sel = parseComplexSelector(parser, builder);
+            // first = false;
         
-        const token = parser.getToken();
-        if(token.type == TokenType.Comma) {
-            parser.increment();
-            continue;
-        } else {
-            break;
+            if(sel != null) {
+                list.selectors.push(sel);
+            } else {
+                // Error?
+                break;
+            }
+        
+            const token = parser.getToken();
+            if(token.type == TokenType.Comma) {
+                parser.increment();
+                continue;
+            } else {
+                break;
+            }
+        }
+    
+        return list;
+
         }
     }
-    
-    return list;
-}

@@ -117,7 +117,7 @@ public async func send_async(fd : int, data : *char, len : int) : int {
     comptime if(def.windows) {
         var off = 0
         while(off < len) {
-            var n = await net::iocp::async_iocp_send(fd as Socket, &raw data[off], len - off)
+            var n = await net::iocp::async_iocp_send(fd as Socket, unsafe(&raw data[off]), len - off)
             if(n <= 0) {
                 return -1
             }
@@ -127,7 +127,7 @@ public async func send_async(fd : int, data : *char, len : int) : int {
     } else {
         var off = 0
         while(off < len) {
-            var n = sock_send(fd as Socket, &raw data[off], len - off)
+            var n = sock_send(fd as Socket, unsafe(&raw data[off]), len - off)
             if(n > 0) {
                 off = off + n
                 continue

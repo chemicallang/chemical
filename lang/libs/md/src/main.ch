@@ -44,20 +44,23 @@ public func lex(text : std::string_view) : std::vector<Token> {
 }
 
 public func parse(tokens : *std::vector<Token>, arena : *mut Arena) : *mut MdRoot {
-    var tokens_copy = std::vector<Token>()
-    var i = 0u
-    while(i < tokens.size()) {
-        tokens_copy.push(tokens.get(i))
-        i++
+        unsafe {
+        var tokens_copy = std::vector<Token>()
+        var i = 0u
+        while(i < tokens.size()) {
+            tokens_copy.push(tokens.get(i))
+            i++
+        }
+
+        var parser = RuntimeParser { current : null, tokens : std::vector<Token>(), parent : null }
+        parser.setup(tokens_copy)
+
+        var builder = ASTBuilder { allocator : (&raw mut arena.allocator) as *mut BatchAllocator, typeBuilder : null }
+
+        return parseMdRoot((&raw mut parser) as *mut Parser, &raw mut builder) as *mut MdRoot
+
+        }
     }
-
-    var parser = RuntimeParser { current : null, tokens : std::vector<Token>(), parent : null }
-    parser.setup(tokens_copy)
-
-    var builder = ASTBuilder { allocator : (&raw mut arena.allocator) as *mut BatchAllocator, typeBuilder : null }
-
-    return parseMdRoot((&raw mut parser) as *mut Parser, &raw mut builder) as *mut MdRoot
-}
 
 public func to_html(text : std::string_view, highlighter : (lang : std::string_view, code : std::string_view) => std::string, link_rewriter : (url : std::string_view) => std::string) : std::string {
     var tokens = tokenize_md_impl(text)

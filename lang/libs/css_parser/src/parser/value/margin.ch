@@ -3,42 +3,45 @@ func (cssParser : &mut CSSParser) parseMargin(
     builder : *mut ASTBuilder,
     value : &mut CSSValue
 ) {
+        unsafe {
 
-    if(cssParser.parseLengthOrAuto(parser, builder, value)) {
+        if(cssParser.parseLengthOrAuto(parser, builder, value)) {
 
-        const tok = parser.getToken();
-        if(tok.type == TokenType.Semicolon) {
-            return;
-        }
-
-        var multiple = builder.allocate<CSSMultipleValues>()
-        new (multiple) CSSMultipleValues {
-            values : std::vector<CSSValue>()
-        }
-
-        multiple.values.push(*value)
-        value.kind = CSSValueKind.Multiple
-        value.data = multiple
-
-        var i = 0;
-        while(i < 4) {
-            var next : CSSValue
-            if(cssParser.parseLengthOrAuto(parser, builder, unsafe(&mut next))) {
-
-                multiple.values.push(next)
-                i++;
-
-            } else {
-                const next2 = parser.getToken();
-                if(next2.type != TokenType.Semicolon) {
-                    parser.error("unknown value for margin");
-                }
-                break;
+            const tok = parser.getToken();
+            if(tok.type == TokenType.Semicolon) {
+                return;
             }
+
+            var multiple = builder.allocate<CSSMultipleValues>()
+            new (multiple) CSSMultipleValues {
+                values : std::vector<CSSValue>()
+            }
+
+            multiple.values.push(*value)
+            value.kind = CSSValueKind.Multiple
+            value.data = multiple
+
+            var i = 0;
+            while(i < 4) {
+                var next : CSSValue
+                if(cssParser.parseLengthOrAuto(parser, builder, unsafe(&mut next))) {
+
+                    multiple.values.push(next)
+                    i++;
+
+                } else {
+                    const next2 = parser.getToken();
+                    if(next2.type != TokenType.Semicolon) {
+                        parser.error("unknown value for margin");
+                    }
+                    break;
+                }
+            }
+
+        } else {
+            parser.error("unknown value for margin");
         }
 
-    } else {
-        parser.error("unknown value for margin");
-    }
 
-}
+        }
+    }

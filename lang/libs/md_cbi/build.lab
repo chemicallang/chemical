@@ -10,80 +10,83 @@ import "@md_ide/build.lab" as mdIdeMod
 using namespace std;
 
 public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module {
+        unsafe {
 
-    const curr_file_path = lab::get_my_path();
-    const previous_module = ctx.get_cached(user_job, &curr_file_path);
-    if(previous_module != null) return previous_module;
-    const empty_module = ctx.empty_module(std::string_view(""), std::string_view("md_cbi"));
-    ctx.set_cached(user_job, &curr_file_path, empty_module)
+        const curr_file_path = lab::get_my_path();
+        const previous_module = ctx.get_cached(user_job, &curr_file_path);
+        if(previous_module != null) return previous_module;
+        const empty_module = ctx.empty_module(std::string_view(""), std::string_view("md_cbi"));
+        ctx.set_cached(user_job, &curr_file_path, empty_module)
 
-    const cbi_name = std::string_view("md");
-    if(ctx.contains_cbi(&cbi_name)) {
-        return empty_module;
-    }
-    ctx.set_contains_cbi(&cbi_name)
-
-    // md cbi
-    var cbi = ctx.build_cbi(&cbi_name)
-    const job = cbi;
-
-    // makes sure this job is done before the user_job
-    ctx.put_job_before(job, user_job)
-
-    var std_module = stdMod.build(ctx, job);
-    if(std_module == null) {
-        return null
-    }
-
-    // the cstd module
-    var cstd_module = cstdMod.build(ctx, job);
-    if(cstd_module == null) {
-        return null
-    }
-
-    // the compiler module
-    var compiler_module = compilerMod.build(ctx, job);
-    if(compiler_module == null) {
-        return null
-    }
-
-    // the md parser module
-    var md_parser = mdParserMod.build(ctx, job)
-    if(md_parser == null) {
-        return null
-    }
-
-    // only compile html ide module in lsp
-    var mdIde : *mut Module = null
-    comptime if(def.lsp) {
-        mdIde = mdIdeMod.build(ctx, job)
-        if(mdIde == null) {
-            return null;
+        const cbi_name = std::string_view("md");
+        if(ctx.contains_cbi(&cbi_name)) {
+            return empty_module;
         }
-    } else {
-        mdIde = md_parser
+        ctx.set_contains_cbi(&cbi_name)
+
+        // md cbi
+        var cbi = ctx.build_cbi(&cbi_name)
+        const job = cbi;
+
+        // makes sure this job is done before the user_job
+        ctx.put_job_before(job, user_job)
+
+        var std_module = stdMod.build(ctx, job);
+        if(std_module == null) {
+            return null
+        }
+
+        // the cstd module
+        var cstd_module = cstdMod.build(ctx, job);
+        if(cstd_module == null) {
+            return null
+        }
+
+        // the compiler module
+        var compiler_module = compilerMod.build(ctx, job);
+        if(compiler_module == null) {
+            return null
+        }
+
+        // the md parser module
+        var md_parser = mdParserMod.build(ctx, job)
+        if(md_parser == null) {
+            return null
+        }
+
+        // only compile html ide module in lsp
+        var mdIde : *mut Module = null
+        comptime if(def.lsp) {
+            mdIde = mdIdeMod.build(ctx, job)
+            if(mdIde == null) {
+                return null;
+            }
+        } else {
+            mdIde = md_parser
+        }
+
+        const dependencies = [ cstd_module, std_module, compiler_module, md_parser, mdIde ]
+        var src_path = lab::rel_path_to("src")
+        const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("md_cbi"), src_path.to_view(), dependencies);
+
+        ctx.add_module(cbi, module)
+
+        ctx.index_def_cbi_fn(cbi, std::string_view("md_initializeLexer"), CBIFunctionType.InitializeLexer);
+        ctx.index_def_cbi_fn(cbi, std::string_view("md_parseMacroValue"), CBIFunctionType.ParseMacroValue);
+        ctx.index_def_cbi_fn(cbi, std::string_view("md_parseMacroNode"), CBIFunctionType.ParseMacroNode);
+        ctx.index_def_cbi_fn(cbi, std::string_view("md_symResNode"), CBIFunctionType.SymResNode);
+        ctx.index_def_cbi_fn(cbi, std::string_view("md_symResValue"), CBIFunctionType.SymResValue);
+        ctx.index_def_cbi_fn(cbi, std::string_view("md_replacementNode"), CBIFunctionType.ReplacementNode);
+        ctx.index_def_cbi_fn(cbi, std::string_view("md_replacementValue"), CBIFunctionType.ReplacementValue);
+
+        comptime if(def.lsp) {
+            // this will let the lsp know that methods are present
+            ctx.index_def_cbi_fn(cbi, std::string_view("md_semanticTokensPut"), CBIFunctionType.SemanticTokensPut);
+            ctx.index_def_cbi_fn(cbi, std::string_view("md_foldingRangesPut"), CBIFunctionType.FoldingRangesPut);
+        }
+
+        return empty_module;
+
+
+        }
     }
-
-    const dependencies = [ cstd_module, std_module, compiler_module, md_parser, mdIde ]
-    var src_path = lab::rel_path_to("src")
-    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("md_cbi"), src_path.to_view(), dependencies);
-
-    ctx.add_module(cbi, module)
-
-    ctx.index_def_cbi_fn(cbi, std::string_view("md_initializeLexer"), CBIFunctionType.InitializeLexer);
-    ctx.index_def_cbi_fn(cbi, std::string_view("md_parseMacroValue"), CBIFunctionType.ParseMacroValue);
-    ctx.index_def_cbi_fn(cbi, std::string_view("md_parseMacroNode"), CBIFunctionType.ParseMacroNode);
-    ctx.index_def_cbi_fn(cbi, std::string_view("md_symResNode"), CBIFunctionType.SymResNode);
-    ctx.index_def_cbi_fn(cbi, std::string_view("md_symResValue"), CBIFunctionType.SymResValue);
-    ctx.index_def_cbi_fn(cbi, std::string_view("md_replacementNode"), CBIFunctionType.ReplacementNode);
-    ctx.index_def_cbi_fn(cbi, std::string_view("md_replacementValue"), CBIFunctionType.ReplacementValue);
-
-    comptime if(def.lsp) {
-        // this will let the lsp know that methods are present
-        ctx.index_def_cbi_fn(cbi, std::string_view("md_semanticTokensPut"), CBIFunctionType.SemanticTokensPut);
-        ctx.index_def_cbi_fn(cbi, std::string_view("md_foldingRangesPut"), CBIFunctionType.FoldingRangesPut);
-    }
-
-    return empty_module;
-
-}

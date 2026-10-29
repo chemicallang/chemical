@@ -94,30 +94,33 @@ func sink_hoist_assert_no_inlined_definition(env : &mut TestEnv, label : &std::s
 
 @test
 public func shared_sink_hoists_a_nested_component_definition(env : &mut TestEnv) {
-    var shared = shared_assets("sink_hoist")
-    var page = HtmlPage()
-    page.attach_shared(shared)
-    page.defaultUniversalSetup()
-    sink_hoist_render(&mut page)
+        unsafe {
+        var shared = shared_assets("sink_hoist")
+        var page = HtmlPage()
+        page.attach_shared(shared)
+        page.defaultUniversalSetup()
+        sink_hoist_render(&mut page)
 
-    var bundle = std::string()
-    bundle.append_view(shared.js())
+        var bundle = std::string()
+        bundle.append_view(shared.js())
 
-    if(!sink_hoist_assert_no_inlined_definition(env, &std::string_view("with a shared sink attached"), &bundle)) {
-        return
+        if(!sink_hoist_assert_no_inlined_definition(env, &std::string_view("with a shared sink attached"), &bundle)) {
+            return
+        }
+
+        // And the leaf must actually be there as a hoisted definition, referenced
+        // rather than inlined — an empty bundle must not pass this by having nothing
+        // wrong with it.
+        const sig = std::string_view("SinkInner(props)")
+        if(!bundle.to_view().contains(&sig)) {
+            env.error("the nested component emitted no definition into the sink")
+            env.info(bundle.data())
+            return
+        }
+        env.success("a nested component definition is hoisted out of the call it was emitted in")
+
+        }
     }
-
-    // And the leaf must actually be there as a hoisted definition, referenced
-    // rather than inlined — an empty bundle must not pass this by having nothing
-    // wrong with it.
-    const sig = std::string_view("SinkInner(props)")
-    if(!bundle.to_view().contains(&sig)) {
-        env.error("the nested component emitted no definition into the sink")
-        env.info(bundle.data())
-        return
-    }
-    env.success("a nested component definition is hoisted out of the call it was emitted in")
-}
 
 @test
 public func no_sink_hoists_a_nested_component_definition_too(env : &mut TestEnv) {
@@ -139,28 +142,31 @@ public func no_sink_hoists_a_nested_component_definition_too(env : &mut TestEnv)
 
 @test
 public func shared_sink_hoist_survives_a_second_page_on_the_same_sink(env : &mut TestEnv) {
-    // The account warms the sink from one render and then every request page
-    // attaches it, so the second page's definitions are appended to a sink that
-    // already has content in it. That is the state in which the offsets were most
-    // wrong, so it gets its own test.
-    var shared = shared_assets("sink_hoist_two")
+        unsafe {
+        // The account warms the sink from one render and then every request page
+        // attaches it, so the second page's definitions are appended to a sink that
+        // already has content in it. That is the state in which the offsets were most
+        // wrong, so it gets its own test.
+        var shared = shared_assets("sink_hoist_two")
 
-    var warm = HtmlPage()
-    warm.attach_shared(shared)
-    warm.defaultUniversalSetup()
-    sink_hoist_render(&mut warm)
+        var warm = HtmlPage()
+        warm.attach_shared(shared)
+        warm.defaultUniversalSetup()
+        sink_hoist_render(&mut warm)
 
-    var request = HtmlPage()
-    request.attach_shared(shared)
-    request.defaultUniversalSetup()
-    sink_hoist_render(&mut request)
+        var request = HtmlPage()
+        request.attach_shared(shared)
+        request.defaultUniversalSetup()
+        sink_hoist_render(&mut request)
 
-    var bundle = std::string()
-    bundle.append_view(shared.js())
+        var bundle = std::string()
+        bundle.append_view(shared.js())
 
-    if(!sink_hoist_assert_no_inlined_definition(env, &std::string_view("sink warmed then reused"), &bundle)) {
-        return
+        if(!sink_hoist_assert_no_inlined_definition(env, &std::string_view("sink warmed then reused"), &bundle)) {
+            return
+        }
+        env.success("definitions stay hoisted when a second page renders into an already-warm sink")
+
+        }
     }
-    env.success("definitions stay hoisted when a second page renders into an already-warm sink")
-}
 

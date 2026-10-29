@@ -37,11 +37,14 @@ public func styled_node_child_res_func(value : *EmbeddedNode, name : &std::strin
 }
 
 public func styled_cross_mod_proxy_fn(obj : *mut void, node : *mut EmbeddedNode, fn : CrossModuleSymbolDeclarerFn, at_least_spec : AccessSpecifier) {
-    const comp = node.getDataPtr() as *mut StyledComponent;
-    if (comp.signature.access == AccessSpecifier.Public) {
-        fn(obj, &comp.signature.name, node)
+        unsafe {
+        const comp = node.getDataPtr() as *mut StyledComponent;
+        if (comp.signature.access == AccessSpecifier.Public) {
+            fn(obj, &comp.signature.name, node)
+        }
+
+        }
     }
-}
 
 @no_mangle
 public func styled_initializeLexer(lexer : *mut Lexer) {
@@ -51,126 +54,132 @@ public func styled_initializeLexer(lexer : *mut Lexer) {
 
 @no_mangle
 public func styled_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder, spec : AccessSpecifier) : *mut ASTNode {
-    const tok = parser.getToken()
-    const loc = parser.getEncodedLocation(tok)
+        unsafe {
+        const tok = parser.getToken()
+        const loc = parser.getEncodedLocation(tok)
 
-    // 1. component name (PropertyName in the css lexer at declaration state)
-    if(parser.getToken().type != TokenType.PropertyName as int) {
-        parser.error("expected a styled component name")
-        return null
-    }
-    var name = builder.allocate_view(&parser.getToken().value)
-    parser.increment()
-
-    var tag = std::string_view()
-    var isComponentWrap = false
-
-    const t = parser.getToken().type
-    if(t == TokenType.LParen as int) {
+        // 1. component name (PropertyName in the css lexer at declaration state)
+        if(parser.getToken().type != TokenType.PropertyName as int) {
+            parser.error("expected a styled component name")
+            return null
+        }
+        var name = builder.allocate_view(&parser.getToken().value)
         parser.increment()
-        const inner = parser.getToken()
-        if(inner.type == TokenType.DoubleQuotedValue as int) {
-            // tag string — strip the surrounding double quotes
-            var raw = inner.value
-            if(raw.size() >= 2) {
-                const raw_view = unsafe(std::string_view(raw.data() + 1, raw.size() - 2))
-                tag = builder.allocate_view(&raw_view)
-            } else {
-                tag = builder.allocate_view(std::string_view("div"))
-            }
+
+        var tag = std::string_view()
+        var isComponentWrap = false
+
+        const t = parser.getToken().type
+        if(t == TokenType.LParen as int) {
             parser.increment()
-        } else if(inner.type == TokenType.PropertyName as int) {
-            // wrap an existing component
-            isComponentWrap = true
-            tag = builder.allocate_view(&inner.value)
+            const inner = parser.getToken()
+            if(inner.type == TokenType.DoubleQuotedValue as int) {
+                // tag string — strip the surrounding double quotes
+                var raw = inner.value
+                if(raw.size() >= 2) {
+                    const raw_view = unsafe(std::string_view(raw.data() + 1, raw.size() - 2))
+                    tag = builder.allocate_view(&raw_view)
+                } else {
+                    tag = builder.allocate_view(std::string_view("div"))
+                }
+                parser.increment()
+            } else if(inner.type == TokenType.PropertyName as int) {
+                // wrap an existing component
+                isComponentWrap = true
+                tag = builder.allocate_view(&inner.value)
+                parser.increment()
+            } else {
+                parser.error("expected a tag string or a component name inside (...)")
+                return null
+            }
+            if(!parser.increment_if(TokenType.RParen as int)) {
+                parser.error("expected ')'")
+                return null
+            }
+        } else if(t == TokenType.ClassName as int) {
+            // shorthand: #styled Name.div { ... }
+            tag = builder.allocate_view(&parser.getToken().value)
             parser.increment()
         } else {
-            parser.error("expected a tag string or a component name inside (...)")
+            parser.error("expected (tag) or .tag after the styled component name")
             return null
         }
-        if(!parser.increment_if(TokenType.RParen as int)) {
-            parser.error("expected ')'")
+
+        // 2. parse the css body
+        if(!parser.increment_if(TokenType.LBrace as int)) {
+            parser.error("expected '{' to start the styled component body")
             return null
         }
-    } else if(t == TokenType.ClassName as int) {
-        // shorthand: #styled Name.div { ... }
-        tag = builder.allocate_view(&parser.getToken().value)
-        parser.increment()
-    } else {
-        parser.error("expected (tag) or .tag after the styled component name")
-        return null
-    }
+        var cssom : *mut CSSOM = parseCSSOM(parser, builder) as *mut CSSOM
+        if(!parser.increment_if(TokenType.RBrace as int)) {
+            parser.error("expected '}' to end the styled component body")
+            return null
+        }
 
-    // 2. parse the css body
-    if(!parser.increment_if(TokenType.LBrace as int)) {
-        parser.error("expected '{' to start the styled component body")
-        return null
-    }
-    var cssom : *mut CSSOM = parseCSSOM(parser, builder) as *mut CSSOM
-    if(!parser.increment_if(TokenType.RBrace as int)) {
-        parser.error("expected '}' to end the styled component body")
-        return null
-    }
+        var comp = builder.allocate<StyledComponent>()
+        new (comp) StyledComponent {
+            signature : ComponentSignature {
+                name : name,
+                propsName : std::string_view(),
+                params : std::vector<ComponentParam>(),
+                functionNode : null,
+                mountStrategy : MountStrategy.Styled,
+                access : spec,
+                rootNodeCount : 0,
+                className : std::string_view()
+            },
+            tag : tag,
+            isComponentWrap : isComponentWrap,
+            cssom : cssom,
+            innerFunctionNode : null,
+            pageParam : null,
+            attrsParam : null,
+            attrListRefType : null,
+            attrListBaseType : null,
+            childrenParam : null,
+            ssrTextDataFn : null,
+            ssrTextSizeFn : null,
+            appendHtmlFn : null,
+            renderHtmlAttrsFn : null,
+            renderHtmlAttrsWithBaseFn : null,
+            ssrTextNode : null
+        }
 
-    var comp = builder.allocate<StyledComponent>()
-    new (comp) StyledComponent {
-        signature : ComponentSignature {
-            name : name,
-            propsName : std::string_view(),
-            params : std::vector<ComponentParam>(),
-            functionNode : null,
-            mountStrategy : MountStrategy.Styled,
-            access : spec,
-            rootNodeCount : 0,
-            className : std::string_view()
-        },
-        tag : tag,
-        isComponentWrap : isComponentWrap,
-        cssom : cssom,
-        innerFunctionNode : null,
-        pageParam : null,
-        attrsParam : null,
-        attrListRefType : null,
-        attrListBaseType : null,
-        childrenParam : null,
-        ssrTextDataFn : null,
-        ssrTextSizeFn : null,
-        appendHtmlFn : null,
-        renderHtmlAttrsFn : null,
-        renderHtmlAttrsWithBaseFn : null,
-        ssrTextNode : null
+        const nodes_arr : []*mut ASTNode = []
+        const node = builder.make_top_level_embedded_node(
+            spec,
+            std::string_view("styled"),
+            comp,
+            styled_node_known_type_func,
+            styled_node_child_res_func,
+            styled_cross_mod_proxy_fn,
+            std::span<*mut ASTNode>(nodes_arr),
+            unsafe(std::span<*mut Value>(cssom.dyn_values.data(), cssom.dyn_values.size())),
+            parser.getParentNode(),
+            loc
+        )
+
+        // mark as a component so both #html and #universal can resolve it
+        const controller = parser.getAnnotationController();
+        const definition = controller.getDefinition("component");
+        if(definition != null) {
+            const args : []*mut Value = []
+            controller.mark(node, definition, std::span<*mut Value>(args));
+        }
+
+        return node
+
+        }
     }
-
-    const nodes_arr : []*mut ASTNode = []
-    const node = builder.make_top_level_embedded_node(
-        spec,
-        std::string_view("styled"),
-        comp,
-        styled_node_known_type_func,
-        styled_node_child_res_func,
-        styled_cross_mod_proxy_fn,
-        std::span<*mut ASTNode>(nodes_arr),
-        unsafe(std::span<*mut Value>(cssom.dyn_values.data(), cssom.dyn_values.size())),
-        parser.getParentNode(),
-        loc
-    )
-
-    // mark as a component so both #html and #universal can resolve it
-    const controller = parser.getAnnotationController();
-    const definition = controller.getDefinition("component");
-    if(definition != null) {
-        const args : []*mut Value = []
-        controller.mark(node, definition, std::span<*mut Value>(args));
-    }
-
-    return node
-}
 
 @no_mangle
 public func styled_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
-    const comp = node.getDataPtr() as *mut StyledComponent;
-    resolver.declare_tld_default(&comp.signature.name, node);
-}
+        unsafe {
+        const comp = node.getDataPtr() as *mut StyledComponent;
+        resolver.declare_tld_default(&comp.signature.name, node);
+
+        }
+    }
 
 @no_mangle
 public func styled_symResSigNode(visitor : *mut SymResLinkSignature, node : *mut EmbeddedNode) {
@@ -179,243 +188,261 @@ public func styled_symResSigNode(visitor : *mut SymResLinkSignature, node : *mut
 
 @no_mangle
 public func styled_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
-    const resolver = visitor.getSymbolResolver();
-    const table = visitor.getSymbolTable();
-    const diagnoser = visitor.getAstDiagnoser();
-    const loc = node.getEncodedLocation();
-    const root = node.getDataPtr() as *mut StyledComponent;
+        unsafe {
+        const resolver = visitor.getSymbolResolver();
+        const table = visitor.getSymbolTable();
+        const diagnoser = visitor.getAstDiagnoser();
+        const loc = node.getEncodedLocation();
+        const root = node.getDataPtr() as *mut StyledComponent;
 
-    const htmlPageType = resolver.resolve(std::string_view("HtmlPage"));
-    if(htmlPageType == null) {
-        resolver.error(std::string_view("could not find HtmlPage"), loc);
-        return;
-    }
-
-    var builder = resolver.getJobBuilder();
-
-    // create the SSR function: Name(page : &mut HtmlPage, attrs : *SsrAttributeList, children : SsrText) : void
-    const voidType = builder.make_void_type(loc);
-    const funcDecl = builder.make_function(&root.signature.name, voidType, false, node.getParent(), loc);
-    if(root.signature.access == AccessSpecifier.Public || root.signature.access == AccessSpecifier.Protected) {
-        funcDecl.setAccessSpecifier(root.signature.access)
-    }
-
-    const linked = builder.make_linked_type(std::string_view("HtmlPage"), htmlPageType, loc);
-    const ref = builder.make_reference_type(linked, true, loc);
-    const params = funcDecl.get_params();
-    const pageParam = builder.make_function_param(std::string_view("page"), ref, 0, null, false, funcDecl, loc);
-    params.push(pageParam);
-    root.pageParam = pageParam;
-
-    // attrs parameter (the component's attributes, including any user-provided class)
-    const attrListNodeType = builder.make_linked_type(std::string_view("SsrAttributeList"), resolver.resolve(std::string_view("SsrAttributeList")), loc);
-    const attrListPtrType = builder.make_ptr_type(attrListNodeType as *mut BaseType, false, loc);
-    const attrsParam = builder.make_function_param(std::string_view("attrs"), attrListPtrType as *mut BaseType, 1, null, false, funcDecl, loc);
-    params.push(attrsParam);
-    root.attrsParam = attrsParam;
-    root.attrListRefType = attrListPtrType as *mut BaseType;
-    root.attrListBaseType = attrListNodeType as *mut BaseType;
-
-    // children parameter (already-rendered children as an SsrText buffer slice)
-    const childrenType = builder.make_linked_type(std::string_view("SsrText"), resolver.resolve(std::string_view("SsrText")), loc);
-    const childrenParam = builder.make_function_param(std::string_view("children"), childrenType as *mut BaseType, 2, null, false, funcDecl, loc);
-    params.push(childrenParam);
-    root.childrenParam = childrenParam;
-
-    // add a body (mirrors universal)
-    funcDecl.add_body();
-
-    // resolve css support (page + css emitter functions) into the cssom support
-    var support = &raw mut root.cssom.support
-    support.pageNode = pageParam;
-    support.appendCssCharFn = htmlPageType.child("append_css_char");
-    support.appendCssCharPtrFn = htmlPageType.child("append_css_char_ptr");
-    support.appendCssFn = htmlPageType.child("append_css");
-    support.appendCssIntFn = htmlPageType.child("append_css_integer");
-    support.appendCssUIntFn = htmlPageType.child("append_css_uinteger");
-    support.appendCssFloatFn = htmlPageType.child("append_css_float");
-    support.appendCssDoubleFn = htmlPageType.child("append_css_double");
-    support.requireCssHashFn = htmlPageType.child("require_css_hash");
-    support.setCssHashFn = htmlPageType.child("set_css_hash");
-    support.requireRandomCssHashFn = htmlPageType.child("require_random_css_hash");
-    support.setRandomCssHashFn = htmlPageType.child("set_random_css_hash");
-
-    if(support.appendCssFn == null || support.requireCssHashFn == null) {
-        resolver.error(std::string_view("css emitter functions are required on 'page' for styled components to work"), loc);
-        return;
-    }
-
-    // resolve html emitter functions used by the SSR body
-    root.appendHtmlFn = htmlPageType.child("append_html");
-    if(root.appendHtmlFn == null) {
-        resolver.error(std::string_view("'append_html' is required on 'page' for styled components to work"), loc);
-        return;
-    }
-    root.renderHtmlAttrsFn = resolver.resolve(std::string_view("renderHtmlAttrs"));
-    if(root.renderHtmlAttrsFn == null) {
-        resolver.error(std::string_view("'renderHtmlAttrs' is required for styled components to work"), loc);
-        return;
-    }
-    root.renderHtmlAttrsWithBaseFn = resolver.resolve(std::string_view("renderHtmlAttrsWithBase"));
-    if(root.renderHtmlAttrsWithBaseFn == null) {
-        resolver.error(std::string_view("'renderHtmlAttrsWithBase' is required for styled components to work"), loc);
-        return;
-    }
-    root.ssrTextNode = resolver.resolve(std::string_view("SsrText"));
-    if(root.ssrTextNode == null) {
-        resolver.error(std::string_view("'SsrText' is required for styled components to work"), loc);
-        return;
-    }
-    root.ssrTextDataFn = childrenParam.child("data");
-    root.ssrTextSizeFn = childrenParam.child("size");
-
-    root.signature.functionNode = funcDecl;
-
-    // if wrapping a component, resolve the inner component function
-    if(root.isComponentWrap) {
-        const inner = resolver.resolve(&root.tag);
-        if(inner == null) {
-            resolver.error(std::string_view("could not find the component to wrap for the styled component"), loc);
+        const htmlPageType = resolver.resolve(std::string_view("HtmlPage"));
+        if(htmlPageType == null) {
+            resolver.error(std::string_view("could not find HtmlPage"), loc);
             return;
         }
-        if(inner.getKind() != ASTNodeKind.EmbeddedNode) {
-            resolver.error(std::string_view("the symbol wrapped by a styled component must be a component"), loc);
+
+        var builder = resolver.getJobBuilder();
+
+        // create the SSR function: Name(page : &mut HtmlPage, attrs : *SsrAttributeList, children : SsrText) : void
+        const voidType = builder.make_void_type(loc);
+        const funcDecl = builder.make_function(&root.signature.name, voidType, false, node.getParent(), loc);
+        if(root.signature.access == AccessSpecifier.Public || root.signature.access == AccessSpecifier.Protected) {
+            funcDecl.setAccessSpecifier(root.signature.access)
+        }
+
+        const linked = builder.make_linked_type(std::string_view("HtmlPage"), htmlPageType, loc);
+        const ref = builder.make_reference_type(linked, true, loc);
+        const params = funcDecl.get_params();
+        const pageParam = builder.make_function_param(std::string_view("page"), ref, 0, null, false, funcDecl, loc);
+        params.push(pageParam);
+        root.pageParam = pageParam;
+
+        // attrs parameter (the component's attributes, including any user-provided class)
+        const attrListNodeType = builder.make_linked_type(std::string_view("SsrAttributeList"), resolver.resolve(std::string_view("SsrAttributeList")), loc);
+        const attrListPtrType = builder.make_ptr_type(attrListNodeType as *mut BaseType, false, loc);
+        const attrsParam = builder.make_function_param(std::string_view("attrs"), attrListPtrType as *mut BaseType, 1, null, false, funcDecl, loc);
+        params.push(attrsParam);
+        root.attrsParam = attrsParam;
+        root.attrListRefType = attrListPtrType as *mut BaseType;
+        root.attrListBaseType = attrListNodeType as *mut BaseType;
+
+        // children parameter (already-rendered children as an SsrText buffer slice)
+        const childrenType = builder.make_linked_type(std::string_view("SsrText"), resolver.resolve(std::string_view("SsrText")), loc);
+        const childrenParam = builder.make_function_param(std::string_view("children"), childrenType as *mut BaseType, 2, null, false, funcDecl, loc);
+        params.push(childrenParam);
+        root.childrenParam = childrenParam;
+
+        // add a body (mirrors universal)
+        funcDecl.add_body();
+
+        // resolve css support (page + css emitter functions) into the cssom support
+        var support = &raw mut root.cssom.support
+        support.pageNode = pageParam;
+        support.appendCssCharFn = htmlPageType.child("append_css_char");
+        support.appendCssCharPtrFn = htmlPageType.child("append_css_char_ptr");
+        support.appendCssFn = htmlPageType.child("append_css");
+        support.appendCssIntFn = htmlPageType.child("append_css_integer");
+        support.appendCssUIntFn = htmlPageType.child("append_css_uinteger");
+        support.appendCssFloatFn = htmlPageType.child("append_css_float");
+        support.appendCssDoubleFn = htmlPageType.child("append_css_double");
+        support.requireCssHashFn = htmlPageType.child("require_css_hash");
+        support.setCssHashFn = htmlPageType.child("set_css_hash");
+        support.requireRandomCssHashFn = htmlPageType.child("require_random_css_hash");
+        support.setRandomCssHashFn = htmlPageType.child("set_random_css_hash");
+
+        if(support.appendCssFn == null || support.requireCssHashFn == null) {
+            resolver.error(std::string_view("css emitter functions are required on 'page' for styled components to work"), loc);
             return;
         }
-        // Cast to the shared ComponentSignature (the first field of every component
-        // payload, mirroring html_cbi's convention) instead of the concrete
-        // StyledComponent. This keeps wrap safe when the inner is any component
-        // type (styled / universal / html) rather than assuming it is a StyledComponent.
-        const innerEmbedded = inner as *mut EmbeddedNode;
-        const innerSig = innerEmbedded.getDataPtr() as *mut ComponentSignature;
-        root.innerFunctionNode = innerSig.functionNode;
-        // Universal components render through a capture buffer + `<span id="u">`
-        // host wrapper (the SSR -> client hydration delta mechanism): their
-        // server function appends markup to the page and then moves it into the
-        // JS bundle for hydration. A styled wrap therefore inherits the inner's
-        // `Universal` mount strategy so that html_cbi's `#html` conversion emits
-        // the host wrapper + hydration trigger around the wrap. The generated
-        // SSR function (styled_replacementNode) still emits the wrapper CSS and
-        // forwards the call to the inner universal component.
-        if(innerSig.mountStrategy == MountStrategy.Universal) {
-            root.signature.mountStrategy = MountStrategy.Universal;
-            // Hydration must target the inner universal component (it owns the
-            // client JS); the styled component's own `functionNode` is only used
-            // for SSR (emitting the wrapper CSS) and would have no client side.
-            root.signature.hydrateFunctionNode = innerSig.functionNode;
-            root.signature.hydrateName = innerSig.name;
+
+        // resolve html emitter functions used by the SSR body
+        root.appendHtmlFn = htmlPageType.child("append_html");
+        if(root.appendHtmlFn == null) {
+            resolver.error(std::string_view("'append_html' is required on 'page' for styled components to work"), loc);
+            return;
+        }
+        root.renderHtmlAttrsFn = resolver.resolve(std::string_view("renderHtmlAttrs"));
+        if(root.renderHtmlAttrsFn == null) {
+            resolver.error(std::string_view("'renderHtmlAttrs' is required for styled components to work"), loc);
+            return;
+        }
+        root.renderHtmlAttrsWithBaseFn = resolver.resolve(std::string_view("renderHtmlAttrsWithBase"));
+        if(root.renderHtmlAttrsWithBaseFn == null) {
+            resolver.error(std::string_view("'renderHtmlAttrsWithBase' is required for styled components to work"), loc);
+            return;
+        }
+        root.ssrTextNode = resolver.resolve(std::string_view("SsrText"));
+        if(root.ssrTextNode == null) {
+            resolver.error(std::string_view("'SsrText' is required for styled components to work"), loc);
+            return;
+        }
+        root.ssrTextDataFn = childrenParam.child("data");
+        root.ssrTextSizeFn = childrenParam.child("size");
+
+        root.signature.functionNode = funcDecl;
+
+        // if wrapping a component, resolve the inner component function
+        if(root.isComponentWrap) {
+            const inner = resolver.resolve(&root.tag);
+            if(inner == null) {
+                resolver.error(std::string_view("could not find the component to wrap for the styled component"), loc);
+                return;
+            }
+            if(inner.getKind() != ASTNodeKind.EmbeddedNode) {
+                resolver.error(std::string_view("the symbol wrapped by a styled component must be a component"), loc);
+                return;
+            }
+            // Cast to the shared ComponentSignature (the first field of every component
+            // payload, mirroring html_cbi's convention) instead of the concrete
+            // StyledComponent. This keeps wrap safe when the inner is any component
+            // type (styled / universal / html) rather than assuming it is a StyledComponent.
+            const innerEmbedded = inner as *mut EmbeddedNode;
+            const innerSig = innerEmbedded.getDataPtr() as *mut ComponentSignature;
+            root.innerFunctionNode = innerSig.functionNode;
+            // Universal components render through a capture buffer + `<span id="u">`
+            // host wrapper (the SSR -> client hydration delta mechanism): their
+            // server function appends markup to the page and then moves it into the
+            // JS bundle for hydration. A styled wrap therefore inherits the inner's
+            // `Universal` mount strategy so that html_cbi's `#html` conversion emits
+            // the host wrapper + hydration trigger around the wrap. The generated
+            // SSR function (styled_replacementNode) still emits the wrapper CSS and
+            // forwards the call to the inner universal component.
+            if(innerSig.mountStrategy == MountStrategy.Universal) {
+                root.signature.mountStrategy = MountStrategy.Universal;
+                // Hydration must target the inner universal component (it owns the
+                // client JS); the styled component's own `functionNode` is only used
+                // for SSR (emitting the wrapper CSS) and would have no client side.
+                root.signature.hydrateFunctionNode = innerSig.functionNode;
+                root.signature.hydrateName = innerSig.name;
+            }
+        }
+
+        table.scope_start();
+        table.declare(std::string_view("page"), pageParam);
+        visitor.visitEmbeddedNode(node);
+        table.scope_end();
+
         }
     }
-
-    table.scope_start();
-    table.declare(std::string_view("page"), pageParam);
-    visitor.visitEmbeddedNode(node);
-    table.scope_end();
-}
 
 @no_mangle
 public func styled_replacementNodeDeclare(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
-    const root = value.getDataPtr() as *mut StyledComponent;
-    return root.signature.functionNode;
-}
+        unsafe {
+        const root = value.getDataPtr() as *mut StyledComponent;
+        return root.signature.functionNode;
+
+        }
+    }
 
 func styled_make_html_call(builder : *mut ASTBuilder, pageParam : *mut ASTNode, fnNode : *mut ASTNode, text : std::string_view, parent : *mut ASTNode, loc : ubigint) : *mut FunctionCallNode {
-    var base = builder.make_identifier(std::string_view("page"), pageParam, false, loc);
-    var id = builder.make_identifier(std::string_view("append_html"), fnNode, false, loc);
-    var chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), loc);
-    var call = builder.make_function_call_node(chain, parent, loc);
-    call.get_args().push(builder.make_string_value(&text, loc));
-    call.get_args().push(builder.make_ubigint_value(text.size(), loc));
-    return call;
-}
+        unsafe {
+        var base = builder.make_identifier(std::string_view("page"), pageParam, false, loc);
+        var id = builder.make_identifier(std::string_view("append_html"), fnNode, false, loc);
+        var chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), loc);
+        var call = builder.make_function_call_node(chain, parent, loc);
+        call.get_args().push(builder.make_string_value(&text, loc));
+        call.get_args().push(builder.make_ubigint_value(text.size(), loc));
+        return call;
+
+        }
+    }
 
 func styled_make_render_attrs_call(builder : *mut ASTBuilder, fnNode : *mut ASTNode, pageParam : *mut ASTNode, attrsId : *mut Value, baseClass : *mut Value, parent : *mut ASTNode, loc : ubigint) : *mut FunctionCallNode {
-    var id = builder.make_identifier(std::string_view("renderHtmlAttrsWithBase"), fnNode, false, loc);
-    var call = builder.make_function_call_node(id, parent, loc);
-    var pageId = builder.make_identifier(std::string_view("page"), pageParam, false, loc);
-    call.get_args().push(pageId as *mut Value);
-    call.get_args().push(attrsId);
-    call.get_args().push(baseClass);
-    return call;
-}
+        unsafe {
+        var id = builder.make_identifier(std::string_view("renderHtmlAttrsWithBase"), fnNode, false, loc);
+        var call = builder.make_function_call_node(id, parent, loc);
+        var pageId = builder.make_identifier(std::string_view("page"), pageParam, false, loc);
+        call.get_args().push(pageId as *mut Value);
+        call.get_args().push(attrsId);
+        call.get_args().push(baseClass);
+        return call;
+
+        }
+    }
 
 func styled_make_children_call(builder : *mut ASTBuilder, pageParam : *mut ASTNode, fnNode : *mut ASTNode, childrenParam : *mut ASTNode, dataFn : *mut ASTNode, sizeFn : *mut ASTNode, parent : *mut ASTNode, loc : ubigint) : *mut FunctionCallNode {
-    var base = builder.make_identifier(std::string_view("page"), pageParam, false, loc);
-    var id = builder.make_identifier(std::string_view("append_html"), fnNode, false, loc);
-    var chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), loc);
-    var call = builder.make_function_call_node(chain, parent, loc);
+        unsafe {
+        var base = builder.make_identifier(std::string_view("page"), pageParam, false, loc);
+        var id = builder.make_identifier(std::string_view("append_html"), fnNode, false, loc);
+        var chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), loc);
+        var call = builder.make_function_call_node(chain, parent, loc);
 
-    var childrenId = builder.make_identifier(std::string_view("children"), childrenParam, false, loc);
-    var dataId = builder.make_identifier(std::string_view("data"), dataFn, false, loc);
-    var dataAccess = builder.make_access_chain(&std::span<*mut Value>([ childrenId, dataId ]), loc);
-    call.get_args().push(dataAccess);
+        var childrenId = builder.make_identifier(std::string_view("children"), childrenParam, false, loc);
+        var dataId = builder.make_identifier(std::string_view("data"), dataFn, false, loc);
+        var dataAccess = builder.make_access_chain(&std::span<*mut Value>([ childrenId, dataId ]), loc);
+        call.get_args().push(dataAccess);
 
-    var childrenId2 = builder.make_identifier(std::string_view("children"), childrenParam, false, loc);
-    var sizeId = builder.make_identifier(std::string_view("size"), sizeFn, false, loc);
-    var sizeAccess = builder.make_access_chain(&std::span<*mut Value>([ childrenId2, sizeId ]), loc);
-    call.get_args().push(sizeAccess);
-    return call;
-}
+        var childrenId2 = builder.make_identifier(std::string_view("children"), childrenParam, false, loc);
+        var sizeId = builder.make_identifier(std::string_view("size"), sizeFn, false, loc);
+        var sizeAccess = builder.make_access_chain(&std::span<*mut Value>([ childrenId2, sizeId ]), loc);
+        call.get_args().push(sizeAccess);
+        return call;
+
+        }
+    }
 
 @no_mangle
 public func styled_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
-    const root = value.getDataPtr() as *mut StyledComponent;
-    const funcNode = root.signature.functionNode;
-    const location = intrinsics::get_raw_location();
-    const body = funcNode.add_body();
+        unsafe {
+        const root = value.getDataPtr() as *mut StyledComponent;
+        const funcNode = root.signature.functionNode;
+        const location = intrinsics::get_raw_location();
+        const body = funcNode.add_body();
 
-    // Emit the generated CSS rules into the page (sets root.cssom.className).
-    var converter = ASTConverter {
-        builder : builder,
-        support : &raw mut root.cssom.support,
-        vec : body,
-        // generated statements belong to the SSR function, not the styled
-        // declaration site (which is a FileScope at top level). Using the
-        // declaration site would make the generated css hash `if` statements
-        // look top-level, so the LLVM backend would try to resolve them at
-        // comptime instead of emitting them.
-        parent : funcNode,
-        str : std::string()
+        // Emit the generated CSS rules into the page (sets root.cssom.className).
+        var converter = ASTConverter {
+            builder : builder,
+            support : &raw mut root.cssom.support,
+            vec : body,
+            // generated statements belong to the SSR function, not the styled
+            // declaration site (which is a FileScope at top level). Using the
+            // declaration site would make the generated css hash `if` statements
+            // look top-level, so the LLVM backend would try to resolve them at
+            // comptime instead of emitting them.
+            parent : funcNode,
+            str : std::string()
+        }
+        converter.convertCSSOM(root.cssom, value.getEncodedLocation());
+
+        // For wrap components, publish the generated class name on the signature so that
+        // html_cbi's `#html` conversion injects it as a `class` attribute on the attrs it
+        // forwards into this component. The inner component then merges its own class with
+        // this one via `renderHtmlAttrsWithBase`, so the element carries BOTH the inner
+        // component's generated class and the wrapper's generated class.
+        if(root.isComponentWrap) {
+            root.signature.className = root.cssom.className;
+        }
+
+        // The generated class name (e.g. "rABC123") that the CSS rules target.
+        var baseClassVal = builder.make_struct_value(root.ssrTextNode, location);
+        baseClassVal.add_value(std::string_view("data"), builder.make_string_value(&root.cssom.className, location));
+        baseClassVal.add_value(std::string_view("size"), builder.make_ubigint_value(root.cssom.className.size(), location));
+
+        if(root.isComponentWrap) {
+            var base = builder.make_identifier(&root.tag, root.innerFunctionNode, false, location);
+            var call = builder.make_function_call_node(base as *mut Value, funcNode, location);
+            call.get_args().push(builder.make_identifier(std::string_view("page"), root.pageParam, false, location) as *mut Value);
+            call.get_args().push(builder.make_identifier(std::string_view("attrs"), root.attrsParam, false, location) as *mut Value);
+            call.get_args().push(builder.make_identifier(std::string_view("children"), root.childrenParam, false, location) as *mut Value);
+            body.push(call as *mut ASTNode);
+        } else {
+            var attrsParamId = builder.make_identifier(std::string_view("attrs"), root.attrsParam, false, location);
+            var attrsDeref = builder.make_dereference_value(attrsParamId as *mut Value, root.attrListBaseType, location);
+
+            body.push(styled_make_html_call(builder, root.pageParam, root.appendHtmlFn, std::string_view("<"), funcNode, location) as *mut ASTNode);
+            body.push(styled_make_html_call(builder, root.pageParam, root.appendHtmlFn, root.tag, funcNode, location) as *mut ASTNode);
+            body.push(styled_make_render_attrs_call(builder, root.renderHtmlAttrsWithBaseFn, root.pageParam, attrsDeref as *mut Value, baseClassVal, funcNode, location) as *mut ASTNode);
+            body.push(styled_make_html_call(builder, root.pageParam, root.appendHtmlFn, std::string_view(">"), funcNode, location) as *mut ASTNode);
+            body.push(styled_make_children_call(builder, root.pageParam, root.appendHtmlFn, root.childrenParam, root.ssrTextDataFn, root.ssrTextSizeFn, funcNode, location) as *mut ASTNode);
+            body.push(styled_make_html_call(builder, root.pageParam, root.appendHtmlFn, std::string_view("</"), funcNode, location) as *mut ASTNode);
+            body.push(styled_make_html_call(builder, root.pageParam, root.appendHtmlFn, root.tag, funcNode, location) as *mut ASTNode);
+            body.push(styled_make_html_call(builder, root.pageParam, root.appendHtmlFn, std::string_view(">"), funcNode, location) as *mut ASTNode);
+        }
+
+        var scope = builder.make_scope(funcNode.getParent(), location);
+        var scope_nodes = scope.getNodes();
+        scope_nodes.push(funcNode);
+        return scope;
+
+        }
     }
-    converter.convertCSSOM(root.cssom, value.getEncodedLocation());
-
-    // For wrap components, publish the generated class name on the signature so that
-    // html_cbi's `#html` conversion injects it as a `class` attribute on the attrs it
-    // forwards into this component. The inner component then merges its own class with
-    // this one via `renderHtmlAttrsWithBase`, so the element carries BOTH the inner
-    // component's generated class and the wrapper's generated class.
-    if(root.isComponentWrap) {
-        root.signature.className = root.cssom.className;
-    }
-
-    // The generated class name (e.g. "rABC123") that the CSS rules target.
-    var baseClassVal = builder.make_struct_value(root.ssrTextNode, location);
-    baseClassVal.add_value(std::string_view("data"), builder.make_string_value(&root.cssom.className, location));
-    baseClassVal.add_value(std::string_view("size"), builder.make_ubigint_value(root.cssom.className.size(), location));
-
-    if(root.isComponentWrap) {
-        var base = builder.make_identifier(&root.tag, root.innerFunctionNode, false, location);
-        var call = builder.make_function_call_node(base as *mut Value, funcNode, location);
-        call.get_args().push(builder.make_identifier(std::string_view("page"), root.pageParam, false, location) as *mut Value);
-        call.get_args().push(builder.make_identifier(std::string_view("attrs"), root.attrsParam, false, location) as *mut Value);
-        call.get_args().push(builder.make_identifier(std::string_view("children"), root.childrenParam, false, location) as *mut Value);
-        body.push(call as *mut ASTNode);
-    } else {
-        var attrsParamId = builder.make_identifier(std::string_view("attrs"), root.attrsParam, false, location);
-        var attrsDeref = builder.make_dereference_value(attrsParamId as *mut Value, root.attrListBaseType, location);
-
-        body.push(styled_make_html_call(builder, root.pageParam, root.appendHtmlFn, std::string_view("<"), funcNode, location) as *mut ASTNode);
-        body.push(styled_make_html_call(builder, root.pageParam, root.appendHtmlFn, root.tag, funcNode, location) as *mut ASTNode);
-        body.push(styled_make_render_attrs_call(builder, root.renderHtmlAttrsWithBaseFn, root.pageParam, attrsDeref as *mut Value, baseClassVal, funcNode, location) as *mut ASTNode);
-        body.push(styled_make_html_call(builder, root.pageParam, root.appendHtmlFn, std::string_view(">"), funcNode, location) as *mut ASTNode);
-        body.push(styled_make_children_call(builder, root.pageParam, root.appendHtmlFn, root.childrenParam, root.ssrTextDataFn, root.ssrTextSizeFn, funcNode, location) as *mut ASTNode);
-        body.push(styled_make_html_call(builder, root.pageParam, root.appendHtmlFn, std::string_view("</"), funcNode, location) as *mut ASTNode);
-        body.push(styled_make_html_call(builder, root.pageParam, root.appendHtmlFn, root.tag, funcNode, location) as *mut ASTNode);
-        body.push(styled_make_html_call(builder, root.pageParam, root.appendHtmlFn, std::string_view(">"), funcNode, location) as *mut ASTNode);
-    }
-
-    var scope = builder.make_scope(funcNode.getParent(), location);
-    var scope_nodes = scope.getNodes();
-    scope_nodes.push(funcNode);
-    return scope;
-}

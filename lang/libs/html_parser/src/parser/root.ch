@@ -1,26 +1,29 @@
 
 public func parseHtmlRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *HtmlRoot {
-    var root = builder.allocate<HtmlRoot>()
-    new (root) HtmlRoot {
-        children : std::vector<*mut HtmlChild>(),
-        parent : parser.getParentNode(),
-        support : SymResSupport {},
-        dyn_values : std::vector<*mut Value>(),
-        dyn_nodes : std::vector<*mut ASTNode>(),
-        components : std::vector<*mut HtmlElement>()
-    }
-    var htmlParser = HtmlParser {
-        dyn_values : &raw mut root.dyn_values,
-        dyn_nodes : &raw mut root.dyn_nodes,
-        components : &raw mut root.components
-    }
-    while(true) {
-        var child = htmlParser.parseElementChild(parser, builder);
-        if(child != null) {
-            root.children.push(child)
-        } else {
-            break;
+        unsafe {
+        var root = builder.allocate<HtmlRoot>()
+        new (root) HtmlRoot {
+            children : std::vector<*mut HtmlChild>(),
+            parent : parser.getParentNode(),
+            support : SymResSupport {},
+            dyn_values : std::vector<*mut Value>(),
+            dyn_nodes : std::vector<*mut ASTNode>(),
+            components : std::vector<*mut HtmlElement>()
+        }
+        var htmlParser = HtmlParser {
+            dyn_values : &raw mut root.dyn_values,
+            dyn_nodes : &raw mut root.dyn_nodes,
+            components : &raw mut root.components
+        }
+        while(true) {
+            var child = htmlParser.parseElementChild(parser, builder);
+            if(child != null) {
+                root.children.push(child)
+            } else {
+                break;
+            }
+        }
+        return root;
+
         }
     }
-    return root;
-}

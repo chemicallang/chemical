@@ -12,187 +12,190 @@ public func poll(fds : *mut pollfd, nfds : ulong, timeout : int) : int
 public func kill(pid : pid_t, sig : int) : int
 
 func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, timeout_ms : uint) : int {
+        unsafe {
 
-    // Build argv for posix_spawnp (must be a NULL-terminated array)
-    var id_str = std::string();
-    append_integer(&mut id_str, id);
+        // Build argv for posix_spawnp (must be a NULL-terminated array)
+        var id_str = std::string();
+        append_integer(&mut id_str, id);
 
-    var sv : int[2]
-    if(unsafe(socketpair(AF_UNIX, SOCK_STREAM as int, 0, sv)) < 0) {
-        return -1;
-    }
-
-    var comm_id_str = std::string()
-    append_integer(&mut comm_id_str, sv[1])
-
-    // argv: [exe_path, "--test-id", "<id>", NULL]
-    var argv : [6]*char;
-    argv[0] = exe_path;
-    argv[1] = "--test-id";
-    argv[2] = id_str.data();
-    argv[3] = "--comm-id";
-    argv[4] = comm_id_str.data()
-    argv[5] = null;
-
-   // initialize the spawn file actions
-   var pid : pid_t
-   var actions : posix_spawn_file_actions_t
-    var rc = unsafe(posix_spawn_file_actions_init(unsafe(&raw mut actions)))
-   if(rc != 0) {
-        var saved = get_errno();
-        unsafe { close(sv[0]) }; unsafe { close(sv[1]) };
-        set_errno(saved);
-        return -1;
-   }
-
-   // Close original child-end fd in the child's table (optional, good hygiene)
-    unsafe { posix_spawn_file_actions_addclose(unsafe(&raw mut actions), sv[0]) };
-
-    // spawn the process. exe_path is always absolute here, so use posix_spawn
-    // directly (no PATH search). posix_spawnp runs __execvpe in the child,
-    // which uses a large PATH_MAX stack buffer and can overflow the small
-    // stack musl allocates for the child (crashes on long PATH environments).
-    rc = unsafe(posix_spawn(unsafe(&raw mut pid), exe_path, unsafe(&raw actions), null, argv, get_environ()))
-
-    // destroy the actions
-    unsafe { posix_spawn_file_actions_destroy(unsafe(&raw mut actions)) };
-    if(rc != 0) {
-        var saved = get_errno();
-        unsafe { close(sv[0]) }; unsafe { close(sv[1]) };
-        set_errno(rc)
-        return -1;
-    }
-
-    // parent doesn't need the child's end
-    unsafe { close(sv[1]) };
-
-    var parent_fd = sv[0]
-
-    var start_sec : long = 0
-    var start_usec : long = 0
-
-        var start_tv = timeval { tv_sec : 0, tv_usec : 0 }
-        unsafe { gettimeofday(&raw mut start_tv, null) }
-        start_sec = start_tv.tv_sec
-        start_usec = start_tv.tv_usec
-
-    var pfd = pollfd { fd : 0, events : 0, revents : 0 }
-    pfd.fd = parent_fd
-    pfd.events = 0x0001 // POLLIN
-    
-    var timed_out = false
-
-    // read loop
-    while(true) {
-        var now_tv = timeval { tv_sec : 0, tv_usec : 0 }
-        unsafe { gettimeofday(&raw mut now_tv, null) }
-        var elapsed_ms = (now_tv.tv_sec - start_sec) * 1000 + (now_tv.tv_usec - start_usec) / 1000
-        
-        if(elapsed_ms >= timeout_ms as long) {
-            unsafe { kill(pid, 9) }; // SIGKILL
-            var log = TestLog()
-            log.type = LogType.Error
-            log.message.append_view("Test timed out after 10s")
-            state.logs.push(log)
-            state.has_failed = true
-            timed_out = true
-            break;
+        var sv : int[2]
+        if(unsafe(socketpair(AF_UNIX, SOCK_STREAM as int, 0, sv)) < 0) {
+            return -1;
         }
 
-        var poll_res = unsafe(poll(&raw mut pfd, 1, 100)); // 100ms
-        if(poll_res == 0) {
-            // check if child is still alive
-            var status : int
-            // WNOHANG = 1
-            if(unsafe(waitpid(pid, unsafe(&raw mut status), 1)) > 0) {
+        var comm_id_str = std::string()
+        append_integer(&mut comm_id_str, sv[1])
+
+        // argv: [exe_path, "--test-id", "<id>", NULL]
+        var argv : [6]*char;
+        argv[0] = exe_path;
+        argv[1] = "--test-id";
+        argv[2] = id_str.data();
+        argv[3] = "--comm-id";
+        argv[4] = comm_id_str.data()
+        argv[5] = null;
+
+       // initialize the spawn file actions
+       var pid : pid_t
+       var actions : posix_spawn_file_actions_t
+        var rc = unsafe(posix_spawn_file_actions_init(unsafe(&raw mut actions)))
+       if(rc != 0) {
+            var saved = get_errno();
+            unsafe { close(sv[0]) }; unsafe { close(sv[1]) };
+            set_errno(saved);
+            return -1;
+       }
+
+       // Close original child-end fd in the child's table (optional, good hygiene)
+        unsafe { posix_spawn_file_actions_addclose(unsafe(&raw mut actions), sv[0]) };
+
+        // spawn the process. exe_path is always absolute here, so use posix_spawn
+        // directly (no PATH search). posix_spawnp runs __execvpe in the child,
+        // which uses a large PATH_MAX stack buffer and can overflow the small
+        // stack musl allocates for the child (crashes on long PATH environments).
+        rc = unsafe(posix_spawn(unsafe(&raw mut pid), exe_path, unsafe(&raw actions), null, argv, get_environ()))
+
+        // destroy the actions
+        unsafe { posix_spawn_file_actions_destroy(unsafe(&raw mut actions)) };
+        if(rc != 0) {
+            var saved = get_errno();
+            unsafe { close(sv[0]) }; unsafe { close(sv[1]) };
+            set_errno(rc)
+            return -1;
+        }
+
+        // parent doesn't need the child's end
+        unsafe { close(sv[1]) };
+
+        var parent_fd = sv[0]
+
+        var start_sec : long = 0
+        var start_usec : long = 0
+
+            var start_tv = timeval { tv_sec : 0, tv_usec : 0 }
+            unsafe { gettimeofday(&raw mut start_tv, null) }
+            start_sec = start_tv.tv_sec
+            start_usec = start_tv.tv_usec
+
+        var pfd = pollfd { fd : 0, events : 0, revents : 0 }
+        pfd.fd = parent_fd
+        pfd.events = 0x0001 // POLLIN
+    
+        var timed_out = false
+
+        // read loop
+        while(true) {
+            var now_tv = timeval { tv_sec : 0, tv_usec : 0 }
+            unsafe { gettimeofday(&raw mut now_tv, null) }
+            var elapsed_ms = (now_tv.tv_sec - start_sec) * 1000 + (now_tv.tv_usec - start_usec) / 1000
+        
+            if(elapsed_ms >= timeout_ms as long) {
+                unsafe { kill(pid, 9) }; // SIGKILL
+                var log = TestLog()
+                log.type = LogType.Error
+                log.message.append_view("Test timed out after 10s")
+                state.logs.push(log)
+                state.has_failed = true
+                timed_out = true
                 break;
             }
-            continue;
-        }
-        if(poll_res < 0) {
-            if(get_errno() == 4) continue; // EINTR
-            break;
-        }
 
-        var be_len : uint32_t;
-            var r = read_exact(parent_fd, unsafe(&raw be_len), sizeof(be_len))
-        if(r < 0) {
-            var saved_errno = get_errno();
-            unsafe { close(parent_fd) };
-            var status : int
-            unsafe { waitpid(pid, unsafe(&raw mut status), 0) }
-            set_errno(saved_errno);
-            return -1;
-        }
-        if(r == 0) {
-            // EOF before header — child closed socket cleanly
-            break;
-        }
-        if(r != sizeof(be_len)) {
-            break;
-        }
-        var len = unsafe(ntohl(be_len))
-        var MAX_MSG = 100 * 1024 * 1024;
-        if(len > MAX_MSG) {
-            unsafe { close(parent_fd) }
-            var status : int
-            unsafe { waitpid(pid, unsafe(&raw mut status), 0) }
-            set_errno(EPROTO)
-            return -1;
-        }
-        var buf : uint8_t* = null
-        if(len > 0) {
-            // allocate one extra byte so the payload is NUL-terminated;
-            // the message parsers (read_str, strchr, strlen, strtol) scan
-            // for a '\0' and would otherwise read past the buffer
-            buf = unsafe(malloc(len + 1)) as *mut uint8_t
-            if(!buf) {
-                unsafe { close(parent_fd) }
+            var poll_res = unsafe(poll(&raw mut pfd, 1, 100)); // 100ms
+            if(poll_res == 0) {
+                // check if child is still alive
                 var status : int
-                unsafe { waitpid(pid, unsafe(&raw mut status), 0) }
-                set_errno(ENOMEM)
-                return -1;
-            }
-            var got = read_exact(parent_fd, buf, len)
-            if(got < 0 || got as uint32_t != len) {
-                unsafe { free(buf) }
-                unsafe { close(parent_fd) }
-                var status : int
-                unsafe { waitpid(pid, unsafe(&raw mut status), 0) }
-                if(got >= 0) {
-                    set_errno(EPROTO)
+                // WNOHANG = 1
+                if(unsafe(waitpid(pid, unsafe(&raw mut status), 1)) > 0) {
+                    break;
                 }
+                continue;
+            }
+            if(poll_res < 0) {
+                if(get_errno() == 4) continue; // EINTR
+                break;
+            }
+
+            var be_len : uint32_t;
+                var r = read_exact(parent_fd, unsafe(&raw be_len), sizeof(be_len))
+            if(r < 0) {
+                var saved_errno = get_errno();
+                unsafe { close(parent_fd) };
+                var status : int
+                unsafe { waitpid(pid, unsafe(&raw mut status), 0) }
+                set_errno(saved_errno);
                 return -1;
             }
-            buf[len] = 0
+            if(r == 0) {
+                // EOF before header — child closed socket cleanly
+                break;
+            }
+            if(r != sizeof(be_len)) {
+                break;
+            }
+            var len = unsafe(ntohl(be_len))
+            var MAX_MSG = 100 * 1024 * 1024;
+            if(len > MAX_MSG) {
+                unsafe { close(parent_fd) }
+                var status : int
+                unsafe { waitpid(pid, unsafe(&raw mut status), 0) }
+                set_errno(EPROTO)
+                return -1;
+            }
+            var buf : uint8_t* = null
+            if(len > 0) {
+                // allocate one extra byte so the payload is NUL-terminated;
+                // the message parsers (read_str, strchr, strlen, strtol) scan
+                // for a '\0' and would otherwise read past the buffer
+                buf = unsafe(malloc(len + 1)) as *mut uint8_t
+                if(!buf) {
+                    unsafe { close(parent_fd) }
+                    var status : int
+                    unsafe { waitpid(pid, unsafe(&raw mut status), 0) }
+                    set_errno(ENOMEM)
+                    return -1;
+                }
+                var got = read_exact(parent_fd, buf, len)
+                if(got < 0 || got as uint32_t != len) {
+                    unsafe { free(buf) }
+                    unsafe { close(parent_fd) }
+                    var status : int
+                    unsafe { waitpid(pid, unsafe(&raw mut status), 0) }
+                    if(got >= 0) {
+                        set_errno(EPROTO)
+                    }
+                    return -1;
+                }
+                buf[len] = 0
+            }
+
+            process_message(state, buf as *char)
+
+            unsafe { free(buf) };
+
         }
 
-        process_message(state, buf as *char)
+        unsafe { close(parent_fd) };
 
-        unsafe { free(buf) };
+        var status : int
+        if(!timed_out) {
+            // try to reap child to avoid zombie
+            if(unsafe(waitpid(pid, unsafe(&raw mut status), 0)) < 0) {
+                return -1;
+            }
 
+            // set the exit code in state
+            state.exitCode = status;
+            if(status != 0 && !state.fn.pass_on_crash) {
+                state.has_failed = true;
+            }
+        } else {
+            // reap the killed process
+            unsafe { waitpid(pid, unsafe(&raw mut status), 0) }
+            state.exitCode = 1
+        }
+
+        return 0;
+
+
+        }
     }
-
-    unsafe { close(parent_fd) };
-
-    var status : int
-    if(!timed_out) {
-        // try to reap child to avoid zombie
-        if(unsafe(waitpid(pid, unsafe(&raw mut status), 0)) < 0) {
-            return -1;
-        }
-
-        // set the exit code in state
-        state.exitCode = status;
-        if(status != 0 && !state.fn.pass_on_crash) {
-            state.has_failed = true;
-        }
-    } else {
-        // reap the killed process
-        unsafe { waitpid(pid, unsafe(&raw mut status), 0) }
-        state.exitCode = 1
-    }
-
-    return 0;
-
-}

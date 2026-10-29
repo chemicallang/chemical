@@ -30,109 +30,127 @@ public struct ChannelShared<T> {
 // freed with `dealloc` (plain struct, no destructor).
 @retained
 public func <T> channel_node_take(n : *mut ChannelNode<T>) : T {
-    var temp : T
-    unsafe {
-        memcpy(&raw mut temp, &raw mut n.value, sizeof(T))
-        return temp
+        unsafe {
+        var temp : T
+        unsafe {
+            memcpy(&raw mut temp, &raw mut n.value, sizeof(T))
+            return temp
+        }
+
+        }
     }
-}
 
 // Move the payload out of an `Option<T>` through a pointer, leaving `None`.
 @retained
 public func <T> option_take(o : *mut std::Option<T>) : T {
-    var temp : T
-    unsafe {
-        var Some(value) = *o else unreachable
-        memcpy(&raw mut temp, &raw value, sizeof(T))
-        new(o) std::Option.None<T>()
-        return temp;
+        unsafe {
+        var temp : T
+        unsafe {
+            var Some(value) = *o else unreachable
+            memcpy(&raw mut temp, &raw value, sizeof(T))
+            new(o) std::Option.None<T>()
+            return temp;
+        }
+
+        }
     }
-}
 
 @retained
 public func <T> channel_wake_locked(s : *mut ChannelShared<T>) {
-    if(s.waker.is_empty()) {
-        return
+        unsafe {
+        if(s.waker.is_empty()) {
+            return
+        }
+        var w = s.waker.clone()
+        s.m.unlock()
+        w.wake()
+        s.m.lock()
+
+        }
     }
-    var w = s.waker.clone()
-    s.m.unlock()
-    w.wake()
-    s.m.lock()
-}
 
 @retained
 public func <T> channel_release_shared(s : *mut ChannelShared<T>) {
-    var free_it = false
-    s.m.lock()
-    if(s.senders <= 0 && s.receivers <= 0) {
-        free_it = true
-    }
-    s.m.unlock()
-    if(free_it) {
-        // Destroy any values still queued: the nodes are raw `malloc`
-        // allocations, so move each value into a local (its scope runs the
-        // destructor) and free the node. Without this a channel dropped with
-        // undelivered values leaks them and skips their destructors.
-        var node = s.head
-        while(node != null) {
-            var next = node.next
-            var value = channel_node_take<T>(node)
-            unsafe {
-                dealloc node
-            }
-            node = next
-        }
-        s.head = null
-        s.tail = null
         unsafe {
-            delete s
+        var free_it = false
+        s.m.lock()
+        if(s.senders <= 0 && s.receivers <= 0) {
+            free_it = true
+        }
+        s.m.unlock()
+        if(free_it) {
+            // Destroy any values still queued: the nodes are raw `malloc`
+            // allocations, so move each value into a local (its scope runs the
+            // destructor) and free the node. Without this a channel dropped with
+            // undelivered values leaks them and skips their destructors.
+            var node = s.head
+            while(node != null) {
+                var next = node.next
+                var value = channel_node_take<T>(node)
+                unsafe {
+                    dealloc node
+                }
+                node = next
+            }
+            s.head = null
+            s.tail = null
+            unsafe {
+                delete s
+            }
+        }
+
         }
     }
-}
 
 @retained
 public func <T> channel_push(s : *mut ChannelShared<T>, value : T) : bool {
-    s.m.lock()
-    if(s.closed) {
+        unsafe {
+        s.m.lock()
+        if(s.closed) {
+            s.m.unlock()
+            return false
+        }
+        var node = unsafe(malloc(sizeof(ChannelNode<T>))) as *mut ChannelNode<T>
+        new(node) ChannelNode<T> {
+            value : value,
+            next : null
+        }
+        if(s.tail == null) {
+            s.head = node
+            s.tail = node
+        } else {
+            s.tail.next = node
+            s.tail = node
+        }
+        channel_wake_locked<T>(s)
         s.m.unlock()
-        return false
+        return true
+
+        }
     }
-    var node = unsafe(malloc(sizeof(ChannelNode<T>))) as *mut ChannelNode<T>
-    new(node) ChannelNode<T> {
-        value : value,
-        next : null
-    }
-    if(s.tail == null) {
-        s.head = node
-        s.tail = node
-    } else {
-        s.tail.next = node
-        s.tail = node
-    }
-    channel_wake_locked<T>(s)
-    s.m.unlock()
-    return true
-}
 
 @retained
 public func <T> channel_pop_opt(s : *mut ChannelShared<T>) : std::Option<T> {
-    s.m.lock()
-    if(s.head == null) {
+        unsafe {
+        s.m.lock()
+        if(s.head == null) {
+            s.m.unlock()
+            return std::Option.None<T>()
+        }
+        var n = s.head
+        s.head = n.next
+        if(s.head == null) {
+            s.tail = null
+        }
         s.m.unlock()
-        return std::Option.None<T>()
+        var v = channel_node_take<T>(n)
+        unsafe {
+            dealloc n
+        }
+        return std::Option.Some<T>(v)
+
+        }
     }
-    var n = s.head
-    s.head = n.next
-    if(s.head == null) {
-        s.tail = null
-    }
-    s.m.unlock()
-    var v = channel_node_take<T>(n)
-    unsafe {
-        dealloc n
-    }
-    return std::Option.Some<T>(v)
-}
 
 // ---- sender ----------------------------------------------------------------
 
@@ -141,43 +159,55 @@ public struct Sender<T> {
     var shared : *mut ChannelShared<T>
 
     public func send(&self, value : T) : bool {
-        return channel_push<T>(self.shared, value)
+        unsafe {
+            return channel_push<T>(self.shared, value)
+    
+        }
     }
 
     // A new handle to the same channel. The channel closes once every handle
     // (original and clones) has been dropped or `close`d.
     public func clone_sender(&self) : Sender<T> {
-        var s = self.shared
-        s.m.lock()
-        s.senders = s.senders + 1
-        s.m.unlock()
-        return Sender<T> { shared : s }
+        unsafe {
+            var s = self.shared
+            s.m.lock()
+            s.senders = s.senders + 1
+            s.m.unlock()
+            return Sender<T> { shared : s }
+    
+        }
     }
 
     public func close(&self) {
-        var s = self.shared
-        s.m.lock()
-        var was = s.closed
-        s.closed = true
-        if(!was) {
-            channel_wake_locked<T>(s)
+        unsafe {
+            var s = self.shared
+            s.m.lock()
+            var was = s.closed
+            s.closed = true
+            if(!was) {
+                channel_wake_locked<T>(s)
+            }
+            s.m.unlock()
+    
         }
-        s.m.unlock()
     }
 
     @delete
     func delete(&mut self) {
-        if(self.shared != null) {
-            var s = self.shared
-            s.m.lock()
-            s.senders = s.senders - 1
-            if(s.senders <= 0 && !s.closed) {
-                s.closed = true
-                channel_wake_locked<T>(s)
+        unsafe {
+            if(self.shared != null) {
+                var s = self.shared
+                s.m.lock()
+                s.senders = s.senders - 1
+                if(s.senders <= 0 && !s.closed) {
+                    s.closed = true
+                    channel_wake_locked<T>(s)
+                }
+                s.m.unlock()
+                channel_release_shared<T>(s)
+                self.shared = null
             }
-            s.m.unlock()
-            channel_release_shared<T>(s)
-            self.shared = null
+    
         }
     }
 }
@@ -191,49 +221,64 @@ public struct Receiver<T> {
     // Non-blocking receive. Returns `None` when nothing is queued (the channel
     // may still be open or already be closed).
     public func try_recv(&self) : std::Option<T> {
-        return channel_pop_opt<T>(self.shared)
+        unsafe {
+            return channel_pop_opt<T>(self.shared)
+    
+        }
     }
 
     public func is_closed(&self) : bool {
-        var s = self.shared
-        s.m.lock()
-        var c = s.closed
-        s.m.unlock()
-        return c
+        unsafe {
+            var s = self.shared
+            s.m.lock()
+            var c = s.closed
+            s.m.unlock()
+            return c
+    
+        }
     }
 
     public func close(&self) {
-        var s = self.shared
-        s.m.lock()
-        s.closed = true
-        channel_wake_locked<T>(s)
-        s.m.unlock()
+        unsafe {
+            var s = self.shared
+            s.m.lock()
+            s.closed = true
+            channel_wake_locked<T>(s)
+            s.m.unlock()
+    
+        }
     }
 
     // Await the next value; when every sender is gone (and the queue is empty)
     // become ready with `fallback` instead.
     public func recv_or(&self, fallback : T) : core::async::FutureHandle<T> {
-        var st = unsafe(malloc(sizeof(RecvState<T>))) as *mut RecvState<T>
-        var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
-        vtbl.poll = recv_poll<T>
-        vtbl.drop = recv_drop<T>
-        new(st) RecvState<T> {
-            shared : self.shared,
-            fallback : std::Option.Some<T>(fallback),
-            vtbl : vtbl
+        unsafe {
+            var st = unsafe(malloc(sizeof(RecvState<T>))) as *mut RecvState<T>
+            var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
+            vtbl.poll = recv_poll<T>
+            vtbl.drop = recv_drop<T>
+            new(st) RecvState<T> {
+                shared : self.shared,
+                fallback : std::Option.Some<T>(fallback),
+                vtbl : vtbl
+            }
+            return unsafe(core::async::future_handle_raw<T>(st as *mut void, vtbl))
+    
         }
-        return unsafe(core::async::future_handle_raw<T>(st as *mut void, vtbl))
     }
 
     @delete
     func delete(&mut self) {
-        if(self.shared != null) {
-            var s = self.shared
-            s.m.lock()
-            s.receivers = s.receivers - 1
-            s.m.unlock()
-            channel_release_shared<T>(s)
-            self.shared = null
+        unsafe {
+            if(self.shared != null) {
+                var s = self.shared
+                s.m.lock()
+                s.receivers = s.receivers - 1
+                s.m.unlock()
+                channel_release_shared<T>(s)
+                self.shared = null
+            }
+    
         }
     }
 }
@@ -246,39 +291,45 @@ public struct RecvState<T> {
 
 @retained
 public func <T> recv_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
-    var st = frame as *mut RecvState<T>
-    var s = st.shared
-    var opt = channel_pop_opt<T>(s)
-    if(opt is std::Option.Some) {
-        var v = option_take<T>(&raw mut opt)
-        return core::async::Poll.Ready<T>(v)
-    }
-    s.m.lock()
-    if(s.closed) {
-        var fb = st.fallback.take()
+        unsafe {
+        var st = frame as *mut RecvState<T>
+        var s = st.shared
+        var opt = channel_pop_opt<T>(s)
+        if(opt is std::Option.Some) {
+            var v = option_take<T>(&raw mut opt)
+            return core::async::Poll.Ready<T>(v)
+        }
+        s.m.lock()
+        if(s.closed) {
+            var fb = st.fallback.take()
+            s.m.unlock()
+            return core::async::Poll.Ready<T>(fb)
+        }
+        if(!cx.waker.is_empty()) {
+            s.waker = cx.waker.clone()
+        }
         s.m.unlock()
-        return core::async::Poll.Ready<T>(fb)
+        return core::async::Poll.Pending<T>()
+
+        }
     }
-    if(!cx.waker.is_empty()) {
-        s.waker = cx.waker.clone()
-    }
-    s.m.unlock()
-    return core::async::Poll.Pending<T>()
-}
 
 @retained
 public func <T> recv_drop(frame : *mut void) {
-    var st = frame as *mut RecvState<T>
-    var vtbl = st.vtbl
-    unsafe {
-        delete st
-    }
-    if(vtbl != null) {
         unsafe {
-            dealloc vtbl
+        var st = frame as *mut RecvState<T>
+        var vtbl = st.vtbl
+        unsafe {
+            delete st
+        }
+        if(vtbl != null) {
+            unsafe {
+                dealloc vtbl
+            }
+        }
+
         }
     }
-}
 
 // ---- channel ---------------------------------------------------------------
 
@@ -289,31 +340,37 @@ public struct Channel<T> {
 }
 
 public func <T> channel() : Channel<T> {
-    var s = unsafe(malloc(sizeof(ChannelShared<T>))) as *mut ChannelShared<T>
-    new(s) ChannelShared<T> {
-        m : std::mutex(),
-        head : null,
-        tail : null,
-        closed : false,
-        senders : 1,
-        receivers : 1,
-        waker : core::async::Waker.empty()
+        unsafe {
+        var s = unsafe(malloc(sizeof(ChannelShared<T>))) as *mut ChannelShared<T>
+        new(s) ChannelShared<T> {
+            m : std::mutex(),
+            head : null,
+            tail : null,
+            closed : false,
+            senders : 1,
+            receivers : 1,
+            waker : core::async::Waker.empty()
+        }
+        return Channel<T> {
+            sender : Sender<T> { shared : s },
+            receiver : Receiver<T> { shared : s }
+        }
+
+        }
     }
-    return Channel<T> {
-        sender : Sender<T> { shared : s },
-        receiver : Receiver<T> { shared : s }
-    }
-}
 
 // Clone the sender into a value the caller owns (e.g. to capture in a lambda).
 // Use `clone_sender` on the channel's sender rather than moving it out of the
 // `Channel<T>`: moving a destructible field out of a value is rejected by the
 // move checker.
 public func <T> clone_sender(s : *mut ChannelShared<T>) : Sender<T> {
-    s.m.lock()
-    s.senders = s.senders + 1
-    s.m.unlock()
-    return Sender<T> { shared : s }
-}
+        unsafe {
+        s.m.lock()
+        s.senders = s.senders + 1
+        s.m.unlock()
+        return Sender<T> { shared : s }
+
+        }
+    }
 
 }

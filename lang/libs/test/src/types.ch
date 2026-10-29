@@ -35,36 +35,51 @@ struct TestEnvImpl {
 
 impl TestEnv for TestEnvImpl {
     func get_test_id(&self) : int {
-        return fn.id;
+        unsafe {
+            return fn.id;
+    
+        }
     }
 
     func get_group_name(&self) : std::string_view {
-        return fn.group
+        unsafe {
+            return fn.group
+    
+        }
     }
 
     func logIt(&mut self, type : LogType, msgData : *char, lineNum : uint, charNum : uint) {
-        var msg = std::string();
-        msg.append_char_ptr("$log,")
-        var buff : [2048]char
-        unsafe { snprintf(&raw mut buff[0], sizeof(buff), "%d,%d,%d,%s", type as int, lineNum, charNum, msgData) };
-        msg.append_char_ptr(&raw buff[0])
-        self.send_message(msg.data(), msg.size())
+        unsafe {
+            var msg = std::string();
+            msg.append_char_ptr("$log,")
+            var buff : [2048]char
+            unsafe { snprintf(&raw mut buff[0], sizeof(buff), "%d,%d,%d,%s", type as int, lineNum, charNum, msgData) };
+            msg.append_char_ptr(&raw buff[0])
+            self.send_message(msg.data(), msg.size())
+    
+        }
     }
 
 
 
     func quit_current_group(&mut self, reason : *char) {
-        var msg = std::string();
-        msg.append_char_ptr("$quit_group:");
-        msg.append_char_ptr(reason)
-        self.send_message(msg.data(), msg.size())
+        unsafe {
+            var msg = std::string();
+            msg.append_char_ptr("$quit_group:");
+            msg.append_char_ptr(reason)
+            self.send_message(msg.data(), msg.size())
+    
+        }
     }
 
     func quit_all_tests(&mut self, reason : *char) {
-        var msg = std::string();
-        msg.append_char_ptr("$quit_all:");
-        msg.append_char_ptr(reason)
-        self.send_message(msg.data(), msg.size())
+        unsafe {
+            var msg = std::string();
+            msg.append_char_ptr("$quit_all:");
+            msg.append_char_ptr(reason)
+            self.send_message(msg.data(), msg.size())
+    
+        }
     }
 }
 
@@ -170,9 +185,12 @@ struct TestFunctionState {
 
     @make
     func make(t_fn : *mut TestFunction) {
-        return TestFunctionState {
-            fn : t_fn,
-            failed_msg_parse : std::string()
+        unsafe {
+            return TestFunctionState {
+                fn : t_fn,
+                failed_msg_parse : std::string()
+            }
+    
         }
     }
 

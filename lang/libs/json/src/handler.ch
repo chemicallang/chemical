@@ -9,7 +9,7 @@ public struct DebugJsonSaxHandler {
     }
 
     func write_view(&self, view : &std::string_view) {
-        stream.writeStr(view.data(), view.size())
+        unsafe { stream.writeStr(view.data(), view.size()) }
     }
 
     func writeLine(&self) { stream.writeChar('\n') }
@@ -23,12 +23,12 @@ public struct DebugJsonSaxHandler {
     }
     func on_number(&self, data : *char, len : size_t) {
         write_view(std::string_view("number : "))
-        stream.writeStr(data, len)
+        unsafe { stream.writeStr(data, len) }
         writeLine()
     }
     func on_string(&self, data : *char, len : size_t) {
         write_view(std::string_view("string : "))
-        stream.writeStr(data, len)
+        unsafe { stream.writeStr(data, len) }
         writeLine()
     }
 
@@ -46,7 +46,7 @@ public struct DebugJsonSaxHandler {
     }
     func on_key(&self, data : *char, len : size_t) {
         write_view(std::string_view("key : "))
-        stream.writeStr(data, len)
+        unsafe { stream.writeStr(data, len) }
         writeLine()
     }
 

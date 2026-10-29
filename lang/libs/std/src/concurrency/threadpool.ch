@@ -153,33 +153,37 @@ public namespace std {
             }
             func get(&mut self):T {
                 var thing : T
-                p.m.lock();
-                while(!p.ready){ p.cv.wait(&mut p.m) }
-                // mark that consumer will free (so worker won't free)
-                p.future_dropped = true;
-                p.m.unlock();
-                // TODO: create a copy here
-                var pp = p
-                var r = std::replace(&mut pp.val, thing);
-                delete p;
-                p=null;
-                return r
+                unsafe {
+                    p.m.lock();
+                    while(!p.ready){ p.cv.wait(&mut p.m) }
+                    // mark that consumer will free (so worker won't free)
+                    p.future_dropped = true;
+                    p.m.unlock();
+                    // TODO: create a copy here
+                    var pp = p
+                    var r = std::replace(&mut pp.val, thing);
+                    delete p;
+                    p=null;
+                    return r
+                }
             }
             @delete
             func delete(&mut self) {
                 if (p != null) {
-                    p.m.lock();
-                    if (!p.ready) {
-                        // promise not set yet: mark that future is dropped
-                        p.future_dropped = true;
-                        p.m.unlock();
-                        // do not free now — worker will free after set
-                    } else {
-                        // promise already set — consumer can free it now
-                        p.future_dropped = true;
-                        p.m.unlock();
-                        delete p;
-                        p = null;
+                    unsafe {
+                        p.m.lock();
+                        if (!p.ready) {
+                            // promise not set yet: mark that future is dropped
+                            p.future_dropped = true;
+                            p.m.unlock();
+                            // do not free now — worker will free after set
+                        } else {
+                            // promise already set — consumer can free it now
+                            p.future_dropped = true;
+                            p.m.unlock();
+                            delete p;
+                            p = null;
+                        }
                     }
                 }
             }
@@ -190,32 +194,35 @@ public namespace std {
         }
 
         func worker_main(arg:*void) : *void {
-            var P=arg as *mut PoolData;
-            while(true){
-                var opt:std.Option<Task> = std.Option.None<Task>();
-                P.m.lock();
-                while(P.q.size()==0u && P.run) {
-                    P.cv.wait(&mut P.m)
-                }
-                if(!P.run && P.q.size()==0u) {
+        unsafe {
+                var P=arg as *mut PoolData;
+                while(true){
+                    var opt:std.Option<Task> = std.Option.None<Task>();
+                    P.m.lock();
+                    while(P.q.size()==0u && P.run) {
+                        P.cv.wait(&mut P.m)
+                    }
+                    if(!P.run && P.q.size()==0u) {
+                        P.m.unlock();
+                        break
+                    }
+                    if(P.q.size()>0u){
+                        var first_ele = P.q.get_ptr(0);
+                        // move the task out by replacing it with a dummy, then remove
+                        var t = std::replace(unsafe(&mut *first_ele), Task { f : ||() => {} });
+                        P.q.remove(0);
+                        opt = std.Option.Some<Task>(t)
+                    }
                     P.m.unlock();
-                    break
+                    if(opt is std.Option.Some){
+                        var Some(tt)=opt else unreachable;
+                        tt.f()
+                    }
                 }
-                if(P.q.size()>0u){
-                    var first_ele = P.q.get_ptr(0);
-                    // move the task out by replacing it with a dummy, then remove
-                    var t = std::replace(unsafe(&mut *first_ele), Task { f : ||() => {} });
-                    P.q.remove(0);
-                    opt = std.Option.Some<Task>(t)
-                }
-                P.m.unlock();
-                if(opt is std.Option.Some){
-                    var Some(tt)=opt else unreachable;
-                    tt.f()
-                }
-            }
-            return null
+                return null
+        
         }
+    }
 
 
         public struct PoolData {
@@ -227,31 +234,34 @@ public namespace std {
             var run:bool
 
             public unsafe func <T> submit(&mut self, f:std.function<() => T>):Future<T>{
-                var prom=unsafe(malloc(sizeof(Promise<T>))) as *mut Promise<T>;
-                if(prom == null) {
-                    panic("failed to allocate thread pool promise")
-                }
-                new(prom)Promise<T>();
-                m.lock();
-                q.push_back(Task{ f:|f,prom|() => {
-                        var r=f();
-                        // set value under the Promise's synchronization
-                        prom.m.lock();
-                        prom.val = r;
-                        prom.ready = true;
-                        prom.cv.notify_all();
-                        var should_free = prom.future_dropped; // check under lock
-                        prom.m.unlock();
-                        if (should_free) {
-                            // consumer already indicated it will not consume -> worker must free
-                            delete prom;
-                        }
+        unsafe {
+                    var prom=unsafe(malloc(sizeof(Promise<T>))) as *mut Promise<T>;
+                    if(prom == null) {
+                        panic("failed to allocate thread pool promise")
                     }
-                });
-                cv.notify_one();
-                m.unlock();
-                return Future<T>(prom)
-            }
+                    new(prom)Promise<T>();
+                    m.lock();
+                    q.push_back(Task{ f:|f,prom|() => {
+                            var r=f();
+                            // set value under the Promise's synchronization
+                            prom.m.lock();
+                            prom.val = r;
+                            prom.ready = true;
+                            prom.cv.notify_all();
+                            var should_free = prom.future_dropped; // check under lock
+                            prom.m.unlock();
+                            if (should_free) {
+                                // consumer already indicated it will not consume -> worker must free
+                                delete prom;
+                            }
+                        }
+                    });
+                    cv.notify_one();
+                    m.unlock();
+                    return Future<T>(prom)
+            
+        }
+    }
 
             public unsafe func submit_void(&mut self, f:std.function<() => void>){
                 m.lock();
@@ -293,37 +303,43 @@ public namespace std {
 
             @delete
             func delete(&self) {
-                delete data;
+                unsafe { delete data; }
             }
 
             // The pool owns the raw allocation; construction is unchecked.
             public unsafe func from_raw(data : *mut PoolData) : ThreadPool {
-                return ThreadPool { data : data }
-            }
+        unsafe {
+                    return ThreadPool { data : data }
+            
+        }
+    }
 
         }
 
         public func create_pool(n:uint) : ThreadPool {
-            if(n==0u){ panic("n==0") }
-            var p=unsafe(malloc(sizeof(PoolData))) as *mut PoolData;
-            if(p == null) {
-                panic("failed to allocate thread pool")
-            }
-            new(p) PoolData {
-                m:std.mutex(),
-                cv:std.CondVar(),
-                q:std.vector<Task>(),
-                workers:std.vector<usize>(),
-                run:true
-            };
-            var i:uint=0u;
-            while(i<n){
-                var h=unsafe(spawn_native(worker_main, p as *void));
-                p.workers.push_back(h);
-                i=i+1u
-            }
-            return unsafe(ThreadPool.from_raw(p))
+        unsafe {
+                if(n==0u){ panic("n==0") }
+                var p=unsafe(malloc(sizeof(PoolData))) as *mut PoolData;
+                if(p == null) {
+                    panic("failed to allocate thread pool")
+                }
+                new(p) PoolData {
+                    m:std.mutex(),
+                    cv:std.CondVar(),
+                    q:std.vector<Task>(),
+                    workers:std.vector<usize>(),
+                    run:true
+                };
+                var i:uint=0u;
+                while(i<n){
+                    var h=unsafe(spawn_native(worker_main, p as *void));
+                    p.workers.push_back(h);
+                    i=i+1u
+                }
+                return unsafe(ThreadPool.from_raw(p))
+        
         }
+    }
 
     }
 

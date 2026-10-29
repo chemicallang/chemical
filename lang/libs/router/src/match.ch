@@ -127,61 +127,64 @@ func is_traversal_segment(s : std::string_view) : bool {
 // D-6.9). A `route *` entry matches any remaining path (D-6.6).
 public func match_route(patterns : &std::vector<RoutePattern>, path : std::string_view,
                         base : std::string_view) : RouteMatch {
-    var noMatch = RouteMatch {
-        matched : false,
-        id : std::string_view(),
-        params : std::vector<RouteParam>(),
-        is_fallback : false,
-        chain : std::vector<RouteChainStep>()
-    }
-    const segs = split_path_segments(path, base)
-    for(var i : size_t = 0; i < patterns.size(); i++) {
-        const pattern = patterns.get_ptr(i)
-        if(pattern.is_fallback) {
-            return RouteMatch {
-                matched : true,
-                id : pattern.id,
-                params : std::vector<RouteParam>(),
-                is_fallback : true,
-                chain : std::vector<RouteChainStep>()
+        unsafe {
+        var noMatch = RouteMatch {
+            matched : false,
+            id : std::string_view(),
+            params : std::vector<RouteParam>(),
+            is_fallback : false,
+            chain : std::vector<RouteChainStep>()
+        }
+        const segs = split_path_segments(path, base)
+        for(var i : size_t = 0; i < patterns.size(); i++) {
+            const pattern = patterns.get_ptr(i)
+            if(pattern.is_fallback) {
+                return RouteMatch {
+                    matched : true,
+                    id : pattern.id,
+                    params : std::vector<RouteParam>(),
+                    is_fallback : true,
+                    chain : std::vector<RouteChainStep>()
+                }
             }
-        }
-        if(pattern.prefix) {
-            if(segs.size() < pattern.segments.size()) { continue }
-        } else if(pattern.segments.size() != segs.size()) {
-            continue
-        }
-        var params = std::vector<RouteParam>()
-        var ok = true
-        for(var j : size_t = 0; j < pattern.segments.size(); j++) {
-            const ps = pattern.segments.get(j)
-            const seg = segs.get(j)
-            if(is_param_segment(ps)) {
-                if(is_traversal_segment(seg)) {
+            if(pattern.prefix) {
+                if(segs.size() < pattern.segments.size()) { continue }
+            } else if(pattern.segments.size() != segs.size()) {
+                continue
+            }
+            var params = std::vector<RouteParam>()
+            var ok = true
+            for(var j : size_t = 0; j < pattern.segments.size(); j++) {
+                const ps = pattern.segments.get(j)
+                const seg = segs.get(j)
+                if(is_param_segment(ps)) {
+                    if(is_traversal_segment(seg)) {
+                        ok = false
+                        break
+                    }
+                    params.push(RouteParam.Param(ps.subview(1, ps.size() - 1), seg))
+                } else if(!ps.equals(&seg)) {
                     ok = false
                     break
                 }
-                params.push(RouteParam.Param(ps.subview(1, ps.size() - 1), seg))
-            } else if(!ps.equals(&seg)) {
-                ok = false
-                break
+            }
+            if(ok) {
+                var chain = std::vector<RouteChainStep>()
+                for(var c : uint = 0; c < pattern.chain.size(); c++) {
+                    chain.push(pattern.chain.get(c))
+                }
+                return RouteMatch {
+                    matched : true,
+                    id : pattern.id,
+                    params : params,
+                    is_fallback : false,
+                    chain : chain
+                }
             }
         }
-        if(ok) {
-            var chain = std::vector<RouteChainStep>()
-            for(var c : uint = 0; c < pattern.chain.size(); c++) {
-                chain.push(pattern.chain.get(c))
-            }
-            return RouteMatch {
-                matched : true,
-                id : pattern.id,
-                params : params,
-                is_fallback : false,
-                chain : chain
-            }
+        return noMatch
+
         }
     }
-    return noMatch
-}
 
 

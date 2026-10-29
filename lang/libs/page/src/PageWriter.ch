@@ -26,61 +26,67 @@ func append_page_writer_hex2(buffer : &mut std::string, v : uint) {
 // the value is unchanged. Mirrors `appendJsEscaped` (ssr.ch), which is the
 // double-quoted twin and additionally leaves `'` alone.
 func append_js_single_quoted_escaped(buffer : &mut std::string, data : *char, len : size_t) {
-    var i : size_t = 0
-    while(i < len) {
-        const c = data[i]
-        switch(c) {
-            '\\' => buffer.append_view("\\\\")
-            '\'' => buffer.append_view("\\'")
-            '\n' => buffer.append_view("\\n")
-            '\r' => buffer.append_view("\\r")
-            '\t' => buffer.append_view("\\t")
-            '<' => {
-                // Only `</` matters; a lone `<` is inert inside a script.
-                if(i + 1u < len && data[i + 1u] == '/') {
-                    // The `/` is KEPT: `i++` skips it in the input, so it has to
-                    // be in the emitted text or the value silently loses it
-                    // (`</script` would decode to `<script`).
-                    buffer.append_view("\\u003C/")
-                    i++
-                } else {
-                    buffer.append(c)
+        unsafe {
+        var i : size_t = 0
+        while(i < len) {
+            const c = data[i]
+            switch(c) {
+                '\\' => buffer.append_view("\\\\")
+                '\'' => buffer.append_view("\\'")
+                '\n' => buffer.append_view("\\n")
+                '\r' => buffer.append_view("\\r")
+                '\t' => buffer.append_view("\\t")
+                '<' => {
+                    // Only `</` matters; a lone `<` is inert inside a script.
+                    if(i + 1u < len && data[i + 1u] == '/') {
+                        // The `/` is KEPT: `i++` skips it in the input, so it has to
+                        // be in the emitted text or the value silently loses it
+                        // (`</script` would decode to `<script`).
+                        buffer.append_view("\\u003C/")
+                        i++
+                    } else {
+                        buffer.append(c)
+                    }
+                }
+                default => {
+                    if((c as u8) < 0x20u8) {
+                        buffer.append_view("\\u00")
+                        append_page_writer_hex2(buffer, c as uint)
+                    } else {
+                        buffer.append(c)
+                    }
                 }
             }
-            default => {
-                if((c as u8) < 0x20u8) {
-                    buffer.append_view("\\u00")
-                    append_page_writer_hex2(buffer, c as uint)
-                } else {
-                    buffer.append(c)
-                }
-            }
+            i++
         }
-        i++
+
+        }
     }
-}
 
 // The same for a CSS literal: a value that reaches a `<style>` element can close
 // it with `</style>`, and a backslash would break the token.
 func append_css_single_quoted_escaped(buffer : &mut std::string, data : *char, len : size_t) {
-    var i : size_t = 0
-    while(i < len) {
-        const c = data[i]
-        switch(c) {
-            '\\' => buffer.append_view("\\\\")
-            '<' => {
-                if(i + 1u < len && data[i + 1u] == '/') {
-                    buffer.append_view("\\3C ")
-                    i++
-                } else {
-                    buffer.append(c)
+        unsafe {
+        var i : size_t = 0
+        while(i < len) {
+            const c = data[i]
+            switch(c) {
+                '\\' => buffer.append_view("\\\\")
+                '<' => {
+                    if(i + 1u < len && data[i + 1u] == '/') {
+                        buffer.append_view("\\3C ")
+                        i++
+                    } else {
+                        buffer.append(c)
+                    }
                 }
+                default => buffer.append(c)
             }
-            default => buffer.append(c)
+            i++
         }
-        i++
+
+        }
     }
-}
 
 public interface HtmlPageWriter {
 

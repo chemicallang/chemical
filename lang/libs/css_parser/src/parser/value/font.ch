@@ -1,41 +1,47 @@
 
 func parseFontValueKeywordKind(builder : *mut ASTBuilder, font : &mut CSSFontValueData, value : &std::string_view, hash : size_t) : CSSKeywordKind {
-    const fontStyleKw = getFontStyleKeywordKind(hash)
-    if(fontStyleKw != CSSKeywordKind.Unknown) {
-        font.style = CSSFontStyle.Keyword(CSSKeywordValueData { kind : fontStyleKw, value : builder.allocate_view(value) })
-        return fontStyleKw;
-    } else {
-        const fontVariantKw = getFontVariantKeywordKind(hash)
-        if(fontVariantKw != CSSKeywordKind.Unknown) {
-            font.fontVariant = CSSKeywordValueData { kind : fontVariantKw, value : builder.allocate_view(value) }
-            return fontVariantKw;
+        unsafe {
+        const fontStyleKw = getFontStyleKeywordKind(hash)
+        if(fontStyleKw != CSSKeywordKind.Unknown) {
+            font.style = CSSFontStyle.Keyword(CSSKeywordValueData { kind : fontStyleKw, value : builder.allocate_view(value) })
+            return fontStyleKw;
         } else {
-            const fontWeightKw = getFontWeightKeywordKind(hash)
-            if(fontWeightKw != CSSKeywordKind.Unknown) {
-                font.weight = CSSFontWeight.Keyword(CSSKeywordValueData { kind : fontWeightKw, value : builder.allocate_view(value) })
-                return fontWeightKw;
+            const fontVariantKw = getFontVariantKeywordKind(hash)
+            if(fontVariantKw != CSSKeywordKind.Unknown) {
+                font.fontVariant = CSSKeywordValueData { kind : fontVariantKw, value : builder.allocate_view(value) }
+                return fontVariantKw;
             } else {
-                const stretchKw = getFontStretchKeywordKind(hash)
-                if(stretchKw != CSSKeywordKind.Unknown) {
-                    font.stretch = CSSKeywordValueData { kind : stretchKw, value : builder.allocate_view(value) }
-                    return stretchKw;
+                const fontWeightKw = getFontWeightKeywordKind(hash)
+                if(fontWeightKw != CSSKeywordKind.Unknown) {
+                    font.weight = CSSFontWeight.Keyword(CSSKeywordValueData { kind : fontWeightKw, value : builder.allocate_view(value) })
+                    return fontWeightKw;
                 } else {
-                    return CSSKeywordKind.Unknown;
+                    const stretchKw = getFontStretchKeywordKind(hash)
+                    if(stretchKw != CSSKeywordKind.Unknown) {
+                        font.stretch = CSSKeywordValueData { kind : stretchKw, value : builder.allocate_view(value) }
+                        return stretchKw;
+                    } else {
+                        return CSSKeywordKind.Unknown;
+                    }
                 }
             }
         }
+
+        }
     }
-}
 
 func (parser : &mut Parser) incrementToken(type : TokenType) : bool {
-    const token = parser.getToken()
-    if(token.type == type) {
-        parser.increment()
-        return true;
-    } else {
-        return false;
+        unsafe {
+        const token = parser.getToken()
+        if(token.type == type) {
+            parser.increment()
+            return true;
+        } else {
+            return false;
+        }
+
+        }
     }
-}
 
 func parseFontKeywordValues(
     parser : *mut Parser,
@@ -43,69 +49,75 @@ func parseFontKeywordValues(
     font : &mut CSSFontValueData,
     first_val_hash : size_t
 ) {
-    var i = -1;
-    while(true) {
-        i++;
-        const token = parser.getToken()
-        if(token.type != TokenType.Identifier) {
-            return;
-        }
-        var hash : size_t = 0
-        if(i == 0) {
-            hash = first_val_hash
-        } else {
-            hash = fnv1_hash_view(&token.value)
-        }
-        const kind = parseFontValueKeywordKind(builder, font, &token.value, hash)
-        if(kind == CSSKeywordKind.Oblique) {
-            // there's an angle after this
-            parser.increment()
-            const angleTok = parser.getToken()
-            if(angleTok.type == TokenType.Number) {
-                parser.increment()
-                font.style = CSSFontStyle.Oblique(angleTok.value)
-                const degTok = parser.getToken()
-                if(degTok.type == TokenType.Identifier && degTok.value.equals("deg")) {
-                    parser.increment()
-                } else {
-                    parser.error("expected 'deg' for angle unit");
-                }
-            } else {
-                parser.error("expected a number for oblique angle");
-            }
-        } else if(kind == CSSKeywordKind.Unknown) {
-            return;
-        } else {
-            parser.increment()
-        }
-    }
-}
-
-func (parser : &mut Parser) parseFontFamiliesList(builder : *mut ASTBuilder, family : &mut CSSFontFamily) {
-    // parsing the font family
-    while(true) {
-        const token = parser.getToken()
-        switch(token.type) {
-            TokenType.Identifier, TokenType.PropertyName, TokenType.DoubleQuotedValue, TokenType.SingleQuotedValue => {
-
-                if((token.type == TokenType.Identifier || token.type == TokenType.PropertyName) && token.value.equals("var")) {
-                    return;
-                }
-
-                parser.increment()
-
-                family.families.push(builder.allocate_view(&token.value))
-
-                // optionally increment the comma
-                parser.incrementToken(TokenType.Comma)
-
-            }
-            default => {
+        unsafe {
+        var i = -1;
+        while(true) {
+            i++;
+            const token = parser.getToken()
+            if(token.type != TokenType.Identifier) {
                 return;
             }
+            var hash : size_t = 0
+            if(i == 0) {
+                hash = first_val_hash
+            } else {
+                hash = fnv1_hash_view(&token.value)
+            }
+            const kind = parseFontValueKeywordKind(builder, font, &token.value, hash)
+            if(kind == CSSKeywordKind.Oblique) {
+                // there's an angle after this
+                parser.increment()
+                const angleTok = parser.getToken()
+                if(angleTok.type == TokenType.Number) {
+                    parser.increment()
+                    font.style = CSSFontStyle.Oblique(angleTok.value)
+                    const degTok = parser.getToken()
+                    if(degTok.type == TokenType.Identifier && degTok.value.equals("deg")) {
+                        parser.increment()
+                    } else {
+                        parser.error("expected 'deg' for angle unit");
+                    }
+                } else {
+                    parser.error("expected a number for oblique angle");
+                }
+            } else if(kind == CSSKeywordKind.Unknown) {
+                return;
+            } else {
+                parser.increment()
+            }
+        }
+
         }
     }
-}
+
+func (parser : &mut Parser) parseFontFamiliesList(builder : *mut ASTBuilder, family : &mut CSSFontFamily) {
+        unsafe {
+        // parsing the font family
+        while(true) {
+            const token = parser.getToken()
+            switch(token.type) {
+                TokenType.Identifier, TokenType.PropertyName, TokenType.DoubleQuotedValue, TokenType.SingleQuotedValue => {
+
+                    if((token.type == TokenType.Identifier || token.type == TokenType.PropertyName) && token.value.equals("var")) {
+                        return;
+                    }
+
+                    parser.increment()
+
+                    family.families.push(builder.allocate_view(&token.value))
+
+                    // optionally increment the comma
+                    parser.incrementToken(TokenType.Comma)
+
+                }
+                default => {
+                    return;
+                }
+            }
+        }
+
+        }
+    }
 
 func (cssParser : &mut CSSParser) parseFont(
     parser : *mut Parser,

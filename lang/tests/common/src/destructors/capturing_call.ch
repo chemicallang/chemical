@@ -107,13 +107,15 @@ struct CAP_Route {
 }
 
 func cap_invoke_with_temporary(route : *CAP_Route, count : *mut int) {
-    route.handler(cap_create_destructible(count, 334))
+    unsafe { route.handler(cap_create_destructible(count, 334)) }
 }
 
 // A control: the same call, but with the argument in a local first.
 func cap_invoke_with_local(route : *CAP_Route, count : *mut int) {
-    var d = cap_create_destructible(count, 556)
-    route.handler(d)
+    unsafe {
+        var d = cap_create_destructible(count, 556)
+        route.handler(d)
+    }
 }
 
 func test_capturing_call_destruction() {

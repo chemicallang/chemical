@@ -16,8 +16,11 @@ public struct JsonArrayEncoder {
 
     @delete
     func destruct(&self) {
-        self.buffer.append(']')
-        self.counts.take_last()
+        unsafe {
+            self.buffer.append(']')
+            self.counts.take_last()
+    
+        }
     }
 }
 
@@ -27,8 +30,11 @@ public struct JsonObjectEncoder {
 
     @delete
     func destruct(&self) {
-        self.buffer.append('}')
-        self.counts.take_last()
+        unsafe {
+            self.buffer.append('}')
+            self.counts.take_last()
+    
+        }
     }
 }
 
@@ -38,8 +44,11 @@ public struct JsonMapEncoder {
 
     @delete
     func destruct(&self) {
-        self.buffer.append('}')
-        self.counts.take_last()
+        unsafe {
+            self.buffer.append('}')
+            self.counts.take_last()
+    
+        }
     }
 }
 
@@ -80,12 +89,15 @@ func append_escaped_char(output : &mut std::string, c : char) {
 
 // the single string-escaping implementation (encode + emit both use it)
 public func json_escape_into(output : &mut std::string, str : *char, len : u64) {
-    output.append('"')
-    for(var i : u64 = 0; i < len; i++) {
-        append_escaped_char(output, str[i])
+        unsafe {
+        output.append('"')
+        for(var i : u64 = 0; i < len; i++) {
+            append_escaped_char(output, str[i])
+        }
+        output.append('"')
+
+        }
     }
-    output.append('"')
-}
 
 public func write_i64(output : &mut std::string, val : i64) {
     output.append_integer(val)
@@ -149,77 +161,92 @@ public func write_float(output : &mut std::string, val : float) {
 }
 
 public func parse_i64(s : *char) : i64 {
-    var i : int = 0
-    var negative = false
-    if(s[0] == '-') { negative = true; i = 1 }
-    var result : i64 = 0
-    while(s[i] != '\0' && s[i] >= '0' && s[i] <= '9') {
-        result = result * 10i64 + (s[i] - '0') as i64
-        i++
+        unsafe {
+        var i : int = 0
+        var negative = false
+        if(s[0] == '-') { negative = true; i = 1 }
+        var result : i64 = 0
+        while(s[i] != '\0' && s[i] >= '0' && s[i] <= '9') {
+            result = result * 10i64 + (s[i] - '0') as i64
+            i++
+        }
+        if(negative) result = -result
+        return result
+
+        }
     }
-    if(negative) result = -result
-    return result
-}
 
 public func parse_u64(s : *char) : u64 {
-    var i : int = 0
-    var result : u64 = 0
-    while(s[i] != '\0' && s[i] >= '0' && s[i] <= '9') {
-        result = result * 10u64 + (s[i] - '0') as u64
-        i++
+        unsafe {
+        var i : int = 0
+        var result : u64 = 0
+        while(s[i] != '\0' && s[i] >= '0' && s[i] <= '9') {
+            result = result * 10u64 + (s[i] - '0') as u64
+            i++
+        }
+        return result
+
+        }
     }
-    return result
-}
 
 public func parse_double(s : *char) : double {
-    var i : int = 0
-    var negative = false
-    if(s[0] == '-') { negative = true; i = 1 }
-    var result : double = 0.0
-    while(s[i] >= '0' && s[i] <= '9') {
-        result = result * 10.0 + (s[i] - '0') as double
-        i++
-    }
-    if(s[i] == '.') {
-        i++
-        var divisor : double = 10.0
+        unsafe {
+        var i : int = 0
+        var negative = false
+        if(s[0] == '-') { negative = true; i = 1 }
+        var result : double = 0.0
         while(s[i] >= '0' && s[i] <= '9') {
-            result += (s[i] - '0') as double / divisor
-            divisor *= 10.0
+            result = result * 10.0 + (s[i] - '0') as double
             i++
         }
-    }
-    if(s[i] == 'e' || s[i] == 'E') {
-        i++
-        var exp_sign = 1
-        if(s[i] == '+') i++
-        else if(s[i] == '-') { exp_sign = -1; i++ }
-        var exp_val : int = 0
-        while(s[i] >= '0' && s[i] <= '9') {
-            exp_val = exp_val * 10 + (s[i] - '0') as int
+        if(s[i] == '.') {
             i++
+            var divisor : double = 10.0
+            while(s[i] >= '0' && s[i] <= '9') {
+                result += (s[i] - '0') as double / divisor
+                divisor *= 10.0
+                i++
+            }
         }
-        var multiplier : double = 1.0
-        for(var j = 0; j < exp_val; j++) { multiplier *= 10.0 }
-        if(exp_sign > 0) result *= multiplier
-        else result /= multiplier
+        if(s[i] == 'e' || s[i] == 'E') {
+            i++
+            var exp_sign = 1
+            if(s[i] == '+') i++
+            else if(s[i] == '-') { exp_sign = -1; i++ }
+            var exp_val : int = 0
+            while(s[i] >= '0' && s[i] <= '9') {
+                exp_val = exp_val * 10 + (s[i] - '0') as int
+                i++
+            }
+            var multiplier : double = 1.0
+            for(var j = 0; j < exp_val; j++) { multiplier *= 10.0 }
+            if(exp_sign > 0) result *= multiplier
+            else result /= multiplier
+        }
+        if(negative) result = -result
+        return result
+
+        }
     }
-    if(negative) result = -result
-    return result
-}
 
 // ===== Encoder Implementation =====
 
 impl std::Encoder<JsonValue> for JsonEncoder {
     func encode_null(&self) : std::Result<std::Unit, std::SerializationError> {
-        self.buffer.append_char_ptr("null")
-        return std::Result.Ok(std::Unit {})
+        unsafe {
+            self.buffer.append_char_ptr("null")
+            return std::Result.Ok(std::Unit {})
+    
+        }
     }
 
     func encode_bool(&self, v : bool) : std::Result<std::Unit, std::SerializationError> {
-        if(v) { self.buffer.append_char_ptr("true") }
-        else { self.buffer.append_char_ptr("false") }
-        return std::Result.Ok(std::Unit {})
+        unsafe {
+            if(v) { self.buffer.append_char_ptr("true") }
+            else { self.buffer.append_char_ptr("false") }
+            return std::Result.Ok(std::Unit {})
+    
+        }
     }
 
     func encode_char(&self, c : char) : std::Result<std::Unit, std::SerializationError> { unsafe {
@@ -270,39 +297,57 @@ impl std::Encoder<JsonValue> for JsonEncoder {
     }
 
     func array(&self) : JsonArrayEncoder {
-        self.buffer.append('[')
-        self.counts.push(0)
-        return JsonArrayEncoder { buffer : self.buffer, counts : self.counts }
+        unsafe {
+            self.buffer.append('[')
+            self.counts.push(0)
+            return JsonArrayEncoder { buffer : self.buffer, counts : self.counts }
+    
+        }
     }
 
     func array_of_len(&self, len : u64) : JsonArrayEncoder {
-        self.buffer.append('[')
-        self.counts.push(0)
-        return JsonArrayEncoder { buffer : self.buffer, counts : self.counts }
+        unsafe {
+            self.buffer.append('[')
+            self.counts.push(0)
+            return JsonArrayEncoder { buffer : self.buffer, counts : self.counts }
+    
+        }
     }
 
     func object(&self) : JsonObjectEncoder {
-        self.buffer.append('{')
-        self.counts.push(0)
-        return JsonObjectEncoder { buffer : self.buffer, counts : self.counts }
+        unsafe {
+            self.buffer.append('{')
+            self.counts.push(0)
+            return JsonObjectEncoder { buffer : self.buffer, counts : self.counts }
+    
+        }
     }
 
     func object_of_len(&self, len : u64) : JsonObjectEncoder {
-        self.buffer.append('{')
-        self.counts.push(0)
-        return JsonObjectEncoder { buffer : self.buffer, counts : self.counts }
+        unsafe {
+            self.buffer.append('{')
+            self.counts.push(0)
+            return JsonObjectEncoder { buffer : self.buffer, counts : self.counts }
+    
+        }
     }
 
     func map(&self) : JsonMapEncoder {
-        self.buffer.append('{')
-        self.counts.push(0)
-        return JsonMapEncoder { buffer : self.buffer, counts : self.counts }
+        unsafe {
+            self.buffer.append('{')
+            self.counts.push(0)
+            return JsonMapEncoder { buffer : self.buffer, counts : self.counts }
+    
+        }
     }
 
     func map_of_len(&self, len : u64) : JsonMapEncoder {
-        self.buffer.append('{')
-        self.counts.push(0)
-        return JsonMapEncoder { buffer : self.buffer, counts : self.counts }
+        unsafe {
+            self.buffer.append('{')
+            self.counts.push(0)
+            return JsonMapEncoder { buffer : self.buffer, counts : self.counts }
+    
+        }
     }
 }
 
@@ -336,14 +381,17 @@ impl std::ObjectEncoder<JsonValue> for JsonObjectEncoder {
 
 impl std::MapEncoder<JsonValue> for JsonMapEncoder {
     func <K : std::Serializer<JsonValue, JsonEncoder>, V : std::Serializer<JsonValue, JsonEncoder>> encode(&self, key : &K, value : &V) : std::Result<std::Unit, std::SerializationError> {
-        __container_begin_item(self.buffer, self.counts)
-        var encoder = JsonEncoder { buffer : self.buffer, counts : self.counts }
-        var r1 = key.serialize(__unsafe_cast_json_encoder<JsonValue>(&encoder))
-        if(!(r1 is std::Result.Ok)) { return r1 as std::Result<std::Unit, std::SerializationError> }
-        self.buffer.append(':')
-        var encoder2 = JsonEncoder { buffer : self.buffer, counts : self.counts }
-        // TODO: returning value.encode doesn't satisfy the result, compiler bug
-        return value.serialize(__unsafe_cast_json_encoder<JsonValue>(&encoder2)) as std::Result<std::Unit, std::SerializationError>
+        unsafe {
+            __container_begin_item(self.buffer, self.counts)
+            var encoder = JsonEncoder { buffer : self.buffer, counts : self.counts }
+            var r1 = key.serialize(__unsafe_cast_json_encoder<JsonValue>(&encoder))
+            if(!(r1 is std::Result.Ok)) { return r1 as std::Result<std::Unit, std::SerializationError> }
+            self.buffer.append(':')
+            var encoder2 = JsonEncoder { buffer : self.buffer, counts : self.counts }
+            // TODO: returning value.encode doesn't satisfy the result, compiler bug
+            return value.serialize(__unsafe_cast_json_encoder<JsonValue>(&encoder2)) as std::Result<std::Unit, std::SerializationError>
+    
+        }
     }
 }
 

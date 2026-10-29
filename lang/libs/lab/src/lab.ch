@@ -418,7 +418,7 @@ public func (ctx : &BuildContext) include_headers(module : *mut Module, headers 
 }
 
 public func (ctx : &BuildContext) index_def_cbi_fn(job : *mut LabJobCBI, name : &std::string_view, type : CBIFunctionType) {
-    ctx.index_cbi_fn(job, job.getName(), name, type)
+    unsafe { ctx.index_cbi_fn(job, job.getName(), name, type) }
 }
 
 // -----------------------------------------------------
@@ -437,7 +437,7 @@ public func (ctx : &BuildContext) build_job_dir_path(job_name : &std::string_vie
 }
 
 public func (ctx : &BuildContext) job_dir_path(job : *mut LabJob) : std::string {
-    return ctx.build_job_dir_path(job.getName())
+    return unsafe(ctx.build_job_dir_path(job.getName()))
 }
 
 public func (ctx : &BuildContext) build_mod_file_path(job_name : &std::string_view, mod_scope : &std::string_view, mod_name : &std::string_view, file : &std::string_view) : std::string {
@@ -466,40 +466,42 @@ public func (ctx : &BuildContext) build_bitcode_path(job_name : &std::string_vie
 }
 
 public func (ctx : &BuildContext) llvm_ir_path(job : *mut LabJob, mod : *mut Module) : std::string {
-    return ctx.build_llvm_ir_path(job.getName(), mod.getScopeName(), mod.getName())
+    return unsafe(ctx.build_llvm_ir_path(job.getName(), mod.getScopeName(), mod.getName()))
 }
 
 public func (ctx : &BuildContext) asm_path(job : *mut LabJob, mod : *mut Module) : std::string {
-    return ctx.build_asm_path(job.getName(), mod.getScopeName(), mod.getName())
+    return unsafe(ctx.build_asm_path(job.getName(), mod.getScopeName(), mod.getName()))
 }
 
 public func (ctx : &BuildContext) bitcode_path(job : *mut LabJob, mod : *mut Module) : std::string {
-    return ctx.build_bitcode_path(job.getName(), mod.getScopeName(), mod.getName())
+    return unsafe(ctx.build_bitcode_path(job.getName(), mod.getScopeName(), mod.getName()))
 }
 
 public namespace lab {
 
-    func find_last_pos_of_or(str : *char, len : size_t, value : char, value2 : char) : int {
-        if(len == 0) return -1;
-        var i : int = len as int - 1;
-        while(i >= 0) {
-            // printf("checking %c against %c and %c \n", str[i], value, value2)
-            if(str[i] == value || str[i] == value2) {
-                return i;
+    unsafe func find_last_pos_of_or(str : *char, len : size_t, value : char, value2 : char) : int {
+        unsafe {
+            if(len == 0) return -1;
+            var i : int = len as int - 1;
+            while(i >= 0) {
+                // printf("checking %c against %c and %c \n", str[i], value, value2)
+                if(str[i] == value || str[i] == value2) {
+                    return i;
+                }
+                // printf("found not\n");
+                i--;
             }
-            // printf("found not\n");
-            i--;
+            return -1;
         }
-        return -1;
     }
 
     func parent_path(str : std::string_view) : std::string {
         var final = std::string()
         var pos : int = 0
         comptime if(def.windows) {
-            pos = find_last_pos_of_or(str.data(), str.size(), '\\', '/')
+            pos = unsafe(find_last_pos_of_or(str.data(), str.size(), '\\', '/'))
         } else {
-            pos = find_last_pos_of_or(str.data(), str.size(), '/', '/')
+            pos = unsafe(find_last_pos_of_or(str.data(), str.size(), '/', '/'))
         }
         if(pos > 0) {
             final.append_with_len(str.data(), (pos + 1) as size_t)

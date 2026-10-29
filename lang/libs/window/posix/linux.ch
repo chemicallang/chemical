@@ -322,19 +322,22 @@ func cursor_name_for_kind(kind : int) : *char {
 }
 
 func apply_cursor(w : *mut Window) {
-    if(w.widget == null) {
-        return
+        unsafe {
+        if(w.widget == null) {
+            return
+        }
+        var gdkwin = unsafe(gtk_widget_get_window(w.widget))
+        if(gdkwin == null) {
+            return
+        }
+        ensure_gtk_init()
+        var cursor = unsafe(gdk_cursor_new_from_name(unsafe(gdk_display_get_default()), cursor_name_for_kind(w.cursor)))
+        if(cursor != null) {
+            unsafe { gdk_window_set_cursor(gdkwin, cursor) }
+        }
+
+        }
     }
-    var gdkwin = unsafe(gtk_widget_get_window(w.widget))
-    if(gdkwin == null) {
-        return
-    }
-    ensure_gtk_init()
-    var cursor = unsafe(gdk_cursor_new_from_name(unsafe(gdk_display_get_default()), cursor_name_for_kind(w.cursor)))
-    if(cursor != null) {
-        unsafe { gdk_window_set_cursor(gdkwin, cursor) }
-    }
-}
 
 // ===========================================================================
 // signal handlers
@@ -394,18 +397,21 @@ var g_win_ctx_key_ready : int = 0
 // g_object_set_data_full stores the key POINTER, not a copy, so the key
 // string must outlive the widget — keep it in a module-level buffer.
 func win_ctx_key() : *char {
-    if(g_win_ctx_key_ready == 0) {
-        var i : int = 0
-        var src = "chem_window_ctx\0" as *char
-        while(src[i] != '\0' as char && i < 31) {
-            g_win_ctx_key[i] = src[i]
-            i += 1
+        unsafe {
+        if(g_win_ctx_key_ready == 0) {
+            var i : int = 0
+            var src = "chem_window_ctx\0" as *char
+            while(src[i] != '\0' as char && i < 31) {
+                g_win_ctx_key[i] = src[i]
+                i += 1
+            }
+            g_win_ctx_key[i] = '\0' as char
+            g_win_ctx_key_ready = 1
         }
-        g_win_ctx_key[i] = '\0' as char
-        g_win_ctx_key_ready = 1
+        return &raw g_win_ctx_key[0]
+
+        }
     }
-    return &raw g_win_ctx_key[0]
-}
 
 func win_ctx_free(data : *mut void) {
     if(data != null) {
@@ -420,22 +426,25 @@ func window_ctx_get(widget : *mut GtkWidget) : *mut WindowCtx {
 // Sync the caller's Window callback fields into the stable context (called by
 // every window_set_*_callback / window_set_user_data).
 func window_ctx_sync(w : *mut Window) {
-    if(w == null || w.widget == null) {
-        return
+        unsafe {
+        if(w == null || w.widget == null) {
+            return
+        }
+        var ctx = window_ctx_get(w.widget)
+        if(ctx == null) {
+            return
+        }
+        ctx.window = w
+        ctx.user_data = w.user_data
+        ctx.resize_cb = w.resize_cb
+        ctx.close_cb = w.close_cb
+        ctx.focus_cb = w.focus_cb
+        ctx.event_cb = w.event_cb
+        ctx.drop_cb = w.drop_cb
+        ctx.command_cb = w.command_cb
+
+        }
     }
-    var ctx = window_ctx_get(w.widget)
-    if(ctx == null) {
-        return
-    }
-    ctx.window = w
-    ctx.user_data = w.user_data
-    ctx.resize_cb = w.resize_cb
-    ctx.close_cb = w.close_cb
-    ctx.focus_cb = w.focus_cb
-    ctx.event_cb = w.event_cb
-    ctx.drop_cb = w.drop_cb
-    ctx.command_cb = w.command_cb
-}
 
 // Set while gtk_main() is running (window_run). The destroy handler only
 // quits the loop when the loop is actually active — otherwise destroying a
@@ -471,49 +480,64 @@ func linux_on_destroy(widget : *mut GtkWidget, data : *mut void) {
 }
 
 func linux_on_size_allocate(widget : *mut GtkWidget, alloc : *mut GtkAllocation, data : *mut void) {
-    var ctx = window_ctx_get(widget)
-    if(ctx != null && ctx.resize_cb != null) {
-        ctx.resize_cb(ctx.user_data, alloc.width, alloc.height)
+        unsafe {
+        var ctx = window_ctx_get(widget)
+        if(ctx != null && ctx.resize_cb != null) {
+            ctx.resize_cb(ctx.user_data, alloc.width, alloc.height)
+        }
+
+        }
     }
-}
 
 func linux_on_delete(widget : *mut GtkWidget, event : *mut void, data : *mut void) : int {
-    var ctx = window_ctx_get(widget)
-    if(ctx != null && ctx.close_cb != null) {
-        ctx.close_cb(ctx.user_data)
+        unsafe {
+        var ctx = window_ctx_get(widget)
+        if(ctx != null && ctx.close_cb != null) {
+            ctx.close_cb(ctx.user_data)
+        }
+        return 0 // allow the window to close
+
+        }
     }
-    return 0 // allow the window to close
-}
 
 func linux_on_focus_in(widget : *mut GtkWidget, event : *mut void, data : *mut void) : int {
-    var ctx = window_ctx_get(widget)
-    if(ctx != null && ctx.focus_cb != null) {
-        ctx.focus_cb(ctx.user_data, true)
+        unsafe {
+        var ctx = window_ctx_get(widget)
+        if(ctx != null && ctx.focus_cb != null) {
+            ctx.focus_cb(ctx.user_data, true)
+        }
+        return 0
+
+        }
     }
-    return 0
-}
 
 func linux_on_focus_out(widget : *mut GtkWidget, event : *mut void, data : *mut void) : int {
-    var ctx = window_ctx_get(widget)
-    if(ctx != null && ctx.focus_cb != null) {
-        ctx.focus_cb(ctx.user_data, false)
+        unsafe {
+        var ctx = window_ctx_get(widget)
+        if(ctx != null && ctx.focus_cb != null) {
+            ctx.focus_cb(ctx.user_data, false)
+        }
+        return 0
+
+        }
     }
-    return 0
-}
 
 func deliver_key_event(ctx : *mut WindowCtx, kind : int, event : *mut GdkEventKey) {
-    if(ctx == null || ctx.event_cb == null) {
-        return
+        unsafe {
+        if(ctx == null || ctx.event_cb == null) {
+            return
+        }
+        var ev = Event.make()
+        ev.kind = kind
+        ev.key = event.keyval as int
+        ev.modifiers = 0
+        if((event.state & 0x1) != 0) { ev.modifiers |= MOD_SHIFT } // GDK_SHIFT_MASK
+        if((event.state & 0x4) != 0) { ev.modifiers |= MOD_CTRL }  // GDK_CONTROL_MASK
+        if((event.state & 0x8) != 0) { ev.modifiers |= MOD_ALT }   // GDK_MOD1_MASK
+        ctx.event_cb(ctx.user_data, &raw mut ev)
+
+        }
     }
-    var ev = Event.make()
-    ev.kind = kind
-    ev.key = event.keyval as int
-    ev.modifiers = 0
-    if((event.state & 0x1) != 0) { ev.modifiers |= MOD_SHIFT } // GDK_SHIFT_MASK
-    if((event.state & 0x4) != 0) { ev.modifiers |= MOD_CTRL }  // GDK_CONTROL_MASK
-    if((event.state & 0x8) != 0) { ev.modifiers |= MOD_ALT }   // GDK_MOD1_MASK
-    ctx.event_cb(ctx.user_data, &raw mut ev)
-}
 
 func linux_on_key_press(widget : *mut GtkWidget, event : *mut GdkEventKey, data : *mut void) : int {
     deliver_key_event(window_ctx_get(widget), EVENT_KEY_DOWN, event)
@@ -526,69 +550,84 @@ func linux_on_key_release(widget : *mut GtkWidget, event : *mut GdkEventKey, dat
 }
 
 func deliver_mouse_event(ctx : *mut WindowCtx, kind : int, x : double, y : double, button : int, state : DWORD) {
-    if(ctx == null || ctx.event_cb == null) {
-        return
+        unsafe {
+        if(ctx == null || ctx.event_cb == null) {
+            return
+        }
+        var ev = Event.make()
+        ev.kind = kind
+        ev.x = x as int
+        ev.y = y as int
+        ev.button = button
+        ev.modifiers = 0
+        if((state & 0x1) != 0) { ev.modifiers |= MOD_SHIFT }
+        if((state & 0x4) != 0) { ev.modifiers |= MOD_CTRL }
+        if((state & 0x8) != 0) { ev.modifiers |= MOD_ALT }
+        ctx.event_cb(ctx.user_data, &raw mut ev)
+
+        }
     }
-    var ev = Event.make()
-    ev.kind = kind
-    ev.x = x as int
-    ev.y = y as int
-    ev.button = button
-    ev.modifiers = 0
-    if((state & 0x1) != 0) { ev.modifiers |= MOD_SHIFT }
-    if((state & 0x4) != 0) { ev.modifiers |= MOD_CTRL }
-    if((state & 0x8) != 0) { ev.modifiers |= MOD_ALT }
-    ctx.event_cb(ctx.user_data, &raw mut ev)
-}
 
 func linux_on_button_press(widget : *mut GtkWidget, event : *mut GdkEventButton, data : *mut void) : int {
-    var ctx = window_ctx_get(widget)
-    if(ctx != null) {
-        var button = MOUSE_LEFT
-        if(event.button == 3) {
-            button = MOUSE_RIGHT
-        } else if(event.button == 2) {
-            button = MOUSE_MIDDLE
+        unsafe {
+        var ctx = window_ctx_get(widget)
+        if(ctx != null) {
+            var button = MOUSE_LEFT
+            if(event.button == 3) {
+                button = MOUSE_RIGHT
+            } else if(event.button == 2) {
+                button = MOUSE_MIDDLE
+            }
+            deliver_mouse_event(ctx, EVENT_MOUSE_DOWN, event.x, event.y, button, event.state)
         }
-        deliver_mouse_event(ctx, EVENT_MOUSE_DOWN, event.x, event.y, button, event.state)
+        return 0
+
+        }
     }
-    return 0
-}
 
 func linux_on_button_release(widget : *mut GtkWidget, event : *mut GdkEventButton, data : *mut void) : int {
-    var ctx = window_ctx_get(widget)
-    if(ctx != null) {
-        var button = MOUSE_LEFT
-        if(event.button == 3) {
-            button = MOUSE_RIGHT
-        } else if(event.button == 2) {
-            button = MOUSE_MIDDLE
+        unsafe {
+        var ctx = window_ctx_get(widget)
+        if(ctx != null) {
+            var button = MOUSE_LEFT
+            if(event.button == 3) {
+                button = MOUSE_RIGHT
+            } else if(event.button == 2) {
+                button = MOUSE_MIDDLE
+            }
+            deliver_mouse_event(ctx, EVENT_MOUSE_UP, event.x, event.y, button, event.state)
         }
-        deliver_mouse_event(ctx, EVENT_MOUSE_UP, event.x, event.y, button, event.state)
+        return 0
+
+        }
     }
-    return 0
-}
 
 func linux_on_motion(widget : *mut GtkWidget, event : *mut GdkEventMotion, data : *mut void) : int {
-    var ctx = window_ctx_get(widget)
-    if(ctx != null) {
-        deliver_mouse_event(ctx, EVENT_MOUSE_MOVE, event.x, event.y, MOUSE_LEFT, event.state)
+        unsafe {
+        var ctx = window_ctx_get(widget)
+        if(ctx != null) {
+            deliver_mouse_event(ctx, EVENT_MOUSE_MOVE, event.x, event.y, MOUSE_LEFT, event.state)
+        }
+        return 0
+
+        }
     }
-    return 0
-}
 
 func linux_on_scroll(widget : *mut GtkWidget, event : *mut GdkEventScroll, data : *mut void) : int {
-    var ctx = window_ctx_get(widget)
-    if(ctx != null && ctx.event_cb != null) {
-        var ev = Event.make()
-        ev.kind = EVENT_MOUSE_WHEEL
-        ev.x = event.x as int
-        ev.y = event.y as int
-        ev.y = (event.delta_y * 100.0) as int // wheel delta (approx.)
-        ctx.event_cb(ctx.user_data, &raw mut ev)
+        unsafe {
+        var ctx = window_ctx_get(widget)
+        if(ctx != null && ctx.event_cb != null) {
+            var ev = Event.make()
+            ev.kind = EVENT_MOUSE_WHEEL
+            ev.x = event.x as int
+            ev.y = event.y as int
+            ev.y = (event.delta_y * 100.0) as int // wheel delta (approx.)
+            ctx.event_cb(ctx.user_data, &raw mut ev)
+        }
+        return 0
+
+        }
     }
-    return 0
-}
 
 // ---- drag & drop ----
 
@@ -622,330 +661,420 @@ func linux_on_drag_data_received(
 // ===========================================================================
 
 public func window_create(w : *mut Window) : std::Result<std::Unit, WindowError> {
-    if(w.created) {
-        return std.Result.Err(WindowError.InvalidState(string("window_create: window already created")))
-    }
-
-    var argc : int = 0
-    var argv : *mut *mut *char = null
-    unsafe { gtk_init(&raw mut argc, argv) }
-
-    w.widget = unsafe(gtk_window_new(GTK_WINDOW_TOPLEVEL))
-    if(w.widget == null) {
-        return std.Result.Err(WindowError.CreateFailed(string("gtk_window_new failed")))
-    }
-
-    // scale logical -> physical via the monitor scale factor
-    var display = unsafe(gdk_display_get_default())
-    var monitor = unsafe(gdk_display_get_monitor(display, 0))
-    var scale = 1
-    if(monitor != null) {
-        scale = unsafe(gdk_monitor_get_scale_factor(monitor))
-    }
-    if(scale <= 0) {
-        scale = 1
-    }
-    w.dpi = scale * 96
-
-    unsafe { gtk_window_set_title(w.widget as *mut GtkWindow, w.title.data()) }
-    unsafe { gtk_window_set_default_size(w.widget as *mut GtkWindow, (w.width * scale), (w.height * scale)) }
-    unsafe { gtk_window_set_position(w.widget as *mut GtkWindow, GTK_WIN_POS_CENTER) }
-    if(!w.decorated) {
-        unsafe { gtk_window_set_decorated(w.widget as *mut GtkWindow, FALSE) }
-    }
-    if(w.always_on_top) {
-        unsafe { gtk_window_set_keep_above(w.widget as *mut GtkWindow, TRUE) }
-    }
-    if(w.opacity < 1.0) {
-        unsafe { gtk_window_set_opacity(w.widget as *mut GtkWindow, w.opacity) }
-    }
-
-    // enable input events
-    unsafe { gtk_widget_add_events(
-        w.widget,
-        GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK | GDK_POINTER_MOTION_MASK |
-        GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_SCROLL_MASK
-    ) }
-
-    // min/max constraints
-    if(w.min_w > 0 || w.min_h > 0 || w.max_w > 0 || w.max_h > 0) {
-        var geom = GdkGeometry { min_width : w.min_w, min_height : w.min_h, max_width : w.max_w, max_height : w.max_h }
-        var flags = 0
-        if(w.min_w > 0 || w.min_h > 0) {
-            flags |= GDK_HINT_MIN_SIZE
+        unsafe {
+        if(w.created) {
+            return std.Result.Err(WindowError.InvalidState(string("window_create: window already created")))
         }
-        if(w.max_w > 0 || w.max_h > 0) {
-            flags |= GDK_HINT_MAX_SIZE
+
+        var argc : int = 0
+        var argv : *mut *mut *char = null
+        unsafe { gtk_init(&raw mut argc, argv) }
+
+        w.widget = unsafe(gtk_window_new(GTK_WINDOW_TOPLEVEL))
+        if(w.widget == null) {
+            return std.Result.Err(WindowError.CreateFailed(string("gtk_window_new failed")))
         }
-        unsafe { gtk_window_set_geometry_hints(w.widget as *mut GtkWindow, null, &raw mut geom, flags) }
-    }
 
-    // stable per-widget callback context: handlers look the live Window up by
-    // widget, so they survive the Window struct being relocated (e.g. by-value
-    // WebView moves in webview::create). Freed automatically at widget
-    // finalize via g_object_set_data_full.
-    var ctx = unsafe(malloc(sizeof(WindowCtx))) as *mut WindowCtx
-    if(ctx == null) {
-        unsafe { gtk_widget_destroy(w.widget) }
-        w.widget = null
-        return std.Result.Err(WindowError.CreateFailed(string("out of memory allocating window context")))
-    }
-    ctx.window = w
-    ctx.user_data = w.user_data
-    ctx.resize_cb = w.resize_cb
-    ctx.close_cb = w.close_cb
-    ctx.focus_cb = w.focus_cb
-    ctx.event_cb = w.event_cb
-    ctx.drop_cb = w.drop_cb
-    ctx.command_cb = w.command_cb
-    unsafe { g_object_set_data_full(w.widget as *mut void, win_ctx_key(), ctx as *mut void, win_ctx_free as *mut void) }
-
-    // signals
-    unsafe { g_signal_connect_data(w.widget as *mut void, "destroy\0" as *char, linux_on_destroy as *mut void, ctx as *mut void, null, 0) }
-    unsafe { g_signal_connect_data(w.widget as *mut void, "size-allocate\0" as *char, linux_on_size_allocate as *mut void, w as *mut void, null, 0) }
-    unsafe { g_signal_connect_data(w.widget as *mut void, "delete-event\0" as *char, linux_on_delete as *mut void, w as *mut void, null, 0) }
-    unsafe { g_signal_connect_data(w.widget as *mut void, "focus-in-event\0" as *char, linux_on_focus_in as *mut void, w as *mut void, null, 0) }
-    unsafe { g_signal_connect_data(w.widget as *mut void, "focus-out-event\0" as *char, linux_on_focus_out as *mut void, w as *mut void, null, 0) }
-    unsafe { g_signal_connect_data(w.widget as *mut void, "key-press-event\0" as *char, linux_on_key_press as *mut void, w as *mut void, null, 0) }
-    unsafe { g_signal_connect_data(w.widget as *mut void, "key-release-event\0" as *char, linux_on_key_release as *mut void, w as *mut void, null, 0) }
-    unsafe { g_signal_connect_data(w.widget as *mut void, "button-press-event\0" as *char, linux_on_button_press as *mut void, w as *mut void, null, 0) }
-    unsafe { g_signal_connect_data(w.widget as *mut void, "button-release-event\0" as *char, linux_on_button_release as *mut void, w as *mut void, null, 0) }
-    unsafe { g_signal_connect_data(w.widget as *mut void, "motion-notify-event\0" as *char, linux_on_motion as *mut void, w as *mut void, null, 0) }
-    unsafe { g_signal_connect_data(w.widget as *mut void, "scroll-event\0" as *char, linux_on_scroll as *mut void, w as *mut void, null, 0) }
-    unsafe { g_signal_connect_data(w.widget as *mut void, "drag-data-received\0" as *char, linux_on_drag_data_received as *mut void, w as *mut void, null, 0) }
-
-    // accept file drops
-    unsafe { gtk_drag_dest_set(w.widget, GTK_DEST_DEFAULT_ALL, null, 0, GDK_ACTION_COPY) }
-
-    w.created = true
-    return std.Result.Ok(std::Unit{})
-}
-
-public func window_destroy(w : *mut Window) {
-    if(g_quit_by_destroy != 0) {
-        // The window was already destroyed by the user (the main loop quit
-        // because the destroy handler fired) — the widget pointer may be
-        // dangling, so do not dereference it. Just clear the state.
-        w.created = false
-        w.widget = null
-        w.visible = false
-        return
-    }
-    if(w.widget != null) {
-        unsafe { gtk_widget_destroy(w.widget) }
-        w.widget = null
-    }
-    w.created = false
-    w.visible = false
-}
-
-public func window_is_created(w : *mut Window) : bool {
-    return w.created && w.widget != null
-}
-
-public func window_title(w : *mut Window) : string {
-    // copy() — returning w.title by value would be a shallow copy whose
-    // destructor frees the same heap buffer as w.title (double free).
-    return w.title.copy()
-}
-
-public func window_set_title(w : *mut Window, title : *char) {
-    w.title = string("")
-    w.title.append_char_ptr(title)
-    if(w.widget != null) {
-        unsafe { gtk_window_set_title(w.widget as *mut GtkWindow, title) }
-    }
-}
-
-public func window_size(w : *mut Window) : Size {
-    return Size.make(w.width, w.height)
-}
-
-public func window_client_size(w : *mut Window) : Size {
-    if(w.widget != null) {
-        var width : int = 0
-        var height : int = 0
-        unsafe { gtk_window_get_size(w.widget as *mut GtkWindow, &raw mut width, &raw mut height) }
-        return Size.make(width, height)
-    }
-    return Size.make(w.width, w.height)
-}
-
-public func window_set_size(w : *mut Window, width : int, height : int) {
-    w.width = width
-    w.height = height
-    if(w.widget == null) {
-        return
-    }
-    var scale = (w.dpi / 96)
-    if(scale <= 0) {
-        scale = 1
-    }
-    unsafe { gtk_window_set_default_size(w.widget as *mut GtkWindow, width * scale, height * scale) }
-}
-
-public func window_position(w : *mut Window) : Position {
-    if(w.widget != null) {
-        var x : int = 0
-        var y : int = 0
-        unsafe { gtk_window_get_position(w.widget as *mut GtkWindow, &raw mut x, &raw mut y) }
-        return Position.make(x, y)
-    }
-    return Position.make(w.x, w.y)
-}
-
-public func window_set_position(w : *mut Window, x : int, y : int) {
-    w.x = x
-    w.y = y
-    if(w.widget != null) {
-        unsafe { gtk_window_move(w.widget as *mut GtkWindow, x, y) }
-    }
-}
-
-public func window_min_size(w : *mut Window) : Size {
-    return Size.make(w.min_w, w.min_h)
-}
-
-public func window_max_size(w : *mut Window) : Size {
-    return Size.make(w.max_w, w.max_h)
-}
-
-public func window_set_min_size(w : *mut Window, width : int, height : int) {
-    w.min_w = width
-    w.min_h = height
-    if(w.widget != null) {
-        var geom = GdkGeometry { min_width : width, min_height : height, max_width : w.max_w, max_height : w.max_h }
-        var flags = GDK_HINT_MIN_SIZE
-        if(w.max_w > 0 || w.max_h > 0) {
-            flags |= GDK_HINT_MAX_SIZE
+        // scale logical -> physical via the monitor scale factor
+        var display = unsafe(gdk_display_get_default())
+        var monitor = unsafe(gdk_display_get_monitor(display, 0))
+        var scale = 1
+        if(monitor != null) {
+            scale = unsafe(gdk_monitor_get_scale_factor(monitor))
         }
-        unsafe { gtk_window_set_geometry_hints(w.widget as *mut GtkWindow, null, &raw mut geom, flags) }
-    }
-}
-
-public func window_set_max_size(w : *mut Window, width : int, height : int) {
-    w.max_w = width
-    w.max_h = height
-    if(w.widget != null) {
-        var geom = GdkGeometry { min_width : w.min_w, min_height : w.min_h, max_width : width, max_height : height }
-        var flags = GDK_HINT_MAX_SIZE
-        if(w.min_w > 0 || w.min_h > 0) {
-            flags |= GDK_HINT_MIN_SIZE
+        if(scale <= 0) {
+            scale = 1
         }
-        unsafe { gtk_window_set_geometry_hints(w.widget as *mut GtkWindow, null, &raw mut geom, flags) }
-    }
-}
+        w.dpi = scale * 96
 
-public func window_set_fullscreen(w : *mut Window, fullscreen : bool) {
-    if(w.widget == null) {
-        return
-    }
-    if(fullscreen) {
-        unsafe { gtk_window_fullscreen(w.widget as *mut GtkWindow) }
-    } else {
-        unsafe { gtk_window_unfullscreen(w.widget as *mut GtkWindow) }
-    }
-    w.fullscreen = fullscreen
-}
-
-public func window_is_fullscreen(w : *mut Window) : bool {
-    return w.fullscreen
-}
-
-public func window_maximize(w : *mut Window) {
-    if(w.widget != null) {
-        unsafe { gtk_window_maximize(w.widget as *mut GtkWindow) }
-    }
-}
-
-public func window_minimize(w : *mut Window) {
-    if(w.widget != null) {
-        unsafe { gtk_window_iconify(w.widget as *mut GtkWindow) }
-    }
-}
-
-public func window_restore(w : *mut Window) {
-    if(w.widget != null) {
-        unsafe { gtk_window_unmaximize(w.widget as *mut GtkWindow) }
-        unsafe { gtk_window_deiconify(w.widget as *mut GtkWindow) }
-    }
-}
-
-public func window_show(w : *mut Window) {
-    if(w.widget != null) {
-        unsafe { gtk_widget_show_all(w.widget) }
-    }
-    w.visible = true
-}
-
-public func window_hide(w : *mut Window) {
-    if(w.widget != null) {
-        unsafe { gtk_widget_hide(w.widget) }
-    }
-    w.visible = false
-}
-
-public func window_focus(w : *mut Window) {
-    if(w.widget != null) {
-        unsafe { gtk_window_present(w.widget as *mut GtkWindow) }
-    }
-}
-
-public func window_close(w : *mut Window) {
-    if(w.widget != null) {
-        unsafe { gtk_widget_destroy(w.widget) }
-    }
-}
-
-public func window_set_cursor(w : *mut Window, cursor : int) {
-    w.cursor = cursor
-    apply_cursor(w)
-}
-
-public func window_set_icon(w : *mut Window, path : *char) {
-    if(w.widget == null) {
-        return
-    }
-    var err : *mut GError = null
-    unsafe { gtk_window_set_icon_from_file(w.widget as *mut GtkWindow, path, &raw mut err) }
-}
-
-public func window_set_opacity(w : *mut Window, opacity : double) {
-    w.opacity = opacity
-    if(w.widget != null) {
-        unsafe { gtk_window_set_opacity(w.widget as *mut GtkWindow, opacity) }
-    }
-}
-
-public func window_set_always_on_top(w : *mut Window, on_top : bool) {
-    w.always_on_top = on_top
-    if(w.widget != null) {
-        if(on_top) {
-            unsafe { gtk_window_set_keep_above(w.widget as *mut GtkWindow, TRUE) }
-        } else {
-            unsafe { gtk_window_set_keep_above(w.widget as *mut GtkWindow, FALSE) }
-        }
-    }
-}
-
-public func window_set_decorated(w : *mut Window, decorated : bool) {
-    w.decorated = decorated
-    if(w.widget != null) {
-        if(decorated) {
-            unsafe { gtk_window_set_decorated(w.widget as *mut GtkWindow, TRUE) }
-        } else {
+        unsafe { gtk_window_set_title(w.widget as *mut GtkWindow, w.title.data()) }
+        unsafe { gtk_window_set_default_size(w.widget as *mut GtkWindow, (w.width * scale), (w.height * scale)) }
+        unsafe { gtk_window_set_position(w.widget as *mut GtkWindow, GTK_WIN_POS_CENTER) }
+        if(!w.decorated) {
             unsafe { gtk_window_set_decorated(w.widget as *mut GtkWindow, FALSE) }
         }
+        if(w.always_on_top) {
+            unsafe { gtk_window_set_keep_above(w.widget as *mut GtkWindow, TRUE) }
+        }
+        if(w.opacity < 1.0) {
+            unsafe { gtk_window_set_opacity(w.widget as *mut GtkWindow, w.opacity) }
+        }
+
+        // enable input events
+        unsafe { gtk_widget_add_events(
+            w.widget,
+            GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK | GDK_POINTER_MOTION_MASK |
+            GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_SCROLL_MASK
+        ) }
+
+        // min/max constraints
+        if(w.min_w > 0 || w.min_h > 0 || w.max_w > 0 || w.max_h > 0) {
+            var geom = GdkGeometry { min_width : w.min_w, min_height : w.min_h, max_width : w.max_w, max_height : w.max_h }
+            var flags = 0
+            if(w.min_w > 0 || w.min_h > 0) {
+                flags |= GDK_HINT_MIN_SIZE
+            }
+            if(w.max_w > 0 || w.max_h > 0) {
+                flags |= GDK_HINT_MAX_SIZE
+            }
+            unsafe { gtk_window_set_geometry_hints(w.widget as *mut GtkWindow, null, &raw mut geom, flags) }
+        }
+
+        // stable per-widget callback context: handlers look the live Window up by
+        // widget, so they survive the Window struct being relocated (e.g. by-value
+        // WebView moves in webview::create). Freed automatically at widget
+        // finalize via g_object_set_data_full.
+        var ctx = unsafe(malloc(sizeof(WindowCtx))) as *mut WindowCtx
+        if(ctx == null) {
+            unsafe { gtk_widget_destroy(w.widget) }
+            w.widget = null
+            return std.Result.Err(WindowError.CreateFailed(string("out of memory allocating window context")))
+        }
+        ctx.window = w
+        ctx.user_data = w.user_data
+        ctx.resize_cb = w.resize_cb
+        ctx.close_cb = w.close_cb
+        ctx.focus_cb = w.focus_cb
+        ctx.event_cb = w.event_cb
+        ctx.drop_cb = w.drop_cb
+        ctx.command_cb = w.command_cb
+        unsafe { g_object_set_data_full(w.widget as *mut void, win_ctx_key(), ctx as *mut void, win_ctx_free as *mut void) }
+
+        // signals
+        unsafe { g_signal_connect_data(w.widget as *mut void, "destroy\0" as *char, linux_on_destroy as *mut void, ctx as *mut void, null, 0) }
+        unsafe { g_signal_connect_data(w.widget as *mut void, "size-allocate\0" as *char, linux_on_size_allocate as *mut void, w as *mut void, null, 0) }
+        unsafe { g_signal_connect_data(w.widget as *mut void, "delete-event\0" as *char, linux_on_delete as *mut void, w as *mut void, null, 0) }
+        unsafe { g_signal_connect_data(w.widget as *mut void, "focus-in-event\0" as *char, linux_on_focus_in as *mut void, w as *mut void, null, 0) }
+        unsafe { g_signal_connect_data(w.widget as *mut void, "focus-out-event\0" as *char, linux_on_focus_out as *mut void, w as *mut void, null, 0) }
+        unsafe { g_signal_connect_data(w.widget as *mut void, "key-press-event\0" as *char, linux_on_key_press as *mut void, w as *mut void, null, 0) }
+        unsafe { g_signal_connect_data(w.widget as *mut void, "key-release-event\0" as *char, linux_on_key_release as *mut void, w as *mut void, null, 0) }
+        unsafe { g_signal_connect_data(w.widget as *mut void, "button-press-event\0" as *char, linux_on_button_press as *mut void, w as *mut void, null, 0) }
+        unsafe { g_signal_connect_data(w.widget as *mut void, "button-release-event\0" as *char, linux_on_button_release as *mut void, w as *mut void, null, 0) }
+        unsafe { g_signal_connect_data(w.widget as *mut void, "motion-notify-event\0" as *char, linux_on_motion as *mut void, w as *mut void, null, 0) }
+        unsafe { g_signal_connect_data(w.widget as *mut void, "scroll-event\0" as *char, linux_on_scroll as *mut void, w as *mut void, null, 0) }
+        unsafe { g_signal_connect_data(w.widget as *mut void, "drag-data-received\0" as *char, linux_on_drag_data_received as *mut void, w as *mut void, null, 0) }
+
+        // accept file drops
+        unsafe { gtk_drag_dest_set(w.widget, GTK_DEST_DEFAULT_ALL, null, 0, GDK_ACTION_COPY) }
+
+        w.created = true
+        return std.Result.Ok(std::Unit{})
+
+        }
     }
-}
+
+public func window_destroy(w : *mut Window) {
+        unsafe {
+        if(g_quit_by_destroy != 0) {
+            // The window was already destroyed by the user (the main loop quit
+            // because the destroy handler fired) — the widget pointer may be
+            // dangling, so do not dereference it. Just clear the state.
+            w.created = false
+            w.widget = null
+            w.visible = false
+            return
+        }
+        if(w.widget != null) {
+            unsafe { gtk_widget_destroy(w.widget) }
+            w.widget = null
+        }
+        w.created = false
+        w.visible = false
+
+        }
+    }
+
+public func window_is_created(w : *mut Window) : bool {
+        unsafe {
+        return w.created && w.widget != null
+
+        }
+    }
+
+public func window_title(w : *mut Window) : string {
+        unsafe {
+        // copy() — returning w.title by value would be a shallow copy whose
+        // destructor frees the same heap buffer as w.title (double free).
+        return w.title.copy()
+
+        }
+    }
+
+public func window_set_title(w : *mut Window, title : *char) {
+        unsafe {
+        w.title = string("")
+        w.title.append_char_ptr(title)
+        if(w.widget != null) {
+            unsafe { gtk_window_set_title(w.widget as *mut GtkWindow, title) }
+        }
+
+        }
+    }
+
+public func window_size(w : *mut Window) : Size {
+        unsafe {
+        return Size.make(w.width, w.height)
+
+        }
+    }
+
+public func window_client_size(w : *mut Window) : Size {
+        unsafe {
+        if(w.widget != null) {
+            var width : int = 0
+            var height : int = 0
+            unsafe { gtk_window_get_size(w.widget as *mut GtkWindow, &raw mut width, &raw mut height) }
+            return Size.make(width, height)
+        }
+        return Size.make(w.width, w.height)
+
+        }
+    }
+
+public func window_set_size(w : *mut Window, width : int, height : int) {
+        unsafe {
+        w.width = width
+        w.height = height
+        if(w.widget == null) {
+            return
+        }
+        var scale = (w.dpi / 96)
+        if(scale <= 0) {
+            scale = 1
+        }
+        unsafe { gtk_window_set_default_size(w.widget as *mut GtkWindow, width * scale, height * scale) }
+
+        }
+    }
+
+public func window_position(w : *mut Window) : Position {
+        unsafe {
+        if(w.widget != null) {
+            var x : int = 0
+            var y : int = 0
+            unsafe { gtk_window_get_position(w.widget as *mut GtkWindow, &raw mut x, &raw mut y) }
+            return Position.make(x, y)
+        }
+        return Position.make(w.x, w.y)
+
+        }
+    }
+
+public func window_set_position(w : *mut Window, x : int, y : int) {
+        unsafe {
+        w.x = x
+        w.y = y
+        if(w.widget != null) {
+            unsafe { gtk_window_move(w.widget as *mut GtkWindow, x, y) }
+        }
+
+        }
+    }
+
+public func window_min_size(w : *mut Window) : Size {
+        unsafe {
+        return Size.make(w.min_w, w.min_h)
+
+        }
+    }
+
+public func window_max_size(w : *mut Window) : Size {
+        unsafe {
+        return Size.make(w.max_w, w.max_h)
+
+        }
+    }
+
+public func window_set_min_size(w : *mut Window, width : int, height : int) {
+        unsafe {
+        w.min_w = width
+        w.min_h = height
+        if(w.widget != null) {
+            var geom = GdkGeometry { min_width : width, min_height : height, max_width : w.max_w, max_height : w.max_h }
+            var flags = GDK_HINT_MIN_SIZE
+            if(w.max_w > 0 || w.max_h > 0) {
+                flags |= GDK_HINT_MAX_SIZE
+            }
+            unsafe { gtk_window_set_geometry_hints(w.widget as *mut GtkWindow, null, &raw mut geom, flags) }
+        }
+
+        }
+    }
+
+public func window_set_max_size(w : *mut Window, width : int, height : int) {
+        unsafe {
+        w.max_w = width
+        w.max_h = height
+        if(w.widget != null) {
+            var geom = GdkGeometry { min_width : w.min_w, min_height : w.min_h, max_width : width, max_height : height }
+            var flags = GDK_HINT_MAX_SIZE
+            if(w.min_w > 0 || w.min_h > 0) {
+                flags |= GDK_HINT_MIN_SIZE
+            }
+            unsafe { gtk_window_set_geometry_hints(w.widget as *mut GtkWindow, null, &raw mut geom, flags) }
+        }
+
+        }
+    }
+
+public func window_set_fullscreen(w : *mut Window, fullscreen : bool) {
+        unsafe {
+        if(w.widget == null) {
+            return
+        }
+        if(fullscreen) {
+            unsafe { gtk_window_fullscreen(w.widget as *mut GtkWindow) }
+        } else {
+            unsafe { gtk_window_unfullscreen(w.widget as *mut GtkWindow) }
+        }
+        w.fullscreen = fullscreen
+
+        }
+    }
+
+public func window_is_fullscreen(w : *mut Window) : bool {
+        unsafe {
+        return w.fullscreen
+
+        }
+    }
+
+public func window_maximize(w : *mut Window) {
+        unsafe {
+        if(w.widget != null) {
+            unsafe { gtk_window_maximize(w.widget as *mut GtkWindow) }
+        }
+
+        }
+    }
+
+public func window_minimize(w : *mut Window) {
+        unsafe {
+        if(w.widget != null) {
+            unsafe { gtk_window_iconify(w.widget as *mut GtkWindow) }
+        }
+
+        }
+    }
+
+public func window_restore(w : *mut Window) {
+        unsafe {
+        if(w.widget != null) {
+            unsafe { gtk_window_unmaximize(w.widget as *mut GtkWindow) }
+            unsafe { gtk_window_deiconify(w.widget as *mut GtkWindow) }
+        }
+
+        }
+    }
+
+public func window_show(w : *mut Window) {
+        unsafe {
+        if(w.widget != null) {
+            unsafe { gtk_widget_show_all(w.widget) }
+        }
+        w.visible = true
+
+        }
+    }
+
+public func window_hide(w : *mut Window) {
+        unsafe {
+        if(w.widget != null) {
+            unsafe { gtk_widget_hide(w.widget) }
+        }
+        w.visible = false
+
+        }
+    }
+
+public func window_focus(w : *mut Window) {
+        unsafe {
+        if(w.widget != null) {
+            unsafe { gtk_window_present(w.widget as *mut GtkWindow) }
+        }
+
+        }
+    }
+
+public func window_close(w : *mut Window) {
+        unsafe {
+        if(w.widget != null) {
+            unsafe { gtk_widget_destroy(w.widget) }
+        }
+
+        }
+    }
+
+public func window_set_cursor(w : *mut Window, cursor : int) {
+        unsafe {
+        w.cursor = cursor
+        apply_cursor(w)
+
+        }
+    }
+
+public func window_set_icon(w : *mut Window, path : *char) {
+        unsafe {
+        if(w.widget == null) {
+            return
+        }
+        var err : *mut GError = null
+        unsafe { gtk_window_set_icon_from_file(w.widget as *mut GtkWindow, path, &raw mut err) }
+
+        }
+    }
+
+public func window_set_opacity(w : *mut Window, opacity : double) {
+        unsafe {
+        w.opacity = opacity
+        if(w.widget != null) {
+            unsafe { gtk_window_set_opacity(w.widget as *mut GtkWindow, opacity) }
+        }
+
+        }
+    }
+
+public func window_set_always_on_top(w : *mut Window, on_top : bool) {
+        unsafe {
+        w.always_on_top = on_top
+        if(w.widget != null) {
+            if(on_top) {
+                unsafe { gtk_window_set_keep_above(w.widget as *mut GtkWindow, TRUE) }
+            } else {
+                unsafe { gtk_window_set_keep_above(w.widget as *mut GtkWindow, FALSE) }
+            }
+        }
+
+        }
+    }
+
+public func window_set_decorated(w : *mut Window, decorated : bool) {
+        unsafe {
+        w.decorated = decorated
+        if(w.widget != null) {
+            if(decorated) {
+                unsafe { gtk_window_set_decorated(w.widget as *mut GtkWindow, TRUE) }
+            } else {
+                unsafe { gtk_window_set_decorated(w.widget as *mut GtkWindow, FALSE) }
+            }
+        }
+
+        }
+    }
 
 public func window_dpi(w : *mut Window) : int {
-    return w.dpi
-}
+        unsafe {
+        return w.dpi
+
+        }
+    }
 
 public func window_scale_factor(w : *mut Window) : double {
-    return (w.dpi as double) / 96.0
-}
+        unsafe {
+        return (w.dpi as double) / 96.0
+
+        }
+    }
 
 public func window_monitor_count() : int {
     ensure_gtk_init()
@@ -975,45 +1104,69 @@ public func window_monitor_scale(index : int) : double {
 }
 
 public func window_set_user_data(w : *mut Window, data : *mut void) {
-    w.user_data = data
-    window_ctx_sync(w)
-}
+        unsafe {
+        w.user_data = data
+        window_ctx_sync(w)
+
+        }
+    }
 
 public func window_set_resize_callback(w : *mut Window, cb : ResizeCallback) {
-    w.resize_cb = cb
-    window_ctx_sync(w)
-}
+        unsafe {
+        w.resize_cb = cb
+        window_ctx_sync(w)
+
+        }
+    }
 
 public func window_set_close_callback(w : *mut Window, cb : CloseCallback) {
-    w.close_cb = cb
-    window_ctx_sync(w)
-}
+        unsafe {
+        w.close_cb = cb
+        window_ctx_sync(w)
+
+        }
+    }
 
 public func window_set_focus_callback(w : *mut Window, cb : FocusCallback) {
-    w.focus_cb = cb
-    window_ctx_sync(w)
-}
+        unsafe {
+        w.focus_cb = cb
+        window_ctx_sync(w)
+
+        }
+    }
 
 public func window_set_event_callback(w : *mut Window, cb : EventCallback) {
-    w.event_cb = cb
-    window_ctx_sync(w)
-}
+        unsafe {
+        w.event_cb = cb
+        window_ctx_sync(w)
+
+        }
+    }
 
 public func window_set_drop_callback(w : *mut Window, cb : DropCallback) {
-    w.drop_cb = cb
-    window_ctx_sync(w)
-}
+        unsafe {
+        w.drop_cb = cb
+        window_ctx_sync(w)
+
+        }
+    }
 
 // On GTK, native menu/button activation is wired by the app through its own
 // signal handlers, so command_cb is stored for API parity but not invoked.
 public func window_set_command_callback(w : *mut Window, cb : CommandCallback) {
-    w.command_cb = cb
-    window_ctx_sync(w)
-}
+        unsafe {
+        w.command_cb = cb
+        window_ctx_sync(w)
+
+        }
+    }
 
 public func window_native_handle(w : *mut Window) : *mut void {
-    return w.widget as *mut void
-}
+        unsafe {
+        return w.widget as *mut void
+
+        }
+    }
 
 public func window_run() {
     g_in_main_loop = 1
@@ -1087,7 +1240,7 @@ public func window_get_clipboard() : Option<string> {
     if(cb == null) { return Option.None<string>() }
     var text = unsafe(gtk_clipboard_wait_for_text(cb))
     if(text == null) { return Option.None<string>() }
-    var result = string(text)
+    var result = unsafe(string(text))
     unsafe { g_free(text as *mut void) }
     return Option.Some(result)
 }

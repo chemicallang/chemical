@@ -24,9 +24,9 @@ Implemented:
   `empty_diagnostic(..., code)` and `with_code`.
 - First real codes:
   - `SAFE-INIT-001` — use of an uninitialized variable.
-  - `SAFE-UNSAFE-001` — dereference of a **raw pointer** in safe context
-    (enforced; dereferencing a reference is ordinary safe code and is not
-    flagged).
+  - `SAFE-UNSAFE-001` — dereference/projection/index/arithmetic/delete/
+    dealloc through a **raw pointer** in safe context (enforced; dereferencing a
+    reference is ordinary safe code and is not flagged).
   - `SAFE-PROV-001` — creating a reference from a raw pointer (`&*p`,
     `&mut *p`, or a raw/integer/null → reference cast) in safe context
     (enforced; S4.8).
@@ -296,7 +296,7 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `53`, negative tests `537`.
+  `53`, negative tests `548`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -316,8 +316,8 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `53`, negative `537`; TCC main `2354`, LLVM
-  main `2352`, interpret `1910`.
+  TCC/LLVM lib runs. Safety suite `53`, negative `548`; TCC main `2354`, LLVM
+  main `2352`, libs `719`, plugins `1305`, async `53`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
   range-checked, frame places are registered individually, and globals,
@@ -341,6 +341,15 @@ Implemented:
   → reference casts. The raw-pointer helpers were migrated by marking the
   affected parser/TLS/atomic/test helper bodies `unsafe { }` (expression-level
   `unsafe(...)` inside async functions, whose bodies the async lowering owns).
+- S4.8 raw-pointer operations: `SAFE-UNSAFE-001` now also covers implicit
+  dereference through a raw pointer. Field/method projection (`p.x`,
+  `p.method()`), indexing (`p[i]`, including `vector.data()[i]`), pointer
+  arithmetic (`p + n`, `p += n`, `p++`), and raw `delete`/`dealloc` require an
+  unsafe boundary. The generated module-build scripts from `ModToLabConverter`
+  carry one explicit unsafe boundary around their raw context/job operations.
+  Wrapping generic bodies exposed a missing `ValueNode::copy`, now implemented.
+  In-tree stdlib/CBI/plugin/build.lab call sites were migrated; audit baseline
+  is `unsafe_blocks 572`, `unsafe_values 382`; negative `548`.
 - S4.1 (partial) Pin/Unpin: `core::Unpin` is a safe auto trait derived from
   fields (pointers/references are Unpin; negative impls are allowed), and
   `core::PhantomPinned` opts out via `impl !Unpin`. `core::Pin<T>` has a

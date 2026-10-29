@@ -26,7 +26,7 @@ impl<T : core::ops::Clone> core::ops::Clone for Option<T> {
             var Some(value) = self else unreachable
             // TODO: remove the pointer cast when generic method dispatch can
             // call `value.clone()` directly on a variant pattern payload.
-            return Option.Some<T>(((&raw mut value) as *mut T).clone())
+            return Option.Some<T>(unsafe(((&raw mut value) as *mut T).clone()))
         }
         return Option.None<T>()
     }

@@ -146,13 +146,16 @@ public namespace net {
     }
 
     public func send_all(s: Socket, p:*char, len:int) : int {
-        var off = 0;
-        while(off < len) {
-            var n = sock_send(s, &raw p[off], len - off);
-            if(n <= 0) { return -1 }
-            off = off + n;
+        unsafe {
+            var off = 0;
+            while(off < len) {
+                var n = sock_send(s, &raw p[off], len - off);
+                if(n <= 0) { return -1 }
+                off = off + n;
+            }
+            return len
+    
         }
-        return len
     }
 
     public func close_socket(s: Socket) { sock_close(s) }

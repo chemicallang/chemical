@@ -18,21 +18,24 @@ public func expect_eq_usize(env : &mut TestEnv, actual : size_t, expected : size
 }
 
 public func expect_cstr_equals(env : &mut TestEnv, a : *char, b : *char, msg : *char) : bool {
-    var i : size_t = 0;
-    while(true) {
-        var ca = a[i];
-        var cb = b[i];
-        if(ca != cb) {
-            env.error(msg);
-            return false;
+        unsafe {
+        var i : size_t = 0;
+        while(true) {
+            var ca = a[i];
+            var cb = b[i];
+            if(ca != cb) {
+                env.error(msg);
+                return false;
+            }
+            if(ca == '\0') {
+                break;
+            }
+            i++;
         }
-        if(ca == '\0') {
-            break;
+        return true;
+
         }
-        i++;
     }
-    return true;
-}
 
 public func make_test_base_dir(env : &mut TestEnv) : std::string {
     // Unique-ish per test id; relative path keeps it portable.
@@ -51,19 +54,22 @@ public func make_child_path(parent : &std::string, child : *char) : std::string 
 }
 
 public func bytes_equal(buf : *u8, len : size_t, cstr : *char, msg : *char, env : &mut TestEnv) : bool {
-    var want = unsafe(strlen(cstr)) as size_t;
-    if(len != want) {
-        env.error(msg);
-        return false;
-    }
-    var i : size_t = 0;
-    while(i < want) {
-        if(buf[i] != (cstr[i] as u8)) {
+        unsafe {
+        var want = unsafe(strlen(cstr)) as size_t;
+        if(len != want) {
             env.error(msg);
             return false;
         }
-        i++;
+        var i : size_t = 0;
+        while(i < want) {
+            if(buf[i] != (cstr[i] as u8)) {
+                env.error(msg);
+                return false;
+            }
+            i++;
+        }
+        return true;
+
+        }
     }
-    return true;
-}
 

@@ -5,72 +5,75 @@ if(def.big_endian) {
 }
 
 public func murmurhash (key : *char, len : u32, seed : u32) : u32 {
-    const c1 : uint32_t = 0xcc9e2d51 as uint32_t;
-    const c2 : uint32_t = 0x1b873593 as uint32_t;
-    const r1 : uint32_t = 15 as uint32_t;
-    const r2 : uint32_t = 13 as uint32_t;
-    const m : uint32_t = 5 as uint32_t;
-    const n : uint32_t = 0xe6546b64 as uint32_t;
-    var h : uint32_t = 0 as uint32_t;
-    var k : uint32_t = 0 as uint32_t;
-    const d : *uint8_t = key as *uint8_t; // 32 bit extract from `key'
-    var chunks : *uint32_t = null;
-    var tail : *uint8_t = null; // tail - last 8 bytes
-    var i = 0;
-    var l = len / 4; // chunk length
-    h = seed;
-    chunks = (d + l * 4) as *uint32_t; // body
-    tail = (d + l * 4) as *uint8_t; // last 8 byte chunk of `key'
-    // for each 4 byte chunk of `key'
-    for (i = -l; i != 0; ++i) {
-        // next 4 byte chunk of `key'
-        comptime if(def.big_endian) {
-            k = htole32(chunks[i]);
-        } else {
-            k = chunks[i];
+        unsafe {
+        const c1 : uint32_t = 0xcc9e2d51 as uint32_t;
+        const c2 : uint32_t = 0x1b873593 as uint32_t;
+        const r1 : uint32_t = 15 as uint32_t;
+        const r2 : uint32_t = 13 as uint32_t;
+        const m : uint32_t = 5 as uint32_t;
+        const n : uint32_t = 0xe6546b64 as uint32_t;
+        var h : uint32_t = 0 as uint32_t;
+        var k : uint32_t = 0 as uint32_t;
+        const d : *uint8_t = key as *uint8_t; // 32 bit extract from `key'
+        var chunks : *uint32_t = null;
+        var tail : *uint8_t = null; // tail - last 8 bytes
+        var i = 0;
+        var l = len / 4; // chunk length
+        h = seed;
+        chunks = (d + l * 4) as *uint32_t; // body
+        tail = (d + l * 4) as *uint8_t; // last 8 byte chunk of `key'
+        // for each 4 byte chunk of `key'
+        for (i = -l; i != 0; ++i) {
+            // next 4 byte chunk of `key'
+            comptime if(def.big_endian) {
+                k = htole32(chunks[i]);
+            } else {
+                k = chunks[i];
+            }
+            // encode next 4 byte chunk of `key'
+            k *= c1;
+            k = (k << r1) | (k >> (32u - r1));
+            k *= c2;
+            // append to hash
+            h ^= k;
+            h = (h << r2) | (h >> (32u - r2));
+            h = h * m + n;
         }
-        // encode next 4 byte chunk of `key'
-        k *= c1;
-        k = (k << r1) | (k >> (32u - r1));
-        k *= c2;
-        // append to hash
-        h ^= k;
-        h = (h << r2) | (h >> (32u - r2));
-        h = h * m + n;
+        k = 0;
+        // remainder
+        switch (len & 3) {
+            3 => {
+                k ^= (tail[2] << 16);
+                k ^= (tail[1] << 8);
+                k ^= tail[0];
+                k *= c1;
+                k = (k << r1) | (k >> (32u - r1));
+                k *= c2;
+                h ^= k;
+            }
+            2 => {
+                k ^= (tail[1] << 8);
+                k ^= tail[0];
+                k *= c1;
+                k = (k << r1) | (k >> (32u - r1));
+                k *= c2;
+                h ^= k;
+            }
+            1 => {
+                k ^= tail[0];
+                k *= c1;
+                k = (k << r1) | (k >> (32u - r1));
+                k *= c2;
+                h ^= k;
+            }
+        }
+        h ^= len;
+        h ^= (h >> 16);
+        h *= 0x85ebca6b;
+        h ^= (h >> 13);
+        h *= 0xc2b2ae35;
+        h ^= (h >> 16);
+        return h;
+
+        }
     }
-    k = 0;
-    // remainder
-    switch (len & 3) {
-        3 => {
-            k ^= (tail[2] << 16);
-            k ^= (tail[1] << 8);
-            k ^= tail[0];
-            k *= c1;
-            k = (k << r1) | (k >> (32u - r1));
-            k *= c2;
-            h ^= k;
-        }
-        2 => {
-            k ^= (tail[1] << 8);
-            k ^= tail[0];
-            k *= c1;
-            k = (k << r1) | (k >> (32u - r1));
-            k *= c2;
-            h ^= k;
-        }
-        1 => {
-            k ^= tail[0];
-            k *= c1;
-            k = (k << r1) | (k >> (32u - r1));
-            k *= c2;
-            h ^= k;
-        }
-    }
-    h ^= len;
-    h ^= (h >> 16);
-    h *= 0x85ebca6b;
-    h ^= (h >> 13);
-    h *= 0xc2b2ae35;
-    h ^= (h >> 16);
-    return h;
-}

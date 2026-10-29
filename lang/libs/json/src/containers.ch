@@ -11,23 +11,26 @@
 impl<T : std::Serializer<JsonValue, JsonEncoder>> std::Serializer<JsonValue, JsonEncoder> for std::vector<T> {
 
     func serialize(&self, encoder : &JsonEncoder) : std::Result<std::Unit, std::SerializationError> {
-        // opens '[' and pushes the item counter; the destructor closes it
-        var arr = encoder.array()
-        var i = 0u
-        while(i < self.size()) {
-            // `get_ptr` is a method of vector<T>. Its return type carries the
-            // vector's own `T`, not this impl's `T`, so bridge it explicitly:
-            // the cast also gives the pointer the Serializer bound.
-            var item = self.get_ptr(i) as *mut T
-            __container_begin_item(encoder.buffer, encoder.counts)
-            var itemenc = JsonEncoder { buffer : encoder.buffer, counts : encoder.counts }
-            var r = item.serialize(__unsafe_cast_json_encoder<JsonValue>(&itemenc))
-            if(r is std::Result.Err) {
-                return r
+        unsafe {
+            // opens '[' and pushes the item counter; the destructor closes it
+            var arr = encoder.array()
+            var i = 0u
+            while(i < self.size()) {
+                // `get_ptr` is a method of vector<T>. Its return type carries the
+                // vector's own `T`, not this impl's `T`, so bridge it explicitly:
+                // the cast also gives the pointer the Serializer bound.
+                var item = self.get_ptr(i) as *mut T
+                __container_begin_item(encoder.buffer, encoder.counts)
+                var itemenc = JsonEncoder { buffer : encoder.buffer, counts : encoder.counts }
+                var r = item.serialize(__unsafe_cast_json_encoder<JsonValue>(&itemenc))
+                if(r is std::Result.Err) {
+                    return r
+                }
+                i = i + 1u
             }
-            i = i + 1u
+            return std::Result.Ok<std::Unit, std::SerializationError>(std::Unit {})
+    
         }
-        return std::Result.Ok<std::Unit, std::SerializationError>(std::Unit {})
     }
 }
 
@@ -68,19 +71,22 @@ impl<T> std::Deserializer<std::vector<T>> for TypeDecoder<std::vector<T>> {
 impl<T : std::Serializer<JsonValue, JsonEncoder>> std::Serializer<JsonValue, JsonEncoder> for std::span<T> {
 
     func serialize(&self, encoder : &JsonEncoder) : std::Result<std::Unit, std::SerializationError> {
-        var arr = encoder.array()
-        var i = 0u
-        while(i < self.size()) {
-            var item = self.get(i) as *mut T
-            __container_begin_item(encoder.buffer, encoder.counts)
-            var itemenc = JsonEncoder { buffer : encoder.buffer, counts : encoder.counts }
-            var r = item.serialize(__unsafe_cast_json_encoder<JsonValue>(&itemenc))
-            if(r is std::Result.Err) {
-                return r
+        unsafe {
+            var arr = encoder.array()
+            var i = 0u
+            while(i < self.size()) {
+                var item = self.get(i) as *mut T
+                __container_begin_item(encoder.buffer, encoder.counts)
+                var itemenc = JsonEncoder { buffer : encoder.buffer, counts : encoder.counts }
+                var r = item.serialize(__unsafe_cast_json_encoder<JsonValue>(&itemenc))
+                if(r is std::Result.Err) {
+                    return r
+                }
+                i = i + 1u
             }
-            i = i + 1u
+            return std::Result.Ok<std::Unit, std::SerializationError>(std::Unit {})
+    
         }
-        return std::Result.Ok<std::Unit, std::SerializationError>(std::Unit {})
     }
 }
 

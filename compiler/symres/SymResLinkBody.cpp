@@ -501,6 +501,15 @@ void SymResLinkBody::check_unsafe_member_access(ASTNode* linked, Value* at, bool
     }
 }
 
+void SymResLinkBody::check_raw_pointer_access(Value* operand, Value* at, const char* action) {
+    if (!safe_context || operand == nullptr || at == nullptr) return;
+    BaseType* type = operand->getType();
+    if (type == nullptr) return;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr || canonical->kind() != BaseTypeKind::Pointer) return;
+    diagnoser.error(at).with_code("SAFE-UNSAFE-001") << action;
+}
+
 bool find_link_in_parent(VariableIdentifier* id, Value* parent, SymResLinkBody& visitor) {
     auto& value = id->value;
     auto child = provide_child(visitor.getChildResolver(), parent, value, nullptr);
@@ -563,6 +572,10 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
         if(id == nullptr) {
             break;
         }
+        check_raw_pointer_access(
+            values[i - 1], id,
+            "accessing a field or method through a raw pointer requires an unsafe boundary"
+        );
         if (find_link_in_parent(id, values[i - 1], *this)) {
             check_unsafe_member_access(id->linked, id, assignment);
         }
@@ -704,6 +717,19 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
 
     const auto lhsType = lhs->getType();
 
+    // `p += n` / `p -= n` is raw pointer arithmetic, not an overloaded
+    // arithmetic assignment on a value type.
+    if (assign->assOp == Operation::AddTo || assign->assOp == Operation::SubtractFrom ||
+        assign->assOp == Operation::Addition || assign->assOp == Operation::Subtraction) {
+        auto* lhs_canon = lhsType ? lhsType->canonical() : nullptr;
+        if (lhs_canon != nullptr && lhs_canon->kind() == BaseTypeKind::Pointer) {
+            check_raw_pointer_access(
+                lhs, lhs,
+                "pointer arithmetic on a raw pointer requires an unsafe boundary"
+            );
+        }
+    }
+
     visit(value, lhsType);
 
     // check if operator is overloaded
@@ -826,10 +852,18 @@ void SymResLinkBody::VisitDeleteStmt(DestructStmt* node) {
         visit(array_value);
     }
     visit(node->identifier);
+    check_raw_pointer_access(
+        node->identifier, node->identifier,
+        "destroying a value through a raw pointer requires an unsafe boundary"
+    );
 }
 
 void SymResLinkBody::VisitDeallocStmt(DeallocStmt* node) {
     visit(node->ptr);
+    check_raw_pointer_access(
+        node->ptr, node->ptr,
+        "deallocating a raw pointer requires an unsafe boundary"
+    );
 }
 
 void SymResLinkBody::VisitProvideStmt(ProvideStmt* node) {
@@ -2579,6 +2613,11 @@ void SymResLinkBody::VisitComptimeValue(ComptimeValue* value) {
 void SymResLinkBody::VisitIncDecValue(IncDecValue* value) {
     const auto val = value->getValue();
     visit(val, expected_type);
+    // `p++` / `--p` advance a raw pointer by its pointee size.
+    check_raw_pointer_access(
+        val, value,
+        "pointer increment/decrement on a raw pointer requires an unsafe boundary"
+    );
     // report assignment, if this is a linked parameter / var init
     val->report_assignment_of_chain_id();
     instantiate_generic_impls_for(
@@ -3076,6 +3115,29 @@ void SymResLinkBody::VisitExpression(Expression* value) {
             chem::string_view(), value->encoded_location()
         );
     }
+    // `p + n` / `p - n` scale by the pointee size and therefore dereference the
+    // pointer's provenance. Do this before operator-overload lookup: a raw
+    // pointer has no overload, but the check must apply even when the result is
+    // immediately discarded or compared.
+    if (value->operation == Operation::Addition || value->operation == Operation::Subtraction) {
+        auto* first_type = value->firstValue ? value->firstValue->getType() : nullptr;
+        auto* first_canon = first_type ? first_type->canonical() : nullptr;
+        if (first_canon != nullptr && first_canon->kind() == BaseTypeKind::Pointer) {
+            check_raw_pointer_access(
+                value->firstValue, value,
+                "pointer arithmetic on a raw pointer requires an unsafe boundary"
+            );
+        } else {
+            auto* second_type = value->secondValue ? value->secondValue->getType() : nullptr;
+            auto* second_canon = second_type ? second_type->canonical() : nullptr;
+            if (second_canon != nullptr && second_canon->kind() == BaseTypeKind::Pointer) {
+                check_raw_pointer_access(
+                    value->secondValue, value,
+                    "pointer arithmetic on a raw pointer requires an unsafe boundary"
+                );
+            }
+        }
+    }
     value->determine_type(
         getTypeBuilder(),
         getCoreNodes(),
@@ -3090,6 +3152,14 @@ void SymResLinkBody::VisitIndexOperator(IndexOperator* indexOp) {
     // visiting stuff
     visit(indexOp->parent_val);
     visit(indexOp->idx);
+
+    // `p[i]` is an implicit raw-pointer dereference even though the source does
+    // not contain `*p`. The pointer may come from a safe API such as
+    // `vector.data()`, so gate the indexing operation itself.
+    check_raw_pointer_access(
+        indexOp->parent_val, indexOp,
+        "indexing a raw pointer requires an unsafe boundary"
+    );
 
     // determining the type for this index operator
     if(indexOp->parent_val) {
@@ -3456,6 +3526,12 @@ void SymResLinkBody::VisitNewTypedValue(NewTypedValue* value) {
 void SymResLinkBody::VisitPlacementNewValue(PlacementNewValue* value) {
     visit(value->pointer);
     visit(value->value);
+    // `new (p) T` constructs into caller-supplied raw storage; the pointer must
+    // be valid, aligned and large enough for T.
+    check_raw_pointer_access(
+        value->pointer, value,
+        "placement new through a raw pointer requires an unsafe boundary"
+    );
     // type of the value determined at symbol resolution must be set
     value->ptr_type.type = value->value->getType();
 }

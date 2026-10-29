@@ -205,35 +205,35 @@ func test_path_stem_multi_dot(env : &mut TestEnv) {
 
 @test
 func test_path_is_absolute_root(env : &mut TestEnv) {
-    if(!path::is_absolute("/")) {
+    if(!unsafe(path::is_absolute("/"))) {
         env.error("is_absolute / should be true");
     }
 }
 
 @test
 func test_path_is_absolute_empty(env : &mut TestEnv) {
-    if(path::is_absolute("")) {
+    if(unsafe(path::is_absolute(""))) {
         env.error("is_absolute empty should be false");
     }
 }
 
 @test
 func test_path_is_absolute_just_dot(env : &mut TestEnv) {
-    if(path::is_absolute(".")) {
+    if(unsafe(path::is_absolute("."))) {
         env.error("is_absolute . should be false");
     }
 }
 
 @test
 func test_path_has_root_relative(env : &mut TestEnv) {
-    if(path::has_root("usr/bin")) {
+    if(unsafe(path::has_root("usr/bin"))) {
         env.error("has_root usr/bin should be false");
     }
 }
 
 @test
 func test_path_has_root_empty(env : &mut TestEnv) {
-    if(path::has_root("")) {
+    if(unsafe(path::has_root(""))) {
         env.error("has_root empty should be false");
     }
 }

@@ -20,7 +20,7 @@
       "raw_pointer_types": 94,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
-      "unsafe_blocks": 20,
+      "unsafe_blocks": 70,
       "unsafe_values": 26,
       "variadic_calls": 0
     },
@@ -44,8 +44,8 @@
       "raw_pointer_types": 12,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
-      "unsafe_blocks": 0,
-      "unsafe_values": 0,
+      "unsafe_blocks": 2,
+      "unsafe_values": 1,
       "variadic_calls": 0
     },
     "::crypto": {
@@ -68,7 +68,7 @@
       "raw_pointer_types": 60,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
-      "unsafe_blocks": 0,
+      "unsafe_blocks": 44,
       "unsafe_values": 36,
       "variadic_calls": 0
     },
@@ -116,7 +116,7 @@
       "raw_pointer_types": 28,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
-      "unsafe_blocks": 2,
+      "unsafe_blocks": 16,
       "unsafe_values": 2,
       "variadic_calls": 0
     },
@@ -140,7 +140,7 @@
       "raw_pointer_types": 8,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
-      "unsafe_blocks": 0,
+      "unsafe_blocks": 1,
       "unsafe_values": 6,
       "variadic_calls": 0
     },
@@ -164,7 +164,7 @@
       "raw_pointer_types": 118,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
-      "unsafe_blocks": 12,
+      "unsafe_blocks": 64,
       "unsafe_values": 41,
       "variadic_calls": 0
     },
@@ -188,8 +188,8 @@
       "raw_pointer_types": 89,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
-      "unsafe_blocks": 2,
-      "unsafe_values": 9,
+      "unsafe_blocks": 4,
+      "unsafe_values": 15,
       "variadic_calls": 0
     },
     "::osrand": {
@@ -236,8 +236,8 @@
       "raw_pointer_types": 17,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
-      "unsafe_blocks": 0,
-      "unsafe_values": 0,
+      "unsafe_blocks": 13,
+      "unsafe_values": 1,
       "variadic_calls": 0
     },
     "::process": {
@@ -260,7 +260,7 @@
       "raw_pointer_types": 54,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
-      "unsafe_blocks": 90,
+      "unsafe_blocks": 104,
       "unsafe_values": 24,
       "variadic_calls": 2
     },
@@ -308,8 +308,8 @@
       "raw_pointer_types": 238,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
-      "unsafe_blocks": 79,
-      "unsafe_values": 86,
+      "unsafe_blocks": 157,
+      "unsafe_values": 111,
       "variadic_calls": 14
     },
     "::test": {
@@ -332,7 +332,7 @@
       "raw_pointer_types": 81,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
-      "unsafe_blocks": 36,
+      "unsafe_blocks": 46,
       "unsafe_values": 32,
       "variadic_calls": 24
     },
@@ -380,7 +380,7 @@
       "raw_pointer_types": 30,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
-      "unsafe_blocks": 2,
+      "unsafe_blocks": 26,
       "unsafe_values": 2,
       "variadic_calls": 2
     },
@@ -429,8 +429,8 @@
     "raw_pointer_types": 1437,
     "union_field_accesses": 0,
     "unreachable_stmts": 0,
-    "unsafe_blocks": 268,
-    "unsafe_values": 349,
+    "unsafe_blocks": 572,
+    "unsafe_values": 382,
     "variadic_calls": 57
   }
 }

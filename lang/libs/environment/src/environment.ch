@@ -132,33 +132,36 @@ public func current_dir() : Option<string> {
 /// Enumerate all environment variables.
 /// Returns a vector of "KEY=VALUE" strings.
 public func all() : vector<string> {
-    var result = vector<string>()
-    comptime if(def.windows) {
-        var env_ptr = GetEnvironmentStringsA()
-        if(env_ptr == null) { return result }
-        var p = env_ptr as *char
-        while(true) {
-            // Each entry is null-terminated; the block ends with a double null
-            if(p[0] as char == '\0' as char && p[1] as char == '\0' as char) { break }
-            var entry = string.make_no_len(p)
-            // Advance past this entry
-            var k : size_t = 0
-            while(p[k] != 0) { k += 1 }
-            p = (p as *u8 + k + 1) as *char
-            result.push(entry)
+        unsafe {
+        var result = vector<string>()
+        comptime if(def.windows) {
+            var env_ptr = GetEnvironmentStringsA()
+            if(env_ptr == null) { return result }
+            var p = env_ptr as *char
+            while(true) {
+                // Each entry is null-terminated; the block ends with a double null
+                if(p[0] as char == '\0' as char && p[1] as char == '\0' as char) { break }
+                var entry = string.make_no_len(p)
+                // Advance past this entry
+                var k : size_t = 0
+                while(p[k] != 0) { k += 1 }
+                p = (p as *u8 + k + 1) as *char
+                result.push(entry)
+            }
+            FreeEnvironmentStringsA(env_ptr)
+        } else {
+            var ep = get_environ()
+            if(ep == null) { return result }
+            var i : int = 0;
+            while(ep[i] != null) {
+                result.push(unsafe(string.make_no_len(ep[i] as *char)))
+                i += 1;
+            }
         }
-        FreeEnvironmentStringsA(env_ptr)
-    } else {
-        var ep = get_environ()
-        if(ep == null) { return result }
-        var i : int = 0;
-        while(ep[i] != null) {
-            result.push(unsafe(string.make_no_len(ep[i] as *char)))
-            i += 1;
+        return result
+
         }
     }
-    return result
-}
 
 /// Get the temporary directory path.
 public func temp_dir() : Option<string> {

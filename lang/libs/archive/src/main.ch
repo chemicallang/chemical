@@ -37,60 +37,78 @@ public func open(path : *char) : std::Result<Archive, ArchiveError> {
 }
 
 public func entries(archive : *mut Archive) : *mut vector<ArchiveEntry> {
-    if(archive.archive_type == 1) {
-        return zip_entries(&raw mut archive.zip_data)
-    } else {
-        return tar_entries(&raw mut archive.tar_data)
+        unsafe {
+        if(archive.archive_type == 1) {
+            return zip_entries(&raw mut archive.zip_data)
+        } else {
+            return tar_entries(&raw mut archive.tar_data)
+        }
+
+        }
     }
-}
 
 public func entry_count(archive : *mut Archive) : size_t {
-    if(archive.archive_type == 1) {
-        return zip_entry_count(&raw mut archive.zip_data)
-    } else {
-        return tar_entry_count(&raw mut archive.tar_data)
+        unsafe {
+        if(archive.archive_type == 1) {
+            return zip_entry_count(&raw mut archive.zip_data)
+        } else {
+            return tar_entry_count(&raw mut archive.tar_data)
+        }
+
+        }
     }
-}
 
 public func contains(archive : *mut Archive, name : *char) : bool {
-    if(archive.archive_type == 1) {
-        return zip_contains(&raw mut archive.zip_data, name)
-    } else {
-        return tar_contains(&raw mut archive.tar_data, name)
+        unsafe {
+        if(archive.archive_type == 1) {
+            return zip_contains(&raw mut archive.zip_data, name)
+        } else {
+            return tar_contains(&raw mut archive.tar_data, name)
+        }
+
+        }
     }
-}
 
 public func read(archive : *mut Archive, name : *char) : std::Result<vector<u8>, ArchiveError> {
-    if(archive.archive_type == 1) {
-        return zip_read_file(&raw mut archive.zip_data, name)
-    } else {
-        return tar_read_file(&raw mut archive.tar_data, name)
+        unsafe {
+        if(archive.archive_type == 1) {
+            return zip_read_file(&raw mut archive.zip_data, name)
+        } else {
+            return tar_read_file(&raw mut archive.tar_data, name)
+        }
+
+        }
     }
-}
 
 public func extract(archive : *mut Archive, dest : *char) : std::Result<std::Unit, ArchiveError> {
-    if(archive.archive_type == 1) {
-        return zip_extract_all(&raw mut archive.zip_data, dest)
-    } else {
-        return tar_extract_all(&raw mut archive.tar_data, dest)
+        unsafe {
+        if(archive.archive_type == 1) {
+            return zip_extract_all(&raw mut archive.zip_data, dest)
+        } else {
+            return tar_extract_all(&raw mut archive.tar_data, dest)
+        }
+
+        }
     }
-}
 
 public func extract_entry(archive : *mut Archive, name : *char, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
-    var entry : ArchiveEntry
-    if(archive.archive_type == 1) {
-        var entry_result = zip_find_entry(&raw mut archive.zip_data, name, unsafe(&raw mut entry))
-        if(entry_result is Result.Err) {
-            return std.Result.Err(ArchiveError.InvalidFormat(string("entry not found")))
+        unsafe {
+        var entry : ArchiveEntry
+        if(archive.archive_type == 1) {
+            var entry_result = zip_find_entry(&raw mut archive.zip_data, name, unsafe(&raw mut entry))
+            if(entry_result is Result.Err) {
+                return std.Result.Err(ArchiveError.InvalidFormat(string("entry not found")))
+            }
+            return zip_extract_entry(&raw mut archive.zip_data, unsafe(&raw mut entry), dest_dir)
+        } else {
+            var entry_result = tar_find_entry(&raw mut archive.tar_data, name, unsafe(&raw mut entry))
+            if(entry_result is Result.Err) {
+                return std.Result.Err(ArchiveError.InvalidFormat(string("entry not found")))
+            }
+            return tar_extract_entry(&raw mut archive.tar_data, unsafe(&raw mut entry), dest_dir)
         }
-        return zip_extract_entry(&raw mut archive.zip_data, unsafe(&raw mut entry), dest_dir)
-    } else {
-        var entry_result = tar_find_entry(&raw mut archive.tar_data, name, unsafe(&raw mut entry))
-        if(entry_result is Result.Err) {
-            return std.Result.Err(ArchiveError.InvalidFormat(string("entry not found")))
+
         }
-        return tar_extract_entry(&raw mut archive.tar_data, unsafe(&raw mut entry), dest_dir)
     }
-}
 
 } // end namespace archive

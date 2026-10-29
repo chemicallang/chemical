@@ -3,9 +3,9 @@ public namespace stream {
 
 public interface Stream {
 
-    func writeStr(&self, value : *char, length : ubigint);
+    unsafe func writeStr(&self, value : *char, length : ubigint);
 
-    func writeStrNoLen(&self, value : *char);
+    unsafe func writeStrNoLen(&self, value : *char);
 
     func writeSigned(&self, value : bigint);
 

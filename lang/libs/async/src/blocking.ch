@@ -29,52 +29,58 @@ public struct BlockingState<T> {
 
 @retained
 public func <T> blocking_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
-    var st = frame as *mut BlockingState<T>
-    st.m.lock()
-    if(!st.ready) {
+        unsafe {
+        var st = frame as *mut BlockingState<T>
+        st.m.lock()
+        if(!st.ready) {
+            st.m.unlock()
+            return core::async::Poll.Pending<T>()
+        }
+        var taken = st.value.take()
+        st.ready = false
+        st.consumed = true
         st.m.unlock()
-        return core::async::Poll.Pending<T>()
+        return core::async::Poll.Ready<T>(taken)
+
+        }
     }
-    var taken = st.value.take()
-    st.ready = false
-    st.consumed = true
-    st.m.unlock()
-    return core::async::Poll.Ready<T>(taken)
-}
 
 @retained
 public func <T> blocking_drop(frame : *mut void) {
-    var st = frame as *mut BlockingState<T>
-    var vtbl = st.vtbl
-    var free_state = false
-    st.m.lock()
-    if(st.consumed) {
-        // consumer already took the value; nothing left to destroy here
-        free_state = true
-    } else if(st.abandoned) {
-        // worker is still running and will free the state itself
-        free_state = false
-    } else if(st.ready) {
-        // worker finished but the result was never consumed; destroy it here
-        st.ready = false
-        free_state = true
-    } else {
-        // worker has not finished yet; hand ownership of the state to it
-        st.abandoned = true
-        free_state = false
-    }
-    st.m.unlock()
-    if(free_state) {
         unsafe {
-            delete st
+        var st = frame as *mut BlockingState<T>
+        var vtbl = st.vtbl
+        var free_state = false
+        st.m.lock()
+        if(st.consumed) {
+            // consumer already took the value; nothing left to destroy here
+            free_state = true
+        } else if(st.abandoned) {
+            // worker is still running and will free the state itself
+            free_state = false
+        } else if(st.ready) {
+            // worker finished but the result was never consumed; destroy it here
+            st.ready = false
+            free_state = true
+        } else {
+            // worker has not finished yet; hand ownership of the state to it
+            st.abandoned = true
+            free_state = false
+        }
+        st.m.unlock()
+        if(free_state) {
+            unsafe {
+                delete st
+            }
+        }
+        if(vtbl != null) {
+            unsafe {
+                dealloc vtbl
+            }
+        }
+
         }
     }
-    if(vtbl != null) {
-        unsafe {
-            dealloc vtbl
-        }
-    }
-}
 
 // Lazily created, process-wide blocking pool. `ThreadPool` owns native worker
 // threads and frees them in its destructor; it is intentionally never torn down
@@ -85,16 +91,19 @@ var g_blocking_pool_ready : bool = false
 
 @retained
 public func blocking_pool() : *mut std::concurrent.ThreadPool {
-    if(!g_blocking_pool_ready) {
-        var n = std::concurrent.hardware_threads()
-        if(n < 1u) {
-            n = 1u
+        unsafe {
+        if(!g_blocking_pool_ready) {
+            var n = std::concurrent.hardware_threads()
+            if(n < 1u) {
+                n = 1u
+            }
+            g_blocking_pool = std::concurrent.create_pool(n as uint)
+            g_blocking_pool_ready = true
         }
-        g_blocking_pool = std::concurrent.create_pool(n as uint)
-        g_blocking_pool_ready = true
+        return &raw mut g_blocking_pool
+
+        }
     }
-    return &raw mut g_blocking_pool
-}
 
 // Run `f` on the blocking pool and return its future. Await it with
 // `await spawn_blocking(...)` / `async::block_on(...)`.
@@ -103,38 +112,41 @@ public func blocking_pool() : *mut std::concurrent.ThreadPool {
 // their types, so the compiler cannot prove `Send`/`'static`; this is an
 // unsafe boundary until capture-type tracking lands (S6.5).
 public unsafe func <T> spawn_blocking(f : std::function<() => T>) : core::async::FutureHandle<T> {
-    var st = unsafe(malloc(sizeof(BlockingState<T>))) as *mut BlockingState<T>
-    var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
-    vtbl.poll = blocking_poll<T>
-    vtbl.drop = blocking_drop<T>
-    new(st) BlockingState<T> {
-        m : std::mutex(),
-        ready : false,
-        consumed : false,
-        abandoned : false,
-        value : std::Option.None<T>(),
-        task : f,
-        vtbl : vtbl
-    }
-    var pool = blocking_pool()
-    unsafe { pool.submit_void(|st|() => {
-        var r = st.task()
-        st.m.lock()
-        var was_abandoned = st.abandoned
-        if(!was_abandoned) {
-            st.value = std::Option.Some<T>(r)
-            st.ready = true
+        unsafe {
+        var st = unsafe(malloc(sizeof(BlockingState<T>))) as *mut BlockingState<T>
+        var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
+        vtbl.poll = blocking_poll<T>
+        vtbl.drop = blocking_drop<T>
+        new(st) BlockingState<T> {
+            m : std::mutex(),
+            ready : false,
+            consumed : false,
+            abandoned : false,
+            value : std::Option.None<T>(),
+            task : f,
+            vtbl : vtbl
         }
-        st.m.unlock()
-        if(was_abandoned) {
-            // `r` is destroyed by this scope; the state is ours to free
-            unsafe {
-                delete st
+        var pool = blocking_pool()
+        unsafe { pool.submit_void(|st|() => {
+            var r = st.task()
+            st.m.lock()
+            var was_abandoned = st.abandoned
+            if(!was_abandoned) {
+                st.value = std::Option.Some<T>(r)
+                st.ready = true
             }
+            st.m.unlock()
+            if(was_abandoned) {
+                // `r` is destroyed by this scope; the state is ours to free
+                unsafe {
+                    delete st
+                }
+            }
+        })
         }
-    })
+        return unsafe(core::async::future_handle_raw<T>(st as *mut void, vtbl))
+
+        }
     }
-    return unsafe(core::async::future_handle_raw<T>(st as *mut void, vtbl))
-}
 
 }

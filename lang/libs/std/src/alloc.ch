@@ -83,60 +83,75 @@ struct DebugTracker {
 }
 
 func debug_tracker_create() : *mut DebugTracker {
-    var tracker = unsafe(malloc(sizeof(DebugTracker))) as *mut DebugTracker
-    tracker.head = null
-    tracker.count = 0
-    tracker.total_bytes = 0
-    return tracker
-}
+        unsafe {
+        var tracker = unsafe(malloc(sizeof(DebugTracker))) as *mut DebugTracker
+        tracker.head = null
+        tracker.count = 0
+        tracker.total_bytes = 0
+        return tracker
+
+        }
+    }
 
 func debug_tracker_record_alloc(tracker : *mut DebugTracker, ptr : *mut void, size : size_t) {
-    var record = unsafe(malloc(sizeof(AllocRecord))) as *mut AllocRecord
-    record.ptr = ptr
-    record.size = size
-    record.next = tracker.head
-    tracker.head = record
-    tracker.count++
-    tracker.total_bytes += size
-}
+        unsafe {
+        var record = unsafe(malloc(sizeof(AllocRecord))) as *mut AllocRecord
+        record.ptr = ptr
+        record.size = size
+        record.next = tracker.head
+        tracker.head = record
+        tracker.count++
+        tracker.total_bytes += size
+
+        }
+    }
 
 func debug_tracker_record_dealloc(tracker : *mut DebugTracker, ptr : *mut void) {
-    var prev : *mut AllocRecord = null
-    var curr = tracker.head
-    while(curr != null) {
-        if(curr.ptr == ptr) {
-            if(prev != null) {
-                prev.next = curr.next
-            } else {
-                tracker.head = curr.next
+        unsafe {
+        var prev : *mut AllocRecord = null
+        var curr = tracker.head
+        while(curr != null) {
+            if(curr.ptr == ptr) {
+                if(prev != null) {
+                    prev.next = curr.next
+                } else {
+                    tracker.head = curr.next
+                }
+                tracker.total_bytes -= curr.size
+                tracker.count--
+                unsafe { free(curr as *mut void) }
+                return
             }
-            tracker.total_bytes -= curr.size
-            tracker.count--
-            unsafe { free(curr as *mut void) }
-            return
+            prev = curr
+            curr = curr.next
         }
-        prev = curr
-        curr = curr.next
+
+        }
     }
-}
 
 func debug_tracker_destroy(tracker : *mut DebugTracker) {
-    var curr = tracker.head
-    while(curr != null) {
-        var next_node = curr.next
-        unsafe { free(curr as *mut void) }
-        curr = next_node
+        unsafe {
+        var curr = tracker.head
+        while(curr != null) {
+            var next_node = curr.next
+            unsafe { free(curr as *mut void) }
+            curr = next_node
+        }
+        unsafe { free(tracker as *mut void) }
+
+        }
     }
-    unsafe { free(tracker as *mut void) }
-}
 
 func debug_tracker_print_leaks(tracker : *mut DebugTracker) {
-    if(tracker.count > 0) {
-        unsafe { printf("[Allocator] %zu leaks detected (%zu bytes unfreed)\n", tracker.count, tracker.total_bytes) }
-    } else {
-        unsafe { printf("[Allocator] no leaks detected\n") }
+        unsafe {
+        if(tracker.count > 0) {
+            unsafe { printf("[Allocator] %zu leaks detected (%zu bytes unfreed)\n", tracker.count, tracker.total_bytes) }
+        } else {
+            unsafe { printf("[Allocator] no leaks detected\n") }
+        }
+
+        }
     }
-}
 
 // GlobalAllocator — wraps malloc/free with optional debug tracking
 

@@ -218,16 +218,19 @@ public func zip_writer_empty_zip(env : &mut TestEnv) {
 
 @test
 public func zip_writer_to_bytes_works(env : &mut TestEnv) {
-    var writer = archive::ZipWriter{entries: vector<archive::ZipWriteEntry>(), data: vector<u8>()}
-    var d : [4]u8 = [0x01, 0x02, 0x03, 0x04]
-    archive::zip_writer_add_file(&raw mut writer, "f.txt\0" as *char, &raw d[0], 4)
-    var bytes = archive::zip_writer_to_bytes(&raw mut writer)
-    if(bytes.size() == 0) { env.error("to_bytes should return non-empty data") }
+        unsafe {
+        var writer = archive::ZipWriter{entries: vector<archive::ZipWriteEntry>(), data: vector<u8>()}
+        var d : [4]u8 = [0x01, 0x02, 0x03, 0x04]
+        archive::zip_writer_add_file(&raw mut writer, "f.txt\0" as *char, &raw d[0], 4)
+        var bytes = archive::zip_writer_to_bytes(&raw mut writer)
+        if(bytes.size() == 0) { env.error("to_bytes should return non-empty data") }
 
-    var a = archive::ZipArchive{data: vector<u8>(), entries: vector<archive::ArchiveEntry>(), data_loaded: false}
-    archive::open_zip_bytes(bytes.data(), bytes.size(), &raw mut a)
-    if(archive::zip_entry_count(&raw mut a) != 1) { env.error("to_bytes should produce valid ZIP") }
-}
+        var a = archive::ZipArchive{data: vector<u8>(), entries: vector<archive::ArchiveEntry>(), data_loaded: false}
+        archive::open_zip_bytes(bytes.data(), bytes.size(), &raw mut a)
+        if(archive::zip_entry_count(&raw mut a) != 1) { env.error("to_bytes should produce valid ZIP") }
+
+        }
+    }
 
 @test
 public func zip_large_number_of_files(env : &mut TestEnv) {
@@ -404,59 +407,62 @@ public func tar_nonexistent_file_rejected(env : &mut TestEnv) {
 }
 
 func build_single_file_tar(filename : string, content : *u8, content_len : size_t) : vector<u8> {
-    var tar = vector<u8>()
-    // header block (512 bytes)
-    var i : size_t = 0
-    while(i < 512) { tar.push(0); i += 1 }
+        unsafe {
+        var tar = vector<u8>()
+        // header block (512 bytes)
+        var i : size_t = 0
+        while(i < 512) { tar.push(0); i += 1 }
 
-    // name (offset 0, 100 bytes)
-    var j : size_t = 0
-    while(j < filename.size() && j < 100) {
-        tar.set(j, filename.get(j) as u8)
-        j += 1
-    }
-    // size (offset 124, 12 bytes, octal)
-    var size_val = content_len
-    var size_str = string("")
-    if(size_val == 0) { size_str.append('0') }
-    while(size_val > 0) {
-        var digit = (size_val % 8) as u8
-        size_str.append(('0' as u8 + digit) as char)
-        size_val = size_val / 8
-    }
-    // Reverse to get proper octal
-    var rev = string("")
-    var si : size_t = size_str.size()
-    while(si > 0) {
-        si -= 1
-        rev.append(size_str.get(si))
-    }
-    var k : size_t = 0
-    while(k < rev.size() && k < 11) {
-        tar.set(124 + k, rev.get(k) as u8)
-        k += 1
-    }
-    // typeflag (offset 156): '0' = regular file
-    tar.set(156, '0' as u8)
+        // name (offset 0, 100 bytes)
+        var j : size_t = 0
+        while(j < filename.size() && j < 100) {
+            tar.set(j, filename.get(j) as u8)
+            j += 1
+        }
+        // size (offset 124, 12 bytes, octal)
+        var size_val = content_len
+        var size_str = string("")
+        if(size_val == 0) { size_str.append('0') }
+        while(size_val > 0) {
+            var digit = (size_val % 8) as u8
+            size_str.append(('0' as u8 + digit) as char)
+            size_val = size_val / 8
+        }
+        // Reverse to get proper octal
+        var rev = string("")
+        var si : size_t = size_str.size()
+        while(si > 0) {
+            si -= 1
+            rev.append(size_str.get(si))
+        }
+        var k : size_t = 0
+        while(k < rev.size() && k < 11) {
+            tar.set(124 + k, rev.get(k) as u8)
+            k += 1
+        }
+        // typeflag (offset 156): '0' = regular file
+        tar.set(156, '0' as u8)
 
-    // append content (rounded to 512)
-    var content_pos : size_t = 512
-    var ci : size_t = 0
-    while(ci < content_len) {
-        tar.push(content[ci])
-        ci += 1
+        // append content (rounded to 512)
+        var content_pos : size_t = 512
+        var ci : size_t = 0
+        while(ci < content_len) {
+            tar.push(content[ci])
+            ci += 1
+        }
+        // pad to 512
+        var padding = (512 - (content_len % 512)) % 512
+        var pi : size_t = 0
+        while(pi < padding) { tar.push(0); pi += 1 }
+
+        // end with two zero blocks
+        var ti : size_t = 0
+        while(ti < 1024) { tar.push(0); ti += 1 }
+
+        return tar
+
+        }
     }
-    // pad to 512
-    var padding = (512 - (content_len % 512)) % 512
-    var pi : size_t = 0
-    while(pi < padding) { tar.push(0); pi += 1 }
-
-    // end with two zero blocks
-    var ti : size_t = 0
-    while(ti < 1024) { tar.push(0); ti += 1 }
-
-    return tar
-}
 
 @test
 public func tar_parse_single_file(env : &mut TestEnv) {
@@ -504,19 +510,22 @@ public func tar_find_entry_not_found(env : &mut TestEnv) {
 
 @test
 public func tar_entries_accessor(env : &mut TestEnv) {
-    var data : [2]u8 = [0x01, 0x02]
-    var tar_data = build_single_file_tar(string("a.dat"), &raw data[0], 2)
+        unsafe {
+        var data : [2]u8 = [0x01, 0x02]
+        var tar_data = build_single_file_tar(string("a.dat"), &raw data[0], 2)
 
-    var tar_path = make_temp_test_path("test_tar_entries.tar")
-    var write_result = fs::write_text_file(tar_path.data(), tar_data.data(), tar_data.size())
-    if(write_result is Result.Err) { env.error("write tar"); return }
+        var tar_path = make_temp_test_path("test_tar_entries.tar")
+        var write_result = fs::write_text_file(tar_path.data(), tar_data.data(), tar_data.size())
+        if(write_result is Result.Err) { env.error("write tar"); return }
 
-    var a = archive::TarArchive{data: vector<u8>(), entries: vector<archive::ArchiveEntry>(), data_loaded: false}
-    archive::open_tar(tar_path.data(), &raw mut a)
+        var a = archive::TarArchive{data: vector<u8>(), entries: vector<archive::ArchiveEntry>(), data_loaded: false}
+        archive::open_tar(tar_path.data(), &raw mut a)
 
-    var entries = archive::tar_entries(&raw mut a)
-    if(entries.size() != 1) { env.error("should have 1 entry via accessor") }
-}
+        var entries = archive::tar_entries(&raw mut a)
+        if(entries.size() != 1) { env.error("should have 1 entry via accessor") }
+
+        }
+    }
 
 // ═══════════════════════════════════════════════════════════════
 // Archive unified API tests

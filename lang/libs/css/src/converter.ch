@@ -651,160 +651,169 @@ func writeBackgroundImageUrl(url : &mut UrlData, str : &mut std::string) {
 }
 
 func (converter : &mut CSSRuntimeConverter) writeLinearGradientData(data : &mut LinearGradientData, str : &mut std::string) {
+        unsafe {
 
-    writeLength(&mut data.angle, str)
-    if(data.angle.kind != CSSLengthKind.Unknown) {
-        str.append(',');
-    }
-
-    if(data.to1.kind != CSSKeywordKind.Unknown) {
-        str.append_view(std::string_view("to "))
-        str.append_view(&data.to1.value)
-
-        if(data.to2.kind != CSSKeywordKind.Unknown) {
-            str.append(' ');
-            str.append_view(&data.to2.value)
+        writeLength(&mut data.angle, str)
+        if(data.angle.kind != CSSLengthKind.Unknown) {
+            str.append(',');
         }
 
-        str.append(',');
+        if(data.to1.kind != CSSKeywordKind.Unknown) {
+            str.append_view(std::string_view("to "))
+            str.append_view(&data.to1.value)
 
-    }
-
-    var start = data.color_stop_list.data()
-    const end = start + data.color_stop_list.size()
-    while(start != end) {
-
-        converter.writeValue(&mut start.hint)
-
-        converter.writeValue(&mut start.stop.color)
-
-        if(start.stop.length.kind != CSSValueKind.Unknown) {
-
-            str.append(' ');
-            converter.writeValue(&mut start.stop.length)
-
-            if(start.stop.optSecLength.kind != CSSValueKind.Unknown) {
+            if(data.to2.kind != CSSKeywordKind.Unknown) {
                 str.append(' ');
-                converter.writeValue(&mut start.stop.optSecLength)
+                str.append_view(&data.to2.value)
             }
 
+            str.append(',');
+
         }
 
-        start++;
+        var start = data.color_stop_list.data()
+        const end = start + data.color_stop_list.size()
+        while(start != end) {
 
-        if(start != end) str.append(',');
+            converter.writeValue(&mut start.hint)
 
+            converter.writeValue(&mut start.stop.color)
+
+            if(start.stop.length.kind != CSSValueKind.Unknown) {
+
+                str.append(' ');
+                converter.writeValue(&mut start.stop.length)
+
+                if(start.stop.optSecLength.kind != CSSValueKind.Unknown) {
+                    str.append(' ');
+                    converter.writeValue(&mut start.stop.optSecLength)
+                }
+
+            }
+
+            start++;
+
+            if(start != end) str.append(',');
+
+        }
+
+
+        }
     }
-
-}
 
 func (converter : &mut CSSRuntimeConverter) writeRadialGradientData(data : &mut RadialGradientData, str : &mut std::string) {
-    // Write shape, size, position
-    // Syntax: [ <ending-shape> || <size> ]? [ at <position> ]? , <color-stop-list>
+        unsafe {
+        // Write shape, size, position
+        // Syntax: [ <ending-shape> || <size> ]? [ at <position> ]? , <color-stop-list>
     
-    var has_shape_or_size = false
+        var has_shape_or_size = false
     
-    if(data.shape.kind != CSSKeywordKind.Unknown) {
-        str.append_view(&data.shape.value)
-        has_shape_or_size = true
-    }
+        if(data.shape.kind != CSSKeywordKind.Unknown) {
+            str.append_view(&data.shape.value)
+            has_shape_or_size = true
+        }
     
-    if(data.size.extent.kind != CSSKeywordKind.Unknown) {
-        if(has_shape_or_size) str.append(' ')
-        str.append_view(&data.size.extent.value)
-        has_shape_or_size = true
-    } else if(data.size.length.kind != CSSValueKind.Unknown) {
-        if(has_shape_or_size) str.append(' ')
-        converter.writeValue(&mut data.size.length)
-        has_shape_or_size = true
-    }
+        if(data.size.extent.kind != CSSKeywordKind.Unknown) {
+            if(has_shape_or_size) str.append(' ')
+            str.append_view(&data.size.extent.value)
+            has_shape_or_size = true
+        } else if(data.size.length.kind != CSSValueKind.Unknown) {
+            if(has_shape_or_size) str.append(' ')
+            converter.writeValue(&mut data.size.length)
+            has_shape_or_size = true
+        }
     
-    if(data.position.kind != CSSValueKind.Unknown) {
-        if(has_shape_or_size) str.append(' ')
-        str.append_view(std::string_view("at "))
-        converter.writeValue(&mut data.position)
-        has_shape_or_size = true // effectively
-    }
+        if(data.position.kind != CSSValueKind.Unknown) {
+            if(has_shape_or_size) str.append(' ')
+            str.append_view(std::string_view("at "))
+            converter.writeValue(&mut data.position)
+            has_shape_or_size = true // effectively
+        }
     
-    if(has_shape_or_size) {
-        str.append(',')
-    }
+        if(has_shape_or_size) {
+            str.append(',')
+        }
     
-    var start = data.color_stop_list.data()
-    const end = start + data.color_stop_list.size()
-    while(start != end) {
+        var start = data.color_stop_list.data()
+        const end = start + data.color_stop_list.size()
+        while(start != end) {
 
-        converter.writeValue(&mut start.hint)
+            converter.writeValue(&mut start.hint)
 
-        converter.writeValue(&mut start.stop.color)
+            converter.writeValue(&mut start.stop.color)
 
-        if(start.stop.length.kind != CSSValueKind.Unknown) {
+            if(start.stop.length.kind != CSSValueKind.Unknown) {
 
-            str.append(' ');
-            converter.writeValue(&mut start.stop.length)
-
-            if(start.stop.optSecLength.kind != CSSValueKind.Unknown) {
                 str.append(' ');
-                converter.writeValue(&mut start.stop.optSecLength)
+                converter.writeValue(&mut start.stop.length)
+
+                if(start.stop.optSecLength.kind != CSSValueKind.Unknown) {
+                    str.append(' ');
+                    converter.writeValue(&mut start.stop.optSecLength)
+                }
+
             }
+
+            start++;
+
+            if(start != end) str.append(',');
 
         }
 
-        start++;
-
-        if(start != end) str.append(',');
-
+        }
     }
-}
 
 func (converter : &mut CSSRuntimeConverter) writeConicGradientData(data : &mut ConicGradientData, str : &mut std::string) {
-    // Write from <angle> at <position>
+        unsafe {
+        // Write from <angle> at <position>
     
-    var has_from_or_at = false
+        var has_from_or_at = false
     
-    if(data.from.kind != CSSValueKind.Unknown) {
-        str.append_view(std::string_view("from "))
-        converter.writeValue(&mut data.from)
-        has_from_or_at = true
-    }
+        if(data.from.kind != CSSValueKind.Unknown) {
+            str.append_view(std::string_view("from "))
+            converter.writeValue(&mut data.from)
+            has_from_or_at = true
+        }
     
-    if(data.at.kind != CSSValueKind.Unknown) {
-        if(has_from_or_at) str.append(' ')
-        str.append_view(std::string_view("at "))
-        converter.writeValue(&mut data.at)
-        has_from_or_at = true
-    }
+        if(data.at.kind != CSSValueKind.Unknown) {
+            if(has_from_or_at) str.append(' ')
+            str.append_view(std::string_view("at "))
+            converter.writeValue(&mut data.at)
+            has_from_or_at = true
+        }
     
-    if(has_from_or_at) {
-        str.append(',')
-    }
+        if(has_from_or_at) {
+            str.append(',')
+        }
 
-    var start = data.color_stop_list.data()
-    const end = start + data.color_stop_list.size()
-    while(start != end) {
+        var start = data.color_stop_list.data()
+        const end = start + data.color_stop_list.size()
+        while(start != end) {
 
-        converter.writeValue(&mut start.hint)
+            converter.writeValue(&mut start.hint)
 
-        converter.writeValue(&mut start.stop.color)
+            converter.writeValue(&mut start.stop.color)
 
-        if(start.stop.length.kind != CSSValueKind.Unknown) {
+            if(start.stop.length.kind != CSSValueKind.Unknown) {
 
-            str.append(' ');
-            converter.writeValue(&mut start.stop.length)
-
-            if(start.stop.optSecLength.kind != CSSValueKind.Unknown) {
                 str.append(' ');
-                converter.writeValue(&mut start.stop.optSecLength)
+                converter.writeValue(&mut start.stop.length)
+
+                if(start.stop.optSecLength.kind != CSSValueKind.Unknown) {
+                    str.append(' ');
+                    converter.writeValue(&mut start.stop.optSecLength)
+                }
+
             }
+
+            start++;
+
+            if(start != end) str.append(',');
 
         }
 
-        start++;
-
-        if(start != end) str.append(',');
-
+        }
     }
-}
 
 func (converter : &mut CSSRuntimeConverter) writeBackgroundImageData(ptr : &mut BackgroundImageData, str : &mut std::string) { unsafe {
 
@@ -851,75 +860,78 @@ func (converter : &mut CSSRuntimeConverter) writeBackgroundImageData(ptr : &mut 
  }}
 
 func (converter : &mut CSSRuntimeConverter) writeBackgroundValueData(ptr : &mut CSSBackgroundValueData, str : &mut std::string) {
+        unsafe {
     
-    var start = ptr.layers.data();
-    const end = start + ptr.layers.size();
-    while(start != end) {
+        var start = ptr.layers.data();
+        const end = start + ptr.layers.size();
+        while(start != end) {
 
-        if(start != ptr.layers.data()) {
-            str.append(',');
-            str.append(' ');
-        }
-        
-        var has_val = false;
-
-        if(start.image.kind != CSSValueKind.Unknown) {
-            converter.writeValue(&mut start.image);
-            has_val = true;
-        }
-
-        if(start.positionX.kind != CSSValueKind.Unknown) {
-
-            if(has_val) str.append(' ');
-            converter.writeValue(&mut start.positionX);
-            if(start.positionY.kind != CSSValueKind.Unknown) {
+            if(start != ptr.layers.data()) {
+                str.append(',');
                 str.append(' ');
-                converter.writeValue(&mut start.positionY);
+            }
+        
+            var has_val = false;
+
+            if(start.image.kind != CSSValueKind.Unknown) {
+                converter.writeValue(&mut start.image);
+                has_val = true;
             }
 
-            if(start.size.kind != CSSValueKind.Unknown) {
-                str.append('/');
-                converter.writeValue(&mut start.size);
+            if(start.positionX.kind != CSSValueKind.Unknown) {
+
+                if(has_val) str.append(' ');
+                converter.writeValue(&mut start.positionX);
+                if(start.positionY.kind != CSSValueKind.Unknown) {
+                    str.append(' ');
+                    converter.writeValue(&mut start.positionY);
+                }
+
+                if(start.size.kind != CSSValueKind.Unknown) {
+                    str.append('/');
+                    converter.writeValue(&mut start.size);
+                }
+                has_val = true;
             }
-            has_val = true;
+
+            if(start.repeat.kind != CSSValueKind.Unknown) {
+                if(has_val) str.append(' ');
+                converter.writeValue(&mut start.repeat);
+                has_val = true;
+            }
+
+            if(start.attachment.kind != CSSValueKind.Unknown) {
+                if(has_val) str.append(' ');
+                converter.writeValue(&mut start.attachment);
+                has_val = true;
+            }
+
+            if(start.origin.kind != CSSValueKind.Unknown) {
+                if(has_val) str.append(' ');
+                converter.writeValue(&mut start.origin);
+                has_val = true;
+            }
+
+            if(start.clip.kind != CSSValueKind.Unknown) {
+                if(has_val) str.append(' ');
+                converter.writeValue(&mut start.clip);
+                has_val = true;
+            }
+
+
+            start++;
         }
 
-        if(start.repeat.kind != CSSValueKind.Unknown) {
-            if(has_val) str.append(' ');
-            converter.writeValue(&mut start.repeat);
-            has_val = true;
-        }
-
-        if(start.attachment.kind != CSSValueKind.Unknown) {
-            if(has_val) str.append(' ');
-            converter.writeValue(&mut start.attachment);
-            has_val = true;
-        }
-
-        if(start.origin.kind != CSSValueKind.Unknown) {
-            if(has_val) str.append(' ');
-            converter.writeValue(&mut start.origin);
-            has_val = true;
-        }
-
-        if(start.clip.kind != CSSValueKind.Unknown) {
-            if(has_val) str.append(' ');
-            converter.writeValue(&mut start.clip);
-            has_val = true;
+        if(ptr.color.kind != CSSValueKind.Unknown) {
+            if(!ptr.layers.empty()) {
+                str.append(' ');
+            }
+            converter.writeValue(&mut ptr.color);
         }
 
 
-        start++;
+        }
     }
-
-    if(ptr.color.kind != CSSValueKind.Unknown) {
-        if(!ptr.layers.empty()) {
-            str.append(' ');
-        }
-        converter.writeValue(&mut ptr.color);
-    }
-
-}
 
 func (converter : &mut CSSRuntimeConverter) writeCalcExpression(expr : &CSSCalcExpression, str : &mut std::string) { unsafe {
     switch(expr.kind) {
@@ -1008,52 +1020,55 @@ func (converter : &mut CSSRuntimeConverter) append_hex(val : uint) {
 }
 
 func (converter : &mut CSSRuntimeConverter) writeCssString(text : std::string_view) {
-    var i = 0u;
-    var str = converter.str_ref()
-    while(i < text.size()) {
-        const c1 = (text.data()[i] as uint) & 0xFF;
-        if (c1 < 0x80) {
-            const c = c1 as char;
-            if (c == '\'' || c == '\\') {
-                str.append('\\');
+        unsafe {
+        var i = 0u;
+        var str = converter.str_ref()
+        while(i < text.size()) {
+            const c1 = (text.data()[i] as uint) & 0xFF;
+            if (c1 < 0x80) {
+                const c = c1 as char;
+                if (c == '\'' || c == '\\') {
+                    str.append('\\');
+                }
+                str.append(c);
+                i++;
+            } else if ((c1 & 0xE0) == 0xC0) {
+                if (i + 1 < text.size()) {
+                    const c2 = (text.data()[i+1] as uint) & (0xFF as uint);
+                    const codepoint = ((c1 & (0x1F as uint)) << 6u) | (c2 & (0x3F as uint));
+                    str.append('\\');
+                    converter.append_hex(codepoint);
+                    i += 2;
+                    if(i < text.size()) str.append(' ');
+                } else { i++; }
+            } else if ((c1 & 0xF0) == 0xE0) {
+                if (i + 2 < text.size()) {
+                    const c2 = (text.data()[i+1] as uint) & (0xFF as uint);
+                    const c3 = (text.data()[i+2] as uint) & (0xFF as uint);
+                    const codepoint = ((c1 & (0x0F as uint)) << 12u) | ((c2 & (0x3F as uint)) << 6u) | (c3 & (0x3F as uint));
+                    str.append('\\');
+                    converter.append_hex(codepoint);
+                    i += 3;
+                    if(i < text.size()) str.append(' ');
+                } else { i++; }
+            } else if ((c1 & 0xF8) == 0xF0) {
+                if (i + 3 < text.size()) {
+                    const c2 = (text.data()[i+1] as uint) & (0xFF as uint);
+                    const c3 = (text.data()[i+2] as uint) & (0xFF as uint);
+                    const c4 = (text.data()[i+3] as uint) & (0xFF as uint);
+                    const codepoint = ((c1 & (0x07 as uint)) << 18u) | ((c2 & (0x3F as uint)) << 12u) | ((c3 & (0x3F as uint)) << 6u) | (c4 & (0x3F as uint));
+                    str.append('\\');
+                    converter.append_hex(codepoint);
+                    i += 4;
+                    if(i < text.size()) str.append(' ');
+                } else { i++; }
+            } else {
+                i++;
             }
-            str.append(c);
-            i++;
-        } else if ((c1 & 0xE0) == 0xC0) {
-            if (i + 1 < text.size()) {
-                const c2 = (text.data()[i+1] as uint) & (0xFF as uint);
-                const codepoint = ((c1 & (0x1F as uint)) << 6u) | (c2 & (0x3F as uint));
-                str.append('\\');
-                converter.append_hex(codepoint);
-                i += 2;
-                if(i < text.size()) str.append(' ');
-            } else { i++; }
-        } else if ((c1 & 0xF0) == 0xE0) {
-            if (i + 2 < text.size()) {
-                const c2 = (text.data()[i+1] as uint) & (0xFF as uint);
-                const c3 = (text.data()[i+2] as uint) & (0xFF as uint);
-                const codepoint = ((c1 & (0x0F as uint)) << 12u) | ((c2 & (0x3F as uint)) << 6u) | (c3 & (0x3F as uint));
-                str.append('\\');
-                converter.append_hex(codepoint);
-                i += 3;
-                if(i < text.size()) str.append(' ');
-            } else { i++; }
-        } else if ((c1 & 0xF8) == 0xF0) {
-            if (i + 3 < text.size()) {
-                const c2 = (text.data()[i+1] as uint) & (0xFF as uint);
-                const c3 = (text.data()[i+2] as uint) & (0xFF as uint);
-                const c4 = (text.data()[i+3] as uint) & (0xFF as uint);
-                const codepoint = ((c1 & (0x07 as uint)) << 18u) | ((c2 & (0x3F as uint)) << 12u) | ((c3 & (0x3F as uint)) << 6u) | (c4 & (0x3F as uint));
-                str.append('\\');
-                converter.append_hex(codepoint);
-                i += 4;
-                if(i < text.size()) str.append(' ');
-            } else { i++; }
-        } else {
-            i++;
+        }
+
         }
     }
-}
 
 func (converter : &mut CSSRuntimeConverter) writeValue(value : &mut CSSValue) { unsafe {
 
@@ -1365,203 +1380,236 @@ func (converter : &mut CSSRuntimeConverter) writeValue(value : &mut CSSValue) { 
  }}
 
 func (converter : &mut CSSRuntimeConverter) convertDeclaration(decl : *mut CSSDeclaration) {
+        unsafe {
 
-    const str = &mut converter.str;
+        const str = &mut converter.str;
 
-    str.append_view(&decl.property.name)
-    str.append(':')
+        str.append_view(&decl.property.name)
+        str.append(':')
 
-    converter.writeValue(&mut decl.value);
+        converter.writeValue(&mut decl.value);
     
-    if(decl.important) {
-        str.append_view(std::string_view(" !important"));
+        if(decl.important) {
+            str.append_view(std::string_view(" !important"));
+        }
+
+        str.append(';')
+
+
+        }
     }
-
-    str.append(';')
-
-}
 
 
 func append_media_root_selector(out : &mut std::string, className : std::string_view) {
-    if(className.empty()) return;
-    if(className.data()[0] == '.') {
-        out.append_view(&className);
-    } else {
-        out.append('.');
-        out.append_view(&className);
+        unsafe {
+        if(className.empty()) return;
+        if(className.data()[0] == '.') {
+            out.append_view(&className);
+        } else {
+            out.append('.');
+            out.append_view(&className);
+        }
+
+        }
     }
-}
 
 func (converter : &mut CSSRuntimeConverter) writeMediaNestedRule(rule : *mut CSSNestedRule, str : &mut std::string, parent_selectors : &mut std::vector<std::string>) {
-    var current_selectors = std::vector<std::string>();
+        unsafe {
+        var current_selectors = std::vector<std::string>();
 
-    if(rule.selector != null) {
-        var i : uint = 0;
-        while(i < rule.selector.selectors.size()) {
-            var sel = rule.selector.selectors.get(i);
-            if(has_ampersand_complex(sel) && !parent_selectors.empty()) {
-                var p : uint = 0;
-                while(p < parent_selectors.size()) {
+        if(rule.selector != null) {
+            var i : uint = 0;
+            while(i < rule.selector.selectors.size()) {
+                var sel = rule.selector.selectors.get(i);
+                if(has_ampersand_complex(sel) && !parent_selectors.empty()) {
+                    var p : uint = 0;
+                    while(p < parent_selectors.size()) {
+                        var resolved = std::string();
+                        serialize_complex(sel, &mut resolved, parent_selectors.get_ptr(p).view());
+                        current_selectors.push(resolved);
+                        p++;
+                    }
+                } else if(!parent_selectors.empty()) {
+                    // No &: CSS nesting semantics — implicit descendant of parent(s)
+                    var p : uint = 0;
+                    while(p < parent_selectors.size()) {
+                        var resolved = std::string();
+                        resolved.append_view(parent_selectors.get_ptr(p).view());
+                        resolved.append(' ');
+                        serialize_complex(sel, &mut resolved, std::string_view("&"));
+                        current_selectors.push(resolved);
+                        p++;
+                    }
+                } else {
                     var resolved = std::string();
-                    serialize_complex(sel, &mut resolved, parent_selectors.get_ptr(p).view());
-                    current_selectors.push(resolved);
-                    p++;
-                }
-            } else if(!parent_selectors.empty()) {
-                // No &: CSS nesting semantics — implicit descendant of parent(s)
-                var p : uint = 0;
-                while(p < parent_selectors.size()) {
-                    var resolved = std::string();
-                    resolved.append_view(parent_selectors.get_ptr(p).view());
-                    resolved.append(' ');
                     serialize_complex(sel, &mut resolved, std::string_view("&"));
                     current_selectors.push(resolved);
-                    p++;
                 }
-            } else {
-                var resolved = std::string();
-                serialize_complex(sel, &mut resolved, std::string_view("&"));
-                current_selectors.push(resolved);
-            }
-            i++;
-        }
-    }
-
-    if(!rule.declarations.empty()) {
-        var i : uint = 0;
-        while(i < current_selectors.size()) {
-            if(i > 0) str.append_view(", ");
-            str.append_view(current_selectors.get_ptr(i).view());
-            i++;
-        }
-        str.append_view(std::string_view(" { "));
-        i = 0;
-        while(i < rule.declarations.size()) {
-            converter.convertDeclaration(rule.declarations.get(i));
-            i++;
-        }
-        str.append_view(std::string_view(" } "));
-    }
-
-    var nested_i : uint = 0;
-    while(nested_i < rule.nested_rules.size()) {
-        converter.writeMediaNestedRule(rule.nested_rules.get(nested_i), str, &mut current_selectors);
-        nested_i++;
-    }
-}
-
-func (converter : &mut CSSRuntimeConverter) writeKeyframesRule(rule : *mut CSSKeyframesRule, str : &mut std::string) {
-    str.append_view(std::string_view("@keyframes "))
-    str.append_view(&rule.name)
-    str.append_view(std::string_view(" { "))
-
-    var i : uint = 0
-    while(i < rule.keyframes.size()) {
-        var keyframe = rule.keyframes.get(i)
-        str.append_view(&keyframe.selector)
-        str.append_view(std::string_view(" { "))
-        
-        var j : uint = 0
-        while(j < keyframe.declarations.size()) {
-            converter.convertDeclaration(keyframe.declarations.get(j))
-            j++
-        }
-        
-        str.append_view(std::string_view(" } "))
-        i++
-    }
-
-    str.append_view(std::string_view("}"))
-}
-
-func (converter : &mut CSSRuntimeConverter) writeMediaRule(rule : *mut CSSMediaRule, str : &mut std::string, className : std::string_view) {
-    str.append_view(std::string_view("@media "))
-    
-    // Serialize the media query list AST
-    converter.writeMediaQueryList(rule.queryList, str)
-    
-    str.append_view(std::string_view(" { "))
-
-    var parent_selectors = std::vector<std::string>();
-    if(!className.empty()) {
-        var root_selector = std::string();
-        append_media_root_selector(&mut root_selector, className);
-        parent_selectors.push(root_selector);
-
-        if(!rule.declarations.empty()) {
-            append_media_root_selector(str, className);
-            str.append_view(std::string_view(" { "))
-            var i : uint = 0
-            while(i < rule.declarations.size()) {
-                converter.convertDeclaration(rule.declarations.get(i))
                 i++;
             }
-            str.append_view(std::string_view(" } "))
+        }
+
+        if(!rule.declarations.empty()) {
+            var i : uint = 0;
+            while(i < current_selectors.size()) {
+                if(i > 0) str.append_view(", ");
+                str.append_view(current_selectors.get_ptr(i).view());
+                i++;
+            }
+            str.append_view(std::string_view(" { "));
+            i = 0;
+            while(i < rule.declarations.size()) {
+                converter.convertDeclaration(rule.declarations.get(i));
+                i++;
+            }
+            str.append_view(std::string_view(" } "));
+        }
+
+        var nested_i : uint = 0;
+        while(nested_i < rule.nested_rules.size()) {
+            converter.writeMediaNestedRule(rule.nested_rules.get(nested_i), str, &mut current_selectors);
+            nested_i++;
+        }
+
         }
     }
 
-    var nested_i : uint = 0;
-    while(nested_i < rule.nested_rules.size()) {
-        converter.writeMediaNestedRule(rule.nested_rules.get(nested_i), str, &mut parent_selectors);
-        nested_i++;
+func (converter : &mut CSSRuntimeConverter) writeKeyframesRule(rule : *mut CSSKeyframesRule, str : &mut std::string) {
+        unsafe {
+        str.append_view(std::string_view("@keyframes "))
+        str.append_view(&rule.name)
+        str.append_view(std::string_view(" { "))
+
+        var i : uint = 0
+        while(i < rule.keyframes.size()) {
+            var keyframe = rule.keyframes.get(i)
+            str.append_view(&keyframe.selector)
+            str.append_view(std::string_view(" { "))
+        
+            var j : uint = 0
+            while(j < keyframe.declarations.size()) {
+                converter.convertDeclaration(keyframe.declarations.get(j))
+                j++
+            }
+        
+            str.append_view(std::string_view(" } "))
+            i++
+        }
+
+        str.append_view(std::string_view("}"))
+
+        }
     }
 
-    str.append_view(std::string_view("}"))
-}
+func (converter : &mut CSSRuntimeConverter) writeMediaRule(rule : *mut CSSMediaRule, str : &mut std::string, className : std::string_view) {
+        unsafe {
+        str.append_view(std::string_view("@media "))
+    
+        // Serialize the media query list AST
+        converter.writeMediaQueryList(rule.queryList, str)
+    
+        str.append_view(std::string_view(" { "))
+
+        var parent_selectors = std::vector<std::string>();
+        if(!className.empty()) {
+            var root_selector = std::string();
+            append_media_root_selector(&mut root_selector, className);
+            parent_selectors.push(root_selector);
+
+            if(!rule.declarations.empty()) {
+                append_media_root_selector(str, className);
+                str.append_view(std::string_view(" { "))
+                var i : uint = 0
+                while(i < rule.declarations.size()) {
+                    converter.convertDeclaration(rule.declarations.get(i))
+                    i++;
+                }
+                str.append_view(std::string_view(" } "))
+            }
+        }
+
+        var nested_i : uint = 0;
+        while(nested_i < rule.nested_rules.size()) {
+            converter.writeMediaNestedRule(rule.nested_rules.get(nested_i), str, &mut parent_selectors);
+            nested_i++;
+        }
+
+        str.append_view(std::string_view("}"))
+
+        }
+    }
 
 
 func has_ampersand_simple(s : *mut SimpleSelector) : bool {
-    return s.kind == SimpleSelectorKind.Ampersand;
-}
-func has_ampersand_compound(c : *mut CompoundSelector) : bool {
-    var i : uint = 0;
-    while(i < c.simple_selectors.size()) {
-        if(has_ampersand_simple(c.simple_selectors.get(i))) return true;
-        i++;
+        unsafe {
+        return s.kind == SimpleSelectorKind.Ampersand;
+
+        }
     }
-    return false;
-}
+func has_ampersand_compound(c : *mut CompoundSelector) : bool {
+        unsafe {
+        var i : uint = 0;
+        while(i < c.simple_selectors.size()) {
+            if(has_ampersand_simple(c.simple_selectors.get(i))) return true;
+            i++;
+        }
+        return false;
+
+        }
+    }
 func has_ampersand_complex(c : *mut ComplexSelector) : bool {
-    if(has_ampersand_compound(c.compound)) return true;
-    if(c.next != null) return has_ampersand_complex(c.next);
-    return false;
-}
+        unsafe {
+        if(has_ampersand_compound(c.compound)) return true;
+        if(c.next != null) return has_ampersand_complex(c.next);
+        return false;
+
+        }
+    }
 
 // AST Serializers
 func serialize_simple(s : *mut SimpleSelector, out : &mut std::string, replacement : std::string_view) {
-    if(s.kind == SimpleSelectorKind.Ampersand) {
-        out.append_view(&replacement);
-        return;
+        unsafe {
+        if(s.kind == SimpleSelectorKind.Ampersand) {
+            out.append_view(&replacement);
+            return;
+        }
+        if(s.kind == SimpleSelectorKind.Class) out.append('.');
+        if(s.kind == SimpleSelectorKind.Id) out.append('#');
+        if(s.kind == SimpleSelectorKind.PseudoClass) {
+            out.append(':');
+        }
+        if(s.kind == SimpleSelectorKind.PseudoElement) {
+            out.append_view("::");
+        }
+        out.append_view(&s.value);
+        // TODO: Attribute selectors
+
+        }
     }
-    if(s.kind == SimpleSelectorKind.Class) out.append('.');
-    if(s.kind == SimpleSelectorKind.Id) out.append('#');
-    if(s.kind == SimpleSelectorKind.PseudoClass) {
-        out.append(':');
-    }
-    if(s.kind == SimpleSelectorKind.PseudoElement) {
-        out.append_view("::");
-    }
-    out.append_view(&s.value);
-    // TODO: Attribute selectors
-}
 func serialize_compound(c : *mut CompoundSelector, out : &mut std::string, replacement : std::string_view) {
-    var i : uint = 0;
-    while(i < c.simple_selectors.size()) {
-        serialize_simple(c.simple_selectors.get(i), out, replacement);
-        i++;
+        unsafe {
+        var i : uint = 0;
+        while(i < c.simple_selectors.size()) {
+            serialize_simple(c.simple_selectors.get(i), out, replacement);
+            i++;
+        }
+
+        }
     }
-}
 func serialize_complex(c : *mut ComplexSelector, out : &mut std::string, replacement : std::string_view) {
-    serialize_compound(c.compound, out, replacement);
-    if(c.next != null) {
-        if(c.combinator == Combinator.Descendant) out.append(' ');
-        else if(c.combinator == Combinator.Child) out.append_view(" > ");
-        else if(c.combinator == Combinator.NextSibling) out.append_view(" + ");
-        else if(c.combinator == Combinator.SubsequentSibling) out.append_view(" ~ ");
+        unsafe {
+        serialize_compound(c.compound, out, replacement);
+        if(c.next != null) {
+            if(c.combinator == Combinator.Descendant) out.append(' ');
+            else if(c.combinator == Combinator.Child) out.append_view(" > ");
+            else if(c.combinator == Combinator.NextSibling) out.append_view(" + ");
+            else if(c.combinator == Combinator.SubsequentSibling) out.append_view(" ~ ");
         
-        serialize_complex(c.next, out, replacement);
+            serialize_complex(c.next, out, replacement);
+        }
+
+        }
     }
-}
 
 
 
@@ -1614,116 +1662,128 @@ func writeComparisonOperator(op : MediaFeatureComparison, str : &mut std::string
 
 // Serialize media feature to string
 func (converter : &mut CSSRuntimeConverter) writeMediaFeature(feature : *mut MediaFeature, str : &mut std::string) {
-    str.append('(')
+        unsafe {
+        str.append('(')
     
-    // Check if this is range syntax
-    if(feature.leftOp != MediaFeatureComparison.None) {
-        // Range syntax: leftValue op feature [op rightValue]
-        if(feature.leftValue.kind != CSSValueKind.Unknown) {
-            converter.writeValue(&mut feature.leftValue)
-            str.append(' ')
-            writeComparisonOperator(feature.leftOp, str)
-            str.append(' ')
+        // Check if this is range syntax
+        if(feature.leftOp != MediaFeatureComparison.None) {
+            // Range syntax: leftValue op feature [op rightValue]
+            if(feature.leftValue.kind != CSSValueKind.Unknown) {
+                converter.writeValue(&mut feature.leftValue)
+                str.append(' ')
+                writeComparisonOperator(feature.leftOp, str)
+                str.append(' ')
+            }
+        
+            str.append_view(&feature.name)
+        
+            if(feature.rightOp != MediaFeatureComparison.None && feature.rightValue.kind != CSSValueKind.Unknown) {
+                str.append(' ')
+                writeComparisonOperator(feature.rightOp, str)
+                str.append(' ')
+                converter.writeValue(&mut feature.rightValue)
+            }
+        } else {
+            // Legacy syntax: feature-name or feature-name: value
+            str.append_view(&feature.name)
+        
+            if(feature.value.kind != CSSValueKind.Unknown) {
+                str.append(':')
+                str.append(' ')
+                converter.writeValue(&mut feature.value)
+            }
         }
-        
-        str.append_view(&feature.name)
-        
-        if(feature.rightOp != MediaFeatureComparison.None && feature.rightValue.kind != CSSValueKind.Unknown) {
-            str.append(' ')
-            writeComparisonOperator(feature.rightOp, str)
-            str.append(' ')
-            converter.writeValue(&mut feature.rightValue)
-        }
-    } else {
-        // Legacy syntax: feature-name or feature-name: value
-        str.append_view(&feature.name)
-        
-        if(feature.value.kind != CSSValueKind.Unknown) {
-            str.append(':')
-            str.append(' ')
-            converter.writeValue(&mut feature.value)
+    
+        str.append(')')
+
         }
     }
-    
-    str.append(')')
-}
 
 // Serialize media condition to string (recursive)
 func (converter : &mut CSSRuntimeConverter) writeMediaCondition(condition : *mut MediaCondition, str : &mut std::string) {
-    if(condition == null) {
-        return
-    }
-    
-    if(condition.isNot) {
-        str.append_view(std::string_view("not "))
-    }
-    
-    if(condition.feature != null) {
-        converter.writeMediaFeature(condition.feature, str)
-    }
-    
-    if(condition.next != null) {
-        switch(condition.op) {
-            MediaConditionOp.And => {
-                str.append_view(std::string_view(" and "))
-            }
-            MediaConditionOp.Or => {
-                str.append_view(std::string_view(" or "))
-            }
-            MediaConditionOp.None => {
-                // No operator
-            }
+        unsafe {
+        if(condition == null) {
+            return
         }
-        converter.writeMediaCondition(condition.next, str)
+    
+        if(condition.isNot) {
+            str.append_view(std::string_view("not "))
+        }
+    
+        if(condition.feature != null) {
+            converter.writeMediaFeature(condition.feature, str)
+        }
+    
+        if(condition.next != null) {
+            switch(condition.op) {
+                MediaConditionOp.And => {
+                    str.append_view(std::string_view(" and "))
+                }
+                MediaConditionOp.Or => {
+                    str.append_view(std::string_view(" or "))
+                }
+                MediaConditionOp.None => {
+                    // No operator
+                }
+            }
+            converter.writeMediaCondition(condition.next, str)
+        }
+
+        }
     }
-}
 
 // Serialize a single media query to string
 func (converter : &mut CSSRuntimeConverter) writeMediaQuery(query : *mut MediaQuery, str : &mut std::string) {
-    // Write modifier
-    switch(query.modifier) {
-        MediaModifier.Only => {
-            str.append_view(std::string_view("only "))
+        unsafe {
+        // Write modifier
+        switch(query.modifier) {
+            MediaModifier.Only => {
+                str.append_view(std::string_view("only "))
+            }
+            MediaModifier.Not => {
+                str.append_view(std::string_view("not "))
+            }
+            MediaModifier.None => {
+                // No modifier
+            }
         }
-        MediaModifier.Not => {
-            str.append_view(std::string_view("not "))
-        }
-        MediaModifier.None => {
-            // No modifier
-        }
-    }
     
-    // Write media type
-    if(query.mediaType != MediaType.Unknown || !query.customType.empty()) {
-        writeMediaType(query.mediaType, query.customType, str)
+        // Write media type
+        if(query.mediaType != MediaType.Unknown || !query.customType.empty()) {
+            writeMediaType(query.mediaType, query.customType, str)
         
+            if(query.condition != null) {
+                str.append_view(std::string_view(" and "))
+            }
+        }
+    
+        // Write condition
         if(query.condition != null) {
-            str.append_view(std::string_view(" and "))
+            converter.writeMediaCondition(query.condition, str)
+        }
+
         }
     }
-    
-    // Write condition
-    if(query.condition != null) {
-        converter.writeMediaCondition(query.condition, str)
-    }
-}
 
 // Serialize media query list to string
 func (converter : &mut CSSRuntimeConverter) writeMediaQueryList(queryList : *mut MediaQueryList, str : &mut std::string) {
-    var i : uint = 0
-    const size = queryList.queries.size()
+        unsafe {
+        var i : uint = 0
+        const size = queryList.queries.size()
     
-    while(i < size) {
-        if(i > 0) {
-            str.append_view(std::string_view(", "))
+        while(i < size) {
+            if(i > 0) {
+                str.append_view(std::string_view(", "))
+            }
+        
+            var query = queryList.queries.get(i)
+            converter.writeMediaQuery(query, str)
+        
+            i++
         }
-        
-        var query = queryList.queries.get(i)
-        converter.writeMediaQuery(query, str)
-        
-        i++
+
+        }
     }
-}
 
 /**
  * Runtime entry point: walks a parsed CSSOM and appends the CSS text into `out`.
@@ -1732,43 +1792,46 @@ func (converter : &mut CSSRuntimeConverter) writeMediaQueryList(queryList : *mut
  * block; nested rules, media queries and keyframes keep their selectors.
  */
 public func convert_css_root(root : *mut CSSOM, out : &mut std::string) {
-    var converter = CSSRuntimeConverter { str : std::string() }
+        unsafe {
+        var converter = CSSRuntimeConverter { str : std::string() }
 
-    // root declarations -> bare block (no selector available at runtime)
-    if(root.declarations.size() > 0) {
-        converter.str.append('{')
-        converter.str.append(' ')
-        var i : uint = 0
-        while(i < root.declarations.size()) {
-            converter.convertDeclaration(root.declarations.get(i))
-            i++
+        // root declarations -> bare block (no selector available at runtime)
+        if(root.declarations.size() > 0) {
+            converter.str.append('{')
+            converter.str.append(' ')
+            var i : uint = 0
+            while(i < root.declarations.size()) {
+                converter.convertDeclaration(root.declarations.get(i))
+                i++
+            }
+            converter.str.append(' ')
+            converter.str.append('}')
         }
-        converter.str.append(' ')
-        converter.str.append('}')
-    }
 
-    // nested rules
-    var parents = std::vector<std::string>()
-    var n : uint = 0
-    while(n < root.nested_rules.size()) {
-        converter.writeMediaNestedRule(root.nested_rules.get(n), &mut converter.str, &mut parents)
-        n++
-    }
+        // nested rules
+        var parents = std::vector<std::string>()
+        var n : uint = 0
+        while(n < root.nested_rules.size()) {
+            converter.writeMediaNestedRule(root.nested_rules.get(n), &mut converter.str, &mut parents)
+            n++
+        }
 
-    // media rules
-    var m : uint = 0
-    while(m < root.media_queries.size()) {
-        converter.writeMediaRule(root.media_queries.get(m), &mut converter.str, std::string_view(""))
-        m++
-    }
+        // media rules
+        var m : uint = 0
+        while(m < root.media_queries.size()) {
+            converter.writeMediaRule(root.media_queries.get(m), &mut converter.str, std::string_view(""))
+            m++
+        }
 
-    // keyframes
-    var k : uint = 0
-    while(k < root.keyframes.size()) {
-        converter.writeKeyframesRule(root.keyframes.get(k), &mut converter.str)
-        k++
-    }
+        // keyframes
+        var k : uint = 0
+        while(k < root.keyframes.size()) {
+            converter.writeKeyframesRule(root.keyframes.get(k), &mut converter.str)
+            k++
+        }
 
-    const v = converter.str.view()
-    out.append_view(&v)
-}
+        const v = converter.str.view()
+        out.append_view(&v)
+
+        }
+    }

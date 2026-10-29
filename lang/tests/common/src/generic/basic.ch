@@ -306,7 +306,7 @@ struct GenFuncProvider<T : Copy> {
 struct GenFuncDelegateProvider<T> {
     var ptr : *mut GenFuncProvider<T>
     func get_value(&self) : T {
-        return ptr.give_value()
+        unsafe { return ptr.give_value() }
     }
 }
 

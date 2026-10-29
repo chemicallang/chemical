@@ -151,9 +151,12 @@ public func compiler_IndexOperatorget_idx_ptr(idx : *mut IndexOperator) : *mut *
 
 @no_mangle
 public func compiler_ASTBuilderallocate_with_cleanup(builder : *mut ASTBuilder, obj_size : size_t, alignment : size_t, cleanup_fn : (obj : *void) => void) : *mut void {
-    const allocator = builder.allocator as *mut ASTAllocator
-    return allocator.allocate_with_cleanup(obj_size, alignment, cleanup_fn)
-}
+        unsafe {
+        const allocator = builder.allocator as *mut ASTAllocator
+        return allocator.allocate_with_cleanup(obj_size, alignment, cleanup_fn)
+
+        }
+    }
 
 // ---------------------------------------------------------------------------
 // Lexer / ModuleScope struct methods referenced by the html_parser lexer and

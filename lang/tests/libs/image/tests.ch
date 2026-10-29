@@ -87,11 +87,14 @@ public func image_get_rgba_on_rgb_should_error(env : &mut TestEnv) {
 
 @test
 public func image_pixels_pointer_works(env : &mut TestEnv) {
-    var img = image::image_create_rgba(10, 10)
-    var pix = image::image_pixels(&raw mut img)
-    pix[0] = 128
-    if(image::image_pixels(&raw mut img)[0] != 128) { env.error("pixel pointer") }
-}
+        unsafe {
+        var img = image::image_create_rgba(10, 10)
+        var pix = image::image_pixels(&raw mut img)
+        pix[0] = 128
+        if(image::image_pixels(&raw mut img)[0] != 128) { env.error("pixel pointer") }
+
+        }
+    }
 
 // ═══════════════════════════════════════════════════════════════
 // Image operations
@@ -111,23 +114,29 @@ public func image_fill_works(env : &mut TestEnv) {
 
 @test
 public func image_fill_rgb_works(env : &mut TestEnv) {
-    var img = image::image_create_rgb(10, 10)
-    var white = image::RGBA8.make(255, 128, 64, 255)
-    image::image_fill(&raw mut img, white)
-    var pix = image::image_pixels(&raw mut img)
-    if(pix[0] != 255) { env.error("fill RGB red") }
-    if(pix[1] != 128) { env.error("fill RGB green") }
-    if(pix[2] != 64) { env.error("fill RGB blue") }
-}
+        unsafe {
+        var img = image::image_create_rgb(10, 10)
+        var white = image::RGBA8.make(255, 128, 64, 255)
+        image::image_fill(&raw mut img, white)
+        var pix = image::image_pixels(&raw mut img)
+        if(pix[0] != 255) { env.error("fill RGB red") }
+        if(pix[1] != 128) { env.error("fill RGB green") }
+        if(pix[2] != 64) { env.error("fill RGB blue") }
+
+        }
+    }
 
 @test
 public func image_fill_gray_works(env : &mut TestEnv) {
-    var img = image::image_create_gray(10, 10)
-    var white = image::RGBA8.make(200, 100, 50, 255)
-    image::image_fill(&raw mut img, white)
-    var pix = image::image_pixels(&raw mut img)
-    if(pix[0] != 200) { env.error("fill gray value") }
-}
+        unsafe {
+        var img = image::image_create_gray(10, 10)
+        var white = image::RGBA8.make(200, 100, 50, 255)
+        image::image_fill(&raw mut img, white)
+        var pix = image::image_pixels(&raw mut img)
+        if(pix[0] != 200) { env.error("fill gray value") }
+
+        }
+    }
 
 @test
 public func image_copy_works(env : &mut TestEnv) {
@@ -422,143 +431,164 @@ public func image_error_messages_work(env : &mut TestEnv) {
 // ═══════════════════════════════════════════════════════════════
 
 func write_u32_le_util(out : *mut u8, offset : size_t, val : u32) {
-    out[offset] = (val & 0xFFu32) as u8
-    out[offset + 1] = ((val >> 8) & 0xFFu32) as u8
-    out[offset + 2] = ((val >> 16) & 0xFFu32) as u8
-    out[offset + 3] = ((val >> 24) & 0xFFu32) as u8
-}
+        unsafe {
+        out[offset] = (val & 0xFFu32) as u8
+        out[offset + 1] = ((val >> 8) & 0xFFu32) as u8
+        out[offset + 2] = ((val >> 16) & 0xFFu32) as u8
+        out[offset + 3] = ((val >> 24) & 0xFFu32) as u8
+
+        }
+    }
 
 func write_u16_le_util(out : *mut u8, offset : size_t, val : u16) {
-    out[offset] = (val & 0xFFu16) as u8
-    out[offset + 1] = ((val >> 8) & 0xFFu16) as u8
-}
+        unsafe {
+        out[offset] = (val & 0xFFu16) as u8
+        out[offset + 1] = ((val >> 8) & 0xFFu16) as u8
+
+        }
+    }
 
 // ═══════════════════════════════════════════════════════════════
 // PNG infrastructure
 // ═══════════════════════════════════════════════════════════════
 
 func png_write_be32(out : *mut u8, off : size_t, val : u32) {
-    out[off] = ((val >> 24) & 0xFFu32) as u8
-    out[off + 1] = ((val >> 16) & 0xFFu32) as u8
-    out[off + 2] = ((val >> 8) & 0xFFu32) as u8
-    out[off + 3] = (val & 0xFFu32) as u8
-}
+        unsafe {
+        out[off] = ((val >> 24) & 0xFFu32) as u8
+        out[off + 1] = ((val >> 16) & 0xFFu32) as u8
+        out[off + 2] = ((val >> 8) & 0xFFu32) as u8
+        out[off + 3] = (val & 0xFFu32) as u8
+
+        }
+    }
 
 func png_crc32_for_test(data : *u8, data_len : size_t) : u32 {
-    var crc : u32 = 0xFFFFFFFFu32
-    var i : size_t = 0
-    while(i < data_len) {
-        var idx = (crc ^ (data[i] as u32)) & 0xFFu32
-        var c : u32 = idx
-        var j : u32 = 0
-        while(j < 8) {
-            if(c & 1u32 != 0) { c = (c >> 1) ^ 0xEDB88320u32 } else { c = c >> 1 }
-            j += 1
+        unsafe {
+        var crc : u32 = 0xFFFFFFFFu32
+        var i : size_t = 0
+        while(i < data_len) {
+            var idx = (crc ^ (data[i] as u32)) & 0xFFu32
+            var c : u32 = idx
+            var j : u32 = 0
+            while(j < 8) {
+                if(c & 1u32 != 0) { c = (c >> 1) ^ 0xEDB88320u32 } else { c = c >> 1 }
+                j += 1
+            }
+            crc = c ^ (crc >> 8)
+            i += 1
         }
-        crc = c ^ (crc >> 8)
-        i += 1
+        return crc ^ 0xFFFFFFFFu32
+
+        }
     }
-    return crc ^ 0xFFFFFFFFu32
-}
 
 func build_test_png_chunk(out : *mut u8, pos : *mut size_t, type0 : u8, type1 : u8, type2 : u8, type3 : u8, data : *u8, data_len : size_t) {
-    png_write_be32(out, pos[0], data_len as u32)
-    pos[0] += 4
-    out[pos[0]] = type0
-    out[pos[0] + 1] = type1
-    out[pos[0] + 2] = type2
-    out[pos[0] + 3] = type3
-    pos[0] += 4
-    var i : size_t = 0
-    while(i < data_len) {
-        out[pos[0] + i] = data[i]
-        i += 1
+        unsafe {
+        png_write_be32(out, pos[0], data_len as u32)
+        pos[0] += 4
+        out[pos[0]] = type0
+        out[pos[0] + 1] = type1
+        out[pos[0] + 2] = type2
+        out[pos[0] + 3] = type3
+        pos[0] += 4
+        var i : size_t = 0
+        while(i < data_len) {
+            out[pos[0] + i] = data[i]
+            i += 1
+        }
+        pos[0] += data_len
+        var crc = png_crc32_for_test(out + pos[0] - data_len - 4, data_len + 4)
+        png_write_be32(out, pos[0], crc)
+        pos[0] += 4
+
+        }
     }
-    pos[0] += data_len
-    var crc = png_crc32_for_test(out + pos[0] - data_len - 4, data_len + 4)
-    png_write_be32(out, pos[0], crc)
-    pos[0] += 4
-}
 
 func build_tiny_png_generic(width : int, height : int, bpp : int, color_type : u8, raw_data : *u8, raw_len : size_t, do_compress : bool) : vector<u8> {
-    var raw_size = raw_len
-    var deflate_cap = raw_size + (raw_size / 65535 + 1) * 5 + 10
-    var compressed = vector<u8>()
-    compressed.resize(deflate_cap as size_t)
-    var cp = compressed.data() as *mut u8
-    var cpos : size_t = 0
-    cp[cpos] = 0x78u8; cp[cpos + 1] = 0x01u8; cpos += 2
+        unsafe {
+        var raw_size = raw_len
+        var deflate_cap = raw_size + (raw_size / 65535 + 1) * 5 + 10
+        var compressed = vector<u8>()
+        compressed.resize(deflate_cap as size_t)
+        var cp = compressed.data() as *mut u8
+        var cpos : size_t = 0
+        cp[cpos] = 0x78u8; cp[cpos + 1] = 0x01u8; cpos += 2
 
-    var src_pos : size_t = 0
-    while(src_pos < raw_size as size_t) {
-        var blk : size_t = (raw_size as size_t) - src_pos
-        if(blk > 65535) { blk = 65535 }
-        var last = (src_pos + blk >= raw_size)
-        var bfinal : u8 = 0
-        if(last) { bfinal = 1 }
-        cp[cpos] = bfinal; cpos += 1
-        cp[cpos] = (blk & 0xFFu16) as u8; cp[cpos + 1] = ((blk >> 8) & 0xFFu16) as u8
-        var nlen = blk ^ 0xFFFFu16
-        cp[cpos + 2] = (nlen & 0xFFu16) as u8; cp[cpos + 3] = ((nlen >> 8) & 0xFFu16) as u8
-        cpos += 4
-        var i : size_t = 0
-        while(i < blk) { cp[cpos] = raw_data[src_pos + i]; cpos += 1; i += 1 }
-        src_pos += blk
+        var src_pos : size_t = 0
+        while(src_pos < raw_size as size_t) {
+            var blk : size_t = (raw_size as size_t) - src_pos
+            if(blk > 65535) { blk = 65535 }
+            var last = (src_pos + blk >= raw_size)
+            var bfinal : u8 = 0
+            if(last) { bfinal = 1 }
+            cp[cpos] = bfinal; cpos += 1
+            cp[cpos] = (blk & 0xFFu16) as u8; cp[cpos + 1] = ((blk >> 8) & 0xFFu16) as u8
+            var nlen = blk ^ 0xFFFFu16
+            cp[cpos + 2] = (nlen & 0xFFu16) as u8; cp[cpos + 3] = ((nlen >> 8) & 0xFFu16) as u8
+            cpos += 4
+            var i : size_t = 0
+            while(i < blk) { cp[cpos] = raw_data[src_pos + i]; cpos += 1; i += 1 }
+            src_pos += blk
+        }
+        // adler32
+        var a : u32 = 1u32; var b : u32 = 0u32
+        src_pos = 0
+        while(src_pos < raw_size) {
+            a = (a + (raw_data[src_pos] as u32)) % 65521u32
+            b = (b + a) % 65521u32
+            src_pos += 1
+        }
+        var chk = (b << 16) | a
+        png_write_be32(cp, cpos, chk); cpos += 4
+
+        // IHDR
+        var ihdr : [13]u8
+        png_write_be32(&raw mut ihdr[0], 0, width as u32)
+        png_write_be32(&raw mut ihdr[0], 4, height as u32)
+        ihdr[8] = 8; ihdr[9] = color_type; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0
+
+        var total = 8 + 25 + (8 + 4 + cpos + 4) + 12
+        var png = vector<u8>()
+        png.resize(total as size_t)
+        var fp = png.data() as *mut u8
+        var wp : size_t = 0
+
+        var sig : [8]u8 = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+        var si : int = 0
+        while(si < 8) { fp[si] = sig[si]; si += 1 }
+        wp = 8
+
+        build_test_png_chunk(fp, &raw mut wp, 'I', 'H', 'D', 'R', &raw mut ihdr[0], 13)
+        build_test_png_chunk(fp, &raw mut wp, 'I', 'D', 'A', 'T', cp, cpos)
+        build_test_png_chunk(fp, &raw mut wp, 'I', 'E', 'N', 'D', null, 0)
+        return png
+
+        }
     }
-    // adler32
-    var a : u32 = 1u32; var b : u32 = 0u32
-    src_pos = 0
-    while(src_pos < raw_size) {
-        a = (a + (raw_data[src_pos] as u32)) % 65521u32
-        b = (b + a) % 65521u32
-        src_pos += 1
-    }
-    var chk = (b << 16) | a
-    png_write_be32(cp, cpos, chk); cpos += 4
-
-    // IHDR
-    var ihdr : [13]u8
-    png_write_be32(&raw mut ihdr[0], 0, width as u32)
-    png_write_be32(&raw mut ihdr[0], 4, height as u32)
-    ihdr[8] = 8; ihdr[9] = color_type; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0
-
-    var total = 8 + 25 + (8 + 4 + cpos + 4) + 12
-    var png = vector<u8>()
-    png.resize(total as size_t)
-    var fp = png.data() as *mut u8
-    var wp : size_t = 0
-
-    var sig : [8]u8 = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
-    var si : int = 0
-    while(si < 8) { fp[si] = sig[si]; si += 1 }
-    wp = 8
-
-    build_test_png_chunk(fp, &raw mut wp, 'I', 'H', 'D', 'R', &raw mut ihdr[0], 13)
-    build_test_png_chunk(fp, &raw mut wp, 'I', 'D', 'A', 'T', cp, cpos)
-    build_test_png_chunk(fp, &raw mut wp, 'I', 'E', 'N', 'D', null, 0)
-    return png
-}
 
 func build_tiny_uncompressed_png(width : int, height : int, channels : int, color_type : u8) : vector<u8> {
-    var bpp = channels
-    var row_bytes = width * bpp
-    var raw_size = (row_bytes + 1) * height
-    var raw_scanlines = vector<u8>()
-    raw_scanlines.resize(raw_size as size_t)
-    var rp = raw_scanlines.data() as *mut u8
-    var y : int = 0
-    while(y < height) {
-        var row_off = (y as size_t) * (row_bytes as size_t + 1)
-        rp[row_off] = 0
-        var c : size_t = 0
-        while(c < row_bytes as size_t) {
-            rp[row_off + 1 + c] = ((y * channels + c) % 256) as u8
-            c += 1
+        unsafe {
+        var bpp = channels
+        var row_bytes = width * bpp
+        var raw_size = (row_bytes + 1) * height
+        var raw_scanlines = vector<u8>()
+        raw_scanlines.resize(raw_size as size_t)
+        var rp = raw_scanlines.data() as *mut u8
+        var y : int = 0
+        while(y < height) {
+            var row_off = (y as size_t) * (row_bytes as size_t + 1)
+            rp[row_off] = 0
+            var c : size_t = 0
+            while(c < row_bytes as size_t) {
+                rp[row_off + 1 + c] = ((y * channels + c) % 256) as u8
+                c += 1
+            }
+            y += 1
         }
-        y += 1
+        return build_tiny_png_generic(width, height, bpp, color_type, raw_scanlines.data(), raw_size as size_t, true)
+
+        }
     }
-    return build_tiny_png_generic(width, height, bpp, color_type, raw_scanlines.data(), raw_size as size_t, true)
-}
 
 // ═══════════════════════════════════════════════════════════════
 // PNG parsing tests
@@ -611,29 +641,32 @@ public func image_parse_tiny_png_grayscale_alpha(env : &mut TestEnv) {
 
 @test
 public func image_parse_png_pixel_values(env : &mut TestEnv) {
-    var channels = 3
-    var width = 2
-    var height = 1
-    var raw_size = (width * channels + 1) * height
-    var raw_buf = vector<u8>()
-    raw_buf.resize(raw_size as size_t)
-    var rp = raw_buf.data() as *mut u8
-    rp[0] = 0
-    rp[1] = 10; rp[2] = 20; rp[3] = 30
-    rp[4] = 40; rp[5] = 50; rp[6] = 60
+        unsafe {
+        var channels = 3
+        var width = 2
+        var height = 1
+        var raw_size = (width * channels + 1) * height
+        var raw_buf = vector<u8>()
+        raw_buf.resize(raw_size as size_t)
+        var rp = raw_buf.data() as *mut u8
+        rp[0] = 0
+        rp[1] = 10; rp[2] = 20; rp[3] = 30
+        rp[4] = 40; rp[5] = 50; rp[6] = 60
 
-    var png = build_tiny_png_generic(width, height, channels, 2u8, raw_buf.data(), raw_size as size_t, true)
-    var result = image::parse_png(png.data(), png.size())
-    if(result is Result.Err) { env.error("parse should succeed"); return }
-    var Ok(img) = result else unreachable
-    var pix = image::image_pixels(&raw mut img)
-    if(pix[0] != 10) { env.error("pixel 0 R should be 10") }
-    if(pix[1] != 20) { env.error("pixel 0 G should be 20") }
-    if(pix[2] != 30) { env.error("pixel 0 B should be 30") }
-    if(pix[3] != 40) { env.error("pixel 1 R should be 40") }
-    if(pix[4] != 50) { env.error("pixel 1 G should be 50") }
-    if(pix[5] != 60) { env.error("pixel 1 B should be 60") }
-}
+        var png = build_tiny_png_generic(width, height, channels, 2u8, raw_buf.data(), raw_size as size_t, true)
+        var result = image::parse_png(png.data(), png.size())
+        if(result is Result.Err) { env.error("parse should succeed"); return }
+        var Ok(img) = result else unreachable
+        var pix = image::image_pixels(&raw mut img)
+        if(pix[0] != 10) { env.error("pixel 0 R should be 10") }
+        if(pix[1] != 20) { env.error("pixel 0 G should be 20") }
+        if(pix[2] != 30) { env.error("pixel 0 B should be 30") }
+        if(pix[3] != 40) { env.error("pixel 1 R should be 40") }
+        if(pix[4] != 50) { env.error("pixel 1 G should be 50") }
+        if(pix[5] != 60) { env.error("pixel 1 B should be 60") }
+
+        }
+    }
 
 @test
 public func image_png_invalid_signature(env : &mut TestEnv) {
@@ -735,24 +768,27 @@ public func image_encode_png_roundtrip(env : &mut TestEnv) {
 
 @test
 public func image_encode_png_rgb_roundtrip(env : &mut TestEnv) {
-    var img = image::image_create_rgb(3, 3)
-    var green = image::RGBA8.make(0, 255, 0, 255)
-    image::image_fill(&raw mut img, green)
+        unsafe {
+        var img = image::image_create_rgb(3, 3)
+        var green = image::RGBA8.make(0, 255, 0, 255)
+        image::image_fill(&raw mut img, green)
 
-    var encode_result = image::encode_png(&raw mut img)
-    if(encode_result is Result.Err) { env.error("encode_png RGB should succeed"); return }
-    var Ok(bytes) = encode_result else unreachable
+        var encode_result = image::encode_png(&raw mut img)
+        if(encode_result is Result.Err) { env.error("encode_png RGB should succeed"); return }
+        var Ok(bytes) = encode_result else unreachable
 
-    var parse_result = image::parse_png(bytes.data(), bytes.size())
-    if(parse_result is Result.Err) { env.error("parse encoded RGB PNG should succeed"); return }
-    var Ok(parsed) = parse_result else unreachable
+        var parse_result = image::parse_png(bytes.data(), bytes.size())
+        if(parse_result is Result.Err) { env.error("parse encoded RGB PNG should succeed"); return }
+        var Ok(parsed) = parse_result else unreachable
 
-    if(image::image_channels(&raw mut parsed) != 3) { env.error("RGB roundtrip channels") }
-    var pix = image::image_pixels(&raw mut parsed)
-    if(pix[0] != 0) { env.error("roundtrip R") }
-    if(pix[1] != 255) { env.error("roundtrip G") }
-    if(pix[2] != 0) { env.error("roundtrip B") }
-}
+        if(image::image_channels(&raw mut parsed) != 3) { env.error("RGB roundtrip channels") }
+        var pix = image::image_pixels(&raw mut parsed)
+        if(pix[0] != 0) { env.error("roundtrip R") }
+        if(pix[1] != 255) { env.error("roundtrip G") }
+        if(pix[2] != 0) { env.error("roundtrip B") }
+
+        }
+    }
 
 @test
 public func image_encode_bmp_roundtrip(env : &mut TestEnv) {
@@ -785,57 +821,63 @@ public func image_encode_bmp_roundtrip(env : &mut TestEnv) {
 
 @test
 public func image_encode_ppm_roundtrip(env : &mut TestEnv) {
-    var img = image::image_create_rgb(4, 4)
-    var red = image::RGBA8.make(255, 0, 0, 255)
-    image::image_fill(&raw mut img, red)
+        unsafe {
+        var img = image::image_create_rgb(4, 4)
+        var red = image::RGBA8.make(255, 0, 0, 255)
+        image::image_fill(&raw mut img, red)
 
-    var encode_result = image::encode_ppm(&raw mut img)
-    if(encode_result is Result.Err) { env.error("encode_ppm should succeed"); return }
-    var Ok(bytes) = encode_result else unreachable
+        var encode_result = image::encode_ppm(&raw mut img)
+        if(encode_result is Result.Err) { env.error("encode_ppm should succeed"); return }
+        var Ok(bytes) = encode_result else unreachable
 
-    // Verify P6 magic
-    if(bytes.size() < 2) { env.error("encoded PPM too small") }
-    if(bytes.get(0) != 0x50u8 || bytes.get(1) != 0x36u8) { env.error("PPM magic should be P6") }
+        // Verify P6 magic
+        if(bytes.size() < 2) { env.error("encoded PPM too small") }
+        if(bytes.get(0) != 0x50u8 || bytes.get(1) != 0x36u8) { env.error("PPM magic should be P6") }
 
-    // Parse back
-    var parse_result = image::parse_ppm(bytes.data(), bytes.size())
-    if(parse_result is Result.Err) { env.error("parse encoded PPM should succeed"); return }
-    var Ok(parsed) = parse_result else unreachable
+        // Parse back
+        var parse_result = image::parse_ppm(bytes.data(), bytes.size())
+        if(parse_result is Result.Err) { env.error("parse encoded PPM should succeed"); return }
+        var Ok(parsed) = parse_result else unreachable
 
-    if(image::image_width(&raw mut parsed) != 4) { env.error("PPM roundtrip width") }
-    if(image::image_height(&raw mut parsed) != 4) { env.error("PPM roundtrip height") }
+        if(image::image_width(&raw mut parsed) != 4) { env.error("PPM roundtrip width") }
+        if(image::image_height(&raw mut parsed) != 4) { env.error("PPM roundtrip height") }
 
-    var pix = image::image_pixels(&raw mut parsed)
-    if(pix[0] != 255) { env.error("PPM roundtrip R") }
-    if(pix[1] != 0) { env.error("PPM roundtrip G") }
-    if(pix[2] != 0) { env.error("PPM roundtrip B") }
-}
+        var pix = image::image_pixels(&raw mut parsed)
+        if(pix[0] != 255) { env.error("PPM roundtrip R") }
+        if(pix[1] != 0) { env.error("PPM roundtrip G") }
+        if(pix[2] != 0) { env.error("PPM roundtrip B") }
+
+        }
+    }
 
 // ═══════════════════════════════════════════════════════════════
 // BMP tests
 // ═══════════════════════════════════════════════════════════════
 
 func build_minimal_bmp(width : int, height : int, bpp : int) : vector<u8> {
-    var row_size = (((bpp * width + 31) / 32) * 4)
-    var pixel_data_size = row_size * height
-    var file_size = 54 + pixel_data_size
+        unsafe {
+        var row_size = (((bpp * width + 31) / 32) * 4)
+        var pixel_data_size = row_size * height
+        var file_size = 54 + pixel_data_size
 
-    var file_data = vector<u8>()
-    file_data.resize(file_size as size_t)
-    var fptr = file_data.data() as *mut u8
+        var file_data = vector<u8>()
+        file_data.resize(file_size as size_t)
+        var fptr = file_data.data() as *mut u8
 
-    fptr[0] = 'B' as u8; fptr[1] = 'M' as u8
-    write_u32_le_util(fptr, 2, file_size as u32)
-    write_u32_le_util(fptr, 10, 54)
-    write_u32_le_util(fptr, 14, 40)
-    write_u32_le_util(fptr, 18, width as u32)
-    write_u32_le_util(fptr, 22, height as u32)
-    write_u16_le_util(fptr, 26, 1)
-    write_u16_le_util(fptr, 28, bpp as u16)
-    write_u32_le_util(fptr, 30, 0)
+        fptr[0] = 'B' as u8; fptr[1] = 'M' as u8
+        write_u32_le_util(fptr, 2, file_size as u32)
+        write_u32_le_util(fptr, 10, 54)
+        write_u32_le_util(fptr, 14, 40)
+        write_u32_le_util(fptr, 18, width as u32)
+        write_u32_le_util(fptr, 22, height as u32)
+        write_u16_le_util(fptr, 26, 1)
+        write_u16_le_util(fptr, 28, bpp as u16)
+        write_u32_le_util(fptr, 30, 0)
 
-    return file_data
-}
+        return file_data
+
+        }
+    }
 
 @test
 public func image_bmp_invalid_signature(env : &mut TestEnv) {
@@ -923,26 +965,29 @@ public func image_ppm_invalid_magic(env : &mut TestEnv) {
 
 @test
 public func image_ppm_save_load_p6_roundtrip(env : &mut TestEnv) {
-    var img = image::image_create_rgb(8, 8)
-    var i : int = 0
-    while(i < 8 * 8) {
-        var p = image::image_pixels(&raw mut img)
-        p[i * 3] = 0 as u8
-        p[i * 3 + 1] = 255 as u8
-        p[i * 3 + 2] = 0 as u8
-        i += 1
+        unsafe {
+        var img = image::image_create_rgb(8, 8)
+        var i : int = 0
+        while(i < 8 * 8) {
+            var p = image::image_pixels(&raw mut img)
+            p[i * 3] = 0 as u8
+            p[i * 3 + 1] = 255 as u8
+            p[i * 3 + 2] = 0 as u8
+            i += 1
+        }
+
+        var ppm_path = make_temp_test_path("test_ppm.ppm")
+        var save_result = image::save_ppm(&raw mut img, ppm_path.data())
+        if(save_result is Result.Err) { env.error("PPM save failed"); return }
+
+        var load_result = image::load_ppm(ppm_path.data())
+        if(load_result is Result.Err) { env.error("PPM load failed"); return }
+        var Ok(loaded) = load_result else unreachable
+        if(image::image_width(&raw mut loaded) != 8) { env.error("width should be 8") }
+        if(image::image_channels(&raw mut loaded) != 3) { env.error("should be 3 channels") }
+
+        }
     }
-
-    var ppm_path = make_temp_test_path("test_ppm.ppm")
-    var save_result = image::save_ppm(&raw mut img, ppm_path.data())
-    if(save_result is Result.Err) { env.error("PPM save failed"); return }
-
-    var load_result = image::load_ppm(ppm_path.data())
-    if(load_result is Result.Err) { env.error("PPM load failed"); return }
-    var Ok(loaded) = load_result else unreachable
-    if(image::image_width(&raw mut loaded) != 8) { env.error("width should be 8") }
-    if(image::image_channels(&raw mut loaded) != 3) { env.error("should be 3 channels") }
-}
 
 @test
 public func image_ppm_parse_p3_ascii(env : &mut TestEnv) {

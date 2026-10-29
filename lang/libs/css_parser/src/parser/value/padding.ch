@@ -3,42 +3,45 @@ func (cssParser : &mut CSSParser) parsePadding(
     builder : *mut ASTBuilder,
     value : &mut CSSValue
 ) {
+        unsafe {
 
-    if(cssParser.parseLength(parser, builder, value)) {
+        if(cssParser.parseLength(parser, builder, value)) {
 
-        const tok = parser.getToken();
-        if(tok.type == TokenType.Semicolon) {
-            return;
-        }
-
-        var multiple = builder.allocate<CSSMultipleValues>()
-        new (multiple) CSSMultipleValues {
-            values : std::vector<CSSValue>()
-        }
-
-        multiple.values.push(*value)
-        value.kind = CSSValueKind.Multiple
-        value.data = multiple
-
-        var i = 0;
-        while(i < 4) {
-            var next : CSSValue
-            if(cssParser.parseLength(parser, builder, unsafe(&mut next))) {
-
-                multiple.values.push(next)
-                i++;
-
-            } else {
-                const next2 = parser.getToken();
-                if(next2.type != TokenType.Semicolon) {
-                    parser.error("unknown value for padding");
-                }
-                break;
+            const tok = parser.getToken();
+            if(tok.type == TokenType.Semicolon) {
+                return;
             }
+
+            var multiple = builder.allocate<CSSMultipleValues>()
+            new (multiple) CSSMultipleValues {
+                values : std::vector<CSSValue>()
+            }
+
+            multiple.values.push(*value)
+            value.kind = CSSValueKind.Multiple
+            value.data = multiple
+
+            var i = 0;
+            while(i < 4) {
+                var next : CSSValue
+                if(cssParser.parseLength(parser, builder, unsafe(&mut next))) {
+
+                    multiple.values.push(next)
+                    i++;
+
+                } else {
+                    const next2 = parser.getToken();
+                    if(next2.type != TokenType.Semicolon) {
+                        parser.error("unknown value for padding");
+                    }
+                    break;
+                }
+            }
+
+        } else {
+            parser.error("unknown value for padding");
         }
 
-    } else {
-        parser.error("unknown value for padding");
-    }
 
-}
+        }
+    }

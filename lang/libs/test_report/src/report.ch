@@ -32,37 +32,67 @@ public comptime const ANSI_GRAY =   "\x1b[90m"
 var colors_enabled : bool = false
 
 public func enable_terminal_colors() : bool {
-    // TODO: enable VT processing on Windows 10+ so ANSI codes work.
-    return true
-}
+        unsafe {
+        // TODO: enable VT processing on Windows 10+ so ANSI codes work.
+        return true
+
+        }
+    }
 
 func col_reset() : *char {
-    if(colors_enabled) return ANSI_RESET else return "";
-}
+        unsafe {
+        if(colors_enabled) return ANSI_RESET else return "";
+
+        }
+    }
 func col_bold() : *char  {
-    if(colors_enabled) return ANSI_BOLD else return "";
-}
+        unsafe {
+        if(colors_enabled) return ANSI_BOLD else return "";
+
+        }
+    }
 func col_red() : *char   {
-    if(colors_enabled) return ANSI_RED else return "";
-}
+        unsafe {
+        if(colors_enabled) return ANSI_RED else return "";
+
+        }
+    }
 func col_green() : *char {
-    if(colors_enabled) return ANSI_GREEN else return "";
-}
+        unsafe {
+        if(colors_enabled) return ANSI_GREEN else return "";
+
+        }
+    }
 func col_yellow() : *char{
-    if(colors_enabled) return ANSI_YELLOW else return "";
-}
+        unsafe {
+        if(colors_enabled) return ANSI_YELLOW else return "";
+
+        }
+    }
 func col_blue() : *char  {
-    if(colors_enabled) return ANSI_BLUE else return "";
-}
+        unsafe {
+        if(colors_enabled) return ANSI_BLUE else return "";
+
+        }
+    }
 func col_mag() : *char   {
-    if(colors_enabled) return ANSI_MAGENTA else return "";
-}
+        unsafe {
+        if(colors_enabled) return ANSI_MAGENTA else return "";
+
+        }
+    }
 func col_cyan() : *char  {
-    if(colors_enabled) return ANSI_CYAN else return "";
-}
+        unsafe {
+        if(colors_enabled) return ANSI_CYAN else return "";
+
+        }
+    }
 func col_gray() : *char  {
-    if(colors_enabled) return ANSI_GRAY else return "";
-}
+        unsafe {
+        if(colors_enabled) return ANSI_GRAY else return "";
+
+        }
+    }
 
 /* ------------------------------------------------------------------ */
 /*  Shared data types                                                  */
@@ -125,20 +155,23 @@ public struct TestOutcome {
 
 /** Build an outcome with sensible defaults; assign the rest afterwards. */
 public func make_test_outcome(runner : string_view, name : string_view, group : string_view, id : int) : TestOutcome {
-    return TestOutcome {
-        runner : runner,
-        name : name,
-        group : group,
-        id : id,
-        passed : false,
-        skipped : false,
-        exit_code : 0,
-        message : string_view(""),
-        logs_ptr : null,
-        logs_count : 0,
-        duration_ms : 0
+        unsafe {
+        return TestOutcome {
+            runner : runner,
+            name : name,
+            group : group,
+            id : id,
+            passed : false,
+            skipped : false,
+            exit_code : 0,
+            message : string_view(""),
+            logs_ptr : null,
+            logs_count : 0,
+            duration_ms : 0
+        }
+
+        }
     }
-}
 
 /* ------------------------------------------------------------------ */
 /*  The reporter interface                                             */
@@ -180,78 +213,90 @@ public interface TestReporter {
 /* ------------------------------------------------------------------ */
 
 public func log_type_name(t : LogType) : *char {
-    switch (t) {
-        LogType.Information => return "INFORMATION";
-        LogType.Warning => return "WARNING"
-        LogType.Success => return "SUCCESS";
-        LogType.Error => return "ERROR"
-        LogType.UnknownFailure => return "UNKNOWN";
-        LogType.ConfigFailure => return "CONFIG";
-        LogType.IOFailure => return "I/O";
-        LogType.NetworkFailure => return "NETWORK";
-        LogType.MemoryFailure => return "MEMORY";
-        LogType.RuntimeFailure => return "RUNTIME";
-        LogType.OutOfBoundFailure => return "OUT_OF_BOUND";
-        LogType.ResourceFailure => return "RESOURCE";
-        LogType.TodoFailure => return "TODO";
-        LogType.SecurityFailure => return "SECURITY";
-        LogType.WTFFailure => return "WTF";
-        default => return "UNKNOWN";
+        unsafe {
+        switch (t) {
+            LogType.Information => return "INFORMATION";
+            LogType.Warning => return "WARNING"
+            LogType.Success => return "SUCCESS";
+            LogType.Error => return "ERROR"
+            LogType.UnknownFailure => return "UNKNOWN";
+            LogType.ConfigFailure => return "CONFIG";
+            LogType.IOFailure => return "I/O";
+            LogType.NetworkFailure => return "NETWORK";
+            LogType.MemoryFailure => return "MEMORY";
+            LogType.RuntimeFailure => return "RUNTIME";
+            LogType.OutOfBoundFailure => return "OUT_OF_BOUND";
+            LogType.ResourceFailure => return "RESOURCE";
+            LogType.TodoFailure => return "TODO";
+            LogType.SecurityFailure => return "SECURITY";
+            LogType.WTFFailure => return "WTF";
+            default => return "UNKNOWN";
+        }
+
+        }
     }
-}
 
 /* Short icon for log severity */
 func log_type_icon(t : LogType) : *char {
-    switch (t) {
-        LogType.Warning => return "\x1b[33m!\x1b[0m";
-        LogType.Information => return "\x1b[34mi\x1b[0m"
-        LogType.Success =>       return "\x1b[32m+\x1b[0m";   // green +
-        LogType.TodoFailure =>    return "\x1b[36m...\x1b[0m"; // cyan dots
-        LogType.WTFFailure =>     return "\x1b[91m!!\x1b[0m";  // bright red !!
-        LogType.SecurityFailure => return "\x1b[93m##\x1b[0m";  // yellow ##
-        LogType.UnknownFailure, LogType.Error => return "\x1b[31mx\x1b[0m";   // red x
-        default =>                     return "\x1b[31mx\x1b[0m";   // red x
+        unsafe {
+        switch (t) {
+            LogType.Warning => return "\x1b[33m!\x1b[0m";
+            LogType.Information => return "\x1b[34mi\x1b[0m"
+            LogType.Success =>       return "\x1b[32m+\x1b[0m";   // green +
+            LogType.TodoFailure =>    return "\x1b[36m...\x1b[0m"; // cyan dots
+            LogType.WTFFailure =>     return "\x1b[91m!!\x1b[0m";  // bright red !!
+            LogType.SecurityFailure => return "\x1b[93m##\x1b[0m";  // yellow ##
+            LogType.UnknownFailure, LogType.Error => return "\x1b[31mx\x1b[0m";   // red x
+            default =>                     return "\x1b[31mx\x1b[0m";   // red x
+        }
+
+        }
     }
-}
 
 /* Color by severity */
 func log_type_color(t : LogType) : *char {
-    switch (t) {
-        LogType.Success => {
-            return col_green();
+        unsafe {
+        switch (t) {
+            LogType.Success => {
+                return col_green();
+            }
+            LogType.TodoFailure => {
+                return col_yellow();
+            }
+            LogType.UnknownFailure, LogType.WTFFailure, LogType.SecurityFailure, LogType.ConfigFailure,
+            LogType.IOFailure, LogType.NetworkFailure, LogType.MemoryFailure, LogType.RuntimeFailure,
+            LogType.OutOfBoundFailure, LogType.ResourceFailure => {
+                return col_red();
+            }
+            default => {
+                return col_reset();
+            }
         }
-        LogType.TodoFailure => {
-            return col_yellow();
-        }
-        LogType.UnknownFailure, LogType.WTFFailure, LogType.SecurityFailure, LogType.ConfigFailure,
-        LogType.IOFailure, LogType.NetworkFailure, LogType.MemoryFailure, LogType.RuntimeFailure,
-        LogType.OutOfBoundFailure, LogType.ResourceFailure => {
-            return col_red();
-        }
-        default => {
-            return col_reset();
+
         }
     }
-}
 
-func print_log_multiline(out : *mut FILE, msg : *char) { unsafe {
-    if (!out || !msg) return;
+func print_log_multiline(out : *mut FILE, msg : *char) {
+        unsafe {     unsafe {
+        if (!out || !msg) return;
 
-    var p = msg;
-    while (*p) {
-        const nl = strchr(p, '\n');
-        var len : size_t
-        if(nl) {
-            len = (nl - p) as size_t
-        } else {
-            len = strlen(p);
+        var p = msg;
+        while (*p) {
+            const nl = strchr(p, '\n');
+            var len : size_t
+            if(nl) {
+                len = (nl - p) as size_t
+            } else {
+                len = strlen(p);
+            }
+            fprintf(out, "       %s%.*s%s\n", col_gray(), len as int, p, col_reset());
+            if (!nl) break;
+            p = nl + 1;
         }
-        fprintf(out, "       %s%.*s%s\n", col_gray(), len as int, p, col_reset());
-        if (!nl) break;
-        p = nl + 1;
+        fflush(out);
+     }
+        }
     }
-    fflush(out);
- }}
 
 /* ------------------------------------------------------------------ */
 /*  Console reporter                                                   */
@@ -259,20 +304,26 @@ func print_log_multiline(out : *mut FILE, msg : *char) { unsafe {
 
 /** Owned copy of a string_view (avoids storing borrowed views long-term). */
 func copy_view(v : string_view) : string {
-    var s = string()
-    s.append_view(&v)
-    return s
-}
+        unsafe {
+        var s = string()
+        s.append_view(&v)
+        return s
+
+        }
+    }
 
 func sv_eq_str(s : &string, v : string_view) : bool {
-    if(s.size() != v.size()) { return false }
-    var i : size_t = 0
-    while(i < s.size()) {
-        if(s.get(i) != v.get(i)) { return false }
-        i += 1
+        unsafe {
+        if(s.size() != v.size()) { return false }
+        var i : size_t = 0
+        while(i < s.size()) {
+            if(s.get(i) != v.get(i)) { return false }
+            i += 1
+        }
+        return true
+
+        }
     }
-    return true
-}
 
 /** The default reporter: streams each test live, then prints totals. */
 public struct ConsoleReporter {
@@ -293,179 +344,200 @@ public struct ConsoleReporter {
 
 /** Create a console reporter with default display configuration. */
 public func new_console_reporter() : ConsoleReporter {
-    return ConsoleReporter {
-        display : TestDisplayConfig(),
-        runner_name : string(),
-        cur_pass : 0,
-        cur_fail : 0,
-        cur_group : string(),
-        first_group : true,
-        names : vector<string>(),
-        totals : vector<size_t>(),
-        passes : vector<size_t>(),
-        fails : vector<size_t>(),
-        grand_total : 0,
-        grand_pass : 0,
-        grand_fail : 0
+        unsafe {
+        return ConsoleReporter {
+            display : TestDisplayConfig(),
+            runner_name : string(),
+            cur_pass : 0,
+            cur_fail : 0,
+            cur_group : string(),
+            first_group : true,
+            names : vector<string>(),
+            totals : vector<size_t>(),
+            passes : vector<size_t>(),
+            fails : vector<size_t>(),
+            grand_total : 0,
+            grand_pass : 0,
+            grand_fail : 0
+        }
+
+        }
     }
-}
 
 impl TestReporter for ConsoleReporter {
 
-    func configure(&mut self, display_ : *TestDisplayConfig) { unsafe {
-        self.display = *display_
-     }}
+    func configure(&mut self, display_ : *TestDisplayConfig) {
+        unsafe {     unsafe {
+            self.display = *display_
+         }
+        }
+    }
 
     func begin_runner(&mut self, name : string_view) {
-        colors_enabled = enable_terminal_colors()
-        self.runner_name = copy_view(name)
-        self.cur_pass = 0
-        self.cur_fail = 0
-        self.cur_group = string()
-        self.first_group = true
+        unsafe {
+            colors_enabled = enable_terminal_colors()
+            self.runner_name = copy_view(name)
+            self.cur_pass = 0
+            self.cur_fail = 0
+            self.cur_group = string()
+            self.first_group = true
+    
+        }
     }
 
     func on_test(&mut self, outcome : *TestOutcome) {
-        if(outcome.passed) {
-            self.cur_pass += 1
-        } else {
-            self.cur_fail += 1
-        }
-
-        // display filters never affect counting, only printing
-        if(outcome.passed && self.display.failure_only) { return }
-        if(!outcome.passed && self.display.successful_only) { return }
-
-        // group header whenever the group changes
-        const grp = unsafe(string_view(outcome.group.data(), outcome.group.size()))
-        if(self.first_group || !sv_eq_str(&self.cur_group, grp)) {
-            if(grp.size() == 0) {
-                unsafe { printf("%s%sGroup: %s(no-group)%s\n", col_bold(), col_blue(), col_gray(), col_reset()) }
+        unsafe {
+            if(outcome.passed) {
+                self.cur_pass += 1
             } else {
-                unsafe { printf("%s%sGroup: %s%.*s%s\n", col_bold(), col_blue(), col_gray(), grp.size() as int, grp.data(), col_reset()) }
+                self.cur_fail += 1
             }
-            self.cur_group.clear()
-            self.cur_group.append_view(&grp)
-            self.first_group = false
-        }
 
-        var status_color = if(outcome.passed) col_green() else col_red()
-        var status_text = if(outcome.passed) "PASS" else "FAIL"
+            // display filters never affect counting, only printing
+            if(outcome.passed && self.display.failure_only) { return }
+            if(!outcome.passed && self.display.successful_only) { return }
 
-        unsafe { printf("  %s- %s%.*s%s%s", status_color, col_bold(), outcome.name.size() as int, outcome.name.data(), col_reset(), col_reset()) }
-        unsafe { printf(" %d\n", outcome.id) }
-
-        if(outcome.message.size() > 0) {
-            unsafe { printf("     failed message parsing with message : %.*s\n", outcome.message.size() as int, outcome.message.data()) }
-        }
-
-        if(self.display.display_logs && outcome.logs_count > 0) {
-            var li : size_t = 0
-            while(li < outcome.logs_count) {
-                const l = outcome.logs_ptr + li
-                const lt_color = log_type_color(l.type)
-                const icon = log_type_icon(l.type)
-                const lname = log_type_name(l.type)
-                if (l.line > 0 || l.character > 0) {
-                    unsafe { printf("     %s%s%s %s%s (line %zu:%zu)%s\n",
-                           lt_color, icon, col_reset(),
-                           lt_color, lname,
-                           l.line, l.character,
-                           col_reset()) };
+            // group header whenever the group changes
+            const grp = unsafe(string_view(outcome.group.data(), outcome.group.size()))
+            if(self.first_group || !sv_eq_str(&self.cur_group, grp)) {
+                if(grp.size() == 0) {
+                    unsafe { printf("%s%sGroup: %s(no-group)%s\n", col_bold(), col_blue(), col_gray(), col_reset()) }
                 } else {
-                    unsafe { printf("     %s%s%s %s%s%s\n",
-                           lt_color, icon, col_reset(),
-                           lt_color, lname, col_reset()) };
+                    unsafe { printf("%s%sGroup: %s%.*s%s\n", col_bold(), col_blue(), col_gray(), grp.size() as int, grp.data(), col_reset()) }
                 }
-                if (l.message.size() > 0) {
-                    print_log_multiline(get_stdout(), l.message.data())
-                }
-                li += 1
+                self.cur_group.clear()
+                self.cur_group.append_view(&grp)
+                self.first_group = false
             }
-        }
 
-        unsafe { printf("    ") };
-        if(outcome.exit_code != 0) {
-            unsafe { printf("[%s%d%s] ", status_color, outcome.exit_code, col_reset()) };
+            var status_color = if(outcome.passed) col_green() else col_red()
+            var status_text = if(outcome.passed) "PASS" else "FAIL"
+
+            unsafe { printf("  %s- %s%.*s%s%s", status_color, col_bold(), outcome.name.size() as int, outcome.name.data(), col_reset(), col_reset()) }
+            unsafe { printf(" %d\n", outcome.id) }
+
+            if(outcome.message.size() > 0) {
+                unsafe { printf("     failed message parsing with message : %.*s\n", outcome.message.size() as int, outcome.message.data()) }
+            }
+
+            if(self.display.display_logs && outcome.logs_count > 0) {
+                var li : size_t = 0
+                while(li < outcome.logs_count) {
+                    const l = outcome.logs_ptr + li
+                    const lt_color = log_type_color(l.type)
+                    const icon = log_type_icon(l.type)
+                    const lname = log_type_name(l.type)
+                    if (l.line > 0 || l.character > 0) {
+                        unsafe { printf("     %s%s%s %s%s (line %zu:%zu)%s\n",
+                               lt_color, icon, col_reset(),
+                               lt_color, lname,
+                               l.line, l.character,
+                               col_reset()) };
+                    } else {
+                        unsafe { printf("     %s%s%s %s%s%s\n",
+                               lt_color, icon, col_reset(),
+                               lt_color, lname, col_reset()) };
+                    }
+                    if (l.message.size() > 0) {
+                        print_log_multiline(get_stdout(), l.message.data())
+                    }
+                    li += 1
+                }
+            }
+
+            unsafe { printf("    ") };
+            if(outcome.exit_code != 0) {
+                unsafe { printf("[%s%d%s] ", status_color, outcome.exit_code, col_reset()) };
+            }
+            unsafe { printf("%s%s%s\n", status_color, status_text, col_reset()) };
+            unsafe { printf("\n") };
+    
         }
-        unsafe { printf("%s%s%s\n", status_color, status_text, col_reset()) };
-        unsafe { printf("\n") };
     }
 
     func end_runner(&mut self) {
-        self.names.push(self.runner_name.copy())
-        const t = self.cur_pass + self.cur_fail
-        self.totals.push(t)
-        self.passes.push(self.cur_pass)
-        self.fails.push(self.cur_fail)
-        self.grand_total += t
-        self.grand_pass += self.cur_pass
-        self.grand_fail += self.cur_fail
+        unsafe {
+            self.names.push(self.runner_name.copy())
+            const t = self.cur_pass + self.cur_fail
+            self.totals.push(t)
+            self.passes.push(self.cur_pass)
+            self.fails.push(self.cur_fail)
+            self.grand_total += t
+            self.grand_pass += self.cur_pass
+            self.grand_fail += self.cur_fail
+    
+        }
     }
 
-    func finish(&mut self) : int { unsafe {
-        // Nothing was reported: stay silent. This matches the historical
-        // behaviour of the test runner when a module registers no tests (e.g.
-        // the sequential `--tcc` suite, which uses inline `test()` calls only).
-        if(self.grand_total == 0) {
-            return 0
-        }
-
-        colors_enabled = enable_terminal_colors()
-
-        var failed_col : *char
-        if(self.grand_fail) {
-            failed_col = col_red()
-        } else {
-            failed_col = col_gray()
-        }
-
-        printf("%s%sTest run summary%s\n", col_bold(), col_cyan(), col_reset());
-        printf("  Total: %zu | %sPassed: %s%zu%s | %sFailed: %s%zu%s\n\n",
-               self.grand_total,
-               col_green(), col_green(), self.grand_pass, col_reset(),
-               failed_col, col_red(), self.grand_fail, col_reset());
-
-        if(self.names.size() > 1) {
-            var i : size_t = 0
-            while(i < self.names.size()) {
-                const nm = self.names.get_ptr(i)
-                const tp = self.totals.get_ptr(i)
-                const pp = self.passes.get_ptr(i)
-                const fp = self.fails.get_ptr(i)
-                var rcol : *char
-                if(*fp) {
-                    rcol = col_red()
-                } else {
-                    rcol = col_green()
-                }
-                printf("  %s%-18s%s : %zu tests - %s%zu passed%s, %s%zu failed%s\n",
-                       col_bold(), nm.data(), col_reset(),
-                       *tp,
-                       col_green(), *pp, col_reset(),
-                       rcol, *fp, col_reset())
-                i += 1
+    func finish(&mut self) : int {
+        unsafe {     unsafe {
+            // Nothing was reported: stay silent. This matches the historical
+            // behaviour of the test runner when a module registers no tests (e.g.
+            // the sequential `--tcc` suite, which uses inline `test()` calls only).
+            if(self.grand_total == 0) {
+                return 0
             }
-            printf("\n")
-        }
 
-        printf("%sSummary: %zu tests - %s%zu passed%s, %s%zu failed%s\n\n",
-               col_bold(), self.grand_total,
-               col_green(), self.grand_pass, col_reset(),
-               failed_col, self.grand_fail, col_reset());
+            colors_enabled = enable_terminal_colors()
 
-        if(self.grand_fail > 0) {
-            return 1
+            var failed_col : *char
+            if(self.grand_fail) {
+                failed_col = col_red()
+            } else {
+                failed_col = col_gray()
+            }
+
+            printf("%s%sTest run summary%s\n", col_bold(), col_cyan(), col_reset());
+            printf("  Total: %zu | %sPassed: %s%zu%s | %sFailed: %s%zu%s\n\n",
+                   self.grand_total,
+                   col_green(), col_green(), self.grand_pass, col_reset(),
+                   failed_col, col_red(), self.grand_fail, col_reset());
+
+            if(self.names.size() > 1) {
+                var i : size_t = 0
+                while(i < self.names.size()) {
+                    const nm = self.names.get_ptr(i)
+                    const tp = self.totals.get_ptr(i)
+                    const pp = self.passes.get_ptr(i)
+                    const fp = self.fails.get_ptr(i)
+                    var rcol : *char
+                    if(*fp) {
+                        rcol = col_red()
+                    } else {
+                        rcol = col_green()
+                    }
+                    printf("  %s%-18s%s : %zu tests - %s%zu passed%s, %s%zu failed%s\n",
+                           col_bold(), nm.data(), col_reset(),
+                           *tp,
+                           col_green(), *pp, col_reset(),
+                           rcol, *fp, col_reset())
+                    i += 1
+                }
+                printf("\n")
+            }
+
+            printf("%sSummary: %zu tests - %s%zu passed%s, %s%zu failed%s\n\n",
+                   col_bold(), self.grand_total,
+                   col_green(), self.grand_pass, col_reset(),
+                   failed_col, self.grand_fail, col_reset());
+
+            if(self.grand_fail > 0) {
+                return 1
+            }
+            return 0
+         }
         }
-        return 0
-     }}
+    }
 
 }
 
 /** Convenience wrapper so callers can finish a reporter without an interface cast. */
 public func finish_reporter(reporter : &mut TestReporter) : int {
-    return reporter.finish()
-}
+        unsafe {
+        return reporter.finish()
+
+        }
+    }
 
 /* ------------------------------------------------------------------ */
 /*  Runner handles and the multi-runner                                */
@@ -487,25 +559,31 @@ public struct TestRunnerHandle {
 
 /** Does `argv` contain `flag` (searched from index 1, like main)? */
 public func argv_has_flag(argv : **char, argc : int, flag : *char) : bool {
-    var i : int = 1
-    while(i < argc) {
-        if(unsafe(strcmp(argv[i], flag)) == 0) { return true }
-        i += 1
+        unsafe {
+        var i : int = 1
+        while(i < argc) {
+            if(unsafe(strcmp(argv[i], flag)) == 0) { return true }
+            i += 1
+        }
+        return false
+
+        }
     }
-    return false
-}
 
 /** Compare a runner name against a C string without allocating. */
 func runner_name_is(name : string_view, expected : *char) : bool {
-    const elen = unsafe(strlen(expected))
-    if(name.size() != elen) { return false }
-    var i : size_t = 0
-    while(i < elen) {
-        if(name.get(i) != expected[i]) { return false }
-        i += 1
+        unsafe {
+        const elen = unsafe(strlen(expected))
+        if(name.size() != elen) { return false }
+        var i : size_t = 0
+        while(i < elen) {
+            if(name.get(i) != expected[i]) { return false }
+            i += 1
+        }
+        return true
+
+        }
     }
-    return true
-}
 
 /**
  * Runs several runners in order under a single reporter and prints one
@@ -520,35 +598,44 @@ public struct MultiTestRunner {
 }
 
 public func new_multi_test_runner() : MultiTestRunner {
-    return MultiTestRunner {
-        runners : vector<TestRunnerHandle>()
+        unsafe {
+        return MultiTestRunner {
+            runners : vector<TestRunnerHandle>()
+        }
+
+        }
     }
-}
 
 public func (runner : &mut MultiTestRunner) add(handle : TestRunnerHandle) {
-    runner.runners.push(handle)
-}
+        unsafe {
+        runner.runners.push(handle)
+
+        }
+    }
 
 public func (runner : &mut MultiTestRunner) run(argc : int, argv : **char) : int {
-    var console = new_console_reporter()
-    const is_child = argv_has_flag(argv, argc, "--comm-id")
+        unsafe {
+        var console = new_console_reporter()
+        const is_child = argv_has_flag(argv, argc, "--comm-id")
 
-    var i : size_t = 0
-    while(i < runner.runners.size()) {
-        const h = runner.runners.get_ptr(i)
-        if(is_child && !runner_name_is(h.name, "test")) {
+        var i : size_t = 0
+        while(i < runner.runners.size()) {
+            const h = runner.runners.get_ptr(i)
+            if(is_child && !runner_name_is(h.name, "test")) {
+                i += 1
+                continue
+            }
+            if(!is_child) {
+                unsafe { printf("\n%s%s==> runner: %.*s%s\n", col_bold(), col_cyan(), h.name.size() as int, h.name.data(), col_reset()) }
+            }
+            h.run_fn(h, &mut console, argc, argv)
             i += 1
-            continue
         }
-        if(!is_child) {
-            unsafe { printf("\n%s%s==> runner: %.*s%s\n", col_bold(), col_cyan(), h.name.size() as int, h.name.data(), col_reset()) }
-        }
-        h.run_fn(h, &mut console, argc, argv)
-        i += 1
-    }
 
-    if(is_child) {
-        return 0
+        if(is_child) {
+            return 0
+        }
+        return finish_reporter(&mut console)
+
+        }
     }
-    return finish_reporter(&mut console)
-}

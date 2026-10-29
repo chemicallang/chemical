@@ -92,12 +92,12 @@ public struct Arc<T> {
         if(self.ptr == null) {
             return
         }
-        var strong_left = self.ptr.strong.decrement()
+        var strong_left = unsafe(self.ptr.strong.decrement())
         if(strong_left == 0) {
             unsafe {
                 self.ptr.value.destroy()
             }
-            if(self.ptr.weak.load() == 0) {
+            if(unsafe(self.ptr.weak.load()) == 0) {
                 unsafe {
                     delete self.ptr
                 }
@@ -111,7 +111,7 @@ public struct Arc<T> {
             panic("Arc is empty")
         }
         var inner = self.ptr
-        inner.strong.increment()
+        unsafe(unsafe(inner.strong.increment()))
         return Arc<T> {
             ptr : inner
         }
@@ -122,7 +122,7 @@ public struct Arc<T> {
             panic("Arc is empty")
         }
         var inner = self.ptr
-        inner.weak.increment()
+        unsafe(inner.weak.increment())
         return unsafe(arc_weak_unchecked<T>(inner))
     }
 
@@ -137,14 +137,14 @@ public struct Arc<T> {
         if(self.ptr == null) {
             panic("Arc is empty")
         }
-        return self.ptr.strong.load()
+        return unsafe(self.ptr.strong.load())
     }
 
     public func weak_count(&self) : size_t {
         if(self.ptr == null) {
             panic("Arc is empty")
         }
-        return self.ptr.weak.load()
+        return unsafe(self.ptr.weak.load())
     }
 
     /** Mutably access the value only when this is the sole strong owner. */
@@ -162,8 +162,8 @@ public struct Arc<T> {
             return Option.None<T>()
         }
         var out = unsafe(self.ptr.value.take())
-        var strong_left = self.ptr.strong.decrement()
-        if(strong_left == 0 && self.ptr.weak.load() == 0) {
+        var strong_left = unsafe(self.ptr.strong.decrement())
+        if(strong_left == 0 && unsafe(self.ptr.weak.load()) == 0) {
             unsafe {
                 delete self.ptr
             }
@@ -187,9 +187,9 @@ public struct ArcWeak<T> {
         if(self.ptr == null) {
             return
         }
-        var weak_left = self.ptr.weak.decrement()
+        var weak_left = unsafe(self.ptr.weak.decrement())
         if(weak_left == 0) {
-            if(self.ptr.strong.load() == 0) {
+            if(unsafe(self.ptr.strong.load()) == 0) {
                 unsafe {
                     delete self.ptr
                 }
@@ -203,10 +203,10 @@ public struct ArcWeak<T> {
             return Option.None<Arc<T>>()
         }
         var inner = self.ptr
-        if(inner.strong.load() == 0) {
+        if(unsafe(inner.strong.load()) == 0) {
             return Option.None<Arc<T>>()
         }
-        inner.strong.increment()
+        unsafe(unsafe(inner.strong.increment()))
         return Option.Some<Arc<T>>(unsafe(arc_unchecked<T>(inner)))
     }
 
@@ -214,14 +214,14 @@ public struct ArcWeak<T> {
         if(self.ptr == null) {
             panic("ArcWeak is empty")
         }
-        return self.ptr.strong.load()
+        return unsafe(self.ptr.strong.load())
     }
 
     public func weak_count(&self) : size_t {
         if(self.ptr == null) {
             panic("ArcWeak is empty")
         }
-        return self.ptr.weak.load()
+        return unsafe(self.ptr.weak.load())
     }
 }
 

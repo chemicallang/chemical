@@ -96,58 +96,61 @@ public func get_next_token_runtime(html : &mut HtmlLexer, lexer : &mut Lexer) : 
  }}
 
 public func tokenize_html_impl(view : std::string_view) : std::vector<Token> {
-    var tokens = std::vector<Token>()
+        unsafe {
+        var tokens = std::vector<Token>()
 
-    var provider = SourceProvider {
-        data_ptr : view.data() as *mut char,
-        data_len : view.size(),
-        data_end : view.data() as *mut char + view.size(),
-        lineNumber : 0,
-        lineCharacterNumber : 0
-    }
-
-    var lexer = Lexer {
-        LexerState : LexerState {
-            other_mode : false,
-            user_mode : false
-        },
-        provider : provider,
-        user_lexer : UserLexerFn { instance : null, subroutine : null }
-    }
-
-    var html = HtmlLexer {
-        has_lt : false,
-        lexed_tag_name : false,
-        is_comment : false,
-        other_mode : false,
-        chemical_mode : false,
-        lb_count : 0,
-        paren_count : 0,
-        chem_start_lb : 0,
-        in_paren_expr : false,
-        in_paren_value : false,
-        expecting_html_block : false,
-        last_token_was_if : false,
-        after_chem_expr : false,
-        pre_depth : 0,
-        pre_brace_depth : 0,
-        in_end_tag : false,
-        last_tag_pre : false,
-        preserve_whitespace : true,
-        pending_script : false,
-        pending_script_is_data : false,
-        attr_name_is_type : false,
-        in_script : false
-    }
-
-    while(true) {
-        const t = get_next_token_runtime(&mut html, &mut lexer)
-        if(t.type == TokenType.EndOfFile as int) {
-            tokens.push(t)
-            break
+        var provider = SourceProvider {
+            data_ptr : view.data() as *mut char,
+            data_len : view.size(),
+            data_end : view.data() as *mut char + view.size(),
+            lineNumber : 0,
+            lineCharacterNumber : 0
         }
-        tokens.push(t)
-    }
 
-    return tokens
-}
+        var lexer = Lexer {
+            LexerState : LexerState {
+                other_mode : false,
+                user_mode : false
+            },
+            provider : provider,
+            user_lexer : UserLexerFn { instance : null, subroutine : null }
+        }
+
+        var html = HtmlLexer {
+            has_lt : false,
+            lexed_tag_name : false,
+            is_comment : false,
+            other_mode : false,
+            chemical_mode : false,
+            lb_count : 0,
+            paren_count : 0,
+            chem_start_lb : 0,
+            in_paren_expr : false,
+            in_paren_value : false,
+            expecting_html_block : false,
+            last_token_was_if : false,
+            after_chem_expr : false,
+            pre_depth : 0,
+            pre_brace_depth : 0,
+            in_end_tag : false,
+            last_tag_pre : false,
+            preserve_whitespace : true,
+            pending_script : false,
+            pending_script_is_data : false,
+            attr_name_is_type : false,
+            in_script : false
+        }
+
+        while(true) {
+            const t = get_next_token_runtime(&mut html, &mut lexer)
+            if(t.type == TokenType.EndOfFile as int) {
+                tokens.push(t)
+                break
+            }
+            tokens.push(t)
+        }
+
+        return tokens
+
+        }
+    }

@@ -1,30 +1,36 @@
 @no_mangle
 public func html_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
-    visitor.visitEmbeddedNode(node)
-    const resolver = visitor.getSymbolResolver();
-    const loc = node.getEncodedLocation();
-    const root = node.getDataPtr() as *mut HtmlRoot;
-    sym_res_root(root, visitor, loc)
-}
+        unsafe {
+        visitor.visitEmbeddedNode(node)
+        const resolver = visitor.getSymbolResolver();
+        const loc = node.getEncodedLocation();
+        const root = node.getDataPtr() as *mut HtmlRoot;
+        sym_res_root(root, visitor, loc)
+
+        }
+    }
 
 @no_mangle
 public func html_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
-    const loc = intrinsics::get_raw_location();
-    const root = value.getDataPtr() as *mut HtmlRoot;
-    var scope = builder.make_scope(root.parent, loc);
-    var scope_nodes = scope.getNodes();
-    var converter = ASTConverter {
-        builder : builder,
-        diagnoser : diagnoser,
-        fallback_loc : value.getEncodedLocation(),
-        support : &raw mut root.support,
-        vec : scope_nodes,
-        parent : root.parent
-        str : std::string()
+        unsafe {
+        const loc = intrinsics::get_raw_location();
+        const root = value.getDataPtr() as *mut HtmlRoot;
+        var scope = builder.make_scope(root.parent, loc);
+        var scope_nodes = scope.getNodes();
+        var converter = ASTConverter {
+            builder : builder,
+            diagnoser : diagnoser,
+            fallback_loc : value.getEncodedLocation(),
+            support : &raw mut root.support,
+            vec : scope_nodes,
+            parent : root.parent
+            str : std::string()
+        }
+        converter.convertHtmlRoot(root);
+        return scope;
+
+        }
     }
-    converter.convertHtmlRoot(root);
-    return scope;
-}
 
 public func node_known_type_func(value : *EmbeddedNode) : *BaseType {
     return null;
@@ -36,71 +42,83 @@ public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view)
 
 @no_mangle
 public func html_symResValue(visitor : *mut SymResLinkBody, value : *mut EmbeddedValue) : bool {
-    visitor.visitEmbeddedValue(value)
-    const resolver = visitor.getSymbolResolver();
-    const loc = value.getEncodedLocation()
-    const root = value.getDataPtr() as *mut HtmlRoot;
-    sym_res_root(root, visitor, loc)
-    return true;
-}
+        unsafe {
+        visitor.visitEmbeddedValue(value)
+        const resolver = visitor.getSymbolResolver();
+        const loc = value.getEncodedLocation()
+        const root = value.getDataPtr() as *mut HtmlRoot;
+        sym_res_root(root, visitor, loc)
+        return true;
+
+        }
+    }
 
 @no_mangle
 public func html_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *EmbeddedValue) : *Value {
-    const loc = intrinsics::get_raw_location();
-    const root = value.getDataPtr() as *mut HtmlRoot;
-    var block_val = builder.make_block_value(root.parent, loc)
-    var scope_nodes = block_val.get_body()
-    var converter = ASTConverter {
-        builder : builder,
-        diagnoser : diagnoser,
-        fallback_loc : value.getEncodedLocation(),
-        support : &raw mut root.support,
-        vec : scope_nodes,
-        parent : root.parent
-        str : std::string()
+        unsafe {
+        const loc = intrinsics::get_raw_location();
+        const root = value.getDataPtr() as *mut HtmlRoot;
+        var block_val = builder.make_block_value(root.parent, loc)
+        var scope_nodes = block_val.get_body()
+        var converter = ASTConverter {
+            builder : builder,
+            diagnoser : diagnoser,
+            fallback_loc : value.getEncodedLocation(),
+            support : &raw mut root.support,
+            vec : scope_nodes,
+            parent : root.parent
+            str : std::string()
+        }
+        converter.convertHtmlRoot(root);
+        const view2 = builder.allocate_view(converter.str.to_view())
+        const strValue = builder.make_string_value(&view2, loc)
+        block_val.setCalculatedValue(strValue)
+        return block_val;
+
+        }
     }
-    converter.convertHtmlRoot(root);
-    const view2 = builder.allocate_view(converter.str.to_view())
-    const strValue = builder.make_string_value(&view2, loc)
-    block_val.setCalculatedValue(strValue)
-    return block_val;
-}
 
 @no_mangle
 public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
-    const tok = parser.getToken()
-    const loc = parser.getEncodedLocation(tok)
-    if(parser.increment_if(TokenType.LBrace as int)) {
-        var root = parseHtmlRoot(parser, builder);
-        const type = builder.make_string_type(loc)
-        const value = builder.make_embedded_value(std::string_view("html"), root, type, unsafe(std::span<*mut ASTNode>(root.dyn_nodes.data(), root.dyn_nodes.size())), unsafe(std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size())), loc);
-        if(!parser.increment_if(TokenType.RBrace as int)) {
-            parser.error("expected a rbrace for ending the html macro");
+        unsafe {
+        const tok = parser.getToken()
+        const loc = parser.getEncodedLocation(tok)
+        if(parser.increment_if(TokenType.LBrace as int)) {
+            var root = parseHtmlRoot(parser, builder);
+            const type = builder.make_string_type(loc)
+            const value = builder.make_embedded_value(std::string_view("html"), root, type, unsafe(std::span<*mut ASTNode>(root.dyn_nodes.data(), root.dyn_nodes.size())), unsafe(std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size())), loc);
+            if(!parser.increment_if(TokenType.RBrace as int)) {
+                parser.error("expected a rbrace for ending the html macro");
+            }
+            return value;
+        } else {
+            parser.error("expected a lbrace");
         }
-        return value;
-    } else {
-        parser.error("expected a lbrace");
+        return null;
+
+        }
     }
-    return null;
-}
 
 @no_mangle
 public func html_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
-     const tok = parser.getToken()
-     const loc = parser.getEncodedLocation(tok)
-    if(parser.increment_if(TokenType.LBrace as int)) {
-        var root = parseHtmlRoot(parser, builder);
-        const nodes_arr : []*mut ASTNode = []
-        const node = builder.make_embedded_node(AccessSpecifier.Internal, std::string_view("html"), root, node_known_type_func, node_child_res_func, unsafe(std::span<*mut ASTNode>(root.dyn_nodes.data(), root.dyn_nodes.size())), unsafe(std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size())), root.parent, loc);
-        if(!parser.increment_if(TokenType.RBrace as int)) {
-            parser.error("expected a rbrace for ending the html macro");
+        unsafe {
+         const tok = parser.getToken()
+         const loc = parser.getEncodedLocation(tok)
+        if(parser.increment_if(TokenType.LBrace as int)) {
+            var root = parseHtmlRoot(parser, builder);
+            const nodes_arr : []*mut ASTNode = []
+            const node = builder.make_embedded_node(AccessSpecifier.Internal, std::string_view("html"), root, node_known_type_func, node_child_res_func, unsafe(std::span<*mut ASTNode>(root.dyn_nodes.data(), root.dyn_nodes.size())), unsafe(std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size())), root.parent, loc);
+            if(!parser.increment_if(TokenType.RBrace as int)) {
+                parser.error("expected a rbrace for ending the html macro");
+            }
+            return node;
+        } else {
+            parser.error("expected a lbrace");
+            return null;
         }
-        return node;
-    } else {
-        parser.error("expected a lbrace");
-        return null;
+
+        }
     }
-}
 
 public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
     if(html.other_mode) {
@@ -173,34 +191,37 @@ public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
 
 @no_mangle
 public func html_initializeLexer(lexer : *mut Lexer) {
-    const file_allocator = lexer.getFileAllocator();
-    const ptr = file_allocator.allocate_size(sizeof(HtmlLexer), alignof(HtmlLexer)) as *mut HtmlLexer;
-    new (ptr) HtmlLexer {
-        has_lt : false,
-        lexed_tag_name : false,
-        is_comment : false,
-        other_mode : false,
-        chemical_mode : false,
-        lb_count : 0,
-        paren_count : 0,
-        chem_start_lb : 0,
-        in_paren_expr : false,
-        in_paren_value : false,
-        expecting_html_block : false,
-        last_token_was_if : false,
-        after_chem_expr : false,
-        pre_depth : 0,
-        pre_brace_depth : 0,
-        in_end_tag : false,
-        last_tag_pre : false,
-        preserve_whitespace : false,
-        pending_script : false,
-        pending_script_is_data : false,
-        attr_name_is_type : false,
-        in_script : false
+        unsafe {
+        const file_allocator = lexer.getFileAllocator();
+        const ptr = file_allocator.allocate_size(sizeof(HtmlLexer), alignof(HtmlLexer)) as *mut HtmlLexer;
+        new (ptr) HtmlLexer {
+            has_lt : false,
+            lexed_tag_name : false,
+            is_comment : false,
+            other_mode : false,
+            chemical_mode : false,
+            lb_count : 0,
+            paren_count : 0,
+            chem_start_lb : 0,
+            in_paren_expr : false,
+            in_paren_value : false,
+            expecting_html_block : false,
+            last_token_was_if : false,
+            after_chem_expr : false,
+            pre_depth : 0,
+            pre_brace_depth : 0,
+            in_end_tag : false,
+            last_tag_pre : false,
+            preserve_whitespace : false,
+            pending_script : false,
+            pending_script_is_data : false,
+            attr_name_is_type : false,
+            in_script : false
+        }
+        lexer.setUserLexer(ptr, getNextToken as UserLexerSubroutineType)
+
+        }
     }
-    lexer.setUserLexer(ptr, getNextToken as UserLexerSubroutineType)
-}
 
 // ---------------------------------------------------------------------------
 // #universal_test lexer
@@ -262,11 +283,14 @@ public func ut_getNextToken(ut : &mut UTLexer, lexer : &mut Lexer) : Token {
 
 @no_mangle
 public func ut_initializeLexer(lexer : *mut Lexer) {
-    const file_allocator = lexer.getFileAllocator();
-    const ptr = file_allocator.allocate_size(sizeof(UTLexer), alignof(UTLexer)) as *mut UTLexer;
-    new (ptr) UTLexer {
-        html : make_ut_html_lexer(),
-        started : false
+        unsafe {
+        const file_allocator = lexer.getFileAllocator();
+        const ptr = file_allocator.allocate_size(sizeof(UTLexer), alignof(UTLexer)) as *mut UTLexer;
+        new (ptr) UTLexer {
+            html : make_ut_html_lexer(),
+            started : false
+        }
+        lexer.setUserLexer(ptr, ut_getNextToken as UserLexerSubroutineType)
+
+        }
     }
-    lexer.setUserLexer(ptr, ut_getNextToken as UserLexerSubroutineType)
-}

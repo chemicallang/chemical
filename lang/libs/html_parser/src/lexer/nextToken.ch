@@ -55,305 +55,344 @@ func ut_note_script_type_value(html : &mut HtmlLexer, value : std::string_view) 
 }
 
 public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
-    const provider = &mut lexer.provider;
-    // Inside a <script> whose content really is JavaScript, everything up to
-    // </script> is raw text (JS is not HTML). Emit it as one Text token; when the
-    // closing tag is reached, clear the mode and fall through so the '<' is lexed
-    // as a normal end tag.
-    //
-    // A <script> whose `type` says the content is a data block
-    // (application/json, text/template, ...) is NOT in this mode: its content
-    // goes through the ordinary text/interpolation path, so '{' is chemical
-    // syntax there like it is everywhere else in the macro. Keying the mode on
-    // the element name alone meant such a value was emitted as its literal
-    // source text -- no diagnostic, no error -- which is the bug this guards.
-    if(html.in_script) {
-        const position = provider.getPosition();
-        const start = provider.current_data();
-        while(!provider.eof()) {
-            if(ut_at_script_close(provider)) {
-                break;
-            }
-            provider.readCharacter();
-        }
-        html.in_script = false;
-        const written = provider.current_data() - start;
-        if(written > 0) {
-            return Token {
-                type : TokenType.Text as int,
-                value : unsafe(std::string_view(start, written)),
-                position : position
-            }
-        }
-        // empty script body: fall through and lex "</script>"
-    }
-    // the position of the current symbol
-    const position = provider.getPosition();
-    const data_ptr = provider.current_data()
-    const c = provider.readCharacter();
-    switch(c) {
-        '\0' => {
-            return Token {
-                type : TokenType.EndOfFile as int,
-                value : view(""),
-                position : position
-            }
-        }
-        '<' => {
-            const p = provider.peek()
-            if(p == '!') {
+        unsafe {
+        const provider = &mut lexer.provider;
+        // Inside a <script> whose content really is JavaScript, everything up to
+        // </script> is raw text (JS is not HTML). Emit it as one Text token; when the
+        // closing tag is reached, clear the mode and fall through so the '<' is lexed
+        // as a normal end tag.
+        //
+        // A <script> whose `type` says the content is a data block
+        // (application/json, text/template, ...) is NOT in this mode: its content
+        // goes through the ordinary text/interpolation path, so '{' is chemical
+        // syntax there like it is everywhere else in the macro. Keying the mode on
+        // the element name alone meant such a value was emitted as its literal
+        // source text -- no diagnostic, no error -- which is the bug this guards.
+        if(html.in_script) {
+            const position = provider.getPosition();
+            const start = provider.current_data();
+            while(!provider.eof()) {
+                if(ut_at_script_close(provider)) {
+                    break;
+                }
                 provider.readCharacter();
-                const next = provider.peek()
-                if(next == '-') {
+            }
+            html.in_script = false;
+            const written = provider.current_data() - start;
+            if(written > 0) {
+                return Token {
+                    type : TokenType.Text as int,
+                    value : unsafe(std::string_view(start, written)),
+                    position : position
+                }
+            }
+            // empty script body: fall through and lex "</script>"
+        }
+        // the position of the current symbol
+        const position = provider.getPosition();
+        const data_ptr = provider.current_data()
+        const c = provider.readCharacter();
+        switch(c) {
+            '\0' => {
+                return Token {
+                    type : TokenType.EndOfFile as int,
+                    value : view(""),
+                    position : position
+                }
+            }
+            '<' => {
+                const p = provider.peek()
+                if(p == '!') {
+                    provider.readCharacter();
+                    const next = provider.peek()
+                    if(next == '-') {
 
-                    // its a comment
-                    provider.readCharacter()
-                    if(provider.peek() == '-') {
+                        // its a comment
                         provider.readCharacter()
-                    }
-                    html.is_comment = true;
+                        if(provider.peek() == '-') {
+                            provider.readCharacter()
+                        }
+                        html.is_comment = true;
 
+                        return Token {
+                            type : TokenType.CommentStart as int,
+                            value : view("<!--"),
+                            position : position
+                        }
+
+                    } else if(unsafe(isalpha(next))) {
+
+                        // its a directive
+                        // TODO handle this case
+                        return Token {
+                            type : TokenType.Unexpected as int,
+                            value : view("expected directive or comment"),
+                            position : position
+                        }
+
+                    } else {
+                        return Token {
+                            type : TokenType.Unexpected as int,
+                            value : view("expected directive or comment"),
+                            position : position
+                        }
+                    }
+                } else if(p == '/') {
+                    html.has_lt = true;
+                    html.in_end_tag = true;
+                    html.pending_script = false;
+                    provider.readCharacter();
                     return Token {
-                        type : TokenType.CommentStart as int,
-                        value : view("<!--"),
+                        type : TokenType.TagEnd as int,
+                        value : view("</"),
                         position : position
                     }
-
-                } else if(unsafe(isalpha(next))) {
-
-                    // its a directive
-                    // TODO handle this case
+                } else if(unsafe(isalpha(p as int))) {
+                    html.has_lt = true;
                     return Token {
-                        type : TokenType.Unexpected as int,
-                        value : view("expected directive or comment"),
+                        type : TokenType.LessThan as int,
+                        value : view("<"),
                         position : position
+                    }
+                } else {
+                    // A '<' that cannot begin a tag name, an end tag or a markup
+                    // declaration is ordinary text. This is the HTML "tag open"
+                    // state: a browser enters tag mode only for '!', '/' and an
+                    // ASCII letter, and renders every other '<' literally. So
+                    // "1 < 2" must be text, not a tag named "2"; without this the
+                    // whole #html block fails to parse, because the parser sees a
+                    // raw number token where it expected text or an element.
+                    const start = data_ptr;
+                    provider.read_literal_text();
+                    return Token {
+                        type : TokenType.Text as int,
+                        value : unsafe(std::string_view(start, provider.current_data() - start)),
+                        position : position
+                    }
+                }
+            }
+            '@' => {
+                if(provider.peek() == '{') {
+                    provider.readCharacter();
+                    html.other_mode = true;
+                    html.chemical_mode = true;
+                    html.chem_start_lb = html.lb_count;
+                    html.lb_count++;
+                    return Token {
+                        type : TokenType.ChemicalNodeStart as int,
+                        value : view("@{"),
+                        position : position
+                    }
+                } else if(provider.peek() == '(') {
+                    // "@(expr)" is the explicit form of a chemical value. It works
+                    // everywhere, and inside <pre> it is the only way to write one,
+                    // because there a bare '{' is a literal character.
+                    //
+                    // The '(' is consumed here rather than left for the chemical
+                    // lexer (which is what the "@if(" path does), so paren_count
+                    // starts at 1 to account for it. lb_count is deliberately left
+                    // alone: this region ends at its matching ')' and must not
+                    // disturb the brace depth, which is what lets it appear inside
+                    // <pre> where '}' is text.
+                    provider.readCharacter();
+                    html.other_mode = true;
+                    html.chemical_mode = true;
+                    html.in_paren_value = true;
+                    html.paren_count = 1;
+                    return Token {
+                        type : TokenType.ChemicalValueStart as int,
+                        value : view("@("),
+                        position : position
+                    }
+                } else if(!html.has_lt && unsafe(isalpha(provider.peek() as int))) {
+                
+                    // then we have a keyword, lets parse it
+                    const start = provider.current_data(); 
+                    provider.read_tag_name();
+                    const value = unsafe(std::string_view(start, provider.current_data() - start));
+                    const hash = fnv1_hash_view(&value);
+
+                    switch(hash) {
+                        comptime_fnv1_hash("if") => {
+                             provider.skip_whitespaces();
+                             if(provider.peek() == '(') {
+                                html.other_mode = true;
+                                html.chemical_mode = true;
+                                html.in_paren_expr = true;
+                                html.paren_count = 0;
+                            }
+                            return Token {
+                                type : TokenType.If as int,
+                                value : value,
+                                position : position
+                            }
+                        }
+                        comptime_fnv1_hash("else") => {
+                            html.expecting_html_block = true;
+                            return Token {
+                                type : TokenType.Else as int,
+                                value : value,
+                                position : position
+                            }
+                        }
+                        default => {
+                            // '@' followed by a name that is not a keyword is
+                            // ordinary text: a decorator, an annotation, an e-mail
+                            // address. Keep reading the text run from here rather
+                            // than stopping at the end of the name, otherwise the
+                            // whitespace between this word and the text after it is
+                            // split off and then dropped as insignificant, which
+                            // turned "@Override and @app" into "@Overrideand".
+                            provider.read_literal_text();
+                            return Token {
+                                type : TokenType.Text as int,
+                                value : unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr)),
+                                position : position
+                            }
+                        }
                     }
 
                 } else {
                     return Token {
-                        type : TokenType.Unexpected as int,
-                        value : view("expected directive or comment"),
+                        type : TokenType.Text as int,
+                        value : unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr)),
                         position : position
                     }
                 }
-            } else if(p == '/') {
-                html.has_lt = true;
-                html.in_end_tag = true;
-                html.pending_script = false;
-                provider.readCharacter();
-                return Token {
-                    type : TokenType.TagEnd as int,
-                    value : view("</"),
-                    position : position
+            }
+            '}' => {
+                if(html.pre_depth > 0 &&
+                    (html.pre_brace_depth > 0 || html.lb_count <= 1)) {
+                    // Inside <pre> a '}' is literal text in two cases:
+                    //
+                    //  * pre_brace_depth > 0 -- it closes a '{' that was itself
+                    //    read as literal text, so the two pair with each other and
+                    //    lb_count is never disturbed;
+                    //  * lb_count <= 1 -- no html block is open, so this '}' cannot
+                    //    be closing one. It is NOT the '}' that ends the #html
+                    //    macro either: the macro's own '}' comes after the
+                    //    </pre>, where pre_depth is already back to 0.
+                    //
+                    // Reading a stray '}' as the macro close is what used to drop
+                    // the remainder of the file out of the macro.
+                    if(html.pre_brace_depth > 0) {
+                        html.pre_brace_depth--;
+                    }
+                    const start = data_ptr;
+                    provider.read_literal_text();
+                    return Token {
+                        type : TokenType.Text as int,
+                        value : unsafe(std::string_view(start, provider.current_data() - start)),
+                        position : position
+                    }
                 }
-            } else if(unsafe(isalpha(p as int))) {
-                html.has_lt = true;
-                return Token {
-                    type : TokenType.LessThan as int,
-                    value : view("<"),
-                    position : position
+                if(html.lb_count == 1) {
+                    html.reset();
+                    lexer.unsetUserLexer();
+                } else {
+                    html.lb_count--;
                 }
-            } else {
-                // A '<' that cannot begin a tag name, an end tag or a markup
-                // declaration is ordinary text. This is the HTML "tag open"
-                // state: a browser enters tag mode only for '!', '/' and an
-                // ASCII letter, and renders every other '<' literally. So
-                // "1 < 2" must be text, not a tag named "2"; without this the
-                // whole #html block fails to parse, because the parser sees a
-                // raw number token where it expected text or an element.
-                const start = data_ptr;
-                provider.read_literal_text();
                 return Token {
-                    type : TokenType.Text as int,
-                    value : unsafe(std::string_view(start, provider.current_data() - start)),
+                    type : TokenType.RBrace as int,
+                    value : view("}"),
                     position : position
                 }
             }
-        }
-        '@' => {
-            if(provider.peek() == '{') {
-                provider.readCharacter();
-                html.other_mode = true;
-                html.chemical_mode = true;
-                html.chem_start_lb = html.lb_count;
+            '{' => {
+                if(html.pre_depth > 0 && !html.expecting_html_block) {
+                    // Inside <pre> the text is displayed verbatim and code is full
+                    // of braces, so a '{' that does not open an @if/@else html
+                    // block is literal text rather than the start of a chemical
+                    // value. Interpolation is still available in the explicit
+                    // "@{expr}" form, and @if/@else blocks still work, because
+                    // those set expecting_html_block and are matched by this
+                    // branch not being taken.
+                    //
+                    // Counting it keeps literal braces paired with each other so a
+                    // '}' later in the same <pre> can be recognised as literal too
+                    // (see the '}' case).
+                    html.pre_brace_depth++;
+                    const start = data_ptr;
+                    provider.read_literal_text();
+                    return Token {
+                        type : TokenType.Text as int,
+                        value : unsafe(std::string_view(start, provider.current_data() - start)),
+                        position : position
+                    }
+                }
+                if(html.lb_count >= 1 && !html.expecting_html_block) {
+                    html.other_mode = true;
+                    html.chemical_mode = true;
+                    html.chem_start_lb = html.lb_count;
+                }
                 html.lb_count++;
+                html.expecting_html_block = false;
                 return Token {
-                    type : TokenType.ChemicalNodeStart as int,
-                    value : view("@{"),
+                    type : TokenType.LBrace as int,
+                    value : view("{"),
                     position : position
                 }
-            } else if(provider.peek() == '(') {
-                // "@(expr)" is the explicit form of a chemical value. It works
-                // everywhere, and inside <pre> it is the only way to write one,
-                // because there a bare '{' is a literal character.
-                //
-                // The '(' is consumed here rather than left for the chemical
-                // lexer (which is what the "@if(" path does), so paren_count
-                // starts at 1 to account for it. lb_count is deliberately left
-                // alone: this region ends at its matching ')' and must not
-                // disturb the brace depth, which is what lets it appear inside
-                // <pre> where '}' is text.
-                provider.readCharacter();
-                html.other_mode = true;
-                html.chemical_mode = true;
-                html.in_paren_value = true;
-                html.paren_count = 1;
-                return Token {
-                    type : TokenType.ChemicalValueStart as int,
-                    value : view("@("),
-                    position : position
-                }
-            } else if(!html.has_lt && unsafe(isalpha(provider.peek() as int))) {
-                
-                // then we have a keyword, lets parse it
-                const start = provider.current_data(); 
-                provider.read_tag_name();
-                const value = unsafe(std::string_view(start, provider.current_data() - start));
-                const hash = fnv1_hash_view(&value);
-
-                switch(hash) {
-                    comptime_fnv1_hash("if") => {
-                         provider.skip_whitespaces();
-                         if(provider.peek() == '(') {
-                            html.other_mode = true;
-                            html.chemical_mode = true;
-                            html.in_paren_expr = true;
-                            html.paren_count = 0;
+            }
+            ' ', '\t', '\n', '\r' => {
+                if(!html.has_lt) {
+                    const was_after_chem = html.after_chem_expr;
+                    html.after_chem_expr = false;
+                    provider.skip_whitespaces();
+                    const next = provider.peek();
+                    if(html.pre_depth > 0 || html.preserve_whitespace) {
+                        // inside <pre> (or when preserve_whitespace is on),
+                        // whitespace-only runs between elements are significant;
+                        // they must survive unless they precede a chemical
+                        // statement ('@...') or the enclosing block/macro close
+                        // ('}'), or an html block is expected (right after
+                        // '@if(...)' or '@else', where whitespace is a separator)
+                        //
+                        // A '}' that is read back as a literal brace of <pre> code --
+                        // because a literal '{' is still unmatched, which is what the
+                        // '{' branch counted -- is content, not a close, so only a
+                        // '}' that really ends a chemical block or expression is a
+                        // boundary. See the matching '{' case below.
+                        const literal_brace = html.pre_depth > 0 && (html.pre_brace_depth > 0 || html.lb_count <= 1);
+                        const closes_chem = next == '}' && !literal_brace;
+                        if(next != '@' && !closes_chem && !html.expecting_html_block) {
+                            return Token {
+                                type : TokenType.Text as int,
+                                value : unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr)),
+                                position : position
+                            }
                         }
-                        return Token {
-                            type : TokenType.If as int,
-                            value : value,
-                            position : position
-                        }
+                        return getNextToken2(html, lexer);
                     }
-                    comptime_fnv1_hash("else") => {
-                        html.expecting_html_block = true;
-                        return Token {
-                            type : TokenType.Else as int,
-                            value : value,
-                            position : position
-                        }
-                    }
-                    default => {
-                        // '@' followed by a name that is not a keyword is
-                        // ordinary text: a decorator, an annotation, an e-mail
-                        // address. Keep reading the text run from here rather
-                        // than stopping at the end of the name, otherwise the
-                        // whitespace between this word and the text after it is
-                        // split off and then dropped as insignificant, which
-                        // turned "@Override and @app" into "@Overrideand".
-                        provider.read_literal_text();
+                    // after a chemical expression we preserve the whitespace that
+                    // separates it from following content (e.g. "{value} World"),
+                    // but drop whitespace that only precedes a structural boundary
+                    // like a closing tag "</...>" or the html macro's closing "}"
+                    // (e.g. "<div>{x}Text</div>\n    }")
+                    const is_boundary = next == '<' || next == '}';
+                    if(was_after_chem && !is_boundary) {
                         return Token {
                             type : TokenType.Text as int,
                             value : unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr)),
                             position : position
                         }
                     }
-                }
-
-            } else {
-                return Token {
-                    type : TokenType.Text as int,
-                    value : unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr)),
-                    position : position
-                }
-            }
-        }
-        '}' => {
-            if(html.pre_depth > 0 &&
-                (html.pre_brace_depth > 0 || html.lb_count <= 1)) {
-                // Inside <pre> a '}' is literal text in two cases:
-                //
-                //  * pre_brace_depth > 0 -- it closes a '{' that was itself
-                //    read as literal text, so the two pair with each other and
-                //    lb_count is never disturbed;
-                //  * lb_count <= 1 -- no html block is open, so this '}' cannot
-                //    be closing one. It is NOT the '}' that ends the #html
-                //    macro either: the macro's own '}' comes after the
-                //    </pre>, where pre_depth is already back to 0.
-                //
-                // Reading a stray '}' as the macro close is what used to drop
-                // the remainder of the file out of the macro.
-                if(html.pre_brace_depth > 0) {
-                    html.pre_brace_depth--;
-                }
-                const start = data_ptr;
-                provider.read_literal_text();
-                return Token {
-                    type : TokenType.Text as int,
-                    value : unsafe(std::string_view(start, provider.current_data() - start)),
-                    position : position
-                }
-            }
-            if(html.lb_count == 1) {
-                html.reset();
-                lexer.unsetUserLexer();
-            } else {
-                html.lb_count--;
-            }
-            return Token {
-                type : TokenType.RBrace as int,
-                value : view("}"),
-                position : position
-            }
-        }
-        '{' => {
-            if(html.pre_depth > 0 && !html.expecting_html_block) {
-                // Inside <pre> the text is displayed verbatim and code is full
-                // of braces, so a '{' that does not open an @if/@else html
-                // block is literal text rather than the start of a chemical
-                // value. Interpolation is still available in the explicit
-                // "@{expr}" form, and @if/@else blocks still work, because
-                // those set expecting_html_block and are matched by this
-                // branch not being taken.
-                //
-                // Counting it keeps literal braces paired with each other so a
-                // '}' later in the same <pre> can be recognised as literal too
-                // (see the '}' case).
-                html.pre_brace_depth++;
-                const start = data_ptr;
-                provider.read_literal_text();
-                return Token {
-                    type : TokenType.Text as int,
-                    value : unsafe(std::string_view(start, provider.current_data() - start)),
-                    position : position
-                }
-            }
-            if(html.lb_count >= 1 && !html.expecting_html_block) {
-                html.other_mode = true;
-                html.chemical_mode = true;
-                html.chem_start_lb = html.lb_count;
-            }
-            html.lb_count++;
-            html.expecting_html_block = false;
-            return Token {
-                type : TokenType.LBrace as int,
-                value : view("{"),
-                position : position
-            }
-        }
-        ' ', '\t', '\n', '\r' => {
-            if(!html.has_lt) {
-                const was_after_chem = html.after_chem_expr;
-                html.after_chem_expr = false;
-                provider.skip_whitespaces();
-                const next = provider.peek();
-                if(html.pre_depth > 0 || html.preserve_whitespace) {
-                    // inside <pre> (or when preserve_whitespace is on),
-                    // whitespace-only runs between elements are significant;
-                    // they must survive unless they precede a chemical
-                    // statement ('@...') or the enclosing block/macro close
-                    // ('}'), or an html block is expected (right after
-                    // '@if(...)' or '@else', where whitespace is a separator)
+                    // A run of spaces and tabs that stays on the line it started on is
+                    // content, and dropping it welded words together -- "</a>is" for
+                    // "</a> is". Runs that are still dropped, which is what keeps every
+                    // pretty-printed block byte-identical and is pinned by
+                    // lang/tests/compiler_plugins/html/src/whitespace_after_tag.ch:
                     //
-                    // A '}' that is read back as a literal brace of <pre> code --
-                    // because a literal '{' is still unmatched, which is what the
-                    // '{' branch counted -- is content, not a close, so only a
-                    // '}' that really ends a chemical block or expression is a
-                    // boundary. See the matching '{' case below.
-                    const literal_brace = html.pre_depth > 0 && (html.pre_brace_depth > 0 || html.lb_count <= 1);
-                    const closes_chem = next == '}' && !literal_brace;
-                    if(next != '@' && !closes_chem && !html.expecting_html_block) {
+                    //   * a run containing a newline or carriage return, because that
+                    //     is indentation rather than a space somebody typed;
+                    //   * a run at a structural boundary -- before a tag, before the
+                    //     macro's own '}', or before a chemical construct. That last
+                    //     one covers '{' and '@', which open an expression or a block
+                    //     whose value follows, so the run only separates them. The
+                    //     macro's own opening brace ("#html {") is read through this
+                    //     very branch, which is why it has to be dropped here.
+                    const opens_chem = next == '{' || next == '@' || html.expecting_html_block;
+                    if(!is_boundary && !opens_chem &&
+                        !ut_run_has_newline(data_ptr, provider.current_data())) {
                         return Token {
                             type : TokenType.Text as int,
                             value : unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr)),
@@ -362,224 +401,188 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     }
                     return getNextToken2(html, lexer);
                 }
-                // after a chemical expression we preserve the whitespace that
-                // separates it from following content (e.g. "{value} World"),
-                // but drop whitespace that only precedes a structural boundary
-                // like a closing tag "</...>" or the html macro's closing "}"
-                // (e.g. "<div>{x}Text</div>\n    }")
-                const is_boundary = next == '<' || next == '}';
-                if(was_after_chem && !is_boundary) {
-                    return Token {
-                        type : TokenType.Text as int,
-                        value : unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr)),
-                        position : position
-                    }
-                }
-                // A run of spaces and tabs that stays on the line it started on is
-                // content, and dropping it welded words together -- "</a>is" for
-                // "</a> is". Runs that are still dropped, which is what keeps every
-                // pretty-printed block byte-identical and is pinned by
-                // lang/tests/compiler_plugins/html/src/whitespace_after_tag.ch:
-                //
-                //   * a run containing a newline or carriage return, because that
-                //     is indentation rather than a space somebody typed;
-                //   * a run at a structural boundary -- before a tag, before the
-                //     macro's own '}', or before a chemical construct. That last
-                //     one covers '{' and '@', which open an expression or a block
-                //     whose value follows, so the run only separates them. The
-                //     macro's own opening brace ("#html {") is read through this
-                //     very branch, which is why it has to be dropped here.
-                const opens_chem = next == '{' || next == '@' || html.expecting_html_block;
-                if(!is_boundary && !opens_chem &&
-                    !ut_run_has_newline(data_ptr, provider.current_data())) {
-                    return Token {
-                        type : TokenType.Text as int,
-                        value : unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr)),
-                        position : position
-                    }
-                }
+                provider.skip_whitespaces();
                 return getNextToken2(html, lexer);
             }
-            provider.skip_whitespaces();
-            return getNextToken2(html, lexer);
-        }
-        '/' => {
-            if(html.has_lt) {
-                // self-closing <pre/> : we are leaving the pre context
-                if(html.last_tag_pre) {
-                    html.pre_depth--;
-                    html.last_tag_pre = false;
-                }
-                if(html.pre_depth == 0) {
-                    // leaving <pre>: an unbalanced literal '{' must not leak
-                    // past the closing tag
-                    html.pre_brace_depth = 0;
-                }
-                // <script/> is self-closing, not a raw-text element
-                html.pending_script = false;
-                return Token {
-                    type : TokenType.FwdSlash as int,
-                    value : view("/"),
-                    position : position
-                }
-            } else {
-                const start = data_ptr;
-                provider.read_literal_text()
-                return Token {
-                    type : TokenType.Text as int,
-                    value : unsafe(std::string_view(start, provider.current_data() - start)),
-                    position : position
-                }
-            }
-        }
-        '>' => {
-            if(html.has_lt) {
-                // reset back
-                html.has_lt = false;
-                html.lexed_tag_name = false;
-                html.in_end_tag = false;
-                html.last_tag_pre = false;
-                if(html.pending_script) {
-                    // We just opened a <script>. Its content is raw text only
-                    // when that content is actually script data; a `type` naming
-                    // a data block (application/json, ...) gets the ordinary
-                    // text/interpolation path instead. Same predicate as
-                    // html_cbi's converter uses to emit the body verbatim.
-                    html.in_script = !html.pending_script_is_data;
+            '/' => {
+                if(html.has_lt) {
+                    // self-closing <pre/> : we are leaving the pre context
+                    if(html.last_tag_pre) {
+                        html.pre_depth--;
+                        html.last_tag_pre = false;
+                    }
+                    if(html.pre_depth == 0) {
+                        // leaving <pre>: an unbalanced literal '{' must not leak
+                        // past the closing tag
+                        html.pre_brace_depth = 0;
+                    }
+                    // <script/> is self-closing, not a raw-text element
                     html.pending_script = false;
-                    html.pending_script_is_data = false;
-                }
-                return Token {
-                    type : TokenType.GreaterThan as int,
-                    value : view(">"),
-                    position : position
-                }
-            } else {
-                const start = data_ptr;
-                provider.read_literal_text()
-                return Token {
-                    type : TokenType.Text as int,
-                    value : unsafe(std::string_view(start, provider.current_data() - start)),
-                    position : position
+                    return Token {
+                        type : TokenType.FwdSlash as int,
+                        value : view("/"),
+                        position : position
+                    }
+                } else {
+                    const start = data_ptr;
+                    provider.read_literal_text()
+                    return Token {
+                        type : TokenType.Text as int,
+                        value : unsafe(std::string_view(start, provider.current_data() - start)),
+                        position : position
+                    }
                 }
             }
-        }
-        default => {
-            if(html.has_lt) {
-                if(unsafe(isalpha(c as int))) {
-                    if(html.lexed_tag_name) {
-                        provider.read_tag_name();
-                        const attr_value = unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr));
-                        // Remember a `type` attribute so its value token (below)
-                        // can be classified. Only meaningful for a <script>, but
-                        // harmless to record for every tag.
-                        html.attr_name_is_type = ut_attr_name_is_type(attr_value);
-                        return Token {
-                            type : TokenType.AttrName as int,
-                            value : attr_value,
-                            position : position
+            '>' => {
+                if(html.has_lt) {
+                    // reset back
+                    html.has_lt = false;
+                    html.lexed_tag_name = false;
+                    html.in_end_tag = false;
+                    html.last_tag_pre = false;
+                    if(html.pending_script) {
+                        // We just opened a <script>. Its content is raw text only
+                        // when that content is actually script data; a `type` naming
+                        // a data block (application/json, ...) gets the ordinary
+                        // text/interpolation path instead. Same predicate as
+                        // html_cbi's converter uses to emit the body verbatim.
+                        html.in_script = !html.pending_script_is_data;
+                        html.pending_script = false;
+                        html.pending_script_is_data = false;
+                    }
+                    return Token {
+                        type : TokenType.GreaterThan as int,
+                        value : view(">"),
+                        position : position
+                    }
+                } else {
+                    const start = data_ptr;
+                    provider.read_literal_text()
+                    return Token {
+                        type : TokenType.Text as int,
+                        value : unsafe(std::string_view(start, provider.current_data() - start)),
+                        position : position
+                    }
+                }
+            }
+            default => {
+                if(html.has_lt) {
+                    if(unsafe(isalpha(c as int))) {
+                        if(html.lexed_tag_name) {
+                            provider.read_tag_name();
+                            const attr_value = unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr));
+                            // Remember a `type` attribute so its value token (below)
+                            // can be classified. Only meaningful for a <script>, but
+                            // harmless to record for every tag.
+                            html.attr_name_is_type = ut_attr_name_is_type(attr_value);
+                            return Token {
+                                type : TokenType.AttrName as int,
+                                value : attr_value,
+                                position : position
+                            }
+                        } else {
+                            html.lexed_tag_name = true;
+                            provider.read_tag_name();
+                            const tag_value = unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr));
+                            if(!html.in_end_tag) {
+                                const is_pre = tag_value.size() == 3 &&
+                                    tag_value.get(0) == 'p' &&
+                                    tag_value.get(1) == 'r' &&
+                                    tag_value.get(2) == 'e';
+                                if(is_pre) {
+                                    html.pre_depth++;
+                                }
+                                html.last_tag_pre = is_pre;
+                                // A fresh opening tag starts with no `type` seen, so a
+                                // <script> is raw text until an attribute proves
+                                // otherwise.
+                                html.pending_script = is_script_tag_name(tag_value);
+                                html.pending_script_is_data = false;
+                            } else {
+                                // closing tag; match against the currently open <pre>
+                                const is_pre_close = html.pre_depth > 0 && tag_value.size() == 3 &&
+                                    tag_value.get(0) == 'p' &&
+                                    tag_value.get(1) == 'r' &&
+                                    tag_value.get(2) == 'e';
+                                if(is_pre_close) {
+                                    html.pre_depth--;
+                                }
+                                if(html.pre_depth == 0) {
+                                    // leaving <pre>: an unbalanced literal '{' must
+                                    // not leak past the closing tag
+                                    html.pre_brace_depth = 0;
+                                }
+                                html.pending_script = false;
+                                html.in_end_tag = false;
+                            }
+                            return Token {
+                                type : TokenType.TagName as int,
+                                value : tag_value,
+                                position : position
+                            }
                         }
                     } else {
-                        html.lexed_tag_name = true;
-                        provider.read_tag_name();
-                        const tag_value = unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr));
-                        if(!html.in_end_tag) {
-                            const is_pre = tag_value.size() == 3 &&
-                                tag_value.get(0) == 'p' &&
-                                tag_value.get(1) == 'r' &&
-                                tag_value.get(2) == 'e';
-                            if(is_pre) {
-                                html.pre_depth++;
+                        switch(c) {
+                            '=' => {
+                               return Token {
+                                    type : TokenType.Equal as int,
+                                    value : view("="),
+                                    position : position
+                               }
                             }
-                            html.last_tag_pre = is_pre;
-                            // A fresh opening tag starts with no `type` seen, so a
-                            // <script> is raw text until an attribute proves
-                            // otherwise.
-                            html.pending_script = is_script_tag_name(tag_value);
-                            html.pending_script_is_data = false;
-                        } else {
-                            // closing tag; match against the currently open <pre>
-                            const is_pre_close = html.pre_depth > 0 && tag_value.size() == 3 &&
-                                tag_value.get(0) == 'p' &&
-                                tag_value.get(1) == 'r' &&
-                                tag_value.get(2) == 'e';
-                            if(is_pre_close) {
-                                html.pre_depth--;
+                            '\'' => {
+                                provider.read_single_quoted_value()
+                                const sq = unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr));
+                                ut_note_script_type_value(html, sq);
+                                return Token {
+                                    type : TokenType.SingleQuotedValue as int,
+                                    value : sq,
+                                    position : position
+                                }
                             }
-                            if(html.pre_depth == 0) {
-                                // leaving <pre>: an unbalanced literal '{' must
-                                // not leak past the closing tag
-                                html.pre_brace_depth = 0;
+                            '"' => {
+                                provider.read_double_quoted_value()
+                                const dq = unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr));
+                                ut_note_script_type_value(html, dq);
+                                return Token {
+                                    type : TokenType.DoubleQuotedValue as int,
+                                    value : dq,
+                                    position : position
+                                }
                             }
-                            html.pending_script = false;
-                            html.in_end_tag = false;
-                        }
-                        return Token {
-                            type : TokenType.TagName as int,
-                            value : tag_value,
-                            position : position
+                            default => {
+                                if(unsafe(isdigit(c))) {
+                                    provider.read_floating_digits();
+                                    return Token {
+                                        type : TokenType.Number as int,
+                                        value : unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr)),
+                                        position : position
+                                    }
+                                } else {
+                                    return Token {
+                                        type : TokenType.Unexpected as int,
+                                        value : view("tag names must start with letters"),
+                                        position : position
+                                    }
+                                }
+                            }
                         }
                     }
                 } else {
-                    switch(c) {
-                        '=' => {
-                           return Token {
-                                type : TokenType.Equal as int,
-                                value : view("="),
-                                position : position
-                           }
-                        }
-                        '\'' => {
-                            provider.read_single_quoted_value()
-                            const sq = unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr));
-                            ut_note_script_type_value(html, sq);
-                            return Token {
-                                type : TokenType.SingleQuotedValue as int,
-                                value : sq,
-                                position : position
-                            }
-                        }
-                        '"' => {
-                            provider.read_double_quoted_value()
-                            const dq = unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr));
-                            ut_note_script_type_value(html, dq);
-                            return Token {
-                                type : TokenType.DoubleQuotedValue as int,
-                                value : dq,
-                                position : position
-                            }
-                        }
-                        default => {
-                            if(unsafe(isdigit(c))) {
-                                provider.read_floating_digits();
-                                return Token {
-                                    type : TokenType.Number as int,
-                                    value : unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr)),
-                                    position : position
-                                }
-                            } else {
-                                return Token {
-                                    type : TokenType.Unexpected as int,
-                                    value : view("tag names must start with letters"),
-                                    position : position
-                                }
-                            }
-                        }
+                    const start = data_ptr;
+                    provider.read_literal_text()
+                    // the run swallowed the whitespace after its last word, so that
+                    // trailing part is judged here rather than by the whitespace
+                    // branch above, which only runs when whitespace opens a token
+                    const run_end = ut_text_run_end(html, provider, start, provider.current_data());
+                    return Token {
+                        type : TokenType.Text as int,
+                        value : unsafe(std::string_view(start, run_end - start)),
+                        position : position
                     }
-                }
-            } else {
-                const start = data_ptr;
-                provider.read_literal_text()
-                // the run swallowed the whitespace after its last word, so that
-                // trailing part is judged here rather than by the whitespace
-                // branch above, which only runs when whitespace opens a token
-                const run_end = ut_text_run_end(html, provider, start, provider.current_data());
-                return Token {
-                    type : TokenType.Text as int,
-                    value : unsafe(std::string_view(start, run_end - start)),
-                    position : position
                 }
             }
         }
+
+        }
     }
-}

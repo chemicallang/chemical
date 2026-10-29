@@ -78,7 +78,7 @@ func neg_impl_for_unsupported_type(env : &mut TestEnv) {
 @test
 func impl_for_pointer_type_allowed(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "interface Identity {\n    func id(&self) : int\n}\nimpl Identity for *int {\n    func id(&self) : int { return unsafe(**self) }\n}\npublic func main() : int {\n    var x = 7\n    var p : *int = &raw x\n    return p.id()\n}\n"
+    var ch = "interface Identity {\n    func id(&self) : int\n}\nimpl Identity for *int {\n    func id(&self) : int { return unsafe(**self) }\n}\npublic func main() : int {\n    var x = 7\n    var p : *int = &raw x\n    return unsafe(p.id())\n}\n"
     expect_compile_success(env, "impl_for_pointer_type_allowed", ch)
 }
 

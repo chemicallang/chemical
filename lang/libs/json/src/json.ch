@@ -85,14 +85,20 @@ private:
     var str_buf : *mut char = null;
 
     func at_end(&self) : bool { return pos >= len; }
-    func cur(&self) : char { return if(at_end()) '\0' else s[pos]; }
+    func cur(&self) : char {
+        unsafe {     return if(at_end()) '\0' else s[pos]; 
+        }
+    }
     func advance(&mut self, n : size_t = 1)  { pos += n; }
 
     func skip_ws(&mut self) {
-        while (pos < len) {
-            var c = s[pos] as uchar;
-            if (c == ' ' || c == '\n' || c == '\r' || c == '\t') { pos++; continue; }
-            break;
+        unsafe {
+            while (pos < len) {
+                var c = s[pos] as uchar;
+                if (c == ' ' || c == '\n' || c == '\r' || c == '\t') { pos++; continue; }
+                break;
+            }
+    
         }
     }
 
@@ -116,92 +122,104 @@ private:
 
     /* parse literal like true/false/null */
     func parse_literal(&mut self, lit : *char, litlen : size_t, type : int) : ParseResult {
-        if (pos + litlen > len) return ParseResult::Err(pos, "unexpected end in literal");
-        var i : size_t = 0;
-        for (i = 0; i < litlen; ++i) {
-            if (s[pos + i] != lit[i]) return ParseResult::Err(pos, "invalid literal");
+        unsafe {
+            if (pos + litlen > len) return ParseResult::Err(pos, "unexpected end in literal");
+            var i : size_t = 0;
+            for (i = 0; i < litlen; ++i) {
+                if (s[pos + i] != lit[i]) return ParseResult::Err(pos, "invalid literal");
+            }
+            pos += litlen;
+            switch(type) {
+                0 => { handler.on_bool(true); }
+                1 => { handler.on_bool(false); }
+                default, 2 => {  handler.on_null(); }
+            }
+            return ParseResult::Ok();
+    
         }
-        pos += litlen;
-        switch(type) {
-            0 => { handler.on_bool(true); }
-            1 => { handler.on_bool(false); }
-            default, 2 => {  handler.on_null(); }
-        }
-        return ParseResult::Ok();
     }
 
     func parse_number(&mut self) : ParseResult {
-        var start : size_t = pos;
-        if (cur() == '-') advance();
-        if (at_end()) return ParseResult::Err(pos, "unexpected end in number");
-        if (cur() == '0') {
-            advance();
-            /* leading zero must not be followed by digit */
-            if (!at_end() && unsafe(isdigit(cur() as int))) return ParseResult::Err(pos, "leading zero in number");
-        } else {
-            if (!unsafe(isdigit(cur() as int))) return ParseResult::Err(pos, "invalid number");
-            while (!at_end() && unsafe(isdigit(cur() as int))) { advance(); }
+        unsafe {
+            var start : size_t = pos;
+            if (cur() == '-') advance();
+            if (at_end()) return ParseResult::Err(pos, "unexpected end in number");
+            if (cur() == '0') {
+                advance();
+                /* leading zero must not be followed by digit */
+                if (!at_end() && unsafe(isdigit(cur() as int))) return ParseResult::Err(pos, "leading zero in number");
+            } else {
+                if (!unsafe(isdigit(cur() as int))) return ParseResult::Err(pos, "invalid number");
+                while (!at_end() && unsafe(isdigit(cur() as int))) { advance(); }
+            }
+            if (!at_end() && cur() == '.') {
+                advance();
+                if (at_end() || !unsafe(isdigit(cur() as int))) return ParseResult::Err(pos, "invalid fraction");
+                while (!at_end() && unsafe(isdigit(cur() as int))) { advance(); }
+            }
+            if (!at_end() && (cur() == 'e' || cur() == 'E')) {
+                advance();
+                if (!at_end() && (cur() == '+' || cur() == '-')) advance();
+                if (at_end() || !unsafe(isdigit(cur() as int))) return ParseResult::Err(pos, "invalid exponent");
+                while (!at_end() && unsafe(isdigit(cur() as int))) { advance(); }
+            }
+            var nlen : size_t = pos - start;
+            handler.on_number(s + start, nlen);
+            return ParseResult::Ok();
+    
         }
-        if (!at_end() && cur() == '.') {
-            advance();
-            if (at_end() || !unsafe(isdigit(cur() as int))) return ParseResult::Err(pos, "invalid fraction");
-            while (!at_end() && unsafe(isdigit(cur() as int))) { advance(); }
-        }
-        if (!at_end() && (cur() == 'e' || cur() == 'E')) {
-            advance();
-            if (!at_end() && (cur() == '+' || cur() == '-')) advance();
-            if (at_end() || !unsafe(isdigit(cur() as int))) return ParseResult::Err(pos, "invalid exponent");
-            while (!at_end() && unsafe(isdigit(cur() as int))) { advance(); }
-        }
-        var nlen : size_t = pos - start;
-        handler.on_number(s + start, nlen);
-        return ParseResult::Ok();
     }
 
     func parse_object(&mut self, depth : size_t) : ParseResult {
-        /* expect '{' */
-        if (cur() != '{') return ParseResult::Err(pos, "expected '{'");
-        advance();
-        handler.on_object_begin();
-        skip_ws();
-        if (!at_end() && cur() == '}') { advance(); handler.on_object_end(); return ParseResult::Ok(); }
-        loop {
-            skip_ws();
-            if (at_end()) return ParseResult::Err(pos, "unexpected end in object");
-            if (cur() != '"') return ParseResult::Err(pos, "expected string key");
-            /* parse key into string buffer */
-            var r : ParseResult = parse_string_key();
-            if (!r.ok) return r;
-            skip_ws();
-            if (at_end() || cur() != ':') return ParseResult::Err(pos, "expected ':' after key");
+        unsafe {
+            /* expect '{' */
+            if (cur() != '{') return ParseResult::Err(pos, "expected '{'");
             advance();
+            handler.on_object_begin();
             skip_ws();
-            /* parse value */
-            r = parse_value(depth);
-            if (!r.ok) return r;
-            skip_ws();
-            if (at_end()) return ParseResult::Err(pos, "unexpected end in object");
-            if (cur() == ',') { advance(); continue; }
-            if (cur() == '}') { advance(); handler.on_object_end(); return ParseResult::Ok(); }
-            return ParseResult::Err(pos, "expected ',' or '}' in object");
+            if (!at_end() && cur() == '}') { advance(); handler.on_object_end(); return ParseResult::Ok(); }
+            loop {
+                skip_ws();
+                if (at_end()) return ParseResult::Err(pos, "unexpected end in object");
+                if (cur() != '"') return ParseResult::Err(pos, "expected string key");
+                /* parse key into string buffer */
+                var r : ParseResult = parse_string_key();
+                if (!r.ok) return r;
+                skip_ws();
+                if (at_end() || cur() != ':') return ParseResult::Err(pos, "expected ':' after key");
+                advance();
+                skip_ws();
+                /* parse value */
+                r = parse_value(depth);
+                if (!r.ok) return r;
+                skip_ws();
+                if (at_end()) return ParseResult::Err(pos, "unexpected end in object");
+                if (cur() == ',') { advance(); continue; }
+                if (cur() == '}') { advance(); handler.on_object_end(); return ParseResult::Ok(); }
+                return ParseResult::Err(pos, "expected ',' or '}' in object");
+            }
+    
         }
     }
 
     func parse_array(&mut self, depth : size_t) : ParseResult {
-        if (cur() != '[') return ParseResult::Err(pos, "expected '['");
-        advance();
-        handler.on_array_begin();
-        skip_ws();
-        if (!at_end() && cur() == ']') { advance(); handler.on_array_end(); return ParseResult::Ok(); }
-        loop {
+        unsafe {
+            if (cur() != '[') return ParseResult::Err(pos, "expected '['");
+            advance();
+            handler.on_array_begin();
             skip_ws();
-            var r : ParseResult = parse_value(depth);
-            if (!r.ok) return r;
-            skip_ws();
-            if (at_end()) return ParseResult::Err(pos, "unexpected end in array");
-            if (cur() == ',') { advance(); continue; }
-            if (cur() == ']') { advance(); handler.on_array_end(); return ParseResult::Ok(); }
-            return ParseResult::Err(pos, "expected ',' or ']' in array");
+            if (!at_end() && cur() == ']') { advance(); handler.on_array_end(); return ParseResult::Ok(); }
+            loop {
+                skip_ws();
+                var r : ParseResult = parse_value(depth);
+                if (!r.ok) return r;
+                skip_ws();
+                if (at_end()) return ParseResult::Err(pos, "unexpected end in array");
+                if (cur() == ',') { advance(); continue; }
+                if (cur() == ']') { advance(); handler.on_array_end(); return ParseResult::Ok(); }
+                return ParseResult::Err(pos, "expected ',' or ']' in array");
+            }
+    
         }
     }
 
@@ -244,40 +262,46 @@ private:
     }
 
     func emit_char(&mut self, c : char, outlen : &mut size_t) : bool {
-        var buf = self.ensure_buf(*outlen, 1);
-        if (buf == null) return false;
-        buf[*outlen] = c;
-        *outlen += 1;
-        return true;
+        unsafe {
+            var buf = self.ensure_buf(*outlen, 1);
+            if (buf == null) return false;
+            buf[*outlen] = c;
+            *outlen += 1;
+            return true;
+    
+        }
     }
 
     func emit_codepoint(&mut self, cp : uint32_t, outlen : &mut size_t) : bool {
-        if (cp <= 0x7F) {
-            return self.emit_char(cp as char, outlen);
-        } else if (cp <= 0x7FF) {
-            var buf = self.ensure_buf(*outlen, 2);
-            if (buf == null) return false;
-            buf[*outlen] = (0xC0 | ((cp >> 6) & 0x1F)) as char;
-            buf[*outlen + 1] = (0x80 | (cp & 0x3F)) as char;
-            *outlen += 2;
-            return true;
-        } else if (cp <= 0xFFFF) {
-            var buf = self.ensure_buf(*outlen, 3);
-            if (buf == null) return false;
-            buf[*outlen] = (0xE0 | ((cp >> 12) & 0x0F)) as char;
-            buf[*outlen + 1] = (0x80 | ((cp >> 6) & 0x3F)) as char;
-            buf[*outlen + 2] = (0x80 | (cp & 0x3F)) as char;
-            *outlen += 3;
-            return true;
-        } else {
-            var buf = self.ensure_buf(*outlen, 4);
-            if (buf == null) return false;
-            buf[*outlen] = (0xF0 | ((cp >> 18) & 0x07)) as char;
-            buf[*outlen + 1] = (0x80 | ((cp >> 12) & 0x3F)) as char;
-            buf[*outlen + 2] = (0x80 | ((cp >> 6) & 0x3F)) as char;
-            buf[*outlen + 3] = (0x80 | (cp & 0x3F)) as char;
-            *outlen += 4;
-            return true;
+        unsafe {
+            if (cp <= 0x7F) {
+                return self.emit_char(cp as char, outlen);
+            } else if (cp <= 0x7FF) {
+                var buf = self.ensure_buf(*outlen, 2);
+                if (buf == null) return false;
+                buf[*outlen] = (0xC0 | ((cp >> 6) & 0x1F)) as char;
+                buf[*outlen + 1] = (0x80 | (cp & 0x3F)) as char;
+                *outlen += 2;
+                return true;
+            } else if (cp <= 0xFFFF) {
+                var buf = self.ensure_buf(*outlen, 3);
+                if (buf == null) return false;
+                buf[*outlen] = (0xE0 | ((cp >> 12) & 0x0F)) as char;
+                buf[*outlen + 1] = (0x80 | ((cp >> 6) & 0x3F)) as char;
+                buf[*outlen + 2] = (0x80 | (cp & 0x3F)) as char;
+                *outlen += 3;
+                return true;
+            } else {
+                var buf = self.ensure_buf(*outlen, 4);
+                if (buf == null) return false;
+                buf[*outlen] = (0xF0 | ((cp >> 18) & 0x07)) as char;
+                buf[*outlen + 1] = (0x80 | ((cp >> 12) & 0x3F)) as char;
+                buf[*outlen + 2] = (0x80 | ((cp >> 6) & 0x3F)) as char;
+                buf[*outlen + 3] = (0x80 | (cp & 0x3F)) as char;
+                *outlen += 4;
+                return true;
+            }
+    
         }
     }
 
@@ -294,96 +318,105 @@ private:
        Unescape into a growable buffer. Strict: control chars (0x00-0x1F) forbidden.
        Calls handler.on_string with the resulting (unterminated) buffer. */
     func parse_string_value(&mut self) : ParseResult {
-        var outlen : size_t = 0;
-        var r = self.parse_string_body(&mut outlen);
-        if (!r.ok) { self.free_str_buf(); return r; }
-        handler.on_string(self.str_buf, outlen);
-        self.free_str_buf();
-        return ParseResult::Ok();
+        unsafe {
+            var outlen : size_t = 0;
+            var r = self.parse_string_body(&mut outlen);
+            if (!r.ok) { self.free_str_buf(); return r; }
+            handler.on_string(self.str_buf, outlen);
+            self.free_str_buf();
+            return ParseResult::Ok();
+    
+        }
     }
 
     func parse_string_key(&mut self) : ParseResult {
-        var outlen : size_t = 0;
-        var r = self.parse_string_body(&mut outlen);
-        if (!r.ok) { self.free_str_buf(); return r; }
-        handler.on_key(self.str_buf, outlen);
-        self.free_str_buf();
-        return ParseResult::Ok();
+        unsafe {
+            var outlen : size_t = 0;
+            var r = self.parse_string_body(&mut outlen);
+            if (!r.ok) { self.free_str_buf(); return r; }
+            handler.on_key(self.str_buf, outlen);
+            self.free_str_buf();
+            return ParseResult::Ok();
+    
+        }
     }
 
     func parse_string_body(&mut self, outlen : &mut size_t) : ParseResult {
-        if (cur() != '"') return ParseResult::Err(pos, "expected '\"'");
-        advance(); /* skip '"' */
-        *outlen = 0 as size_t;
-        self.str_buf = &raw mut scratch[0];
-        while (!at_end()) {
-            var c = cur() as uchar;
-            if (c == '"') { advance(); return ParseResult::Ok(); }
-            if (c <= 0x1F) return ParseResult::Err(pos, "control char in string");
-            if (c == '\\') {
-                /* escape */
-                advance();
-                if (at_end()) return ParseResult::Err(pos, "unterminated escape");
-                var e = cur() as uchar;
-                advance();
-                if (e == '"') {
-                    if (!self.emit_char('"', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
-                } else if (e == '\\') {
-                    if (!self.emit_char('\\', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
-                } else if (e == '/') {
-                    if (!self.emit_char('/', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
-                } else if (e == 'b') {
-                    if (!self.emit_char('\b', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
-                } else if (e == 'f') {
-                    if (!self.emit_char('\f', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
-                } else if (e == 'n') {
-                    if (!self.emit_char('\n', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
-                } else if (e == 'r') {
-                    if (!self.emit_char('\r', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
-                } else if (e == 't') {
-                    if (!self.emit_char('\t', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
-                } else if (e == 'u') {
-                    /* expect 4 hex digits */
-                    if (pos + 4 > len) return ParseResult::Err(pos, "incomplete unicode escape");
-                    var code : uint32_t = 0;
-                    for (var k : uint = 0; k < 4; ++k) {
-                        var hc = s[pos + k] as uchar;
-                        code <<= 4;
-                        if (hc >= '0' && hc <= '9') code |= (hc - '0');
-                        else if (hc >= 'A' && hc <= 'F') code |= (hc - 'A' + 10);
-                        else if (hc >= 'a' && hc <= 'f') code |= (hc - 'a' + 10);
-                        else return ParseResult::Err(pos + k, "invalid hex in unicode escape");
-                    }
-                    pos += 4;
-                    /* handle surrogate pairs for UTF-16 escapes */
-                    if (code >= 0xD800 && code <= 0xDBFF) {
-                        /* high surrogate, expect \uXXXX for low surrogate */
-                        if (pos + 2 >= len || s[pos] != '\\' || s[pos+1] != 'u') return ParseResult::Err(pos, "expected low surrogate");
-                        pos += 2;
+        unsafe {
+            if (cur() != '"') return ParseResult::Err(pos, "expected '\"'");
+            advance(); /* skip '"' */
+            *outlen = 0 as size_t;
+            self.str_buf = &raw mut scratch[0];
+            while (!at_end()) {
+                var c = cur() as uchar;
+                if (c == '"') { advance(); return ParseResult::Ok(); }
+                if (c <= 0x1F) return ParseResult::Err(pos, "control char in string");
+                if (c == '\\') {
+                    /* escape */
+                    advance();
+                    if (at_end()) return ParseResult::Err(pos, "unterminated escape");
+                    var e = cur() as uchar;
+                    advance();
+                    if (e == '"') {
+                        if (!self.emit_char('"', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
+                    } else if (e == '\\') {
+                        if (!self.emit_char('\\', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
+                    } else if (e == '/') {
+                        if (!self.emit_char('/', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
+                    } else if (e == 'b') {
+                        if (!self.emit_char('\b', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
+                    } else if (e == 'f') {
+                        if (!self.emit_char('\f', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
+                    } else if (e == 'n') {
+                        if (!self.emit_char('\n', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
+                    } else if (e == 'r') {
+                        if (!self.emit_char('\r', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
+                    } else if (e == 't') {
+                        if (!self.emit_char('\t', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
+                    } else if (e == 'u') {
+                        /* expect 4 hex digits */
                         if (pos + 4 > len) return ParseResult::Err(pos, "incomplete unicode escape");
-                        var lo : uint32_t = 0;
+                        var code : uint32_t = 0;
                         for (var k : uint = 0; k < 4; ++k) {
                             var hc = s[pos + k] as uchar;
-                            lo <<= 4;
-                            if (hc >= '0' && hc <= '9') lo |= (hc - '0');
-                            else if (hc >= 'A' && hc <= 'F') lo |= (hc - 'A' + 10);
-                            else if (hc >= 'a' && hc <= 'f') lo |= (hc - 'a' + 10);
+                            code <<= 4;
+                            if (hc >= '0' && hc <= '9') code |= (hc - '0');
+                            else if (hc >= 'A' && hc <= 'F') code |= (hc - 'A' + 10);
+                            else if (hc >= 'a' && hc <= 'f') code |= (hc - 'a' + 10);
                             else return ParseResult::Err(pos + k, "invalid hex in unicode escape");
                         }
                         pos += 4;
-                        if (!(lo >= 0xDC00 && lo <= 0xDFFF)) return ParseResult::Err(pos, "invalid low surrogate");
-                        var full : uint32_t = (0x10000 + (((code - 0xD800) << 10) | (lo - 0xDC00))) as uint32_t;
-                        if (!self.emit_codepoint(full, outlen)) return ParseResult::Err(pos, "string exceeds max_string or invalid unicode");
-                    } else {
-                        if (!self.emit_codepoint(code, outlen)) return ParseResult::Err(pos, "string exceeds max_string or invalid unicode");
-                    }
-                } else return ParseResult::Err(pos, "invalid escape");
-            } else {
-                /* regular character: copy as-is (assume UTF-8 in source) */
-                if (!self.emit_char(c as char, outlen)) { return ParseResult::Err(pos, "string exceeds max_string"); }
-                advance();
+                        /* handle surrogate pairs for UTF-16 escapes */
+                        if (code >= 0xD800 && code <= 0xDBFF) {
+                            /* high surrogate, expect \uXXXX for low surrogate */
+                            if (pos + 2 >= len || s[pos] != '\\' || s[pos+1] != 'u') return ParseResult::Err(pos, "expected low surrogate");
+                            pos += 2;
+                            if (pos + 4 > len) return ParseResult::Err(pos, "incomplete unicode escape");
+                            var lo : uint32_t = 0;
+                            for (var k : uint = 0; k < 4; ++k) {
+                                var hc = s[pos + k] as uchar;
+                                lo <<= 4;
+                                if (hc >= '0' && hc <= '9') lo |= (hc - '0');
+                                else if (hc >= 'A' && hc <= 'F') lo |= (hc - 'A' + 10);
+                                else if (hc >= 'a' && hc <= 'f') lo |= (hc - 'a' + 10);
+                                else return ParseResult::Err(pos + k, "invalid hex in unicode escape");
+                            }
+                            pos += 4;
+                            if (!(lo >= 0xDC00 && lo <= 0xDFFF)) return ParseResult::Err(pos, "invalid low surrogate");
+                            var full : uint32_t = (0x10000 + (((code - 0xD800) << 10) | (lo - 0xDC00))) as uint32_t;
+                            if (!self.emit_codepoint(full, outlen)) return ParseResult::Err(pos, "string exceeds max_string or invalid unicode");
+                        } else {
+                            if (!self.emit_codepoint(code, outlen)) return ParseResult::Err(pos, "string exceeds max_string or invalid unicode");
+                        }
+                    } else return ParseResult::Err(pos, "invalid escape");
+                } else {
+                    /* regular character: copy as-is (assume UTF-8 in source) */
+                    if (!self.emit_char(c as char, outlen)) { return ParseResult::Err(pos, "string exceeds max_string"); }
+                    advance();
+                }
             }
+            return ParseResult::Err(pos, "unterminated string");
+    
         }
-        return ParseResult::Err(pos, "unterminated string");
     }
 };

@@ -202,29 +202,32 @@ public struct string {
     }
 
     func resize(&mut self, value : size_t) {
-        if(value >= ((0 as size_t) - 1)) {
-            panic("string length overflow")
-        }
-        const old_size = size()
-        ensure_mut(value + 1);
-        if(value > old_size) {
-            var d = data()
-            unsafe {
-                memset(&raw mut d[old_size] as *mut void, 0, value - old_size)
+        unsafe {
+            if(value >= ((0 as size_t) - 1)) {
+                panic("string length overflow")
             }
-        }
-        switch(state) {
-            '1' => {
-                storage.sso.length = value as uchar;
-                storage.sso.buffer[value] = '\0';
+            const old_size = size()
+            ensure_mut(value + 1);
+            if(value > old_size) {
+                var d = data()
+                unsafe {
+                    memset(&raw mut d[old_size] as *mut void, 0, value - old_size)
+                }
             }
-            '2' => {
-                storage.heap.length = value;
-                storage.heap.data[value] = '\0';
+            switch(state) {
+                '1' => {
+                    storage.sso.length = value as uchar;
+                    storage.sso.buffer[value] = '\0';
+                }
+                '2' => {
+                    storage.heap.length = value;
+                    storage.heap.data[value] = '\0';
+                }
+                default => {
+                    return
+                }
             }
-            default => {
-                return
-            }
+    
         }
     }
 
@@ -261,35 +264,41 @@ public struct string {
     }
 
     func move_data_to_heap(&mut self, from_data : *char, length : size_t, capacity : size_t) {
-        if(capacity >= ((0 as size_t) - 1) || length > capacity) {
-            panic("string capacity overflow")
+        unsafe {
+            if(capacity >= ((0 as size_t) - 1) || length > capacity) {
+                panic("string capacity overflow")
+            }
+            // +1 is for safety, we need to add a null terminator (always)
+            var d = unsafe(malloc(capacity + 1)) as *mut char
+            unsafe { memcpy(d, from_data, length) }
+            d[length] = '\0'
+            storage.heap.data = d;
+            storage.heap.length = length;
+            storage.heap.capacity = capacity
+            state = '2'
+    
         }
-        // +1 is for safety, we need to add a null terminator (always)
-        var d = unsafe(malloc(capacity + 1)) as *mut char
-        unsafe { memcpy(d, from_data, length) }
-        d[length] = '\0'
-        storage.heap.data = d;
-        storage.heap.length = length;
-        storage.heap.capacity = capacity
-        state = '2'
     }
 
     // this is a private function
     // new_capacity is always > length
     func resize_heap(&mut self, new_capacity : size_t) : bool {
-        if(new_capacity >= ((0 as size_t) - 1)) {
-            panic("string capacity overflow")
-        }
-        // +1 for the null terminator
-        var d = unsafe(realloc(storage.heap.data, new_capacity + 1)) as *mut char
-        if(d == null) {
-            panic("couldn't realloc in std::string -> resize_heap");
-            return false;
-        } else {
-            d[storage.heap.length] = '\0'
-            storage.heap.data = d;
-            storage.heap.capacity = new_capacity
-            return true;
+        unsafe {
+            if(new_capacity >= ((0 as size_t) - 1)) {
+                panic("string capacity overflow")
+            }
+            // +1 for the null terminator
+            var d = unsafe(realloc(storage.heap.data, new_capacity + 1)) as *mut char
+            if(d == null) {
+                panic("couldn't realloc in std::string -> resize_heap");
+                return false;
+            } else {
+                d[storage.heap.length] = '\0'
+                storage.heap.data = d;
+                storage.heap.capacity = new_capacity
+                return true;
+            }
+    
         }
     }
 
@@ -349,85 +358,94 @@ public struct string {
     }
 
     func set(&mut self, index : size_t, value : char) {
-        if(index >= size()) {
-            panic("string index out of bounds")
-        }
-        switch(state) {
-            '0' => {
-                // A constant may be longer than the inline buffer; let
-                // ensure_mut choose SSO or heap storage before writing.
-                ensure_mut(size());
-                if(state == '1') {
+        unsafe {
+            if(index >= size()) {
+                panic("string index out of bounds")
+            }
+            switch(state) {
+                '0' => {
+                    // A constant may be longer than the inline buffer; let
+                    // ensure_mut choose SSO or heap storage before writing.
+                    ensure_mut(size());
+                    if(state == '1') {
+                        storage.sso.buffer[index] = value;
+                    } else {
+                        storage.heap.data[index] = value;
+                    }
+                }
+                '1' => {
                     storage.sso.buffer[index] = value;
-                } else {
+                }
+                '2' => {
                     storage.heap.data[index] = value;
                 }
             }
-            '1' => {
-                storage.sso.buffer[index] = value;
-            }
-            '2' => {
-                storage.heap.data[index] = value;
-            }
+    
         }
     }
 
     func get(&self, index : size_t) : char {
-        if(index >= size()) {
-            panic("string index out of bounds")
-        }
-        switch(state) {
-            '0' => {
-                return storage.constant.data[index];
+        unsafe {
+            if(index >= size()) {
+                panic("string index out of bounds")
             }
-            '1' => {
-                return storage.sso.buffer[index];
+            switch(state) {
+                '0' => {
+                    return storage.constant.data[index];
+                }
+                '1' => {
+                    return storage.sso.buffer[index];
+                }
+                '2' => {
+                    return storage.heap.data[index]
+                }
+                default => {
+                    return '\0'
+                }
             }
-            '2' => {
-                return storage.heap.data[index]
-            }
-            default => {
-                return '\0'
-            }
+    
         }
     }
 
     func append_with_len(&mut self, value : *char, len : size_t) {
-        // offset, where we start writing
-        const offset = size()
-        const max_size = (0 as size_t) - 1
-        if(offset >= max_size || len > max_size - offset - 1) {
-            panic("string length overflow")
-        }
-        // the size of the string, after we've written
-        const new_size = offset + len
-        // If the source aliases this string's own storage, growing may move
-        // that storage. Remember the source offset and recompute it afterwards.
-        const old_data = data()
-        const old_begin = old_data as ubigint
-        const old_end = old_begin + offset
-        const src_addr = value as ubigint
-        var src_offset : size_t = 0
-        var self_source = false
-        if(src_addr >= old_begin && src_addr < old_end) {
-            self_source = true
-            src_offset = (src_addr - old_begin) as size_t
-        }
-        // +1 for null terminator
-        ensure_mut(new_size + 1);
-        var source = value
-        if(self_source) {
-            source = data() + src_offset
-        }
-        if(state == '1') {
-            unsafe { memcpy(&raw mut storage.sso.buffer[offset], source, len) }
-            storage.sso.buffer[new_size] = '\0'
-            storage.sso.length = new_size
-        } else {
-            // state is '2', it cannot be '0'
-            unsafe { memcpy(&raw mut storage.heap.data[offset], source, len) }
-            storage.heap.data[new_size] = '\0';
-            storage.heap.length = new_size
+        unsafe {
+            // offset, where we start writing
+            const offset = size()
+            const max_size = (0 as size_t) - 1
+            if(offset >= max_size || len > max_size - offset - 1) {
+                panic("string length overflow")
+            }
+            // the size of the string, after we've written
+            const new_size = offset + len
+            // If the source aliases this string's own storage, growing may move
+            // that storage. Remember the source offset and recompute it afterwards.
+            const old_data = data()
+            const old_begin = old_data as ubigint
+            const old_end = old_begin + offset
+            const src_addr = value as ubigint
+            var src_offset : size_t = 0
+            var self_source = false
+            if(src_addr >= old_begin && src_addr < old_end) {
+                self_source = true
+                src_offset = (src_addr - old_begin) as size_t
+            }
+            // +1 for null terminator
+            ensure_mut(new_size + 1);
+            var source = value
+            if(self_source) {
+                source = data() + src_offset
+            }
+            if(state == '1') {
+                unsafe { memcpy(&raw mut storage.sso.buffer[offset], source, len) }
+                storage.sso.buffer[new_size] = '\0'
+                storage.sso.length = new_size
+            } else {
+                // state is '2', it cannot be '0'
+                unsafe { memcpy(&raw mut storage.heap.data[offset], source, len) }
+                storage.heap.data[new_size] = '\0';
+                storage.heap.length = new_size
+            }
+    
         }
     }
 
@@ -445,7 +463,10 @@ public struct string {
     }
 
     func append_str(&mut self, value : *string) {
-        append_with_len(value.data(), value.size())
+        unsafe {
+            append_with_len(value.data(), value.size())
+    
+        }
     }
 
     func append_view(&mut self, value : &std::string_view) {
@@ -454,39 +475,42 @@ public struct string {
 
     // Append an *unsigned* 64-bit integer quickly.
     func append_uinteger(&mut self, value : ubigint) {
-        // fast path for zero
-        if(value == 0) {
-            append('0');
-            return;
-        }
+        unsafe {
+            // fast path for zero
+            if(value == 0) {
+                append('0');
+                return;
+            }
 
-        // temporary buffer for digits (max 20 digits for u64)
-        var buf : [20]char;
-        var bi : int = 0;
-        while(value != 0) {
-            const digit = (value % 10) as uint;
-            buf[bi] = ('0' as int + digit as int) as char;
-            bi = bi + 1;
-            value = value / 10;
-        }
+            // temporary buffer for digits (max 20 digits for u64)
+            var buf : [20]char;
+            var bi : int = 0;
+            while(value != 0) {
+                const digit = (value % 10) as uint;
+                buf[bi] = ('0' as int + digit as int) as char;
+                bi = bi + 1;
+                value = value / 10;
+            }
 
-        const old_len = size();
-        const add = bi as size_t;
-        ensure_mut(old_len + add + 1);
-        var p = mutable_data();
+            const old_len = size();
+            const add = bi as size_t;
+            ensure_mut(old_len + add + 1);
+            var p = mutable_data();
 
-        var i : size_t = 0;
-        while(i < add) {
-            // write reversed from buf
-            p[old_len + i] = buf[add - 1 - i];
-            i = i + 1;
-        }
-        p[old_len + add] = '\0';
+            var i : size_t = 0;
+            while(i < add) {
+                // write reversed from buf
+                p[old_len + i] = buf[add - 1 - i];
+                i = i + 1;
+            }
+            p[old_len + add] = '\0';
 
-        if(state == '1') {
-            storage.sso.length = (old_len + add) as uchar;
-        } else {
-            storage.heap.length = old_len + add;
+            if(state == '1') {
+                storage.sso.length = (old_len + add) as uchar;
+            } else {
+                storage.heap.length = old_len + add;
+            }
+    
         }
     }
 
@@ -622,25 +646,28 @@ public struct string {
     }
 
     func append(&mut self, value : char) {
-        const length = size();
-        if((state == '0' || state == '1') && length < (STR_BUFF_SIZE - 1)) {
-            if(state == '0') {
-                move_const_to_buffer();
+        unsafe {
+            const length = size();
+            if((state == '0' || state == '1') && length < (STR_BUFF_SIZE - 1)) {
+                if(state == '0') {
+                    move_const_to_buffer();
+                }
+                storage.sso.buffer[length] = value;
+                storage.sso.buffer[length + 1] = '\0'
+                storage.sso.length = length + 1;
+            } else {
+                if(state == '0') {
+                    move_data_to_heap(storage.constant.data, length, length * 2);
+                } else if(state == '1') {
+                    move_data_to_heap(&raw storage.sso.buffer[0], length, length * 2);
+                } else if(storage.heap.capacity <= length + 2) {
+                    resize_heap(storage.heap.capacity * 2);
+                }
+                storage.heap.data[length] = value;
+                storage.heap.data[length + 1] = '\0'
+                storage.heap.length = length + 1;
             }
-            storage.sso.buffer[length] = value;
-            storage.sso.buffer[length + 1] = '\0'
-            storage.sso.length = length + 1;
-        } else {
-            if(state == '0') {
-                move_data_to_heap(storage.constant.data, length, length * 2);
-            } else if(state == '1') {
-                move_data_to_heap(&raw storage.sso.buffer[0], length, length * 2);
-            } else if(storage.heap.capacity <= length + 2) {
-                resize_heap(storage.heap.capacity * 2);
-            }
-            storage.heap.data[length] = value;
-            storage.heap.data[length + 1] = '\0'
-            storage.heap.length = length + 1;
+    
         }
     }
 
@@ -678,51 +705,54 @@ public struct string {
     }
 
     func erase(&mut self, start : size_t, len : size_t) {
-        const sz = size();
+        unsafe {
+            const sz = size();
 
-        // nothing to erase
-        if(start >= sz || len == 0) {
-            return;
-        }
-
-        // Clamp with subtraction: `start + len` can wrap for a huge `len` and
-        // would then move/erase far past the end of the string.
-        var erase_len = len;
-        if(erase_len > sz - start) {
-            erase_len = sz - start;
-        }
-
-        const tail_start = start + erase_len;
-        const tail_len = sz - tail_start;
-
-        // ensure mutability if needed
-        // (constant → sso/heap, sso may stay sso). The string already stores a
-        // NUL, so its capacity is at least `sz + 1`; asking for `sz` also avoids
-        // wrapping `sz + 1` for a maximum-sized string.
-        ensure_mut(sz);
-
-        if(state == '1') {
-            // SSO
-            if(tail_len > 0) {
-                unsafe { memmove(
-                    &raw mut storage.sso.buffer[start],
-                    &raw storage.sso.buffer[tail_start],
-                    tail_len
-                ) };
+            // nothing to erase
+            if(start >= sz || len == 0) {
+                return;
             }
-            storage.sso.length = (sz - erase_len) as uchar;
-            storage.sso.buffer[storage.sso.length] = '\0';
-        } else {
-            // heap
-            if(tail_len > 0) {
-                unsafe { memmove(
-                    &raw mut storage.heap.data[start],
-                    &raw storage.heap.data[tail_start],
-                    tail_len
-                ) };
+
+            // Clamp with subtraction: `start + len` can wrap for a huge `len` and
+            // would then move/erase far past the end of the string.
+            var erase_len = len;
+            if(erase_len > sz - start) {
+                erase_len = sz - start;
             }
-            storage.heap.length = sz - erase_len;
-            storage.heap.data[storage.heap.length] = '\0';
+
+            const tail_start = start + erase_len;
+            const tail_len = sz - tail_start;
+
+            // ensure mutability if needed
+            // (constant → sso/heap, sso may stay sso). The string already stores a
+            // NUL, so its capacity is at least `sz + 1`; asking for `sz` also avoids
+            // wrapping `sz + 1` for a maximum-sized string.
+            ensure_mut(sz);
+
+            if(state == '1') {
+                // SSO
+                if(tail_len > 0) {
+                    unsafe { memmove(
+                        &raw mut storage.sso.buffer[start],
+                        &raw storage.sso.buffer[tail_start],
+                        tail_len
+                    ) };
+                }
+                storage.sso.length = (sz - erase_len) as uchar;
+                storage.sso.buffer[storage.sso.length] = '\0';
+            } else {
+                // heap
+                if(tail_len > 0) {
+                    unsafe { memmove(
+                        &raw mut storage.heap.data[start],
+                        &raw storage.heap.data[tail_start],
+                        tail_len
+                    ) };
+                }
+                storage.heap.length = sz - erase_len;
+                storage.heap.data[storage.heap.length] = '\0';
+            }
+    
         }
     }
 
@@ -788,24 +818,27 @@ public struct string {
     }
 
     func clear(&mut self) {
-        switch(state) {
-            '0' => {
-                unsafe {
-                    storage.constant.data = ""
+        unsafe {
+            switch(state) {
+                '0' => {
+                    unsafe {
+                        storage.constant.data = ""
+                    }
+                    storage.constant.length = 0
                 }
-                storage.constant.length = 0
-            }
-            '1' => {
-                storage.sso.buffer[0] = '\0'
-                storage.sso.length = 0
-            }
-            '2' => {
-                storage.heap.data[0] = '\0'
-                storage.heap.length = 0;
-            }
-            default => {
+                '1' => {
+                    storage.sso.buffer[0] = '\0'
+                    storage.sso.length = 0
+                }
+                '2' => {
+                    storage.heap.data[0] = '\0'
+                    storage.heap.length = 0;
+                }
+                default => {
 
+                }
             }
+    
         }
     }
 
@@ -844,13 +877,16 @@ public struct string {
     // TODO: no verification of signature
     // TODO: hardcoded type StringStream, generic function support required
     func stream(&self, s : &mut StringStream) {
-        s.writeStr(data(), size())
+        unsafe { s.writeStr(data(), size()) }
     }
 
     @delete
     func delete(&mut self) {
-        if(state == '2') {
-            dealloc storage.heap.data;
+        unsafe {
+            if(state == '2') {
+                dealloc storage.heap.data;
+            }
+    
         }
     }
 
@@ -880,11 +916,11 @@ impl core::stream::Stream for StringStream {
         str.append_uinteger(value)
     }
 
-    func writeStr(&mut self, value : *char, length : ubigint) {
+    unsafe func writeStr(&mut self, value : *char, length : ubigint) {
         str.append_with_len(value, length)
     }
 
-    func writeStrNoLen(&mut self, value : *char) {
+    unsafe func writeStrNoLen(&mut self, value : *char) {
         str.append_with_len(value, unsafe(strlen(value)))
     }
 

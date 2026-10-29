@@ -1,465 +1,483 @@
 func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
-    if(node == null) return;
-    switch(node.kind) {
-        JsNodeKind.Literal => {
-            var lit = node as *mut JsLiteral
-            const val = lit.value
-            if (val.size() >= 2 && (val.get(0) == '\'' || val.get(0) == '\"' || val.get(0) == '`')) {
-                converter.str.append(val.get(0));
-                converter.escapeJs(val.subview(1, val.size() - 1));
-                converter.str.append(val.get(0));
-            } else {
-                converter.str.append_view(&lit.value);
-            }
-        }
-        JsNodeKind.FunctionDecl => {
-             var func = node as *mut JsFunctionDecl
-             const is_anon = func.name.empty()
-             if(is_anon) converter.str.append('(');
-             if(func.is_async) converter.str.append_view("async ");
-             converter.str.append_view("function");
-             if(func.is_generator) converter.str.append('*');
-             if(!is_anon) {
-                 converter.str.append(' ');
-                 converter.str.append_view(&func.name);
-             }
-             converter.str.append_view("(");
-             for(var i : uint = 0; i < func.params.size(); i++) {
-                 if(i > 0) converter.str.append_view(", ");
-                 var param = func.params.get_ptr(i);
-                 converter.str.append_view(&param.name);
-                 if(param.default_value != null) {
-                     converter.str.append_view(" = ");
-                     converter.convertJsNode(param.default_value);
-                 }
-             }
-             converter.str.append_view(") ");
-             converter.function_depth++;
-             converter.convertJsNode(func.body);
-             converter.function_depth--;
-             if(is_anon) converter.str.append(')');
-        }
-        JsNodeKind.Identifier => {
-            var id = node as *mut JsIdentifier
-            if(converter.is_reactive_var(id.value) && !converter.skip_reactive_deref) {
-                converter.str.append_view(&id.value);
-                converter.str.append_view(".value");
-            } else if(converter.is_component_props_name(id.value)) {
-                converter.append_component_prop_value(node);
-            } else {
-                converter.str.append_view(&id.value);
-            }
-        }
-        JsNodeKind.ChemicalValue => {
-            converter.convertChemicalValue(node as *mut JsChemicalValue);
-        }
-        JsNodeKind.UnaryOp => {
-            var unary = node as *mut JsUnaryOp
-            if(unary.operand != null && unary.operand.kind == JsNodeKind.Identifier) {
-                const id = unary.operand as *mut JsIdentifier
-                const is_update = unary.operator.equals(view("++")) || unary.operator.equals(view("--"))
-                if(is_update && converter.is_reactive_var(id.value)) {
-                    if(unary.prefix) {
-                        converter.str.append_view(&unary.operator);
-                        converter.str.append_view(&id.value);
-                        converter.str.append_view(".value");
-                    } else {
-                        converter.str.append_view(&id.value);
-                        converter.str.append_view(".value");
-                        converter.str.append_view(&unary.operator);
-                    }
-                    return;
-                }
-            }
-            if(unary.prefix) {
-                converter.str.append_view(&unary.operator);
-                if(unary.operator.size() > 2 && unsafe(isalpha(unary.operator.get(0) as int))) {
-                    converter.str.append_view(" ")
-                }
-                converter.convertJsNode(unary.operand);
-            } else {
-                converter.convertJsNode(unary.operand);
-                converter.str.append_view(&unary.operator);
-            }
-        }
-        JsNodeKind.BinaryOp => {
-            var bin = node as *mut JsBinaryOp
-            // Context publish: `ctx.value = <signal>` must pass the raw signal
-            // (not a deref'd snapshot) so the runtime setter wires the context
-            // entry to follow the provider's state. `ctx.write = fn` and other
-            // member assignments are unaffected by the deref skip.
-            if(bin.left != null && bin.left.kind == JsNodeKind.MemberAccess &&
-                (bin.op.equals(view("=")) || bin.op.equals(view("+=")) || bin.op.equals(view("-=")) || bin.op.equals(view("*=")) || bin.op.equals(view("/=")))) {
-                const ctxMem = bin.left as *mut JsMemberAccess
-                if(ctxMem.object != null && ctxMem.object.kind == JsNodeKind.Identifier && converter.is_context_var((ctxMem.object as *mut JsIdentifier).value)) {
-                    // Only skip deref when the RHS is a value/signal. A function
-                    // RHS (`ctx.write = (v) => {...}`) must deref reactive reads
-                    // inside its body normally.
-                    const rhsIsFn = bin.right != null && (bin.right.kind == JsNodeKind.ArrowFunction || bin.right.kind == JsNodeKind.FunctionDecl);
-                    converter.push_context();
-                    converter.skip_reactive_deref = !rhsIsFn;
-                    converter.convertJsNode(bin.left);
-                    converter.str.append_view(" ");
-                    converter.str.append_view(&bin.op);
-                    converter.str.append_view(" ");
-                    converter.convertJsNode(bin.right);
-                    converter.pop_context();
-                    return;
-                }
-            }
-            // props.x = expr - emit the raw property access on the LHS (the
-            // $__uni_value getter wrapper is an invalid assignment target).
-            if(bin.left != null && (bin.op.equals(view("=")) || bin.op.equals(view("+=")) || bin.op.equals(view("-=")) || bin.op.equals(view("*=")) || bin.op.equals(view("/="))) && converter.is_component_props_read(bin.left)) {
-                append_js_node_text(bin.left, &mut converter.str);
-                converter.str.append_view(" ");
-                converter.str.append_view(&bin.op);
-                converter.str.append_view(" ");
-                converter.convertJsNode(bin.right);
-                return;
-            }
-            if(bin.left != null && bin.left.kind == JsNodeKind.Identifier) {
-                const id = bin.left as *mut JsIdentifier
-                if(converter.is_reactive_var(id.value) &&
-                    (bin.op.equals(view("=")) || bin.op.equals(view("+=")) || bin.op.equals(view("-=")) || bin.op.equals(view("*=")) || bin.op.equals(view("/=")))) {
-                    converter.str.append_view(&id.value);
-                    converter.str.append_view(".value");
-                    converter.str.append_view(" ");
-                    converter.str.append_view(&bin.op);
-                    converter.str.append_view(" ");
-                    converter.convertJsNode(bin.right);
+        unsafe {
+        if(node == null) return;
+        switch(node.kind) {
+            JsNodeKind.Literal => {
+                var lit = node as *mut JsLiteral
+                const val = lit.value
+                if (val.size() >= 2 && (val.get(0) == '\'' || val.get(0) == '\"' || val.get(0) == '`')) {
+                    converter.str.append(val.get(0));
+                    converter.escapeJs(val.subview(1, val.size() - 1));
+                    converter.str.append(val.get(0));
                 } else {
-                    converter.convertJsNode(bin.left);
-                    converter.str.append_view(" ");
-                    converter.str.append_view(&bin.op);
-                    converter.str.append_view(" ");
-                    converter.convertJsNode(bin.right);
-                }
-            } else {
-                converter.convertJsNode(bin.left);
-                converter.str.append_view(" ");
-                converter.str.append_view(&bin.op);
-                converter.str.append_view(" ");
-                converter.convertJsNode(bin.right);
-            }
-        }
-        JsNodeKind.Ternary => {
-            var tern = node as *mut JsTernary
-            converter.str.append_view("(");
-            converter.convertJsNode(tern.condition);
-            converter.str.append_view(" ? ");
-            converter.convertJsNode(tern.consequent);
-            converter.str.append_view(" : ");
-            converter.convertJsNode(tern.alternate);
-            converter.str.append_view(")");
-        }
-        JsNodeKind.FunctionCall => {
-            var call = node as *mut JsFunctionCall
-            var is_hook = false
-            var is_router_accessor = false
-            if(call.callee.kind == JsNodeKind.Identifier) {
-                var id = call.callee as *mut JsIdentifier
-                var name = id.value
-                // `router("name")` is the compile-time-validated routing handle
-                // (D-3.1): it lowers to the runtime accessor, which returns a
-                // null-object instead of a TypeError when the router is absent.
-                if(name.equals(view("router"))) {
-                    is_router_accessor = true
-                }
-                switch(fnv1_hash_view(&name)) {
-                    comptime_fnv1_hash("useState"),
-                    comptime_fnv1_hash("useEffect"),
-                    comptime_fnv1_hash("useMemo"),
-                    comptime_fnv1_hash("useCallback"),
-                    comptime_fnv1_hash("useRef"),
-                    comptime_fnv1_hash("useContext"),
-                    comptime_fnv1_hash("createContext"),
-                    comptime_fnv1_hash("useReducer"),
-                    comptime_fnv1_hash("useLayoutEffect"),
-                    comptime_fnv1_hash("useErrorBoundary"),
-                    comptime_fnv1_hash("createPortal") => {
-                         converter.str.append_view("$_r.")
-                         is_hook = true
-                    }
-                    default => {}
+                    converter.str.append_view(&lit.value);
                 }
             }
-            if(is_router_accessor) {
-                converter.str.append_view("window.$__uni_router")
-            } else {
-                converter.convertJsNode(call.callee);
+            JsNodeKind.FunctionDecl => {
+                 var func = node as *mut JsFunctionDecl
+                 const is_anon = func.name.empty()
+                 if(is_anon) converter.str.append('(');
+                 if(func.is_async) converter.str.append_view("async ");
+                 converter.str.append_view("function");
+                 if(func.is_generator) converter.str.append('*');
+                 if(!is_anon) {
+                     converter.str.append(' ');
+                     converter.str.append_view(&func.name);
+                 }
+                 converter.str.append_view("(");
+                 for(var i : uint = 0; i < func.params.size(); i++) {
+                     if(i > 0) converter.str.append_view(", ");
+                     var param = func.params.get_ptr(i);
+                     converter.str.append_view(&param.name);
+                     if(param.default_value != null) {
+                         converter.str.append_view(" = ");
+                         converter.convertJsNode(param.default_value);
+                     }
+                 }
+                 converter.str.append_view(") ");
+                 converter.function_depth++;
+                 converter.convertJsNode(func.body);
+                 converter.function_depth--;
+                 if(is_anon) converter.str.append(')');
             }
-            converter.str.append_view("(");
-            for(var i : uint = 0; i < call.args.size(); i++) {
-                if(i > 0) converter.str.append_view(", ");
-                converter.push_context();
-                if(is_hook && i == call.args.size() - 1 && call.args.size() >= 2) {
-                    converter.skip_reactive_deref = true;
-                }
-                converter.convertJsNode(call.args.get(i));
-                converter.pop_context();
-            }
-            converter.str.append_view(")");
-        }
-        JsNodeKind.MemberAccess => {
-            var mem = node as *mut JsMemberAccess
-            if(mem.object != null && mem.object.kind == JsNodeKind.Identifier) {
-                const id = mem.object as *mut JsIdentifier
-                if(converter.is_reactive_var(id.value) && mem.property.equals(view("value"))) {
+            JsNodeKind.Identifier => {
+                var id = node as *mut JsIdentifier
+                if(converter.is_reactive_var(id.value) && !converter.skip_reactive_deref) {
                     converter.str.append_view(&id.value);
                     converter.str.append_view(".value");
                 } else if(converter.is_component_props_name(id.value)) {
                     converter.append_component_prop_value(node);
                 } else {
+                    converter.str.append_view(&id.value);
+                }
+            }
+            JsNodeKind.ChemicalValue => {
+                converter.convertChemicalValue(node as *mut JsChemicalValue);
+            }
+            JsNodeKind.UnaryOp => {
+                var unary = node as *mut JsUnaryOp
+                if(unary.operand != null && unary.operand.kind == JsNodeKind.Identifier) {
+                    const id = unary.operand as *mut JsIdentifier
+                    const is_update = unary.operator.equals(view("++")) || unary.operator.equals(view("--"))
+                    if(is_update && converter.is_reactive_var(id.value)) {
+                        if(unary.prefix) {
+                            converter.str.append_view(&unary.operator);
+                            converter.str.append_view(&id.value);
+                            converter.str.append_view(".value");
+                        } else {
+                            converter.str.append_view(&id.value);
+                            converter.str.append_view(".value");
+                            converter.str.append_view(&unary.operator);
+                        }
+                        return;
+                    }
+                }
+                if(unary.prefix) {
+                    converter.str.append_view(&unary.operator);
+                    if(unary.operator.size() > 2 && unsafe(isalpha(unary.operator.get(0) as int))) {
+                        converter.str.append_view(" ")
+                    }
+                    converter.convertJsNode(unary.operand);
+                } else {
+                    converter.convertJsNode(unary.operand);
+                    converter.str.append_view(&unary.operator);
+                }
+            }
+            JsNodeKind.BinaryOp => {
+                var bin = node as *mut JsBinaryOp
+                // Context publish: `ctx.value = <signal>` must pass the raw signal
+                // (not a deref'd snapshot) so the runtime setter wires the context
+                // entry to follow the provider's state. `ctx.write = fn` and other
+                // member assignments are unaffected by the deref skip.
+                if(bin.left != null && bin.left.kind == JsNodeKind.MemberAccess &&
+                    (bin.op.equals(view("=")) || bin.op.equals(view("+=")) || bin.op.equals(view("-=")) || bin.op.equals(view("*=")) || bin.op.equals(view("/=")))) {
+                    const ctxMem = bin.left as *mut JsMemberAccess
+                    if(ctxMem.object != null && ctxMem.object.kind == JsNodeKind.Identifier && converter.is_context_var((ctxMem.object as *mut JsIdentifier).value)) {
+                        // Only skip deref when the RHS is a value/signal. A function
+                        // RHS (`ctx.write = (v) => {...}`) must deref reactive reads
+                        // inside its body normally.
+                        const rhsIsFn = bin.right != null && (bin.right.kind == JsNodeKind.ArrowFunction || bin.right.kind == JsNodeKind.FunctionDecl);
+                        converter.push_context();
+                        converter.skip_reactive_deref = !rhsIsFn;
+                        converter.convertJsNode(bin.left);
+                        converter.str.append_view(" ");
+                        converter.str.append_view(&bin.op);
+                        converter.str.append_view(" ");
+                        converter.convertJsNode(bin.right);
+                        converter.pop_context();
+                        return;
+                    }
+                }
+                // props.x = expr - emit the raw property access on the LHS (the
+                // $__uni_value getter wrapper is an invalid assignment target).
+                if(bin.left != null && (bin.op.equals(view("=")) || bin.op.equals(view("+=")) || bin.op.equals(view("-=")) || bin.op.equals(view("*=")) || bin.op.equals(view("/="))) && converter.is_component_props_read(bin.left)) {
+                    append_js_node_text(bin.left, &mut converter.str);
+                    converter.str.append_view(" ");
+                    converter.str.append_view(&bin.op);
+                    converter.str.append_view(" ");
+                    converter.convertJsNode(bin.right);
+                    return;
+                }
+                if(bin.left != null && bin.left.kind == JsNodeKind.Identifier) {
+                    const id = bin.left as *mut JsIdentifier
+                    if(converter.is_reactive_var(id.value) &&
+                        (bin.op.equals(view("=")) || bin.op.equals(view("+=")) || bin.op.equals(view("-=")) || bin.op.equals(view("*=")) || bin.op.equals(view("/=")))) {
+                        converter.str.append_view(&id.value);
+                        converter.str.append_view(".value");
+                        converter.str.append_view(" ");
+                        converter.str.append_view(&bin.op);
+                        converter.str.append_view(" ");
+                        converter.convertJsNode(bin.right);
+                    } else {
+                        converter.convertJsNode(bin.left);
+                        converter.str.append_view(" ");
+                        converter.str.append_view(&bin.op);
+                        converter.str.append_view(" ");
+                        converter.convertJsNode(bin.right);
+                    }
+                } else {
+                    converter.convertJsNode(bin.left);
+                    converter.str.append_view(" ");
+                    converter.str.append_view(&bin.op);
+                    converter.str.append_view(" ");
+                    converter.convertJsNode(bin.right);
+                }
+            }
+            JsNodeKind.Ternary => {
+                var tern = node as *mut JsTernary
+                converter.str.append_view("(");
+                converter.convertJsNode(tern.condition);
+                converter.str.append_view(" ? ");
+                converter.convertJsNode(tern.consequent);
+                converter.str.append_view(" : ");
+                converter.convertJsNode(tern.alternate);
+                converter.str.append_view(")");
+            }
+            JsNodeKind.FunctionCall => {
+                var call = node as *mut JsFunctionCall
+                var is_hook = false
+                var is_router_accessor = false
+                if(call.callee.kind == JsNodeKind.Identifier) {
+                    var id = call.callee as *mut JsIdentifier
+                    var name = id.value
+                    // `router("name")` is the compile-time-validated routing handle
+                    // (D-3.1): it lowers to the runtime accessor, which returns a
+                    // null-object instead of a TypeError when the router is absent.
+                    if(name.equals(view("router"))) {
+                        is_router_accessor = true
+                    }
+                    switch(fnv1_hash_view(&name)) {
+                        comptime_fnv1_hash("useState"),
+                        comptime_fnv1_hash("useEffect"),
+                        comptime_fnv1_hash("useMemo"),
+                        comptime_fnv1_hash("useCallback"),
+                        comptime_fnv1_hash("useRef"),
+                        comptime_fnv1_hash("useContext"),
+                        comptime_fnv1_hash("createContext"),
+                        comptime_fnv1_hash("useReducer"),
+                        comptime_fnv1_hash("useLayoutEffect"),
+                        comptime_fnv1_hash("useErrorBoundary"),
+                        comptime_fnv1_hash("createPortal") => {
+                             converter.str.append_view("$_r.")
+                             is_hook = true
+                        }
+                        default => {}
+                    }
+                }
+                if(is_router_accessor) {
+                    converter.str.append_view("window.$__uni_router")
+                } else {
+                    converter.convertJsNode(call.callee);
+                }
+                converter.str.append_view("(");
+                for(var i : uint = 0; i < call.args.size(); i++) {
+                    if(i > 0) converter.str.append_view(", ");
+                    converter.push_context();
+                    if(is_hook && i == call.args.size() - 1 && call.args.size() >= 2) {
+                        converter.skip_reactive_deref = true;
+                    }
+                    converter.convertJsNode(call.args.get(i));
+                    converter.pop_context();
+                }
+                converter.str.append_view(")");
+            }
+            JsNodeKind.MemberAccess => {
+                var mem = node as *mut JsMemberAccess
+                if(mem.object != null && mem.object.kind == JsNodeKind.Identifier) {
+                    const id = mem.object as *mut JsIdentifier
+                    if(converter.is_reactive_var(id.value) && mem.property.equals(view("value"))) {
+                        converter.str.append_view(&id.value);
+                        converter.str.append_view(".value");
+                    } else if(converter.is_component_props_name(id.value)) {
+                        converter.append_component_prop_value(node);
+                    } else {
+                        converter.convertJsNode(mem.object);
+                        converter.str.append_view(".");
+                        converter.str.append_view(&mem.property);
+                    }
+                } else if(mem.property.equals(view("value")) && converter.is_component_props_read(mem.object)) {
+                    converter.convertJsNode(mem.object);
+                } else {
                     converter.convertJsNode(mem.object);
                     converter.str.append_view(".");
                     converter.str.append_view(&mem.property);
                 }
-            } else if(mem.property.equals(view("value")) && converter.is_component_props_read(mem.object)) {
-                converter.convertJsNode(mem.object);
-            } else {
-                converter.convertJsNode(mem.object);
-                converter.str.append_view(".");
-                converter.str.append_view(&mem.property);
             }
-        }
-        JsNodeKind.IndexAccess => {
-            var idx = node as *mut JsIndexAccess
-            converter.convertJsNode(idx.object);
-            converter.str.append_view("[");
-            converter.convertJsNode(idx.index);
-            converter.str.append_view("]");
-        }
-        JsNodeKind.ArrayLiteral, JsNodeKind.ArrayDestructuring => {
-            var arr = node as *mut JsArrayLiteral
-            converter.str.append_view("[");
-            for(var i : uint = 0; i < arr.elements.size(); i++) {
-                if(i > 0) converter.str.append_view(", ");
-                const el = arr.elements.get(i);
-                if(el != null) converter.convertJsNode(el);
+            JsNodeKind.IndexAccess => {
+                var idx = node as *mut JsIndexAccess
+                converter.convertJsNode(idx.object);
+                converter.str.append_view("[");
+                converter.convertJsNode(idx.index);
+                converter.str.append_view("]");
             }
-            converter.str.append_view("]");
-        }
-        JsNodeKind.ObjectLiteral => {
-            var obj = node as *mut JsObjectLiteral
-            converter.str.append_view("{");
-            for(var i : uint = 0; i < obj.properties.size(); i++) {
-                if(i > 0) converter.str.append_view(", ");
-                const prop = obj.properties.get(i);
-                if(prop.value != null && prop.value.kind == JsNodeKind.Spread) {
-                    converter.convertJsNode(prop.value);
-                } else {
-                    converter.str.append_view(&prop.key);
-                    converter.str.append_view(": ");
-                    converter.convertJsNode(prop.value);
+            JsNodeKind.ArrayLiteral, JsNodeKind.ArrayDestructuring => {
+                var arr = node as *mut JsArrayLiteral
+                converter.str.append_view("[");
+                for(var i : uint = 0; i < arr.elements.size(); i++) {
+                    if(i > 0) converter.str.append_view(", ");
+                    const el = arr.elements.get(i);
+                    if(el != null) converter.convertJsNode(el);
                 }
+                converter.str.append_view("]");
             }
-            converter.str.append_view("}");
-        }
-        JsNodeKind.Spread => {
-            const spread = node as *mut JsSpread
-            converter.str.append_view("...");
-            converter.convertJsNode(spread.argument);
-        }
-        JsNodeKind.ArrowFunction => {
-             var arrow = node as *mut JsArrowFunction
-             if(arrow.is_async) converter.str.append_view("async ");
-             converter.str.append_view("(");
-             for(var i : uint = 0; i < arrow.params.size(); i++) {
-                 if(i > 0) converter.str.append_view(", ");
-                 var param = arrow.params.get_ptr(i);
-                 converter.str.append_view(&param.name);
-                 if(param.default_value != null) {
-                     converter.str.append_view(" = ");
-                     converter.convertJsNode(param.default_value);
+            JsNodeKind.ObjectLiteral => {
+                var obj = node as *mut JsObjectLiteral
+                converter.str.append_view("{");
+                for(var i : uint = 0; i < obj.properties.size(); i++) {
+                    if(i > 0) converter.str.append_view(", ");
+                    const prop = obj.properties.get(i);
+                    if(prop.value != null && prop.value.kind == JsNodeKind.Spread) {
+                        converter.convertJsNode(prop.value);
+                    } else {
+                        converter.str.append_view(&prop.key);
+                        converter.str.append_view(": ");
+                        converter.convertJsNode(prop.value);
+                    }
+                }
+                converter.str.append_view("}");
+            }
+            JsNodeKind.Spread => {
+                const spread = node as *mut JsSpread
+                converter.str.append_view("...");
+                converter.convertJsNode(spread.argument);
+            }
+            JsNodeKind.ArrowFunction => {
+                 var arrow = node as *mut JsArrowFunction
+                 if(arrow.is_async) converter.str.append_view("async ");
+                 converter.str.append_view("(");
+                 for(var i : uint = 0; i < arrow.params.size(); i++) {
+                     if(i > 0) converter.str.append_view(", ");
+                     var param = arrow.params.get_ptr(i);
+                     converter.str.append_view(&param.name);
+                     if(param.default_value != null) {
+                         converter.str.append_view(" = ");
+                         converter.convertJsNode(param.default_value);
+                     }
                  }
+                 converter.str.append_view(") => ");
+                 converter.function_depth++;
+                 converter.convertJsNode(arrow.body);
+                 converter.function_depth--;
+            }
+             JsNodeKind.Block => {
+                  var block = node as *mut JsBlock
+                  // Register every name assigned anywhere in this block before
+                  // converting its statements, so a props-derived accumulator
+                  // (`out = out + ...`) is not wrapped in a computed.
+                  const savedAssigned = converter.assigned_names.size();
+                  for(var ai : uint = 0; ai < block.statements.size(); ai++) {
+                      collect_assigned_names(block.statements.get(ai), &mut converter.assigned_names);
+                  }
+                  converter.str.append_view("{ ");
+                  for(var i : uint = 0; i < block.statements.size(); i++) {
+                      converter.convertJsNode(block.statements.get(i));
+                      converter.str.append_view(" ");
+                  }
+                  converter.str.append_view("}");
+                  while(converter.assigned_names.size() > savedAssigned) converter.assigned_names.pop_back();
              }
-             converter.str.append_view(") => ");
-             converter.function_depth++;
-             converter.convertJsNode(arrow.body);
-             converter.function_depth--;
-        }
-         JsNodeKind.Block => {
-              var block = node as *mut JsBlock
-              // Register every name assigned anywhere in this block before
-              // converting its statements, so a props-derived accumulator
-              // (`out = out + ...`) is not wrapped in a computed.
-              const savedAssigned = converter.assigned_names.size();
-              for(var ai : uint = 0; ai < block.statements.size(); ai++) {
-                  collect_assigned_names(block.statements.get(ai), &mut converter.assigned_names);
-              }
-              converter.str.append_view("{ ");
-              for(var i : uint = 0; i < block.statements.size(); i++) {
-                  converter.convertJsNode(block.statements.get(i));
-                  converter.str.append_view(" ");
-              }
-              converter.str.append_view("}");
-              while(converter.assigned_names.size() > savedAssigned) converter.assigned_names.pop_back();
-         }
-        JsNodeKind.ExpressionStatement => {
-             var expr = node as *mut JsExpressionStatement
-             converter.convertJsNode(expr.expression);
-             converter.str.append_view(";");
-        }
-        JsNodeKind.VarDecl => {
-             var decl = node as *mut JsVarDecl
-             if(decl.keyword.equals(view("state")) && decl.pattern == null && !decl.name.empty()) {
-                 converter.state_vars.push(decl.name);
-                 var initText = view("undefined");
-                 if(decl.value != null) {
-                     initText = build_js_node_text_view(converter.builder, decl.value);
-                 }
-                 converter.state_inits.push(JsStateInit {
-                     name : decl.name,
-                     init : initText
-                 });
-                 converter.str.append_view("const ");
-                 converter.str.append_view(&decl.name);
-                 converter.str.append_view(" = $_us(");
-                 if(decl.value != null) {
-                     converter.convertJsNode(decl.value);
-                 } else {
-                     converter.str.append_view("undefined");
-                 }
-                 converter.str.append_view(");");
-             } else {
-                 // `const ctx = createContext(name, default)` / `useContext(name)`
-                 // binds a context var: record it so `ctx.value` reads wrap
-                 // reactively and SSR resolves them to the static default.
-                 if(!decl.name.empty() && decl.pattern == null && decl.value != null && decl.value.kind == JsNodeKind.FunctionCall) {
-                     var ctxCall = decl.value as *mut JsFunctionCall
-                     if(ctxCall.callee != null && ctxCall.callee.kind == JsNodeKind.Identifier) {
-                         const ctxId = ctxCall.callee as *mut JsIdentifier
-                         if(ctxId.value.equals(view("createContext")) || ctxId.value.equals(view("useContext"))) {
-                             var ctxNameExpr : *mut JsNode = null
-                             var ctxDefaultExpr : *mut JsNode = null
-                             if(ctxCall.args.size() >= 1) {
-                                 ctxNameExpr = ctxCall.args.get(0)
-                             }
-                             if(ctxId.value.equals(view("createContext")) && ctxCall.args.size() >= 2) {
-                                 ctxDefaultExpr = ctxCall.args.get(1)
-                             }
-                             if(ctxNameExpr != null) {
-                                 converter.add_context_var(decl.name, ctxNameExpr, ctxDefaultExpr);
-                             }
-                         }
+            JsNodeKind.ExpressionStatement => {
+                 var expr = node as *mut JsExpressionStatement
+                 converter.convertJsNode(expr.expression);
+                 converter.str.append_view(";");
+            }
+            JsNodeKind.VarDecl => {
+                 var decl = node as *mut JsVarDecl
+                 if(decl.keyword.equals(view("state")) && decl.pattern == null && !decl.name.empty()) {
+                     converter.state_vars.push(decl.name);
+                     var initText = view("undefined");
+                     if(decl.value != null) {
+                         initText = build_js_node_text_view(converter.builder, decl.value);
                      }
-                 }
-                 var is_existing_ucs = false;
-                 var is_hook_call = false;
-                 if(decl.value != null && decl.value.kind == JsNodeKind.FunctionCall) {
-                     var call = decl.value as *mut JsFunctionCall
-                     if(call.callee != null && call.callee.kind == JsNodeKind.Identifier) {
-                         var id = call.callee as *mut JsIdentifier
-                         if(id.value.equals(view("$_ucs"))) {
-                             is_existing_ucs = true;
-                         }
-                         // Hook calls return state/handles (not derived values)
-                         // and must not be wrapped. They are also not computed
-                         // vars: `ctx.value = ...` must target the context entry.
-                         if(is_hook_function_name(id.value)) {
-                             is_hook_call = true;
-                         }
-                     }
-                 }
-                  var should_wrap_in_ucs = converter.function_depth == 0 && decl.value != null && !decl.name.empty() && decl.pattern == null &&
-                      !is_existing_ucs && !is_hook_call && !converter.is_assigned_name(decl.name) &&
-                      converter.expr_references_reactive_var(decl.value);
-                 if(should_wrap_in_ucs) {
-                     converter.computed_vars.push(decl.name);
+                     converter.state_inits.push(JsStateInit {
+                         name : decl.name,
+                         init : initText
+                     });
                      converter.str.append_view("const ");
                      converter.str.append_view(&decl.name);
-                     converter.str.append_view(" = $_ucs(() => ");
-                     converter.convertJsNode(decl.value);
+                     converter.str.append_view(" = $_us(");
+                     if(decl.value != null) {
+                         converter.convertJsNode(decl.value);
+                     } else {
+                         converter.str.append_view("undefined");
+                     }
                      converter.str.append_view(");");
                  } else {
-                     converter.str.append_view(&decl.keyword);
-                     converter.str.append_view(" ");
-                     if(decl.pattern != null) {
-                         converter.convertJsNode(decl.pattern);
-                     } else {
+                     // `const ctx = createContext(name, default)` / `useContext(name)`
+                     // binds a context var: record it so `ctx.value` reads wrap
+                     // reactively and SSR resolves them to the static default.
+                     if(!decl.name.empty() && decl.pattern == null && decl.value != null && decl.value.kind == JsNodeKind.FunctionCall) {
+                         var ctxCall = decl.value as *mut JsFunctionCall
+                         if(ctxCall.callee != null && ctxCall.callee.kind == JsNodeKind.Identifier) {
+                             const ctxId = ctxCall.callee as *mut JsIdentifier
+                             if(ctxId.value.equals(view("createContext")) || ctxId.value.equals(view("useContext"))) {
+                                 var ctxNameExpr : *mut JsNode = null
+                                 var ctxDefaultExpr : *mut JsNode = null
+                                 if(ctxCall.args.size() >= 1) {
+                                     ctxNameExpr = ctxCall.args.get(0)
+                                 }
+                                 if(ctxId.value.equals(view("createContext")) && ctxCall.args.size() >= 2) {
+                                     ctxDefaultExpr = ctxCall.args.get(1)
+                                 }
+                                 if(ctxNameExpr != null) {
+                                     converter.add_context_var(decl.name, ctxNameExpr, ctxDefaultExpr);
+                                 }
+                             }
+                         }
+                     }
+                     var is_existing_ucs = false;
+                     var is_hook_call = false;
+                     if(decl.value != null && decl.value.kind == JsNodeKind.FunctionCall) {
+                         var call = decl.value as *mut JsFunctionCall
+                         if(call.callee != null && call.callee.kind == JsNodeKind.Identifier) {
+                             var id = call.callee as *mut JsIdentifier
+                             if(id.value.equals(view("$_ucs"))) {
+                                 is_existing_ucs = true;
+                             }
+                             // Hook calls return state/handles (not derived values)
+                             // and must not be wrapped. They are also not computed
+                             // vars: `ctx.value = ...` must target the context entry.
+                             if(is_hook_function_name(id.value)) {
+                                 is_hook_call = true;
+                             }
+                         }
+                     }
+                      var should_wrap_in_ucs = converter.function_depth == 0 && decl.value != null && !decl.name.empty() && decl.pattern == null &&
+                          !is_existing_ucs && !is_hook_call && !converter.is_assigned_name(decl.name) &&
+                          converter.expr_references_reactive_var(decl.value);
+                     if(should_wrap_in_ucs) {
+                         converter.computed_vars.push(decl.name);
+                         converter.str.append_view("const ");
                          converter.str.append_view(&decl.name);
-                     }
-                     if(decl.value != null) {
-                         converter.str.append_view(" = ");
+                         converter.str.append_view(" = $_ucs(() => ");
                          converter.convertJsNode(decl.value);
+                         converter.str.append_view(");");
+                     } else {
+                         converter.str.append_view(&decl.keyword);
+                         converter.str.append_view(" ");
+                         if(decl.pattern != null) {
+                             converter.convertJsNode(decl.pattern);
+                         } else {
+                             converter.str.append_view(&decl.name);
+                         }
+                         if(decl.value != null) {
+                             converter.str.append_view(" = ");
+                             converter.convertJsNode(decl.value);
+                         }
+                         converter.str.append_view(";");
+                          if(is_existing_ucs && converter.function_depth == 0) {
+                              converter.computed_vars.push(decl.name);
+                          }
                      }
-                     converter.str.append_view(";");
-                      if(is_existing_ucs && converter.function_depth == 0) {
-                          converter.computed_vars.push(decl.name);
-                      }
                  }
-             }
-        }
-        JsNodeKind.If => {
-             var ifStmt = node as *mut JsIf
-             converter.str.append_view("if(");
-             converter.convertJsNode(ifStmt.condition);
-             converter.str.append_view(") ");
-             converter.convertJsNode(ifStmt.thenBlock);
-             if(ifStmt.elseBlock != null) {
-                 converter.str.append_view(" else ");
-                 converter.convertJsNode(ifStmt.elseBlock);
-             }
-        }
-        JsNodeKind.Return => {
-             var ret = node as *mut JsReturn
-             converter.str.append_view("return");
-             if(ret.value != null) {
-                 converter.str.append(' ');
-                 converter.convertJsNode(ret.value);
-             }
-             converter.str.append_view(";");
-        }
-        JsNodeKind.For => {
-             var f = node as *mut JsFor
-             converter.str.append_view("for(");
-             if(f.init != null) converter.convertJsNode(f.init); else converter.str.append_view(";");
-             if(f.condition != null) converter.convertJsNode(f.condition);
-             converter.str.append_view(";");
-             if(f.update != null) converter.convertJsNode(f.update);
-             converter.str.append_view(") ");
-             converter.convertJsNode(f.body);
-        }
-        JsNodeKind.ForIn => {
-             var f = node as *mut JsForIn
-             converter.str.append_view("for(");
-             converter.convertJsNode(f.left);
-             converter.str.append_view(" in ");
-             converter.convertJsNode(f.right);
-             converter.str.append_view(") ");
-             converter.convertJsNode(f.body);
-        }
-        JsNodeKind.ForOf => {
-             var f = node as *mut JsForOf
-             converter.str.append_view("for(");
-             converter.convertJsNode(f.left);
-             converter.str.append_view(" of ");
-             converter.convertJsNode(f.right);
-             converter.str.append_view(") ");
-             converter.convertJsNode(f.body);
-        }
-        JsNodeKind.While => {
-             var w = node as *mut JsWhile
-             converter.str.append_view("while(");
-             converter.convertJsNode(w.condition);
-             converter.str.append_view(") ");
-             converter.convertJsNode(w.body);
-        }
-        JsNodeKind.DoWhile => {
-             var d = node as *mut JsDoWhile
-             converter.str.append_view("do ");
-             converter.convertJsNode(d.body);
-             converter.str.append_view(" while(");
-             converter.convertJsNode(d.condition);
-             converter.str.append_view(");");
-        }
-        JsNodeKind.Switch => {
-             var s = node as *mut JsSwitch
-             converter.str.append_view("switch(");
-             converter.convertJsNode(s.discriminant);
-             converter.str.append_view(") {");
-             for(var i : uint = 0; i < s.cases.size(); i++) {
-                 const c = s.cases.get_ptr(i);
+            }
+            JsNodeKind.If => {
+                 var ifStmt = node as *mut JsIf
+                 converter.str.append_view("if(");
+                 converter.convertJsNode(ifStmt.condition);
+                 converter.str.append_view(") ");
+                 converter.convertJsNode(ifStmt.thenBlock);
+                 if(ifStmt.elseBlock != null) {
+                     converter.str.append_view(" else ");
+                     converter.convertJsNode(ifStmt.elseBlock);
+                 }
+            }
+            JsNodeKind.Return => {
+                 var ret = node as *mut JsReturn
+                 converter.str.append_view("return");
+                 if(ret.value != null) {
+                     converter.str.append(' ');
+                     converter.convertJsNode(ret.value);
+                 }
+                 converter.str.append_view(";");
+            }
+            JsNodeKind.For => {
+                 var f = node as *mut JsFor
+                 converter.str.append_view("for(");
+                 if(f.init != null) converter.convertJsNode(f.init); else converter.str.append_view(";");
+                 if(f.condition != null) converter.convertJsNode(f.condition);
+                 converter.str.append_view(";");
+                 if(f.update != null) converter.convertJsNode(f.update);
+                 converter.str.append_view(") ");
+                 converter.convertJsNode(f.body);
+            }
+            JsNodeKind.ForIn => {
+                 var f = node as *mut JsForIn
+                 converter.str.append_view("for(");
+                 converter.convertJsNode(f.left);
+                 converter.str.append_view(" in ");
+                 converter.convertJsNode(f.right);
+                 converter.str.append_view(") ");
+                 converter.convertJsNode(f.body);
+            }
+            JsNodeKind.ForOf => {
+                 var f = node as *mut JsForOf
+                 converter.str.append_view("for(");
+                 converter.convertJsNode(f.left);
+                 converter.str.append_view(" of ");
+                 converter.convertJsNode(f.right);
+                 converter.str.append_view(") ");
+                 converter.convertJsNode(f.body);
+            }
+            JsNodeKind.While => {
+                 var w = node as *mut JsWhile
+                 converter.str.append_view("while(");
+                 converter.convertJsNode(w.condition);
+                 converter.str.append_view(") ");
+                 converter.convertJsNode(w.body);
+            }
+            JsNodeKind.DoWhile => {
+                 var d = node as *mut JsDoWhile
+                 converter.str.append_view("do ");
+                 converter.convertJsNode(d.body);
+                 converter.str.append_view(" while(");
+                 converter.convertJsNode(d.condition);
+                 converter.str.append_view(");");
+            }
+            JsNodeKind.Switch => {
+                 var s = node as *mut JsSwitch
+                 converter.str.append_view("switch(");
+                 converter.convertJsNode(s.discriminant);
+                 converter.str.append_view(") {");
+                 for(var i : uint = 0; i < s.cases.size(); i++) {
+                     const c = s.cases.get_ptr(i);
+                     if(c.test != null) {
+                         converter.str.append_view("case ");
+                         converter.convertJsNode(c.test);
+                         converter.str.append_view(": ");
+                     } else {
+                         converter.str.append_view("default: ");
+                     }
+                     for(var j : uint = 0; j < c.body.size(); j++) {
+                         converter.convertJsNode(c.body.get(j));
+                         converter.str.append(' ');
+                     }
+                 }
+                 converter.str.append_view("}");
+            }
+            JsNodeKind.Case => {
+                 // Case nodes are emitted inline as part of Switch; this is a safety net.
+                 var c = node as *mut JsCase
                  if(c.test != null) {
                      converter.str.append_view("case ");
                      converter.convertJsNode(c.test);
@@ -471,213 +489,198 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                      converter.convertJsNode(c.body.get(j));
                      converter.str.append(' ');
                  }
-             }
-             converter.str.append_view("}");
-        }
-        JsNodeKind.Case => {
-             // Case nodes are emitted inline as part of Switch; this is a safety net.
-             var c = node as *mut JsCase
-             if(c.test != null) {
-                 converter.str.append_view("case ");
-                 converter.convertJsNode(c.test);
-                 converter.str.append_view(": ");
-             } else {
-                 converter.str.append_view("default: ");
-             }
-             for(var j : uint = 0; j < c.body.size(); j++) {
-                 converter.convertJsNode(c.body.get(j));
-                 converter.str.append(' ');
-             }
-        }
-        JsNodeKind.Break => {
-             converter.str.append_view("break;");
-        }
-        JsNodeKind.Continue => {
-             converter.str.append_view("continue;");
-        }
-        JsNodeKind.Throw => {
-             var t = node as *mut JsThrow
-             converter.str.append_view("throw ");
-             if(t.argument != null) converter.convertJsNode(t.argument);
-             converter.str.append_view(";");
-        }
-        JsNodeKind.Yield => {
-             var y = node as *mut JsYield
-             converter.str.append_view("yield");
-             if(y.delegate) converter.str.append('*');
-             if(y.argument != null) {
-                 converter.str.append(' ');
-                 converter.convertJsNode(y.argument);
-             }
-        }
-        JsNodeKind.Debugger => {
-             converter.str.append_view("debugger;");
-        }
-        JsNodeKind.ClassDecl => {
-             var c = node as *mut JsClassDecl
-             converter.str.append_view("class ");
-             converter.str.append_view(&c.name);
-             if(!c.superClass.empty()) {
-                 converter.str.append_view(" extends ");
-                 converter.str.append_view(&c.superClass);
-             }
-             converter.str.append_view(" { ");
-             for(var i : uint = 0; i < c.methods.size(); i++) {
-                 const m = c.methods.get_ptr(i);
-                 if(m.is_static) converter.str.append_view("static ");
-                 converter.str.append_view(&m.name);
-                 converter.str.append_view("(");
-                 for(var j : uint = 0; j < m.params.size(); j++) {
-                     if(j > 0) converter.str.append_view(", ");
-                     converter.str.append_view(&m.params.get(j).name);
-                     if(m.params.get(j).default_value != null) {
-                         converter.str.append_view(" = ");
-                         converter.convertJsNode(m.params.get(j).default_value);
-                     }
+            }
+            JsNodeKind.Break => {
+                 converter.str.append_view("break;");
+            }
+            JsNodeKind.Continue => {
+                 converter.str.append_view("continue;");
+            }
+            JsNodeKind.Throw => {
+                 var t = node as *mut JsThrow
+                 converter.str.append_view("throw ");
+                 if(t.argument != null) converter.convertJsNode(t.argument);
+                 converter.str.append_view(";");
+            }
+            JsNodeKind.Yield => {
+                 var y = node as *mut JsYield
+                 converter.str.append_view("yield");
+                 if(y.delegate) converter.str.append('*');
+                 if(y.argument != null) {
+                     converter.str.append(' ');
+                     converter.convertJsNode(y.argument);
                  }
-                 converter.str.append_view(") ");
-                 converter.convertJsNode(m.body);
-                 converter.str.append(' ');
-             }
-             converter.str.append_view("}");
-        }
-        JsNodeKind.Import => {
-             var imp = node as *mut JsImport
-             converter.str.append_view("import ");
-             var specCount : uint = 0;
-             for(var i : uint = 0; i < imp.specifiers.size(); i++) {
-                 const spec = imp.specifiers.get(i);
-                 if(spec.imported.equals(view("default"))) {
-                     if(specCount > 0) converter.str.append_view(", ");
-                     converter.str.append_view(&spec.local);
-                     specCount++;
-                 } else if(spec.imported.equals(view("*"))) {
-                     if(specCount > 0) converter.str.append_view(", ");
-                     converter.str.append_view("* as ");
-                     converter.str.append_view(&spec.local);
-                     specCount++;
+            }
+            JsNodeKind.Debugger => {
+                 converter.str.append_view("debugger;");
+            }
+            JsNodeKind.ClassDecl => {
+                 var c = node as *mut JsClassDecl
+                 converter.str.append_view("class ");
+                 converter.str.append_view(&c.name);
+                 if(!c.superClass.empty()) {
+                     converter.str.append_view(" extends ");
+                     converter.str.append_view(&c.superClass);
                  }
-             }
-             var named = std::vector<std::string_view>();
-             for(var i : uint = 0; i < imp.specifiers.size(); i++) {
-                 const spec = imp.specifiers.get(i);
-                 if(spec.imported.equals(view("default")) || spec.imported.equals(view("*"))) continue;
-                 named.push(spec.imported);
-             }
-             if(!named.empty()) {
-                 if(specCount > 0) converter.str.append_view(", ");
-                 converter.str.append_view("{ ");
-                 for(var i : uint = 0; i < named.size(); i++) {
-                     if(i > 0) converter.str.append_view(", ");
-                     converter.str.append_view(&named.get(i));
-                 }
-                 converter.str.append_view(" }");
-                 specCount++;
-             }
-             if(specCount > 0) {
-                 converter.str.append_view(" from ");
-             }
-             converter.str.append_view(&imp.source);
-             converter.str.append_view(";");
-        }
-        JsNodeKind.Export => {
-             var exp = node as *mut JsExport
-             converter.str.append_view("export ");
-             if(exp.is_default) converter.str.append_view("default ");
-             if(exp.declaration != null) converter.convertJsNode(exp.declaration);
-             converter.str.append_view(";");
-        }
-        JsNodeKind.TryCatch => {
-             var t = node as *mut JsTryCatch
-             converter.str.append_view("try ");
-             if(t.tryBlock != null) converter.convertJsNode(t.tryBlock); else converter.str.append_view("{}");
-             if(t.catchBlock != null) {
-                 converter.str.append_view(" catch");
-                 if(!t.catchParam.empty()) {
+                 converter.str.append_view(" { ");
+                 for(var i : uint = 0; i < c.methods.size(); i++) {
+                     const m = c.methods.get_ptr(i);
+                     if(m.is_static) converter.str.append_view("static ");
+                     converter.str.append_view(&m.name);
                      converter.str.append_view("(");
-                     converter.str.append_view(&t.catchParam);
-                     converter.str.append_view(")");
-                 }
-                 converter.str.append_view(" ");
-                 converter.convertJsNode(t.catchBlock);
-             }
-             if(t.finallyBlock != null) {
-                 converter.str.append_view(" finally ");
-                 converter.convertJsNode(t.finallyBlock);
-             }
-        }
-        JsNodeKind.JSXElement => {
-             converter.convertJSXElement(node as *mut JsJSXElement);
-        }
-        JsNodeKind.JSXFragment => {
-             converter.convertJSXFragment(node as *mut JsJSXFragment);
-        }
-        JsNodeKind.JSXExpressionContainer => {
-             var container = node as *mut JsJSXExpressionContainer
-             if(converter.target == BufferType.HTML) {
-                 if(container.expression != null) {
-                     converter.convert_jsx_ssr_expression(container.expression);
-                 }
-                 return;
-             }
-             if(container.expression != null) {
-                 if(container.expression.kind == JsNodeKind.Identifier) {
-                     const id = container.expression as *mut JsIdentifier
-                     if(converter.is_reactive_var(id.value)) {
-                         converter.str.append_view(&id.value);
-                         return;
+                     for(var j : uint = 0; j < m.params.size(); j++) {
+                         if(j > 0) converter.str.append_view(", ");
+                         converter.str.append_view(&m.params.get(j).name);
+                         if(m.params.get(j).default_value != null) {
+                             converter.str.append_view(" = ");
+                             converter.convertJsNode(m.params.get(j).default_value);
+                         }
                      }
-                 } else if(container.expression.kind == JsNodeKind.MemberAccess) {
-                     const mem = container.expression as *mut JsMemberAccess
-                     if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
-                         const id = mem.object as *mut JsIdentifier
+                     converter.str.append_view(") ");
+                     converter.convertJsNode(m.body);
+                     converter.str.append(' ');
+                 }
+                 converter.str.append_view("}");
+            }
+            JsNodeKind.Import => {
+                 var imp = node as *mut JsImport
+                 converter.str.append_view("import ");
+                 var specCount : uint = 0;
+                 for(var i : uint = 0; i < imp.specifiers.size(); i++) {
+                     const spec = imp.specifiers.get(i);
+                     if(spec.imported.equals(view("default"))) {
+                         if(specCount > 0) converter.str.append_view(", ");
+                         converter.str.append_view(&spec.local);
+                         specCount++;
+                     } else if(spec.imported.equals(view("*"))) {
+                         if(specCount > 0) converter.str.append_view(", ");
+                         converter.str.append_view("* as ");
+                         converter.str.append_view(&spec.local);
+                         specCount++;
+                     }
+                 }
+                 var named = std::vector<std::string_view>();
+                 for(var i : uint = 0; i < imp.specifiers.size(); i++) {
+                     const spec = imp.specifiers.get(i);
+                     if(spec.imported.equals(view("default")) || spec.imported.equals(view("*"))) continue;
+                     named.push(spec.imported);
+                 }
+                 if(!named.empty()) {
+                     if(specCount > 0) converter.str.append_view(", ");
+                     converter.str.append_view("{ ");
+                     for(var i : uint = 0; i < named.size(); i++) {
+                         if(i > 0) converter.str.append_view(", ");
+                         converter.str.append_view(&named.get(i));
+                     }
+                     converter.str.append_view(" }");
+                     specCount++;
+                 }
+                 if(specCount > 0) {
+                     converter.str.append_view(" from ");
+                 }
+                 converter.str.append_view(&imp.source);
+                 converter.str.append_view(";");
+            }
+            JsNodeKind.Export => {
+                 var exp = node as *mut JsExport
+                 converter.str.append_view("export ");
+                 if(exp.is_default) converter.str.append_view("default ");
+                 if(exp.declaration != null) converter.convertJsNode(exp.declaration);
+                 converter.str.append_view(";");
+            }
+            JsNodeKind.TryCatch => {
+                 var t = node as *mut JsTryCatch
+                 converter.str.append_view("try ");
+                 if(t.tryBlock != null) converter.convertJsNode(t.tryBlock); else converter.str.append_view("{}");
+                 if(t.catchBlock != null) {
+                     converter.str.append_view(" catch");
+                     if(!t.catchParam.empty()) {
+                         converter.str.append_view("(");
+                         converter.str.append_view(&t.catchParam);
+                         converter.str.append_view(")");
+                     }
+                     converter.str.append_view(" ");
+                     converter.convertJsNode(t.catchBlock);
+                 }
+                 if(t.finallyBlock != null) {
+                     converter.str.append_view(" finally ");
+                     converter.convertJsNode(t.finallyBlock);
+                 }
+            }
+            JsNodeKind.JSXElement => {
+                 converter.convertJSXElement(node as *mut JsJSXElement);
+            }
+            JsNodeKind.JSXFragment => {
+                 converter.convertJSXFragment(node as *mut JsJSXFragment);
+            }
+            JsNodeKind.JSXExpressionContainer => {
+                 var container = node as *mut JsJSXExpressionContainer
+                 if(converter.target == BufferType.HTML) {
+                     if(container.expression != null) {
+                         converter.convert_jsx_ssr_expression(container.expression);
+                     }
+                     return;
+                 }
+                 if(container.expression != null) {
+                     if(container.expression.kind == JsNodeKind.Identifier) {
+                         const id = container.expression as *mut JsIdentifier
                          if(converter.is_reactive_var(id.value)) {
                              converter.str.append_view(&id.value);
                              return;
                          }
+                     } else if(container.expression.kind == JsNodeKind.MemberAccess) {
+                         const mem = container.expression as *mut JsMemberAccess
+                         if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
+                             const id = mem.object as *mut JsIdentifier
+                             if(converter.is_reactive_var(id.value)) {
+                                 converter.str.append_view(&id.value);
+                                 return;
+                             }
+                         }
                      }
+                     converter.convert_jsx_runtime_expr(container.expression);
+                     return;
                  }
-                 converter.convert_jsx_runtime_expr(container.expression);
-                 return;
-             }
+            }
+            JsNodeKind.JSXText => {
+                 var text = node as *mut JsJSXText
+                 if(converter.target == BufferType.HTML) {
+                     converter.escapeHtml(text.value);
+                     converter.put_chain_in();
+                 } else {
+                     // NORMALISED BEFORE IT IS ESCAPED, and this is load-bearing on any
+                     // project whose sources have CRLF endings.
+                     //
+                     // The SSR HTML carries the source's raw bytes, so a JSX whitespace
+                     // child between two elements ships as "\r\n        ". The HTML parser
+                     // then normalises CR and CRLF to LF in text content -- that is the
+                     // spec, not a browser quirk -- so the DOM holds "\n        " while
+                     // the client vnode held "\r\n        ". Every multi-line JSX child on
+                     // such a file then failed hydration with "text node differs from
+                     // SSR", once per gap, until the runtime gave up at 25.
+                     //
+                     // The client has to match what the PARSER produces, not what the
+                     // source contained. The SSR side is left alone: it is correct, and
+                     // the browser is not going to change.
+                     var decoded = decode_html_entities(text.value);
+                     var normalized = normalize_jsx_newlines(decoded.to_view());
+                     converter.str.append_view("`");
+                     converter.escapeJs(normalized.to_view());
+                     converter.str.append_view("`");
+                 }
+            }
+            JsNodeKind.Paren => {
+                 var paren = node as *mut JsParen
+                 converter.str.append('(');
+                 converter.convertJsNode(paren.expression);
+                 converter.str.append(')');
+            }
+            default => {
+            }
         }
-        JsNodeKind.JSXText => {
-             var text = node as *mut JsJSXText
-             if(converter.target == BufferType.HTML) {
-                 converter.escapeHtml(text.value);
-                 converter.put_chain_in();
-             } else {
-                 // NORMALISED BEFORE IT IS ESCAPED, and this is load-bearing on any
-                 // project whose sources have CRLF endings.
-                 //
-                 // The SSR HTML carries the source's raw bytes, so a JSX whitespace
-                 // child between two elements ships as "\r\n        ". The HTML parser
-                 // then normalises CR and CRLF to LF in text content -- that is the
-                 // spec, not a browser quirk -- so the DOM holds "\n        " while
-                 // the client vnode held "\r\n        ". Every multi-line JSX child on
-                 // such a file then failed hydration with "text node differs from
-                 // SSR", once per gap, until the runtime gave up at 25.
-                 //
-                 // The client has to match what the PARSER produces, not what the
-                 // source contained. The SSR side is left alone: it is correct, and
-                 // the browser is not going to change.
-                 var decoded = decode_html_entities(text.value);
-                 var normalized = normalize_jsx_newlines(decoded.to_view());
-                 converter.str.append_view("`");
-                 converter.escapeJs(normalized.to_view());
-                 converter.str.append_view("`");
-             }
-        }
-        JsNodeKind.Paren => {
-             var paren = node as *mut JsParen
-             converter.str.append('(');
-             converter.convertJsNode(paren.expression);
-             converter.str.append(')');
-        }
-        default => {
+
         }
     }
-}
 
 // CRLF and lone CR become LF, exactly as an HTML parser does to text content.
 //
@@ -685,27 +688,33 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
 // built from the SSR HTML. Without it, any project with CRLF sources hydrates
 // with a mismatch on every whitespace-only child between elements.
 public func normalize_jsx_newlines(value : std::string_view) : std::string {
-    if(value.find(&std::string_view("\r")) == std::NPOS) { return std::string(value) }
-    var out = std::string("")
-    var i = 0u
-    while(i < value.size()) {
-        var c = value.get(i)
-        if(c == 13) {
-            // CRLF is ONE line break; consume both bytes and emit one LF.
-            if(i + 1u < value.size() && value.get(i + 1u) == 10) { i = i + 1u }
-            out.append(10 as char)
-        } else {
-            out.append(c)
+        unsafe {
+        if(value.find(&std::string_view("\r")) == std::NPOS) { return std::string(value) }
+        var out = std::string("")
+        var i = 0u
+        while(i < value.size()) {
+            var c = value.get(i)
+            if(c == 13) {
+                // CRLF is ONE line break; consume both bytes and emit one LF.
+                if(i + 1u < value.size() && value.get(i + 1u) == 10) { i = i + 1u }
+                out.append(10 as char)
+            } else {
+                out.append(c)
+            }
+            i = i + 1u
         }
-        i = i + 1u
+        return out
+
+        }
     }
-    return out
-}
 
 func (converter : &mut JsConverter) is_props_children(node : *mut JsNode) : bool {
-    if(node == null || node.kind != JsNodeKind.MemberAccess) return false;
-    const mem = node as *mut JsMemberAccess;
-    if(mem.object == null || mem.object.kind != JsNodeKind.Identifier) return false;
-    const id = mem.object as *mut JsIdentifier;
-    return converter.is_component_props_name(id.value) && mem.property.equals(view("children"));
-}
+        unsafe {
+        if(node == null || node.kind != JsNodeKind.MemberAccess) return false;
+        const mem = node as *mut JsMemberAccess;
+        if(mem.object == null || mem.object.kind != JsNodeKind.Identifier) return false;
+        const id = mem.object as *mut JsIdentifier;
+        return converter.is_component_props_name(id.value) && mem.property.equals(view("children"));
+
+        }
+    }

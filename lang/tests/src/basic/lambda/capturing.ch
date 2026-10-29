@@ -1,9 +1,12 @@
 func cap_func_ret() : std::function<() => int> {
-    var temp = 22;
-    return |temp|() => {
-        return temp;
+        unsafe {
+        var temp = 22;
+        return |temp|() => {
+            return temp;
+        }
+
+        }
     }
-}
 
 struct CapLambTestCont {
     var lamb1 : std::function<() => int>
@@ -12,7 +15,10 @@ struct CapLambTestCont {
 struct CapLambRefTestCont {
     var lamb1 : &std::function<() => int>
     func call(&self) : int {
-        return lamb1()
+        unsafe {
+            return lamb1()
+    
+        }
     }
 }
 
@@ -22,59 +28,86 @@ variant OptCapLamb {
 }
 
 func take_cap_func(fun : std::function<() => int>) : int {
-    return fun()
-}
+        unsafe {
+        return fun()
+
+        }
+    }
 
 func take_cap_func_2(fun : std::function<() => int>) : int {
-    var moved_func = fun
-    return moved_func()
-}
+        unsafe {
+        var moved_func = fun
+        return moved_func()
+
+        }
+    }
 
 func pass_func_lambda(fun : std::function<() => int>) : int {
-    return take_cap_func(fun);
-}
+        unsafe {
+        return take_cap_func(fun);
+
+        }
+    }
 
 func take_cap_func2(fun : std::function<(a : int) => int>) : int {
-    return fun(8327)
-}
+        unsafe {
+        return fun(8327)
+
+        }
+    }
 
 func take_cap_func3(fun : &std::function<(a : int) => int>) : int {
-    return fun(256)
-}
+        unsafe {
+        return fun(256)
+
+        }
+    }
 
 func <T> gen_cap_lamb() : T {
-    var my_var : T = 99234
-    var lamb : std::function<() => T> = |my_var|() => {
-        return my_var
-    }
-    return lamb()
-}
+        unsafe {
+        var my_var : T = 99234
+        var lamb : std::function<() => T> = |my_var|() => {
+            return my_var
+        }
+        return lamb()
 
-func wrap_cap_lamb(ptr : *mut int, fn : std::function<() => int>) : std::function<() => void> { unsafe {
-    return |ptr, fn|() => {
-        var result = fn()
-        *ptr = result
+        }
     }
- }}
+
+func wrap_cap_lamb(ptr : *mut int, fn : std::function<() => int>) : std::function<() => void> {
+        unsafe {     unsafe {
+        return |ptr, fn|() => {
+            var result = fn()
+            *ptr = result
+        }
+     }
+        }
+    }
 
 struct CapLambdContainerStruct {
     var fn : std::function<() => void>
 }
 
-func wrap_cap_lamb_2(ptr : *mut int, fn : std::function<() => int>) : CapLambdContainerStruct { unsafe {
-    var wrap_fn : std::function<() => void> = |ptr, fn|() => {
-        var result = fn()
-        *ptr = result
+func wrap_cap_lamb_2(ptr : *mut int, fn : std::function<() => int>) : CapLambdContainerStruct {
+        unsafe {     unsafe {
+        var wrap_fn : std::function<() => void> = |ptr, fn|() => {
+            var result = fn()
+            *ptr = result
+        }
+        return CapLambdContainerStruct {
+            fn : wrap_fn
+        }
+     }
+        }
     }
-    return CapLambdContainerStruct {
-        fn : wrap_fn
-    }
- }}
 
 struct CapLambRefStruct {
     var value : int
     func double(&self) : int {
-        return value * 2
+        unsafe {
+            return value * 2
+    
+        }
     }
 }
 
@@ -83,222 +116,225 @@ struct CapLambRefContainer {
 }
 
 func test_capturing_lambda() {
-    test("capturing lambda works in var init", () => {
-        var temp = 11;
-        var fn : std::function<() => int> = |temp|() => {
-            return temp;
-        }
-        return fn() == 11;
-    })
-    test("capturing lambda moved into var init can be called", () => {
-        var temp = 938;
-        var result = take_cap_func_2(|temp|() => { return temp; })
-        return result == 938
-    })
-    test("capturing lambda works in function return", () => {
-        var lambda = cap_func_ret();
-        return lambda() == 22;
-    })
-    test("capturing lambda works in array value", () => {
-        var temp1 = 87;
-        var temp2 = 99;
-        var arr : []std::function<() => int> = [
-            |temp1|() => {
-                return temp1;
-            },
-            |temp2|() => {
-                return temp2;
+        unsafe {
+        test("capturing lambda works in var init", () => {
+            var temp = 11;
+            var fn : std::function<() => int> = |temp|() => {
+                return temp;
             }
-        ]
-        return arr[0]() == temp1 && arr[1]() == temp2
-    })
-    test("capturing lambda works in struct value", () => {
-        var temp1 = 57;
-        var con = CapLambTestCont {
-            lamb1 : |temp1|() => {
-                return temp1;
+            return fn() == 11;
+        })
+        test("capturing lambda moved into var init can be called", () => {
+            var temp = 938;
+            var result = take_cap_func_2(|temp|() => { return temp; })
+            return result == 938
+        })
+        test("capturing lambda works in function return", () => {
+            var lambda = cap_func_ret();
+            return lambda() == 22;
+        })
+        test("capturing lambda works in array value", () => {
+            var temp1 = 87;
+            var temp2 = 99;
+            var arr : []std::function<() => int> = [
+                |temp1|() => {
+                    return temp1;
+                },
+                |temp2|() => {
+                    return temp2;
+                }
+            ]
+            return arr[0]() == temp1 && arr[1]() == temp2
+        })
+        test("capturing lambda works in struct value", () => {
+            var temp1 = 57;
+            var con = CapLambTestCont {
+                lamb1 : |temp1|() => {
+                    return temp1;
+                }
             }
-        }
-        return con.lamb1() == temp1
-    })
-    test("capturing lambda works when passing to functions", () => {
-        var temp = 74
-        return take_cap_func(|temp|() => {
-            return temp;
-        }) == temp
-    })
-    test("capturing lambda can be stored and called from variant", () => {
-        var temp = 873
-        var s = OptCapLamb.Some(|temp|() => { return temp; })
-        var Some(lamb) = s else unreachable
-        return lamb() == temp;
-    })
-    test("capturing lambda works with assignment - 1", () => {
-        var temp = 836;
-        var fn : std::function<() => int> = |temp|() => {
-            return temp + 11;
-        }
-        fn = |temp|() => {
-            return temp;
-        }
-        return fn() == temp;
-    })
-    test("capturing lambda works with assignment - 2", () => {
-        var temp = 836;
-        var fn : std::function<() => int> = |temp|() => {
-            return temp + 11;
-        }
-        var fn2 : std::function<() => int> = |temp|() => { return temp + 3; }
-        fn = fn2
-        return fn() == 839;
-    })
-    test("capturing functions can be passed around", () => {
-        var temp = 384
-        return pass_func_lambda(|temp|() => { return temp; }) == 384
-    })
-    test("non capturing functions can be passed to capturing function types - 1", () => {
-        return pass_func_lambda(() => { return 832; }) == 832
-    })
-    test("non capturing functions can be passed to capturing function types - 2", () => {
-        return pass_func_lambda(||() => { return 234; }) == 234
-    })
-    test("can read captured reference", () => {
-        var temp = 434
-        return take_cap_func(|&temp|() => {
-            return *temp;
-        }) == 434
-    })
-    test("can modify captured reference", () => {
-        var temp = 0
-        take_cap_func(|&mut temp|() => {
-            *temp = 121;
-            return 0;
+            return con.lamb1() == temp1
         })
-        return temp == 121;
-    })
-    test("capturing lambdas can take parameters (no capture) - 1", () => {
-        const arg = take_cap_func2(||(a : int) => {
-            return a;
+        test("capturing lambda works when passing to functions", () => {
+            var temp = 74
+            return take_cap_func(|temp|() => {
+                return temp;
+            }) == temp
         })
-        return arg == 8327
-    })
-    test("capturing lambdas can take parameters (with capture) - 2", () => {
-        var x = 8237
-        const arg = take_cap_func2(|x|(a : int) => {
-            return a;
+        test("capturing lambda can be stored and called from variant", () => {
+            var temp = 873
+            var s = OptCapLamb.Some(|temp|() => { return temp; })
+            var Some(lamb) = s else unreachable
+            return lamb() == temp;
         })
-        return arg == 8327
-    })
-    test("automatic dereference when captured is a reference for indexing - 1", () => {
-        var index = 0
-        const arg = take_cap_func2(|&mut index|(a : int) => {
-            var arr = [ 8323, 23485 ]
-            return arr[index]
-        })
-        return arg == 8323
-    })
-    test("automatic dereference when captured is a reference for indexing - 2", () => {
-        var index = 1
-        const arg = take_cap_func2(|&mut index|(a : int) => {
-            var arr = [ 8323, 23485 ]
-            return arr[index]
-        })
-        return arg == 23485
-    })
-    test("capturing lambda with capturing variable works in generic container - 1", () => {
-        return gen_cap_lamb<int>() == 99234
-    })
-    test("capturing lambda with capturing variable works in generic container - 2", () => {
-        return gen_cap_lamb<uint>() == 99234u
-    })
-    test("wrapping a capturing lambda works - 1", () => {
-        var result : int = 0
-        var x = wrap_cap_lamb(&raw mut result, ||() => {
-            return 92348324
-        })
-        x()
-        return result == 92348324
-    })
-    test("wrapping a capturing lambda works - 2", () => {
-        var result : int = 10
-        var x = wrap_cap_lamb_2(&raw mut result, |result|() => {
-            return result + 10
-        })
-        x.fn()
-        return result == 20
-    })
-    test("struct captured via ref in lambda can be called methods on", () => {
-        var r = CapLambRefStruct { value : 92 }
-        var result = take_cap_func(|&mut r|() => {
-            return r.double()
-        })
-        return result == (92 + 92);
-    })
-    test("struct pointer captured by value in lambda can be called methods on", () => {
-        var s = new CapLambRefStruct
-        new (s) CapLambRefStruct { value : 32 }
-        var result = take_cap_func(|s|() => { return s.double() })
-        dealloc s
-        return result == 64
-    })
-    test("struct pointer captured by value in lambda can be called methods on its members", () => {
-        var s = new CapLambRefContainer
-        new (s) CapLambRefContainer { value : CapLambRefStruct { value : 33 } }
-        var result = take_cap_func(|s|() => { return s.value.double() })
-        dealloc s
-        return result == 66
-    })
-    test("capturing struct in lambda via reference works", () => {
-        var cap = CapLambRefStruct { value : 13 }
-        var fn : std::function<() => int> = |&cap|() => {
-            return cap.double();
-        }
-        return fn() == 26
-    })
-    test("capturing struct in lambda by value works", () => {
-        var cap = CapLambRefStruct { value : 14 }
-        var fn : std::function<() => int> = |cap|() => {
-            return cap.double();
-        }
-        return fn() == 28
-    })
-    test("capturing functions can be called through references", () => {
-        var called = take_cap_func3(||(a : int) => {
-            return a * 2;
-        });
-        return called == 512;
-    })
-    test("capturing lambda stored as reference inside container works", () => {
-        var c = CapLambRefTestCont { lamb1 : ||() => { return 832 } }
-        return c.call() == 832
-    })
-    test("capturing lambdas can return structs - 1", () => {
-        var f : std::function<() => CapLambRefStruct> = () => {
-            return CapLambRefStruct { value : 992 }
-        }
-        var x = f()
-        return x.value == 992
-    })
-    test("capturing lambdas can return structs - 2", () => {
-        var f : std::function<() => CapLambRefStruct> = () => {
-            var stored = CapLambRefStruct { value : 265 }
-            return stored
-        }
-        var x = f()
-        return x.value == 265
-    })
-    test("capturing lambdas can capture other lambdas by value", () => {
-        var final = 0;
-        if(true) {
-            var f : std::function<() => int> = () => {
-                return 33;
+        test("capturing lambda works with assignment - 1", () => {
+            var temp = 836;
+            var fn : std::function<() => int> = |temp|() => {
+                return temp + 11;
             }
-            var cap : std::function<() => int> = |f|() => {
-                return f()
+            fn = |temp|() => {
+                return temp;
             }
-            final = cap();
+            return fn() == temp;
+        })
+        test("capturing lambda works with assignment - 2", () => {
+            var temp = 836;
+            var fn : std::function<() => int> = |temp|() => {
+                return temp + 11;
+            }
+            var fn2 : std::function<() => int> = |temp|() => { return temp + 3; }
+            fn = fn2
+            return fn() == 839;
+        })
+        test("capturing functions can be passed around", () => {
+            var temp = 384
+            return pass_func_lambda(|temp|() => { return temp; }) == 384
+        })
+        test("non capturing functions can be passed to capturing function types - 1", () => {
+            return pass_func_lambda(() => { return 832; }) == 832
+        })
+        test("non capturing functions can be passed to capturing function types - 2", () => {
+            return pass_func_lambda(||() => { return 234; }) == 234
+        })
+        test("can read captured reference", () => {
+            var temp = 434
+            return take_cap_func(|&temp|() => {
+                return *temp;
+            }) == 434
+        })
+        test("can modify captured reference", () => {
+            var temp = 0
+            take_cap_func(|&mut temp|() => {
+                *temp = 121;
+                return 0;
+            })
+            return temp == 121;
+        })
+        test("capturing lambdas can take parameters (no capture) - 1", () => {
+            const arg = take_cap_func2(||(a : int) => {
+                return a;
+            })
+            return arg == 8327
+        })
+        test("capturing lambdas can take parameters (with capture) - 2", () => {
+            var x = 8237
+            const arg = take_cap_func2(|x|(a : int) => {
+                return a;
+            })
+            return arg == 8327
+        })
+        test("automatic dereference when captured is a reference for indexing - 1", () => {
+            var index = 0
+            const arg = take_cap_func2(|&mut index|(a : int) => {
+                var arr = [ 8323, 23485 ]
+                return arr[index]
+            })
+            return arg == 8323
+        })
+        test("automatic dereference when captured is a reference for indexing - 2", () => {
+            var index = 1
+            const arg = take_cap_func2(|&mut index|(a : int) => {
+                var arr = [ 8323, 23485 ]
+                return arr[index]
+            })
+            return arg == 23485
+        })
+        test("capturing lambda with capturing variable works in generic container - 1", () => {
+            return gen_cap_lamb<int>() == 99234
+        })
+        test("capturing lambda with capturing variable works in generic container - 2", () => {
+            return gen_cap_lamb<uint>() == 99234u
+        })
+        test("wrapping a capturing lambda works - 1", () => {
+            var result : int = 0
+            var x = wrap_cap_lamb(&raw mut result, ||() => {
+                return 92348324
+            })
+            x()
+            return result == 92348324
+        })
+        test("wrapping a capturing lambda works - 2", () => {
+            var result : int = 10
+            var x = wrap_cap_lamb_2(&raw mut result, |result|() => {
+                return result + 10
+            })
+            x.fn()
+            return result == 20
+        })
+        test("struct captured via ref in lambda can be called methods on", () => {
+            var r = CapLambRefStruct { value : 92 }
+            var result = take_cap_func(|&mut r|() => {
+                return r.double()
+            })
+            return result == (92 + 92);
+        })
+        test("struct pointer captured by value in lambda can be called methods on", () => {
+            var s = new CapLambRefStruct
+            new (s) CapLambRefStruct { value : 32 }
+            var result = take_cap_func(|s|() => { return s.double() })
+            dealloc s
+            return result == 64
+        })
+        test("struct pointer captured by value in lambda can be called methods on its members", () => {
+            var s = new CapLambRefContainer
+            new (s) CapLambRefContainer { value : CapLambRefStruct { value : 33 } }
+            var result = take_cap_func(|s|() => { return s.value.double() })
+            dealloc s
+            return result == 66
+        })
+        test("capturing struct in lambda via reference works", () => {
+            var cap = CapLambRefStruct { value : 13 }
+            var fn : std::function<() => int> = |&cap|() => {
+                return cap.double();
+            }
+            return fn() == 26
+        })
+        test("capturing struct in lambda by value works", () => {
+            var cap = CapLambRefStruct { value : 14 }
+            var fn : std::function<() => int> = |cap|() => {
+                return cap.double();
+            }
+            return fn() == 28
+        })
+        test("capturing functions can be called through references", () => {
+            var called = take_cap_func3(||(a : int) => {
+                return a * 2;
+            });
+            return called == 512;
+        })
+        test("capturing lambda stored as reference inside container works", () => {
+            var c = CapLambRefTestCont { lamb1 : ||() => { return 832 } }
+            return c.call() == 832
+        })
+        test("capturing lambdas can return structs - 1", () => {
+            var f : std::function<() => CapLambRefStruct> = () => {
+                return CapLambRefStruct { value : 992 }
+            }
+            var x = f()
+            return x.value == 992
+        })
+        test("capturing lambdas can return structs - 2", () => {
+            var f : std::function<() => CapLambRefStruct> = () => {
+                var stored = CapLambRefStruct { value : 265 }
+                return stored
+            }
+            var x = f()
+            return x.value == 265
+        })
+        test("capturing lambdas can capture other lambdas by value", () => {
+            var final = 0;
+            if(true) {
+                var f : std::function<() => int> = () => {
+                    return 33;
+                }
+                var cap : std::function<() => int> = |f|() => {
+                    return f()
+                }
+                final = cap();
+            }
+            return final == 33;
+        })
+        test_capturing_lambda_destruction()
+
         }
-        return final == 33;
-    })
-    test_capturing_lambda_destruction()
-}
+    }

@@ -12,10 +12,13 @@ public func convert_universal_node(node : *mut JsNode, emitter : &mut JsNodeEmit
 }
 
 public func convert_universal_root(root : *mut JsBlock, emitter : &mut JsNodeEmitter) {
-    var i = 0u
-    while(i < root.statements.size()) {
-        convert_js_node(root.statements.get(i), emitter, true)
-        i++
+        unsafe {
+        var i = 0u
+        while(i < root.statements.size()) {
+            convert_js_node(root.statements.get(i), emitter, true)
+            i++
+        }
+        emitter.flush()
+
+        }
     }
-    emitter.flush()
-}

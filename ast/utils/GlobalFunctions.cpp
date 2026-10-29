@@ -50,6 +50,7 @@
 #include "compiler/symres/CoreNodes.h"
 #include "compiler/processor/ModuleFileData.h"
 #include "ast/statements/AccessChainNode.h"
+#include "ast/structures/UnsafeBlock.h"
 #include "ast/statements/Typealias.h"
 #include "ast/structures/GenericTypeDecl.h"
 #include "utils/PathUtils.h"
@@ -2113,7 +2114,9 @@ public:
         const auto wrapper = new (allocator.allocate<AccessChainNode>()) AccessChainNode(loc, parent_node);
         wrapper->chain.setType(typeBuilder.getVoidType());
         wrapper->chain.values.emplace_back(write_call);
-        return wrapper;
+        auto* trusted = new (allocator.allocate<UnsafeBlock>()) UnsafeBlock(parent_node, loc);
+        trusted->scope.nodes.emplace_back(wrapper);
+        return trusted;
     }
 
     ASTNode* write_call(
@@ -2144,7 +2147,9 @@ public:
         const auto wrapper = new (allocator.allocate<AccessChainNode>()) AccessChainNode(loc, parent_node);
         wrapper->chain.setType(typeBuilder.getVoidType());
         wrapper->chain.values.emplace_back(write_call);
-        return wrapper;
+        auto* trusted = new (allocator.allocate<UnsafeBlock>()) UnsafeBlock(parent_node, loc);
+        trusted->scope.nodes.emplace_back(wrapper);
+        return trusted;
     }
 
     ASTNode* process_value(

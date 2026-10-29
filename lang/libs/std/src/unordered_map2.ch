@@ -33,50 +33,53 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
 
     // Resize and rehash
     func resize(&mut self) : void {
-        if(capacity > ((0 as size_t) - 1) / 2) {
-            panic("unordered_map capacity overflow")
-        }
-        var newCapacity = capacity * 2;
-        // The FIRST resize of an empty map doubles zero, which is still zero, so the
-        // new table was a `malloc(0)` and `capacity` stayed 0. Every bucket index is
-        // `hash & (capacity - 1)`, and at capacity 0 that mask is SIZE_MAX -- so the
-        // index became the whole hash and `table[index]` read one hash out of bounds.
-        //
-        // Seeding the first allocation is the fix. It must be a power of two, for the
-        // same mask.
-        if(newCapacity == 0) {
-            newCapacity = INITIAL_CAPACITY;
-        }
-        if(newCapacity > ((0 as size_t) - 1) / sizeof(*mut unordered_map_node<Key, Value>)) {
-            panic("unordered_map capacity overflow")
-        }
-        var newTable = unsafe(malloc(newCapacity * sizeof(*mut unordered_map_node<Key, Value>))) as *mut *mut unordered_map_node<Key, Value>;
-        if(newTable == null) {
-            panic("failed to allocate unordered_map table")
-        }
-
-        // Initialize new table to nullptr (empty buckets)
-        unsafe { memset(newTable, 0, newCapacity * sizeof(*mut unordered_map_node<Key, Value>)) };
-
-        // Rehash all elements into the new table
-        for (var i = 0; i < capacity; i++) {
-            var currentNode = table[i];
-            while (currentNode != null) {
-                var nextNode = currentNode.next; // Save next pointer before re-linking
-
-                var index = hash_now(&currentNode.key) & (newCapacity - 1);
-                // Reinsert the node into the new table's bucket chain
-                currentNode.next = newTable[index];
-                newTable[index] = currentNode;
-
-                currentNode = nextNode;
+        unsafe {
+            if(capacity > ((0 as size_t) - 1) / 2) {
+                panic("unordered_map capacity overflow")
             }
-        }
+            var newCapacity = capacity * 2;
+            // The FIRST resize of an empty map doubles zero, which is still zero, so the
+            // new table was a `malloc(0)` and `capacity` stayed 0. Every bucket index is
+            // `hash & (capacity - 1)`, and at capacity 0 that mask is SIZE_MAX -- so the
+            // index became the whole hash and `table[index]` read one hash out of bounds.
+            //
+            // Seeding the first allocation is the fix. It must be a power of two, for the
+            // same mask.
+            if(newCapacity == 0) {
+                newCapacity = INITIAL_CAPACITY;
+            }
+            if(newCapacity > ((0 as size_t) - 1) / sizeof(*mut unordered_map_node<Key, Value>)) {
+                panic("unordered_map capacity overflow")
+            }
+            var newTable = unsafe(malloc(newCapacity * sizeof(*mut unordered_map_node<Key, Value>))) as *mut *mut unordered_map_node<Key, Value>;
+            if(newTable == null) {
+                panic("failed to allocate unordered_map table")
+            }
 
-        // Free old table
-        dealloc table;
-        table = newTable;
-        capacity = newCapacity;
+            // Initialize new table to nullptr (empty buckets)
+            unsafe { memset(newTable, 0, newCapacity * sizeof(*mut unordered_map_node<Key, Value>)) };
+
+            // Rehash all elements into the new table
+            for (var i = 0; i < capacity; i++) {
+                var currentNode = table[i];
+                while (currentNode != null) {
+                    var nextNode = currentNode.next; // Save next pointer before re-linking
+
+                    var index = hash_now(&currentNode.key) & (newCapacity - 1);
+                    // Reinsert the node into the new table's bucket chain
+                    currentNode.next = newTable[index];
+                    newTable[index] = currentNode;
+
+                    currentNode = nextNode;
+                }
+            }
+
+            // Free old table
+            dealloc table;
+            table = newTable;
+            capacity = newCapacity;
+    
+        }
     }
 
     @make
@@ -96,64 +99,73 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
 
     @delete
     func delete(&self) {
-        // Free all nodes in the chains
-        for (var i = 0; i < capacity; i++) {
-            var currentNode = table[i];
-            while (currentNode != null) {
-                var nextNode = currentNode.next;
-                // Run the node's generated destructor (key/value fields), then free it.
-                destruct currentNode
-                dealloc currentNode;
-                currentNode = nextNode;
+        unsafe {
+            // Free all nodes in the chains
+            for (var i = 0; i < capacity; i++) {
+                var currentNode = table[i];
+                while (currentNode != null) {
+                    var nextNode = currentNode.next;
+                    // Run the node's generated destructor (key/value fields), then free it.
+                    destruct currentNode
+                    dealloc currentNode;
+                    currentNode = nextNode;
+                }
             }
+            dealloc table;
+    
         }
-        dealloc table;
     }
 
     // Insert or update a key-value pair
     func insert(&mut self, key : Key, value : Value) {
+        unsafe {
 
-        if ((_size as float) / capacity > LOAD_FACTOR_THRESHOLD2) {
-            resize();
-        }
-
-        var index = hash_with_capacity(&key);
-        var currentNode = table[index];
-
-        // Check if the key already exists in the chain, and update if so
-        while (currentNode != null) {
-            if (compare_now(&currentNode.key, &key)) {
-                destruct &mut currentNode.value
-                currentNode.value = value; // Update value
-                return;
+            if ((_size as float) / capacity > LOAD_FACTOR_THRESHOLD2) {
+                resize();
             }
-            currentNode = currentNode.next;
-        }
 
-        // Insert the new node at the front of the chain
-        const newNode = unsafe(malloc(sizeof(unordered_map_node<Key, Value>))) as *mut unordered_map_node<Key, Value>;
-        if(newNode == null) {
-            panic("failed to allocate unordered_map node")
+            var index = hash_with_capacity(&key);
+            var currentNode = table[index];
+
+            // Check if the key already exists in the chain, and update if so
+            while (currentNode != null) {
+                if (compare_now(&currentNode.key, &key)) {
+                    destruct &mut currentNode.value
+                    currentNode.value = value; // Update value
+                    return;
+                }
+                currentNode = currentNode.next;
+            }
+
+            // Insert the new node at the front of the chain
+            const newNode = unsafe(malloc(sizeof(unordered_map_node<Key, Value>))) as *mut unordered_map_node<Key, Value>;
+            if(newNode == null) {
+                panic("failed to allocate unordered_map node")
+            }
+            new (newNode) unordered_map_node<Key, Value> {
+                key : key,
+                value : value,
+                next : table[index]
+            }
+            table[index] = newNode;
+            _size++;
+    
         }
-        new (newNode) unordered_map_node<Key, Value> {
-            key : key,
-            value : value,
-            next : table[index]
-        }
-        table[index] = newNode;
-        _size++;
     }
 
     func get_ptr(&self, key : &Key) : *mut Value {
-        var index : size_t = hash_with_capacity(key);
-        var currentNode = table[index];
-        while (currentNode != null) {
-            if (compare_now(&currentNode.key, key)) {
-                return &raw mut currentNode.value;
+        unsafe {
+            var index : size_t = hash_with_capacity(key);
+            var currentNode = table[index];
+            while (currentNode != null) {
+                if (compare_now(&currentNode.key, key)) {
+                    return &raw mut currentNode.value;
+                }
+                currentNode = currentNode.next;
             }
-            currentNode = currentNode.next;
+            return null;
+    
         }
-        return null;
     }
 
     // Find a value by key
@@ -173,43 +185,49 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
 
     // Remove a key-value pair
     func erase(&mut self, key : &Key) : bool {
-        var index : size_t = hash_with_capacity(key);
-        var currentNode = table[index];
-        var previousNode : *mut unordered_map_node<Key, Value> = null;
+        unsafe {
+            var index : size_t = hash_with_capacity(key);
+            var currentNode = table[index];
+            var previousNode : *mut unordered_map_node<Key, Value> = null;
 
-        while (currentNode != null) {
-            if (compare_now(&currentNode.key, key)) {
-                if (previousNode != null) {
-                    previousNode.next = currentNode.next; // Unlink the node
-                } else {
-                    table[index] = currentNode.next; // Remove from the front of the chain
+            while (currentNode != null) {
+                if (compare_now(&currentNode.key, key)) {
+                    if (previousNode != null) {
+                        previousNode.next = currentNode.next; // Unlink the node
+                    } else {
+                        table[index] = currentNode.next; // Remove from the front of the chain
+                    }
+                    // Run the node's generated destructor, then free it.
+                    destruct currentNode
+                    dealloc currentNode;
+                    _size--;
+                    return true;
                 }
-                // Run the node's generated destructor, then free it.
-                destruct currentNode
-                dealloc currentNode;
-                _size--;
-                return true;
+                previousNode = currentNode;
+                currentNode = currentNode.next;
             }
-            previousNode = currentNode;
-            currentNode = currentNode.next;
+            return false;
+    
         }
-        return false;
     }
 
     // Remove all key-value pairs
     func clear(&mut self) : void {
-        for (var i = 0; i < capacity; i++) {
-            var currentNode = table[i];
-            while (currentNode != null) {
-                var nextNode = currentNode.next;
-                // Run the node's generated destructor, then free it.
-                destruct currentNode
-                dealloc currentNode;
-                currentNode = nextNode;
+        unsafe {
+            for (var i = 0; i < capacity; i++) {
+                var currentNode = table[i];
+                while (currentNode != null) {
+                    var nextNode = currentNode.next;
+                    // Run the node's generated destructor, then free it.
+                    destruct currentNode
+                    dealloc currentNode;
+                    currentNode = nextNode;
+                }
+                table[i] = null;
             }
-            table[i] = null;
+            _size = 0;
+    
         }
-        _size = 0;
     }
 
     // Get the size of the map
@@ -228,21 +246,24 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
     }
 
     func iterator(&self) : unordered_map_iterator<Key, Value> {
-        var it = unordered_map_iterator<Key, Value> {
-            map : &raw self,
-            bucket : 0,
-            node : null
+        unsafe {
+            var it = unordered_map_iterator<Key, Value> {
+                map : &raw self,
+                bucket : 0,
+                node : null
+            }
+            // find first non-empty bucket
+            while (it.bucket < capacity && table[it.bucket] == null) {
+                it.bucket += 1;
+            }
+            if (it.bucket < capacity) {
+                it.node = table[it.bucket];
+            } else {
+                it.node = null; // end
+            }
+            return it;
+    
         }
-        // find first non-empty bucket
-        while (it.bucket < capacity && table[it.bucket] == null) {
-            it.bucket += 1;
-        }
-        if (it.bucket < capacity) {
-            it.node = table[it.bucket];
-        } else {
-            it.node = null; // end
-        }
-        return it;
     }
 
     impl core::iterable::Iterable<unordered_map_node<Key, Value>, unordered_map_iterator<Key, Value>> for unordered_map<Key, Value> {
@@ -313,37 +334,39 @@ public struct unordered_map_iterator<Key, Value> {
         if (node == null) {
             return;
         }
-        // if there is a next node in chain, go there
-        if (node.next != null) {
-            node = node.next;
-            return;
-        }
+        unsafe {
+            // if there is a next node in chain, go there
+            if (node.next != null) {
+                node = node.next;
+                return;
+            }
 
-        // otherwise scan forward for next non-empty bucket
-        bucket += 1;
-        while (bucket < map.capacity && map.table[bucket] == null) {
+            // otherwise scan forward for next non-empty bucket
             bucket += 1;
-        }
+            while (bucket < map.capacity && map.table[bucket] == null) {
+                bucket += 1;
+            }
 
-        if (bucket < map.capacity) {
-            node = map.table[bucket];
-        } else {
-            node = null; // reached end
+            if (bucket < map.capacity) {
+                node = map.table[bucket];
+            } else {
+                node = null; // reached end
+            }
         }
     }
 
     // accessors
     public func key(&self) : &Key {
-        return &node.key;
+        return unsafe(&node.key);
     }
     public func value(&self) : &Value {
-        return &node.value;
+        return unsafe(&node.value);
     }
     public func valid(&self) : bool {
         return node != null;
     }
     public func size(&self) : size_t {
-        return map.size()
+        return unsafe(map.size())
     }
 
 };

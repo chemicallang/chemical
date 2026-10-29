@@ -1,79 +1,88 @@
 @no_mangle
 public func universal_symResSigNode(visitor : *mut SymResLinkSignature, node : *mut EmbeddedNode) {
-    // no type or value is included in this node which requires resolution at link signature
-    // other than HtmlPage type, however we are comfortable resolving that after
-}
+        unsafe {
+        // no type or value is included in this node which requires resolution at link signature
+        // other than HtmlPage type, however we are comfortable resolving that after
+
+        }
+    }
 
 @no_mangle
 public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
-    const resolver = visitor.getSymbolResolver();
-    const table = visitor.getSymbolTable();
-    const diagnoser = visitor.getAstDiagnoser()
-    const loc = node.getEncodedLocation();
-    const root = node.getDataPtr() as *mut JsComponentDecl;
+        unsafe {
+        const resolver = visitor.getSymbolResolver();
+        const table = visitor.getSymbolTable();
+        const diagnoser = visitor.getAstDiagnoser()
+        const loc = node.getEncodedLocation();
+        const root = node.getDataPtr() as *mut JsComponentDecl;
 
-    root.htmlPageNode = resolver.resolve(std::string_view("HtmlPage"));
-    if(root.htmlPageNode == null) {
-        resolver.error(std::string_view("could not find HtmlPage"), loc);
+        root.htmlPageNode = resolver.resolve(std::string_view("HtmlPage"));
+        if(root.htmlPageNode == null) {
+            resolver.error(std::string_view("could not find HtmlPage"), loc);
+        }
+
+        var builder = resolver.getJobBuilder()
+
+        // creating the component function
+        // func name(page : &mut HtmlPage, attrs : SsrAttributeList) : void
+        const voidType = builder.make_void_type(loc);
+        const funcDecl = builder.make_function(&root.signature.name, voidType, false, node.getParent(), loc);
+        if(root.signature.access == AccessSpecifier.Public || root.signature.access == AccessSpecifier.Protected) {
+            funcDecl.setAccessSpecifier(root.signature.access)
+        }
+
+        // the first param for the function, page : &mut HtmlPage
+        const linked = builder.make_linked_type(std::string_view("HtmlPage"), root.htmlPageNode, loc);
+        const ref = builder.make_reference_type(linked, true, loc);
+        const params = funcDecl.get_params();
+        const param = builder.make_function_param(std::string_view("page"), ref, 0, null, false, funcDecl, loc);
+        params.push(param);
+
+        // resolution of required types and functions for code generation
+        root.support.pageNode = param ;
+        resolve_page_children(resolver, &mut root.support, diagnoser, root.support.pageNode, loc);
+        sym_res_support(resolver, &mut root.support, diagnoser, loc);
+
+        // the second param for the function, attrs : SsrAttributeList
+        const attrListNodeType = builder.make_linked_type(std::string_view("SsrAttributeList"), root.support.ssrAttributeListNode, loc);
+        const attrListPtrType = builder.make_ptr_type(attrListNodeType as *mut BaseType, false, loc);
+        const param2 = builder.make_function_param(std::string_view("attrs"), attrListPtrType as *mut BaseType, 1, null, false, funcDecl, loc);
+        params.push(param2)
+        // the third param for the function, children : SsrText
+        const childrenType = builder.make_linked_type(std::string_view("SsrText"), root.support.ssrTextLinkedNode, loc);
+        const param3 = builder.make_function_param(std::string_view("children"), childrenType as *mut BaseType, 2, null, false, funcDecl, loc);
+        params.push(param3)
+        root.support.childrenParamNode = param3 ;
+        // add a body
+        funcDecl.add_body();
+
+        // set the function to signature, so we can actually access it later
+        root.signature.functionNode = funcDecl;
+
+        // start a scope to store symbols
+        table.scope_start();
+
+        // declare the page param
+        table.declare(std::string_view("page"), param)
+
+        // visit the body
+        visitor.visitEmbeddedNode(node)
+
+        // resolve components
+        sym_res_components(&mut root.components, resolver, visitor.getAstDiagnoser())
+
+        // end the scope
+        table.scope_end();
+
+
+        }
     }
-
-    var builder = resolver.getJobBuilder()
-
-    // creating the component function
-    // func name(page : &mut HtmlPage, attrs : SsrAttributeList) : void
-    const voidType = builder.make_void_type(loc);
-    const funcDecl = builder.make_function(&root.signature.name, voidType, false, node.getParent(), loc);
-    if(root.signature.access == AccessSpecifier.Public || root.signature.access == AccessSpecifier.Protected) {
-        funcDecl.setAccessSpecifier(root.signature.access)
-    }
-
-    // the first param for the function, page : &mut HtmlPage
-    const linked = builder.make_linked_type(std::string_view("HtmlPage"), root.htmlPageNode, loc);
-    const ref = builder.make_reference_type(linked, true, loc);
-    const params = funcDecl.get_params();
-    const param = builder.make_function_param(std::string_view("page"), ref, 0, null, false, funcDecl, loc);
-    params.push(param);
-
-    // resolution of required types and functions for code generation
-    root.support.pageNode = param ;
-    resolve_page_children(resolver, &mut root.support, diagnoser, root.support.pageNode, loc);
-    sym_res_support(resolver, &mut root.support, diagnoser, loc);
-
-    // the second param for the function, attrs : SsrAttributeList
-    const attrListNodeType = builder.make_linked_type(std::string_view("SsrAttributeList"), root.support.ssrAttributeListNode, loc);
-    const attrListPtrType = builder.make_ptr_type(attrListNodeType as *mut BaseType, false, loc);
-    const param2 = builder.make_function_param(std::string_view("attrs"), attrListPtrType as *mut BaseType, 1, null, false, funcDecl, loc);
-    params.push(param2)
-    // the third param for the function, children : SsrText
-    const childrenType = builder.make_linked_type(std::string_view("SsrText"), root.support.ssrTextLinkedNode, loc);
-    const param3 = builder.make_function_param(std::string_view("children"), childrenType as *mut BaseType, 2, null, false, funcDecl, loc);
-    params.push(param3)
-    root.support.childrenParamNode = param3 ;
-    // add a body
-    funcDecl.add_body();
-
-    // set the function to signature, so we can actually access it later
-    root.signature.functionNode = funcDecl;
-
-    // start a scope to store symbols
-    table.scope_start();
-
-    // declare the page param
-    table.declare(std::string_view("page"), param)
-
-    // visit the body
-    visitor.visitEmbeddedNode(node)
-
-    // resolve components
-    sym_res_components(&mut root.components, resolver, visitor.getAstDiagnoser())
-
-    // end the scope
-    table.scope_end();
-
-}
 
 @no_mangle
 public func universal_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
-    const comp = node.getDataPtr() as *mut JsComponentDecl;
-    resolver.declare_tld_default(&comp.signature.name, node);
-}
+        unsafe {
+        const comp = node.getDataPtr() as *mut JsComponentDecl;
+        resolver.declare_tld_default(&comp.signature.name, node);
+
+        }
+    }

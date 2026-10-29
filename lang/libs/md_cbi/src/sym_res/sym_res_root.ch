@@ -1,21 +1,24 @@
 public func sym_res_root(root : *mut MdRoot, visitor : *mut SymResLinkBody, loc : ubigint) {
-    const pageNode = visitor.resolve(std::string_view("page"))
-    if(pageNode == null) {
-        // Not erroring out here because it might be used as a simple string macro?
-        // But if it's meant to write html, we probably need it.
-        // For now, let's try to find it.
-        return;
-    }
+        unsafe {
+        const pageNode = visitor.resolve(std::string_view("page"))
+        if(pageNode == null) {
+            // Not erroring out here because it might be used as a simple string macro?
+            // But if it's meant to write html, we probably need it.
+            // For now, let's try to find it.
+            return;
+        }
     
-    root.support.pageNode = pageNode;
+        root.support.pageNode = pageNode;
 
 
-    // TODO: these are not NULL
-    root.support.appendHtmlCharFn = pageNode.child(std::string_view("append_html_char"))
-    root.support.appendHtmlCharPtrFn = pageNode.child(std::string_view("append_html_char_ptr"))
-    root.support.appendHtmlFn = pageNode.child(std::string_view("append_html"))
-    root.support.appendHtmlIntFn = pageNode.child(std::string_view("append_html_integer"))
-    root.support.appendHtmlUIntFn = pageNode.child(std::string_view("append_html_uinteger"))
-    root.support.appendHtmlFloatFn = pageNode.child(std::string_view("append_html_float"))
-    root.support.appendHtmlDoubleFn = pageNode.child(std::string_view("append_html_double"))
-}
+        // TODO: these are not NULL
+        root.support.appendHtmlCharFn = pageNode.child(std::string_view("append_html_char"))
+        root.support.appendHtmlCharPtrFn = pageNode.child(std::string_view("append_html_char_ptr"))
+        root.support.appendHtmlFn = pageNode.child(std::string_view("append_html"))
+        root.support.appendHtmlIntFn = pageNode.child(std::string_view("append_html_integer"))
+        root.support.appendHtmlUIntFn = pageNode.child(std::string_view("append_html_uinteger"))
+        root.support.appendHtmlFloatFn = pageNode.child(std::string_view("append_html_float"))
+        root.support.appendHtmlDoubleFn = pageNode.child(std::string_view("append_html_double"))
+
+        }
+    }

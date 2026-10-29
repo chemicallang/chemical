@@ -17,14 +17,17 @@ public namespace async {
 // `std::Option::take`; generic runtime code needs it because moving a `T`
 // payload bound by a variant pattern is rejected by the move checker (B18).
 public func <T> poll_take_ready(p : *mut core::async::Poll<T>) : T {
-    var temp : T
-    unsafe {
-        var Ready(value) = *p else unreachable
-        memcpy(&raw mut temp, &raw value, sizeof(T))
-        new(p) core::async::Poll.Pending<T>()
-        return temp;
+        unsafe {
+        var temp : T
+        unsafe {
+            var Ready(value) = *p else unreachable
+            memcpy(&raw mut temp, &raw value, sizeof(T))
+            new(p) core::async::Poll.Pending<T>()
+            return temp;
+        }
+
+        }
     }
-}
 
 // ---- select ----------------------------------------------------------------
 
@@ -36,48 +39,57 @@ public struct SelectState<T> {
 
 @retained
 public func <T> select_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
-    var st = frame as *mut SelectState<T>
-    var pa = st.a.vtbl_ptr().poll(st.a.frame_ptr(), cx)
-    if(pa is core::async::Poll.Ready) {
-        var va = poll_take_ready<T>(&raw mut pa)
-        return core::async::Poll.Ready<T>(va)
+        unsafe {
+        var st = frame as *mut SelectState<T>
+        var pa = st.a.vtbl_ptr().poll(st.a.frame_ptr(), cx)
+        if(pa is core::async::Poll.Ready) {
+            var va = poll_take_ready<T>(&raw mut pa)
+            return core::async::Poll.Ready<T>(va)
+        }
+        var pb = st.b.vtbl_ptr().poll(st.b.frame_ptr(), cx)
+        if(pb is core::async::Poll.Ready) {
+            var vb = poll_take_ready<T>(&raw mut pb)
+            return core::async::Poll.Ready<T>(vb)
+        }
+        return core::async::Poll.Pending<T>()
+
+        }
     }
-    var pb = st.b.vtbl_ptr().poll(st.b.frame_ptr(), cx)
-    if(pb is core::async::Poll.Ready) {
-        var vb = poll_take_ready<T>(&raw mut pb)
-        return core::async::Poll.Ready<T>(vb)
-    }
-    return core::async::Poll.Pending<T>()
-}
 
 @retained
 public func <T> select_drop(frame : *mut void) {
-    var st = frame as *mut SelectState<T>
-    var vtbl = st.vtbl
-    unsafe {
-        delete st
-    }
-    if(vtbl != null) {
         unsafe {
-            dealloc vtbl
+        var st = frame as *mut SelectState<T>
+        var vtbl = st.vtbl
+        unsafe {
+            delete st
+        }
+        if(vtbl != null) {
+            unsafe {
+                dealloc vtbl
+            }
+        }
+
         }
     }
-}
 
 // Become ready with whichever of `a`/`b` completes first. The other is
 // cancelled when this future is dropped.
 public func <T> select(a : core::async::FutureHandle<T>, b : core::async::FutureHandle<T>) : core::async::FutureHandle<T> {
-    var st = unsafe(malloc(sizeof(SelectState<T>))) as *mut SelectState<T>
-    var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
-    vtbl.poll = select_poll<T>
-    vtbl.drop = select_drop<T>
-    new(st) SelectState<T> {
-        a : a,
-        b : b,
-        vtbl : vtbl
+        unsafe {
+        var st = unsafe(malloc(sizeof(SelectState<T>))) as *mut SelectState<T>
+        var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
+        vtbl.poll = select_poll<T>
+        vtbl.drop = select_drop<T>
+        new(st) SelectState<T> {
+            a : a,
+            b : b,
+            vtbl : vtbl
+        }
+        return unsafe(core::async::future_handle_raw<T>(st as *mut void, vtbl))
+
+        }
     }
-    return unsafe(core::async::future_handle_raw<T>(st as *mut void, vtbl))
-}
 
 // ---- timeout ---------------------------------------------------------------
 
@@ -91,72 +103,84 @@ public struct TimeoutOrState<T> {
 
 @retained
 public func <T> timeout_or_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
-    var st = frame as *mut TimeoutOrState<T>
-    var p = st.inner.vtbl_ptr().poll(st.inner.frame_ptr(), cx)
-    if(p is core::async::Poll.Ready) {
-        var v = poll_take_ready<T>(&raw mut p)
-        return core::async::Poll.Ready<T>(v)
+        unsafe {
+        var st = frame as *mut TimeoutOrState<T>
+        var p = st.inner.vtbl_ptr().poll(st.inner.frame_ptr(), cx)
+        if(p is core::async::Poll.Ready) {
+            var v = poll_take_ready<T>(&raw mut p)
+            return core::async::Poll.Ready<T>(v)
+        }
+        if(std::now_milli() - st.start_ms >= st.millis) {
+            var fb = st.fallback.take()
+            return core::async::Poll.Ready<T>(fb)
+        }
+        return core::async::Poll.Pending<T>()
+
+        }
     }
-    if(std::now_milli() - st.start_ms >= st.millis) {
-        var fb = st.fallback.take()
-        return core::async::Poll.Ready<T>(fb)
-    }
-    return core::async::Poll.Pending<T>()
-}
 
 @retained
 public func <T> timeout_or_drop(frame : *mut void) {
-    var st = frame as *mut TimeoutOrState<T>
-    var vtbl = st.vtbl
-    unsafe {
-        delete st
-    }
-    if(vtbl != null) {
         unsafe {
-            dealloc vtbl
+        var st = frame as *mut TimeoutOrState<T>
+        var vtbl = st.vtbl
+        unsafe {
+            delete st
+        }
+        if(vtbl != null) {
+            unsafe {
+                dealloc vtbl
+            }
+        }
+
         }
     }
-}
 
 // Await `handle`, but if it has not completed within `millis` milliseconds
 // cancel it and become `fallback` instead. Use a sentinel `fallback` to detect
 // the timeout at the call site.
 public func <T> timeout_or(handle : core::async::FutureHandle<T>, millis : u64, fallback : T) : core::async::FutureHandle<T> {
-    var st = unsafe(malloc(sizeof(TimeoutOrState<T>))) as *mut TimeoutOrState<T>
-    var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
-    vtbl.poll = timeout_or_poll<T>
-    vtbl.drop = timeout_or_drop<T>
-    new(st) TimeoutOrState<T> {
-        inner : handle,
-        fallback : std::Option.Some<T>(fallback),
-        start_ms : std::now_milli(),
-        millis : millis as i64,
-        vtbl : vtbl
+        unsafe {
+        var st = unsafe(malloc(sizeof(TimeoutOrState<T>))) as *mut TimeoutOrState<T>
+        var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
+        vtbl.poll = timeout_or_poll<T>
+        vtbl.drop = timeout_or_drop<T>
+        new(st) TimeoutOrState<T> {
+            inner : handle,
+            fallback : std::Option.Some<T>(fallback),
+            start_ms : std::now_milli(),
+            millis : millis as i64,
+            vtbl : vtbl
+        }
+        return unsafe(core::async::future_handle_raw<T>(st as *mut void, vtbl))
+
+        }
     }
-    return unsafe(core::async::future_handle_raw<T>(st as *mut void, vtbl))
-}
 
 // Synchronous variant: drive `handle` to completion on the current thread, but
 // give up after `millis` and return `None`. The handle (and its frame) is
 // dropped either way, cancelling an unfinished child.
 public func <T> block_on_timeout(handle : core::async::FutureHandle<T>, millis : u64) : std::Option<T> {
-    var e = executor()
-    var cx = core::async::Context { waker : exec_make_waker(e) }
-    var start = std::now_milli()
-    var out : std::Option<T> = loop {
-        var r = handle.vtbl_ptr().poll(handle.frame_ptr(), &raw mut cx)
-        if(r is core::async::Poll.Ready) {
-            var v = poll_take_ready<T>(&raw mut r)
-            break std::Option.Some<T>(v)
+        unsafe {
+        var e = executor()
+        var cx = core::async::Context { waker : exec_make_waker(e) }
+        var start = std::now_milli()
+        var out : std::Option<T> = loop {
+            var r = handle.vtbl_ptr().poll(handle.frame_ptr(), &raw mut cx)
+            if(r is core::async::Poll.Ready) {
+                var v = poll_take_ready<T>(&raw mut r)
+                break std::Option.Some<T>(v)
+            }
+            if(std::now_milli() - start >= millis as i64) {
+                break std::Option.None<T>()
+            }
+            executor_poll_tasks(e, 4096u)
+            executor_wait(e, 1u)
+            continue
         }
-        if(std::now_milli() - start >= millis as i64) {
-            break std::Option.None<T>()
+        return out
+
         }
-        executor_poll_tasks(e, 4096u)
-        executor_wait(e, 1u)
-        continue
     }
-    return out
-}
 
 }

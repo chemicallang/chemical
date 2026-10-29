@@ -369,6 +369,76 @@ func raw_pointer_reborrow_in_unsafe_ok(env : &mut TestEnv) {
 }
 
 @test
+func neg_raw_pointer_field_projection(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct S { var x : int }\npublic func main() : int {\n    var p : *S = null\n    return p.x\n}\n"
+    expect_compile_error(env, "raw_pointer_field_projection", ch, "SAFE-UNSAFE-001")
+}
+
+@test
+func neg_raw_pointer_index(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var p : *int = null\n    return p[0]\n}\n"
+    expect_compile_error(env, "raw_pointer_index", ch, "SAFE-UNSAFE-001")
+}
+
+@test
+func neg_raw_pointer_arithmetic(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var p : *int = null\n    var q = p + 1\n    return 0\n}\n"
+    expect_compile_error(env, "raw_pointer_arithmetic", ch, "SAFE-UNSAFE-001")
+}
+
+@test
+func neg_raw_pointer_compound_arithmetic(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var p : *int = null\n    p += 1\n    return 0\n}\n"
+    expect_compile_error(env, "raw_pointer_compound_arithmetic", ch, "SAFE-UNSAFE-001")
+}
+
+@test
+func neg_raw_pointer_increment(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var p : *int = null\n    p++\n    return 0\n}\n"
+    expect_compile_error(env, "raw_pointer_increment", ch, "SAFE-UNSAFE-001")
+}
+
+@test
+func neg_raw_pointer_delete(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var p : *int = null\n    delete p\n    return 0\n}\n"
+    expect_compile_error(env, "raw_pointer_delete", ch, "SAFE-UNSAFE-001")
+}
+
+@test
+func neg_raw_pointer_dealloc(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var p : *int = null\n    dealloc p\n    return 0\n}\n"
+    expect_compile_error(env, "raw_pointer_dealloc", ch, "SAFE-UNSAFE-001")
+}
+
+@test
+func neg_vector_data_index_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "using namespace std;\npublic func main() : int {\n    var v = vector<int>()\n    v.push(1)\n    return v.data()[0]\n}\n"
+    expect_compile_error_with_mod(env, "vector_data_index", ch, "SAFE-UNSAFE-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func raw_pointer_projection_in_unsafe_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct S { var x : int }\npublic func main() : int {\n    var s = S { x : 4 }\n    var p = &raw mut s\n    return unsafe(p.x)\n}\n"
+    expect_compile_success(env, "raw_pointer_projection_unsafe", ch)
+}
+
+@test
+func neg_placement_new_raw_pointer(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct S { var x : int }\npublic func main() : int {\n    var p : *S = null\n    new (p) S { x : 1 }\n    return 0\n}\n"
+    expect_compile_error(env, "placement_new_raw_pointer", ch, "SAFE-UNSAFE-001")
+}
+
+@test
 func neg_conditional_where_generic_negative_applies(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "using core::ops::Clone;\nstruct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\nstruct Wrapper<T> {\n    var value : T\n}\nimpl<T> !Sync for Wrapper<T> where T: Clone {}\npublic func main() : int {\n    var h = Holder<Wrapper<int>> { data = null }\n    return h.check()\n}\n"
@@ -736,14 +806,14 @@ func neg_zeroed_enum_without_zero_rejected(env : &mut TestEnv) {
 @test
 func neg_comptime_heap_out_of_bounds_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "public func main() : int {\n    comptime {\n        var p = unsafe(malloc(4)) as *mut int\n        p[1] = 1\n        unsafe(free(p))\n    }\n    return 0\n}\n"
+    var ch = "public func main() : int {\n    comptime {\n        var p = unsafe(malloc(4)) as *mut int\n        unsafe { p[1] = 1 }\n        unsafe(free(p))\n    }\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "comptime_heap_oob", ch, "out-of-bounds write", NEG_MOD_CSTD)
 }
 
 @test
 func neg_comptime_heap_use_after_free_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "public func main() : int {\n    comptime {\n        var p = unsafe(malloc(4)) as *mut int\n        unsafe(free(p))\n        var x = p[0]\n    }\n    return 0\n}\n"
+    var ch = "public func main() : int {\n    comptime {\n        var p = unsafe(malloc(4)) as *mut int\n        unsafe(free(p))\n        var x = unsafe(p[0])\n    }\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "comptime_heap_uaf", ch, "out-of-bounds read", NEG_MOD_CSTD)
 }
 
@@ -941,4 +1011,11 @@ func neg_union_field_access_requires_unsafe(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "union U {\n    var a : int\n    var b : float\n}\npublic func main() : int {\n    var u = U { a : 1 }\n    return u.a\n}\n"
     expect_compile_error(env, "union_field_safe", ch, "SAFE-VALID-007")
+}
+
+@test
+func neg_command_line_stream_raw_write_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "using namespace std;\npublic func main() : int {\n    var s = CommandLineStream {}\n    s.writeStr(null, 0)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "command_line_stream_raw_write", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
 }

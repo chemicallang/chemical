@@ -14,20 +14,29 @@ variant GenVarIsValTest<T> {
 }
 
 func check_variant_is_some(opt : OptVariant) : bool {
-    return opt is OptVariant.Some
-}
+        unsafe {
+        return opt is OptVariant.Some
+
+        }
+    }
 
 func check_variant_is_none(opt : OptVariant) : bool {
-    return opt is OptVariant.None
-}
+        unsafe {
+        return opt is OptVariant.None
+
+        }
+    }
 
 struct CheckImpParam22 {
     var a : int
     @implicit
     @constructor
     func make(x : int) {
-        return CheckImpParam22 {
-            a = x
+        unsafe {
+            return CheckImpParam22 {
+                a = x
+            }
+    
         }
     }
 }
@@ -38,34 +47,43 @@ variant ImpVar22 {
 }
 
 func get_value_iv22(variant : ImpVar22) : int {
-    switch(variant) {
-        Some(a) => {
-            return a.a;
+        unsafe {
+        switch(variant) {
+            Some(a) => {
+                return a.a;
+            }
+            None => {
+                return -1;
+            }
         }
-        None => {
-            return -1;
+
         }
     }
-}
 
 func get_value(variant : OptVariant) : int {
-    switch(variant) {
-        Some(a) => {
-            return a;
+        unsafe {
+        switch(variant) {
+            Some(a) => {
+                return a;
+            }
+            None => {
+                return -1;
+            }
         }
-        None => {
-            return -1;
+
         }
     }
-}
 
 func give_variant(some : bool) : OptVariant {
-    if(some) {
-        return OptVariant.Some(30)
-    } else {
-        return OptVariant.None();
+        unsafe {
+        if(some) {
+            return OptVariant.Some(30)
+        } else {
+            return OptVariant.None();
+        }
+
+        }
     }
-}
 
 struct ContOptVariant {
     var v : OptVariant
@@ -87,49 +105,67 @@ variant FuncInVariant {
     Second(value : int)
 
     func get(&self) : int {
-        switch(self) {
-            First(value) => return value;
-            Second(value) => return value;
+        unsafe {
+            switch(self) {
+                First(value) => return value;
+                Second(value) => return value;
+            }
+    
         }
     }
 
 }
 
 func <T> test_gen_var_def(value : T) : bool {
-    return T is ulong
-}
+        unsafe {
+        return T is ulong
+
+        }
+    }
 
 func get_sum(v : GenVar<int>) : int {
-    switch(v) {
-        First(a, b) => {
-            return a + b;
+        unsafe {
+        switch(v) {
+            First(a, b) => {
+                return a + b;
+            }
+            Second(a, b, c) => {
+                return a + b + c;
+            }
         }
-        Second(a, b, c) => {
-            return a + b + c;
+
         }
     }
-}
 
 func <T> get_sum_gen(v : GenVar<T>) : T {
-    switch(v) {
-        First(a, b) => return a + b;
-        Second(a, b, c) => return a + b + c;
+        unsafe {
+        switch(v) {
+            First(a, b) => return a + b;
+            Second(a, b, c) => return a + b + c;
+        }
+
+        }
     }
-}
 
 struct VariantInheritedPoint {
     var a : int = 10
     var b : int = 20
 
     func multiply(&self) : int {
-        return a * b;
+        unsafe {
+            return a * b;
+    
+        }
     }
 
 }
 
 func variant_inh_point_sum(p : *VariantInheritedPoint) : int {
-    return p.a + p.b;
-}
+        unsafe {
+        return p.a + p.b;
+
+        }
+    }
 
 variant InheriterOfPoint : VariantInheritedPoint {
     First(x : int, y : int)
@@ -142,10 +178,13 @@ struct ConstructedVertex {
     var z : int
     @make
     func make() {
-        return ConstructedVertex {
-            x = 98
-            y = 97
-            z = 96
+        unsafe {
+            return ConstructedVertex {
+                x = 98
+                y = 97
+                z = 96
+            }
+    
         }
     }
 }
@@ -173,12 +212,18 @@ public variant CustomFsError {
 }
 
 func first_variant_result_giver() : CustomResult<ubigint_type_alias, CustomFsError> {
-    return CustomResult.Ok<ubigint_type_alias, CustomFsError>(1)
-}
+        unsafe {
+        return CustomResult.Ok<ubigint_type_alias, CustomFsError>(1)
+
+        }
+    }
 
 func second_variant_result_giver() : CustomResult<ubigint_type_alias, CustomFsError> {
-    return CustomResult.Err<ubigint_type_alias, CustomFsError>(CustomFsError.NotFound())
-}
+        unsafe {
+        return CustomResult.Err<ubigint_type_alias, CustomFsError>(CustomFsError.NotFound())
+
+        }
+    }
 
 // EXISTENCE TEST END
 
@@ -189,12 +234,18 @@ interface VariantInheritableGiverInterface {
 interface VariantInheritableGiverInterfaceDelegate : VariantInheritableGiverInterface {}
 
 func <T : VariantInheritableGiverInterface> static_dispatch_variant_inherited_giver_give(value : &T) : int {
-    return value.give()
-}
+        unsafe {
+        return value.give()
+
+        }
+    }
 
 func dyn_variant_giver_give(v : dyn VariantInheritableGiverInterface) : int {
-    return v.give()
-}
+        unsafe {
+        return v.give()
+
+        }
+    }
 
 struct StructInheritedGiverImpl {
     var value : int
@@ -202,7 +253,10 @@ struct StructInheritedGiverImpl {
 
 impl VariantInheritableGiverInterface for StructInheritedGiverImpl {
     func give(&self) : int {
-        return value;
+        unsafe {
+            return value;
+    
+        }
     }
 }
 
@@ -213,9 +267,12 @@ variant VariantInheritedGiverImpl {
 
 impl VariantInheritableGiverInterface for VariantInheritedGiverImpl {
     func give(&self) : int {
-        switch(self) {
-            None() => { return -1; }
-            Some(value) => { return value; }
+        unsafe {
+            switch(self) {
+                None() => { return -1; }
+                Some(value) => { return value; }
+            }
+    
         }
     }
 }
@@ -227,9 +284,12 @@ variant VariantInheritedDelegateImpl {
 
 impl VariantInheritableGiverInterface for VariantInheritedDelegateImpl {
     func give(&self) : int {
-        switch(self) {
-            None() => { return -2; }
-            Some(value) => { return value; }
+        unsafe {
+            switch(self) {
+                None() => { return -2; }
+                Some(value) => { return value; }
+            }
+    
         }
     }
 }
@@ -246,378 +306,384 @@ variant VariantWithMake {
 
     @make
     func make(v : int) : VariantWithMake {
-        if(v >= 0) {
-            return VariantWithMake.Positive(v)
-        } else {
-            return VariantWithMake.Negative(v)
+        unsafe {
+            if(v >= 0) {
+                return VariantWithMake.Positive(v)
+            } else {
+                return VariantWithMake.Negative(v)
+            }
+    
         }
     }
 }
 
 func test_variants() {
-    test("variants can be passed to functions - 1", () => {
-        return get_value(OptVariant.Some(10)) == 10;
-    })
-    test("variants can be passed to functions - 2", () => {
-        return get_value(OptVariant.None()) == -1;
-    })
-    test("variants can be passed to functions - 2", () => {
-        return get_value(OptVariant.None()) == -1;
-    })
-    test("variants can be returned from functions - 1", () => {
-        const v = give_variant(true);
-        return get_value(v) == 30
-    })
-    test("variants can be returned from functions - 2", () => {
-        const v = give_variant(false);
-        return get_value(v) == -1
-    })
-    test("variants can be stored in structs - 1", () => {
-        var c = ContOptVariant { v : OptVariant.Some(55) }
-        return get_value(c.v) == 55;
-    })
-    test("variants can be stored in structs - 2", () => {
-        var c = ContOptVariant { v : OptVariant.None() }
-        return get_value(c.v) == -1;
-    })
-    test("variants can be stored in arrays - 1", () => {
-        var c = [ OptVariant.Some(76) ]
-        return get_value(c[0]) == 76;
-    })
-    test("variants can be stored in arrays - 2", () => {
-        var c = [ OptVariant.None() ]
-        return get_value(c[0]) == -1;
-    })
-    test("variants can be stored in arrays - 3", () => {
-        var c : []OptVariant = [ OptVariant.None(), OptVariant.Some(43) ]
-        return get_value(c[0]) == -1 && get_value(c[1]) == 43;
-    })
-    test("variants can be stored in variables", () => {
-        var v = OptVariant.Some(12)
-        return get_value(v) == 12;
-    })
-    test("variants can be stored in variables", () => {
-        var v = OptVariant.None();
-        return get_value(v) == -1
-    })
-    test("generic variants work - 1", () => {
-        return get_sum(GenVar.First(20, 30)) == 50;
-    })
-    test("generic variants work - 2", () => {
-        return get_sum(GenVar.Second(20, 30, 2)) == 52;
-    })
-    test("generic variants work with generic switch - 1", () => {
-        return get_sum_gen(GenVar.First<short>(20, 30)) == 50;
-    })
-    test("generic variants work with generic switch - 2", () => {
-        return get_sum_gen(GenVar.Second<short>(20, 30, 2)) == 52;
-    })
-    test("generic variants work with generic switch - 3", () => {
-        return get_sum_gen(GenVar.First<long>(20, 30)) == 50;
-    })
-    test("generic variants work with generic switch - 4", () => {
-        return get_sum_gen(GenVar.Second<long>(20, 30, 2)) == 52;
-    })
-    test("implicit args in variant calls", () => {
-        var v = ImpVar22.Some(99)
-        return get_value_iv22(v) == 99;
-    })
-    test("is value work with variants - 1", () => {
-        var v1 = OptVariant.Some(10)
-        return v1 is OptVariant.Some
-    })
-    test("is value work with variants - 2", () => {
-        var v1 = OptVariant.Some(10)
-        return v1 !is OptVariant.None
-    })
-    test("is value work with variants - 3", () => {
-        var v1 = OptVariant.None()
-        return v1 is OptVariant.None
-    })
-    test("is value work with variants - 4", () => {
-        var v1 = OptVariant.None()
-        return v1 !is OptVariant.Some
-    })
-    test("is value work with variants - 5", () => {
-        var v1 = OptVariant.Some(10)
-        return v1 is OptVariant.Some && v1 !is OptVariant.None
-    })
-    test("is value work with variants - 6", () => {
-        var v1 = OptVariant.None()
-        return v1 is OptVariant.None && v1 !is OptVariant.Some
-    })
-    test("is value work with variants - 7", () => {
-        return check_variant_is_some(OptVariant.Some(10))
-    })
-    test("is value work with variants - 8", () => {
-        return !check_variant_is_none(OptVariant.Some(10))
-    })
-    test("is value work with variants - 9", () => {
-        return check_variant_is_none(OptVariant.None())
-    })
-    test("is value work with variants - 10", () => {
-        return !check_variant_is_some(OptVariant.None())
-    })
-    test("is value works with generic variant - 1", () => {
-        var v = GenVarIsValTest.Some<short>(9201)
-        return v is GenVarIsValTest.Some && v !is GenVarIsValTest.None
-    })
-    test("is value works with generic variant - 2", () => {
-        var v = GenVarIsValTest.None<short>()
-        return v is GenVarIsValTest.None && v !is GenVarIsValTest.Some
-    })
-    test("is value works with generic variant - 3", () => {
-        var v = GenVarIsValTest.Some<int>(9201)
-        return v is GenVarIsValTest.Some && v !is GenVarIsValTest.None
-    })
-    test("is value works with generic variant - 4", () => {
-        var v = GenVarIsValTest.None<int>()
-        return v is GenVarIsValTest.None && v !is GenVarIsValTest.Some
-    })
-    test("default generic parameter types work in variants", () => {
-        var s = GenVarDef.Some<>(10)
-        switch(s) {
-            Some(value) => {
-               return test_gen_var_def(value)
+        unsafe {
+        test("variants can be passed to functions - 1", () => {
+            return get_value(OptVariant.Some(10)) == 10;
+        })
+        test("variants can be passed to functions - 2", () => {
+            return get_value(OptVariant.None()) == -1;
+        })
+        test("variants can be passed to functions - 2", () => {
+            return get_value(OptVariant.None()) == -1;
+        })
+        test("variants can be returned from functions - 1", () => {
+            const v = give_variant(true);
+            return get_value(v) == 30
+        })
+        test("variants can be returned from functions - 2", () => {
+            const v = give_variant(false);
+            return get_value(v) == -1
+        })
+        test("variants can be stored in structs - 1", () => {
+            var c = ContOptVariant { v : OptVariant.Some(55) }
+            return get_value(c.v) == 55;
+        })
+        test("variants can be stored in structs - 2", () => {
+            var c = ContOptVariant { v : OptVariant.None() }
+            return get_value(c.v) == -1;
+        })
+        test("variants can be stored in arrays - 1", () => {
+            var c = [ OptVariant.Some(76) ]
+            return get_value(c[0]) == 76;
+        })
+        test("variants can be stored in arrays - 2", () => {
+            var c = [ OptVariant.None() ]
+            return get_value(c[0]) == -1;
+        })
+        test("variants can be stored in arrays - 3", () => {
+            var c : []OptVariant = [ OptVariant.None(), OptVariant.Some(43) ]
+            return get_value(c[0]) == -1 && get_value(c[1]) == 43;
+        })
+        test("variants can be stored in variables", () => {
+            var v = OptVariant.Some(12)
+            return get_value(v) == 12;
+        })
+        test("variants can be stored in variables", () => {
+            var v = OptVariant.None();
+            return get_value(v) == -1
+        })
+        test("generic variants work - 1", () => {
+            return get_sum(GenVar.First(20, 30)) == 50;
+        })
+        test("generic variants work - 2", () => {
+            return get_sum(GenVar.Second(20, 30, 2)) == 52;
+        })
+        test("generic variants work with generic switch - 1", () => {
+            return get_sum_gen(GenVar.First<short>(20, 30)) == 50;
+        })
+        test("generic variants work with generic switch - 2", () => {
+            return get_sum_gen(GenVar.Second<short>(20, 30, 2)) == 52;
+        })
+        test("generic variants work with generic switch - 3", () => {
+            return get_sum_gen(GenVar.First<long>(20, 30)) == 50;
+        })
+        test("generic variants work with generic switch - 4", () => {
+            return get_sum_gen(GenVar.Second<long>(20, 30, 2)) == 52;
+        })
+        test("implicit args in variant calls", () => {
+            var v = ImpVar22.Some(99)
+            return get_value_iv22(v) == 99;
+        })
+        test("is value work with variants - 1", () => {
+            var v1 = OptVariant.Some(10)
+            return v1 is OptVariant.Some
+        })
+        test("is value work with variants - 2", () => {
+            var v1 = OptVariant.Some(10)
+            return v1 !is OptVariant.None
+        })
+        test("is value work with variants - 3", () => {
+            var v1 = OptVariant.None()
+            return v1 is OptVariant.None
+        })
+        test("is value work with variants - 4", () => {
+            var v1 = OptVariant.None()
+            return v1 !is OptVariant.Some
+        })
+        test("is value work with variants - 5", () => {
+            var v1 = OptVariant.Some(10)
+            return v1 is OptVariant.Some && v1 !is OptVariant.None
+        })
+        test("is value work with variants - 6", () => {
+            var v1 = OptVariant.None()
+            return v1 is OptVariant.None && v1 !is OptVariant.Some
+        })
+        test("is value work with variants - 7", () => {
+            return check_variant_is_some(OptVariant.Some(10))
+        })
+        test("is value work with variants - 8", () => {
+            return !check_variant_is_none(OptVariant.Some(10))
+        })
+        test("is value work with variants - 9", () => {
+            return check_variant_is_none(OptVariant.None())
+        })
+        test("is value work with variants - 10", () => {
+            return !check_variant_is_some(OptVariant.None())
+        })
+        test("is value works with generic variant - 1", () => {
+            var v = GenVarIsValTest.Some<short>(9201)
+            return v is GenVarIsValTest.Some && v !is GenVarIsValTest.None
+        })
+        test("is value works with generic variant - 2", () => {
+            var v = GenVarIsValTest.None<short>()
+            return v is GenVarIsValTest.None && v !is GenVarIsValTest.Some
+        })
+        test("is value works with generic variant - 3", () => {
+            var v = GenVarIsValTest.Some<int>(9201)
+            return v is GenVarIsValTest.Some && v !is GenVarIsValTest.None
+        })
+        test("is value works with generic variant - 4", () => {
+            var v = GenVarIsValTest.None<int>()
+            return v is GenVarIsValTest.None && v !is GenVarIsValTest.Some
+        })
+        test("default generic parameter types work in variants", () => {
+            var s = GenVarDef.Some<>(10)
+            switch(s) {
+                Some(value) => {
+                   return test_gen_var_def(value)
+                }
+                None => {
+                    return false;
+                }
             }
-            None => {
-                return false;
+        })
+        test("functions in variants work - 1", () => {
+            var v = FuncInVariant.First(232)
+            return v.get() == 232
+        })
+        test("functions in variants work - 2", () => {
+            var v = FuncInVariant.Second(987)
+            return v.get() == 987
+        })
+        test("storing in variants via pattern matched unreachable works", () => {
+            var x = OptVariant.Some(0)
+            var Some(a) = x else unreachable
+            a = 87
+            switch(x) {
+                Some(a) => return a == 87;
+                None => return false;
             }
-        }
-    })
-    test("functions in variants work - 1", () => {
-        var v = FuncInVariant.First(232)
-        return v.get() == 232
-    })
-    test("functions in variants work - 2", () => {
-        var v = FuncInVariant.Second(987)
-        return v.get() == 987
-    })
-    test("storing in variants via pattern matched unreachable works", () => {
-        var x = OptVariant.Some(0)
-        var Some(a) = x else unreachable
-        a = 87
-        switch(x) {
-            Some(a) => return a == 87;
-            None => return false;
-        }
-    })
-    test("storing in variants via pattern matched return works", () => {
-        var x = OptVariant.Some(0)
-        var Some(a) = x else return false
-        a = 15
-        switch(x) {
-            Some(a) => return a == 15;
-            None => return false;
-        }
-    })
-    test("storing in variants via switch var case works", () => {
-        var x = OptVariant.Some(0)
-        var Some(a) = x else return false
-        switch(x) {
-            Some(a) => { a = 234 }
-            None => return false;
-        }
-        switch(x) {
-            Some(a) => return a == 234;
-            None => return false;
-        }
-    })
-    test("inherited struct in variant is default initialized properly - 1", () => {
-        var i = InheriterOfPoint.First(48, 58)
-        return i.a == 10 && i.b == 20
-    })
-    test("inherited struct in variant is default initialized properly - 2", () => {
-        var i = InheriterOfPoint.First(48, 58)
-        var First(x, y) = i else unreachable
-        return x == 48 && y == 58 && i.a == 10 && i.b == 20
-    })
-    test("inherited struct in variant is default initialized properly - 3", () => {
-        var i = InheriterOfPoint.Second(65, 87, 45)
-        return i.a == 10 && i.b == 20
-    })
-    test("inherited struct in variant is default initialized properly - 4", () => {
-        var i = InheriterOfPoint.Second(65, 87, 45)
-        var Second(x, y, z) = i else unreachable
-        return x == 65 && y == 87 && z == 45 && i.a == 10 && i.b == 20
-    })
-    test("inherited struct in variant is default initialized with constructor - 1", () => {
-        var i = VertexInheriter.First(92)
-        return i.x == 98 && i.y == 97 && i.z == 96
-    })
-    test("inherited struct in variant is default initialized with constructor - 2", () => {
-        var x = VertexInheriter.First(92)
-        var First(i) = x else unreachable
-        return i == 92 && x.x == 98 && x.y == 97 && x.z == 96
-    })
-    test("inherited struct in variant is default initialized with constructor - 3", () => {
-        var i = VertexInheriter.Second(83)
-        return i.x == 98 && i.y == 97 && i.z == 96
-    })
-    test("inherited struct in variant is default initialized with constructor - 4", () => {
-        var i = VertexInheriter.Second(83)
-        var Second(j) = i else unreachable
-        return j == 83 && i.x == 98 && i.y == 97 && i.z == 96
-    })
-    test("inherited struct in variant can be passed to functions as pointers - 1", () => {
-        // lets test passing the struct only first
-        var p = VariantInheritedPoint { a : 34, b : 21 }
-        return variant_inh_point_sum(&raw p) == 55
-    })
-    test("inherited struct in variant can be passed to functions as pointers - 2", () => {
-        var p = InheriterOfPoint.First(65, 54)
-        p.a = 43
-        p.b = 13
-        return variant_inh_point_sum(&raw p) == 56
-    })
-    test("methods on inherited struct in variant can be called - 1", () => {
-        // lets test passing the struct only first
-        var p = VariantInheritedPoint { a : 15, b : 3 }
-        return p.multiply() == 45
-    })
-    test("methods on inherited struct in variant can be called - 2", () => {
-        var p = InheriterOfPoint.First(65, 54)
-        p.a = 8
-        p.b = 4
-        return p.multiply() == 32
-    })
-    test("pointer to variant works in switch pattern match", () => {
-        var p = new OptVariant
-        new (p) OptVariant.Some(765)
-        var result : int = 0
-        switch(p) {
-            Some(a) => {
-                result = a;
+        })
+        test("storing in variants via pattern matched return works", () => {
+            var x = OptVariant.Some(0)
+            var Some(a) = x else return false
+            a = 15
+            switch(x) {
+                Some(a) => return a == 15;
+                None => return false;
             }
-            None() => {
+        })
+        test("storing in variants via switch var case works", () => {
+            var x = OptVariant.Some(0)
+            var Some(a) = x else return false
+            switch(x) {
+                Some(a) => { a = 234 }
+                None => return false;
+            }
+            switch(x) {
+                Some(a) => return a == 234;
+                None => return false;
+            }
+        })
+        test("inherited struct in variant is default initialized properly - 1", () => {
+            var i = InheriterOfPoint.First(48, 58)
+            return i.a == 10 && i.b == 20
+        })
+        test("inherited struct in variant is default initialized properly - 2", () => {
+            var i = InheriterOfPoint.First(48, 58)
+            var First(x, y) = i else unreachable
+            return x == 48 && y == 58 && i.a == 10 && i.b == 20
+        })
+        test("inherited struct in variant is default initialized properly - 3", () => {
+            var i = InheriterOfPoint.Second(65, 87, 45)
+            return i.a == 10 && i.b == 20
+        })
+        test("inherited struct in variant is default initialized properly - 4", () => {
+            var i = InheriterOfPoint.Second(65, 87, 45)
+            var Second(x, y, z) = i else unreachable
+            return x == 65 && y == 87 && z == 45 && i.a == 10 && i.b == 20
+        })
+        test("inherited struct in variant is default initialized with constructor - 1", () => {
+            var i = VertexInheriter.First(92)
+            return i.x == 98 && i.y == 97 && i.z == 96
+        })
+        test("inherited struct in variant is default initialized with constructor - 2", () => {
+            var x = VertexInheriter.First(92)
+            var First(i) = x else unreachable
+            return i == 92 && x.x == 98 && x.y == 97 && x.z == 96
+        })
+        test("inherited struct in variant is default initialized with constructor - 3", () => {
+            var i = VertexInheriter.Second(83)
+            return i.x == 98 && i.y == 97 && i.z == 96
+        })
+        test("inherited struct in variant is default initialized with constructor - 4", () => {
+            var i = VertexInheriter.Second(83)
+            var Second(j) = i else unreachable
+            return j == 83 && i.x == 98 && i.y == 97 && i.z == 96
+        })
+        test("inherited struct in variant can be passed to functions as pointers - 1", () => {
+            // lets test passing the struct only first
+            var p = VariantInheritedPoint { a : 34, b : 21 }
+            return variant_inh_point_sum(&raw p) == 55
+        })
+        test("inherited struct in variant can be passed to functions as pointers - 2", () => {
+            var p = InheriterOfPoint.First(65, 54)
+            p.a = 43
+            p.b = 13
+            return variant_inh_point_sum(&raw p) == 56
+        })
+        test("methods on inherited struct in variant can be called - 1", () => {
+            // lets test passing the struct only first
+            var p = VariantInheritedPoint { a : 15, b : 3 }
+            return p.multiply() == 45
+        })
+        test("methods on inherited struct in variant can be called - 2", () => {
+            var p = InheriterOfPoint.First(65, 54)
+            p.a = 8
+            p.b = 4
+            return p.multiply() == 32
+        })
+        test("pointer to variant works in switch pattern match", () => {
+            var p = new OptVariant
+            new (p) OptVariant.Some(765)
+            var result : int = 0
+            switch(p) {
+                Some(a) => {
+                    result = a;
+                }
+                None() => {
 
+                }
             }
-        }
-        dealloc p
-        return result == 765
-    })
-    test("variant works in switch pattern match with different name", () => {
-        var p = OptVariant.Some(765)
-        var result : int = 0
-        switch(p) {
-            Some(some_name) => {
-                result = some_name;
-            }
-            None() => {
+            dealloc p
+            return result == 765
+        })
+        test("variant works in switch pattern match with different name", () => {
+            var p = OptVariant.Some(765)
+            var result : int = 0
+            switch(p) {
+                Some(some_name) => {
+                    result = some_name;
+                }
+                None() => {
 
+                }
             }
-        }
-        return result == 765
-    })
-    test("variant works with name based destructuring - 1", () => {
-        var p = OptVariantMultiParams.Some(123, 554)
-        switch(p) {
-            Some { b } => { return b == 554 }
-            None() => { return false; }
-        }
-    })
-    test("variant works with name based destructuring - 2", () => {
-        var p = OptVariantMultiParams.Some(123, 554)
-        switch(p) {
-            Some { a } => { return a == 123 }
-            None() => { return false; }
-        }
-    })
-    test("different sized objects in variants have same size upon allocation", () => {
-        var first = OptVariant.Some(32)
-        var second = OptVariant.None()
-        var expected_size = sizeof(OptVariant)
-        var first_size_of = sizeof(first)
-        var second_size_of = sizeof(second)
-        return first_size_of == second_size_of && first_size_of == expected_size
-    })
-    test("assignment works with variant calls", () => {
-        var x = ImpVar22.None()
-        x = ImpVar22.Some(CheckImpParam22(99))
-        return x is ImpVar22.Some
-    })
-    /** TODO:
-    test("pointer to variant works in switch pattern match", () => {
-        var p = new OptVariant
-        new (p) OptVariant.Some(262)
-        var result : int = 0
-        switch(*p) {
-            Some(a) => {
-                result = a;
+            return result == 765
+        })
+        test("variant works with name based destructuring - 1", () => {
+            var p = OptVariantMultiParams.Some(123, 554)
+            switch(p) {
+                Some { b } => { return b == 554 }
+                None() => { return false; }
             }
-            None() => {
+        })
+        test("variant works with name based destructuring - 2", () => {
+            var p = OptVariantMultiParams.Some(123, 554)
+            switch(p) {
+                Some { a } => { return a == 123 }
+                None() => { return false; }
+            }
+        })
+        test("different sized objects in variants have same size upon allocation", () => {
+            var first = OptVariant.Some(32)
+            var second = OptVariant.None()
+            var expected_size = sizeof(OptVariant)
+            var first_size_of = sizeof(first)
+            var second_size_of = sizeof(second)
+            return first_size_of == second_size_of && first_size_of == expected_size
+        })
+        test("assignment works with variant calls", () => {
+            var x = ImpVar22.None()
+            x = ImpVar22.Some(CheckImpParam22(99))
+            return x is ImpVar22.Some
+        })
+        /** TODO:
+        test("pointer to variant works in switch pattern match", () => {
+            var p = new OptVariant
+            new (p) OptVariant.Some(262)
+            var result : int = 0
+            switch(*p) {
+                Some(a) => {
+                    result = a;
+                }
+                None() => {
 
+                }
             }
-        }
-        dealloc p
-        return result == 262
-    })
-    **/
-    test("variant overriding interface method call works - 1", () => {
-        var v = VariantInheritedGiverImpl.None()
-        return v.give() == -1
-    })
-    test("variant overriding interface method call works - 2", () => {
-        var v = VariantInheritedGiverImpl.Some(93)
-        return v.give() == 93
-    })
-    test("variant overriding interface dynamic method call works - 1", () => {
-        var v = VariantInheritedGiverImpl.None()
-        return dyn_variant_giver_give(dyn<VariantInheritableGiverInterface>(v)) == -1
-    })
-    test("variant overriding interface dynamic method call works - 2", () => {
-        var v = VariantInheritedGiverImpl.Some(28)
-        return dyn_variant_giver_give(dyn<VariantInheritableGiverInterface>(v)) == 28
-    })
-    test("variant overriding interface dynamic method call works - 3", () => {
-        var v = StructInheritedGiverImpl { value : 283 }
-        return dyn_variant_giver_give(dyn<VariantInheritableGiverInterface>(v)) == 283
-    })
-    test("variant overriding interface static dispatch method call works - 1", () => {
-        var v = VariantInheritedGiverImpl.None()
-        return static_dispatch_variant_inherited_giver_give(&v) == -1
-    })
-    test("variant overriding interface static dispatch method call works - 2", () => {
-        var v = VariantInheritedGiverImpl.Some(62)
-        return static_dispatch_variant_inherited_giver_give(&v) == 62
-    })
-    test("variant overriding interface static dispatch method call works - 3", () => {
-        var v = StructInheritedGiverImpl { value : 32 }
-        return static_dispatch_variant_inherited_giver_give(&v) == 32
-    })
-    test("variant overriding interface static dispatch method call works - 4", () => {
-        var v = StructInheritedGiverImpl { value : 96 }
-        return static_dispatch_variant_inherited_giver_give(&v) == 96
-    })
-    test("variant inherited delegate dynamic dispatch works - 1", () => {
-        var v = VariantInheritedDelegateImpl.None()
-        return dyn_variant_giver_give(dyn<VariantInheritableGiverInterface>(v)) == -2
-    })
-    test("variant inherited delegate dynamic dispatch works - 2", () => {
-        var v = VariantInheritedDelegateImpl.Some(736)
-        return dyn_variant_giver_give(dyn<VariantInheritableGiverInterface>(v)) == 736
-    })
-    test("variant with @make constructor works - 1", () => {
-        var v = VariantWithMake(42)
-        return v is VariantWithMake.Positive
-    })
-    test("variant with @make constructor works - 2", () => {
-        var v = VariantWithMake(-7)
-        return v is VariantWithMake.Negative
-    })
-    test("variant with @make constructor returns correct value - 1", () => {
-        var v = VariantWithMake(42)
-        switch(v) {
-            Positive(value) => return value == 42
-            Negative(value) => return false
-        }
-    })
-    test("variant with @make constructor returns correct value - 2", () => {
-        var v = VariantWithMake(-7)
-        switch(v) {
-            Positive(value) => return false
-            Negative(value) => return value == -7
-        }
-    })
+            dealloc p
+            return result == 262
+        })
+        **/
+        test("variant overriding interface method call works - 1", () => {
+            var v = VariantInheritedGiverImpl.None()
+            return v.give() == -1
+        })
+        test("variant overriding interface method call works - 2", () => {
+            var v = VariantInheritedGiverImpl.Some(93)
+            return v.give() == 93
+        })
+        test("variant overriding interface dynamic method call works - 1", () => {
+            var v = VariantInheritedGiverImpl.None()
+            return dyn_variant_giver_give(dyn<VariantInheritableGiverInterface>(v)) == -1
+        })
+        test("variant overriding interface dynamic method call works - 2", () => {
+            var v = VariantInheritedGiverImpl.Some(28)
+            return dyn_variant_giver_give(dyn<VariantInheritableGiverInterface>(v)) == 28
+        })
+        test("variant overriding interface dynamic method call works - 3", () => {
+            var v = StructInheritedGiverImpl { value : 283 }
+            return dyn_variant_giver_give(dyn<VariantInheritableGiverInterface>(v)) == 283
+        })
+        test("variant overriding interface static dispatch method call works - 1", () => {
+            var v = VariantInheritedGiverImpl.None()
+            return static_dispatch_variant_inherited_giver_give(&v) == -1
+        })
+        test("variant overriding interface static dispatch method call works - 2", () => {
+            var v = VariantInheritedGiverImpl.Some(62)
+            return static_dispatch_variant_inherited_giver_give(&v) == 62
+        })
+        test("variant overriding interface static dispatch method call works - 3", () => {
+            var v = StructInheritedGiverImpl { value : 32 }
+            return static_dispatch_variant_inherited_giver_give(&v) == 32
+        })
+        test("variant overriding interface static dispatch method call works - 4", () => {
+            var v = StructInheritedGiverImpl { value : 96 }
+            return static_dispatch_variant_inherited_giver_give(&v) == 96
+        })
+        test("variant inherited delegate dynamic dispatch works - 1", () => {
+            var v = VariantInheritedDelegateImpl.None()
+            return dyn_variant_giver_give(dyn<VariantInheritableGiverInterface>(v)) == -2
+        })
+        test("variant inherited delegate dynamic dispatch works - 2", () => {
+            var v = VariantInheritedDelegateImpl.Some(736)
+            return dyn_variant_giver_give(dyn<VariantInheritableGiverInterface>(v)) == 736
+        })
+        test("variant with @make constructor works - 1", () => {
+            var v = VariantWithMake(42)
+            return v is VariantWithMake.Positive
+        })
+        test("variant with @make constructor works - 2", () => {
+            var v = VariantWithMake(-7)
+            return v is VariantWithMake.Negative
+        })
+        test("variant with @make constructor returns correct value - 1", () => {
+            var v = VariantWithMake(42)
+            switch(v) {
+                Positive(value) => return value == 42
+                Negative(value) => return false
+            }
+        })
+        test("variant with @make constructor returns correct value - 2", () => {
+            var v = VariantWithMake(-7)
+            switch(v) {
+                Positive(value) => return false
+                Negative(value) => return value == -7
+            }
+        })
 
-}
+
+        }
+    }

@@ -34,13 +34,16 @@ public func test_process_config_defaults(env : &mut TestEnv) {
 }
 
 func stdout_contains(data : *vector<u8>, expected : string_view) : bool {
-    if(data.size() < expected.size()) { return false }
-    var d = data.data()
-    var e = expected.data()
-    var i = 0
-    while(i < expected.size()) {
-        if(d[i] != e[i]) { return false }
-        i += 1
+        unsafe {
+        if(data.size() < expected.size()) { return false }
+        var d = data.data()
+        var e = expected.data()
+        var i = 0
+        while(i < expected.size()) {
+            if(d[i] != e[i]) { return false }
+            i += 1
+        }
+        return true
+
+        }
     }
-    return true
-}

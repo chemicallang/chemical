@@ -30,40 +30,43 @@ func test_fs_directory_creation_and_removal(env : &mut TestEnv) {
 
 @test
 func test_fs_directory_iteration(env : &mut TestEnv) {
-    var base = make_test_base_dir(env);
-    fs::remove_dir_all_recursive(base.data());
-    fs::create_dir_all(base.data());
+        unsafe {
+        var base = make_test_base_dir(env);
+        fs::remove_dir_all_recursive(base.data());
+        fs::create_dir_all(base.data());
 
-    var f1 = make_child_path(&base, "file1.txt");
-    var f2 = make_child_path(&base, "file2.txt");
-    var d1 = make_child_path(&base, "subdir");
+        var f1 = make_child_path(&base, "file1.txt");
+        var f2 = make_child_path(&base, "file2.txt");
+        var d1 = make_child_path(&base, "subdir");
     
-    fs::write_text_file(f1.data(), "1" as *u8, 1);
-    fs::write_text_file(f2.data(), "2" as *u8, 1);
-    fs::create_dir(d1.data());
+        fs::write_text_file(f1.data(), "1" as *u8, 1);
+        fs::write_text_file(f2.data(), "2" as *u8, 1);
+        fs::create_dir(d1.data());
 
-    var file_count = 0;
-    var dir_count = 0;
+        var file_count = 0;
+        var dir_count = 0;
     
-    var r = fs::read_dir(base.data(), |&file_count, &dir_count|(name : *char, len : size_t, is_dir : bool) => {
-        // skip . and .. (though read_dir implementation usually filters them, let's be safe)
-        if(len == 1 && name[0] == '.') { return true; }
-        if(len == 2 && name[0] == '.' && name[1] == '.') { return true; }
+        var r = fs::read_dir(base.data(), |&file_count, &dir_count|(name : *char, len : size_t, is_dir : bool) => {
+            // skip . and .. (though read_dir implementation usually filters them, let's be safe)
+            if(len == 1 && name[0] == '.') { return true; }
+            if(len == 2 && name[0] == '.' && name[1] == '.') { return true; }
         
-        if(is_dir) {
-            dir_count++;
-        } else {
-            file_count++;
+            if(is_dir) {
+                dir_count++;
+            } else {
+                file_count++;
+            }
+            return true;
+        });
+
+        expect_true(env, !(r is Result.Err), "read_dir failed");
+        expect_true(env, file_count == 2, "should have 2 files");
+        expect_true(env, dir_count == 1, "should have 1 directory");
+
+        fs::remove_dir_all_recursive(base.data());
+
         }
-        return true;
-    });
-
-    expect_true(env, !(r is Result.Err), "read_dir failed");
-    expect_true(env, file_count == 2, "should have 2 files");
-    expect_true(env, dir_count == 1, "should have 1 directory");
-
-    fs::remove_dir_all_recursive(base.data());
-}
+    }
 
 @test
 func test_fs_temp_dir(env : &mut TestEnv) {

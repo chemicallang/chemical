@@ -102,11 +102,14 @@ public struct default_function_instance {
 
     @delete
     func delete(&self) {
-        if(dtor != null) {
-            dtor(get_data_ptr())
-        }
-        if(is_heap) {
-            dealloc fn_data_ptr
+        unsafe {
+            if(dtor != null) {
+                dtor(get_data_ptr())
+            }
+            if(is_heap) {
+                dealloc fn_data_ptr
+            }
+    
         }
     }
 

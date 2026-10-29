@@ -6,12 +6,15 @@ struct UUIDThreadArg {
 }
 
 func uuid_thread_entry(arg : *void) : *void {
-    var ta = arg as *mut UUIDThreadArg;
-    for (var i = 0; i < 50; i++) {
-        ta.v.push(uuid::v7());
+        unsafe {
+        var ta = arg as *mut UUIDThreadArg;
+        for (var i = 0; i < 50; i++) {
+            ta.v.push(uuid::v7());
+        }
+        return null;
+
+        }
     }
-    return null;
-}
 
 @test
 func test_uuid_constructors(env : &mut TestEnv) {

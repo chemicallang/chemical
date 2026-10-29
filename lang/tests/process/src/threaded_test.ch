@@ -43,7 +43,7 @@ public func test_process_execute_from_thread(env : &mut TestEnv) {
     // Run process::execute on a worker thread (the exact scenario that
     // previously deadlocked under WebKitGTK). If it deadlocks, t.join()
     // would never return and the test would time out.
-    var t = concurrent::spawn(process_execute_thread_entry, null)
+    var t = unsafe(concurrent::spawn(process_execute_thread_entry, null))
     t.join()
 
     if(!g_thread_exec_done) {
@@ -85,7 +85,7 @@ public func test_process_spawn_from_thread(env : &mut TestEnv) {
     g_thread_spawn_done = false
     g_thread_spawn_ok = false
 
-    var t = concurrent::spawn(process_spawn_thread_entry, null)
+    var t = unsafe(concurrent::spawn(process_spawn_thread_entry, null))
     t.join()
 
     if(!g_thread_spawn_done) {

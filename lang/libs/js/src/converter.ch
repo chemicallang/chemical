@@ -18,15 +18,24 @@ public struct JsRuntimeConverter {
 impl JsNodeEmitter for JsRuntimeConverter {
 
     func emit_text(&mut self, text : &std::string_view) {
-        self.str.append_view(text)
+        unsafe {
+            self.str.append_view(text)
+    
+        }
     }
 
     func emit_char(&mut self, c : char) {
-        self.str.append(c)
+        unsafe {
+            self.str.append(c)
+    
+        }
     }
 
     func emit_integer(&mut self, v : bigint) {
-        self.str.append_integer(v)
+        unsafe {
+            self.str.append_integer(v)
+    
+        }
     }
 
     func emit_chemical_value(&mut self, value : *mut Value) {

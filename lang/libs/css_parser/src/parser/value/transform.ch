@@ -4,92 +4,95 @@ func (cssParser : &mut CSSParser) parseTransform(
     builder : *mut ASTBuilder,
     value : &mut CSSValue
 ) {
-    // Allocate a new box-shadow value.
-    var transform = builder.allocate<CSSTransformValueData>();
-    new (transform) CSSTransformValueData()
+        unsafe {
+        // Allocate a new box-shadow value.
+        var transform = builder.allocate<CSSTransformValueData>();
+        new (transform) CSSTransformValueData()
 
-    value.kind = CSSValueKind.Transform;
-    value.data = transform;
+        value.kind = CSSValueKind.Transform;
+        value.data = transform;
 
-    while(true) {
+        while(true) {
 
-        const token = parser.getToken()
-        if(token.type == TokenType.Identifier) {
+            const token = parser.getToken()
+            if(token.type == TokenType.Identifier) {
 
-            const hash = token.fnv1()
-            if(transform == value.data && hash == comptime_fnv1_hash("none")) {
-                parser.increment()
-                break;
-            }
-            const kind = getTransformFunctionKeywordKind(hash)
-
-            transform.transformFunction = CSSKeywordValueData { value : builder.allocate_view(&token.value), kind : kind }
-
-            if(kind != CSSKeywordKind.Unknown) {
-                parser.increment();
-
-                const lpTok = parser.getToken()
-                if(lpTok.type == TokenType.LParen) {
+                const hash = token.fnv1()
+                if(transform == value.data && hash == comptime_fnv1_hash("none")) {
                     parser.increment()
-                } else {
-                    parser.error("expected a '(' after the transform function");
+                    break;
                 }
+                const kind = getTransformFunctionKeywordKind(hash)
 
-                var node = builder.allocate<CSSTransformLengthNode>();
-                new (node) CSSTransformLengthNode()
-                transform.node = node;
+                transform.transformFunction = CSSKeywordValueData { value : builder.allocate_view(&token.value), kind : kind }
 
-                while(true) {
-                    if(kind == CSSKeywordKind.Perspective) {
-                        const t = parser.getToken()
-                        if(t.type == TokenType.Identifier && t.value.equals("none")) {
-                            transform.node = null
-                            parser.increment()
+                if(kind != CSSKeywordKind.Unknown) {
+                    parser.increment();
+
+                    const lpTok = parser.getToken()
+                    if(lpTok.type == TokenType.LParen) {
+                        parser.increment()
+                    } else {
+                        parser.error("expected a '(' after the transform function");
+                    }
+
+                    var node = builder.allocate<CSSTransformLengthNode>();
+                    new (node) CSSTransformLengthNode()
+                    transform.node = node;
+
+                    while(true) {
+                        if(kind == CSSKeywordKind.Perspective) {
+                            const t = parser.getToken()
+                            if(t.type == TokenType.Identifier && t.value.equals("none")) {
+                                transform.node = null
+                                parser.increment()
+                                break;
+                            }
+                        }
+                        // Use parseLength which handles numbers, lengths, calc(), and var()
+                        if(cssParser.parseLength(parser, builder, &mut node.value, false)) {
+
+                            parser.incrementToken(TokenType.Comma)
+
+                            const nextNode = builder.allocate<CSSTransformLengthNode>();
+                            new (nextNode) CSSTransformLengthNode()
+                            node.next = nextNode;
+                            node = nextNode
+
+                        } else {
                             break;
                         }
                     }
-                    // Use parseLength which handles numbers, lengths, calc(), and var()
-                    if(cssParser.parseLength(parser, builder, &mut node.value, false)) {
 
-                        parser.incrementToken(TokenType.Comma)
-
-                        const nextNode = builder.allocate<CSSTransformLengthNode>();
-                        new (nextNode) CSSTransformLengthNode()
-                        node.next = nextNode;
-                        node = nextNode
-
+                    const rpTok = parser.getToken()
+                    if(rpTok.type == TokenType.RParen) {
+                        parser.increment()
                     } else {
-                        break;
+                        parser.error("expected a ')' after the transform function");
                     }
-                }
 
-                const rpTok = parser.getToken()
-                if(rpTok.type == TokenType.RParen) {
-                    parser.increment()
+                    const nextTok = parser.getToken()
+                    if(nextTok.type == TokenType.Identifier) {
+                        var nextTransform = builder.allocate<CSSTransformValueData>();
+                        new (nextTransform) CSSTransformValueData()
+                        transform.next = nextTransform
+                        transform = nextTransform
+                    }
+
                 } else {
-                    parser.error("expected a ')' after the transform function");
+                    parser.error("unknown transform function");
+                    break;
                 }
 
-                const nextTok = parser.getToken()
-                if(nextTok.type == TokenType.Identifier) {
-                    var nextTransform = builder.allocate<CSSTransformValueData>();
-                    new (nextTransform) CSSTransformValueData()
-                    transform.next = nextTransform
-                    transform = nextTransform
-                }
-
+            } else if(token.type == TokenType.Semicolon) {
+                break;
             } else {
-                parser.error("unknown transform function");
+                parser.error("expected a transform function name");
                 break;
             }
 
-        } else if(token.type == TokenType.Semicolon) {
-            break;
-        } else {
-            parser.error("expected a transform function name");
-            break;
         }
 
-    }
 
-}
+        }
+    }

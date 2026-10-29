@@ -7,31 +7,34 @@
  * react/macro.ch.
  */
 public func parseUniversalRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsBlock {
-    var dyn_values = std::vector<*mut Value>()
-    var components = std::vector<*mut JsJSXElement>()
+        unsafe {
+        var dyn_values = std::vector<*mut Value>()
+        var components = std::vector<*mut JsJSXElement>()
 
-    var jsParser = JsParser {
-        dyn_values : &raw mut dyn_values,
-        components : &raw mut components
-    }
-
-    var block = builder.allocate<JsBlock>()
-    new (block) JsBlock {
-        base : JsNode { kind : JsNodeKind.Block },
-        statements : std::vector<*mut JsNode>()
-    }
-
-    while(true) {
-        const token = parser.getToken()
-        if(token.type == JsTokenType.EndOfFile as int) {
-            break
+        var jsParser = JsParser {
+            dyn_values : &raw mut dyn_values,
+            components : &raw mut components
         }
-        var stmt = jsParser.parseStatement(parser, builder)
-        if(stmt != null) {
-            block.statements.push(stmt)
-        } else {
-            break
+
+        var block = builder.allocate<JsBlock>()
+        new (block) JsBlock {
+            base : JsNode { kind : JsNodeKind.Block },
+            statements : std::vector<*mut JsNode>()
+        }
+
+        while(true) {
+            const token = parser.getToken()
+            if(token.type == JsTokenType.EndOfFile as int) {
+                break
+            }
+            var stmt = jsParser.parseStatement(parser, builder)
+            if(stmt != null) {
+                block.statements.push(stmt)
+            } else {
+                break
+            }
+        }
+        return block
+
         }
     }
-    return block
-}

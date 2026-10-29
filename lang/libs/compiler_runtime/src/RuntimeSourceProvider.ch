@@ -113,8 +113,11 @@ public func compiler_SourceProviderincrementCodepoint(provider : *mut SourceProv
 
 @no_mangle
 public func compiler_SourceProvidereof(provider : *mut SourceProvider) : bool {
-    return provider.data_ptr >= provider.data_end
-}
+        unsafe {
+        return provider.data_ptr >= provider.data_end
+
+        }
+    }
 
 @no_mangle
 public func compiler_SourceProviderpeek(provider : *mut SourceProvider) : char { unsafe {
@@ -133,13 +136,19 @@ public func compiler_SourceProviderincrement_char(provider : *mut SourceProvider
 
 @no_mangle
 public func compiler_SourceProvidergetLineNumber(provider : *mut SourceProvider) : uint {
-    return provider.lineNumber
-}
+        unsafe {
+        return provider.lineNumber
+
+        }
+    }
 
 @no_mangle
 public func compiler_SourceProvidergetLineCharNumber(provider : *mut SourceProvider) : uint {
-    return provider.lineCharacterNumber
-}
+        unsafe {
+        return provider.lineCharacterNumber
+
+        }
+    }
 
 @no_mangle
 public func compiler_SourceProviderreadWhitespaces(provider : *mut SourceProvider) : uint {

@@ -65,7 +65,7 @@ func neg_index_non_copy_generic(env : &mut TestEnv) {
     // Indexing a `*T` where `T` is a generic parameter that is not `Copy` is rejected
     // (the element would be copied out of borrowed memory). Arrays of destructible
     // element types are supported, so this is the only restricted indexing form.
-    var ch = "struct NonCopy {\n    @delete\n    func delete(&mut self) { }\n}\nfunc <T> get_at(p : *T) : T {\n    return p[0]\n}\nfunc main() {\n    var n = NonCopy {}\n    var p = &raw n\n    var v = get_at(p)\n}\n"
+    var ch = "struct NonCopy {\n    @delete\n    func delete(&mut self) { }\n}\nfunc <T> get_at(p : *T) : T {\n    return unsafe(p[0])\n}\nfunc main() {\n    var n = NonCopy {}\n    var p = &raw n\n    var v = get_at(p)\n}\n"
     expect_compile_error(env, "index_non_copy_generic", ch, "Copy")
 }
 

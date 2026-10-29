@@ -42,7 +42,7 @@ public namespace async {
 
         public func wake(&self) {
             if(vtbl != null) {
-                vtbl.wake(data)
+                unsafe { vtbl.wake(data) }
             }
         }
 
@@ -50,13 +50,13 @@ public namespace async {
             if(vtbl == null) {
                 return Waker.empty()
             }
-            return vtbl.clone(data)
+            return unsafe(vtbl.clone(data))
         }
 
         @delete
         func delete(&mut self) {
             if(vtbl != null) {
-                vtbl.drop(data)
+                unsafe { vtbl.drop(data) }
             }
         }
     }
@@ -113,7 +113,7 @@ public namespace async {
         @delete
         func delete(&mut self) {
             if(frame != null) {
-                vtbl.drop(frame)
+                unsafe { vtbl.drop(frame) }
                 frame = null
             }
         }

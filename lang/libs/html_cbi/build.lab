@@ -11,100 +11,103 @@ import "@html_ide/build.lab" as htmlIdeMod
 using namespace std;
 
 public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module {
+        unsafe {
 
-    var curr_file_path = lab::get_my_path();
-    const previous_module = ctx.get_cached(user_job, &curr_file_path);
-    if(previous_module != null) return previous_module;
-    const empty_module = ctx.empty_module(std::string_view(""), std::string_view("html_cbi"));
-    ctx.set_cached(user_job, &curr_file_path, empty_module)
+        var curr_file_path = lab::get_my_path();
+        const previous_module = ctx.get_cached(user_job, &curr_file_path);
+        if(previous_module != null) return previous_module;
+        const empty_module = ctx.empty_module(std::string_view(""), std::string_view("html_cbi"));
+        ctx.set_cached(user_job, &curr_file_path, empty_module)
 
-    const cbi_name = std::string_view("html");
-    if(ctx.contains_cbi(&cbi_name)) {
-        return empty_module;
-    }
-    ctx.set_contains_cbi(&cbi_name)
-
-    // #universal_test collects its declarations for discovery
-    const ut_controller = ctx.getAnnotationController()
-    ut_controller.createCollectorAnnotation(std::string_view("universal_test"), 0)
-
-    var cbi = ctx.build_cbi(&cbi_name)
-    const job = cbi;
-
-    // makes sure this job is done before the user_job
-    ctx.put_job_before(job, user_job)
-
-    var std_module = stdMod.build(ctx, job);
-    if(std_module == null) {
-        return null
-    }
-
-    // the cstd module
-    var cstd_module = cstdMod.build(ctx, job);
-    if(cstd_module == null) {
-        return null
-    }
-
-    // the std module
-    var compiler_module = compilerMod.build(ctx, job);
-    if(compiler_module == null) {
-        return null
-    }
-
-
-    // the html component module
-    var html_comp_module = htmlCompMod.build(ctx, job)
-    if(html_comp_module == null) {
-        return null
-    }
-
-    // html parser module
-    var html_parser = htmlParser.build(ctx, job)
-    if(html_parser == null) {
-        return null
-    }
-
-    // only compile html ide module in lsp
-    var htmlIde : *mut Module = null
-    comptime if(def.lsp) {
-        htmlIde = htmlIdeMod.build(ctx, job)
-        if(htmlIde == null) {
-            return null;
+        const cbi_name = std::string_view("html");
+        if(ctx.contains_cbi(&cbi_name)) {
+            return empty_module;
         }
-    } else {
-        htmlIde = html_parser
+        ctx.set_contains_cbi(&cbi_name)
+
+        // #universal_test collects its declarations for discovery
+        const ut_controller = ctx.getAnnotationController()
+        ut_controller.createCollectorAnnotation(std::string_view("universal_test"), 0)
+
+        var cbi = ctx.build_cbi(&cbi_name)
+        const job = cbi;
+
+        // makes sure this job is done before the user_job
+        ctx.put_job_before(job, user_job)
+
+        var std_module = stdMod.build(ctx, job);
+        if(std_module == null) {
+            return null
+        }
+
+        // the cstd module
+        var cstd_module = cstdMod.build(ctx, job);
+        if(cstd_module == null) {
+            return null
+        }
+
+        // the std module
+        var compiler_module = compilerMod.build(ctx, job);
+        if(compiler_module == null) {
+            return null
+        }
+
+
+        // the html component module
+        var html_comp_module = htmlCompMod.build(ctx, job)
+        if(html_comp_module == null) {
+            return null
+        }
+
+        // html parser module
+        var html_parser = htmlParser.build(ctx, job)
+        if(html_parser == null) {
+            return null
+        }
+
+        // only compile html ide module in lsp
+        var htmlIde : *mut Module = null
+        comptime if(def.lsp) {
+            htmlIde = htmlIdeMod.build(ctx, job)
+            if(htmlIde == null) {
+                return null;
+            }
+        } else {
+            htmlIde = html_parser
+        }
+
+        const dependencies = [ cstd_module, std_module, compiler_module, html_parser, html_comp_module, htmlIde ]
+        var srcPath = lab::rel_path_to("src")
+        const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("html_cbi"), srcPath.to_view(), dependencies);
+
+        ctx.add_module(cbi, module)
+
+        ctx.index_def_cbi_fn(cbi, std::string_view("html_initializeLexer"), CBIFunctionType.InitializeLexer);
+        ctx.index_def_cbi_fn(cbi, std::string_view("html_parseMacroValue"), CBIFunctionType.ParseMacroValue);
+        ctx.index_def_cbi_fn(cbi, std::string_view("html_parseMacroNode"), CBIFunctionType.ParseMacroNode);
+        ctx.index_def_cbi_fn(cbi, std::string_view("html_symResNode"), CBIFunctionType.SymResNode);
+        ctx.index_def_cbi_fn(cbi, std::string_view("html_symResValue"), CBIFunctionType.SymResValue);
+        ctx.index_def_cbi_fn(cbi, std::string_view("html_replacementNode"), CBIFunctionType.ReplacementNode);
+        ctx.index_def_cbi_fn(cbi, std::string_view("html_replacementValue"), CBIFunctionType.ReplacementValue);
+
+        comptime if(def.lsp) {
+            // this will let the lsp know that methods are present
+        ctx.index_def_cbi_fn(cbi, std::string_view("html_semanticTokensPut"), CBIFunctionType.SemanticTokensPut);
+        ctx.index_def_cbi_fn(cbi, std::string_view("html_foldingRangesPut"), CBIFunctionType.FoldingRangesPut);
+        }
+
+        // #universal_test macro (Phase 0)
+        ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_initializeLexer"), CBIFunctionType.InitializeLexer);
+        ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_parseMacroNode"), CBIFunctionType.ParseMacroTopLevelNode);
+        ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_parseMacroNodeStatement"), CBIFunctionType.ParseMacroNode);
+        ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_symResDeclareNode"), CBIFunctionType.SymResDeclareTopLevelNode);
+        ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_symResSigNode"), CBIFunctionType.SymResLinkSignatureNode);
+        ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_symResNode"), CBIFunctionType.SymResNode);
+        ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_replacementNodeDeclare"), CBIFunctionType.ReplacementNodeDeclare);
+        ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_replacementNode"), CBIFunctionType.ReplacementNode);
+
+        return empty_module;
+
+
+        }
     }
-
-    const dependencies = [ cstd_module, std_module, compiler_module, html_parser, html_comp_module, htmlIde ]
-    var srcPath = lab::rel_path_to("src")
-    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("html_cbi"), srcPath.to_view(), dependencies);
-
-    ctx.add_module(cbi, module)
-
-    ctx.index_def_cbi_fn(cbi, std::string_view("html_initializeLexer"), CBIFunctionType.InitializeLexer);
-    ctx.index_def_cbi_fn(cbi, std::string_view("html_parseMacroValue"), CBIFunctionType.ParseMacroValue);
-    ctx.index_def_cbi_fn(cbi, std::string_view("html_parseMacroNode"), CBIFunctionType.ParseMacroNode);
-    ctx.index_def_cbi_fn(cbi, std::string_view("html_symResNode"), CBIFunctionType.SymResNode);
-    ctx.index_def_cbi_fn(cbi, std::string_view("html_symResValue"), CBIFunctionType.SymResValue);
-    ctx.index_def_cbi_fn(cbi, std::string_view("html_replacementNode"), CBIFunctionType.ReplacementNode);
-    ctx.index_def_cbi_fn(cbi, std::string_view("html_replacementValue"), CBIFunctionType.ReplacementValue);
-
-    comptime if(def.lsp) {
-        // this will let the lsp know that methods are present
-    ctx.index_def_cbi_fn(cbi, std::string_view("html_semanticTokensPut"), CBIFunctionType.SemanticTokensPut);
-    ctx.index_def_cbi_fn(cbi, std::string_view("html_foldingRangesPut"), CBIFunctionType.FoldingRangesPut);
-    }
-
-    // #universal_test macro (Phase 0)
-    ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_initializeLexer"), CBIFunctionType.InitializeLexer);
-    ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_parseMacroNode"), CBIFunctionType.ParseMacroTopLevelNode);
-    ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_parseMacroNodeStatement"), CBIFunctionType.ParseMacroNode);
-    ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_symResDeclareNode"), CBIFunctionType.SymResDeclareTopLevelNode);
-    ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_symResSigNode"), CBIFunctionType.SymResLinkSignatureNode);
-    ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_symResNode"), CBIFunctionType.SymResNode);
-    ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_replacementNodeDeclare"), CBIFunctionType.ReplacementNodeDeclare);
-    ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_replacementNode"), CBIFunctionType.ReplacementNode);
-
-    return empty_module;
-
-}

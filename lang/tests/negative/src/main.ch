@@ -172,7 +172,7 @@ internal func cleanup_test_dir(work_dir : *char, name : *char) {
 
 internal func neg_debug_print(name : *char, output : *char) {
     var dbg = unsafe(getenv("NEG_DEBUG"))
-    if(dbg != null && dbg[0] != 0) {
+    if(dbg != null && unsafe(dbg[0]) != 0) {
         unsafe { printf("==== [NEG_DEBUG] %s ====\n", name) }
         unsafe { printf("%s", output) }
         unsafe { printf("==== [NEG_DEBUG end] ====\n") }

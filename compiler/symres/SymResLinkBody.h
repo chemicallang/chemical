@@ -222,6 +222,14 @@ public:
      */
     void check_unsafe_member_access(ASTNode* linked, Value* at, bool is_write = false);
 
+    /**
+     * Require an explicit unsafe boundary for an operation that dereferences a
+     * raw pointer implicitly. Field projection, indexing, method calls and
+     * pointer arithmetic all go through a pointer's address even though no
+     * `*p` token appears in the source.
+     */
+    void check_raw_pointer_access(Value* operand, Value* at, const char* action);
+
     void VisitVariableIdentifier(VariableIdentifier* identifier, bool check_access);
 
     /**

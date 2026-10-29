@@ -19,218 +19,242 @@ public struct ZipArchive {
 }
 
 public func open_zip(path : *char, output : *mut ZipArchive) : std::Result<std::Unit, ArchiveError> {
-    var read_result = fs::read_entire_file(path)
-    if(read_result is Result.Err) {
-        return std.Result.Err(ArchiveError.FileNotFound())
+        unsafe {
+        var read_result = fs::read_entire_file(path)
+        if(read_result is Result.Err) {
+            return std.Result.Err(ArchiveError.FileNotFound())
+        }
+        var Ok(fd) = read_result else unreachable
+        unsafe { memcpy(&raw mut output.data, &raw fd, sizeof(vector<u8>)) }
+        new(&raw fd) vector<u8>()
+
+        output.data_loaded = true
+
+        var parse_result = parse_zip_central_dir(output)
+        if(parse_result is Result.Err) {
+            return std.Result.Err(ArchiveError.InvalidFormat(string("failed to parse ZIP central directory")))
+        }
+
+        return std.Result.Ok(std::Unit{})
+
+        }
     }
-    var Ok(fd) = read_result else unreachable
-    unsafe { memcpy(&raw mut output.data, &raw fd, sizeof(vector<u8>)) }
-    new(&raw fd) vector<u8>()
-
-    output.data_loaded = true
-
-    var parse_result = parse_zip_central_dir(output)
-    if(parse_result is Result.Err) {
-        return std.Result.Err(ArchiveError.InvalidFormat(string("failed to parse ZIP central directory")))
-    }
-
-    return std.Result.Ok(std::Unit{})
-}
 
 public func open_zip_bytes(data : *u8, data_len : size_t, output : *mut ZipArchive) : std::Result<std::Unit, ArchiveError> {
-    var vec = vector<u8>()
-    vec.resize(data_len)
-    var i : size_t = 0
-    var vptr = vec.data() as *mut u8
-    while(i < data_len) {
-        vptr[i] = data[i]
-        i += 1
-    }
-    output.data = vec
-    output.data_loaded = true
+        unsafe {
+        var vec = vector<u8>()
+        vec.resize(data_len)
+        var i : size_t = 0
+        var vptr = vec.data() as *mut u8
+        while(i < data_len) {
+            vptr[i] = data[i]
+            i += 1
+        }
+        output.data = vec
+        output.data_loaded = true
 
-    var parse_result = parse_zip_central_dir(output)
-    if(parse_result is Result.Err) {
-        return std.Result.Err(ArchiveError.InvalidFormat(string("failed to parse ZIP central directory")))
-    }
+        var parse_result = parse_zip_central_dir(output)
+        if(parse_result is Result.Err) {
+            return std.Result.Err(ArchiveError.InvalidFormat(string("failed to parse ZIP central directory")))
+        }
 
-    return std.Result.Ok(std::Unit{})
-}
+        return std.Result.Ok(std::Unit{})
+
+        }
+    }
 
 func parse_zip_central_dir(archive : *mut ZipArchive) : std::Result<std::Unit, ArchiveError> {
-    if(archive.data.size() < 22) {
-        return std.Result.Err(ArchiveError.InvalidFormat(string("file too small for ZIP")))
-    }
-
-    var eocd_pos : size_t = 0
-    var found = false
-    var search_pos = archive.data.size() - 22
-    while(search_pos > 0) {
-        var sig = read_u32_le(archive.data.data(), search_pos)
-        if(sig == ZIP_END_OF_CENTRAL_DIR) {
-            eocd_pos = search_pos
-            found = true
-            break
+        unsafe {
+        if(archive.data.size() < 22) {
+            return std.Result.Err(ArchiveError.InvalidFormat(string("file too small for ZIP")))
         }
-        search_pos -= 1
+
+        var eocd_pos : size_t = 0
+        var found = false
+        var search_pos = archive.data.size() - 22
+        while(search_pos > 0) {
+            var sig = read_u32_le(archive.data.data(), search_pos)
+            if(sig == ZIP_END_OF_CENTRAL_DIR) {
+                eocd_pos = search_pos
+                found = true
+                break
+            }
+            search_pos -= 1
+        }
+
+        if(!found) {
+            return std.Result.Err(ArchiveError.InvalidFormat(string("no End of Central Directory found")))
+        }
+
+        var num_entries = read_u16_le(archive.data.data(), eocd_pos + 10) as size_t
+        var cd_offset = read_u32_le(archive.data.data(), eocd_pos + 16) as size_t
+
+        var pos = cd_offset
+        var i : size_t = 0
+        while(i < num_entries) {
+            if(pos + 46 > archive.data.size()) {
+                return std.Result.Err(ArchiveError.InvalidFormat(string("truncated central directory entry")))
+            }
+
+            var sig = read_u32_le(archive.data.data(), pos)
+            if(sig != ZIP_CENTRAL_DIR_HEADER) {
+                return std.Result.Err(ArchiveError.InvalidFormat(string("invalid central directory entry signature")))
+            }
+
+            var method = read_u16_le(archive.data.data(), pos + 10)
+            var crc = read_u32_le(archive.data.data(), pos + 16)
+            var comp_size = read_u32_le(archive.data.data(), pos + 20) as u64
+            var uncomp_size = read_u32_le(archive.data.data(), pos + 24) as u64
+            var name_len = read_u16_le(archive.data.data(), pos + 28) as size_t
+            var extra_len = read_u16_le(archive.data.data(), pos + 30) as size_t
+            var comment_len = read_u16_le(archive.data.data(), pos + 32) as size_t
+            var local_offset = read_u32_le(archive.data.data(), pos + 42) as u64
+
+            var name_start = pos + 46
+            var name = string("")
+            var j : size_t = 0
+            while(j < name_len && name_start + j < archive.data.size()) {
+                name.append(archive.data.data()[name_start + j] as char)
+                j += 1
+            }
+
+            var is_dir = false
+            if(name_len > 0) {
+                var last_char = archive.data.data()[name_start + name_len - 1]
+                if(last_char == '/' as u8 || last_char == '\\' as u8) {
+                    is_dir = true
+                }
+            }
+
+            var entry : ArchiveEntry = ArchiveEntry {
+                name: name,
+                size: uncomp_size,
+                compressed_size: comp_size,
+                compression_method: method,
+                crc32: crc,
+                is_directory: is_dir,
+                offset: local_offset
+            }
+
+            archive.entries.push(entry)
+
+            pos += 46 + name_len + extra_len + comment_len
+            i += 1
+        }
+
+        return std.Result.Ok(std::Unit{})
+
+        }
     }
 
-    if(!found) {
-        return std.Result.Err(ArchiveError.InvalidFormat(string("no End of Central Directory found")))
+public func zip_entries(archive : *mut ZipArchive) : *mut vector<ArchiveEntry> {
+        unsafe {
+        return &raw mut archive.entries
+
+        }
     }
 
-    var num_entries = read_u16_le(archive.data.data(), eocd_pos + 10) as size_t
-    var cd_offset = read_u32_le(archive.data.data(), eocd_pos + 16) as size_t
+public func zip_entry_count(archive : *mut ZipArchive) : size_t {
+        unsafe {
+        return archive.entries.size()
 
-    var pos = cd_offset
-    var i : size_t = 0
-    while(i < num_entries) {
-        if(pos + 46 > archive.data.size()) {
-            return std.Result.Err(ArchiveError.InvalidFormat(string("truncated central directory entry")))
+        }
+    }
+
+func str_equals_cstr(s : *mut string, cstr : *char) : bool {
+        unsafe {
+        var i : size_t = 0
+        var s_len = s.size()
+        while(i < s_len) {
+            if(cstr[i] == '\0' as char) { return false }
+            if(s.get(i) != cstr[i]) { return false }
+            i += 1
+        }
+        return cstr[i] == '\0' as char
+
+        }
+    }
+
+public func zip_find_entry(archive : *mut ZipArchive, name : *char, output : *mut ArchiveEntry) : std::Result<std::Unit, ArchiveError> {
+        unsafe {
+        var i : size_t = 0
+        while(i < archive.entries.size()) {
+            var entry = archive.entries.get_ptr(i)
+            if(str_equals_cstr(&raw mut entry.name, name)) {
+                output.name = entry.name.copy()
+                output.size = entry.size
+                output.compressed_size = entry.compressed_size
+                output.compression_method = entry.compression_method
+                output.crc32 = entry.crc32
+                output.is_directory = entry.is_directory
+                output.offset = entry.offset
+                return std.Result.Ok(std::Unit{})
+            }
+            i += 1
+        }
+        return std.Result.Err(ArchiveError.FileNotFound())
+
+        }
+    }
+
+public func zip_read_entry(archive : *mut ZipArchive, entry : *mut ArchiveEntry, output : *mut vector<u8>) : std::Result<std::Unit, ArchiveError> {
+        unsafe {
+        if(!archive.data_loaded) {
+            return std.Result.Err(ArchiveError.IoError(string("archive data not loaded")))
+        }
+
+        var pos = entry.offset as size_t
+        if(pos + 30 > archive.data.size()) {
+            return std.Result.Err(ArchiveError.InvalidFormat(string("truncated local file header")))
         }
 
         var sig = read_u32_le(archive.data.data(), pos)
-        if(sig != ZIP_CENTRAL_DIR_HEADER) {
-            return std.Result.Err(ArchiveError.InvalidFormat(string("invalid central directory entry signature")))
+        if(sig != ZIP_LOCAL_FILE_HEADER) {
+            return std.Result.Err(ArchiveError.InvalidFormat(string("invalid local file header signature")))
         }
 
-        var method = read_u16_le(archive.data.data(), pos + 10)
-        var crc = read_u32_le(archive.data.data(), pos + 16)
-        var comp_size = read_u32_le(archive.data.data(), pos + 20) as u64
-        var uncomp_size = read_u32_le(archive.data.data(), pos + 24) as u64
-        var name_len = read_u16_le(archive.data.data(), pos + 28) as size_t
-        var extra_len = read_u16_le(archive.data.data(), pos + 30) as size_t
-        var comment_len = read_u16_le(archive.data.data(), pos + 32) as size_t
-        var local_offset = read_u32_le(archive.data.data(), pos + 42) as u64
+        var local_name_len = read_u16_le(archive.data.data(), pos + 26) as size_t
+        var local_extra_len = read_u16_le(archive.data.data(), pos + 28) as size_t
+        var data_offset = pos + 30 + local_name_len + local_extra_len
 
-        var name_start = pos + 46
-        var name = string("")
-        var j : size_t = 0
-        while(j < name_len && name_start + j < archive.data.size()) {
-            name.append(archive.data.data()[name_start + j] as char)
-            j += 1
-        }
-
-        var is_dir = false
-        if(name_len > 0) {
-            var last_char = archive.data.data()[name_start + name_len - 1]
-            if(last_char == '/' as u8 || last_char == '\\' as u8) {
-                is_dir = true
+        if(entry.compression_method == 0) {
+            var size = entry.compressed_size as size_t
+            output.resize(size)
+            var ptr = output.data() as *mut u8
+            var i : size_t = 0
+            while(i < size && data_offset + i < archive.data.size()) {
+                ptr[i] = archive.data.data()[data_offset + i]
+                i += 1
             }
-        }
-
-        var entry : ArchiveEntry = ArchiveEntry {
-            name: name,
-            size: uncomp_size,
-            compressed_size: comp_size,
-            compression_method: method,
-            crc32: crc,
-            is_directory: is_dir,
-            offset: local_offset
-        }
-
-        archive.entries.push(entry)
-
-        pos += 46 + name_len + extra_len + comment_len
-        i += 1
-    }
-
-    return std.Result.Ok(std::Unit{})
-}
-
-public func zip_entries(archive : *mut ZipArchive) : *mut vector<ArchiveEntry> {
-    return &raw mut archive.entries
-}
-
-public func zip_entry_count(archive : *mut ZipArchive) : size_t {
-    return archive.entries.size()
-}
-
-func str_equals_cstr(s : *mut string, cstr : *char) : bool {
-    var i : size_t = 0
-    var s_len = s.size()
-    while(i < s_len) {
-        if(cstr[i] == '\0' as char) { return false }
-        if(s.get(i) != cstr[i]) { return false }
-        i += 1
-    }
-    return cstr[i] == '\0' as char
-}
-
-public func zip_find_entry(archive : *mut ZipArchive, name : *char, output : *mut ArchiveEntry) : std::Result<std::Unit, ArchiveError> {
-    var i : size_t = 0
-    while(i < archive.entries.size()) {
-        var entry = archive.entries.get_ptr(i)
-        if(str_equals_cstr(&raw mut entry.name, name)) {
-            output.name = entry.name.copy()
-            output.size = entry.size
-            output.compressed_size = entry.compressed_size
-            output.compression_method = entry.compression_method
-            output.crc32 = entry.crc32
-            output.is_directory = entry.is_directory
-            output.offset = entry.offset
             return std.Result.Ok(std::Unit{})
-        }
-        i += 1
-    }
-    return std.Result.Err(ArchiveError.FileNotFound())
-}
+        } else if(entry.compression_method == 8) {
+            if(data_offset + (entry.compressed_size as size_t) > archive.data.size()) {
+                return std.Result.Err(ArchiveError.InvalidFormat(string("compressed data extends beyond file")))
+            }
+            var comp_data = archive.data.data() + data_offset
+            var comp_len = entry.compressed_size as size_t
+            var uncomp_len = entry.size as size_t
 
-public func zip_read_entry(archive : *mut ZipArchive, entry : *mut ArchiveEntry, output : *mut vector<u8>) : std::Result<std::Unit, ArchiveError> {
-    if(!archive.data_loaded) {
-        return std.Result.Err(ArchiveError.IoError(string("archive data not loaded")))
-    }
+            output.resize(uncomp_len)
 
-    var pos = entry.offset as size_t
-    if(pos + 30 > archive.data.size()) {
-        return std.Result.Err(ArchiveError.InvalidFormat(string("truncated local file header")))
-    }
+            var def_result = deflate_decompress(comp_data, comp_len, output.data() as *mut u8, uncomp_len)
+            if(def_result is Result.Err) {
+                return std.Result.Err(ArchiveError.DecompressionFailed(string("deflate decompression failed")))
+            }
 
-    var sig = read_u32_le(archive.data.data(), pos)
-    if(sig != ZIP_LOCAL_FILE_HEADER) {
-        return std.Result.Err(ArchiveError.InvalidFormat(string("invalid local file header signature")))
-    }
+            var Ok(bytes_written) = def_result else unreachable
+            var computed_crc = crc32_compute(output.data(), bytes_written)
+            if(computed_crc != entry.crc32) {
+                return std.Result.Err(ArchiveError.CrcMismatch())
+            }
 
-    var local_name_len = read_u16_le(archive.data.data(), pos + 26) as size_t
-    var local_extra_len = read_u16_le(archive.data.data(), pos + 28) as size_t
-    var data_offset = pos + 30 + local_name_len + local_extra_len
-
-    if(entry.compression_method == 0) {
-        var size = entry.compressed_size as size_t
-        output.resize(size)
-        var ptr = output.data() as *mut u8
-        var i : size_t = 0
-        while(i < size && data_offset + i < archive.data.size()) {
-            ptr[i] = archive.data.data()[data_offset + i]
-            i += 1
-        }
-        return std.Result.Ok(std::Unit{})
-    } else if(entry.compression_method == 8) {
-        if(data_offset + (entry.compressed_size as size_t) > archive.data.size()) {
-            return std.Result.Err(ArchiveError.InvalidFormat(string("compressed data extends beyond file")))
-        }
-        var comp_data = archive.data.data() + data_offset
-        var comp_len = entry.compressed_size as size_t
-        var uncomp_len = entry.size as size_t
-
-        output.resize(uncomp_len)
-
-        var def_result = deflate_decompress(comp_data, comp_len, output.data() as *mut u8, uncomp_len)
-        if(def_result is Result.Err) {
-            return std.Result.Err(ArchiveError.DecompressionFailed(string("deflate decompression failed")))
+            return std.Result.Ok(std::Unit{})
+        } else {
+            return std.Result.Err(ArchiveError.UnsupportedCompression(entry.compression_method as int))
         }
 
-        var Ok(bytes_written) = def_result else unreachable
-        var computed_crc = crc32_compute(output.data(), bytes_written)
-        if(computed_crc != entry.crc32) {
-            return std.Result.Err(ArchiveError.CrcMismatch())
         }
-
-        return std.Result.Ok(std::Unit{})
-    } else {
-        return std.Result.Err(ArchiveError.UnsupportedCompression(entry.compression_method as int))
     }
-}
 
 public func zip_read_file(archive : *mut ZipArchive, name : *char) : std::Result<vector<u8>, ArchiveError> {
     var entry : ArchiveEntry
@@ -261,51 +285,57 @@ public func zip_contains(archive : *mut ZipArchive, name : *char) : bool {
 }
 
 public func zip_extract_entry(archive : *mut ZipArchive, entry : *mut ArchiveEntry, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
-    var content = vector<u8>()
-    var content_result = zip_read_entry(archive, entry, &raw mut content)
-    if(content_result is Result.Err) {
-        return std.Result.Err(ArchiveError.DecompressionFailed(string("failed to read entry for extraction")))
-    }
+        unsafe {
+        var content = vector<u8>()
+        var content_result = zip_read_entry(archive, entry, &raw mut content)
+        if(content_result is Result.Err) {
+            return std.Result.Err(ArchiveError.DecompressionFailed(string("failed to read entry for extraction")))
+        }
 
-    var full_path = unsafe(string(dest_dir))
-    if(full_path.size() > 0) {
-        var last = full_path.get(full_path.size() - 1)
-        if(last != '/' as char) {
-            full_path.append('/')
+        var full_path = unsafe(string(dest_dir))
+        if(full_path.size() > 0) {
+            var last = full_path.get(full_path.size() - 1)
+            if(last != '/' as char) {
+                full_path.append('/')
+            }
+        }
+        full_path.append_string(&entry.name)
+
+        if(!entry.is_directory) {
+            var parent = fs::parent_path_view(unsafe(std::string_view(full_path.data(), full_path.size())))
+            fs::create_dir_all(parent.c_str())
+        }
+
+        if(entry.is_directory) {
+            fs::create_dir_all(full_path.c_str())
+            return std.Result.Ok(std::Unit{})
+        }
+
+        var write_result = fs::write_text_file(full_path.c_str(), content.data(), content.size())
+        if(write_result is Result.Err) {
+            return std.Result.Err(ArchiveError.IoError(string("failed to write file")))
+        }
+
+        return std.Result.Ok(std::Unit{})
+
         }
     }
-    full_path.append_string(&entry.name)
-
-    if(!entry.is_directory) {
-        var parent = fs::parent_path_view(unsafe(std::string_view(full_path.data(), full_path.size())))
-        fs::create_dir_all(parent.c_str())
-    }
-
-    if(entry.is_directory) {
-        fs::create_dir_all(full_path.c_str())
-        return std.Result.Ok(std::Unit{})
-    }
-
-    var write_result = fs::write_text_file(full_path.c_str(), content.data(), content.size())
-    if(write_result is Result.Err) {
-        return std.Result.Err(ArchiveError.IoError(string("failed to write file")))
-    }
-
-    return std.Result.Ok(std::Unit{})
-}
 
 public func zip_extract_all(archive : *mut ZipArchive, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
-    fs::create_dir_all(dest_dir)
-    var i : size_t = 0
-    while(i < archive.entries.size()) {
-        var entry = archive.entries.get_ptr(i)
-        var result = zip_extract_entry(archive, entry, dest_dir)
-        if(result is Result.Err) {
-            return std.Result.Err(ArchiveError.IoError(string("failed to extract entry")))
+        unsafe {
+        fs::create_dir_all(dest_dir)
+        var i : size_t = 0
+        while(i < archive.entries.size()) {
+            var entry = archive.entries.get_ptr(i)
+            var result = zip_extract_entry(archive, entry, dest_dir)
+            if(result is Result.Err) {
+                return std.Result.Err(ArchiveError.IoError(string("failed to extract entry")))
+            }
+            i += 1
         }
-        i += 1
+        return std.Result.Ok(std::Unit{})
+
+        }
     }
-    return std.Result.Ok(std::Unit{})
-}
 
 } // end namespace archive

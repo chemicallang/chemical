@@ -138,26 +138,29 @@ public namespace std {
             }
         }
         func to_i64(&self) : std::Result<i64, std::string_view> {
-            var res : i64 = 0
-            var sign : i64 = 1
-            var i : size_t = 0
-            while (i < _size && unsafe(isspace(_data[i]))) i++
-            if (i == _size) return std::Result.Err(std::string_view("empty string"))
-            if (_data[i] == '-') {
-                sign = -1
-                i++
-            } else if (_data[i] == '+') {
-                i++
-            }
-            if (i == _size || !unsafe(isdigit(_data[i]))) return std::Result.Err(std::string_view("invalid format"))
-            while (i < _size && unsafe(isdigit(_data[i]))) {
-                res = res * 10 + (_data[i] - '0') as i64
-                i++
-            }
-            while (i < _size && unsafe(isspace(_data[i]))) i++
-            if (i < _size) return std::Result.Err(std::string_view("trailing characters"))
-            return std::Result.Ok(res * sign)
+        unsafe {
+                var res : i64 = 0
+                var sign : i64 = 1
+                var i : size_t = 0
+                while (i < _size && unsafe(isspace(_data[i]))) i++
+                if (i == _size) return std::Result.Err(std::string_view("empty string"))
+                if (_data[i] == '-') {
+                    sign = -1
+                    i++
+                } else if (_data[i] == '+') {
+                    i++
+                }
+                if (i == _size || !unsafe(isdigit(_data[i]))) return std::Result.Err(std::string_view("invalid format"))
+                while (i < _size && unsafe(isdigit(_data[i]))) {
+                    res = res * 10 + (_data[i] - '0') as i64
+                    i++
+                }
+                while (i < _size && unsafe(isspace(_data[i]))) i++
+                if (i < _size) return std::Result.Err(std::string_view("trailing characters"))
+                return std::Result.Ok(res * sign)
+        
         }
+    }
 
         func to_u8(&self) : std::Result<u8, std::string_view> {
             switch(to_u64()) {
@@ -178,20 +181,23 @@ public namespace std {
             }
         }
         func to_u64(&self) : std::Result<u64, std::string_view> {
-            var res : u64 = 0
-            var i : size_t = 0
-            while (i < _size && unsafe(isspace(_data[i]))) i++
-            if (i == _size) return std::Result.Err(std::string_view("empty string"))
-            if (_data[i] == '+') i++
-            if (i == _size || !unsafe(isdigit(_data[i]))) return std::Result.Err(std::string_view("invalid format"))
-            while (i < _size && unsafe(isdigit(_data[i]))) {
-                res = res * 10 + (_data[i] - '0') as u64
-                i++
-            }
-            while (i < _size && unsafe(isspace(_data[i]))) i++
-            if (i < _size) return std::Result.Err(std::string_view("trailing characters"))
-            return std::Result.Ok(res)
+        unsafe {
+                var res : u64 = 0
+                var i : size_t = 0
+                while (i < _size && unsafe(isspace(_data[i]))) i++
+                if (i == _size) return std::Result.Err(std::string_view("empty string"))
+                if (_data[i] == '+') i++
+                if (i == _size || !unsafe(isdigit(_data[i]))) return std::Result.Err(std::string_view("invalid format"))
+                while (i < _size && unsafe(isdigit(_data[i]))) {
+                    res = res * 10 + (_data[i] - '0') as u64
+                    i++
+                }
+                while (i < _size && unsafe(isspace(_data[i]))) i++
+                if (i < _size) return std::Result.Err(std::string_view("trailing characters"))
+                return std::Result.Ok(res)
+        
         }
+    }
 
         func to_int(&self) : std::Result<int, std::string_view> {
             switch(to_i32()) {
@@ -267,7 +273,7 @@ public namespace std {
         // TODO: no verification of signature
         // TODO: hardcoded type StringStream, generic function support required
         func stream(&self, s : &mut StringStream) {
-            s.writeStr(_data, _size)
+            unsafe { s.writeStr(_data, _size) }
         }
 
     }

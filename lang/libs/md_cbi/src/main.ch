@@ -1,63 +1,75 @@
 @no_mangle
 public func md_initializeLexer(lexer : *mut Lexer) {
-    const file_allocator = lexer.getFileAllocator();
-    const ptr = file_allocator.allocate_size(sizeof(MdLexer), alignof(MdLexer)) as *mut MdLexer;
-    new (ptr) MdLexer {
-        in_fenced_code : false,
-        fence_char : '\0',
-        fence_count : 0,
-        chemical_mode : false,
-        lb_count : 0
+        unsafe {
+        const file_allocator = lexer.getFileAllocator();
+        const ptr = file_allocator.allocate_size(sizeof(MdLexer), alignof(MdLexer)) as *mut MdLexer;
+        new (ptr) MdLexer {
+            in_fenced_code : false,
+            fence_char : '\0',
+            fence_count : 0,
+            chemical_mode : false,
+            lb_count : 0
+        }
+        lexer.setUserLexer(ptr, getNextToken as UserLexerSubroutineType)
+
+        }
     }
-    lexer.setUserLexer(ptr, getNextToken as UserLexerSubroutineType)
-}
 
 @no_mangle
 public func md_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
-    const loc = intrinsics::get_raw_location();
-    // No brace needed, parse until #endmd
-    var root = parseMdRoot(parser, builder);
-    const type = builder.make_string_type(loc)
-    const nodes_arr : []*mut ASTNode = []
-    const value = builder.make_embedded_value(std::string_view("md"), root, type, std::span<*mut ASTNode>(nodes_arr), unsafe(std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size())), loc);
-    // Consume #endmd token
-    if(parser.getToken().type == MdTokenType.EndMd as int) {
-        parser.increment();
+        unsafe {
+        const loc = intrinsics::get_raw_location();
+        // No brace needed, parse until #endmd
+        var root = parseMdRoot(parser, builder);
+        const type = builder.make_string_type(loc)
+        const nodes_arr : []*mut ASTNode = []
+        const value = builder.make_embedded_value(std::string_view("md"), root, type, std::span<*mut ASTNode>(nodes_arr), unsafe(std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size())), loc);
+        // Consume #endmd token
+        if(parser.getToken().type == MdTokenType.EndMd as int) {
+            parser.increment();
+        }
+        return value;
+
+        }
     }
-    return value;
-}
 
 @no_mangle
 public func md_symResValue(visitor : *mut SymResLinkBody, value : *mut EmbeddedValue) : bool {
-    visitor.visitEmbeddedValue(value)
-    const loc = value.getEncodedLocation()
-    const root = value.getDataPtr() as *mut MdRoot;
-    sym_res_root(root, visitor, loc)
-    return true;
-}
+        unsafe {
+        visitor.visitEmbeddedValue(value)
+        const loc = value.getEncodedLocation()
+        const root = value.getDataPtr() as *mut MdRoot;
+        sym_res_root(root, visitor, loc)
+        return true;
+
+        }
+    }
 
 @no_mangle
 public func md_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *EmbeddedValue) : *Value {
-    const loc = intrinsics::get_raw_location();
-    const root = value.getDataPtr() as *mut MdRoot;
-    var block_val = builder.make_block_value(root.parent, loc)
-    var scope_nodes = block_val.get_body()
+        unsafe {
+        const loc = intrinsics::get_raw_location();
+        const root = value.getDataPtr() as *mut MdRoot;
+        var block_val = builder.make_block_value(root.parent, loc)
+        var scope_nodes = block_val.get_body()
 
-    var converter = MdConverter {
-        builder : builder,
-        support : &raw mut root.support,
-        vec : scope_nodes,
-        parent : root.parent,
-        str : std::string()
+        var converter = MdConverter {
+            builder : builder,
+            support : &raw mut root.support,
+            vec : scope_nodes,
+            parent : root.parent,
+            str : std::string()
+        }
+
+        converter.convertMdRoot(root);
+
+        const view = builder.allocate_view(converter.str.to_view())
+        const strValue = builder.make_string_value(&view, loc)
+        block_val.setCalculatedValue(strValue)
+        return block_val;
+
+        }
     }
-
-    converter.convertMdRoot(root);
-
-    const view = builder.allocate_view(converter.str.to_view())
-    const strValue = builder.make_string_value(&view, loc)
-    block_val.setCalculatedValue(strValue)
-    return block_val;
-}
 
 public func node_known_type_func(value : *EmbeddedNode) : *BaseType {
     return null;
@@ -69,42 +81,51 @@ public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view)
 
 @no_mangle
 public func md_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
-    visitor.visitEmbeddedNode(node)
-    const loc = node.getEncodedLocation();
-    const root = node.getDataPtr() as *mut MdRoot;
-    sym_res_root(root, visitor, loc)
-}
+        unsafe {
+        visitor.visitEmbeddedNode(node)
+        const loc = node.getEncodedLocation();
+        const root = node.getDataPtr() as *mut MdRoot;
+        sym_res_root(root, visitor, loc)
+
+        }
+    }
 
 @no_mangle
 public func md_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
-    const loc = intrinsics::get_raw_location();
-    const root = value.getDataPtr() as *mut MdRoot;
-    var scope = builder.make_scope(root.parent, loc);
-    var scope_nodes = scope.getNodes();
-    var converter = MdConverter {
-        builder : builder,
-        support : &raw mut root.support,
-        vec : scope_nodes,
-        parent : root.parent,
-        str : std::string()
+        unsafe {
+        const loc = intrinsics::get_raw_location();
+        const root = value.getDataPtr() as *mut MdRoot;
+        var scope = builder.make_scope(root.parent, loc);
+        var scope_nodes = scope.getNodes();
+        var converter = MdConverter {
+            builder : builder,
+            support : &raw mut root.support,
+            vec : scope_nodes,
+            parent : root.parent,
+            str : std::string()
+        }
+        converter.convertMdRoot(root);
+        return scope;
+
+        }
     }
-    converter.convertMdRoot(root);
-    return scope;
-}
 
 @no_mangle
 public func md_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
-    const loc = intrinsics::get_raw_location();
-    // No brace needed, parse until #endmd
-    var root = parseMdRoot(parser, builder);
-    const nodes_arr : []*mut ASTNode = []
-    const node = builder.make_embedded_node(AccessSpecifier.Internal, std::string_view("md"), root, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), unsafe(std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size())), root.parent, loc);
-    // Consume #endmd token
-    if(parser.getToken().type == MdTokenType.EndMd as int) {
-        parser.increment();
+        unsafe {
+        const loc = intrinsics::get_raw_location();
+        // No brace needed, parse until #endmd
+        var root = parseMdRoot(parser, builder);
+        const nodes_arr : []*mut ASTNode = []
+        const node = builder.make_embedded_node(AccessSpecifier.Internal, std::string_view("md"), root, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), unsafe(std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size())), root.parent, loc);
+        // Consume #endmd token
+        if(parser.getToken().type == MdTokenType.EndMd as int) {
+            parser.increment();
+        }
+        return node;
+
+        }
     }
-    return node;
-}
 
 public func getNextToken(md : &mut MdLexer, lexer : &mut Lexer) : Token {
     // Handle chemical interpolation mode

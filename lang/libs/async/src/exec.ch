@@ -60,23 +60,29 @@ var g_exec_waker_vtbl : core::async::WakerVTable
 var g_exec_waker_vtbl_ready : bool = false
 
 func exec_wake(data : *mut void) {
-    var e = data as *mut Executor
-    e.m.lock()
-    e.woken = true
-    var hook = e.wake_hook
-    var hook_arg = e.wake_hook_arg
-    e.cv.notify_all()
-    e.m.unlock()
-    // Run the hook outside the lock: it posts to a native event loop, which
-    // must not be able to re-enter the executor while the lock is held.
-    if(hook != null) {
-        hook(hook_arg)
+        unsafe {
+        var e = data as *mut Executor
+        e.m.lock()
+        e.woken = true
+        var hook = e.wake_hook
+        var hook_arg = e.wake_hook_arg
+        e.cv.notify_all()
+        e.m.unlock()
+        // Run the hook outside the lock: it posts to a native event loop, which
+        // must not be able to re-enter the executor while the lock is held.
+        if(hook != null) {
+            hook(hook_arg)
+        }
+
+        }
     }
-}
 
 func exec_clone_waker(data : *mut void) : core::async::Waker {
-    return unsafe(core::async::Waker.from_raw(data, &raw mut g_exec_waker_vtbl))
-}
+        unsafe {
+        return unsafe(core::async::Waker.from_raw(data, &raw mut g_exec_waker_vtbl))
+
+        }
+    }
 
 func exec_drop_waker(data : *mut void) { }
 
@@ -88,102 +94,123 @@ func exec_drop_waker(data : *mut void) { }
 // non-deterministically, depending on which entry point touched the executor
 // first in a given process).
 func ensure_exec_waker_vtbl() {
-    if(!g_exec_waker_vtbl_ready) {
-        g_exec_waker_vtbl = core::async::WakerVTable {
-            wake : exec_wake,
-            clone : exec_clone_waker,
-            drop : exec_drop_waker
+        unsafe {
+        if(!g_exec_waker_vtbl_ready) {
+            g_exec_waker_vtbl = core::async::WakerVTable {
+                wake : exec_wake,
+                clone : exec_clone_waker,
+                drop : exec_drop_waker
+            }
+            g_exec_waker_vtbl_ready = true
         }
-        g_exec_waker_vtbl_ready = true
+
+        }
     }
-}
 
 // The process-wide executor. Created lazily; intentionally never torn down.
 public func executor() : *mut Executor {
-    if(!g_exec_ready) {
-        g_exec = Executor {
-            m : std::mutex(),
-            cv : std::CondVar(),
-            queue : std::vector<RawTask>(),
-            woken : false,
-            wake_hook : null,
-            wake_hook_arg : null
+        unsafe {
+        if(!g_exec_ready) {
+            g_exec = Executor {
+                m : std::mutex(),
+                cv : std::CondVar(),
+                queue : std::vector<RawTask>(),
+                woken : false,
+                wake_hook : null,
+                wake_hook_arg : null
+            }
+            g_exec_ready = true
         }
-        g_exec_ready = true
+        ensure_exec_waker_vtbl()
+        return &raw mut g_exec
+
+        }
     }
-    ensure_exec_waker_vtbl()
-    return &raw mut g_exec
-}
 
 public func exec_make_waker(e : *mut Executor) : core::async::Waker {
-    ensure_exec_waker_vtbl()
-    return unsafe(core::async::Waker.from_raw(e as *mut void, &raw mut g_exec_waker_vtbl))
-}
+        unsafe {
+        ensure_exec_waker_vtbl()
+        return unsafe(core::async::Waker.from_raw(e as *mut void, &raw mut g_exec_waker_vtbl))
+
+        }
+    }
 
 // Install a hook that runs whenever the executor is woken. Used by native event
 // loops (see `window_run_async`) to post a wake to their own queue so a task
 // completing on a worker thread is re-polled promptly. Pass `null` to clear.
 public func executor_set_wake_hook(e : *mut Executor, hook : ExecWakeHook, arg : *mut void) {
-    e.m.lock()
-    e.wake_hook = hook
-    e.wake_hook_arg = arg
-    e.m.unlock()
-}
+        unsafe {
+        e.m.lock()
+        e.wake_hook = hook
+        e.wake_hook_arg = arg
+        e.m.unlock()
+
+        }
+    }
 
 public func exec_enqueue_task(e : *mut Executor, frame : *mut void, vtbl : *mut TaskVTable) {
-    e.m.lock()
-    e.queue.push_back(RawTask { frame : frame, vtbl : vtbl })
-    e.cv.notify_all()
-    e.m.unlock()
-}
+        unsafe {
+        e.m.lock()
+        e.queue.push_back(RawTask { frame : frame, vtbl : vtbl })
+        e.cv.notify_all()
+        e.m.unlock()
+
+        }
+    }
 
 // Poll up to `max` queued tasks once each. Tasks that stay `Pending` are moved
 // to the back of the queue so that a single never-ready task cannot starve the
 // others. Returns the number of tasks that completed.
 public func executor_poll_tasks(e : *mut Executor, max : uint) : uint {
-    var done : uint = 0u
-    var i : uint = 0u
-    while(i < max) {
-        e.m.lock()
-        if(e.queue.size() == 0u) {
-            e.m.unlock()
-            break
-        }
-        var pe = e.queue.get_ptr(0)
-        var t = std::replace(unsafe(&mut *pe), RawTask { frame : null, vtbl : null })
-        e.queue.remove(0)
-        e.m.unlock()
-        var cx = core::async::Context { waker : exec_make_waker(e) }
-        var r = t.vtbl.poll(t.frame, &raw mut cx)
-        if(r is core::async::Poll.Ready) {
-            t.vtbl.drop(t.frame)
-            done = done + 1u
-        } else {
+        unsafe {
+        var done : uint = 0u
+        var i : uint = 0u
+        while(i < max) {
             e.m.lock()
-            e.queue.push_back(RawTask { frame : t.frame, vtbl : t.vtbl })
+            if(e.queue.size() == 0u) {
+                e.m.unlock()
+                break
+            }
+            var pe = e.queue.get_ptr(0)
+            var t = std::replace(unsafe(&mut *pe), RawTask { frame : null, vtbl : null })
+            e.queue.remove(0)
             e.m.unlock()
+            var cx = core::async::Context { waker : exec_make_waker(e) }
+            var r = t.vtbl.poll(t.frame, &raw mut cx)
+            if(r is core::async::Poll.Ready) {
+                t.vtbl.drop(t.frame)
+                done = done + 1u
+            } else {
+                e.m.lock()
+                e.queue.push_back(RawTask { frame : t.frame, vtbl : t.vtbl })
+                e.m.unlock()
+            }
+            i = i + 1u
         }
-        i = i + 1u
+        return done
+
+        }
     }
-    return done
-}
 
 // Park the executor thread until a waker fires or `millis` elapse. The timeout
 // is what keeps futures that do not use their waker (timers, `spawn_blocking`)
 // making progress.
 public func executor_wait(e : *mut Executor, millis : ulong) {
-    var wait_ms = millis
-    if(reactor_has_fds()) {
-        // block on the fd reactor (it wakes tasks via their wakers); the
-        // condvar is then used only to drain non-reactor wakers
-        reactor_poll(millis as int)
-        wait_ms = 0u
+        unsafe {
+        var wait_ms = millis
+        if(reactor_has_fds()) {
+            // block on the fd reactor (it wakes tasks via their wakers); the
+            // condvar is then used only to drain non-reactor wakers
+            reactor_poll(millis as int)
+            wait_ms = 0u
+        }
+        e.m.lock()
+        e.woken = false
+        e.cv.timed_wait(&mut e.m, wait_ms)
+        e.m.unlock()
+
+        }
     }
-    e.m.lock()
-    e.woken = false
-    e.cv.timed_wait(&mut e.m, wait_ms)
-    e.m.unlock()
-}
 
 // `spawn` join state, shared (refcounted) by the join handle and the task.
 public struct JoinState<T> {
@@ -209,104 +236,116 @@ public struct SpawnTask<T> {
 
 @retained
 public func <T> spawn_join_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
-    var st = frame as *mut JoinState<T>
-    st.m.lock()
-    if(st.done) {
-        // move the stored `Poll<T>` out without calling `std::replace` (B20),
-        // then leave a valid `Pending` in its place
-        var r : core::async::Poll<T>
         unsafe {
-            memcpy(&raw mut r, &raw mut st.result, sizeof(core::async::Poll<T>))
-            new(&raw mut st.result) core::async::Poll.Pending<T>()
+        var st = frame as *mut JoinState<T>
+        st.m.lock()
+        if(st.done) {
+            // move the stored `Poll<T>` out without calling `std::replace` (B20),
+            // then leave a valid `Pending` in its place
+            var r : core::async::Poll<T>
+            unsafe {
+                memcpy(&raw mut r, &raw mut st.result, sizeof(core::async::Poll<T>))
+                new(&raw mut st.result) core::async::Poll.Pending<T>()
+            }
+            st.done = false
+            st.consumed = true
+            st.m.unlock()
+            return r
         }
-        st.done = false
-        st.consumed = true
+        if(!cx.waker.is_empty()) {
+            st.waker = cx.waker.clone()
+        }
         st.m.unlock()
-        return r
+        return core::async::Poll.Pending<T>()
+
+        }
     }
-    if(!cx.waker.is_empty()) {
-        st.waker = cx.waker.clone()
-    }
-    st.m.unlock()
-    return core::async::Poll.Pending<T>()
-}
 
 @retained
 public func <T> spawn_join_drop(frame : *mut void) {
-    var st = frame as *mut JoinState<T>
-    var vtbl = st.vtbl
-    st.m.lock()
-    st.cancelled = true
-    st.refs = st.refs - 1
-    var free_state = st.refs == 0
-    st.m.unlock()
-    if(free_state) {
         unsafe {
-            delete st
+        var st = frame as *mut JoinState<T>
+        var vtbl = st.vtbl
+        st.m.lock()
+        st.cancelled = true
+        st.refs = st.refs - 1
+        var free_state = st.refs == 0
+        st.m.unlock()
+        if(free_state) {
+            unsafe {
+                delete st
+            }
+        }
+        if(vtbl != null) {
+            unsafe {
+                dealloc vtbl
+            }
+        }
+
         }
     }
-    if(vtbl != null) {
-        unsafe {
-            dealloc vtbl
-        }
-    }
-}
 
 @retained
 public func <T> spawn_task_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<core::async::Unit> {
-    var t = frame as *mut SpawnTask<T>
-    var st = t.state
-    st.m.lock()
-    var cancelled = st.cancelled
-    st.m.unlock()
-    if(cancelled) {
-        return core::async::Poll.Ready<core::async::Unit>(core::async::Unit { })
-    }
-    var r = t.inner.vtbl_ptr().poll(t.inner.frame_ptr(), cx)
-    if(r is core::async::Poll.Ready) {
+        unsafe {
+        var t = frame as *mut SpawnTask<T>
+        var st = t.state
         st.m.lock()
-        var cancelled_now = st.cancelled
-        if(!cancelled_now) {
-            st.result = r
-            st.done = true
-            if(!st.waker.is_empty()) {
-                var w = st.waker.clone()
-                st.m.unlock()
-                w.wake()
+        var cancelled = st.cancelled
+        st.m.unlock()
+        if(cancelled) {
+            return core::async::Poll.Ready<core::async::Unit>(core::async::Unit { })
+        }
+        var r = t.inner.vtbl_ptr().poll(t.inner.frame_ptr(), cx)
+        if(r is core::async::Poll.Ready) {
+            st.m.lock()
+            var cancelled_now = st.cancelled
+            if(!cancelled_now) {
+                st.result = r
+                st.done = true
+                if(!st.waker.is_empty()) {
+                    var w = st.waker.clone()
+                    st.m.unlock()
+                    w.wake()
+                } else {
+                    st.m.unlock()
+                }
             } else {
                 st.m.unlock()
             }
-        } else {
-            st.m.unlock()
+            return core::async::Poll.Ready<core::async::Unit>(core::async::Unit { })
         }
-        return core::async::Poll.Ready<core::async::Unit>(core::async::Unit { })
+        return core::async::Poll.Pending<core::async::Unit>()
+
+        }
     }
-    return core::async::Poll.Pending<core::async::Unit>()
-}
 
 @retained
 public func <T> spawn_task_drop(frame : *mut void) {
-    var t = frame as *mut SpawnTask<T>
-    var st = t.state
-    var vtbl = t.vtbl
-    unsafe {
-        delete t
-    }
-    st.m.lock()
-    st.refs = st.refs - 1
-    var free_state = st.refs == 0
-    st.m.unlock()
-    if(free_state) {
         unsafe {
-            delete st
+        var t = frame as *mut SpawnTask<T>
+        var st = t.state
+        var vtbl = t.vtbl
+        unsafe {
+            delete t
+        }
+        st.m.lock()
+        st.refs = st.refs - 1
+        var free_state = st.refs == 0
+        st.m.unlock()
+        if(free_state) {
+            unsafe {
+                delete st
+            }
+        }
+        if(vtbl != null) {
+            unsafe {
+                dealloc vtbl
+            }
+        }
+
         }
     }
-    if(vtbl != null) {
-        unsafe {
-            dealloc vtbl
-        }
-    }
-}
 
 // Submit `handle` to the executor and return a join handle. Await the result
 // with `await spawn(...)` or read it with `async::block_on(spawn(...))`.
@@ -316,33 +355,36 @@ public func <T> spawn_task_drop(frame : *mut void) {
 // be checked here; submission is an unsafe boundary until erased-capture Send
 // tracking lands (S6.5).
 public unsafe func <T> spawn(handle : core::async::FutureHandle<T>) : core::async::FutureHandle<T> {
-    var e = executor()
-    var st = unsafe(malloc(sizeof(JoinState<T>))) as *mut JoinState<T>
-    var join_vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
-    join_vtbl.poll = spawn_join_poll<T>
-    join_vtbl.drop = spawn_join_drop<T>
-    new(st) JoinState<T> {
-        m : std::mutex(),
-        refs : 2,
-        done : false,
-        consumed : false,
-        cancelled : false,
-        result : core::async::Poll.Pending<T>(),
-        waker : core::async::Waker.empty(),
-        vtbl : join_vtbl
+        unsafe {
+        var e = executor()
+        var st = unsafe(malloc(sizeof(JoinState<T>))) as *mut JoinState<T>
+        var join_vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
+        join_vtbl.poll = spawn_join_poll<T>
+        join_vtbl.drop = spawn_join_drop<T>
+        new(st) JoinState<T> {
+            m : std::mutex(),
+            refs : 2,
+            done : false,
+            consumed : false,
+            cancelled : false,
+            result : core::async::Poll.Pending<T>(),
+            waker : core::async::Waker.empty(),
+            vtbl : join_vtbl
+        }
+        var task = unsafe(malloc(sizeof(SpawnTask<T>))) as *mut SpawnTask<T>
+        var task_vtbl = unsafe(malloc(sizeof(TaskVTable))) as *mut TaskVTable
+        task_vtbl.poll = spawn_task_poll<T>
+        task_vtbl.drop = spawn_task_drop<T>
+        new(task) SpawnTask<T> {
+            state : st,
+            inner : handle,
+            vtbl : task_vtbl
+        }
+        exec_enqueue_task(e, task as *mut void, task_vtbl)
+        return unsafe(core::async::future_handle_raw<T>(st as *mut void, join_vtbl))
+
+        }
     }
-    var task = unsafe(malloc(sizeof(SpawnTask<T>))) as *mut SpawnTask<T>
-    var task_vtbl = unsafe(malloc(sizeof(TaskVTable))) as *mut TaskVTable
-    task_vtbl.poll = spawn_task_poll<T>
-    task_vtbl.drop = spawn_task_drop<T>
-    new(task) SpawnTask<T> {
-        state : st,
-        inner : handle,
-        vtbl : task_vtbl
-    }
-    exec_enqueue_task(e, task as *mut void, task_vtbl)
-    return unsafe(core::async::future_handle_raw<T>(st as *mut void, join_vtbl))
-}
 
 // Submit a task to the executor for a UI/event loop to drive. The executor is
 // process-wide, so this is currently the same submission as `spawn`; the
@@ -354,7 +396,10 @@ public unsafe func <T> spawn(handle : core::async::FutureHandle<T>) : core::asyn
 // Until the executor actually enforces that affinity and captures are checked,
 // this has the same unchecked-capture contract as `spawn` and is unsafe.
 public unsafe func <T> spawn_local(handle : core::async::FutureHandle<T>) : core::async::FutureHandle<T> {
-    return unsafe(spawn<T>(handle))
-}
+        unsafe {
+        return unsafe(spawn<T>(handle))
+
+        }
+    }
 
 }

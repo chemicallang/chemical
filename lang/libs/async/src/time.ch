@@ -13,35 +13,44 @@ struct SleepState {
 }
 
 func sleep_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<core::async::Unit> {
-    var st = frame as *mut SleepState
-    if(std::now_milli() - st.start_ms >= st.millis) {
-        return core::async::Poll.Ready<core::async::Unit>(core::async::Unit { })
-    }
-    return core::async::Poll.Pending<core::async::Unit>()
-}
-
-func sleep_drop(frame : *mut void) {
-    var st = frame as *mut SleepState
-    var vtbl = st.vtbl
-    unsafe {
-        dealloc st
-    }
-    if(vtbl != null) {
         unsafe {
-            dealloc vtbl
+        var st = frame as *mut SleepState
+        if(std::now_milli() - st.start_ms >= st.millis) {
+            return core::async::Poll.Ready<core::async::Unit>(core::async::Unit { })
+        }
+        return core::async::Poll.Pending<core::async::Unit>()
+
         }
     }
-}
+
+func sleep_drop(frame : *mut void) {
+        unsafe {
+        var st = frame as *mut SleepState
+        var vtbl = st.vtbl
+        unsafe {
+            dealloc st
+        }
+        if(vtbl != null) {
+            unsafe {
+                dealloc vtbl
+            }
+        }
+
+        }
+    }
 
 public func sleep(millis : u64) : core::async::FutureHandle<core::async::Unit> {
-    var st = unsafe(malloc(sizeof(SleepState))) as *mut SleepState
-    st.start_ms = std::now_milli()
-    st.millis = millis as i64
-    var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<core::async::Unit>))) as *mut core::async::FutureTable<core::async::Unit>
-    vtbl.poll = sleep_poll
-    vtbl.drop = sleep_drop
-    st.vtbl = vtbl
-    return unsafe(core::async::future_handle_raw<core::async::Unit>(st as *mut void, vtbl))
-}
+        unsafe {
+        var st = unsafe(malloc(sizeof(SleepState))) as *mut SleepState
+        st.start_ms = std::now_milli()
+        st.millis = millis as i64
+        var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<core::async::Unit>))) as *mut core::async::FutureTable<core::async::Unit>
+        vtbl.poll = sleep_poll
+        vtbl.drop = sleep_drop
+        st.vtbl = vtbl
+        return unsafe(core::async::future_handle_raw<core::async::Unit>(st as *mut void, vtbl))
+
+        }
+    }
 
 }

@@ -21,11 +21,14 @@ func is_whitespace_view(v : &std::string_view) : bool {
  * lexer already drops it, so this is a no-op there.
  */
 func skip_leading_whitespace_text(parser : *mut Parser) {
-    const t = parser.getToken();
-    if(t.type == TokenType.Text && is_whitespace_view(&t.value)) {
-        parser.increment();
+        unsafe {
+        const t = parser.getToken();
+        if(t.type == TokenType.Text && is_whitespace_view(&t.value)) {
+            parser.increment();
+        }
+
+        }
     }
-}
 
 func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlChild { unsafe {
 
@@ -213,120 +216,123 @@ func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, buil
  }}
 
 func (htmlParser : &mut HtmlParser) parseIfStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlChild {
-    const loc = intrinsics::get_raw_location();
-    parser.increment(); // skip 'if'
+        unsafe {
+        const loc = intrinsics::get_raw_location();
+        parser.increment(); // skip 'if'
 
-    var ifstmt = builder.allocate<HtmlIfStatement>();
-    new (ifstmt) HtmlIfStatement {
-        HtmlChild : HtmlChild {
-            kind : HtmlChildKind.IfStatement
-        },
-        condition : null,
-        body : std::vector<*mut HtmlChild>(),
-        else_ifs : std::vector<*mut HtmlElseIf>(),
-        else_body : std::vector<*mut HtmlChild>()
-    }
-
-    if(!parser.increment_if(ChemicalTokenType.LParen as int)) {
-        parser.error("expected '(' after 'if'");
-    }
-
-    const expr = parser.parseExpression(builder);
-    if(expr == null) {
-        parser.error("expected a chemical expression");
-    } else {
-        ifstmt.condition = expr;
-        htmlParser.dyn_values.push(expr)
-    }
-
-    if(!parser.increment_if(ChemicalTokenType.RParen as int)) {
-        parser.error("expected ')' after if condition");
-    }
-
-    if(!parser.increment_if(TokenType.LBrace as int)) {
-        parser.error("expected '{' after if condition");
-    }
-    skip_leading_whitespace_text(parser);
-
-    while(true) {
-        var child = htmlParser.parseElementChild(parser, builder);
-        if(child != null) {
-            ifstmt.body.push(child);
-        } else {
-            break;
+        var ifstmt = builder.allocate<HtmlIfStatement>();
+        new (ifstmt) HtmlIfStatement {
+            HtmlChild : HtmlChild {
+                kind : HtmlChildKind.IfStatement
+            },
+            condition : null,
+            body : std::vector<*mut HtmlChild>(),
+            else_ifs : std::vector<*mut HtmlElseIf>(),
+            else_body : std::vector<*mut HtmlChild>()
         }
-    }
 
-    if(!parser.increment_if(TokenType.RBrace as int)) {
-        parser.error("expected '}' after if body");
-    }
+        if(!parser.increment_if(ChemicalTokenType.LParen as int)) {
+            parser.error("expected '(' after 'if'");
+        }
 
-    while(parser.getToken().type == TokenType.Else) {
-        parser.increment(); // skip 'else'
-        if(parser.getToken().type == TokenType.If) {
-            parser.increment(); // skip 'if'
-            var elseif = builder.allocate<HtmlElseIf>();
-            new (elseif) HtmlElseIf {
-                condition : null,
-                body : std::vector<*mut HtmlChild>()
-            }
+        const expr = parser.parseExpression(builder);
+        if(expr == null) {
+            parser.error("expected a chemical expression");
+        } else {
+            ifstmt.condition = expr;
+            htmlParser.dyn_values.push(expr)
+        }
 
-            if(!parser.increment_if(ChemicalTokenType.LParen as int)) {
-                parser.error("expected '(' after 'else if'");
-            }
+        if(!parser.increment_if(ChemicalTokenType.RParen as int)) {
+            parser.error("expected ')' after if condition");
+        }
 
-            const expr2 = parser.parseExpression(builder);
-            if(expr2 == null) {
-                parser.error("expected a chemical expression");
+        if(!parser.increment_if(TokenType.LBrace as int)) {
+            parser.error("expected '{' after if condition");
+        }
+        skip_leading_whitespace_text(parser);
+
+        while(true) {
+            var child = htmlParser.parseElementChild(parser, builder);
+            if(child != null) {
+                ifstmt.body.push(child);
             } else {
-                elseif.condition = expr2;
-                htmlParser.dyn_values.push(expr2)
+                break;
             }
+        }
 
-            if(!parser.increment_if(ChemicalTokenType.RParen as int)) {
-                parser.error("expected ')' after else if condition");
-            }
+        if(!parser.increment_if(TokenType.RBrace as int)) {
+            parser.error("expected '}' after if body");
+        }
 
-            if(!parser.increment_if(TokenType.LBrace as int)) {
-                parser.error("expected '{' after if condition");
-            }
-            skip_leading_whitespace_text(parser);
-
-            while(true) {
-                var child = htmlParser.parseElementChild(parser, builder);
-                if(child != null) {
-                    elseif.body.push(child);
-                } else {
-                    break;
+        while(parser.getToken().type == TokenType.Else) {
+            parser.increment(); // skip 'else'
+            if(parser.getToken().type == TokenType.If) {
+                parser.increment(); // skip 'if'
+                var elseif = builder.allocate<HtmlElseIf>();
+                new (elseif) HtmlElseIf {
+                    condition : null,
+                    body : std::vector<*mut HtmlChild>()
                 }
-            }
 
-            if(!parser.increment_if(TokenType.RBrace as int)) {
-                parser.error("expected '}' after else if body");
-            }
-
-            ifstmt.else_ifs.push(elseif);
-        } else {
-            if(!parser.increment_if(TokenType.LBrace as int)) {
-                parser.error("expected '{' after 'else'");
-            }
-            skip_leading_whitespace_text(parser);
-
-            while(true) {
-                var child = htmlParser.parseElementChild(parser, builder);
-                if(child != null) {
-                    ifstmt.else_body.push(child);
-                } else {
-                    break;
+                if(!parser.increment_if(ChemicalTokenType.LParen as int)) {
+                    parser.error("expected '(' after 'else if'");
                 }
-            }
 
-            if(!parser.increment_if(TokenType.RBrace as int)) {
-                parser.error("expected '}' after else body");
+                const expr2 = parser.parseExpression(builder);
+                if(expr2 == null) {
+                    parser.error("expected a chemical expression");
+                } else {
+                    elseif.condition = expr2;
+                    htmlParser.dyn_values.push(expr2)
+                }
+
+                if(!parser.increment_if(ChemicalTokenType.RParen as int)) {
+                    parser.error("expected ')' after else if condition");
+                }
+
+                if(!parser.increment_if(TokenType.LBrace as int)) {
+                    parser.error("expected '{' after if condition");
+                }
+                skip_leading_whitespace_text(parser);
+
+                while(true) {
+                    var child = htmlParser.parseElementChild(parser, builder);
+                    if(child != null) {
+                        elseif.body.push(child);
+                    } else {
+                        break;
+                    }
+                }
+
+                if(!parser.increment_if(TokenType.RBrace as int)) {
+                    parser.error("expected '}' after else if body");
+                }
+
+                ifstmt.else_ifs.push(elseif);
+            } else {
+                if(!parser.increment_if(TokenType.LBrace as int)) {
+                    parser.error("expected '{' after 'else'");
+                }
+                skip_leading_whitespace_text(parser);
+
+                while(true) {
+                    var child = htmlParser.parseElementChild(parser, builder);
+                    if(child != null) {
+                        ifstmt.else_body.push(child);
+                    } else {
+                        break;
+                    }
+                }
+
+                if(!parser.increment_if(TokenType.RBrace as int)) {
+                    parser.error("expected '}' after else body");
+                }
+                break; // else is the last block
             }
-            break; // else is the last block
+        }
+
+        return ifstmt;
+
         }
     }
-
-    return ifstmt;
-}

@@ -88,21 +88,24 @@ public func test_process_wait_async_after_kill(env : &mut TestEnv) {
 // before the requested delay has elapsed.
 @test
 public func test_process_sleep_ms_async_suspends(env : &mut TestEnv) {
-    var h = process::sleep_ms_async(50)
-    var cx = core::async::Context {
-        waker : core::async::Waker.empty()
+        unsafe {
+        var h = process::sleep_ms_async(50)
+        var cx = core::async::Context {
+            waker : core::async::Waker.empty()
+        }
+        var p = h.vtbl_ptr().poll(h.frame_ptr(), &raw mut cx)
+        if(!(p is core::async::Poll.Pending)) {
+            env.error("sleep_ms_async should yield on its first poll")
+        }
+        var start = std::now_milli()
+        var unit = async::block_on(h)
+        var elapsed = std::now_milli() - start
+        if(elapsed < 5i64) {
+            env.error("sleep_ms_async completed before the requested delay")
+        }
+
+        }
     }
-    var p = h.vtbl.poll(h.frame, &raw mut cx)
-    if(!(p is core::async::Poll.Pending)) {
-        env.error("sleep_ms_async should yield on its first poll")
-    }
-    var start = std::now_milli()
-    var unit = async::block_on(h)
-    var elapsed = std::now_milli() - start
-    if(elapsed < 5i64) {
-        env.error("sleep_ms_async completed before the requested delay")
-    }
-}
 
 @test
 public func test_process_is_running_async(env : &mut TestEnv) {

@@ -62,32 +62,35 @@ public func test_process_execute_stderr_capture(env : &mut TestEnv) {
 
 @test
 public func test_process_result_stdout_str(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("echo"))
-    cfg.args.push(string("convenience_test"))
-    var res = process::execute(cfg)
-    if(res is Result.Err) {
-        env.error("execute returned Err")
-        return
-    }
-    var Ok(r) = res else unreachable
-    var sv = r.stdout_str()
-    if(sv.size() == 0) { env.error("stdout_str should not be empty"); return }
-    // stdout should contain "convenience_test"
-    var found = false
-    var i : size_t = 0
-    while(i + 16 <= sv.size()) {
-        if(sv.data()[i] == 'c' as char &&
-           sv.data()[i+1] == 'o' as char &&
-           sv.data()[i+2] == 'n' as char &&
-           sv.data()[i+3] == 'v' as char) {
-            found = true
-            break
+        unsafe {
+        var cfg = process::ProcessConfig.default()
+        cfg.args.push(string("echo"))
+        cfg.args.push(string("convenience_test"))
+        var res = process::execute(cfg)
+        if(res is Result.Err) {
+            env.error("execute returned Err")
+            return
         }
-        i += 1
+        var Ok(r) = res else unreachable
+        var sv = r.stdout_str()
+        if(sv.size() == 0) { env.error("stdout_str should not be empty"); return }
+        // stdout should contain "convenience_test"
+        var found = false
+        var i : size_t = 0
+        while(i + 16 <= sv.size()) {
+            if(sv.data()[i] == 'c' as char &&
+               sv.data()[i+1] == 'o' as char &&
+               sv.data()[i+2] == 'n' as char &&
+               sv.data()[i+3] == 'v' as char) {
+                found = true
+                break
+            }
+            i += 1
+        }
+        if(!found) { env.error("stdout_str should contain 'convenience_test'"); return }
+
+        }
     }
-    if(!found) { env.error("stdout_str should contain 'convenience_test'"); return }
-}
 
 // ---------------------------------------------------------------------------
 // execute: is_success convenience
@@ -320,33 +323,36 @@ public func test_process_config_default_fields(env : &mut TestEnv) {
 
 @test
 public func test_process_execute_multiple_args(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sh"))
-    cfg.args.push(string("-c"))
-    cfg.args.push(string("echo arg1 arg2 arg3"))
-    var res = process::execute(cfg)
-    if(res is Result.Err) {
-        env.error("execute returned Err")
-        return
-    }
-    var Ok(r) = res else unreachable
-    if(!r.success) { env.error("should succeed"); return }
-    // stdout should contain "arg1 arg2 arg3"
-    var sv = r.stdout_str()
-    var found = false
-    var i : size_t = 0
-    while(i + 12 <= sv.size()) {
-        if(sv.data()[i] == 'a' as char &&
-           sv.data()[i+1] == 'r' as char &&
-           sv.data()[i+2] == 'g' as char &&
-           sv.data()[i+3] == '1' as char) {
-            found = true
-            break
+        unsafe {
+        var cfg = process::ProcessConfig.default()
+        cfg.args.push(string("sh"))
+        cfg.args.push(string("-c"))
+        cfg.args.push(string("echo arg1 arg2 arg3"))
+        var res = process::execute(cfg)
+        if(res is Result.Err) {
+            env.error("execute returned Err")
+            return
         }
-        i += 1
+        var Ok(r) = res else unreachable
+        if(!r.success) { env.error("should succeed"); return }
+        // stdout should contain "arg1 arg2 arg3"
+        var sv = r.stdout_str()
+        var found = false
+        var i : size_t = 0
+        while(i + 12 <= sv.size()) {
+            if(sv.data()[i] == 'a' as char &&
+               sv.data()[i+1] == 'r' as char &&
+               sv.data()[i+2] == 'g' as char &&
+               sv.data()[i+3] == '1' as char) {
+                found = true
+                break
+            }
+            i += 1
+        }
+        if(!found) { env.error("stdout should contain 'arg1'"); return }
+
+        }
     }
-    if(!found) { env.error("stdout should contain 'arg1'"); return }
-}
 
 // ---------------------------------------------------------------------------
 // Execute: stderr_str convenience

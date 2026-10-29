@@ -69,30 +69,36 @@ public func getMultipleAttributeValues(val : &SsrAttributeValue) : MultipleAttri
 // generated SSR function bodies bypass symres type-determination, which
 // left the index operator's type unresolved and crashed LLVM codegen.
 public func ssrMultipleGet(values : MultipleAttributeValues, index : ubigint) : SsrAttributeValue {
-    if(index < values.size) {
-        return values.data[index]
+        unsafe {
+        if(index < values.size) {
+            return values.data[index]
+        }
+        return SsrAttributeValue.None()
+
+        }
     }
-    return SsrAttributeValue.None()
-}
 
 public func getSsrAttributeValue(list : SsrAttributeList, name : SsrText) : SsrAttributeValue {
-    var d = list.data
-    const end = d + list.size
-    while(d != end) {
-        if(d.name.equals_text(&name)) {
-            // gets copied
-            return d.value;
-        } else if(d.value is SsrAttributeValue.Spread) {
-            var Spread(value) = d.value else unreachable;
-            const found = getSsrAttributeValue(value, name)
-            if(found !is SsrAttributeValue.None) {
-                return found;
+        unsafe {
+        var d = list.data
+        const end = d + list.size
+        while(d != end) {
+            if(d.name.equals_text(&name)) {
+                // gets copied
+                return d.value;
+            } else if(d.value is SsrAttributeValue.Spread) {
+                var Spread(value) = d.value else unreachable;
+                const found = getSsrAttributeValue(value, name)
+                if(found !is SsrAttributeValue.None) {
+                    return found;
+                }
             }
+            d++;
         }
-        d++;
+        return SsrAttributeValue.None()
+
+        }
     }
-    return SsrAttributeValue.None()
-}
 
 public func ssrAttrValueProp(val : &SsrAttributeValue, name : SsrText) : SsrAttributeValue {
     switch(val) {
@@ -149,26 +155,32 @@ func ssr_ascii_lower(c : char) : char {
 }
 
 func ssr_text_region_fold_equals(a : *char, b : *char, len : u64) : bool {
-    var i : u64 = 0
-    while(i < len) {
-        if(ssr_ascii_lower(a[i]) != ssr_ascii_lower(b[i])) return false
-        i = i + 1
+        unsafe {
+        var i : u64 = 0
+        while(i < len) {
+            if(ssr_ascii_lower(a[i]) != ssr_ascii_lower(b[i])) return false
+            i = i + 1
+        }
+        return true
+
+        }
     }
-    return true
-}
 
 public func ssrTextIncludesFold(hay : &SsrAttributeValue, needle : &SsrAttributeValue) : bool {
-    const h = ssrTextOf(hay)
-    const n = ssrTextOf(needle)
-    if(n.size == 0) return true
-    if(h.size < n.size) return false
-    var i : u64 = 0
-    while(i + n.size <= h.size) {
-        if(ssr_text_region_fold_equals(h.data + i, n.data, n.size)) return true
-        i = i + 1
+        unsafe {
+        const h = ssrTextOf(hay)
+        const n = ssrTextOf(needle)
+        if(n.size == 0) return true
+        if(h.size < n.size) return false
+        var i : u64 = 0
+        while(i + n.size <= h.size) {
+            if(ssr_text_region_fold_equals(h.data + i, n.data, n.size)) return true
+            i = i + 1
+        }
+        return false
+
+        }
     }
-    return false
-}
 
 public func ssrTextStartsWithFold(hay : &SsrAttributeValue, needle : &SsrAttributeValue) : bool {
     const h = ssrTextOf(hay)
@@ -178,77 +190,86 @@ public func ssrTextStartsWithFold(hay : &SsrAttributeValue, needle : &SsrAttribu
 }
 
 public func ssrTextEndsWithFold(hay : &SsrAttributeValue, needle : &SsrAttributeValue) : bool {
-    const h = ssrTextOf(hay)
-    const n = ssrTextOf(needle)
-    if(n.size > h.size) return false
-    return ssr_text_region_fold_equals(h.data + (h.size - n.size), n.data, n.size)
-}
+        unsafe {
+        const h = ssrTextOf(hay)
+        const n = ssrTextOf(needle)
+        if(n.size > h.size) return false
+        return ssr_text_region_fold_equals(h.data + (h.size - n.size), n.data, n.size)
+
+        }
+    }
 
 public func isSsrAttributeValueTruthy(val : &SsrAttributeValue) : bool {
-    switch(val) {
-        None() => return false
-        Boolean(v) => return v
-        Char(v) => return v != '\0'
-        UInteger(v) => return v != 0
-        Integer(v) => return v != 0
-        Double(v, _) => return v != 0.0
-        Text(v) => return v.size > 0
-        PtrChar(v) => return v != null && v[0] != '\0'
-        Multiple(v) => return v.size > 0
-        Spread(_) => return true
-        Callable(_) => return true
-        default => return false
+        unsafe {
+        switch(val) {
+            None() => return false
+            Boolean(v) => return v
+            Char(v) => return v != '\0'
+            UInteger(v) => return v != 0
+            Integer(v) => return v != 0
+            Double(v, _) => return v != 0.0
+            Text(v) => return v.size > 0
+            PtrChar(v) => return v != null && v[0] != '\0'
+            Multiple(v) => return v.size > 0
+            Spread(_) => return true
+            Callable(_) => return true
+            default => return false
+        }
+
+        }
     }
-}
 
 // Compares an attribute value's text content against an expected literal.
 // Used by the SSR evaluator for `props.x === "lit"` style expressions.
 public func ssrTextEquals(val : &SsrAttributeValue, expected : SsrText) : bool {
-    switch(val) {
-        // An unset value equals "undefined"/"null" in JS semantics, so
-        // `props.label !== undefined` correctly evaluates to false for unset.
-        None() => return (expected.size == 0) ||
-            (expected.size == 9 && unsafe(strncmp(expected.data, "undefined", 9)) == 0) ||
-            (expected.size == 4 && unsafe(strncmp(expected.data, "null", 4)) == 0)
-        Text(v) => return v.equals_text(&expected)
-        PtrChar(v) => {
-            const len = unsafe(strlen(v))
-            return len == expected.size && unsafe(strncmp(v, expected.data, expected.size)) == 0
+        unsafe {
+        switch(val) {
+            // An unset value equals "undefined"/"null" in JS semantics, so
+            // `props.label !== undefined` correctly evaluates to false for unset.
+            None() => return (expected.size == 0) ||
+                (expected.size == 9 && unsafe(strncmp(expected.data, "undefined", 9)) == 0) ||
+                (expected.size == 4 && unsafe(strncmp(expected.data, "null", 4)) == 0)
+            Text(v) => return v.equals_text(&expected)
+            PtrChar(v) => {
+                const len = unsafe(strlen(v))
+                return len == expected.size && unsafe(strncmp(v, expected.data, expected.size)) == 0
+            }
+            Boolean(v) => {
+                if(v) return expected.size == 4 && unsafe(strncmp(expected.data, "true", 4)) == 0
+                return expected.size == 5 && unsafe(strncmp(expected.data, "false", 5)) == 0
+            }
+            Char(v) => return expected.size == 1 && expected.data[0] == v
+            UInteger(v) => {
+                // Numeric equality against the decimal representation (JS loose ==).
+                var tmp = std::string()
+                tmp.append_uinteger(v)
+                return expected.size == tmp.size() && unsafe(strncmp(expected.data, tmp.data(), expected.size)) == 0
+            }
+            Integer(v) => {
+                var tmp = std::string()
+                tmp.append_integer(v)
+                return expected.size == tmp.size() && unsafe(strncmp(expected.data, tmp.data(), expected.size)) == 0
+            }
+            Double(v, precision) => {
+                // Compare against the formatted representation, stripping trailing
+                // zeros so "2.00" matches "2" (JS loose equality).
+                var tmp = std::string()
+                tmp.append_double(v, precision)
+                var end = tmp.size()
+                while(end > 0 && tmp.get(end - 1) == '0') { end-- }
+                if(end > 0 && tmp.get(end - 1) == '.') { end-- }
+                if(end == 0) return false
+                const view = unsafe(std::string_view(tmp.data(), end))
+                return expected.size == view.size() && unsafe(strncmp(expected.data, view.data(), view.size())) == 0
+            }
+            Multiple(_) => return false
+            Spread(_) => return false
+            Callable(_) => return false
+            default => return false
         }
-        Boolean(v) => {
-            if(v) return expected.size == 4 && unsafe(strncmp(expected.data, "true", 4)) == 0
-            return expected.size == 5 && unsafe(strncmp(expected.data, "false", 5)) == 0
+
         }
-        Char(v) => return expected.size == 1 && expected.data[0] == v
-        UInteger(v) => {
-            // Numeric equality against the decimal representation (JS loose ==).
-            var tmp = std::string()
-            tmp.append_uinteger(v)
-            return expected.size == tmp.size() && unsafe(strncmp(expected.data, tmp.data(), expected.size)) == 0
-        }
-        Integer(v) => {
-            var tmp = std::string()
-            tmp.append_integer(v)
-            return expected.size == tmp.size() && unsafe(strncmp(expected.data, tmp.data(), expected.size)) == 0
-        }
-        Double(v, precision) => {
-            // Compare against the formatted representation, stripping trailing
-            // zeros so "2.00" matches "2" (JS loose equality).
-            var tmp = std::string()
-            tmp.append_double(v, precision)
-            var end = tmp.size()
-            while(end > 0 && tmp.get(end - 1) == '0') { end-- }
-            if(end > 0 && tmp.get(end - 1) == '.') { end-- }
-            if(end == 0) return false
-            const view = unsafe(std::string_view(tmp.data(), end))
-            return expected.size == view.size() && unsafe(strncmp(expected.data, view.data(), view.size())) == 0
-        }
-        Multiple(_) => return false
-        Spread(_) => return false
-        Callable(_) => return false
-        default => return false
     }
-}
 
 // Canonical text representation of an attribute value, used by ssrValuesEqual.
 // None maps to the empty string; numeric/boolean values map to their decimal
@@ -344,18 +365,21 @@ public func ssrNoneValue() : SsrAttributeValue {
 }
 
 func appendHtmlEscaped(output : &mut std::string, text : &std::string_view) {
-    for(var i = 0u; i < text.size(); i++) {
-        const c = text.data()[i];
-        switch(c) {
-            '&' => output.append_view("&amp;")
-            '<' => output.append_view("&lt;")
-            '>' => output.append_view("&gt;")
-            '"' => output.append_view("&quot;")
-            '\'' => output.append_view("&#39;")
-            default => output.append(c)
+        unsafe {
+        for(var i = 0u; i < text.size(); i++) {
+            const c = text.data()[i];
+            switch(c) {
+                '&' => output.append_view("&amp;")
+                '<' => output.append_view("&lt;")
+                '>' => output.append_view("&gt;")
+                '"' => output.append_view("&quot;")
+                '\'' => output.append_view("&#39;")
+                default => output.append(c)
+            }
+        }
+
         }
     }
-}
 
 func appendJsHex2(output : &mut std::string, v : uint) {
     const hex = "0123456789abcdef"
@@ -364,35 +388,38 @@ func appendJsHex2(output : &mut std::string, v : uint) {
 }
 
 func appendJsEscaped(output : &mut std::string, text : &std::string_view) {
-    for(var i = 0u; i < text.size(); i++) {
-        const c = text.data()[i];
-        switch(c) {
-            '"' => output.append_view("\\\"")
-            '\\' => output.append_view("\\\\")
-            '\n' => output.append_view("\\n")
-            '\r' => output.append_view("\\r")
-            '\t' => output.append_view("\\t")
-            '<' => {
-                // Defensively escape `</` so values cannot break out of an
-                // inline <script> block (semantically identical in JS strings).
-                if(i + 1 < text.size() && text.data()[i+1] == '/') {
-                    output.append_view("\\u003C/");
-                    i++;
-                } else {
-                    output.append(c);
+        unsafe {
+        for(var i = 0u; i < text.size(); i++) {
+            const c = text.data()[i];
+            switch(c) {
+                '"' => output.append_view("\\\"")
+                '\\' => output.append_view("\\\\")
+                '\n' => output.append_view("\\n")
+                '\r' => output.append_view("\\r")
+                '\t' => output.append_view("\\t")
+                '<' => {
+                    // Defensively escape `</` so values cannot break out of an
+                    // inline <script> block (semantically identical in JS strings).
+                    if(i + 1 < text.size() && text.data()[i+1] == '/') {
+                        output.append_view("\\u003C/");
+                        i++;
+                    } else {
+                        output.append(c);
+                    }
                 }
-            }
-            default => {
-                if((c as u8) < 0x20) {
-                    output.append_view("\\u00");
-                    appendJsHex2(output, c as uint);
-                } else {
-                    output.append(c);
+                default => {
+                    if((c as u8) < 0x20) {
+                        output.append_view("\\u00");
+                        appendJsHex2(output, c as uint);
+                    } else {
+                        output.append(c);
+                    }
                 }
             }
         }
+
+        }
     }
-}
 
 enum AttrValueTarget {
     Html,
@@ -488,55 +515,58 @@ func make_special_attrs() : SpecialAttrs {
 }
 
 func accumulateAttrs(list : &SsrAttributeList, special : &mut SpecialAttrs) {
-    var d = list.data
-    const end = d + list.size
-    while(d != end) {
-        switch(d.value) {
-            Spread(value) => {
-                // Recursively accumulate the spread's attributes
-                accumulateAttrs(&value, special)
-            }
-            default => {
-                if(d.value is SsrAttributeValue.None) {
-                    d++
-                    continue
+        unsafe {
+        var d = list.data
+        const end = d + list.size
+        while(d != end) {
+            switch(d.value) {
+                Spread(value) => {
+                    // Recursively accumulate the spread's attributes
+                    accumulateAttrs(&value, special)
                 }
-                // "key" is a reconciliation hint — never rendered to DOM or HTML
-                if(d.name.equals("key")) {
-                    d++
-                    continue
-                }
-                if(d.name.equals("class")) {
-                    special.classes.push(&raw d.value)
-                } else if(d.name.equals("style")) {
-                    special.styles.push(&raw d.value)
-                } else {
-                    if(d.value is SsrAttributeValue.Boolean) {
-                        var Boolean(value) = d.value else unreachable
-                        if(!value) {
-                            d++
-                            continue
+                default => {
+                    if(d.value is SsrAttributeValue.None) {
+                        d++
+                        continue
+                    }
+                    // "key" is a reconciliation hint — never rendered to DOM or HTML
+                    if(d.name.equals("key")) {
+                        d++
+                        continue
+                    }
+                    if(d.name.equals("class")) {
+                        special.classes.push(&raw d.value)
+                    } else if(d.name.equals("style")) {
+                        special.styles.push(&raw d.value)
+                    } else {
+                        if(d.value is SsrAttributeValue.Boolean) {
+                            var Boolean(value) = d.value else unreachable
+                            if(!value) {
+                                d++
+                                continue
+                            }
+                        }
+                        // Last-wins dedup: replace existing or append
+                        var found = false
+                        for(var j : size_t = 0; j < special.others_names.size(); j++) {
+                            if(special.others_names.get(j).equals_text(&d.name)) {
+                                special.others_values.set(j, &raw d.value)
+                                found = true
+                                break
+                            }
+                        }
+                        if(!found) {
+                            special.others_names.push(d.name)
+                            special.others_values.push(&raw d.value)
                         }
                     }
-                    // Last-wins dedup: replace existing or append
-                    var found = false
-                    for(var j : size_t = 0; j < special.others_names.size(); j++) {
-                        if(special.others_names.get(j).equals_text(&d.name)) {
-                            special.others_values.set(j, &raw d.value)
-                            found = true
-                            break
-                        }
-                    }
-                    if(!found) {
-                        special.others_names.push(d.name)
-                        special.others_values.push(&raw d.value)
-                    }
                 }
             }
+            d++
         }
-        d++
+
+        }
     }
-}
 
 public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) { unsafe {
     var special = make_special_attrs()

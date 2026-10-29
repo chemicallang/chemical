@@ -14,109 +14,112 @@ func isTagNameSelfClosing(view : &std::string_view) : bool {
 }
 
 func (htmlParser : &mut HtmlParser) parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlElement {
+        unsafe {
 
-    const lt = parser.getToken();
+        const lt = parser.getToken();
 
-    if(lt.type == TokenType.LessThan) {
+        if(lt.type == TokenType.LessThan) {
 
-        parser.increment();
-        const id = parser.getToken();
-        if(id.type != TokenType.TagName) {
-            parser.error("expected an identifier after '<'");
-            return null
-        }
-        parser.increment();
-
-        var isSelfClosing = isTagNameSelfClosing(&id.value);
-
-        var element : *mut HtmlElement = builder.allocate<HtmlElement>();
-        new (element) HtmlElement {
-            HtmlChild : HtmlChild {
-                kind : HtmlChildKind.Element
-            },
-            name : builder.allocate_view(&id.value),
-            isSelfClosing : isSelfClosing,
-            attributes : std::vector<*mut HtmlAttribute>(),
-            children : std::vector<*mut HtmlChild>(),
-            loc : parser.getEncodedLocation(id)
-        }
-
-        var isComponent = false;
-        if (id.value.size() > 0) {
-            const first = id.value.get(0);
-            if (first >= 'A' && first <= 'Z') {
-                htmlParser.components.push(element);
-                isComponent = true;
-            }
-        }
-
-        while(true) {
-            var attr = htmlParser.parseAttribute(parser, builder);
-            if(attr != null) {
-                element.attributes.push(attr)
-            } else {
-                break;
-            }
-        }
-
-        // optional forward slash in self closing tags <br />
-        // the element field must be updated too: it was already initialized
-        // from isTagNameSelfClosing before the attribute loop, and only the
-        // local variable would otherwise change (so <div/> emitted <div></div>)
-        const fwdSl = parser.getToken();
-        if(fwdSl.type == TokenType.FwdSlash) {
             parser.increment();
-            isSelfClosing = true;
-            element.isSelfClosing = true;
-        }
-
-        const gt = parser.getToken();
-        if(gt.type != TokenType.GreaterThan) {
-            parser.error("expected a greater than sign '>' after the identifier");
-        } else {
-            parser.increment();
-        }
-
-        if(isSelfClosing) {
-            return element;
-        }
-
-        while(true) {
-            var child = htmlParser.parseElementChild(parser, builder);
-            if(child != null) {
-                element.children.push(child)
-            } else {
-                break;
+            const id = parser.getToken();
+            if(id.type != TokenType.TagName) {
+                parser.error("expected an identifier after '<'");
+                return null
             }
-        }
+            parser.increment();
 
-        const last_lt = parser.getToken();
-        if(last_lt.type == TokenType.TagEnd) {
-            parser.increment()
-            const last_id = parser.getToken();
-            if(last_id.type == TokenType.TagName) {
-                parser.increment();
-                if(unsafe(strncmp(last_id.value.data(), id.value.data(), id.value.size())) != 0) {
-                    parser.error("expected correct identifier for ending tag");
+            var isSelfClosing = isTagNameSelfClosing(&id.value);
+
+            var element : *mut HtmlElement = builder.allocate<HtmlElement>();
+            new (element) HtmlElement {
+                HtmlChild : HtmlChild {
+                    kind : HtmlChildKind.Element
+                },
+                name : builder.allocate_view(&id.value),
+                isSelfClosing : isSelfClosing,
+                attributes : std::vector<*mut HtmlAttribute>(),
+                children : std::vector<*mut HtmlChild>(),
+                loc : parser.getEncodedLocation(id)
+            }
+
+            var isComponent = false;
+            if (id.value.size() > 0) {
+                const first = id.value.get(0);
+                if (first >= 'A' && first <= 'Z') {
+                    htmlParser.components.push(element);
+                    isComponent = true;
                 }
-                const last_gt = parser.getToken();
-                if(last_gt.type == TokenType.GreaterThan) {
-                    parser.increment();
+            }
+
+            while(true) {
+                var attr = htmlParser.parseAttribute(parser, builder);
+                if(attr != null) {
+                    element.attributes.push(attr)
                 } else {
-                    parser.error("expected '>' after the ending tag");
+                    break;
+                }
+            }
+
+            // optional forward slash in self closing tags <br />
+            // the element field must be updated too: it was already initialized
+            // from isTagNameSelfClosing before the attribute loop, and only the
+            // local variable would otherwise change (so <div/> emitted <div></div>)
+            const fwdSl = parser.getToken();
+            if(fwdSl.type == TokenType.FwdSlash) {
+                parser.increment();
+                isSelfClosing = true;
+                element.isSelfClosing = true;
+            }
+
+            const gt = parser.getToken();
+            if(gt.type != TokenType.GreaterThan) {
+                parser.error("expected a greater than sign '>' after the identifier");
+            } else {
+                parser.increment();
+            }
+
+            if(isSelfClosing) {
+                return element;
+            }
+
+            while(true) {
+                var child = htmlParser.parseElementChild(parser, builder);
+                if(child != null) {
+                    element.children.push(child)
+                } else {
+                    break;
+                }
+            }
+
+            const last_lt = parser.getToken();
+            if(last_lt.type == TokenType.TagEnd) {
+                parser.increment()
+                const last_id = parser.getToken();
+                if(last_id.type == TokenType.TagName) {
+                    parser.increment();
+                    if(unsafe(strncmp(last_id.value.data(), id.value.data(), id.value.size())) != 0) {
+                        parser.error("expected correct identifier for ending tag");
+                    }
+                    const last_gt = parser.getToken();
+                    if(last_gt.type == TokenType.GreaterThan) {
+                        parser.increment();
+                    } else {
+                        parser.error("expected '>' after the ending tag");
+                    }
+                } else {
+                    unsafe { printf("expected id, got: %d, %s\n", last_id.type, last_id.value.data()) };
+                    unsafe { fflush(null) }
+                    parser.error("expected identifier after the '</'");
                 }
             } else {
-                unsafe { printf("expected id, got: %d, %s\n", last_id.type, last_id.value.data()) };
-                unsafe { fflush(null) }
-                parser.error("expected identifier after the '</'");
+                parser.error("expected a '</' for ending the element");
             }
+
+            return element;
+
         } else {
-            parser.error("expected a '</' for ending the element");
+            return null;
         }
 
-        return element;
-
-    } else {
-        return null;
+        }
     }
-}

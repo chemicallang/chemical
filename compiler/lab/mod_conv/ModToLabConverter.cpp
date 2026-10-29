@@ -126,6 +126,10 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
 
     // build method
     output << "\npublic func build(ctx : *mut BuildContext, __chx_job : *mut LabJob) : *mut Module {\n";
+    // Generated build code drives the build context and job through raw
+    // pointers. The converter owns those pointers, so the generated body is
+    // one explicit, audited unsafe boundary (S2.0b).
+    output << "\tunsafe {\n";
 
     output << "\tvar __curr_lab_path = lab::get_my_path();\n";
     output << "\tconst __chx_already_exists = ctx.get_cached(__chx_job, &__curr_lab_path);\n";
@@ -467,6 +471,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
         }
     }
     output << "\treturn mod;\n";
+    output << "\t}\n";
     output << "}\n\n";
 
 }

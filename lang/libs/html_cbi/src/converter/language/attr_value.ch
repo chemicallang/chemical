@@ -13,96 +13,111 @@ struct AttrValueConverter {
 }
 
 func (converter : &mut AttrValueConverter) noneArgAttrValue(builder : *mut ASTBuilder) : *mut Value {
-    var name = std::string_view("None")
-    const child = converter.ssrAttributeValueNode.child(&name)
-    const location = intrinsics::get_raw_location();
-    var base = builder.make_identifier(std::string_view("SsrAttributeValue"), converter.ssrAttributeValueNode, false, location);
-    var id = builder.make_identifier(&name, child, false, location);
-    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
-    return builder.make_function_call_value(chain, location)
-}
+        unsafe {
+        var name = std::string_view("None")
+        const child = converter.ssrAttributeValueNode.child(&name)
+        const location = intrinsics::get_raw_location();
+        var base = builder.make_identifier(std::string_view("SsrAttributeValue"), converter.ssrAttributeValueNode, false, location);
+        var id = builder.make_identifier(&name, child, false, location);
+        const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
+        return builder.make_function_call_value(chain, location)
+
+        }
+    }
 
 func (converter : &mut AttrValueConverter) wrapArgAttrValueVariantCall(builder : *mut ASTBuilder, name : &std::string_view, value : *mut Value) : *mut Value {
-    const child = converter.ssrAttributeValueNode.child(name)
-    const location = intrinsics::get_raw_location();
-    var base = builder.make_identifier(std::string_view("SsrAttributeValue"), converter.ssrAttributeValueNode, false, location);
-    var id = builder.make_identifier(name, child, false, location);
-    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
-    var call = builder.make_function_call_value(chain, location)
-    var args = call.get_args();
-    args.push(value)
-    return call;
-}
+        unsafe {
+        const child = converter.ssrAttributeValueNode.child(name)
+        const location = intrinsics::get_raw_location();
+        var base = builder.make_identifier(std::string_view("SsrAttributeValue"), converter.ssrAttributeValueNode, false, location);
+        var id = builder.make_identifier(name, child, false, location);
+        const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
+        var call = builder.make_function_call_value(chain, location)
+        var args = call.get_args();
+        args.push(value)
+        return call;
+
+        }
+    }
 
 func (converter : &mut AttrValueConverter) convert_node_attr_value(builder : *mut ASTBuilder, type : *mut BaseType, node : *mut ASTNode, value : *mut Value) : *mut Value {
-    switch(node.getKind()) {
-        ASTNodeKind.StructDecl, ASTNodeKind.UnionDecl, ASTNodeKind.VariantDecl => {
-            var fnName = std::string_view("getSsrAttributeValue")
-            const writeFn = node.child(&fnName)
-            if(writeFn == null) {
-                return converter.noneArgAttrValue(builder)
+        unsafe {
+        switch(node.getKind()) {
+            ASTNodeKind.StructDecl, ASTNodeKind.UnionDecl, ASTNodeKind.VariantDecl => {
+                var fnName = std::string_view("getSsrAttributeValue")
+                const writeFn = node.child(&fnName)
+                if(writeFn == null) {
+                    return converter.noneArgAttrValue(builder)
+                }
+                if(writeFn.getKind() != ASTNodeKind.FunctionDecl) {
+                    return converter.noneArgAttrValue(builder)
+                }
+                const location = intrinsics::get_raw_location();
+                var id = builder.make_identifier(&fnName, writeFn, false, location);
+                const chain = builder.make_access_chain(&std::span<*mut Value>([ value, id ]), location)
+                var call = builder.make_function_call_value(chain, location)
+                var args = call.get_args();
+                var base = builder.make_identifier(std::string_view("page"), converter.pageNode, false, location);
+                args.push(base)
+                return call;
             }
-            if(writeFn.getKind() != ASTNodeKind.FunctionDecl) {
-                return converter.noneArgAttrValue(builder)
+            ASTNodeKind.TypealiasStmt => {
+                const stmt = node as *mut TypealiasStatement
+                const actual_type = stmt.getActualType();
+                return converter.convert_to_attr_value(builder, actual_type, value);
             }
-            const location = intrinsics::get_raw_location();
-            var id = builder.make_identifier(&fnName, writeFn, false, location);
-            const chain = builder.make_access_chain(&std::span<*mut Value>([ value, id ]), location)
-            var call = builder.make_function_call_value(chain, location)
-            var args = call.get_args();
-            var base = builder.make_identifier(std::string_view("page"), converter.pageNode, false, location);
-            args.push(base)
-            return call;
+            default => {
+                return converter.convert_to_attr_value(builder, type, value);
+            }
         }
-        ASTNodeKind.TypealiasStmt => {
-            const stmt = node as *mut TypealiasStatement
-            const actual_type = stmt.getActualType();
-            return converter.convert_to_attr_value(builder, actual_type, value);
-        }
-        default => {
-            return converter.convert_to_attr_value(builder, type, value);
+
         }
     }
-}
 
 func (converter : &mut AttrValueConverter) convert_ref_node_attr(builder : *mut ASTBuilder, node : *mut ASTNode, type : *mut BaseType, value : *mut Value) : *mut Value {
-    switch(node.getKind()) {
-        ASTNodeKind.TypealiasStmt => {
-            const stmt = node as *mut TypealiasStatement
-            const actual_type = stmt.getActualType();
-            return converter.convert_attr_ref_child_type(builder, actual_type, value);
+        unsafe {
+        switch(node.getKind()) {
+            ASTNodeKind.TypealiasStmt => {
+                const stmt = node as *mut TypealiasStatement
+                const actual_type = stmt.getActualType();
+                return converter.convert_attr_ref_child_type(builder, actual_type, value);
+            }
+            ASTNodeKind.StructDecl, ASTNodeKind.UnionDecl, ASTNodeKind.VariantDecl => {
+                return converter.convert_node_attr_value(builder, type, node, value)
+            }
+            default => {
+                const loc = intrinsics::get_raw_location();
+                const deref = builder.make_dereference_value(value, type, loc);
+                return converter.convert_to_attr_value(builder, type, deref);
+            }
         }
-        ASTNodeKind.StructDecl, ASTNodeKind.UnionDecl, ASTNodeKind.VariantDecl => {
-            return converter.convert_node_attr_value(builder, type, node, value)
-        }
-        default => {
-            const loc = intrinsics::get_raw_location();
-            const deref = builder.make_dereference_value(value, type, loc);
-            return converter.convert_to_attr_value(builder, type, deref);
+
         }
     }
-}
 
 func (converter : &mut AttrValueConverter) convert_attr_ref_child_type(builder : *mut ASTBuilder, childType : *mut BaseType, value : *mut Value) : *mut Value {
-    switch(childType.getKind()) {
-        BaseTypeKind.Linked => {
-            const linked = childType as *mut LinkedType;
-            const node = linked.getLinkedNode();
-            return converter.convert_ref_node_attr(builder, node, childType, value)
+        unsafe {
+        switch(childType.getKind()) {
+            BaseTypeKind.Linked => {
+                const linked = childType as *mut LinkedType;
+                const node = linked.getLinkedNode();
+                return converter.convert_ref_node_attr(builder, node, childType, value)
+            }
+            BaseTypeKind.Generic => {
+                const generic = childType as *mut GenericType;
+                const linked = generic.getLinkedType();
+                const node = linked.getLinkedNode();
+                return converter.convert_ref_node_attr(builder, node, childType, value)
+            }
+            default => {
+                const loc = intrinsics::get_raw_location();
+                const deref = builder.make_dereference_value(value, childType, loc);
+                return converter.convert_to_attr_value(builder, childType, deref);
+            }
         }
-        BaseTypeKind.Generic => {
-            const generic = childType as *mut GenericType;
-            const linked = generic.getLinkedType();
-            const node = linked.getLinkedNode();
-            return converter.convert_ref_node_attr(builder, node, childType, value)
-        }
-        default => {
-            const loc = intrinsics::get_raw_location();
-            const deref = builder.make_dereference_value(value, childType, loc);
-            return converter.convert_to_attr_value(builder, childType, deref);
+
         }
     }
-}
 
 func (converter : &mut AttrValueConverter) convert_multiple_attr_values(
     builder : *mut ASTBuilder,
@@ -132,116 +147,122 @@ func (converter : &mut AttrValueConverter) convert_multiple_attr_values(
  }}
 
 func (converter : &mut AttrValueConverter) convert_to_attr_value(builder : *mut ASTBuilder, type : *mut BaseType, value : *mut Value) : *mut Value {
-    if(value.getKind() == ValueKind.String) {
-        // optimized string value
-        var strVal = value as *mut StringValue
-        var textStructVal = make_ssr_text_val(builder, strVal.getValue(), converter.ssrTextNode, intrinsics::get_raw_location());
-        return converter.wrapArgAttrValueVariantCall(builder, "Text", textStructVal);
-    }
-    switch(type.getKind()) {
-        BaseTypeKind.Bool => {
-            // bool value
-            return converter.wrapArgAttrValueVariantCall(builder, "Boolean", value);
+        unsafe {
+        if(value.getKind() == ValueKind.String) {
+            // optimized string value
+            var strVal = value as *mut StringValue
+            var textStructVal = make_ssr_text_val(builder, strVal.getValue(), converter.ssrTextNode, intrinsics::get_raw_location());
+            return converter.wrapArgAttrValueVariantCall(builder, "Text", textStructVal);
         }
-        BaseTypeKind.IntN => {
-            const intN = type as *mut IntNType;
-            const kind = intN.get_intn_type_kind()
-            if(kind == IntNTypeKind.Char || kind == IntNTypeKind.UChar) {
-                // char value
-                return converter.wrapArgAttrValueVariantCall(builder, "Char", value);
-            } else if(kind <= IntNTypeKind.Int128) {
-                // signed integer
-                return converter.wrapArgAttrValueVariantCall(builder, "Integer", value);
-            } else {
-                // unsigned integer
-                return converter.wrapArgAttrValueVariantCall(builder, "UInteger", value);
+        switch(type.getKind()) {
+            BaseTypeKind.Bool => {
+                // bool value
+                return converter.wrapArgAttrValueVariantCall(builder, "Boolean", value);
             }
-        }
-        BaseTypeKind.Float => {
-            // this has a precision arg, but we don't need to provide it
-            return converter.wrapArgAttrValueVariantCall(builder, "Double", value);
-        }
-        BaseTypeKind.Double => {
-            // this has a precision arg, but we don't need to provide it
-            return converter.wrapArgAttrValueVariantCall(builder, "Double", value);
-        }
-        BaseTypeKind.ExpressiveString => {
-            if(value.getKind() == ValueKind.ExpressiveString) {
-                const exprString = value as *mut ExpressiveString
-                const values = exprString.getValues()
-                return converter.convert_multiple_attr_values(builder, values.data(), values.size())
-            } else {
-                // TODO: error out, cannot handle comptime functions that return expressive strings yet !
-                return null;
-            }
-        }
-        BaseTypeKind.Linked => {
-            const linked = type as *mut LinkedType;
-            const node = linked.getLinkedNode();
-            return converter.convert_node_attr_value(builder, type, node, value);
-        }
-        BaseTypeKind.Generic => {
-            const generic = type as *mut GenericType;
-            const linked = generic.getLinkedType();
-            const node = linked.getLinkedNode();
-            return converter.convert_node_attr_value(builder, type, node, value);
-        }
-        BaseTypeKind.Reference => {
-            const refType = type as *mut ReferenceType
-            const childType = refType.getChildType()
-            return converter.convert_attr_ref_child_type(builder, childType, value)
-        }
-        BaseTypeKind.Pointer => {
-            const ptrType = type as *mut PointerType
-            const childType = ptrType.getChildType();
-            if(childType.getKind() == BaseTypeKind.IntN) {
-                const intN = childType as *mut IntNType;
+            BaseTypeKind.IntN => {
+                const intN = type as *mut IntNType;
                 const kind = intN.get_intn_type_kind()
                 if(kind == IntNTypeKind.Char || kind == IntNTypeKind.UChar) {
-                    return converter.wrapArgAttrValueVariantCall(builder, "PtrChar", value);
+                    // char value
+                    return converter.wrapArgAttrValueVariantCall(builder, "Char", value);
+                } else if(kind <= IntNTypeKind.Int128) {
+                    // signed integer
+                    return converter.wrapArgAttrValueVariantCall(builder, "Integer", value);
+                } else {
+                    // unsigned integer
+                    return converter.wrapArgAttrValueVariantCall(builder, "UInteger", value);
                 }
             }
-            // putting a pointer as integer
-            // a pointer to other than char, or uchar, we cannot handle it
-            return converter.wrapArgAttrValueVariantCall(builder, "UInteger", value);
-        }
-        BaseTypeKind.String => {
-            return converter.wrapArgAttrValueVariantCall(builder, "PtrChar", value);
-        }
-        BaseTypeKind.Array => {
-            // array literal (e.g., items={["One", "Two"]}) — convert each
-            // element into an attribute value and wrap in Multiple
-            if(value.getKind() != ValueKind.ArrayValue) {
+            BaseTypeKind.Float => {
+                // this has a precision arg, but we don't need to provide it
+                return converter.wrapArgAttrValueVariantCall(builder, "Double", value);
+            }
+            BaseTypeKind.Double => {
+                // this has a precision arg, but we don't need to provide it
+                return converter.wrapArgAttrValueVariantCall(builder, "Double", value);
+            }
+            BaseTypeKind.ExpressiveString => {
+                if(value.getKind() == ValueKind.ExpressiveString) {
+                    const exprString = value as *mut ExpressiveString
+                    const values = exprString.getValues()
+                    return converter.convert_multiple_attr_values(builder, values.data(), values.size())
+                } else {
+                    // TODO: error out, cannot handle comptime functions that return expressive strings yet !
+                    return null;
+                }
+            }
+            BaseTypeKind.Linked => {
+                const linked = type as *mut LinkedType;
+                const node = linked.getLinkedNode();
+                return converter.convert_node_attr_value(builder, type, node, value);
+            }
+            BaseTypeKind.Generic => {
+                const generic = type as *mut GenericType;
+                const linked = generic.getLinkedType();
+                const node = linked.getLinkedNode();
+                return converter.convert_node_attr_value(builder, type, node, value);
+            }
+            BaseTypeKind.Reference => {
+                const refType = type as *mut ReferenceType
+                const childType = refType.getChildType()
+                return converter.convert_attr_ref_child_type(builder, childType, value)
+            }
+            BaseTypeKind.Pointer => {
+                const ptrType = type as *mut PointerType
+                const childType = ptrType.getChildType();
+                if(childType.getKind() == BaseTypeKind.IntN) {
+                    const intN = childType as *mut IntNType;
+                    const kind = intN.get_intn_type_kind()
+                    if(kind == IntNTypeKind.Char || kind == IntNTypeKind.UChar) {
+                        return converter.wrapArgAttrValueVariantCall(builder, "PtrChar", value);
+                    }
+                }
+                // putting a pointer as integer
+                // a pointer to other than char, or uchar, we cannot handle it
                 return converter.wrapArgAttrValueVariantCall(builder, "UInteger", value);
             }
-            const arrayValue = value as *mut ArrayValue
-            const values = arrayValue.get_values()
-            const size = values.size()
-
-            var location = intrinsics::get_raw_location();
-            var attrValueType = builder.make_linked_type("SsrAttributeValue", converter.ssrAttributeValueNode, location)
-            var ssrAttrValArr = builder.make_array_value(attrValueType, location)
-            var arrValues = ssrAttrValArr.get_values();
-            for(var i : uint = 0; i < size; i++) {
-                const ptr = values.get(i)
-                arrValues.push(converter.convert_to_attr_value(builder, ptr.getType(), ptr))
+            BaseTypeKind.String => {
+                return converter.wrapArgAttrValueVariantCall(builder, "PtrChar", value);
             }
+            BaseTypeKind.Array => {
+                // array literal (e.g., items={["One", "Two"]}) — convert each
+                // element into an attribute value and wrap in Multiple
+                if(value.getKind() != ValueKind.ArrayValue) {
+                    return converter.wrapArgAttrValueVariantCall(builder, "UInteger", value);
+                }
+                const arrayValue = value as *mut ArrayValue
+                const values = arrayValue.get_values()
+                const size = values.size()
 
-            const multiAttrStructVal = builder.make_struct_value(converter.multipleAttributeValueNode, location)
-            multiAttrStructVal.add_value("data", ssrAttrValArr)
-            multiAttrStructVal.add_value("size", builder.make_ubigint_value(size as ubigint, location))
-            return converter.wrapArgAttrValueVariantCall(builder, "Multiple", multiAttrStructVal);
+                var location = intrinsics::get_raw_location();
+                var attrValueType = builder.make_linked_type("SsrAttributeValue", converter.ssrAttributeValueNode, location)
+                var ssrAttrValArr = builder.make_array_value(attrValueType, location)
+                var arrValues = ssrAttrValArr.get_values();
+                for(var i : uint = 0; i < size; i++) {
+                    const ptr = values.get(i)
+                    arrValues.push(converter.convert_to_attr_value(builder, ptr.getType(), ptr))
+                }
+
+                const multiAttrStructVal = builder.make_struct_value(converter.multipleAttributeValueNode, location)
+                multiAttrStructVal.add_value("data", ssrAttrValArr)
+                multiAttrStructVal.add_value("size", builder.make_ubigint_value(size as ubigint, location))
+                return converter.wrapArgAttrValueVariantCall(builder, "Multiple", multiAttrStructVal);
+            }
+            default => {
+                // unknown type of value being appended
+                return converter.wrapArgAttrValueVariantCall(builder, "UInteger", value);
+            }
         }
-        default => {
-            // unknown type of value being appended
-            return converter.wrapArgAttrValueVariantCall(builder, "UInteger", value);
+
         }
     }
-}
 
 func make_ssr_text_val(builder : *mut ASTBuilder, val : &std::string_view, textNode : *mut ASTNode, location : ubigint) : *mut Value {
-    const structVal = builder.make_struct_value(textNode, location);
-    structVal.add_value(std::string_view("data"), builder.make_string_value(val, location));
-    structVal.add_value(std::string_view("size"), builder.make_ubigint_value(val.size(), location));
-    return structVal;
-}
+        unsafe {
+        const structVal = builder.make_struct_value(textNode, location);
+        structVal.add_value(std::string_view("data"), builder.make_string_value(val, location));
+        structVal.add_value(std::string_view("size"), builder.make_ubigint_value(val.size(), location));
+        return structVal;
+
+        }
+    }

@@ -800,6 +800,11 @@
 > because volatile is not atomic and concurrent use is a data race.
 > `SAFE-VALID-007` requires an unsafe boundary for named union field access and
 > public anonymous-union access, because the active union member is not tracked.
+> The raw-pointer `core::stream::Stream::writeStr`/`writeStrNoLen` methods are
+> `unsafe func`; `std::print`/`println`'s generated `CommandLineStream` writes
+> are explicitly wrapped in an `UnsafeBlock`. The command-line buffer
+> conversion helpers are internal, so safe code cannot call them with an
+> arbitrary output pointer.
 > The in-tree lexer/parser/plugin casts (`js_cbi_lexer`, `universal_parser`,
 > `css_parser`, `json_cbi`, the test IPC parser) were replaced with integer
 > comparisons or total mapping helpers instead of forging an enum. `NonNull`, `Box`, `Rc`/`Weak`, and `Arc`/`ArcWeak` now have private
@@ -840,9 +845,22 @@
 > Negative tests cover a comptime heap out-of-bounds write and a use-after-free
 > read. Provenance beyond range (cross-frame stale pointers) and
 > bounds-checked host `strlen`/`printf`/foreign pointers remain M5.7b.
+> S4.8 raw-pointer operations: `SAFE-UNSAFE-001` now covers implicit raw-pointer
+> dereferences as well as explicit `*p`. Field/method projection (`p.x`,
+> `p.method()`), indexing (`p[i]`, including `vector.data()[i]`), placement new
+> (`new (p) T`), pointer arithmetic (`p + n`, `p += n`, `p++`), and raw
+> `delete`/`dealloc` all require an unsafe boundary. The check is implemented in `SymResLinkBody` for the
+> access chain, index operator, expression, increment, assignment, delete and
+> dealloc visitors. Generated module-build scripts (`ModToLabConverter`) are
+> emitted with one explicit unsafe boundary around the raw build-context/job
+> operations. Wrapping generic bodies exposed a missing `ValueNode::copy`, which
+> is now implemented so generic expression-statement bodies survive
+> finalization. In-tree stdlib/CBI/plugin/build.lab call sites were migrated;
+> safety audit baseline is `unsafe_blocks 572`, `unsafe_values 382`.
 > `catch_unwind`/`UnwindSafe` and the unwinding/drop-on-unwind profile remain
-> S5.6b. Safety suite `53`; negative tests `537`; main TCC `2354`, LLVM `2352`;
-> interpret `1910`; `MIRTests` `4638 checks`.
+> S5.6b. Safety suite `53`; negative tests `548`; main TCC `2354`, LLVM `2352`;
+> libs `719`; plugins `1305`; async `53`; interpret `1910`;
+> `MIRTests` `4638 checks`.
 > Next: M5.7b provenance/foreign-pointer hardening, S5.6b
 > (`catch_unwind`/unwinding + `UnwindSafe`/`RefUnwindSafe`/`AssertUnwindSafe`),
 > remaining M5 validity (packed references), M6 `Send`/`Sync` enforcement, M2

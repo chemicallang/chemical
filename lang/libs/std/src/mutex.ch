@@ -11,7 +11,10 @@ public namespace std {
         }
         @delete
         func delete(&mut self) {
-            m.unlock()
+        unsafe {
+                m.unlock()
+        
         }
+    }
     }
 }

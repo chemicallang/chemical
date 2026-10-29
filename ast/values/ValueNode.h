@@ -37,4 +37,12 @@ public:
 
     }
 
+    ValueNode* copy(ASTAllocator& allocator) override {
+        return new (allocator.allocate<ValueNode>()) ValueNode(
+            value != nullptr ? value->copy(allocator) : nullptr,
+            parent(),
+            encoded_location()
+        );
+    }
+
 };

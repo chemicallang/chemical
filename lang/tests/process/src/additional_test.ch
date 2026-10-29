@@ -299,18 +299,21 @@ public func test_process_merge_stderr_stdout_spawn(env : &mut TestEnv) {
 // ===========================================================================
 
 func bc(data : *vector<u8>, needle : *char, needle_len : size_t) : bool {
-    if(data.size() < needle_len) { return false }
-    var d = data.data()
-    var i : size_t = 0
-    while(i + needle_len <= data.size()) {
-        var match = true
-        var j : size_t = 0
-        while(j < needle_len) {
-            if(d[i + j] != needle[j]) { match = false; break }
-            j += 1
+        unsafe {
+        if(data.size() < needle_len) { return false }
+        var d = data.data()
+        var i : size_t = 0
+        while(i + needle_len <= data.size()) {
+            var match = true
+            var j : size_t = 0
+            while(j < needle_len) {
+                if(d[i + j] != needle[j]) { match = false; break }
+                j += 1
+            }
+            if(match) { return true }
+            i += 1
         }
-        if(match) { return true }
-        i += 1
+        return false
+
+        }
     }
-    return false
-}

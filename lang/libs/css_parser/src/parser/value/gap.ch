@@ -3,24 +3,30 @@ func (cssParser : &mut CSSParser) parseValuePair(
     builder : *mut ASTBuilder,
     value : &mut CSSValue
 ) {
-    const pair = builder.allocate<CSSValuePair>()
-    new (pair) CSSValuePair()
+        unsafe {
+        const pair = builder.allocate<CSSValuePair>()
+        new (pair) CSSValuePair()
 
-    value.kind = CSSValueKind.Pair
-    value.data = pair
+        value.kind = CSSValueKind.Pair
+        value.data = pair
 
-    if(cssParser.parseLength(parser, builder, &mut pair.first)) {
+        if(cssParser.parseLength(parser, builder, &mut pair.first)) {
 
-        // optional
-        cssParser.parseLength(parser, builder, &mut pair.second)
+            // optional
+            cssParser.parseLength(parser, builder, &mut pair.second)
 
+        }
+
+        }
     }
-}
 
 func (cssParser : &mut CSSParser) parseGap(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
     value : &mut CSSValue
 ) {
-    cssParser.parseValuePair(parser, builder, value)
-}
+        unsafe {
+        cssParser.parseValuePair(parser, builder, value)
+
+        }
+    }

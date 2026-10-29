@@ -12,23 +12,26 @@
 public namespace async {
 
 public func <T> block_on(handle : core::async::FutureHandle<T>) : T {
-    var e = executor()
-    var cx = core::async::Context {
-        waker : exec_make_waker(e)
-    }
-    var out : T = loop {
-        var r = handle.vtbl_ptr().poll(handle.frame_ptr(), &raw mut cx)
-        if(r is core::async::Poll.Ready) {
-            // Extract through a pointer+memcpy rather than a variant pattern
-            // binding: moving a struct `T` out of a pattern mis-lowers on LLVM
-            // (the payload is treated as a pointer), see B18.
-            break poll_take_ready<T>(&raw mut r)
+        unsafe {
+        var e = executor()
+        var cx = core::async::Context {
+            waker : exec_make_waker(e)
         }
-        executor_poll_tasks(e, 4096u)
-        executor_wait(e, 1u)
-        continue
+        var out : T = loop {
+            var r = handle.vtbl_ptr().poll(handle.frame_ptr(), &raw mut cx)
+            if(r is core::async::Poll.Ready) {
+                // Extract through a pointer+memcpy rather than a variant pattern
+                // binding: moving a struct `T` out of a pattern mis-lowers on LLVM
+                // (the payload is treated as a pointer), see B18.
+                break poll_take_ready<T>(&raw mut r)
+            }
+            executor_poll_tasks(e, 4096u)
+            executor_wait(e, 1u)
+            continue
+        }
+        return out
+
+        }
     }
-    return out
-}
 
 }

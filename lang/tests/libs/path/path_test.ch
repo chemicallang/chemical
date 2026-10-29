@@ -168,21 +168,21 @@ func test_path_normalize_empty(env : &mut TestEnv) {
 
 @test
 func test_path_is_absolute_true(env : &mut TestEnv) {
-    if(!path::is_absolute("/usr")) {
+    if(!unsafe(path::is_absolute("/usr"))) {
         env.error("is_absolute /usr should be true");
     }
 }
 
 @test
 func test_path_is_absolute_false(env : &mut TestEnv) {
-    if(path::is_absolute("relative")) {
+    if(unsafe(path::is_absolute("relative"))) {
         env.error("is_absolute relative should be false");
     }
 }
 
 @test
 func test_path_has_root(env : &mut TestEnv) {
-    if(!path::has_root("/usr")) {
+    if(!unsafe(path::has_root("/usr"))) {
         env.error("has_root /usr should be true");
     }
 }

@@ -32,34 +32,37 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
     }
 
     func resize(&mut self) : void {
-        if(capacity > ((0 as size_t) - 1) / 2) {
-            panic("ordered_map capacity overflow")
-        }
-        var newCapacity = capacity * 2;
-        if(newCapacity == 0) {
-            newCapacity = 16
-        }
-        if(newCapacity > ((0 as size_t) - 1) / sizeof(*mut ordered_map_node<Key, Value>)) {
-            panic("ordered_map capacity overflow")
-        }
-        var newTable = unsafe(malloc(newCapacity * sizeof(*mut ordered_map_node<Key, Value>))) as *mut *mut ordered_map_node<Key, Value>;
-        if(newTable == null) {
-            panic("failed to allocate ordered_map table")
-        }
-        unsafe { memset(newTable, 0, newCapacity * sizeof(*mut ordered_map_node<Key, Value>)) };
+        unsafe {
+            if(capacity > ((0 as size_t) - 1) / 2) {
+                panic("ordered_map capacity overflow")
+            }
+            var newCapacity = capacity * 2;
+            if(newCapacity == 0) {
+                newCapacity = 16
+            }
+            if(newCapacity > ((0 as size_t) - 1) / sizeof(*mut ordered_map_node<Key, Value>)) {
+                panic("ordered_map capacity overflow")
+            }
+            var newTable = unsafe(malloc(newCapacity * sizeof(*mut ordered_map_node<Key, Value>))) as *mut *mut ordered_map_node<Key, Value>;
+            if(newTable == null) {
+                panic("failed to allocate ordered_map table")
+            }
+            unsafe { memset(newTable, 0, newCapacity * sizeof(*mut ordered_map_node<Key, Value>)) };
 
-        var node = head;
-        while (node != null) {
-            var nextNode = node.order_next;
-            var index = hash_now(&node.key) & (newCapacity - 1);
-            node.hash_next = newTable[index];
-            newTable[index] = node;
-            node = nextNode;
-        }
+            var node = head;
+            while (node != null) {
+                var nextNode = node.order_next;
+                var index = hash_now(&node.key) & (newCapacity - 1);
+                node.hash_next = newTable[index];
+                newTable[index] = node;
+                node = nextNode;
+            }
 
-        dealloc table;
-        table = newTable;
-        capacity = newCapacity;
+            dealloc table;
+            table = newTable;
+            capacity = newCapacity;
+    
+        }
     }
 
     @make
@@ -81,64 +84,73 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
 
     @delete
     func delete(&self) {
-        var node = head;
-        while (node != null) {
-            var nextNode = node.order_next;
-            destruct node
-            dealloc node;
-            node = nextNode;
+        unsafe {
+            var node = head;
+            while (node != null) {
+                var nextNode = node.order_next;
+                destruct node
+                dealloc node;
+                node = nextNode;
+            }
+            dealloc table;
+    
         }
-        dealloc table;
     }
 
     func insert(&mut self, key : Key, value : Value) {
-        if ((_size as float) / capacity > ORDERED_LOAD_FACTOR_THRESHOLD) {
-            resize();
-        }
-
-        var index = hash_with_capacity(&key);
-        var currentNode = table[index];
-
-        while (currentNode != null) {
-            if (compare_now(&currentNode.key, &key)) {
-                destruct &mut currentNode.value
-                currentNode.value = value;
-                return;
+        unsafe {
+            if ((_size as float) / capacity > ORDERED_LOAD_FACTOR_THRESHOLD) {
+                resize();
             }
-            currentNode = currentNode.hash_next;
-        }
 
-        const newNode = unsafe(malloc(sizeof(ordered_map_node<Key, Value>))) as *mut ordered_map_node<Key, Value>;
-        if(newNode == null) {
-            panic("failed to allocate ordered_map node")
+            var index = hash_with_capacity(&key);
+            var currentNode = table[index];
+
+            while (currentNode != null) {
+                if (compare_now(&currentNode.key, &key)) {
+                    destruct &mut currentNode.value
+                    currentNode.value = value;
+                    return;
+                }
+                currentNode = currentNode.hash_next;
+            }
+
+            const newNode = unsafe(malloc(sizeof(ordered_map_node<Key, Value>))) as *mut ordered_map_node<Key, Value>;
+            if(newNode == null) {
+                panic("failed to allocate ordered_map node")
+            }
+            new (newNode) ordered_map_node<Key, Value> {
+                key : key,
+                value : value,
+                hash_next : table[index],
+                order_prev : tail,
+                order_next : null
+            }
+            table[index] = newNode;
+            if (tail != null) {
+                tail.order_next = newNode;
+            } else {
+                head = newNode;
+            }
+            tail = newNode;
+            _size++;
+    
         }
-        new (newNode) ordered_map_node<Key, Value> {
-            key : key,
-            value : value,
-            hash_next : table[index],
-            order_prev : tail,
-            order_next : null
-        }
-        table[index] = newNode;
-        if (tail != null) {
-            tail.order_next = newNode;
-        } else {
-            head = newNode;
-        }
-        tail = newNode;
-        _size++;
     }
 
     func get_ptr(&self, key : &Key) : *mut Value {
-        var index : size_t = hash_with_capacity(key);
-        var currentNode = table[index];
-        while (currentNode != null) {
-            if (compare_now(&currentNode.key, key)) {
-                return &raw mut currentNode.value;
+        unsafe {
+            var index : size_t = hash_with_capacity(key);
+            var currentNode = table[index];
+            while (currentNode != null) {
+                if (compare_now(&currentNode.key, key)) {
+                    return &raw mut currentNode.value;
+                }
+                currentNode = currentNode.hash_next;
             }
-            currentNode = currentNode.hash_next;
+            return null;
+    
         }
-        return null;
     }
 
     func find(&self, key : &Key, value : &mut Value) : bool {
@@ -156,6 +168,7 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
     }
 
     func erase(&mut self, key : &Key) : bool {
+        unsafe {
         var index : size_t = hash_with_capacity(key);
         var currentNode = table[index];
         var previousNode : *mut ordered_map_node<Key, Value> = null;
@@ -190,9 +203,11 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
             currentNode = currentNode.hash_next;
         }
         return false;
+        }
     }
 
     func clear(&mut self) : void {
+        unsafe {
         var node = head;
         while (node != null) {
             var nextNode = node.order_next;
@@ -206,6 +221,7 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
         head = null;
         tail = null;
         _size = 0;
+        }
     }
 
     func size(&self) : size_t {
@@ -274,19 +290,19 @@ public struct ordered_map_iterator<Key, Value> {
 
     func next(&mut self) {
         if (node == null) return;
-        node = node.order_next;
+        unsafe { node = node.order_next; }
     }
 
     func prev(&mut self) {
         if (node == null) return;
-        node = node.order_prev;
+        unsafe { node = node.order_prev; }
     }
 
     public func key(&self) : &Key {
-        return &node.key;
+        return unsafe(&node.key);
     }
     public func value(&self) : &Value {
-        return &node.value;
+        return unsafe(&node.value);
     }
     public func valid(&self) : bool {
         return node != null;

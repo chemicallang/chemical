@@ -404,14 +404,17 @@ struct FetchAddArgs {
 }
 
 func fetch_add_worker_u64(arg : *void) : *void {
-    var a = arg as *mut FetchAddArgs
-    var i : u64 = 0
-    while(i < a.iters) {
-        atomic_fetch_add_u64(a.ptr, 1, memory_order.seq_cst)
-        i = i + 1
+        unsafe {
+        var a = arg as *mut FetchAddArgs
+        var i : u64 = 0
+        while(i < a.iters) {
+            atomic_fetch_add_u64(a.ptr, 1, memory_order.seq_cst)
+            i = i + 1
+        }
+        return null
+
+        }
     }
-    return null
-}
 
 @test
 func concurrent_fetch_add_u64(env : &mut TestEnv) {
@@ -432,14 +435,17 @@ struct FetchAddArgsU32 {
 }
 
 func fetch_add_worker_u32(arg : *void) : *void {
-    var a = arg as *mut FetchAddArgsU32
-    var i : u32 = 0
-    while(i < a.iters) {
-        atomic_fetch_add_u32(a.ptr, 1, memory_order.seq_cst)
-        i = i + 1
+        unsafe {
+        var a = arg as *mut FetchAddArgsU32
+        var i : u32 = 0
+        while(i < a.iters) {
+            atomic_fetch_add_u32(a.ptr, 1, memory_order.seq_cst)
+            i = i + 1
+        }
+        return null
+
+        }
     }
-    return null
-}
 
 @test
 func concurrent_fetch_add_u32(env : &mut TestEnv) {
@@ -460,14 +466,17 @@ struct ExchangeArgs {
 }
 
 func exchange_worker(arg : *void) : *void {
-    var a = arg as *mut ExchangeArgs
-    var i : u64 = 0
-    while(i < a.iters) {
-        atomic_exchange_u64(a.ptr, i, memory_order.seq_cst)
-        i = i + 1
+        unsafe {
+        var a = arg as *mut ExchangeArgs
+        var i : u64 = 0
+        while(i < a.iters) {
+            atomic_exchange_u64(a.ptr, i, memory_order.seq_cst)
+            i = i + 1
+        }
+        return null
+
+        }
     }
-    return null
-}
 
 @test
 func concurrent_exchange_u64(env : &mut TestEnv) {
@@ -489,18 +498,21 @@ struct CasArgs {
 }
 
 func cas_worker(arg : *void) : *void {
-    var a = arg as *mut CasArgs
-    var i : u64 = 0
-    var expected : u64 = 0
-    var desired : u64 = 0
-    while(i < a.iters) {
-        expected = atomic_load_u64(a.ptr, memory_order.relaxed)
-        desired = expected + 1
-        atomic_compare_exchange_strong_u64(a.ptr, &raw mut expected, desired, memory_order.seq_cst, memory_order.relaxed)
-        i = i + 1
+        unsafe {
+        var a = arg as *mut CasArgs
+        var i : u64 = 0
+        var expected : u64 = 0
+        var desired : u64 = 0
+        while(i < a.iters) {
+            expected = atomic_load_u64(a.ptr, memory_order.relaxed)
+            desired = expected + 1
+            atomic_compare_exchange_strong_u64(a.ptr, &raw mut expected, desired, memory_order.seq_cst, memory_order.relaxed)
+            i = i + 1
+        }
+        return null
+
+        }
     }
-    return null
-}
 
 @test
 func concurrent_cas_u64(env : &mut TestEnv) {
@@ -521,14 +533,17 @@ struct FetchSubArgs {
 }
 
 func fetch_sub_worker(arg : *void) : *void {
-    var a = arg as *mut FetchSubArgs
-    var i : u64 = 0
-    while(i < a.iters) {
-        atomic_fetch_sub_u64(a.ptr, 1, memory_order.seq_cst)
-        i = i + 1
+        unsafe {
+        var a = arg as *mut FetchSubArgs
+        var i : u64 = 0
+        while(i < a.iters) {
+            atomic_fetch_sub_u64(a.ptr, 1, memory_order.seq_cst)
+            i = i + 1
+        }
+        return null
+
+        }
     }
-    return null
-}
 
 @test
 func concurrent_fetch_sub_u64(env : &mut TestEnv) {
@@ -549,18 +564,21 @@ struct FlagArgs {
 }
 
 func flag_set_worker(arg : *void) : *void {
-    var a = arg as *mut FlagArgs
-    var i : u64 = 0
-    var sets : u64 = 0
-    while(i < a.count) {
-        if(atomic_flag_test_and_set(a.ptr)) {
-            sets = sets + 1
+        unsafe {
+        var a = arg as *mut FlagArgs
+        var i : u64 = 0
+        var sets : u64 = 0
+        while(i < a.count) {
+            if(atomic_flag_test_and_set(a.ptr)) {
+                sets = sets + 1
+            }
+            atomic_flag_clear(a.ptr)
+            i = i + 1
         }
-        atomic_flag_clear(a.ptr)
-        i = i + 1
+        return null
+
+        }
     }
-    return null
-}
 
 @test
 func concurrent_atomic_flag(env : &mut TestEnv) {

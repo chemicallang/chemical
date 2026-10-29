@@ -1,236 +1,257 @@
 func run_test_fn_ptr(env : &mut TestEnv, ptr : *void, ret_bool : bool) : bool {
-    if(ret_bool) {
-        type bool_fn_type = (env : &mut TestEnv) => bool
-        const fn_ptr = ptr as bool_fn_type
-        return fn_ptr(env);
-    } else {
-        type non_bool_fn_type = (env : &mut TestEnv) => void
-        const fn_ptr = ptr as non_bool_fn_type
-        fn_ptr(env);
-        return true;
-    }
-}
+        unsafe {
+        if(ret_bool) {
+            type bool_fn_type = (env : &mut TestEnv) => bool
+            const fn_ptr = ptr as bool_fn_type
+            return fn_ptr(env);
+        } else {
+            type non_bool_fn_type = (env : &mut TestEnv) => void
+            const fn_ptr = ptr as non_bool_fn_type
+            fn_ptr(env);
+            return true;
+        }
 
-func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig, out_has_error : *mut bool) { unsafe {
-
-    var env = create_test_env(tfn, config);
-
-    if(config.before_each) {
-        config.before_each(&mut env)
-    }
-
-    var return_success : bool
-    if(config.benchmark) {
-        // TODO: benchmarking code here
-        return_success = run_test_fn_ptr(&mut env, tfn.ptr as *void, tfn.returns_bool)
-    } else {
-        return_success = run_test_fn_ptr(&mut env, tfn.ptr as *void, tfn.returns_bool)
-    }
-    if(return_success == false) {
-        (env as TestEnv).error("boolean test returned false");
-    }
-
-    if(config.after_each) {
-        config.after_each(&mut env)
-    }
-
-    if(out_has_error) {
-        *out_has_error = env.has_error
-    }
-
- }}
-
-func append_integer(str : &mut std::string, dig : int) {
-    var buffer : [160]char
-    const buffStart = &raw mut buffer[0]
-    unsafe { snprintf(buffStart, sizeof(buffer), "%d", dig) }
-    str.append_char_ptr(buffStart);
-}
-
-func launch_test_with_retries(exe_path : *char, id : int, state : &mut TestFunctionState, tries : int, timeout_ms : uint) {
-    // actual launch
-    launch_test(exe_path, id, state, timeout_ms)
-    // retry for number of times
-    if(tries > 1) {
-        tries--
-        while(tries > 1 && state.has_failed) {
-            state.logs.clear()
-            launch_test(exe_path, id, state, timeout_ms)
-            tries--
         }
     }
-}
+
+func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig, out_has_error : *mut bool) {
+        unsafe {     unsafe {
+
+        var env = create_test_env(tfn, config);
+
+        if(config.before_each) {
+            config.before_each(&mut env)
+        }
+
+        var return_success : bool
+        if(config.benchmark) {
+            // TODO: benchmarking code here
+            return_success = run_test_fn_ptr(&mut env, tfn.ptr as *void, tfn.returns_bool)
+        } else {
+            return_success = run_test_fn_ptr(&mut env, tfn.ptr as *void, tfn.returns_bool)
+        }
+        if(return_success == false) {
+            (env as TestEnv).error("boolean test returned false");
+        }
+
+        if(config.after_each) {
+            config.after_each(&mut env)
+        }
+
+        if(out_has_error) {
+            *out_has_error = env.has_error
+        }
+
+     }
+        }
+    }
+
+func append_integer(str : &mut std::string, dig : int) {
+        unsafe {
+        var buffer : [160]char
+        const buffStart = &raw mut buffer[0]
+        unsafe { snprintf(buffStart, sizeof(buffer), "%d", dig) }
+        str.append_char_ptr(buffStart);
+
+        }
+    }
+
+func launch_test_with_retries(exe_path : *char, id : int, state : &mut TestFunctionState, tries : int, timeout_ms : uint) {
+        unsafe {
+        // actual launch
+        launch_test(exe_path, id, state, timeout_ms)
+        // retry for number of times
+        if(tries > 1) {
+            tries--
+            while(tries > 1 && state.has_failed) {
+                state.logs.clear()
+                launch_test(exe_path, id, state, timeout_ms)
+                tries--
+            }
+        }
+
+        }
+    }
 
 func fn_name_match(fn_name : *char, name_list : &std::vector<*char>) : bool {
-    if(name_list.empty()) { return true }
-    var i : size_t = 0
-    while(i < name_list.size()) {
-        if(unsafe(strcmp(fn_name, name_list.get(i))) == 0) { return true }
-        i += 1
+        unsafe {
+        if(name_list.empty()) { return true }
+        var i : size_t = 0
+        while(i < name_list.size()) {
+            if(unsafe(strcmp(fn_name, name_list.get(i))) == 0) { return true }
+            i += 1
+        }
+        return false
+
+        }
     }
-    return false
-}
 
 type TestFunctionPtr = (env : &mut TestEnv) => void
 
 func emit_state(reporter : *mut TestReporter, fn_state : *mut TestFunctionState) {
-    const fn = fn_state.fn
-    var outcome = make_test_outcome(std::string_view("test"), fn.name, fn.group, fn.id)
-    outcome.passed = !fn_state.has_failed
-    outcome.exit_code = fn_state.exitCode as int
-    outcome.message = fn_state.failed_msg_parse.to_view()
-    outcome.logs_ptr = fn_state.logs.data()
-    outcome.logs_count = fn_state.logs.size()
-    reporter.on_test(&raw outcome)
-}
+        unsafe {
+        const fn = fn_state.fn
+        var outcome = make_test_outcome(std::string_view("test"), fn.name, fn.group, fn.id)
+        outcome.passed = !fn_state.has_failed
+        outcome.exit_code = fn_state.exitCode as int
+        outcome.message = fn_state.failed_msg_parse.to_view()
+        outcome.logs_ptr = fn_state.logs.data()
+        outcome.logs_count = fn_state.logs.size()
+        reporter.on_test(&raw outcome)
 
-func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config : &mut TestRunnerConfig, reporter : *mut TestReporter) {
-
-    var filter_by_ids = config.has_test_ids
-    var filter_by_names = config.has_test_names
-    var has_single_id = config.single_test_id != -1
-
-    if(has_single_id || filter_by_ids || filter_by_names) {
-
-        // initialize before each and after each
-        config.before_each = intrinsics::get_single_marked_decl_ptr("test.before_each") as TestFunctionPtr;
-        config.after_each = intrinsics::get_single_marked_decl_ptr("test.after_each") as TestFunctionPtr;
-
-        var test_start = tests_view.data() as *mut TestFunction
-        const test_end = test_start + tests_view.size()
-
-        // When running as a child process (comm_id != -1), run in-process with IPC.
-        // When running as the parent (comm_id == -1), launch child processes for proper IPC/result reporting.
-        var is_child = (config.comm_id != -1)
-
-        var state = TestRunnerState()
-        state.tests.reserve(tests_view.size());
-
-        while(test_start != test_end) {
-            // remote tests are skipped unless --include-remote is given
-            if(test_start.is_remote && !config.include_remote) {
-                test_start++;
-                continue;
-            }
-            var should_run = false
-            if(has_single_id && test_start.id == config.single_test_id) {
-                should_run = true
-            }
-            if(filter_by_ids) {
-                var ii : size_t = 0
-                while(ii < config.test_ids.size()) {
-                    if(test_start.id == config.test_ids.get(ii)) { should_run = true; break }
-                    ii += 1
-                }
-            }
-            if(filter_by_names) {
-                if(fn_name_match(test_start.name.data(), &config.test_names)) {
-                    should_run = true
-                }
-            }
-            if(should_run) {
-                if(is_child) {
-                    var test_failed : bool = false
-                    run_single_test(test_start, config, &raw mut test_failed)
-                } else {
-                    var ind = state.tests.size()
-                    state.tests.push(TestFunctionState(test_start));
-                    const fn_state = state.tests.get_ptr(ind)
-                    const test_id = test_start.id;
-                    const test_retry = test_start.retry as int
-                    var timeout_ms = 60000;
-                    if(test_start.timeout > 0) { timeout_ms = test_start.timeout as int }
-                    launch_test_with_retries(exe_path, test_id, unsafe(&mut *fn_state), test_retry, timeout_ms as uint);
-                    if(reporter != null) {
-                        emit_state(reporter, fn_state)
-                    }
-                }
-            }
-            test_start++;
         }
-
-        return;
-
-    } else if(!config.groups_to_launch.empty()) {
-
-        // TODO: launch only these group of tests
-
-    } else {
-
-        if(tests_view.empty()) {
-            return;
-        }
-
-        // create test runner state
-        var state = TestRunnerState()
-        state.tests.reserve(tests_view.size());
-
-        // creating a thread pool for launching asynchronous tests on it
-        // Width matters: tests that bind TCP ports and spawn helper processes
-        // must not all be in flight at once, or their bounded waits (server
-        // readiness probes, accept windows) expire and report failures that
-        // have nothing to do with the code under test. See
-        // TestRunnerConfig.serial / job_limit.
-        var pool_width = std.concurrent.hardware_threads();
-        if(config.job_limit > 0 && (config.job_limit as usize) < pool_width) { pool_width = config.job_limit as usize };
-        if(config.serial) { pool_width = 1 };
-        var pool = std.concurrent.create_pool(pool_width);
-        var asyncJobs = std.vector<std.concurrent.Future<int>>();
-
-        var test_start = tests_view.data() as *mut TestFunction
-        const test_end = test_start + tests_view.size()
-
-        while(test_start != test_end) {
-            // by default, tests coming from remote (downloaded) modules are
-            // skipped. pass --include-remote to run them too.
-            if(test_start.is_remote && !config.include_remote) {
-                test_start++;
-                continue;
-            }
-            // creating state for the test function
-            var ind = state.tests.size()
-            state.tests.push(TestFunctionState(test_start));
-            const fn_state = state.tests.get_ptr(ind)
-            const test_id = test_start.id;
-            const test_retry = test_start.retry as int
-
-            // timeout in milliseconds
-            // by default 60 seconds
-            var timeout_ms = 60000;
-            if(test_start.timeout > 0) {
-                // assuming test_start.timeout is in milliseconds
-                // if it's in seconds, we should multiply by 1000
-                // but let's assume it's ms for flexibility
-                timeout_ms = test_start.timeout as int
-            }
-
-            // actual launch on the thread pool
-            var job = unsafe(pool.submit<int>(|exe_path, test_id, fn_state, test_retry, timeout_ms|() => {
-                launch_test_with_retries(exe_path, test_id, unsafe(&mut *fn_state), test_retry, timeout_ms as uint);
-                return 0;
-            }))
-            asyncJobs.push(job)
-
-            test_start++;
-        }
-
-        // wait for the thread pool to finish
-        var asyncJobsStart = asyncJobs.data() as *mut std.concurrent.Future<int>
-        const asyncJobsEnd = asyncJobsStart + asyncJobs.size()
-        while(asyncJobsStart != asyncJobsEnd) {
-            const redundant = asyncJobsStart.get()
-            asyncJobsStart++;
-        }
-
-        // stream the results to the reporter (in declaration order)
-        if(reporter != null) {
-            var si : size_t = 0
-            while(si < state.tests.size()) {
-                emit_state(reporter, state.tests.get_ptr(si))
-                si += 1
-            }
-        }
-
     }
 
-}
+func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config : &mut TestRunnerConfig, reporter : *mut TestReporter) {
+        unsafe {
+
+        var filter_by_ids = config.has_test_ids
+        var filter_by_names = config.has_test_names
+        var has_single_id = config.single_test_id != -1
+
+        if(has_single_id || filter_by_ids || filter_by_names) {
+
+            // initialize before each and after each
+            config.before_each = intrinsics::get_single_marked_decl_ptr("test.before_each") as TestFunctionPtr;
+            config.after_each = intrinsics::get_single_marked_decl_ptr("test.after_each") as TestFunctionPtr;
+
+            var test_start = tests_view.data() as *mut TestFunction
+            const test_end = test_start + tests_view.size()
+
+            // When running as a child process (comm_id != -1), run in-process with IPC.
+            // When running as the parent (comm_id == -1), launch child processes for proper IPC/result reporting.
+            var is_child = (config.comm_id != -1)
+
+            var state = TestRunnerState()
+            state.tests.reserve(tests_view.size());
+
+            while(test_start != test_end) {
+                // remote tests are skipped unless --include-remote is given
+                if(test_start.is_remote && !config.include_remote) {
+                    test_start++;
+                    continue;
+                }
+                var should_run = false
+                if(has_single_id && test_start.id == config.single_test_id) {
+                    should_run = true
+                }
+                if(filter_by_ids) {
+                    var ii : size_t = 0
+                    while(ii < config.test_ids.size()) {
+                        if(test_start.id == config.test_ids.get(ii)) { should_run = true; break }
+                        ii += 1
+                    }
+                }
+                if(filter_by_names) {
+                    if(fn_name_match(test_start.name.data(), &config.test_names)) {
+                        should_run = true
+                    }
+                }
+                if(should_run) {
+                    if(is_child) {
+                        var test_failed : bool = false
+                        run_single_test(test_start, config, &raw mut test_failed)
+                    } else {
+                        var ind = state.tests.size()
+                        state.tests.push(TestFunctionState(test_start));
+                        const fn_state = state.tests.get_ptr(ind)
+                        const test_id = test_start.id;
+                        const test_retry = test_start.retry as int
+                        var timeout_ms = 60000;
+                        if(test_start.timeout > 0) { timeout_ms = test_start.timeout as int }
+                        launch_test_with_retries(exe_path, test_id, unsafe(&mut *fn_state), test_retry, timeout_ms as uint);
+                        if(reporter != null) {
+                            emit_state(reporter, fn_state)
+                        }
+                    }
+                }
+                test_start++;
+            }
+
+            return;
+
+        } else if(!config.groups_to_launch.empty()) {
+
+            // TODO: launch only these group of tests
+
+        } else {
+
+            if(tests_view.empty()) {
+                return;
+            }
+
+            // create test runner state
+            var state = TestRunnerState()
+            state.tests.reserve(tests_view.size());
+
+            // creating a thread pool for launching asynchronous tests on it
+            // Width matters: tests that bind TCP ports and spawn helper processes
+            // must not all be in flight at once, or their bounded waits (server
+            // readiness probes, accept windows) expire and report failures that
+            // have nothing to do with the code under test. See
+            // TestRunnerConfig.serial / job_limit.
+            var pool_width = std.concurrent.hardware_threads();
+            if(config.job_limit > 0 && (config.job_limit as usize) < pool_width) { pool_width = config.job_limit as usize };
+            if(config.serial) { pool_width = 1 };
+            var pool = std.concurrent.create_pool(pool_width);
+            var asyncJobs = std.vector<std.concurrent.Future<int>>();
+
+            var test_start = tests_view.data() as *mut TestFunction
+            const test_end = test_start + tests_view.size()
+
+            while(test_start != test_end) {
+                // by default, tests coming from remote (downloaded) modules are
+                // skipped. pass --include-remote to run them too.
+                if(test_start.is_remote && !config.include_remote) {
+                    test_start++;
+                    continue;
+                }
+                // creating state for the test function
+                var ind = state.tests.size()
+                state.tests.push(TestFunctionState(test_start));
+                const fn_state = state.tests.get_ptr(ind)
+                const test_id = test_start.id;
+                const test_retry = test_start.retry as int
+
+                // timeout in milliseconds
+                // by default 60 seconds
+                var timeout_ms = 60000;
+                if(test_start.timeout > 0) {
+                    // assuming test_start.timeout is in milliseconds
+                    // if it's in seconds, we should multiply by 1000
+                    // but let's assume it's ms for flexibility
+                    timeout_ms = test_start.timeout as int
+                }
+
+                // actual launch on the thread pool
+                var job = unsafe(pool.submit<int>(|exe_path, test_id, fn_state, test_retry, timeout_ms|() => {
+                    launch_test_with_retries(exe_path, test_id, unsafe(&mut *fn_state), test_retry, timeout_ms as uint);
+                    return 0;
+                }))
+                asyncJobs.push(job)
+
+                test_start++;
+            }
+
+            // wait for the thread pool to finish
+            var asyncJobsStart = asyncJobs.data() as *mut std.concurrent.Future<int>
+            const asyncJobsEnd = asyncJobsStart + asyncJobs.size()
+            while(asyncJobsStart != asyncJobsEnd) {
+                const redundant = asyncJobsStart.get()
+                asyncJobsStart++;
+            }
+
+            // stream the results to the reporter (in declaration order)
+            if(reporter != null) {
+                var si : size_t = 0
+                while(si < state.tests.size()) {
+                    emit_state(reporter, state.tests.get_ptr(si))
+                    si += 1
+                }
+            }
+
+        }
+
+
+        }
+    }

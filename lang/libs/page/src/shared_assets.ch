@@ -76,7 +76,10 @@ public struct SharedAssets {
 
 // Heap-allocated so a set of pages can share one instance by pointer.
 public func shared_assets(name : std::string_view = "") : *mut SharedAssets {
-    var s = new SharedAssets()
-    s.name.append_view(&name)
-    return s
-}
+        unsafe {
+        var s = new SharedAssets()
+        s.name.append_view(&name)
+        return s
+
+        }
+    }

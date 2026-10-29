@@ -89,23 +89,26 @@ func test_async_spawn_blocking_many(env : &mut TestEnv) {
 // the worker still runs, observes `abandoned`, and frees the shared state itself.
 @test
 func test_async_spawn_blocking_cancel(env : &mut TestEnv) {
-    var before = sb_runs
-    {
-        var h = unsafe(async::spawn_blocking<int>(() => {
-            std::concurrent.sleep_ms(50u)
-            sb_runs = sb_runs + 1
-            return 7
-        }))
-        var cx = core::async::Context {
-            waker : core::async::Waker.empty()
+        unsafe {
+        var before = sb_runs
+        {
+            var h = unsafe(async::spawn_blocking<int>(() => {
+                std::concurrent.sleep_ms(50u)
+                sb_runs = sb_runs + 1
+                return 7
+            }))
+            var cx = core::async::Context {
+                waker : core::async::Waker.empty()
+            }
+            var p = h.vtbl_ptr().poll(h.frame_ptr(), &raw mut cx)
+            if(!(p is core::async::Poll.Pending)) {
+                env.error("spawn_blocking should be pending while the worker runs")
+            }
         }
-        var p = h.vtbl_ptr().poll(h.frame_ptr(), &raw mut cx)
-        if(!(p is core::async::Poll.Pending)) {
-            env.error("spawn_blocking should be pending while the worker runs")
+        std::concurrent.sleep_ms(200u)
+        if(sb_runs != before + 1) {
+            env.error("the worker must run even if the future is dropped first")
+        }
+
         }
     }
-    std::concurrent.sleep_ms(200u)
-    if(sb_runs != before + 1) {
-        env.error("the worker must run even if the future is dropped first")
-    }
-}

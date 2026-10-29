@@ -25,27 +25,33 @@ struct Countdown {
 }
 
 func countdown_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<int> {
-    suspend_polls = suspend_polls + 1;
-    var f = frame as *mut Countdown
-    if(f.remaining > 0) {
-        f.remaining = f.remaining - 1
-        return core::async::Poll.Pending<int>()
-    } else {
-        return core::async::Poll.Ready<int>(f.value)
+        unsafe {
+        suspend_polls = suspend_polls + 1;
+        var f = frame as *mut Countdown
+        if(f.remaining > 0) {
+            f.remaining = f.remaining - 1
+            return core::async::Poll.Pending<int>()
+        } else {
+            return core::async::Poll.Ready<int>(f.value)
+        }
+
+        }
     }
-}
 
 func countdown_drop(frame : *mut void) { }
 
 func make_countdown(remaining : int, value : int) : core::async::FutureHandle<int> {
-    var f = unsafe(malloc(sizeof(Countdown))) as *mut Countdown
-    f.remaining = remaining
-    f.value = value
-    var table = unsafe(malloc(sizeof(core::async::FutureTable<int>))) as *mut core::async::FutureTable<int>
-    table.poll = countdown_poll
-    table.drop = countdown_drop
-    return unsafe(core::async::future_handle_raw<int>(f as *mut void, table))
-}
+        unsafe {
+        var f = unsafe(malloc(sizeof(Countdown))) as *mut Countdown
+        f.remaining = remaining
+        f.value = value
+        var table = unsafe(malloc(sizeof(core::async::FutureTable<int>))) as *mut core::async::FutureTable<int>
+        table.poll = countdown_poll
+        table.drop = countdown_drop
+        return unsafe(core::async::future_handle_raw<int>(f as *mut void, table))
+
+        }
+    }
 
 // Two sequential suspensions; parameters and the first result must survive.
 async func suspend_two(x : int) : int {
@@ -233,7 +239,7 @@ async func suspend_escaped_ptr() : int {
     var v = 41
     var p = &raw mut v
     var n = await make_countdown(2, 1)
-    p[0] = p[0] + 1
+    unsafe { p[0] = p[0] + 1 }
     return v
 }
 
@@ -266,24 +272,27 @@ func test_async_suspend_arrays(env : &mut TestEnv) {
 
 @test
 func test_async_suspend_cancel_destroys_locals(env : &mut TestEnv) {
-    var before = suspend_drops
-    {
-        var h = suspend_cancel()
-        var cx = core::async::Context {
-            waker : core::async::Waker.empty()
+        unsafe {
+        var before = suspend_drops
+        {
+            var h = suspend_cancel()
+            var cx = core::async::Context {
+                waker : core::async::Waker.empty()
+            }
+            var p = h.vtbl_ptr().poll(h.frame_ptr(), &raw mut cx)
+            if(p is core::async::Poll.Pending) {
+                // `h` is dropped at the end of this block, cancelling the suspended
+                // future; its frame-resident DropCounter must be destroyed once
+            } else {
+                env.error("expected the future to be pending on the first poll")
+            }
         }
-        var p = h.vtbl_ptr().poll(h.frame_ptr(), &raw mut cx)
-        if(p is core::async::Poll.Pending) {
-            // `h` is dropped at the end of this block, cancelling the suspended
-            // future; its frame-resident DropCounter must be destroyed once
-        } else {
-            env.error("expected the future to be pending on the first poll")
+        if(suspend_drops != before + 1) {
+            env.error("cancelling a suspended future must destroy its frame-resident local exactly once")
+        }
+
         }
     }
-    if(suspend_drops != before + 1) {
-        env.error("cancelling a suspended future must destroy its frame-resident local exactly once")
-    }
-}
 
 @test
 func test_async_suspend_poll_counts(env : &mut TestEnv) {
@@ -337,14 +346,17 @@ struct CancelChild {
 }
 
 func cancel_child_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<int> {
-    var f = frame as *mut CancelChild
-    if(f.remaining > 0) {
-        f.remaining = f.remaining - 1
-        return core::async::Poll.Pending<int>()
-    } else {
-        return core::async::Poll.Ready<int>(9)
+        unsafe {
+        var f = frame as *mut CancelChild
+        if(f.remaining > 0) {
+            f.remaining = f.remaining - 1
+            return core::async::Poll.Pending<int>()
+        } else {
+            return core::async::Poll.Ready<int>(9)
+        }
+
+        }
     }
-}
 
 func cancel_child_drop(frame : *mut void) {
     child_cancel_drops = child_cancel_drops + 1
@@ -352,13 +364,16 @@ func cancel_child_drop(frame : *mut void) {
 }
 
 func make_cancel_child(n : int) : core::async::FutureHandle<int> {
-    var f = unsafe(malloc(sizeof(CancelChild))) as *mut CancelChild
-    f.remaining = n
-    var t = unsafe(malloc(sizeof(core::async::FutureTable<int>))) as *mut core::async::FutureTable<int>
-    t.poll = cancel_child_poll
-    t.drop = cancel_child_drop
-    return unsafe(core::async::future_handle_raw<int>(f as *mut void, t))
-}
+        unsafe {
+        var f = unsafe(malloc(sizeof(CancelChild))) as *mut CancelChild
+        f.remaining = n
+        var t = unsafe(malloc(sizeof(core::async::FutureTable<int>))) as *mut core::async::FutureTable<int>
+        t.poll = cancel_child_poll
+        t.drop = cancel_child_drop
+        return unsafe(core::async::future_handle_raw<int>(f as *mut void, t))
+
+        }
+    }
 
 async func cancel_parent() : int {
     var v = await make_cancel_child(3)
@@ -367,23 +382,26 @@ async func cancel_parent() : int {
 
 @test
 func test_async_suspend_child_cancelled(env : &mut TestEnv) {
-    var before = child_cancel_drops
-    {
-        var h = cancel_parent()
-        var cx = core::async::Context {
-            waker : core::async::Waker.empty()
+        unsafe {
+        var before = child_cancel_drops
+        {
+            var h = cancel_parent()
+            var cx = core::async::Context {
+                waker : core::async::Waker.empty()
+            }
+            var p = h.vtbl_ptr().poll(h.frame_ptr(), &raw mut cx)
+            if(p is core::async::Poll.Pending) {
+                // parent is suspended on its child; both are cancelled at block end
+            } else {
+                env.error("expected the parent to be pending on first poll")
+            }
         }
-        var p = h.vtbl_ptr().poll(h.frame_ptr(), &raw mut cx)
-        if(p is core::async::Poll.Pending) {
-            // parent is suspended on its child; both are cancelled at block end
-        } else {
-            env.error("expected the parent to be pending on first poll")
+        if(child_cancel_drops != before + 1) {
+            env.error("cancelling a suspended parent must cancel its child future exactly once")
+        }
+
         }
     }
-    if(child_cancel_drops != before + 1) {
-        env.error("cancelling a suspended parent must cancel its child future exactly once")
-    }
-}
 
 // ---- a moved-out local must not be destroyed twice ----
 
@@ -402,28 +420,31 @@ async func moved_param(p : DropCounter) : int {
 
 @test
 func test_async_suspend_moved_local(env : &mut TestEnv) {
-    var before = suspend_drops
-    var r = async::block_on<int>(moved_local(1))
-    if(r != 2) {
-        env.error("a moved local should yield 2")
-    }
-    if(suspend_drops != before + 1) {
-        env.error("a moved-out local must be destroyed exactly once on completion")
-    }
-    // cancellation path
-    before = suspend_drops
-    {
-        var h = moved_local(1)
-        var cx = core::async::Context {
-            waker : core::async::Waker.empty()
+        unsafe {
+        var before = suspend_drops
+        var r = async::block_on<int>(moved_local(1))
+        if(r != 2) {
+            env.error("a moved local should yield 2")
         }
-        var p = h.vtbl_ptr().poll(h.frame_ptr(), &raw mut cx)
-        if(p is core::async::Poll.Pending) { }
+        if(suspend_drops != before + 1) {
+            env.error("a moved-out local must be destroyed exactly once on completion")
+        }
+        // cancellation path
+        before = suspend_drops
+        {
+            var h = moved_local(1)
+            var cx = core::async::Context {
+                waker : core::async::Waker.empty()
+            }
+            var p = h.vtbl_ptr().poll(h.frame_ptr(), &raw mut cx)
+            if(p is core::async::Poll.Pending) { }
+        }
+        if(suspend_drops != before + 1) {
+            env.error("a moved-out local must be destroyed exactly once on cancellation")
+        }
+
+        }
     }
-    if(suspend_drops != before + 1) {
-        env.error("a moved-out local must be destroyed exactly once on cancellation")
-    }
-}
 
 @test
 func test_async_suspend_moved_param(env : &mut TestEnv) {
@@ -454,23 +475,26 @@ async func moved_array() : int {
 
 @test
 func test_async_suspend_array_cancelled(env : &mut TestEnv) {
-    var before = suspend_drops
-    {
-        var h = cancel_array()
-        var cx = core::async::Context {
-            waker : core::async::Waker.empty()
+        unsafe {
+        var before = suspend_drops
+        {
+            var h = cancel_array()
+            var cx = core::async::Context {
+                waker : core::async::Waker.empty()
+            }
+            var p = h.vtbl_ptr().poll(h.frame_ptr(), &raw mut cx)
+            if(p is core::async::Poll.Pending) {
+                // suspended; the whole array is still live and must be destroyed
+            } else {
+                env.error("expected the array future to be pending on first poll")
+            }
         }
-        var p = h.vtbl_ptr().poll(h.frame_ptr(), &raw mut cx)
-        if(p is core::async::Poll.Pending) {
-            // suspended; the whole array is still live and must be destroyed
-        } else {
-            env.error("expected the array future to be pending on first poll")
+        if(suspend_drops != before + 2) {
+            env.error("cancelling must destroy each array element exactly once")
+        }
+
         }
     }
-    if(suspend_drops != before + 2) {
-        env.error("cancelling must destroy each array element exactly once")
-    }
-}
 
 @test
 func test_async_suspend_moved_array(env : &mut TestEnv) {

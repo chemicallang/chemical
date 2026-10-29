@@ -1138,3 +1138,24 @@ func neg_static_non_sync(env : &mut TestEnv) {
     var ch = "static g : *int = null\npublic func main() : int {\n    return 0\n}\n"
     expect_compile_error(env, "static_non_sync", ch, "SAFE-GLOBAL-002")
 }
+
+@test
+func neg_comptime_foreign_pointer_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    comptime {\n        var p = 0x1234 as *int\n        var x = unsafe(p[0])\n    }\n    return 0\n}\n"
+    expect_compile_error(env, "comptime_foreign_pointer", ch, "out-of-bounds read")
+}
+
+@test
+func neg_comptime_cross_frame_pointer_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "comptime func leak() : *int {\n    var x : int = 7\n    return unsafe(&raw mut x)\n}\npublic func main() : int {\n    comptime {\n        var p = leak()\n        var y = unsafe(p[0])\n    }\n    return 0\n}\n"
+    expect_compile_error(env, "comptime_cross_frame_pointer", ch, "out-of-bounds read")
+}
+
+@test
+func neg_comptime_printf_foreign_string_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    comptime {\n        printf(\"%s\", 0x1234 as *char)\n    }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "comptime_printf_foreign_string", ch, "foreign", NEG_MOD_CSTD)
+}

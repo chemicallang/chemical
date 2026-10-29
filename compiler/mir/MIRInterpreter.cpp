@@ -84,6 +84,17 @@ static void mem_unregister(std::vector<HeapRange>* ranges, void* p) {
     }
 }
 
+// Keep the frame allocation as a dead tombstone instead of erasing it. A
+// pointer into a returned frame then no longer looks like unregistered host
+// memory: `check_mem` sees the tombstone and reports the stale access.
+static void mem_retire(std::vector<HeapRange>* ranges, void* p) {
+    if (!ranges || !p) return;
+    const uintptr_t at = reinterpret_cast<uintptr_t>(p);
+    for (HeapRange& r : *ranges) {
+        if (r.begin == at) r.live = false;
+    }
+}
+
 // ── frame arena ────────────────────────────────────────────────────────────
 
 struct FrameArena {
@@ -118,7 +129,7 @@ struct FrameArena {
     }
 
     void reset() {
-        for (const auto& a : allocations) mem_unregister(ranges, a.first);
+        for (const auto& a : allocations) mem_retire(ranges, a.first);
         allocations.clear();
         if (!blocks.empty()) {
             cur = blocks[0];
@@ -130,7 +141,7 @@ struct FrameArena {
     }
 
     ~FrameArena() {
-        for (const auto& a : allocations) mem_unregister(ranges, a.first);
+        for (const auto& a : allocations) mem_retire(ranges, a.first);
         for (uint8_t* b : blocks) std::free(b);
     }
 
@@ -1213,15 +1224,20 @@ struct MIRInterpreter::Impl {
     }
 
     /**
-     * Check that [p, p+n) is inside one live host-heap block. An address that
-     * is not in the heap registry falls back to the pointer sanity check, so
-     * frame/global/constant storage keeps working; a registered block is
-     * checked exactly, including its tombstones after free/realloc.
+     * Check that [p, p+n) is inside one live registered allocation. Every
+     * pointer the interpreter may dereference is either a frame place, a
+     * global/constant block, or a host allocation registered by malloc/realloc.
+     * An unregistered address is therefore rejected instead of being handed to
+     * the host: that is the foreign-pointer boundary, and it also keeps a raw
+     * integer cast from turning into an unchecked host read.
      */
     bool check_mem(const void* p, size_t n) {
         if (p == nullptr) return n == 0;
         const uintptr_t at = reinterpret_cast<uintptr_t>(p);
-        if (n != 0 && at > UINTPTR_MAX - n) return false;
+        if (n != 0 && at > UINTPTR_MAX - n) {
+            unsupported_error = "MIR interpreter: pointer range overflow";
+            return false;
+        }
         const uintptr_t end = at + n;
         bool in_registry = false;
         for (const HeapRange& r : heap_ranges) {
@@ -1232,32 +1248,44 @@ struct MIRInterpreter::Impl {
             if (r.live && end <= r.end) return true;
         }
         if (in_registry) {
-            unsupported_error = "MIR interpreter: out-of-bounds heap access";
+            unsupported_error = "MIR interpreter: out-of-bounds or stale allocation access";
             return false;
         }
-        return valid_ptr(p);
+        unsupported_error = "MIR interpreter: access through an unregistered foreign pointer";
+        return false;
     }
 
     /**
-     * Bounded `strlen` for a registered heap block. Foreign/unregistered
-     * pointers keep the host behavior; a registered block that has no NUL
-     * before its end is a real out-of-bounds read and is reported instead of
-     * letting the host scan into the next allocation.
+     * Bounded `strlen` over a registered allocation. There is deliberately no
+     * host `std::strlen` fallback: an unregistered or stale pointer is an
+     * interpreter error, and a registered block without a NUL terminator is an
+     * out-of-bounds scan rather than permission to read the next host object.
      */
     size_t checked_strlen(const char* s) {
         if (s == nullptr) return 0;
         if (!check_mem(s, 1)) return 0;
         const uintptr_t at = reinterpret_cast<uintptr_t>(s);
+        const HeapRange* live = nullptr;
+        bool stale = false;
         for (const HeapRange& r : heap_ranges) {
-            if (at < r.begin || at >= r.end || !r.live) continue;
-            for (uintptr_t q = at; q < r.end; ++q) {
+            if (at < r.begin || at >= r.end) continue;
+            if (r.live) { live = &r; break; }
+            stale = true;
+        }
+        if (live != nullptr) {
+            for (uintptr_t q = at; q < live->end; ++q) {
                 if (*reinterpret_cast<const char*>(q) == '\0')
                     return static_cast<size_t>(q - at);
             }
             unsupported_error = "MIR interpreter: unterminated heap string";
             return 0;
         }
-        return std::strlen(s);
+        if (stale) {
+            unsupported_error = "MIR interpreter: stale allocation string";
+            return 0;
+        }
+        unsupported_error = "MIR interpreter: strlen on an unregistered foreign pointer";
+        return 0;
     }
 
     void read_value(Frame& f, ValueId rp, uint8_t* src, const TypeInfo& rti) {
@@ -1854,9 +1882,16 @@ uint64_t MIRInterpreter::Impl::host_strcmp(void* self, const uint64_t* a, uint32
     const char* x = reinterpret_cast<const char*>(a[0]);
     const char* y = reinterpret_cast<const char*>(a[1]);
     if (!x || !y) return x == y ? 0 : (x ? 1 : static_cast<uint64_t>(-1));
-    if (impl && (impl->checked_strlen(x) == 0 || impl->checked_strlen(y) == 0) &&
-        !impl->unsupported_error.empty()) return 0;
-    return static_cast<uint64_t>(static_cast<int64_t>(std::strcmp(x, y)));
+    if (!impl) return static_cast<uint64_t>(static_cast<int64_t>(std::strcmp(x, y)));
+    const size_t xn = impl->checked_strlen(x);
+    if (!impl->unsupported_error.empty()) return 0;
+    const size_t yn = impl->checked_strlen(y);
+    if (!impl->unsupported_error.empty()) return 0;
+    const size_t common = xn < yn ? xn : yn;
+    const int cmp = std::memcmp(x, y, common);
+    if (cmp != 0) return static_cast<uint64_t>(static_cast<int64_t>(cmp));
+    if (xn == yn) return 0;
+    return xn < yn ? static_cast<uint64_t>(-1) : 1;
 }
 uint64_t MIRInterpreter::Impl::host_putchar(void*, const uint64_t* a, uint32_t n) {
     if (!n) return 0;
@@ -1873,22 +1908,27 @@ uint64_t MIRInterpreter::Impl::host_exit(void*, const uint64_t* a, uint32_t n) {
     return 0;
 }
 
-uint64_t MIRInterpreter::Impl::host_printf(void*, const uint64_t* a, uint32_t n) {
+uint64_t MIRInterpreter::Impl::host_printf(void* self, const uint64_t* a, uint32_t n) {
     if (n == 0) return 0;
+    auto* impl = static_cast<Impl*>(self);
     const char* fmt = reinterpret_cast<const char*>(a[0]);
     if (!fmt) return 0;
+    const size_t fmt_len = impl ? impl->checked_strlen(fmt) : std::strlen(fmt);
+    if (impl && !impl->unsupported_error.empty()) return 0;
     uint32_t ai = 1;
     std::string out;
-    for (const char* p = fmt; *p; ++p) {
-        if (*p != '%') { out.push_back(*p); continue; }
-        ++p;
-        while (*p && std::strchr("-+ #0", *p)) ++p;
-        while (*p >= '0' && *p <= '9') ++p;
-        if (*p == '.') { ++p; while (*p >= '0' && *p <= '9') ++p; }
-        while (*p == 'l' || *p == 'h' || *p == 'z' || *p == 'j' || *p == 't') ++p;
+    for (size_t fi = 0; fi < fmt_len; ++fi) {
+        const char ch = fmt[fi];
+        if (ch != '%') { out.push_back(ch); continue; }
+        ++fi;
+        while (fi < fmt_len && std::strchr("-+ #0", fmt[fi])) ++fi;
+        while (fi < fmt_len && fmt[fi] >= '0' && fmt[fi] <= '9') ++fi;
+        if (fi < fmt_len && fmt[fi] == '.') { ++fi; while (fi < fmt_len && fmt[fi] >= '0' && fmt[fi] <= '9') ++fi; }
+        while (fi < fmt_len && (fmt[fi] == 'l' || fmt[fi] == 'h' || fmt[fi] == 'z' || fmt[fi] == 'j' || fmt[fi] == 't')) ++fi;
+        if (fi >= fmt_len) { out.push_back('%'); break; }
         const uint64_t arg = ai < n ? a[ai++] : 0;
         char buf[64];
-        switch (*p) {
+        switch (fmt[fi]) {
             case 'd': case 'i':
                 std::snprintf(buf, sizeof(buf), "%lld", static_cast<long long>(arg));
                 out += buf; break;
@@ -1905,7 +1945,10 @@ uint64_t MIRInterpreter::Impl::host_printf(void*, const uint64_t* a, uint32_t n)
                 out.push_back(static_cast<char>(arg)); break;
             case 's': {
                 const char* s = reinterpret_cast<const char*>(arg);
-                out += s ? s : "(null)";
+                if (!s) { out += "(null)"; break; }
+                const size_t len = impl ? impl->checked_strlen(s) : std::strlen(s);
+                if (impl && !impl->unsupported_error.empty()) return 0;
+                out.append(s, len);
                 break;
             }
             case 'p':
@@ -1915,7 +1958,7 @@ uint64_t MIRInterpreter::Impl::host_printf(void*, const uint64_t* a, uint32_t n)
                 out.push_back('%'); --ai; break;
             case 'f': case 'g': {
                 double d; std::memcpy(&d, &arg, 8);
-                std::snprintf(buf, sizeof(buf), *p == 'f' ? "%f" : "%g", d);
+                std::snprintf(buf, sizeof(buf), fmt[fi] == 'f' ? "%f" : "%g", d);
                 out += buf; break;
             }
             default:
@@ -1970,8 +2013,16 @@ bool MIRInterpreter::call(const std::string& name, const uint64_t* args, uint32_
     return true;
 }
 
+void MIRInterpreter::register_foreign(const void* p, size_t n) {
+    impl_->heap_add(const_cast<void*>(p), n);
+}
+
+void MIRInterpreter::unregister_foreign(const void* p) {
+    mem_retire(&impl_->heap_ranges, const_cast<void*>(p));
+}
+
 bool MIRInterpreter::call_sret(const std::string& name, const uint64_t* args, uint32_t nargs,
-                               void* out_buf, std::string& error) {
+                               void* out_buf, size_t out_size, std::string& error) {
     update();
     auto it = impl_->fn_by_name.find(name);
     if (it == impl_->fn_by_name.end()) {
@@ -1982,9 +2033,16 @@ bool MIRInterpreter::call_sret(const std::string& name, const uint64_t* args, ui
     cells.reserve(static_cast<size_t>(nargs) + 1);
     cells.push_back(reinterpret_cast<uint64_t>(out_buf));
     for (uint32_t i = 0; i < nargs; ++i) cells.push_back(args[i]);
+    // The sret buffer is host-owned storage for this call only. The caller
+    // passes the exact aggregate size (the interpreter's TypeInfo may not have
+    // computed a layout for a type it has not touched yet).
+    impl_->heap_add(out_buf, out_size ? out_size : 1u);
     impl_->stack_exhausted = false;
     impl_->unsupported_error.clear();
     impl_->call_function(it->second, cells.data(), nargs + 1);
+    // The caller reads the result bytes from host memory; the interpreter no
+    // longer owns this range, so a later interpreted access is stale.
+    mem_retire(&impl_->heap_ranges, out_buf);
     if (impl_->stack_exhausted) {
         error = chem::comptime_stack_error_message();
         return false;
@@ -2017,9 +2075,21 @@ bool MIRInterpreter::run(const std::string& entry, int argc, const char* const* 
             nargs = ft.data_count < 2 ? ft.data_count : 2;
         }
     }
+    std::vector<const void*> foreign;
+    if (argv != nullptr && argc > 0) {
+        impl_->heap_add(const_cast<void*>(static_cast<const void*>(argv)), sizeof(char*) * static_cast<size_t>(argc));
+        foreign.push_back(argv);
+        for (int i = 0; i < argc; ++i) {
+            if (argv[i] == nullptr) continue;
+            const size_t len = std::strlen(argv[i]) + 1;
+            impl_->heap_add(const_cast<void*>(static_cast<const void*>(argv[i])), len);
+            foreign.push_back(argv[i]);
+        }
+    }
     impl_->stack_exhausted = false;
     impl_->unsupported_error.clear();
     out_result = static_cast<long long>(impl_->call_function(fn_index, args, nargs));
+    for (const void* p : foreign) mem_retire(&impl_->heap_ranges, const_cast<void*>(p));
     if (impl_->stack_exhausted) {
         error = chem::comptime_stack_error_message();
         return false;

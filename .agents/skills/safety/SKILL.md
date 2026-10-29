@@ -304,7 +304,7 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `53`, negative tests `569`.
+  `53`, negative tests `572`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -324,7 +324,7 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `53`, negative `569`; TCC main `2354`, LLVM
+  TCC/LLVM lib runs. Safety suite `53`, negative `572`; TCC main `2354`, LLVM
   main `2352`, libs `719`, plugins `1305`, async `53`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
@@ -333,7 +333,15 @@ Implemented:
   an interpreter error (no host abort). Each frame arena carries its owning
   interpreter's range table; this fixed nested-engine misregistration under
   some file orders. Negative tests cover comptime heap OOB and use-after-free.
-  Provenance beyond range and foreign pointers are M5.7b.
+- M5.7b interpreter boundary: every dereference must be inside a live
+  registered allocation; unregistered/foreign pointers are rejected rather
+  than falling back to host pointer sanity. Reset/destroyed frame ranges remain
+  dead tombstones, so a pointer into a returned frame is rejected, and
+  `strlen`/`strcmp`/`printf` use bounded scans with no host `std::strlen`
+  fallback (`%s` is appended by checked length). Comptime string/aggregate args,
+  `call_sret` buffers, and `argv` are registered as foreign ranges for the
+  exact call/run lifetime. Negative tests cover foreign integer pointers,
+  cross-frame pointers, and foreign `printf("%s")` arguments.
 - S4.3b autoref / S4.7 two-phase: a reference receiver (`&self` / `&mut self`)
   now lowers to `Borrow`/`BorrowMut` instead of an untracked `AddressOf`, and
   method-call arguments are evaluated before the receiver borrow is activated.
@@ -357,7 +365,7 @@ Implemented:
   carry one explicit unsafe boundary around their raw context/job operations.
   Wrapping generic bodies exposed a missing `ValueNode::copy`, now implemented.
   In-tree stdlib/CBI/plugin/build.lab call sites were migrated; audit baseline
-  is `unsafe_blocks 573`, `unsafe_values 441`; negative `569`.
+  is `unsafe_blocks 573`, `unsafe_values 441`; negative `572`.
 - S2.2/S4.8 function pointers: `FunctionTypeData::requires_unsafe` is part of
   function type identity and is set for `unsafe func` and `@extern`. Calling a
   value of such a type in safe context is `SAFE-UNSAFE-002`; coercing it to a

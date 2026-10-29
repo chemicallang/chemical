@@ -798,6 +798,24 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
     // 3. (re)prepare the engine when the module grew (incremental update)
     impl_->engine();
 
+    // Marshalled string/aggregate argument buffers are host-owned. Announce
+    // them to the interpreter for this call only; unregistering leaves a
+    // tombstone so a later stale dereference is still rejected.
+    struct ForeignArgRanges {
+        MIRInterpreter& interp;
+        std::vector<const void*> ranges;
+        ~ForeignArgRanges() {
+            for (const void* p : ranges) interp.unregister_foreign(p);
+        }
+        void add(const void* p, size_t n) {
+            if (p == nullptr || n == 0) return;
+            interp.register_foreign(p, n);
+            ranges.push_back(p);
+        }
+    } foreign_ranges{*impl_->interp};
+    for (auto& b : keep) foreign_ranges.add(b.data(), b.size());
+    for (auto& b : keep_structs) foreign_ranges.add(b.data(), b.size());
+
     // 4. run the callee
     const std::string name =
         impl_->module.symbols.mangled_name(impl_->module.symbols.get(target));
@@ -848,7 +866,7 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
         const MIRTypeRecord rec = impl_->module.types.get(tid);
         std::vector<uint8_t> buf(rec.size ? rec.size : 1, 0);
         if (!impl_->interp->call_sret(name, cells.data(), static_cast<uint32_t>(cells.size()),
-                                      buf.data(), error)) {
+                                      buf.data(), rec.size ? rec.size : 1u, error)) {
             if (std::getenv("CT_STAT")) {
                 std::fprintf(stderr, "[CTSTAT] AGGFAIL %s call_sret\n", fd->name_str().c_str());
             }

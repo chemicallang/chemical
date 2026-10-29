@@ -63,7 +63,16 @@ public:
      * pointer is prepended.
      */
     bool call_sret(const std::string& name, const uint64_t* args, uint32_t nargs,
-                   void* out_buf, std::string& error);
+                   void* out_buf, size_t out_size, std::string& error);
+
+    /**
+     * Register a host-owned buffer for the duration of a call. The interpreter
+     * only dereferences registered allocations, so the comptime driver must
+     * announce marshalled string/aggregate argument buffers here. Unregistering
+     * keeps a tombstone, so a later stale dereference is rejected.
+     */
+    void register_foreign(const void* p, size_t n);
+    void unregister_foreign(const void* p);
 
     /**
      * True when the most recent `call`/`call_sret`/`run` stopped because too

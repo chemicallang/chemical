@@ -845,8 +845,18 @@
 > bug where an outer frame allocation was registered in an inner comptime
 > engine and then reported as an out-of-bounds write under some file orders.
 > Negative tests cover a comptime heap out-of-bounds write and a use-after-free
-> read. Provenance beyond range (cross-frame stale pointers) and
-> bounds-checked host `strlen`/`printf`/foreign pointers remain M5.7b.
+> read. M5.7b closes the remaining interpreter boundary: every dereference must
+> fall inside a live registered allocation, so unregistered/foreign pointers
+> are rejected instead of falling back to host pointer sanity. Frame ranges are
+> retained as dead tombstones when a frame is reset/destroyed, which rejects a
+> pointer into a returned frame (including the new cross-frame test).
+> `strlen`/`strcmp`/`printf` use bounded scans only: there is no host
+> `std::strlen` fallback, an unterminated registered block is an error, and
+> `%s` is appended with its checked length. Comptime-marshalled string/
+> aggregate argument buffers, `call_sret` output buffers, and `argv` are
+> registered as foreign ranges for exactly the call/run lifetime. Negative
+> tests cover a foreign integer pointer, a returned-frame pointer, and a foreign
+> `printf("%s", ...)` argument.
 > S4.8 raw-pointer operations: `SAFE-UNSAFE-001` now covers implicit raw-pointer
 > dereferences as well as explicit `*p`. Field/method projection (`p.x`,
 > `p.method()`), indexing (`p[i]`, including `vector.data()[i]`), placement new
@@ -902,11 +912,10 @@
 > Negative tests cover missing bounds, explicit impls, arrays,
 > nested enums, references, and the safe/unsafe boundary.
 > `catch_unwind`/`UnwindSafe` and the unwinding/drop-on-unwind profile remain
-> S5.6b. Safety suite `53`; negative tests `569`; main TCC `2354`, LLVM `2352`;
+> S5.6b. Safety suite `53`; negative tests `572`; main TCC `2354`, LLVM `2352`;
 > libs `719`; plugins `1305`; async `53`; interpret `1910`;
 > `MIRTests` `4638 checks`.
-> Next: synchronized-global wrapper policy, M5.7b
-> provenance/foreign-pointer hardening, S5.6b
+> Next: synchronized-global wrapper policy, S5.6b
 > (`catch_unwind`/unwinding + `UnwindSafe`/`RefUnwindSafe`/`AssertUnwindSafe`),
 > remaining M5 validity (packed references), M6 `Send`/`Sync` enforcement, M2
 > C ABI, and the variance/HRTB/temporary-lifetime precision items.

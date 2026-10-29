@@ -703,7 +703,9 @@
 > M5.1 (partial) validity: `SAFE-VALID-001` rejects `zeroed<T>()` when the
 > concrete type contains a reference field (direct, array, variant payload, or
 > a specialized generic field such as `W<&int>`); `PhantomData<&T>` is
-> storage-free and exempt. `zeroed:unsafe` remains the explicit unsafe escape.
+> storage-free and exempt. `zeroed<T>()` now requires `T: Zeroable`; the
+> explicit `zeroed:unsafe<T>()` unchecked form remains temporarily for audited
+> FFI/TLS storage until those call sites are migrated to `unsafe impl Zeroable`.
 > S2.6 FFI enforced: `SAFE-FFI-001` rejects `@extern` calls in safe context.
 > The whole in-tree tree is migrated to per-call `unsafe(...)` expressions or
 > `unsafe { ... }` statement blocks (883 library calls plus tests/build.lab);
@@ -883,12 +885,24 @@
 > flags such as `unsafe "no_lifetime_check"` are removed; `unsafe` only marks a
 > boundary and never disables lifetime checking. The temporary-lifetime check
 > now always runs.
+> S5.1/Zeroable: `core::Zeroable` is an `unsafe interface`. Safe
+> `zeroed<T>()`/`= zeroed` now require `T: Zeroable` (`SAFE-ZERO-001`).
+> Integers, floats, bool, raw pointers, arrays, all-Zeroable plain structs, and
+> enums with a zero member are derived structurally; constructor/destructor
+> types and other invariant types require an explicit audited
+> `unsafe impl Zeroable`. `MaybeUninit<T>` is unconditionally zeroable;
+> `ManuallyDrop<T>` requires `T: Zeroable`. `@allow_zeroed` is removed and its
+> in-tree uses migrated. `std::vector::resize` now has a `T: Zeroable` bound
+> instead of zeroing arbitrary `T`. The explicit `zeroed:unsafe<T>()` unchecked
+> form is still present for audited FFI/TLS storage and remains the next
+> cleanup item. Negative tests cover missing bounds, explicit impls, arrays,
+> nested enums, references, and the safe/unsafe boundary.
 > `catch_unwind`/`UnwindSafe` and the unwinding/drop-on-unwind profile remain
-> S5.6b. Safety suite `53`; negative tests `562`; main TCC `2354`, LLVM `2352`;
+> S5.6b. Safety suite `53`; negative tests `566`; main TCC `2354`, LLVM `2352`;
 > libs `719`; plugins `1305`; async `53`; interpret `1910`;
 > `MIRTests` `4638 checks`.
-> Next: remaining `static`/`static mut` syntax and synchronization wrappers,
-> M5.7b
+> Next: remove the remaining `zeroed:unsafe` call sites, then the
+> `static`/`static mut` syntax and synchronization wrappers, M5.7b
 > provenance/foreign-pointer hardening, S5.6b
 > (`catch_unwind`/unwinding + `UnwindSafe`/`RefUnwindSafe`/`AssertUnwindSafe`),
 > remaining M5 validity (packed references), M6 `Send`/`Sync` enforcement, M2

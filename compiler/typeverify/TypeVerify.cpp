@@ -32,6 +32,9 @@
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/ReferenceOfValue.h"
 #include "ast/values/UnsafeValue.h"
+#include "ast/values/ZeroedValue.h"
+#include "ast/structures/EnumDeclaration.h"
+#include "ast/structures/EnumMember.h"
 #include "ast/values/AwaitExpression.h"
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Assignment.h"
@@ -1179,6 +1182,175 @@ static bool generic_negative_impl_applies(TypeVerifier& verifier,
                                           GenericImplDecl* impl,
                                           BaseType* concrete);
 
+static bool enum_has_zero_member(EnumDeclaration* decl) {
+    if (decl == nullptr) return false;
+    for (auto& entry : decl->members) {
+        auto* member = entry.second;
+        if (member == nullptr) continue;
+        if (member->init_value != nullptr) {
+            auto number = member->init_value->get_number();
+            if (number.has_value() && number.value() == 0) return true;
+        } else if (member->get_index_dirty() == 0) {
+            return true;
+        }
+    }
+    if (auto* inherited = decl->get_inherited_enum_decl()) {
+        return enum_has_zero_member(inherited);
+    }
+    return false;
+}
+
+static bool is_zeroable_interface(InterfaceDefinition* iface) {
+    if (iface == nullptr) return false;
+    return iface->interface_bits.has(InterfaceBits::ZEROABLE_BIT) ||
+           iface->name_view() == chem::string_view("Zeroable");
+}
+
+static bool is_zeroable_trait(BaseType* trait_type) {
+    if (trait_type == nullptr) return false;
+    auto* node = trait_type->get_direct_linked_node();
+    if (node == nullptr || node->kind() != ASTNodeKind::InterfaceDecl) return false;
+    return is_zeroable_interface(node->as_interface_def_unsafe());
+}
+
+static bool generic_param_is_zeroable(GenericTypeParameter* param) {
+    if (param == nullptr) return false;
+    if (param->current_bits.has(InterfaceBits::ZEROABLE_BIT)) return true;
+    for (auto& trait : param->traits) {
+        if (is_zeroable_trait(const_cast<BaseType*>(trait.getType()))) return true;
+    }
+    return false;
+}
+
+static bool zeroable_type_satisfied(
+    TypeVerifier& verifier,
+    BaseType* type,
+    InterfaceDefinition* zeroable_iface,
+    std::unordered_set<MembersContainer*>& visiting
+);
+
+static bool zeroable_explicit_impl(
+    TypeVerifier& verifier,
+    MembersContainer* container,
+    InterfaceDefinition* zeroable_iface,
+    BaseType* concrete_type
+) {
+    if (container == nullptr || zeroable_iface == nullptr) return false;
+    if (verifier.index.get_impl(zeroable_iface, container) != nullptr) return true;
+    if (container->generic_parent == nullptr || concrete_type == nullptr ||
+        concrete_type->kind() != BaseTypeKind::Generic) {
+        return false;
+    }
+    for (auto* candidate : verifier.index.generic_impls_for(
+             (ASTNode*) container->generic_parent)) {
+        if (candidate == nullptr) continue;
+        auto* candidate_iface = const_cast<BaseType*>(
+            candidate->master_impl->interface_type.getType());
+        auto* candidate_node = candidate_iface
+            ? candidate_iface->get_direct_linked_node() : nullptr;
+        if (candidate_node == nullptr || candidate_node->kind() != ASTNodeKind::InterfaceDecl ||
+            !is_zeroable_interface(candidate_node->as_interface_def_unsafe())) {
+            continue;
+        }
+        if (generic_negative_impl_applies(verifier, candidate, concrete_type)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool zeroable_container_satisfied(
+    TypeVerifier& verifier,
+    MembersContainer* container,
+    InterfaceDefinition* zeroable_iface,
+    std::unordered_set<MembersContainer*>& visiting
+) {
+    if (container == nullptr) return false;
+    if (zeroable_iface != nullptr && verifier.index.get_impl(zeroable_iface, container) != nullptr) {
+        return true;
+    }
+    // Inventories with inherited storage or a user constructor/destructor need
+    // an explicit audit; an all-zero image of them is not automatically valid.
+    if (!container->inherited.empty()) return false;
+    if (container->get_first_user_defined_constructor() != nullptr) return false;
+    if (container->has_destructor()) return false;
+    if (!visiting.insert(container).second) return true;
+    for (BaseDefMember* member : container->variables()) {
+        if (member == nullptr) continue;
+        if (member->kind() == ASTNodeKind::StructMember) {
+            auto* field = member->as_struct_member_unsafe();
+            BaseType* field_type = const_cast<BaseType*>(field->type.getType());
+            std::unordered_set<MembersContainer*> nested = visiting;
+            if (!zeroable_type_satisfied(verifier, field_type, zeroable_iface, nested)) {
+                visiting.erase(container);
+                return false;
+            }
+        } else {
+            BaseType* member_type = member->known_type();
+            std::unordered_set<MembersContainer*> nested = visiting;
+            if (!zeroable_type_satisfied(verifier, member_type, zeroable_iface, nested)) {
+                visiting.erase(container);
+                return false;
+            }
+        }
+    }
+    visiting.erase(container);
+    return true;
+}
+
+static bool zeroable_type_satisfied(
+    TypeVerifier& verifier,
+    BaseType* type,
+    InterfaceDefinition* zeroable_iface,
+    std::unordered_set<MembersContainer*>& visiting
+) {
+    if (type == nullptr) return false;
+    auto* linked = type->get_direct_linked_node();
+    if (linked != nullptr && linked->kind() == ASTNodeKind::GenericTypeParam) {
+        return generic_param_is_zeroable(linked->as_generic_type_param_unsafe());
+    }
+    auto* canonical = type->canonical();
+    if (canonical == nullptr) return false;
+    // Integer-backed enums are structurally zeroable only when the member set
+    // contains zero; SymResLinkBody enforces that (SAFE-VALID-004), so the
+    // trait check can use the same structural marker.
+    if (auto* type_enum = type->get_direct_linked_enum()) {
+        return enum_has_zero_member(type_enum);
+    }
+    if (auto* canonical_enum = canonical->get_direct_linked_enum()) {
+        return enum_has_zero_member(canonical_enum);
+    }
+    switch (canonical->kind()) {
+        case BaseTypeKind::Bool:
+        case BaseTypeKind::IntN:
+        case BaseTypeKind::Double:
+        case BaseTypeKind::Float:
+        case BaseTypeKind::LongDouble:
+        case BaseTypeKind::Float128:
+        case BaseTypeKind::Complex:
+        case BaseTypeKind::Pointer:
+            return true;
+        case BaseTypeKind::Array: {
+            auto* elem = const_cast<BaseType*>(
+                canonical->as_array_type_unsafe()->elem_type.getType());
+            return zeroable_type_satisfied(verifier, elem, zeroable_iface, visiting);
+        }
+        case BaseTypeKind::Struct:
+        case BaseTypeKind::Linked:
+        case BaseTypeKind::Generic: {
+            auto* container = canonical->get_members_container();
+            if (zeroable_explicit_impl(verifier, container, zeroable_iface,
+                                       type->kind() == BaseTypeKind::Generic ? type : canonical)) {
+                return true;
+            }
+            return zeroable_container_satisfied(
+                verifier, container, zeroable_iface, visiting);
+        }
+        default:
+            return false;
+    }
+}
+
 static bool trait_constraint_satisfied(TypeVerifier& verifier, BaseType* concrete,
                                        BaseType* trait_type) {
     if (concrete == nullptr || trait_type == nullptr) return false;
@@ -1187,6 +1359,11 @@ static bool trait_constraint_satisfied(TypeVerifier& verifier, BaseType* concret
         return false;
     }
     auto* iface = trait_node->as_interface_def_unsafe();
+
+    if (is_zeroable_interface(iface)) {
+        std::unordered_set<MembersContainer*> visiting;
+        return zeroable_type_satisfied(verifier, concrete, iface, visiting);
+    }
 
     if (iface->interface_bits.has(InterfaceBits::COPY_BIT)) {
         if (concrete->kind() == BaseTypeKind::Array) {
@@ -1372,6 +1549,16 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
             if (!trait_node || trait_node->kind() != ASTNodeKind::InterfaceDecl) continue;
 
             auto interface_def = trait_node->as_interface_def_unsafe();
+
+            if (is_zeroable_interface(interface_def)) {
+                std::unordered_set<MembersContainer*> visiting;
+                if (!zeroable_type_satisfied(verifier, concrete_type, interface_def, visiting)) {
+                    diagnoser.error(call).with_code("SAFE-ZERO-001")
+                        << "type '" << concrete_type->representation()
+                        << "' is not Zeroable (zero-initialization is not valid for it)";
+                }
+                continue;
+            }
 
             // Copy is opt-in for user-defined types: a struct/union/variant
             // satisfies it only with an explicit `impl Copy`. Primitive types,
@@ -2719,4 +2906,22 @@ void TypeVerifier::VisitUnsafeBlock(UnsafeBlock* block) {
     is_unsafe = true;
     RecursiveVisitor<TypeVerifier>::VisitUnsafeBlock(block);
     is_unsafe = prev;
+}
+
+void TypeVerifier::VisitZeroedValue(ZeroedValue* value) {
+    RecursiveVisitor<TypeVerifier>::VisitZeroedValue(value);
+    // `zeroed:unsafe<T>()` is retained temporarily as the explicit unchecked
+    // escape for already-audited FFI/TLS storage; the safe form below must be
+    // backed by `T: Zeroable`.
+    if (value->is_unsafe) return;
+    auto* type = value->getType();
+    if (type == nullptr) return;
+    std::unordered_set<MembersContainer*> visiting;
+    if (!zeroable_type_satisfied(*this, type, coreNodes.zeroable_interface, visiting)) {
+        diagnoser.error(value).with_code("SAFE-ZERO-001")
+            << "type '" << type->representation()
+            << "' is not Zeroable; use a type whose all-zero value is valid, "
+               "add an audited `unsafe impl Zeroable`, or use the explicit "
+               "unchecked zero-initialization boundary";
+    }
 }

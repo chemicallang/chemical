@@ -10,7 +10,6 @@ public namespace std {
  * value out and leaves the wrapper zeroed, so the caller becomes responsible
  * for dropping it; calling `take` twice is undefined behavior.
  */
-@allow_zeroed
 @no_drop
 @direct_init
 public struct ManuallyDrop<T> {
@@ -42,6 +41,8 @@ public struct ManuallyDrop<T> {
         return out
     }
 }
+
+unsafe impl<T> Zeroable for ManuallyDrop<T> where T: Zeroable { }
 
 public func <T> manually_drop(value : T) : ManuallyDrop<T> {
     return ManuallyDrop<T> {

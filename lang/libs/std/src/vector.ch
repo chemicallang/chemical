@@ -48,7 +48,7 @@ public struct vector<T> {
         }
     }
 
-    func resize(&mut self, new_size : size_t) {
+    func resize(&mut self, new_size : size_t) where T: Zeroable {
         if(new_size == data_size) return;
         // shrinking
         if(new_size < data_size) {

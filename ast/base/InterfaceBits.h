@@ -21,6 +21,7 @@ public:
     static constexpr BitsType SEND_BIT = BitsType(1) << 3;
     static constexpr BitsType SYNC_BIT = BitsType(1) << 4;
     static constexpr BitsType UNPIN_BIT = BitsType(1) << 5;
+    static constexpr BitsType ZEROABLE_BIT = BitsType(1) << 6;
 
     constexpr InterfaceBits() : bits_(0) {}
     constexpr InterfaceBits(BitsType bits) : bits_(bits) {}

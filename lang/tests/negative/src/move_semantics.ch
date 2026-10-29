@@ -40,7 +40,7 @@ func neg_move_twice_has_code(env : &mut TestEnv) {
 func neg_zeroed_with_dtor(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct S {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nfunc main() {\n    var s = zeroed<S>()\n}\n"
-    expect_compile_error(env, "zeroed_with_dtor", ch, "@allow_zeroed")
+    expect_compile_error(env, "zeroed_with_dtor", ch, "SAFE-ZERO-001")
 }
 
 @test

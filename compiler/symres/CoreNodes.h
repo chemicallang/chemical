@@ -163,6 +163,11 @@ public:
     InterfaceDefinition* copy_interface = nullptr;
 
     /**
+     * the Zeroable marker from core — all-zero storage is a valid value.
+     */
+    InterfaceDefinition* zeroable_interface = nullptr;
+
+    /**
      * get information about operator being overloaded, like function name to use
      */
     FunctionDeclaration* expr_operator_impl_base(Operation op) const {

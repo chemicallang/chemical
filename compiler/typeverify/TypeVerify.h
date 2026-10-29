@@ -162,6 +162,7 @@ public:
     void VisitReferenceOfValue(ReferenceOfValue* value);
 
     void VisitUnsafeValue(UnsafeValue* value);
+    void VisitZeroedValue(ZeroedValue* value);
 
     void VisitAwaitExpression(AwaitExpression* value);
 

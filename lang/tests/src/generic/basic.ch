@@ -15,7 +15,7 @@ struct GenericFnField<T> {
 }
 
 @retained
-func <T> make_generic_fn_field() : GenericFnField<T> {
+func <T> make_generic_fn_field() : GenericFnField<T> where T: Zeroable {
     return GenericFnField<T> { produce : () => zeroed<T>() }
 }
 

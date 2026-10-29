@@ -38,6 +38,8 @@ Implemented:
   - `SAFE-GLOBAL-001` — access to a mutable top-level global or `@extern`
     global outside an `unsafe` boundary (thread-local/comptime globals exempt).
   - `SAFE-GLOBAL-002` — immutable global whose type is not `Sync`.
+  - `SAFE-ZERO-001` — safe zero-initialization of a type that does not implement
+    `Zeroable`.
 - Negative harness accepts both `error:` and `error[SAFE-` and has
   `expect_compile_warning_id`.
 - Safety suite at `lang/tests/safety/` (`--safety`), wired through
@@ -302,7 +304,7 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `53`, negative tests `562`.
+  `53`, negative tests `566`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -322,7 +324,7 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `53`, negative `562`; TCC main `2354`, LLVM
+  TCC/LLVM lib runs. Safety suite `53`, negative `566`; TCC main `2354`, LLVM
   main `2352`, libs `719`, plugins `1305`, async `53`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
@@ -355,7 +357,7 @@ Implemented:
   carry one explicit unsafe boundary around their raw context/job operations.
   Wrapping generic bodies exposed a missing `ValueNode::copy`, now implemented.
   In-tree stdlib/CBI/plugin/build.lab call sites were migrated; audit baseline
-  is `unsafe_blocks 573`, `unsafe_values 386`; negative `562`.
+  is `unsafe_blocks 573`, `unsafe_values 386`; negative `566`.
 - S2.2/S4.8 function pointers: `FunctionTypeData::requires_unsafe` is part of
   function type identity and is set for `unsafe func` and `@extern`. Calling a
   value of such a type in safe context is `SAFE-UNSAFE-002`; coercing it to a
@@ -377,6 +379,14 @@ Implemented:
   cannot forge the flag storage.
 - Named unsafe flags (`unsafe "no_lifetime_check"`) are rejected. `unsafe` is a
   boundary marker only; it does not disable lifetime checking.
+- S5.1 Zeroable: `core::Zeroable` is an `unsafe interface`; safe
+  `zeroed<T>()`/`= zeroed` require `T: Zeroable` and report `SAFE-ZERO-001`
+  otherwise. Builtins, raw pointers, arrays, plain all-Zeroable structs, and
+  zero-member enums are structural; constructor/destructor/invariant types
+  require an explicit audited `unsafe impl Zeroable`. `MaybeUninit<T>` is
+  unconditionally Zeroable, `ManuallyDrop<T>` requires `T: Zeroable`, and
+  `vector::resize` now carries a `T: Zeroable` bound. `@allow_zeroed` is
+  removed; `zeroed:unsafe` remains as the next migration target.
 - S4.1 (partial) Pin/Unpin: `core::Unpin` is a safe auto trait derived from
   fields (pointers/references are Unpin; negative impls are allowed), and
   `core::PhantomPinned` opts out via `impl !Unpin`. `core::Pin<T>` has a
@@ -393,7 +403,9 @@ Implemented:
   the concrete type contains a reference field (directly, in an array, or in a
   variant payload): zeroing would create a null reference. Specialized generic
   fields (`W<&int>`) are checked too; `PhantomData<&T>` is storage-free and
-  exempt. `zeroed:unsafe` remains the explicit unsafe escape. Negative tests
+  exempt. `zeroed<T>()` now requires `T: Zeroable`; `zeroed:unsafe` remains the
+  explicit unchecked escape for audited FFI/TLS storage pending migration.
+  Negative tests
   cover direct/generic reference rejection, a plain struct, and PhantomData.
 - S2.6 FFI enforced: `SAFE-FFI-001` is a hard error for a call to an
   `@extern` function from a safe context (the callee's contract is invisible

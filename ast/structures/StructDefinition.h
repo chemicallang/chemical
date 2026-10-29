@@ -219,7 +219,6 @@ public:
         );
         def->attrs = attrs;
         def->required_alignment = required_alignment;
-        def->allow_zeroed = allow_zeroed;
         def->no_drop = no_drop;
         ExtendableMembersContainerNode::shallow_copy_into(*def, allocator);
         return def;

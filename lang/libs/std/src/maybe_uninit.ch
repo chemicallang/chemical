@@ -12,7 +12,6 @@ public namespace std {
  * called repeatedly; it overwrites the raw bytes without dropping the old
  * value, exactly like Rust's `MaybeUninit::write`.
  */
-@allow_zeroed
 @no_drop
 @direct_init
 public struct MaybeUninit<T> {
@@ -56,8 +55,10 @@ public struct MaybeUninit<T> {
     }
 }
 
+unsafe impl<T> Zeroable for MaybeUninit<T> { }
+
 public func <T> maybe_uninit() : MaybeUninit<T> {
-    return zeroed:unsafe<MaybeUninit<T>>()
+    return zeroed<MaybeUninit<T>>()
 }
 
 }

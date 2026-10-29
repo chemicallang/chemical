@@ -3984,17 +3984,6 @@ void SymResLinkBody::VisitZeroedValue(ZeroedValue* value) {
             return;
         }
     }
-    const auto linked = can_type->get_direct_linked_node();
-    if(linked) {
-        const auto container = linked->get_master_members_container();
-        if (container) {
-            if(container->allow_zeroed) return;
-            bool has_ctor_or_dtor = container->get_first_user_defined_constructor() != nullptr || container->has_destructor();
-            if (has_ctor_or_dtor) {
-                diagnoser.error(value) << "type '" << type->representation() << "' has a constructor or destructor, " << "zero-initialization is not allowed unless marked with '@allow_zeroed' or use 'zeroed:unsafe'";
-            }
-        }
-    }
 }
 
 void SymResLinkBody::VisitDynamicValue(DynamicValue* value) {

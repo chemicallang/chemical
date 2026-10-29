@@ -27,7 +27,6 @@ struct ConstructibleZeroInitializable {
     }
 }
 
-@allow_zeroed
 struct ConstructibleZeroInitializable2 {
     var a : int
     var b : int
@@ -37,6 +36,7 @@ struct ConstructibleZeroInitializable2 {
         }
     }
 }
+unsafe impl Zeroable for ConstructibleZeroInitializable2 { }
 
 struct DestructibleZeroInitializable {
     var a : int
@@ -45,15 +45,15 @@ struct DestructibleZeroInitializable {
     func delete(&mut self) { }
 }
 
-@allow_zeroed
 struct DestructibleZeroInitializable2 {
     var a : int
     var b : int
     @delete
     func delete(&mut self) { }
 }
+unsafe impl Zeroable for DestructibleZeroInitializable2 { }
 
-func <T> gen_zeroed() : T {
+func <T> gen_zeroed() : T where T: Zeroable {
         unsafe {
         return zeroed<T>();
 
@@ -83,7 +83,7 @@ func test_zeroed_value() {
             var x = zeroed:unsafe<ConstructibleZeroInitializable>()
             return x.a == 0 && x.b == 0
         })
-        test("constructable structs work with allow_zeroed", () => {
+        test("constructable structs work with unsafe impl Zeroable", () => {
             var x = zeroed<ConstructibleZeroInitializable2>()
             return x.a == 0 && x.b == 0
         })
@@ -91,7 +91,7 @@ func test_zeroed_value() {
             var x = zeroed:unsafe<DestructibleZeroInitializable>()
             return x.a == 0 && x.b == 0
         })
-        test("destructible structs work with allow_zeroed", () => {
+        test("destructible structs work with unsafe impl Zeroable", () => {
             var x = zeroed<DestructibleZeroInitializable2>()
             return x.a == 0 && x.b == 0
         })

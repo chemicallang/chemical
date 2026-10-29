@@ -66,6 +66,11 @@ void SymbolResolver::link_core_nodes() {
             coreNodes.copy_interface = copyNode->as_interface_def_unsafe();
             coreNodes.copy_interface->interface_bits.set(InterfaceBits::COPY_BIT);
         }
+        const auto zeroableNode = find("Zeroable");
+        if(zeroableNode && zeroableNode->kind() == ASTNodeKind::InterfaceDecl) {
+            coreNodes.zeroable_interface = zeroableNode->as_interface_def_unsafe();
+            coreNodes.zeroable_interface->interface_bits.set(InterfaceBits::ZEROABLE_BIT);
+        }
         const auto sendNode = find("Send");
         if(sendNode && sendNode->kind() == ASTNodeKind::InterfaceDecl) {
             sendNode->as_interface_def_unsafe()->interface_bits.set(InterfaceBits::SEND_BIT);

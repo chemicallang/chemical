@@ -377,8 +377,9 @@ name of the constructor, that would cause your project to break at compilation.
 ##### Creating a zeroed struct
 
 ```chemical
-// this will set all values to zero
-// if the struct is destructible or has a constructor, this may not work, and compiler may force you to use annotations
+// this sets all values to zero; `StructName` must implement Zeroable.
+// Plain structs with all-Zeroable fields are accepted structurally.
+// Constructor/destructor/invariant types need an audited `unsafe impl Zeroable`.
 var s = zeroed<StructName>()
 ```
 

@@ -7,3 +7,7 @@ public interface Copy {}
 // derived structurally from fields (raw pointers are neither).
 public interface Send {}
 public interface Sync {}
+// Marker for types whose all-zero bit pattern is a valid value. Implemented
+// only with an explicit `unsafe impl Zeroable`; the compiler derives it
+// structurally for primitive/pointer/array/all-Zeroable struct types.
+public unsafe interface Zeroable {}

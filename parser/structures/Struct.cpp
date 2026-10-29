@@ -129,6 +129,10 @@ ASTNode* parseAccessSpecifiedMemberStmt(Parser& parser, ASTAllocator& allocator,
                 mark_parsed_function_unsafe(fn);
                 return fn;
             }
+            if((parser.token + 1)->type == TokenType::ImplKw) {
+                parser.token++;
+                return parser.parseImplTokens(allocator, body_allocator, specifier, true);
+            }
             return nullptr;
         case TokenType::FuncKw:
         case TokenType::AsyncKw:
@@ -177,6 +181,10 @@ ASTNode* parseMemberStmt(Parser& parser, ASTAllocator& allocator, ASTAllocator& 
                 );
                 mark_parsed_function_unsafe(fn);
                 return fn;
+            }
+            if((parser.token + 1)->type == TokenType::ImplKw) {
+                parser.token++;
+                return parser.parseImplTokens(allocator, body_allocator, specifier, true);
             }
             return nullptr;
         case TokenType::FuncKw:

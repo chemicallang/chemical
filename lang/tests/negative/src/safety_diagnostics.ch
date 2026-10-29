@@ -879,3 +879,17 @@ func neg_chunk_private_fields_rejected(env : &mut TestEnv) {
     var ch = "public func main() : int {\n    var c = core::iterable::Chunk<int> { ptr = null, len = 1 }\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "chunk_private_fields", ch, "SAFE-VIS-001", NEG_MOD_CORE)
 }
+
+@test
+func neg_linear_safe_impl_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct BadLinear {\n    var data : [3]int\n}\nimpl core::iterable::Linear<int> for BadLinear {\n    func data(&self) : *int { return null }\n    func size(&self) : u64 { return 3 }\n}\npublic func main() : int {\n    var b = BadLinear { data : [1, 2, 3] }\n    var total = 0\n    for(var x in b) { total += x }\n    return total\n}\n"
+    expect_compile_error_with_mod(env, "linear_safe_impl", ch, "SAFE-ITER-001", NEG_MOD_CORE)
+}
+
+@test
+func neg_global_allocator_debug_private(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var a = std::alloc::GlobalAllocator.make()\n    a._debug = null\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "allocator_debug_private", ch, "cannot access private member", NEG_MOD_STD_CORE)
+}

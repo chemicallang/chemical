@@ -32,7 +32,7 @@ struct span<T> {
         }
     }
 
-    impl core::iterable::Linear<T> for span<T> {
+    unsafe impl core::iterable::Linear<T> for span<T> {
         func data(&self) : *T {
             return _data;
         }

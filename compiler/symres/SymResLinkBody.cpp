@@ -1313,6 +1313,25 @@ void SymResLinkBody::VisitForInLoopStmt(ForInLoop* node) {
         }
         const auto iterDataFunc = getImplsIndex().get_linear_data_impl(getCoreNodes(), container);
         if (iterDataFunc) {
+            // Linear exposes a raw pointer to for-in lowering. A safe impl
+            // could return null/dangling storage and make a safe `for` loop
+            // dereference it, so the implementation itself is the unsafe
+            // boundary; only trusted `unsafe impl Linear` bodies may feed it.
+            const auto impl_parent = iterDataFunc->parent();
+            bool unsafe_linear_impl = false;
+            if (impl_parent != nullptr) {
+                if (impl_parent->kind() == ASTNodeKind::ImplDecl) {
+                    unsafe_linear_impl = impl_parent->as_impl_def_unsafe()->attrs.is_unsafe;
+                } else if (impl_parent->kind() == ASTNodeKind::GenericImplDecl) {
+                    unsafe_linear_impl = impl_parent->as_gen_impl_decl_unsafe()->master_impl->attrs.is_unsafe;
+                }
+            }
+            if (!unsafe_linear_impl) {
+                diagnoser.error(node->expr).with_code("SAFE-ITER-001")
+                    << "iteration over a Linear implementation requires an "
+                       "`unsafe impl` because `data()` returns a raw pointer";
+                return;
+            }
             const auto iterSizeFunc = getImplsIndex().get_linear_size_impl(getCoreNodes(), container);
             if (!iterSizeFunc) {
                 diagnoser.error("couldn't get 'core::iterable::Linear::size' implementation", node->expr);

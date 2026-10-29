@@ -141,7 +141,7 @@ func debug_tracker_print_leaks(tracker : *mut DebugTracker) {
 // GlobalAllocator — wraps malloc/free with optional debug tracking
 
 public struct GlobalAllocator {
-    var _debug : *mut void
+    private var _debug : *mut void
 
     @constructor
     func make() {

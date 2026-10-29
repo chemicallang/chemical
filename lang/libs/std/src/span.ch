@@ -37,7 +37,7 @@ public struct span<T> {
     }
 
     func data(&self) : *T {
-        return _data;
+        return self._data;
     }
 
     func get(&self, loc : size_t) : *T {
@@ -48,14 +48,14 @@ public struct span<T> {
     }
 
     func size(&self) : size_t {
-        return _size;
+        return self._size;
     }
 
     func empty(&self) : bool {
         return _size == 0;
     }
 
-    impl core::iterable::Linear<T> for span<T> {
+    unsafe impl core::iterable::Linear<T> for span<T> {
         func data(&self) : *T {
             return _data;
         }

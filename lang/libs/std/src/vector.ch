@@ -153,7 +153,7 @@ public struct vector<T> {
     }
 
     func size(&self) : size_t {
-        return data_size;
+        return self.data_size;
     }
 
     func capacity(&self) : size_t {
@@ -161,7 +161,7 @@ public struct vector<T> {
     }
 
     func data(&self) : *T {
-        return data_ptr;
+        return self.data_ptr;
     }
 
     func last_ptr(&self) : *mut T {
@@ -234,7 +234,7 @@ public struct vector<T> {
         }
     }
 
-    impl core::iterable::Linear<T> for vector<T> {
+    unsafe impl core::iterable::Linear<T> for vector<T> {
         func data(&self) : *T {
             return data_ptr;
         }

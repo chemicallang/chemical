@@ -282,7 +282,7 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `51`, negative tests `528`.
+  `51`, negative tests `530`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -297,7 +297,7 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `51`, negative `528`; TCC main `2354`, LLVM
+  TCC/LLVM lib runs. Safety suite `51`, negative `530`; TCC main `2354`, LLVM
   main `2352`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
@@ -592,6 +592,7 @@ Codes are stable and grouped by domain:
 | `SAFE-VALID-003` | integer literal is not a declared enum member |
 | `SAFE-VALID-004` | `zeroed<Enum>()` has no declared zero tag |
 | `SAFE-VALID-005` | runtime integer-to-enum cast in safe code |
+| `SAFE-ITER-001` | safe `Linear` impl would expose a raw for-in pointer |
 | `SAFE-VIS-001` | private/internal member initialized or accessed outside its type/module |
 | `SAFE-FFI-001` | extern call in a safe context (enforced) |
 | `SAFE-COPY-001` | user type used with a `Copy` bound but no explicit `impl Copy` |

@@ -342,6 +342,8 @@ public:
 
     inline void set_extern(bool value) {
         attrs.is_extern = value;
+        // A function pointer to an extern function is an unchecked FFI call.
+        data.requires_unsafe = value || attrs.is_unsafe;
     }
 
     inline bool is_std_call() {
@@ -438,6 +440,7 @@ public:
 
     inline void set_unsafe(bool value) {
         attrs.is_unsafe = value;
+        data.requires_unsafe = value || attrs.is_extern;
     }
 
     inline bool is_override() {

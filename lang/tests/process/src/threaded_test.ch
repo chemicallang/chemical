@@ -20,41 +20,47 @@ var g_thread_exec_ok : bool = false
 var g_thread_exec_code : int = -1
 
 public func process_execute_thread_entry(arg : *void) : *void {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("echo"))
-    cfg.args.push(string("threaded_execute_ok"))
-    var res = process::execute(cfg)
-    g_thread_exec_done = true
-    if(res is Result.Err) {
+        unsafe {
+        var cfg = process::ProcessConfig.default()
+        cfg.args.push(string("echo"))
+        cfg.args.push(string("threaded_execute_ok"))
+        var res = process::execute(cfg)
+        g_thread_exec_done = true
+        if(res is Result.Err) {
+            return null
+        }
+        var Ok(r) = res else unreachable
+        g_thread_exec_code = r.status.code
+        g_thread_exec_ok = r.success
         return null
+
+        }
     }
-    var Ok(r) = res else unreachable
-    g_thread_exec_code = r.status.code
-    g_thread_exec_ok = r.success
-    return null
-}
 
 @test
 public func test_process_execute_from_thread(env : &mut TestEnv) {
-    g_thread_exec_done = false
-    g_thread_exec_ok = false
-    g_thread_exec_code = -1
+        unsafe {
+        g_thread_exec_done = false
+        g_thread_exec_ok = false
+        g_thread_exec_code = -1
 
-    // Run process::execute on a worker thread (the exact scenario that
-    // previously deadlocked under WebKitGTK). If it deadlocks, t.join()
-    // would never return and the test would time out.
-    var t = unsafe(concurrent::spawn(process_execute_thread_entry, null))
-    t.join()
+        // Run process::execute on a worker thread (the exact scenario that
+        // previously deadlocked under WebKitGTK). If it deadlocks, t.join()
+        // would never return and the test would time out.
+        var t = unsafe(concurrent::spawn(process_execute_thread_entry, null))
+        t.join()
 
-    if(!g_thread_exec_done) {
-        env.error("threaded process::execute did not complete (possible deadlock)")
-        return
+        if(!g_thread_exec_done) {
+            env.error("threaded process::execute did not complete (possible deadlock)")
+            return
+        }
+        if(!g_thread_exec_ok || g_thread_exec_code != 0) {
+            env.error("threaded process::execute did not succeed")
+            return
+        }
+
+        }
     }
-    if(!g_thread_exec_ok || g_thread_exec_code != 0) {
-        env.error("threaded process::execute did not succeed")
-        return
-    }
-}
 
 // Also verify that the spawned (async) child API works from a thread, since
 // it shared the same fork()-based code path.
@@ -62,38 +68,44 @@ var g_thread_spawn_done : bool = false
 var g_thread_spawn_ok : bool = false
 
 public func process_spawn_thread_entry(arg : *void) : *void {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("echo"))
-    cfg.args.push(string("threaded_spawn_ok"))
-    var res = process::spawn(cfg)
-    g_thread_spawn_done = true
-    if(res is Result.Err) {
+        unsafe {
+        var cfg = process::ProcessConfig.default()
+        cfg.args.push(string("echo"))
+        cfg.args.push(string("threaded_spawn_ok"))
+        var res = process::spawn(cfg)
+        g_thread_spawn_done = true
+        if(res is Result.Err) {
+            return null
+        }
+        var Ok(child) = res else unreachable
+        var waited = process::wait(&raw mut child)
+        if(waited is Result.Err) {
+            return null
+        }
+        var Ok(r) = waited else unreachable
+        g_thread_spawn_ok = r.success && r.status.code == 0
         return null
+
+        }
     }
-    var Ok(child) = res else unreachable
-    var waited = process::wait(&raw mut child)
-    if(waited is Result.Err) {
-        return null
-    }
-    var Ok(r) = waited else unreachable
-    g_thread_spawn_ok = r.success && r.status.code == 0
-    return null
-}
 
 @test
 public func test_process_spawn_from_thread(env : &mut TestEnv) {
-    g_thread_spawn_done = false
-    g_thread_spawn_ok = false
+        unsafe {
+        g_thread_spawn_done = false
+        g_thread_spawn_ok = false
 
-    var t = unsafe(concurrent::spawn(process_spawn_thread_entry, null))
-    t.join()
+        var t = unsafe(concurrent::spawn(process_spawn_thread_entry, null))
+        t.join()
 
-    if(!g_thread_spawn_done) {
-        env.error("threaded process::spawn did not complete (possible deadlock)")
-        return
+        if(!g_thread_spawn_done) {
+            env.error("threaded process::spawn did not complete (possible deadlock)")
+            return
+        }
+        if(!g_thread_spawn_ok) {
+            env.error("threaded process::spawn did not succeed")
+            return
+        }
+
+        }
     }
-    if(!g_thread_spawn_ok) {
-        env.error("threaded process::spawn did not succeed")
-        return
-    }
-}

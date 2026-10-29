@@ -43,10 +43,13 @@ struct TrackedTemp {
 
     @delete
     func delete(&mut self) {
-        if(temp_arg_destruct_count < 8) {
-            temp_arg_destruct_values[temp_arg_destruct_count] = self.value
+        unsafe {
+            if(temp_arg_destruct_count < 8) {
+                temp_arg_destruct_values[temp_arg_destruct_count] = self.value
+            }
+            temp_arg_destruct_count = temp_arg_destruct_count + 1
+    
         }
-        temp_arg_destruct_count = temp_arg_destruct_count + 1
     }
 
     func equals(&self, other : &TrackedTemp) : bool {
@@ -63,24 +66,27 @@ func consume_tracked_temp(a : &TrackedTemp) : bool {
 }
 
 func test_temp_arg_destruct() {
+        unsafe {
 
-    test("temporary passed as a method argument is destructed, not a stray stack slot", () => {
-        temp_arg_destruct_count = 0
-        if(true) {
-            var a = TrackedTemp("aaaa")   // length 4 -> value 4
-            var r = consume_tracked_temp(&a)
-        }
-        // Expect exactly two destructions: the temporary (value 1) and `a`
-        // (value 4). With the bug the temporary's value is missing.
-        var found_temp = false
-        var found_a = false
-        var i = 0
-        while(i < temp_arg_destruct_count && i < 8) {
-            if(temp_arg_destruct_values[i] == 1) { found_temp = true }
-            if(temp_arg_destruct_values[i] == 4) { found_a = true }
-            i = i + 1
-        }
-        return temp_arg_destruct_count == 2 && found_temp && found_a
-    })
+        test("temporary passed as a method argument is destructed, not a stray stack slot", () => {
+            temp_arg_destruct_count = 0
+            if(true) {
+                var a = TrackedTemp("aaaa")   // length 4 -> value 4
+                var r = consume_tracked_temp(&a)
+            }
+            // Expect exactly two destructions: the temporary (value 1) and `a`
+            // (value 4). With the bug the temporary's value is missing.
+            var found_temp = false
+            var found_a = false
+            var i = 0
+            while(i < temp_arg_destruct_count && i < 8) {
+                if(temp_arg_destruct_values[i] == 1) { found_temp = true }
+                if(temp_arg_destruct_values[i] == 4) { found_a = true }
+                i = i + 1
+            }
+            return temp_arg_destruct_count == 2 && found_temp && found_a
+        })
 
-}
+
+        }
+    }

@@ -19,9 +19,12 @@ var interp_side_effect_count = 0
 var interp_delete_count = 0
 
 func interp_bump() : int {
-    interp_side_effect_count = interp_side_effect_count + 1
-    return 100
-}
+        unsafe {
+        interp_side_effect_count = interp_side_effect_count + 1
+        return 100
+
+        }
+    }
 
 func interp_ret_bump() : int {
     return interp_bump()
@@ -34,9 +37,12 @@ func interp_id(v : int) : int {
 var interp_index_side_effect_count = 0
 
 func interp_bump_index() : int {
-    interp_index_side_effect_count = interp_index_side_effect_count + 1
-    return 0
-}
+        unsafe {
+        interp_index_side_effect_count = interp_index_side_effect_count + 1
+        return 0
+
+        }
+    }
 
 struct InterpBox {
     var value : int
@@ -48,7 +54,10 @@ struct InterpBox {
 
     @delete
     func delete(&mut self) {
-        interp_delete_count = interp_delete_count + 1
+        unsafe {
+            interp_delete_count = interp_delete_count + 1
+    
+        }
     }
 }
 
@@ -65,114 +74,150 @@ variant InterpVariant {
 // --- single evaluation of the switch subject -----------------------------------
 
 func interp_test_switch_subject_evaluated_once() {
-    test("interpreter: switch subject is evaluated exactly once", () => {
-        interp_side_effect_count = 0
-        switch(interp_bump()) {
-            100 => {}
-            default => {}
+        unsafe {
+        test("interpreter: switch subject is evaluated exactly once", () => {
+            interp_side_effect_count = 0
+            switch(interp_bump()) {
+                100 => {}
+                default => {}
+            }
+            return interp_side_effect_count == 1
+        })
+
         }
-        return interp_side_effect_count == 1
-    })
-}
+    }
 
 // --- single evaluation of assignment right-hand sides --------------------------
 
 func interp_test_assign_rhs_evaluated_once() {
-    test("interpreter: assignment RHS is evaluated exactly once", () => {
-        interp_side_effect_count = 0
-        var x = 0
-        x = interp_bump()
-        return interp_side_effect_count == 1 && x == 100
-    })
-}
+        unsafe {
+        test("interpreter: assignment RHS is evaluated exactly once", () => {
+            interp_side_effect_count = 0
+            var x = 0
+            x = interp_bump()
+            return interp_side_effect_count == 1 && x == 100
+        })
+
+        }
+    }
 
 func interp_test_compound_assign_rhs_evaluated_once() {
-    test("interpreter: compound assignment RHS is evaluated exactly once", () => {
-        interp_side_effect_count = 0
-        var x = 0
-        x += interp_bump()
-        return interp_side_effect_count == 1 && x == 100
-    })
-}
+        unsafe {
+        test("interpreter: compound assignment RHS is evaluated exactly once", () => {
+            interp_side_effect_count = 0
+            var x = 0
+            x += interp_bump()
+            return interp_side_effect_count == 1 && x == 100
+        })
+
+        }
+    }
 
 func interp_test_chain_assign_rhs_evaluated_once() {
-    test("interpreter: access chain assignment RHS is evaluated exactly once", () => {
-        interp_side_effect_count = 0
-        var p = InterpPair { a : 0, b : 0 }
-        p.a = interp_bump()
-        return interp_side_effect_count == 1 && p.a == 100
-    })
-}
+        unsafe {
+        test("interpreter: access chain assignment RHS is evaluated exactly once", () => {
+            interp_side_effect_count = 0
+            var p = InterpPair { a : 0, b : 0 }
+            p.a = interp_bump()
+            return interp_side_effect_count == 1 && p.a == 100
+        })
+
+        }
+    }
 
 func interp_test_index_assign_rhs_evaluated_once() {
-    test("interpreter: index assignment RHS is evaluated exactly once", () => {
-        interp_side_effect_count = 0
-        var a = [0, 0]
-        a[0] = interp_bump()
-        return interp_side_effect_count == 1 && a[0] == 100
-    })
-}
+        unsafe {
+        test("interpreter: index assignment RHS is evaluated exactly once", () => {
+            interp_side_effect_count = 0
+            var a = [0, 0]
+            a[0] = interp_bump()
+            return interp_side_effect_count == 1 && a[0] == 100
+        })
+
+        }
+    }
 
 // --- single evaluation of other sub-expressions --------------------------------
 
 func interp_test_if_condition_evaluated_once() {
-    test("interpreter: if condition is evaluated exactly once", () => {
-        interp_side_effect_count = 0
-        if(interp_bump() == 100) {
-            var y = 1
-        } else {
-            var y = 2
+        unsafe {
+        test("interpreter: if condition is evaluated exactly once", () => {
+            interp_side_effect_count = 0
+            if(interp_bump() == 100) {
+                var y = 1
+            } else {
+                var y = 2
+            }
+            return interp_side_effect_count == 1
+        })
+
         }
-        return interp_side_effect_count == 1
-    })
-}
+    }
 
 func interp_test_var_init_evaluated_once() {
-    test("interpreter: var initializer is evaluated exactly once", () => {
-        interp_side_effect_count = 0
-        var r = interp_bump()
-        return interp_side_effect_count == 1 && r == 100
-    })
-}
+        unsafe {
+        test("interpreter: var initializer is evaluated exactly once", () => {
+            interp_side_effect_count = 0
+            var r = interp_bump()
+            return interp_side_effect_count == 1 && r == 100
+        })
+
+        }
+    }
 
 func interp_test_return_expr_evaluated_once() {
-    test("interpreter: return expression is evaluated exactly once", () => {
-        interp_side_effect_count = 0
-        var r = interp_ret_bump()
-        return interp_side_effect_count == 1 && r == 100
-    })
-}
+        unsafe {
+        test("interpreter: return expression is evaluated exactly once", () => {
+            interp_side_effect_count = 0
+            var r = interp_ret_bump()
+            return interp_side_effect_count == 1 && r == 100
+        })
+
+        }
+    }
 
 func interp_test_function_arg_evaluated_once() {
-    test("interpreter: function argument is evaluated exactly once", () => {
-        interp_side_effect_count = 0
-        var r = interp_id(interp_bump())
-        return interp_side_effect_count == 1 && r == 100
-    })
-}
+        unsafe {
+        test("interpreter: function argument is evaluated exactly once", () => {
+            interp_side_effect_count = 0
+            var r = interp_id(interp_bump())
+            return interp_side_effect_count == 1 && r == 100
+        })
+
+        }
+    }
 
 func interp_test_index_expr_evaluated_once() {
-    test("interpreter: index expression is evaluated exactly once", () => {
-        interp_index_side_effect_count = 0
-        var a = [5, 6]
-        var r = a[interp_bump_index()]
-        return interp_index_side_effect_count == 1 && r == 5
-    })
-}
+        unsafe {
+        test("interpreter: index expression is evaluated exactly once", () => {
+            interp_index_side_effect_count = 0
+            var a = [5, 6]
+            var r = a[interp_bump_index()]
+            return interp_index_side_effect_count == 1 && r == 5
+        })
+
+        }
+    }
 
 func interp_bool_side_effect() : bool {
-    interp_side_effect_count = interp_side_effect_count + 1
-    return true
-}
+        unsafe {
+        interp_side_effect_count = interp_side_effect_count + 1
+        return true
+
+        }
+    }
 
 func interp_test_logical_short_circuit() {
-    test("interpreter: && and || short circuit side effects", () => {
-        interp_side_effect_count = 0
-        var a = false && interp_bool_side_effect()
-        var b = true || interp_bool_side_effect()
-        return interp_side_effect_count == 0 && a == false && b == true
-    })
-}
+        unsafe {
+        test("interpreter: && and || short circuit side effects", () => {
+            interp_side_effect_count = 0
+            var a = false && interp_bool_side_effect()
+            var b = true || interp_bool_side_effect()
+            return interp_side_effect_count == 0 && a == false && b == true
+        })
+
+        }
+    }
 
 // --- zeroed arrays --------------------------------------------------------------
 
@@ -232,12 +277,15 @@ func interp_test_nested_loop_break_value() {
 }
 
 func interp_test_global_mutation() {
-    test("interpreter: module-level variable mutation works", () => {
-        interp_side_effect_count = 0
-        interp_side_effect_count = interp_side_effect_count + 5
-        return interp_side_effect_count == 5
-    })
-}
+        unsafe {
+        test("interpreter: module-level variable mutation works", () => {
+            interp_side_effect_count = 0
+            interp_side_effect_count = interp_side_effect_count + 5
+            return interp_side_effect_count == 5
+        })
+
+        }
+    }
 
 func interp_test_variant_payload_access() {
     test("interpreter: variant payload is accessible in switch", () => {
@@ -435,13 +483,16 @@ func interp_nested_struct_read() : int {
 }
 
 func interp_move_then_delete_once() : int {
-    interp_delete_count = 0
-    if(true) {
-        var a = InterpBox.make(1)
-        var b = a
+        unsafe {
+        interp_delete_count = 0
+        if(true) {
+            var a = InterpBox.make(1)
+            var b = a
+        }
+        return interp_delete_count
+
+        }
     }
-    return interp_delete_count
-}
 
 func interp_array_of_destructible() : int {
     var a = [InterpBox.make(1), InterpBox.make(2)]
@@ -449,12 +500,15 @@ func interp_array_of_destructible() : int {
 }
 
 func interp_loop_local_destructor() : int {
-    interp_delete_count = 0
-    for(var i = 0; i < 3; i++) {
-        var b = InterpBox.make(i)
+        unsafe {
+        interp_delete_count = 0
+        for(var i = 0; i < 3; i++) {
+            var b = InterpBox.make(i)
+        }
+        return interp_delete_count
+
+        }
     }
-    return interp_delete_count
-}
 
 func test_interp_struct_semantics() {
     test("interpreter: plain struct passed by value copies", () => {

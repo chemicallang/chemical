@@ -3,30 +3,42 @@
 var s64 : u64 = 0
 
 func reset_u64(v: u64) : *mut u64 {
-    s64 = v
-    return &raw mut s64
-}
+        unsafe {
+        s64 = v
+        return &raw mut s64
+
+        }
+    }
 
 var s32 : u32 = 0
 
 func reset_u32(v: u32) : *mut u32 {
-    s32 = v
-    return &raw mut s32
-}
+        unsafe {
+        s32 = v
+        return &raw mut s32
+
+        }
+    }
 
 var s16 : u16 = 0
 
 func reset_u16(v: u16) : *mut u16 {
-    s16 = v
-    return &raw mut s16
-}
+        unsafe {
+        s16 = v
+        return &raw mut s16
+
+        }
+    }
 
 var s8 : u8 = 0
 
 func reset_u8(v: u8) : *mut u8 {
-    s8 = v
-    return &raw mut s8
-}
+        unsafe {
+        s8 = v
+        return &raw mut s8
+
+        }
+    }
 
 // =================== fence tests ===================
 
@@ -582,7 +594,7 @@ func flag_set_worker(arg : *void) : *void {
 
 @test
 func concurrent_atomic_flag(env : &mut TestEnv) {
-    var flag = atomic_flag{_value: 0}
+    var flag = atomic_flag.make(0)
     var count : u64 = 10000
     var args = FlagArgs{ptr: &raw mut flag, count: count}
     var t1 = unsafe(std::concurrent::spawn(flag_set_worker, &raw mut args as *void))
@@ -952,7 +964,7 @@ func u64_fetch_add_negative(env : &mut TestEnv) {
 
 @test
 func atomic_flag_already_set(env : &mut TestEnv) {
-    var flag = atomic_flag{_value: 1}
+    var flag = atomic_flag.make(1)
     // test_and_set on already-set flag should return true (was already set)
     var was_set = atomic_flag_test_and_set(&raw mut flag)
     if(!was_set) { env.error("atomic_flag_already_set: expected true"); return }
@@ -964,7 +976,7 @@ func atomic_flag_already_set(env : &mut TestEnv) {
 
 @test
 func atomic_flag_clear_and_retest(env : &mut TestEnv) {
-    var flag = atomic_flag{_value: 0}
+    var flag = atomic_flag.make(0)
     var was_set = atomic_flag_test_and_set(&raw mut flag)
     if(was_set) { env.error("atomic_flag_clear_and_retest: first set should be false"); return }
     atomic_flag_clear(&raw mut flag)

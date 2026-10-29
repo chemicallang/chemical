@@ -36,75 +36,78 @@ namespace wrapped_variable {
 }
 
 func test_var_init() {
-    test("global comptime constants work", () => {
-        return glob_ct_const == 400;
-    })
-    test("global constants work", () => {
-        return glob_const == 800;
-    })
-    // Variant-specific tests (crash interpreter — native-only)
-    test("variant inherited in top level variable initialized to default value", () => {
-        return variant_inheriter_variable.a == 10
-    })
-    test("variant in top level variables work - 1", () => {
-        switch(variant_inheriter_variable) {
-            None => { return true; }
-            default => { return false; }
+        unsafe {
+        test("global comptime constants work", () => {
+            return glob_ct_const == 400;
+        })
+        test("global constants work", () => {
+            return glob_const == 800;
+        })
+        // Variant-specific tests (crash interpreter — native-only)
+        test("variant inherited in top level variable initialized to default value", () => {
+            return variant_inheriter_variable.a == 10
+        })
+        test("variant in top level variables work - 1", () => {
+            switch(variant_inheriter_variable) {
+                None => { return true; }
+                default => { return false; }
+            }
+        })
+        test("variant in top level variables work - 2", () => {
+            switch(variant_inheriter_variable2) {
+                None => { return false; }
+                Some(x) => { return x == 837 }
+                default => { return false; }
+            }
+        })
+        // Tests that crash interpreter (namespace access, auto-zero, typed vars, etc.)
+        test("wrapped variable in namespace works", () => {
+            var x = wrapped_variable::thing;
+            return x == 3456
+        })
+        test("non extern global variables are initialized to zero by default when no initializer", () => {
+            return auto_zero_variable.a == 0 && auto_zero_variable.b == 0
+        })
+        test("structs inherited in top level variables initialized to default values if no value given", ()=> {
+            return struct_inheriter_variable.a == 10;
+        })
+        test("structs inherited in top level variables initialized to given value", ()=> {
+            return struct_inheriter_variable2.a == 323;
+        })
+        test("structs in top level variables work - 1", ()=> {
+            return struct_inheriter_variable.b == 33
+        })
+        test("structs in top level variables work - 2", ()=> {
+            return struct_inheriter_variable2.b == 36
+        })
+        test("can initialize normal variables", () => {
+            var x = 5;
+            return x == 5;
+        })
+        test("can modify variables", () => {
+            var x = 5;
+            x = 6;
+            return x == 6;
+        });
+        test("can assign to a non initialized variable", () => {
+            var x : int
+            x = 6;
+            return x == 6;
+        })
+        test("can initialize a typed variable", () => {
+            var x : int = 5;
+            return x == 5;
+        })
+        test("local constants work as well", () => {
+            const something = 1200 + 400
+            return something == 1600
+        })
+        test("global variable structs can be passed as default values to functions above them", () => {
+            return take_global_variable_as_default_value() == 256;
+        })
+
         }
-    })
-    test("variant in top level variables work - 2", () => {
-        switch(variant_inheriter_variable2) {
-            None => { return false; }
-            Some(x) => { return x == 837 }
-            default => { return false; }
-        }
-    })
-    // Tests that crash interpreter (namespace access, auto-zero, typed vars, etc.)
-    test("wrapped variable in namespace works", () => {
-        var x = wrapped_variable::thing;
-        return x == 3456
-    })
-    test("non extern global variables are initialized to zero by default when no initializer", () => {
-        return auto_zero_variable.a == 0 && auto_zero_variable.b == 0
-    })
-    test("structs inherited in top level variables initialized to default values if no value given", ()=> {
-        return struct_inheriter_variable.a == 10;
-    })
-    test("structs inherited in top level variables initialized to given value", ()=> {
-        return struct_inheriter_variable2.a == 323;
-    })
-    test("structs in top level variables work - 1", ()=> {
-        return struct_inheriter_variable.b == 33
-    })
-    test("structs in top level variables work - 2", ()=> {
-        return struct_inheriter_variable2.b == 36
-    })
-    test("can initialize normal variables", () => {
-        var x = 5;
-        return x == 5;
-    })
-    test("can modify variables", () => {
-        var x = 5;
-        x = 6;
-        return x == 6;
-    });
-    test("can assign to a non initialized variable", () => {
-        var x : int
-        x = 6;
-        return x == 6;
-    })
-    test("can initialize a typed variable", () => {
-        var x : int = 5;
-        return x == 5;
-    })
-    test("local constants work as well", () => {
-        const something = 1200 + 400
-        return something == 1600
-    })
-    test("global variable structs can be passed as default values to functions above them", () => {
-        return take_global_variable_as_default_value() == 256;
-    })
-}
+    }
 
 
 struct GlobalVariablePassedAsDefaultValue {

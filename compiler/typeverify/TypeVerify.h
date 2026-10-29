@@ -52,7 +52,6 @@ public:
     /**
      * is lifetime check enabled
      */
-    bool is_no_lifetime_check = false;
 
     /**
      * Lifetime parameters in scope while checking a declaration. `'static` and

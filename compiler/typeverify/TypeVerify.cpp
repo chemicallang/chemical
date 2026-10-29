@@ -44,6 +44,8 @@
 #include "ast/structures/UnsafeBlock.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/base/BaseType.h"
+#include "ast/types/FunctionType.h"
+#include "ast/types/CapturingFunctionType.h"
 
 // -------- Definite Assignment helpers --------
 
@@ -323,9 +325,33 @@ void TypeVerifier::VisitInterfaceDecl(InterfaceDefinition* interface) {
     }
 }
 
+static FunctionType* get_function_type_for_safety(BaseType* type) {
+    if (type == nullptr) return nullptr;
+    auto* canonical = type->canonical();
+    if (canonical == nullptr) return nullptr;
+    switch (canonical->kind()) {
+        case BaseTypeKind::Function:
+            return canonical->as_function_type();
+        case BaseTypeKind::CapturingFunction:
+            return canonical->as_capturing_func_type_unsafe()->get_func_type();
+        default:
+            return nullptr;
+    }
+}
+
 void unsatisfied_type_err(ASTDiagnoser& diagnoser, Value* value, BaseType* type) {
     const auto val_type = value->getType();
     if(val_type) {
+        auto* value_fn = get_function_type_for_safety(val_type);
+        auto* expected_fn = get_function_type_for_safety(type);
+        if (value_fn != nullptr && expected_fn != nullptr &&
+            value_fn->requiresUnsafe() && !expected_fn->requiresUnsafe()) {
+            diagnoser.error(value).with_code("SAFE-UNSAFE-002")
+                << "cannot coerce an unsafe function pointer to a safe function type; "
+                   "declare the target with an `unsafe (...)` function type or wrap "
+                   "the operation in an unsafe boundary";
+            return;
+        }
         diagnoser.error(value) << "value with type '" << val_type->representation() << "' does not satisfy type '" << type->representation() << "'";
     } else {
         diagnoser.error(value) << "value does not satisfy type '" << type->representation() << "'";
@@ -695,6 +721,18 @@ void verify_call_mutability(TypeVerifier& verifier, FunctionCall* call) {
         func_decl = linked->as_function_unsafe();
     } else if (linked_kind == ASTNodeKind::GenericFuncDecl) {
         func_decl = linked->as_gen_func_decl_unsafe()->master_impl;
+    }
+    if (func_decl == nullptr) {
+        // A function pointer carries its call-safety in its type. This covers
+        // variables/fields/captured values typed as `unsafe func` or `@extern`
+        // (the type checker cannot see a concrete FunctionDeclaration in that
+        // case). A safe function-pointer type cannot be used to launder an
+        // unsafe/extern callee.
+        FunctionType* fn_type = call->function_type();
+        if (fn_type != nullptr && fn_type->requiresUnsafe() && !verifier.is_unsafe) {
+            diagnoser.error(call).with_code("SAFE-UNSAFE-002")
+                << "calling an unsafe function pointer requires an unsafe block";
+        }
     }
     if(func_decl) {
         if (func_decl->is_extern()) {
@@ -1617,7 +1655,7 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
 
     // check its not a function on a temporary destructible struct
     // lifetime check
-    if (!is_no_lifetime_check && call->parent_val->kind() == ValueKind::AccessChain) {
+    if (call->parent_val->kind() == ValueKind::AccessChain) {
         const auto chain = call->parent_val->as_access_chain_unsafe();
         const auto total = chain->values.size();
         if (total > 1) {
@@ -1888,6 +1926,19 @@ void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
         // check var init is non-destructible type
         if(stmt->is_never_destructed() == false && stmt->known_type()->get_destructor() != nullptr) {
             diagnoser.error(stmt) << "top level variables or constants must be non-destructible, or must use @never_destructed annotation";
+        }
+        // An immutable global can be read from any thread, so its type must be
+        // Sync. Mutable globals are separately gated at each access.
+        if (stmt->is_const() && !stmt->is_comptime() && !stmt->is_extern() &&
+            !stmt->is_thread_local()) {
+            std::unordered_set<MembersContainer*> visiting;
+            if (!type_satisfies_auto_trait(stmt->known_type(), AutoTraitKind::Sync,
+                                           visiting, &index)) {
+                diagnoser.error(stmt).with_code("SAFE-GLOBAL-002")
+                    << "immutable global '" << stmt->name_view()
+                    << "' has a non-Sync type; use a thread-local global, a "
+                       "synchronized wrapper, or an explicit unsafe boundary";
+            }
         }
     }
 }
@@ -2663,33 +2714,9 @@ void TypeVerifier::VisitGenericImplDecl(GenericImplDecl* node) {
     is_generic_public_context = prev_gen_public;
 }
 
-bool* get_flag(TypeVerifier& verifier, const chem::string_view& name) {
-    constexpr auto hasher = std::hash<chem::string_view>();
-    switch (hasher(name)) {
-        case hasher("no_lifetime_check"):
-            return &verifier.is_no_lifetime_check;
-        default:
-            return nullptr;
-    }
-}
-
 void TypeVerifier::VisitUnsafeBlock(UnsafeBlock* block) {
-    // handle flag toggling
-    if(!block->flag_name.empty()) {
-        const auto flag = get_flag(*this, block->flag_name);
-        if (flag == nullptr) {
-            diagnoser.warn(block) << "couldn't find flag";
-            RecursiveVisitor<TypeVerifier>::VisitUnsafeBlock(block);
-            return;
-        }
-        const auto prev = *flag;
-        *flag = true;
-        RecursiveVisitor<TypeVerifier>::VisitUnsafeBlock(block);
-        *flag = prev;
-    } else {
-        const auto prev = is_unsafe;
-        is_unsafe = true;
-        RecursiveVisitor<TypeVerifier>::VisitUnsafeBlock(block);
-        is_unsafe = prev;
-    }
+    const auto prev = is_unsafe;
+    is_unsafe = true;
+    RecursiveVisitor<TypeVerifier>::VisitUnsafeBlock(block);
+    is_unsafe = prev;
 }

@@ -17,32 +17,38 @@ var tests_passed = 0;
 var tests_failed = 0;
 
 public func test(name : *char, assert : () => bool) {
-    if(assert()) {
-        tests_passed++;
-        comptime if(intrinsics::is_comptime()) {
-            intrinsics::expr_println(`${ANSI_COLOR_GREEN}Test ${total_tests + 1} [${name}] succeeded${ANSI_COLOR_RESET}`);
+        unsafe {
+        if(assert()) {
+            tests_passed++;
+            comptime if(intrinsics::is_comptime()) {
+                intrinsics::expr_println(`${ANSI_COLOR_GREEN}Test ${total_tests + 1} [${name}] succeeded${ANSI_COLOR_RESET}`);
+            } else {
+                unsafe { printf("%sTest %d [%s] succeeded %s\n", ANSI_COLOR_GREEN, total_tests + 1, name, ANSI_COLOR_RESET) };
+            }
         } else {
-            unsafe { printf("%sTest %d [%s] succeeded %s\n", ANSI_COLOR_GREEN, total_tests + 1, name, ANSI_COLOR_RESET) };
+            tests_failed++;
+            comptime if(intrinsics::is_comptime()) {
+                intrinsics::expr_println(`${ANSI_COLOR_RED}Test ${total_tests + 1} [${name}] failed${ANSI_COLOR_RESET}`);
+            } else {
+                unsafe { printf("%sTest %d [%s] failed %s\n", ANSI_COLOR_RED, total_tests + 1, name, ANSI_COLOR_RESET) };
+            }
         }
-    } else {
-        tests_failed++;
-        comptime if(intrinsics::is_comptime()) {
-            intrinsics::expr_println(`${ANSI_COLOR_RED}Test ${total_tests + 1} [${name}] failed${ANSI_COLOR_RESET}`);
-        } else {
-            unsafe { printf("%sTest %d [%s] failed %s\n", ANSI_COLOR_RED, total_tests + 1, name, ANSI_COLOR_RESET) };
+        total_tests++;
+
         }
     }
-    total_tests++;
-}
 
 public func print_test_stats() {
-    var failed_color = if(tests_failed == 0) ANSI_COLOR_GREEN else ANSI_COLOR_RED
-    comptime if(intrinsics::is_comptime()) {
-        intrinsics::expr_println(`Total ${total_tests} ${ANSI_COLOR_GREEN}Passed ${tests_passed}${ANSI_COLOR_RESET} ${failed_color}Failed ${tests_failed}${ANSI_COLOR_RESET}`);
-    } else {
-        unsafe { printf("Total %d %sPassed %d%s %sFailed %d%s", total_tests, ANSI_COLOR_GREEN, tests_passed, ANSI_COLOR_RESET, failed_color, tests_failed, ANSI_COLOR_RESET) };
+        unsafe {
+        var failed_color = if(tests_failed == 0) ANSI_COLOR_GREEN else ANSI_COLOR_RED
+        comptime if(intrinsics::is_comptime()) {
+            intrinsics::expr_println(`Total ${total_tests} ${ANSI_COLOR_GREEN}Passed ${tests_passed}${ANSI_COLOR_RESET} ${failed_color}Failed ${tests_failed}${ANSI_COLOR_RESET}`);
+        } else {
+            unsafe { printf("Total %d %sPassed %d%s %sFailed %d%s", total_tests, ANSI_COLOR_GREEN, tests_passed, ANSI_COLOR_RESET, failed_color, tests_failed, ANSI_COLOR_RESET) };
+        }
+
+        }
     }
-}
 
 
 public func assertEquals(actual : int, expected : int) : bool {

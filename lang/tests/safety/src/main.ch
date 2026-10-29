@@ -12,36 +12,39 @@ internal var safety_work_dir_buf : [512]char
 internal var SAFETY_WORK_DIR : *char = null
 
 internal func safety_init_work_dir() {
-    var r = fs::temp_dir(unsafe(&raw mut safety_work_dir_buf[0]), 512 as size_t)
-    var i : size_t = 0
-    if(r is Result.Ok) {
-        var Ok(len) = r else unreachable
-        i = len
-    } else {
-        var fallback = "chemical_safety_tests\0"
-        while(fallback[i] != 0 && i < 511) {
-            safety_work_dir_buf[i] = fallback[i]
+        unsafe {
+        var r = fs::temp_dir(unsafe(&raw mut safety_work_dir_buf[0]), 512 as size_t)
+        var i : size_t = 0
+        if(r is Result.Ok) {
+            var Ok(len) = r else unreachable
+            i = len
+        } else {
+            var fallback = "chemical_safety_tests\0"
+            while(fallback[i] != 0 && i < 511) {
+                safety_work_dir_buf[i] = fallback[i]
+                i++
+            }
+            safety_work_dir_buf[i] = 0
+            SAFETY_WORK_DIR = unsafe(&raw mut safety_work_dir_buf[0])
+            unsafe { mkdir(SAFETY_WORK_DIR, 0o777 as uint) }
+            return
+        }
+        if(i > 0 && (safety_work_dir_buf[i - 1] == '/' || safety_work_dir_buf[i - 1] == '\\')) {
+            i--
+        }
+        var suffix = "/chemical_safety_tests\0"
+        var k = 0
+        while(suffix[k] != 0 && i < 511) {
+            safety_work_dir_buf[i] = suffix[k]
             i++
+            k++
         }
         safety_work_dir_buf[i] = 0
         SAFETY_WORK_DIR = unsafe(&raw mut safety_work_dir_buf[0])
         unsafe { mkdir(SAFETY_WORK_DIR, 0o777 as uint) }
-        return
+
+        }
     }
-    if(i > 0 && (safety_work_dir_buf[i - 1] == '/' || safety_work_dir_buf[i - 1] == '\\')) {
-        i--
-    }
-    var suffix = "/chemical_safety_tests\0"
-    var k = 0
-    while(suffix[k] != 0 && i < 511) {
-        safety_work_dir_buf[i] = suffix[k]
-        i++
-        k++
-    }
-    safety_work_dir_buf[i] = 0
-    SAFETY_WORK_DIR = unsafe(&raw mut safety_work_dir_buf[0])
-    unsafe { mkdir(SAFETY_WORK_DIR, 0o777 as uint) }
-}
 
 internal func safety_write_file(path : *char, content : *char) {
     var f = unsafe(fopen(path, "w"))

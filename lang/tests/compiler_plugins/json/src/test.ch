@@ -327,9 +327,12 @@ struct JMDPoint {
 
     @delete
     func delete(&mut self) {
-        // explicit destructor over trivial members - the whole struct moves
-        // into/out of the Result payloads without any member copies
-        jmd_point_dtors++
+        unsafe {
+            // explicit destructor over trivial members - the whole struct moves
+            // into/out of the Result payloads without any member copies
+            jmd_point_dtors++
+    
+        }
     }
 }
 
@@ -341,8 +344,11 @@ struct JMDChild {
 
     @delete
     func delete(&mut self) {
-        // destructor body runs; owning members (tag) are destroyed by codegen
-        jmd_child_dtors++
+        unsafe {
+            // destructor body runs; owning members (tag) are destroyed by codegen
+            jmd_child_dtors++
+    
+        }
     }
 }
 
@@ -383,16 +389,19 @@ func run_dtor_scalar_roundtrip() : int {
 
 @test
 public func json_macro_destructor_scalar_struct_roundtrip(env : &mut TestEnv) {
-    var before = jmd_point_dtors
-    var rc = run_dtor_scalar_roundtrip()
-    if(rc != 0) { env.error("JMDPoint roundtrip failed"); return }
-    // exactly 2 objects were constructed (the encode source + the decoded
-    // value); encode borrows members by reference and decode moves payloads
-    // out of their Results, so the destructor must run exactly twice
-    var got = jmd_point_dtors - before
-    if(got > 2) { env.error("JMDPoint destructor called MORE than expected - a copy or double-destroy happened"); return }
-    if(got < 2) { env.error("JMDPoint destructor called FEWER times than expected - a value leaked") }
-}
+        unsafe {
+        var before = jmd_point_dtors
+        var rc = run_dtor_scalar_roundtrip()
+        if(rc != 0) { env.error("JMDPoint roundtrip failed"); return }
+        // exactly 2 objects were constructed (the encode source + the decoded
+        // value); encode borrows members by reference and decode moves payloads
+        // out of their Results, so the destructor must run exactly twice
+        var got = jmd_point_dtors - before
+        if(got > 2) { env.error("JMDPoint destructor called MORE than expected - a copy or double-destroy happened"); return }
+        if(got < 2) { env.error("JMDPoint destructor called FEWER times than expected - a value leaked") }
+
+        }
+    }
 
 func run_dtor_owning_roundtrip() : int {
     var buffer = std::string()
@@ -418,16 +427,19 @@ func run_dtor_owning_roundtrip() : int {
 
 @test
 public func json_macro_owning_string_struct_roundtrip(env : &mut TestEnv) {
-    var before = jmd_child_dtors
-    var rc = run_dtor_owning_roundtrip()
-    if(rc != 0) { env.error("JMDChild owning roundtrip failed"); return }
-    // 2 objects: the encode source + the decoded value. decode goes through
-    // take_ok (Result left in Err state), so the owning tag is freed exactly
-    // once per object - any extra call means the payload was copied/double-freed
-    var got = jmd_child_dtors - before
-    if(got > 2) { env.error("JMDChild destructor called MORE than expected - copy or double-destroy of the owning payload"); return }
-    if(got < 2) { env.error("JMDChild destructor called FEWER times than expected - a value leaked") }
-}
+        unsafe {
+        var before = jmd_child_dtors
+        var rc = run_dtor_owning_roundtrip()
+        if(rc != 0) { env.error("JMDChild owning roundtrip failed"); return }
+        // 2 objects: the encode source + the decoded value. decode goes through
+        // take_ok (Result left in Err state), so the owning tag is freed exactly
+        // once per object - any extra call means the payload was copied/double-freed
+        var got = jmd_child_dtors - before
+        if(got > 2) { env.error("JMDChild destructor called MORE than expected - copy or double-destroy of the owning payload"); return }
+        if(got < 2) { env.error("JMDChild destructor called FEWER times than expected - a value leaked") }
+
+        }
+    }
 
 func run_dtor_nested_roundtrip() : int {
     var buffer = std::string()
@@ -509,17 +521,20 @@ public func json_macro_enum_unknown_name_rejected(env : &mut TestEnv) {
 
 @test
 public func json_macro_nested_destructible_roundtrip(env : &mut TestEnv) {
-    var before = jmd_child_dtors
-    var rc = run_dtor_nested_roundtrip()
-    if(rc != 0) { env.error("JMDHolder nested roundtrip failed"); return }
-    // 2 JMDChild objects: the one inside the encode source and the one inside
-    // the decoded value. The nested child is moved out of its Result with
-    // take_ok and moved into the parent literal - its destructor must run
-    // exactly twice overall (once per parent teardown), never three times.
-    var got = jmd_child_dtors - before
-    if(got > 2) { env.error("JMDChild destructor called MORE than expected - nested payload copied or double-destroyed"); return }
-    if(got < 2) { env.error("JMDChild destructor called FEWER times than expected - a nested value leaked") }
-}
+        unsafe {
+        var before = jmd_child_dtors
+        var rc = run_dtor_nested_roundtrip()
+        if(rc != 0) { env.error("JMDHolder nested roundtrip failed"); return }
+        // 2 JMDChild objects: the one inside the encode source and the one inside
+        // the decoded value. The nested child is moved out of its Result with
+        // take_ok and moved into the parent literal - its destructor must run
+        // exactly twice overall (once per parent teardown), never three times.
+        var got = jmd_child_dtors - before
+        if(got > 2) { env.error("JMDChild destructor called MORE than expected - nested payload copied or double-destroyed"); return }
+        if(got < 2) { env.error("JMDChild destructor called FEWER times than expected - a nested value leaked") }
+
+        }
+    }
 
 // ---------------------------------------------------------------------------
 // Generic container fields: vector / nested vector / maps

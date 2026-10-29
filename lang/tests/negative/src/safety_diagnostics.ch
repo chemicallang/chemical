@@ -439,6 +439,104 @@ func neg_placement_new_raw_pointer(env : &mut TestEnv) {
 }
 
 @test
+func neg_unsafe_func_pointer_call(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "unsafe func danger() : int { return 7 }\npublic func main() : int {\n    var f = danger\n    return f()\n}\n"
+    expect_compile_error(env, "unsafe_func_pointer_call", ch, "SAFE-UNSAFE-002")
+}
+
+@test
+func unsafe_func_pointer_call_in_unsafe_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "unsafe func danger() : int { return 7 }\npublic func main() : int {\n    var f = danger\n    return unsafe(f())\n}\n"
+    expect_compile_success(env, "unsafe_func_pointer_call_unsafe", ch)
+}
+
+@test
+func unsafe_func_pointer_type_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "unsafe func danger() : int { return 7 }\npublic func main() : int {\n    var f : unsafe () => int = danger\n    return unsafe(f())\n}\n"
+    expect_compile_success(env, "unsafe_func_pointer_type", ch)
+}
+
+@test
+func neg_extern_func_pointer_call(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@extern func getpid() : int\npublic func main() : int {\n    var f = getpid\n    return f()\n}\n"
+    expect_compile_error(env, "extern_func_pointer_call", ch, "SAFE-UNSAFE-002")
+}
+
+@test
+func neg_unsafe_func_pointer_coercion(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "unsafe func danger() : int { return 7 }\npublic func main() : int {\n    var f : () => int = danger\n    return 0\n}\n"
+    expect_compile_error(env, "unsafe_func_pointer_coercion", ch, "SAFE-UNSAFE-002")
+}
+
+@test
+func neg_unsafe_func_pointer_field_call(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "unsafe func danger() : int { return 7 }\nstruct Holder {\n    var f : unsafe () => int\n}\npublic func main() : int {\n    var h = Holder { f : danger }\n    return h.f()\n}\n"
+    expect_compile_error(env, "unsafe_func_pointer_field_call", ch, "SAFE-UNSAFE-002")
+}
+
+@test
+func neg_inline_asm_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    asm(\"nop\")\n    return 0\n}\n"
+    expect_compile_error(env, "inline_asm_requires_unsafe", ch, "SAFE-UNSAFE-003")
+}
+
+@test
+func inline_asm_in_unsafe_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    unsafe { asm(\"nop\") }\n    return 0\n}\n"
+    expect_compile_success(env, "inline_asm_unsafe", ch)
+}
+
+@test
+func neg_mutable_global_access(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "var g : int = 3\npublic func main() : int {\n    return g\n}\n"
+    expect_compile_error(env, "mutable_global_access", ch, "SAFE-GLOBAL-001")
+}
+
+@test
+func mutable_global_access_in_unsafe_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "var g : int = 3\npublic func main() : int {\n    return unsafe(g)\n}\n"
+    expect_compile_success(env, "mutable_global_access_unsafe", ch)
+}
+
+@test
+func neg_immutable_global_non_sync(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct S { var p : *int }\nconst g = S { p : null }\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error(env, "immutable_global_non_sync", ch, "SAFE-GLOBAL-002")
+}
+
+@test
+func immutable_global_sync_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "const g : int = 3\npublic func main() : int {\n    return g\n}\n"
+    expect_compile_success(env, "immutable_global_sync", ch)
+}
+
+@test
+func neg_extern_global_access(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@extern var errno : int\npublic func main() : int {\n    return errno\n}\n"
+    expect_compile_error(env, "extern_global_access", ch, "SAFE-GLOBAL-001")
+}
+
+@test
+func neg_named_unsafe_flag_removed(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    unsafe \"no_lifetime_check\" { return 0 }\n}\n"
+    expect_compile_error(env, "named_unsafe_flag_removed", ch, "named unsafe flags are not supported")
+}
+
+@test
 func neg_conditional_where_generic_negative_applies(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "using core::ops::Clone;\nstruct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\nstruct Wrapper<T> {\n    var value : T\n}\nimpl<T> !Sync for Wrapper<T> where T: Clone {}\npublic func main() : int {\n    var h = Holder<Wrapper<int>> { data = null }\n    return h.check()\n}\n"

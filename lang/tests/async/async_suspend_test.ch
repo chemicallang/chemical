@@ -14,7 +14,10 @@ struct DropCounter {
 
     @delete
     func delete(&mut self) {
-        suspend_drops = suspend_drops + 1
+        unsafe {
+            suspend_drops = suspend_drops + 1
+    
+        }
     }
 }
 
@@ -126,15 +129,18 @@ func test_async_suspend_in_branch(env : &mut TestEnv) {
 
 @test
 func test_async_suspend_ready_no_suspend(env : &mut TestEnv) {
-    var before = suspend_polls
-    var r = async::block_on<int>(suspend_ready(41))
-    if(r != 42) {
-        env.error("ready future should yield 42")
+        unsafe {
+        var before = suspend_polls
+        var r = async::block_on<int>(suspend_ready(41))
+        if(r != 42) {
+            env.error("ready future should yield 42")
+        }
+        if(suspend_polls != before + 1) {
+            env.error("a ready future must be polled exactly once")
+        }
+
+        }
     }
-    if(suspend_polls != before + 1) {
-        env.error("a ready future must be polled exactly once")
-    }
-}
 
 @test
 func test_async_suspend_destructible_locals(env : &mut TestEnv) {
@@ -296,17 +302,20 @@ func test_async_suspend_cancel_destroys_locals(env : &mut TestEnv) {
 
 @test
 func test_async_suspend_poll_counts(env : &mut TestEnv) {
-    // two countdowns of 3 and 2 pending steps => 6 polls; plus the one that
-    // resolves each future => the poll that returns Ready is counted too
-    var before = suspend_polls
-    var r = async::block_on<int>(suspend_two(0))
-    if(r != 41) {
-        env.error("suspend_two(0) should be 41")
+        unsafe {
+        // two countdowns of 3 and 2 pending steps => 6 polls; plus the one that
+        // resolves each future => the poll that returns Ready is counted too
+        var before = suspend_polls
+        var r = async::block_on<int>(suspend_two(0))
+        if(r != 41) {
+            env.error("suspend_two(0) should be 41")
+        }
+        if(suspend_polls != before + 7) {
+            env.error("suspend_two should take 7 polls of the child futures")
+        }
+
+        }
     }
-    if(suspend_polls != before + 7) {
-        env.error("suspend_two should take 7 polls of the child futures")
-    }
-}
 
 // ---- async methods (the receiver is a frame-resident parameter) ----
 
@@ -359,9 +368,12 @@ func cancel_child_poll(frame : *mut void, cx : *mut core::async::Context) : core
     }
 
 func cancel_child_drop(frame : *mut void) {
-    child_cancel_drops = child_cancel_drops + 1
-    unsafe { free(frame) }
-}
+        unsafe {
+        child_cancel_drops = child_cancel_drops + 1
+        unsafe { free(frame) }
+
+        }
+    }
 
 func make_cancel_child(n : int) : core::async::FutureHandle<int> {
         unsafe {
@@ -448,15 +460,18 @@ func test_async_suspend_moved_local(env : &mut TestEnv) {
 
 @test
 func test_async_suspend_moved_param(env : &mut TestEnv) {
-    var before = suspend_drops
-    var r = async::block_on<int>(moved_param(DropCounter { value : 5 }))
-    if(r != 6) {
-        env.error("a moved parameter should yield 6")
+        unsafe {
+        var before = suspend_drops
+        var r = async::block_on<int>(moved_param(DropCounter { value : 5 }))
+        if(r != 6) {
+            env.error("a moved parameter should yield 6")
+        }
+        if(suspend_drops != before + 1) {
+            env.error("a moved-out parameter must be destroyed exactly once")
+        }
+
+        }
     }
-    if(suspend_drops != before + 1) {
-        env.error("a moved-out parameter must be destroyed exactly once")
-    }
-}
 
 // ---- arrays of destructor-bearing elements across a suspension ----
 
@@ -498,12 +513,15 @@ func test_async_suspend_array_cancelled(env : &mut TestEnv) {
 
 @test
 func test_async_suspend_moved_array(env : &mut TestEnv) {
-    var before = suspend_drops
-    var r = async::block_on<int>(moved_array())
-    if(r != 2) {
-        env.error("a moved array should yield 2")
+        unsafe {
+        var before = suspend_drops
+        var r = async::block_on<int>(moved_array())
+        if(r != 2) {
+            env.error("a moved array should yield 2")
+        }
+        if(suspend_drops != before + 2) {
+            env.error("a moved-out array must be destroyed exactly once (only the destination)")
+        }
+
+        }
     }
-    if(suspend_drops != before + 2) {
-        env.error("a moved-out array must be destroyed exactly once (only the destination)")
-    }
-}

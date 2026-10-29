@@ -20,13 +20,16 @@ var g_long_box = GlobalGenBox<long> { value : 12345 }
 var g_pair = PairGen<int, int, int> { a : 10, b : 20 }
 
 func test_generic_in_global_var() {
-    test("generic struct in global variable value works - int", () => {
-        return g_int_box.get() == 42
-    })
-    test("generic struct in global variable value works - long", () => {
-        return g_long_box.get() == 12345
-    })
-    test("generic struct in global variable value works - PairGen", () => {
-        return g_pair.add() == 30
-    })
-}
+        unsafe {
+        test("generic struct in global variable value works - int", () => {
+            return g_int_box.get() == 42
+        })
+        test("generic struct in global variable value works - long", () => {
+            return g_long_box.get() == 12345
+        })
+        test("generic struct in global variable value works - PairGen", () => {
+            return g_pair.add() == 30
+        })
+
+        }
+    }

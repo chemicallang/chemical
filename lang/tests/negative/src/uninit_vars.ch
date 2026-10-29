@@ -221,7 +221,7 @@ func neg_uninit_init_read_after_first_init(env : &mut TestEnv) {
 func neg_uninit_top_level_read_errors(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // Declared at module scope, never initialized and never assigned, then read.
-    var ch = "struct Container {\n    var field : i32\n    @delete func delete(&mut self) { }\n}\n@never_destructed var g_never_init : Container\npublic func main() : int {\n    return g_never_init.field\n}\n"
+    var ch = "struct Container {\n    var field : i32\n    @delete func delete(&mut self) { }\n}\n@never_destructed var g_never_init : Container\npublic func main() : int {\n    return unsafe(g_never_init.field)\n}\n"
     expect_compile_error(env, "uninit_top_level_read", ch, "uninitialized variable")
 }
 
@@ -241,7 +241,7 @@ func neg_uninit_top_level_assigned_by_startup_ok(env : &mut TestEnv) {
     // THE PATTERN THE CHECK MUST NOT BREAK. A top-level declaration that a startup
     // function fills in before anything reads it is exactly how `Web/account` is
     // fixed: `load_from_env()` assigns the rate-limiter maps at boot.
-    var ch = "struct Container {\n    var field : i32\n    @delete func delete(&mut self) { }\n}\n@never_destructed var g_filled : Container\nfunc startup() { g_filled = Container { field : 7 } }\nfunc use() : i32 { return g_filled.field }\npublic func main() : int {\n    startup()\n    return use()\n}\n"
+    var ch = "struct Container {\n    var field : i32\n    @delete func delete(&mut self) { }\n}\n@never_destructed var g_filled : Container\nfunc startup() { unsafe { g_filled = Container { field : 7 } } }\nfunc use() : i32 { return unsafe(g_filled.field) }\npublic func main() : int {\n    startup()\n    return use()\n}\n"
     expect_compile_success(env, "uninit_top_level_assigned_by_startup_ok", ch)
 }
 
@@ -249,6 +249,6 @@ func neg_uninit_top_level_assigned_by_startup_ok(env : &mut TestEnv) {
 func neg_uninit_top_level_initialized_ok(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // An initializer at the declaration is the other way to satisfy it.
-    var ch = "struct Container {\n    var field : i32\n    @delete func delete(&mut self) { }\n}\n@never_destructed var g_ready : Container = Container { field : 1 }\npublic func main() : int {\n    return g_ready.field\n}\n"
+    var ch = "struct Container {\n    var field : i32\n    @delete func delete(&mut self) { }\n}\n@never_destructed var g_ready : Container = Container { field : 1 }\npublic func main() : int {\n    return unsafe(g_ready.field)\n}\n"
     expect_compile_success(env, "uninit_top_level_initialized_ok", ch)
 }

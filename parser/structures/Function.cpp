@@ -242,9 +242,11 @@ UnsafeBlock* Parser::parseUnsafeBlock(ASTAllocator& allocator) {
     if(tok.type == TokenType::UnsafeKw) {
         token++;
         auto unsafe = new (allocator.allocate<UnsafeBlock>()) UnsafeBlock(parent_node, loc_single(tok));
-        // optional flag string for features like lifetime_check
+        // Named unsafe flags (for example `unsafe "no_lifetime_check"`) are
+        // not supported: unsafe is only a boundary marker, never a semantic
+        // escape.
         if(token->type == TokenType::String) {
-            unsafe->flag_name = allocate_view(allocator, token->value);
+            error("named unsafe flags are not supported");
             token++;
         }
         auto block = parseBraceBlock("unsafe_block", unsafe, allocator);

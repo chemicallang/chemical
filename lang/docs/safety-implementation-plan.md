@@ -856,12 +856,40 @@
 > operations. Wrapping generic bodies exposed a missing `ValueNode::copy`, which
 > is now implemented so generic expression-statement bodies survive
 > finalization. In-tree stdlib/CBI/plugin/build.lab call sites were migrated;
-> safety audit baseline is `unsafe_blocks 572`, `unsafe_values 382`.
+> safety audit baseline is `unsafe_blocks 573`, `unsafe_values 386`.
+> S2.2/S4.8 function-pointer safety: function types now carry
+> `requires_unsafe`. It is set for `unsafe func` and `@extern` declarations and
+> is part of function-type identity, so an unsafe/extern callee cannot be
+> silently coerced to a safe function pointer. `SAFE-UNSAFE-002` rejects both a
+> call through such a function pointer in safe context and the unsafe-to-safe
+> coercion. The type syntax `unsafe (args) => ret` names an unsafe function
+> pointer explicitly; a safe callable still coerces to it. Negative tests cover
+> variable calls, extern-pointer calls, coercion, and the safe/unsafe type
+> boundary. Inline assembly is now enforced as `SAFE-UNSAFE-003`; the atomic
+> fence helpers are the only in-tree asm users and wrap each instruction in an
+> explicit unsafe block. The C backend no longer relies on C signed-overflow
+> UB: signed add/sub/mul/left-shift are computed in an unsigned type and cast
+> back to the signed result, so the default/release profile is defined
+> two's-complement wrapping; LLVM already emits wrapping integer ops. The
+> explicit `--overflow-checks` debug profile still traps add/sub/mul/neg.
+> Global/static model (first slice): `SAFE-GLOBAL-001` requires an unsafe
+> boundary for every access to a mutable top-level `var` or an `@extern` global;
+> thread-local and comptime globals are exempt. `SAFE-GLOBAL-002` requires an
+> immutable global's type to be `Sync` (immutable globals are shared across
+> threads). In-tree globals were migrated with audited unsafe boundaries or
+> existing synchronization; negative tests cover mutable, extern, non-Sync, and
+> safe/unsafe cases. `atomic_flag._value` is now private and construction goes
+> through `atomic_flag.make(value)` (S5.3/type-invariant cleanup). Named unsafe
+> flags such as `unsafe "no_lifetime_check"` are removed; `unsafe` only marks a
+> boundary and never disables lifetime checking. The temporary-lifetime check
+> now always runs.
 > `catch_unwind`/`UnwindSafe` and the unwinding/drop-on-unwind profile remain
-> S5.6b. Safety suite `53`; negative tests `548`; main TCC `2354`, LLVM `2352`;
+> S5.6b. Safety suite `53`; negative tests `562`; main TCC `2354`, LLVM `2352`;
 > libs `719`; plugins `1305`; async `53`; interpret `1910`;
 > `MIRTests` `4638 checks`.
-> Next: M5.7b provenance/foreign-pointer hardening, S5.6b
+> Next: remaining `static`/`static mut` syntax and synchronization wrappers,
+> M5.7b
+> provenance/foreign-pointer hardening, S5.6b
 > (`catch_unwind`/unwinding + `UnwindSafe`/`RefUnwindSafe`/`AssertUnwindSafe`),
 > remaining M5 validity (packed references), M6 `Send`/`Sync` enforcement, M2
 > C ABI, and the variance/HRTB/temporary-lifetime precision items.

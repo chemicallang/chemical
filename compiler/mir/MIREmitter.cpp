@@ -720,6 +720,84 @@ std::string operand_expr(const MIRFunction& fn, const MIRModule& module,
     return s;
 }
 
+// C signed overflow is undefined, so the C backend must spell signed
+// add/sub/mul/left-shift as an unsigned computation followed by a cast back to
+// the signed result type. The unsigned computation is modulo 2^N, which is the
+// language's wrapping result. For 8/16-bit operands compute in uint32_t: their
+// C integer promotion would otherwise make the multiply signed and UB again.
+static bool is_signed_integer_type(const MIRModule& module, TypeId type) {
+    if (type == MIR_INVALID_ID || type >= module.types.size()) return false;
+    const MIRTypeRecord& r = module.types.get(type);
+    return r.kind == MIRTypeKind::Int && (r.flags & TF_SIGNED) != 0;
+}
+
+static void append_unsigned_compute_type(const MIRModule& module, TypeId type,
+                                         std::string& out) {
+    uint32_t size = 4;
+    if (type != MIR_INVALID_ID && type < module.types.size()) {
+        size = module.types.get(type).size;
+    }
+    if (size <= 4) out += "uint32_t";
+    else if (size == 8) out += "uint64_t";
+    else out += "unsigned __int128";
+}
+
+static void append_wrapping_binary(const MIRModule& module, const std::string& a,
+                                   const std::string& b, MIRBinaryOp op,
+                                   TypeId result_type, std::string& out) {
+    const bool wraps = (op == MIRBinaryOp::Add || op == MIRBinaryOp::Sub ||
+                        op == MIRBinaryOp::Mul || op == MIRBinaryOp::Shl) &&
+                       is_signed_integer_type(module, result_type);
+    if (!wraps) {
+        out += "(";
+        append_c_type_of(module, result_type, out);
+        out += ")(";
+        out += a;
+        out += " ";
+        out += binop_c(op);
+        out += " ";
+        out += b;
+        out += ")";
+        return;
+    }
+    out += "(";
+    append_c_type_of(module, result_type, out);
+    out += ")((";
+    append_unsigned_compute_type(module, result_type, out);
+    out += ")(";
+    out += a;
+    out += ") ";
+    out += binop_c(op);
+    out += " (";
+    append_unsigned_compute_type(module, result_type, out);
+    out += ")(";
+    out += b;
+    out += "))";
+}
+
+static void append_wrapping_unary(const MIRModule& module, const std::string& a,
+                                  MIRUnaryOp op, TypeId result_type,
+                                  std::string& out) {
+    const bool wraps = op == MIRUnaryOp::Neg &&
+                       is_signed_integer_type(module, result_type);
+    if (!wraps) {
+        out += "(";
+        append_c_type_of(module, result_type, out);
+        out += ")(";
+        out += unop_c(op);
+        out += a;
+        out += ")";
+        return;
+    }
+    out += "(";
+    append_c_type_of(module, result_type, out);
+    out += ")(-(";
+    append_unsigned_compute_type(module, result_type, out);
+    out += ")(";
+    out += a;
+    out += "))";
+}
+
 } // namespace
 
 bool emit_function_c(const MIRFunction& function, const MIRModule& module,
@@ -922,10 +1000,12 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 if (!a || !opc || opc->id >= module.constants.size()) return {};
                 // wrap in the value's type: C integer promotion would otherwise
                 // change the result (`int8_t t = -x` != `-x` in an int context)
-                return "(" + c_type_of(module, function.values[v].type) + ")(" +
-                       std::string(unop_c(static_cast<MIRUnaryOp>(
-                           module.constants.get(opc->id).bits))) +
-                       operand_expr(function, module, *a) + ")";
+                std::string e;
+                append_wrapping_unary(
+                    module, operand_expr(function, module, *a),
+                    static_cast<MIRUnaryOp>(module.constants.get(opc->id).bits),
+                    function.values[v].type, e);
+                return e;
             }
             case MIROpcode::Binary:
             case MIROpcode::Compare: {
@@ -933,11 +1013,13 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIROperand* b = operand_at(function, inst, 1);
                 const MIROperand* opc = operand_at(function, inst, 2);
                 if (!a || !b || !opc || opc->id >= module.constants.size()) return {};
-                return "(" + c_type_of(module, function.values[v].type) + ")(" +
-                       operand_expr(function, module, *a) + " " +
-                       binop_c(static_cast<MIRBinaryOp>(
-                           module.constants.get(opc->id).bits)) +
-                       " " + operand_expr(function, module, *b) + ")";
+                std::string e;
+                append_wrapping_binary(
+                    module, operand_expr(function, module, *a),
+                    operand_expr(function, module, *b),
+                    static_cast<MIRBinaryOp>(module.constants.get(opc->id).bits),
+                    function.values[v].type, e);
+                return e;
             }
             case MIROpcode::Cast: {
                 const MIROperand* a = operand_at(function, inst, 0);
@@ -2078,10 +2160,12 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 }
                 const auto op = static_cast<MIRUnaryOp>(module.constants.get(opc->id).bits);
                 append_vname_declarator(module, function.values[v].type, v, out);
-                out += " = (";
-                out += unop_c(op);
-                append_operand_expr(function, module, *a, out);
-                out += ");\n";
+                out += " = ";
+                std::string unary_expr;
+                append_wrapping_unary(module, operand_expr(function, module, *a), op,
+                                      function.values[v].type, unary_expr);
+                out += unary_expr;
+                out += ";\n";
                 break;
             }
             case MIROpcode::Binary:
@@ -2096,13 +2180,13 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 }
                 const auto op = static_cast<MIRBinaryOp>(module.constants.get(opc->id).bits);
                 append_vname_declarator(module, function.values[v].type, v, out);
-                out += " = (";
-                append_operand_expr(function, module, *a, out);
-                out += " ";
-                out += binop_c(op);
-                out += " ";
-                append_operand_expr(function, module, *b, out);
-                out += ");\n";
+                out += " = ";
+                std::string binary_expr;
+                append_wrapping_binary(module, operand_expr(function, module, *a),
+                                       operand_expr(function, module, *b), op,
+                                       function.values[v].type, binary_expr);
+                out += binary_expr;
+                out += ";\n";
                 break;
             }
             case MIROpcode::Cast: {

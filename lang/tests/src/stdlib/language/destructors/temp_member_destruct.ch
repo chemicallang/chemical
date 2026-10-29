@@ -48,7 +48,10 @@ struct TempMemberInner {
 
     @delete
     func delete(&mut self) {
-        temp_member_destruct_count = temp_member_destruct_count + 1
+        unsafe {
+            temp_member_destruct_count = temp_member_destruct_count + 1
+    
+        }
     }
 
     func get_tag(&self) : int {
@@ -90,60 +93,63 @@ func make_temp_member_heap_outer() : TempMemberHeapOuter {
 }
 
 func test_temp_member_destruct() {
+        unsafe {
 
-    // used to destroy the member twice on the C (2c) backend (count == 2)
-    test("method call on a member of a struct-returning temporary destroys it once", () => {
-        temp_member_destruct_count = 0
-        if(true) {
-            var x = make_temp_member_outer().inner.get_tag()
+        // used to destroy the member twice on the C (2c) backend (count == 2)
+        test("method call on a member of a struct-returning temporary destroys it once", () => {
+            temp_member_destruct_count = 0
+            if(true) {
+                var x = make_temp_member_outer().inner.get_tag()
+            }
+            return temp_member_destruct_count == 1
+        })
+
+        // same double destruction, via a bare method call
+        test("bare method call on a member of a struct-returning temporary destroys it once", () => {
+            temp_member_destruct_count = 0
+            if(true) {
+                make_temp_member_outer().inner.get_tag()
+            }
+            return temp_member_destruct_count == 1
+        })
+
+        // the bare member expression used to destroy the member twice on
+        // BOTH backends (the value is an alias into the temporary the chain
+        // already destroyed)
+        test("bare member expression off a struct-returning temporary destroys it once", () => {
+            temp_member_destruct_count = 0
+            if(true) {
+                make_temp_member_outer().inner
+            }
+            return temp_member_destruct_count == 1
+        })
+
+        // the member owns heap memory, so destroying it twice was a double free.
+        // the value must also still be intact when it is read
+        test("heap owning member of a struct-returning temporary is read correctly", () => {
+            return (make_temp_member_heap_outer().name.size() as int) == 11
+        })
+
+        // control: binding the temporary to a local first is correct
+        test("member read off a local struct destroys it once", () => {
+            temp_member_destruct_count = 0
+            if(true) {
+                var o = make_temp_member_outer()
+                var x = o.inner.get_tag()
+            }
+            return temp_member_destruct_count == 1
+        })
+
+        // control: reading a non-destructible sub-member never materializes
+        // the member and is correct on both backends
+        test("int sub-member read off a struct-returning temporary is correct", () => {
+            temp_member_destruct_count = 0
+            if(true) {
+                var x = make_temp_member_outer().inner.tag
+            }
+            return temp_member_destruct_count == 1
+        })
+
+
         }
-        return temp_member_destruct_count == 1
-    })
-
-    // same double destruction, via a bare method call
-    test("bare method call on a member of a struct-returning temporary destroys it once", () => {
-        temp_member_destruct_count = 0
-        if(true) {
-            make_temp_member_outer().inner.get_tag()
-        }
-        return temp_member_destruct_count == 1
-    })
-
-    // the bare member expression used to destroy the member twice on
-    // BOTH backends (the value is an alias into the temporary the chain
-    // already destroyed)
-    test("bare member expression off a struct-returning temporary destroys it once", () => {
-        temp_member_destruct_count = 0
-        if(true) {
-            make_temp_member_outer().inner
-        }
-        return temp_member_destruct_count == 1
-    })
-
-    // the member owns heap memory, so destroying it twice was a double free.
-    // the value must also still be intact when it is read
-    test("heap owning member of a struct-returning temporary is read correctly", () => {
-        return (make_temp_member_heap_outer().name.size() as int) == 11
-    })
-
-    // control: binding the temporary to a local first is correct
-    test("member read off a local struct destroys it once", () => {
-        temp_member_destruct_count = 0
-        if(true) {
-            var o = make_temp_member_outer()
-            var x = o.inner.get_tag()
-        }
-        return temp_member_destruct_count == 1
-    })
-
-    // control: reading a non-destructible sub-member never materializes
-    // the member and is correct on both backends
-    test("int sub-member read off a struct-returning temporary is correct", () => {
-        temp_member_destruct_count = 0
-        if(true) {
-            var x = make_temp_member_outer().inner.tag
-        }
-        return temp_member_destruct_count == 1
-    })
-
-}
+    }

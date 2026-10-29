@@ -51,9 +51,12 @@ func last_block_while_ret_ptr() : *char {
 var is_expr_test_func_called = false;
 
 func expr_test_func_call() : bool {
-    is_expr_test_func_called = true;
-    return true;
-}
+        unsafe {
+        is_expr_test_func_called = true;
+        return true;
+
+        }
+    }
 
 func can_take_literal_type(my_int : %literal<int>) : int {
     return my_int + 3;
@@ -78,21 +81,30 @@ var total_func_ret_calls = 0;
 struct FuncRetTestStr {
 
     func give_calls() : int {
-        total_func_ret_calls += 1;
-        return total_func_ret_calls;
+        unsafe {
+            total_func_ret_calls += 1;
+            return total_func_ret_calls;
+    
+        }
     }
 
     func self_ref_give_calls(&self) : int {
-        total_func_ret_calls += 1;
-        return total_func_ret_calls;
+        unsafe {
+            total_func_ret_calls += 1;
+            return total_func_ret_calls;
+    
+        }
     }
 
 }
 
 func check_multiple_calls() : FuncRetTestStr {
-    total_func_ret_calls += 1;
-    return FuncRetTestStr {}
-}
+        unsafe {
+        total_func_ret_calls += 1;
+        return FuncRetTestStr {}
+
+        }
+    }
 
 func test_passing_array(arr : []int, size : int) : int {
     var i = 0;
@@ -129,103 +141,106 @@ func curr_inline_sum_3(a : int, b : int) : int {
 }
 
 func test_functions() {
-    test("struct member access in chain, tld function return", () => {
-        return test_struct().x == 100;
-    })
-    test("struct member access in chain, lambda function return", () => {
-        var lamb : () => TestStruct1 = test_struct;
-        return lamb().x == 100;
-    })
-    test("struct member access in chain, member lambda return", () => {
-        var mem = MemLamb {
-            lamb : test_struct
-        }
-        return mem.lamb().x == 100;
-    })
-    test("struct member access in chain, member function return", () => {
         unsafe {
-           var mem = MemLamb { lamb : null }
-        }
-        return mem.mem_func_test().x == 200;
-    })
-    test("struct member access in chain, extension function return", () => {
-        unsafe {
-            var mem = MemLamb { lamb : null }
-        }
-        return mem.ext_func_test().x == 300;
-    })
-    test("supports function calls that return structs inside struct values", () => {
-        var t = TestStruct2 {
-            test : test_struct()
-        }
-        return t.test.x == 100 && t.test.y == 100
-    })
-    test("supports function calls that return structs inside array values", () => {
-        var arr : [1]TestStruct1 = [test_struct()]
-        return arr[0].x == 100 && arr[0].y == 100
-    })
-    test("expression test function is not called in 'or' ||", () => {
-        is_expr_test_func_called = false
-        if(true || expr_test_func_call()) {
+        test("struct member access in chain, tld function return", () => {
+            return test_struct().x == 100;
+        })
+        test("struct member access in chain, lambda function return", () => {
+            var lamb : () => TestStruct1 = test_struct;
+            return lamb().x == 100;
+        })
+        test("struct member access in chain, member lambda return", () => {
+            var mem = MemLamb {
+                lamb : test_struct
+            }
+            return mem.lamb().x == 100;
+        })
+        test("struct member access in chain, member function return", () => {
+            unsafe {
+               var mem = MemLamb { lamb : null }
+            }
+            return mem.mem_func_test().x == 200;
+        })
+        test("struct member access in chain, extension function return", () => {
+            unsafe {
+                var mem = MemLamb { lamb : null }
+            }
+            return mem.ext_func_test().x == 300;
+        })
+        test("supports function calls that return structs inside struct values", () => {
+            var t = TestStruct2 {
+                test : test_struct()
+            }
+            return t.test.x == 100 && t.test.y == 100
+        })
+        test("supports function calls that return structs inside array values", () => {
+            var arr : [1]TestStruct1 = [test_struct()]
+            return arr[0].x == 100 && arr[0].y == 100
+        })
+        test("expression test function is not called in 'or' ||", () => {
+            is_expr_test_func_called = false
+            if(true || expr_test_func_call()) {
+
+            }
+            return is_expr_test_func_called == false;
+        })
+        test("expression test function is called in 'or' ||", () => {
+            is_expr_test_func_called = false
+            if(false || expr_test_func_call()) {
+
+            }
+            return is_expr_test_func_called == true;
+        })
+        test("expression test function is not called in 'and' &&", () => {
+            is_expr_test_func_called = false
+            if(false && expr_test_func_call()) {
+
+            }
+            return is_expr_test_func_called == false;
+        })
+        test("expression test function is called in 'and' &&", () => {
+            is_expr_test_func_called = false
+            if(true && expr_test_func_call()) {
+
+            }
+            return is_expr_test_func_called == true;
+        })
+        test("function can take literal type", () => {
+            return can_take_literal_type(2) == 5
+        })
+        test("functions on returned structs do not result in multiple calls - 1", () => {
+            total_func_ret_calls = 0;
+            // TODO: this fails in c backend, when you take it out as a variable
+            return check_multiple_calls().give_calls() == 2;
+        })
+        test("functions on returned structs do not result in multiple calls - 2", () => {
+            total_func_ret_calls = 0;
+            return check_multiple_calls().self_ref_give_calls() == 2;
+        })
+        test("default function arguments work", () => {
+            return def_func_arg_works(22) == 66;
+        })
+        test_name_overriding();
+        test_parameters();
+        test("arrays can be passed to functions", () => {
+            return test_passing_array([11, 87, 245, 3, 23], 5) == 369;
+        })
+        test("functions returning void can be returned in functions returning void", () => {
+            call_func_ret_void();
+            return true;
+        })
+        test("function that returns a pointer has a last while block, can exist", () => {
+            return last_block_while_ret_ptr() == null
+        })
+        test("inline functions in current module work - 1", () => {
+            return curr_inline_sum_1(29, 2) == 31
+        })
+        test("inline functions in current module work - 2", () => {
+            return curr_inline_sum_2(65, 9) == 74
+        })
+        test("inline functions in current module work - 3", () => {
+            return curr_inline_sum_3(87, 4) == 91
+        })
 
         }
-        return is_expr_test_func_called == false;
-    })
-    test("expression test function is called in 'or' ||", () => {
-        is_expr_test_func_called = false
-        if(false || expr_test_func_call()) {
-
-        }
-        return is_expr_test_func_called == true;
-    })
-    test("expression test function is not called in 'and' &&", () => {
-        is_expr_test_func_called = false
-        if(false && expr_test_func_call()) {
-
-        }
-        return is_expr_test_func_called == false;
-    })
-    test("expression test function is called in 'and' &&", () => {
-        is_expr_test_func_called = false
-        if(true && expr_test_func_call()) {
-
-        }
-        return is_expr_test_func_called == true;
-    })
-    test("function can take literal type", () => {
-        return can_take_literal_type(2) == 5
-    })
-    test("functions on returned structs do not result in multiple calls - 1", () => {
-        total_func_ret_calls = 0;
-        // TODO: this fails in c backend, when you take it out as a variable
-        return check_multiple_calls().give_calls() == 2;
-    })
-    test("functions on returned structs do not result in multiple calls - 2", () => {
-        total_func_ret_calls = 0;
-        return check_multiple_calls().self_ref_give_calls() == 2;
-    })
-    test("default function arguments work", () => {
-        return def_func_arg_works(22) == 66;
-    })
-    test_name_overriding();
-    test_parameters();
-    test("arrays can be passed to functions", () => {
-        return test_passing_array([11, 87, 245, 3, 23], 5) == 369;
-    })
-    test("functions returning void can be returned in functions returning void", () => {
-        call_func_ret_void();
-        return true;
-    })
-    test("function that returns a pointer has a last while block, can exist", () => {
-        return last_block_while_ret_ptr() == null
-    })
-    test("inline functions in current module work - 1", () => {
-        return curr_inline_sum_1(29, 2) == 31
-    })
-    test("inline functions in current module work - 2", () => {
-        return curr_inline_sum_2(65, 9) == 74
-    })
-    test("inline functions in current module work - 3", () => {
-        return curr_inline_sum_3(87, 4) == 91
-    })
-}
+    }

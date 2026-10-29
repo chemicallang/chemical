@@ -460,24 +460,27 @@ var g_in_main_loop : int = 0
 var g_quit_by_destroy : int = 0
 
 func linux_on_destroy(widget : *mut GtkWidget, data : *mut void) {
-    // NOTE: never write through ctx.window here. webview::create() embeds a
-    // window::Window in its WebView and returns it by value, relocating the
-    // struct after window_create() — a context captured during create() then
-    // points at stack memory that has since been reused, and writing to it
-    // corrupts live data. State is cleared by the caller's own teardown:
-    // window_destroy() / webview_destroy() are guarded by g_quit_by_destroy
-    // and webview_run() clears the moved copy after the loop exits.
-    //
-    // g_quit_by_destroy is only set when the destroy happens DURING the main
-    // loop (the user closed the window, so the loop exits because of it). A
-    // direct window_destroy()/window_close() called between runs must not
-    // mark the flag — otherwise a later window_destroy() on a still-alive
-    // window would wrongly skip destroying its widget.
-    if(g_in_main_loop != 0) {
-        g_quit_by_destroy = 1
-        unsafe { gtk_main_quit() }
+        unsafe {
+        // NOTE: never write through ctx.window here. webview::create() embeds a
+        // window::Window in its WebView and returns it by value, relocating the
+        // struct after window_create() — a context captured during create() then
+        // points at stack memory that has since been reused, and writing to it
+        // corrupts live data. State is cleared by the caller's own teardown:
+        // window_destroy() / webview_destroy() are guarded by g_quit_by_destroy
+        // and webview_run() clears the moved copy after the loop exits.
+        //
+        // g_quit_by_destroy is only set when the destroy happens DURING the main
+        // loop (the user closed the window, so the loop exits because of it). A
+        // direct window_destroy()/window_close() called between runs must not
+        // mark the flag — otherwise a later window_destroy() on a still-alive
+        // window would wrongly skip destroying its widget.
+        if(g_in_main_loop != 0) {
+            g_quit_by_destroy = 1
+            unsafe { gtk_main_quit() }
+        }
+
+        }
     }
-}
 
 func linux_on_size_allocate(widget : *mut GtkWidget, alloc : *mut GtkAllocation, data : *mut void) {
         unsafe {
@@ -1169,11 +1172,14 @@ public func window_native_handle(w : *mut Window) : *mut void {
     }
 
 public func window_run() {
-    g_in_main_loop = 1
-    g_quit_by_destroy = 0
-    unsafe { gtk_main() }
-    g_in_main_loop = 0
-}
+        unsafe {
+        g_in_main_loop = 1
+        g_quit_by_destroy = 0
+        unsafe { gtk_main() }
+        g_in_main_loop = 0
+
+        }
+    }
 
 // Returns 1 if the last window_run() returned because a window was destroyed
 // (the user closed it) rather than because window_quit() was called. When 1,
@@ -1187,14 +1193,20 @@ public func window_run() {
 // dereference its dangling widget pointer.
 // (Linux-only helper; not part of the cross-platform window API.)
 public func window_quit_by_destroy() : int {
-    return g_quit_by_destroy
-}
+        unsafe {
+        return g_quit_by_destroy
+
+        }
+    }
 
 public func window_quit() {
-    if(g_in_main_loop != 0) {
-        unsafe { gtk_main_quit() }
+        unsafe {
+        if(g_in_main_loop != 0) {
+            unsafe { gtk_main_quit() }
+        }
+
+        }
     }
-}
 
 func linux_empty_callback(data : *mut void) : int {
     // Return 0 so GTK removes the idle source after firing once.
@@ -1222,13 +1234,16 @@ public func window_post_empty_event() {
 /// paying the init cost a single time per process.
 var g_gtk_initialized : bool = false
 func ensure_gtk_init() {
-    if(!g_gtk_initialized) {
-        var argc : int = 0
-        var argv : *mut *mut *char = null
-        unsafe { gtk_init_check(&raw mut argc, argv) }
-        g_gtk_initialized = true
+        unsafe {
+        if(!g_gtk_initialized) {
+            var argc : int = 0
+            var argv : *mut *mut *char = null
+            unsafe { gtk_init_check(&raw mut argc, argv) }
+            g_gtk_initialized = true
+        }
+
+        }
     }
-}
 
 /// Get the current clipboard text content.
 public func window_get_clipboard() : Option<string> {
@@ -1271,45 +1286,54 @@ var g_timer_used : [16]bool
 var g_timer_ids : [16]u32
 
 func linux_timer_wrapper(data : *mut void) : int {
-    // data is the timer index (as a pointer)
-    var idx = data as int
-    if(idx >= 0 && idx < MAX_TIMERS && g_timer_used[idx] && g_timer_cbs[idx] != null) {
-        g_timer_cbs[idx](g_timer_data[idx])
+        unsafe {
+        // data is the timer index (as a pointer)
+        var idx = data as int
+        if(idx >= 0 && idx < MAX_TIMERS && g_timer_used[idx] && g_timer_cbs[idx] != null) {
+            g_timer_cbs[idx](g_timer_data[idx])
+        }
+        return 1 // return 1 to keep the timer running
+
+        }
     }
-    return 1 // return 1 to keep the timer running
-}
 
 /// Set a periodic timer.
 public func window_set_timer(interval_ms : int, cb : TimerCallback, data : *mut void) : int {
-    var idx = -1
-    var i : int = 0
-    while(i < MAX_TIMERS) {
-        if(!g_timer_used[i]) {
-            idx = i
-            break
+        unsafe {
+        var idx = -1
+        var i : int = 0
+        while(i < MAX_TIMERS) {
+            if(!g_timer_used[i]) {
+                idx = i
+                break
+            }
+            i += 1
         }
-        i += 1
+        if(idx < 0) { return 0 }
+        g_timer_cbs[idx] = cb
+        g_timer_data[idx] = data
+        g_timer_used[idx] = true
+        var tag = unsafe(g_timeout_add(interval_ms as u32, linux_timer_wrapper as *mut void, idx as *mut void))
+        g_timer_ids[idx] = tag
+        return idx + 1
+
+        }
     }
-    if(idx < 0) { return 0 }
-    g_timer_cbs[idx] = cb
-    g_timer_data[idx] = data
-    g_timer_used[idx] = true
-    var tag = unsafe(g_timeout_add(interval_ms as u32, linux_timer_wrapper as *mut void, idx as *mut void))
-    g_timer_ids[idx] = tag
-    return idx + 1
-}
 
 /// Cancel a previously set timer.
 public func window_cancel_timer(timer_id : int) {
-    if(timer_id <= 0 || timer_id > MAX_TIMERS) { return }
-    var idx = timer_id - 1
-    if(g_timer_used[idx]) {
-        unsafe { g_source_remove(g_timer_ids[idx]) }
-        g_timer_used[idx] = false
-        g_timer_cbs[idx] = null
-        g_timer_data[idx] = null
+        unsafe {
+        if(timer_id <= 0 || timer_id > MAX_TIMERS) { return }
+        var idx = timer_id - 1
+        if(g_timer_used[idx]) {
+            unsafe { g_source_remove(g_timer_ids[idx]) }
+            g_timer_used[idx] = false
+            g_timer_cbs[idx] = null
+            g_timer_data[idx] = null
+        }
+
+        }
     }
-}
 
 // ===========================================================================
 // UI-thread async bridge (Tier 5) — GTK backend
@@ -1333,11 +1357,14 @@ func linux_async_pump_tick(data : *mut void) : int {
 // stack duplicate ticks).
 var g_async_pump_installed : bool = false
 func window_async_platform_install_pump() {
-    if(g_async_pump_installed) { return }
-    ensure_gtk_init()
-    unsafe { g_timeout_add(1u, linux_async_pump_tick as *mut void, null) }
-    g_async_pump_installed = true
-}
+        unsafe {
+        if(g_async_pump_installed) { return }
+        ensure_gtk_init()
+        unsafe { g_timeout_add(1u, linux_async_pump_tick as *mut void, null) }
+        g_async_pump_installed = true
+
+        }
+    }
 
 // Wake the GLib loop from any thread. An idle source is enough: the installed
 // timeout then polls the executor on the UI thread.

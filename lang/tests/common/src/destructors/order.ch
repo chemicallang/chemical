@@ -14,7 +14,10 @@ struct OrderProbe {
 
     @delete
     func delete(&self) {
-        dtor_order_seq = dtor_order_seq * 100 + id
+        unsafe {
+            dtor_order_seq = dtor_order_seq * 100 + id
+    
+        }
     }
 }
 
@@ -40,70 +43,73 @@ struct OrderHolder {
 }
 
 func test_destructor_order() {
+        unsafe {
 
-    test("locals are destroyed in reverse initialization order", () => {
-        dtor_order_seq = 0
-        order_three_locals()
-        return dtor_order_seq == 30201
-    })
+        test("locals are destroyed in reverse initialization order", () => {
+            dtor_order_seq = 0
+            order_three_locals()
+            return dtor_order_seq == 30201
+        })
 
-    test("early return destroys locals in reverse order", () => {
-        dtor_order_seq = 0
-        order_early_return(true)
-        return dtor_order_seq == 10
-    })
+        test("early return destroys locals in reverse order", () => {
+            dtor_order_seq = 0
+            order_early_return(true)
+            return dtor_order_seq == 10
+        })
 
-    test("fallthrough destroys locals in reverse order", () => {
-        dtor_order_seq = 0
-        order_early_return(false)
-        return dtor_order_seq == 2010
-    })
+        test("fallthrough destroys locals in reverse order", () => {
+            dtor_order_seq = 0
+            order_early_return(false)
+            return dtor_order_seq == 2010
+        })
 
-    test("fixed array elements are destroyed last-to-first", () => {
-        dtor_order_seq = 0
-        {
-            var arr : [4]OrderProbe = [
-                OrderProbe { id : 1 },
-                OrderProbe { id : 2 },
-                OrderProbe { id : 3 },
-                OrderProbe { id : 4 }
-            ]
-        }
-        return dtor_order_seq == 4030201
-    })
-
-    test("struct members are destroyed in declaration order", () => {
-        dtor_order_seq = 0
-        {
-            var h = OrderHolder { a : OrderProbe { id : 1 }, b : OrderProbe { id : 2 } }
-        }
-        return dtor_order_seq == 102
-    })
-
-    test("nested scopes destroy the inner locals first", () => {
-        dtor_order_seq = 0
-        {
-            var a = OrderProbe { id : 1 }
+        test("fixed array elements are destroyed last-to-first", () => {
+            dtor_order_seq = 0
             {
-                var b = OrderProbe { id : 2 }
+                var arr : [4]OrderProbe = [
+                    OrderProbe { id : 1 },
+                    OrderProbe { id : 2 },
+                    OrderProbe { id : 3 },
+                    OrderProbe { id : 4 }
+                ]
             }
-            var c = OrderProbe { id : 3 }
-        }
-        return dtor_order_seq == 20301
-    })
+            return dtor_order_seq == 4030201
+        })
 
-    test("function parameters are destroyed after locals", () => {
-        dtor_order_seq = 0
-        order_param(OrderProbe { id : 1 }, 2)
-        return dtor_order_seq == 201
-    })
+        test("struct members are destroyed in declaration order", () => {
+            dtor_order_seq = 0
+            {
+                var h = OrderHolder { a : OrderProbe { id : 1 }, b : OrderProbe { id : 2 } }
+            }
+            return dtor_order_seq == 102
+        })
 
-    test("break destroys the loop-local exactly once", () => {
-        dtor_order_seq = 0
-        for(var i = 0; i < 10; i++) {
-            var d = OrderProbe { id : 900 + i }
-            if(i == 2) { break }
+        test("nested scopes destroy the inner locals first", () => {
+            dtor_order_seq = 0
+            {
+                var a = OrderProbe { id : 1 }
+                {
+                    var b = OrderProbe { id : 2 }
+                }
+                var c = OrderProbe { id : 3 }
+            }
+            return dtor_order_seq == 20301
+        })
+
+        test("function parameters are destroyed after locals", () => {
+            dtor_order_seq = 0
+            order_param(OrderProbe { id : 1 }, 2)
+            return dtor_order_seq == 201
+        })
+
+        test("break destroys the loop-local exactly once", () => {
+            dtor_order_seq = 0
+            for(var i = 0; i < 10; i++) {
+                var d = OrderProbe { id : 900 + i }
+                if(i == 2) { break }
+            }
+            return dtor_order_seq == 9091002
+        })
+
         }
-        return dtor_order_seq == 9091002
-    })
-}
+    }

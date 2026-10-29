@@ -139,48 +139,51 @@ public namespace uuid {
     var g_v7_counter : u16 = 0;
 
     public func v7() : UUID {
-        var ts_ms = std::now_milli() as u64;
+        unsafe {
+            var ts_ms = std::now_milli() as u64;
 
-        var expected : u32 = 0;
-        while(!atomic_compare_exchange_strong_u32(&raw mut g_v7_lock, &raw mut expected, 1u, memory_order.acquire, memory_order.relaxed)) {
-            expected = 0;
-        }
-
-        if (ts_ms <= g_v7_last_ts_ms) {
-            ts_ms = g_v7_last_ts_ms;
-            g_v7_counter++;
-            if (g_v7_counter > 0x0FFFu) {
-                ts_ms++;
-                g_v7_counter = 0;
+            var expected : u32 = 0;
+            while(!atomic_compare_exchange_strong_u32(&raw mut g_v7_lock, &raw mut expected, 1u, memory_order.acquire, memory_order.relaxed)) {
+                expected = 0;
             }
-        } else {
-            var rand_val : u16 = 0;
-            get_random_bytes(&mut rand_val as *mut u8, 2u);
-            g_v7_counter = rand_val & 0x0FFFu;
+
+            if (ts_ms <= g_v7_last_ts_ms) {
+                ts_ms = g_v7_last_ts_ms;
+                g_v7_counter++;
+                if (g_v7_counter > 0x0FFFu) {
+                    ts_ms++;
+                    g_v7_counter = 0;
+                }
+            } else {
+                var rand_val : u16 = 0;
+                get_random_bytes(&mut rand_val as *mut u8, 2u);
+                g_v7_counter = rand_val & 0x0FFFu;
+            }
+            g_v7_last_ts_ms = ts_ms;
+            var local_counter = g_v7_counter;
+
+            atomic_store_u32(&raw mut g_v7_lock, 0u, memory_order.release);
+
+            var bytes : [16]u8;
+            if(!get_random_bytes(&raw mut bytes[0], 16u)) {
+                panic("Failed to generate secure random bytes for UUIDv7");
+            }
+
+            bytes[0] = ((ts_ms >> 40) & 0xFFu) as u8;
+            bytes[1] = ((ts_ms >> 32) & 0xFFu) as u8;
+            bytes[2] = ((ts_ms >> 24) & 0xFFu) as u8;
+            bytes[3] = ((ts_ms >> 16) & 0xFFu) as u8;
+            bytes[4] = ((ts_ms >> 8) & 0xFFu) as u8;
+            bytes[5] = (ts_ms & 0xFFu) as u8;
+
+            bytes[6] = (0x70u | ((local_counter >> 8) & 0x0Fu) as u32) as u8;
+            bytes[7] = (local_counter & 0xFFu) as u8;
+
+            bytes[8] = (0x80u | (bytes[8] & 0x3Fu)) as u8;
+
+            return UUID.from_bytes(bytes);
+    
         }
-        g_v7_last_ts_ms = ts_ms;
-        var local_counter = g_v7_counter;
-
-        atomic_store_u32(&raw mut g_v7_lock, 0u, memory_order.release);
-
-        var bytes : [16]u8;
-        if(!get_random_bytes(&raw mut bytes[0], 16u)) {
-            panic("Failed to generate secure random bytes for UUIDv7");
-        }
-
-        bytes[0] = ((ts_ms >> 40) & 0xFFu) as u8;
-        bytes[1] = ((ts_ms >> 32) & 0xFFu) as u8;
-        bytes[2] = ((ts_ms >> 24) & 0xFFu) as u8;
-        bytes[3] = ((ts_ms >> 16) & 0xFFu) as u8;
-        bytes[4] = ((ts_ms >> 8) & 0xFFu) as u8;
-        bytes[5] = (ts_ms & 0xFFu) as u8;
-
-        bytes[6] = (0x70u | ((local_counter >> 8) & 0x0Fu) as u32) as u8;
-        bytes[7] = (local_counter & 0xFFu) as u8;
-
-        bytes[8] = (0x80u | (bytes[8] & 0x3Fu)) as u8;
-
-        return UUID.from_bytes(bytes);
     }
 
 impl Copy for UUID {}

@@ -45,6 +45,13 @@ struct FunctionTypeData {
      * is this an async function/closure
      */
     bool is_async = false;
+    /**
+     * calling through this function type requires an unsafe boundary.
+     * This is set for `unsafe func` declarations and for `@extern` functions;
+     * it is part of function type identity so an unsafe function cannot be
+     * silently coerced to a safe function pointer.
+     */
+    bool requires_unsafe = false;
 };
 
 static_assert(sizeof(FunctionTypeData) <= 8);
@@ -70,7 +77,7 @@ public:
             bool isVariadic,
             bool isCapturing,
             bool signature_resolved
-    ) : data(false, isVariadic, signature_resolved, isCapturing), returnType(returnType),
+    ) : data(false, isVariadic, signature_resolved, isCapturing, false, false), returnType(returnType),
         BaseType(BaseTypeKind::Function) {
 
     }
@@ -84,7 +91,7 @@ public:
             bool isVariadic,
             bool isCapturing,
             bool signature_resolved
-    ) : data(isExtension, isVariadic, signature_resolved, isCapturing), returnType(returnType),
+    ) : data(isExtension, isVariadic, signature_resolved, isCapturing, false, false), returnType(returnType),
         BaseType(BaseTypeKind::Function) {
 
     }
@@ -124,6 +131,18 @@ public:
 
     inline void setIsAsync(bool value) {
         data.is_async = value;
+    }
+
+    /**
+     * whether calling a value of this function type requires unsafe
+     */
+    [[nodiscard]]
+    inline bool requiresUnsafe() const {
+        return data.requires_unsafe;
+    }
+
+    inline void setRequiresUnsafe(bool value) {
+        data.requires_unsafe = value;
     }
 
     unsigned int getStructReturnArgIndex() {

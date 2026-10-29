@@ -6,36 +6,48 @@ struct SV_OrderTesting1 {
 var first_val_init_index = -1
 
 func sv_order_checker_1st() : int {
-    if(first_val_init_index == -1) {
-        first_val_init_index = 0
+        unsafe {
+        if(first_val_init_index == -1) {
+            first_val_init_index = 0
+        }
+        return 0;
+
+        }
     }
-    return 0;
-}
 
 func sv_order_checker_2nd() : int {
-    if(first_val_init_index == -1) {
-        first_val_init_index = 1
+        unsafe {
+        if(first_val_init_index == -1) {
+            first_val_init_index = 1
+        }
+        return 0;
+
+        }
     }
-    return 0;
-}
 
 func struct_values_initialized_in_order_1() : bool {
-    first_val_init_index = -1;
-    var s = SV_OrderTesting1 {
-        a : sv_order_checker_1st(),
-        b : sv_order_checker_2nd()
+        unsafe {
+        first_val_init_index = -1;
+        var s = SV_OrderTesting1 {
+            a : sv_order_checker_1st(),
+            b : sv_order_checker_2nd()
+        }
+        return first_val_init_index == 0
+
+        }
     }
-    return first_val_init_index == 0
-}
 
 func struct_values_initialized_in_order_2() : bool {
-    first_val_init_index = -1;
-    var s = SV_OrderTesting1 {
-        a : sv_order_checker_2nd(),
-        b : sv_order_checker_1st()
+        unsafe {
+        first_val_init_index = -1;
+        var s = SV_OrderTesting1 {
+            a : sv_order_checker_2nd(),
+            b : sv_order_checker_1st()
+        }
+        return first_val_init_index == 1
+
+        }
     }
-    return first_val_init_index == 1
-}
 
 func test_struct_values() {
     // we run the same test 10 times

@@ -93,7 +93,7 @@
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
       "unsafe_blocks": 1,
-      "unsafe_values": 1,
+      "unsafe_values": 5,
       "variadic_calls": 0
     },
     "::encoding": {
@@ -284,7 +284,7 @@
       "raw_pointer_types": 12,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
-      "unsafe_blocks": 22,
+      "unsafe_blocks": 23,
       "unsafe_values": 82,
       "variadic_calls": 15
     },
@@ -429,8 +429,8 @@
     "raw_pointer_types": 1437,
     "union_field_accesses": 0,
     "unreachable_stmts": 0,
-    "unsafe_blocks": 572,
-    "unsafe_values": 382,
+    "unsafe_blocks": 573,
+    "unsafe_values": 386,
     "variadic_calls": 57
   }
 }

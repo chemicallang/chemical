@@ -20,21 +20,21 @@
  * cross platform helper function
  */
 public func get_stdin() : *mut FILE {
-    return stdin;
+    return unsafe(stdin);
 }
 
 /**
  * cross platform helper function
  */
 public func get_stdout() : *mut FILE {
-    return stdout;
+    return unsafe(stdout);
 }
 
 /**
  * cross platform helper function
  */
 public func get_stderr() : *mut FILE {
-    return stderr;
+    return unsafe(stderr);
 }
 
 /* Close a stream opened by popen and return the status of its child.

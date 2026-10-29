@@ -159,29 +159,35 @@ public func test_window_clipboard_empty(env : &mut TestEnv) {
 var g_timer_counter : int = 0
 
 func timer_increment_cb(data : *mut void) : void {
-    g_timer_counter = g_timer_counter + 1
-}
+        unsafe {
+        g_timer_counter = g_timer_counter + 1
+
+        }
+    }
 
 @test
 public func test_window_set_cancel_timer(env : &mut TestEnv) {
-    g_timer_counter = 0
-    var tid = window::window_set_timer(50, timer_increment_cb as window::TimerCallback, null)
-    if(tid == 0) { env.error("window_set_timer should return non-zero"); return }
-    // On Windows, timers need a message loop to fire. Pump messages briefly.
-    comptime if(def.windows) {
-        process::sleep_ms(200)
-        // Check if counter incremented — if not, the timer API works but
-        // requires a message loop which is only present during window_run().
-        // We accept <= 0 as valid since there's no message loop here.
-    } else {
-        process::sleep_ms(200)
+        unsafe {
+        g_timer_counter = 0
+        var tid = window::window_set_timer(50, timer_increment_cb as window::TimerCallback, null)
+        if(tid == 0) { env.error("window_set_timer should return non-zero"); return }
+        // On Windows, timers need a message loop to fire. Pump messages briefly.
+        comptime if(def.windows) {
+            process::sleep_ms(200)
+            // Check if counter incremented — if not, the timer API works but
+            // requires a message loop which is only present during window_run().
+            // We accept <= 0 as valid since there's no message loop here.
+        } else {
+            process::sleep_ms(200)
+        }
+        // Cancel the timer
+        window::window_cancel_timer(tid)
+        // Timer was set/cancelled without crash — that's the main invariant.
+        // On GTK the timer fires without a message loop (g_timeout_add in GLib main context),
+        // but on Windows it needs GetMessage/DispatchMessage. Both paths are valid.
+
+        }
     }
-    // Cancel the timer
-    window::window_cancel_timer(tid)
-    // Timer was set/cancelled without crash — that's the main invariant.
-    // On GTK the timer fires without a message loop (g_timeout_add in GLib main context),
-    // but on Windows it needs GetMessage/DispatchMessage. Both paths are valid.
-}
 
 @test
 public func test_window_cancel_nonexistent_timer(env : &mut TestEnv) {

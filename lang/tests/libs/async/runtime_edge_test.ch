@@ -8,14 +8,17 @@ var edge_done : int = 0;
 
 // A task that yields `steps` times before returning, recording completion.
 async func edge_task(steps : int, v : int) : int {
-    var i = 0
-    while(i < steps) {
-        var u = await async::yield_now()
-        i = i + 1
+        unsafe {
+        var i = 0
+        while(i < steps) {
+            var u = await async::yield_now()
+            i = i + 1
+        }
+        edge_done = edge_done + 1
+        return v
+
+        }
     }
-    edge_done = edge_done + 1
-    return v
-}
 
 // A task that is never ready within the test's lifetime.
 async func edge_never() : int {
@@ -35,15 +38,18 @@ async func edge_run() : int {
 
 @test
 func test_executor_no_starvation(env : &mut TestEnv) {
-    edge_done = 0;
-    var v = async::block_on<int>(edge_run())
-    if(v != 30) {
-        env.error("ready tasks must complete despite a never-ready task")
+        unsafe {
+        edge_done = 0;
+        var v = async::block_on<int>(edge_run())
+        if(v != 30) {
+            env.error("ready tasks must complete despite a never-ready task")
+        }
+        if(edge_done < 2) {
+            env.error("both ready tasks must have run to completion")
+        }
+
+        }
     }
-    if(edge_done < 2) {
-        env.error("both ready tasks must have run to completion")
-    }
-}
 
 async func edge_sleep_then(ms : u64, v : int) : int {
     var u = await async::sleep(ms)
@@ -133,12 +139,15 @@ func test_sleep_zero_completes(env : &mut TestEnv) {
 
 @test
 func test_many_yields(env : &mut TestEnv) {
-    edge_done = 0;
-    var v = async::block_on<int>(edge_task(50, 42))
-    if(v != 42) {
-        env.error("many yields should still complete")
+        unsafe {
+        edge_done = 0;
+        var v = async::block_on<int>(edge_task(50, 42))
+        if(v != 42) {
+            env.error("many yields should still complete")
+        }
+
+        }
     }
-}
 
 // ---- waker plumbing ---------------------------------------------------------
 

@@ -658,32 +658,32 @@ comptime func has_atomic_builtins() : bool {
 @retained func __chx__fence(order : int) {
     comptime if(def.x86_64 || def.i386) {
         if(order == 7) {
-            asm("mfence" ::: "memory")
+            unsafe { asm("mfence" ::: "memory") }
         } else if(order >= 4) {
-            asm("" ::: "memory")
+            unsafe { asm("" ::: "memory") }
         }
     } else comptime if(def.aarch64 || def.arm) {
         if(order == 7) {
-            asm("dmb ish" ::: "memory")
+            unsafe { asm("dmb ish" ::: "memory") }
         } else if(order >= 4) {
-            asm("" ::: "memory")
+            unsafe { asm("" ::: "memory") }
         }
     } else comptime if(def.riscv64 || def.riscv32) {
         if(order >= 4) {
-            asm("fence rw, rw" ::: "memory")
+            unsafe { asm("fence rw, rw" ::: "memory") }
         }
     } else comptime if(def.powerpc || def.powerpc64) {
         if(order == 7) {
-            asm("sync" ::: "memory")
+            unsafe { asm("sync" ::: "memory") }
         } else if(order >= 4) {
-            asm("" ::: "memory")
+            unsafe { asm("" ::: "memory") }
         }
     }
 }
 
 @retained func __chx__signal_fence(order : int) {
     if(order >= 4) {
-        asm("" ::: "memory")
+        unsafe { asm("" ::: "memory") }
     }
 }
 
@@ -1241,7 +1241,12 @@ public comptime func atomic_fetch_xor_u8(x : %runtime<*mut u8>, y : %maybe_runti
 
 @direct_init
 public struct atomic_flag {
-    var _value : u32 = 0
+    private var _value : u32 = 0
+
+    @make
+    public func make(value : u32 = 0) : atomic_flag {
+        return atomic_flag { _value : value }
+    }
 }
 
 @retained func __chx__flag_test_and_set_u32(ptr : *mut u32) : bool { unsafe {

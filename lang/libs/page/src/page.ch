@@ -122,12 +122,15 @@ var route_snapshot_misses : ubigint = 0
 
 // Lazily constructs the snapshot map (top-level globals are not auto-constructed).
 func ensure_route_snapshots() {
-    var lk = std::lock_guard(&mut route_snapshots_mutex)
-    if(!route_snapshots_ready) {
-        route_snapshots = std::unordered_map<std::string, RouteSnapshot>()
-        route_snapshots_ready = true
+        unsafe {
+        var lk = std::lock_guard(&mut route_snapshots_mutex)
+        if(!route_snapshots_ready) {
+            route_snapshots = std::unordered_map<std::string, RouteSnapshot>()
+            route_snapshots_ready = true
+        }
+
+        }
     }
-}
 
 func route_snapshot_key(key : std::string_view) : std::string {
     return unsafe(std::string(key.data(), key.size()))
@@ -486,25 +489,37 @@ public struct HtmlPage {
     // Stores `pageHtml[start..]` as this route's snapshot. Published once; later
     // `route_snapshot_append` calls copy the bytes.
     public func route_snapshot_store(&mut self, key : std::string_view, start : ubigint) {
-        if(!route_snapshots_enabled) { return }
-        ensure_route_snapshots()
-        const len = pageHtml.size() - start
-        var k = route_snapshot_key(key)
-        var lk = std::lock_guard(&mut route_snapshots_mutex)
-        route_snapshots.insert(k, RouteSnapshot { data : unsafe(std::string(pageHtml.data() + start, len)) })
-        route_snapshot_misses = route_snapshot_misses + 1
+        unsafe {
+            if(!route_snapshots_enabled) { return }
+            ensure_route_snapshots()
+            const len = pageHtml.size() - start
+            var k = route_snapshot_key(key)
+            var lk = std::lock_guard(&mut route_snapshots_mutex)
+            route_snapshots.insert(k, RouteSnapshot { data : unsafe(std::string(pageHtml.data() + start, len)) })
+            route_snapshot_misses = route_snapshot_misses + 1
+    
+        }
     }
 
-    public func route_snapshot_hits_count(&self) : ubigint { return route_snapshot_hits }
-    public func route_snapshot_misses_count(&self) : ubigint { return route_snapshot_misses }
+    public func route_snapshot_hits_count(&self) : ubigint {
+        unsafe {     return route_snapshot_hits 
+        }
+    }
+    public func route_snapshot_misses_count(&self) : ubigint {
+        unsafe {     return route_snapshot_misses 
+        }
+    }
     // Drops every cached snapshot. `clear()` runs each entry's destructor, so
     // the owned bytes are freed (no leak), unlike the previous `*char` handle.
     public func reset_route_snapshots(&mut self) {
-        ensure_route_snapshots()
-        var lk = std::lock_guard(&mut route_snapshots_mutex)
-        route_snapshots.clear()
-        route_snapshot_hits = 0
-        route_snapshot_misses = 0
+        unsafe {
+            ensure_route_snapshots()
+            var lk = std::lock_guard(&mut route_snapshots_mutex)
+            route_snapshots.clear()
+            route_snapshot_hits = 0
+            route_snapshot_misses = 0
+    
+        }
     }
 
     public func has_parameter(&self, key : std::string_view) : bool {

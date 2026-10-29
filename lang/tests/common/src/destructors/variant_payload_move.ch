@@ -28,7 +28,10 @@ struct VariantMoveTracked {
 
     @delete
     func delete(&mut self) {
-        variant_move_delete_count = variant_move_delete_count + 1
+        unsafe {
+            variant_move_delete_count = variant_move_delete_count + 1
+    
+        }
     }
 }
 
@@ -38,28 +41,31 @@ variant VariantMoveMaybe {
 }
 
 public func test_variant_payload_move_value_if() {
+        unsafe {
 
-    // The regression: the payload is destroyed twice (once as the moved value,
-    // once again by the moved-from variant).
-    test("variant payload moved out in a value-if is destroyed once", () => {
-        variant_move_delete_count = 0
-        var result = -1
-        {
-            var m = VariantMoveMaybe.Some(VariantMoveTracked.make(7))
-            var t = if(var Some(v) = m) v else VariantMoveTracked.make(0)
-            result = t.value
-        }
-        return result == 7 && variant_move_delete_count == 1
-    })
+        // The regression: the payload is destroyed twice (once as the moved value,
+        // once again by the moved-from variant).
+        test("variant payload moved out in a value-if is destroyed once", () => {
+            variant_move_delete_count = 0
+            var result = -1
+            {
+                var m = VariantMoveMaybe.Some(VariantMoveTracked.make(7))
+                var t = if(var Some(v) = m) v else VariantMoveTracked.make(0)
+                result = t.value
+            }
+            return result == 7 && variant_move_delete_count == 1
+        })
 
-    // Control: a plain variant value is destroyed exactly once. If this one
-    // fails too, the counter itself (or the variant destructor) is broken and
-    // the regression above is not meaningful.
-    test("variant payload constructed and dropped is destroyed once", () => {
-        variant_move_delete_count = 0
-        {
-            var m = VariantMoveMaybe.Some(VariantMoveTracked.make(3))
+        // Control: a plain variant value is destroyed exactly once. If this one
+        // fails too, the counter itself (or the variant destructor) is broken and
+        // the regression above is not meaningful.
+        test("variant payload constructed and dropped is destroyed once", () => {
+            variant_move_delete_count = 0
+            {
+                var m = VariantMoveMaybe.Some(VariantMoveTracked.make(3))
+            }
+            return variant_move_delete_count == 1
+        })
+
         }
-        return variant_move_delete_count == 1
-    })
-}
+    }

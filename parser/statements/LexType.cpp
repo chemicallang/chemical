@@ -449,6 +449,25 @@ TypeLoc Parser::parseTypeLocNoPostOps(ASTAllocator& allocator) {
                 return getErroredType(allocator);
             }
         }
+        case TokenType::UnsafeKw: {
+            const auto unsafeToken = token;
+            token++;
+            auto type = parseType(allocator);
+            if(type == nullptr) {
+                error("expected a function type after 'unsafe'");
+                return getErroredType(allocator);
+            }
+            auto canonical = type->canonical();
+            if (canonical != nullptr && canonical->kind() == BaseTypeKind::Function) {
+                canonical->as_function_type()->setRequiresUnsafe(true);
+            } else if (canonical != nullptr && canonical->kind() == BaseTypeKind::CapturingFunction) {
+                canonical->as_capturing_func_type_unsafe()->get_func_type()->setRequiresUnsafe(true);
+            } else {
+                error("'unsafe' type qualifier can only be applied to a function type");
+                return getErroredType(allocator);
+            }
+            return { type, loc_single(unsafeToken) };
+        }
         case TokenType::StructKw:
             return parseStructTypeLoc(allocator);
         case TokenType::UnionKw:

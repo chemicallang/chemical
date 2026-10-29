@@ -10,39 +10,45 @@ struct ScopeBlockDestructible {
 
     @delete
     func delete(&mut self) {
-        scope_block_drops = scope_block_drops + 1
+        unsafe {
+            scope_block_drops = scope_block_drops + 1
+    
+        }
     }
 }
 
 func test_scope_block_destruction() {
+        unsafe {
 
-    test("nested block destroys its local at block end", () => {
-        scope_block_drops = 0
-        {
-            var d = ScopeBlockDestructible { v : 1 }
-            if(d.v != 1) { return false }
-        }
-        return scope_block_drops == 1
-    })
+        test("nested block destroys its local at block end", () => {
+            scope_block_drops = 0
+            {
+                var d = ScopeBlockDestructible { v : 1 }
+                if(d.v != 1) { return false }
+            }
+            return scope_block_drops == 1
+        })
 
-    test("nested block destroys all of its locals", () => {
-        scope_block_drops = 0
-        {
-            var a = ScopeBlockDestructible { v : 1 }
-            var b = ScopeBlockDestructible { v : 2 }
-            if(a.v + b.v != 3) { return false }
-        }
-        return scope_block_drops == 2
-    })
+        test("nested block destroys all of its locals", () => {
+            scope_block_drops = 0
+            {
+                var a = ScopeBlockDestructible { v : 1 }
+                var b = ScopeBlockDestructible { v : 2 }
+                if(a.v + b.v != 3) { return false }
+            }
+            return scope_block_drops == 2
+        })
 
-    test("nested block local is destroyed before later outer code runs", () => {
-        scope_block_drops = 0
-        var before = 0
-        {
-            var d = ScopeBlockDestructible { v : 5 }
-            before = scope_block_drops
+        test("nested block local is destroyed before later outer code runs", () => {
+            scope_block_drops = 0
+            var before = 0
+            {
+                var d = ScopeBlockDestructible { v : 5 }
+                before = scope_block_drops
+            }
+            // still zero inside the block, one after it ends
+            return before == 0 && scope_block_drops == 1
+        })
+
         }
-        // still zero inside the block, one after it ends
-        return before == 0 && scope_block_drops == 1
-    })
-}
+    }

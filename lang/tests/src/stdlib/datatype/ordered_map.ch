@@ -3,7 +3,10 @@ using namespace std;
 
 struct OrderedMapDropCounter {
     var value : int
-    @delete func delete(&mut self) { ordered_map_drops = ordered_map_drops + 1 }
+    @delete func delete(&mut self) {
+        unsafe {     ordered_map_drops = ordered_map_drops + 1 
+        }
+    }
 }
 var ordered_map_drops = 0
 

@@ -134,6 +134,9 @@ bool FunctionType::equal(FunctionType *other) const {
     if (isVariadic() != other->isVariadic()) {
         return false;
     }
+    if (requiresUnsafe() != other->requiresUnsafe()) {
+        return false;
+    }
     // return type can be nullptr
     // because sometimes user doesn't give return type for lambda
     // we can't set it to void (because we have to determine it by traversing ast)
@@ -167,6 +170,7 @@ bool FunctionType::equal(FunctionType *other) const {
 
 FunctionType *FunctionType::copy(ASTAllocator& allocator) {
     const auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(returnType.copy(allocator), isExtensionFn(), isVariadic(), isCapturing(), data.signature_resolved);
+    func_type->data = data;
     for (auto &param: params) {
         func_type->params.emplace_back(param->copy(allocator));
     }

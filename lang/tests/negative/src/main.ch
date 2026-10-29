@@ -8,29 +8,32 @@ internal var g_neg_work_dir_buf : [512]char
 internal var NEG_WORK_DIR : *char = null
 
 internal func neg_init_work_dir() {
-    var r = fs::temp_dir(unsafe(&raw mut g_neg_work_dir_buf[0]), 512 as size_t)
-    var i : size_t = 0
-    if(r is std::Result.Ok) {
-        var Ok(len) = r else unreachable
-        i = len
-    } else {
-        // fallback: relative to the current working directory
-        var fb = "chemical_neg_tests\0"
-        while(fb[i] != 0 && i < 511) { g_neg_work_dir_buf[i] = fb[i]; i++ }
+        unsafe {
+        var r = fs::temp_dir(unsafe(&raw mut g_neg_work_dir_buf[0]), 512 as size_t)
+        var i : size_t = 0
+        if(r is std::Result.Ok) {
+            var Ok(len) = r else unreachable
+            i = len
+        } else {
+            // fallback: relative to the current working directory
+            var fb = "chemical_neg_tests\0"
+            while(fb[i] != 0 && i < 511) { g_neg_work_dir_buf[i] = fb[i]; i++ }
+            g_neg_work_dir_buf[i] = 0
+            NEG_WORK_DIR = unsafe(&raw mut g_neg_work_dir_buf[0])
+            return
+        }
+        // strip any trailing separator (POSIX returns "/tmp", Windows "%TEMP%\\")
+        if(i > 0 && (g_neg_work_dir_buf[i-1] == '/' || g_neg_work_dir_buf[i-1] == '\\')) {
+            i--
+        }
+        var suffix = "/chemical_neg_tests\0"
+        var k = 0
+        while(suffix[k] != 0 && i < 511) { g_neg_work_dir_buf[i] = suffix[k]; i++; k++ }
         g_neg_work_dir_buf[i] = 0
         NEG_WORK_DIR = unsafe(&raw mut g_neg_work_dir_buf[0])
-        return
+
+        }
     }
-    // strip any trailing separator (POSIX returns "/tmp", Windows "%TEMP%\\")
-    if(i > 0 && (g_neg_work_dir_buf[i-1] == '/' || g_neg_work_dir_buf[i-1] == '\\')) {
-        i--
-    }
-    var suffix = "/chemical_neg_tests\0"
-    var k = 0
-    while(suffix[k] != 0 && i < 511) { g_neg_work_dir_buf[i] = suffix[k]; i++; k++ }
-    g_neg_work_dir_buf[i] = 0
-    NEG_WORK_DIR = unsafe(&raw mut g_neg_work_dir_buf[0])
-}
 
 internal func write_file(path : *char, content : *char) {
     var f = unsafe(fopen(path, "w"))
@@ -211,109 +214,121 @@ internal func expect_compile_error(env : &mut TestEnv, name : *char, ch_content 
 }
 
 internal func expect_compile_error_with_mod(env : &mut TestEnv, name : *char, ch_content : *char, expected_sub : *char, mod_content : *char) {
-    setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
+        unsafe {
+        setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
 
-    var mod_path : char[512]
-    unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
-    var out_path : char[512]
-    unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
+        var mod_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
+        var out_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
 
-    var output_buf : char[65536]
-    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
+        var output_buf : char[65536]
+        var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
 
-    var out_view = unsafe(&raw output_buf[0])
-    // Coded diagnostics render as `error[SAFE-*]:`; uncoded ones as `error:`.
-    var has_error = string_contains(out_view, "error:") || string_contains(out_view, "error[")
-    var has_sub = if(unsafe(strlen(expected_sub)) == 0) true else string_contains(out_view, expected_sub)
+        var out_view = unsafe(&raw output_buf[0])
+        // Coded diagnostics render as `error[SAFE-*]:`; uncoded ones as `error:`.
+        var has_error = string_contains(out_view, "error:") || string_contains(out_view, "error[")
+        var has_sub = if(unsafe(strlen(expected_sub)) == 0) true else string_contains(out_view, expected_sub)
 
-    if(rc == 0) {
-        env.error("expected compiler to fail but it succeeded")
-        neg_debug_print(name, unsafe(&raw output_buf[0]))
-    } else if(!has_error) {
-        env.error("expected compiler error but did not find one")
-        neg_debug_print(name, unsafe(&raw output_buf[0]))
-    } else if(!has_sub) {
-        env.error("expected error substring not found in output")
-        neg_debug_print(name, unsafe(&raw output_buf[0]))
+        if(rc == 0) {
+            env.error("expected compiler to fail but it succeeded")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        } else if(!has_error) {
+            env.error("expected compiler error but did not find one")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        } else if(!has_sub) {
+            env.error("expected error substring not found in output")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        }
+
+        cleanup_test_dir(NEG_WORK_DIR, name)
+
+        }
     }
-
-    cleanup_test_dir(NEG_WORK_DIR, name)
-}
 
 // Compiles a program that must succeed, and asserts that the output contains
 // the given warning code (for example SAFE-UNSAFE-001). Used while a safety
 // rule is still in report-only mode.
 internal func expect_compile_warning_id(env : &mut TestEnv, name : *char, ch_content : *char, expected_id : *char) {
-    setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
+        unsafe {
+        setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
 
-    var mod_path : char[512]
-    unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
-    var out_path : char[512]
-    unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
+        var mod_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
+        var out_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
 
-    var output_buf : char[65536]
-    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
-    if(rc != 0) {
-        env.error("expected compiler to succeed while emitting a warning")
-        neg_debug_print(name, unsafe(&raw output_buf[0]))
-    } else if(!string_contains(unsafe(&raw output_buf[0]), "warn[")) {
-        env.error("expected a coded warning but found none")
-        neg_debug_print(name, unsafe(&raw output_buf[0]))
-    } else if(!string_contains(unsafe(&raw output_buf[0]), expected_id)) {
-        env.error("expected warning code not found in output")
-        neg_debug_print(name, unsafe(&raw output_buf[0]))
+        var output_buf : char[65536]
+        var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
+        if(rc != 0) {
+            env.error("expected compiler to succeed while emitting a warning")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        } else if(!string_contains(unsafe(&raw output_buf[0]), "warn[")) {
+            env.error("expected a coded warning but found none")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        } else if(!string_contains(unsafe(&raw output_buf[0]), expected_id)) {
+            env.error("expected warning code not found in output")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        }
+
+        cleanup_test_dir(NEG_WORK_DIR, name)
+
+        }
     }
-
-    cleanup_test_dir(NEG_WORK_DIR, name)
-}
 
 // Like expect_compile_error_with_mod, but only asserts that the compiler
 // *printed* the expected diagnostic. Used for the 2c (C translation) phase,
 // whose diagnostics are printed and reset without failing the build.
 internal func expect_compile_output_contains(env : &mut TestEnv, name : *char, ch_content : *char, expected_sub : *char, mod_content : *char) {
-    setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
+        unsafe {
+        setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
 
-    var mod_path : char[512]
-    unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
-    var out_path : char[512]
-    unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
+        var mod_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
+        var out_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
 
-    var output_buf : char[65536]
-    run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
+        var output_buf : char[65536]
+        run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
 
-    if(string_contains(unsafe(&raw output_buf[0]), expected_sub)) {
-        env.success("compiler emitted the expected diagnostic")
-    } else {
-        env.error("expected diagnostic substring not found in output")
-        neg_debug_print(name, unsafe(&raw output_buf[0]))
+        if(string_contains(unsafe(&raw output_buf[0]), expected_sub)) {
+            env.success("compiler emitted the expected diagnostic")
+        } else {
+            env.error("expected diagnostic substring not found in output")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        }
+
+        cleanup_test_dir(NEG_WORK_DIR, name)
+
+        }
     }
-
-    cleanup_test_dir(NEG_WORK_DIR, name)
-}
 
 // Asserts the compiler did NOT print `unexpected_sub` (e.g. a warning that must
 // not fire for a valid case), while still compiling successfully.
 internal func expect_compile_output_not_contains(env : &mut TestEnv, name : *char, ch_content : *char, unexpected_sub : *char, mod_content : *char) {
-    setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
+        unsafe {
+        setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
 
-    var mod_path : char[512]
-    unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
-    var out_path : char[512]
-    unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
+        var mod_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
+        var out_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
 
-    var output_buf : char[65536]
-    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
+        var output_buf : char[65536]
+        var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
 
-    if(rc != 0) {
-        env.error("expected compiler to succeed")
-        neg_debug_print(name, unsafe(&raw output_buf[0]))
-    } else if(string_contains(unsafe(&raw output_buf[0]), unexpected_sub)) {
-        env.error("unexpected diagnostic substring found in output")
-        neg_debug_print(name, unsafe(&raw output_buf[0]))
+        if(rc != 0) {
+            env.error("expected compiler to succeed")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        } else if(string_contains(unsafe(&raw output_buf[0]), unexpected_sub)) {
+            env.error("unexpected diagnostic substring found in output")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        }
+
+        cleanup_test_dir(NEG_WORK_DIR, name)
+
+        }
     }
-
-    cleanup_test_dir(NEG_WORK_DIR, name)
-}
 
 // Returns true when `needle` occurs in the file at `path`.
 internal func read_file_contains(path : *char, needle : *char) : bool {
@@ -331,74 +346,83 @@ internal func read_file_contains(path : *char, needle : *char) : bool {
 // emitted translation unit does / does not contain `symbol`. Used to pin the
 // "unused generic impls emit no code" invariant.
 internal func expect_emitted_symbol(env : &mut TestEnv, name : *char, ch_content : *char, symbol : *char, should_exist : bool) {
-    setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
+        unsafe {
+        setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
 
-    // Compile the single source file directly: `-o <file>.c` selects the C
-    // translation path, and a `.ch` input avoids the build.lab module pipeline.
-    var ch_path : char[512]
-    unsafe { sprintf(unsafe(&raw mut ch_path[0]), "%s/%s/test.ch", NEG_WORK_DIR, name) }
-    var c_path : char[512]
-    unsafe { sprintf(unsafe(&raw mut c_path[0]), "%s/%s/out.c", NEG_WORK_DIR, name) }
+        // Compile the single source file directly: `-o <file>.c` selects the C
+        // translation path, and a `.ch` input avoids the build.lab module pipeline.
+        var ch_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut ch_path[0]), "%s/%s/test.ch", NEG_WORK_DIR, name) }
+        var c_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut c_path[0]), "%s/%s/out.c", NEG_WORK_DIR, name) }
 
-    var output_buf : char[65536]
-    var rc = run_compiler_capture(unsafe(&raw ch_path[0]), unsafe(&raw c_path[0]), unsafe(&raw mut output_buf[0]), 65536)
-    if(rc != 0) {
-        env.error("expected compiler to succeed while emitting C")
-        neg_debug_print(name, unsafe(&raw output_buf[0]))
-        cleanup_test_dir(NEG_WORK_DIR, name)
-        return
-    }
-
-    var found = read_file_contains(unsafe(&raw c_path[0]), symbol)
-    if(found != should_exist) {
-        if(should_exist) {
-            env.error("expected the generic impl symbol in the emitted C, but it is missing")
-        } else {
-            env.error("unused generic impl emitted code: symbol found in the emitted C")
+        var output_buf : char[65536]
+        var rc = run_compiler_capture(unsafe(&raw ch_path[0]), unsafe(&raw c_path[0]), unsafe(&raw mut output_buf[0]), 65536)
+        if(rc != 0) {
+            env.error("expected compiler to succeed while emitting C")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+            cleanup_test_dir(NEG_WORK_DIR, name)
+            return
         }
-        neg_debug_print(name, unsafe(&raw output_buf[0]))
-    }
 
-    cleanup_test_dir(NEG_WORK_DIR, name)
-}
+        var found = read_file_contains(unsafe(&raw c_path[0]), symbol)
+        if(found != should_exist) {
+            if(should_exist) {
+                env.error("expected the generic impl symbol in the emitted C, but it is missing")
+            } else {
+                env.error("unused generic impl emitted code: symbol found in the emitted C")
+            }
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        }
+
+        cleanup_test_dir(NEG_WORK_DIR, name)
+
+        }
+    }
 
 internal func expect_compile_success(env : &mut TestEnv, name : *char, ch_content : *char) {
-    setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
+        unsafe {
+        setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
 
-    var mod_path : char[512]
-    unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
-    var out_path : char[512]
-    unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
+        var mod_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
+        var out_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
 
-    var output_buf : char[65536]
-    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
+        var output_buf : char[65536]
+        var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
 
-    if(rc != 0) {
-        env.error("expected compiler to succeed but it failed")
-        neg_debug_print(name, unsafe(&raw output_buf[0]))
+        if(rc != 0) {
+            env.error("expected compiler to succeed but it failed")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        }
+
+        cleanup_test_dir(NEG_WORK_DIR, name)
+
+        }
     }
-
-    cleanup_test_dir(NEG_WORK_DIR, name)
-}
 
 internal func expect_compile_success_with_mod(env : &mut TestEnv, name : *char, ch_content : *char, mod_content : *char) {
-    setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
+        unsafe {
+        setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
 
-    var mod_path : char[512]
-    unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
-    var out_path : char[512]
-    unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
+        var mod_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
+        var out_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
 
-    var output_buf : char[65536]
-    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
+        var output_buf : char[65536]
+        var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
 
-    if(rc != 0) {
-        env.error("expected compiler to succeed but it failed")
-        neg_debug_print(name, unsafe(&raw output_buf[0]))
+        if(rc != 0) {
+            env.error("expected compiler to succeed but it failed")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        }
+
+        cleanup_test_dir(NEG_WORK_DIR, name)
+
+        }
     }
-
-    cleanup_test_dir(NEG_WORK_DIR, name)
-}
 
 // Compiles an application module and runs it, checking the process exit code.
 // Used to exercise the `async func main` trampoline end-to-end.
@@ -410,34 +434,37 @@ internal func expect_compile_and_exit(env : &mut TestEnv, name : *char, ch_conte
 // Used to compile with debug info (`debug_complete`) so the backend verifier
 // runs on the generated module.
 internal func expect_compile_and_exit_mode(env : &mut TestEnv, name : *char, ch_content : *char, mod_content : *char, expected_exit : int, mode : *char) {
-    setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
+        unsafe {
+        setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
 
-    var mod_path : char[512]
-    unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
-    var out_path : char[512]
-    unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
+        var mod_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
+        var out_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
 
-    var output_buf : char[65536]
-    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 16384, mode)
-    if(rc != 0) {
-        env.error("expected compiler to succeed but it failed")
-        neg_debug_print(name, unsafe(&raw output_buf[0]))
+        var output_buf : char[65536]
+        var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 16384, mode)
+        if(rc != 0) {
+            env.error("expected compiler to succeed but it failed")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+            cleanup_test_dir(NEG_WORK_DIR, name)
+            return
+        }
+
+        var status = unsafe(system(unsafe(&raw out_path[0])))
+        var exit_code : int
+        comptime if(def.windows) {
+            exit_code = status
+        } else {
+            exit_code = (status >> 8) & 0xff
+        }
+        if(exit_code != expected_exit) {
+            env.error("the program returned the wrong exit code")
+        }
         cleanup_test_dir(NEG_WORK_DIR, name)
-        return
-    }
 
-    var status = unsafe(system(unsafe(&raw out_path[0])))
-    var exit_code : int
-    comptime if(def.windows) {
-        exit_code = status
-    } else {
-        exit_code = (status >> 8) & 0xff
+        }
     }
-    if(exit_code != expected_exit) {
-        env.error("the program returned the wrong exit code")
-    }
-    cleanup_test_dir(NEG_WORK_DIR, name)
-}
 
 @test
 func neg_temp_to_view_with_dtor_errors(env : &mut TestEnv) {

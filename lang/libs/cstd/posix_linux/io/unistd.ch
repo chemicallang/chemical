@@ -11,5 +11,5 @@ if(def.gnu) {
  * cross platform helper function returning the process environment
  */
 public func get_environ() : **mut char {
-    return __environ
+    return unsafe(__environ)
 }

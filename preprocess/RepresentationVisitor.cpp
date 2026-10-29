@@ -1005,6 +1005,9 @@ void RepresentationVisitor::VisitComplexType(ComplexType *type) {
 }
 
 void RepresentationVisitor::VisitFunctionType(FunctionType *type) {
+    if (type->requiresUnsafe()) {
+        write("unsafe ");
+    }
     write('(');
     unsigned i = 0;
     auto size = type->params.size();

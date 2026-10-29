@@ -13,7 +13,10 @@ internal var g_unsafe_last_ptr : *mut UnsafeTracked = null
 struct UnsafeTracked {
     var tag : i32
     @delete func delete(&mut self) {
-        g_unsafe_dtor_count = g_unsafe_dtor_count + 1
+        unsafe {
+            g_unsafe_dtor_count = g_unsafe_dtor_count + 1
+    
+        }
     }
 }
 
@@ -31,57 +34,60 @@ func return_unsafe_tracked() : UnsafeTracked {
 }
 
 func test_unsafe_value_semantics() {
-    // 1) A value obtained through `unsafe(...)` is still destroyed normally.
-    //    `unsafe` is a no-op marker and must never suppress destruction.
-    g_unsafe_dtor_count = 0
-    {
-        var t = unsafe(make_tracked())
-        g_unsafe_last_tag = t.tag
-        test("unsafe wrap does not suppress destruction of a normal local", () => {
-            return g_unsafe_last_tag == 7
+        unsafe {
+        // 1) A value obtained through `unsafe(...)` is still destroyed normally.
+        //    `unsafe` is a no-op marker and must never suppress destruction.
+        g_unsafe_dtor_count = 0
+        {
+            var t = unsafe(make_tracked())
+            g_unsafe_last_tag = t.tag
+            test("unsafe wrap does not suppress destruction of a normal local", () => {
+                return g_unsafe_last_tag == 7
+            })
+        }
+        test("unsafe wrap keeps the single destructor of a normal local", () => {
+            return g_unsafe_dtor_count == 1
         })
-    }
-    test("unsafe wrap keeps the single destructor of a normal local", () => {
-        return g_unsafe_dtor_count == 1
-    })
 
-    // 2) `unsafe(...)` used on a return is a move, not a copy.
-    g_unsafe_dtor_count = 0
-    {
-        var t = return_unsafe_tracked()
-        g_unsafe_last_tag = t.tag
-        test("unsafe return preserves the moved value", () => {
-            return g_unsafe_last_tag == 7
+        // 2) `unsafe(...)` used on a return is a move, not a copy.
+        g_unsafe_dtor_count = 0
+        {
+            var t = return_unsafe_tracked()
+            g_unsafe_last_tag = t.tag
+            test("unsafe return preserves the moved value", () => {
+                return g_unsafe_last_tag == 7
+            })
+        }
+        test("unsafe return behaves as a move (exactly one destructor)", () => {
+            return g_unsafe_dtor_count == 1
         })
-    }
-    test("unsafe return behaves as a move (exactly one destructor)", () => {
-        return g_unsafe_dtor_count == 1
-    })
 
-    // 3) New uninitialized-variable rules: declare without `unsafe`, initialize
-    //    via a full assignment (first init), and take the address only inside
-    //    `unsafe(...)`. The value is still destroyed exactly once, and a
-    //    first-assigned variable holds the assigned value (no garbage).
-    g_unsafe_dtor_count = 0
-    {
-        var t : UnsafeTracked
-        t = make_tracked()
-        g_unsafe_last_tag = t.tag
-        var p = unsafe(&raw mut t)
-        g_unsafe_last_ptr = p
-        test("uninitialized var first-assigned holds the assigned value", () => {
-            return g_unsafe_last_tag == 7
+        // 3) New uninitialized-variable rules: declare without `unsafe`, initialize
+        //    via a full assignment (first init), and take the address only inside
+        //    `unsafe(...)`. The value is still destroyed exactly once, and a
+        //    first-assigned variable holds the assigned value (no garbage).
+        g_unsafe_dtor_count = 0
+        {
+            var t : UnsafeTracked
+            t = make_tracked()
+            g_unsafe_last_tag = t.tag
+            var p = unsafe(&raw mut t)
+            g_unsafe_last_ptr = p
+            test("uninitialized var first-assigned holds the assigned value", () => {
+                return g_unsafe_last_tag == 7
+            })
+            test("address of uninitialized var allowed inside unsafe(...)", () => {
+                return g_unsafe_last_ptr != null
+            })
+        }
+        test("value declared uninitialized and first-initialized destructs once", () => {
+            return g_unsafe_dtor_count == 1
         })
-        test("address of uninitialized var allowed inside unsafe(...)", () => {
-            return g_unsafe_last_ptr != null
-        })
-    }
-    test("value declared uninitialized and first-initialized destructs once", () => {
-        return g_unsafe_dtor_count == 1
-    })
 
-    // 4) `unsafe(expr)` is also accepted at statement position (it wraps a
-    //    call statement, including a call to an unsafe function).
-    unsafe(unsafe_noop())
-    test("unsafe(...) is usable as an expression statement", () => true)
-}
+        // 4) `unsafe(expr)` is also accepted at statement position (it wraps a
+        //    call statement, including a call to an unsafe function).
+        unsafe(unsafe_noop())
+        test("unsafe(...) is usable as an expression statement", () => true)
+
+        }
+    }

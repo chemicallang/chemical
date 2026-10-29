@@ -37,7 +37,10 @@ struct AL_Outer {
 
     @delete
     func delete(&self) {
-        al_delete_seen = self.y
+        unsafe {
+            al_delete_seen = self.y
+    
+        }
     }
 }
 
@@ -48,28 +51,31 @@ func al_read_y(o : &AL_Outer) : int {
 }
 
 func test_aggregate_field_layout() {
-    test("sizeof and offsetof include implicit padding", () => {
-        return sizeof(AL_Inner) == 8 && sizeof(AL_Outer) == 16 &&
-               offsetof(AL_Outer, x) == 0 && offsetof(AL_Outer, y) == 12
-    })
-    test("field after padding round-trips through a reference", () => {
-        var o : AL_Outer
-        o.y = 4242
-        o.x = 'A'
-        o.inner.a = 7
-        o.inner.b = 9
-        return al_read_y(&o) == 4242 && o.x == 'A' &&
-               o.inner.a == 7 && o.inner.b == 9
-    })
-    test("destructor reads the field after padding", () => {
-        al_delete_seen = 0
-        if(al_delete_seen == 0) {
+        unsafe {
+        test("sizeof and offsetof include implicit padding", () => {
+            return sizeof(AL_Inner) == 8 && sizeof(AL_Outer) == 16 &&
+                   offsetof(AL_Outer, x) == 0 && offsetof(AL_Outer, y) == 12
+        })
+        test("field after padding round-trips through a reference", () => {
             var o : AL_Outer
             o.y = 4242
             o.x = 'A'
             o.inner.a = 7
             o.inner.b = 9
+            return al_read_y(&o) == 4242 && o.x == 'A' &&
+                   o.inner.a == 7 && o.inner.b == 9
+        })
+        test("destructor reads the field after padding", () => {
+            al_delete_seen = 0
+            if(al_delete_seen == 0) {
+                var o : AL_Outer
+                o.y = 4242
+                o.x = 'A'
+                o.inner.a = 7
+                o.inner.b = 9
+            }
+            return al_delete_seen == 4242
+        })
+
         }
-        return al_delete_seen == 4242
-    })
-}
+    }

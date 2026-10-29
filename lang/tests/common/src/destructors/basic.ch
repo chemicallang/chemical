@@ -256,7 +256,10 @@ struct my_string {
 
     @delete
     func delete(&self) {
-        my_string_destr_count = my_string_destr_count + 1;
+        unsafe {
+            my_string_destr_count = my_string_destr_count + 1;
+    
+        }
     }
 
 }

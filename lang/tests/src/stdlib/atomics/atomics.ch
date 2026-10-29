@@ -3,30 +3,42 @@
 var s64 : u64 = 0
 
 func reset_u64(v: u64) : *mut u64 {
-    s64 = v
-    return &raw mut s64
-}
+        unsafe {
+        s64 = v
+        return &raw mut s64
+
+        }
+    }
 
 var s32 : u32 = 0
 
 func reset_u32(v: u32) : *mut u32 {
-    s32 = v
-    return &raw mut s32
-}
+        unsafe {
+        s32 = v
+        return &raw mut s32
+
+        }
+    }
 
 var s16 : u16 = 0
 
 func reset_u16(v: u16) : *mut u16 {
-    s16 = v
-    return &raw mut s16
-}
+        unsafe {
+        s16 = v
+        return &raw mut s16
+
+        }
+    }
 
 var s8 : u8 = 0
 
 func reset_u8(v: u8) : *mut u8 {
-    s8 = v
-    return &raw mut s8
-}
+        unsafe {
+        s8 = v
+        return &raw mut s8
+
+        }
+    }
 
 // =================== fence tests ===================
 

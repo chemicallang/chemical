@@ -476,6 +476,25 @@ void SymResLinkBody::check_unsafe_member_access(ASTNode* linked, Value* at, bool
                "(@volatile is not atomic)";
         return;
     }
+    // A top-level `var` is process-wide mutable storage: an unsynchronized
+    // read or write is a data race and a safe-code soundness hole. Thread-local
+    // globals and compile-time declarations do not have that hazard. Immutable
+    // globals are checked separately for `Sync` at their declaration.
+    if (linked->kind() == ASTNodeKind::VarInitStmt) {
+        auto* global = linked->as_var_init_unsafe();
+        if (global->is_top_level() && global->is_extern() && !comptime_context) {
+            diagnoser.error(at).with_code("SAFE-GLOBAL-001")
+                << "access to an extern global requires an unsafe boundary";
+            return;
+        }
+        if (global->is_top_level() && !global->is_comptime() &&
+            !global->is_const() && !global->is_thread_local() && !comptime_context) {
+            diagnoser.error(at).with_code("SAFE-GLOBAL-001")
+                << "access to a mutable global requires an unsafe boundary or "
+                   "thread-local/synchronized storage";
+            return;
+        }
+    }
     // A named union's active member is not tracked. Reading any field can
     // reinterpret the storage as a different type, so the union author/caller
     // must take the explicit unsafe boundary.
@@ -923,6 +942,10 @@ void SymResLinkBody::VisitReturnStmt(ReturnStatement* node) {
 }
 
 void SymResLinkBody::VisitInlineAsmStmt(InlineAsmStatement* node) {
+    if (safe_context) {
+        diagnoser.error(node).with_code("SAFE-UNSAFE-003")
+            << "inline assembly requires an unsafe boundary";
+    }
     for(auto& op : node->output_operands) {
         visit(op.expr);
     }

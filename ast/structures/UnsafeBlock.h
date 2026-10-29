@@ -10,11 +10,6 @@ public:
     Scope scope;
 
     /**
-     * optional flag name for lifetime_check or similar features
-     */
-    chem::string_view flag_name;
-
-    /**
      * constructor
      */
     constexpr UnsafeBlock(
@@ -28,7 +23,6 @@ public:
         const auto blk = new (allocator.allocate<UnsafeBlock>()) UnsafeBlock(
             parent(), encoded_location()
         );
-        blk->flag_name = flag_name;
         scope.copy_into(blk->scope, allocator, this);
         return blk;
     }

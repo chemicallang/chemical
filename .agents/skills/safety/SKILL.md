@@ -30,8 +30,14 @@ Implemented:
   - `SAFE-PROV-001` — creating a reference from a raw pointer (`&*p`,
     `&mut *p`, or a raw/integer/null → reference cast) in safe context
     (enforced; S4.8).
-  - `SAFE-UNSAFE-002` — call to an `unsafe func` outside an `unsafe` context
-    (error; covers expression calls, methods, and unsafe constructors).
+  - `SAFE-UNSAFE-002` — call to an `unsafe func` or an unsafe/extern function
+    pointer outside an `unsafe` context, and unsafe-to-safe function-pointer
+    coercion (error; covers expression calls, methods, constructors, and
+    variables/fields of function type).
+  - `SAFE-UNSAFE-003` — inline assembly outside an `unsafe` boundary.
+  - `SAFE-GLOBAL-001` — access to a mutable top-level global or `@extern`
+    global outside an `unsafe` boundary (thread-local/comptime globals exempt).
+  - `SAFE-GLOBAL-002` — immutable global whose type is not `Sync`.
 - Negative harness accepts both `error:` and `error[SAFE-` and has
   `expect_compile_warning_id`.
 - Safety suite at `lang/tests/safety/` (`--safety`), wired through
@@ -296,7 +302,7 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `53`, negative tests `548`.
+  `53`, negative tests `562`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -316,7 +322,7 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `53`, negative `548`; TCC main `2354`, LLVM
+  TCC/LLVM lib runs. Safety suite `53`, negative `562`; TCC main `2354`, LLVM
   main `2352`, libs `719`, plugins `1305`, async `53`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
@@ -349,7 +355,28 @@ Implemented:
   carry one explicit unsafe boundary around their raw context/job operations.
   Wrapping generic bodies exposed a missing `ValueNode::copy`, now implemented.
   In-tree stdlib/CBI/plugin/build.lab call sites were migrated; audit baseline
-  is `unsafe_blocks 572`, `unsafe_values 382`; negative `548`.
+  is `unsafe_blocks 573`, `unsafe_values 386`; negative `562`.
+- S2.2/S4.8 function pointers: `FunctionTypeData::requires_unsafe` is part of
+  function type identity and is set for `unsafe func` and `@extern`. Calling a
+  value of such a type in safe context is `SAFE-UNSAFE-002`; coercing it to a
+  safe function type is also rejected with `SAFE-UNSAFE-002`. `unsafe (args) =>
+  ret` is the explicit unsafe function-pointer type. Negative tests cover
+  variable calls, extern calls, coercion, and the `unsafe` type form.
+- S2.2/S2.4 inline asm: `SAFE-UNSAFE-003` requires an unsafe boundary. Atomic
+  fence helpers wrap each `asm` instruction explicitly; negative/positive tests
+  cover the boundary.
+- S5.5 C arithmetic: signed add/sub/mul/left-shift are emitted as unsigned
+  computations cast back to the signed type, eliminating C signed-overflow UB
+  and giving defined two's-complement wrapping in the default/release profile.
+  `--overflow-checks` remains the opt-in checked debug profile.
+- M2/global model: `SAFE-GLOBAL-001` gates mutable top-level `var` and
+  `@extern` global access; `SAFE-GLOBAL-002` requires immutable globals to be
+  `Sync`. Thread-local and comptime globals are exempt. In-tree call sites were
+  migrated with audited unsafe boundaries or existing synchronization.
+- `atomic_flag._value` is private; use `atomic_flag.make(value)` so safe code
+  cannot forge the flag storage.
+- Named unsafe flags (`unsafe "no_lifetime_check"`) are rejected. `unsafe` is a
+  boundary marker only; it does not disable lifetime checking.
 - S4.1 (partial) Pin/Unpin: `core::Unpin` is a safe auto trait derived from
   fields (pointers/references are Unpin; negative impls are allowed), and
   `core::PhantomPinned` opts out via `impl !Unpin`. `core::Pin<T>` has a

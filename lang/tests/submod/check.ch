@@ -42,7 +42,7 @@ public func extern_enum_get_mango() : extern_enum_fruits {
 public var extern_globe_var = 768
 
 public func extern_globe_var_incr() {
-    extern_globe_var++
+    unsafe { extern_globe_var++ }
 }
 
 public variant extern_imported_opt {

@@ -993,6 +993,13 @@ var func_ptr : (a : int, b : std::string) => bool
 
 // Lambda type with capture - only capturing functions can capture variables
 var lambda_type : std::function<(param : type) => return_type>
+
+// Unsafe function pointer: calling through it requires unsafe(...)
+var unsafe_cb : unsafe (a : int) => int = some_unsafe_func
+var result = unsafe(unsafe_cb(1))
+
+// An unsafe/@extern function cannot be stored in a safe function type;
+// use `unsafe (...)` explicitly.
 ```
 
 ### Annotations

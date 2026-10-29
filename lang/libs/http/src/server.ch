@@ -256,8 +256,10 @@ public namespace server {
                                  }
                                  ctx.overlapped.Internal = 0;
                                  ctx.overlapped.InternalHigh = 0;
-                                 ctx.overlapped.Offset = 0;
-                                 ctx.overlapped.OffsetHigh = 0;
+                                 unsafe {
+                                     ctx.overlapped.Offset = 0;
+                                     ctx.overlapped.OffsetHigh = 0;
+                                 }
                                  net::iocp::async_recv(s, ctx);
                                  return;
                              }
@@ -309,8 +311,10 @@ public namespace server {
                                  ctx.read_pos = 0u;
                                  ctx.overlapped.Internal = 0;
                                  ctx.overlapped.InternalHigh = 0;
-                                 ctx.overlapped.Offset = 0;
-                                 ctx.overlapped.OffsetHigh = 0;
+                                 unsafe {
+                                     ctx.overlapped.Offset = 0;
+                                     ctx.overlapped.OffsetHigh = 0;
+                                 }
                                  net::iocp::async_recv(s, ctx);
                              } else {
                                  net::close_socket(s);

@@ -19,23 +19,23 @@ union ShortFloatUnion {
     var a : short
     var b : float
 
-    func give_short(&self) : short {
+    func give_short(&self) : short { unsafe {
         return a;
-    }
+    }}
 
-    func give_float(&self) : float {
+    func give_float(&self) : float { unsafe {
         return b;
-    }
+    }}
 
 }
 
-func (u : &mut ShortFloatUnion) sfu_short_plus() : short {
+func (u : &mut ShortFloatUnion) sfu_short_plus() : short { unsafe {
     return u.a + 2;
-}
+}}
 
-func (u : &mut ShortFloatUnion) sfu_float_plus() : float {
+func (u : &mut ShortFloatUnion) sfu_float_plus() : float { unsafe {
     return u.b + 3.0f;
-}
+}}
 
 public struct test_string_union {
 
@@ -56,7 +56,7 @@ public struct test_string_union {
     } storage;
     var state : char
 
-    func size(&self) : u64 {
+    func size(&self) : u64 { unsafe {
         switch(state) {
             '0' => {
                 return storage.constant.length;
@@ -71,7 +71,7 @@ public struct test_string_union {
                 return 0
             }
         }
-    }
+    }}
 
 }
 

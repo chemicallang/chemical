@@ -462,7 +462,7 @@ inline void link_val(SymResLinkBody &symRes, Value* value, BaseType* expected_ty
     }
 }
 
-void SymResLinkBody::check_volatile_access(ASTNode* linked, Value* at) {
+void SymResLinkBody::check_unsafe_member_access(ASTNode* linked, Value* at, bool is_write) {
     if (!safe_context || linked == nullptr) return;
     bool is_volatile = false;
     if (linked->kind() == ASTNodeKind::StructMember) {
@@ -474,6 +474,30 @@ void SymResLinkBody::check_volatile_access(ASTNode* linked, Value* at) {
         diagnoser.error(at).with_code("SAFE-VALID-006")
             << "access to a @volatile value requires an explicit unsafe boundary "
                "(@volatile is not atomic)";
+        return;
+    }
+    // A named union's active member is not tracked. Reading any field can
+    // reinterpret the storage as a different type, so the union author/caller
+    // must take the explicit unsafe boundary.
+    if (linked->kind() == ASTNodeKind::StructMember) {
+        ASTNode* parent = linked->parent();
+        if (!is_write && parent != nullptr &&
+            (parent->kind() == ASTNodeKind::UnionDecl ||
+             parent->kind() == ASTNodeKind::GenericUnionDecl)) {
+            diagnoser.error(at).with_code("SAFE-VALID-007")
+                << "reading a union field requires an explicit unsafe boundary; "
+                   "the active union member is not tracked";
+            return;
+        }
+    }
+    // A public anonymous union has the same hazard. Private/internal anonymous
+    // unions are already inaccessible outside their type/module.
+    if (linked->kind() == ASTNodeKind::UnnamedUnion) {
+        if (!is_write && linked->as_unnamed_union_unsafe()->specifier == AccessSpecifier::Public) {
+            diagnoser.error(at).with_code("SAFE-VALID-007")
+                << "reading a public anonymous union field requires an explicit "
+                   "unsafe boundary";
+        }
     }
 }
 
@@ -540,7 +564,7 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
             break;
         }
         if (find_link_in_parent(id, values[i - 1], *this)) {
-            check_volatile_access(id->linked, id);
+            check_unsafe_member_access(id->linked, id, assignment);
         }
         i++;
     }
@@ -623,7 +647,7 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
         if(identifier->getType() == nullptr) {
             identifier->setType(identifier->linked->known_type());
         }
-        check_volatile_access(identifier->linked, identifier);
+        check_unsafe_member_access(identifier->linked, identifier);
         identifier->process_linked(&diagnoser, current_func_type);
         return;
     }
@@ -651,7 +675,7 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
         } else {
             identifier->linked = sym->activeNode;
             identifier->setType(identifier->linked->known_type());
-            check_volatile_access(identifier->linked, identifier);
+            check_unsafe_member_access(identifier->linked, identifier);
             identifier->process_linked(&diagnoser, current_func_type);
             return;
         }
@@ -660,7 +684,7 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
     if(linked) {
         identifier->linked = linked;
         identifier->setType(linked->known_type());
-        check_volatile_access(identifier->linked, identifier);
+        check_unsafe_member_access(identifier->linked, identifier);
         identifier->process_linked(&diagnoser, current_func_type);
         return;
     } else {

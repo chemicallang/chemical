@@ -935,3 +935,10 @@ func neg_volatile_access_requires_unsafe(env : &mut TestEnv) {
     var ch = "public func main() : int {\n    @volatile\n    var flag : u32 = 0\n    flag = 1\n    return flag as int\n}\n"
     expect_compile_error(env, "volatile_access_safe", ch, "SAFE-VALID-006")
 }
+
+@test
+func neg_union_field_access_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "union U {\n    var a : int\n    var b : float\n}\npublic func main() : int {\n    var u = U { a : 1 }\n    return u.a\n}\n"
+    expect_compile_error(env, "union_field_safe", ch, "SAFE-VALID-007")
+}

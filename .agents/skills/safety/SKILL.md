@@ -296,7 +296,7 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `53`, negative tests `536`.
+  `53`, negative tests `537`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -305,7 +305,9 @@ Implemented:
   `__chc_enum_fail` (panic) for an invalid tag. `SAFE-VALID-005` is retired;
   the literal-only `SAFE-VALID-003` check remains. `SAFE-VALID-006` requires
   an unsafe boundary for `@volatile` reads/writes: volatile is not atomic and
-  concurrent access is a data race. In-tree lexer/parser/plugin
+  concurrent access is a data race. `SAFE-VALID-007` requires an unsafe
+  boundary for reading a named union field and reading a public anonymous-union field:
+  the active union member is not tracked. In-tree lexer/parser/plugin
   casts were replaced with integer comparisons or total mapping helpers. `NonNull` has a private field and checked/unsafe
   constructors.
   `InterpretScope` now validates
@@ -314,7 +316,7 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `53`, negative `536`; TCC main `2354`, LLVM
+  TCC/LLVM lib runs. Safety suite `53`, negative `537`; TCC main `2354`, LLVM
   main `2352`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
@@ -610,6 +612,7 @@ Codes are stable and grouped by domain:
 | `SAFE-VALID-004` | `zeroed<Enum>()` has no declared zero tag |
 | `SAFE-VALID-005` | retired: runtime int-to-enum casts are now checked in MIR |
 | `SAFE-VALID-006` | `@volatile` access outside an unsafe boundary |
+| `SAFE-VALID-007` | union field read outside an unsafe boundary |
 | `SAFE-TRAIT-001` | implementation of an `unsafe interface` was not `unsafe impl` |
 | `SAFE-VIS-001` | private/internal member initialized or accessed outside its type/module |
 | `SAFE-FFI-001` | extern call in a safe context (enforced) |

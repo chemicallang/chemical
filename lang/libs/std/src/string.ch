@@ -7,16 +7,16 @@ union u64_double_union {
     var d : double
 }
 
-func dbl_bits(x : double) : u64 {
+func dbl_bits(x : double) : u64 { unsafe {
     var u : u64_double_union;
     u.d = x;
     return u.u;
-}
-func dbl_from_bits(b : u64) : double {
+}}
+func dbl_from_bits(b : u64) : double { unsafe {
     var u : u64_double_union;
     u.u = b;
     return u.d;
-}
+}}
 comptime const DBL_EXP_MASK = 0x7FF0000000000000u64
 comptime const DBL_FRAC_MASK = 0x000FFFFFFFFFFFFFu64
 comptime const DBL_SIGN_MASK = 0x8000000000000000u64

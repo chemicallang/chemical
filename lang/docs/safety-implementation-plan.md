@@ -927,19 +927,27 @@
 > `Send` when `T: Send`; `std::concurrent.Thread.join` is now public. A
 > non-`Send` argument (`Rc`, raw pointer) is rejected by the existing auto-trait
 > checker, and `T: 'static` is now enforced for generic bounds
-> (`SAFE-LIFE-004`): a reference into the caller's stack cannot escape into a
-> thread. `vector`, `deque`, `unordered_map`, and `ordered_map` gained audited
+> (`SAFE-LIFE-004`): a reference into the caller's stack (directly or in a struct
+> field) cannot escape into a thread. `vector`, `deque`, `unordered_map`, and
+> `ordered_map` gained audited
 > conditional `Send`/`Sync` impls; `string`/`u16string` remain owned values.
 > Capturing closures and erased captures still use the explicit unsafe
 > `std::concurrent.spawn` path until M6.5.
-> Next in M6: erased/async `Send`, guard/auto-trait audit, and TSAN/data-race
-> tests. Scoped threads are blocked on M4 HRTB/region support: without a
+> **M6.2 TSAN:** `scripts/thread-tsan.sh` builds
+> `lang/tests/thread_tsan/chemical.mod` with `--tsan` and runs four safe
+> threads sharing `Arc<Mutex<int>>` (4000 serialized increments). The bundled
+> LLVM prebuild may not contain `libclang_rt.tsan.a`; the script discovers a
+> system LLVM resource directory (or honors `CHEMICAL_TSAN_RESOURCES`) and
+> fails rather than silently dropping the sanitizer. Guard-transfer negative
+> tests cover `MutexGuard` and `RwLockWriteGuard`.
+> Next in M6: erased/async `Send` and remaining guard/auto-trait audit.
+> Scoped threads are blocked on M4 HRTB/region support: without a
 > higher-ranked scope lifetime, a body-local reference could outlive the join
 > that is supposed to protect it. The current safe API therefore requires
 > `'static` values only; capturing closures and non-`'static` scoped borrows stay
 > on the explicit unsafe path. Then remaining M5 validity (packed references),
 > M2 C ABI, and the variance/HRTB/temporary-lifetime precision items.
-> Safety suite `53`; negative tests `577`; main TCC `2354`, LLVM `2352`;
+> Safety suite `53`; negative tests `579`; main TCC `2354`, LLVM `2352`;
 > libs `726`; plugins `1305`; async `53`; interpret `1910`;
 > `MIRTests` `4638 checks`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
@@ -2519,4 +2527,4 @@ single-drop change.
 Panic always aborts; there is no unwinding runtime, `catch_unwind`,
 drop-on-unwind, or `UnwindSafe` surface. M6 has started with a safe
 non-capturing `std::thread.spawn`/`spawn_void`, `JoinHandle`, `Send + 'static`
-enforcement, and `SAFE-LIFE-004`; scoped/erased/async `Send` and TSAN remain.*
+enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send` remain.*

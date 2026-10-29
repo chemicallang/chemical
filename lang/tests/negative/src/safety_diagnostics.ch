@@ -1195,3 +1195,17 @@ func neg_thread_spawn_vector_of_non_send_rejected(env : &mut TestEnv) {
     var ch = "func worker(v : std::vector<std::Rc<int> >) : int {\n    return v.size() as int\n}\npublic func main() : int {\n    var v = std::vector<std::Rc<int> >()\n    v.push(std::rc(1))\n    var t = std::thread.spawn<std::vector<std::Rc<int> >, int>(worker, v)\n    return t.join() - 1\n}\n"
     expect_compile_error_with_mod(env, "thread_spawn_vector_non_send", ch, "does not satisfy where clause constraint 'T : Send'", NEG_MOD_STD_CORE)
 }
+
+@test
+func neg_thread_spawn_mutex_guard_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func worker(g : std::MutexGuard<int>) : int {\n    return 0\n}\npublic func main() : int {\n    var m = std::new_mutex(1)\n    var g = m.lock()\n    var t = std::thread.spawn<std::MutexGuard<int>, int>(worker, g)\n    return t.join()\n}\n"
+    expect_compile_error_with_mod(env, "thread_spawn_mutex_guard", ch, "does not satisfy where clause constraint 'T : Send'", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_thread_spawn_rwlock_guard_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func worker(g : std::RwLockWriteGuard<int>) : int {\n    return 0\n}\npublic func main() : int {\n    var m = std::new_rwlock(1)\n    var g = m.write()\n    var t = std::thread.spawn<std::RwLockWriteGuard<int>, int>(worker, g)\n    return t.join()\n}\n"
+    expect_compile_error_with_mod(env, "thread_spawn_rwlock_guard", ch, "does not satisfy where clause constraint 'T : Send'", NEG_MOD_STD_CORE)
+}

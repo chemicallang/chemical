@@ -304,7 +304,7 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `53`, negative tests `577`.
+  `53`, negative tests `579`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -324,7 +324,7 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `53`, negative `577`; TCC main `2354`, LLVM
+  TCC/LLVM lib runs. Safety suite `53`, negative `579`; TCC main `2354`, LLVM
   main `2352`, libs `726`, plugins `1305`, async `53`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
@@ -350,8 +350,10 @@ Implemented:
   reference cannot be submitted. Conditional audited `Send`/`Sync` impls were
   added for `vector`, `deque`, `unordered_map`, and `ordered_map`. Capturing
   closures/erased captures still use the explicit unsafe
-  `std::concurrent.spawn` path until M6.5; scoped threads need HRTB/region support
-  (see Next), and TSAN coverage remains.
+  `std::concurrent.spawn` path until M6.5. Guard-transfer negative tests cover
+  `MutexGuard`/`RwLockWriteGuard`. `scripts/thread-tsan.sh` runs a four-thread
+  `Arc<Mutex<int>>` smoke test under TSAN; it uses a system LLVM resource
+  directory when the bundled prebuild lacks `libclang_rt.tsan.a`.
 - S4.3b autoref / S4.7 two-phase: a reference receiver (`&self` / `&mut self`)
   now lowers to `Borrow`/`BorrowMut` instead of an untracked `AddressOf`, and
   method-call arguments are evaluated before the receiver borrow is activated.
@@ -375,7 +377,7 @@ Implemented:
   carry one explicit unsafe boundary around their raw context/job operations.
   Wrapping generic bodies exposed a missing `ValueNode::copy`, now implemented.
   In-tree stdlib/CBI/plugin/build.lab call sites were migrated; audit baseline
-  is `unsafe_blocks 573`, `unsafe_values 441`; negative `577`.
+  is `unsafe_blocks 573`, `unsafe_values 441`; negative `579`.
 - S2.2/S4.8 function pointers: `FunctionTypeData::requires_unsafe` is part of
   function type identity and is set for `unsafe func` and `@extern`. Calling a
   value of such a type in safe context is `SAFE-UNSAFE-002`; coercing it to a
@@ -474,7 +476,7 @@ Implemented:
 
 Next:
 
-- M6.5: erased/async `Send`; add TSAN/data-race coverage. Scoped threads are
+- M6.5: erased/async `Send`. Scoped threads are
   blocked on M4 HRTB/region support: a body-local reference must not outlive
   the scope join, which needs a higher-ranked scope lifetime. Capturing
   closures and non-`'static` scoped borrows remain on the explicit unsafe path.
@@ -758,6 +760,9 @@ Compile-fail tests stay in `--negative` so the default suites remain fast.
 
 # Lower + verify without emitting/linking
 ./cmake-build-debug/TCCCompiler <module> --check --no-cache
+
+# M6 thread data-race smoke under TSAN (system LLVM resources)
+./scripts/thread-tsan.sh
 
 # Audit baseline gate
 ./scripts/safety-audit.sh            # fail on growth

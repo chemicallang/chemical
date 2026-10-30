@@ -39,6 +39,9 @@ public:
      */
     FunctionTypeBody* current_func_type = nullptr;
 
+    /** The lambda whose body is currently being checked, if any. */
+    LambdaFunction* current_lambda = nullptr;
+
     /**
      * using this we check, if non-retained generics are being instantiated in public generic declarations
      */

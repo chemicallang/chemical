@@ -30,24 +30,24 @@ updated baseline and a justification in the same change.
 
 | Metric | Count |
 |---|---:|
-| `unsafe_blocks` | 3664 |
-| `unsafe_values` | 4888 |
-| `raw_pointer_types` | 9249 |
+| `unsafe_blocks` | 3663 |
+| `unsafe_values` | 4889 |
+| `raw_pointer_types` | 9253 |
 | `raw_pointer_derefs` | 974 |
-| `raw_pointer_addrs` | 10011 |
-| `raw_pointer_casts` | 2850 |
-| `extern_decls` | 871 |
+| `raw_pointer_addrs` | 10009 |
+| `raw_pointer_casts` | 2853 |
+| `extern_decls` | 872 |
 | `extern_calls` | 1255 |
 | `variadic_calls` | 276 |
 | `inline_asm` | 57 |
 | `mutable_globals` | 141 |
 | `extern_globals` | 7 |
-| `panic_calls` | 85 |
+| `panic_calls` | 86 |
 | `allocator_calls` | 167 |
 | `dealloc_stmts` | 175 |
 | `delete_stmts` | 22 |
 | `destruct_stmts` | 23 |
-| `memory_calls` | 83 |
+| `memory_calls` | 82 |
 | `new_values` | 7 |
 | `abort_calls` | 0 |
 | `unreachable_stmts` | 0 |
@@ -62,7 +62,7 @@ updated baseline and a justification in the same change.
 | `::tls` | 373 | 1007 | 738 | 164 |
 | `::common_tests` | 290 | 4 | 235 | 17 |
 | `::universal_cbi` | 228 | 15 | 850 | 3 |
-| `::std` | 160 | 112 | 247 | 123 |
+| `::std` | 159 | 112 | 251 | 122 |
 | `::window` | 123 | 24 | 315 | 88 |
 | `::process` | 104 | 78 | 54 | 110 |
 | `::html_cbi` | 91 | 14 | 376 | 2 |

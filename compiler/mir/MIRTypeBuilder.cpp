@@ -319,13 +319,19 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
     // size, alignment and each field's byte offset, from the canonical table
     // alone (never from the host or from the AST again)
     uint32_t explicit_align = 0;
+    bool packed = false;
     if (decl && decl->kind() == ASTNodeKind::StructDecl) {
-        explicit_align = decl->as_struct_def_unsafe()->get_required_alignment();
+        auto* def = decl->as_struct_def_unsafe();
+        explicit_align = def->get_required_alignment();
+        packed = def->is_packed();
+    } else if (decl && decl->kind() == ASTNodeKind::UnionDecl) {
+        packed = decl->as_union_def_unsafe()->is_packed();
     }
     module_.types.update(id, [&](MIRTypeRecord& rec) {
         rec.data_count = static_cast<uint32_t>(fs.size());
         rec.field_index = fidx;
         rec.explicit_alignment = explicit_align;
+        rec.packed = packed;
     });
     compute_aggregate_layout(module_.types, id, explicit_align);
 }

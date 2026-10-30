@@ -387,6 +387,15 @@ func test_scoped_spawn_closure_borrow() : bool {
 }
 
 // main: run tests
+// 15) Safe thread-pool submission with a typed capture witness
+func test_pool_submit_closure_owned_capture() : bool {
+    var pool = std::concurrent::create_pool(2u)
+    var x = 41
+    var f = std::concurrent.submit_closure(|x|() => { return x + 1 }, &pool)
+    var r = f.get()
+    return r == 42
+}
+
 func test_thread_pool() {
         unsafe {
         test("test_basic_single_thread", test_basic_single_thread);
@@ -405,6 +414,7 @@ func test_thread_pool() {
         test("test_mixed_quick_tasks", test_mixed_quick_tasks);
         test("test_spawn_closure_owned_capture", test_spawn_closure_owned_capture);
         test("test_scoped_spawn_closure_borrow", test_scoped_spawn_closure_borrow);
+        test("test_pool_submit_closure_owned_capture", test_pool_submit_closure_owned_capture);
 
         }
     }

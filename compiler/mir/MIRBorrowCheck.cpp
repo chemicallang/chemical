@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace mir {
@@ -325,6 +326,11 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
     }
 
     std::unordered_map<ValueId, LoanTarget> address_targets;
+    // Addresses/places that project into a packed aggregate. A safe reference
+    // to one is rejected (SAFE-VALID-008): its ABI alignment is 1, so the
+    // referent does not satisfy the reference type's alignment requirement.
+    std::unordered_set<uint32_t> packed_places;
+    std::unordered_set<uint32_t> packed_addresses;
     std::unordered_map<ValueId, uint32_t> value_loans;
     std::unordered_map<PlaceId, uint32_t> place_loans;
     // Ambiguous reference results may alias any of these loans.
@@ -558,6 +564,9 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 }
                 if (inst.result_or_place != MIR_INVALID_ID) {
                     address_targets[inst.result_or_place] = t;
+                    if (packed_places.count(address_place) != 0) {
+                        packed_addresses.insert(inst.result_or_place);
+                    }
                 }
                 break;
             }
@@ -594,6 +603,16 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         aggregate = ar.element;
                     }
                 }
+                bool packed_projection = false;
+                if (ops[0].kind() == MIROperandKind::Place) {
+                    packed_projection = packed_places.count(ops[0].id) != 0;
+                } else if (ops[0].kind() == MIROperandKind::Value) {
+                    packed_projection = packed_addresses.count(ops[0].id) != 0;
+                }
+                if (aggregate != MIR_INVALID_ID && aggregate < module.types.types.size() &&
+                    module.types.types[aggregate].packed) {
+                    packed_projection = true;
+                }
                 LoanTarget projected = base;
                 projected.path = project_path(
                     module, function, base.path, aggregate, ops[1]
@@ -617,12 +636,21 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 }
                 if (inst.result_or_place != MIR_INVALID_ID) {
                     address_targets[inst.result_or_place] = projected;
+                    if (packed_projection) packed_places.insert(inst.result_or_place);
                 }
                 break;
             }
             case MIROpcode::Borrow:
             case MIROpcode::BorrowMut: {
                 if (ops == nullptr || inst.operand_count == 0) break;
+                const bool packed_borrow =
+                    packed_addresses.count(ops[0].id) != 0 ||
+                    packed_places.count(ops[0].id) != 0;
+                if (packed_borrow) {
+                    report(result.diagnostics, function, function_index, order, lin,
+                           "SAFE-VALID-008",
+                           "cannot create a reference to a field of a packed aggregate");
+                }
                 // The address operand is a use of any loan it reborrows.
                 use_value(ops[0], lin, false);
                 Loan loan;

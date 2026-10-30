@@ -90,6 +90,9 @@ struct MIRTypeRecord {
      * recorded. Source spelling is compared by `equal`/`hash_of`.
      */
     uint32_t explicit_alignment = 0;
+
+    /** Source requested packed layout (`@packed` / `@repr("packed")`). */
+    bool packed = false;
 };
 
 /**
@@ -400,6 +403,7 @@ struct MIRTypeTable {
         mix(r.int_kind);
         mix(r.field_index);
         mix(r.explicit_alignment);
+        mix(r.packed ? 1u : 0u);
         if (r.kind == MIRTypeKind::Function) {
             for (uint32_t i = 0; i < r.data_count; ++i) {
                 const uint32_t idx = r.data_offset + i;
@@ -421,7 +425,7 @@ struct MIRTypeTable {
             a.alignment != b.alignment || a.element != b.element || a.decl != b.decl ||
             a.data_count != b.data_count || a.int_kind != b.int_kind ||
             a.field_index != b.field_index ||
-            a.explicit_alignment != b.explicit_alignment) {
+            a.explicit_alignment != b.explicit_alignment || a.packed != b.packed) {
             return false;
         }
         // Only function types store parameter types in the shared data pool;

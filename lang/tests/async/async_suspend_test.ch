@@ -555,3 +555,14 @@ func test_async_spawn_send_cross_thread(env : &mut TestEnv) {
         env.error("SendFutureHandle should move to a worker and complete")
     }
 }
+
+@test
+func test_async_spawn_send_stored_handle(env : &mut TestEnv) {
+    var first = async::spawn_send(send_frame_work())
+    // The stored form carries the already-checked Send frame witness.
+    var second = async::spawn_send_handle(first)
+    var r = async::block_on_send<int>(second)
+    if(r != 2) {
+        env.error("a stored SendFutureHandle should be resubmittable")
+    }
+}

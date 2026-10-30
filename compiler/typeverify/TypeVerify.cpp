@@ -50,12 +50,15 @@
 #include "ast/base/BaseType.h"
 #include "ast/types/FunctionType.h"
 #include "ast/types/CapturingFunctionType.h"
+#include "ast/values/LambdaFunction.h"
+#include "ast/structures/CapturedVariable.h"
 
 // -------- Definite Assignment helpers --------
 
 static bool captures_function_local_storage(Value* value);
 static bool captures_function_local_storage(
         Value* value, const std::unordered_set<VarInitStatement*>& tainted);
+static bool moves_noncopy_capture(Value* value, LambdaFunction* lambda);
 
 bool TypeVerifier::da_type_has_destructor(VarInitStatement* v) {
     auto* t = v->known_type();
@@ -2135,6 +2138,16 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
     if (scoped_capture_call) allow_scoped_capture = true;
     RecursiveVisitor<TypeVerifier>::VisitFunctionCall(call);
     allow_scoped_capture = prev_scoped_capture;
+    if (current_lambda != nullptr) {
+        for (Value* arg : call->values) {
+            if (moves_noncopy_capture(arg, current_lambda)) {
+                diagnoser.error(arg).with_code("SAFE-MOVE-002")
+                    << "cannot move a by-value callback capture out of a reusable "
+                       "callback; capture it by reference or use an explicit "
+                       "once-callback";
+            }
+        }
+    }
     if (linked_call != nullptr && linked_call->name_view() == chem::string_view("spawn_send")) {
         verify_async_send_frame(*this, call);
     }
@@ -2803,6 +2816,12 @@ void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
     }
     if(value) {
         visit(value);
+        if(current_lambda != nullptr && moves_noncopy_capture(value, current_lambda)) {
+            diagnoser.error(value).with_code("SAFE-MOVE-002")
+                << "cannot move a by-value callback capture out of a reusable "
+                   "callback; capture it by reference or use an explicit "
+                   "once-callback";
+        }
     }
 
     if(type && value) {
@@ -3154,6 +3173,12 @@ void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
     }
     check_index_move(assign->value);
     visit_it(assign->value);
+    if (current_lambda != nullptr && moves_noncopy_capture(assign->value, current_lambda)) {
+        diagnoser.error(assign->value).with_code("SAFE-MOVE-002")
+            << "cannot move a by-value callback capture out of a reusable "
+               "callback; capture it by reference or use an explicit "
+               "once-callback";
+    }
 
     if (auto* target = capture_root_var(assign->lhs)) {
         if (captures_function_local_storage(assign->value, capture_escape_locals)) {
@@ -3226,10 +3251,65 @@ void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
 
 }
 
+// A by-value capture is owned by the callable environment. Moving it out of
+// the lambda body would leave the environment partially moved; because the
+// same callable can be invoked again, that is unsound without an FnOnce-style
+// receiver. Reject the direct move forms until the Fn traits land.
+static CapturedVariable* by_value_capture_root(Value* value, LambdaFunction* lambda) {
+    if (value == nullptr) return nullptr;
+    switch (value->val_kind()) {
+        case ValueKind::CastedValue:
+            return by_value_capture_root(value->as_casted_value_unsafe()->value, lambda);
+        case ValueKind::UnsafeValue:
+            return by_value_capture_root(static_cast<UnsafeValue*>(value)->getValue(), lambda);
+        case ValueKind::Identifier: {
+            auto* id = value->as_identifier_unsafe();
+            if (id->linked && id->linked->kind() == ASTNodeKind::CapturedVariable) {
+                auto* cap = id->linked->as_captured_var_unsafe();
+                return cap->capture_by_ref ? nullptr : cap;
+            }
+            if (lambda != nullptr) {
+                for (CapturedVariable* cap : lambda->captureList) {
+                    if (cap == nullptr || cap->capture_by_ref) continue;
+                    if (cap->name != id->value) continue;
+                    if (cap->linked != nullptr && id->linked != nullptr &&
+                        cap->linked != id->linked) continue;
+                    return cap;
+                }
+            }
+            return nullptr;
+        }
+        case ValueKind::AccessChain: {
+            auto* chain = value->as_access_chain_unsafe();
+            if (!chain->values.empty()) return by_value_capture_root(chain->values[0], lambda);
+            return nullptr;
+        }
+        default:
+            return nullptr;
+    }
+}
+
+static bool moves_noncopy_capture(Value* value, LambdaFunction* lambda) {
+    if (value == nullptr) return false;
+    auto* cap = by_value_capture_root(value, lambda);
+    if (cap == nullptr) return false;
+    BaseType* type = value->getType();
+    if (type == nullptr) return false;
+    type = type->canonical();
+    if (type == nullptr || type->isReferenceCanonical()) return false;
+    return type->requires_destructor();
+}
+
 void TypeVerifier::VisitReturnStmt(ReturnStatement *node) {
     check_index_move(node->value);
     RecursiveVisitor::VisitReturnStmt(node);
     auto& value = node->value;
+    if (current_lambda != nullptr && moves_noncopy_capture(value, current_lambda)) {
+        diagnoser.error(value).with_code("SAFE-MOVE-002")
+            << "cannot move a by-value callback capture out of a reusable "
+               "callback; capture it by reference or use an explicit "
+               "once-callback";
+    }
     if (value && captures_function_local_storage(value, capture_escape_locals)) {
         diagnoser.error(value).with_code("SAFE-LIFE-001")
             << "cannot return a function value that borrows function-local "
@@ -3690,8 +3770,11 @@ void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {
 
 void TypeVerifier::VisitLambdaFunction(LambdaFunction *func) {
     const auto prev = current_func_type;
+    auto* prev_lambda = current_lambda;
     current_func_type = func;
+    current_lambda = func;
     RecursiveVisitor::VisitLambdaFunction(func);
+    current_lambda = prev_lambda;
     current_func_type = prev;
 }
 

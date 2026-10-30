@@ -30,6 +30,9 @@ struct MIRValueDef {
     uint32_t def_inst = MIR_INVALID_ID;
     uint16_t use_count = 0; // saturating; used only for inline compaction
     uint8_t flags = VF_NONE;
+    /** Alignment of an addressable value when it is known to be less than the
+     *  type's natural alignment (packed field/index projections), 0 = default. */
+    uint32_t alignment = 0;
 };
 
 /** Dense, PlaceId-indexed place definition. */

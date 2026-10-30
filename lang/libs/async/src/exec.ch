@@ -395,6 +395,16 @@ public func <T> spawn_send(handle : core::async::FutureHandle<T>) : core::async:
         return unsafe(core::async.future_handle_into_send<T>(&mut joined))
 }
 
+// Submit a future that already crossed the safe Send boundary (for example the
+// result of `spawn_send`). The frame witness is carried by SendFutureHandle, so
+// this is safe without re-inspecting an erased FutureHandle. This is the stored
+// future form of `spawn_send`.
+public func <T> spawn_send_handle(handle : core::async::SendFutureHandle<T>) : core::async::SendFutureHandle<T> where T : Send {
+        var owned = handle
+        var joined = unsafe(spawn<T>(unsafe(owned.into_future())))
+        return unsafe(core::async.future_handle_into_send<T>(&mut joined))
+}
+
 // Submit a task to the executor for a UI/event loop to drive. The executor is
 // process-wide, so this is currently the same submission as `spawn`; the
 // distinction is the driver. `window_run_async` (Tier 5) drives this executor

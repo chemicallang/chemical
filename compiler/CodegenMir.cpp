@@ -160,7 +160,7 @@ llvm::Type* Codegen::mir_type(const mir::MIRModule& m, uint32_t id) {
                     elems.push_back(mir_type(m, e.rep_type));
                 }
             }
-            st->setBody(elems);
+            st->setBody(elems, r.packed);
             mir_agg_plans_[id] = std::move(plan);
             t = st;
             break;
@@ -246,7 +246,8 @@ static bool c_abi_aggregate_info_impl(Codegen& gen, const MIRModule& m, TypeId t
         const MIRTypeRecord& ft = m.types.get(f->type);
         const uint32_t fsize = ft.size;
         if (fsize == 0) continue;
-        if (f->align != 0 && (f->offset % f->align) != 0) {
+        const uint32_t falign = f->align != 0 ? f->align : ft.alignment;
+        if (falign != 0 && (f->offset % falign) != 0) {
             out.memory = true;
             return true;
         }
@@ -1604,7 +1605,17 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                         vals[v] = llvm::PoisonValue::get(mir_type(m, fn.values[v].type));
                         break;
                     }
-                    vals[v] = builder->CreateLoad(mir_type(m, fn.values[v].type), ptr);
+                    llvm::LoadInst* li = builder->CreateLoad(mir_type(m, fn.values[v].type), ptr);
+                    uint32_t load_align = 0;
+                    if (b->kind() == MIROperandKind::Value && b->id < fn.values.size()) {
+                        load_align = fn.values[b->id].alignment;
+                    } else if (b->kind() == MIROperandKind::Place &&
+                               b->id < fn.places.size()) {
+                        const TypeId bt = fn.places[b->id].type;
+                        if (bt < m.types.size() && m.types.get(bt).packed) load_align = 1;
+                    }
+                    if (load_align > 0) li->setAlignment(llvm::Align(load_align));
+                    vals[v] = li;
                     break;
                 }
                 case MIROpcode::Store: {
@@ -1655,7 +1666,18 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                             }
                         }
                     }
-                    if (dst && sv) builder->CreateStore(sv, dst);
+                    if (dst && sv) {
+                        llvm::StoreInst* si = builder->CreateStore(sv, dst);
+                        uint32_t store_align = 0;
+                        if (b->kind() == MIROperandKind::Value && b->id < fn.values.size()) {
+                            store_align = fn.values[b->id].alignment;
+                        } else if (b->kind() == MIROperandKind::Place &&
+                                   b->id < fn.places.size()) {
+                            const TypeId bt = fn.places[b->id].type;
+                            if (bt < m.types.size() && m.types.get(bt).packed) store_align = 1;
+                        }
+                        if (store_align > 0) si->setAlignment(llvm::Align(store_align));
+                    }
                     break;
                 }
                 case MIROpcode::Borrow:

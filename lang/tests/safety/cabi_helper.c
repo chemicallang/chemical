@@ -22,3 +22,6 @@ struct CAbiThree cabi_three_add(struct CAbiThree x) {
 }
 int cabi_union_read(union CAbiUnion u) { return u.i; }
 int cabi_two_pairs(struct CAbiPair a, struct CAbiPair b) { return a.a + b.b; }
+
+struct __attribute__((packed)) CAbiPacked { char tag; int value; char tail; };
+int cabi_packed_sum(struct CAbiPacked p) { return p.tag + p.value + p.tail; }

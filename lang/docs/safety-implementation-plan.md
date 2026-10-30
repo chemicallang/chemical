@@ -425,6 +425,12 @@
 >   assignment after move). Tests cover double move and field access after a
 >   move. The tracker still runs at symbol-resolution time; replacing it with
 >   MIR move/init dataflow remains M3.1–M3.6.
+> - S3.2c callback capture moves: a non-Copy by-value lambda capture is owned by
+>   the reusable callback environment. Returning it, initializing a local from
+>   it, assigning it, or passing it by value is rejected with `SAFE-MOVE-002`;
+>   the old lowering bitwise-copied the capture, which could double-own its
+>   storage on repeated calls. Full once/reusable callback semantics still need
+>   the `FnOnce`/`FnMut`/`Fn` traits.
 > - S3.2b array index moves: moving a destructor-bearing element out of an
 >   array by index is rejected with `SAFE-MOVE-001`, for both constant and
 >   dynamic indices. This closes the copy-out/double-drop hole (`var x =
@@ -848,6 +854,10 @@
 > because volatile is not atomic and concurrent use is a data race.
 > `SAFE-VALID-007` requires an unsafe boundary for named union field access and
 > public anonymous-union access, because the active union member is not tracked.
+> `SAFE-VALID-008` rejects creating a reference to a field of a packed aggregate
+> (the field's ABI alignment is 1, so the reference would not satisfy the
+> referent's alignment); value reads/writes through a packed field remain
+> allowed and use byte-aligned loads/stores.
 > The raw-pointer `core::stream::Stream::writeStr`/`writeStrNoLen` methods are
 > `unsafe func`; `std::print`/`println`'s generated `CommandLineStream` writes
 > are explicitly wrapped in an `UnsafeBlock`. The command-line buffer
@@ -1032,14 +1042,16 @@
 > scope, including non-`'static` borrows. Capturing scoped callbacks are covered
 > by `std::thread.scoped_spawn_closure` for the no-argument captured form;
 > heterogeneous multi-value scopes and value-passing capturing scoped closures
-> remain open. Remaining work is M5 packed/`repr` layout and references, C ABI
-> classification for Windows/ARM and FFI wrappers, and the
-> variance/HRTB/temporary-lifetime precision items.
-> Safety suite `55`; negative tests `617`; main TCC `2356`, LLVM `2354`;
-> libs `730`; plugins `1305`; async `55`; interpret `1910`; server `10`;
-> TLS `599`; safety `56`; `MIRTests` `4643 checks`. The whole-tree audit
+> remain open. Packed layout and `@repr("C"/"packed")` are implemented
+> (including `SAFE-VALID-008` for references to packed fields);
+> `repr("transparent")`, C ABI classification for Windows/ARM, and FFI
+> wrappers remain, along with the variance/HRTB/temporary-lifetime precision
+> items.
+> Safety suite `60`; negative tests `620`; main TCC `2357`, LLVM `2355`;
+> libs `730`; plugins `1305`; async `56`; interpret `1910`; server `10`;
+> TLS `599`; safety `60`; `MIRTests` `4643 checks`. The whole-tree audit
 > manifest (`lang/docs/safety/audit-modules.txt`) covers `94` modules with
-> `unsafe_blocks 3664` / `unsafe_values 4888`; see
+> `unsafe_blocks 3663` / `unsafe_values 4889`; see
 > `lang/docs/safety/migration-metrics.md`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
@@ -1304,8 +1316,10 @@ Re-baseline explicitly; checked-in logs may lag.
 4. `string_view`/`span`/`Chunk`/`dyn`/`std::function`/`FutureHandle` erase
    lifetimes.
 5. Unchecked allocation arithmetic/OOM in vector/string.
-6. `default_function_instance` stores a pointer into its own inline buffer and
-   is moved by memcpy.
+6. `default_function_instance` inline-buffer self-pointer: **fixed** by moving
+   every capture to an aligned heap allocation; moving the erased function no
+   longer leaves `fn_data_ptr` pointing into the source frame. The inline
+   buffer field remains for layout compatibility but is unused.
 7. `unsafe` disables definite assignment; `unsafe(expr)`/`unsafe "flag"` are
    inconsistent.
 8. `@extern` aggregate ABI is implemented for x86-64 SysV structs/unions;
@@ -2636,3 +2650,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.12 (2026-10-30): safe async submission now returns a typed `SendFutureHandle<T>` with a conditional `Send`/`Sync` witness, and `block_on_send` drives it. The safe thread/async surface also includes join-before-return capturing scoped closures, and unsafe-created borrowed-callback taint is followed through aggregates, fields, access chains, generic/variant payloads, and erased callback parameters. The TLS/HTTP/server stack was migrated to explicit unsafe bodies at raw-pointer/FFI boundaries; `AwaitNormalizePass` now descends into `unsafe` blocks so awaits inside audited crypto bodies lower as real suspensions. TCC TLS `599/599`, server `10/10`, negative `617`, async `55`. Packed/repr layout and full target-aware C ABI remain explicit unsupported surface (unknown annotations and by-value extern aggregates are rejected, never silently miscompiled); M1/M7 parity and M8 hardening remain.*
 *Revision note v4.13 (2026-10-30): the safety audit is whole-tree. `scripts/safety-audit.sh` now compiles every entry point in `lang/docs/safety/audit-modules.txt` with `--check --safety-report json`, merges per-module reports conservatively, and checks a 94-module baseline (`unsafe_blocks 3664`, `unsafe_values 4879`). Webview/universal-test/CBOR raw-pointer and global sites were migrated; cbor tests compile again. `lang/docs/safety/migration-metrics.md` records the methodology and per-domain counts. The safety skill/plan status was reconciled with v4.12. Remaining: M2 C ABI, M5 packed/repr, bare erased callback parameters, heterogeneous/value-passing scoped scopes, M1/M7 parity, and M8 release hardening.*
 *Revision note v4.14 (2026-10-30): target C ABI support for by-value structs/unions on x86-64 SysV. The MIR symbol keeps its internal pointer/sret signature and records a separate `c_abi_type`; C prototypes and LLVM declarations use the by-value signature, while calls adapt arguments and returns. Small aggregates are classified per eightbyte (integer/SSE coercion); larger values use `byval`/`sret` memory. `SAFE-FFI-002` now rejects only Chemical variants by value. A linked C fixture exercises small, two-eightbyte, SSE, mixed, memory-class and union values on TCC and LLVM; safety suite `56`. Other target ABIs (Windows x64, ARM) and FFI wrappers/variadics/callbacks remain.*
+*Revision note v4.15 (2026-10-30): callback capture storage is always heap-indirect and alignment-aware, removing the inline self-pointer/under-aligned `malloc` hole in `std::default_function_instance`. Packed layout is implemented for structs and unions (`@packed` and `@repr("packed")`; `@repr("C")` is the explicit natural-layout marker), with C `#pragma pack`, packed LLVM aggregate bodies, and packed-layout size/alignment tests. Creating a reference to a packed field is rejected with `SAFE-VALID-008`. `repr("transparent")` remains explicit-unsupported. M6.5 gains safe `std::concurrent.submit_closure` (typed capture, `C: Send + 'static`) and `async::spawn_send_handle` for stored `SendFutureHandle` values; bare erased `std::function` parameters and heterogeneous/value-passing scoped scopes remain.*
+*Revision note v4.16 (2026-10-30): a non-Copy by-value callback capture could be returned, assigned, or passed by value out of a reusable lambda; the generated closure call bitwise-copied the capture, so repeated calls could double-own/destroy it. `SAFE-MOVE-002` now rejects the direct move forms (return, var initializer, assignment, call argument). This is a conservative guard, not full Rust-style callable semantics: `FnOnce`/`FnMut`/`Fn` traits and a once-callback type remain M1.16/M6.6 work.*

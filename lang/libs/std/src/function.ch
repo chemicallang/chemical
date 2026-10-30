@@ -12,7 +12,9 @@ public struct default_function_instance {
     // we store data pointer, so storage can be done on stack or heap
     private var fn_data_ptr : *mut any
 
-    // 32 bytes of buffer, 4 pointers
+    // 32 bytes of buffer, 4 pointers. Kept for layout compatibility; captures
+    // are always heap-indirect now (see make2), so this buffer is no longer a
+    // source of an internal pointer.
     @maxalign
     private var buffer : [32]char
 
@@ -22,6 +24,10 @@ public struct default_function_instance {
 
     // is the captured struct allocated on heap
     private var is_heap : bool
+
+    // The allocation returned by malloc. `fn_data_ptr` is aligned inside it,
+    // so this may differ from `fn_data_ptr` for an over-aligned capture.
+    private var alloc_base : *mut void
 
     // TODO: raw capturing function type should be developed
     //  which can only take literal capturing functions
@@ -44,48 +50,54 @@ public struct default_function_instance {
     // only the audited `make` path above may call it.
     @make
     unsafe func make2(ptr : *mut void, cap : *mut void, destr : destructor_type, size_data : size_t, align_data : size_t) {
-        // we get the captured struct from the lambda
+        // We get the captured struct from the lambda
         const captured = cap
-        // since lambda has no captured data, we don't need to do anything else
+        // A non-capturing lambda needs no allocation.
         if(captured == null) {
             return default_function_instance {
                 fn_pointer : ptr,
                 fn_data_ptr : null,
                 is_heap : false,
                 dtor : null,
-                buffer : []
+                buffer : [],
+                alloc_base : null
             }
         }
-        // now lets store the data into buffer
-        //  because on move the pointer gets invalidated, so we are taking a shortcut and putting
-        //  everything on heap until we can get this done
-        if(size_data >= 32) {
-            // we are going to need to allocate the lambda on heap, its too big
-            // TODO: malloc call should take alignment malloc(size_data, align_data)
-            var allocated = unsafe(malloc(size_data)) as *mut char
-            if(allocated == null) {
-                panic("function capture allocation failed")
-            }
-            unsafe { memcpy(allocated, captured, size_data) }
-            return default_function_instance {
-                fn_pointer : ptr,
-                fn_data_ptr : allocated,
-                is_heap : true,
-                dtor : destr,
-                buffer : []
-            }
+
+        // Captures are always heap-indirect. Storing the capture in the inline
+        // buffer makes fn_data_ptr point into this value; returning/moving the
+        // struct then leaves that pointer dangling. The heap copy also lets us
+        // honour align_data, which malloc alone does not.
+        var align = align_data
+        if(align == 0) {
+            align = 1
+        }
+        if((align & (align - 1)) != 0) {
+            panic("function capture alignment must be a power of two")
+        }
+        var total : size_t = size_data
+        if(total == 0) {
+            total = 1
         } else {
-            // we are going to allocate it in buffer
-            var i = default_function_instance {
-                fn_pointer : ptr,
-                fn_data_ptr : null,
-                is_heap : false,
-                dtor : destr,
-                buffer : []
-            }
-            unsafe { memcpy(&raw mut i.buffer[0], captured, size_data) }
-            i.fn_data_ptr = &raw mut i.buffer[0]
-            return i;
+            total = total + align - 1
+        }
+        var base = unsafe(malloc(total)) as *mut char
+        if(base == null) {
+            panic("function capture allocation failed")
+        }
+        const raw = base as usize
+        const aligned = (raw + align - 1) & ~(align - 1)
+        var allocated = aligned as *mut char
+        if(size_data > 0) {
+            unsafe { memcpy(allocated as *mut void, captured, size_data) }
+        }
+        return default_function_instance {
+            fn_pointer : ptr,
+            fn_data_ptr : allocated as *mut any,
+            is_heap : true,
+            dtor : destr,
+            buffer : [],
+            alloc_base : base as *mut void
         }
     }
 
@@ -94,11 +106,7 @@ public struct default_function_instance {
     }
 
     func get_data_ptr(&self) : *mut any {
-        if(is_heap) {
-            return fn_data_ptr
-        } else {
-            return (&buffer[0]) as *mut any
-        }
+        return fn_data_ptr
     }
 
     @delete
@@ -107,10 +115,10 @@ public struct default_function_instance {
             if(dtor != null) {
                 dtor(get_data_ptr())
             }
-            if(is_heap) {
-                dealloc fn_data_ptr
+            if(alloc_base != null) {
+                dealloc alloc_base
             }
-    
+
         }
     }
 

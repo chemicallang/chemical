@@ -11,7 +11,7 @@ The source tree wins over any status note here.
 
 ## Current status (2026-10-30)
 
-**M0 (S0.1–S0.6), M3, M4, and the enforceable M5/M6 surface are implemented. M1/M2/M7 are advanced; M6.5 has two API-completeness gaps (bare erased callback parameters and heterogeneous/value-passing scoped scopes). S5.6b (unwinding) is withdrawn by policy: panic always aborts.**
+**M0 (S0.1–S0.6), M3, M4, and the enforceable M5/M6 surface are implemented. M1/M2/M7 are advanced; M6.5 has two API-completeness gaps (bare erased callback parameters and heterogeneous/value-passing scoped scopes). Packed layout and `@repr("C"/"packed")` are implemented; `repr("transparent")` and non-x86-64 C ABIs remain. S5.6b (unwinding) is withdrawn by policy: panic always aborts.**
 
 Implemented:
 
@@ -336,8 +336,8 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning a Chemical variant by value; structs/unions use
   the x86-64 SysV C ABI on both backends (pointer FFI remains allowed, other
-  target ABIs still need classification). Safety suite `56`, negative tests
-  `617`.
+  target ABIs still need classification). Safety suite `60`, negative tests
+  `620`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -357,9 +357,9 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `56`, negative `617`; TCC main `2356`, LLVM
-  main `2354`, libs `730`, plugins `1305`, async `55`, interpret `1910`,
-  server `10`, TLS `599`, safety `56`.
+  TCC/LLVM lib runs. Safety suite `60`, negative `620`; TCC main `2357`, LLVM
+  main `2355`, libs `730`, plugins `1305`, async `56`, interpret `1910`,
+  server `10`, TLS `599`, safety `60`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
   range-checked, frame places are registered individually, and globals,
@@ -459,7 +459,7 @@ Implemented:
   Wrapping generic bodies exposed a missing `ValueNode::copy`, now implemented.
   In-tree stdlib/CBI/plugin/build.lab call sites were migrated. The audit now
   compiles the whole-tree entry-point list (`94` modules) with `--check`; the
-  baseline is `unsafe_blocks 3664`, `unsafe_values 4888`; negative `617`.
+  baseline is `unsafe_blocks 3663`, `unsafe_values 4889`; negative `619`.
 - S2.2/S4.8 function pointers: `FunctionTypeData::requires_unsafe` is part of
   function type identity and is set for `unsafe func` and `@extern`. Calling a
   value of such a type in safe context is `SAFE-UNSAFE-002`; coercing it to a
@@ -514,6 +514,8 @@ Implemented:
   keeps its code/data/destructor fields private. Safe code can only create one
   through the checked `make` lambda path; the raw `make2` constructor remains
   `unsafe func`, and a struct literal outside the type is `SAFE-VIS-001`.
+  Captures are always heap-indirect with an aligned allocation, so moving the
+  erased value no longer leaves `fn_data_ptr` pointing into the source frame.
   This closes the last std erased-callback forgery path; the negative suite
   covers the literal and the unsafe constructor.
 - S2.6 FFI enforced: `SAFE-FFI-001` is a hard error for a call to an
@@ -568,15 +570,19 @@ Next:
 - M6.5 remaining: bare `std::function` parameters still erase their capture
   witness (use `std::typed_function<F, C>` when a signature must expose it),
   and raw `FutureHandle<T>` remains `!Send` outside the checked
-  `spawn_send`/`SendFutureHandle` boundary. Heterogeneous multi-value scopes
-  and value-passing capturing scoped closures are still open. M4 is complete
+  `spawn_send`/`SendFutureHandle` boundary. `async::spawn_send_handle` accepts a
+  stored `SendFutureHandle`, and `std::concurrent.submit_closure` is a safe
+  typed-capture thread-pool submission. Heterogeneous multi-value scopes and
+  value-passing capturing scoped closures are still open. M4 is complete
   for the enforceable surface; nested aggregate HRTB and multi-borrow
   callbacks with parameter/global referents remain explicit
   `SAFE-BORROW-099` rejections.
-- M5/M2: packed/`repr` layout and references; C ABI classification for
-  Windows/ARM and other targets; FFI wrappers/variadics/callbacks. By-value
-  structs/unions work on x86-64 SysV; variants are rejected with
-  `SAFE-FFI-002` rather than silently miscompiled.
+- M5/M2: `repr("transparent")` and packed-field reference coverage are still
+  remaining; packed structs/unions and `@repr("C"/"packed")` are implemented,
+  including the `SAFE-VALID-008` rejection for references to packed fields.
+  C ABI classification for Windows/ARM and other targets, plus FFI
+  wrappers/variadics/callbacks, remains. By-value structs/unions work on
+  x86-64 SysV; variants are rejected with `SAFE-FFI-002`.
 - M1/M7: remaining type-system and stdlib parity; M8: parity corpus, fuzz,
   performance, docs and release audit sign-off.
 - S1.2 `'static`/bounds and S1.3a `PhantomData` are done; temporary lifetime
@@ -719,6 +725,25 @@ Next:
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).
 
+## Callback and `Fn` model
+
+`std::function<T>` is a type-erased, destructor-owning callable. Its capture
+storage is now heap-indirect and alignment-aware, so moving the erased value is
+memory-safe. It is deliberately **not** Rust's `FnOnce`/`FnMut`/`Fn` hierarchy:
+there is no call-once/call-many distinction, no receiver mutability model, and a
+bare `std::function` parameter still erases the capture witness (use
+`std::typed_function<F, C>` when a signature must expose `Send`/`'static`).
+
+Moving a non-Copy by-value capture out of the body (return, var init, assignment,
+or a by-value call argument) is rejected with `SAFE-MOVE-002`; this prevents the
+bitwise-copy/double-own bug until a once-callback exists. The full-parity design
+is to add `FnOnce`/`FnMut`/`Fn` traits, call syntax for trait bounds,
+capture-mode (`move`) semantics, and `dyn Fn...`/`impl Fn...`.
+That is an M1.16/M6.6 language/type-system milestone, not a local library fix.
+Until then, keep safe APIs on `typed_function` (or an equivalent witness-carrying
+signature); do not make a bare erased callback cross a thread boundary without
+an unsafe boundary.
+
 ## Non-negotiable rules
 
 1. **No user opt-out.** No `SafeMode::Off`, module flag, CLI escape, or
@@ -786,6 +811,7 @@ Codes are stable and grouped by domain:
 | `SAFE-VALID-005` | retired: runtime int-to-enum casts are now checked in MIR |
 | `SAFE-VALID-006` | `@volatile` access outside an unsafe boundary |
 | `SAFE-VALID-007` | union field read outside an unsafe boundary |
+| `SAFE-VALID-008` | reference to a field of a packed aggregate |
 | `SAFE-TRAIT-001` | implementation of an `unsafe interface` was not `unsafe impl` |
 | `SAFE-VIS-001` | private/internal member initialized or accessed outside its type/module |
 | `SAFE-FFI-001` | extern call in a safe context (enforced) |
@@ -797,6 +823,7 @@ Codes are stable and grouped by domain:
 | `SAFE-AUTO-001` | `Send`/`Sync` implemented without `unsafe impl` |
 | `SAFE-AUTO-002` | invalid/conflicting negative impl (non-auto trait, duplicate, positive+negative, generic target) |
 | `SAFE-MOVE-001` | move of an already-moved value / access or assignment after a move |
+| `SAFE-MOVE-002` | move of a non-Copy by-value callback capture out of a reusable callback |
 | `SAFE-LIFE-001` | returning a reference to a local/temporary/frame field |
 | `SAFE-LIFE-002` | borrow still live when the referent's local storage ends |
 | `SAFE-LIFE-003` | returned reference does not outlive the declared return lifetime |

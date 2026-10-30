@@ -8,6 +8,7 @@
 @extern struct CAbiMixed { var a : int; var b : float }
 @extern struct CAbiThree { var a : int; var b : int; var c : int }
 @extern union CAbiUnion { var i : int; var f : float }
+@packed @extern struct CAbiPacked { var tag : u8; var value : int; var tail : u8 }
 
 @extern func cabi_pair_add(p : CAbiPair) : CAbiPair
 @extern func cabi_pair_sum(p : CAbiPair) : int
@@ -18,6 +19,7 @@
 @extern func cabi_mixed_add(x : CAbiMixed) : CAbiMixed
 @extern func cabi_three_add(x : CAbiThree) : CAbiThree
 @extern func cabi_union_read(u : CAbiUnion) : int
+@extern func cabi_packed_sum(p : CAbiPacked) : int
 
 @test
 public func CABI_by_value_aggregates(env : &mut TestEnv) {
@@ -36,6 +38,8 @@ public func CABI_by_value_aggregates(env : &mut TestEnv) {
     var tr = unsafe(cabi_three_add(th))
     var u = CAbiUnion { i : 7 }
     var ur = unsafe(cabi_union_read(u))
+    var pk = CAbiPacked { tag : 3, value : 4, tail : 5 }
+    var ps = unsafe(cabi_packed_sum(pk))
     if(q.a != 2 || q.b != 4) { env.error("small struct return mismatch") }
     if(s != 6 || e != 7) { env.error("small struct parameter mismatch") }
     if(two != 5) { env.error("two small struct parameters mismatch") }
@@ -46,4 +50,5 @@ public func CABI_by_value_aggregates(env : &mut TestEnv) {
     if(mr.a != 2 || mr.b != 4.5f) { env.error("mixed struct mismatch") }
     if(tr.a != 2 || tr.b != 4 || tr.c != 6) { env.error("two-eightbyte struct mismatch") }
     if(ur != 7) { env.error("union by-value mismatch") }
+    if(ps != 12) { env.error("packed struct C ABI mismatch") }
 }

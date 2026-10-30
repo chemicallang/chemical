@@ -128,6 +128,15 @@ void MIRBuilder::set_block(BlockId block) {
 
 // ── value / place creation ─────────────────────────────────────────────────
 
+static uint32_t packed_projection_alignment(MIRTypeTable& types, TypeId type) {
+    if (type == MIR_INVALID_ID || type >= types.types.size()) return 0;
+    const MIRTypeRecord& r = types.types[type];
+    if (r.kind == MIRTypeKind::Pointer || r.kind == MIRTypeKind::Reference) {
+        return packed_projection_alignment(types, r.element);
+    }
+    return r.packed ? 1u : 0u;
+}
+
 ValueId MIRBuilder::new_value(TypeId type, uint8_t flags) {
     MIRValueDef vd;
     vd.type = type;
@@ -485,6 +494,7 @@ void MIRBuilder::storage_dead(PlaceId place) {
 ValueId MIRBuilder::field_addr(PlaceId base, ConstantId field_index, TypeId field_type) {
     ValueId v = new_value(field_type, VF_ADDRESSABLE);
     TypeId bt = base < func_.places.size() ? func_.places[base].type : MIR_INVALID_ID;
+    func_.values[v].alignment = packed_projection_alignment(module_.types, bt);
     uint32_t i = emit(MIROpcode::FieldAddr, v,
                       {MIROperand::place(base, bt),
                        MIROperand::constant(field_index, MIR_INVALID_ID),
@@ -496,6 +506,7 @@ ValueId MIRBuilder::field_addr(PlaceId base, ConstantId field_index, TypeId fiel
 ValueId MIRBuilder::field_addr_ptr(ValueId base, ConstantId field_name, TypeId field_type) {
     ValueId v = new_value(field_type, VF_ADDRESSABLE);
     TypeId bt = base < func_.values.size() ? func_.values[base].type : MIR_INVALID_ID;
+    func_.values[v].alignment = packed_projection_alignment(module_.types, bt);
     uint32_t i = emit(MIROpcode::FieldAddr, v,
                       {MIROperand::value(base, bt),
                        MIROperand::constant(field_name, MIR_INVALID_ID),
@@ -508,6 +519,11 @@ ValueId MIRBuilder::index_addr(PlaceId base, ValueId index, TypeId element_type)
     ValueId v = new_value(element_type, VF_ADDRESSABLE);
     TypeId bt = base < func_.places.size() ? func_.places[base].type : MIR_INVALID_ID;
     TypeId it = index < func_.values.size() ? func_.values[index].type : MIR_INVALID_ID;
+    TypeId elem = element_type;
+    if (bt < module_.types.size() && module_.types.get(bt).kind == MIRTypeKind::Array) {
+        elem = module_.types.get(bt).element;
+    }
+    func_.values[v].alignment = packed_projection_alignment(module_.types, elem);
     uint32_t i = emit(MIROpcode::IndexAddr, v,
                       {MIROperand::place(base, bt), MIROperand::value(index, it),
                        MIROperand::type(element_type)});
@@ -519,6 +535,10 @@ ValueId MIRBuilder::index_addr_ptr(ValueId base, ValueId index, TypeId element_t
     ValueId v = new_value(element_type, VF_ADDRESSABLE);
     TypeId bt = base < func_.values.size() ? func_.values[base].type : MIR_INVALID_ID;
     TypeId it = index < func_.values.size() ? func_.values[index].type : MIR_INVALID_ID;
+    func_.values[v].alignment = packed_projection_alignment(module_.types, element_type);
+    if (base < func_.values.size() && func_.values[base].alignment == 1) {
+        func_.values[v].alignment = 1;
+    }
     uint32_t i = emit(MIROpcode::IndexAddr, v,
                       {MIROperand::value(base, bt), MIROperand::value(index, it),
                        MIROperand::type(element_type)});

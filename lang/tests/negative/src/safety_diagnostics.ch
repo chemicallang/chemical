@@ -1042,6 +1042,27 @@ func neg_extern_variant_by_value_rejected(env : &mut TestEnv) {
 }
 
 @test
+func neg_packed_field_shared_reference_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@packed struct Packed {\n    var tag : u8\n    var value : u32\n}\npublic func main() : int {\n    var p = Packed { tag : 1, value : 2 }\n    var r = &p.value\n    return 0\n}\n"
+    expect_compile_error(env, "packed_field_shared_reference", ch, "SAFE-VALID-008")
+}
+
+@test
+func neg_packed_field_mut_reference_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@repr(\"packed\") struct Packed {\n    var tag : u8\n    var value : u32\n}\npublic func main() : int {\n    var p = Packed { tag : 1, value : 2 }\n    var r = &mut p.value\n    return 0\n}\n"
+    expect_compile_error(env, "packed_field_mut_reference", ch, "SAFE-VALID-008")
+}
+
+@test
+func neg_callback_cannot_move_noncopy_capture(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var s = std::string(\"a long captured value\")\n    var f : std::function<() => std::string> = |s|() => {\n        return s\n    }\n    return f().size() as int\n}\n"
+    expect_compile_error_with_mod(env, "callback_move_noncopy_capture", ch, "SAFE-MOVE-002", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_int_to_bool_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var b = 2 as bool\n    return b as int\n}\n"

@@ -74,6 +74,11 @@ struct StructDeclAttributes {
      */
     bool retained_body = false;
 
+    /**
+     * the source explicitly requested packed layout (@packed / @repr("packed"))
+     */
+    bool packed = false;
+
 };
 
 class StructDefinition : public ExtendableMembersContainerNode {
@@ -199,6 +204,14 @@ public:
 
     void set_is_body_retained(bool value) noexcept {
         attrs.retained_body = value;
+    }
+
+    inline bool is_packed() const noexcept {
+        return attrs.packed;
+    }
+
+    inline void set_packed(bool value) noexcept {
+        attrs.packed = value;
     }
 
     inline bool has_destructor() {

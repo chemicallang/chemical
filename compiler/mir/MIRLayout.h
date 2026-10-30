@@ -84,9 +84,10 @@ inline void compute_aggregate_layout(MIRTypeTable& types, TypeId id,
     }
 
     const bool union_all = rec.kind == MIRTypeKind::Union;
+    const bool packed = rec.packed;
     const uint8_t case_kind = static_cast<uint8_t>(MIRFieldKind::VariantCase);
 
-    uint32_t max_align = explicit_alignment > 0 ? explicit_alignment : 1;
+    uint32_t max_align = packed ? 1 : (explicit_alignment > 0 ? explicit_alignment : 1);
     uint32_t offset = 0;
     uint32_t overlap_size = 0;  // union region: largest member size, aligned
     uint32_t overlap_align = 0; // union region: largest member alignment
@@ -94,16 +95,16 @@ inline void compute_aggregate_layout(MIRTypeTable& types, TypeId id,
     for (uint32_t i = 0; i < rec.data_count; ++i) {
         MIRFieldInfo* f = types.field_of(id, i);
         if (!f) continue;
-        const uint32_t fa = mir_field_alignment(types, *f);
+        const uint32_t fa = packed ? 1 : mir_field_alignment(types, *f);
         const uint32_t fsz = mir_field_size(types, *f);
         if (union_all || f->kind == case_kind) {
             f->offset = 0;
-            const uint32_t aligned = mir_align_up(fsz, fa);
+            const uint32_t aligned = packed ? fsz : mir_align_up(fsz, fa);
             if (aligned > overlap_size) overlap_size = aligned;
             if (fa > overlap_align) overlap_align = fa;
             continue;
         }
-        offset = mir_align_up(offset, fa);
+        offset = packed ? offset : mir_align_up(offset, fa);
         f->offset = offset;
         offset += fsz;
         if (fa > max_align) max_align = fa;
@@ -112,7 +113,7 @@ inline void compute_aggregate_layout(MIRTypeTable& types, TypeId id,
     if (overlap_align > 0) {
         // the union region follows the fields laid out above; every overlapping
         // field starts there (they share the bytes)
-        offset = mir_align_up(offset, overlap_align);
+        offset = packed ? offset : mir_align_up(offset, overlap_align);
         for (uint32_t i = 0; i < rec.data_count; ++i) {
             MIRFieldInfo* f = types.field_of(id, i);
             if (!f) continue;
@@ -123,8 +124,8 @@ inline void compute_aggregate_layout(MIRTypeTable& types, TypeId id,
         if (overlap_align > max_align) max_align = overlap_align;
     }
 
-    rec.alignment = max_align;
-    rec.size = mir_align_up(offset, max_align);
+    rec.alignment = packed ? 1 : max_align;
+    rec.size = packed ? offset : mir_align_up(offset, max_align);
 }
 
 /**
@@ -210,6 +211,7 @@ inline bool compute_aggregate_plan(const MIRTypeTable& types, TypeId agg,
             // union member or variant case: gather the whole run of overlapping
             // fields and pick the member with the largest aligned size as the
             // element's storage type (ties prefer the larger alignment)
+            const bool packed = rec.packed;
             uint32_t best = i;
             uint32_t best_align = 0;
             uint64_t best_aligned = 0;
@@ -218,8 +220,10 @@ inline bool compute_aggregate_plan(const MIRTypeTable& types, TypeId agg,
                 const MIRFieldInfo* g = types.field_of(agg, j);
                 if (!g) break;
                 if (!(union_all || g->kind == case_kind)) break;
-                const uint32_t ga = mir_field_alignment(types, *g);
-                const uint64_t gs = mir_align_up(mir_field_size(types, *g), ga);
+                const uint32_t ga = packed ? 1 : mir_field_alignment(types, *g);
+                const uint64_t gs = packed
+                    ? mir_field_size(types, *g)
+                    : mir_align_up(mir_field_size(types, *g), ga);
                 if (gs > best_aligned || (gs == best_aligned && ga > best_align)) {
                     best = j;
                     best_align = ga;

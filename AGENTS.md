@@ -505,6 +505,8 @@ All built-in annotations recognized by the compiler:
 | `@no_drop` | struct, union, variant | Suppresses all drop glue (automatic and explicit `@delete`); used by `ManuallyDrop`/`MaybeUninit` |
 | `@delete` | func (in struct) | Destructor — called when value goes out of scope or is deleted |
 | `@volatile` | var, const | Marks variable as volatile — prevents compiler optimization of loads/stores |
+| `@packed` | struct, union | Packed layout (alignment 1); references to packed fields are rejected with `SAFE-VALID-008` |
+| `@repr("C")` / `@repr("packed")` | struct, union | Explicit C/natural layout, or packed layout; `repr("transparent")` is not implemented yet |
 | `@compiler.interface` | interface | Marks a CBI interface exposed to the compiler (used in `build.lab` for build API) |
 
 **Critical `@make` + `@direct_init` interaction:**

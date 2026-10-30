@@ -16,6 +16,7 @@
 #include "ast/structures/GenericUnionDecl.h"
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/values/IntNumValue.h"
+#include "ast/values/StringValue.h"
 
 void annot_handler_inline(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     auto func = node->as_function();
@@ -351,12 +352,76 @@ void annot_handler_align(Parser* parser, ASTNode* node, std::vector<Value*>& arg
         return;
     }
     if(node->kind() == ASTNodeKind::StructDecl) {
-        node->as_struct_def_unsafe()->set_required_alignment(align);
+        auto* def = node->as_struct_def_unsafe();
+        if(def->is_packed()) {
+            parser->error("@align cannot be combined with @packed/@repr(\"packed\")");
+            return;
+        }
+        def->set_required_alignment(align);
     } else if(node->kind() == ASTNodeKind::StructMember) {
         node->as_struct_member_unsafe()->set_required_alignment(align);
     } else {
         parser->error("@align can only be applied to structs or struct members");
     }
+}
+
+void annot_handler_packed(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
+    if(!args.empty()) {
+        parser->error("@packed does not take arguments");
+        return;
+    }
+    if(node->kind() == ASTNodeKind::StructDecl) {
+        auto* def = node->as_struct_def_unsafe();
+        if(def->get_required_alignment() != 0) {
+            parser->error("@packed cannot be combined with @align/@maxalign");
+            return;
+        }
+        def->set_packed(true);
+    } else if(node->kind() == ASTNodeKind::UnionDecl) {
+        node->as_union_def_unsafe()->set_packed(true);
+    } else {
+        parser->error("@packed can only be applied to structs or unions");
+    }
+}
+
+void annot_handler_repr(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
+    if(args.size() != 1) {
+        parser->error("expected one representation argument, e.g. @repr(\"C\") or @repr(\"packed\")");
+        return;
+    }
+    auto* str = args[0] ? args[0]->as_string_value() : nullptr;
+    if(str == nullptr) {
+        parser->error("the @repr argument must be a string literal");
+        return;
+    }
+    if(str->value == "packed") {
+        if(node->kind() == ASTNodeKind::StructDecl) {
+            auto* def = node->as_struct_def_unsafe();
+            if(def->get_required_alignment() != 0) {
+                parser->error("@repr(\"packed\") cannot be combined with @align/@maxalign");
+                return;
+            }
+            def->set_packed(true);
+        } else if(node->kind() == ASTNodeKind::UnionDecl) {
+            node->as_union_def_unsafe()->set_packed(true);
+        } else {
+            parser->error("@repr(\"packed\") can only be applied to structs or unions");
+        }
+        return;
+    }
+    if(str->value == "C") {
+        // Natural C layout is the default for structs and unions. Accept the
+        // marker so a C-facing declaration can state its contract explicitly.
+        if(node->kind() != ASTNodeKind::StructDecl && node->kind() != ASTNodeKind::UnionDecl) {
+            parser->error("@repr(\"C\") can only be applied to structs or unions");
+        }
+        return;
+    }
+    if(str->value == "transparent") {
+        parser->error("@repr(\"transparent\") is not implemented yet");
+        return;
+    }
+    parser->error("unsupported @repr argument (supported: \"C\", \"packed\")");
 }
 
 void annot_handler_no_drop(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
@@ -435,6 +500,8 @@ void AnnotationController::initialize() {
             { "override", { annot_handler_override, "override", AnnotationDefType::Handler } },
             { "deprecated", { annot_handler_deprecated, "deprecated", AnnotationDefType::Handler } },
             { "align", { annot_handler_align, "align", AnnotationDefType::Handler } },
+            { "packed", { annot_handler_packed, "packed", AnnotationDefType::Handler } },
+            { "repr", { annot_handler_repr, "repr", AnnotationDefType::Handler } },
             { "no_drop", { annot_handler_no_drop, "no_drop", AnnotationDefType::Handler } },
             { "non_dyn", { annot_handler_non_dyn, "non_dyn", AnnotationDefType::Handler } },
             { "partial_instantiate", { annot_handler_partial_instantiate, "partial_instantiate", AnnotationDefType::Handler } },

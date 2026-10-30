@@ -784,3 +784,106 @@ func higher_ranked_callback_runs(env : &mut TestEnv) {
         env.error("higher-ranked callback did not compile and run")
     }
 }
+
+// A small capture used to live in the inline buffer, leaving fn_data_ptr
+// pointing into the returned stack frame. Returning the erased function must
+// keep its capture alive.
+func make_small_capturing_function() : std::function<() => int> {
+    var x = 41
+    return |x|() => { return x + 1 }
+}
+
+@test
+func small_capture_survives_return(env : &mut TestEnv) {
+    var f = make_small_capturing_function()
+    if(f() != 42) {
+        env.error("small std::function capture was invalid after return")
+    }
+}
+
+@align(64)
+struct OverAlignedCapture {
+    var value : int
+}
+
+func make_over_aligned_capture() : std::function<() => int> {
+    var c = OverAlignedCapture { value : 7 }
+    return |c|() => { return c.value }
+}
+
+@test
+func over_aligned_capture_survives_return(env : &mut TestEnv) {
+    var f = make_over_aligned_capture()
+    if(f() != 7) {
+        env.error("over-aligned std::function capture was invalid after return")
+    }
+}
+
+@test
+func by_value_capture_read_is_allowed(env : &mut TestEnv) {
+    var s = std::string("capture")
+    var f : std::function<() => int> = |s|() => { return s.size() as int }
+    if(f() != 7) {
+        env.error("a by-value capture should be readable through a reusable callback")
+    }
+}
+
+@packed
+struct PackedLayout {
+    var tag : u8
+    var value : u32
+    var tail : u8
+}
+
+@repr("packed")
+struct ReprPackedLayout {
+    var tag : u8
+    var value : u32
+    var tail : u8
+}
+
+@repr("C")
+struct CReprLayout {
+    var tag : u8
+    var value : u32
+    var tail : u8
+}
+
+@packed
+union PackedUnion {
+    var small : u8
+    var big : u32
+}
+
+@packed
+struct NestedPacked {
+    var head : u8
+    var inner : PackedLayout
+    var tail : u8
+}
+
+@test
+func packed_layout_is_applied(env : &mut TestEnv) {
+    if(sizeof(PackedLayout) != 6) {
+        env.error("packed struct size is not 6")
+    }
+    if(alignof(PackedLayout) != 1) {
+        env.error("packed struct alignment is not 1")
+    }
+    if(sizeof(ReprPackedLayout) != 6 || alignof(ReprPackedLayout) != 1) {
+        env.error("@repr(\"packed\") did not apply packed layout")
+    }
+    if(sizeof(CReprLayout) != 12 || alignof(CReprLayout) != 4) {
+        env.error("@repr(\"C\") did not keep natural C layout")
+    }
+    if(sizeof(PackedUnion) != 4 || alignof(PackedUnion) != 1) {
+        env.error("packed union layout is wrong")
+    }
+    if(sizeof(NestedPacked) != 8 || alignof(NestedPacked) != 1) {
+        env.error("nested packed layout is wrong")
+    }
+    var p = PackedLayout { tag : 3, value : 0x11223344u32, tail : 5 }
+    if(p.tag != 3 || p.value != 0x11223344u32 || p.tail != 5) {
+        env.error("packed field access returned the wrong value")
+    }
+}

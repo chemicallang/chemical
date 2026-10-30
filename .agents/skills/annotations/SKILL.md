@@ -179,6 +179,8 @@ All built-ins are registered in `AnnotationController::initialize()` (`compiler/
 | `@override` | function | `func->set_override(true)`; lets a top-level function coexist with a same-named function from a **different module** (see [Top-Level `@override`](#top-level-override)) | `AnnotationController.cpp:300` |
 | `@deprecated` | node with `set_deprecated` | `node->set_deprecated(true)` | `AnnotationController.cpp:300` |
 | `@align(N)` | struct or struct member | required alignment from first constant integer arg; errors if absent/zero | `AnnotationController.cpp:306` |
+| `@packed` | struct or union | packed layout (alignment 1); rejects arguments and `@align` conflicts | `AnnotationController.cpp` |
+| `@repr("C")` / `@repr("packed")` | struct or union | explicit natural-C or packed layout; `repr("transparent")` is rejected as not implemented | `AnnotationController.cpp` |
 | `@non_dyn` | interface | `interface->set_non_dynamic(true)` | `AnnotationController.cpp:336` |
 | `@partial_instantiate` | generic type alias | `alias->generic_parent->is_partial_instantiate = true` | `AnnotationController.cpp:344` |
 | `@never_destructed` | `var`/`const` | `varInit->set_never_destructed(true)` | `AnnotationController.cpp:356` |

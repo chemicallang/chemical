@@ -19,11 +19,16 @@ struct UnionDeclAttributes {
     bool anonymous = false;
 
     bool is_no_mangle = false;
-    
+
     /**
      * are bodies of functions inside this struct retained across modules
      */
     bool retained_body = false;
+
+    /**
+     * the source explicitly requested packed layout (@packed / @repr("packed"))
+     */
+    bool packed = false;
 
 };
 
@@ -93,6 +98,14 @@ public:
 
     void set_is_body_retained(bool value) noexcept {
         attrs.retained_body = value;
+    }
+
+    inline bool is_packed() const noexcept {
+        return attrs.packed;
+    }
+
+    inline void set_packed(bool value) noexcept {
+        attrs.packed = value;
     }
 
     UnionDef* shallow_copy(ASTAllocator& allocator) {

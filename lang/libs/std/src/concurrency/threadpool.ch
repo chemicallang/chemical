@@ -308,6 +308,14 @@ public namespace std {
                 unsafe { data.submit_void(f) }
             }
 
+            // Explicit-generic forms used by the free safe wrappers below.
+            // (A method call cannot infer both `U` and the capture witness `C`
+            // from a lambda argument yet, so the inference-friendly entry points
+            // are the free functions in `std::concurrent`.)
+            public func <U, C> submit_closure_explicit(&self, f : %capture<() => U, std::default_function_instance, C>) : Future<U> where C : Send + 'static, U : Send {
+                return unsafe(data.submit<U>(f))
+            }
+
             @delete
             func delete(&self) {
                 unsafe { delete data; }
@@ -321,6 +329,13 @@ public namespace std {
         }
     }
 
+        }
+
+        // Safe capturing submission. The capture witness proves the environment
+        // is Send and contains no borrowed stack storage; the task is owned by
+        // the pool until it runs.
+        public func <U, C> submit_closure(f : %capture<() => U, std::default_function_instance, C>, pool : &ThreadPool) : Future<U> where C : Send + 'static, U : Send {
+            return pool.submit_closure_explicit<U, C>(f)
         }
 
         public func create_pool(n:uint) : ThreadPool {

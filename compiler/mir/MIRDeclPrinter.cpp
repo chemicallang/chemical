@@ -421,6 +421,7 @@ void append_aggregate_body_c(const MIRModule& module, TypeId id, std::string& ou
     switch (rec.kind) {
         case MIRTypeKind::Struct: {
             out += '\n';
+            if (rec.packed) out += "#pragma pack(push, 1)\n";
             if (rec.explicit_alignment > 0) {
                 out += "__chx_align_struct(";
                 append_uint(out, rec.explicit_alignment);
@@ -436,10 +437,13 @@ void append_aggregate_body_c(const MIRModule& module, TypeId id, std::string& ou
                 append_member_declarator(module, *f, 1, out);
             }
             out += "\n};";
+            if (rec.packed) out += "\n#pragma pack(pop)";
             return;
         }
         case MIRTypeKind::Union: {
-            out += "\nunion ";
+            out += '\n';
+            if (rec.packed) out += "#pragma pack(push, 1)\n";
+            out += "union ";
             out += name;
             out += " {";
             field_range fs = fields_of(module, id);
@@ -448,6 +452,7 @@ void append_aggregate_body_c(const MIRModule& module, TypeId id, std::string& ou
                 append_member_declarator(module, *f, 1, out);
             }
             out += "\n};";
+            if (rec.packed) out += "\n#pragma pack(pop)";
             return;
         }
         case MIRTypeKind::Variant: {

@@ -2016,6 +2016,89 @@ uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
     for (size_t i = 0; i < lifetimes.size(); ++i) {
         sig.hrtb_binders.push_back(static_cast<MIRRegionId>(i + 1));
     }
+
+    // HRTB aggregate parameters: a by-value struct may carry direct reference
+    // fields. Record those fields exactly as declaration signatures do (S4.2b)
+    // so a call-site contract can map each field's actual loan to its binder.
+    // Deeper aggregate nesting is rejected by the TypeVerifier until path-wise
+    // region inference exists.
+    sig.param_field_regions.resize(type->params.size());
+    for (size_t pi = 0; pi < type->params.size(); ++pi) {
+        FunctionParam* param = type->params[pi];
+        BaseType* pt = param ? param->type : nullptr;
+        BaseType* canonical = pt ? pt->canonical() : nullptr;
+        if (canonical == nullptr || canonical->kind() == BaseTypeKind::Reference) {
+            continue;
+        }
+        StructDefinition* sd = canonical->get_direct_linked_struct();
+        if (sd == nullptr) {
+            ASTNode* node = canonical->get_direct_linked_canonical_node();
+            if (node != nullptr && node->kind() == ASTNodeKind::StructDecl) {
+                sd = node->as_struct_def_unsafe();
+            }
+        }
+        if (sd == nullptr) continue;
+        StructDefinition* body = sd;
+        if (sd->generic_parent != nullptr &&
+            sd->generic_parent->kind() == ASTNodeKind::GenericStructDecl &&
+            sd->variables().empty()) {
+            StructDefinition* master =
+                sd->generic_parent->as_gen_struct_def_unsafe()->master_impl;
+            if (master != nullptr) body = master;
+        }
+        std::vector<chem::string_view> decl_lifetimes = body->lifetime_params;
+        if (decl_lifetimes.empty() && body->generic_parent != nullptr) {
+            decl_lifetimes = body->generic_parent->lifetime_params;
+        }
+        if (decl_lifetimes.empty()) continue;
+        auto* gt = (canonical->kind() == BaseTypeKind::Generic)
+                       ? canonical->as_generic_type_unsafe()
+                       : (pt->kind() == BaseTypeKind::Generic
+                              ? pt->as_generic_type_unsafe()
+                              : nullptr);
+        std::vector<chem::string_view> actual_lifetimes = decl_lifetimes;
+        if (gt != nullptr && gt->lifetime_args.size() == decl_lifetimes.size()) {
+            actual_lifetimes = gt->lifetime_args;
+        }
+        const TypeId tid = types_.map(canonical);
+        if (tid == MIR_INVALID_ID || tid >= module_.types.types.size()) continue;
+        const MIRTypeRecord& rec = module_.types.types[tid];
+        for (BaseDefMember* member : body->variables()) {
+            auto* sm = member ? member->as_struct_member() : nullptr;
+            if (sm == nullptr) continue;
+            BaseType* ft = const_cast<BaseType*>(sm->type.getType());
+            BaseType* ftc = ft ? ft->canonical() : nullptr;
+            if (ftc == nullptr || ftc->kind() != BaseTypeKind::Reference) continue;
+            auto* ref = ftc->as_reference_type_unsafe();
+            const chem::string_view bare = strip_lifetime_quote(ref->lifetime);
+            chem::string_view actual = ref->lifetime;
+            for (size_t i = 0; i < decl_lifetimes.size(); ++i) {
+                if (strip_lifetime_quote(decl_lifetimes[i]) == bare) {
+                    if (i < actual_lifetimes.size()) actual = actual_lifetimes[i];
+                    break;
+                }
+            }
+            const MIRRegionId region = region_id_for_lifetime(
+                lifetimes, std::string_view(actual.data(), actual.size()));
+            if (region == MIR_INVALID_ID) continue;
+            uint32_t field_index = MIR_INVALID_ID;
+            const std::string_view fname(sm->name_view().data(), sm->name_view().size());
+            for (uint32_t i = 0; i < rec.data_count; ++i) {
+                const MIRFieldInfo* fi = module_.types.field_of(tid, i);
+                if (fi != nullptr && module_.types.field_name_view(*fi) == fname) {
+                    field_index = i;
+                    break;
+                }
+            }
+            MIRParamFieldRegion fr;
+            fr.field_index = field_index;
+            fr.field_name = module_.constants.add_string(
+                MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
+            fr.region = region;
+            fr.variance = MIRVariance::Covariant;
+            sig.param_field_regions[pi].push_back(fr);
+        }
+    }
     return module_.add_region_signature(std::move(sig));
 }
 

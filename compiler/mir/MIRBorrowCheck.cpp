@@ -683,6 +683,19 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 }
                 break;
             }
+            case MIROpcode::GlobalAddr:
+            case MIROpcode::FunctionAddr: {
+                if (inst.result_or_place != MIR_INVALID_ID) {
+                    LoanTarget t;
+                    // A global/function address has no frame place. Use the
+                    // places-size sentinel so the multi-borrow contract can
+                    // classify it as a static referent.
+                    t.root = static_cast<PlaceId>(function.places.size());
+                    t.known = true;
+                    address_targets[inst.result_or_place] = t;
+                }
+                break;
+            }
             case MIROpcode::Load: {
                 if (ops == nullptr || inst.operand_count == 0) break;
                 // A dereference through a reference/pointer value uses the loan.
@@ -814,11 +827,54 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         if (vit != value_loans.end()) loan = vit->second;
                         const auto vp = value_params.find(value.id);
                         if (vp != value_params.end()) param = vp->second;
+                        if (loan == MIR_INVALID_ID) {
+                            // A reference loaded from a parameter/global has an
+                            // address target, not a pre-existing value loan.
+                            // Materialize the caller-owned loan now so storing
+                            // it into an aggregate field is tracked.
+                            const auto at = address_targets.find(value.id);
+                            if (at != address_targets.end() && at->second.known) {
+                                Loan source;
+                                source.target = at->second;
+                                source.start = lin;
+                                source.end = lin;
+                                source.escaped = true;
+                                loan = static_cast<uint32_t>(loans.size());
+                                loans.push_back(std::move(source));
+                                if (param == MIR_INVALID_ID) {
+                                    param = at->second.param_index;
+                                }
+                            }
+                        }
                     } else if (value.kind() == MIROperandKind::Place) {
                         const auto vit = place_loans.find(value.id);
                         if (vit != place_loans.end()) loan = vit->second;
                         const auto pp = place_params.find(value.id);
                         if (pp != place_params.end()) param = pp->second;
+                        if (loan == MIR_INVALID_ID && value.id < function.places.size()) {
+                            const MIRPlaceDef& vp = function.places[value.id];
+                            if ((vp.storage_class ==
+                                     static_cast<uint8_t>(MIRStorageClass::Parameter) ||
+                                 vp.storage_class ==
+                                     static_cast<uint8_t>(MIRStorageClass::Global)) &&
+                                vp.type < module.types.types.size() &&
+                                (module.types.types[vp.type].kind ==
+                                     MIRTypeKind::Reference ||
+                                 module.types.types[vp.type].kind ==
+                                     MIRTypeKind::Pointer)) {
+                                Loan source;
+                                source.target.root = value.id;
+                                source.target.path = vp.move_path_id;
+                                source.target.param_index = vp.param_index;
+                                source.target.known = true;
+                                source.start = lin;
+                                source.end = lin;
+                                source.escaped = true;
+                                loan = static_cast<uint32_t>(loans.size());
+                                loans.push_back(std::move(source));
+                                if (param == MIR_INVALID_ID) param = vp.param_index;
+                            }
+                        }
                     }
                     if (loan != MIR_INVALID_ID) {
                         field_loans[key] = loan;
@@ -1254,25 +1310,118 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     uint32_t param_index = MIR_INVALID_ID;
                     uint32_t loan = MIR_INVALID_ID;
                     uint32_t source_param = MIR_INVALID_ID;
+                    MIRRegionId region = MIR_INVALID_ID;
+                    bool from_field = false;
                 };
                 std::vector<RefArg> ref_args;
                 for (uint16_t i = first; i < inst.operand_count; ++i) {
-                    if (ops[i].kind() != MIROperandKind::Value) continue;
-                    const auto it = value_loans.find(ops[i].id);
-                    if (it == value_loans.end() || it->second >= loans.size()) {
-                        continue;
+                    uint32_t loan = MIR_INVALID_ID;
+                    uint32_t source_param = MIR_INVALID_ID;
+                    if (ops[i].kind() == MIROperandKind::Value) {
+                        // `&global` / a function address is a static referent.
+                        // Do not trust a pre-existing unknown-target value loan
+                        // for it; materialize a known global-target loan.
+                        bool global_addr = false;
+                        if (ops[i].id < function.values.size()) {
+                            const uint32_t def = function.values[ops[i].id].def_inst;
+                            if (def < function.instructions.size()) {
+                                const MIROpcode dop = function.instructions[def].opcode();
+                                global_addr = dop == MIROpcode::GlobalAddr ||
+                                              dop == MIROpcode::FunctionAddr;
+                            }
+                        }
+                        if (global_addr && has_callsite_sig) {
+                            Loan source;
+                            source.target.root =
+                                static_cast<PlaceId>(function.places.size());
+                            source.target.known = true;
+                            source.start = lin;
+                            source.end = lin;
+                            source.escaped = true;
+                            loan = static_cast<uint32_t>(loans.size());
+                            loans.push_back(std::move(source));
+                        } else {
+                            const auto at = address_targets.find(ops[i].id);
+                            if (at != address_targets.end() && at->second.known &&
+                                at->second.root >= function.places.size()) {
+                                Loan source;
+                                source.target = at->second;
+                                source.start = lin;
+                                source.end = lin;
+                                source.escaped = true;
+                                loan = static_cast<uint32_t>(loans.size());
+                                loans.push_back(std::move(source));
+                            } else {
+                                const auto it = value_loans.find(ops[i].id);
+                                if (it != value_loans.end() && it->second < loans.size()) {
+                                    loan = it->second;
+                                }
+                                const auto vp = value_params.find(ops[i].id);
+                                if (vp != value_params.end()) source_param = vp->second;
+                            }
+                        }
+                    } else if (ops[i].kind() == MIROperandKind::Place &&
+                               has_callsite_sig) {
+                        // Place-formed reference arguments are needed by the
+                        // HRTB callsite contract; ordinary calls keep the
+                        // pre-existing value-only behavior so moving a local
+                        // view into a normal call still ends its loan.
+                        const auto it = place_loans.find(ops[i].id);
+                        if (it != place_loans.end() && it->second < loans.size()) {
+                            loan = it->second;
+                        }
+                        const auto pp = place_params.find(ops[i].id);
+                        if (pp != place_params.end()) source_param = pp->second;
                     }
+                    if (loan == MIR_INVALID_ID && has_callsite_sig &&
+                        ops[i].kind() == MIROperandKind::Value) {
+                        // A direct reference parameter is loaded from its
+                        // parameter slot; the load carries an address target
+                        // rather than a pre-existing place loan. Materialize a
+                        // caller-owned loan for the call contract.
+                        const auto at = address_targets.find(ops[i].id);
+                        if (at != address_targets.end() && at->second.known) {
+                            Loan source;
+                            source.target = at->second;
+                            source.start = lin;
+                            source.end = lin;
+                            source.escaped = true;
+                            loan = static_cast<uint32_t>(loans.size());
+                            loans.push_back(std::move(source));
+                            source_param = at->second.param_index;
+                        } else if (ops[i].id < function.values.size()) {
+                            // `&global` / a function address is a static
+                            // referent. It has no frame root, so mark a known
+                            // target beyond the place table; the multi-borrow
+                            // check treats that as the global/static case.
+                            const uint32_t def = function.values[ops[i].id].def_inst;
+                            if (def < function.instructions.size()) {
+                                const MIROpcode dop = function.instructions[def].opcode();
+                                if (dop == MIROpcode::GlobalAddr ||
+                                    dop == MIROpcode::FunctionAddr) {
+                                    Loan source;
+                                    source.target.root =
+                                        static_cast<PlaceId>(function.places.size());
+                                    source.target.known = true;
+                                    source.start = lin;
+                                    source.end = lin;
+                                    source.escaped = true;
+                                    loan = static_cast<uint32_t>(loans.size());
+                                    loans.push_back(std::move(source));
+                                }
+                            }
+                        }
+                    }
+                    if (loan == MIR_INVALID_ID) continue;
                     RefArg ra;
                     ra.op_index = i;
                     ra.param_index = static_cast<uint32_t>(i - first);
-                    ra.loan = it->second;
-                    const auto vp = value_params.find(ops[i].id);
-                    ra.source_param = vp != value_params.end()
-                                          ? vp->second
-                                          : loans[ra.loan].target.param_index;
+                    ra.loan = loan;
+                    ra.source_param = source_param != MIR_INVALID_ID
+                                          ? source_param
+                                          : loans[loan].target.param_index;
                     ref_args.push_back(ra);
                 }
-
                 const MIRRegionSignature* callee_sig = nullptr;
                 MIRRegionSignature callee_sig_copy;
                 if (has_callsite_sig) {
@@ -1291,6 +1440,44 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     callee_sig != nullptr &&
                     callee_sig->return_region == MIR_REGION_STATIC;
 
+                // A by-value aggregate argument can carry direct reference
+                // fields (S4.2b HRTB). The callsite contract names those fields;
+                // translate each actual field loan into the same RefArg list so
+                // multi-borrow pinning and result-loan mapping see them too.
+                if (has_callsite_sig && callee_sig != nullptr) {
+                    for (uint32_t pi = 0; pi < callee_sig->param_field_regions.size(); ++pi) {
+                        const uint32_t op_index = first + pi;
+                        if (op_index >= inst.operand_count) continue;
+                        const MIROperand& arg = ops[op_index];
+                        PlaceId field_base = MIR_INVALID_ID;
+                        if (arg.kind() == MIROperandKind::Place) {
+                            field_base = arg.id;
+                        } else if (arg.kind() == MIROperandKind::Value) {
+                            const auto at = address_targets.find(arg.id);
+                            if (at != address_targets.end() && at->second.known) {
+                                field_base = at->second.root;
+                            }
+                        }
+                        if (field_base == MIR_INVALID_ID) continue;
+                        for (const MIRParamFieldRegion& fr : callee_sig->param_field_regions[pi]) {
+                            if (fr.field_name == MIR_INVALID_ID) continue;
+                            const auto it = field_loans.find(field_key(field_base, fr.field_name));
+                            if (it == field_loans.end() || it->second >= loans.size()) continue;
+                            RefArg ra;
+                            ra.op_index = static_cast<uint16_t>(op_index);
+                            ra.param_index = pi;
+                            ra.loan = it->second;
+                            const auto fp = field_params.find(field_key(field_base, fr.field_name));
+                            ra.source_param = fp != field_params.end()
+                                                  ? fp->second
+                                                  : loans[ra.loan].target.param_index;
+                            ra.region = fr.region;
+                            ra.from_field = true;
+                            ref_args.push_back(ra);
+                        }
+                    }
+                }
+
                 // A multi-borrow HRTB callback may store one argument borrow
                 // into another. Full region inference is not available, so
                 // accept only local/temporary referents and keep every loan
@@ -1298,33 +1485,97 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 // outlive the retained borrow in the caller, so it is rejected
                 // rather than guessed safe.
                 bool pinned_multi = false;
+                if (callee_sig != nullptr) {
+                    if (has_callsite_sig) {
+                        // A by-value aggregate operand can also carry a
+                        // whole-value loan from the direct value scan. It is not
+                        // a direct reference parameter; the field scan below
+                        // contributes its reference fields instead.
+                        ref_args.erase(
+                            std::remove_if(ref_args.begin(), ref_args.end(),
+                                           [&](const RefArg& ra) {
+                                               return !ra.from_field &&
+                                                      (ra.param_index >=
+                                                           callee_sig->param_regions.size() ||
+                                                       callee_sig->param_regions[ra.param_index] ==
+                                                           MIR_INVALID_ID);
+                                           }),
+                            ref_args.end());
+                    }
+                    // Region ids are needed by ordinary multi-reference calls
+                    // too (result-loan mapping), not only HRTB calls.
+                    for (RefArg& ra : ref_args) {
+                        if (ra.region == MIR_INVALID_ID &&
+                            ra.param_index < callee_sig->param_regions.size()) {
+                            ra.region = callee_sig->param_regions[ra.param_index];
+                        }
+                    }
+                }
                 uint32_t hrtb_ref_params = 0;
                 if (callee_sig != nullptr) {
                     for (MIRRegionId pr : callee_sig->param_regions) {
                         if (pr != MIR_INVALID_ID) ++hrtb_ref_params;
                     }
+                    for (const auto& fields : callee_sig->param_field_regions) {
+                        hrtb_ref_params += static_cast<uint32_t>(fields.size());
+                    }
                 }
                 if (has_callsite_sig && hrtb_ref_params > 1) {
                     bool all_local = ref_args.size() == hrtb_ref_params;
+                    bool all_nonlocal_safe = ref_args.size() == hrtb_ref_params;
+                    MIRRegionId nonlocal_region = MIR_INVALID_ID;
                     for (const RefArg& ra : ref_args) {
-                        if (!all_local || ra.loan >= loans.size()) {
+                        if (ra.loan >= loans.size()) {
                             all_local = false;
+                            all_nonlocal_safe = false;
                             break;
                         }
                         const LoanTarget& target = loans[ra.loan].target;
-                        if (!target.known || target.root >= function.places.size()) {
+                        if (!target.known) {
                             all_local = false;
+                            all_nonlocal_safe = false;
                             break;
+                        }
+                        if (target.root >= function.places.size()) {
+                            // Global/static referents carry a known target but no
+                            // local frame place. They outlive the current call;
+                            // treat them as the non-local case (still require a
+                            // shared declared region below).
+                            all_local = false;
+                            if (ra.region == MIR_INVALID_ID) {
+                                all_nonlocal_safe = false;
+                            } else if (nonlocal_region == MIR_INVALID_ID) {
+                                nonlocal_region = ra.region;
+                            } else if (nonlocal_region != ra.region) {
+                                all_nonlocal_safe = false;
+                            }
+                            continue;
                         }
                         const auto sc = static_cast<MIRStorageClass>(
                             function.places[target.root].storage_class);
-                        if (sc != MIRStorageClass::Local &&
-                            sc != MIRStorageClass::Temporary) {
-                            all_local = false;
-                            break;
+                        const bool local = sc == MIRStorageClass::Local ||
+                                           sc == MIRStorageClass::Temporary;
+                        if (!local) all_local = false;
+                        if (local || (sc != MIRStorageClass::Parameter &&
+                                      sc != MIRStorageClass::Global)) {
+                            all_nonlocal_safe = false;
+                        } else {
+                            // A callback can only retain a parameter/global
+                            // borrow if every non-local input shares the same
+                            // declared region (or is static). Different caller
+                            // regions could otherwise be stored into a longer
+                            // lived referent, which full region inference must
+                            // prove and this local analysis cannot.
+                            if (ra.region == MIR_INVALID_ID) {
+                                all_nonlocal_safe = false;
+                            } else if (nonlocal_region == MIR_INVALID_ID) {
+                                nonlocal_region = ra.region;
+                            } else if (nonlocal_region != ra.region) {
+                                all_nonlocal_safe = false;
+                            }
                         }
                     }
-                    if (all_local) {
+                    if (all_local || all_nonlocal_safe) {
                         pinned_multi = true;
                         const uint32_t last =
                             order.empty() ? 0 : static_cast<uint32_t>(order.size() - 1);
@@ -1336,7 +1587,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     } else {
                         report(result.diagnostics, function, function_index, order, lin,
                                "SAFE-BORROW-099",
-                               "a multi-borrow higher-ranked callback requires local reference arguments until full region inference is implemented");
+                               "a multi-borrow higher-ranked callback requires either all local referents or parameter/global referents sharing one region; full region inference is not implemented");
                     }
                 }
 
@@ -1355,12 +1606,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         std::vector<const RefArg*> identity;
                         std::vector<const RefArg*> sources;
                         for (const RefArg& ra : ref_args) {
-                            if (ra.param_index >=
-                                callee_sig->param_regions.size()) {
-                                continue;
-                            }
-                            const MIRRegionId pr =
-                                callee_sig->param_regions[ra.param_index];
+                            const MIRRegionId pr = ra.region;
                             if (pr == MIR_INVALID_ID) continue;
                             if (pr == ret) identity.push_back(&ra);
                             if (region_outlives(*callee_sig, pr, ret)) {

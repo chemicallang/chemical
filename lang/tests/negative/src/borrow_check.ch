@@ -396,12 +396,63 @@ func neg_hrtb_mismatched_return_binder_rejected(env : &mut TestEnv) {
 }
 
 @test
-func neg_hrtb_multiple_references_rejected(env : &mut TestEnv) {
+func neg_hrtb_aggregate_alias_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // Two higher-ranked borrows could be stored into one another; full region
-    // constraints are required before accepting them.
+    // The returned field borrow must remain live after the call.
+    var ch = "struct View<'a> {\n    var p : &'a int\n}\nfunc <'a> get_view(v : View<'a>) : &'a int {\n    return v.p\n}\nfunc <'a> apply_view(f : for<'b> (v : View<'b>) => &'b int, x : &'a int) : &'a int {\n    return f(View<'a> { p : x })\n}\npublic func main() : int {\n    var x = 41\n    var r = apply_view(get_view, &x)\n    var q = &mut x\n    *q = 9\n    return *r\n}\n"
+    expect_compile_error(env, "hrtb_aggregate_alias", ch, "SAFE-BORROW-001")
+}
+
+@test
+func neg_hrtb_deep_aggregate_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Deeper aggregates still require path-wise region inference.
+    var ch = "struct View<'a> {\n    var p : &'a int\n}\nstruct Outer<'a> {\n    var view : View<'a>\n}\nfunc apply_outer(f : for<'b> (v : Outer<'b>) => int) : int {\n    return 0\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "hrtb_deep_aggregate", ch, "SAFE-BORROW-099")
+}
+
+@test
+func hrtb_multiple_references_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Equal-region parameter referents are accepted; they cannot be stored
+    // into a longer-lived caller region by this contract.
     var ch = "func sum2(a : &int, b : &int) : int { return *a + *b }\nfunc apply(f : for<'a> (x : &'a int, y : &'a int) => int, a : &int, b : &int) : int {\n    return f(a, b)\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    return apply(sum2, &a, &b)\n}\n"
-    expect_compile_error(env, "hrtb_multiple_refs", ch, "SAFE-BORROW-099")
+    expect_compile_success(env, "hrtb_multiple_refs", ch)
+}
+
+@test
+func hrtb_aggregate_multiple_references_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Two aggregate fields from equal-region parameters are safe to pass as a
+    // multi-borrow HRTB contract.
+    var ch = "struct Pair<'a> {\n    var left : &'a int\n    var right : &'a int\n}\nfunc <'a> sum_pair(p : Pair<'a>) : int { return *p.left + *p.right }\nfunc <'a> apply_pair(f : for<'b> (p : Pair<'b>) => int, a : &'a int, b : &'a int) : int {\n    return f(Pair<'a> { left : a, right : b })\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    return apply_pair(sum_pair, &a, &b)\n}\n"
+    expect_compile_success(env, "hrtb_aggregate_multiple_refs", ch)
+}
+
+@test
+func hrtb_global_multiple_references_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Global referents are static; a shared-region multi-borrow contract can
+    // safely retain them.
+    var ch = "var g1 = 1\nvar g2 = 2\nfunc sum2(a : &int, b : &int) : int { return *a + *b }\nfunc apply(f : for<'a> (x : &'a int, y : &'a int) => int) : int {\n    return unsafe(f(&g1, &g2))\n}\npublic func main() : int { return apply(sum2) }\n"
+    expect_compile_success(env, "hrtb_global_multiple_refs", ch)
+}
+
+@test
+func neg_hrtb_mixed_local_parameter_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A local referent and a parameter referent have different proven lifetimes;
+    // accepting the pair could store the local borrow into caller storage.
+    var ch = "func sum2(a : &int, b : &int) : int { return *a + *b }\nfunc apply(f : for<'a> (x : &'a int, y : &'a int) => int, a : &int) : int {\n    var b = 2\n    return f(a, &b)\n}\npublic func main() : int {\n    var a = 1\n    return apply(sum2, &a)\n}\n"
+    expect_compile_error(env, "hrtb_mixed_local_param", ch, "SAFE-BORROW-099")
+}
+
+@test
+func neg_hrtb_distinct_parameter_regions_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Distinct caller regions are not interchangeable without region inference.
+    var ch = "func sum2(a : &int, b : &int) : int { return *a + *b }\nfunc apply(f : for<'a, 'b> (x : &'a int, y : &'b int) => int, a : &int, b : &int) : int {\n    return f(a, b)\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    return apply(sum2, &a, &b)\n}\n"
+    expect_compile_error(env, "hrtb_distinct_regions", ch, "SAFE-BORROW-099")
 }
 
 @test

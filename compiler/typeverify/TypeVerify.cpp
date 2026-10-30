@@ -3556,6 +3556,138 @@ static bool hrtb_type_mentions_lifetime(
     }
 }
 
+// A by-value aggregate can be a higher-ranked parameter when every mention
+// of the binder lives in a direct reference field. Such a field is the same
+// call input as a direct `&'a T` parameter; the MIR region signature records
+// its name so the call-site contract can bind the field's loan. Deeper
+// aggregate nesting still needs path-wise region inference and is rejected.
+// Map a lifetime name written on an aggregate declaration field (`'a`) to the
+// instantiation's actual lifetime argument (`'b`) before testing the binder.
+static chem::string_view hrtb_map_field_lifetime(
+        chem::string_view lifetime,
+        const std::vector<chem::string_view>& decl_lifetimes,
+        const std::vector<chem::string_view>& actual_lifetimes) {
+    const auto bare = hrtb_bare_lifetime(lifetime);
+    for (size_t i = 0; i < decl_lifetimes.size(); ++i) {
+        if (hrtb_bare_lifetime(decl_lifetimes[i]) == bare) {
+            return i < actual_lifetimes.size() ? actual_lifetimes[i] : lifetime;
+        }
+    }
+    return lifetime;
+}
+
+static bool hrtb_type_mentions_mapped_binder(
+        BaseType* type,
+        const std::vector<chem::string_view>& decl_lifetimes,
+        const std::vector<chem::string_view>& actual_lifetimes,
+        const std::vector<chem::string_view>& binders) {
+    if (type == nullptr) return false;
+    switch (type->kind()) {
+        case BaseTypeKind::Reference: {
+            auto* ref = type->as_reference_type_unsafe();
+            const auto actual = hrtb_map_field_lifetime(
+                ref->lifetime, decl_lifetimes, actual_lifetimes);
+            if (hrtb_is_binder(actual, binders)) return true;
+            return hrtb_type_mentions_mapped_binder(
+                ref->type, decl_lifetimes, actual_lifetimes, binders);
+        }
+        case BaseTypeKind::Pointer:
+            return hrtb_type_mentions_mapped_binder(
+                type->as_pointer_type_unsafe()->type, decl_lifetimes,
+                actual_lifetimes, binders);
+        case BaseTypeKind::Array:
+            return hrtb_type_mentions_mapped_binder(
+                type->as_array_type_unsafe()->elem_type, decl_lifetimes,
+                actual_lifetimes, binders);
+        case BaseTypeKind::Generic: {
+            auto* gen = type->as_generic_type_unsafe();
+            for (const auto lt : gen->lifetime_args) {
+                const auto actual = hrtb_map_field_lifetime(
+                    lt, decl_lifetimes, actual_lifetimes);
+                if (hrtb_is_binder(actual, binders)) return true;
+            }
+            for (auto& arg : gen->types) {
+                if (hrtb_type_mentions_mapped_binder(
+                        arg, decl_lifetimes, actual_lifetimes, binders)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        default:
+            return false;
+    }
+}
+
+static bool hrtb_aggregate_param_ok(
+        BaseType* type,
+        const std::vector<chem::string_view>& binders,
+        std::vector<chem::string_view>* field_lifetimes = nullptr) {
+    if (type == nullptr) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr) canonical = type;
+    StructDefinition* sd = canonical->get_direct_linked_struct();
+    if (sd == nullptr) {
+        ASTNode* node = canonical->get_direct_linked_canonical_node();
+        if (node != nullptr && node->kind() == ASTNodeKind::StructDecl) {
+            sd = node->as_struct_def_unsafe();
+        }
+    }
+    if (sd == nullptr) return false;
+    StructDefinition* body = sd;
+    if (sd->generic_parent != nullptr &&
+        sd->generic_parent->kind() == ASTNodeKind::GenericStructDecl &&
+        sd->variables().empty()) {
+        StructDefinition* master =
+            sd->generic_parent->as_gen_struct_def_unsafe()->master_impl;
+        if (master != nullptr) body = master;
+    }
+    std::vector<chem::string_view> decl_lifetimes = body->lifetime_params;
+    if (decl_lifetimes.empty() && body->generic_parent != nullptr) {
+        decl_lifetimes = body->generic_parent->lifetime_params;
+    }
+    auto* gt = (canonical->kind() == BaseTypeKind::Generic)
+                   ? canonical->as_generic_type_unsafe()
+                   : (type->kind() == BaseTypeKind::Generic
+                          ? type->as_generic_type_unsafe()
+                          : nullptr);
+    std::vector<chem::string_view> actual_lifetimes = decl_lifetimes;
+    if (gt != nullptr && gt->lifetime_args.size() == decl_lifetimes.size()) {
+        actual_lifetimes = gt->lifetime_args;
+    }
+    for (BaseDefMember* member : body->variables()) {
+        auto* sm = member ? member->as_struct_member() : nullptr;
+        if (sm == nullptr) continue;
+        BaseType* ft = const_cast<BaseType*>(sm->type.getType());
+        if (ft == nullptr) continue;
+        BaseType* fc = ft->canonical();
+        if (fc == nullptr) continue;
+        if (fc->kind() == BaseTypeKind::Reference) {
+            auto* ref = fc->as_reference_type_unsafe();
+            const auto bare = hrtb_bare_lifetime(ref->lifetime);
+            chem::string_view actual = ref->lifetime;
+            for (size_t i = 0; i < decl_lifetimes.size(); ++i) {
+                if (hrtb_bare_lifetime(decl_lifetimes[i]) == bare) {
+                    if (i < actual_lifetimes.size()) actual = actual_lifetimes[i];
+                    break;
+                }
+            }
+            if (hrtb_is_binder(actual, binders)) {
+                if (hrtb_type_mentions_mapped_binder(
+                        ref->type, decl_lifetimes, actual_lifetimes, binders)) {
+                    return false;
+                }
+                if (field_lifetimes != nullptr) field_lifetimes->push_back(actual);
+                continue;
+            }
+        }
+        if (hrtb_type_mentions_mapped_binder(
+                ft, decl_lifetimes, actual_lifetimes, binders)) {
+            return false;
+        }
+    }
+    return true;
+}
 void TypeVerifier::VisitFunctionType(FunctionType* type) {
     const auto before = lifetime_scope.size();
     if (type != nullptr) {
@@ -3572,6 +3704,17 @@ void TypeVerifier::VisitFunctionType(FunctionType* type) {
             for (auto* param : type->params) {
                 if (param != nullptr) {
                     collect_reference_types(param->type, param_refs, false);
+                }
+            }
+            std::vector<std::vector<chem::string_view>> aggregate_field_lifetimes;
+            aggregate_field_lifetimes.resize(type->params.size());
+            for (size_t pi = 0; pi < type->params.size(); ++pi) {
+                auto* param = type->params[pi];
+                BaseType* pt = param ? param->type : nullptr;
+                if (pt != nullptr && pt->kind() != BaseTypeKind::Reference &&
+                    hrtb_type_mentions_lifetime(pt, type->binder_lifetimes)) {
+                    hrtb_aggregate_param_ok(pt, type->binder_lifetimes,
+                                            &aggregate_field_lifetimes[pi]);
                 }
             }
             for (auto* param : type->params) {
@@ -3593,12 +3736,13 @@ void TypeVerifier::VisitFunctionType(FunctionType* type) {
                     d.with_code("SAFE-BORROW-099");
                     d << "a higher-ranked reference pointee must not carry the same higher-ranked lifetime";
                 } else if (!direct_ref &&
-                           hrtb_type_mentions_lifetime(pt, type->binder_lifetimes)) {
+                           hrtb_type_mentions_lifetime(pt, type->binder_lifetimes) &&
+                           !hrtb_aggregate_param_ok(pt, type->binder_lifetimes)) {
                     auto& d = diagnoser.error(current_func_type
                                                   ? current_func_type->get_location()
                                                   : SourceLocation(0));
                     d.with_code("SAFE-BORROW-099");
-                    d << "a higher-ranked parameter must be a direct reference; nested higher-ranked borrows require full region inference";
+                    d << "a higher-ranked parameter must be a direct reference or a single-level aggregate of direct reference fields; deeper aggregate nesting requires full region inference";
                 }
             }
 
@@ -3637,7 +3781,20 @@ void TypeVerifier::VisitFunctionType(FunctionType* type) {
                     d.with_code("SAFE-BORROW-099");
                     d << "a higher-ranked borrowed result must use a binder or 'static; an outer lifetime cannot be mapped at the call site";
                 }
-                if ((return_elided || return_binder) && param_refs.empty()) {
+                bool aggregate_source = false;
+                for (const auto& fields : aggregate_field_lifetimes) {
+                    for (const auto field : fields) {
+                        if (return_elided && !field.empty()) {
+                            aggregate_source = true;
+                        } else if (return_binder &&
+                                   hrtb_bare_lifetime(field) ==
+                                       hrtb_bare_lifetime(return_name)) {
+                            aggregate_source = true;
+                        }
+                    }
+                }
+                if ((return_elided || return_binder) && param_refs.empty() &&
+                    !aggregate_source) {
                     auto& d = diagnoser.error(current_func_type
                                                   ? current_func_type->get_location()
                                                   : SourceLocation(0));
@@ -3660,6 +3817,18 @@ void TypeVerifier::VisitFunctionType(FunctionType* type) {
                                 hrtb_bare_lifetime(return_name)) {
                             matched_source = true;
                             break;
+                        }
+                    }
+                    if (!matched_source) {
+                        for (const auto& fields : aggregate_field_lifetimes) {
+                            for (const auto field : fields) {
+                                if (hrtb_bare_lifetime(field) ==
+                                    hrtb_bare_lifetime(return_name)) {
+                                    matched_source = true;
+                                    break;
+                                }
+                            }
+                            if (matched_source) break;
                         }
                     }
                     if (!matched_source) {

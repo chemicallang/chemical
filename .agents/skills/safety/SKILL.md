@@ -289,8 +289,11 @@ Implemented:
   region contract per instruction. A borrowed result is bound to the argument
   whose declared region matches, so `for<'a> (&'a T) => &'a T`, one mutable
   input, and multi-borrow local callbacks work. Multi-borrow calls pin every
-  local referent loan until function exit; parameter/global referents are
-  rejected with `SAFE-BORROW-099`. Nested aggregate HRTB remains rejected.
+  local referent loan until function exit. Parameter/global referents are
+  accepted when they share one declared region; mixed local/parameter
+  referents and distinct regions remain `SAFE-BORROW-099` rejections. HRTB
+  parameters may be a single-level aggregate of direct reference fields;
+  deeper aggregate nesting remains rejected.
 - S4.6 static-lifetime enforcement: a shorter reference or generic lifetime
   argument cannot satisfy `'static` (`SAFE-LIFE-004`). This closes the
   `vector<G<'static>>` dropck hole where a `G<'a>` built from a stack borrow
@@ -336,8 +339,8 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning a Chemical variant by value; structs/unions use
   the x86-64 SysV C ABI on both backends (pointer FFI remains allowed, other
-  target ABIs still need classification). Safety suite `62`, negative tests
-  `625`.
+  target ABIs still need classification). Safety suite `63`, negative tests
+  `631`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -357,9 +360,9 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `62`, negative `625`; TCC main `2357`, LLVM
+  TCC/LLVM lib runs. Safety suite `63`, negative `631`; TCC main `2357`, LLVM
   main `2355`, libs `730`, plugins `1305`, async `56`, interpret `1910`,
-  server `10`, TLS `599`, safety `62`.
+  server `10`, TLS `599`, safety `63`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
   range-checked, frame places are registered individually, and globals,
@@ -575,9 +578,9 @@ Next:
   stored `SendFutureHandle`, and `std::concurrent.submit_closure` is a safe
   typed-capture thread-pool submission. Heterogeneous multi-value scopes and
   value-passing capturing scoped closures are still open. M4 is complete
-  for the enforceable surface; nested aggregate HRTB and multi-borrow
-  callbacks with parameter/global referents remain explicit
-  `SAFE-BORROW-099` rejections.
+  for the enforceable surface; deeper aggregate HRTB nesting, mixed
+  local/parameter multi-borrow referents, and distinct non-local regions
+  remain explicit `SAFE-BORROW-099` rejections.
 - M5/M2: `@repr("transparent")` is implemented for checked single-field
   structs (layout and C ABI), and `SAFE-VALID-008` covers direct, nested and
   array-element references to packed fields. Packed structs/unions and
@@ -804,7 +807,7 @@ Codes are stable and grouped by domain:
 | `SAFE-OWN-*` | moves, drops, partial moves |
 | `SAFE-BORROW-001` | overlapping live loans (at least one mutable) |
 | `SAFE-BORROW-002` | move/drop of a place while a borrow of it is live |
-| `SAFE-BORROW-099` | unsupported borrow/lifetime pattern (nested-aggregate HRTB or a multi-borrow callback with parameter/global referents) |
+| `SAFE-BORROW-099` | unsupported borrow/lifetime pattern (deeper aggregate HRTB, or a multi-borrow callback with mixed/distinct-region referents) |
 | `SAFE-BORROW-*` | aliasing / loans |
 | `SAFE-VALID-001` | zero-initialization would create a null reference |
 | `SAFE-VALID-002` | non-bool to `bool` cast in safe code |

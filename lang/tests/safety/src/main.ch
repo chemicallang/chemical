@@ -773,6 +773,19 @@ func temporary_lifetime_extension_runs(env : &mut TestEnv) {
 }
 
 @test
+func higher_ranked_aggregate_callback_runs(env : &mut TestEnv) {
+    safety_init_work_dir()
+    // A by-value aggregate with a direct reference field is a valid HRTB
+    // parameter; the callback returns that field's binder lifetime.
+    var ch = "struct View<'a> {\n    var p : &'a int\n}\nfunc <'a> get_view(v : View<'a>) : &'a int {\n    return v.p\n}\nfunc <'a> apply_view(f : for<'b> (v : View<'b>) => &'b int, x : &'a int) : &'a int {\n    return f(View<'a> { p : x })\n}\npublic func main() : int {\n    var x = 41\n    var r = apply_view(get_view, &x)\n    if(*r != 41) { return 1 }\n    return 0\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "higher_ranked_aggregate", ch, &mut out)
+    if(rc != 0) {
+        env.error("higher-ranked aggregate callback did not compile and run")
+    }
+}
+
+@test
 func higher_ranked_callback_runs(env : &mut TestEnv) {
     safety_init_work_dir()
     // A lifetime-generic function value is accepted by a `for<'a>` function

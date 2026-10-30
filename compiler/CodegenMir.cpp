@@ -44,6 +44,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 using namespace mir;
 
@@ -192,6 +193,195 @@ uint32_t Codegen::mir_field_elem(uint32_t agg, uint32_t field) const {
 }
 
 // ── Function declaration ────────────────────────────────────────────────────
+// ── by-value C ABI classification (x86-64 SysV, conservative) ───────────────
+// Chemical's internal ABI passes aggregates by pointer. A real C callee takes
+// small structs/unions in registers (coerced to i64/double) and large ones in
+// memory. This classifier is intentionally conservative: anything larger than
+// 16 bytes, unaligned, an array, or a Chemical variant uses memory; small
+// integer/SSE aggregates are coerced per eightbyte.
+struct CABIInfo {
+    bool aggregate = false;
+    bool memory = false;
+    std::vector<llvm::Type*> parts;
+};
+
+static int c_abi_scalar_class(const MIRModule& m, TypeId t) {
+    if (t == MIR_INVALID_ID || t >= m.types.size()) return 1;
+    const MIRTypeRecord& r = m.types.get(t);
+    if (r.kind == MIRTypeKind::Float) return 2; // SSE (size 4 or 8)
+    if (r.kind == MIRTypeKind::Struct || r.kind == MIRTypeKind::Union) {
+        // Nested aggregate: classify its fields through the same helper. The
+        // caller merges the result into the parent eightbytes.
+        return 0;
+    }
+    if (r.kind == MIRTypeKind::Array || r.kind == MIRTypeKind::Variant) return -1;
+    return 1; // INTEGER
+}
+
+static bool c_abi_aggregate_info_impl(Codegen& gen, const MIRModule& m, TypeId t,
+                                      CABIInfo& out,
+                                      std::unordered_set<TypeId>& visiting) {
+    out = CABIInfo{};
+    if (t == MIR_INVALID_ID || t >= m.types.size()) return false;
+    const MIRTypeRecord& r = m.types.get(t);
+    if (r.kind != MIRTypeKind::Struct && r.kind != MIRTypeKind::Union) return false;
+    out.aggregate = true;
+    if (r.size == 0 || r.size > 16 || r.alignment == 0 || visiting.size() > 16) {
+        out.memory = true;
+        return true;
+    }
+    if (!visiting.insert(t).second) {
+        // A recursive by-value aggregate cannot exist in a well-formed type,
+        // but generic/alias cycles can still reach here during construction.
+        out.memory = true;
+        return true;
+    }
+    int classes[2] = {0, 0};
+    for (uint32_t i = 0; i < r.data_count; ++i) {
+        const MIRFieldInfo* f = m.types.field_of(t, i);
+        if (!f || f->type == MIR_INVALID_ID || f->type >= m.types.size()) {
+            out.memory = true;
+            return true;
+        }
+        const MIRTypeRecord& ft = m.types.get(f->type);
+        const uint32_t fsize = ft.size;
+        if (fsize == 0) continue;
+        if (f->align != 0 && (f->offset % f->align) != 0) {
+            out.memory = true;
+            return true;
+        }
+        if (f->offset >= 16 || f->offset + fsize > 16) {
+            out.memory = true;
+            return true;
+        }
+        int cls = c_abi_scalar_class(m, f->type);
+        if (cls < 0) {
+            out.memory = true;
+            return true;
+        }
+        if (cls == 0) {
+            CABIInfo nested;
+            const bool nested_ok =
+                c_abi_aggregate_info_impl(gen, m, f->type, nested, visiting);
+            visiting.erase(f->type);
+            if (!nested_ok || nested.memory) {
+                out.memory = true;
+                return true;
+            }
+            // A nested aggregate must start on an eightbyte boundary; otherwise
+            // the parent registration spans chunks and is conservatively memory.
+            if ((f->offset % 8) != 0 || nested.parts.size() > 2) {
+                out.memory = true;
+                return true;
+            }
+            for (uint32_t j = 0; j < nested.parts.size(); ++j) {
+                const int nc = nested.parts[j]->isFloatingPointTy() ? 2 : 1;
+                classes[((f->offset / 8) + j) & 1] |= nc;
+            }
+            continue;
+        }
+        const uint32_t first = f->offset / 8;
+        const uint32_t last = (f->offset + fsize - 1) / 8;
+        if (last > 1) {
+            out.memory = true;
+            return true;
+        }
+        classes[first] |= cls;
+        if (last != first) classes[last] |= cls;
+    }
+    const uint32_t chunks = (r.size + 7) / 8;
+    out.parts.reserve(chunks);
+    for (uint32_t i = 0; i < chunks; ++i) {
+        const uint32_t bytes = std::min<uint32_t>(8, r.size - i * 8);
+        if (classes[i] & 1) {
+            out.parts.push_back(llvm::Type::getIntNTy(*gen.ctx, bytes > 4 ? 64 : 32));
+        } else if (classes[i] & 2) {
+            out.parts.push_back(bytes > 4 ? static_cast<llvm::Type*>(gen.builder->getDoubleTy())
+                                          : static_cast<llvm::Type*>(gen.builder->getFloatTy()));
+        } else {
+            out.parts.push_back(llvm::Type::getInt8Ty(*gen.ctx));
+        }
+    }
+    return true;
+}
+
+static bool c_abi_aggregate_info(Codegen& gen, const MIRModule& m, TypeId t, CABIInfo& out) {
+    std::unordered_set<TypeId> visiting;
+    return c_abi_aggregate_info_impl(gen, m, t, out, visiting);
+}
+
+static llvm::FunctionType* mir_c_fn_type(Codegen& gen, const mir::MIRModule& m,
+                                         uint32_t ft) {
+    if (ft == MIR_INVALID_ID || ft >= m.types.size() ||
+        m.types.get(ft).kind != MIRTypeKind::Function) {
+        return nullptr;
+    }
+    const MIRTypeRecord& fr = m.types.get(ft);
+    CABIInfo ret_info;
+    const bool ret_aggregate = c_abi_aggregate_info(gen, m, fr.element, ret_info);
+    const bool sret = ret_aggregate && ret_info.memory;
+    std::vector<llvm::Type*> params;
+    if (sret) params.push_back(gen.builder->getPtrTy());
+    for (uint32_t i = 0; i < fr.data_count; ++i) {
+        const TypeId pt = m.types.data[fr.data_offset + i];
+        CABIInfo pi;
+        if (c_abi_aggregate_info(gen, m, pt, pi)) {
+            if (pi.memory) {
+                params.push_back(gen.builder->getPtrTy());
+            } else {
+                for (llvm::Type* part : pi.parts) params.push_back(part);
+            }
+        } else {
+            params.push_back(gen.mir_type(m, pt));
+        }
+    }
+    llvm::Type* ret = gen.mir_type(m, fr.element);
+    if (sret) ret = gen.builder->getVoidTy();
+    else if (ret_aggregate) {
+        if (ret_info.parts.empty()) ret = gen.builder->getInt8Ty();
+        else if (ret_info.parts.size() == 1) ret = ret_info.parts[0];
+        else ret = llvm::StructType::get(*gen.ctx, ret_info.parts);
+    }
+    return llvm::FunctionType::get(ret, params, (fr.flags & TF_VARIADIC) != 0);
+}
+
+// Attach the C ABI attributes that LLVM needs for memory-class aggregates:
+// `sret(%T)` on a hidden return pointer and `byval(%T)` on a stack-passed
+// parameter. Small register-class aggregates need no attributes.
+static void c_abi_param_attrs(Codegen& gen, const MIRModule& m, uint32_t cft,
+                              llvm::Function* fn, llvm::CallInst* call) {
+    if (cft == MIR_INVALID_ID || cft >= m.types.size() ||
+        m.types.get(cft).kind != MIRTypeKind::Function) return;
+    const MIRTypeRecord& fr = m.types.get(cft);
+    uint32_t index = 0;
+    CABIInfo ret;
+    const bool ret_agg = c_abi_aggregate_info(gen, m, fr.element, ret);
+    auto add = [&](llvm::Attribute attr) {
+        if (fn) fn->addParamAttr(index, attr);
+        if (call) call->addParamAttr(index, attr);
+    };
+    if (ret_agg && ret.memory) {
+        add(llvm::Attribute::getWithStructRetType(*gen.ctx, gen.mir_type(m, fr.element)));
+        index++;
+    }
+    for (uint32_t i = 0; i < fr.data_count; ++i) {
+        const TypeId pt = m.types.data[fr.data_offset + i];
+        CABIInfo pi;
+        if (c_abi_aggregate_info(gen, m, pt, pi)) {
+            if (pi.memory) {
+                add(llvm::Attribute::getWithByValType(*gen.ctx, gen.mir_type(m, pt)));
+                const uint32_t align = m.types.get(pt).alignment;
+                if (align > 0) add(llvm::Attribute::getWithAlignment(*gen.ctx, llvm::Align(align)));
+                index++;
+            } else {
+                index += static_cast<uint32_t>(pi.parts.size());
+            }
+        } else {
+            index++;
+        }
+    }
+}
+
 llvm::FunctionType* Codegen::mir_fn_type(const mir::MIRModule& m, uint32_t ft) {
     if (ft == MIR_INVALID_ID || ft >= m.types.size() ||
         m.types.get(ft).kind != MIRTypeKind::Function) {
@@ -345,7 +535,9 @@ llvm::Function* Codegen::mir_function(const mir::MIRModule& m, uint32_t symbol) 
         mir_fn_cache_[symbol] = existing;
         return existing;
     }
-    llvm::FunctionType* fty = mir_fn_type(m, ftype);
+    const bool c_abi = rec.c_abi_type != MIR_INVALID_ID;
+    llvm::FunctionType* fty = c_abi ? mir_c_fn_type(*this, m, rec.c_abi_type)
+                                    : mir_fn_type(m, ftype);
     if (!fty) return nullptr;
     // Every MIR function is external in the LLVM module, definitions included.
     //
@@ -366,6 +558,7 @@ llvm::Function* Codegen::mir_function(const mir::MIRModule& m, uint32_t symbol) 
     llvm::Function* fn = llvm::Function::Create(
         fty, weak_stub ? llvm::GlobalValue::WeakAnyLinkage
                        : llvm::GlobalValue::ExternalLinkage, name, module.get());
+    if (c_abi) c_abi_param_attrs(*this, m, rec.c_abi_type, fn, nullptr);
     // The unwind policy the AST backend applied to every function it created
     // (`create_func`). A debug / debug_complete build keeps unwind tables so a
     // debugger can walk the stack (that is what the `-bt` test flag needs),
@@ -1844,18 +2037,87 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     const MIROperand* maybe_place = arg(a);
                     const bool call_sret =
                         maybe_place && maybe_place->kind() == MIROperandKind::Place;
+                    const MIRSymbolRecord* callee_rec = nullptr;
+                    const MIRTypeRecord* c_abi_fn = nullptr;
+                    if (inst.opcode() == MIROpcode::Call) {
+                        const MIROperand* s = arg(0);
+                        if (s && s->kind() == MIROperandKind::Symbol) {
+                            callee_rec = &m.symbols.get(s->id);
+                            if (callee_rec->c_abi_type != MIR_INVALID_ID &&
+                                callee_rec->c_abi_type < m.types.size() &&
+                                m.types.get(callee_rec->c_abi_type).kind == MIRTypeKind::Function) {
+                                c_abi_fn = &m.types.get(callee_rec->c_abi_type);
+                            }
+                        }
+                    }
+                    const bool c_abi = c_abi_fn != nullptr;
+                    CABIInfo c_ret;
+                    const bool c_ret_agg = c_abi &&
+                        c_abi_aggregate_info(*this, m, c_abi_fn->element, c_ret);
+                    const bool c_mem_ret = c_ret_agg && c_ret.memory;
                     std::vector<llvm::Value*> args;
                     std::vector<TypeId> arg_types;
                     if (call_sret) {
-                        args.push_back(place_ptr(maybe_place->id));
-                        arg_types.push_back(MIR_INVALID_ID);
+                        if (!c_abi || c_mem_ret) {
+                            args.push_back(place_ptr(maybe_place->id));
+                            arg_types.push_back(MIR_INVALID_ID);
+                        }
                         a++;
                     }
-                    for (; a < inst.operand_count; ++a) {
+                    const MIRTypeRecord* int_fn = c_abi ? &m.types.get(callee_rec->type) : nullptr;
+                    const uint32_t int_base = call_sret ? 1 : 0;
+                    uint32_t param_index = 0;
+                    for (; a < inst.operand_count; ++a, ++param_index) {
                         const MIROperand* o = arg(a);
                         if (!o) continue;
                         llvm::Value* av = op_val(*o);
                         if (!av) continue;
+                        if (c_abi && int_fn != nullptr &&
+                            int_base + param_index < int_fn->data_count) {
+                            TypeId ipt =
+                                m.types.data_at(int_fn->data_offset + int_base + param_index);
+                            // The internal signature passes a struct/union as a
+                            // pointer; the C signature passes the pointee by value.
+                            if (ipt != MIR_INVALID_ID && ipt < m.types.size() &&
+                                m.types.get(ipt).kind == MIRTypeKind::Pointer) {
+                                const TypeId pointee = m.types.get(ipt).element;
+                                CABIInfo probe;
+                                if (c_abi_aggregate_info(*this, m, pointee, probe)) ipt = pointee;
+                            }
+                            CABIInfo pi;
+                            if (c_abi_aggregate_info(*this, m, ipt, pi)) {
+                                llvm::Value* base = av;
+                                if (o->kind() == MIROperandKind::Place) base = place_ptr(o->id);
+                                if (pi.memory) {
+                                    arg_types.push_back(ipt);
+                                    args.push_back(base);
+                                } else {
+                                    for (uint32_t j = 0; j < pi.parts.size(); ++j) {
+                                        llvm::Value* p = base;
+                                        if (j != 0) {
+                                            p = builder->CreateGEP(
+                                                builder->getInt8Ty(), base,
+                                                {builder->getInt64(static_cast<uint64_t>(j) * 8)});
+                                        }
+                                        args.push_back(builder->CreateLoad(pi.parts[j], p));
+                                        arg_types.push_back(MIR_INVALID_ID);
+                                    }
+                                }
+                                continue;
+                            }
+                            arg_types.push_back(o->type());
+                            if (o->kind() == MIROperandKind::Place) {
+                                const TypeId pt = fn.places[o->id].type;
+                                const MIRTypeRecord& pr = m.types.get(pt);
+                                if (pr.kind == MIRTypeKind::Array || abi::is_aggregate(m, pt)) {
+                                    av = place_ptr(o->id);
+                                } else {
+                                    av = builder->CreateLoad(mir_type(m, pt), av);
+                                }
+                            }
+                            args.push_back(av);
+                            continue;
+                        }
                         arg_types.push_back(o->type());
                         if (o->kind() == MIROperandKind::Place) {
                             const MIRTypeRecord& pr = m.types.get(fn.places[o->id].type);
@@ -1873,6 +2135,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                             llvm::cast<llvm::Function>(callee)->getFunctionType();
                         coerce_args(args, fty, &arg_types);
                         ci = builder->CreateCall(llvm::cast<llvm::Function>(callee), args);
+                        if (c_abi) c_abi_param_attrs(*this, m, callee_rec->c_abi_type, nullptr, ci);
                     } else {
                         const MIROperand* f = arg(0);
                         TypeId ft = fn.values[f->id].type;
@@ -1881,7 +2144,26 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                         coerce_args(args, fty, &arg_types);
                         ci = builder->CreateCall(fty, callee, args);
                     }
-                    if (!call_sret && v < fn.values.size() && !abi::is_void(m, fn.values[v].type)) {
+                    if (call_sret && c_abi) {
+                        if (!c_mem_ret) {
+                            llvm::Value* dst = place_ptr(maybe_place->id);
+                            if (c_ret.parts.size() <= 1) {
+                                builder->CreateStore(ci, dst);
+                            } else {
+                                for (uint32_t j = 0; j < c_ret.parts.size(); ++j) {
+                                    llvm::Value* p = dst;
+                                    if (j != 0) {
+                                        p = builder->CreateGEP(
+                                            builder->getInt8Ty(), dst,
+                                            {builder->getInt64(static_cast<uint64_t>(j) * 8)});
+                                    }
+                                    builder->CreateStore(
+                                        builder->CreateExtractValue(ci, {j}), p);
+                                }
+                            }
+                        }
+                    } else if (!call_sret && v < fn.values.size() &&
+                               !abi::is_void(m, fn.values[v].type)) {
                         vals[v] = ci;
                     }
                     break;

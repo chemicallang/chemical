@@ -56,7 +56,8 @@ void append_c_declarator_scratched(const MIRModule& module, TypeId type, std::st
 void append_c_decl_type(const MIRModule& module, TypeId type, std::string_view name,
                         std::string& out);
 void append_c_function_proto(const MIRModule& module, TypeId function_type,
-                             std::string_view name, std::string& out);
+                             std::string_view name, std::string& out,
+                             bool c_abi = false);
 
 /**
  * C declarator for an entity named `name` of MIR type `type`. Handles
@@ -80,6 +81,7 @@ std::string c_declarator(const MIRModule& module, TypeId type, std::string_view 
  * to `c_decl_type` which spells a function-pointer declarator (`ret (*name)(...)`).
  * Aggregate returns use the sret convention (`void name(struct T*, ...)`).
  */
-std::string c_function_proto(const MIRModule& module, TypeId function_type, std::string_view name);
+std::string c_function_proto(const MIRModule& module, TypeId function_type,
+                             std::string_view name, bool c_abi = false);
 
 } // namespace mir

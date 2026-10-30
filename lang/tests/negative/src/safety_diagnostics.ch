@@ -1035,10 +1035,10 @@ func neg_thread_handle_cannot_be_forged(env : &mut TestEnv) {
 }
 
 @test
-func neg_extern_aggregate_by_value_rejected(env : &mut TestEnv) {
+func neg_extern_variant_by_value_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "@extern struct Pair {\n    var a : int\n    var b : int\n}\n@extern func take(p : Pair) : int\npublic func main() : int {\n    var p = Pair { a : 1, b : 2 }\n    return unsafe(take(p))\n}\n"
-    expect_compile_error(env, "extern_aggregate_by_value", ch, "SAFE-FFI-002")
+    var ch = "variant Payload {\n    Value(n : int)\n}\n@extern func take(p : Payload) : int\npublic func main() : int {\n    var p = Payload.Value(1)\n    return unsafe(take(p))\n}\n"
+    expect_compile_error(env, "extern_variant_by_value", ch, "SAFE-FFI-002")
 }
 
 @test

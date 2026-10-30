@@ -767,18 +767,11 @@ static bool is_extern_by_value_aggregate(BaseType* type) {
     if (type == nullptr) return false;
     BaseType* canonical = type->canonical();
     if (canonical == nullptr) return false;
-    switch (canonical->kind()) {
-        case BaseTypeKind::Struct:
-        case BaseTypeKind::Union:
-            return true;
-        default:
-            break;
-    }
+    // Plain structs and unions now use the target C ABI. A Chemical variant is
+    // a tag+payload aggregate with no C counterpart, so it stays an explicit
+    // rejection rather than guessing a foreign layout.
     ASTNode* linked = canonical->get_direct_linked_canonical_node();
-    return linked != nullptr &&
-           (linked->kind() == ASTNodeKind::StructDecl ||
-            linked->kind() == ASTNodeKind::UnionDecl ||
-            linked->kind() == ASTNodeKind::VariantDecl);
+    return linked != nullptr && linked->kind() == ASTNodeKind::VariantDecl;
 }
 
 void verify_call_mutability(TypeVerifier& verifier, FunctionCall* call) {
@@ -822,9 +815,9 @@ void verify_call_mutability(TypeVerifier& verifier, FunctionCall* call) {
             if (bad_abi) {
                 diagnoser.error(call).with_code("SAFE-FFI-002")
                     << "extern function '" << func_decl->name_view()
-                    << "' passes or returns a struct/union/variant by value; "
-                       "the target C ABI for aggregates is not implemented yet "
-                       "(pass a pointer instead)";
+                    << "' passes or returns a Chemical variant by value; "
+                       "variants have no C ABI layout (pass a pointer or use a "
+                       "struct/union with an explicit C layout)";
             }
         }
         if(func_decl->is_unsafe() && !verifier.is_unsafe) {

@@ -825,10 +825,12 @@
 > S5.3/S2.5 safety guard: `Layout` now keeps its size/alignment private,
 > exposes `size()`/`align()`/`validate()`, and `GlobalAllocator` rejects a
 > zero/non-power-of-two alignment or a size above `isize::MAX` before touching
-> memory. Until target C ABI classification lands, `SAFE-FFI-002` rejects an
-> `@extern` function that passes or returns a struct/union/variant **by value**
-> (the internal sret/pointer prototype ABI is not the C ABI); pointer-based FFI
-> remains allowed. `std::default_function_instance` also keeps its erased
+> memory. `SAFE-FFI-002` still rejects an `@extern` function that passes or
+> returns a Chemical **variant** by value (no C layout). Plain structs/unions
+> now use the x86-64 SysV C ABI on both backends: small values are coerced into
+> integer/SSE registers, larger values use byval/sret memory, and mixed
+> struct-plus-scalar signatures are supported. Other target ABIs still need
+> classification; pointer-based FFI remains allowed. `std::default_function_instance` also keeps its erased
 > code/data/destructor fields private: safe construction goes through `make`,
 > raw `make2` stays `unsafe func`, and a struct literal outside the type is
 > `SAFE-VIS-001`. A runtime test covers the invalid-layout panic and negative
@@ -995,10 +997,10 @@
 > non-global storage by reference, or captures a reference/view by value,
 > requires an unsafe boundary (`SAFE-UNSAFE-002`). Owned by-value captures stay
 > safe. `SAFE-LIFE-001` rejects direct/aggregate returns and follows local,
-> assignment, struct, and array taint. This closes safe construction paths for
-> the erased representation; an unsafe-created callback can still be propagated
-> by safe code, so the typed capture/frame representation remains required for
-> a complete invariant (M6.5).
+> assignment, struct/array field, access-chain, erased-parameter, and
+> variant/generic taint. This closes the safe propagation paths for the erased
+> representation. Bare `std::function` parameters still erase their witness by
+> type; a signature that must expose `Send` uses `std::typed_function<F, C>`.
 > M6.5 first slice: `CapturingFunctionType` carries an optional capture-env
 > witness; lambdas get a synthetic environment of their captured field types.
 > `Send`/`Sync`/`'static` recurse into the witness, plain `std::function`
@@ -1027,15 +1029,18 @@
 > are explicit `SAFE-BORROW-099` rejections rather than guessed safe.
 > Scoped threads without captures are covered by join-before-return
 > `scoped_spawn`/`scoped_spawn_mut` and the multi-handle shared `scoped_run`
-> scope, including non-`'static` borrows. Capturing scoped callbacks still need
-> the typed capture representation; otherwise a body-local capture could
-> outlive the join, so they stay on the explicit unsafe path.
-> Then remaining M5 validity (packed references), M2 C ABI, and the
+> scope, including non-`'static` borrows. Capturing scoped callbacks are covered
+> by `std::thread.scoped_spawn_closure` for the no-argument captured form;
+> heterogeneous multi-value scopes and value-passing capturing scoped closures
+> remain open. Remaining work is M5 packed/`repr` layout and references, C ABI
+> classification for Windows/ARM and FFI wrappers, and the
 > variance/HRTB/temporary-lifetime precision items.
 > Safety suite `55`; negative tests `617`; main TCC `2356`, LLVM `2354`;
 > libs `730`; plugins `1305`; async `55`; interpret `1910`; server `10`;
-> TLS `599`;
-> `MIRTests` `4643 checks`.
+> TLS `599`; safety `56`; `MIRTests` `4643 checks`. The whole-tree audit
+> manifest (`lang/docs/safety/audit-modules.txt`) covers `94` modules with
+> `unsafe_blocks 3664` / `unsafe_values 4888`; see
+> `lang/docs/safety/migration-metrics.md`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >
@@ -1303,7 +1308,8 @@ Re-baseline explicitly; checked-in logs may lag.
    is moved by memcpy.
 7. `unsafe` disables definite assignment; `unsafe(expr)`/`unsafe "flag"` are
    inconsistent.
-8. `@extern` aggregate ABI is not the target C ABI.
+8. `@extern` aggregate ABI is implemented for x86-64 SysV structs/unions;
+   Windows/ARM and variant layouts still need target-specific classification.
 9. Drop flags are AST heuristics, not per move path; partial moves/variants not
    tracked; `MIRMovePath` never built.
 10. `MIRType` is module-interned; function-local regions must not go into it.
@@ -2628,3 +2634,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.10 (2026-10-30): safe async submission starts with `async::spawn_send` and `SAFE-SEND-001`. The compiler walks a direct async callee's frame parameters and locals and requires each to be `Send + 'static`; stored/erased future handles are rejected because the frame cannot be proven. `FutureHandle` itself remains erased/`!Send` until a type-level frame witness is threaded through async lowering.*
 *Revision note v4.11 (2026-10-30): capturing scoped closures are safe through `std::thread.scoped_spawn_closure`. The call-site type check permits a borrowed capture witness only at this audited join-before-return boundary; `C: Send` still rejects `Rc` and other non-thread-safe captures. Safe async submission is covered by `async::spawn_send` (`SAFE-SEND-001`) for direct async calls; `FutureHandle` itself remains erased/`!Send`.*
 *Revision note v4.12 (2026-10-30): safe async submission now returns a typed `SendFutureHandle<T>` with a conditional `Send`/`Sync` witness, and `block_on_send` drives it. The safe thread/async surface also includes join-before-return capturing scoped closures, and unsafe-created borrowed-callback taint is followed through aggregates, fields, access chains, generic/variant payloads, and erased callback parameters. The TLS/HTTP/server stack was migrated to explicit unsafe bodies at raw-pointer/FFI boundaries; `AwaitNormalizePass` now descends into `unsafe` blocks so awaits inside audited crypto bodies lower as real suspensions. TCC TLS `599/599`, server `10/10`, negative `617`, async `55`. Packed/repr layout and full target-aware C ABI remain explicit unsupported surface (unknown annotations and by-value extern aggregates are rejected, never silently miscompiled); M1/M7 parity and M8 hardening remain.*
+*Revision note v4.13 (2026-10-30): the safety audit is whole-tree. `scripts/safety-audit.sh` now compiles every entry point in `lang/docs/safety/audit-modules.txt` with `--check --safety-report json`, merges per-module reports conservatively, and checks a 94-module baseline (`unsafe_blocks 3664`, `unsafe_values 4879`). Webview/universal-test/CBOR raw-pointer and global sites were migrated; cbor tests compile again. `lang/docs/safety/migration-metrics.md` records the methodology and per-domain counts. The safety skill/plan status was reconciled with v4.12. Remaining: M2 C ABI, M5 packed/repr, bare erased callback parameters, heterogeneous/value-passing scoped scopes, M1/M7 parity, and M8 release hardening.*
+*Revision note v4.14 (2026-10-30): target C ABI support for by-value structs/unions on x86-64 SysV. The MIR symbol keeps its internal pointer/sret signature and records a separate `c_abi_type`; C prototypes and LLVM declarations use the by-value signature, while calls adapt arguments and returns. Small aggregates are classified per eightbyte (integer/SSE coercion); larger values use `byval`/`sret` memory. `SAFE-FFI-002` now rejects only Chemical variants by value. A linked C fixture exercises small, two-eightbyte, SSE, mixed, memory-class and union values on TCC and LLVM; safety suite `56`. Other target ABIs (Windows x64, ARM) and FFI wrappers/variadics/callbacks remain.*

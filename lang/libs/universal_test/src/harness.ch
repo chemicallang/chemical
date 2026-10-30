@@ -6,7 +6,7 @@
 // block would be lost with it and the host would block forever. Keep every byte
 // ASCII (the page JS buffer is scanned with signed chars elsewhere).
 
-public const UT_HARNESS : *char = """
+@thread_local public const UT_HARNESS : *char = """
 (function(){
 'use strict';
 window.__ut_tests = {};

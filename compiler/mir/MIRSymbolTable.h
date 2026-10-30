@@ -42,6 +42,10 @@ struct MIRSymbolRecord {
     /** A definition (body) exists; false for `@extern`/bodyless declarations. */
     bool has_body = false;
     TypeId type = MIR_INVALID_ID;
+    // For an `@extern` function whose C ABI differs from the internal prototype
+    // ABI (aggregate parameters/returns), the by-value C signature. Call
+    // lowering still uses `type`; emitters use this only at the C boundary.
+    TypeId c_abi_type = MIR_INVALID_ID;
     uint32_t name_offset = 0;
     uint32_t name_length = 0;
     uint32_t mangled_offset = 0;

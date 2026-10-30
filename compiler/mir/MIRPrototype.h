@@ -37,6 +37,8 @@ enum MIRPrototypeFlags : uint8_t {
 struct MIRPrototype {
     std::string name; // mangled, including any `__chem_stdcall` prefix
     TypeId type = MIR_INVALID_ID;
+    // Set for an `@extern` function whose C ABI differs from the internal ABI.
+    TypeId c_abi_type = MIR_INVALID_ID;
     uint8_t flags = MPF_NONE;
 };
 
@@ -44,6 +46,14 @@ struct MIRPrototype {
  *  pointer, variadic tail marker dropped, static-interface self erased). */
 TypeId mir_function_signature(MIRTypeBuilder& types, MIRModule& module,
                               FunctionDeclaration* decl);
+
+/** The by-value C ABI signature of `decl` (no hidden sret/pointer conversion). */
+TypeId mir_c_function_signature(MIRTypeBuilder& types, MIRModule& module,
+                                FunctionDeclaration* decl);
+
+/** True when an extern declaration has a by-value struct/union parameter or
+ *  return, so its C signature differs from the internal prototype ABI. */
+bool mir_needs_c_abi(FunctionDeclaration* decl);
 
 /** Fill `out` with `decl`'s prototype (name + flags + signature). */
 void build_function_prototype(NameMangler& mangler, MIRTypeBuilder& types, MIRModule& module,

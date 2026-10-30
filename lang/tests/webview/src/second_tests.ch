@@ -29,6 +29,8 @@ var g_wv : *mut webview::WebView
 // Result callback for webview_evaluate_js_result: records that JS evaluation
 // produced "5" (2 + 3) and stops the run loop.
 func eval_cb(data : *mut void, result : *char) : void {
+    unsafe {
+
     if(result == null) {
         g_eval_ok = false
         if(g_wv != null) { webview::webview_stop(g_wv) }
@@ -37,6 +39,8 @@ func eval_cb(data : *mut void, result : *char) : void {
     var rv = string_view::make_no_len(result)
     g_eval_ok = rv.size() == 1 && rv.find(string_view::make_no_len("5")) == 0
     if(g_wv != null) { webview::webview_stop(g_wv) }
+
+}
 }
 
 @test
@@ -67,6 +71,8 @@ public func test_webview_noop_on_uninitialized(env : &mut TestEnv) {
 
 @test
 public func test_webview_bind_roundtrip(env : &mut TestEnv) {
+    unsafe {
+
     g_method_ok = false
     g_args_ok = false
     g_wv = null
@@ -110,10 +116,14 @@ public func test_webview_bind_roundtrip(env : &mut TestEnv) {
         env.error("bound handler did not receive expected args (42 / hello)")
         return
     }
+
+}
 }
 
 @test
 public func test_webview_bind_result_delivery(env : &mut TestEnv) {
+    unsafe {
+
     // The handler returns a value; JS must receive it (the _resolve path) and
     // pass it back in a second call so we can verify the round trip of the
     // returned value.
@@ -154,10 +164,14 @@ public func test_webview_bind_result_delivery(env : &mut TestEnv) {
         env.error("handler return value was not delivered back to JavaScript")
         return
     }
+
+}
 }
 
 @test
 public func test_webview_bind_method_routing(env : &mut TestEnv) {
+    unsafe {
+
     // Sequential promise chaining through the bridge must route each method to
     // the correct native branch.
     g_alpha = false
@@ -203,10 +217,14 @@ public func test_webview_bind_method_routing(env : &mut TestEnv) {
     if(!g_alpha) { env.error("method 'alpha' was not routed to the handler"); return }
     if(!g_beta) { env.error("method 'beta' was not routed to the handler"); return }
     if(!g_gamma) { env.error("method 'gamma' was not routed to the handler"); return }
+
+}
 }
 
 @test
 public func test_webview_evaluate_js_result(env : &mut TestEnv) {
+    unsafe {
+
     // Native -> JS evaluation: the handler triggers an async JS evaluation and
     // the result callback must receive the computed value ("5").
     g_eval_ok = false
@@ -242,10 +260,14 @@ public func test_webview_evaluate_js_result(env : &mut TestEnv) {
         env.error("webview_evaluate_js_result did not deliver the expected value")
         return
     }
+
+}
 }
 
 @test
 public func test_webview_set_title_size_live(env : &mut TestEnv) {
+    unsafe {
+
     // On a live (created) webview, set_title / set_size must update the struct
     // fields (the display-independent path is covered by webview_test.ch; here
     // we exercise the created-window path).
@@ -275,4 +297,6 @@ public func test_webview_set_title_size_live(env : &mut TestEnv) {
         return
     }
     webview::webview_destroy(&raw mut wv)
+
+}
 }

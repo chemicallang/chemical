@@ -1,0 +1,41 @@
+# Whole-tree safety audit entry points.
+#
+# Each module is compiled with `--check --safety-report json` (no code
+# emission or linking), then the per-module reports are merged by module name.
+# Add a new library/test entry point here when it imports modules that are not
+# reachable from any existing entry point.
+
+lang/tests/safety/chemical.mod
+lang/tests/libs/chemical.mod
+lang/tests/libs/atomic/chemical.mod
+lang/tests/tls/chemical.mod
+lang/tests/server/chemical.mod
+lang/tests/async/chemical.mod
+lang/tests/regexp/chemical.mod
+lang/tests/process/chemical.mod
+lang/tests/webview/chemical.mod
+lang/tests/universal_webview/chemical.mod
+lang/tests/cbor/chemical.mod
+lang/tests/thread_tsan/chemical.mod
+lang/tests/submod3/chemical.mod
+lang/tests/submod3/submod_mod/chemical.mod
+lang/tests/common/chemical.mod
+lang/tests/native_common/chemical.mod
+lang/tests/external_common/chemical.mod
+
+lang/tests/compiler_plugins/common/chemical.mod
+lang/tests/compiler_plugins/components/chemical.mod
+lang/tests/compiler_plugins/css/chemical.mod
+lang/tests/compiler_plugins/css_runtime/chemical.mod
+lang/tests/compiler_plugins/html/chemical.mod
+lang/tests/compiler_plugins/html_runtime/chemical.mod
+lang/tests/compiler_plugins/js/chemical.mod
+lang/tests/compiler_plugins/json/chemical.mod
+lang/tests/compiler_plugins/js_parse/chemical.mod
+lang/tests/compiler_plugins/js_runtime/chemical.mod
+lang/tests/compiler_plugins/md/chemical.mod
+lang/tests/compiler_plugins/md_runtime/chemical.mod
+lang/tests/compiler_plugins/runner/chemical.mod
+lang/tests/compiler_plugins/styled_export/chemical.mod
+lang/tests/compiler_plugins/universal/chemical.mod
+lang/tests/compiler_plugins/universal_runtime/chemical.mod

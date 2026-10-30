@@ -33,8 +33,8 @@ comptime func ut_all() : []UTFunction {
     return intrinsics::get_universal_tests<UTFunction>() as []UTFunction
 }
 
-var g_wv : *mut webview::WebView = null
-@never_destructed var g_results : vector<UTResult>
+@thread_local var g_wv : *mut webview::WebView = null
+@thread_local @never_destructed var g_results : vector<UTResult>
 
 // ── Host-side watchdog ──────────────────────────────────────────────────────
 //
@@ -51,11 +51,11 @@ var g_wv : *mut webview::WebView = null
 comptime const UT_SILENCE_MS : int = 60000
 comptime const UT_WATCHDOG_TICK_MS : int = 500
 
-var g_silence_ms : int = 0          // resolved lazily by ut_silence_budget_ms()
-var g_silence_left_ms : int = 0     // remaining budget; 0 = disarmed
-var g_watchdog_id : int = 0
+@thread_local var g_silence_ms : int = 0          // resolved lazily by ut_silence_budget_ms()
+@thread_local var g_silence_left_ms : int = 0     // remaining budget; 0 = disarmed
+@thread_local var g_watchdog_id : int = 0
 // Names on the page currently running, so a stall can be charged to them.
-@never_destructed var g_page_names : vector<string>
+@thread_local @never_destructed var g_page_names : vector<string>
 
 // Milliseconds of bridge silence before a page is declared stalled.
 // `UT_TIMEOUT_MS` overrides it (ms) for slow machines.
@@ -80,6 +80,8 @@ func ut_stall_message() : string {
 
 // Runs from the platform timer inside `webview_run`'s message loop.
 func ut_watchdog_tick(data : *mut void) {
+    unsafe {
+
     if(g_silence_left_ms <= 0) { return }
     g_silence_left_ms -= UT_WATCHDOG_TICK_MS
     if(g_silence_left_ms > 0) { return }
@@ -98,6 +100,8 @@ func ut_watchdog_tick(data : *mut void) {
         i += 1
     }
     if(g_wv != null) { webview::webview_stop(g_wv) }
+
+}
 }
 
 // Escapes `v` for embedding inside a double-quoted JS string literal.
@@ -170,6 +174,8 @@ func ut_bridge(method : string_view, args : string_view) : string {
 // Runs the given tests as one page in one WebView. Results accumulate in
 // g_results keyed by test name.
 func ut_execute(tests : *mut *mut UTFunction, count : size_t, headed : bool) {
+    unsafe {
+
     if(count == 0) { return }
     var page = HtmlPage()
     page.appendTitle("universal tests")
@@ -272,9 +278,13 @@ func ut_execute(tests : *mut *mut UTFunction, count : size_t, headed : bool) {
     }
     webview::webview_destroy(&raw mut wv)
     g_wv = null
+
+}
 }
 
 func ut_name_selected(names : &vector<string_view>, name : string_view) : bool {
+    unsafe {
+
     var i : size_t = 0
     while(i < names.size()) {
         const sp = names.get_ptr(i)
@@ -282,6 +292,8 @@ func ut_name_selected(names : &vector<string_view>, name : string_view) : bool {
         i += 1
     }
     return false
+
+}
 }
 
 func ut_id_selected(ids : &vector<int>, id : int) : bool { unsafe {
@@ -297,6 +309,8 @@ func ut_id_selected(ids : &vector<int>, id : int) : bool { unsafe {
 // Streams the collected results (in declaration order) to the reporter and
 // returns the number of failed tests.
 func ut_emit(tests : *mut *mut UTFunction, count : size_t, reporter : *mut TestReporter) : int {
+    unsafe {
+
     var failed : int = 0
     var i : size_t = 0
     while(i < count) {
@@ -334,6 +348,8 @@ func ut_emit(tests : *mut *mut UTFunction, count : size_t, reporter : *mut TestR
         i += 1
     }
     return failed
+
+}
 }
 
 // Parses `--test-names a,b`, `--test-ids 1,2`, and `--include-remote`.
@@ -465,9 +481,13 @@ type UTHandleRunFn = (h : *mut TestRunnerHandle, reporter : &mut TestReporter, a
 
 @retained
 public func universal_handle_run(h : *mut TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) : int {
+    unsafe {
+
     var ptr = h.tests_ptr as *mut UTFunction
     var span = unsafe(std::span<UTFunction>(ptr, h.tests_count))
     return run_universal_tests_reporting(span, reporter, argc, argv)
+
+}
 }
 
 @retained

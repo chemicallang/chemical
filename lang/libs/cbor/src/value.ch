@@ -217,6 +217,8 @@ func map_value_at(v : &CborValue, index : size_t) : *mut CborValue {
 
 // The index of the pair whose key is the integer `key`, or -1.
 func map_find_int(v : &CborValue, key : i64) : int {
+    unsafe {
+
     if(!(v is CborValue.Map)) { return -1 }
     var Map(m) = v else unreachable
     var pairs = m.size() / 2u
@@ -227,6 +229,8 @@ func map_find_int(v : &CborValue, key : i64) : int {
         if(kv == key) { return i as int }
     }
     return -1
+
+}
 }
 
 // `string_view` has no `==`, so a text key is matched on length then position.
@@ -239,6 +243,8 @@ func text_equals(t : &CborValue, key : string_view) : bool {
 
 // The index of the pair whose key is the text `key`, or -1.
 func map_find_text(v : &CborValue, key : string_view) : int {
+    unsafe {
+
     if(!(v is CborValue.Map)) { return -1 }
     var Map(m) = v else unreachable
     var pairs = m.size() / 2u
@@ -246,33 +252,47 @@ func map_find_text(v : &CborValue, key : string_view) : int {
         if(text_equals(&mut *m.get_ptr(i * 2u), key)) { return i as int }
     }
     return -1
+
+}
 }
 
 // The byte string stored under an integer key. Empty when the key is absent or
 // the value is not a byte string.
 public func map_bytes_by_int(v : &CborValue, key : i64) : vector<u8> {
+    unsafe {
+
     var i = map_find_int(v, key)
     if(i < 0) { return vector<u8>() }
     return bytes_copy(&mut *map_value_at(v, i as size_t))
+
+}
 }
 
 // The text stored under an integer key. Empty when absent or not text.
 public func map_text_by_int(v : &CborValue, key : i64) : string {
+    unsafe {
+
     var i = map_find_int(v, key)
     if(i < 0) { return string("") }
     return text_copy(&mut *map_value_at(v, i as size_t))
+
+}
 }
 
 // The integer stored under an integer key, or `fallback` when the key is
 // absent or the value is not an integer. COSE labels are small and signed, so
 // a fallback of 0 means "no such label".
 public func map_int_by_int(v : &CborValue, key : i64, fallback : i64) : i64 {
+    unsafe {
+
     var i = map_find_int(v, key)
     if(i < 0) { return fallback }
     var got = as_i64(&mut *map_value_at(v, i as size_t))
     if(got is Option.None) { return fallback }
     var Some(n) = got else unreachable
     return n
+
+}
 }
 
 // Whether an integer key is present, so a caller can tell a stored zero from
@@ -288,9 +308,13 @@ public func map_has_text(v : &CborValue, key : string_view) : bool {
 
 // The text stored under a text key. Empty when absent.
 public func map_text_by_text(v : &CborValue, key : string_view) : string {
+    unsafe {
+
     var i = map_find_text(v, key)
     if(i < 0) { return string("") }
     return text_copy(&mut *map_value_at(v, i as size_t))
+
+}
 }
 
 // The byte string stored under a text key. Empty when absent.
@@ -300,9 +324,13 @@ public func map_text_by_text(v : &CborValue, key : string_view) : string {
 // "authData": h'...'}, and the credential public key inside its authData is
 // reached the same way.
 public func map_bytes_by_text(v : &CborValue, key : string_view) : vector<u8> {
+    unsafe {
+
     var i = map_find_text(v, key)
     if(i < 0) { return vector<u8>() }
     return bytes_copy(&mut *map_value_at(v, i as size_t))
+
+}
 }
 
 // A pointer to the value stored under a text key, or null when absent.
@@ -343,15 +371,21 @@ public func array_value_at(v : &CborValue, index : size_t) : *mut CborValue {
 // an array of byte strings, so this is how `x5c` is walked. Empty when out of
 // range or not a byte string.
 public func array_bytes_at(v : &CborValue, index : size_t) : vector<u8> {
+    unsafe {
+
     if(!(v is CborValue.Array)) { return vector<u8>() }
     var Array(a) = v else unreachable
     if(index >= a.size()) { return vector<u8>() }
     return bytes_copy(&mut *a.get_ptr(index))
+
+}
 }
 
 // The integer at `index` of an array, or `fallback` when out of range or not
 // an integer.
 public func array_int_at(v : &CborValue, index : size_t, fallback : i64) : i64 {
+    unsafe {
+
     if(!(v is CborValue.Array)) { return fallback }
     var Array(a) = v else unreachable
     if(index >= a.size()) { return fallback }
@@ -359,6 +393,8 @@ public func array_int_at(v : &CborValue, index : size_t, fallback : i64) : i64 {
     if(got is Option.None) { return fallback }
     var Some(n) = got else unreachable
     return n
+
+}
 }
 
 // A short human-readable rendering, for diagnostics and test output. NOT
@@ -369,6 +405,8 @@ public func array_int_at(v : &CborValue, index : size_t, fallback : i64) : i64 {
 // a `Result` cannot be read out (see decode.ch), and a `CborValue`'s payloads
 // cannot be moved out of a borrow, so there is no other way to print one.
 public func describe(v : &CborValue) : string {
+    unsafe {
+
     if(v is CborValue.Unsigned) {
         var Unsigned(n) = v else unreachable
         var s = string("u:")
@@ -454,6 +492,8 @@ public func describe(v : &CborValue) : string {
         return s
     }
     return string("?")
+
+}
 }
 } // end namespace cbor
 

@@ -11,7 +11,7 @@ The source tree wins over any status note here.
 
 ## Current status (2026-10-30)
 
-**M0 (S0.1–S0.6), M3, and M4 are implemented for the enforceable surface. M1/M2/M5 are advanced; M6 has started. S5.6b (unwinding) is withdrawn by policy: panic always aborts.**
+**M0 (S0.1–S0.6), M3, M4, and the enforceable M5/M6 surface are implemented. M1/M2/M7 are advanced; M6.5 has two API-completeness gaps (bare erased callback parameters and heterogeneous/value-passing scoped scopes). S5.6b (unwinding) is withdrawn by policy: panic always aborts.**
 
 Implemented:
 
@@ -334,9 +334,10 @@ Implemented:
 - M5.3/S2.5 guards: `Layout` has private size/alignment with
   `size()`/`align()`/`validate()`; `GlobalAllocator` rejects zero/non-power-of-two
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
-  functions passing/returning struct/union/variant by value until target C ABI
-  classification is implemented (pointer FFI is still allowed). Safety suite
-  `55`, negative tests `613`.
+  functions passing/returning a Chemical variant by value; structs/unions use
+  the x86-64 SysV C ABI on both backends (pointer FFI remains allowed, other
+  target ABIs still need classification). Safety suite `56`, negative tests
+  `617`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -356,9 +357,9 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `55`, negative `617`; TCC main `2356`, LLVM
+  TCC/LLVM lib runs. Safety suite `56`, negative `617`; TCC main `2356`, LLVM
   main `2354`, libs `730`, plugins `1305`, async `55`, interpret `1910`,
-  server `10`, TLS `599`.
+  server `10`, TLS `599`, safety `56`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
   range-checked, frame places are registered individually, and globals,
@@ -379,12 +380,13 @@ Implemented:
   captures non-global storage by reference, or captures a reference/view **by
   value**, requires an unsafe boundary (`SAFE-UNSAFE-002`). Owned by-value
   captures (scalars, `string`, `vector`, `Box`, `Arc`, `Rc`) remain safe. A
-  direct/aggregate return of such a callback is also `SAFE-LIFE-001`; the taint
-  follows local initializers, assignments, structs, and arrays. This closes the
-  safe-construction escape paths for the erased representation; an
-  unsafe-created callback can still be propagated by safe code, so the typed
-  capture/frame representation is still required for a complete invariant
-  (M6.5).
+  direct/aggregate return of such a callback is also `SAFE-LIFE-001`; taint
+  follows local initializers, assignments, struct/array fields, access chains,
+  erased callback parameters, and variant/generic payloads. An unsafe-created
+  stack-borrowing callback therefore cannot cross a safe API that erases the
+  capture witness. Bare `std::function` **parameters** still erase the witness
+  by type, so a safe API cannot derive `Send` for an arbitrary callback
+  parameter without `std::typed_function<F, C>`.
 - M6.5 typed capture witness: `CapturingFunctionType` now carries an optional
   `capture_env` type-level witness (runtime layout is still the instance
   struct). Symbol resolution builds a synthetic capture environment for every
@@ -423,12 +425,13 @@ Implemented:
   `std::thread.scoped_run` adds a multi-handle shared scope: `ScopedScope<T>`
   starts up to 32 workers over one borrowed `T: Sync` value and joins all of
   them from its destructor. The scope cannot be forged or constructed outside
-  the library. Capturing closures that need extra state, heterogeneous
-  multi-value scopes, and erased/async captures remain on the explicit unsafe
-  path. The `%capture` instance type is the function-instance wrapper, not the
-  actual captured environment, so Send/Sync cannot be derived from it; typed
-  capture needs a new representation (M6.5). Guard-transfer
-  negative tests cover `MutexGuard`/`RwLockWriteGuard`. `scripts/thread-tsan.sh`
+  the library. Capturing scoped closures use
+  `std::thread.scoped_spawn_closure` and its typed capture witness; a
+  no-argument captured closure may borrow caller storage because the join
+  happens before return. Heterogeneous multi-value scopes and value-passing
+  capturing scoped closures remain open, as do bare erased callback
+  parameters. Guard-transfer negative tests cover
+  `MutexGuard`/`RwLockWriteGuard`. `scripts/thread-tsan.sh`
   runs a four-thread `Arc<Mutex<int>>` smoke test under TSAN; it uses a system
   LLVM resource directory when the bundled prebuild lacks
   `libclang_rt.tsan.a`.
@@ -454,8 +457,9 @@ Implemented:
   unsafe boundary. The generated module-build scripts from `ModToLabConverter`
   carry one explicit unsafe boundary around their raw context/job operations.
   Wrapping generic bodies exposed a missing `ValueNode::copy`, now implemented.
-  In-tree stdlib/CBI/plugin/build.lab call sites were migrated; audit baseline
-  is `unsafe_blocks 576`, `unsafe_values 441`; negative `617`.
+  In-tree stdlib/CBI/plugin/build.lab call sites were migrated. The audit now
+  compiles the whole-tree entry-point list (`94` modules) with `--check`; the
+  baseline is `unsafe_blocks 3664`, `unsafe_values 4888`; negative `617`.
 - S2.2/S4.8 function pointers: `FunctionTypeData::requires_unsafe` is part of
   function type identity and is set for `unsafe func` and `@extern`. Calling a
   value of such a type in safe context is `SAFE-UNSAFE-002`; coercing it to a
@@ -561,19 +565,20 @@ Implemented:
 
 Next:
 
-- M6.5: `std::function` now has a typed capture witness; the remaining piece is
-  the async frame witness. Join-before-return (`scoped_spawn`/
-  `scoped_spawn_mut`) and the multi-handle shared `scoped_run` scope are
-  implemented. A plain `%capture<F, Env>` still erases its environment in the
-  type unless the initializer supplies a witness, so a bare callback parameter
-  remains `!Send`. `FutureHandle` still erases its coroutine frame and remains
-  `!Send` until a frame witness is threaded through async lowering. Capturing
-  scoped closures, heterogeneous multi-value scopes, and propagation of an
-  unsafe-created borrowed callback remain on the explicit unsafe path. M4 is
-  complete for the enforceable surface; nested
-  aggregate HRTB and multi-borrow callbacks with parameter/global referents
-  remain explicit `SAFE-BORROW-099` rejections. Then M5 packed references and
-  M2 C ABI.
+- M6.5 remaining: bare `std::function` parameters still erase their capture
+  witness (use `std::typed_function<F, C>` when a signature must expose it),
+  and raw `FutureHandle<T>` remains `!Send` outside the checked
+  `spawn_send`/`SendFutureHandle` boundary. Heterogeneous multi-value scopes
+  and value-passing capturing scoped closures are still open. M4 is complete
+  for the enforceable surface; nested aggregate HRTB and multi-borrow
+  callbacks with parameter/global referents remain explicit
+  `SAFE-BORROW-099` rejections.
+- M5/M2: packed/`repr` layout and references; C ABI classification for
+  Windows/ARM and other targets; FFI wrappers/variadics/callbacks. By-value
+  structs/unions work on x86-64 SysV; variants are rejected with
+  `SAFE-FFI-002` rather than silently miscompiled.
+- M1/M7: remaining type-system and stdlib parity; M8: parity corpus, fuzz,
+  performance, docs and release audit sign-off.
 - S1.2 `'static`/bounds and S1.3a `PhantomData` are done; temporary lifetime
   extension and variance analysis move with the borrow checker (M4).
   S1.4a opt-in `Copy` is enforced (`SAFE-COPY-001`) and the in-tree tree is

@@ -61,7 +61,7 @@ const WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START = 0
 // `window.__webview__` with `call(method, ...params)` returning a Promise that
 // resolves with the JSON-parsed handler result; `window.webview_bridge` is kept
 // as an alias for older callers.
-const WEBVIEW_BRIDGE_JS : *char = """(function(){'use strict';function generateId(){var c=window.crypto||window.msCrypto;var b=new Uint8Array(16);c.getRandomValues(b);return Array.prototype.slice.call(b).map(function(n){var s=n.toString(16);return((s.length%2)==1?'0':'')+s;}).join('');}var Webview=(function(){var _p={};function W(){}W.prototype.post=function(m){return window.webkit.messageHandlers.__webview__.postMessage(m);};W.prototype.call=function(method){var _id=generateId();var _params=Array.prototype.slice.call(arguments,1);var promise=new Promise(function(resolve,reject){_p[_id]={resolve:resolve,reject:reject};});this.post(JSON.stringify({id:_id,method:method,params:_params}));return promise;};W.prototype.onReply=function(id,status,result){var promise=_p[id];if(!promise)return;if(result!==undefined){try{result=JSON.parse(result);}catch(e){promise.reject(new Error('Failed to parse binding result as JSON'));return;}}if(status===0){promise.resolve(result);}else{promise.reject(result);}};W.prototype._lrBuf=null;W.prototype._lrPush=function(chunk){if(!this._lrBuf)return;try{var obj=typeof chunk==='string'?JSON.parse(chunk):chunk;this._lrBuf.chunks.push(obj.data||'');}catch(e){this._lrBuf.chunks.push(String(chunk));}};W.prototype._lrDone=function(){if(!this._lrBuf)return;var lr=this._lrBuf;this._lrBuf=null;var full=lr.chunks.join('');var promise=_p[lr.id];if(promise){try{promise.resolve(JSON.parse(full));}catch(e){promise.reject(new Error('Failed to parse large result'));}}};W.prototype.onBind=function(name){if(window.hasOwnProperty(name)){throw new Error('Property "'+name+'" already exists');}window[name]=(function(){var params=[name].concat(Array.prototype.slice.call(arguments));return W.prototype.call.apply(this,params);}).bind(this);};W.prototype.onUnbind=function(name){if(!window.hasOwnProperty(name)){throw new Error('Property "'+name+'" does not exist');}delete window[name];};return W;})();window.__webview__=new Webview();window.webview_bridge=window.__webview__;})()"""
+@thread_local const WEBVIEW_BRIDGE_JS : *char = """(function(){'use strict';function generateId(){var c=window.crypto||window.msCrypto;var b=new Uint8Array(16);c.getRandomValues(b);return Array.prototype.slice.call(b).map(function(n){var s=n.toString(16);return((s.length%2)==1?'0':'')+s;}).join('');}var Webview=(function(){var _p={};function W(){}W.prototype.post=function(m){return window.webkit.messageHandlers.__webview__.postMessage(m);};W.prototype.call=function(method){var _id=generateId();var _params=Array.prototype.slice.call(arguments,1);var promise=new Promise(function(resolve,reject){_p[_id]={resolve:resolve,reject:reject};});this.post(JSON.stringify({id:_id,method:method,params:_params}));return promise;};W.prototype.onReply=function(id,status,result){var promise=_p[id];if(!promise)return;if(result!==undefined){try{result=JSON.parse(result);}catch(e){promise.reject(new Error('Failed to parse binding result as JSON'));return;}}if(status===0){promise.resolve(result);}else{promise.reject(result);}};W.prototype._lrBuf=null;W.prototype._lrPush=function(chunk){if(!this._lrBuf)return;try{var obj=typeof chunk==='string'?JSON.parse(chunk):chunk;this._lrBuf.chunks.push(obj.data||'');}catch(e){this._lrBuf.chunks.push(String(chunk));}};W.prototype._lrDone=function(){if(!this._lrBuf)return;var lr=this._lrBuf;this._lrBuf=null;var full=lr.chunks.join('');var promise=_p[lr.id];if(promise){try{promise.resolve(JSON.parse(full));}catch(e){promise.reject(new Error('Failed to parse large result'));}}};W.prototype.onBind=function(name){if(window.hasOwnProperty(name)){throw new Error('Property "'+name+'" already exists');}window[name]=(function(){var params=[name].concat(Array.prototype.slice.call(arguments));return W.prototype.call.apply(this,params);}).bind(this);};W.prototype.onUnbind=function(name){if(!window.hasOwnProperty(name)){throw new Error('Property "'+name+'" does not exist');}delete window[name];};return W;})();window.__webview__=new Webview();window.webview_bridge=window.__webview__;})()"""
 
 // The injected WebKitUserScript is owned by the user content manager for the
 // lifetime of the web view (no manual unreference needed).
@@ -220,19 +220,23 @@ func linux_on_navigation_complete(web_view : *mut WebKitWebView, event : int, da
 }
 
 public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewError> {
+    unsafe {
+
     // WebKit's JavaScriptCore reads the process environment through glibc's
     // exported `environ`. The generated C references only `__environ`, and in
     // a non-PIE ELF that produces a copy relocation which leaves glibc's
     // `environ` NULL — JSC then segfaults walking its options. Mirror the real
     // environment pointer into `environ` before any WebKit object exists.
     comptime if(def.gnu) {
-        environ = get_environ()
+        unsafe { environ = get_environ() }
     }
 
     // The top-level window is created through the window library, so the app
     // can mix native UI with the webview (and gets all the window features).
-    wv.win.width = wv.width
-    wv.win.height = wv.height
+    unsafe {
+        wv.win.width = wv.width
+        wv.win.height = wv.height
+    }
     window::window_set_title(&raw mut wv.win, wv.title.data())
     var wres = window::window_create(&raw mut wv.win)
     if(wres is std::Result.Err) {
@@ -269,6 +273,8 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
     webview_inject_bridge(wv)
 
     return std.Result.Ok(std::Unit{})
+
+}
 }
 
 // Inject the JS<->native bridge stub into every page the webview loads and wire
@@ -320,6 +326,8 @@ func linux_on_script_message(
     js_result : *mut WebKitJavascriptResult,
     data : *mut void
 ) : void {
+    unsafe {
+
     if(js_result == null || data == null) {
         return
     }
@@ -337,6 +345,8 @@ func linux_on_script_message(
     }
     linux_on_message(wv, msg_cstr)
     unsafe { free(msg_cstr as *mut void) }
+
+}
 }
 
 // Extract the JSON value for `key` (e.g. "\"params\":") from a bridge message.
@@ -344,6 +354,8 @@ func linux_on_script_message(
 // values (object/array/number/bool/null) are copied until the top-level closing
 // , } or ]. Returns "" if the key is not found.
 func linux_json_value(msg_view : std::string_view, key : *char) : string {
+    unsafe {
+
     var pos = msg_view.find(std::string_view::make_no_len(key))
     if(pos >= msg_view.size()) {
         return string()
@@ -404,11 +416,15 @@ func linux_json_value(msg_view : std::string_view, key : *char) : string {
         i = i + 1
     }
     return out
+
+}
 }
 
 // Escape a string into a JSON string literal (with surrounding quotes). Used to
 // embed the bridge call id and the handler's result into the reply script.
 func linux_json_escape(sv : std::string_view) : string {
+    unsafe {
+
     var result = string("\"")
     var i : size_t = 0
     while(i < sv.size()) {
@@ -433,6 +449,8 @@ func linux_json_escape(sv : std::string_view) : string {
     }
     result.append('"')
     return result
+
+}
 }
 
 
@@ -460,12 +478,18 @@ var g_lr_ready : bool = false
 // signal handler) and idle-source starvation under a busy loop (e.g. an app
 // that polls the bridge on a timer while downloads render).
 func linux_run_js(wv : *mut WebView, script : *char) {
+    unsafe {
+
     if(wv.web_view != null) {
         unsafe { webkit_web_view_run_javascript(wv.web_view as *mut WebKitWebView, script, null, null, null) }
     }
+
+}
 }
 
 func linux_store_large_result(id_str : *char, data : *char, size : size_t) {
+    unsafe {
+
     // Free previous if any
     if(g_lr_buf != null) {
         unsafe { free(g_lr_buf as *mut void) }
@@ -477,9 +501,13 @@ func linux_store_large_result(id_str : *char, data : *char, size : size_t) {
         unsafe { memcpy(g_lr_buf as *mut void, data as *mut void, size) }
     }
     g_lr_ready = true
+
+}
 }
 
 func linux_chunk_result(offset : size_t, length : size_t) : string {
+    unsafe {
+
     if(!g_lr_ready || g_lr_buf == null || offset >= g_lr_size) {
         return string("{}")
     }
@@ -504,9 +532,13 @@ func linux_chunk_result(offset : size_t, length : size_t) : string {
     }
     out.append('}')
     return out
+
+}
 }
 
 func linux_clear_large_result() {
+    unsafe {
+
     if(g_lr_buf != null) {
         unsafe { free(g_lr_buf as *mut void) }
         g_lr_buf = null
@@ -514,6 +546,8 @@ func linux_clear_large_result() {
     g_lr_size = 0
     g_lr_alloc = 0
     g_lr_ready = false
+
+}
 }
 
 // Parse an integer field from a JSON params string.
@@ -538,6 +572,8 @@ func linux_json_int_field(params_view : std::string_view, key : *char) : size_t 
 // the normal main loop. No re-entrant loop pumping, so it is safe to call
 // directly from the script-message-received signal handler.
 func linux_deliver_large_result(wv : *mut WebView, call_id : std::string_view) {
+    unsafe {
+
     // 1. Init accumulator
     var init_js = string("window.__webview__._lrBuf={id:")
     var esc_nid = linux_json_escape(call_id)
@@ -569,12 +605,16 @@ func linux_deliver_large_result(wv : *mut WebView, call_id : std::string_view) {
 
     // Cleanup
     linux_clear_large_result()
+
+}
 }
 
 // Process an incoming bridge message (JSON from JS). Parses {id, method,
 // params}, calls the bound handler, and sends the result back via
 // window.__webview__.onReply(id, 0, result).
 func linux_on_message(wv : *mut WebView, msg : *char) {
+    unsafe {
+
     var msg_view = std::string_view::make_no_len(msg)
 
     var id_str = linux_json_value(msg_view, "\"id\":")
@@ -641,6 +681,8 @@ func linux_on_message(wv : *mut WebView, msg : *char) {
     }
     js_call.append(')')
     linux_run_js(wv, js_call.data())
+
+}
 }
 
 // Bind a native handler to the JS window.webview_bridge.call(method, args).
@@ -648,6 +690,8 @@ func linux_on_message(wv : *mut WebView, msg : *char) {
 // script-message-received signal is connected here, after the caller owns the
 // final WebView address returned by create().
 public func webview_bind(wv : *mut WebView, handler : JsBindHandler) : std::Result<std::Unit, WebViewError> {
+    unsafe {
+
     if(wv.web_view == null) {
         return std.Result.Err(WebViewError.InitFailed(string("webview_bind: webview is not initialized")))
     }
@@ -681,6 +725,8 @@ public func webview_bind(wv : *mut WebView, handler : JsBindHandler) : std::Resu
         wv.bind_signal_connected = true
     }
     return std.Result.Ok(std::Unit{})
+
+}
 }
 
 // NOTE: @extern does not take a separate linkage name — the emitted C symbol
@@ -706,6 +752,8 @@ public func webview_attach(
     width : int,
     height : int
 ) : std::Result<std::Unit, WebViewError> {
+    unsafe {
+
     if(parent == null) {
         return std.Result.Err(WebViewError.InitFailed(string("webview_attach: parent window is null")))
     }
@@ -762,11 +810,15 @@ public func webview_attach(
 
     wv.initialized = true
     return std.Result.Ok(std::Unit{})
+
+}
 }
 
 // Move/resize the webview section inside the attached parent window (in the
 // parent's coordinate space). No-op in standalone mode.
 public func webview_set_bounds(wv : *mut WebView, x : int, y : int, width : int, height : int) {
+    unsafe {
+
     if(!wv.attached) {
         return
     }
@@ -778,9 +830,13 @@ public func webview_set_bounds(wv : *mut WebView, x : int, y : int, width : int,
         unsafe { gtk_fixed_move(wv.fixed as *mut GtkFixed, wv.web_view, x, y) }
         unsafe { gtk_widget_set_size_request(wv.web_view, width, height) }
     }
+
+}
 }
 
 public func webview_destroy(wv : *mut WebView) {
+    unsafe {
+
     wv.initialized = false
     if(wv.bind_ctx != null) {
         delete wv.bind_ctx
@@ -832,21 +888,33 @@ public func webview_destroy(wv : *mut WebView) {
     if(window::window_is_created(&raw mut wv.win)) {
         window::window_destroy(&raw mut wv.win)
     }
+
+}
 }
 
 public func webview_load_url(wv : *mut WebView, url : *char) {
+    unsafe {
+
     if(wv.web_view != null) {
         unsafe { webkit_web_view_load_uri(wv.web_view as *mut WebKitWebView, url) }
     }
+
+}
 }
 
 public func webview_load_html(wv : *mut WebView, html : *char) {
+    unsafe {
+
     if(wv.web_view != null) {
         unsafe { webkit_web_view_load_html(wv.web_view as *mut WebKitWebView, html, "about:blank\0" as *char) }
     }
+
+}
 }
 
 public func webview_evaluate_js(wv : *mut WebView, script : *char) {
+    unsafe {
+
     if(wv.web_view != null) {
         unsafe { webkit_web_view_run_javascript(wv.web_view as *mut WebKitWebView, script, null, null, null) }
         // Pump the GLib main loop until no more events are pending so the queued
@@ -859,6 +927,8 @@ public func webview_evaluate_js(wv : *mut WebView, script : *char) {
             safety = safety + 1
         }
     }
+
+}
 }
 
 // Evaluate JavaScript and receive the result through an asynchronous callback.
@@ -871,6 +941,8 @@ public func webview_evaluate_js(wv : *mut WebView, script : *char) {
 // call this AFTER the page has finished loading (e.g. from a g_timeout_add /
 // load-completion callback), not immediately after webview_load_html.
 func linux_js_callback(web_view : *mut WebKitWebView, res : *mut void, user_data : *mut void) {
+    unsafe {
+
     var ctx = user_data as *mut JsEvalHandler
     if(ctx == null || ctx.cb == null) {
         if(ctx != null) {
@@ -896,6 +968,8 @@ func linux_js_callback(web_view : *mut WebKitWebView, res : *mut void, user_data
         ctx.cb(ctx.user_data, null)
     }
     unsafe { free(ctx as *mut void) }
+
+}
 }
 
 public func webview_evaluate_js_result(
@@ -904,6 +978,8 @@ public func webview_evaluate_js_result(
     cb : JsResultCallback,
     user_data : *mut void
 ) {
+    unsafe {
+
     if(wv.web_view == null) {
         return
     }
@@ -920,9 +996,13 @@ public func webview_evaluate_js_result(
         linux_js_callback as *mut void,
         ctx as *mut void
     ) }
+
+}
 }
 
 public func webview_title(wv : *mut WebView) : string {
+    unsafe {
+
     if(wv.web_view != null) {
         var title_ptr = unsafe(webkit_web_view_get_title(wv.web_view as *mut WebKitWebView))
         if(title_ptr != null) {
@@ -938,25 +1018,37 @@ public func webview_title(wv : *mut WebView) : string {
     // copy() — returning wv.title by value would be a shallow copy whose
     // destructor frees the same heap buffer as wv.title (double free).
     return wv.title.copy()
+
+}
 }
 
 public func webview_set_title(wv : *mut WebView, title : *char) {
+    unsafe {
+
     wv.title = string("")
     wv.title.append_char_ptr(title)
     if(!wv.attached && window::window_is_created(&raw mut wv.win)) {
         window::window_set_title(&raw mut wv.win, title)
     }
+
+}
 }
 
 public func webview_set_size(wv : *mut WebView, width : int, height : int) {
+    unsafe {
+
     wv.width = width
     wv.height = height
     if(!wv.attached && window::window_is_created(&raw mut wv.win)) {
         window::window_set_size(&raw mut wv.win, width, height)
     }
+
+}
 }
 
 public func webview_show(wv : *mut WebView) {
+    unsafe {
+
     if(wv.attached) {
         // embed mode: the app owns the parent window; just make sure the
         // webview section itself is visible
@@ -968,9 +1060,13 @@ public func webview_show(wv : *mut WebView) {
         window::window_show(&raw mut wv.win)
         wv.visible = true
     }
+
+}
 }
 
 public func webview_hide(wv : *mut WebView) {
+    unsafe {
+
     wv.visible = false
     if(wv.attached) {
         if(wv.fixed != null) {
@@ -979,9 +1075,13 @@ public func webview_hide(wv : *mut WebView) {
     } else if(window::window_is_created(&raw mut wv.win)) {
         window::window_hide(&raw mut wv.win)
     }
+
+}
 }
 
 public func webview_run(wv : *mut WebView) {
+    unsafe {
+
     if(!wv.attached) {
         window::window_run()
         if(window::window_quit_by_destroy() != 0) {
@@ -993,6 +1093,8 @@ public func webview_run(wv : *mut WebView) {
             wv.win.visible = false
         }
     }
+
+}
 }
 
 public func webview_stop(wv : *mut WebView) {
@@ -1004,6 +1106,8 @@ public func webview_stop(wv : *mut WebView) {
 // on the UI thread. Use this when the app's bridge handlers await background
 // work and must touch the webview in the continuation.
 public func webview_run_async(wv : *mut WebView) {
+    unsafe {
+
     if(!wv.attached) {
         window::window_run_async()
         if(window::window_quit_by_destroy() != 0) {
@@ -1017,6 +1121,8 @@ public func webview_run_async(wv : *mut WebView) {
         // window::window_run_async itself (or window::window_pump).
         window::window_pump()
     }
+
+}
 }
 
 // Access the webview's underlying window (from the window library). In
@@ -1025,10 +1131,14 @@ public func webview_run_async(wv : *mut WebView) {
 // native UI with the webview — add controls, handle callbacks, set
 // title/size, etc. — all through the window library's API.
 public func webview_window(wv : *mut WebView) : *mut window::Window {
+    unsafe {
+
     if(wv.attached && wv.parent_win != null) {
         return wv.parent_win
     }
     return &raw mut wv.win
+
+}
 }
 
 // ===========================================================================
@@ -1043,6 +1153,8 @@ struct DispatchClosure {
 
 // GLib GSourceFunc: runs the closure on the GTK main loop (one-shot).
 func linux_dispatch_idle(data : *mut void) : i32 {
+    unsafe {
+
     var c = data as *mut DispatchClosure
     if(c != null && c.fn != null) {
         c.fn(c.arg)
@@ -1051,10 +1163,14 @@ func linux_dispatch_idle(data : *mut void) : i32 {
         unsafe { free(c as *mut void) }
     }
     return 0
+
+}
 }
 
 // Schedule a function to run on the GTK main loop. Thread-safe.
 public func webview_dispatch(wv : *mut WebView, fn : DispatchCallback, arg : *mut void) {
+    unsafe {
+
     if(fn == null) {
         return
     }
@@ -1065,10 +1181,14 @@ public func webview_dispatch(wv : *mut WebView, fn : DispatchCallback, arg : *mu
     c.fn = fn
     c.arg = arg
     unsafe { g_idle_add(linux_dispatch_idle as *mut void, c as *mut void) }
+
+}
 }
 
 // Set window size with a hint (none / min / max / fixed).
 public func webview_set_size_hints(wv : *mut WebView, width : int, height : int, hint : int) {
+    unsafe {
+
     wv.width = width
     wv.height = height
     if(!wv.attached && window::window_is_created(&raw mut wv.win) && wv.web_view != null) {
@@ -1088,10 +1208,14 @@ public func webview_set_size_hints(wv : *mut WebView, width : int, height : int,
             unsafe { gtk_window_set_resizable(win, 1) }
         }
     }
+
+}
 }
 
 // Inject JavaScript that runs on every page load.
 public func webview_init(wv : *mut WebView, js : *char) {
+    unsafe {
+
     if(wv.web_view == null) {
         return
     }
@@ -1108,10 +1232,14 @@ public func webview_init(wv : *mut WebView, js : *char) {
     if(script != null) {
         unsafe { webkit_user_content_manager_add_script(manager, script) }
     }
+
+}
 }
 
 // Remove a binding (single global handler on this backend).
 public func webview_unbind(wv : *mut WebView, name : *char) {
+    unsafe {
+
     var was_bound = wv.bind_handler_set
     if(wv.bind_ctx != null) {
         delete wv.bind_ctx
@@ -1129,10 +1257,14 @@ public func webview_unbind(wv : *mut WebView, name : *char) {
         js.append_view(std::string_view::make_no_len("')"))
         webview_evaluate_js(wv, js.data())
     }
+
+}
 }
 
 // Respond to an async binding call (used by handlers invoked from other threads).
 public func webview_return(wv : *mut WebView, id : *char, status : int, result : *char) {
+    unsafe {
+
     if(wv.web_view == null) {
         return
     }
@@ -1174,10 +1306,14 @@ public func webview_return(wv : *mut WebView, id : *char, status : int, result :
     }
     js_call.append(')')
     linux_run_js(wv, js_call.data())
+
+}
 }
 
 // Get a native handle by kind.
 public func webview_get_native_handle(wv : *mut WebView, kind : int) : *mut void {
+    unsafe {
+
     if(wv.web_view == null) {
         return null
     }
@@ -1191,6 +1327,8 @@ public func webview_get_native_handle(wv : *mut WebView, kind : int) : *mut void
         return wv.web_view as *mut void
     }
     return null
+
+}
 }
 
 // Get the library version information.
@@ -1213,6 +1351,8 @@ const GTK_RESPONSE_ACCEPT = -3
 
 // Show a native folder-picker dialog. Returns the selected path or empty string.
 public func webview_browse_folder(title : *char) : string {
+    unsafe {
+
     var dlg = unsafe(gtk_file_chooser_native_new(title, null, GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER, "_Open", "_Cancel"))
     if(dlg == null) { return string() }
     var resp = unsafe(gtk_native_dialog_run(dlg))
@@ -1225,6 +1365,8 @@ public func webview_browse_folder(title : *char) : string {
     }
     unsafe { g_object_unref(dlg as *mut void) }
     return result
+
+}
 }
 
 } // end namespace webview

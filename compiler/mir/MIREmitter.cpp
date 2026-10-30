@@ -5,6 +5,7 @@
 #include "MIRFacts.h"
 #include "MIRMangleBuffer.h"
 #include "MIRTraversal.h"
+#include "MIRABI.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -570,14 +571,14 @@ std::string c_declarator(const MIRModule& module, TypeId type, std::string_view 
 }
 
 std::string c_function_proto(const MIRModule& module, TypeId function_type,
-                             std::string_view name) {
+                             std::string_view name, bool c_abi) {
     std::string out;
-    append_c_function_proto(module, function_type, name, out);
+    append_c_function_proto(module, function_type, name, out, c_abi);
     return out;
 }
 
 void append_c_function_proto(const MIRModule& module, TypeId function_type,
-                             std::string_view name, std::string& out) {
+                             std::string_view name, std::string& out, bool c_abi) {
     if (function_type == MIR_INVALID_ID || function_type >= module.types.size()) {
         out += "void ";
         out += name;
@@ -589,7 +590,7 @@ void append_c_function_proto(const MIRModule& module, TypeId function_type,
         append_decl_type(module, function_type, name, out, 0);
         return;
     }
-    const bool sret = mir_struct_like_return(module, r.element);
+    const bool sret = !c_abi && mir_struct_like_return(module, r.element);
     // the parameter list, and then the `name(params)` span a nested declarator
     // needs, come from the reusable scratch instead of a throwaway string per
     // prototype item
@@ -601,8 +602,13 @@ void append_c_function_proto(const MIRModule& module, TypeId function_type,
     for (uint32_t i = 0; i < r.data_count; ++i) {
         if (!params.empty()) params += ", ";
         char nm[24];
-        append_c_declarator_at(module, module.types.data_at(r.data_offset + i),
-                               param_arg_name(nm, i), params, 2);
+        if (c_abi) {
+            append_c_declarator_at(module, module.types.data_at(r.data_offset + i),
+                                   param_arg_name(nm, i), params, 2);
+        } else {
+            append_c_declarator_at(module, module.types.data_at(r.data_offset + i),
+                                   param_arg_name(nm, i), params, 2);
+        }
     }
     if (r.flags & TF_VARIADIC) {
         if (!params.empty()) params += ", ";
@@ -2211,24 +2217,56 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIROperand* maybe_place = operand_at(function, inst, 1);
                 const bool sret = maybe_place && maybe_place->kind() == MIROperandKind::Place;
                 uint32_t arg_start = sret ? 2 : 1;
+                const MIRSymbolRecord& callee_rec = module.symbols.get(callee->id);
+                const bool c_abi = callee_rec.c_abi_type != MIR_INVALID_ID &&
+                                   callee_rec.c_abi_type < module.types.size() &&
+                                   module.types.get(callee_rec.c_abi_type).kind == MIRTypeKind::Function;
+                const MIRTypeRecord* int_fn = &module.types.get(callee_rec.type);
+                const uint32_t int_base = sret ? 1 : 0;
 
                 std::string call;
                 append_symbol_name(module, callee->id, call);
                 call += "(";
-                if (sret) {
+                if (sret && !c_abi) {
                     call += "&";
                     append_place_name(module, function, maybe_place->id, call);
                 }
+                uint32_t printed = 0;
                 for (uint32_t a = arg_start; a < inst.operand_count; ++a) {
-                    if (a != arg_start || sret) call += ", ";
-                    append_operand_expr(function, module, *operand_at(function, inst, a), call);
+                    if (printed != 0 || (sret && !c_abi)) call += ", ";
+                    const MIROperand* operand = operand_at(function, inst, a);
+                    TypeId ipt = MIR_INVALID_ID;
+                    if (c_abi && int_base + printed < int_fn->data_count) {
+                        ipt = module.types.data_at(int_fn->data_offset + int_base + printed);
+                        if (ipt < module.types.size() &&
+                            module.types.get(ipt).kind == MIRTypeKind::Pointer) {
+                            const TypeId pointee = module.types.get(ipt).element;
+                            if (pointee < module.types.size() &&
+                                abi::is_aggregate(module, pointee)) ipt = pointee;
+                        }
+                    }
+                    const bool c_aggregate = ipt != MIR_INVALID_ID &&
+                        abi::is_aggregate(module, ipt);
+                    if (c_aggregate) {
+                        call += "(*";
+                        append_operand_expr(function, module, *operand, call);
+                        call += ")";
+                    } else {
+                        append_operand_expr(function, module, *operand, call);
+                    }
+                    printed++;
                 }
                 call += ")";
 
                 const bool is_void = sret ||
                     inst.result_or_place >= function.values.size() ||
                     c_type_spells_void(module, function.values[inst.result_or_place].type);
-                if (sret) {
+                if (sret && c_abi) {
+                    append_place_name(module, function, maybe_place->id, out);
+                    out += " = ";
+                    out += call;
+                    out += ";\n";
+                } else if (sret) {
                     out += call;
                     out += ";\n";
                 } else if (!is_void) {

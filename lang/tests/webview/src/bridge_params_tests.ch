@@ -26,6 +26,8 @@ var g_wv_params : *mut webview::WebView
 // ---- helpers ----
 
 func reset_params_state() {
+    unsafe {
+
     g_params_ok = false
     g_params_field = string("")
     g_params_count = 0
@@ -33,6 +35,8 @@ func reset_params_state() {
     g_promise_chain_count = 0
     g_eval_reliable_ok = false
     g_wv_params = null
+
+}
 }
 
 // Simulate the resolve_bridge_args + json_field logic from Bridge.ch.
@@ -86,6 +90,8 @@ func resolve_and_extract_field(args : string_view, key : string_view) : string {
 // ===========================================================================
 
 func verify_params_unwrap(env : &mut TestEnv) {
+    unsafe {
+
     if(!g_params_ok) {
         env.error("params unwrap bridge round-trip did not complete")
         return
@@ -94,10 +100,14 @@ func verify_params_unwrap(env : &mut TestEnv) {
         env.error("expected at least 2 calls (extract + done)")
         return
     }
+
+}
 }
 
 @test
 public func test_bridge_params_array_unwrap(env : &mut TestEnv) {
+    unsafe {
+
     // This test replicates the exact scenario that caused the CDM tool
     // download to hang: JS calls bridge.call('method', JSON.stringify({tool:'yt-dlp'}))
     // which sends params:["{\"tool\":\"yt-dlp\"}"]. The native handler must
@@ -159,6 +169,8 @@ public func test_bridge_params_array_unwrap(env : &mut TestEnv) {
         env.error("failed to extract 'tool' field from params array — resolve_bridge_args logic is broken")
         return
     }
+
+}
 }
 
 // ===========================================================================
@@ -166,14 +178,20 @@ public func test_bridge_params_array_unwrap(env : &mut TestEnv) {
 // ===========================================================================
 
 func verify_multi_field_params(env : &mut TestEnv) {
+    unsafe {
+
     if(!g_params_ok) {
         env.error("multi-field params test did not complete")
         return
     }
+
+}
 }
 
 @test
 public func test_bridge_params_multi_field(env : &mut TestEnv) {
+    unsafe {
+
     // Test extracting multiple fields from a params array containing a
     // stringified JSON object with multiple fields.
     reset_params_state()
@@ -223,6 +241,8 @@ public func test_bridge_params_multi_field(env : &mut TestEnv) {
         env.error("failed to extract multiple fields from params array")
         return
     }
+
+}
 }
 
 // ===========================================================================
@@ -230,14 +250,20 @@ public func test_bridge_params_multi_field(env : &mut TestEnv) {
 // ===========================================================================
 
 func verify_promise_chain_long(env : &mut TestEnv) {
+    unsafe {
+
     if(!g_promise_chain_ok) {
         env.error("long promise chain did not complete")
         return
     }
+
+}
 }
 
 @test
 public func test_bridge_promise_chain_long(env : &mut TestEnv) {
+    unsafe {
+
     // Verify that a long chain of sequential bridge calls all resolve correctly.
     // This tests that webview_evaluate_js pumps the main loop enough for each
     // onReply to execute, even with many calls in succession.
@@ -307,6 +333,8 @@ public func test_bridge_promise_chain_long(env : &mut TestEnv) {
         env.error("long promise chain (10 sequential calls) did not complete — webview_evaluate_js may not be pumping enough")
         return
     }
+
+}
 }
 
 // ===========================================================================
@@ -314,6 +342,8 @@ public func test_bridge_promise_chain_long(env : &mut TestEnv) {
 // ===========================================================================
 
 func eval_reliable_cb(data : *mut void, result : *char) : void {
+    unsafe {
+
     if(result == null) {
         g_eval_reliable_ok = false
         if(g_wv_params != null) { webview::webview_stop(g_wv_params) }
@@ -322,17 +352,25 @@ func eval_reliable_cb(data : *mut void, result : *char) : void {
     var rv = string_view::make_no_len(result)
     g_eval_reliable_ok = rv.find(string_view::make_no_len("42")) != rv.size()
     if(g_wv_params != null) { webview::webview_stop(g_wv_params) }
+
+}
 }
 
 func verify_eval_reliable(env : &mut TestEnv) {
+    unsafe {
+
     if(!g_eval_reliable_ok) {
         env.error("evaluate_js from handler context did not deliver result")
         return
     }
+
+}
 }
 
 @test
 public func test_bridge_evaluate_js_reliable(env : &mut TestEnv) {
+    unsafe {
+
     // Test that webview_evaluate_js (with the gtk_events_pending loop) reliably
     // delivers results back to JS when called from within a handler context.
     // This was the second root cause of the stuck download: the onReply JS
@@ -377,6 +415,8 @@ public func test_bridge_evaluate_js_reliable(env : &mut TestEnv) {
         env.error("evaluate_js from handler context did not deliver result (42)")
         return
     }
+
+}
 }
 
 // ===========================================================================
@@ -384,14 +424,20 @@ public func test_bridge_evaluate_js_reliable(env : &mut TestEnv) {
 // ===========================================================================
 
 func verify_nested_params(env : &mut TestEnv) {
+    unsafe {
+
     if(!g_params_ok) {
         env.error("nested params test did not complete")
         return
     }
+
+}
 }
 
 @test
 public func test_bridge_params_nested_json(env : &mut TestEnv) {
+    unsafe {
+
     // Test extracting a nested object from a params array containing a
     // stringified JSON object with nested structures.
     reset_params_state()
@@ -438,4 +484,6 @@ public func test_bridge_params_nested_json(env : &mut TestEnv) {
         env.error("failed to extract field from nested JSON in params array")
         return
     }
+
+}
 }

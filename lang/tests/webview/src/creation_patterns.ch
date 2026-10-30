@@ -30,6 +30,8 @@ var g_create_pat_ok : bool
 var g_create_pat_wv : *mut webview::WebView
 
 func create_pat_cb(data : *mut void, result : *char) : void {
+    unsafe {
+
     if(result == null) {
         g_create_pat_ok = false
         if(g_create_pat_wv != null) { webview::webview_stop(g_create_pat_wv) }
@@ -38,6 +40,8 @@ func create_pat_cb(data : *mut void, result : *char) : void {
     var rv = string_view::make_no_len(result)
     g_create_pat_ok = rv.size() == 1 && rv.find(string_view::make_no_len("5")) == 0
     if(g_create_pat_wv != null) { webview::webview_stop(g_create_pat_wv) }
+
+}
 }
 
 // ---------------------------------------------------------------------------
@@ -46,6 +50,8 @@ func create_pat_cb(data : *mut void, result : *char) : void {
 
 @test
 public func test_create_pattern_a_bridge(env : &mut TestEnv) {
+    unsafe {
+
     // Pattern A: WebView.make() + webview_create(&raw mut wv).
     // Exercises bridge round-trip to prove user data pointers are valid.
     g_create_pat_ok = false
@@ -79,10 +85,14 @@ public func test_create_pattern_a_bridge(env : &mut TestEnv) {
         env.error("Pattern A bridge round-trip failed")
         return
     }
+
+}
 }
 
 @test
 public func test_create_pattern_a_evaluate_js(env : &mut TestEnv) {
+    unsafe {
+
     // Pattern A: verify evaluate_js_result works with stack-local webview.
     g_create_pat_ok = false
     g_create_pat_wv = null
@@ -114,6 +124,8 @@ public func test_create_pattern_a_evaluate_js(env : &mut TestEnv) {
         env.error("Pattern A evaluate_js_result failed")
         return
     }
+
+}
 }
 
 // ---------------------------------------------------------------------------
@@ -122,6 +134,8 @@ public func test_create_pattern_a_evaluate_js(env : &mut TestEnv) {
 
 @test
 public func test_create_pattern_b_bridge(env : &mut TestEnv) {
+    unsafe {
+
     // Pattern B: webview::create() returns Result<WebView, ...>.
     // The WebView is extracted from the Result (by-value copy), but
     // webview_rebind() inside webview_show/webview_run fixes the stale
@@ -160,10 +174,14 @@ public func test_create_pattern_b_bridge(env : &mut TestEnv) {
         env.error("Pattern B bridge round-trip failed")
         return
     }
+
+}
 }
 
 @test
 public func test_create_pattern_b_evaluate_js(env : &mut TestEnv) {
+    unsafe {
+
     // Pattern B: verify evaluate_js_result works with by-value webview.
     g_create_pat_ok = false
     g_create_pat_wv = null
@@ -198,6 +216,8 @@ public func test_create_pattern_b_evaluate_js(env : &mut TestEnv) {
         env.error("Pattern B evaluate_js_result failed")
         return
     }
+
+}
 }
 
 @test
@@ -229,6 +249,8 @@ public func test_create_pattern_b_set_size_live(env : &mut TestEnv) {
 
 @test
 public func test_create_pattern_b_title_size_fields(env : &mut TestEnv) {
+    unsafe {
+
     // Pattern B: verify set_title and set_size update struct fields on
     // a by-value webview.
     var wv_result = webview::create("PatB Fields\0" as *char, 400, 300)
@@ -252,4 +274,6 @@ public func test_create_pattern_b_title_size_fields(env : &mut TestEnv) {
         return
     }
     webview::webview_destroy(&raw mut wv)
+
+}
 }

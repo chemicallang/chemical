@@ -218,6 +218,8 @@ public struct CborDecoder {
     // bug in every consumer, and WebAuthn's text fields are exactly where a
     // hostile authenticator would probe.
     func make_text(&mut self, bytes : &vector<u8>, out : &mut CborValue) : bool {
+        unsafe {
+
         if(!is_valid_utf8(bytes)) {
             return fail(CborError.NotUtf8(self.pos))
         }
@@ -227,7 +229,9 @@ public struct CborDecoder {
         }
         *out = CborValue.Text(string.constructor(bytes.data() as *char, bytes.size()))
         return true
+
     }
+}
 
     func read_array(&mut self, len : u64, depth : u32, out : &mut CborValue) : bool {
         var items = vector<CborValue>()

@@ -361,14 +361,18 @@ std::string decl_list_c(const MIRModule& module, const MIRDeclList& list) {
                     module, MIRGlobalDecl{it.name, it.type, it.elem, it.unsized_array}, out);
                 out += ';';
                 break;
-            case MIRDeclKind::Prototype:
+            case MIRDeclKind::Prototype: {
                 out += '\n';
                 if (it.proto.flags & MPF_EXTERN) out += "extern ";
                 if (it.proto.flags & MPF_STATIC) out += "static ";
                 if (it.proto.flags & MPF_DLLIMPORT) out += "__chem_dllimport ";
-                append_c_function_proto(module, it.proto.type, it.proto.name, out);
+                const bool c_abi = it.proto.c_abi_type != MIR_INVALID_ID;
+                append_c_function_proto(module,
+                                        c_abi ? it.proto.c_abi_type : it.proto.type,
+                                        it.proto.name, out, c_abi);
                 out += ';';
                 break;
+            }
             case MIRDeclKind::Global:
                 out += '\n';
                 if (it.global.flags & MGD_THREAD_LOCAL) out += "__chx_thread_local ";

@@ -28,7 +28,11 @@ var g_reg_ok : bool
 var g_reg_wv : *mut webview::WebView
 
 func reg_stop() {
+    unsafe {
+
     if(g_reg_wv != null) { webview::webview_stop(g_reg_wv) }
+
+}
 }
 
 // A string of `n` 'A' characters, appended in chunks (cheap, no per-char
@@ -61,6 +65,8 @@ func reg_pad(n : int) : string {
 // row by the sequential-recreate test: before the fix the second create failed
 // because of the stale WM_QUIT left by the first destroy.
 func reg_run_bridge(title : *char) : bool {
+    unsafe {
+
     g_reg_ok = false
     var wv_result = webview::create(title, 400, 300)
     if(wv_result is std::Result.Err) {
@@ -87,12 +93,16 @@ func reg_run_bridge(title : *char) : bool {
     webview::webview_destroy(&raw mut wv)
     g_reg_wv = null
     return g_reg_ok
+
+}
 }
 
 // ---- webview_load_html: page larger than the old 65536-UTF-16 cap ----------
 
 @test
 public func test_webview_load_html_large_page(env : &mut TestEnv) {
+    unsafe {
+
     g_reg_ok = false
     g_reg_wv = null
 
@@ -134,12 +144,16 @@ public func test_webview_load_html_large_page(env : &mut TestEnv) {
     if(!g_reg_ok) {
         env.error("large HTML page was not loaded/executed (fixed-buffer truncation regression)")
     }
+
+}
 }
 
 // ---- webview_evaluate_js: script larger than the old 32768 cap -------------
 
 @test
 public func test_webview_evaluate_js_large_script(env : &mut TestEnv) {
+    unsafe {
+
     g_reg_ok = false
     g_reg_wv = null
 
@@ -179,12 +193,16 @@ public func test_webview_evaluate_js_large_script(env : &mut TestEnv) {
     if(!g_reg_ok) {
         env.error("large evaluate_js script was not executed (fixed-buffer truncation regression)")
     }
+
+}
 }
 
 // ---- webview_init: init script larger than the old 32768 cap ---------------
 
 @test
 public func test_webview_init_large_script(env : &mut TestEnv) {
+    unsafe {
+
     g_reg_ok = false
     g_reg_wv = null
 
@@ -224,6 +242,8 @@ public func test_webview_init_large_script(env : &mut TestEnv) {
     if(!g_reg_ok) {
         env.error("large init script was not executed (fixed-buffer truncation regression)")
     }
+
+}
 }
 
 // ---- sequential create/run/destroy: stale WM_QUIT regression ---------------

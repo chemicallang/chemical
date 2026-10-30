@@ -1732,6 +1732,9 @@ SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
                                                                   : MIRLinkage::Internal;
     rec.has_body = !decl->is_extern();
     rec.type = ftype;
+    if (mir_needs_c_abi(decl)) {
+        rec.c_abi_type = mir_c_function_signature(types_, module_, decl);
+    }
 
     // NOTE: mangled name is filled by the serial symbol builder (PR3b) using
     // NameMangler; MIR must not retain FunctionDeclaration pointers.

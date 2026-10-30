@@ -57,7 +57,9 @@ namespace mir {
 std::string MIRDeclEmitter::function_proto(FunctionDeclaration* decl) {
     MIRPrototype proto;
     build_function_prototype(mangler_, types_, module_, decl, proto);
-    return c_function_proto(module_, proto.type, proto.name);
+    const TypeId proto_type = proto.c_abi_type != MIR_INVALID_ID ? proto.c_abi_type : proto.type;
+    return c_function_proto(module_, proto_type, proto.name,
+                            proto.c_abi_type != MIR_INVALID_ID);
 }
 
 std::string MIRDeclEmitter::mangle_name(ASTNode* node) {

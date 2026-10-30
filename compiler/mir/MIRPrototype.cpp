@@ -47,6 +47,18 @@ TypeId map_param(MIRTypeBuilder& types, MIRModule& module, FunctionParam* p) {
     return pt;
 }
 
+// C passes arrays as pointers but struct/union/variant values directly. The
+// internal ABI converts every aggregate to a pointer; the C ABI keeps the
+// by-value type so the backend/LLVM target classifier applies the real
+// platform convention.
+TypeId map_c_param(MIRTypeBuilder& types, MIRModule& module, FunctionParam* p) {
+    TypeId pt = p && p->type ? types.map(p->type) : types.opaque_type();
+    if (pt != MIR_INVALID_ID && module.types.get(pt).kind == MIRTypeKind::Array) {
+        pt = types.pointer_type(module.types.get(pt).element, true);
+    }
+    return pt;
+}
+
 } // namespace
 
 TypeId mir_function_signature(MIRTypeBuilder& types, MIRModule& module,
@@ -78,10 +90,56 @@ TypeId mir_function_signature(MIRTypeBuilder& types, MIRModule& module,
     return types.function_signature(sret ? types.void_type() : ret, ptypes, decl->isVariadic());
 }
 
+static bool c_abi_by_value_type(BaseType* type) {
+    if (type == nullptr) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr) return false;
+    if (canonical->kind() == BaseTypeKind::Struct || canonical->kind() == BaseTypeKind::Union) {
+        return true;
+    }
+    ASTNode* linked = canonical->get_direct_linked_canonical_node();
+    return linked != nullptr &&
+           (linked->kind() == ASTNodeKind::StructDecl || linked->kind() == ASTNodeKind::UnionDecl);
+}
+
+bool mir_needs_c_abi(FunctionDeclaration* decl) {
+    if (decl == nullptr || !decl->is_extern()) return false;
+    if (c_abi_by_value_type(const_cast<BaseType*>(decl->returnType.getType()))) return true;
+    for (FunctionParam* p : decl->params) {
+        if (p != nullptr && c_abi_by_value_type(p->type)) return true;
+    }
+    return false;
+}
+
+TypeId mir_c_function_signature(MIRTypeBuilder& types, MIRModule& module,
+                                FunctionDeclaration* decl) {
+    const TypeId ret = decl->returnType ? types.map(decl->returnType) : types.void_type();
+    std::vector<TypeId> ptypes;
+    FunctionParam* self_param = decl->has_self_param() ? decl->get_self_param() : nullptr;
+    bool self_in_params = false;
+    for (FunctionParam* p : decl->params) {
+        if (p == self_param) {
+            self_in_params = true;
+            break;
+        }
+    }
+    if (self_in_params) self_param = nullptr;
+    if (self_param) {
+        FunctionDeclaration* base = static_iface_base_method(decl);
+        FunctionParam* base_self = base ? base->get_self_param() : nullptr;
+        ptypes.push_back(base_self && base_self->type ? types.map(base_self->type)
+                                                      : map_c_param(types, module, self_param));
+    }
+    for (FunctionParam* p : decl->params) ptypes.push_back(map_c_param(types, module, p));
+    if (decl->isVariadic() && !decl->params.empty()) ptypes.pop_back();
+    return types.function_signature(ret, ptypes, decl->isVariadic());
+}
+
 void build_function_prototype(NameMangler& mangler, MIRTypeBuilder& types, MIRModule& module,
                               FunctionDeclaration* decl, MIRPrototype& out) {
     out = MIRPrototype{};
     out.type = mir_function_signature(types, module, decl);
+    if (mir_needs_c_abi(decl)) out.c_abi_type = mir_c_function_signature(types, module, decl);
     {
         BufferedWriter w(256);
         mangler.mangle(w, decl);

@@ -79,7 +79,7 @@ func test_the_rfc_8949_array_and_map_vectors(env : &mut TestEnv) {
 @test
 func test_the_rfc_8949_indefinite_length_vectors(env : &mut TestEnv) {
     // A.8: the four indefinite forms, each the definite form rewritten as chunks.
-    expect_bytes(env, "5f42010243030405ff", "01020304" + "05")
+    expect_bytes(env, "5f42010243030405ff", "0102030405")
     expect_text(env, "7f657374726561646d696e67ff", "streaming")
     expect_array_len(env, "9fff", 0u64)
     expect_array_len(env, "9f018202039f0405ffff", 3u64)
@@ -223,6 +223,8 @@ func test_a_cose_shaped_map_with_negative_integer_keys(env : &mut TestEnv) {
 // the COSE key's coordinates use, so both forms have to work.
 @test
 func test_a_webauthn_attestation_object_decodes(env : &mut TestEnv) {
+    unsafe {
+
     var d = try_decode("a363666d74646e6f6e656761747453746d74a0686175746844617461590010000102030405060708090a0b0c0d0e0f")
     if(d is Result.Err) {
         fail(env, "a363666d74646e6f6e656761747453746d74a0686175746844617461590010000102030405060708090a0b0c0d0e0f", "a WebAuthn attestation object was rejected")
@@ -267,6 +269,8 @@ func test_a_webauthn_attestation_object_decodes(env : &mut TestEnv) {
     var Ok(sv) = narrow else unreachable
     var sad = cbor::map_bytes_by_text(&mut sv, string_view("authData"))
     if(sad.size() != 32u) { env.error("the 1-byte-length authData is not 32 bytes") }
+
+}
 }
 
 

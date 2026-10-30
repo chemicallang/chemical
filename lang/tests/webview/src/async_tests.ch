@@ -17,8 +17,12 @@ var g_ui_eager_ran : int = 0
 
 // Completes eagerly (no suspension).
 async func async_ui_eager(x : int) : int {
+    unsafe {
+
     g_ui_eager_ran = g_ui_eager_ran + 1
     return x + 1
+
+}
 }
 
 var g_ui_await_ran : int = 0
@@ -27,10 +31,14 @@ var g_ui_await_value : int = 0
 // Suspends on background (thread-pool) work, then continues on whatever thread
 // polls it — the UI thread, when driven by `window_pump`.
 async func async_ui_await_blocking() : int {
+    unsafe {
+
     g_ui_await_ran = 1
     var v = await unsafe(async::spawn_blocking<int>(() => 20))
     g_ui_await_value = v + 1
     return g_ui_await_value
+
+}
 }
 
 // Drive the UI pump until `done` is true or the iteration budget runs out.
@@ -51,6 +59,8 @@ func pump_until(done : () => bool, max_iters : int) : bool {
 
 @test
 public func test_spawn_local_eager(env : &mut TestEnv) {
+    unsafe {
+
     g_ui_eager_ran = 0
     var h = unsafe(async::spawn_local<int>(async_ui_eager(41)))
     var ok = pump_until(() => g_ui_eager_ran > 0, 1000)
@@ -62,10 +72,14 @@ public func test_spawn_local_eager(env : &mut TestEnv) {
         env.error("spawn_local future ran more than once")
         return
     }
+
+}
 }
 
 @test
 public func test_spawn_local_await_blocking(env : &mut TestEnv) {
+    unsafe {
+
     g_ui_await_ran = 0
     g_ui_await_value = 0
     var h = unsafe(async::spawn_local<int>(async_ui_await_blocking()))
@@ -74,6 +88,8 @@ public func test_spawn_local_await_blocking(env : &mut TestEnv) {
         env.error("spawn_local continuation after await did not run")
         return
     }
+
+}
 }
 
 @test
@@ -109,12 +125,18 @@ public func test_spawn_local_cancel_no_crash(env : &mut TestEnv) {
 var g_run_async_quit : int = 0
 
 func run_async_quit_cb(data : *mut void) {
+    unsafe {
+
     g_run_async_quit = 1
     window::window_quit()
+
+}
 }
 
 @test
 public func test_window_run_async_drives_executor(env : &mut TestEnv) {
+    unsafe {
+
     var w = window::Window.make()
     w.title = string("window async test")
     w.width = 200
@@ -139,4 +161,6 @@ public func test_window_run_async_drives_executor(env : &mut TestEnv) {
         return
     }
     window::window_destroy(&raw mut w)
+
+}
 }

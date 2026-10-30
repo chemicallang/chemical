@@ -19,13 +19,19 @@ struct BridgeTestState {
 var g_state_ptr : *mut BridgeTestState = null
 
 func ensure_state() {
+    unsafe {
+
     if(g_state_ptr == null) {
         g_state_ptr = unsafe(malloc(sizeof(BridgeTestState))) as *mut BridgeTestState
         unsafe { memset(g_state_ptr as *mut void, 0, sizeof(BridgeTestState)) }
     }
+
+}
 }
 
 func reset_state() {
+    unsafe {
+
     ensure_state()
     var s = g_state_ptr
     s.calls_received = 0
@@ -35,11 +41,17 @@ func reset_state() {
     s.bridge_ok = false
     s.error_msg = string("")
     s.wv_ptr = null
+
+}
 }
 
 func state() : *mut BridgeTestState {
+    unsafe {
+
     ensure_state()
     return g_state_ptr
+
+}
 }
 
 // Display-independent struct tests are in webview_test.ch
@@ -56,6 +68,8 @@ func run_bridge_test(
     verify_fn : (env : &mut TestEnv) => void,
     test_name : *char
 ) {
+    unsafe {
+
     reset_state()
     var wv = webview::WebView.make()
     webview::webview_set_size(&raw mut wv, 480, 360)
@@ -117,6 +131,8 @@ func run_bridge_test(
 
     // Verify results
     verify_fn(env)
+
+}
 }
 
 // ============================================================================
@@ -124,6 +140,8 @@ func run_bridge_test(
 // ============================================================================
 
 func verify_echo(env : &mut TestEnv) {
+    unsafe {
+
     if(!state().bridge_ok) {
         env.error("bridge round-trip did not complete")
         return
@@ -134,10 +152,14 @@ func verify_echo(env : &mut TestEnv) {
         env.error("expected at least 2 calls (echo + done)")
         return
     }
+
+}
 }
 
 @test
 public func test_bridge_echo_roundtrip(env : &mut TestEnv) {
+    unsafe {
+
     var html = string("<html><head><script>")
     html.append_view(std::string_view::make_no_len("function go(){try{"))
     html.append_view(std::string_view::make_no_len("window.__webview__.call('echo',{msg:'hello'}).then(function(r){"))
@@ -146,6 +168,8 @@ public func test_bridge_echo_roundtrip(env : &mut TestEnv) {
     html.append_view(std::string_view::make_no_len("}catch(e){window.__webview__.call('stop',e.message);}}"))
     html.append_view(std::string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
     run_bridge_test(env, html.data(), verify_echo, "echo_roundtrip")
+
+}
 }
 
 // ============================================================================
@@ -153,6 +177,8 @@ public func test_bridge_echo_roundtrip(env : &mut TestEnv) {
 // ============================================================================
 
 func verify_multi_call(env : &mut TestEnv) {
+    unsafe {
+
     if(!state().bridge_ok) {
         env.error("multi-call bridge round-trip did not complete")
         return
@@ -161,10 +187,14 @@ func verify_multi_call(env : &mut TestEnv) {
         env.error("expected at least 4 calls (3 echo + 1 done)")
         return
     }
+
+}
 }
 
 @test
 public func test_bridge_multi_call(env : &mut TestEnv) {
+    unsafe {
+
     var html = string("<html><head><script>")
     html.append_view(std::string_view::make_no_len("function go(){try{"))
     // Chain three echo calls, then signal done
@@ -178,6 +208,8 @@ public func test_bridge_multi_call(env : &mut TestEnv) {
     html.append_view(std::string_view::make_no_len("}catch(e){window.__webview__.call('stop',e.message);}}"))
     html.append_view(std::string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
     run_bridge_test(env, html.data(), verify_multi_call, "multi_call")
+
+}
 }
 
 // ============================================================================
@@ -185,6 +217,8 @@ public func test_bridge_multi_call(env : &mut TestEnv) {
 // ============================================================================
 
 func verify_parallel(env : &mut TestEnv) {
+    unsafe {
+
     if(!state().bridge_ok) {
         env.error("parallel bridge round-trip did not complete")
         return
@@ -194,10 +228,14 @@ func verify_parallel(env : &mut TestEnv) {
         env.error("expected at least 3 calls (2 parallel echo + 1 done)")
         return
     }
+
+}
 }
 
 @test
 public func test_bridge_parallel_calls(env : &mut TestEnv) {
+    unsafe {
+
     var html = string("<html><head><script>")
     html.append_view(std::string_view::make_no_len("function go(){try{"))
     html.append_view(std::string_view::make_no_len("var p1=window.__webview__.call('echo',{parallel:1,a:'foo'});"))
@@ -208,6 +246,8 @@ public func test_bridge_parallel_calls(env : &mut TestEnv) {
     html.append_view(std::string_view::make_no_len("}catch(e){window.__webview__.call('stop',e.message);}}"))
     html.append_view(std::string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
     run_bridge_test(env, html.data(), verify_parallel, "parallel_calls")
+
+}
 }
 
 // ============================================================================
@@ -215,14 +255,20 @@ public func test_bridge_parallel_calls(env : &mut TestEnv) {
 // ============================================================================
 
 func verify_medium_payload(env : &mut TestEnv) {
+    unsafe {
+
     if(!state().bridge_ok) {
         env.error("medium payload round-trip did not complete")
         return
     }
+
+}
 }
 
 @test
 public func test_bridge_medium_payload(env : &mut TestEnv) {
+    unsafe {
+
     var html = string("<html><head><script>")
     html.append_view(std::string_view::make_no_len("function go(){try{"))
     html.append_view(std::string_view::make_no_len("var big='ABCDEFGHIJ';"))
@@ -232,6 +278,8 @@ public func test_bridge_medium_payload(env : &mut TestEnv) {
     html.append_view(std::string_view::make_no_len("}catch(e){window.__webview__.call('stop',e.message);}}"))
     html.append_view(std::string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
     run_bridge_test(env, html.data(), verify_medium_payload, "medium_payload")
+
+}
 }
 
 // ============================================================================
@@ -239,14 +287,20 @@ public func test_bridge_medium_payload(env : &mut TestEnv) {
 // ============================================================================
 
 func verify_special_chars(env : &mut TestEnv) {
+    unsafe {
+
     if(!state().bridge_ok) {
         env.error("special chars round-trip did not complete")
         return
     }
+
+}
 }
 
 @test
 public func test_bridge_special_chars(env : &mut TestEnv) {
+    unsafe {
+
     var html = string("<html><head><script>")
     html.append_view(std::string_view::make_no_len("function go(){try{"))
     html.append_view(std::string_view::make_no_len("window.__webview__.call('echo',{text:'hello \"world\" \\\\ backslash'}).then(function(r){"))
@@ -255,6 +309,8 @@ public func test_bridge_special_chars(env : &mut TestEnv) {
     html.append_view(std::string_view::make_no_len("}catch(e){window.__webview__.call('stop',e.message);}}"))
     html.append_view(std::string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
     run_bridge_test(env, html.data(), verify_special_chars, "special_chars")
+
+}
 }
 
 // ============================================================================
@@ -262,14 +318,20 @@ public func test_bridge_special_chars(env : &mut TestEnv) {
 // ============================================================================
 
 func verify_no_args(env : &mut TestEnv) {
+    unsafe {
+
     if(!state().bridge_ok) {
         env.error("no-args round-trip did not complete")
         return
     }
+
+}
 }
 
 @test
 public func test_bridge_no_args(env : &mut TestEnv) {
+    unsafe {
+
     var html = string("<html><head><script>")
     html.append_view(std::string_view::make_no_len("function go(){try{"))
     html.append_view(std::string_view::make_no_len("window.__webview__.call('echo').then(function(r){"))
@@ -278,6 +340,8 @@ public func test_bridge_no_args(env : &mut TestEnv) {
     html.append_view(std::string_view::make_no_len("}catch(e){window.__webview__.call('stop',e.message);}}"))
     html.append_view(std::string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
     run_bridge_test(env, html.data(), verify_no_args, "no_args")
+
+}
 }
 
 // ============================================================================
@@ -285,14 +349,20 @@ public func test_bridge_no_args(env : &mut TestEnv) {
 // ============================================================================
 
 func verify_nested_json(env : &mut TestEnv) {
+    unsafe {
+
     if(!state().bridge_ok) {
         env.error("nested JSON round-trip did not complete")
         return
     }
+
+}
 }
 
 @test
 public func test_bridge_nested_json(env : &mut TestEnv) {
+    unsafe {
+
     var html = string("<html><head><script>")
     html.append_view(std::string_view::make_no_len("function go(){try{"))
     html.append_view(std::string_view::make_no_len("var deep={a:{b:{c:{d:{e:'nested'}}}},arr:[1,{x:2},[3,4]]};"))
@@ -302,6 +372,8 @@ public func test_bridge_nested_json(env : &mut TestEnv) {
     html.append_view(std::string_view::make_no_len("}catch(e){window.__webview__.call('stop',e.message);}}"))
     html.append_view(std::string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
     run_bridge_test(env, html.data(), verify_nested_json, "nested_json")
+
+}
 }
 
 // ============================================================================
@@ -309,6 +381,8 @@ public func test_bridge_nested_json(env : &mut TestEnv) {
 // ============================================================================
 
 func verify_rapid(env : &mut TestEnv) {
+    unsafe {
+
     if(!state().bridge_ok) {
         env.error("rapid calls round-trip did not complete")
         return
@@ -317,10 +391,14 @@ func verify_rapid(env : &mut TestEnv) {
         env.error("expected at least 6 calls (5 sequential + 1 done)")
         return
     }
+
+}
 }
 
 @test
 public func test_bridge_rapid_calls(env : &mut TestEnv) {
+    unsafe {
+
     var html = string("<html><head><script>")
     html.append_view(std::string_view::make_no_len("function go(){try{"))
     html.append_view(std::string_view::make_no_len("window.__webview__.call('echo',{i:1}).then(function(){"))
@@ -337,6 +415,8 @@ public func test_bridge_rapid_calls(env : &mut TestEnv) {
     html.append_view(std::string_view::make_no_len("}catch(e){window.__webview__.call('stop',e.message);}}"))
     html.append_view(std::string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
     run_bridge_test(env, html.data(), verify_rapid, "rapid_calls")
+
+}
 }
 
 // ============================================================================
@@ -344,14 +424,20 @@ public func test_bridge_rapid_calls(env : &mut TestEnv) {
 // ============================================================================
 
 func verify_structured_return(env : &mut TestEnv) {
+    unsafe {
+
     if(!state().bridge_ok) {
         env.error("structured return round-trip did not complete")
         return
     }
+
+}
 }
 
 @test
 public func test_bridge_structured_return(env : &mut TestEnv) {
+    unsafe {
+
     var html = string("<html><head><script>")
     html.append_view(std::string_view::make_no_len("function go(){try{"))
     html.append_view(std::string_view::make_no_len("window.__webview__.call('echo',{x:1,y:'two',z:true}).then(function(r){"))
@@ -362,6 +448,8 @@ public func test_bridge_structured_return(env : &mut TestEnv) {
     html.append_view(std::string_view::make_no_len("}catch(e){window.__webview__.call('stop',e.message);}}"))
     html.append_view(std::string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
     run_bridge_test(env, html.data(), verify_structured_return, "structured_return")
+
+}
 }
 
 // ============================================================================
@@ -369,15 +457,21 @@ public func test_bridge_structured_return(env : &mut TestEnv) {
 // ============================================================================
 
 func verify_error_handling(env : &mut TestEnv) {
+    unsafe {
+
     // In this test, the bridge_ok is false — we expect the error path
     if(state().calls_received < 1) {
         env.error("expected at least 1 call")
         return
     }
+
+}
 }
 
 @test
 public func test_bridge_error_handling(env : &mut TestEnv) {
+    unsafe {
+
     var html = string("<html><head><script>")
     html.append_view(std::string_view::make_no_len("function go(){try{"))
     // Call a method that will fail (the handler always echoes, so let's test catch)
@@ -392,6 +486,8 @@ public func test_bridge_error_handling(env : &mut TestEnv) {
     html.append_view(std::string_view::make_no_len("}catch(e){window.__webview__.call('stop',e.message);}}"))
     html.append_view(std::string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
     run_bridge_test(env, html.data(), verify_error_handling, "error_handling")
+
+}
 }
 
 // ============================================================================
@@ -399,14 +495,20 @@ public func test_bridge_error_handling(env : &mut TestEnv) {
 // ============================================================================
 
 func verify_large_payload(env : &mut TestEnv) {
+    unsafe {
+
     if(!state().bridge_ok) {
         env.error("large payload round-trip did not complete")
         return
     }
+
+}
 }
 
 @test
 public func test_bridge_large_payload(env : &mut TestEnv) {
+    unsafe {
+
     // Build HTML that creates a 600KB+ string and sends it through the bridge.
     var html = string("<html><head><script>")
     html.append_view(std::string_view::make_no_len("function go(){try{"))
@@ -419,6 +521,8 @@ public func test_bridge_large_payload(env : &mut TestEnv) {
     html.append_view(std::string_view::make_no_len("}catch(e){window.__webview__.call('stop',e.message);}}"))
     html.append_view(std::string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
     run_bridge_test(env, html.data(), verify_large_payload, "large_payload")
+
+}
 }
 
 // ============================================================================
@@ -433,6 +537,8 @@ public func test_bridge_large_payload(env : &mut TestEnv) {
 // ============================================================================
 
 func verify_large_payload_under_load(env : &mut TestEnv) {
+    unsafe {
+
     if(!state().bridge_ok) {
         var msg = string("large payload under load did not round-trip correctly")
         if(state().error_msg.size() > 0u) {
@@ -442,10 +548,14 @@ func verify_large_payload_under_load(env : &mut TestEnv) {
         env.error(msg.data())
         return
     }
+
+}
 }
 
 @test
 public func test_bridge_large_payload_under_load(env : &mut TestEnv) {
+    unsafe {
+
     var html = string("<html><head><script>")
     html.append_view(std::string_view::make_no_len("function go(){try{"))
     // A ~300KB payload full of characters that must survive JSON chunking.
@@ -461,6 +571,8 @@ public func test_bridge_large_payload_under_load(env : &mut TestEnv) {
     html.append_view(std::string_view::make_no_len("}catch(e){window.__webview__.call('stop',e.message);}}"))
     html.append_view(std::string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
     run_bridge_test(env, html.data(), verify_large_payload_under_load, "large_payload_under_load")
+
+}
 }
 
 // ============================================================================

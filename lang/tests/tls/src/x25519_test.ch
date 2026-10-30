@@ -3,6 +3,8 @@ using std::string_view
 
 @test
 public func INT_x25519_shared_against_python(env : &mut TestEnv) {
+    unsafe {
+
     var chem_priv : [32]u8
     var chem_pub : [32]u8
     var ret = x25519_generate_keypair(&raw mut chem_priv[0], &raw mut chem_pub[0])
@@ -47,4 +49,6 @@ public func INT_x25519_shared_against_python(env : &mut TestEnv) {
         env.error("x25519 shared secret mismatch against Python")
         return
     } else {}
+
+}
 }

@@ -21,12 +21,18 @@ public namespace web {
         }
 
         func add(&mut self, method: *char, pattern: *char, h: Handler) {
+            unsafe {
+
             routes.push_back(Route{ method: std::string::make_no_len(method), pattern: std::string::make_no_len(pattern), handler: h });
+
         }
+}
 
         func use_middleware(&mut self, m: Middleware) { middlewares.push_back(m) }
 
         func match_route(&self, method: &std::string, path: &std::string, params_out: *mut std::vector<std::pair<std::string,std::string>>) : *Route {
+            unsafe {
+
             var i = 0u;
             while(i < routes.size()) {
                 var r = routes.get_ptr(i);
@@ -38,7 +44,9 @@ public namespace web {
                 i = i + 1u;
             }
             return null
+
         }
+}
 
         func apply_middlewares(&self, base: Handler) : Handler {
             var h = base;
@@ -53,6 +61,8 @@ public namespace web {
     }
 
     public func match_pattern(pattern: &std::string, path: &std::string, params_out: *mut std::vector<std::pair<std::string,std::string>>) : bool {
+        unsafe {
+
         var pseg = split_segments(pattern);
         var tseg = split_segments(path);
 
@@ -87,7 +97,9 @@ public namespace web {
         }
 
         return i == tseg.size();
+
     }
+}
 
     public func split_segments(s: &std::string) : std::vector<std::string> {
         var out = std::vector<std::string>();

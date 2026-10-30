@@ -106,12 +106,8 @@ public namespace tls {
 
     // ─── Lazy Initialization ────────────────────────────────────────────────
 
-    private var _initialized : int
-
     public func ensure_init() {
-        if(_initialized == 0) {
-            _initialized = 1
-        }
+        // Cipher-suite tables are compile-time constants; nothing to initialize.
     }
 
     // ─── Cipher Suite Info Functions ────────────────────────────────────────

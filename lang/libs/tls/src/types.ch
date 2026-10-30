@@ -316,6 +316,8 @@ public namespace tls {
     }
 
     public func tls13_key_schedule_init(ks : *mut TLS13KeySchedule) {
+        unsafe {
+
         ks.hash_algorithm = 0
         var i : size_t = 0
         while(i < 48) {
@@ -330,7 +332,9 @@ public namespace tls {
             ks.resumption_master_secret[i] = 0
             i += 1
         }
+
     }
+}
 
     // ─── Key Share Entry (TLS 1.3) ──────────────────────────────────────────
 
@@ -572,6 +576,8 @@ public namespace tls {
 
         @constructor
         func constructor() {
+            unsafe {
+
             ensure_init()
             var ssl : SSLContext
             ssl.conf = null
@@ -633,7 +639,9 @@ public namespace tls {
             ssl.last_alert_desc = 0
             ssl.early_data_status = 0
             return ssl
+
         }
+}
 
         // Destructor: full cleanup so `delete ssl` is safe (same as ssl_free).
         // ssl_free is idempotent, so calling it here does not double-free even
@@ -731,6 +739,8 @@ public namespace tls {
     }
 
     public func transform_init(tr : *mut Transform) {
+        unsafe {
+
         tr.cipher_type = 0
         tr.hash_type = 0
         var i : size_t = 0
@@ -757,7 +767,9 @@ public namespace tls {
         tr.key_len = 0
         tr.mac_key_len = 0
         tr.fixed_iv_len = 0
+
     }
+}
 
     // ─── Handshake Parameters ──────────────────────────────────────────────
 
@@ -806,6 +818,8 @@ public namespace tls {
     }
 
     public func handshake_params_init(hs : *mut HandshakeParams) {
+        unsafe {
+
         var i : size_t = 0
         while(i < 64) {
             hs.randbytes[i] = 0
@@ -846,7 +860,9 @@ public namespace tls {
             i += 1
         }
         hs.new_session_ticket_len = 0
+
     }
+}
 
     // ─── I/O Callback Types ─────────────────────────────────────────────────
 

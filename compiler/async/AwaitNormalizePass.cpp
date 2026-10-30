@@ -55,7 +55,8 @@ static bool is_await_handle_operand(AwaitExpression* value) {
     auto gen = t->as_generic_type_unsafe();
     auto linked = gen->referenced != nullptr ? gen->referenced->linked : nullptr;
     return linked != nullptr && linked->kind() == ASTNodeKind::StructDecl
-           && linked->as_extendable_members_container_unsafe()->name_view() == "FutureHandle";
+           && (linked->as_extendable_members_container_unsafe()->name_view() == "FutureHandle"
+               || linked->as_extendable_members_container_unsafe()->name_view() == "SendFutureHandle");
 }
 
 namespace {
@@ -281,6 +282,15 @@ struct AwaitRewriter {
                 for(auto& scope : stmt->scopes) {
                     rewrite_scope(scope);
                 }
+                return;
+            }
+            case ASTNodeKind::UnsafeBlock: {
+                // An unsafe block is a lexical scope, not an opaque boundary:
+                // awaits inside it still suspend. Wrapping a whole body in
+                // `unsafe` (common in crypto/FFI code) must not turn its awaits
+                // into transparent calls that return a FutureHandle.
+                auto block = node->as_unsafe_block_unsafe();
+                rewrite_scope(block->scope);
                 return;
             }
             case ASTNodeKind::Block: {

@@ -49,6 +49,8 @@ func server_async_get(url_str : string_view) : *mut http::HttpResult {
 @test
 @test.timeout(60000)
 public func INT_server_async_file_get(env : &mut TestEnv) {
+    unsafe {
+
     if(!write_server_fixture()) {
         env.error("could not write the server fixture file")
         return
@@ -82,11 +84,15 @@ public func INT_server_async_file_get(env : &mut TestEnv) {
     if(r != 0) {
         env.error("serve_files_async returned non-zero")
     }
+
+}
 }
 
 @test
 @test.timeout(60000)
 public func INT_server_async_404(env : &mut TestEnv) {
+    unsafe {
+
     var root = server_test_root()
     var cfg = server::ServerConfig()
     cfg.addr = string("127.0.0.1:19882")
@@ -109,4 +115,6 @@ public func INT_server_async_404(env : &mut TestEnv) {
     if(r != 0) {
         env.error("serve_files_async returned non-zero")
     }
+
+}
 }

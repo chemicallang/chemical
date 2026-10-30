@@ -35,6 +35,8 @@ using std::vector
 // the low nibble ("abc" == 0x0abc). Returns the byte count, or 0 if the value
 // does not fit in out_max bytes.
 func bt_hex_to_bytes(hex : *char, out : *mut u8, out_max : size_t) : size_t {
+    unsafe {
+
     var len : size_t = 0
     while(hex[len] != 0) { len += 1 }
     var nbytes = (len + 1) / 2
@@ -52,6 +54,8 @@ func bt_hex_to_bytes(hex : *char, out : *mut u8, out_max : size_t) : size_t {
         i += 1
     }
     return nbytes
+
+}
 }
 
 func bt_hex_to_mpi(hex : *char, m : *mut Mpi) : bool {

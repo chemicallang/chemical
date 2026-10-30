@@ -227,7 +227,7 @@ public namespace std {
                     }
                 }
                 return null
-        
+
         }
     }
 
@@ -266,7 +266,7 @@ public namespace std {
                     cv.notify_one();
                     m.unlock();
                     return Future<T>(prom)
-            
+
         }
     }
 
@@ -317,7 +317,7 @@ public namespace std {
             public unsafe func from_raw(data : *mut PoolData) : ThreadPool {
         unsafe {
                     return ThreadPool { data : data }
-            
+
         }
     }
 
@@ -344,7 +344,7 @@ public namespace std {
                     i=i+1u
                 }
                 return unsafe(ThreadPool.from_raw(p))
-        
+
         }
     }
 

@@ -16,7 +16,7 @@ struct DropCounter {
     func delete(&mut self) {
         unsafe {
             suspend_drops = suspend_drops + 1
-    
+
         }
     }
 }
@@ -534,10 +534,24 @@ async func send_frame_work() : int {
     return s.size() as int
 }
 
+func send_frame_consume(handle : core::async::SendFutureHandle<int>) : int {
+    return async::block_on_send<int>(handle)
+}
+
 @test
 func test_async_spawn_send_owned_frame(env : &mut TestEnv) {
-    var r = async::block_on<int>(async::spawn_send(send_frame_work()))
+    var r = async::block_on_send<int>(async::spawn_send(send_frame_work()))
     if(r != 2) {
         env.error("spawn_send should run an owned-Send frame")
+    }
+}
+
+@test
+func test_async_spawn_send_cross_thread(env : &mut TestEnv) {
+    var handle = async::spawn_send(send_frame_work())
+    var worker = std::thread.spawn(send_frame_consume, handle)
+    var r = worker.join()
+    if(r != 2) {
+        env.error("SendFutureHandle should move to a worker and complete")
     }
 }

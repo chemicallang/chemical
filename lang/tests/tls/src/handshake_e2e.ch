@@ -273,6 +273,8 @@ public func E2E_tls12_pinned_rsa_aes256_cbc(env : &mut TestEnv) {
 @test
 @test.timeout(60000)
 public func E2E_alpn_negotiation_h2(env : &mut TestEnv) {
+    unsafe {
+
     write_tls_python_utils()
     test_kill_port(20105u)
     test_server_wait()
@@ -323,6 +325,8 @@ public func E2E_alpn_negotiation_h2(env : &mut TestEnv) {
     ssl_close_notify(unsafe(&raw mut ctx))
     ssl_free(unsafe(&raw mut ctx))
     test_kill_port(20105u)
+
+}
 }
 
 // ─── Verified handshake: client trusts the root CA of the server's leaf ─────
@@ -734,6 +738,8 @@ public func E2E_clean_close_returns_eof(env : &mut TestEnv) {
 @test
 @test.timeout(60000)
 public func E2E_tls13_server_pinned_aes256_gcm(env : &mut TestEnv) {
+    unsafe {
+
     write_tls_python_utils()
     test_kill_port(20115u)
     test_server_wait()
@@ -823,12 +829,16 @@ public func E2E_tls13_server_pinned_aes256_gcm(env : &mut TestEnv) {
     unsafe { dealloc cert }
     net::close_socket(server_sock)
     test_kill_port(20115u)
+
+}
 }
 
 // ─── Chemical TLS 1.3 server pinned to AES-256-GCM-SHA384 with a P-384 cert ──
 @test
 @test.timeout(60000)
 public func E2E_tls13_server_pinned_p384_aes256_gcm(env : &mut TestEnv) {
+    unsafe {
+
     write_tls_python_utils()
     test_kill_port(20116u)
     test_server_wait()
@@ -916,12 +926,16 @@ public func E2E_tls13_server_pinned_p384_aes256_gcm(env : &mut TestEnv) {
     unsafe { dealloc cert }
     net::close_socket(server_sock)
     test_kill_port(20116u)
+
+}
 }
 
 // ─── Server must reassemble a ClientHello delivered in fragmented TCP writes ──
 @test
 @test.timeout(60000)
 public func E2E_tls13_server_fragmented_clienthello(env : &mut TestEnv) {
+    unsafe {
+
     write_tls_python_utils()
     test_kill_port(20117u)
     test_server_wait()
@@ -1010,4 +1024,6 @@ public func E2E_tls13_server_fragmented_clienthello(env : &mut TestEnv) {
     unsafe { dealloc cert }
     net::close_socket(server_sock)
     test_kill_port(20117u)
+
+}
 }

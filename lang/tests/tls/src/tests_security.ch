@@ -9,20 +9,28 @@ using std::Result; using std::string; using std::string_view
 // ─── Helper: fill array from sequential values ───────────────────
 
 func fill_bytes(buf : *mut u8, len : size_t, start : u8) {
+    unsafe {
+
     var i : size_t = 0
     while(i < len) {
         buf[i] = start + (i as u8)
         i += 1
     }
+
+}
 }
 
 func sec_bytes_equal(a : *u8, b : *u8, len : size_t) : bool {
+    unsafe {
+
     var i : size_t = 0
     while(i < len) {
         if(a[i] != b[i]) { return false }
         i += 1
     }
     return true
+
+}
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -141,6 +149,8 @@ public func SEC_rsa_padding_valid_accepted(env : &mut TestEnv) {
 
 @test
 public func SEC_cert_expired_rejected(env : &mut TestEnv) {
+    unsafe {
+
     var cert = X509Cert()
     var ret = parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
@@ -156,10 +166,14 @@ public func SEC_cert_expired_rejected(env : &mut TestEnv) {
 
     var date_ret = x509_check_date(unsafe(&raw mut cert))
     if(date_ret == 0) { env.error("SEC FAIL: expired certificate accepted") }
+
+}
 }
 
 @test
 public func SEC_cert_wrong_hostname_rejected(env : &mut TestEnv) {
+    unsafe {
+
     var cert : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>()); x509_cert_init(unsafe(&raw mut cert))
     var ret = parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
@@ -167,16 +181,22 @@ public func SEC_cert_wrong_hostname_rejected(env : &mut TestEnv) {
     var evil_host = "evil-phishing-site.com\0" as *char
     ret = x509_verify_hostname(unsafe(&raw mut cert), evil_host)
     if(ret == 0) { env.error("SEC FAIL: wrong hostname accepted") }
+
+}
 }
 
 @test
 public func SEC_cert_chain_untrusted_rejected(env : &mut TestEnv) {
+    unsafe {
+
     var cert : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>()); x509_cert_init(unsafe(&raw mut cert))
     parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
 
     var wrong_host = "malicious.example.com\0" as *char
     var ret = x509_verify_chain(unsafe(&raw mut cert), null, wrong_host)
     if(ret == 0) { env.error("SEC FAIL: wrong host accepted by chain verifier") }
+
+}
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -312,6 +332,8 @@ public func SEC_ecdsa_high_s_signature_rejected(env : &mut TestEnv) {
 
 @test
 public func SEC_rsa_signature_tampered_rejected(env : &mut TestEnv) {
+    unsafe {
+
     var cert : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>()); x509_cert_init(unsafe(&raw mut cert))
     var ret = parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
@@ -329,6 +351,8 @@ public func SEC_rsa_signature_tampered_rejected(env : &mut TestEnv) {
         unsafe { cert.sig[0] = cert.sig[0] ^ 0xFF }
         if(ret == 0) { env.error("SEC FAIL: tampered RSA signature accepted") }
     }
+
+}
 }
 
 // ═══════════════════════════════════════════════════════════════

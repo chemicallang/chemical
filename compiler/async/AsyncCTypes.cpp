@@ -75,7 +75,8 @@ AsyncCTypes resolve_async_c_types_from_handle(BaseType* rt) {
     // actually be `core::async::FutureHandle` so unrelated generics are ignored.
     if (gen->referenced == nullptr || gen->referenced->linked == nullptr
         || gen->referenced->linked->kind() != ASTNodeKind::StructDecl
-        || gen->referenced->linked->as_struct_def_unsafe()->name_view() != "FutureHandle") {
+        || (gen->referenced->linked->as_struct_def_unsafe()->name_view() != "FutureHandle"
+            && gen->referenced->linked->as_struct_def_unsafe()->name_view() != "SendFutureHandle")) {
         return t;
     }
     t.ok = t.inner != nullptr && t.poll != nullptr && t.context_ptr != nullptr;

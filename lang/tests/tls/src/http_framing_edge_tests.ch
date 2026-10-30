@@ -22,6 +22,8 @@ using std::vector
 // Start the scripted seqsrv with the given hex script file.
 func frm_start_seqsrv(env : &mut TestEnv, port : uint, tag : string_view,
                       script_path : *char, nconn : uint) : bool {
+                          unsafe {
+
     write_http_extra_py()
     xpy_kill_and_wait(port)
     xpy_gen_cert(tag)
@@ -33,6 +35,8 @@ func frm_start_seqsrv(env : &mut TestEnv, port : uint, tag : string_view,
     xpy_bg(cmd.to_view())
     test_server_wait()
     return true
+
+                      }
 }
 
 func frm_url(port : uint, path : string_view) : string {

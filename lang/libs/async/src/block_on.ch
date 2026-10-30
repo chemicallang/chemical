@@ -11,6 +11,13 @@
 // with real readiness wakeups.
 public namespace async {
 
+// Drive a SendFutureHandle (the result of safe async submission) to
+// completion on the current thread.
+public func <T> block_on_send(handle : core::async::SendFutureHandle<T>) : T {
+    var owned = handle
+    return block_on<T>(unsafe(owned.into_future()))
+}
+
 public func <T> block_on(handle : core::async::FutureHandle<T>) : T {
         unsafe {
         var e = executor()

@@ -5,6 +5,8 @@ using std::string
 
 @test
 public func INT_tls13_app_keys_vs_py(env : &mut TestEnv) {
+    unsafe {
+
     var shared_secret : [32]u8
     test_random_bytes(&raw mut shared_secret[0], 32)
     var transcript_hash : [32]u8
@@ -98,10 +100,14 @@ public func INT_tls13_app_keys_vs_py(env : &mut TestEnv) {
     if(!test_bytes_eq(&raw ctx.tls13_keys.client_application_traffic_secret[0], &raw py_cats[0], 32)) { env.error("client_ats mismatch"); return } else {}
     if(!test_bytes_eq(&raw ctx.tls13_keys.server_application_traffic_secret[0], &raw py_sats[0], 32)) { env.error("server_ats mismatch"); return } else {}
     if(!test_bytes_eq(&raw ctx.tls13_keys.resumption_master_secret[0], &raw py_rms[0], 32)) { env.error("resumption_ms mismatch"); return } else {}
+
+}
 }
 
 @test
 public func INT_ecdsa_verify_py_signature_tls(env : &mut TestEnv) {
+    unsafe {
+
     var hash_val : [32]u8; test_random_bytes(&raw mut hash_val[0], 32)
     var hash_hex : [65]char; test_bytes_to_hex(&raw hash_val[0], 32, &raw mut hash_hex[0])
 
@@ -129,10 +135,14 @@ public func INT_ecdsa_verify_py_signature_tls(env : &mut TestEnv) {
 
     ret = ecdsa_verify(unsafe(&raw mut ecdsa_ctx), &raw hash_val[0], 32, &raw py_sig[0], sig_len)
     if(ret < 0) { env.error("Chemical failed to verify Python's ECDSA signature"); return } else {}
+
+}
 }
 
 @test
 public func INT_aes256_gcm_non12iv_vs_py(env : &mut TestEnv) {
+    unsafe {
+
     var key : [32]u8; test_random_bytes(&raw mut key[0], 32)
     var iv8 : [8]u8; test_random_bytes(&raw mut iv8[0], 8)
     var aad : [13]u8; test_random_bytes(&raw mut aad[0], 13)
@@ -181,11 +191,15 @@ public func INT_aes256_gcm_non12iv_vs_py(env : &mut TestEnv) {
     ret = gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv8[0], 8, &raw aad[0], 13, &raw py_ct[0], 37, &raw py_tag[0], 16, &raw mut chem_dec[0])
     if(ret < 0) { env.error("gcm_auth_decrypt failed"); return } else {}
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 37)) { env.error("decrypt roundtrip mismatch"); return } else {}
+
+}
 }
 
 @test
 @test.timeout(60000)
 public func INT_rsa_cross_encrypt_vs_py(env : &mut TestEnv) {
+    unsafe {
+
     var rsa_ctx : RSAContext = unsafe(std::mem.zeroed_unchecked<RSAContext>()); rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
     var ret = rsa_gen_key(unsafe(&raw mut rsa_ctx), 2048, 65537)
     if(ret < 0) { env.error("rsa_gen_key failed"); return } else {}
@@ -290,11 +304,15 @@ public func INT_rsa_cross_encrypt_vs_py(env : &mut TestEnv) {
     if(pt_len != 32 || !test_bytes_eq(&raw py_pt[0], &raw pt_msg[0], 32)) {
         env.error("Python cannot decrypt Chemical RSA ciphertext")
     } else {}
+
+}
 }
 
 @test
 @test.timeout(60000)
 public func INT_rsa_keygen_sign_verify_vs_py(env : &mut TestEnv) {
+    unsafe {
+
     // Real-world cross-check: generate a key with Chemical, then use the
     // private exponent D to produce a PKCS#1 v1.5 SHA-256 signature that
     // Python (pyca/cryptography) verifies. This exercises the generated key
@@ -384,10 +402,14 @@ public func INT_rsa_keygen_sign_verify_vs_py(env : &mut TestEnv) {
     rsa_import_pubkey(unsafe(&raw mut verify_ctx), &raw n_buf[0], 256, &raw e_buf[0], 4)
     ret = rsa_pkcs1_verify(unsafe(&raw mut verify_ctx), &raw digest[0], 32, &raw sig_buf[0], 256)
     if(ret < 0) { env.error("rsa_pkcs1_verify of own signature failed"); return } else {}
+
+}
 }
 
 @test
 public func INT_aes_cbc_hmac_tls12_vs_py(env : &mut TestEnv) {
+    unsafe {
+
     var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
     var iv : [16]u8; test_random_bytes(&raw mut iv[0], 16)
     var mac_key : [16]u8; test_random_bytes(&raw mut mac_key[0], 16)
@@ -441,10 +463,14 @@ public func INT_aes_cbc_hmac_tls12_vs_py(env : &mut TestEnv) {
     ret = aes_crypt_cbc(unsafe(&raw mut aes_dec), AES_DECRYPT, 48, &raw mut dec_iv[0], &raw py_ct[0], &raw mut chem_dec[0])
     if(ret < 0) { env.error("aes_crypt_cbc decrypt failed"); return } else {}
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 48)) { env.error("CBC decrypt roundtrip mismatch"); return } else {}
+
+}
 }
 
 @test
 public func INT_x509_cert_parse_vs_py(env : &mut TestEnv) {
+    unsafe {
+
     var script : [1536]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "from cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import ec\nimport datetime\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
@@ -467,10 +493,14 @@ public func INT_x509_cert_parse_vs_py(env : &mut TestEnv) {
     if(ret < 0) { env.error("parse_cert_der failed"); return } else {}
     if(unsafe(crt.pk_type) != PK_ECKEY) { env.error("expected EC key type"); return } else {}
     if(unsafe(crt.pk_bitlen) != 256) { env.error("expected 256-bit EC key"); return } else {}
+
+}
 }
 
 @test
 public func INT_x509_hostname_verify_vs_py(env : &mut TestEnv) {
+    unsafe {
+
     var script : [1536]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "from cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import ec\nimport datetime\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
@@ -507,10 +537,14 @@ public func INT_x509_hostname_verify_vs_py(env : &mut TestEnv) {
 
     var nomatch = x509_verify_hostname(unsafe(&raw mut crt), "wrong.example.org" as *char)
     if(nomatch == 0) { env.error("expected hostname mismatch"); return } else {}
+
+}
 }
 
 @test
 public func INT_x509_ecdsa_self_sig_verify(env : &mut TestEnv) {
+    unsafe {
+
     var script : [1536]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "from cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import ec\nimport datetime\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
@@ -545,10 +579,14 @@ public func INT_x509_ecdsa_self_sig_verify(env : &mut TestEnv) {
 
     ret = x509_verify_cert_ecdsa_signature(unsafe(&raw mut crt), unsafe(&raw mut issuer))
     if(ret < 0) { env.error("self-signature verification failed"); return } else {}
+
+}
 }
 
 @test
 public func INT_hmac_long_key_vs_py(env : &mut TestEnv) {
+    unsafe {
+
     var key : [72]u8; test_random_bytes(&raw mut key[0], 72)
     var data : [32]u8; test_random_bytes(&raw mut data[0], 32)
 
@@ -575,10 +613,14 @@ public func INT_hmac_long_key_vs_py(env : &mut TestEnv) {
     if(mac_len != 32) { env.error("failed to parse Python output"); return } else {}
 
     if(!test_bytes_eq(&raw chem_mac[0], &raw py_mac[0], 32)) { env.error("HMAC long key mismatch vs Python"); return } else {}
+
+}
 }
 
 @test
 public func INT_ecdh_p256_shared_vs_py(env : &mut TestEnv) {
+    unsafe {
+
     var chem_ctx : ECDHContext = unsafe(std::mem.zeroed_unchecked<ECDHContext>()); ecdh_init(unsafe(&raw mut chem_ctx))
     var chem_priv : [32]u8; test_random_bytes(&raw mut chem_priv[0], 32)
     var chem_pub : [65]u8
@@ -609,6 +651,8 @@ public func INT_ecdh_p256_shared_vs_py(env : &mut TestEnv) {
     if(ret < 0) { env.error("ecdh_compute_shared failed"); return } else {}
 
     if(!test_bytes_eq(&raw chem_shared[0], &raw py_shared[0], 32)) { env.error("ECDH P-256 shared secret mismatch vs Python"); return } else {}
+
+}
 }
 
 @test
@@ -766,6 +810,8 @@ public func INT_tls13_config_connects_tls12_server(env : &mut TestEnv) {
 // 4096-bit RSA cert with SAN.
 @test
 public func INT_x509_parse_rsa_san_cert(env : &mut TestEnv) {
+    unsafe {
+
     var script : [2048]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "from cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import rsa\nimport datetime\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
@@ -793,4 +839,6 @@ public func INT_x509_parse_rsa_san_cert(env : &mut TestEnv) {
     }
     var match = x509_verify_hostname(unsafe(&raw mut crt), "big.test" as *char)
     if(match != 0) { env.error("hostname mismatch on 4096-bit RSA cert"); return } else {}
+
+}
 }

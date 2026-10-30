@@ -60,6 +60,8 @@ public namespace http {
 
     // Incremental request reader
     public func read_request_incremental(s: net::Socket, buf: &mut net::Buffer, header_timeout_secs: long, max_header_bytes: usize, max_headers: uint, tls_ctx: *mut tls::SSLContext = null) : std::Option<Request> {
+        unsafe {
+
         if(tls_ctx != null) {
             net::set_recv_timeout(tls_ctx.transport_socket, header_timeout_secs, 0);
         } else {
@@ -96,10 +98,14 @@ public namespace http {
             buf.append_bytes(&raw mut tmp[0], n as usize);
             if(buf.len() > max_header_bytes) { return std::Option.None<Request>() }
         }
+
     }
+}
 
     // Parse request from raw bytes
     public func parse_request_from_bytes(buf:*u8, n: usize, s: net::Socket) : std::Option<Request> {
+        unsafe {
+
         var crlf_pos = -1;
         var j = 0u;
         while(j + 1 < n) {
@@ -176,7 +182,9 @@ public namespace http {
 
         req.remote = std::string::make_no_len("127.0.0.1" as *char);
         return std::Option.Some<Request>(req);
+
     }
+}
 
     // Helper to recv from socket or TLS context
     func http_recv(s: net::Socket, tls_ctx: *mut tls::SSLContext, buf: *mut u8, cap: usize) : int {
@@ -199,6 +207,8 @@ public namespace http {
         max_body_len: usize = DEFAULT_MAX_BODY_LEN,
         is_head_request: bool = false
     ) : std::Option<Response> {
+        unsafe {
+
         if(s != 0) {
             net::set_recv_timeout(s, timeout_secs, 0);
         } else if(tls_ctx != null) {
@@ -268,9 +278,13 @@ public namespace http {
             if(n <= 0) { return std::Option.None<Response>() }
             buf.append_bytes(&raw mut tmp[0], n as usize);
         }
+
     }
+}
 
     func parse_response_from_bytes(buf:*u8, n: usize, s: net::Socket) : std::Option<Response> {
+        unsafe {
+
         var crlf_pos = -1;
         var j = 0u;
         while(j + 1 < n) {
@@ -331,5 +345,7 @@ public namespace http {
             res.body_len = val;
         }
         return std::Option.Some<Response>(res);
+
     }
+}
 }

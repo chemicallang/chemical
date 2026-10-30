@@ -81,6 +81,8 @@ func framing_remaining_handler(req : http.Request, res : http::ResponseWriter) {
 // or -1 if no response arrived within the socket budget (which is a failure,
 // not something to retry — the whole point is that the answer is instant).
 func raw_exchange(port : uint, raw : &string, budget_ms : int, resp : *mut string) : int {
+    unsafe {
+
     var s = net::dial("127.0.0.1", port)
     if(s == 0u || (s as longlong) < 0) { return -1 }
     net::set_recv_timeout(s, budget_ms / 1000, 0)
@@ -100,12 +102,16 @@ func raw_exchange(port : uint, raw : &string, budget_ms : int, resp : *mut strin
 
     resp.append_string(&acc)
     return el
+
+}
 }
 
 // Same, but writes the request in two pieces with `gap_ms` between them, so a
 // chunk terminator split across TCP segments can be exercised. The body_recv
 // re-scan loop is exactly what makes that work, so it must survive the fix.
 func raw_exchange_split(port : uint, part1 : &string, part2 : &string, gap_ms : int, budget_ms : int, resp : *mut string) : int {
+    unsafe {
+
     var s = net::dial("127.0.0.1", port)
     if(s == 0u || (s as longlong) < 0) { return -1 }
     net::set_recv_timeout(s, budget_ms / 1000, 0)
@@ -127,11 +133,15 @@ func raw_exchange_split(port : uint, part1 : &string, part2 : &string, gap_ms : 
 
     resp.append_string(&acc)
     return el
+
+}
 }
 
 // One latency + content assertion. Reports every failure it finds rather than
 // bailing on the first, so a single run shows the whole picture.
 func framing_check(env : &mut TestEnv, label : *char, resp : &string, expect_marker : *char, elapsed_ms : int) {
+    unsafe {
+
     if(elapsed_ms < 0) {
         var m = string::make_no_len(label)
         m.append_view(": no response at all — the server blocked on the request body")
@@ -162,6 +172,8 @@ func framing_check(env : &mut TestEnv, label : *char, resp : &string, expect_mar
         m.append_view(resp.to_view())
         env.error(m.data())
     }
+
+}
 }
 
 // ===========================================================================

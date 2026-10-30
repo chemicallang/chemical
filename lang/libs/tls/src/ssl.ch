@@ -14,30 +14,50 @@ public namespace tls {
 
     // Write a 3-byte length (TLS uses 3-byte lengths in handshake messages)
     func write_u24(val : u32, buf : *mut u8) {
+        unsafe {
+
         buf[0] = ((val >> 16) & 0xFF) as u8
         buf[1] = ((val >> 8) & 0xFF) as u8
         buf[2] = (val & 0xFF) as u8
+
     }
+}
 
     // Read a 3-byte length (TLS uses 3-byte lengths)
     func read_u24(buf : *u8) : u32 {
+        unsafe {
+
         return ((buf[0] as u32) << 16) | ((buf[1] as u32) << 8) | (buf[2] as u32)
+
     }
+}
 
     // Write a 16-bit big-endian value
     func write_u16_be(val : u16, buf : *mut u8) {
+        unsafe {
+
         buf[0] = ((val >> 8) & 0xFF) as u8
         buf[1] = (val & 0xFF) as u8
+
     }
+}
 
     // Read a 16-bit big-endian value
     func read_u16_be(buf : *u8) : u16 {
+        unsafe {
+
         return ((buf[0] as u16) << 8) | (buf[1] as u16)
+
     }
+}
 
     func read_u32_be(buf : *u8) : u32 {
+        unsafe {
+
         return ((buf[0] as u32) << 24) | ((buf[1] as u32) << 16) | ((buf[2] as u32) << 8) | (buf[3] as u32)
+
     }
+}
 
     // ============================================================================
     // TLS PRF (Pseudo-Random Function) for TLS 1.2
@@ -50,6 +70,8 @@ public namespace tls {
                            label : *char, label_len : size_t,
                            seed : *u8, seed_len : size_t,
                            output : *mut u8, output_len : size_t) {
+                               unsafe {
+
 
         // Build the combined seed = label + seed
         var combined_len : size_t = label_len + seed_len
@@ -107,7 +129,9 @@ public namespace tls {
             // Compute next A(i+1) = HMAC(secret, A(i))
             crypto::hmac_sha256(secret, secret_len, A, 32, &raw mut A[0])
         }
-    }
+
+                           }
+}
 
     // SHA-384 variant of the TLS 1.2 PRF for the AES_256_GCM_SHA384 family.
     // Structurally identical to tls12_prf above with 48-byte hash blocks.
@@ -115,6 +139,8 @@ public namespace tls {
                                   label : *char, label_len : size_t,
                                   seed : *u8, seed_len : size_t,
                                   output : *mut u8, output_len : size_t) {
+                                      unsafe {
+
 
         var combined_len : size_t = label_len + seed_len
         var combined : [512]u8
@@ -148,7 +174,9 @@ public namespace tls {
             if(generated >= output_len) { break }
             crypto::hmac_sha384(secret, secret_len, A, 48, &raw mut A[0])
         }
-    }
+
+                                  }
+}
 
     // ============================================================================
     // TLS 1.3 HKDF-Expand-Label (RFC 8446)
@@ -158,6 +186,8 @@ public namespace tls {
                                   label : *char, label_len : size_t,
                                   context : *u8, context_len : size_t,
                                   output : *mut u8, output_len : size_t) {
+                                      unsafe {
+
 
         var label_prefix = "tls13 \0" as *char
         var prefix_len : size_t = 6
@@ -231,7 +261,9 @@ public namespace tls {
             counter = counter + 1
             if(counter > 20) { break }
         }
-    }
+
+                                  }
+}
 
     // TLS 1.3 Derive-Secret (RFC 8446)
     public func tls13_derive_secret(secret : *u8, secret_len : size_t,
@@ -243,9 +275,13 @@ public namespace tls {
     }
 
     func tls13_is_sha384(ssl : *mut SSLContext) : bool {
+        unsafe {
+
         var cs = get_ciphersuite_info(ssl.negotiated_ciphersuite)
         return cs.hash == HASH_SHA384 as u8
+
     }
+}
 
     func tls13_hash_len_for(ssl : *mut SSLContext) : size_t {
         if(tls13_is_sha384(ssl)) { return 48 as size_t }
@@ -261,22 +297,34 @@ public namespace tls {
     }
 
     func tls13_transcript_init(t : *mut TLS13Transcript) {
+        unsafe {
+
         crypto::sha256_init(&raw mut t.h256)
         crypto::sha384_init(&raw mut t.h384)
+
     }
+}
 
     func tls13_transcript_update(t : *mut TLS13Transcript, data : *u8, len : size_t) {
+        unsafe {
+
         crypto::sha256_update(&raw mut t.h256, data, len)
         crypto::sha384_update(&raw mut t.h384, data, len)
+
     }
+}
 
     func tls13_transcript_finalize(t : *mut TLS13Transcript, out : *mut u8, use_sha384 : bool) {
+        unsafe {
+
         if(use_sha384) {
             crypto::sha384_final(&raw mut t.h384, out)
         } else {
             crypto::sha256_final(&raw mut t.h256, out)
         }
+
     }
+}
 
     // ============================================================================
     // TLS 1.3 Key Schedule (RFC 8446 Section 7.1)
@@ -644,6 +692,8 @@ public namespace tls {
     // Client sends with client_application_traffic_secret -> transform_out.key_enc
     // Server sends with server_application_traffic_secret -> transform_out.key_enc
     public func tls13_update_send_keys(ssl : *mut SSLContext) : int {
+        unsafe {
+
         var is_server_role : bool = (ssl.conf != null && ssl.conf.endpoint == SSL_IS_SERVER)
         var hash_len = tls13_hash_len_for(ssl)
         var key_len = ssl.transform_out.key_len as size_t
@@ -708,12 +758,16 @@ public namespace tls {
         while(si < 8) { ssl.out_ctr[si] = 0; si += 1 }
 
         return 0
+
     }
+}
 
     // Update the recv side traffic keys (role-aware)
     // Client receives with server_application_traffic_secret -> transform_in.key_dec
     // Server receives with client_application_traffic_secret -> transform_in.key_dec
     public func tls13_update_recv_keys(ssl : *mut SSLContext) : int {
+        unsafe {
+
         var is_server_role : bool = (ssl.conf != null && ssl.conf.endpoint == SSL_IS_SERVER)
         var hash_len = tls13_hash_len_for(ssl)
         var key_len = ssl.transform_in.key_len as size_t
@@ -778,7 +832,9 @@ public namespace tls {
         while(si < 8) { ssl.in_ctr[si] = 0; si += 1 }
 
         return 0
+
     }
+}
 
     // Send a KeyUpdate message (TLS 1.3)
     // request_response: if true, requests the peer to also send a KeyUpdate
@@ -816,6 +872,8 @@ public namespace tls {
                                             client_random : *u8, server_random : *u8,
                                             master_secret : *mut u8,
                                             use_sha384 : bool = false) {
+                                                unsafe {
+
         // Build seed = ClientRandom + ServerRandom (64 bytes total)
         var seed : [64]u8
         var i : size_t = 0
@@ -831,7 +889,9 @@ public namespace tls {
         } else {
             tls12_prf(pre_master, pre_master_len, label, 13, &raw seed[0], 64, master_secret, 48)
         }
-    }
+
+                                            }
+}
 
     // Derive key block from master secret (RFC 5246 Section 6.3)
     // key_block = PRF(master_secret, "key expansion", ServerRandom + ClientRandom)
@@ -840,6 +900,8 @@ public namespace tls {
                                         server_random : *u8, client_random : *u8,
                                         key_block : *mut u8, key_block_len : size_t,
                                         use_sha384 : bool = false) {
+                                            unsafe {
+
         // Build seed = ServerRandom + ClientRandom (reversed from master secret derivation)
         var seed : [64]u8
         var i : size_t = 0
@@ -855,10 +917,14 @@ public namespace tls {
         } else {
             tls12_prf(master_secret, 48, label, 13, &raw seed[0], 64, key_block, key_block_len)
         }
-    }
+
+                                        }
+}
 
     // Compute the key block size needed for a cipher suite
     public func tls12_key_block_size(info : *CipherSuiteInfo) : size_t {
+        unsafe {
+
         var mac_key_len = info.mac_key_len as size_t
         var enc_key_len = info.key_size as size_t
         var iv_len : size_t = 0
@@ -871,11 +937,15 @@ public namespace tls {
         }
         // 2 directions: client + server
         return (mac_key_len + enc_key_len + iv_len) * 2
+
     }
+}
 
     // Split key block and populate Transform structure
     public func tls12_populate_transform(tr : *mut Transform, info : *CipherSuiteInfo,
                                           key_block : *u8, key_block_len : size_t) : int {
+                                              unsafe {
+
         var mac_key_len = info.mac_key_len as size_t
         var enc_key_len = info.key_size as size_t
         var iv_len : size_t = 0
@@ -947,7 +1017,9 @@ public namespace tls {
         tr.fixed_iv_len = iv_len as u8
 
         return 0
-    }
+
+                                          }
+}
 
     // ============================================================================
     // Finished Message Calculation (RFC 5246 Section 7.4.9)
@@ -987,6 +1059,8 @@ public namespace tls {
                                      version_minor : u8, input : *u8,
                                      input_len : size_t, output : *mut u8,
                                      out_max : size_t) : int {
+                                         unsafe {
+
         var cipher = tr.cipher_type
 
         if(cipher == CIPHER_AES_128_GCM || cipher == CIPHER_AES_256_GCM) {
@@ -1134,7 +1208,9 @@ public namespace tls {
 
         // Unknown cipher — should never be reached with proper negotiation
         return ERR_SSL_INTERNAL_ERROR
-    }
+
+                                     }
+}
 
     // Decrypt a TLS record
     public func tls12_decrypt_record(tr : *mut Transform, seq_num : *u8,
@@ -1142,6 +1218,8 @@ public namespace tls {
                                      version_minor : u8, input : *u8,
                                      input_len : size_t, output : *mut u8,
                                      out_max : size_t) : int {
+                                         unsafe {
+
         var cipher = tr.cipher_type
 
         if(cipher == CIPHER_AES_128_GCM || cipher == CIPHER_AES_256_GCM) {
@@ -1281,7 +1359,9 @@ public namespace tls {
         }
 
         return ERR_SSL_INTERNAL_ERROR
-    }
+
+                                     }
+}
 
     // ============================================================================
     // TLS 1.3 Record Layer (RFC 8446 Section 5)
@@ -1295,6 +1375,8 @@ public namespace tls {
 
     // Increment a sequence number counter (8 bytes, big-endian)
     func ssl_incr_seq_num(seq : *mut u8) {
+        unsafe {
+
         var i : i32 = 7
         while(i >= 0) {
             var val = seq[i] as u16 + 1
@@ -1302,10 +1384,14 @@ public namespace tls {
             if(val < 256) { break }
             i -= 1
         }
+
     }
+}
 
     // Build a TLS 1.3 nonce: static_iv (12 bytes) XOR (0x00000000 || seq_num)
     func tls13_build_nonce(static_iv : *u8, seq_num : *u8, nonce : *mut u8) {
+        unsafe {
+
         // First 4 bytes: static_iv XOR 0
         var i : size_t = 0
         while(i < 4) {
@@ -1318,7 +1404,9 @@ public namespace tls {
             nonce[4 + i] = static_iv[4 + i] ^ seq_num[i]
             i += 1
         }
+
     }
+}
 
     // Encrypt plaintext using TLS 1.3 AEAD record format.
     // plaintext = content_type(1) + actual_data
@@ -1328,6 +1416,8 @@ public namespace tls {
                                       content_type : u8,
                                       data : *u8, data_len : size_t,
                                       output : *mut u8, out_max : size_t) : int {
+                                          unsafe {
+
         if(ssl.transform_out == null) { return ERR_SSL_INTERNAL_ERROR }
         var tr = ssl.transform_out
 
@@ -1381,7 +1471,9 @@ public namespace tls {
 
         ssl_incr_seq_num(&raw mut ssl.out_ctr[0])
         return (5 + inner_len + 16) as i32
-    }
+
+                                      }
+}
 
     // Decrypt a TLS 1.3 record.
     // input = encrypted_record (without the 5-byte outer header, which has already been read)
@@ -1463,6 +1555,8 @@ public namespace tls {
     // Send a TLS record
     async func send_record(ssl : *mut SSLContext, content_type : u8,
                      data : *u8, data_len : u16) : int {
+                         unsafe {
+
         if((data_len as int) > MAX_RECORD_PAYLOAD) { return ERR_SSL_INTERNAL_ERROR }
 
         // ChangeCipherSpec is sent in-the-clear per RFC
@@ -1476,7 +1570,8 @@ public namespace tls {
             var ret = await ssl_send(ssl, &raw header[0], 5)
             if(ret < 0) { return ret }
             if(data_len > 0) {
-                ret = await ssl_send(ssl, data, data_len as i32)
+                var payload_ret = await ssl_send(ssl, data, data_len as i32)
+                ret = payload_ret
             }
             return ret
         }
@@ -1492,7 +1587,8 @@ public namespace tls {
             var ret = await ssl_send(ssl, &raw header[0], 5)
             if(ret < 0) { return ret }
             if(data_len > 0) {
-                ret = await ssl_send(ssl, data, data_len as i32)
+                var plain_ret = await ssl_send(ssl, data, data_len as i32)
+                ret = plain_ret
             }
             return ret
         }
@@ -1531,7 +1627,9 @@ public namespace tls {
             ssl_incr_seq_num(&raw mut ssl.out_ctr[0])
         }
         return ret
-    }
+
+                     }
+}
 
     // Send an alert record
     async func send_alert(ssl : *mut SSLContext, level : u8, description : u8) : int {
@@ -1544,6 +1642,8 @@ public namespace tls {
     // Send a handshake message
     async func send_handshake_msg(ssl : *mut SSLContext, msg_type : u8,
                             data : *u8, data_len : u32) : int {
+                                unsafe {
+
         var hs_header : [4]u8
         hs_header[0] = msg_type
         write_u24(data_len, &raw mut hs_header[1])
@@ -1563,7 +1663,9 @@ public namespace tls {
         }
 
         return await send_record(ssl, SSL_MSG_HANDSHAKE as u8, &raw buf[0], total_len as u16)
-    }
+
+                            }
+}
 
     // ─── Buffered Record I/O ──────────────────────────────────────────────
     // All record reads go through ssl_read_record(), which uses the input
@@ -1574,6 +1676,8 @@ public namespace tls {
 
     // Fetch more data from the socket into the input buffer
     async func ssl_fetch_input(ssl : *mut SSLContext, min_len : size_t) : int {
+        unsafe {
+
         while(ssl.in_left < min_len as i32) {
             var buf_start : i32 = ssl.in_left
             if(buf_start >= 17408 as i32) { return ERR_SSL_BUFFER_TOO_SMALL }
@@ -1598,13 +1702,17 @@ public namespace tls {
             return ERR_SSL_CONN_EOF
         }
         return 0
+
     }
+}
 
     // Read the next complete record from the input buffer
     // Returns 0 on success, negative error code on failure.
     // The record header (5 bytes) is stored in ssl.in_hdr.
     // The record payload (record_len bytes) is stored in ssl.in_buf.
     async func ssl_read_record(ssl : *mut SSLContext) : int {
+        unsafe {
+
         // Ensure we have at least 5 bytes (record header)
         var ret = await ssl_fetch_input(ssl, 5)
         if(ret < 0) { return ret }
@@ -1704,10 +1812,14 @@ public namespace tls {
         }
 
         return 0
+
     }
+}
 
     // Consume (remove) the current record from the input buffer
     public func ssl_consume_record(ssl : *mut SSLContext) {
+        unsafe {
+
         var consumed = 5 + ssl.in_msglen
         if(consumed > ssl.in_left) { consumed = ssl.in_left }
         if(consumed <= 0) { return }
@@ -1723,10 +1835,14 @@ public namespace tls {
         }
         ssl.in_left = remaining
         ssl.in_msglen = 0
+
     }
+}
 
     // Read a TLS record header (blocking) - maintains backward compatibility
     async func read_record_header(ssl : *mut SSLContext, hdr : *mut u8) : int {
+        unsafe {
+
         var ret = await ssl_read_record(ssl)
         if(ret < 0) { return ret }
         hdr[0] = ssl.in_hdr[0]
@@ -1735,10 +1851,14 @@ public namespace tls {
         hdr[3] = ssl.in_hdr[3]
         hdr[4] = ssl.in_hdr[4]
         return 0
+
     }
+}
 
     // Read record payload - copies from internal buffer to caller's buffer
     func read_record_payload(ssl : *mut SSLContext, buf : *mut u8, len : i32) : int {
+        unsafe {
+
         var copy_len = ssl.in_msglen
         if(copy_len > len) { copy_len = len }
         if(copy_len > 0) {
@@ -1750,13 +1870,17 @@ public namespace tls {
         }
         ssl_consume_record(ssl)
         return copy_len
+
     }
+}
 
     // ============================================================================
     // TLS 1.2 Client Hello Construction
     // ============================================================================
 
     func build_client_hello(ssl : *mut SSLContext, buf : *mut u8, buf_size : size_t) : int {
+        unsafe {
+
         var pos : i32 = 0
 
         // Protocol version (TLS 1.2 = 0x0303)
@@ -2093,7 +2217,9 @@ public namespace tls {
         buf[ext_start + 1] = ext_len as u8
 
         return pos
+
     }
+}
 
     // ============================================================================
     // I/O Functions
@@ -2121,21 +2247,29 @@ public namespace tls {
     }
 
     async func ssl_send(ssl : *mut SSLContext, data : *u8, len : i32) : int {
+        unsafe {
+
         if(!ssl.transport_connected) { return ERR_SSL_INTERNAL_ERROR }
         var tr = ssl.transport
         var n = await tr.send_fn(tr.ctx, data, len as size_t)
         if(n < 0) { return ERR_SSL_CONN_EOF }
         return len
+
     }
+}
 
     async func ssl_recv(ssl : *mut SSLContext, buf : *mut u8, len : i32) : int {
+        unsafe {
+
         if(!ssl.transport_connected) { return ERR_SSL_INTERNAL_ERROR }
         var tr = ssl.transport
         var n = await tr.recv_fn(tr.ctx, buf, len as size_t)
         if(n < 0) { return ERR_SSL_CONN_EOF }
         if(n == 0) { return ERR_SSL_CONN_EOF }
         return n
+
     }
+}
 
     // ============================================================================
     // Client Handshake - TLS 1.2
@@ -2145,6 +2279,8 @@ public namespace tls {
     async func read_handshake_msg(ssl : *mut SSLContext, hs_type : *mut u8,
                              hs_len : *mut u32, hs_buf : *mut u8,
                               buf_size : size_t) : int {
+                                  unsafe {
+
         var hdr : [5]u8
         var ret = await read_record_header(ssl, &raw mut hdr[0])
         if(ret < 0) { return ret }
@@ -2184,7 +2320,9 @@ public namespace tls {
         unsafe { *hs_type = hs_buf[0] }
         unsafe { *hs_len = read_u24(&raw hs_buf[1]) }
         return 0
-    }
+
+                              }
+}
 
     // ─── Helper: feed a handshake message into the transcript hash ───────
 
@@ -2223,6 +2361,8 @@ public namespace tls {
     // Returns 0 on success, negative error code on failure.
     // The RSA context must be initialized with rsa_init() before calling.
     public func x509_extract_rsa_pubkey(crt : *mut X509Cert, rsa : *mut RSAContext) : int {
+        unsafe {
+
         if(crt.pk_type != PK_RSA as u8) { return ERR_SSL_PK_TYPE_MISMATCH }
         if(crt.pk_raw == null || crt.pk_raw_len == 0) { return ERR_X509_INVALID_FORMAT }
 
@@ -2303,11 +2443,15 @@ public namespace tls {
         crt.pk_bitlen = mpi_bitlen(&raw mut rsa.N) as u16
 
         return 0
+
     }
+}
 
     // ─── Extract ECDSA Public Key from Parsed Certificate ───────────────
     // Parse SubjectPublicKeyInfo to extract ECDSA uncompressed public key.
     public func x509_extract_ecdsa_pubkey(crt : *mut X509Cert, ecdsa : *mut ECDSAContext) : int {
+        unsafe {
+
         if(crt.pk_type != PK_ECKEY as u8) { return ERR_SSL_PK_TYPE_MISMATCH }
         if(crt.pk_raw == null || crt.pk_raw_len == 0) { return ERR_X509_INVALID_FORMAT }
 
@@ -2368,11 +2512,15 @@ public namespace tls {
         if(data[pos] != 0x04) { return ERR_X509_INVALID_FORMAT }
 
         return ecdsa_import_pubkey(ecdsa, &raw data[pos], bit_len, curve)
+
     }
+}
 
     // ─── Verify X.509 Certificate ECDSA Signature ───────────────────────
     public func x509_verify_cert_ecdsa_signature(crt : *mut X509Cert,
                                                   issuer_ecdsa : *mut ECDSAContext) : int {
+                                                      unsafe {
+
         if(crt.tbs_der == null || crt.tbs_der_len == 0) { return ERR_X509_INVALID_FORMAT }
         if(crt.sig == null || crt.sig_len == 0) { return ERR_X509_INVALID_FORMAT }
 
@@ -2404,7 +2552,9 @@ public namespace tls {
         var ret = ecdsa_verify(issuer_ecdsa, &raw hash[0], hash_len, crt.sig, crt.sig_len)
         if(ret < 0) { return ERR_X509_SIG_MISMATCH }
         return 0
-    }
+
+                                                  }
+}
 
     // ─── Verify X.509 Certificate RSA Signature ──────────────────────────
     // Verifies the certificate's signature using the issuer's RSA public key.
@@ -2413,6 +2563,8 @@ public namespace tls {
     // Returns 0 on success, negative error code on failure
     public func x509_verify_cert_signature(crt : *mut X509Cert,
                                             issuer_rsa : *mut RSAContext) : int {
+                                                unsafe {
+
         if(crt.tbs_der == null || crt.tbs_der_len == 0) { return ERR_X509_INVALID_FORMAT }
         if(crt.sig == null || crt.sig_len == 0) { return ERR_X509_INVALID_FORMAT }
 
@@ -2446,13 +2598,17 @@ public namespace tls {
         if(ret < 0) { return ERR_X509_SIG_MISMATCH }
 
         return 0
-    }
+
+                                            }
+}
 
     // ─── X.509 Hostname Verification ──────────────────────────────────────
     // Verify that the certificate's CN or SAN matches the expected hostname.
     // Checks SAN dNSName entries first, then falls back to CN.
     // Returns 0 on match, X509_BADCERT_CN_MISMATCH on mismatch.
     public func x509_verify_hostname(crt : *mut X509Cert, hostname : *char) : int {
+        unsafe {
+
         var host_view = string_view(hostname)
 
         // 1. Check SAN dNSName entries (RFC 6125 compliant)
@@ -2582,7 +2738,9 @@ public namespace tls {
         }
 
         return X509_BADCERT_CN_MISMATCH as i32
+
     }
+}
 
     // ─── ASN1_TIME Parser ──────────────────────────────────────────────────
     // Parse ASN1_UTC_TIME (YYMMDDHHMMSSZ, 13 bytes) or ASN1_GENERALIZED_TIME
@@ -2634,6 +2792,8 @@ public namespace tls {
     // Check if the certificate's validity period covers the current time.
     // Returns 0 if valid, X509_BADCERT_EXPIRED or X509_BADCERT_FUTURE on failure.
     public func x509_check_date(crt : *mut X509Cert) : int {
+        unsafe {
+
         if(crt.valid_from[0] == 0 || crt.valid_to[0] == 0) {
             return 0  // No date info, skip check
         }
@@ -2688,10 +2848,14 @@ public namespace tls {
         }
 
         return 0  // Certificate is valid
+
     }
+}
 
     // ─── Helper: verify cert signature with appropriate key type ──────────
     func x509_verify_sig_with_issuer(cert : *mut X509Cert, issuer : *mut X509Cert) : int {
+        unsafe {
+
         if(issuer.pk_type == PK_RSA as u8) {
             var rsa_ctx : RSAContext
             rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
@@ -2712,12 +2876,16 @@ public namespace tls {
             return ERR_X509_CERT_VERIFY_FAILED
         }
         return ERR_X509_CERT_VERIFY_FAILED
+
     }
+}
 
     // ─── DN helpers for chain building ────────────────────────────────────
     // Compare two DER-encoded distinguished names byte-for-byte.
     // Returns true when both are non-null, same length, and identical bytes.
     func x509_dn_equal(a : *mut u8, a_len : size_t, b : *mut u8, b_len : size_t) : bool {
+        unsafe {
+
         if(a == null || b == null) { return false }
         if(a_len != b_len) { return false }
         var i : size_t = 0
@@ -2726,13 +2894,17 @@ public namespace tls {
             i += 1
         }
         return true
+
     }
+}
 
     // Walk a certificate chain (linked via `next`) looking for the first cert
     // whose subject DN matches the given issuer DN. Used to find the signer of
     // `leaf` both inside the peer chain (intermediates) and in the CA store.
     func x509_find_cert_by_subject(chain : *mut X509Cert, issuer_raw : *mut u8,
                                    issuer_len : size_t) : *mut X509Cert {
+                                       unsafe {
+
         var curr = chain
         while(curr != null) {
             if(x509_dn_equal(curr.subject_raw, curr.subject_raw_len, issuer_raw, issuer_len)) {
@@ -2741,7 +2913,9 @@ public namespace tls {
             curr = curr.next
         }
         return null
-    }
+
+                                   }
+}
 
     // Parse a full Certificate message body into a linked chain of heap
     // X509Cert nodes. `data` points at the handshake message BODY (right after
@@ -2818,6 +2992,8 @@ public namespace tls {
     // Sets crt->flags with verification results.
     public func x509_verify_chain(leaf : *mut X509Cert, trusted_ca : *mut X509Cert,
                                     hostname : *char) : int {
+                                        unsafe {
+
         var flags : u32 = 0
 
         // 1. Self-signed check: if leaf issuer == leaf subject, it's self-signed
@@ -2916,11 +3092,15 @@ public namespace tls {
 
         leaf.flags = X509_BADCERT_NOT_TRUSTED as u32
         return ERR_X509_CERT_VERIFY_FAILED
-    }
+
+                                    }
+}
 
     // ─── Parse ServerHello and extract key parameters ────────────────────
 
     func parse_server_hello(ssl : *mut SSLContext, data : *u8, data_len : u32) : int {
+        unsafe {
+
         // data starts with the 4-byte handshake header (type + 3-byte length),
         // followed by the ServerHello body.
         // ServerHello body layout: version(2) + random(32) + session_id(1+len) + ciphersuite(2) + compression(1) + extensions
@@ -2966,9 +3146,13 @@ public namespace tls {
         }
 
         return 0
+
     }
+}
 
     async func do_tls12_client_handshake(ssl : *mut SSLContext) : int {
+        unsafe {
+
         ensure_init()
 
         // ── Handshake transcript hash context (dual SHA-256 + SHA-384) ──
@@ -3232,11 +3416,11 @@ public namespace tls {
         tls12_populate_transform(unsafe(&raw mut tr), &raw cs_info, &raw key_block[0], kb_size)
 
         var tr_mem = unsafe(malloc(sizeof(Transform))) as *mut Transform
-        unsafe { *tr_mem = tr }
+        unsafe { memcpy(tr_mem, &raw tr, sizeof(Transform)) }
         ssl.transform_out = tr_mem
 
         var tr_in_mem = unsafe(malloc(sizeof(Transform))) as *mut Transform
-        unsafe { *tr_in_mem = tr }
+        unsafe { memcpy(tr_in_mem, &raw tr, sizeof(Transform)) }
         ssl.transform_in = tr_in_mem
 
         // Reset sequence numbers for handshake encryption phase
@@ -3245,8 +3429,12 @@ public namespace tls {
 
         // ── Finalize handshake transcript hash (includes all msgs up to CKE) ──
         var client_hs_hash : [48]u8
-        var copy_ctx = hash_ctx
-        var copy_ctx_384 = hash_ctx_384
+        var copy_ctx : crypto::Sha256Context
+        var copy_ctx_384 : crypto::Sha512Context
+        unsafe {
+            memcpy(&raw mut copy_ctx, &raw hash_ctx, sizeof(crypto::Sha256Context))
+            memcpy(&raw mut copy_ctx_384, &raw hash_ctx_384, sizeof(crypto::Sha512Context))
+        }
         var cf_hash_len : size_t = 32 as size_t
         if(use_sha384) { cf_hash_len = 48 as size_t }
         if(use_sha384) {
@@ -3345,7 +3533,9 @@ public namespace tls {
         ssl.state = SSLState.HANDSHAKE_OVER()
 
         return 0
+
     }
+}
 
     // ============================================================================
     // Client Handshake - TLS 1.3
@@ -3357,6 +3547,8 @@ public namespace tls {
     // transcript / sent. RFC 8446 §4.2.11.2 / §7.1.
     func tls13_fill_psk_binder(ssl : *mut SSLContext, ch_buf : *mut u8, ch_len : size_t,
                                ch_hdr : *u8) : int {
+                                   unsafe {
+
         if(ssl.handshake == null || ssl.handshake.psk_binder_off == 0) { return 0 }
         if(ssl.handshake.psk_len == 0) { return 0 }
 
@@ -3411,9 +3603,13 @@ public namespace tls {
             bi += 1
         }
         return 0
-    }
+
+                               }
+}
 
     async func do_tls13_client_handshake(ssl : *mut SSLContext) : int {
+        unsafe {
+
         ensure_init()
 
         // Ensure handshake params are allocated
@@ -3735,7 +3931,8 @@ public namespace tls {
         if(ret < 0) { return ret }
 
         // Hash(ClientHello...ServerHello) — save transcript state first, then finalize
-        var sh_transcript_copy = transcript
+        var sh_transcript_copy : TLS13Transcript
+        unsafe { memcpy(&raw mut sh_transcript_copy, &raw transcript, sizeof(TLS13Transcript)) }
         var sh_hash : [48]u8
         tls13_transcript_finalize(&raw mut sh_transcript_copy, &raw mut sh_hash[0], use_sha384)
 
@@ -3921,7 +4118,7 @@ public namespace tls {
             } else if(msg_type_code == SSL_HS_CERTIFICATE_VERIFY as u32) {
                 // Save transcript state BEFORE hashing CertificateVerify (for signature verification)
                 if(!cv_saved) {
-                    cv_transcript_copy = transcript
+                    unsafe { memcpy(&raw mut cv_transcript_copy, &raw transcript, sizeof(TLS13Transcript)) }
                     cv_saved = true
                 }
 
@@ -3936,7 +4133,8 @@ public namespace tls {
                         // Finalize the saved transcript to get Transcript-Hash(ClientHello...Certificate)
                         // Write into a struct field: &raw local[0] output buffers are corrupted
                         // by a compiler bug for this large-stack (SHA-384) function.
-                        var cv_hash_copy = cv_transcript_copy
+                        var cv_hash_copy : TLS13Transcript
+                        unsafe { memcpy(&raw mut cv_hash_copy, &raw cv_transcript_copy, sizeof(TLS13Transcript)) }
                         tls13_transcript_finalize(&raw mut cv_hash_copy,
                                                   &raw mut ssl.tls13_keys.exporter_master_secret[0], use_sha384)
 
@@ -4024,7 +4222,8 @@ public namespace tls {
                                         &raw mut finished_key[0], tls13_hash_len)
 
                 // Hash Transcript: save state before finalizing (copy the struct)
-                var fin_transcript_copy = transcript
+                var fin_transcript_copy : TLS13Transcript
+                unsafe { memcpy(&raw mut fin_transcript_copy, &raw transcript, sizeof(TLS13Transcript)) }
                 // Write into a struct field (same compiler bug as above). cv_hash
                 // above already used this scratch field and is no longer needed.
                 tls13_transcript_finalize(&raw mut fin_transcript_copy,
@@ -4098,7 +4297,8 @@ public namespace tls {
                                 &raw mut client_finished_key[0], tls13_hash_len)
 
         // Hash Transcript: finalize for client Finished compute
-        var cf_transcript_copy = transcript
+        var cf_transcript_copy : TLS13Transcript
+        unsafe { memcpy(&raw mut cf_transcript_copy, &raw transcript, sizeof(TLS13Transcript)) }
         // Write directly into a struct field: &raw local[0] output buffers are
         // corrupted by a compiler bug for this large-stack (SHA-384) function.
         tls13_transcript_finalize(&raw mut cf_transcript_copy,
@@ -4139,7 +4339,8 @@ public namespace tls {
         // ── Derive application traffic keys ──
         // RFC 8446 §7.1: c/s ap traffic use ClientHello...server Finished (cf_hash);
         // res master uses ClientHello...client Finished (full_hash).
-        var full_transcript_copy = transcript
+        var full_transcript_copy : TLS13Transcript
+        unsafe { memcpy(&raw mut full_transcript_copy, &raw transcript, sizeof(TLS13Transcript)) }
         // Write directly into a struct field (same compiler bug as cf_hash above).
         tls13_transcript_finalize(&raw mut full_transcript_copy,
                                   &raw mut ssl.tls13_keys.server_handshake_traffic_secret[0], use_sha384)
@@ -4151,7 +4352,9 @@ public namespace tls {
 
         ssl.state = SSLState.HANDSHAKE_OVER()
         return 0
+
     }
+}
 
     // ============================================================================
     // ─── Secure Connection Helper ──────────────────────────────────────────
@@ -4171,6 +4374,8 @@ public namespace tls {
                            priv_key : *mut void,
                            cipher_suite : int,
                            transport_async : bool) : *mut SSLContext {
+                               unsafe {
+
         var ssl_mem = unsafe(malloc(sizeof(SSLContext))) as *mut SSLContext
         if(ssl_mem == null) { return null }
 
@@ -4210,7 +4415,9 @@ public namespace tls {
         }
 
         return ssl_mem
-    }
+
+                           }
+}
 
     // ─── Auto CA Bundle Loading ───────────────────────────────────────────
     // Try to load the system CA bundle from common locations.
@@ -4312,6 +4519,8 @@ public namespace tls {
     // Returns a pointer to a heap-allocated X509Cert on success,
     // or null on failure. Caller is responsible for freeing.
     public func x509_crt_load_pem_file(path : *char) : *mut X509Cert {
+        unsafe {
+
         var mode = "rb\0" as *char
         var f = unsafe(fopen(path, mode))
         if(f == null) { return null }
@@ -4394,12 +4603,18 @@ public namespace tls {
 
         unsafe { dealloc buf }
         return head
+
     }
+}
 
     // Set the trusted CA chain for certificate verification
     public func ssl_set_ca_chain(conf : *mut SSLConfig, ca : *mut X509Cert) {
+        unsafe {
+
         conf.ca_chain = ca
+
     }
+}
 
     // ─── RSA Private Key PEM Loader ───────────────────────────────────────
 
@@ -4407,6 +4622,8 @@ public namespace tls {
     // Supports:-----BEGIN RSA PRIVATE KEY----- (PKCS#1)
     // Returns a heap-allocated RSAContext (caller must rsa_free + dealloc).
     public func rsa_privkey_load_pem_file(path : *char) : *mut RSAContext {
+        unsafe {
+
         var f = unsafe(fopen(path, "rb"))
         if(f == null) { return null }
         unsafe { fseek(f, 0, 2) }
@@ -4539,10 +4756,14 @@ public namespace tls {
         if(qinv_len > 0) { mpi_read_binary(&raw mut rsa.QP, qinv_data, qinv_len as size_t) }
 
         return rsa
+
     }
+}
 
     // Parse DER length field. Returns the length value and advances pos.
     func parse_der_length(data : *u8, pos : *mut size_t, data_len : size_t) : int {
+        unsafe {
+
         if(pos[0] >= data_len) { return -1 }
         var first = data[pos[0]]
         pos[0] += 1
@@ -4558,10 +4779,14 @@ public namespace tls {
             k += 1
         }
         return length as int
+
     }
+}
 
     // Parse DER INTEGER. Returns data pointer and length, advances pos.
     func parse_der_integer(data : *u8, pos : *mut size_t, data_len : size_t, out_data : *mut *u8) : int {
+        unsafe {
+
         if(pos[0] >= data_len || data[pos[0]] != 0x02) { return -1 }
         pos[0] += 1
         var len = parse_der_length(data, pos, data_len)
@@ -4572,7 +4797,9 @@ public namespace tls {
         out_data[0] = data + data_start
         pos[0] = pos[0] + (len as size_t)
         return len
+
     }
+}
 
     // Allocate and initialize a single X509Cert on the heap. malloc'd memory is
     // NOT zeroed, so we memset first: x509_cert_init move-assigns embedded
@@ -4590,19 +4817,31 @@ public namespace tls {
 
     // Set the server's own RSA private key for decrypting the pre-master secret
     public func ssl_set_own_rsa_key(conf : *mut SSLConfig, rsa_key : *mut RSAContext) {
+        unsafe {
+
         conf.own_key = rsa_key as *mut void
+
     }
+}
 
     // Set ALPN protocols for negotiation
     public func ssl_set_alpn_protocols(conf : *mut SSLConfig, protocols : *mut *char, count : u8) {
+        unsafe {
+
         conf.alpn_list = protocols
         conf.alpn_count = count
+
     }
+}
 
     // Get the negotiated ALPN protocol after handshake
     public func ssl_get_alpn_negotiated(ssl : *mut SSLContext) : *char {
+        unsafe {
+
         return ssl.alpn_negotiated
+
     }
+}
 
     // Public API - Client Connection
     // ============================================================================
@@ -4620,16 +4859,22 @@ public namespace tls {
 
     // Apply read timeout to the SSL socket (from config, or 5s default)
     func ssl_apply_recv_timeout(ssl : *mut SSLContext) {
+        unsafe {
+
         var timeout_ms : u32 = 5000
         if(ssl.conf != null && ssl.conf.read_timeout > 0) {
             timeout_ms = ssl.conf.read_timeout
             if(timeout_ms > 8000) { timeout_ms = 8000 }
         }
         net::set_recv_timeout(ssl.transport_socket, (timeout_ms / 1000) as long, (timeout_ms % 1000 * 1000) as long)
+
     }
+}
 
     // Set the socket for the SSL connection
     public func ssl_set_socket(ssl : *mut SSLContext, socket : net::Socket) {
+        unsafe {
+
         ssl.transport_socket = socket
         ssl.transport_connected = true
         if(ssl.transport_async) {
@@ -4652,11 +4897,15 @@ public namespace tls {
         // Set default TLS record version
         ssl.major_ver = 3
         ssl.minor_ver = 3 as u8
+
     }
+}
 
     // Switch an already-connected context to the non-blocking transport (used
     // by the async entry points). Idempotent; a no-op before a socket is set.
     public func ssl_use_async_transport(ssl : *mut SSLContext) {
+        unsafe {
+
         ssl.transport_async = true
         if(ssl.transport_connected && ssl.transport_socket != 0 as net::Socket) {
             net::set_nonblocking(ssl.transport_socket)
@@ -4666,19 +4915,27 @@ public namespace tls {
                 send_fn : transport_send_async
             }
         }
+
     }
+}
 
     // Set the hostname for SNI and certificate verification
     public func ssl_set_hostname(ssl : *mut SSLContext, hostname : *char) {
+        unsafe {
+
         var len : size_t = 0
         while(hostname[len] != 0) { len += 1 }
         if(len > 255) { len = 255 }
         ssl.hostname = hostname
         ssl.hostname_len = len
+
     }
+}
 
     // Configure the SSL context
     public func ssl_set_config(ssl : *mut SSLContext, conf : *mut SSLConfig) {
+        unsafe {
+
         ssl.conf = conf
         ssl.major_ver = 3
         if(conf.max_tls_version >= SSL_VERSION_TLS1_3) {
@@ -4687,12 +4944,16 @@ public namespace tls {
             ssl.minor_ver = 3 as u8
         }
         ssl.tls_version = conf.max_tls_version
+
     }
+}
 
     // ─── Server-Side TLS 1.2 Handshake (Minimal) ─────────────────────────
     // Implements a minimal TLS 1.2 server handshake for use with the HTTP server.
     // This is a basic implementation that supports RSA key exchange.
     func build_server_hello(ssl : *mut SSLContext, buf : *mut u8, buf_size : size_t) : int {
+        unsafe {
+
         var pos : i32 = 0
         buf[pos] = 0x03 as u8; pos += 1  // major version (TLS 1.2)
         buf[pos] = 0x03 as u8; pos += 1  // minor version
@@ -4746,9 +5007,13 @@ public namespace tls {
         }
 
         return pos
+
     }
+}
 
     async func do_tls12_server_handshake(ssl : *mut SSLContext) : int {
+        unsafe {
+
         ensure_init()
 
         // Handshake transcript hash
@@ -4935,11 +5200,11 @@ public namespace tls {
         }
 
         var tr_in_mem = unsafe(malloc(sizeof(Transform))) as *mut Transform
-        unsafe { *tr_in_mem = srv_tr }
+        unsafe { memcpy(tr_in_mem, &raw srv_tr, sizeof(Transform)) }
         ssl.transform_in = tr_in_mem
 
         var tr_out_mem = unsafe(malloc(sizeof(Transform))) as *mut Transform
-        unsafe { *tr_out_mem = srv_tr }
+        unsafe { memcpy(tr_out_mem, &raw srv_tr, sizeof(Transform)) }
 
         // Reset receive sequence number for the client's encrypted handshake records
         var si9 : size_t = 0
@@ -4955,7 +5220,8 @@ public namespace tls {
 
         // Compute transcript hash up to ClientKeyExchange for Finished verification
         var client_hs_hash : [32]u8
-        var copy_ctx = hash_ctx
+        var copy_ctx : crypto::Sha256Context
+        unsafe { memcpy(&raw mut copy_ctx, &raw hash_ctx, sizeof(crypto::Sha256Context)) }
         crypto::sha256_final(&raw mut copy_ctx, &raw mut client_hs_hash[0])
 
         // Verify client Finished message
@@ -5000,13 +5266,17 @@ public namespace tls {
         ssl.state = SSLState.HANDSHAKE_OVER()
 
         return 0
+
     }
+}
 
     // ============================================================================
     // Server Handshake - TLS 1.3
     // ============================================================================
 
     async func do_tls13_server_handshake(ssl : *mut SSLContext) : int {
+        unsafe {
+
         ensure_init()
 
         // Ensure handshake params
@@ -5260,7 +5530,8 @@ public namespace tls {
 
         // ── Derive handshake traffic keys ────────────────────────────
         // Compute Transcript-Hash(ClientHello...ServerHello)
-        var ch_sh_copy = transcript
+        var ch_sh_copy : TLS13Transcript
+        unsafe { memcpy(&raw mut ch_sh_copy, &raw transcript, sizeof(TLS13Transcript)) }
         var ch_sh_hash : [48]u8
         tls13_transcript_finalize(&raw mut ch_sh_copy, &raw mut ch_sh_hash[0], use_sha384)
 
@@ -5348,7 +5619,8 @@ public namespace tls {
         if(ssl.conf.own_cert != null && ssl.conf.own_key != null) {
             ssl.state = SSLState.CERTIFICATE_VERIFY()
 
-            var cv_copy = transcript
+            var cv_copy : TLS13Transcript
+            unsafe { memcpy(&raw mut cv_copy, &raw transcript, sizeof(TLS13Transcript)) }
             // CertificateVerify signature hash/scheme is chosen by the server
             // certificate's curve (RFC 8446: ecdsa_secp256r1_sha256 /
             // ecdsa_secp384r1_sha384), independent of the ciphersuite hash.
@@ -5438,7 +5710,8 @@ public namespace tls {
                                 &raw mut finished_key[0], tls13_hash_len)
 
         var full_hash_before_fin : [48]u8
-        var fin_copy = transcript
+        var fin_copy : TLS13Transcript
+        unsafe { memcpy(&raw mut fin_copy, &raw transcript, sizeof(TLS13Transcript)) }
         tls13_transcript_finalize(&raw mut fin_copy, &raw mut full_hash_before_fin[0], use_sha384)
         var server_verify : [48]u8
         if(use_sha384) {
@@ -5479,7 +5752,8 @@ public namespace tls {
                                 &raw empty_c2[0], 0,
                                 &raw mut client_finished_key[0], tls13_hash_len)
 
-        var cf_copy = transcript
+        var cf_copy : TLS13Transcript
+        unsafe { memcpy(&raw mut cf_copy, &raw transcript, sizeof(TLS13Transcript)) }
         // Write directly into a struct field: &raw local[0] output buffers are
         // corrupted by a compiler bug for this large-stack (SHA-384) function.
         tls13_transcript_finalize(&raw mut cf_copy,
@@ -5527,7 +5801,9 @@ public namespace tls {
         ssl.state = SSLState.HANDSHAKE_OVER()
 
         return 0
+
     }
+}
 
     // Perform the TLS handshake
     public func ssl_handshake(ssl : *mut SSLContext) : int {
@@ -5535,6 +5811,8 @@ public namespace tls {
     }
 
     public async func ssl_handshake_coro(ssl : *mut SSLContext) : int {
+        unsafe {
+
         if(ssl.conf == null) { return ERR_SSL_BAD_CONFIG }
         ensure_init()
 
@@ -5555,12 +5833,16 @@ public namespace tls {
         } else {
             return await do_tls12_client_handshake(ssl)
         }
+
     }
+}
 
     // Process a single NewSessionTicket message (buf points at the handshake
     // header, len = full message including the 4-byte header). Stores the ticket
     // and derives the resumption key into ssl.session.
     func ssl_process_new_session_ticket(ssl : *mut SSLContext, buf : *u8, len : size_t) {
+        unsafe {
+
         if(ssl.session == null) { return }
         var msg_len = read_u24(&raw buf[1]) as size_t
         if(msg_len < 11 || 4 + msg_len > len) { return }
@@ -5608,12 +5890,16 @@ public namespace tls {
                 ssl.session.resumption_key_len = 32 as u8
             }
         }
+
     }
+}
 
     // Process post-handshake handshake messages in a decrypted record payload.
     // Handles NewSessionTicket and KeyUpdate (RFC 8446 §4.6.3: on
     // update_requested, update receive keys and respond with our own KeyUpdate).
     async func ssl_handle_post_handshake(ssl : *mut SSLContext, buf : *u8, msglen : i32) : int {
+        unsafe {
+
         var pos : i32 = 0
         while(pos + 4 <= msglen) {
             var mtype = buf[pos]
@@ -5636,7 +5922,9 @@ public namespace tls {
             pos += 4 + mlen
         }
         return 0
+
     }
+}
 
     // Read application data
     public func ssl_read(ssl : *mut SSLContext, buf : *mut u8, len : i32) : int {
@@ -5644,6 +5932,8 @@ public namespace tls {
     }
 
     public async func ssl_read_coro(ssl : *mut SSLContext, buf : *mut u8, len : i32) : int {
+        unsafe {
+
         if(!ssl.transport_connected) { return ERR_SSL_INTERNAL_ERROR }
 
         // If a transform is active, use the record layer (handles decryption)
@@ -5726,7 +6016,9 @@ public namespace tls {
         }
 
         return await ssl_recv(ssl, buf, len)
+
     }
+}
 
     // Write application data
     public func ssl_write(ssl : *mut SSLContext, data : *u8, len : i32) : int {
@@ -5734,6 +6026,8 @@ public namespace tls {
     }
 
     public async func ssl_write_coro(ssl : *mut SSLContext, data : *u8, len : i32) : int {
+        unsafe {
+
         if(!ssl.transport_connected) { return ERR_SSL_INTERNAL_ERROR }
         // Fragment into max-size TLS records; send_record rejects anything
         // larger than MAX_RECORD_PAYLOAD, and a single u16 cast would both
@@ -5747,7 +6041,9 @@ public namespace tls {
             off += chunk
         }
         return len
+
     }
+}
 
     // Close the SSL connection (send close_notify)
     public func ssl_close_notify(ssl : *mut SSLContext) : int {
@@ -5760,6 +6056,8 @@ public namespace tls {
 
     // Free SSL context resources (closes socket, frees handshake params)
     public func ssl_free(ssl : *mut SSLContext) {
+        unsafe {
+
         if(ssl.handshake != null) {
             if(ssl.handshake.ecdhe_public != null) {
                 unsafe { dealloc ssl.handshake.ecdhe_public }
@@ -5814,7 +6112,9 @@ public namespace tls {
             net::close_socket(ssl.transport_socket)
             ssl.transport_connected = false
         }
+
     }
+}
 
     // ============================================================================
     // High-Level TLS Client API
@@ -5825,18 +6125,24 @@ public namespace tls {
     // async path offloads the (inherently blocking) connect to the thread pool
     // and awaits it, then installs the non-blocking transport.
     async func tls_dial(ssl : *mut SSLContext, host : *char, port : uint) : net::Socket {
+        unsafe {
+
         if(ssl.transport_async) {
             var fd = await net::dial_async(host, port)
             return fd as net::Socket
         }
         return net::dial(host, port)
+
     }
+}
 
     public func tls_connect(ssl : *mut SSLContext, host : *char, port : uint) : int {
         return async::block_on<int>(tls_connect_coro(ssl, host, port))
     }
 
     public async func tls_connect_coro(ssl : *mut SSLContext, host : *char, port : uint) : int {
+        unsafe {
+
         ensure_init()
 
         var sock = await tls_dial(ssl, host, port)
@@ -5891,7 +6197,9 @@ public namespace tls {
         }
 
         return 0
+
     }
+}
 
     // Read NewSessionTicket post-handshake message
     public func ssl_read_new_session_ticket(ssl : *mut SSLContext) : int {

@@ -2,6 +2,8 @@ using std::string;
 using std::string_view;
 
 func string_eq(a : *string, b : string_view) : bool {
+    unsafe {
+
     if(a.size() != b.size()) { return false }
     var ad = a.data()
     var bd = b.data()
@@ -11,6 +13,8 @@ func string_eq(a : *string, b : string_view) : bool {
         i += 1
     }
     return true
+
+}
 }
 
 public func main(argc : int, argv : **char) : int {

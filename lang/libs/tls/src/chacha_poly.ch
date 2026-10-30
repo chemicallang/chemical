@@ -8,15 +8,21 @@ func chacha20_rotl(x : u32, n : u32) : u32 {
 }
 
 func chacha20_quarter_round(s : *mut u32, a : size_t, b : size_t, c : size_t, d : size_t) {
+    unsafe {
+
     s[a] = s[a] + s[b]; s[d] = s[d] ^ s[a]; s[d] = chacha20_rotl(s[d], 16u)
     s[c] = s[c] + s[d]; s[b] = s[b] ^ s[c]; s[b] = chacha20_rotl(s[b], 12u)
     s[a] = s[a] + s[b]; s[d] = s[d] ^ s[a]; s[d] = chacha20_rotl(s[d], 8u)
     s[c] = s[c] + s[d]; s[b] = s[b] ^ s[c]; s[b] = chacha20_rotl(s[b], 7u)
+
+}
 }
 
 // Produce one 64-byte ChaCha20 keystream block.
 // key: 32 bytes, counter: 32-bit block counter, nonce: 12 bytes.
 func chacha20_block(key : *u8, counter : u32, nonce : *u8, out : *mut u8) {
+    unsafe {
+
     var state : [16]u32
     // "expand 32-byte k" constants
     state[0] = 0x61707865u
@@ -65,11 +71,15 @@ func chacha20_block(key : *u8, counter : u32, nonce : *u8, out : *mut u8) {
         out[4*j + 3] = ((val >> 24) & 0xFFu) as u8
         j += 1
     }
+
+}
 }
 
 // XOR `len` bytes of `input` with ChaCha20 keystream starting at block `counter_start`.
 func chacha20_xor(key : *u8, nonce : *u8, counter_start : u32,
                   input : *u8, len : size_t, output : *mut u8) {
+                      unsafe {
+
     if(len == 0) { return }
     var block : [64]u8
     var pos : size_t = 0
@@ -86,6 +96,8 @@ func chacha20_xor(key : *u8, nonce : *u8, counter_start : u32,
         pos += n
         ctr += 1u
     }
+
+                  }
 }
 
 // ─── Poly1305 (RFC 8439 §2.5), 26-bit limb implementation ─────────────────────
@@ -99,6 +111,8 @@ public struct Poly1305State {
 }
 
 func poly1305_load_r(state : *mut Poly1305State, key : *u8) {
+    unsafe {
+
     var k = key
     // Clamp r per RFC 8439 §2.5: r &= 0x0ffffffc0ffffffc0ffffffc0fffffff.
     state.r[0] = (k[0] as u32 | (k[1] as u32 << 8) | (k[2] as u32 << 16) | (k[3] as u32 << 24)) & 0x3ffffffu
@@ -106,18 +120,26 @@ func poly1305_load_r(state : *mut Poly1305State, key : *u8) {
     state.r[2] = ((k[6] as u32 >> 4) | (k[7] as u32 << 4) | (k[8] as u32 << 12) | (k[9] as u32 << 20)) & 0x3ffc0ffu
     state.r[3] = ((k[9] as u32 >> 6) | (k[10] as u32 << 2) | (k[11] as u32 << 10) | (k[12] as u32 << 18)) & 0x3f03fffu
     state.r[4] = ((k[12] as u32 >> 8) | (k[13] as u32) | (k[14] as u32 << 8) | (k[15] as u32 << 16)) & 0x00fffffu
+
+}
 }
 
 func poly1305_init(state : *mut Poly1305State, key : *u8) {
+    unsafe {
+
     poly1305_load_r(state, key)
     state.h[0] = 0u; state.h[1] = 0u; state.h[2] = 0u; state.h[3] = 0u; state.h[4] = 0u
     var i : size_t = 0
     while(i < 16) { state.s[i] = key[16 + i]; state.buf[i] = 0u as u8; i += 1 }
     state.buflen = 0
+
+}
 }
 
 // Process one full (16-byte) or partial (final_len-byte) block into h.
 func poly1305_process(state : *mut Poly1305State, block : *u8, is_final : bool, final_len : size_t) {
+    unsafe {
+
     var h = &raw mut state.h[0]
     h[0] = h[0] + ((block[0] as u32 | (block[1] as u32 << 8) | (block[2] as u32 << 16) | (block[3] as u32 << 24)) & 0x3ffffffu)
     h[1] = h[1] + (((block[3] as u32 >> 2) | (block[4] as u32 << 6) | (block[5] as u32 << 14) | (block[6] as u32 << 22)) & 0x3ffffffu)
@@ -156,9 +178,13 @@ func poly1305_process(state : *mut Poly1305State, block : *u8, is_final : bool, 
     c = (h[0] as u64) >> 26
     h[0] = (h[0] & 0x3ffffffu)
     h[1] = h[1] + (c as u32)
+
+}
 }
 
 func poly1305_update(state : *mut Poly1305State, data : *u8, len : size_t) {
+    unsafe {
+
     var pos : size_t = 0
     if(state.buflen > 0) {
         while(pos < len && state.buflen < 16) {
@@ -180,9 +206,13 @@ func poly1305_update(state : *mut Poly1305State, data : *u8, len : size_t) {
         state.buflen += 1
         pos += 1
     }
+
+}
 }
 
 func poly1305_finish(state : *mut Poly1305State, tag : *mut u8) {
+    unsafe {
+
     if(state.buflen > 0) {
         // Zero-fill and process the final partial block.
         var i : size_t = state.buflen
@@ -235,6 +265,8 @@ func poly1305_finish(state : *mut Poly1305State, tag : *mut u8) {
         f = v >> 8
         m += 1
     }
+
+}
 }
 
 // ─── AEAD (RFC 8439 §2.8) ─────────────────────────────────────────────────────
@@ -290,6 +322,8 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
                                aad : *u8, aad_len : size_t,
                                ciphertext : *u8, ct_len : size_t,
                                tag : *u8, plaintext : *mut u8) : int {
+                                   unsafe {
+
     var otk_block : [64]u8
     chacha20_block(key, 0u, nonce, &raw mut otk_block[0])
 
@@ -333,4 +367,6 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
 
     chacha20_xor(key, nonce, 1u, ciphertext, ct_len, plaintext)
     return 0
+
+                               }
 }

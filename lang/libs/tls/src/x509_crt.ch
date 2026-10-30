@@ -157,6 +157,8 @@ public namespace tls {
 
         @delete
         func destruct(&self) {
+            unsafe {
+
             var curr = self.next
             while(curr != null) {
                 var nxt = curr.next
@@ -164,7 +166,9 @@ public namespace tls {
                 curr.prev = null
                 curr = nxt
             }
+
         }
+}
     }
 
     // Free certificate chain — deallocates all malloc'd fields of each node.
@@ -175,6 +179,8 @@ public namespace tls {
     // are BORROWED pointers into the DER buffer (der_copy / raw_pem) and must not
     // be freed individually.
     public func cert_free(crt : *mut X509Cert) {
+        unsafe {
+
         var curr = crt
         while(curr != null) {
             var nxt = curr.next
@@ -186,7 +192,9 @@ public namespace tls {
             curr.subject = string()
             curr = nxt
         }
+
     }
+}
 
     // Free an entire certificate chain, deallocating every node's malloc'd
     // fields AND the X509Cert structs themselves. Unlike cert_free (which only
@@ -194,6 +202,8 @@ public namespace tls {
     // the whole `next` list. Use this for heap-allocated chains such as the
     // system CA bundle and the peer certificate chain from a handshake.
     public func cert_chain_free(head : *mut X509Cert) {
+        unsafe {
+
         var curr = head
         while(curr != null) {
             var nxt = curr.next
@@ -208,10 +218,14 @@ public namespace tls {
             unsafe { dealloc curr }
             curr = nxt
         }
+
     }
+}
 
     // Initialize an X509 certificate
     public func x509_cert_init(crt : *mut X509Cert) {
+        unsafe {
+
         crt.raw_pem = null
         crt.raw_pem_len = 0
         crt.version = 0
@@ -251,7 +265,9 @@ public namespace tls {
         crt.next = null
         crt.prev = null
         crt.flags = 0
+
     }
+}
 
     // Get CN from subject
     public func cert_get_cn(crt : *mut X509Cert, out : *mut string) { unsafe {
@@ -311,6 +327,8 @@ public namespace tls {
 
     // Compare an OID at data+pos of oid_len bytes against reference bytes
     func oid_matches(data : *u8, oid_len : size_t, ref : *u8, ref_len : size_t) : bool {
+        unsafe {
+
         if(oid_len != ref_len) { return false }
         var i : size_t = 0
         while(i < oid_len) {
@@ -318,7 +336,9 @@ public namespace tls {
             i += 1
         }
         return true
+
     }
+}
 
     // Parse a printable/IA5/UTF8 string from ASN.1 into a Chemical string
     func asn1_read_string(data : *u8, data_len : size_t, pos : *mut size_t,
@@ -538,6 +558,8 @@ public namespace tls {
 
     // Parse a DER-encoded X.509 certificate (RFC 5280)
     public func parse_cert_der(crt : *mut X509Cert, der_data : *u8, der_len : size_t) : int {
+        unsafe {
+
         if(der_len < 10) { return ERR_X509_INVALID_FORMAT }
 
         crt.raw_pem = der_data as *mut u8
@@ -843,7 +865,9 @@ public namespace tls {
         }
 
         return 0
+
     }
+}
 
     // ============================================================================
     // PEM Certificate Parsing
@@ -851,6 +875,8 @@ public namespace tls {
 
     // Parse a PEM-encoded certificate
     public func parse_cert_pem(crt : *mut X509Cert, pem_data : *u8, pem_len : size_t) : int {
+        unsafe {
+
         var begin_marker = string_view("-----BEGIN CERTIFICATE-----")
         var end_marker = string_view("-----END CERTIFICATE-----")
 
@@ -932,6 +958,8 @@ public namespace tls {
 
         // Parse the DER certificate
         return parse_cert_der(crt, &raw der_buf[0], decoded_len)
+
     }
+}
 
 } // namespace tls

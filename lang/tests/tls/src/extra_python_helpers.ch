@@ -40,6 +40,8 @@ using std::vector;
 
 // Hex-encode a byte view (lowercase), one output char pair per input byte.
 func xpy_hex_encode(data : *u8, len : size_t) : string {
+    unsafe {
+
     var out = string()
     var i : size_t = 0
     while(i < len) {
@@ -48,6 +50,8 @@ func xpy_hex_encode(data : *u8, len : size_t) : string {
         i += 1
     }
     return out
+
+}
 }
 
 // Convenience wrapper for strings.
@@ -57,6 +61,8 @@ func xpy_hex_encode_str(sv : string_view) : string {
 
 // Write a seqsrv script: one hex-encoded response per line.
 func xpy_write_seq_script(path : *char, lines : vector<string>) : bool {
+    unsafe {
+
     var content = string()
     var i : size_t = 0
     while(i < lines.size()) {
@@ -66,6 +72,8 @@ func xpy_write_seq_script(path : *char, lines : vector<string>) : bool {
         i += 1
     }
     return test_write_file(path, content.data() as *u8, content.size())
+
+}
 }
 
 // Deterministic i%256 pattern (full byte cycle — catches signed-char bugs).

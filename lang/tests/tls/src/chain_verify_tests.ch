@@ -19,6 +19,8 @@ using std::string
 
 @test
 public func INT_mpi_mul_4096_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var a : [512]u8; test_random_bytes(&raw mut a[0], 512)
     var b : [512]u8; test_random_bytes(&raw mut b[0], 512)
     a[0] = a[0] | 0x80     // force the top bit so it's a real 4096-bit value
@@ -56,6 +58,8 @@ public func INT_mpi_mul_4096_vs_python(env : &mut TestEnv) {
     ret = mpi_write_binary(unsafe(&raw mut mx), &raw mut chem_mul[0], 1024)
     if(ret < 0) { env.error("mpi_write_binary failed"); return }
     if(!test_bytes_eq(&raw chem_mul[0], &raw py_mul[0], 1024)) { env.error("mpi_mul 4096 mismatch vs Python"); return }
+
+}
 }
 
 // ─── 4096-bit modular exponentiation vs Python ──────────────────────
@@ -65,6 +69,8 @@ public func INT_mpi_mul_4096_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_mpi_exp_mod_4096_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var n : [512]u8; test_random_bytes(&raw mut n[0], 512)
     var a : [512]u8; test_random_bytes(&raw mut a[0], 512)
     n[0] = n[0] | 0x80     // 4096-bit modulus
@@ -105,6 +111,8 @@ public func INT_mpi_exp_mod_4096_vs_python(env : &mut TestEnv) {
     ret = mpi_write_binary(unsafe(&raw mut mr), &raw mut chem_r[0], 512)
     if(ret < 0) { env.error("mpi_write_binary failed"); return }
     if(!test_bytes_eq(&raw chem_r[0], &raw py_r[0], 512)) { env.error("mpi_exp_mod 4096 mismatch vs Python"); return }
+
+}
 }
 
 // ─── 4096-bit RSA self-signed cert signature verify vs Python ───────
@@ -113,6 +121,8 @@ public func INT_mpi_exp_mod_4096_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_rsa4096_cert_signature_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var cert_path = test_tmp_file(string_view("chem_rsa4096_cert.der"))
     var script : [2048]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "import datetime\nfrom cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import rsa\nfrom cryptography.hazmat.primitives.serialization import Encoding\n" as *char; si=0
@@ -149,6 +159,8 @@ public func INT_rsa4096_cert_signature_vs_python(env : &mut TestEnv) {
 
     ret = x509_verify_cert_signature(unsafe(&raw mut crt), unsafe(&raw mut rsa_ctx))
     if(ret < 0) { env.error("4096-bit RSA cert signature verification failed"); return }
+
+}
 }
 
 // ─── 2048-bit still verifies (guard against over-tightening) ────────
@@ -156,6 +168,8 @@ public func INT_rsa4096_cert_signature_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_rsa2048_cert_signature_still_verifies(env : &mut TestEnv) {
+    unsafe {
+
     var cert_path = test_tmp_file(string_view("chem_rsa2048_cert.der"))
     var script : [2048]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "import datetime\nfrom cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import rsa\nfrom cryptography.hazmat.primitives.serialization import Encoding\n" as *char; si=0
@@ -187,6 +201,8 @@ public func INT_rsa2048_cert_signature_still_verifies(env : &mut TestEnv) {
     if(ret < 0) { env.error("x509_extract_rsa_pubkey failed"); return }
     ret = x509_verify_cert_signature(unsafe(&raw mut crt), unsafe(&raw mut rsa_ctx))
     if(ret < 0) { env.error("2048-bit RSA cert signature verification failed"); return }
+
+}
 }
 
 // ─── Full chain: leaf -> intermediate (RSA 2048) -> root (RSA 4096) ──
@@ -196,6 +212,8 @@ public func INT_rsa2048_cert_signature_still_verifies(env : &mut TestEnv) {
 // at 4b) AND a 4096-bit RSA signature on the root→intermediate link.
 
 func test_write_chain_python() {
+    unsafe {
+
     var root_path = test_tmp_file(string_view("chem_chain_root.der"))
     var inter_path = test_tmp_file(string_view("chem_chain_inter.der"))
     var leaf_path = test_tmp_file(string_view("chem_chain_leaf.der"))
@@ -235,6 +253,8 @@ func test_write_chain_python() {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     test_python_run_script(&raw script[0], sp, string_view("chain_gen.py"))
+
+}
 }
 
 func test_read_der_file(path : *char, buf : *mut u8, max_len : size_t) : size_t {
@@ -284,6 +304,8 @@ public func INT_x509_chain_leaf_intermediate_root_vs_python(env : &mut TestEnv) 
 
 @test
 public func INT_x509_chain_wrong_root_fails_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     test_write_chain_python()
 
     var root_path = test_tmp_file(string_view("chem_chain_root.der"))
@@ -330,6 +352,8 @@ public func INT_x509_chain_wrong_root_fails_vs_python(env : &mut TestEnv) {
     var hostname = "test.example.com\0" as *char
     ret = x509_verify_chain(unsafe(&raw mut leaf), unsafe(&raw mut wrong), hostname)
     if(ret == 0) { env.error("chain verify should FAIL with unrelated root"); return }
+
+}
 }
 
 // ─── Chain fails when the intermediate is NOT provided ──────────────
@@ -367,6 +391,8 @@ public func INT_x509_chain_missing_intermediate_fails_vs_python(env : &mut TestE
 
 @test
 public func INT_x509_pem_bundle_multicert_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     test_write_chain_python()
     var root_path = test_tmp_file(string_view("chem_chain_root.der"))
     var inter_path = test_tmp_file(string_view("chem_chain_inter.der"))
@@ -431,6 +457,8 @@ public func INT_x509_pem_bundle_multicert_vs_python(env : &mut TestEnv) {
     if(ret != 0) { env.error("bundle chain verify should succeed") }
 
     cert_chain_free(chain)
+
+}
 }
 
 // ─── cert_chain_free on a system CA bundle (regression) ─────────────
@@ -439,6 +467,8 @@ public func INT_x509_pem_bundle_multicert_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_cert_chain_free_system_bundle_stability(env : &mut TestEnv) {
+    unsafe {
+
     var ca = load_system_ca_bundle()
     if(ca == null) {
         env.error("no system CA bundle found")
@@ -449,4 +479,6 @@ public func INT_cert_chain_free_system_bundle_stability(env : &mut TestEnv) {
     while(curr != null) { count += 1; curr = curr.next }
     if(count < 1) { env.error("system CA bundle should contain at least one cert") }
     cert_chain_free(ca)
+
+}
 }

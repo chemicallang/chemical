@@ -22,7 +22,7 @@ using namespace http;
 // Self-signed cert with CN = test.example.com and SAN = test.example.com.
 // Generated offline; embedded here so hostname verification can be tested with no
 // external dependency. PEM, with \n escapes (null-terminated by the compiler).
-const CN_MATCH_CERT_PEM = "-----BEGIN CERTIFICATE-----\nMIIDNDCCAhygAwIBAgIUReQXw+WA5EeYQIKMWNT3dS3tZo4wDQYJKoZIhvcNAQEL\nBQAwGzEZMBcGA1UEAwwQdGVzdC5leGFtcGxlLmNvbTAeFw0yNjA3MjAyMDExMDFa\nFw0zNjA3MTcyMDExMDFaMBsxGTAXBgNVBAMMEHRlc3QuZXhhbXBsZS5jb20wggEi\nMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDZMf/LRlRHllMBSA1Cdg4tSECx\nMeDx1GArHFb/I4h/C3G1VLYcdBLW4u3wglruevYxTS4y2PmrnFVD9Z1HNrwWdr0O\nJcB2bIy99ewp//Dn15zuhnq0NVU60OqwUgSgGcEhWQKQ5FqKIiK5Rto/VWtKtRX9\nP+AoY4XzJcghmJDKaT7re2mr4a9xUQSwvuuB8cw+2GeDLTfz4EUmMUlW4rktMUJz\nvRvOch//YqHMzWPOADzDCYRubQJBM/9xCtIhZ2r9kBJEIFZrNdssVdNQFD1gSKFa\n72m0T1s2utcxfltHd2Vg7exqKK14GECFNqZjVJ8C33+eGsQ9lsnwEhXRFOk3AgMB\nAAGjcDBuMB0GA1UdDgQWBBRihxMVKilsvz1bOm2crfPfBajfVTAfBgNVHSMEGDAW\ngBRihxMVKilsvz1bOm2crfPfBajfVTAPBgNVHRMBAf8EBTADAQH/MBsGA1UdEQQU\nMBKCEHRlc3QuZXhhbXBsZS5jb20wDQYJKoZIhvcNAQELBQADggEBAHpA6Z8WGLNZ\nzuB1NTTSWmBQGWIRQ4jXxmZHNco5b3T0dh7XHMJCylbUjDVr8mr20Rk5BOpm12EY\nOX/57EbLzkgGLfqhCzF2EXso9VX9ehAQgUA/xPdI3TuK8IDF3rq7572YPhsZ6GLP\neQUAH6KtILBq+7iXUutT2030kNqMz1RV3ou2XWRUR8u4TuyEp+4fiOEMYDn4Jgy9\n3Bxv6Ut9JtJ6G1gf7UG1ti7KHALdTnvtbqufWULN+7THC4bjYiWTaHc2mSR1XlK4\nPBowmTbXMAEegAPH3BsZngvr919nwEjB/Is8wQ2Th2eP23jxA1sd4NRHC0qAu1uF\nKYaERzwx51g=\n-----END CERTIFICATE-----\n" as *char;
+@thread_local const CN_MATCH_CERT_PEM = "-----BEGIN CERTIFICATE-----\nMIIDNDCCAhygAwIBAgIUReQXw+WA5EeYQIKMWNT3dS3tZo4wDQYJKoZIhvcNAQEL\nBQAwGzEZMBcGA1UEAwwQdGVzdC5leGFtcGxlLmNvbTAeFw0yNjA3MjAyMDExMDFa\nFw0zNjA3MTcyMDExMDFaMBsxGTAXBgNVBAMMEHRlc3QuZXhhbXBsZS5jb20wggEi\nMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDZMf/LRlRHllMBSA1Cdg4tSECx\nMeDx1GArHFb/I4h/C3G1VLYcdBLW4u3wglruevYxTS4y2PmrnFVD9Z1HNrwWdr0O\nJcB2bIy99ewp//Dn15zuhnq0NVU60OqwUgSgGcEhWQKQ5FqKIiK5Rto/VWtKtRX9\nP+AoY4XzJcghmJDKaT7re2mr4a9xUQSwvuuB8cw+2GeDLTfz4EUmMUlW4rktMUJz\nvRvOch//YqHMzWPOADzDCYRubQJBM/9xCtIhZ2r9kBJEIFZrNdssVdNQFD1gSKFa\n72m0T1s2utcxfltHd2Vg7exqKK14GECFNqZjVJ8C33+eGsQ9lsnwEhXRFOk3AgMB\nAAGjcDBuMB0GA1UdDgQWBBRihxMVKilsvz1bOm2crfPfBajfVTAfBgNVHSMEGDAW\ngBRihxMVKilsvz1bOm2crfPfBajfVTAPBgNVHRMBAf8EBTADAQH/MBsGA1UdEQQU\nMBKCEHRlc3QuZXhhbXBsZS5jb20wDQYJKoZIhvcNAQELBQADggEBAHpA6Z8WGLNZ\nzuB1NTTSWmBQGWIRQ4jXxmZHNco5b3T0dh7XHMJCylbUjDVr8mr20Rk5BOpm12EY\nOX/57EbLzkgGLfqhCzF2EXso9VX9ehAQgUA/xPdI3TuK8IDF3rq7572YPhsZ6GLP\neQUAH6KtILBq+7iXUutT2030kNqMz1RV3ou2XWRUR8u4TuyEp+4fiOEMYDn4Jgy9\n3Bxv6Ut9JtJ6G1gf7UG1ti7KHALdTnvtbqufWULN+7THC4bjYiWTaHc2mSR1XlK4\nPBowmTbXMAEegAPH3BsZngvr919nwEjB/Is8wQ2Th2eP23jxA1sd4NRHC0qAu1uF\nKYaERzwx51g=\n-----END CERTIFICATE-----\n" as *char;
 
 // Minimal but syntactically valid TLS 1.3 ServerHello flight (hand-constructed).
 // Record: handshake(0x16) / version 0x0303 / len 0x5A
@@ -84,9 +84,13 @@ public func https_tls13_server_handshake_is_not_implemented(env : &mut TestEnv) 
 // fixture file must use a unique path to avoid write/read races on a shared
 // /tmp path.
 func write_cn_cert_fixture(env : &mut TestEnv, path : *char) : bool {
+    unsafe {
+
     var w = fs::write_text_file(path, CN_MATCH_CERT_PEM as *u8, string_view(CN_MATCH_CERT_PEM).size());
     if(w is Result.Err) { env.error("failed to write cert fixture"); return false }
     return true;
+
+}
 }
 
 @test

@@ -131,6 +131,8 @@ func test_py_run_foreground(args : string_view) {
 
 // Run a python tls_utils.py command in the background (same lifetime care).
 func test_py_run_background(args : string_view) {
+    unsafe {
+
     // Remember which port to poll in test_server_wait(): every backgrounded
     // command names the port under test (the listen port for `srv`/`httpsrv`/
     // `mround`/`echo`/`plaintcp`/`srv2`/`bigsrv`, the target port for `cli`/
@@ -139,6 +141,8 @@ func test_py_run_background(args : string_view) {
     if(port != 0u) { test_bg_server_port = port }
     var cmd = test_py_cmd(args)
     test_run_bg(cmd.data())
+
+}
 }
 
 // Kill whatever is listening on `port`.
@@ -150,6 +154,8 @@ func test_py_run_background(args : string_view) {
 // either races the stale listener or dies on a full backlog. Orphaned servers
 // accumulated one per run until the port was unusable.
 func test_kill_port(port : int) {
+    unsafe {
+
     comptime if(def.windows) {
         // The trailing space pins the match to the whole local-address column,
         // so killing port 2021 never takes 20212 down with it.
@@ -168,6 +174,8 @@ func test_kill_port(port : int) {
     // be released, and polling a port we just killed would sit out the whole
     // 5s budget instead of doing the intended 1s settle.
     test_bg_server_port = 0
+
+}
 }
 
 // Print a file to stdout (used to surface python client stderr in e2e tests).
@@ -250,12 +258,16 @@ func test_server_port_of(args : string_view) : u16 {
 var test_fuser_state : int = -1
 
 func test_fuser_available() : bool {
+    unsafe {
+
     if(test_fuser_state < 0) {
         test_fuser_state = 0
         // Absent `fuser` makes system() return 127, not a bind failure.
         if(unsafe(system("fuser --version >/dev/null 2>&1")) == 0) { test_fuser_state = 1 }
     }
     return test_fuser_state == 1
+
+}
 }
 
 // True once some process is listening on `port`. A socket that is only bound,
@@ -308,6 +320,8 @@ func test_wait_attempts() : int {
 // outlives a fixed 1s pause, and the losing test then reports a bogus handshake
 // or connection error that looks like a TLS-stack bug.
 func test_server_wait() {
+    unsafe {
+
     if(test_bg_server_port != 0u) {
         var can_probe = true
         comptime if(!def.windows) {
@@ -333,10 +347,14 @@ func test_server_wait() {
     } else {
         unsafe { system("sleep 1") }
     }
+
+}
 }
 
 // Run a command (already fully formed, including redirects) in the background.
 func test_run_bg(cmd : *char) {
+    unsafe {
+
     comptime if(def.windows) {
         var full = string("start /b ")
         full.append_view(string_view(cmd))
@@ -347,6 +365,8 @@ func test_run_bg(cmd : *char) {
         full.append_view(" &")
         unsafe { system(full.data()) }
     }
+
+}
 }
 
 // Launch a background server on a known port and wait until it is listening.
@@ -355,9 +375,13 @@ func test_run_bg(cmd : *char) {
 // at whatever the *previous* helper set, so the readiness poll silently
 // watches the wrong socket.
 func test_run_bg_server(cmd : *char, port : u16) {
+    unsafe {
+
     test_bg_server_port = port
     test_run_bg(cmd)
     test_server_wait()
+
+}
 }
 
 // Write a shared helper script, but only when its content actually differs
@@ -383,6 +407,8 @@ func test_write_script_if_changed(path : *char, data : *u8, len : size_t) : bool
 // True when the file at `path` already holds exactly `len` bytes equal to
 // `data`. A missing or unreadable file counts as "does not match".
 func test_file_matches(path : *char, data : *u8, len : size_t) : bool {
+    unsafe {
+
     var f = unsafe(fopen(path, "rb\0" as *char))
     if(f == null) { return false } else {}
     var i : size_t = 0
@@ -408,6 +434,8 @@ func test_file_matches(path : *char, data : *u8, len : size_t) : bool {
     } else {}
     unsafe { fclose(f) }
     return same
+
+}
 }
 
 // -- Cross-platform Python script runner --
@@ -419,6 +447,8 @@ func test_python_run_script(script : *u8, len : size_t, script_name : string_vie
 }
 
 func test_python_run_script_file(py_path : *char) : vector<u8> {
+    unsafe {
+
     var result = vector<u8>()
     var out_path = string(py_path)
     out_path.append_view(".out")
@@ -444,10 +474,14 @@ func test_python_run_script_file(py_path : *char) : vector<u8> {
     var i : size_t = 0
     while(i < n) { result.push(buf[i]); i += 1 }
     return result
+
+}
 }
 
 // -- Parse hex output from Python stdout --
 func test_parse_py_hex_label(output : *vector<u8>, label : string_view, out : *mut u8, out_len : size_t) : size_t {
+    unsafe {
+
     var pos : size_t = 0
     var found = false
     while(pos + label.size() < output.size()) {
@@ -481,6 +515,8 @@ func test_parse_py_hex_label(output : *vector<u8>, label : string_view, out : *m
         pos += 2
     }
     return written
+
+}
 }
 
 func test_nibble_to_hex(n : uint) : char {
@@ -489,6 +525,8 @@ func test_nibble_to_hex(n : uint) : char {
 }
 
 func test_bytes_to_hex(data : *u8, len : size_t, hex_out : *mut char) {
+    unsafe {
+
     var i : size_t = 0
     while(i < len) {
         hex_out[i*2] = test_nibble_to_hex(((data[i] as uint)>>4)&0xF)
@@ -496,12 +534,18 @@ func test_bytes_to_hex(data : *u8, len : size_t, hex_out : *mut char) {
         i += 1
     }
     hex_out[len*2] = 0
+
+}
 }
 
 func test_bytes_eq(a : *u8, b : *u8, len : size_t) : bool {
+    unsafe {
+
     var i : size_t = 0
     while(i < len) { if(a[i] != b[i]) { return false }; i += 1 }
     return true
+
+}
 }
 
 func test_write_file(path : *char, data : *u8, len : size_t) : bool {

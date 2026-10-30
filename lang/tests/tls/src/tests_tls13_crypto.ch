@@ -16,21 +16,29 @@ using namespace tls
 // ─── Helper: byte-level comparison ─────────────────────────────────────────
 
 func bytes_eq(a : *u8, b : *u8, len : size_t) : bool {
+    unsafe {
+
     var i : size_t = 0
     while(i < len) {
         if(a[i] != b[i]) { return false }
         i += 1
     }
     return true
+
+}
 }
 
 func bytes_not_all_zero(buf : *u8, len : size_t) : bool {
+    unsafe {
+
     var i : size_t = 0
     while(i < len) {
         if(buf[i] != 0) { return true }
         i += 1
     }
     return false
+
+}
 }
 
 // ─── Helper: set up an SSLContext with symmetric transforms for testing ────
@@ -167,6 +175,8 @@ public func tls_ssl_config_init_server_works(env : &mut TestEnv) {
 
 @test
 public func tls13_derive_handshake_keys_works(env : &mut TestEnv) {
+    unsafe {
+
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.authmode = SSL_VERIFY_NONE
 
@@ -231,10 +241,14 @@ public func tls13_derive_handshake_keys_works(env : &mut TestEnv) {
     if(unsafe(ctx.transform_out.iv_len) != 12) {
         env.error("iv_len should be 12 for TLS 1.3")
     }
+
+}
 }
 
 @test
 public func tls13_derive_application_keys_works(env : &mut TestEnv) {
+    unsafe {
+
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.authmode = SSL_VERIFY_NONE
 
@@ -310,6 +324,8 @@ public func tls13_derive_application_keys_works(env : &mut TestEnv) {
     if(!bytes_not_all_zero(&raw ctx.transform_in.key_dec[0], 16)) {
         env.error("application server key should be non-zero")
     }
+
+}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -552,6 +568,8 @@ public func tls13_decrypt_tampered_ct_fails(env : &mut TestEnv) {
 
 @test
 public func tls13_update_send_keys_works(env : &mut TestEnv) {
+    unsafe {
+
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.authmode = SSL_VERIFY_NONE
 
@@ -626,6 +644,8 @@ public func tls13_update_send_keys_works(env : &mut TestEnv) {
     if(!seq_all_zero) {
         env.error("send sequence number should be reset after key update")
     }
+
+}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

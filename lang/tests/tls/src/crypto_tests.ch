@@ -12,6 +12,8 @@ func print_hex(label : *char, data : *u8, len : size_t) {
 }
 
 func read_hex_output(filepath : *char, out : *mut u8, out_max : size_t) : size_t {
+    unsafe {
+
     var buf : [512]u8
     var n = test_read_file(filepath, &raw mut buf[0], 512)
     var out_len : size_t = 0
@@ -20,10 +22,14 @@ func read_hex_output(filepath : *char, out : *mut u8, out_max : size_t) : size_t
         out_len += 1
     }
     return out_len
+
+}
 }
 
 // Write script to temp dir, run it with python, read hex output
 func run_py_script(script : *u8, slen : size_t, out : *mut u8, out_max : size_t) : size_t {
+    unsafe {
+
     var rnd : u32 = unsafe(std::mem.zeroed_unchecked<u32>())
     tls::random_fill(unsafe(&raw mut rnd) as *mut u8, 4)
     var name = string("py_")
@@ -41,16 +47,24 @@ func run_py_script(script : *u8, slen : size_t, out : *mut u8, out_max : size_t)
         pos += 2
     }
     return written
+
+}
 }
 
 func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
+    unsafe {
+
     var buf : [32]u8
     mpi_write_binary(m, &raw mut buf[0], 32)
     var i : size_t = 0; while(i < 32) { out[i] = buf[i]; i += 1 }
+
+}
 }
 
 // === mpi_mul_int: P-256 * 4 ===
 @test public func TEST_mpi_mul_int_vs_py(env:&mut TestEnv) {
+    unsafe {
+
     var p : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); ecp_curve_p(unsafe(&raw mut p))
     var p_bytes : [32]u8; mpi_get_bytes(unsafe(&raw mut p), &raw mut p_bytes[0])
     var p_hex : [65]char; test_bytes_to_hex(&raw p_bytes[0], 32, &raw mut p_hex[0])
@@ -82,10 +96,14 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
         print_hex("chem", &raw cb[64-cs], cs); print_hex("py  ", &raw py_r[0], py_len)
         env.error("mpi_mul_int mismatch")
     }
+
+}
 }
 
 // === mpi_sub: P-256 - 5 ===
 @test public func TEST_mpi_sub_vs_py(env:&mut TestEnv) {
+    unsafe {
+
     var p : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); ecp_curve_p(unsafe(&raw mut p))
     var p_bytes : [32]u8; mpi_get_bytes(unsafe(&raw mut p), &raw mut p_bytes[0])
     var p_hex : [65]char; test_bytes_to_hex(&raw p_bytes[0], 32, &raw mut p_hex[0])
@@ -118,10 +136,14 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
         print_hex("chem", &raw cb[40-cs], cs); print_hex("py  ", &raw py_r[0], py_len)
         env.error("mpi_sub mismatch")
     }
+
+}
 }
 
 // === mpi_add: P-256 + 5 ===
 @test public func TEST_mpi_add_vs_py(env:&mut TestEnv) {
+    unsafe {
+
     var p : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); ecp_curve_p(unsafe(&raw mut p))
     var p_bytes : [32]u8; mpi_get_bytes(unsafe(&raw mut p), &raw mut p_bytes[0])
     var p_hex : [65]char; test_bytes_to_hex(&raw p_bytes[0], 32, &raw mut p_hex[0])
@@ -154,10 +176,14 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
         print_hex("chem", &raw cb[40-cs], cs); print_hex("py  ", &raw py_r[0], py_len)
         env.error("mpi_add mismatch")
     }
+
+}
 }
 
 // === mpi_mul: P-256 * 2 ===
 @test public func TEST_mpi_mul_vs_py(env:&mut TestEnv) {
+    unsafe {
+
     var p : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); ecp_curve_p(unsafe(&raw mut p))
     var p_bytes : [32]u8; mpi_get_bytes(unsafe(&raw mut p), &raw mut p_bytes[0])
     var p_hex : [65]char; test_bytes_to_hex(&raw p_bytes[0], 32, &raw mut p_hex[0])
@@ -190,10 +216,14 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
         print_hex("chem", &raw cb[64-cs], cs); print_hex("py  ", &raw py_r[0], py_len)
         env.error("mpi_mul mismatch")
     }
+
+}
 }
 
 // === mpi_mod: (P-256 + 5) mod 7 ===
 @test public func TEST_mpi_mod_vs_py(env:&mut TestEnv) {
+    unsafe {
+
     var p : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); ecp_curve_p(unsafe(&raw mut p))
     var p_bytes : [32]u8; mpi_get_bytes(unsafe(&raw mut p), &raw mut p_bytes[0])
     var p_hex : [65]char; test_bytes_to_hex(&raw p_bytes[0], 32, &raw mut p_hex[0])
@@ -227,10 +257,14 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
         if(py_len>0) { unsafe { printf("[py] ") }; pi=0; while(pi<py_len){unsafe { printf("%02x",py_r[pi]as int) };pi+=1}; unsafe { printf("\n") } }
         env.error("mpi_mod mismatch")
     }
+
+}
 }
 
 // === mpi_mod with negative: (3 - P-256) mod P-256 = 3 ===
 @test public func TEST_mpi_negmod_vs_py(env:&mut TestEnv) {
+    unsafe {
+
     var p : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); ecp_curve_p(unsafe(&raw mut p))
     var p_bytes : [32]u8; mpi_get_bytes(unsafe(&raw mut p), &raw mut p_bytes[0])
     var p_hex : [65]char; test_bytes_to_hex(&raw p_bytes[0], 32, &raw mut p_hex[0])
@@ -265,6 +299,8 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
         if(py_len>0) { unsafe { printf("[py] ") }; pi=0; while(pi<py_len){unsafe { printf("%02x",py_r[pi]as int) };pi+=1}; unsafe { printf("\n") } }
         env.error("mpi_mod(negative) mismatch")
     }
+
+}
 }
 
 // === P-256 prime self-consistency check ===
@@ -515,6 +551,8 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 // real-world intermediate CAs (e.g. Sectigo R46 chains) sign with these.
 
 func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
+    unsafe {
+
     var hd = string::make_no_len("0123456789abcdef")
     var i : usize = 0
     while(i < len) {
@@ -523,9 +561,13 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
         out.append(hd.get((b & 0x0F) as uint))
         i += 1
     }
+
+}
 }
 
 @test public func TEST_sha384_known_vectors(env:&mut TestEnv) {
+    unsafe {
+
     var abc : [3]u8
     abc[0] = 'a' as u8; abc[1] = 'b' as u8; abc[2] = 'c' as u8
     var digest : [64]u8
@@ -560,9 +602,13 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
         env.error("sha384(chunk) mismatch")
         unsafe { printf("got  %s\nwant %s\n", h.data(), want_msg.data()) }
     }
+
+}
 }
 
 @test public func TEST_sha512_known_vectors(env:&mut TestEnv) {
+    unsafe {
+
     var abc : [3]u8
     abc[0] = 'a' as u8; abc[1] = 'b' as u8; abc[2] = 'c' as u8
     var digest : [64]u8
@@ -596,6 +642,8 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
         env.error("sha512(chunk) mismatch")
         unsafe { printf("got  %s\nwant %s\n", h.data(), want_msg.data()) }
     }
+
+}
 }
 
 // Regression: sha384_final / sha384_hash must write exactly 48 bytes.

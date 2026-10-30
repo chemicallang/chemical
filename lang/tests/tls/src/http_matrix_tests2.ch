@@ -12,8 +12,8 @@ using std::string_view
 
 // Shared counter for concurrent matrix tests.
 struct MtxCounter {
-    var ok_plain : uint = unsafe(std::mem.zeroed_unchecked<uint>());
-    var ok_tls : uint = unsafe(std::mem.zeroed_unchecked<uint>());
+    var ok_plain : uint = 0u;
+    var ok_tls : uint = 0u;
     var lock : std.mutex
 }
 
@@ -293,7 +293,7 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
 
 // â”€â”€â”€ 9. Parallel upload + download streams through the same server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 struct MtxUpDown {
-    var fails : uint = unsafe(std::mem.zeroed_unchecked<uint>());
+    var fails : uint = 0u;
     var lock : std.mutex
 }
 

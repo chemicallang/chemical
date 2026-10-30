@@ -8,6 +8,8 @@ using std::Result
 
 @test
 public func INT_aes128_ecb_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
     var pt : [32]u8; test_random_bytes(&raw mut pt[0], 32)
 
@@ -37,10 +39,14 @@ public func INT_aes128_ecb_vs_python(env : &mut TestEnv) {
     aes_crypt_ecb(unsafe(&raw mut ctx), AES_ENCRYPT, &raw pt[0], &raw mut chem_ct[0])
     aes_crypt_ecb(unsafe(&raw mut ctx), AES_ENCRYPT, &raw pt[16], &raw mut chem_ct[16])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 32)) { env.error("AES-128-ECB ct mismatch vs Python"); return }
+
+}
 }
 
 @test
 public func INT_aes256_ecb_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var key : [32]u8; test_random_bytes(&raw mut key[0], 32)
     var pt : [32]u8; test_random_bytes(&raw mut pt[0], 32)
 
@@ -70,12 +76,16 @@ public func INT_aes256_ecb_vs_python(env : &mut TestEnv) {
     aes_crypt_ecb(unsafe(&raw mut ctx), AES_ENCRYPT, &raw pt[0], &raw mut chem_ct[0])
     aes_crypt_ecb(unsafe(&raw mut ctx), AES_ENCRYPT, &raw pt[16], &raw mut chem_ct[16])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 32)) { env.error("AES-256-ECB ct mismatch vs Python"); return }
+
+}
 }
 
 // ─── AES-ECB decrypt vs Python ─────────────────────────────────────
 
 @test
 public func INT_aes128_ecb_decrypt_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
     var pt : [16]u8; test_random_bytes(&raw mut pt[0], 16)
 
@@ -105,12 +115,16 @@ public func INT_aes128_ecb_decrypt_vs_python(env : &mut TestEnv) {
     var chem_dec : [16]u8
     aes_crypt_ecb(unsafe(&raw mut ctx), AES_DECRYPT, &raw py_ct[0], &raw mut chem_dec[0])
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 16)) { env.error("AES-128-ECB decrypt roundtrip mismatch vs Python"); return }
+
+}
 }
 
 // ─── TLS 1.2 GCM record encrypt vs Python ──────────────────────────
 
 @test
 public func INT_tls12_record_gcm_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
     var iv : [4]u8; test_random_bytes(&raw mut iv[0], 4)
     var pt : [16]u8; test_random_bytes(&raw mut pt[0], 16)
@@ -174,12 +188,16 @@ public func INT_tls12_record_gcm_vs_python(env : &mut TestEnv) {
     var dec_ret = tls12_decrypt_record(unsafe(&raw mut tr_dec), &raw seq[0], SSL_MSG_APPLICATION_DATA as u8, 3, 3, &raw ct_out[0], enc_len as size_t, &raw mut dec_out[0], 64)
     if(dec_ret < 0) { env.error("tls12_decrypt_record failed"); return }
     if(!test_bytes_eq(&raw dec_out[0], &raw pt[0], 16)) { env.error("TLS 1.2 GCM record Chemical decrypt mismatch"); return }
+
+}
 }
 
 // ─── TLS 1.2 Finished message vs Python ────────────────────────────
 
 @test
 public func INT_tls12_finished_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var ms : [48]u8; test_random_bytes(&raw mut ms[0], 48)
     var handshake_hash : [36]u8; test_random_bytes(&raw mut handshake_hash[0], 36)
 
@@ -216,12 +234,16 @@ public func INT_tls12_finished_vs_python(env : &mut TestEnv) {
     if(cf_len != 12 || sf_len != 12) { env.error("failed to parse Python output"); return }
     if(!test_bytes_eq(&raw chem_client_finished[0], &raw py_cf[0], 12)) { env.error("client Finished mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_server_finished[0], &raw py_sf[0], 12)) { env.error("server Finished mismatch vs Python"); return }
+
+}
 }
 
 // ─── X.509 RSA cert signature verification vs Python ───────────────
 
 @test
 public func INT_x509_rsa_signature_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var script : [2048]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "from cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import rsa\nimport datetime\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
@@ -259,6 +281,8 @@ public func INT_x509_rsa_signature_vs_python(env : &mut TestEnv) {
 
     ret = x509_verify_cert_signature(unsafe(&raw mut crt), unsafe(&raw mut rsa_ctx))
     if(ret < 0) { env.error("RSA cert signature verification failed"); return }
+
+}
 }
 
 // ─── TLS 1.3 record encrypt then Python decrypt + Python encrypt then Chemical decrypt ───
@@ -351,6 +375,8 @@ public func INT_tls13_record_bidirectional_python(env : &mut TestEnv) {
 
 @test
 public func INT_hmac_sha256_long_msg_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var key : [32]u8; test_random_bytes(&raw mut key[0], 32)
     var data : [256]u8; test_random_bytes(&raw mut data[0], 256)
 
@@ -377,12 +403,16 @@ public func INT_hmac_sha256_long_msg_vs_python(env : &mut TestEnv) {
     var chem_mac : [32]u8
     hmac_sha256(&raw key[0], 32, &raw data[0], 256, &raw mut chem_mac[0])
     if(!test_bytes_eq(&raw chem_mac[0], &raw py_mac[0], 32)) { env.error("HMAC-SHA256 long msg mismatch vs Python"); return }
+
+}
 }
 
 // ─── Base64 decode vs Python ────────────────────────────────────────
 
 @test
 public func INT_base64_decode_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var data : [48]u8; test_random_bytes(&raw mut data[0], 48)
     var d_hex : [97]char; test_bytes_to_hex(&raw data[0], 48, &raw mut d_hex[0])
 
@@ -407,12 +437,16 @@ public func INT_base64_decode_vs_python(env : &mut TestEnv) {
     var Ok(dec_len) = dec_r else unreachable
     if(dec_len != 48) { env.error("b64 dec length mismatch"); return }
     // Already verified via encode roundtrip in existing tests
+
+}
 }
 
 // ─── MD5 hash vs Python ─────────────────────────────────────────────
 
 @test
 public func INT_md5_hash_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var data : [64]u8; test_random_bytes(&raw mut data[0], 64)
     var data_hex : [129]char; test_bytes_to_hex(&raw data[0], 64, &raw mut data_hex[0])
 
@@ -433,10 +467,14 @@ public func INT_md5_hash_vs_python(env : &mut TestEnv) {
     var chem_hash : [16]u8
     md5_hash(&raw data[0], 64, &raw mut chem_hash[0])
     if(!test_bytes_eq(&raw chem_hash[0], &raw py_hash[0], 16)) { env.error("MD5 hash mismatch vs Python"); return }
+
+}
 }
 
 @test
 public func INT_md5_empty_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var script : [256]u8; var sp : size_t = 0
     var hdr = "import hashlib;print('HASH='+hashlib.md5(b'').hexdigest())\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
@@ -447,12 +485,16 @@ public func INT_md5_empty_vs_python(env : &mut TestEnv) {
     var chem_hash : [16]u8
     md5_hash(null, 0, &raw mut chem_hash[0])
     if(!test_bytes_eq(&raw chem_hash[0], &raw py_hash[0], 16)) { env.error("MD5 empty hash mismatch vs Python"); return }
+
+}
 }
 
 // ─── AES-CBC decrypt vs Python ──────────────────────────────────────
 
 @test
 public func INT_aes_cbc_128_decrypt_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
     var iv : [16]u8; test_random_bytes(&raw mut iv[0], 16)
     var pt : [48]u8; test_random_bytes(&raw mut pt[0], 48)
@@ -488,10 +530,14 @@ public func INT_aes_cbc_128_decrypt_vs_python(env : &mut TestEnv) {
     var ret = aes_crypt_cbc(unsafe(&raw mut ctx), AES_DECRYPT, ct_len, &raw mut dec_iv[0], &raw py_ct[0], &raw mut chem_dec[0])
     if(ret < 0) { env.error("aes_crypt_cbc decrypt failed"); return }
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 48)) { env.error("AES-128-CBC decrypt mismatch vs Python"); return }
+
+}
 }
 
 @test
 public func INT_aes_cbc_256_decrypt_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var key : [32]u8; test_random_bytes(&raw mut key[0], 32)
     var iv : [16]u8; test_random_bytes(&raw mut iv[0], 16)
     var pt : [48]u8; test_random_bytes(&raw mut pt[0], 48)
@@ -527,12 +573,16 @@ public func INT_aes_cbc_256_decrypt_vs_python(env : &mut TestEnv) {
     var ret = aes_crypt_cbc(unsafe(&raw mut ctx), AES_DECRYPT, ct_len, &raw mut dec_iv[0], &raw py_ct[0], &raw mut chem_dec[0])
     if(ret < 0) { env.error("aes_crypt_cbc decrypt failed"); return }
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 48)) { env.error("AES-256-CBC decrypt mismatch vs Python"); return }
+
+}
 }
 
 // ─── HMAC with empty inputs vs Python ───────────────────────────────
 
 @test
 public func INT_hmac_sha256_empty_key_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var data : [32]u8; test_random_bytes(&raw mut data[0], 32)
     var data_hex : [65]char; test_bytes_to_hex(&raw data[0], 32, &raw mut data_hex[0])
 
@@ -551,10 +601,14 @@ public func INT_hmac_sha256_empty_key_vs_python(env : &mut TestEnv) {
     var chem_mac : [32]u8
     hmac_sha256(null, 0, &raw data[0], 32, &raw mut chem_mac[0])
     if(!test_bytes_eq(&raw chem_mac[0], &raw py_mac[0], 32)) { env.error("HMAC-SHA256 empty key mismatch vs Python"); return }
+
+}
 }
 
 @test
 public func INT_hmac_sha256_empty_data_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
     var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
 
@@ -573,12 +627,16 @@ public func INT_hmac_sha256_empty_data_vs_python(env : &mut TestEnv) {
     var chem_mac : [32]u8
     hmac_sha256(&raw key[0], 16, null, 0, &raw mut chem_mac[0])
     if(!test_bytes_eq(&raw chem_mac[0], &raw py_mac[0], 32)) { env.error("HMAC-SHA256 empty data mismatch vs Python"); return }
+
+}
 }
 
 // ─── GCM with max-size AAD vs Python ────────────────────────────────
 
 @test
 public func INT_gcm_large_plaintext_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
     var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
     var aad : [16]u8; test_random_bytes(&raw mut aad[0], 16)
@@ -617,12 +675,16 @@ public func INT_gcm_large_plaintext_vs_python(env : &mut TestEnv) {
     gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, &raw aad[0], 16, &raw pt[0], 1024, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 1024)) { env.error("GCM large ct mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM large tag mismatch vs Python"); return }
+
+}
 }
 
 // ─── X25519 key clamping vs Python ──────────────────────────────────
 
 @test
 public func INT_x25519_clamping_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var raw_scalar : [32]u8; test_random_bytes(&raw mut raw_scalar[0], 32)
     var rs_hex : [65]char; test_bytes_to_hex(&raw raw_scalar[0], 32, &raw mut rs_hex[0])
 
@@ -640,12 +702,16 @@ public func INT_x25519_clamping_vs_python(env : &mut TestEnv) {
 
     x25519_clamp_scalar(&raw mut raw_scalar[0])
     if(!test_bytes_eq(&raw raw_scalar[0], &raw py_scalar[0], 32)) { env.error("X25519 clamping mismatch vs Python"); return }
+
+}
 }
 
 // ─── GCM with 8-byte IV vs Python ───────────────────────────────────
 
 @test
 public func INT_gcm_iv8_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
     var iv8 : [8]u8; test_random_bytes(&raw mut iv8[0], 8)
     var aad : [13]u8; test_random_bytes(&raw mut aad[0], 13)
@@ -685,12 +751,16 @@ public func INT_gcm_iv8_vs_python(env : &mut TestEnv) {
     gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv8[0], 8, &raw aad[0], 13, &raw pt[0], 37, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 37)) { env.error("GCM 8-byte IV ct mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM 8-byte IV tag mismatch vs Python"); return }
+
+}
 }
 
 // ─── GCM with 16-byte IV vs Python ──────────────────────────────────
 
 @test
 public func INT_gcm_iv16_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
     var iv16 : [16]u8; test_random_bytes(&raw mut iv16[0], 16)
     var pt : [32]u8; test_random_bytes(&raw mut pt[0], 32)
@@ -725,12 +795,16 @@ public func INT_gcm_iv16_vs_python(env : &mut TestEnv) {
     gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv16[0], 16, null, 0, &raw pt[0], 32, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 32)) { env.error("GCM 16-byte IV ct mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM 16-byte IV tag mismatch vs Python"); return }
+
+}
 }
 
 // ─── AES-256-GCM vs Python ──────────────────────────────────────────
 
 @test
 public func INT_aes256_gcm_encrypt_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var key : [32]u8; test_random_bytes(&raw mut key[0], 32)
     var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
     var aad : [8]u8; test_random_bytes(&raw mut aad[0], 8)
@@ -770,12 +844,16 @@ public func INT_aes256_gcm_encrypt_vs_python(env : &mut TestEnv) {
     gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, &raw aad[0], 8, &raw pt[0], 64, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 64)) { env.error("AES-256-GCM ct mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("AES-256-GCM tag mismatch vs Python"); return }
+
+}
 }
 
 // ─── TLS 1.2 key block different sizes vs Python ────────────────────
 
 @test
 public func INT_tls12_key_block_128_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var ms : [48]u8; test_random_bytes(&raw mut ms[0], 48)
     var sr : [32]u8; test_random_bytes(&raw mut sr[0], 32)
     var cr : [32]u8; test_random_bytes(&raw mut cr[0], 32)
@@ -806,12 +884,16 @@ public func INT_tls12_key_block_128_vs_python(env : &mut TestEnv) {
     var py_kb : [40]u8
     if(test_parse_py_hex_label(&raw mut py_out, string_view("KB="), &raw mut py_kb[0], 40)!=40){env.error("kb");return}
     if(!test_bytes_eq(&raw chem_kb[0],&raw py_kb[0],40)){env.error("key block 128");return}
+
+}
 }
 
 // ─── GCM AES-128 with no AAD vs Python ──────────────────────────────
 
 @test
 public func INT_gcm_no_aad_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
     var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
     var pt : [32]u8; test_random_bytes(&raw mut pt[0], 32)
@@ -846,12 +928,16 @@ public func INT_gcm_no_aad_vs_python(env : &mut TestEnv) {
     gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], 32, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 32)) { env.error("GCM no AAD ct mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM no AAD tag mismatch vs Python"); return }
+
+}
 }
 
 // ─── GCM auth_decrypt roundtrip vs Python ───────────────────────────
 
 @test
 public func INT_gcm_auth_decrypt_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
     var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
     var pt : [48]u8; test_random_bytes(&raw mut pt[0], 48)
@@ -897,12 +983,16 @@ public func INT_gcm_auth_decrypt_vs_python(env : &mut TestEnv) {
     var dret = gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, &raw aad[0], 8, &raw chem_ct[0], 48, &raw chem_tag[0], 16, &raw mut chem_dec[0])
     if(dret < 0) { env.error("gcm_auth_decrypt failed"); return }
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 48)) { env.error("GCM auth decrypt roundtrip mismatch"); return }
+
+}
 }
 
 // ─── HMAC-MD5 empty key vs Python ───────────────────────────────────
 
 @test
 public func INT_hmac_md5_empty_key_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var data : [16]u8; test_random_bytes(&raw mut data[0], 16)
     var data_hex : [33]char; test_bytes_to_hex(&raw data[0], 16, &raw mut data_hex[0])
 
@@ -921,6 +1011,8 @@ public func INT_hmac_md5_empty_key_vs_python(env : &mut TestEnv) {
     var chem_mac : [16]u8
     hmac_md5(null, 0, &raw data[0], 16, &raw mut chem_mac[0])
     if(!test_bytes_eq(&raw chem_mac[0], &raw py_mac[0], 16)) { env.error("HMAC-MD5 empty key mismatch vs Python"); return }
+
+}
 }
 
 // ─── RSA PKCS#1 encrypt produces different outputs each time vs Python ──
@@ -928,6 +1020,8 @@ public func INT_hmac_md5_empty_key_vs_python(env : &mut TestEnv) {
 @test
 @test.timeout(60000)
 public func INT_rsa_pkcs1_encrypt_determinism_vs_python(env : &mut TestEnv) {
+    unsafe {
+
     var rsa_ctx : RSAContext = unsafe(std::mem.zeroed_unchecked<RSAContext>()); rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
     var ret = rsa_gen_key(unsafe(&raw mut rsa_ctx), 2048, 65537)
     if(ret < 0) { env.error("rsa_gen_key failed"); return }
@@ -973,4 +1067,6 @@ public func INT_rsa_pkcs1_encrypt_determinism_vs_python(env : &mut TestEnv) {
     ret = rsa_pkcs1_decrypt(unsafe(&raw mut rsa_ctx), &raw py_ct[0], n_len, &raw mut chem_dec[0], &raw mut dec_len, 64)
     if(ret < 0) { env.error("rsa_pkcs1_decrypt of Python ct failed"); return }
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 16)) { env.error("decrypted Python ct mismatch"); return }
+
+}
 }

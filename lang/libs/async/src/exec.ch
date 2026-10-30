@@ -390,8 +390,9 @@ public unsafe func <T> spawn(handle : core::async::FutureHandle<T>) : core::asyn
 // The call-site check (`SAFE-SEND-001`) requires the operand to be a direct
 // async function call and verifies every frame local/parameter is Send and
 // 'static. The implementation then crosses the existing unsafe boundary.
-public func <T> spawn_send(handle : core::async::FutureHandle<T>) : core::async::FutureHandle<T> where T : Send {
-        return unsafe(spawn<T>(handle))
+public func <T> spawn_send(handle : core::async::FutureHandle<T>) : core::async::SendFutureHandle<T> where T : Send {
+        var joined = unsafe(spawn<T>(handle))
+        return unsafe(core::async.future_handle_into_send<T>(&mut joined))
 }
 
 // Submit a task to the executor for a UI/event loop to drive. The executor is

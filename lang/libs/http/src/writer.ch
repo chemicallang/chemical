@@ -43,6 +43,8 @@ public namespace http {
         }
 
         func send_headers(&mut self, content_len: usize) {
+            unsafe {
+
             if(sent_headers) { return }
 
             var out = std::string();
@@ -74,7 +76,9 @@ public namespace http {
 
             send_data(out.data(), out.size() as int);
             sent_headers = true;
+
         }
+}
 
         func write_string(&mut self, s: &std::string) {
             send_headers(s.size());

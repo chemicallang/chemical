@@ -21,15 +21,21 @@ using std::string_view
 const SRV_NPOS : size_t = 18446744073709551615
 
 func srv_mem_find_crlfcrlf(buf : *u8, start : size_t, end : size_t) : size_t {
+    unsafe {
+
     var i : size_t = start
     while(i + 3 < end) {
         if(buf[i] == 13 && buf[i+1] == 10 && buf[i+2] == 13 && buf[i+3] == 10) { return i }
         i += 1
     }
     return SRV_NPOS
+
+}
 }
 
 func srv_ci_has_prefix(buf : *u8, pos : size_t, text : *char) : bool {
+    unsafe {
+
     var i : size_t = 0
     while(true) {
         var tc : u8 = text[i] as u8
@@ -42,9 +48,13 @@ func srv_ci_has_prefix(buf : *u8, pos : size_t, text : *char) : bool {
         i += 1
     }
     return false
+
+}
 }
 
 func srv_parse_content_length(buf : *u8, head_start : size_t, head_end : size_t) : size_t {
+    unsafe {
+
     var i : size_t = head_start
     while(i + 15 < head_end) {
         if(srv_ci_has_prefix(buf, i, "content-length:")) {
@@ -60,6 +70,8 @@ func srv_parse_content_length(buf : *u8, head_start : size_t, head_end : size_t)
         i += 1
     }
     return 0
+
+}
 }
 
 // Read one complete HTTP request out of a persistent buffer. `filled` carries
@@ -91,6 +103,8 @@ func srv_read_request_stream(ssl : *mut SSLContext, buf : *mut u8, buf_size : si
 // Send a complete HTTP/1.1 response with a Content-Length body.
 func srv_send_response(ssl : *mut SSLContext, status_line : *char,
                         body : *u8, body_len : size_t, keep_alive : bool) : int {
+                            unsafe {
+
     var hdr : [256]u8
     var hp : size_t = 0
     var s : size_t = 0
@@ -123,6 +137,8 @@ func srv_send_response(ssl : *mut SSLContext, status_line : *char,
         if(wret < 0) { return wret }
     }
     return 0
+
+                        }
 }
 
 // Poll a python-written result file until it contains a verdict.
@@ -140,6 +156,8 @@ func srv_clear_result_file(path : *char) {
 }
 
 func srv_check_result_file(env : &mut TestEnv, path : *char) {
+    unsafe {
+
     var buf : [160]u8
     var polls : int = 0
     var got : size_t = 0
@@ -166,6 +184,8 @@ func srv_check_result_file(env : &mut TestEnv, path : *char) {
     } else {
         env.error("result file empty or missing")
     }
+
+}
 }
 
 // ─── Shared chemical-side TLS/HTTP connection handler ────────────────────────
@@ -177,6 +197,8 @@ func srv_check_result_file(env : &mut TestEnv, path : *char) {
 func srv_serve_one_connection(env : &mut TestEnv, cs : net::Socket, mode : string_view,
                                cert_path : *char, key_pem_path : *char, tag : string_view,
                                tls12_rsa : bool) : bool {
+                                   unsafe {
+
     var ok = true
 
     var ssl_mem = unsafe(malloc(sizeof(SSLContext))) as *mut SSLContext
@@ -278,10 +300,14 @@ func srv_serve_one_connection(env : &mut TestEnv, cs : net::Socket, mode : strin
     ssl_free(ssl_mem)
     unsafe { dealloc ssl_mem }
     return ok
+
+                               }
 }
 
 // The request/response exchange after a completed handshake.
 func srv_serve_http_loop(env : &mut TestEnv, ssl_mem : *mut SSLContext, mode : string_view) : bool {
+    unsafe {
+
     const SRV_BUF_CAP : size_t = 70000
     var ok = true
 
@@ -385,6 +411,8 @@ func srv_serve_http_loop(env : &mut TestEnv, ssl_mem : *mut SSLContext, mode : s
     }
     ssl_close_notify(ssl_mem)
     return ok
+
+}
 }
 
 // ─── Test-side launchers ─────────────────────────────────────────────────────

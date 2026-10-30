@@ -1008,13 +1008,16 @@
 > captures are rejected. Safe `async::spawn_send` adds a compiler frame check
 > (`SAFE-SEND-001`): a direct async call is accepted only when every frame
 > parameter/local is `Send + 'static`; stored/erased futures are rejected.
-> `FutureHandle` itself remains erased/`!Send`, so a type-level frame witness,
-> heterogeneous scopes, and complete unsafe-created callback propagation
-> remain. Capturing scoped closures are covered by
-> `std::thread.scoped_spawn_closure`: the witness may borrow caller storage
-> (`C: Send`, not `'static`) because the worker is joined inside the call.
-> Next in M6: a frame witness for `FutureHandle` and conditional async `Send`;
-> capturing scoped closures follow. M6 now includes
+> The checked result is `core::async::SendFutureHandle<T>`, which carries a
+> type-level `Send`/`Sync` witness when `T: Send`, so a submitted future can be
+> moved to another thread and driven by `async::block_on_send`. Raw
+> `FutureHandle<T>` remains erased/`!Send` outside that boundary. Capturing
+> scoped closures are covered by `std::thread.scoped_spawn_closure`: the
+> witness may borrow caller storage (`C: Send`, not `'static`) because the
+> worker is joined inside the call. Unsafe-created borrowed-callback taint is
+> followed through assignments, fields/indexes, access chains, erased callback
+> parameters, and variant/generic payloads so it cannot cross a safe API that
+> erases the witness. M6 now includes
 > join-before-return `std::thread.scoped_spawn`/`scoped_spawn_mut`,
 > multi-handle `scoped_run`, and `JoinHandle<T>: Sync` when `T: Send`. M4 is complete for the enforceable language surface: NLL/loans, storage
 > lifetimes, return regions, variance, temporary extension, provenance,
@@ -1029,8 +1032,9 @@
 > outlive the join, so they stay on the explicit unsafe path.
 > Then remaining M5 validity (packed references), M2 C ABI, and the
 > variance/HRTB/temporary-lifetime precision items.
-> Safety suite `55`; negative tests `613`; main TCC `2356`, LLVM `2354`;
-> libs `730`; plugins `1305`; async `54`; interpret `1910`;
+> Safety suite `55`; negative tests `617`; main TCC `2356`, LLVM `2354`;
+> libs `730`; plugins `1305`; async `55`; interpret `1910`; server `10`;
+> TLS `599`;
 > `MIRTests` `4643 checks`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
@@ -2623,3 +2627,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.9 (2026-10-30): M6.5 starts with a typed capture-environment witness on capturing function types. Lambdas build a synthetic capture environment at symbol resolution; auto traits and `'static` bounds derive from the captured fields. Plain `std::function` variables acquire the witness from their initializer, `std::typed_function<F,C>` exposes it, and safe `spawn_closure`/`spawn_void_closure` enforce `C: Send + 'static`. Owned captures are accepted; `Rc` and borrowed captures are rejected. `FutureHandle` frame witnesses and capturing scoped closures remain.*
 *Revision note v4.10 (2026-10-30): safe async submission starts with `async::spawn_send` and `SAFE-SEND-001`. The compiler walks a direct async callee's frame parameters and locals and requires each to be `Send + 'static`; stored/erased future handles are rejected because the frame cannot be proven. `FutureHandle` itself remains erased/`!Send` until a type-level frame witness is threaded through async lowering.*
 *Revision note v4.11 (2026-10-30): capturing scoped closures are safe through `std::thread.scoped_spawn_closure`. The call-site type check permits a borrowed capture witness only at this audited join-before-return boundary; `C: Send` still rejects `Rc` and other non-thread-safe captures. Safe async submission is covered by `async::spawn_send` (`SAFE-SEND-001`) for direct async calls; `FutureHandle` itself remains erased/`!Send`.*
+*Revision note v4.12 (2026-10-30): safe async submission now returns a typed `SendFutureHandle<T>` with a conditional `Send`/`Sync` witness, and `block_on_send` drives it. The safe thread/async surface also includes join-before-return capturing scoped closures, and unsafe-created borrowed-callback taint is followed through aggregates, fields, access chains, generic/variant payloads, and erased callback parameters. The TLS/HTTP/server stack was migrated to explicit unsafe bodies at raw-pointer/FFI boundaries; `AwaitNormalizePass` now descends into `unsafe` blocks so awaits inside audited crypto bodies lower as real suspensions. TCC TLS `599/599`, server `10/10`, negative `617`, async `55`. Packed/repr layout and full target-aware C ABI remain explicit unsupported surface (unknown annotations and by-value extern aggregates are rejected, never silently miscompiled); M1/M7 parity and M8 hardening remain.*

@@ -24,13 +24,17 @@ public namespace tls {
     }
 
     public func ecdsa_init(ctx : *mut ECDSAContext) {
+        unsafe {
+
         mpi_init(&raw mut ctx.pub_x)
         mpi_init(&raw mut ctx.pub_y)
         mpi_init(&raw mut ctx.priv_key)
         ctx.curve_id = 0
         ctx.is_init = false
         ctx.has_private = false
+
     }
+}
 
     // ─── Import ECDSA Public Key ──────────────────────────────────────────
 
@@ -44,6 +48,8 @@ public namespace tls {
     public func ecdsa_import_pubkey(ctx : *mut ECDSAContext,
                                      pub_key : *u8, pub_key_len : size_t,
                                      curve : u16) : int {
+                                         unsafe {
+
         var coord : size_t = 32
         if(curve == TLS_GROUP_SECP384R1 as u16) { coord = 48 }
         if(pub_key_len < 65 || pub_key[0] != 0x04) {
@@ -93,19 +99,25 @@ public namespace tls {
         ctx.curve_id = curve
         ctx.is_init = true
         return 0
-    }
+
+                                     }
+}
 
     // Import raw private key scalar (32 bytes for P-256)
     public func ecdsa_import_privkey(ctx : *mut ECDSAContext,
                                       priv_key : *u8, priv_key_len : size_t,
                                       curve : u16) : int {
+                                          unsafe {
+
         var ret = mpi_read_binary(&raw mut ctx.priv_key, priv_key, priv_key_len)
         if(ret < 0) { return ret }
         ctx.curve_id = curve
         ctx.has_private = true
         ctx.is_init = true
         return 0
-    }
+
+                                      }
+}
 
     // ─── ECDSA Signing (secp256r1) ────────────────────────────────────────
 
@@ -243,6 +255,8 @@ public namespace tls {
     func ecdsa_parse_signature_ext(sig : *u8, sig_len : size_t,
                                     r_out : *mut u8, s_out : *mut u8,
                                     coord_bytes : size_t) : int {
+                                        unsafe {
+
         // Parse SEQUENCE
         var pos : size_t = 0
         if(pos >= sig_len) { return ERR_ECDSA_BAD_SIGNATURE }
@@ -324,7 +338,9 @@ public namespace tls {
         }
 
         return 0
-    }
+
+                                    }
+}
 
     // P-256 signature parse (kept for compatibility).
     func ecdsa_parse_signature(sig : *u8, sig_len : size_t,
@@ -343,6 +359,8 @@ public namespace tls {
     public func ecdsa_verify(ctx : *mut ECDSAContext,
                               hash : *u8, hash_len : size_t,
                               sig : *u8, sig_len : size_t) : int {
+                                  unsafe {
+
         if(!ctx.is_init) { return ERR_ECDSA_VERIFY_FAILED }
         var coord_bytes : size_t = 32
         var curve_select : int = 0
@@ -473,6 +491,8 @@ public namespace tls {
         }
 
         return 0
-    }
+
+                              }
+}
 
 } // namespace tls

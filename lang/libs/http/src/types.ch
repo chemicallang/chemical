@@ -31,11 +31,17 @@ public namespace http {
         }
 
         func insert_view(&mut self, k: &std::string_view, v: &std::string_view) {
+            unsafe {
+
             headers.push_back(std::pair<std::string,std::string>{ first : std::string(k.data(), k.size()), second : std::string(v.data(), v.size()) })
+
         }
+}
 
         // Case-insensitive header lookup. Returns Some(value) if present.
         public func get(&self, name: *char) : std::Option<std::string> {
+            unsafe {
+
             var i = 0u;
             while(i < headers.size()) {
                 var p = headers.get_ptr(i);
@@ -44,9 +50,13 @@ public namespace http {
                 i = i + 1u;
             }
             return std::Option.None<std::string>();
+
         }
+}
 
         public func get_view(&self, name : &std::string_view) : std::string_view {
+            unsafe {
+
             var i = 0u;
             while(i < headers.size()) {
                 var p = headers.get_ptr(i);
@@ -54,7 +64,9 @@ public namespace http {
                 i = i + 1u;
             }
             return std::string_view()
+
         }
+}
 
     }
 
@@ -74,6 +86,8 @@ public namespace http {
         }
 
         public func get(&self, key : &std::string_view) : std::string_view {
+            unsafe {
+
             var i = 0u;
             while(i < pairs.size()) {
                 var p = pairs.get_ptr(i);
@@ -81,11 +95,15 @@ public namespace http {
                 i = i + 1u;
             }
             return std::string_view()
+
         }
+}
     }
 
     // helper: simple ASCII case-insensitive strcmp
     public func strcasecmp(a:*char, b:*char) : int {
+        unsafe {
+
         var i = 0;
         loop {
             var ca = a[i]; var cb = b[i];
@@ -96,7 +114,9 @@ public namespace http {
             if(la != lb) { return (la as int) - (lb as int) }
             i = i + 1;
         }
+
     }
+}
 
     // Body: lazy reader for request body. Does NOT close the socket by itself.
     @direct_init
@@ -134,6 +154,8 @@ public namespace http {
 
         @delete
         func destruct(&self) {
+            unsafe {
+
             // Free TLS context before buffer (TLS may use the buffer internally)
             if(self.tls_ctx != null) {
                 tls::ssl_close_notify(self.tls_ctx)
@@ -143,7 +165,9 @@ public namespace http {
             if(self.owns_buf && self.buf != null) {
                 delete self.buf;
             }
+
         }
+}
 
         // construct body from request metadata
         public func make_body(
@@ -173,16 +197,22 @@ public namespace http {
 
     // low-level recv helper that honors timeout and returns <=0 on error/timeout
     func body_recv(b:*mut Body, dst:*mut u8, cap: usize) : int {
+        unsafe {
+
         if(b.tls_ctx != null) {
             return tls::ssl_read(b.tls_ctx, dst, cap as i32);
         }
         // set timeout on socket
         net::set_recv_timeout(b.sock, b.timeout_secs, 0);
         return net::recv_all(b.sock, dst, cap);
+
     }
+}
 
     // Helper: copy up to `want` bytes from the already-read buffer into dst, returning copied count.
     func copy_from_buffer(b:*mut Body, dst:*mut u8, want: usize) : usize {
+        unsafe {
+
         if(b.buf == null) { return 0u }
         var bufref = b.buf;
         var avail = bufref.len();
@@ -196,11 +226,15 @@ public namespace http {
         }
         bufref.consume(take);
         return take;
+
     }
+}
 
     // PUBLIC: read up to `cap` bytes into dst.
     // Returns the number of bytes read, 0 on end of body, or -1 on error.
     public func (b: &mut Body) read(dst:*mut u8, cap: usize) : int {
+        unsafe {
+
         if(b.closed) { return 0 }
         if(b.max_body > 0u && b.seen_total >= b.max_body) { return -1 }
 
@@ -370,10 +404,14 @@ public namespace http {
             if(b.max_body > 0u && b.seen_total > b.max_body) { return -1 }
             return n;
         }
+
     }
+}
 
     // read all remaining body into a string
     public func (b: &mut Body) read_to_string() : std::Option<std::string> {
+        unsafe {
+
         var out = std::string::empty_str();
         var tmp : [8192u]u8;
         while(true) {
@@ -383,10 +421,14 @@ public namespace http {
             out.append_view(std::string_view(&tmp[0] as *char, n as size_t))
         }
         return std::Option.Some<std::string>(out);
+
     }
+}
 
     // read exactly `n` bytes
     public func (b: &mut Body) read_exact(n: usize) : std::Option<std::string> {
+        unsafe {
+
         var out = std::string::empty_str();
         out.reserve(n);
         var rem = n;
@@ -400,7 +442,9 @@ public namespace http {
             rem = rem - (r as usize);
         }
         return std::Option.Some<std::string>(out);
+
     }
+}
 
     // drain remaining body
     public func (b: &mut Body) drain() : bool {

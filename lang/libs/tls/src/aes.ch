@@ -19,12 +19,16 @@ public namespace tls {
     }
 
     public func aes_init(ctx : *mut AESContext) {
+        unsafe {
+
         ctx.nr = 0
         var i : size_t = 0
         while(i < 68) { ctx.rk[i] = 0; i += 1 }
         i = 0
         while(i < 16) { ctx.buf[i] = 0; i += 1 }
+
     }
+}
 
     // ─── AES S-box and inverse S-box ───────────────────────────────────────
 
@@ -107,6 +111,8 @@ public namespace tls {
     // ─── AES Key Expansion ──────────────────────────────────────────────────
 
     func aes_key_expansion(ctx : *mut AESContext, key : *u8, key_len : size_t) : int {
+        unsafe {
+
         var nb : u32 = 4  // Number of columns (fixed for AES)
         var nk : u32 = 0  // Number of 32-bit words in the key
         var nr : u32 = 0  // Number of rounds
@@ -155,11 +161,15 @@ public namespace tls {
         }
 
         return 0
+
     }
+}
 
     // ─── AES ECB Encrypt (single block) ─────────────────────────────────────
 
     func aes_internal_encrypt(ctx : *mut AESContext, input : *u8, output : *mut u8) {
+        unsafe {
+
         var s0 : u32 = ((input[0] as u32) << 24) | ((input[1] as u32) << 16) |
                         ((input[2] as u32) << 8) | (input[3] as u32)
         var s1 : u32 = ((input[4] as u32) << 24) | ((input[5] as u32) << 16) |
@@ -276,11 +286,15 @@ public namespace tls {
         output[13] = ((s3 >> 16) & 0xFF) as u8
         output[14] = ((s3 >> 8) & 0xFF) as u8
         output[15] = (s3 & 0xFF) as u8
+
     }
+}
 
     // ─── AES ECB Decrypt (single block) ─────────────────────────────────────
 
     func aes_internal_decrypt(ctx : *mut AESContext, input : *u8, output : *mut u8) {
+        unsafe {
+
         var s0 : u32 = ((input[0] as u32) << 24) | ((input[1] as u32) << 16) |
                         ((input[2] as u32) << 8) | (input[3] as u32)
         var s1 : u32 = ((input[4] as u32) << 24) | ((input[5] as u32) << 16) |
@@ -402,7 +416,9 @@ public namespace tls {
         output[13] = ((s3 >> 16) & 0xFF) as u8
         output[14] = ((s3 >> 8) & 0xFF) as u8
         output[15] = (s3 & 0xFF) as u8
+
     }
+}
 
     // ─── Galois Field (2^8) Multiplication helpers ────────────────────────
 
@@ -453,6 +469,8 @@ public namespace tls {
     // AES-CBC encrypt/decrypt
     public func aes_crypt_cbc(ctx : *mut AESContext, mode : u32, length : size_t,
                                iv : *mut u8, input : *u8, output : *mut u8) : int {
+                                   unsafe {
+
         if(length % 16 != 0) { return AES_ERR_INVALID_INPUT_LENGTH }
 
         if(mode == AES_ENCRYPT) {
@@ -504,6 +522,8 @@ public namespace tls {
         }
 
         return 0
-    }
+
+                               }
+}
 
 } // namespace tls

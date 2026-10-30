@@ -25,12 +25,18 @@ public namespace tls {
     }
 
     public func mpi_init(m : *mut Mpi) {
+        unsafe {
+
         m.s = 1; m.n = 0
         var i : size_t = 0
         while(i < MAX_LIMBS) { m.p[i] = 0; i += 1 }
+
     }
+}
 
     public func mpi_lset(m : *mut Mpi, val : i64) {
+        unsafe {
+
         if(val < 0) { m.s = -1 } else { m.s = 1 }
         var uv : u64 = 0
         if(val >= 0) { uv = val as u64 }
@@ -43,9 +49,13 @@ public namespace tls {
         }
         var i = m.n
         while(i < MAX_LIMBS) { m.p[i] = 0; i += 1 }
+
     }
+}
 
     public func mpi_grow(m : *mut Mpi, nlimbs : size_t) : int {
+        unsafe {
+
         if(nlimbs > MAX_LIMBS) { return ERR_MPI_ALLOC_FAILED }
         if(m.n < nlimbs) {
             var i = m.n
@@ -53,14 +63,22 @@ public namespace tls {
             m.n = nlimbs
         }
         return 0
+
     }
+}
 
     public func mpi_trim(m : *mut Mpi) {
+        unsafe {
+
         while(m.n > 0 && m.p[m.n - 1] == 0) { m.n -= 1 }
         if(m.n == 0) { m.s = 1 }
+
     }
+}
 
     public func mpi_bitlen(m : *mut Mpi) : size_t {
+        unsafe {
+
         mpi_trim(m)
         if(m.n == 0) { return 0 }
         var top = m.p[m.n - 1]
@@ -73,20 +91,28 @@ public namespace tls {
             i -= 1
         }
         return bits
+
     }
+}
 
     public func mpi_size(m : *mut Mpi) : size_t {
         return (mpi_bitlen(m) + 7) / 8
     }
 
     public func mpi_copy(dst : *mut Mpi, src : *mut Mpi) {
+        unsafe {
+
         dst.s = src.s; dst.n = src.n
         var i : size_t = 0
         while(i < src.n) { dst.p[i] = src.p[i]; i += 1 }
         while(i < MAX_LIMBS) { dst.p[i] = 0; i += 1 }
+
     }
+}
 
     public func mpi_cmp_abs(a : *mut Mpi, b : *mut Mpi) : int {
+        unsafe {
+
         mpi_trim(a); mpi_trim(b)
         if(a.n > b.n) { return 1 }
         if(a.n < b.n) { return -1 }
@@ -96,9 +122,13 @@ public namespace tls {
             if(a.p[i] < b.p[i]) { return -1 }
         }
         return 0
+
     }
+}
 
     public func mpi_cmp(a : *mut Mpi, b : *mut Mpi) : int {
+        unsafe {
+
         mpi_trim(a); mpi_trim(b)
         if(a.n == 0 && b.n == 0) { return 0 }
         if(a.n == 0) { return -b.s }
@@ -106,7 +136,9 @@ public namespace tls {
         if(a.s != b.s) { return a.s }
         if(a.s > 0) { return mpi_cmp_abs(a, b) }
         return -mpi_cmp_abs(a, b)
+
     }
+}
 
     public func mpi_cmp_int(m : *mut Mpi, val : i64) : int {
         var tmp : Mpi; mpi_init(unsafe(&raw mut tmp)); mpi_lset(unsafe(&raw mut tmp), val)
@@ -114,13 +146,19 @@ public namespace tls {
     }
 
     public func mpi_is_zero(m : *mut Mpi) : bool {
+        unsafe {
+
         mpi_trim(m)
         return m.n == 0
+
     }
+}
 
     // ─── Addition / Subtraction ──────────────────────────────────────────
 
     public func mpi_add_abs(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
+        unsafe {
+
         var max_n = a.n; if(b.n > max_n) { max_n = b.n }
         var ret = mpi_grow(x, max_n + 1)
         if(ret < 0) { return ret }
@@ -137,9 +175,13 @@ public namespace tls {
         if(carry > 0) { x.p[i] = carry as u32; x.n = max_n + 1 }
         else { x.n = max_n }
         x.s = 1; mpi_trim(x); return 0
+
     }
+}
 
     public func mpi_sub_abs(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
+        unsafe {
+
         if(mpi_cmp_abs(a, b) < 0) { return ERR_MPI_NEGATIVE_VALUE }
         var ret = mpi_grow(x, a.n)
         if(ret < 0) { return ret }
@@ -155,9 +197,13 @@ public namespace tls {
             x.p[i] = (diff & 0xFFFFFFFFu64) as u32; i += 1
         }
         x.n = a.n; x.s = 1; mpi_trim(x); return 0
+
     }
+}
 
     public func mpi_add(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
+        unsafe {
+
         var ret : int = 0
         // Same sign: add magnitudes
         if(a.s == b.s) {
@@ -177,9 +223,13 @@ public namespace tls {
             if(ret >= 0) { x.s = bsgn }
         }
         return ret
+
     }
+}
 
     public func mpi_sub(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
+        unsafe {
+
         var ret : int = 0
         // Opposite signs: add magnitudes
         if(a.s != b.s) {
@@ -199,11 +249,15 @@ public namespace tls {
             if(ret >= 0) { x.s = -asgn }
         }
         return ret
+
     }
+}
 
     // ─── Multiplication ──────────────────────────────────────────────────
 
     public func mpi_mul(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
+        unsafe {
+
         mpi_trim(a); mpi_trim(b)
         if(a.n == 0 || b.n == 0) { mpi_lset(x, 0); return 0 }
         // Handle input/output aliasing: save a and b before zeroing x
@@ -229,9 +283,13 @@ public namespace tls {
         x.s = a.s * b.s
         mpi_trim(x)
         return 0
+
     }
+}
 
     public func mpi_mul_int(x : *mut Mpi, a : *mut Mpi, b : u32) : int {
+        unsafe {
+
         if(b == 0 || mpi_is_zero(a)) { mpi_lset(x, 0); return 0 }
         var ret = mpi_grow(x, a.n + 1)
         if(ret < 0) { return ret }
@@ -243,7 +301,9 @@ public namespace tls {
             carry = prod >> 32; i += 1
         }
         x.p[i] = carry as u32; x.n = a.n + 1; x.s = a.s; mpi_trim(x); return 0
+
     }
+}
 
     // ─── Division (schoolbook long division) ─────────────────────────────
 
@@ -251,6 +311,8 @@ public namespace tls {
     // mpi_div_knuth cannot normalise in place (a dividend using every limb),
     // and as a reference implementation for tests. Do not use in new code.
     func mpi_div_bitwise(q : *mut Mpi, r : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
+        unsafe {
+
         mpi_trim(b)
         if(b.n == 0) { return ERR_MPI_DIVISION_BY_ZERO }
         if(a.n == 0) {
@@ -335,7 +397,9 @@ public namespace tls {
             mpi_trim(unsafe(&raw mut A)); A.s = a_sign; mpi_copy(r, unsafe(&raw mut A))
         }
         return 0
+
     }
+}
 
     // Knuth Algorithm D: limb-at-a-time long division, O(limbs) per quotient
     // limb. The bit-by-bit version above walks one quotient BIT per iteration
@@ -350,6 +414,8 @@ public namespace tls {
     // has room for its carry limb. Writes only Q and R (Q.n == m+1 where
     // m = u.n - v.n).
     func mpi_div_knuth(Q : *mut Mpi, R : *mut Mpi, u : *mut Mpi, v : *mut Mpi) : int {
+        unsafe {
+
         var n = v.n
         var m = u.n - n
 
@@ -451,9 +517,13 @@ public namespace tls {
         if(shift > 0) { mpi_shift_r(unsafe(&raw mut Rr), shift) }
         mpi_copy(R, unsafe(&raw mut Rr))
         return 0
+
     }
+}
 
     public func mpi_div(q : *mut Mpi, r : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
+        unsafe {
+
         mpi_trim(b)
         if(b.n == 0) { return ERR_MPI_DIVISION_BY_ZERO }
         if(a.n == 0) {
@@ -507,9 +577,13 @@ public namespace tls {
             mpi_copy(r, unsafe(&raw mut R))
         }
         return 0
+
     }
+}
 
     public func mpi_mod(r : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
+        unsafe {
+
         // Handle negative dividend: result must be non-negative modulo |b|
         var ret = mpi_div(null, r, a, b)
         if(ret < 0) { return ret }
@@ -521,7 +595,9 @@ public namespace tls {
             mpi_copy(r, unsafe(&raw mut tmp))
         }
         return 0
+
     }
+}
 
     // Remainder of |a| modulo a single-limb divisor, without forming a
     // quotient.
@@ -537,6 +613,8 @@ public namespace tls {
     // passed here), and there is no error channel, so zero is defined as 0
     // rather than trapping.
     public func mpi_mod_small(a : *mut Mpi, d : u32) : u32 {
+        unsafe {
+
         if(d == 0) { return 0 }
         var acc : u64 = 0
         var i = a.n
@@ -545,11 +623,15 @@ public namespace tls {
             acc = ((acc << 32) | (a.p[i] as u64)) % (d as u64)
         }
         return acc as u32
+
     }
+}
 
     // ─── Montgomery Modular Exponentiation ───────────────────────────────
 
     func montgomery_mul(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi, n : *mut Mpi, n_inv0 : u32) : int {
+        unsafe {
+
         // Handle input/output aliasing: if a or b alias x, save them first
         var a_sav : Mpi; mpi_init(unsafe(&raw mut a_sav))
         var b_sav : Mpi; mpi_init(unsafe(&raw mut b_sav))
@@ -648,7 +730,9 @@ public namespace tls {
             x.n = n.n
         }
         mpi_trim(x); return 0
+
     }
+}
 
     func to_montgomery(x : *mut Mpi, a : *mut Mpi, n : *mut Mpi, n_inv0 : u32, r2 : *mut Mpi) : int {
         return montgomery_mul(x, a, r2, n, n_inv0)
@@ -660,6 +744,8 @@ public namespace tls {
     }
 
     func compute_r2(r2 : *mut Mpi, n : *mut Mpi) : int {
+        unsafe {
+
         var R : Mpi; mpi_init(unsafe(&raw mut R))
         var ret = mpi_grow(unsafe(&raw mut R), n.n + 1)
         if(ret < 0) { return ret }
@@ -671,9 +757,13 @@ public namespace tls {
         if(ret < 0) { return ret }
         ret = mpi_mod(r2, r2, n)
         return ret
+
     }
+}
 
     func mpi_exp_mod_fallback(x : *mut Mpi, a : *mut Mpi, e : *mut Mpi, n : *mut Mpi) : int {
+        unsafe {
+
         // Simple left-to-right binary exponentiation with modular reduction.
         //
         // The base is copied when it aliases the result: mpi_lset(x, 1) below
@@ -702,9 +792,13 @@ public namespace tls {
             }
         }
         return 0
+
     }
+}
 
     public func mpi_exp_mod(x : *mut Mpi, a : *mut Mpi, e : *mut Mpi, n : *mut Mpi) : int {
+        unsafe {
+
         if(mpi_cmp_int(n, 0) <= 0) {
             return ERR_MPI_BAD_INPUT_DATA
         }
@@ -777,20 +871,30 @@ public namespace tls {
         if(ret < 0) { return ret }
 
         return 0
+
     }
+}
 
     // ─── Modular Inverse (Extended Euclidean) ────────────────────────────
 
     // True when the value is zero or even (magnitude only; sign is ignored).
     func mpi_is_even(m : *mut Mpi) : bool {
+        unsafe {
+
         mpi_trim(m)
         return m.n == 0 || (m.p[0] & 1) == 0
+
     }
+}
 
     func mpi_is_one(m : *mut Mpi) : bool {
+        unsafe {
+
         mpi_trim(m)
         return m.n == 1 && m.p[0] == 1 && m.s > 0
+
     }
+}
 
     // Computes x = a^-1 mod n for an odd modulus, via the binary extended
     // Euclidean algorithm (HAC 14.61): only shifts, additions, subtractions and
@@ -937,14 +1041,20 @@ public namespace tls {
     }
 
     public func mpi_mod_inv(x : *mut Mpi, a : *mut Mpi, n : *mut Mpi) : int {
+        unsafe {
+
         if(mpi_cmp_int(n, 1) <= 0) { return ERR_MPI_BAD_INPUT_DATA }
         if((n.p[0] & 1) == 0) { return mpi_mod_inv_euclid(x, a, n) }
         return mpi_mod_inv_binary(x, a, n)
+
     }
+}
 
     // ─── Shift Operations ──────────────────────────────────────────────
 
     public func mpi_shift_l(m : *mut Mpi, count : size_t) : int {
+        unsafe {
+
         if(m.n == 0 || count == 0) { return 0 }
         var limb_shift = count / BITS_PER_LIMB
         var bit_shift = count % BITS_PER_LIMB
@@ -979,9 +1089,13 @@ public namespace tls {
         }
         mpi_trim(m)
         return 0
+
     }
+}
 
     public func mpi_shift_r(m : *mut Mpi, count : size_t) : int {
+        unsafe {
+
         if(m.n == 0 || count == 0) { return 0 }
         var limb_shift = count / BITS_PER_LIMB
         var bit_shift = count % BITS_PER_LIMB
@@ -1003,11 +1117,15 @@ public namespace tls {
             mpi_trim(m)
         }
         return 0
+
     }
+}
 
     // ─── Import / Export ────────────────────────────────────────────────
 
     public func mpi_read_binary(m : *mut Mpi, buf : *u8, buflen : size_t) : int {
+        unsafe {
+
         mpi_init(m)
         if(buflen == 0) { return 0 }
         var limbs = (buflen * 8 + BITS_PER_LIMB - 1) / BITS_PER_LIMB
@@ -1021,9 +1139,13 @@ public namespace tls {
             i += 1
         }
         m.n = limbs; m.s = 1; mpi_trim(m); return 0
+
     }
+}
 
     public func mpi_write_binary(m : *mut Mpi, buf : *mut u8, buflen : size_t) : int {
+        unsafe {
+
         var size = mpi_size(m)
         if(buflen < size) { return ERR_MPI_BUFFER_TOO_SMALL }
         var pad = buflen - size
@@ -1035,9 +1157,13 @@ public namespace tls {
             j += 1
         }
         return 0
+
     }
+}
 
     public func mpi_gcd(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
+        unsafe {
+
         var A : Mpi; mpi_init(unsafe(&raw mut A)); mpi_copy(unsafe(&raw mut A), a)
         var B : Mpi; mpi_init(unsafe(&raw mut B)); mpi_copy(unsafe(&raw mut B), b)
         while(!mpi_is_zero(unsafe(&raw mut B))) {
@@ -1047,6 +1173,8 @@ public namespace tls {
             mpi_copy(unsafe(&raw mut B), unsafe(&raw mut T))
         }
         mpi_copy(x, unsafe(&raw mut A)); x.s = 1; return 0
+
     }
+}
 
 } // namespace tls

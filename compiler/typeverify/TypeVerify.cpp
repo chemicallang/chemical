@@ -53,6 +53,10 @@
 
 // -------- Definite Assignment helpers --------
 
+static bool captures_function_local_storage(Value* value);
+static bool captures_function_local_storage(
+        Value* value, const std::unordered_set<VarInitStatement*>& tainted);
+
 bool TypeVerifier::da_type_has_destructor(VarInitStatement* v) {
     auto* t = v->known_type();
     if(!t) return false;
@@ -1739,6 +1743,64 @@ static bool contains_borrowed_capturing_function(
     return false;
 }
 
+// Does this type contain a callback whose capture witness has been erased by
+// an alias or by-value parameter? A safe API with such a parameter cannot
+// prove where the callback points, so a tainted (unsafe-created,
+// frame-borrowing) callback must not cross into it.
+static bool contains_erased_capturing_function(
+        BaseType* type,
+        std::unordered_set<MembersContainer*>& visiting) {
+    if (type == nullptr) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr) return false;
+    switch (canonical->kind()) {
+        case BaseTypeKind::CapturingFunction:
+            return canonical->as_capturing_func_type_unsafe()->capture_env == nullptr;
+        case BaseTypeKind::Array:
+            return contains_erased_capturing_function(
+                const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
+                visiting);
+        case BaseTypeKind::Pointer:
+            return contains_erased_capturing_function(
+                const_cast<BaseType*>(canonical->as_pointer_type_unsafe()->type), visiting);
+        case BaseTypeKind::Reference:
+            return contains_erased_capturing_function(
+                const_cast<BaseType*>(canonical->as_reference_type_unsafe()->type), visiting);
+        case BaseTypeKind::Generic: {
+            auto* gen = canonical->as_generic_type_unsafe();
+            // An unresolved type parameter has no visible capture witness. A
+            // safe generic API may store or erase the callback, so treat it as
+            // an erased boundary for taint purposes.
+            if (gen->referenced != nullptr && gen->referenced->linked != nullptr &&
+                gen->referenced->linked->kind() == ASTNodeKind::GenericTypeParam) {
+                return true;
+            }
+            for (auto& arg : gen->types) {
+                if (contains_erased_capturing_function(
+                        const_cast<BaseType*>(arg.getType()), visiting)) return true;
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    auto* container = canonical->get_members_container();
+    if (container == nullptr) return false;
+    if (!visiting.insert(container).second) return false;
+    for (auto* member : container->variables()) {
+        if (member->kind() == ASTNodeKind::StructMember) {
+            if (contains_erased_capturing_function(
+                    const_cast<BaseType*>(member->as_struct_member_unsafe()->type.getType()),
+                    visiting)) {
+                visiting.erase(container);
+                return true;
+            }
+        }
+    }
+    visiting.erase(container);
+    return false;
+}
+
 static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
     auto func = call->safe_linked_func();
     if (!func || !func->where_clause) return;
@@ -2255,6 +2317,17 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
                 if(i < total_params) {
                     const auto param = (variant_mem->values.begin() + i)->second;
                     auto implicit_constructor = param->type->implicit_constructor_for(value_ptr);
+                    if (!is_unsafe && !scoped_capture_call &&
+                        captures_function_local_storage(value_ptr, capture_escape_locals)) {
+                        std::unordered_set<MembersContainer*> erased_visiting;
+                        if (contains_erased_capturing_function(param->type, erased_visiting)) {
+                            diagnoser.error(value_ptr).with_code("SAFE-UNSAFE-002")
+                                << "cannot store a callback that borrows function-local "
+                                   "storage in a safe generic/variant payload whose "
+                                   "capture witness is erased; keep it scoped or use a "
+                                   "typed callback payload";
+                        }
+                    }
                     if (implicit_constructor) {
                         // handle implicit constructor
                     } else if(!param->type->satisfies(value_ptr, false)) {
@@ -2279,6 +2352,16 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
             const bool prev_capture = allow_scoped_capture;
             allow_scoped_capture = allow_scoped_capture || scoped_capture_call;
             require_unsafe_for_capture(*this, value, param->type, value);
+            if (!is_unsafe && !allow_scoped_capture &&
+                captures_function_local_storage(value, capture_escape_locals)) {
+                std::unordered_set<MembersContainer*> erased_visiting;
+                if (contains_erased_capturing_function(param->type, erased_visiting)) {
+                    diagnoser.error(value).with_code("SAFE-UNSAFE-002")
+                        << "cannot pass a callback that borrows function-local storage "
+                           "into a safe API whose parameter erases the capture witness; "
+                           "keep it scoped or use a typed callback parameter";
+                }
+            }
             allow_scoped_capture = prev_capture;
             auto implicit_constructor = param->type->implicit_constructor_for(value);
             if (implicit_constructor) {
@@ -2634,20 +2717,35 @@ static bool captures_function_local_storage(Value* value) {
 
 static bool captures_function_local_storage(Value* value, const std::unordered_set<VarInitStatement*>& tainted) {
     value = unwrap_capture_value(value);
-    Value* identifier = value;
-    if (identifier != nullptr && identifier->val_kind() == ValueKind::AccessChain) {
-        auto* chain = identifier->as_access_chain_unsafe();
-        if (chain->values.size() == 1) {
-            identifier = chain->values[0];
-        }
-    }
     if (captures_function_local_storage(value)) return true;
-    if (identifier != nullptr && identifier->val_kind() == ValueKind::Identifier) {
-        ASTNode* linked = identifier->as_identifier_unsafe()->linked;
-        if (linked != nullptr && linked->kind() == ASTNodeKind::VarInitStmt &&
-            tainted.count(linked->as_var_init_unsafe()) != 0) {
-            return true;
+    // Follow the root of an access chain/index expression: `h.f` or `arr[i]`
+    // is tainted when the owning local was tainted by storing a borrowed
+    // callback into it.
+    Value* place = value;
+    while (place != nullptr) {
+        if (place->val_kind() == ValueKind::Identifier) {
+            ASTNode* linked = place->as_identifier_unsafe()->linked;
+            if (linked != nullptr && linked->kind() == ASTNodeKind::VarInitStmt &&
+                tainted.count(linked->as_var_init_unsafe()) != 0) {
+                return true;
+            }
+            break;
         }
+        if (place->val_kind() == ValueKind::AccessChain) {
+            auto* chain = place->as_access_chain_unsafe();
+            if (chain->values.empty()) break;
+            place = chain->values[0];
+            continue;
+        }
+        if (place->val_kind() == ValueKind::IndexOperator) {
+            place = place->as_index_op_unsafe()->parent_val;
+            continue;
+        }
+        if (place->val_kind() == ValueKind::DereferenceValue) {
+            place = place->as_dereference_value_unsafe()->getValue();
+            continue;
+        }
+        break;
     }
     return false;
 }
@@ -3023,6 +3121,30 @@ bool is_assignable(Value* lhs) {
     }
 }
 
+static VarInitStatement* capture_root_var(Value* value) {
+    if (value == nullptr) return nullptr;
+    switch (value->val_kind()) {
+        case ValueKind::Identifier: {
+            ASTNode* linked = value->as_identifier_unsafe()->linked;
+            if (linked != nullptr && linked->kind() == ASTNodeKind::VarInitStmt) {
+                return linked->as_var_init_unsafe();
+            }
+            return nullptr;
+        }
+        case ValueKind::AccessChain: {
+            auto* chain = value->as_access_chain_unsafe();
+            if (!chain->values.empty()) return capture_root_var(chain->values[0]);
+            return nullptr;
+        }
+        case ValueKind::IndexOperator:
+            return capture_root_var(value->as_index_op_unsafe()->parent_val);
+        case ValueKind::DereferenceValue:
+            return capture_root_var(value->as_dereference_value_unsafe()->getValue());
+        default:
+            return nullptr;
+    }
+}
+
 void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
 
     // we explicitly visit the lhs and value, because we need to switch toggles
@@ -3040,15 +3162,11 @@ void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
     check_index_move(assign->value);
     visit_it(assign->value);
 
-    if (assign->lhs && assign->lhs->val_kind() == ValueKind::Identifier) {
-        ASTNode* linked = assign->lhs->as_identifier_unsafe()->linked;
-        if (linked != nullptr && linked->kind() == ASTNodeKind::VarInitStmt) {
-            auto* target = linked->as_var_init_unsafe();
-            if (captures_function_local_storage(assign->value, capture_escape_locals)) {
-                capture_escape_locals.insert(target);
-            } else {
-                capture_escape_locals.erase(target);
-            }
+    if (auto* target = capture_root_var(assign->lhs)) {
+        if (captures_function_local_storage(assign->value, capture_escape_locals)) {
+            capture_escape_locals.insert(target);
+        } else {
+            capture_escape_locals.erase(target);
         }
     }
 
@@ -3140,17 +3258,12 @@ void TypeVerifier::VisitReturnStmt(ReturnStatement *node) {
                 : (BaseType*) func_type->returnType;
             require_unsafe_for_capture(*this, value, expected_type, value);
             if (value != nullptr && value->getType() != nullptr) {
-                BaseType* returned = value->getType()->canonical();
-                bool erased_callback = returned != nullptr &&
-                    returned->kind() == BaseTypeKind::CapturingFunction &&
-                    !returned->as_capturing_func_type_unsafe()->capture_env;
                 std::unordered_set<MembersContainer*> capture_visiting;
-                if (erased_callback ||
-                    contains_borrowed_capturing_function(value->getType(), capture_visiting)) {
+                if (contains_borrowed_capturing_function(value->getType(), capture_visiting)) {
                     diagnoser.error(value).with_code("SAFE-LIFE-001")
                         << "cannot return a callback whose capture environment borrows \
-function-local storage or is erased; keep the callback call-scoped or use a \
-callback type carrying its capture witness";
+function-local storage; keep the callback call-scoped or move the referent to \
+static/heap storage";
                 }
             }
             const auto implicit = expected_type->implicit_constructor_for(value);

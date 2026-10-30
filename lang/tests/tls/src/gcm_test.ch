@@ -4,6 +4,8 @@ using std::string_view
 
 @test
 public func INT_gcm_encrypt_against_python(env : &mut TestEnv) {
+    unsafe {
+
     var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
     var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
     var aad : [5]u8; test_random_bytes(&raw mut aad[0], 5)
@@ -69,4 +71,6 @@ public func INT_gcm_encrypt_against_python(env : &mut TestEnv) {
     ret = gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, &raw aad[0], 5, &raw py_ct[0], 29, &raw py_tag[0], 16, &raw mut chem_dec[0])
     if(ret < 0) { env.error("gcm_auth_decrypt failed"); return } else {}
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 29)) { env.error("GCM decrypt roundtrip mismatch"); return } else {}
+
+}
 }

@@ -55,20 +55,28 @@ public namespace tls {
     }
 
     public func rsa_init(ctx : *mut RSAContext, padding : int, hash_id : int) {
+        unsafe {
+
         ctx.ver = 0; ctx.len = 0; ctx.padding = padding; ctx.hash_id = hash_id
         mpi_init(&raw mut ctx.N); mpi_init(&raw mut ctx.E)
         mpi_init(&raw mut ctx.D); mpi_init(&raw mut ctx.P)
         mpi_init(&raw mut ctx.Q); mpi_init(&raw mut ctx.DP)
         mpi_init(&raw mut ctx.DQ); mpi_init(&raw mut ctx.QP)
+
     }
+}
 
     public func rsa_free(ctx : *mut RSAContext) {
+        unsafe {
+
         mpi_init(&raw mut ctx.N); mpi_init(&raw mut ctx.E)
         mpi_init(&raw mut ctx.D); mpi_init(&raw mut ctx.P)
         mpi_init(&raw mut ctx.Q); mpi_init(&raw mut ctx.DP)
         mpi_init(&raw mut ctx.DQ); mpi_init(&raw mut ctx.QP)
         ctx.len = 0; ctx.padding = 0; ctx.hash_id = 0
+
     }
+}
 
     // ─── Import RSA Public Key ──────────────────────────────────────────────
 
@@ -76,6 +84,8 @@ public namespace tls {
     public func rsa_import_pubkey(ctx : *mut RSAContext,
                                    n_buf : *u8, n_len : size_t,
                                    e_buf : *u8, e_len : size_t) : int {
+                                       unsafe {
+
         if(n_len == 0 || n_len > RSA_MAX_KEY_BYTES) { return ERR_RSA_BAD_INPUT_DATA }
         if(e_len == 0 || e_len > RSA_MAX_KEY_BYTES) { return ERR_RSA_BAD_INPUT_DATA }
         var ret = mpi_read_binary(&raw mut ctx.N, n_buf, n_len)
@@ -84,12 +94,18 @@ public namespace tls {
         if(ret < 0) { return ret }
         ctx.len = n_len
         return 0
-    }
+
+                                   }
+}
 
     // Check key size
     public func rsa_get_len(ctx : *mut RSAContext) : size_t {
+        unsafe {
+
         return ctx.len
+
     }
+}
 
     // Public-key sanity checks (the equivalent of mbedtls_rsa_check_pubkey).
     //
@@ -100,6 +116,8 @@ public namespace tls {
     // hand-built contexts import fragments), so callers that obtained a key
     // from the outside — the certificate parser, for example — run this.
     public func rsa_check_pubkey(ctx : *mut RSAContext) : int {
+        unsafe {
+
         mpi_trim(&raw mut ctx.N)
         mpi_trim(&raw mut ctx.E)
         if(ctx.N.n == 0 || (ctx.N.p[0] & 1) == 0) { return ERR_RSA_KEY_CHECK_FAILED }
@@ -107,7 +125,9 @@ public namespace tls {
         if(mpi_cmp_int(&raw mut ctx.E, 1) <= 0) { return ERR_RSA_KEY_CHECK_FAILED }
         if(mpi_cmp(&raw mut ctx.E, &raw mut ctx.N) >= 0) { return ERR_RSA_KEY_CHECK_FAILED }
         return 0
+
     }
+}
 
     // ─── PKCS#1 v1.5 Encoding ────────────────────────────────────────────
 
@@ -116,6 +136,8 @@ public namespace tls {
     // PS = 8+ pseudorandom non-zero bytes
     public func pkcs1_v15_encode(message : *u8, message_len : size_t,
                             em : *mut u8, em_len : size_t) : int {
+                                unsafe {
+
         if(em_len < 3) { return ERR_RSA_OUTPUT_TOO_LARGE }
         if(message_len + 11 > em_len) { return ERR_RSA_OUTPUT_TOO_LARGE }
 
@@ -165,7 +187,9 @@ public namespace tls {
         }
 
         return 0
-    }
+
+                            }
+}
 
     // PKCS#1 v1.5 unpadding for encryption (RFC 8017 Section 7.2.2)
     public func pkcs1_v15_decode(input : *u8, input_len : size_t,
@@ -204,6 +228,8 @@ public namespace tls {
 
     // RSAVP1: c = m^e mod N
     public func rsa_public(ctx : *mut RSAContext, input : *u8, output : *mut u8) : int {
+        unsafe {
+
         var M : Mpi; mpi_init(unsafe(&raw mut M))
         var C : Mpi; mpi_init(unsafe(&raw mut C))
 
@@ -224,7 +250,9 @@ public namespace tls {
         if(ret < 0) { return ret }
 
         return 0
+
     }
+}
 
     // ─── PKCS#1 v1.5 Encryption ─────────────────────────────────────────
 
@@ -232,6 +260,8 @@ public namespace tls {
     public func rsa_pkcs1_encrypt(ctx : *mut RSAContext,
                                     input : *u8, input_len : size_t,
                                     output : *mut u8) : int {
+                                        unsafe {
+
         // PKCS#1 v1.5 requires message_len + 11 <= ctx.len (key size).
         // For very small test keys that don't meet this requirement,
         // fall back to raw RSA on the first ctx.len bytes.
@@ -255,7 +285,9 @@ public namespace tls {
 
         // RSA public operation
         return rsa_public(ctx, output, output)
-    }
+
+                                    }
+}
 
     // ─── PKCS#1 v1.5 Signature Verification ─────────────────────────────
 
@@ -305,6 +337,8 @@ public namespace tls {
     public func rsa_pkcs1_verify(ctx : *mut RSAContext,
                                   digest : *u8, digest_len : size_t,
                                   sig : *u8, sig_len : size_t) : int {
+                                      unsafe {
+
         if(sig_len != ctx.len) { return ERR_RSA_BAD_INPUT_DATA }
 
         // Decrypt signature: EM = S^E mod N
@@ -359,7 +393,9 @@ public namespace tls {
 
         // Unknown digest length: reject
         return ERR_RSA_VERIFY_FAILED
-    }
+
+                                  }
+}
 
     // ─── RSA Private Operation ────────────────────────────────────────
 
@@ -372,6 +408,8 @@ public namespace tls {
     // 1024-bit multiply, ~14us against the 100ms+ it saves) makes a false
     // positive essentially impossible.
     func rsa_crt_ready(ctx : *mut RSAContext) : bool {
+        unsafe {
+
         if(mpi_is_zero(&raw mut ctx.P) || mpi_is_zero(&raw mut ctx.Q)) { return false }
         if(mpi_is_zero(&raw mut ctx.DP) || mpi_is_zero(&raw mut ctx.DQ)) { return false }
         if(mpi_is_zero(&raw mut ctx.QP)) { return false }
@@ -379,7 +417,9 @@ public namespace tls {
         var ret = mpi_mul(unsafe(&raw mut pq), &raw mut ctx.P, &raw mut ctx.Q)
         if(ret < 0) { return false }
         return mpi_cmp(unsafe(&raw mut pq), &raw mut ctx.N) == 0
+
     }
+}
 
     // RSADP via the Chinese Remainder Theorem (RFC 8017 5.1.2):
     //   m1 = c^dP mod p,  m2 = c^dQ mod q,
@@ -389,6 +429,8 @@ public namespace tls {
     // Without this, RSA decryption and signing are not practical at all on this
     // bignum.
     func rsa_private_crt(ctx : *mut RSAContext, input : *u8, output : *mut u8) : int {
+        unsafe {
+
         var C : Mpi; mpi_init(unsafe(&raw mut C))
         var Cp : Mpi; mpi_init(unsafe(&raw mut Cp))
         var Cq : Mpi; mpi_init(unsafe(&raw mut Cq))
@@ -429,10 +471,14 @@ public namespace tls {
         if(ret < 0) { return ret }
 
         return mpi_write_binary(unsafe(&raw mut M), output, ctx.len)
+
     }
+}
 
     // RSADP: m = c^d mod N, using CRT when the context has the parameters.
     func rsa_private(ctx : *mut RSAContext, input : *u8, output : *mut u8) : int {
+        unsafe {
+
         if(rsa_crt_ready(ctx)) { return rsa_private_crt(ctx, input, output) }
 
         var C : Mpi; mpi_init(unsafe(&raw mut C))
@@ -452,7 +498,9 @@ public namespace tls {
         if(ret < 0) { return ret }
 
         return 0
+
     }
+}
 
     // ─── PKCS#1 v1.5 Decryption (for server-side) ───────────────────────
 
@@ -486,6 +534,8 @@ public namespace tls {
     public func rsa_import_privkey(ctx : *mut RSAContext,
                                     n_buf : *u8, n_len : size_t,
                                     d_buf : *u8, d_len : size_t) : int {
+                                        unsafe {
+
         if(n_len == 0 || n_len > RSA_MAX_KEY_BYTES) { return ERR_RSA_BAD_INPUT_DATA }
         if(d_len == 0 || d_len > RSA_MAX_KEY_BYTES) { return ERR_RSA_BAD_INPUT_DATA }
         var ret = mpi_read_binary(&raw mut ctx.N, n_buf, n_len)
@@ -494,7 +544,9 @@ public namespace tls {
         if(ret < 0) { return ret }
         ctx.len = n_len
         return 0
-    }
+
+                                    }
+}
 
     // ─── RSA Key Generation ─────────────────────────────────────────────
 
@@ -538,6 +590,8 @@ public namespace tls {
     // Miller-Rabin primality test with `rounds` random bases.
     // Returns true if n is (almost certainly) prime.
     func mpi_is_prime(n : *mut Mpi, rounds : size_t) : bool {
+        unsafe {
+
         if(mpi_cmp_int(n, 2) < 0) { return false }
         if(mpi_cmp_int(n, 3) == 0) { return true }
         if((n.p[0] & 1) == 0) { return false }
@@ -591,10 +645,13 @@ public namespace tls {
             r += 1
         }
         return true
+
     }
+}
 
     // Generate a random prime of exactly `nbits` bits.
     func rsa_gen_prime(out : *mut Mpi, nbits : size_t, rounds : size_t) : int {
+        unsafe {
         if(nbits < 16) { return ERR_RSA_KEY_GEN_FAILED }
         var nbytes = (nbits + 7) / 8
         var buf : [RSA_MAX_KEY_BYTES]u8
@@ -616,8 +673,8 @@ public namespace tls {
             var bit_idx = (nbits - 1) % 8
             var i : size_t = 0
             while(i < top_byte) { buf[i] = 0; i += 1 }
-            buf[top_byte] = buf[top_byte] & ((1u8 << (bit_idx + 1)) - 1u8)
-            buf[top_byte] = buf[top_byte] | (1u8 << bit_idx)
+            buf[top_byte] = buf[top_byte] & (((1u16 << (bit_idx + 1)) - 1u16) as u8)
+            buf[top_byte] = buf[top_byte] | ((1u16 << bit_idx) as u8)
             buf[nbytes - 1] = buf[nbytes - 1] | 1u8
 
             var cand : Mpi; mpi_init(unsafe(&raw mut cand))
@@ -645,10 +702,13 @@ public namespace tls {
             attempt += 1
         }
         return ERR_RSA_KEY_GEN_FAILED
+        }
     }
 
     // Generate an RSA key pair with the given modulus size (in bits).
     public func rsa_gen_key(ctx : *mut RSAContext, nbits : size_t, exponent : u32) : int {
+        unsafe {
+
         if(nbits < 256 || nbits % 8 != 0) { return ERR_RSA_BAD_INPUT_DATA }
         if(nbits / 8 > RSA_MAX_KEY_BYTES) { return ERR_RSA_BAD_INPUT_DATA }
         var p_bits = nbits / 2
@@ -725,6 +785,8 @@ public namespace tls {
 
         ctx.len = nbits / 8
         return 0
+
     }
+}
 
 } // namespace tls

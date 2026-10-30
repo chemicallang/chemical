@@ -25,24 +25,38 @@ public namespace tls {
 
     // Set all limbs to 0
     public func fe_zero(f : *mut u32) {
+        unsafe {
+
         var i : size_t = 0
         while(i < 8) { f[i] = 0; i += 1 }
+
     }
+}
 
     // Copy field element
     func fe_copy(dst : *mut u32, src : *u32) {
+        unsafe {
+
         var i : size_t = 0
         while(i < 8) { dst[i] = src[i]; i += 1 }
+
     }
+}
 
     // Set to value (only small values work, up to 2^31)
     public func fe_set_small(f : *mut u32, val : u32) {
+        unsafe {
+
         fe_zero(f)
         f[0] = val
+
     }
+}
 
     // ─── Decode 32-byte little-endian to 8 limbs ─────────────────────────
     public func fe_decode(f : *mut u32, data : *u8) {
+        unsafe {
+
         var i : size_t = 0
         while(i < 8) {
             var off = i * 4
@@ -54,10 +68,14 @@ public namespace tls {
         }
         // Mask off bit 255 per RFC 7748 Section 5
         f[7] = f[7] & 0x7FFFFFFFu32
+
     }
+}
 
     // ─── Encode 8 limbs to 32-byte little-endian ─────────────────────────
     public func fe_encode(data : *mut u8, f : *u32) {
+        unsafe {
+
         var i : size_t = 0
         while(i < 8) {
             var off = i * 4
@@ -67,10 +85,14 @@ public namespace tls {
             data[off + 3] = ((f[i] >> 24) & 0xFF) as u8
             i += 1
         }
+
     }
+}
 
     // ─── Compare two field elements (return -1, 0, or 1) ─────────────────
     func fe_cmp(a : *u32, b : *u32) : int {
+        unsafe {
+
         var i : i32 = 7
         while(i >= 0) {
             if(a[i as size_t] > b[i as size_t]) { return 1 }
@@ -78,22 +100,30 @@ public namespace tls {
             i -= 1
         }
         return 0
+
     }
+}
 
     // ─── Conditional copy (constant-time) ──────────────────────────────
     // If mask == 0xFFFFFFFF, copy src to dst. If mask == 0, don't.
     func fe_ccopy(dst : *mut u32, src : *u32, mask : u32) {
+        unsafe {
+
         var i : size_t = 0
         while(i < 8) {
             dst[i] = dst[i] ^ (mask & (dst[i] ^ src[i]))
             i += 1
         }
+
     }
+}
 
     // ─── Carry propagation (full reduction) ─────────────────────────────
     // Takes a partially-reduced element and fully propagates carries.
     // Ensures each limb < 2^32.
     func fe_carry(f : *mut u64) {
+        unsafe {
+
         var c : u64 = 0
         var i : size_t = 0
         while(i < 8) {
@@ -139,11 +169,15 @@ public namespace tls {
                 }
             }
         }
+
     }
+}
 
     // ─── Conditional subtraction of p ──────────────────────────────────
     // If f >= p, subtract p from f (in-place).
     func fe_strong_reduce(f : *mut u32) {
+        unsafe {
+
         // p limbs
         var p_limbs : [8]u32 = [
             0xFFFFFFEDu32, 0xFFFFFFFFu32, 0xFFFFFFFFu32, 0xFFFFFFFFu32,
@@ -169,10 +203,14 @@ public namespace tls {
                 i += 1
             }
         }
+
     }
+}
 
     // ─── Addition mod p (fully reduced) ────────────────────────────────
     public func fe_add(c : *mut u32, a : *u32, b : *u32) {
+        unsafe {
+
         var t : [8]u64
         var i : size_t = 0
         while(i < 8) {
@@ -187,7 +225,9 @@ public namespace tls {
             j += 1
         }
         fe_strong_reduce(c)
+
     }
+}
 
     func fe_debug_print(msg : *char, f : *u32) {
         if(!tls_config::EXTENSIVE_DEBUG_LOG) { return }
@@ -211,6 +251,8 @@ public namespace tls {
     // ─── Subtraction mod p (fully reduced) ─────────────────────────────
     // Computes c = a - b mod p = (a + (p - b)) mod p
     public func fe_sub(c : *mut u32, a : *u32, b : *u32) {
+        unsafe {
+
         // Step 1: compute p - b using borrow subtraction (b < p, so this is exact)
         var t : [8]u64
         var borrow : u64 = 0
@@ -225,7 +267,7 @@ public namespace tls {
             i += 1
         }
         // After this, t = p - b (borrow should be 0 since b < p)
-        
+
         // Step 2: add a to (p - b): result = a + (p - b)
         var carry : u64 = 0
         i = 0
@@ -235,7 +277,7 @@ public namespace tls {
             carry = sum >> 32
             i += 1
         }
-        
+
         // Step 3: handle carry out of limb 7 (2^256 ≡ 38 mod p)
         if(carry > 0) {
             t[0] = t[0] + carry * 38
@@ -253,7 +295,7 @@ public namespace tls {
                 t[0] = t[0] + c2 * 38
             }
         }
-        
+
         // Store as u32 and strong reduce
         var j : size_t = 0
         while(j < 8) {
@@ -261,7 +303,9 @@ public namespace tls {
             j += 1
         }
         fe_strong_reduce(c)
+
     }
+}
 
     // ─── 32x32 → 64-bit multiplication ──────────────────────────────────
     // Direct multiplication (C/LLVM handles u64 promotion correctly).
@@ -274,6 +318,8 @@ public namespace tls {
     // ─── Multiplication mod p ──────────────────────────────────────────
     // Schoolbook multiplication of two 8-limb numbers, then reduce mod p.
     public func fe_mul(c : *mut u32, a : *u32, b : *u32) {
+        unsafe {
+
         // Compute 16 partial products (256-bit * 256-bit = 512-bit result)
         var t : [16]u64
         fe_zero_u64_arr(&raw mut t[0], 16)
@@ -357,9 +403,11 @@ public namespace tls {
         // Store as u32
         c[0] = r0 as u32; c[1] = r1 as u32; c[2] = r2 as u32; c[3] = r3 as u32
         c[4] = r4 as u32; c[5] = r5 as u32; c[6] = r6 as u32; c[7] = r7 as u32
-        
+
         fe_strong_reduce(c)
+
     }
+}
 
     // ─── Square (just calls fe_mul for correctness) ─────────────────────
     func fe_sq(c : *mut u32, a : *u32) {
@@ -368,9 +416,13 @@ public namespace tls {
 
     // ─── Helper: zero u64 array ─────────────────────────────────────────
     func fe_zero_u64_arr(arr : *mut u64, n : size_t) {
+        unsafe {
+
         var i : size_t = 0
         while(i < n) { arr[i] = 0; i += 1 }
+
     }
+}
 
     // ─── Modular inverse using Fermat's little theorem ──────────────────
     // a^(p-2) mod p where p-2 = 2^255 - 21
@@ -382,13 +434,13 @@ public namespace tls {
         //
         // Square-and-multiply from bit 254 down to 0:
         // Start with r = 1, then for each bit: r = r^2, if bit set: r = r * a
-        
+
         var r : [8]u32; fe_set_small(&raw mut r[0], 1)
-        
+
         var bit : i32 = 254
         while(bit >= 0) {
             fe_sq(&raw mut r[0], &raw r[0])
-            
+
             // Check if bit of 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEB is set
             // 0xEB = 1110 1011, so last byte bits: 7=1,6=1,5=1,4=0,3=1,2=0,1=1,0=1
             // All other bytes (above byte 0) are 0xFF = all bits set
@@ -404,18 +456,20 @@ public namespace tls {
                     do_mul = true
                 }
             }
-            
+
             if(do_mul) {
                 fe_mul(&raw mut r[0], &raw r[0], a)
             }
             bit -= 1
         }
-        
+
         fe_copy(c, &raw r[0])
     }
 
     // ─── Conditional swap (constant-time using XOR mask) ───────────────
     func fe_cswap(a : *mut u32, b : *mut u32, sw : u32) {
+        unsafe {
+
         // Create a mask that's all-1s if sw == 1, all-0s if sw == 0
         var mask : u32 = 0u32 - sw  // 0 -> 0, 1 -> 0xFFFFFFFF
         var i : size_t = 0
@@ -425,19 +479,27 @@ public namespace tls {
             b[i] = b[i] ^ diff
             i += 1
         }
+
     }
+}
 
     // Clamp scalar per RFC 7748 Section 5
     public func x25519_clamp_scalar(scalar : *mut u8) {
+        unsafe {
+
         scalar[0] = scalar[0] & 0xF8 as u8
         scalar[31] = scalar[31] & 0x7F as u8
         scalar[31] = scalar[31] | 0x40 as u8
+
     }
+}
 
     // ─── Montgomery Ladder ──────────────────────────────────────────────
     // Implements RFC 7748 Section 5.
 
     public func x25519_ladder(out : *mut u8, scalar : *u8, u : *u8) {
+        unsafe {
+
         // Clamp scalar per RFC 7748 Section 5 (implementations MUST clamp)
         var clamped : [32]u8
         var ci : size_t = 0
@@ -545,20 +607,26 @@ public namespace tls {
 
         // Encode to 32 bytes little-endian
         fe_encode(out, &raw x2[0])
+
     }
+}
 
     // Generate an x25519 keypair
     public func x25519_generate_keypair(priv : *mut u8, pub : *mut u8) : int {
+        unsafe {
         var rng_ret = random_fill(priv, 32)
         if(rng_ret < 0) { return rng_ret }
 
         x25519_clamp_scalar(priv)
         x25519_ladder(pub, priv, &raw X25519_BASE_POINT[0])
         return 0
+        }
     }
 
     // Compute shared secret from private key and peer public key
     public func x25519_compute_shared(priv : *u8, peer_pub : *u8, shared : *mut u8) : int {
+        unsafe {
+
         // Per RFC 7748: rejecting all-zero output is mandatory.
         // Check peer public key for all-zero first.
         var all_zero_peer = true
@@ -589,6 +657,8 @@ public namespace tls {
         if(all_zero) { return ERR_ECP_INVALID_KEY }
 
         return 0
+
     }
+}
 
 } // namespace tls

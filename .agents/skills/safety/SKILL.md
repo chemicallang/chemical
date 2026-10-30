@@ -9,7 +9,7 @@ This skill is the working guide for the full safety parity program. The canonica
 plan is [`lang/docs/safety-implementation-plan.md`](../../../lang/docs/safety-implementation-plan.md).
 The source tree wins over any status note here.
 
-## Current status (2026-10-28)
+## Current status (2026-10-30)
 
 **M0 (S0.1–S0.6), M3, and M4 are implemented for the enforceable surface. M1/M2/M5 are advanced; M6 has started. S5.6b (unwinding) is withdrawn by policy: panic always aborts.**
 
@@ -356,8 +356,9 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `55`, negative `613`; TCC main `2356`, LLVM
-  main `2354`, libs `730`, plugins `1305`, async `54`, interpret `1910`.
+  TCC/LLVM lib runs. Safety suite `55`, negative `617`; TCC main `2356`, LLVM
+  main `2354`, libs `730`, plugins `1305`, async `55`, interpret `1910`,
+  server `10`, TLS `599`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
   range-checked, frame places are registered individually, and globals,
@@ -398,13 +399,19 @@ Implemented:
   compiler frame check (`SAFE-SEND-001`): the operand must be a direct async
   function call and every parameter/local in its frame must be `Send +
   'static`; owned frames run, `Rc` and borrowed frames are rejected. A stored
-  or erased future is rejected because its frame cannot be proven. `FutureHandle`
-  itself still carries an erased frame and remains `!Send`; a frame witness on
-  the handle, heterogeneous scopes, and complete propagation of unsafe-created
-  borrowed callbacks remain. `std::thread.scoped_spawn_closure` is the safe
-  join-before-return form for a capturing closure: its witness may borrow
-  caller storage (`C: Send`, not `'static`) because the worker is joined inside
-  the call; `Rc` captures are still rejected.
+  or erased future is rejected because its frame cannot be proven. Safe
+  submission returns `core::async::SendFutureHandle<T>`: once the frame check
+  passes, the handle carries a type-level `Send`/`Sync` witness (`T: Send`) and
+  can be moved to a worker; `async::block_on_send` drives it. The raw
+  `FutureHandle<T>` still carries an erased frame and remains `!Send`, so only
+  handles crossing the checked submission boundary become thread-movable.
+  `std::thread.scoped_spawn_closure` is the safe join-before-return form for a
+  capturing closure: its witness may borrow caller storage (`C: Send`, not
+  `'static`) because the worker is joined inside the call; `Rc` captures are
+  still rejected. Taint from an unsafe-created stack-borrowing callback is
+  followed through locals, assignments, struct/array fields, access chains,
+  erased callback parameters, and variant/generic payloads, so it cannot enter
+  a safe API that erases the capture witness.
 - M6 safe threads: `std::thread.spawn` accepts a non-capturing `(T) => U`
   entry with `T: Send + 'static`, `U: Send + 'static`; `spawn_void` is the
   void-returning form. `JoinHandle<T>` joins explicitly or from its destructor
@@ -448,7 +455,7 @@ Implemented:
   carry one explicit unsafe boundary around their raw context/job operations.
   Wrapping generic bodies exposed a missing `ValueNode::copy`, now implemented.
   In-tree stdlib/CBI/plugin/build.lab call sites were migrated; audit baseline
-  is `unsafe_blocks 576`, `unsafe_values 441`; negative `613`.
+  is `unsafe_blocks 576`, `unsafe_values 441`; negative `617`.
 - S2.2/S4.8 function pointers: `FunctionTypeData::requires_unsafe` is part of
   function type identity and is set for `unsafe func` and `@extern`. Calling a
   value of such a type in safe context is `SAFE-UNSAFE-002`; coercing it to a

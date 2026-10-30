@@ -34,6 +34,8 @@ using std::string_view
 
 @test
 public func INT_ecdsa_import_pubkey_rejects_off_curve_point(env : &mut TestEnv) {
+    unsafe {
+
     // A real key, plus one bit flipped in Y.
     var script : [2048]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.asymmetric import ec\nkey=ec.generate_private_key(ec.SECP256R1())\nn=key.public_key().public_numbers()\nprint('PX='+format(n.x,'064x'))\nprint('PY='+format(n.y,'064x'))\nprint('BY='+format(n.y ^ 1,'064x'))\n" as *char
@@ -81,10 +83,14 @@ public func INT_ecdsa_import_pubkey_rejects_off_curve_point(env : &mut TestEnv) 
         // THE BUG: an off-curve point was accepted.
         env.error("ecdsa_import_pubkey accepted a point that is NOT on the curve (python confirms it is invalid)")
     }
+
+}
 }
 
 @test
 public func INT_ecdsa_off_curve_key_verifies_nothing(env : &mut TestEnv) {
+    unsafe {
+
     // The property that protects a caller today, and which must survive the fix:
     // even though the importer lets an off-curve point through, it must not
     // verify a real signature. This passes now and should keep passing.
@@ -137,5 +143,7 @@ public func INT_ecdsa_off_curve_key_verifies_nothing(env : &mut TestEnv) {
             env.error("an off-curve key VERIFIED a real signature - that is a serious bug")
         }
     }
+
+}
 }
 

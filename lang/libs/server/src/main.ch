@@ -10,7 +10,7 @@ public func main(argc : int, argv : **char) : int { unsafe {
     while(i < argc) {
         const arg_str = *argv_offset(argv, i);
         var arg = std::string_view(arg_str, strlen(arg_str));
-        
+
         if(arg.equals("-p") || arg.equals("--port")) {
             if(i + 1 < argc) {
                 var p_str = *argv_offset(argv, i + 1);
@@ -54,7 +54,7 @@ public func main(argc : int, argv : **char) : int { unsafe {
     cfg.addr = addr;
 
     var S = server.Server(cfg);
-    
+
     // Add catch-all route for static files. The callback borrows the local
     // file server by reference; its lifetime is confined to this function.
     unsafe {
@@ -91,8 +91,10 @@ func argv_offset(argv : **char, offset : int) : **char {
 
 func strlen(s: *char): usize {
     var len = 0u;
-    while(s[len] != '\0') {
-        len++;
+    unsafe {
+        while(s[len] != '\0') {
+            len++;
+        }
     }
     return len;
 }

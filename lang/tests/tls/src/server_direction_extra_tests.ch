@@ -26,6 +26,8 @@ func sdv_send_raw(ssl : *mut SSLContext, resp : string) : int {
 
 // Extract the request target (path[?query]) from the request line.
 func sdv_request_target(buf : *u8, consumed : size_t, out : *mut u8, out_cap : size_t) : size_t {
+    unsafe {
+
     var sp1 : size_t = 0
     while(sp1 < consumed && buf[sp1] != 32u) { sp1 += 1 }
     if(sp1 >= consumed) { return 0 }
@@ -36,15 +38,21 @@ func sdv_request_target(buf : *u8, consumed : size_t, out : *mut u8, out_cap : s
     var i : size_t = 0
     while(i < len) { out[i] = buf[sp1 + 1u + i]; i += 1 }
     return len
+
+}
 }
 
 // Detect an exact method token at the start of the request.
 func sdv_method_is(buf : *u8, m0 : u8, m1 : u8, m2 : u8, m3 : u8) : bool {
+    unsafe {
+
     if(buf[0] != m0) { return false }
     if(m1 != 0u && buf[1] != m1) { return false }
     if(m2 != 0u && buf[2] != m2) { return false }
     if(m3 != 0u && buf[3] != m3) { return false }
     return true
+
+}
 }
 
 // Shared skeleton: cert/key setup, listen, launch python client mode,
@@ -272,6 +280,8 @@ func sdv_loop_head(env : &mut TestEnv, ssl_mem : *mut SSLContext) : bool {
 // bytes; python compares against the original payload, so any transport or
 // framing corruption (or undecodable chunks) fails the roundtrip.
 func sdv_loop_chunkup(env : &mut TestEnv, ssl_mem : *mut SSLContext) : bool {
+    unsafe {
+
     const BUF_CAP : size_t = 16384u
     var req_buf : [BUF_CAP]u8
     var filled : size_t = 0
@@ -373,6 +383,8 @@ func sdv_loop_chunkup(env : &mut TestEnv, ssl_mem : *mut SSLContext) : bool {
     while(di2 < dlen) { resp.append(decoded[di2] as char); di2 += 1 }
     if(sdv_send_raw(ssl_mem, resp) < 0) { env.error("chunkup: response write failed"); return false }
     return true
+
+}
 }
 
 // Strict response shape: custom reason phrase + mixed-case duplicate-free

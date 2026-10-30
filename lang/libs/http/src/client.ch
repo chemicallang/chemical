@@ -9,6 +9,8 @@ public namespace http {
         var query: std::string;
 
         @constructor func constructor() {
+            unsafe {
+
             return URL {
                 scheme = std::string::make_no_len("http"),
                 host = std::string(),
@@ -16,9 +18,13 @@ public namespace http {
                 path = std::string::make_no_len("/"),
                 query = std::string()
             }
+
         }
+}
 
         public func parse(url_str: &std::string_view) : std::Option<URL> {
+            unsafe {
+
             var u = *url_str;
             var res = URL();
 
@@ -75,7 +81,9 @@ public namespace http {
 
             if(res.host.empty()) { return std::Option.None<URL>() }
             return std::Option.Some<URL>(res);
+
         }
+}
     }
 
     public struct RequestBuilder {
@@ -86,18 +94,26 @@ public namespace http {
         var timeout_secs: long = 10;
 
         @constructor func constructor(m: *char, u: URL) {
+            unsafe {
+
             return RequestBuilder {
                 method = std::string::make_no_len(m),
                 url = u,
                 headers = HeaderMap(),
                 body = std::string()
             }
+
         }
+}
 
         public func header(&mut self, k: *char, v: *char) : &mut RequestBuilder {
+            unsafe {
+
             headers.insert(std::string::make_no_len(k), std::string::make_no_len(v));
             return self;
+
         }
+}
 
         public func header_view(&mut self, k: &std::string_view, v: &std::string_view) : &mut RequestBuilder {
             headers.insert(std::string::view_make(k), std::string::view_make(v));
@@ -113,12 +129,16 @@ public namespace http {
         }
 
         public func set_body(&mut self, b: &std::string_view, content_type: *char = null) : &mut RequestBuilder {
+            unsafe {
+
             body = std::string::view_make(b);
             if(content_type != null) {
                 headers.insert(std::string::make_no_len("Content-Type"), std::string(content_type));
             }
             return self;
+
         }
+}
 
         public func timeout(&mut self, secs: long) : &mut RequestBuilder {
             timeout_secs = secs;
@@ -130,6 +150,8 @@ public namespace http {
         }
 
         public func build(&self, absolute: bool = false) : std::string {
+            unsafe {
+
             var out = std::string();
             out.append_string(&method);
             out.append(' ');
@@ -181,7 +203,9 @@ public namespace http {
                 out.append_string(&body);
             }
             return out;
+
         }
+}
     }
 }
 
@@ -484,15 +508,21 @@ public namespace http {
          }}
 
         public func get(&self, url_str: &std::string_view) : std::Result<Response, std::string> {
+            unsafe {
+
             var u_opt = URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<Response, std::string>(std::string::make_no_len("invalid URL"));
             var Some(u) = u_opt else unreachable;
             var rb = RequestBuilder("GET", std::replace(&mut u, URL()));
             rb.timeout(self.default_timeout_secs);
             return self.request(&rb);
+
         }
+}
 
         public func post(&self, url_str: &std::string_view, body: &std::string_view, content_type: *char = "text/plain") : std::Result<Response, std::string> {
+            unsafe {
+
             var u_opt = URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<Response, std::string>(std::string::make_no_len("invalid URL"));
             var Some(u) = u_opt else unreachable;
@@ -500,9 +530,13 @@ public namespace http {
             rb.set_body(body, content_type);
             rb.timeout(self.default_timeout_secs);
             return self.request(&rb);
+
         }
+}
 
         public func put(&self, url_str: &std::string_view, body: &std::string_view, content_type: *char = "text/plain") : std::Result<Response, std::string> {
+            unsafe {
+
             var u_opt = URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<Response, std::string>(std::string::make_no_len("invalid URL"));
             var Some(u) = u_opt else unreachable;
@@ -510,9 +544,13 @@ public namespace http {
             rb.set_body(body, content_type);
             rb.timeout(self.default_timeout_secs);
             return self.request(&rb);
+
         }
+}
 
         public func patch(&self, url_str: &std::string_view, body: &std::string_view, content_type: *char = "text/plain") : std::Result<Response, std::string> {
+            unsafe {
+
             var u_opt = URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<Response, std::string>(std::string::make_no_len("invalid URL"));
             var Some(u) = u_opt else unreachable;
@@ -520,25 +558,35 @@ public namespace http {
             rb.set_body(body, content_type);
             rb.timeout(self.default_timeout_secs);
             return self.request(&rb);
+
         }
+}
 
         public func delete(&self, url_str: &std::string_view) : std::Result<Response, std::string> {
+            unsafe {
+
             var u_opt = URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<Response, std::string>(std::string::make_no_len("invalid URL"));
             var Some(u) = u_opt else unreachable;
             var rb = RequestBuilder("DELETE", std::replace(&mut u, URL()));
             rb.timeout(self.default_timeout_secs);
             return self.request(&rb);
+
         }
+}
 
         public func head(&self, url_str: &std::string_view) : std::Result<Response, std::string> {
+            unsafe {
+
             var u_opt = URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<Response, std::string>(std::string::make_no_len("invalid URL"));
             var Some(u) = u_opt else unreachable;
             var rb = RequestBuilder("HEAD", std::replace(&mut u, URL()));
             rb.timeout(self.default_timeout_secs);
             return self.request(&rb);
+
         }
+}
     }
 
 }

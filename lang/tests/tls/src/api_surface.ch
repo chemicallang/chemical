@@ -13,6 +13,8 @@ using std::string_view
 // ─── handshake_params_init zeroes all sensitive buffers ─────────────────────
 @test
 public func API_handshake_params_init_zeroes(env : &mut TestEnv) {
+    unsafe {
+
     var hs_mem = unsafe(malloc(sizeof(HandshakeParams))) as *mut HandshakeParams
     if(hs_mem == null) { env.error("alloc failed"); return }
 
@@ -37,6 +39,8 @@ public func API_handshake_params_init_zeroes(env : &mut TestEnv) {
     if(hs_mem.psk_accepted) { env.error("psk_accepted must start false") }
 
     unsafe { dealloc hs_mem }
+
+}
 }
 
 // ─── ecp_select_curve switches between P-256 and P-384 domain parameters ────

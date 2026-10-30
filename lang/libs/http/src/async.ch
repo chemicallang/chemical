@@ -53,6 +53,8 @@ public struct HttpResult {
 }
 
 func http_box(client : *mut Client, r : std::Result<Response, std::string>) : *mut HttpResult {
+    unsafe {
+
     var box = unsafe(malloc(sizeof(HttpResult))) as *mut HttpResult
     if(r is std::Result.Ok) {
         var Ok(resp) = r else unreachable
@@ -82,6 +84,8 @@ func http_box(client : *mut Client, r : std::Result<Response, std::string>) : *m
         }
     }
     return box
+
+}
 }
 
 public async func request_async(client : *mut Client, req_builder : *mut RequestBuilder) : *mut HttpResult {
@@ -157,6 +161,8 @@ public namespace server {
 // Drive it with `async::block_on<int>(serve_coro(&raw mut srv, port))`, or
 // submit it with `async::spawn<int>(...)` and call `srv.shutdown()` to stop.
 public async func serve_coro(srv : *mut Server, port : uint = 8080u) : int {
+    unsafe {
+
     srv.start(port)
     var listener_fd = srv.listen_sock as int
     // Bounded blocking accept on the pool: the loop stays responsive to `run`
@@ -184,6 +190,8 @@ public async func serve_coro(srv : *mut Server, port : uint = 8080u) : int {
     srv.listen_sock = 0u
     srv.shutdown()
     return 0
+
+}
 }
 
 }

@@ -10,6 +10,8 @@ using namespace std;
 @test
 @test.timeout(60000)
 public func INT_http_async_loopback(env : &mut TestEnv) {
+    unsafe {
+
     var cfg = server::ServerConfig();
     cfg.addr = std::string::make_no_len("127.0.0.1:19891");
     var srv = server::Server(cfg);
@@ -44,4 +46,6 @@ public func INT_http_async_loopback(env : &mut TestEnv) {
     if(r != 0) {
         env.error("serve_coro returned non-zero")
     }
+
+}
 }

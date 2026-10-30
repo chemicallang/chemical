@@ -10,6 +10,8 @@ public namespace server {
         var cert_file: std::string;       // PEM cert file path (empty = plain HTTP)
         var key_file: std::string;        // PEM RSA private key file path
         @constructor func constructor() {
+            unsafe {
+
             return ServerConfig {
                 addr = std::string::make_no_len(":8080");
                 worker_count = std.concurrent.hardware_threads() as uint;
@@ -20,7 +22,9 @@ public namespace server {
                 cert_file = std::string(),
                 key_file = std::string()
             }
+
         }
+}
     }
 
     public struct Server {
@@ -46,6 +50,8 @@ public namespace server {
         }
 
         func handle_conn(&self, s: net::Socket) {
+            unsafe {
+
             if (s == 0u || (s as longlong) < 0) {
                 unsafe { printf("handle_conn: invalid socket {}\n") };
                 net::close_socket(s); return;
@@ -111,9 +117,13 @@ public namespace server {
                 unsafe { dealloc tls_ctx }
             }
             net::close_socket(s);
+
         }
+}
 
         func accept_main(arg : *void) : *void {
+            unsafe {
+
             var S = arg as *mut Server;
             while (S.run) {
                 var s = net::accept_socket(S.listen_sock);
@@ -136,7 +146,9 @@ public namespace server {
             net::close_socket(S.listen_sock);
             S.listen_sock = 0u;
             return null;
+
         }
+}
 
         func start(&mut self, default_port : uint = 8080u) {
             var host : *char = null

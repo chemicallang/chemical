@@ -328,6 +328,8 @@ public func INT_tls13_session_ticket(env : &mut TestEnv) {
 @test
 @test.timeout(60000)
 public func INT_tls13_session_resumption(env : &mut TestEnv) {
+    unsafe {
+
     write_tls_python_utils()
     test_kill_port(19913)
     test_server_wait()
@@ -430,6 +432,8 @@ public func INT_tls13_session_resumption(env : &mut TestEnv) {
     ssl_free(unsafe(&raw mut ctx1))
     ssl_free(unsafe(&raw mut ctx2))
     test_kill_port(19913)
+
+}
 }
 
 // ─── ssl_free / delete cleanup ─────────────────────────────────────────────
@@ -475,6 +479,8 @@ public func INT_system_ca_bundle(env : &mut TestEnv) {
 
 @test
 public func INT_tls13_server_client(env : &mut TestEnv) {
+    unsafe {
+
     write_tls_python_utils()
     test_kill_port(19880)
     test_server_wait()
@@ -551,10 +557,14 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
     ecdsa_context_free(priv_key)
     net::close_socket(server_sock)
     test_kill_port(19880)
+
+}
 }
 
 @test
 public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
+    unsafe {
+
     write_tls_python_utils()
     test_kill_port(19882)
     test_server_wait()
@@ -627,6 +637,8 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     ecdsa_context_free(priv_key)
     net::close_socket(server_sock)
     test_kill_port(19882)
+
+}
 }
 
 @test
@@ -723,6 +735,8 @@ public func INT_x509_extract_ecdsa_pubkey_works(env : &mut TestEnv) {
 @test
 @test.timeout(60000)
 public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
+    unsafe {
+
     write_tls_python_utils()
     test_kill_port(19885)
     test_server_wait()
@@ -793,6 +807,8 @@ public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
     unsafe { dealloc cert }
     net::close_socket(server_sock)
     test_kill_port(19885)
+
+}
 }
 
 // ─── TLS 1.2 server with the CBC-HMAC cipher path ──────────────────────────
@@ -802,6 +818,8 @@ public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
 @test
 @test.timeout(60000)
 public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
+    unsafe {
+
     write_tls_python_utils()
     test_kill_port(19886)
     test_server_wait()
@@ -874,6 +892,8 @@ public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
     unsafe { dealloc cert }
     net::close_socket(server_sock)
     test_kill_port(19886)
+
+}
 }
 
 // ─── TLS 1.2 client negotiating the CBC-HMAC path ──────────────────────────

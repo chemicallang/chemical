@@ -5,10 +5,14 @@ public namespace http {
         var root: std::string;
 
         @constructor func constructor(root_path: *char) {
+            unsafe {
+
             return FileServer {
                 root = std::string(root_path)
             }
+
         }
+}
 
         func get_mime_type(ext: &std.string) : std.string_view {
             return mime::get_type(ext.data())

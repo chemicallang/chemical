@@ -263,7 +263,7 @@ public func FULL_https_routing_matrix_all_routes(env : &mut TestEnv) {
 
 // Shared counter for concurrent-client tests.
 struct FullCapCounter {
-    var success : uint = unsafe(std::mem.zeroed_unchecked<uint>());
+    var success : uint = 0u;
     var lock : std.mutex
 }
 
@@ -449,6 +449,8 @@ public func FULL_https_header_value_state_flow_between_requests(env : &mut TestE
 @test
 @test.timeout(60000)
 public func FULL_https_utf8_and_control_char_bodies(env : &mut TestEnv) {
+    unsafe {
+
     const PORT : uint = 20306u
     full_start_httpsrv(env, PORT, "/tmp/tls_fs06_cert.pem", "/tmp/tls_fs06_key.pem", 8u)
 
@@ -491,6 +493,8 @@ public func FULL_https_utf8_and_control_char_bodies(env : &mut TestEnv) {
     if(!v2.equals_view(ctrl.to_view())) { env.error("control-char echo mismatch") }
 
     test_kill_port(PORT as int)
+
+}
 }
 
 // â”€â”€â”€ 8. Empty-body POST semantics over TLS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -834,6 +838,8 @@ public func FULL_https_uppercase_scheme_end_to_end(env : &mut TestEnv) {
 // â”€â”€â”€ 16. Reverse direction: Python http.client method matrix over TLS 1.3 â”€â”€â”€
 // Parse Content-Length strictly inside the header block [0, head_end).
 func full_parse_content_length(buf : *u8, head_end : size_t) : size_t {
+    unsafe {
+
     var i : size_t = 0
     while(i + 15 < head_end) {
         if(srv_ci_has_prefix(buf, i, "content-length:")) {
@@ -849,6 +855,8 @@ func full_parse_content_length(buf : *u8, head_end : size_t) : size_t {
         i += 1
     }
     return 0
+
+}
 }
 
 // Read one complete HTTP request; unlike srv_read_request_stream this parses
@@ -880,6 +888,8 @@ func full_read_request(ssl : *mut SSLContext, buf : *mut u8, buf_size : size_t,
 @test
 @test.timeout(90000)
 public func FULL_python_client_method_matrix_over_tls(env : &mut TestEnv) {
+    unsafe {
+
     const PORT : uint = 20320u
     write_tls_python_utils()
     test_ensure_tmp_dir()
@@ -1012,4 +1022,6 @@ public func FULL_python_client_method_matrix_over_tls(env : &mut TestEnv) {
     ecdsa_context_free(priv_key)
     net::close_socket(ls)
     test_kill_port(PORT as int)
+
+}
 }

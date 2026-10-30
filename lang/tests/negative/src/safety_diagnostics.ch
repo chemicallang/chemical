@@ -214,10 +214,31 @@ func neg_spawn_closure_rc_capture_rejected(env : &mut TestEnv) {
 }
 
 @test
-func neg_erased_callback_return_rejected(env : &mut TestEnv) {
+func neg_tainted_callback_field_into_erased_api(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "func passthrough(f : std::function<() => int>) : std::function<() => int> {\n    return f\n}\npublic func main() : int { return 0 }\n"
-    expect_compile_error_with_mod(env, "erased_callback_return", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
+    var ch = "struct Holder {\n    var f : std::function<() => int>\n}\nfunc take(f : std::function<() => int>) : int { return f() }\npublic func main() : int {\n    var x = 1\n    var h : Holder\n    unsafe { h.f = |&x|() => { return *x } }\n    return take(h.f)\n}\n"
+    expect_compile_error_with_mod(env, "tainted_callback_field_erased_api", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_tainted_callback_wrapped_in_generic(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var x = 1\n    var f : std::function<() => int>\n    unsafe { f = |&x|() => { return *x } }\n    var o : std::Option<std::function<() => int>> = std::Option.Some(f)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "tainted_callback_generic", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_tainted_callback_in_struct_into_erased_api(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct Holder {\n    var f : std::function<() => int>\n}\nfunc take(h : Holder) : int { return h.f() }\npublic func main() : int {\n    var x = 1\n    var h : Holder\n    unsafe { h.f = |&x|() => { return *x } }\n    return take(h)\n}\n"
+    expect_compile_error_with_mod(env, "tainted_callback_struct_erased_api", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_tainted_callback_into_erased_api(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func take(f : std::function<() => int>) : int { return f() }\npublic func main() : int {\n    var x = 1\n    var f : std::function<() => int>\n    unsafe { f = |&x|() => { return *x } }\n    return take(f)\n}\n"
+    expect_compile_error_with_mod(env, "tainted_callback_erased_api", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
 }
 
 @test
@@ -225,6 +246,13 @@ func neg_scoped_spawn_closure_rc_capture_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var r = std::rc(5)\n    std::thread.scoped_spawn_closure(|r|() => { var x = *r.get() })\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "scoped_closure_rc", ch, "does not satisfy where clause constraint 'C : Send'", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_raw_future_handle_not_send(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work() : int {\n    var u = await async::yield_now()\n    return 1\n}\nfunc consume(h : core::async::FutureHandle<int>) : int {\n    return async::block_on<int>(h)\n}\npublic func main() : int {\n    var h = work()\n    var t = std::thread.spawn(consume, h)\n    return t.join()\n}\n"
+    expect_compile_error_with_mod(env, "raw_future_not_send", ch, "does not satisfy where clause constraint 'T : Send'", NEG_MOD_ASYNC_STD)
 }
 
 @test

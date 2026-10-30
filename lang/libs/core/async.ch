@@ -119,6 +119,62 @@ public namespace async {
         }
     }
 
+    // A future handle whose frame was proven `Send + 'static` at a safe
+    // submission boundary (currently `async::spawn_send`). Unlike the erased
+    // `FutureHandle<T>`, moving this handle to another thread is safe when the
+    // result type is Send. The frame/vtable contract is still private, so safe
+    // code cannot forge one directly.
+    @direct_init
+    public struct SendFutureHandle<T> {
+        private var frame : *mut void
+        private var vtbl  : *mut FutureTable<T>
+
+        public unsafe func set_raw(&mut self, frame_ : *mut void, vtbl_ : *mut FutureTable<T>) {
+            frame = frame_
+            vtbl = vtbl_
+        }
+
+        public func frame_ptr(&self) : *mut void {
+            return frame
+        }
+
+        public func vtbl_ptr(&self) : *mut FutureTable<T> {
+            return vtbl
+        }
+
+        // Move the frame back into the erased representation. Used by the
+        // block_on overload and by code that needs to await this handle.
+        public unsafe func into_future(&mut self) : FutureHandle<T> {
+            var out = zeroed:unsafe<FutureHandle<T>>()
+            unsafe { out.set_raw(frame, vtbl) }
+            frame = null
+            vtbl = null
+            return out
+        }
+
+        @delete
+        func delete(&mut self) {
+            if(frame != null) {
+                unsafe { vtbl.drop(frame) }
+                frame = null
+            }
+        }
+    }
+
+    unsafe impl<T> Send for SendFutureHandle<T> where T : Send { }
+    unsafe impl<T> Sync for SendFutureHandle<T> where T : Send { }
+
+    // Consume an erased handle and attach the Send witness. This is the
+    // unchecked conversion used by audited submission APIs after their own
+    // frame check; the original handle is emptied so the frame is dropped once.
+    public unsafe func <T> future_handle_into_send(handle : &mut FutureHandle<T>) : SendFutureHandle<T> {
+        var out = zeroed:unsafe<SendFutureHandle<T>>()
+        unsafe { out.set_raw(handle.frame_ptr(), handle.vtbl_ptr()) }
+        var empty = zeroed:unsafe<FutureHandle<T>>()
+        unsafe { handle.set_raw(empty.frame_ptr(), empty.vtbl_ptr()) }
+        return out
+    }
+
     /**
      * The one unchecked constructor for a future handle. The fields are
      * private so safe code cannot forge the frame/vtable pair; runtime

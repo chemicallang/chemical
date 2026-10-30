@@ -22,6 +22,8 @@ public namespace tls {
     }
 
     public func gcm_init(ctx : *mut GCMContext, key : *u8, key_len : size_t) : int {
+        unsafe {
+
         // Set AES key
         ctx.len = key_len
         var ret = aes_setkey_enc(&raw mut ctx.cipher_ctx, key, key_len)
@@ -34,7 +36,9 @@ public namespace tls {
         aes_crypt_ecb(&raw mut ctx.cipher_ctx, AES_ENCRYPT, &raw zero_block[0], &raw mut ctx.H[0])
 
         return 0
+
     }
+}
 
     // ─── GF(2^128) Multiplication ──────────────────────────────────────────
 
@@ -43,6 +47,8 @@ public namespace tls {
     // - Bits are numbered from MSB (bit 0) to LSB (bit 127)
     // - Polynomials are represented with the highest degree coefficient in bit 0 of byte 0
     func ghash_multiply_refined(output : *mut u8, x : *u8, y : *u8) {
+        unsafe {
+
         var Z : [16]u8
         var V : [16]u8
         var i : size_t = 0
@@ -85,7 +91,9 @@ public namespace tls {
 
         i = 0
         while(i < 16) { output[i] = Z[i]; i += 1 }
+
     }
+}
 
     // ─── GHASH (core authentication function) ─────────────────────────────
 
@@ -97,6 +105,8 @@ public namespace tls {
     func ghash(ctx : *mut GCMContext, aad : *u8, aad_len : size_t,
                ciphertext : *u8, ct_len : size_t,
                output : *mut u8) {
+                   unsafe {
+
         var Y : [16]u8
         var i : size_t = 0
         while(i < 16) { Y[i] = 0; i += 1 }
@@ -176,11 +186,15 @@ public namespace tls {
 
         j = 0
         while(j < 16) { output[j] = Y[j]; j += 1 }
-    }
+
+               }
+}
 
     // ─── Increment Counter (32-bit big-endian) ───────────────────────────
 
     func gcm_incr(counter : *mut u8) {
+        unsafe {
+
         // Increment the last 4 bytes (32-bit counter) in big-endian
         var i = 15
         while(i >= 12) {
@@ -188,7 +202,9 @@ public namespace tls {
             if(counter[i] != 0) { break }
             i -= 1
         }
+
     }
+}
 
     // ─── GCM Encrypt ─────────────────────────────────────────────────────
 
@@ -204,6 +220,8 @@ public namespace tls {
                                    aad : *u8, aad_len : size_t,
                                    plaintext : *u8, pt_len : size_t,
                                    output : *mut u8, tag : *mut u8) : int {
+                                       unsafe {
+
         // For 12-byte IV: J0 = IV || 0x00000001
         var J0 : [16]u8
         var i : size_t = 0
@@ -263,7 +281,9 @@ public namespace tls {
         }
 
         return 0
-    }
+
+                                   }
+}
 
     // ─── GCM Decrypt ─────────────────────────────────────────────────────
 
@@ -274,6 +294,8 @@ public namespace tls {
                                   ciphertext : *u8, ct_len : size_t,
                                   tag : *u8, tag_len : size_t,
                                   output : *mut u8) : int {
+                                      unsafe {
+
         // 1. Compute GHASH over (AAD, Ciphertext) 
         // 2. Compare expected tag
         // 3. Decrypt if tags match
@@ -358,6 +380,8 @@ public namespace tls {
         }
 
         return 0
-    }
+
+                                  }
+}
 
 } // namespace tls

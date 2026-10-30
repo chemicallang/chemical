@@ -13,11 +13,15 @@ using namespace net;
 const NET_TOTAL : usize = 1048576u  // 1 MB
 
 func ntx_fill_pattern(buf : *mut u8, len : usize) {
+    unsafe {
+
     var i : usize = 0
     while(i < len) {
         buf[i] = (i % 256) as u8
         i += 1
     }
+
+}
 }
 
 // ─── 1. send_all delivers a full megabyte intact across loopback TCP ─────────
@@ -26,6 +30,8 @@ func ntx_fill_pattern(buf : *mut u8, len : usize) {
 @test
 @test.timeout(60000)
 public func NET_send_all_megabyte_integrity(env : &mut TestEnv) {
+    unsafe {
+
     const PORT : uint = 20450u
 
     var ls = listen_addr("127.0.0.1", PORT)
@@ -86,6 +92,8 @@ public func NET_send_all_megabyte_integrity(env : &mut TestEnv) {
     close_socket(ls)
     sender.join()
     if(bad) { env.error("megabyte transfer incomplete or corrupted") }
+
+}
 }
 
 // ─── 2. recv returns only what arrived when the peer closes early ────────────

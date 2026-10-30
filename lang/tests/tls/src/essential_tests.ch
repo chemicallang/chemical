@@ -9,21 +9,29 @@ using std::vector;
 // ═══════════════════════════════════════════════════════════════
 
 func tls_bytes_equal(a : *u8, b : *u8, len : size_t) : bool {
+    unsafe {
+
     var i : size_t = 0
     while(i < len) {
         if(a[i] != b[i]) { return false }
         i += 1
     }
     return true
+
+}
 }
 
 func bytes_not_zero(buf : *u8, len : size_t) : bool {
+    unsafe {
+
     var i : size_t = 0
     while(i < len) {
         if(buf[i] != 0) { return true }
         i += 1
     }
     return false
+
+}
 }
 
 // ═══════════════════════════════════════════════════════════════

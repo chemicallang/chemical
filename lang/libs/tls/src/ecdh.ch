@@ -88,6 +88,8 @@ public namespace tls {
     }
 
     public func ecp_curve_gx(gx : *mut Mpi) {
+        unsafe {
+
         if(GLOBAL_CURVE == 1) {
             mpi_init(gx); gx.n = 12
             var i : size_t = 0; while(i < 12) { gx.p[i] = P384_GX[i]; i += 1 }
@@ -95,8 +97,12 @@ public namespace tls {
         }
         mpi_init(gx); gx.n = 8
         var i : size_t = 0; while(i < 8) { gx.p[i] = P256_GX[i]; i += 1 }
+
     }
+}
     public func ecp_curve_gy(gy : *mut Mpi) {
+        unsafe {
+
         if(GLOBAL_CURVE == 1) {
             mpi_init(gy); gy.n = 12
             var i : size_t = 0; while(i < 12) { gy.p[i] = P384_GY[i]; i += 1 }
@@ -104,8 +110,12 @@ public namespace tls {
         }
         mpi_init(gy); gy.n = 8
         var i : size_t = 0; while(i < 8) { gy.p[i] = P256_GY[i]; i += 1 }
+
     }
+}
     public func ecp_curve_b(b : *mut Mpi) {
+        unsafe {
+
         if(GLOBAL_CURVE == 1) {
             mpi_init(b); b.n = 12
             var i : size_t = 0; while(i < 12) { b.p[i] = P384_B[i]; i += 1 }
@@ -113,7 +123,9 @@ public namespace tls {
         }
         mpi_init(b); b.n = 8
         var i : size_t = 0; while(i < 8) { b.p[i] = P256_B[i]; i += 1 }
+
     }
+}
 
     // Generator Gx = 6B17D1F2 E12C4247 F8BCE6E5 63A440F2 77037D81 2DEB33A0 F4A13945 D898C296
     var P256_GX : [8]u32 = [
@@ -142,8 +154,12 @@ public namespace tls {
     }
 
     public func ecp_point_init(p : *mut ECPPoint) {
+        unsafe {
+
         mpi_init(&raw mut p.X); mpi_init(&raw mut p.Y); mpi_init(&raw mut p.Z)
+
     }
+}
 
     // ─── ECDH Key Pair ──────────────────────────────────────────────────────
 
@@ -154,15 +170,21 @@ public namespace tls {
     }
 
     public func ecdh_init(ctx : *mut ECDHContext) {
+        unsafe {
+
         mpi_init(&raw mut ctx.priv_key)
         ecp_point_init(&raw mut ctx.pub_key)
         ctx.is_init = false
+
     }
+}
 
     // ─── Modular arithmetic helpers for P-256 ────────────────────────────
 
     // Load curve parameter p into an Mpi
     public func ecp_curve_p(p : *mut Mpi) {
+        unsafe {
+
         if(GLOBAL_CURVE == 1) {
             mpi_init(p)
             p.n = 12
@@ -174,9 +196,13 @@ public namespace tls {
         p.n = 8
         var i : size_t = 0
         while(i < 8) { p.p[i] = P256_P[i]; i += 1 }
+
     }
+}
 
     public func ecp_curve_n(p : *mut Mpi) {
+        unsafe {
+
         if(GLOBAL_CURVE == 1) {
             mpi_init(p)
             p.n = 12
@@ -188,7 +214,9 @@ public namespace tls {
         p.n = 8
         var i : size_t = 0
         while(i < 8) { p.p[i] = P256_N[i]; i += 1 }
+
     }
+}
 
     // Modulo P-256 prime: a mod p (for values < 2*p)
     func ecp_mod_p256(X : *mut Mpi) : int {
@@ -202,6 +230,8 @@ public namespace tls {
 
     // Point double: R = 2 * P on the P-256 curve
     func ecp_double_jac(R : *mut ECPPoint, P : *mut ECPPoint) : int {
+        unsafe {
+
         // Handle point-at-infinity
         if(mpi_is_zero(&raw mut P.Z)) {
             mpi_lset(&raw mut R.X, 1)
@@ -306,10 +336,14 @@ public namespace tls {
         mpi_copy(&raw mut R.Z, unsafe(&raw mut Z3))
 
         return 0
+
     }
+}
 
     // Point addition: R = P + Q (with Q in affine coordinates, Z=1)
     public func ecp_add_jac(R : *mut ECPPoint, P : *mut ECPPoint, Q : *mut ECPPoint) : int {
+        unsafe {
+
         // Mixed Jacobian-affine addition
         // P = (X1, Y1, Z1), Q = (X2, Y2, 1)
         // R = (X3, Y3, Z3) = P + Q
@@ -470,12 +504,16 @@ public namespace tls {
         mpi_copy(&raw mut R.Z, unsafe(&raw mut Z3))
 
         return 0
+
     }
+}
 
     // ─── Scalar Multiplication (Double-and-Add) ──────────────────────────
 
     // R = k * P on P-256 using Montgomery ladder for safety
     public func ecp_mul(R : *mut ECPPoint, k : *mut Mpi, P : *mut ECPPoint) : int {
+        unsafe {
+
         // Double-and-add: R = k * P
         // Uses ecp_add_jac which requires P to remain in affine form (Z=1).
         // P starts affine (from generator or normalized point) and is
@@ -516,7 +554,9 @@ public namespace tls {
         mpi_copy(&raw mut R.Z, unsafe(&raw mut R0.Z))
 
         return 0
+
     }
+}
 
     // ─── Public Key Validation ───────────────────────────────────────────
 
@@ -595,6 +635,8 @@ public namespace tls {
 
     // Convert Jacobian coordinates to affine: (X/Z^2, Y/Z^3, 1)
     public func ecp_normalize_jac(P : *mut ECPPoint) : int {
+        unsafe {
+
         if(mpi_is_zero(&raw mut P.Z)) {
             // Point at infinity
             mpi_lset(&raw mut P.X, 0)
@@ -632,7 +674,9 @@ public namespace tls {
         mpi_lset(&raw mut P.Z, 1)
 
         return 0
+
     }
+}
 
     // ─── ECDH Key Generation ─────────────────────────────────────────────
 
@@ -642,6 +686,8 @@ public namespace tls {
     public func ecdh_generate_keypair(ctx : *mut ECDHContext,
                                        priv : *mut u8, priv_len : size_t,
                                        pub : *mut u8, pub_len : size_t) : int {
+                                           unsafe {
+
         if(priv_len < 32 || pub_len < 65) { return ERR_ECP_BUFFER_TOO_SMALL }
 
         // Generate private key from CSPRNG
@@ -693,7 +739,9 @@ public namespace tls {
         ctx.is_init = true
 
         return 0
-    }
+
+                                       }
+}
 
     // ─── ECDH Shared Secret ─────────────────────────────────────────────
 
@@ -703,6 +751,8 @@ public namespace tls {
     public func ecdh_compute_shared(ctx : *mut ECDHContext,
                                      peer_pub : *u8, peer_pub_len : size_t,
                                      shared : *mut u8, shared_len : size_t) : int {
+                                         unsafe {
+
         if(!ctx.is_init) { return ERR_ECP_INVALID_KEY }
         if(peer_pub_len < 65 || peer_pub[0] != 0x04) {
             return ERR_ECP_BAD_INPUT_DATA
@@ -741,6 +791,8 @@ public namespace tls {
         if(ret < 0) { return ret }
 
         return 0
-    }
+
+                                     }
+}
 
 } // namespace tls

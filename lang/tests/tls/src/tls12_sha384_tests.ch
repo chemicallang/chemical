@@ -17,9 +17,13 @@
 using namespace tls
 
 func sha384_bytes_eq(a : *u8, b : *u8, len : size_t) : bool {
+    unsafe {
+
     var i : size_t = 0
     while(i < len) { if(a[i] != b[i]) { return false }; i += 1 }
     return true
+
+}
 }
 
 // The 48-byte pre-master secret / random inputs shared by the vectors below:

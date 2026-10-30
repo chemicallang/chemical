@@ -311,6 +311,8 @@ public func tls_error_codes_distinct_works(env : &mut TestEnv) {
 
 @test
 public func tls_der_cert_parses_correctly(env : &mut TestEnv) {
+    unsafe {
+
     var cert : tls::X509Cert = unsafe(std::mem.zeroed_unchecked<tls::X509Cert>())
     tls::x509_cert_init(unsafe(&raw mut cert))
 
@@ -371,6 +373,8 @@ public func tls_der_cert_parses_correctly(env : &mut TestEnv) {
     if(unsafe(cert.raw_pem_len) == 0) {
         env.error("raw_pem_len should be non-zero")
     }
+
+}
 }
 
 // ─── AES Encryption Tests ───────────────────────────────────────────────────
@@ -969,6 +973,8 @@ public func tls_gcm_tag_verification_fails_on_wrong_tag(env : &mut TestEnv) {
 
 @test
 public func tls_rsa_pubkey_extraction_from_cert_works(env : &mut TestEnv) {
+    unsafe {
+
     // Known-answer test: Parse the test certificate, extract its RSA public key
     var cert : tls::X509Cert = unsafe(std::mem.zeroed_unchecked<tls::X509Cert>())
     tls::x509_cert_init(unsafe(&raw mut cert))
@@ -1017,10 +1023,14 @@ public func tls_rsa_pubkey_extraction_from_cert_works(env : &mut TestEnv) {
     if(e_bytes[0] != expected_e0 || e_bytes[1] != expected_e1 || e_bytes[2] != expected_e2) {
         env.error("RSA exponent E should be 0x010001 (65537)")
     }
+
+}
 }
 
 @test
 public func tls_rsa_encrypt_premaster_with_cert_key_works(env : &mut TestEnv) {
+    unsafe {
+
     // Known-answer test: Encrypt the TLS pre-master secret with the test cert's RSA key
     // This verifies the full RSA encrypt pipeline: key import + PKCS#1 encoding + modular exponentiation
 
@@ -1081,12 +1091,16 @@ public func tls_rsa_encrypt_premaster_with_cert_key_works(env : &mut TestEnv) {
     if(!ct_nonzero) {
         env.error("RSA ciphertext should not be all zeros")
     }
+
+}
 }
 
 // ─── Certificate Signature Verification Test ────────────────────────────────
 
 @test
 public func tls_cert_self_signature_verification_works(env : &mut TestEnv) {
+    unsafe {
+
     // The test certificate is self-signed. We verify that we can:
     // 1. Parse the certificate
     // 2. Extract its RSA public key
@@ -1113,6 +1127,8 @@ public func tls_cert_self_signature_verification_works(env : &mut TestEnv) {
     if(ret != 0) {
         env.error("self-signed cert signature verification should succeed")
     }
+
+}
 }
 
 // ─── Parsed certificates must own their bytes ───────────────────────────────
@@ -1133,6 +1149,8 @@ public func tls_cert_self_signature_verification_works(env : &mut TestEnv) {
 // green — the pointers would simply still happen to be valid.
 @test
 public func tls_parsed_cert_survives_source_buffer_destruction(env : &mut TestEnv) {
+    unsafe {
+
     var src : [1024]u8
     var i : size_t = 0
     while(i < 831) { src[i] = tls_tests::test_cert_data[i]; i += 1 }
@@ -1204,10 +1222,14 @@ public func tls_parsed_cert_survives_source_buffer_destruction(env : &mut TestEn
     if(ret != 0) { env.error("date check should survive"); return }
 
     tls::cert_free(unsafe(&raw mut cert))
+
+}
 }
 
 @test
 public func tls_cert_signature_verification_fails_on_tampered_cert(env : &mut TestEnv) {
+    unsafe {
+
     // Verify that signature verification correctly fails on tampered data
     // We parse the cert, modify a byte in the TBSCertificate, then verify
 
@@ -1241,6 +1263,8 @@ public func tls_cert_signature_verification_fails_on_tampered_cert(env : &mut Te
     if(ret == 0) {
         env.error("cert signature verification should fail with wrong public key")
     }
+
+}
 }
 
 // ─── GCM Record Encryption/Decryption Round-Trip Test ───────────────────────
@@ -1451,6 +1475,8 @@ public func tls_alert_field_initial_values_are_zero(env : &mut TestEnv) {
 
 @test
 public func tls_rsa2048_key_has_correct_properties(env : &mut TestEnv) {
+    unsafe {
+
     // Verify the OpenSSL-generated RSA-2048 key has the expected properties
     var cert : tls::X509Cert = unsafe(std::mem.zeroed_unchecked<tls::X509Cert>())
     tls::x509_cert_init(unsafe(&raw mut cert))
@@ -1492,6 +1518,8 @@ public func tls_rsa2048_key_has_correct_properties(env : &mut TestEnv) {
     if(e_bytes[0] != 0x01 || e_bytes[1] != 0x00 || e_bytes[2] != 0x01) {
         env.error("E should be 65537 (0x010001)")
     }
+
+}
 }
 
 @test
@@ -1784,6 +1812,8 @@ public func tls_ecdh_known_answer_rfc5903_both_sides(env : &mut TestEnv) {
 
 @test
 public func tls_cert_date_validity_works(env : &mut TestEnv) {
+    unsafe {
+
     // The test cert has valid_from="260720105214Z" (2026-07-20) and
     // valid_to="360717105214Z" (2036-07-17). Current date is 2026-07-20,
     // so the cert should be valid.
@@ -1803,10 +1833,14 @@ public func tls_cert_date_validity_works(env : &mut TestEnv) {
             env.error("x509_check_date should return 0 for valid cert")
         }
     }
+
+}
 }
 
 @test
 public func tls_cert_date_expired_returns_expired(env : &mut TestEnv) {
+    unsafe {
+
     // Create a cert with a manually-set expired valid_to date
     var cert = tls::X509Cert()
 
@@ -1837,10 +1871,14 @@ public func tls_cert_date_expired_returns_expired(env : &mut TestEnv) {
     if(date_ret != tls::X509_BADCERT_EXPIRED as int) {
         env.error("cert should be marked as EXPIRED")
     }
+
+}
 }
 
 @test
 public func tls_cert_date_future_returns_future(env : &mut TestEnv) {
+    unsafe {
+
     // Create a cert with a future valid_from date
     var cert = tls::X509Cert()
 
@@ -1877,12 +1915,16 @@ public func tls_cert_date_future_returns_future(env : &mut TestEnv) {
     if(date_ret != tls::X509_BADCERT_FUTURE as int) {
         env.error("cert should be marked as FUTURE")
     }
+
+}
 }
 
 // ─── CA Trust Store Tests ────────────────────────────────────────────────────
 
 @test
 public func tls_cert_chain_verification_with_trusted_ca_works(env : &mut TestEnv) {
+    unsafe {
+
     // Test that x509_verify_chain works when we pass the self-signed cert
     // as both the leaf and the trusted CA.
     var cert : tls::X509Cert = unsafe(std::mem.zeroed_unchecked<tls::X509Cert>())
@@ -1908,10 +1950,14 @@ public func tls_cert_chain_verification_with_trusted_ca_works(env : &mut TestEnv
     if(unsafe(cert.flags) != 0) {
         env.error("cert flags should be 0 on successful verification")
     }
+
+}
 }
 
 @test
 public func tls_chain_verification_fails_with_wrong_ca(env : &mut TestEnv) {
+    unsafe {
+
     // Test that chain verification fails when we use a wrong CA
     // We parse the test cert (self-signed) but use a different CA cert
 
@@ -1938,6 +1984,8 @@ public func tls_chain_verification_fails_with_wrong_ca(env : &mut TestEnv) {
     if(ret == 0) {
         env.error("chain verification should fail with non-matching hostname")
     }
+
+}
 }
 
 // ─── A self-signed peer certificate is not its own trust anchor ──────────────
@@ -1955,6 +2003,8 @@ public func tls_chain_verification_fails_with_wrong_ca(env : &mut TestEnv) {
 // store.
 @test
 public func tls_self_signed_leaf_is_not_trusted_by_an_unrelated_store(env : &mut TestEnv) {
+    unsafe {
+
     var leaf : tls::X509Cert = unsafe(std::mem.zeroed_unchecked<tls::X509Cert>())
     tls::x509_cert_init(unsafe(&raw mut leaf))
     var ret = tls::parse_cert_der(unsafe(&raw mut leaf), &raw tls_tests::test_cert_data[0], 831)
@@ -1997,10 +2047,14 @@ public func tls_self_signed_leaf_is_not_trusted_by_an_unrelated_store(env : &mut
     if(ret != 0) {
         env.error("self-signed cert with no trust store should be accepted")
     }
+
+}
 }
 
 @test
 public func tls_ssl_set_ca_chain_setter_works(env : &mut TestEnv) {
+    unsafe {
+
     // Test the ssl_set_ca_chain setter function
     var config = tls::ssl_config_init(tls::SSL_IS_CLIENT)
 
@@ -2023,10 +2077,14 @@ public func tls_ssl_set_ca_chain_setter_works(env : &mut TestEnv) {
     if(config.ca_chain != unsafe(&raw mut cert)) {
         env.error("ca_chain should point to the right certificate")
     }
+
+}
 }
 
 @test
 public func tls_x509_cert_verify_chain_self_signed_no_ca_works(env : &mut TestEnv) {
+    unsafe {
+
     // Test that chain verification works for a self-signed cert without a trusted CA
     var cert : tls::X509Cert = unsafe(std::mem.zeroed_unchecked<tls::X509Cert>())
     tls::x509_cert_init(unsafe(&raw mut cert))
@@ -2039,10 +2097,14 @@ public func tls_x509_cert_verify_chain_self_signed_no_ca_works(env : &mut TestEn
     if(ret != 0) {
         env.error("self-signed cert verification without CA should succeed")
     }
+
+}
 }
 
 @test
 public func tls_x509_cert_verify_chain_rejects_unknown_hostname(env : &mut TestEnv) {
+    unsafe {
+
     // Test that chain verification rejects a cert with a non-matching CN
     var cert : tls::X509Cert = unsafe(std::mem.zeroed_unchecked<tls::X509Cert>())
     tls::x509_cert_init(unsafe(&raw mut cert))
@@ -2060,6 +2122,8 @@ public func tls_x509_cert_verify_chain_rejects_unknown_hostname(env : &mut TestE
     if((unsafe(cert.flags) & tls::X509_BADCERT_CN_MISMATCH as u32) == 0) {
         env.error("cert flags should include CN_MISMATCH")
     }
+
+}
 }
 
 // ─── HTTPS Integration Tests ─────────────────────────────────────────────
@@ -2137,6 +2201,8 @@ public func https_invalid_host_returns_error(env : &mut TestEnv) {
 
 @test
 public func https_tls_handshake_on_plain_server_fails(env : &mut TestEnv) {
+    unsafe {
+
     // Start a plain TCP server and try to connect with https://
     // The TLS handshake should fail because the server doesn't speak TLS
     var cfg = server::ServerConfig()
@@ -2156,6 +2222,8 @@ public func https_tls_handshake_on_plain_server_fails(env : &mut TestEnv) {
 
     srv.shutdown()
     thread.join()
+
+}
 }
 
 @test
@@ -2206,6 +2274,8 @@ public func https_reuse_client_after_failure_works(env : &mut TestEnv) {
 
 @test
 public func https_mixed_http_and_https_requests_work(env : &mut TestEnv) {
+    unsafe {
+
     // Start a plain HTTP server
     var cfg = server::ServerConfig()
     cfg.addr = std::string::make_no_len("127.0.0.1:49994")
@@ -2245,6 +2315,8 @@ public func https_mixed_http_and_https_requests_work(env : &mut TestEnv) {
 
     srv.shutdown()
     thread.join()
+
+}
 }
 
 @test
@@ -2311,6 +2383,8 @@ public func tls_gcm_constant_time_tag_compare(env : &mut TestEnv) {
 
 @test
 public func tls_rsa_sha256_verify_self_signed_cert_works(env : &mut TestEnv) {
+    unsafe {
+
     // SHA-256 signature verification on the self-signed test cert
     var cert : tls::X509Cert = unsafe(std::mem.zeroed_unchecked<tls::X509Cert>())
     tls::x509_cert_init(unsafe(&raw mut cert))
@@ -2324,6 +2398,8 @@ public func tls_rsa_sha256_verify_self_signed_cert_works(env : &mut TestEnv) {
 
     ret = tls::x509_verify_cert_signature(unsafe(&raw mut cert), unsafe(&raw mut rsa_ctx))
     if(ret != 0) { env.error("self-signed cert verification should succeed") }
+
+}
 }
 
 @test
@@ -2379,6 +2455,8 @@ public func tls_rsa_private_key_import_works(env : &mut TestEnv) {
 
 @test
 public func tls_san_hostname_parsing_exists(env : &mut TestEnv) {
+    unsafe {
+
     // The test certificate may or may not have SAN entries
     // Just verify that after parsing, san_count/san_entries are consistent
     var cert : tls::X509Cert = unsafe(std::mem.zeroed_unchecked<tls::X509Cert>())
@@ -2392,10 +2470,14 @@ public func tls_san_hostname_parsing_exists(env : &mut TestEnv) {
             env.error("san_entries should be non-null when san_count > 0")
         }
     }
+
+}
 }
 
 @test
 public func tls_hostname_verify_cn_match_case_insensitive(env : &mut TestEnv) {
+    unsafe {
+
     // CN matching should be case-insensitive for DNS names
     var cert : tls::X509Cert = unsafe(std::mem.zeroed_unchecked<tls::X509Cert>())
     tls::x509_cert_init(unsafe(&raw mut cert))
@@ -2408,10 +2490,14 @@ public func tls_hostname_verify_cn_match_case_insensitive(env : &mut TestEnv) {
     if(verify_ret != 0) {
         env.error("case-insensitive CN matching should succeed")
     }
+
+}
 }
 
 @test
 public func tls_hostname_verify_wrong_cn_fails(env : &mut TestEnv) {
+    unsafe {
+
     // Non-matching CN should fail
     var cert : tls::X509Cert = unsafe(std::mem.zeroed_unchecked<tls::X509Cert>())
     tls::x509_cert_init(unsafe(&raw mut cert))
@@ -2423,6 +2509,8 @@ public func tls_hostname_verify_wrong_cn_fails(env : &mut TestEnv) {
     if(verify_ret == 0) {
         env.error("wrong CN should fail hostname verification")
     }
+
+}
 }
 
 @test
@@ -2653,6 +2741,8 @@ public func tls_alpn_getter_returns_null_initially(env : &mut TestEnv) {
 
 @test
 public func tls13_key_update_send_keys_changes_transform(env : &mut TestEnv) {
+    unsafe {
+
     // Simulate a post-handshake scenario: set up keys, then update
     var ssl = tls::SSLContext()
 
@@ -2705,10 +2795,14 @@ public func tls13_key_update_send_keys_changes_transform(env : &mut TestEnv) {
     if(!seq_zero) {
         env.error("sequence number should be reset after key update")
     }
+
+}
 }
 
 @test
 public func tls13_key_update_recv_keys_changes_transform(env : &mut TestEnv) {
+    unsafe {
+
     // Test receive-side key update
     var ssl = tls::SSLContext()
 
@@ -2745,10 +2839,14 @@ public func tls13_key_update_recv_keys_changes_transform(env : &mut TestEnv) {
     if(!keys_changed) {
         env.error("recv keys should change after update")
     }
+
+}
 }
 
 @test
 public func tls13_key_update_deterministic(env : &mut TestEnv) {
+    unsafe {
+
     // Two key updates with same starting secret should produce same result
     var ssl1 = tls::SSLContext()
     var ssl2 = tls::SSLContext()
@@ -2790,6 +2888,8 @@ public func tls13_key_update_deterministic(env : &mut TestEnv) {
     if(!match) {
         env.error("updated traffic secret should be deterministic")
     }
+
+}
 }
 
 @test
@@ -3398,6 +3498,8 @@ public func BUG_CRIT_rsa_verify_unknown_hash_accepts(env : &mut TestEnv) {
 
 @test
 public func BUG_HIGH_tls13_no_cert_verify(env : &mut TestEnv) {
+    unsafe {
+
     // VERIFIED FIXED: x509_verify_chain exists and works correctly.
     // The TLS 1.3 handshake verifies the server certificate chain.
     //
@@ -3412,6 +3514,8 @@ public func BUG_HIGH_tls13_no_cert_verify(env : &mut TestEnv) {
     if(ret != 0) {
         env.error("x509_verify_chain should succeed for self-signed cert")
     }
+
+}
 }
 
 // --- HIGH-2: random_32bit returns constant on failure ---
@@ -3776,6 +3880,8 @@ public func tls13_record_encrypt_decrypt_roundtrip(env : &mut TestEnv) {
 
 @test
 public func tls13_derive_handshake_keys_client_role(env : &mut TestEnv) {
+    unsafe {
+
     // Test that TLS 1.3 key derivation assigns keys correctly for client role
     // Client: transform_out = client_key, transform_in = server_key
 
@@ -3842,10 +3948,14 @@ public func tls13_derive_handshake_keys_client_role(env : &mut TestEnv) {
 
     tls::ssl_free(ssl_mem)
     unsafe { dealloc ssl_mem }
+
+}
 }
 
 @test
 public func tls13_handshake_keys_sequence_reset(env : &mut TestEnv) {
+    unsafe {
+
     // Test that key derivation resets sequence numbers
 
     var ssl_mem = unsafe(malloc(sizeof(tls::SSLContext))) as *mut tls::SSLContext
@@ -3877,6 +3987,8 @@ public func tls13_handshake_keys_sequence_reset(env : &mut TestEnv) {
 
     tls::ssl_free(ssl_mem)
     unsafe { dealloc ssl_mem }
+
+}
 }
 
 // ─── x25519 RFC 7748 Test Vectors ────────────────────────────────────────────
@@ -3984,12 +4096,16 @@ public func tls_x25519_rfc7748_vector2_works(env : &mut TestEnv) {
 // ═══════════════════════════════════════════════════════════════
 
 func tls_test_bytes_equal(a : *u8, b : *u8, len : size_t) : bool {
+    unsafe {
+
     var i : size_t = 0
     while(i < len) {
         if(a[i] != b[i]) { return false }
         i += 1
     }
     return true
+
+}
 }
 
 @test

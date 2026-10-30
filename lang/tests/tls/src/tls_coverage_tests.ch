@@ -11,15 +11,23 @@ using std::vector
 // ─── Helper ────────────────────────────────────────────────────────────────
 
 func tc_bytes_eq(a : *u8, b : *u8, len : size_t) : bool {
+    unsafe {
+
     var i : size_t = 0
     while(i < len) { if(a[i] != b[i]) { return false }; i += 1 }
     return true
+
+}
 }
 
 func tc_bytes_not_zero(buf : *u8, len : size_t) : bool {
+    unsafe {
+
     var i : size_t = 0
     while(i < len) { if(buf[i] != 0) { return true }; i += 1 }
     return false
+
+}
 }
 
 // ============================================================================
@@ -380,6 +388,8 @@ public func RANDOM_32bit_varies(env : &mut TestEnv) {
 
 @test
 public func CERT_DATE_check_works(env : &mut TestEnv) {
+    unsafe {
+
     var cert : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>())
     x509_cert_init(unsafe(&raw mut cert))
 
@@ -390,6 +400,8 @@ public func CERT_DATE_check_works(env : &mut TestEnv) {
     if(ret < 0) {
         env.error("x509_check_date should pass for our test cert")
     }
+
+}
 }
 
 // ============================================================================
@@ -742,6 +754,8 @@ public func X509_cert_init_defaults_works(env : &mut TestEnv) {
 
 @test
 public func X509_parse_der_fields_works(env : &mut TestEnv) {
+    unsafe {
+
     var cert : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>())
     x509_cert_init(unsafe(&raw mut cert))
 
@@ -755,10 +769,14 @@ public func X509_parse_der_fields_works(env : &mut TestEnv) {
     if(unsafe(cert.serial) == null) { env.error("serial should be non-null") }
     if(unsafe(cert.raw_pem) == null) { env.error("raw_pem should be non-null") }
     if(unsafe(cert.raw_pem_len) == 0) { env.error("raw_pem_len should be non-zero") }
+
+}
 }
 
 @test
 public func X509_cert_get_cn_works(env : &mut TestEnv) {
+    unsafe {
+
     var cert : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>())
     x509_cert_init(unsafe(&raw mut cert))
     parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
@@ -769,6 +787,8 @@ public func X509_cert_get_cn_works(env : &mut TestEnv) {
     if(cn.size() == 0) {
         env.error("CN should not be empty")
     }
+
+}
 }
 
 @test
@@ -851,6 +871,8 @@ public func TLS13_key_schedule_init_zeroes(env : &mut TestEnv) {
 
 @test
 public func TLS13_derive_keys_deterministic(env : &mut TestEnv) {
+    unsafe {
+
     var ss : [32]u8
     var th : [32]u8
     var i : size_t = 0
@@ -871,6 +893,8 @@ public func TLS13_derive_keys_deterministic(env : &mut TestEnv) {
     if(!tc_bytes_eq(&raw tr1.key_enc[0], &raw tr2.key_enc[0], 16)) {
         env.error("tls13_derive_handshake_keys should be deterministic")
     }
+
+}
 }
 
 // ============================================================================

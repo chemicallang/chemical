@@ -4,6 +4,8 @@ using std::string_view
 
 @test
 public func INT_hkdf_against_python(env : &mut TestEnv) {
+    unsafe {
+
     var shared_secret : [32]u8
     test_random_bytes(&raw mut shared_secret[0], 32)
     var transcript_hash : [32]u8
@@ -88,4 +90,6 @@ public func INT_hkdf_against_python(env : &mut TestEnv) {
     if(!test_bytes_eq(&raw tr_in.base_iv_dec[0], &raw py_siv[0], 12)) {
         env.error("server_iv mismatch"); return
     } else {}
+
+}
 }

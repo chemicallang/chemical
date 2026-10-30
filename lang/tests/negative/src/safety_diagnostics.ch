@@ -193,6 +193,20 @@ func unsafe_sync_impl_allows_raw_pointer(env : &mut TestEnv) {
 }
 
 @test
+func neg_std_function_is_not_send(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "using namespace core;\nfunc <T> needs_send(v : T) : int where T : Send { return 0 }\npublic func main() : int {\n    var f : std::function<() => void> = ||() => { }\n    return needs_send(f)\n}\n"
+    expect_compile_error_with_mod(env, "std_function_not_send", ch, "does not satisfy where clause constraint 'T : Send'", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_scoped_scope_cannot_be_forged(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var s = std::thread.ScopedScope<int> {\n        value : null,\n        threads : zeroed<[32]*mut std::concurrent.Thread>(),\n        count : 0\n    }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "scoped_scope_forge", ch, "SAFE-VIS-001", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_safe_send_impl_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Raw {\n    var p : *mut int\n}\nimpl Send for Raw {}\npublic func main() : int { return 0 }\n"

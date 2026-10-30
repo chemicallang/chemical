@@ -109,6 +109,13 @@ public namespace std {
             }
         }
 
+        // Joins through a raw handle. The pointer must name a live Thread; the
+        // scoped implementation is the only in-tree caller and keeps it alive
+        // until this returns.
+        public unsafe func join_thread(thread : *mut Thread) {
+            unsafe { (*thread).join() }
+        }
+
         // Moving a raw entry/argument pair to another thread is only sound
         // when the caller has proved the pointee outlives the thread and that
         // the entry reaches no non-Send state. The compiler cannot check that
@@ -526,6 +533,76 @@ public namespace std {
             }
             var t = unsafe(std::concurrent.spawn(scoped_mut_entry<T>, data as *void))
             t.join()
+        }
+
+        // A multi-handle scope over one shared borrowed value. The scope is
+        // only constructible inside `scoped_run`; `spawn` accepts no reference
+        // argument, so every worker borrows exactly the value whose lifetime is
+        // the enclosing call. All handles are joined by the destructor, before
+        // `scoped_run` returns. Capturing closures that need extra state still
+        // use M6.5, but this covers concurrent shared scoped work without an
+        // erased capture.
+        @direct_init
+        public struct ScopedScope<T : Sync> {
+            // Fixed slots keep the scope type independent of the generic
+            // vector implementation; 32 concurrent workers is enough for the
+            // safe API, and exceeding it is a clear panic instead of silent
+            // loss of a handle. The fields are internal so only this library
+            // can construct a scope; the only safe entry is `scoped_run`.
+            internal var value : *T
+            internal var threads : [32]*mut std::concurrent.Thread
+            internal var count : size_t
+
+            public func spawn(&mut self, f : (value : &T) => void) {
+                if(count >= 32) {
+                    panic("scoped thread limit exceeded")
+                }
+                var data = unsafe(malloc(sizeof(ScopedData<T>))) as *mut ScopedData<T>
+                if(data == null) {
+                    panic("failed to allocate scoped thread state")
+                }
+                unsafe {
+                    new(data) ScopedData<T> {
+                        f : f,
+                        value : self.value
+                    }
+                }
+                var t = unsafe(std::concurrent.spawn(scoped_entry<T>, data as *void))
+                var slot = unsafe(malloc(sizeof(std::concurrent.Thread))) as *mut std::concurrent.Thread
+                if(slot == null) {
+                    panic("failed to allocate scoped thread handle")
+                }
+                unsafe { memcpy(slot, &raw t, sizeof(std::concurrent.Thread)) }
+                threads[count] = slot
+                count = count + 1
+            }
+
+            @delete
+            func delete(&mut self) {
+                var i : size_t = 0
+                while(i < count) {
+                    var slot = threads[i]
+                    unsafe {
+                        std::concurrent.join_thread(slot)
+                        dealloc slot
+                    }
+                    i = i + 1
+                }
+                count = 0
+            }
+        }
+
+        // Runs the body with a scope whose workers all share `value`. The body
+        // receives the only mutable handle to the scope; it cannot construct a
+        // second one or extract the raw value pointer. The scope destructor
+        // joins every worker before this call returns.
+        public func <T> scoped_run(value : &T, body : (scope : &mut ScopedScope<T>) => void) where T : Sync {
+            var scope = ScopedScope<T> {
+                value : value as *T,
+                threads : zeroed<[32]*mut std::concurrent.Thread>(),
+                count : 0
+            }
+            body(&mut scope)
         }
     }
 

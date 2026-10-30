@@ -274,7 +274,7 @@ Implemented:
   Statement temporaries now emit `StorageDead`, and `FieldAddr` + `Load` reads
   count as uses of the stored field loan, covering pointer-based field access.
   Runtime tests check direct and aggregate destructor order; negative tests
-  cover both non-extending forms. Safety suite `55`; negative tests `594`.
+  cover both non-extending forms. Safety suite `55`; negative tests `596`.
 - S4.2 higher-ranked function types: `for<'a, 'b> (x : &'a T) => R` parses into
   `FunctionType::binder_lifetimes`; binders are scoped to the function type,
   duplicate binders are rejected, and lifetime-only generic function values
@@ -293,7 +293,7 @@ Implemented:
   argument cannot satisfy `'static` (`SAFE-LIFE-004`). This closes the
   `vector<G<'static>>` dropck hole where a `G<'a>` built from a stack borrow
   could be stored and dropped after the referent.
-  Safety suite `55`; negative tests `594`; `MIRTests` `4643 checks`.
+  Safety suite `55`; negative tests `596`; `MIRTests` `4643 checks`.
 - M5.5b float→int: `as` casts from float/double to integer widths lower to
   explicit blocks (NaN → 0, out-of-range → destination minimum/maximum) instead
   of C/LLVM `fptosi` UB. LLVM float `Ne` is `fcmp une`, matching C's
@@ -334,7 +334,7 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `55`, negative tests `594`.
+  `55`, negative tests `596`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -354,8 +354,8 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `55`, negative `594`; TCC main `2354`, LLVM
-  main `2352`, libs `729`, plugins `1305`, async `53`, interpret `1910`.
+  TCC/LLVM lib runs. Safety suite `55`, negative `596`; TCC main `2354`, LLVM
+  main `2352`, libs `730`, plugins `1305`, async `53`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
   range-checked, frame places are registered individually, and globals,
@@ -380,8 +380,14 @@ Implemented:
   reference cannot be submitted. `std::thread.scoped_spawn` / `scoped_spawn_mut`
   join before returning and accept a non-`'static` borrowed value
   (`T: Sync` for shared, `T: Send` for mutable), with local runtime tests.
-  General multi-handle `Scope` objects, capturing closures, and erased/async
-  captures remain on the explicit unsafe path until M6.5. Guard-transfer
+  `std::thread.scoped_run` adds a multi-handle shared scope: `ScopedScope<T>`
+  starts up to 32 workers over one borrowed `T: Sync` value and joins all of
+  them from its destructor. The scope cannot be forged or constructed outside
+  the library. Capturing closures that need extra state, heterogeneous
+  multi-value scopes, and erased/async captures remain on the explicit unsafe
+  path. The `%capture` instance type is the function-instance wrapper, not the
+  actual captured environment, so Send/Sync cannot be derived from it; typed
+  capture needs a new representation (M6.5). Guard-transfer
   negative tests cover `MutexGuard`/`RwLockWriteGuard`. `scripts/thread-tsan.sh`
   runs a four-thread `Arc<Mutex<int>>` smoke test under TSAN; it uses a system
   LLVM resource directory when the bundled prebuild lacks
@@ -409,7 +415,7 @@ Implemented:
   carry one explicit unsafe boundary around their raw context/job operations.
   Wrapping generic bodies exposed a missing `ValueNode::copy`, now implemented.
   In-tree stdlib/CBI/plugin/build.lab call sites were migrated; audit baseline
-  is `unsafe_blocks 573`, `unsafe_values 441`; negative `581`.
+  is `unsafe_blocks 574`, `unsafe_values 441`; negative `596`.
 - S2.2/S4.8 function pointers: `FunctionTypeData::requires_unsafe` is part of
   function type identity and is set for `unsafe func` and `@extern`. Calling a
   value of such a type in safe context is `SAFE-UNSAFE-002`; coercing it to a
@@ -509,14 +515,19 @@ Implemented:
 
 Next:
 
-- M6.5: erased/async `Send`. Scoped borrowing now has a sound
-  join-before-return primitive (`scoped_spawn`/`scoped_spawn_mut`); general
-  multi-handle `Scope` objects and capturing scoped closures still need full
-  region inference plus erased-capture `Send`/`'static` tracking. M4 is complete
-  for the enforceable surface; nested aggregate HRTB and multi-borrow callbacks
-  with parameter/global referents remain explicit `SAFE-BORROW-099` rejections.
-  Capturing closures and erased async frames remain on the explicit unsafe
-  path. Then M5 packed references and M2 C ABI.
+- M6.5: typed capture/future representation and erased/async `Send`.
+  Join-before-return (`scoped_spawn`/`scoped_spawn_mut`) and the multi-handle
+  shared `scoped_run` scope are implemented. The current `%capture<F, Env>`
+  stores a pointer to a generated capture struct behind the `Env` instance
+  wrapper, so `Env` is not the capture layout; deriving Send/Sync from it would
+  be unsound. `std::function` and `FutureHandle` still erase their
+  capture/frame type and remain `!Send` until a concrete typed representation
+  carries the actual environment. Capturing scoped
+  closures, heterogeneous multi-value scopes, and erased async frames remain on
+  the explicit unsafe path. M4 is complete for the enforceable surface; nested
+  aggregate HRTB and multi-borrow callbacks with parameter/global referents
+  remain explicit `SAFE-BORROW-099` rejections. Then M5 packed references and
+  M2 C ABI.
 - S1.2 `'static`/bounds and S1.3a `PhantomData` are done; temporary lifetime
   extension and variance analysis move with the borrow checker (M4).
   S1.4a opt-in `Copy` is enforced (`SAFE-COPY-001`) and the in-tree tree is

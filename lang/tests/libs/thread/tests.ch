@@ -138,3 +138,18 @@ func thread_join_handle_is_sync(env : &mut TestEnv) {
     }
     h.join()
 }
+func scoped_scope_worker(scope : &mut std::thread.ScopedScope<std::Arc<std::Mutex<int> > >) {
+    scope.spawn(scoped_increment)
+    scope.spawn(scoped_increment)
+    scope.spawn(scoped_increment)
+}
+
+@test
+func thread_scoped_scope_joins_all_workers(env : &mut TestEnv) {
+    var shared = std::arc(std::new_mutex(0))
+    std::thread.scoped_run<std::Arc<std::Mutex<int> > >(&shared, scoped_scope_worker)
+    var guard = shared.get().lock()
+    if(*guard.get() != 3) {
+        env.error("scoped scope did not join every worker")
+    }
+}

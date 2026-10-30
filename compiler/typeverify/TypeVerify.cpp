@@ -300,6 +300,16 @@ void TypeVerifier::check_index_move(Value* value) {
 }
 
 void TypeVerifier::VisitStructDecl(StructDefinition* def) {
+    if (def != nullptr && def->is_transparent()) {
+        if (!def->inherited.empty()) {
+            diagnoser.error(def).with_code("SAFE-REPR-001")
+                << "@repr(\"transparent\") structs cannot inherit bases";
+        }
+        if (def->variables().size() != 1) {
+            diagnoser.error(def).with_code("SAFE-REPR-001")
+                << "@repr(\"transparent\") requires exactly one field";
+        }
+    }
     const auto before = lifetime_scope.size();
     for(const auto lifetime : def->lifetime_params) lifetime_scope.push_back(lifetime);
     RecursiveVisitor::VisitStructDecl(def);

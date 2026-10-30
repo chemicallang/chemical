@@ -124,6 +124,17 @@ inline void compute_aggregate_layout(MIRTypeTable& types, TypeId id,
         if (overlap_align > max_align) max_align = overlap_align;
     }
 
+    if (rec.transparent && rec.kind == MIRTypeKind::Struct && rec.data_count == 1) {
+        // The checked source form has exactly one field (the TypeVerifier
+        // rejects any other shape). A transparent wrapper inherits the field's
+        // size, alignment and offset 0, so sizeof/alignof and C ABI match it.
+        if (MIRFieldInfo* only = types.field_of(id, 0)) {
+            only->offset = 0;
+            rec.alignment = mir_field_alignment(types, *only);
+            rec.size = mir_field_size(types, *only);
+            return;
+        }
+    }
     rec.alignment = packed ? 1 : max_align;
     rec.size = packed ? offset : mir_align_up(offset, max_align);
 }

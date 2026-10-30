@@ -819,6 +819,61 @@ func over_aligned_capture_survives_return(env : &mut TestEnv) {
     }
 }
 
+struct CopyPair {
+    var left : int
+    var right : int
+}
+impl Copy for CopyPair {}
+
+func read_copy_pair(p : CopyPair) : int {
+    return p.left + p.right
+}
+
+@repr("transparent")
+struct TransparentInt {
+    var value : int
+}
+
+@repr("transparent")
+struct TransparentDouble {
+    var value : double
+}
+
+@test
+func transparent_layout_matches_field(env : &mut TestEnv) {
+    if(sizeof(TransparentInt) != 4 || alignof(TransparentInt) != 4) {
+        env.error("transparent int wrapper layout is wrong")
+    }
+    if(sizeof(TransparentDouble) != 8 || alignof(TransparentDouble) != 8) {
+        env.error("transparent double wrapper layout is wrong")
+    }
+    var v = TransparentInt { value : 42 }
+    if(v.value != 42) {
+        env.error("transparent field access returned the wrong value")
+    }
+}
+
+@test
+func copy_value_survives_move(env : &mut TestEnv) {
+    var a = CopyPair { left : 20, right : 22 }
+    var b = a
+    if(a.left != 20 || b.right != 22) {
+        env.error("a Copy aggregate was invalidated by a move")
+    }
+    if(read_copy_pair(a) != 42) {
+        env.error("a Copy aggregate could not be passed by value after use")
+    }
+    var r = &a
+    if(read_copy_pair(a) != 42 || r.left != 20) {
+        env.error("a Copy aggregate could not be passed while shared-borrowed")
+    }
+    var xs = [1, 2, 3]
+    var ys = xs
+    if(xs[0] != 1 || ys[2] != 3) {
+        env.error("a Copy array was invalidated by a move")
+    }
+}
+
 @test
 func by_value_capture_read_is_allowed(env : &mut TestEnv) {
     var s = std::string("capture")

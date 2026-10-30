@@ -93,6 +93,12 @@ struct MIRTypeRecord {
 
     /** Source requested packed layout (`@packed` / `@repr("packed")`). */
     bool packed = false;
+
+    /** The source type opted into `Copy` (and has no destructor). */
+    bool copy = false;
+
+    /** Source requested the C transparent-newtype layout. */
+    bool transparent = false;
 };
 
 /**
@@ -404,6 +410,8 @@ struct MIRTypeTable {
         mix(r.field_index);
         mix(r.explicit_alignment);
         mix(r.packed ? 1u : 0u);
+        mix(r.copy ? 1u : 0u);
+        mix(r.transparent ? 1u : 0u);
         if (r.kind == MIRTypeKind::Function) {
             for (uint32_t i = 0; i < r.data_count; ++i) {
                 const uint32_t idx = r.data_offset + i;
@@ -425,7 +433,8 @@ struct MIRTypeTable {
             a.alignment != b.alignment || a.element != b.element || a.decl != b.decl ||
             a.data_count != b.data_count || a.int_kind != b.int_kind ||
             a.field_index != b.field_index ||
-            a.explicit_alignment != b.explicit_alignment || a.packed != b.packed) {
+            a.explicit_alignment != b.explicit_alignment || a.packed != b.packed ||
+            a.copy != b.copy || a.transparent != b.transparent) {
             return false;
         }
         // Only function types store parameter types in the shared data pool;
@@ -447,5 +456,32 @@ private:
      *  serialize appends when more than one lowering worker runs. */
     mutable std::shared_mutex mtx_;
 };
+
+/**
+ * MIR's Copy predicate. Primitives, pointers, references and functions are
+ * built-in Copy; arrays are Copy when their element is; user aggregates must
+ * carry the checked `impl Copy` marker recorded by `MIRTypeBuilder`.
+ */
+inline bool mir_type_is_copy(const MIRTypeTable& types, TypeId id) {
+    if (id == MIR_INVALID_ID || id >= types.types.size()) return false;
+    const MIRTypeRecord& r = types.types[id];
+    switch (r.kind) {
+        case MIRTypeKind::Bool:
+        case MIRTypeKind::Int:
+        case MIRTypeKind::Float:
+        case MIRTypeKind::Pointer:
+        case MIRTypeKind::Reference:
+        case MIRTypeKind::Function:
+            return true;
+        case MIRTypeKind::Array:
+            return mir_type_is_copy(types, r.element);
+        case MIRTypeKind::Struct:
+        case MIRTypeKind::Union:
+        case MIRTypeKind::Variant:
+            return r.copy && (r.flags & (TF_HAS_DESTRUCTOR | TF_USER_DESTRUCTOR)) == 0;
+        default:
+            return false;
+    }
+}
 
 } // namespace mir

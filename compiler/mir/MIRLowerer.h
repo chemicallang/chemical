@@ -492,10 +492,7 @@ public:
     }
 
     /** Provide the symbol-resolution implementation index (for iterable protocols). */
-    void set_impls(ImplementationsIndex* idx, CoreNodes* core) {
-        impls_index_ = idx;
-        core_nodes_ = core;
-    }
+    void set_impls(ImplementationsIndex* idx, CoreNodes* core);
 
     /** Resolve a CBI embedded node (`#html` / `#universal`) to its replacement. */
     void set_embedded_repl(std::function<ASTNode*(EmbeddedNode*)> fn) {

@@ -79,6 +79,11 @@ struct StructDeclAttributes {
      */
     bool packed = false;
 
+    /**
+     * the source requested the C transparent-newtype ABI (@repr("transparent"))
+     */
+    bool transparent = false;
+
 };
 
 class StructDefinition : public ExtendableMembersContainerNode {
@@ -212,6 +217,14 @@ public:
 
     inline void set_packed(bool value) noexcept {
         attrs.packed = value;
+    }
+
+    inline bool is_transparent() const noexcept {
+        return attrs.transparent;
+    }
+
+    inline void set_transparent(bool value) noexcept {
+        attrs.transparent = value;
     }
 
     inline bool has_destructor() {

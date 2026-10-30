@@ -1740,6 +1740,54 @@ struct MIRInterpreter::Impl {
                     ip = fn.blocks[operand_bits(f, *c) != 0 ? t->id : e->id].inst_start;
                     continue;
                 }
+                case MIROpcode::Switch: {
+                    // operands: scrutinee, default Block, then (case, Block)*.
+                    // The lowering currently emits CondBr chains, but keeping
+                    // this complete makes the interpreter consume any future
+                    // Switch-shaped MIR (and hand-built MIR tests).
+                    const MIROperand* scrut = op_at(fn, ins, 0);
+                    const MIROperand* def = op_at(fn, ins, 1);
+                    if (!scrut || !def || def->kind() != MIROperandKind::Block) {
+                        returned = true;
+                        break;
+                    }
+                    BlockId target = def->id;
+                    const uint64_t value = operand_bits(f, *scrut);
+                    for (uint16_t i = 2; i + 1 < ins.operand_count; i += 2) {
+                        const MIROperand* cv = op_at(fn, ins, i);
+                        const MIROperand* bv = op_at(fn, ins, i + 1);
+                        if (!cv || !bv || bv->kind() != MIROperandKind::Block) continue;
+                        if (operand_bits(f, *cv) == value) {
+                            target = bv->id;
+                            break;
+                        }
+                    }
+                    if (target >= fn.blocks.size()) {
+                        returned = true;
+                        break;
+                    }
+                    ip = fn.blocks[target].inst_start;
+                    continue;
+                }
+                case MIROpcode::Unreachable:
+                    unsupported_error = "MIR interpreter: reached unreachable";
+                    returned = true;
+                    break;
+                case MIROpcode::Throw:
+                    unsupported_error = "MIR interpreter: exceptions are not supported";
+                    returned = true;
+                    break;
+                case MIROpcode::Copy:
+                case MIROpcode::Move: {
+                    const MIROperand* src = op_at(fn, ins, 0);
+                    if (!src) break;
+                    if (src->kind() == MIROperandKind::Place && rp < f.values.size()) {
+                        read_value(f, rp, f.places[src->id], ti(fn.values[rp].type));
+                    } else if (rp < f.values.size()) {
+                        f.values[rp] = operand_bits(f, *src);
+                    }
+                    break;
+                }
                 case MIROpcode::Return: {
                     if (ins.operand_count > 0) {
                         result = operand_bits(f, *op_at(fn, ins, 0));
@@ -1787,6 +1835,90 @@ struct MIRInterpreter::Impl {
                     else if (c->kind == Callee::Kind::Host && c->host)
                         r = c->host(this, stack_args, n);
                     if (rp < f.values.size()) f.values[rp] = r;
+                    break;
+                }
+                case MIROpcode::AtomicLoad: {
+                    const MIROperand* ptr = op_at(fn, ins, 0);
+                    if (!ptr || rp >= f.values.size()) break;
+                    const TypeInfo& rti = ti(fn.values[rp].type);
+                    read_value(f, rp, base_addr(f, *ptr), rti);
+                    break;
+                }
+                case MIROpcode::AtomicStore: {
+                    const MIROperand* ptr = op_at(fn, ins, 0);
+                    const MIROperand* val = op_at(fn, ins, 1);
+                    if (!ptr || !val) break;
+                    const TypeId vt = (val->kind() == MIROperandKind::Place)
+                                          ? fn.places[val->id].type
+                                          : fn.values[val->id].type;
+                    store_into(f, base_addr(f, *ptr), ti(vt), *val);
+                    break;
+                }
+                case MIROpcode::AtomicCmpXchg: {
+                    const MIROperand* ptr = op_at(fn, ins, 0);
+                    const MIROperand* expected = op_at(fn, ins, 1);
+                    const MIROperand* value = op_at(fn, ins, 2);
+                    if (!ptr || !expected || !value || rp >= f.values.size()) break;
+                    const TypeId pt = (ptr->kind() == MIROperandKind::Place)
+                                          ? fn.places[ptr->id].type
+                                          : fn.values[ptr->id].type;
+                    const TypeId vt = pointee(pt);
+                    const TypeInfo& ti_v = ti(vt);
+                    uint8_t* dst = base_addr(f, *ptr);
+                    uint8_t* exp = base_addr(f, *expected);
+                    if (!dst || !exp) break;
+                    const bool equal = std::memcmp(dst, exp, ti_v.size) == 0;
+                    if (equal) {
+                        store_into(f, dst, ti_v, *value);
+                        f.values[rp] = 1;
+                    } else {
+                        std::memcpy(exp, dst, ti_v.size);
+                        f.values[rp] = 0;
+                    }
+                    break;
+                }
+                case MIROpcode::AtomicRMW: {
+                    const MIROperand* op = op_at(fn, ins, 0);
+                    const MIROperand* ptr = op_at(fn, ins, 1);
+                    const MIROperand* value = op_at(fn, ins, 2);
+                    if (!op || !ptr || !value || rp >= f.values.size()) break;
+                    const TypeId pt = (ptr->kind() == MIROperandKind::Place)
+                                          ? fn.places[ptr->id].type
+                                          : fn.values[ptr->id].type;
+                    const TypeId vt = pointee(pt);
+                    const TypeInfo& ti_v = ti(vt);
+                    if (ti_v.is_float || ti_v.is_double) {
+                        unsupported_error = "MIR interpreter: floating-point atomic RMW is not supported";
+                        returned = true;
+                        break;
+                    }
+                    uint8_t* dst = base_addr(f, *ptr);
+                    if (!dst) break;
+                    const uint64_t old = load_scalar(dst, ti_v);
+                    const uint64_t rhs = operand_bits(f, *value);
+                    uint64_t next = old;
+                    switch (operand_bits(f, *op)) {
+                        case 0: next = rhs; break; // Xchg
+                        case 1: next = old + rhs; break;
+                        case 2: next = old - rhs; break;
+                        case 3: next = old & rhs; break;
+                        case 4: next = ~(old & rhs); break;
+                        case 5: next = old | rhs; break;
+                        case 6: next = old ^ rhs; break;
+                        case 7: next = static_cast<uint64_t>(std::max<int64_t>(sign_extend(old, ti_v), sign_extend(rhs, ti_v))); break;
+                        case 8: next = static_cast<uint64_t>(std::min<int64_t>(sign_extend(old, ti_v), sign_extend(rhs, ti_v))); break;
+                        case 9: next = std::max<uint64_t>(old, rhs); break;
+                        case 10: next = std::min<uint64_t>(old, rhs); break;
+                        case 15: next = old + 1; break;
+                        case 16: next = old - 1; break;
+                        default:
+                            unsupported_error = "MIR interpreter: unsupported atomic RMW operation";
+                            returned = true;
+                            break;
+                    }
+                    if (returned) break;
+                    store_scalar(dst, ti_v, truncate(next, ti_v));
+                    f.values[rp] = old;
                     break;
                 }
                 case MIROpcode::AtomicFence:

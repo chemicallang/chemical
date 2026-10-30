@@ -457,7 +457,10 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
             require_initialized(out, fn, function_index, block, inst_index, src,
                                 states, "move from");
             set_subtree(fn, states, dst, MIRMoveState::Initialized);
-            mark_path_moved(fn, states, src);
+            const bool copying = ops[1].kind() == MIROperandKind::Place &&
+                                 ops[1].id < fn.places.size() &&
+                                 mir_type_is_copy(module.types, fn.places[ops[1].id].type);
+            if (!copying) mark_path_moved(fn, states, src);
             break;
         }
         case MIROpcode::Destroy: {
@@ -475,7 +478,10 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
             const uint32_t path = path_for_projection(module, fn, ops[0], nullptr, 0);
             require_initialized(out, fn, function_index, block, inst_index, path,
                                 states, "move from");
-            mark_path_moved(fn, states, path);
+            const bool copying = ops[0].kind() == MIROperandKind::Place &&
+                                 ops[0].id < fn.places.size() &&
+                                 mir_type_is_copy(module.types, fn.places[ops[0].id].type);
+            if (!copying) mark_path_moved(fn, states, path);
             break;
         }
         case MIROpcode::Drop: {

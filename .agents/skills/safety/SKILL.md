@@ -11,7 +11,7 @@ The source tree wins over any status note here.
 
 ## Current status (2026-10-30)
 
-**M0 (S0.1–S0.6), M3, M4, and the enforceable M5/M6 surface are implemented. M1/M2/M7 are advanced; M6.5 has two API-completeness gaps (bare erased callback parameters and heterogeneous/value-passing scoped scopes). Packed layout and `@repr("C"/"packed")` are implemented; `repr("transparent")` and non-x86-64 C ABIs remain. S5.6b (unwinding) is withdrawn by policy: panic always aborts.**
+**M0 (S0.1–S0.6), M3, M4, and the enforceable M5/M6 surface are implemented. M1/M2/M7 are advanced; M6.5 has two API-completeness gaps (bare erased callback parameters and heterogeneous/value-passing scoped scopes). Packed layout and `@repr("C"/"packed"/"transparent")` are implemented; non-x86-64 C ABIs remain. S5.6b (unwinding) is withdrawn by policy: panic always aborts.**
 
 Implemented:
 
@@ -336,8 +336,8 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning a Chemical variant by value; structs/unions use
   the x86-64 SysV C ABI on both backends (pointer FFI remains allowed, other
-  target ABIs still need classification). Safety suite `60`, negative tests
-  `620`.
+  target ABIs still need classification). Safety suite `62`, negative tests
+  `625`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -357,9 +357,9 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `60`, negative `620`; TCC main `2357`, LLVM
+  TCC/LLVM lib runs. Safety suite `62`, negative `625`; TCC main `2357`, LLVM
   main `2355`, libs `730`, plugins `1305`, async `56`, interpret `1910`,
-  server `10`, TLS `599`, safety `60`.
+  server `10`, TLS `599`, safety `62`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
   range-checked, frame places are registered individually, and globals,
@@ -459,7 +459,7 @@ Implemented:
   Wrapping generic bodies exposed a missing `ValueNode::copy`, now implemented.
   In-tree stdlib/CBI/plugin/build.lab call sites were migrated. The audit now
   compiles the whole-tree entry-point list (`94` modules) with `--check`; the
-  baseline is `unsafe_blocks 3663`, `unsafe_values 4889`; negative `619`.
+  baseline is `unsafe_blocks 3663`, `unsafe_values 4890`; negative `625`.
 - S2.2/S4.8 function pointers: `FunctionTypeData::requires_unsafe` is part of
   function type identity and is set for `unsafe func` and `@extern`. Calling a
   value of such a type in safe context is `SAFE-UNSAFE-002`; coercing it to a
@@ -562,8 +562,9 @@ Implemented:
   is a zero-sized marker usable as `PhantomData<&'a T>` (S1.3a); variance
   analysis waits for regions. `Copy` is opt-in for user types (S1.4a):
   destructor-bearing types and trivially copyable types without an
-  `impl Copy` are rejected with `SAFE-COPY-001`. Enforcement in the borrow
-  checker is still pending. Chemical syntax is `func <'a> f(...)`.
+  `impl Copy` are rejected with `SAFE-COPY-001`. MIR move/borrow checking now
+  treats a checked `Copy` value as a copy: the source remains initialized and
+  its loans stay live after a `MoveInit`-shaped lowering. Chemical syntax is `func <'a> f(...)`.
 
 Next:
 
@@ -577,9 +578,10 @@ Next:
   for the enforceable surface; nested aggregate HRTB and multi-borrow
   callbacks with parameter/global referents remain explicit
   `SAFE-BORROW-099` rejections.
-- M5/M2: `repr("transparent")` and packed-field reference coverage are still
-  remaining; packed structs/unions and `@repr("C"/"packed")` are implemented,
-  including the `SAFE-VALID-008` rejection for references to packed fields.
+- M5/M2: `@repr("transparent")` is implemented for checked single-field
+  structs (layout and C ABI), and `SAFE-VALID-008` covers direct, nested and
+  array-element references to packed fields. Packed structs/unions and
+  `@repr("C"/"packed")` are implemented.
   C ABI classification for Windows/ARM and other targets, plus FFI
   wrappers/variadics/callbacks, remains. By-value structs/unions work on
   x86-64 SysV; variants are rejected with `SAFE-FFI-002`.
@@ -812,6 +814,7 @@ Codes are stable and grouped by domain:
 | `SAFE-VALID-006` | `@volatile` access outside an unsafe boundary |
 | `SAFE-VALID-007` | union field read outside an unsafe boundary |
 | `SAFE-VALID-008` | reference to a field of a packed aggregate |
+| `SAFE-REPR-001` | `@repr("transparent")` used on a non-single-field struct or an inheriting struct |
 | `SAFE-TRAIT-001` | implementation of an `unsafe interface` was not `unsafe impl` |
 | `SAFE-VIS-001` | private/internal member initialized or accessed outside its type/module |
 | `SAFE-FFI-001` | extern call in a safe context (enforced) |

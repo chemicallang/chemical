@@ -1044,14 +1044,14 @@
 > heterogeneous multi-value scopes and value-passing capturing scoped closures
 > remain open. Packed layout and `@repr("C"/"packed")` are implemented
 > (including `SAFE-VALID-008` for references to packed fields);
-> `repr("transparent")`, C ABI classification for Windows/ARM, and FFI
-> wrappers remain, along with the variance/HRTB/temporary-lifetime precision
-> items.
-> Safety suite `60`; negative tests `620`; main TCC `2357`, LLVM `2355`;
+> `@repr("transparent")` is implemented for checked single-field structs
+> (layout and C ABI); C ABI classification for Windows/ARM, FFI wrappers, and
+> the variance/HRTB/temporary-lifetime precision items remain.
+> Safety suite `62`; negative tests `625`; main TCC `2357`, LLVM `2355`;
 > libs `730`; plugins `1305`; async `56`; interpret `1910`; server `10`;
-> TLS `599`; safety `60`; `MIRTests` `4643 checks`. The whole-tree audit
+> TLS `599`; safety `62`; `MIRTests` `4643 checks`. The whole-tree audit
 > manifest (`lang/docs/safety/audit-modules.txt`) covers `94` modules with
-> `unsafe_blocks 3663` / `unsafe_values 4889`; see
+> `unsafe_blocks 3663` / `unsafe_values 4890`; see
 > `lang/docs/safety/migration-metrics.md`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
@@ -2652,3 +2652,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.14 (2026-10-30): target C ABI support for by-value structs/unions on x86-64 SysV. The MIR symbol keeps its internal pointer/sret signature and records a separate `c_abi_type`; C prototypes and LLVM declarations use the by-value signature, while calls adapt arguments and returns. Small aggregates are classified per eightbyte (integer/SSE coercion); larger values use `byval`/`sret` memory. `SAFE-FFI-002` now rejects only Chemical variants by value. A linked C fixture exercises small, two-eightbyte, SSE, mixed, memory-class and union values on TCC and LLVM; safety suite `56`. Other target ABIs (Windows x64, ARM) and FFI wrappers/variadics/callbacks remain.*
 *Revision note v4.15 (2026-10-30): callback capture storage is always heap-indirect and alignment-aware, removing the inline self-pointer/under-aligned `malloc` hole in `std::default_function_instance`. Packed layout is implemented for structs and unions (`@packed` and `@repr("packed")`; `@repr("C")` is the explicit natural-layout marker), with C `#pragma pack`, packed LLVM aggregate bodies, and packed-layout size/alignment tests. Creating a reference to a packed field is rejected with `SAFE-VALID-008`. `repr("transparent")` remains explicit-unsupported. M6.5 gains safe `std::concurrent.submit_closure` (typed capture, `C: Send + 'static`) and `async::spawn_send_handle` for stored `SendFutureHandle` values; bare erased `std::function` parameters and heterogeneous/value-passing scoped scopes remain.*
 *Revision note v4.16 (2026-10-30): a non-Copy by-value callback capture could be returned, assigned, or passed by value out of a reusable lambda; the generated closure call bitwise-copied the capture, so repeated calls could double-own/destroy it. `SAFE-MOVE-002` now rejects the direct move forms (return, var initializer, assignment, call argument). This is a conservative guard, not full Rust-style callable semantics: `FnOnce`/`FnMut`/`Fn` traits and a once-callback type remain M1.16/M6.6 work.*
+*Revision note v4.17 (2026-10-30): P1 precision/API slice. MIR move/borrow checking now consumes the checked `impl Copy` marker: a copy-shaped `MoveInit` leaves the source initialized and keeps its loans live (arrays and nested Copy fields included). `@repr("transparent")` is implemented for single-field structs with field-equal size/alignment and C ABI, with `SAFE-REPR-001` rejecting multi-field/inheriting shapes and annotation conflicts. Packed-field reference rejection now propagates through nested fields and array elements. The MIR interpreter now handles `Switch`, `Copy`/`Move`, atomic load/store/compare-exchange/integer RMW, and `AtomicFence`; `Unreachable`/`Throw`, async and inline asm remain explicit hard interpreter errors where they have no comptime meaning. Safety suite `62`, negative `625`.

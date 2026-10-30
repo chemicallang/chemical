@@ -519,6 +519,20 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error,
     return in;
 }
 
+void MIRLowerer::set_impls(ImplementationsIndex* idx, CoreNodes* core) {
+    impls_index_ = idx;
+    core_nodes_ = core;
+    types_.set_copy_resolver([idx, core](BaseType* type) -> bool {
+        if (idx == nullptr || core == nullptr || core->copy_interface == nullptr ||
+            type == nullptr) {
+            return false;
+        }
+        auto* container = type->get_members_container();
+        if (container == nullptr) return false;
+        return idx->get_impl(static_cast<ASTNode*>(core->copy_interface), container) != nullptr;
+    });
+}
+
 void MIRLowerer::mark_moved(PlaceId place) {
     for (auto& d : destructibles_) {
         if (d.place == place) {

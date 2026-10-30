@@ -603,12 +603,13 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         aggregate = ar.element;
                     }
                 }
-                bool packed_projection = false;
-                if (ops[0].kind() == MIROperandKind::Place) {
-                    packed_projection = packed_places.count(ops[0].id) != 0;
-                } else if (ops[0].kind() == MIROperandKind::Value) {
-                    packed_projection = packed_addresses.count(ops[0].id) != 0;
-                }
+                // The projection can arrive as a Place (a selected place)
+                // or as an address-producing Value (FieldAddr/IndexAddr). Keep
+                // both sets in sync: a packed array field reaches IndexAddr as
+                // a Value, and its element reference must still be rejected.
+                bool packed_projection =
+                    packed_places.count(ops[0].id) != 0 ||
+                    packed_addresses.count(ops[0].id) != 0;
                 if (aggregate != MIR_INVALID_ID && aggregate < module.types.types.size() &&
                     module.types.types[aggregate].packed) {
                     packed_projection = true;
@@ -950,11 +951,15 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     ops[1].kind() != MIROperandKind::Place) {
                     break;
                 }
+                const bool copying =
+                    inst.opcode() == MIROpcode::CopyInit ||
+                    (ops[1].id < function.places.size() &&
+                     mir_type_is_copy(module.types, function.places[ops[1].id].type));
                 {
                     const auto pp = place_params.find(ops[1].id);
                     if (pp != place_params.end()) {
                         place_params[ops[0].id] = pp->second;
-                        if (inst.opcode() == MIROpcode::MoveInit) {
+                        if (!copying) {
                             place_params.erase(ops[1].id);
                         }
                     } else {
@@ -963,7 +968,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     const auto pa = place_aliases.find(ops[1].id);
                     if (pa != place_aliases.end()) {
                         place_aliases[ops[0].id] = pa->second;
-                        if (inst.opcode() == MIROpcode::MoveInit) {
+                        if (!copying) {
                             place_aliases.erase(ops[1].id);
                         }
                     } else {
@@ -973,8 +978,9 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 const auto it = place_loans.find(ops[1].id);
                 if (it != place_loans.end()) {
                     place_loans[ops[0].id] = it->second;
-                    loans[it->second].end = lin;
-                    if (inst.opcode() == MIROpcode::MoveInit) {
+                    // A copy keeps the source loan live; a move transfers it.
+                    if (!copying) {
+                        loans[it->second].end = lin;
                         place_loans.erase(ops[1].id);
                     }
                 }
@@ -1012,12 +1018,12 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     }
                     for (const auto& m : moved) {
                         field_loans[m.first] = m.second;
-                        loans[m.second].end = lin;
+                        if (!copying) loans[m.second].end = lin;
                     }
                     for (const auto& m : moved_params) {
                         field_params[m.first] = m.second;
                     }
-                    if (inst.opcode() == MIROpcode::MoveInit) {
+                    if (!copying) {
                         for (auto it2 = field_loans.begin(); it2 != field_loans.end();) {
                             if (static_cast<PlaceId>(it2->first >> 32) == ops[1].id) {
                                 it2 = field_loans.erase(it2);
@@ -1948,6 +1954,13 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     }
                     break;
                 case MIROpcode::MoveOut:
+                    if (ops != nullptr && ops[0].kind() == MIROperandKind::Place &&
+                        !(ops[0].id < function.places.size() &&
+                          mir_type_is_copy(module.types,
+                                           function.places[ops[0].id].type))) {
+                        moved_place = ops[0].id;
+                    }
+                    break;
                 case MIROpcode::Drop:
                 case MIROpcode::Destroy:
                     if (ops != nullptr && ops[0].kind() == MIROperandKind::Place) {

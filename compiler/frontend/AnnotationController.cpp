@@ -353,8 +353,8 @@ void annot_handler_align(Parser* parser, ASTNode* node, std::vector<Value*>& arg
     }
     if(node->kind() == ASTNodeKind::StructDecl) {
         auto* def = node->as_struct_def_unsafe();
-        if(def->is_packed()) {
-            parser->error("@align cannot be combined with @packed/@repr(\"packed\")");
+        if(def->is_packed() || def->is_transparent()) {
+            parser->error("@align cannot be combined with @packed/@repr(\"packed\"/\"transparent\")");
             return;
         }
         def->set_required_alignment(align);
@@ -372,8 +372,8 @@ void annot_handler_packed(Parser* parser, ASTNode* node, std::vector<Value*>& ar
     }
     if(node->kind() == ASTNodeKind::StructDecl) {
         auto* def = node->as_struct_def_unsafe();
-        if(def->get_required_alignment() != 0) {
-            parser->error("@packed cannot be combined with @align/@maxalign");
+        if(def->get_required_alignment() != 0 || def->is_transparent()) {
+            parser->error("@packed cannot be combined with @align/@maxalign or @repr(\"transparent\")");
             return;
         }
         def->set_packed(true);
@@ -397,8 +397,8 @@ void annot_handler_repr(Parser* parser, ASTNode* node, std::vector<Value*>& args
     if(str->value == "packed") {
         if(node->kind() == ASTNodeKind::StructDecl) {
             auto* def = node->as_struct_def_unsafe();
-            if(def->get_required_alignment() != 0) {
-                parser->error("@repr(\"packed\") cannot be combined with @align/@maxalign");
+            if(def->get_required_alignment() != 0 || def->is_transparent()) {
+                parser->error("@repr(\"packed\") cannot be combined with @align/@maxalign or @repr(\"transparent\")");
                 return;
             }
             def->set_packed(true);
@@ -418,7 +418,16 @@ void annot_handler_repr(Parser* parser, ASTNode* node, std::vector<Value*>& args
         return;
     }
     if(str->value == "transparent") {
-        parser->error("@repr(\"transparent\") is not implemented yet");
+        if(node->kind() != ASTNodeKind::StructDecl) {
+            parser->error("@repr(\"transparent\") can only be applied to structs");
+            return;
+        }
+        auto* def = node->as_struct_def_unsafe();
+        if(def->is_packed() || def->get_required_alignment() != 0) {
+            parser->error("@repr(\"transparent\") cannot be combined with @packed/@align/@maxalign");
+            return;
+        }
+        def->set_transparent(true);
         return;
     }
     parser->error("unsupported @repr argument (supported: \"C\", \"packed\")");

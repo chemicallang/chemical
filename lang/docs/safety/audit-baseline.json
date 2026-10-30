@@ -1590,8 +1590,8 @@
       "dealloc_stmts": 0,
       "delete_stmts": 0,
       "destruct_stmts": 0,
-      "extern_calls": 45,
-      "extern_decls": 10,
+      "extern_calls": 46,
+      "extern_decls": 11,
       "extern_globals": 0,
       "inline_asm": 0,
       "memory_calls": 0,
@@ -1605,7 +1605,7 @@
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
       "unsafe_blocks": 23,
-      "unsafe_values": 92,
+      "unsafe_values": 93,
       "variadic_calls": 15
     },
     "::server": {
@@ -2263,8 +2263,8 @@
     "dealloc_stmts": 175,
     "delete_stmts": 22,
     "destruct_stmts": 23,
-    "extern_calls": 1255,
-    "extern_decls": 872,
+    "extern_calls": 1256,
+    "extern_decls": 873,
     "extern_globals": 7,
     "inline_asm": 57,
     "memory_calls": 82,
@@ -2278,7 +2278,7 @@
     "union_field_accesses": 0,
     "unreachable_stmts": 0,
     "unsafe_blocks": 3663,
-    "unsafe_values": 4889,
+    "unsafe_values": 4890,
     "variadic_calls": 276
   }
 }

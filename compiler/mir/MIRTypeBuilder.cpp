@@ -162,6 +162,10 @@ TypeId MIRTypeBuilder::aggregate_type(MIRTypeKind kind, const void* decl, BaseTy
         if (type->requires_moving()) flags |= TF_NONE; // moves tracked via contract later
     }
     r.flags = flags;
+    // Copy is an explicit, validated source marker. A destructor-bearing type
+    // can never be Copy, even if a malformed impl reached lowering.
+    r.copy = copy_resolver_ && type && !type->requires_destructor() &&
+             copy_resolver_(type);
 
     if (kind == MIRTypeKind::Int) {
         // enum types are spelled `int` by the legacy backend
@@ -320,10 +324,12 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
     // alone (never from the host or from the AST again)
     uint32_t explicit_align = 0;
     bool packed = false;
+    bool transparent = false;
     if (decl && decl->kind() == ASTNodeKind::StructDecl) {
         auto* def = decl->as_struct_def_unsafe();
         explicit_align = def->get_required_alignment();
         packed = def->is_packed();
+        transparent = def->is_transparent();
     } else if (decl && decl->kind() == ASTNodeKind::UnionDecl) {
         packed = decl->as_union_def_unsafe()->is_packed();
     }
@@ -332,8 +338,27 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
         rec.field_index = fidx;
         rec.explicit_alignment = explicit_align;
         rec.packed = packed;
+        rec.transparent = transparent;
     });
     compute_aggregate_layout(module_.types, id, explicit_align);
+    // The ImplementationsIndex answer is only the nominal `impl Copy`; a
+    // generic instantiation may still contain a non-Copy field (for example
+    // `Option<string>` via `impl<T> Copy for Option<T> where T: Copy`).
+    // Validate the actual fields before MIR treats the value as copyable.
+    if (module_.types.get(id).copy) {
+        bool fields_copy = true;
+        const MIRTypeRecord& rec = module_.types.get(id);
+        for (uint32_t i = 0; i < rec.data_count; ++i) {
+            const MIRFieldInfo* f = module_.types.field_of(id, i);
+            if (f != nullptr && !mir_type_is_copy(module_.types, f->type)) {
+                fields_copy = false;
+                break;
+            }
+        }
+        if (!fields_copy) {
+            module_.types.update(id, [&](MIRTypeRecord& rec2) { rec2.copy = false; });
+        }
+    }
 }
 
 void MIRTypeBuilder::finalize_layouts() {

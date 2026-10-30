@@ -157,9 +157,16 @@ bool MIRLowerer::lower_call_args_for(FunctionDeclaration* fd, bool self_included
                 if (!(canon && canon->kind() == BaseTypeKind::Array)) {
                     const PlaceId pid = static_cast<PlaceId>(r.id);
                     const TypeId pt = builder_->function().places[pid].type;
-                    builder_->emit(MIROpcode::MoveOut, MIR_NULL,
-                                   {MIROperand::place(pid, pt)});
-                    mark_moved(pid);
+                    // A Copy value is duplicated into the callee; the source
+                    // remains initialized and may still be borrowed.
+                    const MIRTypeRecord& cr = module_.types.get(pt);
+                    if (!(mir_type_is_copy(module_.types, pt) &&
+                          (cr.flags & TF_HAS_CONSTRUCTOR) == 0 &&
+                          !module_.types.name_of(pt).empty())) {
+                        builder_->emit(MIROpcode::MoveOut, MIR_NULL,
+                                       {MIROperand::place(pid, pt)});
+                        mark_moved(pid);
+                    }
                 }
             }
         }

@@ -506,7 +506,7 @@ All built-in annotations recognized by the compiler:
 | `@delete` | func (in struct) | Destructor — called when value goes out of scope or is deleted |
 | `@volatile` | var, const | Marks variable as volatile — prevents compiler optimization of loads/stores |
 | `@packed` | struct, union | Packed layout (alignment 1); references to packed fields are rejected with `SAFE-VALID-008` |
-| `@repr("C")` / `@repr("packed")` | struct, union | Explicit C/natural layout, or packed layout; `repr("transparent")` is not implemented yet |
+| `@repr("C")` / `@repr("packed")` / `@repr("transparent")` | struct, union (transparent: struct only) | Explicit C/natural layout, packed layout, or single-field transparent-newtype layout |
 | `@compiler.interface` | interface | Marks a CBI interface exposed to the compiler (used in `build.lab` for build API) |
 
 **Critical `@make` + `@direct_init` interaction:**

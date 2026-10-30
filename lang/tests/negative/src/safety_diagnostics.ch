@@ -1056,6 +1056,41 @@ func neg_packed_field_mut_reference_rejected(env : &mut TestEnv) {
 }
 
 @test
+func neg_nested_packed_field_reference_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@packed struct Inner { var x : int }\n@packed struct Outer { var inner : Inner }\npublic func main() : int {\n    var o = Outer { inner : Inner { x : 1 } }\n    var r = &o.inner.x\n    return 0\n}\n"
+    expect_compile_error(env, "nested_packed_field_reference", ch, "SAFE-VALID-008")
+}
+
+@test
+func neg_packed_array_element_reference_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@packed struct P { var xs : [4]int }\npublic func main() : int {\n    var p = P { xs : [1, 2, 3, 4] }\n    var r = &p.xs[1]\n    return 0\n}\n"
+    expect_compile_error(env, "packed_array_element_reference", ch, "SAFE-VALID-008")
+}
+
+@test
+func neg_transparent_requires_one_field(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@repr(\"transparent\")\nstruct Bad {\n    var a : int\n    var b : int\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "transparent_two_fields", ch, "SAFE-REPR-001")
+}
+
+@test
+func neg_transparent_rejects_union(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@repr(\"transparent\")\nunion Bad {\n    var a : int\n    var b : uint\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "transparent_union", ch, "can only be applied to structs")
+}
+
+@test
+func neg_transparent_rejects_packed(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@repr(\"transparent\")\n@packed\nstruct Bad { var a : int }\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "transparent_packed", ch, "cannot be combined")
+}
+
+@test
 func neg_callback_cannot_move_noncopy_capture(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var s = std::string(\"a long captured value\")\n    var f : std::function<() => std::string> = |s|() => {\n        return s\n    }\n    return f().size() as int\n}\n"

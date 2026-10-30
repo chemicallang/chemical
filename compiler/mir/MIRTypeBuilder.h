@@ -36,6 +36,11 @@ public:
         name_resolver_ = std::move(fn);
     }
 
+    /** Resolve whether a source aggregate type has a checked `impl Copy`. */
+    void set_copy_resolver(std::function<bool(BaseType*)> fn) {
+        copy_resolver_ = std::move(fn);
+    }
+
     /** Map an AST type to a canonical MIR type id. Never returns INVALID. */
     TypeId map(BaseType* type);
 
@@ -241,6 +246,7 @@ private:
     /** The next `MIRTypeRecord::decl` id an aggregate is given, in creation order. */
     uint32_t next_decl_id_ = 0;
     std::function<std::string(ASTNode*)> name_resolver_;
+    std::function<bool(BaseType*)> copy_resolver_;
     TypeId fat_pointer_id_ = MIR_INVALID_ID;
     uint32_t inline_counter_ = 0;
     /**

@@ -25,3 +25,7 @@ int cabi_two_pairs(struct CAbiPair a, struct CAbiPair b) { return a.a + b.b; }
 
 struct __attribute__((packed)) CAbiPacked { char tag; int value; char tail; };
 int cabi_packed_sum(struct CAbiPacked p) { return p.tag + p.value + p.tail; }
+
+
+struct CAbiTransparent { int value; };
+int cabi_transparent_read(struct CAbiTransparent x) { return x.value; }

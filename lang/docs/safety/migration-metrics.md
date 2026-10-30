@@ -31,13 +31,13 @@ updated baseline and a justification in the same change.
 | Metric | Count |
 |---|---:|
 | `unsafe_blocks` | 3663 |
-| `unsafe_values` | 4889 |
+| `unsafe_values` | 4890 |
 | `raw_pointer_types` | 9253 |
 | `raw_pointer_derefs` | 974 |
 | `raw_pointer_addrs` | 10009 |
 | `raw_pointer_casts` | 2853 |
-| `extern_decls` | 872 |
-| `extern_calls` | 1255 |
+| `extern_decls` | 873 |
+| `extern_calls` | 1256 |
 | `variadic_calls` | 276 |
 | `inline_asm` | 57 |
 | `mutable_globals` | 141 |

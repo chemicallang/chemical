@@ -93,6 +93,15 @@ bool LinkedType::is_same(BaseType *other) {
                     if(o_gen == linked) {
                         return true;
                     }
+                    // The same declared parameter can be represented by the
+                    // master and by a concrete generic implementation. Match
+                    // those copies structurally (name + position) before
+                    // comparing trait lists, whose interface nodes may also be
+                    // distinct copies.
+                    if(gen_param->identifier == o_gen->identifier &&
+                       gen_param->param_index == o_gen->param_index) {
+                        return true;
+                    }
                     if(gen_param->traits.size() != o_gen->traits.size()) {
                         return false;
                     }

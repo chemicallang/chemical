@@ -32,6 +32,15 @@ public:
     std::vector<CapturedVariable*> captureList;
     Scope scope;
 
+    /**
+     * A type-level witness for the generated capture struct. It contains one
+     * field per captured binding (by-reference captures use their reference
+     * type), so Send/Sync/'static derivation can inspect what the closure
+     * actually owns. Null means it has not been built yet (or the lambda has
+     * no captures and the caller did not request a witness).
+     */
+    TypeLoc capture_env = nullptr;
+
 
     /**
      * constructor

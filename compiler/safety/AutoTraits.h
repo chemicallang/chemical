@@ -13,6 +13,7 @@
 #include "ast/types/ArrayType.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/types/GenericType.h"
+#include "ast/types/CapturingFunctionType.h"
 #include "ast/types/LinkedType.h"
 #include "compiler/symres/ImplementationsIndex.h"
 
@@ -137,9 +138,17 @@ inline bool type_satisfies_auto_trait(
         }
         case BaseTypeKind::Function:
             return true;
-        case BaseTypeKind::CapturingFunction:
-            // The captured environment is not modelled; be conservative.
-            return false;
+        case BaseTypeKind::CapturingFunction: {
+            // The capture witness is the generated environment's field list.
+            // An erased callback has no witness, so it is conservatively
+            // neither Send nor Sync.
+            auto* cap = type->as_capturing_func_type_unsafe();
+            if (!cap->capture_env) return false;
+            bool capres = type_satisfies_auto_trait(
+                cap->capture_env, kind, visiting, index,
+                send_interface, sync_interface);
+            return capres;
+        }
         case BaseTypeKind::Generic: {
             auto* gen = type->as_generic_type_unsafe();
             for(auto& arg : gen->types) {
@@ -254,8 +263,12 @@ inline bool type_satisfies_unpin(
         case BaseTypeKind::Reference:
         case BaseTypeKind::Function:
             return true;
-        case BaseTypeKind::CapturingFunction:
-            return false;
+        case BaseTypeKind::CapturingFunction: {
+            auto* cap = type->as_capturing_func_type_unsafe();
+            if (!cap->capture_env) return false;
+            return type_satisfies_unpin(cap->capture_env, visiting, index,
+                                        unpin_interface);
+        }
         case BaseTypeKind::Generic: {
             auto* gen = type->as_generic_type_unsafe();
             for(auto& arg : gen->types) {

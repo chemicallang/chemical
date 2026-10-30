@@ -760,7 +760,7 @@
 > `Load` now counts as a use of the field's loan, so the escape is detected
 > even when the field is reached through an address. Runtime tests cover the
 > destructor order for direct and aggregate borrows; negative tests cover both
-> non-extending forms. Safety suite `55`; negative tests `605`.
+> non-extending forms. Safety suite `55`; negative tests `608`.
 > S4.2 higher-ranked function types: `for<'a, 'b> (x : &'a T) => R` parses into
 > `FunctionType::binder_lifetimes`; the binders are in scope only inside that
 > function type, duplicates are rejected, and `SAFE-BORROW-099` rejects an
@@ -782,7 +782,7 @@
 > **Static lifetime enforcement:** assigning a shorter reference or generic
 > lifetime argument to a `'static` target is `SAFE-LIFE-004`. This closes the
 > container/dropck hole where a `vector<G<'static>>` could accept a `G<'a>`
-> built from a stack borrow. Safety suite `55`; negative tests `605`;
+> built from a stack borrow. Safety suite `55`; negative tests `608`;
 > `MIRTests` `4643 checks`.
 > M5.5b float→int: every `as` cast from float/double to an integer width now
 > lowers to explicit blocks that map NaN to zero and saturate values below the
@@ -999,8 +999,16 @@
 > the erased representation; an unsafe-created callback can still be propagated
 > by safe code, so the typed capture/frame representation remains required for
 > a complete invariant (M6.5).
-> Next in M6: concrete capture/future types for `std::function`/`FutureHandle`
-> and erased/async `Send`; capturing scoped closures follow. M6 now includes
+> M6.5 first slice: `CapturingFunctionType` carries an optional capture-env
+> witness; lambdas get a synthetic environment of their captured field types.
+> `Send`/`Sync`/`'static` recurse into the witness, plain `std::function`
+> variables acquire it from lambda initializers, and `std::typed_function<F,C>`
+> exposes it. Safe `std::thread.spawn_closure`/`spawn_void_closure` infer `C` and
+> require `C: Send + 'static`; owned captures run safely, `Rc` and borrowed
+> captures are rejected. `FutureHandle` frame witnesses, capturing scoped
+> closures, heterogeneous scopes, and unsafe-created callback propagation remain.
+> Next in M6: a frame witness for `FutureHandle` and conditional async `Send`;
+> capturing scoped closures follow. M6 now includes
 > join-before-return `std::thread.scoped_spawn`/`scoped_spawn_mut`,
 > multi-handle `scoped_run`, and `JoinHandle<T>: Sync` when `T: Send`. M4 is complete for the enforceable language surface: NLL/loans, storage
 > lifetimes, return regions, variance, temporary extension, provenance,
@@ -1015,7 +1023,7 @@
 > outlive the join, so they stay on the explicit unsafe path.
 > Then remaining M5 validity (packed references), M2 C ABI, and the
 > variance/HRTB/temporary-lifetime precision items.
-> Safety suite `55`; negative tests `605`; main TCC `2354`, LLVM `2352`;
+> Safety suite `55`; negative tests `608`; main TCC `2355`, LLVM `2353`;
 > libs `730`; plugins `1305`; async `53`; interpret `1910`;
 > `MIRTests` `4643 checks`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
@@ -2606,3 +2614,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.6 (2026-10-30): M6 starts with join-before-return scoped borrows (`std::thread.scoped_spawn`/`scoped_spawn_mut`), `JoinHandle<T>: Sync` for `T: Send`, and generic-parameter identity fixes. General `Scope` handles, capturing scoped closures, and erased/async `Send` remain for M6.5.*
 *Revision note v4.7 (2026-10-30): M6.3 adds a multi-handle shared `scoped_run`/`ScopedScope<T>` (up to 32 workers, join-all-on-drop, unforgeable internal fields). M6.5 remains open: the current `%capture` instance wrapper is not the generated capture layout, so `std::function`/`FutureHandle` still need a concrete typed capture/frame representation before erased/async `Send` can be derived.*
 *Revision note v4.8 (2026-10-30): callback capture escape is rejected (`SAFE-LIFE-001`) for direct and aggregate returns, including taint through locals/assignments; `std::default_function_instance` fields are private. By-reference and by-value reference/view captures now require an unsafe construction boundary (`SAFE-UNSAFE-002`); owned by-value captures remain safe. Opaque/erased propagation and `FutureHandle` still need the M6.5 typed representation.*
+*Revision note v4.9 (2026-10-30): M6.5 starts with a typed capture-environment witness on capturing function types. Lambdas build a synthetic capture environment at symbol resolution; auto traits and `'static` bounds derive from the captured fields. Plain `std::function` variables acquire the witness from their initializer, `std::typed_function<F,C>` exposes it, and safe `spawn_closure`/`spawn_void_closure` enforce `C: Send + 'static`. Owned captures are accepted; `Rc` and borrowed captures are rejected. `FutureHandle` frame witnesses and capturing scoped closures remain.*

@@ -1220,6 +1220,33 @@ static bool infer_type_argument(
     }
 }
 
+// The declared type of a variable can be refined after symbol resolution (a
+// capture witness is attached to a `std::function` variable when its lambda
+// initializer is checked). Identifier values still hold the type they were
+// linked with, so generic inference must resolve the current VarInit type.
+static BaseType* current_inference_type(Value* value) {
+    Value* current = value;
+    while (current != nullptr) {
+        if (current->val_kind() == ValueKind::CastedValue) {
+            current = current->as_casted_value_unsafe()->value;
+        } else if (current->val_kind() == ValueKind::UnsafeValue) {
+            current = static_cast<UnsafeValue*>(current)->getValue();
+        } else if (current->val_kind() == ValueKind::AccessChain &&
+                   current->as_access_chain_unsafe()->values.size() == 1) {
+            current = current->as_access_chain_unsafe()->values[0];
+        } else {
+            break;
+        }
+    }
+    if (current != nullptr && current->val_kind() == ValueKind::Identifier) {
+        ASTNode* linked = current->as_identifier_unsafe()->linked;
+        if (linked != nullptr && linked->kind() == ASTNodeKind::VarInitStmt) {
+            return linked->as_var_init_unsafe()->known_type();
+        }
+    }
+    return current ? current->getType() : nullptr;
+}
+
 static BaseType* infer_generic_arg_from_call(
     FunctionDeclaration* master,
     FunctionCall* call,
@@ -1233,8 +1260,39 @@ static BaseType* infer_generic_arg_from_call(
     for(size_t i = 0; i + arg_offset < master->params.size() &&
                       i < call->values.size(); i++) {
         auto* param_type = const_cast<BaseType*>(master->params[i + arg_offset]->type.getType());
-        auto* arg_type = call->values[i]->getType();
+        auto* arg_type = current_inference_type(call->values[i]);
         BaseType* found = nullptr;
+        // Capture witnesses live next to a capturing function type, not in its
+        // signature, so the ordinary type-argument walker cannot see them.
+        BaseType* param_cap = param_type ? param_type->canonical() : nullptr;
+        if (param_cap != nullptr && param_cap->kind() == BaseTypeKind::CapturingFunction) {
+            auto* cap = param_cap->as_capturing_func_type_unsafe();
+            BaseType* env_param = cap->capture_env ? cap->capture_env->canonical() : nullptr;
+            if (env_param != nullptr && env_param->kind() == BaseTypeKind::Linked &&
+                env_param->as_linked_type_unsafe()->linked == (ASTNode*) target) {
+                Value* arg_value = call->values[i];
+                Value* unwrapped = arg_value;
+                while (unwrapped != nullptr) {
+                    if (unwrapped->val_kind() == ValueKind::CastedValue) {
+                        unwrapped = unwrapped->as_casted_value_unsafe()->value;
+                    } else if (unwrapped->val_kind() == ValueKind::UnsafeValue) {
+                        unwrapped = static_cast<UnsafeValue*>(unwrapped)->getValue();
+                    } else if (unwrapped->val_kind() == ValueKind::AccessChain &&
+                               unwrapped->as_access_chain_unsafe()->values.size() == 1) {
+                        unwrapped = unwrapped->as_access_chain_unsafe()->values[0];
+                    } else {
+                        break;
+                    }
+                }
+                if (unwrapped != nullptr && unwrapped->val_kind() == ValueKind::LambdaFunc) {
+                    found = const_cast<BaseType*>(unwrapped->as_lambda_func_unsafe()->capture_env.getType());
+                } else if (arg_type != nullptr && arg_type->kind() == BaseTypeKind::CapturingFunction) {
+                    auto* arg_cap = arg_type->as_capturing_func_type_unsafe();
+                    found = arg_cap->capture_env ? const_cast<BaseType*>(arg_cap->capture_env.getType()) : nullptr;
+                }
+                if (found != nullptr) return found;
+            }
+        }
         if(infer_type_argument(param_type, arg_type, target, found)) {
             return found;
         }
@@ -1651,16 +1709,17 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
             }
         } else if (param_parent && param_parent->kind() == ASTNodeKind::FunctionDecl) {
             // Generic parameters of a function are parented to the
-            // FunctionDeclaration (the GenericFuncDecl wraps it). Use the
-            // explicit list when present, otherwise infer from arguments.
+            // FunctionDeclaration (the GenericFuncDecl wraps it). Re-infer
+            // from the current argument types first: a `std::function`
+            // variable may have gained a capture witness during type checking
+            // after the call's generic list was formed.
             auto* master = param_parent->as_function_unsafe();
             auto* gen_parent = master->generic_parent;
             if (gen_parent != nullptr && gen_parent->kind() == ASTNodeKind::GenericFuncDecl) {
                 auto param_index = constraint.param->param_index;
-                if (param_index < call->generic_list.size()) {
+                concrete_type = infer_generic_arg_from_call(master, call, constraint.param);
+                if (concrete_type == nullptr && param_index < call->generic_list.size()) {
                     concrete_type = call->generic_list[param_index];
-                } else {
-                    concrete_type = infer_generic_arg_from_call(master, call, constraint.param);
                 }
             }
         }
@@ -2446,6 +2505,36 @@ static void require_unsafe_for_capture(
            "the referent lifetime";
 }
 
+// A plain `std::function<F>` declaration has an erased capture witness. When
+// it is initialized from a lambda (or from another typed callback), retain the
+// actual capture environment on this variable's type. The runtime layout stays
+// the same (the instance struct); only auto-trait/lifetime reasoning uses the
+// witness. Erased declarations without such an initializer stay !Send.
+static void specialize_capture_witness(
+        TypeVerifier& verifier, VarInitStatement* stmt, Value* value) {
+    if (stmt == nullptr || !stmt->type || value == nullptr) return;
+    BaseType* target = stmt->type->canonical();
+    if (target == nullptr || target->kind() != BaseTypeKind::CapturingFunction) return;
+    auto* cap = target->as_capturing_func_type_unsafe();
+    if (cap->capture_env) return;
+
+    TypeLoc witness = nullptr;
+    Value* unwrapped = unwrap_capture_value(value);
+    if (unwrapped != nullptr && unwrapped->val_kind() == ValueKind::LambdaFunc) {
+        witness = unwrapped->as_lambda_func_unsafe()->capture_env;
+    } else if (unwrapped != nullptr && unwrapped->getType() != nullptr) {
+        BaseType* source = unwrapped->getType()->canonical();
+        if (source != nullptr && source->kind() == BaseTypeKind::CapturingFunction) {
+            witness = source->as_capturing_func_type_unsafe()->capture_env;
+        }
+    }
+    if (!witness) return;
+
+    auto* specialized = new (verifier.allocator.allocate<CapturingFunctionType>())
+        CapturingFunctionType(cap->func_type, cap->instance_type, witness);
+    stmt->type = TypeLoc(specialized, stmt->type.getLocation());
+}
+
 void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
     if(!stmt->attrs.signature_resolved) {
         return;
@@ -2462,6 +2551,7 @@ void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
     }
 
     if(type && value) {
+        specialize_capture_witness(*this, stmt, value);
         // an @implicit constructor converts the value to the variable's type,
         // so the value itself does not need to satisfy the type
         const auto implicit = stmt->type->implicit_constructor_for(value);

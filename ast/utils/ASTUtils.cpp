@@ -1,5 +1,8 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
+#include "ast/statements/Return.h"
+#include "ast/types/CapturingFunctionType.h"
+#include "ast/values/LambdaFunction.h"
 #include "ASTUtils.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/IndexOperator.h"
@@ -300,6 +303,23 @@ TypeLoc get_param_def_type(BaseType* type) {
     }
 }
 
+// A lambda argument is linked against a generic expected function type, so its
+// declared `returnType` can still be the callee's return parameter (`U`). The
+// body is already linked at this point; use the first returned expression's
+// type to infer the concrete output type.
+static BaseType* lambda_body_return_type(LambdaFunction* lambda) {
+    if (lambda == nullptr) return nullptr;
+    for (ASTNode* node : lambda->scope.nodes) {
+        if (node != nullptr && node->kind() == ASTNodeKind::ReturnStmt) {
+            auto* ret = node->as_return_unsafe();
+            if (ret->value != nullptr && ret->value->getType() != nullptr) {
+                return ret->value->getType();
+            }
+        }
+    }
+    return nullptr;
+}
+
 void infer_types_by_args(
         ASTDiagnoser& diagnoser,
         ASTNode* params_node,
@@ -309,9 +329,17 @@ void infer_types_by_args(
         std::vector<TypeLoc>& inferred,
         Value* debug_value
 ) {
+    BaseType* canonical_param = param_type->canonical();
+    if (canonical_param != nullptr && canonical_param != param_type &&
+        canonical_param->kind() == BaseTypeKind::CapturingFunction) {
+        infer_types_by_args(diagnoser, params_node, generic_list_size,
+                            canonical_param, arg_type, inferred, debug_value);
+        return;
+    }
     switch(param_type->kind()) {
         case BaseTypeKind::Linked:{
             const auto linked = param_type->linked_node();
+            if (linked == nullptr) break;
             const auto linked_kind = linked->kind();
             if(linked_kind == ASTNodeKind::GenericTypeParam) {
                 // directly linked generic param like func <T> add(param : T) or func add() : T
@@ -364,6 +392,61 @@ void infer_types_by_args(
                 infer_types_by_args(diagnoser, params_node, generic_list_size, param_type->as_reference_type_unsafe()->type, {arg_type->as_reference_type_unsafe()->type, arg_type.encoded_location()}, inferred, debug_value);
             } else {
                 infer_types_by_args(diagnoser, params_node, generic_list_size, param_type->as_reference_type_unsafe()->type, arg_type, inferred, debug_value);
+            }
+            break;
+        }
+        case BaseTypeKind::Function: {
+            if (arg_type->kind() != BaseTypeKind::Function) break;
+            auto* param_fn = param_type->as_function_type_unsafe();
+            auto* arg_fn = arg_type->as_function_type_unsafe();
+            if (param_fn->params.size() != arg_fn->params.size()) break;
+            for (size_t i = 0; i < param_fn->params.size(); ++i) {
+                auto* pp = param_fn->params[i];
+                auto* ap = arg_fn->params[i];
+                if (pp && ap && pp->type && ap->type) {
+                    infer_types_by_args(diagnoser, params_node, generic_list_size,
+                                        pp->type, {ap->type, arg_type.encoded_location()},
+                                        inferred, debug_value);
+                }
+            }
+            if (param_fn->returnType) {
+                BaseType* actual_return = arg_fn->returnType;
+                if (auto* lambda = arg_fn->as_lambda()) {
+                    if (auto* body_return = lambda_body_return_type(lambda)) {
+                        actual_return = body_return;
+                    }
+                }
+                if (actual_return) {
+                    infer_types_by_args(diagnoser, params_node, generic_list_size,
+                                        param_fn->returnType,
+                                        {actual_return, arg_type.encoded_location()},
+                                        inferred, debug_value);
+                }
+            }
+            break;
+        }
+        case BaseTypeKind::CapturingFunction: {
+            auto* param_cap = param_type->as_capturing_func_type_unsafe();
+            if (arg_type->kind() == BaseTypeKind::CapturingFunction) {
+                auto* arg_cap = arg_type->as_capturing_func_type_unsafe();
+                infer_types_by_args(diagnoser, params_node, generic_list_size,
+                                    param_cap->func_type, arg_cap->func_type,
+                                    inferred, debug_value);
+                if (param_cap->capture_env && arg_cap->capture_env) {
+                    infer_types_by_args(diagnoser, params_node, generic_list_size,
+                                        param_cap->capture_env, arg_cap->capture_env,
+                                        inferred, debug_value);
+                }
+            } else if (arg_type->kind() == BaseTypeKind::Function) {
+                infer_types_by_args(diagnoser, params_node, generic_list_size,
+                                    param_cap->func_type, arg_type,
+                                    inferred, debug_value);
+                auto* lambda = arg_type->as_function_type_unsafe()->as_lambda();
+                if (param_cap->capture_env && lambda && lambda->capture_env) {
+                    infer_types_by_args(diagnoser, params_node, generic_list_size,
+                                        param_cap->capture_env, lambda->capture_env,
+                                        inferred, debug_value);
+                }
             }
             break;
         }

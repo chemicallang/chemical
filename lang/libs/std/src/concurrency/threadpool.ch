@@ -370,6 +370,21 @@ public namespace std {
             internal var arg : std::ManuallyDrop<T>
         }
 
+        // Capturing closure state. `C` is the capture-environment witness; it
+        // is not stored separately because the erased instance already owns the
+        // environment. The witness makes the `C: Send + 'static` bound at the
+        // safe entry inspect the values the closure actually captured.
+        @direct_init
+        public struct ClosureSpawnData<U> {
+            internal var f : %capture<() => U, std::default_function_instance>
+            internal var result : *mut ResultCell<U>
+        }
+
+        @direct_init
+        public struct VoidClosureSpawnData {
+            internal var f : %capture<() => void, std::default_function_instance>
+        }
+
         func <T, U> thread_entry(arg : *void) : *void {
             unsafe {
                 var data = arg as *mut SpawnData<T, U>
@@ -386,6 +401,25 @@ public namespace std {
                 var data = arg as *mut VoidSpawnData<T>
                 var value = data.arg.take()
                 data.f(value)
+                delete data
+                return null
+            }
+        }
+
+        func <U> closure_thread_entry(arg : *void) : *void {
+            unsafe {
+                var data = arg as *mut ClosureSpawnData<U>
+                var result = data.f()
+                data.result.value = std::Option.Some<U>(result)
+                delete data
+                return null
+            }
+        }
+
+        func void_closure_thread_entry(arg : *void) : *void {
+            unsafe {
+                var data = arg as *mut VoidClosureSpawnData
+                data.f()
                 delete data
                 return null
             }
@@ -466,6 +500,47 @@ public namespace std {
                 }
             }
             return unsafe(std::concurrent.spawn(void_thread_entry<T>, data as *void))
+        }
+
+        // Safe capturing task with an owned capture environment. `C: Send + 'static`
+        // means every captured value is transferable and contains no borrowed
+        // stack storage; a by-reference or Rc capture is rejected here.
+        public func <U, C> spawn_closure(f : %capture<() => U, std::default_function_instance, C>) : JoinHandle<U> where C : Send + 'static, U : Send + 'static {
+            var cell = unsafe(malloc(sizeof(ResultCell<U>))) as *mut ResultCell<U>
+            if(cell == null) {
+                panic("failed to allocate thread result")
+            }
+            unsafe { new(cell) ResultCell<U> { value : std::Option.None<U>() } }
+            var data = unsafe(malloc(sizeof(ClosureSpawnData<U>))) as *mut ClosureSpawnData<U>
+            if(data == null) {
+                unsafe { free(cell) }
+                panic("failed to allocate thread state")
+            }
+            unsafe {
+                new(data) ClosureSpawnData<U> {
+                    f : f,
+                    result : cell
+                }
+            }
+            var t = unsafe(std::concurrent.spawn(closure_thread_entry<U>, data as *void))
+            return JoinHandle<U> {
+                thread : t,
+                result : cell,
+                joined : false
+            }
+        }
+
+        public func <C> spawn_void_closure(f : %capture<() => void, std::default_function_instance, C>) : std::concurrent.Thread where C : Send + 'static {
+            var data = unsafe(malloc(sizeof(VoidClosureSpawnData))) as *mut VoidClosureSpawnData
+            if(data == null) {
+                panic("failed to allocate thread state")
+            }
+            unsafe {
+                new(data) VoidClosureSpawnData {
+                    f : f
+                }
+            }
+            return unsafe(std::concurrent.spawn(void_closure_thread_entry, data as *void))
         }
 
         @direct_init

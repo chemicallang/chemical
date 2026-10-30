@@ -193,10 +193,31 @@ func unsafe_sync_impl_allows_raw_pointer(env : &mut TestEnv) {
 }
 
 @test
-func neg_std_function_is_not_send(env : &mut TestEnv) {
+func neg_erased_std_function_is_not_send(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "using namespace core;\nfunc <T> needs_send(v : T) : int where T : Send { return 0 }\npublic func main() : int {\n    var f : std::function<() => void> = ||() => { }\n    return needs_send(f)\n}\n"
+    var ch = "using namespace core;\nfunc <T> needs_send(v : T) : int where T : Send { return 0 }\nfunc erased(f : std::function<() => void>) : int {\n    return needs_send(f)\n}\npublic func main() : int { return 0 }\n"
     expect_compile_error_with_mod(env, "std_function_not_send", ch, "does not satisfy where clause constraint 'T : Send'", NEG_MOD_STD_CORE)
+}
+
+@test
+func typed_capture_owned_is_send(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "using namespace core;\nfunc <T> needs_send(v : T) : int where T : Send { return 0 }\npublic func main() : int {\n    var x = 1\n    var f : std::function<() => int> = |x|() => { return x }\n    return needs_send(f)\n}\n"
+    expect_compile_success_with_mod(env, "typed_capture_send", ch, NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_spawn_closure_rc_capture_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var r = std::rc(5)\n    var h = std::thread.spawn_closure(|r|() => { return *r.get() })\n    return h.join()\n}\n"
+    expect_compile_error_with_mod(env, "spawn_closure_rc", ch, "does not satisfy where clause constraint 'C : Send'", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_spawn_closure_borrowed_capture_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var x = 5\n    unsafe {\n        var h = std::thread.spawn_closure(|&x|() => { return *x })\n        return h.join()\n    }\n}\n"
+    expect_compile_error_with_mod(env, "spawn_closure_borrow", ch, "SAFE-LIFE-004", NEG_MOD_STD_CORE)
 }
 
 @test

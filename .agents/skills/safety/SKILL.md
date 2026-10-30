@@ -274,7 +274,7 @@ Implemented:
   Statement temporaries now emit `StorageDead`, and `FieldAddr` + `Load` reads
   count as uses of the stored field loan, covering pointer-based field access.
   Runtime tests check direct and aggregate destructor order; negative tests
-  cover both non-extending forms. Safety suite `55`; negative tests `605`.
+  cover both non-extending forms. Safety suite `55`; negative tests `608`.
 - S4.2 higher-ranked function types: `for<'a, 'b> (x : &'a T) => R` parses into
   `FunctionType::binder_lifetimes`; binders are scoped to the function type,
   duplicate binders are rejected, and lifetime-only generic function values
@@ -293,7 +293,7 @@ Implemented:
   argument cannot satisfy `'static` (`SAFE-LIFE-004`). This closes the
   `vector<G<'static>>` dropck hole where a `G<'a>` built from a stack borrow
   could be stored and dropped after the referent.
-  Safety suite `55`; negative tests `605`; `MIRTests` `4643 checks`.
+  Safety suite `55`; negative tests `608`; `MIRTests` `4643 checks`.
 - M5.5b float→int: `as` casts from float/double to integer widths lower to
   explicit blocks (NaN → 0, out-of-range → destination minimum/maximum) instead
   of C/LLVM `fptosi` UB. LLVM float `Ne` is `fcmp une`, matching C's
@@ -334,7 +334,7 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `55`, negative tests `605`.
+  `55`, negative tests `608`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -354,7 +354,7 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `55`, negative `605`; TCC main `2354`, LLVM
+  TCC/LLVM lib runs. Safety suite `55`, negative `608`; TCC main `2355`, LLVM
   main `2352`, libs `730`, plugins `1305`, async `53`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
@@ -382,6 +382,19 @@ Implemented:
   unsafe-created callback can still be propagated by safe code, so the typed
   capture/frame representation is still required for a complete invariant
   (M6.5).
+- M6.5 typed capture witness: `CapturingFunctionType` now carries an optional
+  `capture_env` type-level witness (runtime layout is still the instance
+  struct). Symbol resolution builds a synthetic capture environment for every
+  lambda from its captured field types; auto traits and `'static` bounds recurse
+  into it, so owned captures derive `Send`/`Sync` while `Rc`, raw pointers, and
+  borrowed stack captures are rejected. Plain `std::function<F>` variables gain
+  the witness from their lambda initializer, and `std::typed_function<F, C>`
+  exposes it explicitly. New safe entries `std::thread.spawn_closure` and
+  `spawn_void_closure` infer `C`, enforce `C: Send + 'static`, and run the
+  closure on a worker; `Rc` captures fail `C: Send`, borrowed captures fail
+  `'static`, and owned captures pass. `FutureHandle` frame witnesses, capturing
+  scoped closures, heterogeneous scopes, and propagation of an unsafe-created
+  borrowed callback through safe code remain.
 - M6 safe threads: `std::thread.spawn` accepts a non-capturing `(T) => U`
   entry with `T: Send + 'static`, `U: Send + 'static`; `spawn_void` is the
   void-returning form. `JoinHandle<T>` joins explicitly or from its destructor
@@ -425,7 +438,7 @@ Implemented:
   carry one explicit unsafe boundary around their raw context/job operations.
   Wrapping generic bodies exposed a missing `ValueNode::copy`, now implemented.
   In-tree stdlib/CBI/plugin/build.lab call sites were migrated; audit baseline
-  is `unsafe_blocks 574`, `unsafe_values 441`; negative `605`.
+  is `unsafe_blocks 575`, `unsafe_values 441`; negative `608`.
 - S2.2/S4.8 function pointers: `FunctionTypeData::requires_unsafe` is part of
   function type identity and is set for `unsafe func` and `@extern`. Calling a
   value of such a type in safe context is `SAFE-UNSAFE-002`; coercing it to a
@@ -531,16 +544,16 @@ Implemented:
 
 Next:
 
-- M6.5: typed capture/future representation and erased/async `Send`.
-  Join-before-return (`scoped_spawn`/`scoped_spawn_mut`) and the multi-handle
-  shared `scoped_run` scope are implemented. The current `%capture<F, Env>`
-  stores a pointer to a generated capture struct behind the `Env` instance
-  wrapper, so `Env` is not the capture layout; deriving Send/Sync from it would
-  be unsound. `std::function` and `FutureHandle` still erase their
-  capture/frame type and remain `!Send` until a concrete typed representation
-  carries the actual environment. Capturing scoped
-  closures, heterogeneous multi-value scopes, and erased async frames remain on
-  the explicit unsafe path. M4 is complete for the enforceable surface; nested
+- M6.5: `std::function` now has a typed capture witness; the remaining piece is
+  the async frame witness. Join-before-return (`scoped_spawn`/
+  `scoped_spawn_mut`) and the multi-handle shared `scoped_run` scope are
+  implemented. A plain `%capture<F, Env>` still erases its environment in the
+  type unless the initializer supplies a witness, so a bare callback parameter
+  remains `!Send`. `FutureHandle` still erases its coroutine frame and remains
+  `!Send` until a frame witness is threaded through async lowering. Capturing
+  scoped closures, heterogeneous multi-value scopes, and propagation of an
+  unsafe-created borrowed callback remain on the explicit unsafe path. M4 is
+  complete for the enforceable surface; nested
   aggregate HRTB and multi-borrow callbacks with parameter/global referents
   remain explicit `SAFE-BORROW-099` rejections. Then M5 packed references and
   M2 C ABI.

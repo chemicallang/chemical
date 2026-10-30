@@ -119,4 +119,13 @@ public struct default_function_instance {
 @partial_instantiate
 public type function<T> = %capture<T, default_function_instance>;
 
+/**
+ * A callback carrying an explicit capture-environment witness. The witness is
+ * type-level only (the runtime layout is still the function instance); it lets
+ * Send/Sync/'static bounds inspect the actual captured fields. Safe thread and
+ * scoped APIs accept this type and infer `C` from the lambda argument.
+ */
+@partial_instantiate
+public type typed_function<T, C> = %capture<T, default_function_instance, C>;
+
 }

@@ -636,8 +636,15 @@ TypeLoc Parser::parseTypeLocNoPostOps(ASTAllocator& allocator) {
                     if(!instance_type) {
                         unexpected_error("expected a instance type for capturing function type");
                     }
+                    TypeLoc capture_env = nullptr;
+                    if (consumeToken(TokenType::CommaSym)) {
+                        capture_env = parseTypeLoc(allocator);
+                        if (!capture_env) {
+                            unexpected_error("expected a capture environment type for capturing function type");
+                        }
+                    }
                     const auto captureTy = new (allocator.allocate<CapturingFunctionType>()) CapturingFunctionType(
-                            child_type, instance_type
+                            child_type, instance_type, capture_env
                     );
                     if (!consumeGenericClose()) {
                         unexpected_error("expected '>' for capture type");

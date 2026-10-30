@@ -370,6 +370,13 @@ func test_mixed_quick_tasks() : bool {
         }
     }
 
+// 13) Safe capturing closure with an owned capture environment
+func test_spawn_closure_owned_capture() : bool {
+    var x = 41
+    var h = std::thread.spawn_closure(|x|() => { return x + 1 })
+    return h.join() == 42
+}
+
 // main: run tests
 func test_thread_pool() {
         unsafe {
@@ -387,6 +394,7 @@ func test_thread_pool() {
         test("test_closure_captures", test_closure_captures);
         // test("test_large_return_future", test_large_return_future);
         test("test_mixed_quick_tasks", test_mixed_quick_tasks);
+        test("test_spawn_closure_owned_capture", test_spawn_closure_owned_capture);
 
         }
     }

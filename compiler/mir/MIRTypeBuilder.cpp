@@ -238,8 +238,6 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
             // declaration printer can spell the field from MIR alone (action A3)
             uint8_t sflags = MFF_NONE;
             if (sm && sm->is_volatile()) sflags |= MFF_VOLATILE;
-            BaseType* mt = var->known_type();
-            if (mt && mt->kind() == BaseTypeKind::CapturingFunction) sflags |= MFF_FAT_POINTER;
             switch (var->kind()) {
                 case ASTNodeKind::UnnamedStruct: sflags |= MFF_ANONYMOUS_STRUCT; break;
                 case ASTNodeKind::UnnamedUnion: sflags |= MFF_ANONYMOUS_UNION; break;

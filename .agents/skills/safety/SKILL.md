@@ -11,7 +11,7 @@ The source tree wins over any status note here.
 
 ## Current status (2026-10-28)
 
-**M0 (S0.1–S0.6) and M3 are implemented. M1/M2/M4/M5 are advanced; M6 has started. S5.6b (unwinding) is withdrawn by policy: panic always aborts.**
+**M0 (S0.1–S0.6), M3, and M4 are implemented for the enforceable surface. M1/M2/M5 are advanced; M6 has started. S5.6b (unwinding) is withdrawn by policy: panic always aborts.**
 
 Implemented:
 
@@ -274,7 +274,7 @@ Implemented:
   Statement temporaries now emit `StorageDead`, and `FieldAddr` + `Load` reads
   count as uses of the stored field loan, covering pointer-based field access.
   Runtime tests check direct and aggregate destructor order; negative tests
-  cover both non-extending forms. Safety suite `54`; negative tests `581`.
+  cover both non-extending forms. Safety suite `55`; negative tests `594`.
 - S4.2 higher-ranked function types: `for<'a, 'b> (x : &'a T) => R` parses into
   `FunctionType::binder_lifetimes`; binders are scoped to the function type,
   duplicate binders are rejected, and lifetime-only generic function values
@@ -282,11 +282,18 @@ Implemented:
   higher-ranked callback. Function-type satisfaction accepts elided/generic
   source lifetimes and rejects concrete `'static`/outer lifetimes.
   `MIRRegionSignature::hrtb_binders` records a declaration's own lifetime
-  parameters and `MIRDump` prints them. The supported subset is a read-only
-  callback with at most one direct shared borrowed parameter and no borrowed
-  result; mutable/multiple/returning HRTB is rejected with `SAFE-BORROW-099`
-  until full region inference. Safety suite `55`; negative tests `588`;
-  `MIRTests` `4641 checks`.
+  parameters and `MIRDump` prints them.
+- S4.2 HRTB call regions: a `CallIndirect` records its source function type's
+  region contract per instruction. A borrowed result is bound to the argument
+  whose declared region matches, so `for<'a> (&'a T) => &'a T`, one mutable
+  input, and multi-borrow local callbacks work. Multi-borrow calls pin every
+  local referent loan until function exit; parameter/global referents are
+  rejected with `SAFE-BORROW-099`. Nested aggregate HRTB remains rejected.
+- S4.6 static-lifetime enforcement: a shorter reference or generic lifetime
+  argument cannot satisfy `'static` (`SAFE-LIFE-004`). This closes the
+  `vector<G<'static>>` dropck hole where a `G<'a>` built from a stack borrow
+  could be stored and dropped after the referent.
+  Safety suite `55`; negative tests `594`; `MIRTests` `4643 checks`.
 - M5.5b float→int: `as` casts from float/double to integer widths lower to
   explicit blocks (NaN → 0, out-of-range → destination minimum/maximum) instead
   of C/LLVM `fptosi` UB. LLVM float `Ne` is `fcmp une`, matching C's
@@ -327,7 +334,7 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `55`, negative tests `588`.
+  `55`, negative tests `594`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -347,7 +354,7 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `55`, negative `588`; TCC main `2354`, LLVM
+  TCC/LLVM lib runs. Safety suite `55`, negative `594`; TCC main `2354`, LLVM
   main `2352`, libs `726`, plugins `1305`, async `53`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
@@ -501,13 +508,13 @@ Implemented:
 Next:
 
 - M6.5: erased/async `Send`. Scoped threads are
-  blocked on full M4 HRTB/region inference: a body-local reference must not
-  outlive the scope join, which needs a higher-ranked scope lifetime for
-  capturing/multi-borrow callbacks. Read-only single-borrow function-type HRTB
-  is implemented; mutable/returning/multi-borrow callbacks are rejected with
-  `SAFE-BORROW-099`. Capturing
-  closures and non-`'static` scoped borrows remain on the explicit unsafe path.
-  Then remaining M4 precision, M5 packed references, and M2 C ABI.
+  blocked on full M4 HRTB/region inference for capturing and multi-borrow
+  parameter callbacks: a body-local reference must not outlive the scope join,
+  which needs a higher-ranked scope lifetime. M4 is complete for the
+  enforceable surface; nested aggregate HRTB and multi-borrow callbacks with
+  parameter/global referents remain explicit `SAFE-BORROW-099` rejections.
+  Capturing closures and non-`'static` scoped borrows remain on the explicit
+  unsafe path. Then M5 packed references and M2 C ABI.
 - S1.2 `'static`/bounds and S1.3a `PhantomData` are done; temporary lifetime
   extension and variance analysis move with the borrow checker (M4).
   S1.4a opt-in `Copy` is enforced (`SAFE-COPY-001`) and the in-tree tree is
@@ -706,7 +713,7 @@ Codes are stable and grouped by domain:
 | `SAFE-OWN-*` | moves, drops, partial moves |
 | `SAFE-BORROW-001` | overlapping live loans (at least one mutable) |
 | `SAFE-BORROW-002` | move/drop of a place while a borrow of it is live |
-| `SAFE-BORROW-099` | unsupported borrow/lifetime pattern (for example a mutable or borrowed-result HRTB callback) |
+| `SAFE-BORROW-099` | unsupported borrow/lifetime pattern (nested-aggregate HRTB or a multi-borrow callback with parameter/global referents) |
 | `SAFE-BORROW-*` | aliasing / loans |
 | `SAFE-VALID-001` | zero-initialization would create a null reference |
 | `SAFE-VALID-002` | non-bool to `bool` cast in safe code |
@@ -729,7 +736,7 @@ Codes are stable and grouped by domain:
 | `SAFE-LIFE-001` | returning a reference to a local/temporary/frame field |
 | `SAFE-LIFE-002` | borrow still live when the referent's local storage ends |
 | `SAFE-LIFE-003` | returned reference does not outlive the declared return lifetime |
-| `SAFE-LIFE-004` | a type does not satisfy a `'static` generic bound (e.g. a stack reference submitted to a thread) |
+| `SAFE-LIFE-004` | a type does not satisfy a `'static` bound or lifetime argument (e.g. a stack reference submitted to a thread or stored in a `'static` container) |
 | `SAFE-LIFE-*` | lifetimes / escapes |
 | `SAFE-INIT-*` | initialization / definite assignment |
 | `SAFE-VALID-*` | invalid values / transmute / packed |

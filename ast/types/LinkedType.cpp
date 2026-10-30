@@ -17,11 +17,25 @@ uint64_t LinkedType::byte_size(const TargetData& data) {
     return linked->byte_size(data);
 }
 
+
+namespace {
+/** Normalize a concrete generic instantiation to its Generic*Decl wrapper. */
+ASTNode* canonical_linked_decl(ASTNode* node) {
+    if (node == nullptr) return nullptr;
+    MembersContainer* container = node->get_members_container();
+    if (container != nullptr && container->generic_parent != nullptr) {
+        return reinterpret_cast<ASTNode*>(container->generic_parent);
+    }
+    return node;
+}
+} // namespace
+
 bool is_struct_linked_satisfies(ASTNode* linked, ASTNode* other_linked, bool reference) {
     if(reference && linked->as_struct_def_unsafe()->destructor_func()) {
         return false;
     }
-    if (linked == other_linked) {
+    if (linked == other_linked ||
+        canonical_linked_decl(linked) == canonical_linked_decl(other_linked)) {
         return true;
     } else {
         const auto container = other_linked->get_members_container();
@@ -33,7 +47,8 @@ bool is_union_linked_satisfies(ASTNode* linked, ASTNode* other_linked, bool refe
     if(reference && linked->as_union_def_unsafe()->destructor_func()) {
         return false;
     }
-    if (linked == other_linked) {
+    if (linked == other_linked ||
+        canonical_linked_decl(linked) == canonical_linked_decl(other_linked)) {
         return true;
     } else {
         const auto container = other_linked->get_members_container();

@@ -2441,6 +2441,11 @@ static bool test_region_signature() {
     CHECK(dump.find("params=[1,2,-,elided,static]") != std::string::npos);
     CHECK(dump.find("outlives=[1:2,2:0]") != std::string::npos);
     CHECK(dump.find("hrtb=[1]") != std::string::npos);
+    // A higher-ranked function-pointer call carries its contract by instruction
+    // index; an unrelated instruction has no contract.
+    fn.call_region_signatures.push_back({7, id});
+    CHECK(fn.call_region_signature_at(7) == id);
+    CHECK(fn.call_region_signature_at(8) == MIR_INVALID_ID);
     return true;
 }
 

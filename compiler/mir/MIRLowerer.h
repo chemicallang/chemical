@@ -937,6 +937,18 @@ private:
     SymbolId intern_function(FunctionDeclaration* decl);
     /** Build this function's region signature from its declaration (S4.2). */
     uint32_t intern_region_signature(FunctionDeclaration* decl);
+    /**
+     * Build and intern the HRTB contract of a function *type* and attach it to
+     * the last emitted `CallIndirect` (S4.2 region inference).
+     */
+    uint32_t intern_function_type_region_signature(FunctionType* type);
+    void attach_call_region_signature(FunctionType* type);
+    ValueId call_indirect_with_regions(ValueId fn, TypeId result_type,
+                                       const MIROperand* args, uint32_t count,
+                                       FunctionType* type);
+    void call_indirect_sret_with_regions(ValueId fn, PlaceId result_place,
+                                         const MIROperand* args, uint32_t count,
+                                         FunctionType* type);
     /** Allocate a fresh function-local region variable (S4.4b). */
     uint32_t fresh_region_id();
     SymbolId intern_global(VarInitStatement* vi);

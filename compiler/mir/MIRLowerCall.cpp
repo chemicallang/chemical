@@ -1964,6 +1964,78 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
     return module_.add_region_signature(std::move(sig));
 }
 
+uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
+    if (type == nullptr || type->binder_lifetimes.empty()) {
+        return MIR_INVALID_ID;
+    }
+    std::vector<std::string_view> lifetimes;
+    lifetimes.reserve(type->binder_lifetimes.size());
+    for (chem::string_view binder : type->binder_lifetimes) {
+        const chem::string_view bare = strip_lifetime_quote(binder);
+        lifetimes.emplace_back(bare.data(), bare.size());
+    }
+    std::vector<std::string_view> param_lifetimes;
+    param_lifetimes.reserve(type->params.size());
+    for (FunctionParam* param : type->params) {
+        BaseType* pt = param ? param->type : nullptr;
+        BaseType* canonical = pt ? pt->canonical() : nullptr;
+        if (canonical != nullptr && canonical->kind() == BaseTypeKind::Reference) {
+            chem::string_view lt =
+                canonical->as_reference_type_unsafe()->lifetime;
+            // A direct reference with no written lifetime is an elided call
+            // input, not a by-value parameter. The call contract needs the
+            // region so multi-borrow calls can count and pin it.
+            if (lt.empty()) lt = "elided";
+            param_lifetimes.emplace_back(lt.data(), lt.size());
+        } else {
+            param_lifetimes.emplace_back();
+        }
+    }
+    chem::string_view return_lt;
+    BaseType* ret = const_cast<BaseType*>(type->returnType.getType());
+    BaseType* ret_canonical = ret ? ret->canonical() : nullptr;
+    if (ret_canonical != nullptr &&
+        ret_canonical->kind() == BaseTypeKind::Reference) {
+        return_lt = ret_canonical->as_reference_type_unsafe()->lifetime;
+        if (return_lt.empty()) return_lt = "elided";
+    }
+    MIRRegionSignature sig = make_region_signature(
+        lifetimes, param_lifetimes,
+        std::string_view(return_lt.data(), return_lt.size()), {});
+    sig.hrtb_binders.reserve(lifetimes.size());
+    for (size_t i = 0; i < lifetimes.size(); ++i) {
+        sig.hrtb_binders.push_back(static_cast<MIRRegionId>(i + 1));
+    }
+    return module_.add_region_signature(std::move(sig));
+}
+
+void MIRLowerer::attach_call_region_signature(FunctionType* type) {
+    if (type == nullptr || type->binder_lifetimes.empty()) return;
+    MIRFunction& fn = builder_->function();
+    if (fn.instructions.empty()) return;
+    const uint32_t inst = static_cast<uint32_t>(fn.instructions.size() - 1);
+    if (fn.instructions[inst].opcode() != MIROpcode::CallIndirect) return;
+    const uint32_t signature = intern_function_type_region_signature(type);
+    if (signature != MIR_INVALID_ID) {
+        fn.call_region_signatures.push_back({inst, signature});
+    }
+}
+
+ValueId MIRLowerer::call_indirect_with_regions(ValueId fn, TypeId result_type,
+                                               const MIROperand* args, uint32_t count,
+                                               FunctionType* type) {
+    const ValueId value = builder_->call_indirect(fn, result_type, args, count);
+    attach_call_region_signature(type);
+    return value;
+}
+
+void MIRLowerer::call_indirect_sret_with_regions(ValueId fn, PlaceId result_place,
+                                                 const MIROperand* args, uint32_t count,
+                                                 FunctionType* type) {
+    builder_->call_indirect_sret(fn, result_place, args, count);
+    attach_call_region_signature(type);
+}
+
 MIRExprResult MIRLowerer::lower_atomic_intrinsic(FunctionCall* call, FunctionDeclaration* fd,
                                                  std::string& error) {
     const AtomicIntrinsic kind = atomic_intrinsic_of(fd);

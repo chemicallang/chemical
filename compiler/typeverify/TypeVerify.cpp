@@ -343,6 +343,58 @@ static FunctionType* get_function_type_for_safety(BaseType* type) {
     }
 }
 
+static bool lifetime_name_is_static(chem::string_view name) {
+    return name == "static" || name == "'static";
+}
+
+/** Does a `'static` target contain a lifetime argument the source cannot meet? */
+static bool static_lifetime_mismatch(BaseType* target, BaseType* source) {
+    if (target == nullptr || source == nullptr) return false;
+    BaseType* t = target->canonical();
+    BaseType* s = source->canonical();
+    if (t == nullptr || s == nullptr || t->kind() != s->kind()) return false;
+    switch (t->kind()) {
+        case BaseTypeKind::Reference: {
+            auto* tr = t->as_reference_type_unsafe();
+            auto* sr = s->as_reference_type_unsafe();
+            if (lifetime_name_is_static(tr->lifetime) &&
+                !lifetime_name_is_static(sr->lifetime)) {
+                return true;
+            }
+            return static_lifetime_mismatch(tr->type, sr->type);
+        }
+        case BaseTypeKind::Pointer:
+            return static_lifetime_mismatch(
+                t->as_pointer_type_unsafe()->type,
+                s->as_pointer_type_unsafe()->type);
+        case BaseTypeKind::Array:
+            return static_lifetime_mismatch(
+                t->as_array_type_unsafe()->elem_type,
+                s->as_array_type_unsafe()->elem_type);
+        case BaseTypeKind::Generic: {
+            auto* tg = t->as_generic_type_unsafe();
+            auto* sg = s->as_generic_type_unsafe();
+            const size_t count = std::min(tg->lifetime_args.size(),
+                                          sg->lifetime_args.size());
+            for (size_t i = 0; i < count; ++i) {
+                if (lifetime_name_is_static(tg->lifetime_args[i]) &&
+                    !lifetime_name_is_static(sg->lifetime_args[i])) {
+                    return true;
+                }
+            }
+            const size_t type_count = std::min(tg->types.size(), sg->types.size());
+            for (size_t i = 0; i < type_count; ++i) {
+                if (static_lifetime_mismatch(tg->types[i], sg->types[i])) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        default:
+            return false;
+    }
+}
+
 void unsatisfied_type_err(ASTDiagnoser& diagnoser, Value* value, BaseType* type) {
     const auto val_type = value->getType();
     if(val_type) {
@@ -361,6 +413,14 @@ void unsatisfied_type_err(ASTDiagnoser& diagnoser, Value* value, BaseType* type)
                 << "function value does not satisfy the higher-ranked lifetime contract of type '"
                 << type->representation()
                 << "'; an elided or generic lifetime is required, not a concrete one";
+            return;
+        }
+        if (static_lifetime_mismatch(type, val_type)) {
+            diagnoser.error(value).with_code("SAFE-LIFE-004")
+                << "value with type '" << val_type->representation()
+                << "' does not satisfy the 'static lifetime in type '"
+                << type->representation()
+                << "'; move the referent to static storage or use a shorter-lived owner";
             return;
         }
         diagnoser.error(value) << "value with type '" << val_type->representation() << "' does not satisfy type '" << type->representation() << "'";
@@ -2005,6 +2065,56 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
     }
 }
 
+static bool struct_value_static_lifetime_mismatch(
+        StructValue* struct_value,
+        BaseType* declared_type,
+        BaseType* value_type) {
+    if (struct_value == nullptr || declared_type == nullptr) return false;
+    BaseType* written = struct_value->getType();
+    if (written == nullptr) return false;
+    BaseType* written_canonical = written->canonical();
+    if (written_canonical == nullptr ||
+        written_canonical->kind() != BaseTypeKind::Generic) {
+        return false;
+    }
+    auto* generic = written_canonical->as_generic_type_unsafe();
+    auto bare_lifetime = [](chem::string_view name) -> chem::string_view {
+        if (!name.empty() && name.front() == '\'') {
+            return chem::string_view(name.data() + 1, name.size() - 1);
+        }
+        return name;
+    };
+    StructDefinition* definition = struct_value->linked_struct();
+    if (definition == nullptr) return false;
+    std::vector<chem::string_view> lifetime_params = definition->lifetime_params;
+    if (lifetime_params.empty() && definition->generic_parent != nullptr) {
+        lifetime_params = definition->generic_parent->lifetime_params;
+    }
+    if (lifetime_params.empty() ||
+        lifetime_params.size() != generic->lifetime_args.size()) {
+        return false;
+    }
+    BaseType* declared_canonical = declared_type->canonical();
+    if (declared_canonical == nullptr ||
+        declared_canonical->kind() != BaseTypeKind::Reference) {
+        return false;
+    }
+    const auto field_lifetime = bare_lifetime(
+        declared_canonical->as_reference_type_unsafe()->lifetime);
+    for (size_t i = 0; i < lifetime_params.size(); ++i) {
+        if (bare_lifetime(lifetime_params[i]) != field_lifetime) {
+            continue;
+        }
+        if (!lifetime_name_is_static(generic->lifetime_args[i])) return false;
+        BaseType* value_canonical = value_type ? value_type->canonical() : nullptr;
+        return value_canonical != nullptr &&
+               value_canonical->kind() == BaseTypeKind::Reference &&
+               !lifetime_name_is_static(
+                   value_canonical->as_reference_type_unsafe()->lifetime);
+    }
+    return false;
+}
+
 void TypeVerifier::VisitStructValue(StructValue* structValue) {
     for (auto& val : structValue->values) check_index_move(val.second.value);
     RecursiveVisitor<TypeVerifier>::VisitStructValue(structValue);
@@ -2020,7 +2130,11 @@ void TypeVerifier::VisitStructValue(StructValue* structValue) {
         if(member) {
             const auto mem_type = member->known_type();
             auto implicit = mem_type->implicit_constructor_for(val_ptr);
-            if(implicit) {
+            if (struct_value_static_lifetime_mismatch(
+                    structValue, mem_type, value ? value->getType() : nullptr)) {
+                diagnoser.error(value).with_code("SAFE-LIFE-004")
+                    << "a struct instantiated with a 'static lifetime cannot be initialized from a shorter-lived reference";
+            } else if(implicit) {
                 // TODO handle implicit constructor
             } else if(!mem_type->satisfies(value, false)) {
                 unsatisfied_type_err(diagnoser, allocator, value, mem_type);
@@ -2778,51 +2892,6 @@ static bool hrtb_type_mentions_lifetime(
     }
 }
 
-/** Would a higher-ranked return keep a borrow alive past the call? */
-static bool hrtb_return_borrows(
-        BaseType* type,
-        const std::vector<chem::string_view>& binders) {
-    if (type == nullptr) return false;
-    switch (type->kind()) {
-        case BaseTypeKind::Reference: {
-            auto* ref = type->as_reference_type_unsafe();
-            const auto bare = hrtb_bare_lifetime(ref->lifetime);
-            if (bare.empty() || bare == "elided" || bare == "self" ||
-                hrtb_is_binder(bare, binders)) {
-                return true;
-            }
-            return hrtb_return_borrows(ref->type, binders);
-        }
-        case BaseTypeKind::Pointer:
-            return hrtb_return_borrows(type->as_pointer_type_unsafe()->type, binders);
-        case BaseTypeKind::Array:
-            return hrtb_return_borrows(type->as_array_type_unsafe()->elem_type, binders);
-        case BaseTypeKind::Generic: {
-            auto* gen = type->as_generic_type_unsafe();
-            for (const auto lt : gen->lifetime_args) {
-                const auto bare = hrtb_bare_lifetime(lt);
-                if (bare.empty() || bare == "elided" || bare == "self" ||
-                    hrtb_is_binder(bare, binders)) {
-                    return true;
-                }
-            }
-            for (auto& arg : gen->types) {
-                if (hrtb_return_borrows(arg, binders)) return true;
-            }
-            return false;
-        }
-        case BaseTypeKind::Function: {
-            auto* fn = type->as_function_type_unsafe();
-            for (auto* param : fn->params) {
-                if (param && hrtb_return_borrows(param->type, binders)) return true;
-            }
-            return hrtb_return_borrows(fn->returnType, binders);
-        }
-        default:
-            return false;
-    }
-}
-
 void TypeVerifier::VisitFunctionType(FunctionType* type) {
     const auto before = lifetime_scope.size();
     if (type != nullptr) {
@@ -2830,35 +2899,26 @@ void TypeVerifier::VisitFunctionType(FunctionType* type) {
             lifetime_scope.push_back(binder);
         }
         if (!type->binder_lifetimes.empty()) {
-            // Region inference for a higher-ranked call is not implemented yet.
-            // Keep the supported subset sound: at most one shared borrowed
-            // parameter, and no borrowed result. A mutable input or a second
-            // reference could let the callback store one borrow in another
-            // caller-owned place, which requires full region constraints.
+            // Direct reference parameters are the call's region inputs. A
+            // multi-borrow callback is accepted by the borrow checker only
+            // when every referent is a local/temporary (the loans are pinned
+            // until function exit); nested aggregates still need field-wise
+            // region inference and are rejected below.
             std::vector<ReferenceType*> param_refs;
             for (auto* param : type->params) {
                 if (param != nullptr) {
                     collect_reference_types(param->type, param_refs, false);
                 }
             }
-            const bool unsupported_param_count = param_refs.size() > 1;
-            const bool unsupported_mutable = std::any_of(
-                param_refs.begin(), param_refs.end(),
-                [](ReferenceType* ref) { return ref->is_mutable; });
-            if (unsupported_param_count || unsupported_mutable) {
-                auto& d = diagnoser.error(current_func_type
-                                              ? current_func_type->get_location()
-                                              : SourceLocation(0));
-                d.with_code("SAFE-BORROW-099");
-                d << "higher-ranked function types currently support at most one shared reference parameter";
-            }
             for (auto* param : type->params) {
                 if (param == nullptr) continue;
                 BaseType* pt = param->type;
+                const bool direct_ref =
+                    pt != nullptr && pt->kind() == BaseTypeKind::Reference;
                 const bool direct_binder_ref =
-                    pt != nullptr && pt->kind() == BaseTypeKind::Reference &&
-                    hrtb_is_binder(pt->as_reference_type_unsafe()->lifetime,
-                                   type->binder_lifetimes);
+                    direct_ref && hrtb_is_binder(
+                        pt->as_reference_type_unsafe()->lifetime,
+                        type->binder_lifetimes);
                 if (direct_binder_ref &&
                     hrtb_type_mentions_lifetime(
                         pt->as_reference_type_unsafe()->type,
@@ -2868,21 +2928,91 @@ void TypeVerifier::VisitFunctionType(FunctionType* type) {
                                                   : SourceLocation(0));
                     d.with_code("SAFE-BORROW-099");
                     d << "a higher-ranked reference pointee must not carry the same higher-ranked lifetime";
-                } else if (!direct_binder_ref &&
+                } else if (!direct_ref &&
                            hrtb_type_mentions_lifetime(pt, type->binder_lifetimes)) {
                     auto& d = diagnoser.error(current_func_type
                                                   ? current_func_type->get_location()
                                                   : SourceLocation(0));
                     d.with_code("SAFE-BORROW-099");
-                    d << "a higher-ranked parameter must be a direct shared reference; nested higher-ranked borrows require region inference";
+                    d << "a higher-ranked parameter must be a direct reference; nested higher-ranked borrows require full region inference";
                 }
             }
-            if (hrtb_return_borrows(type->returnType, type->binder_lifetimes)) {
+
+            // A higher-ranked result may borrow the one input. It must be a
+            // direct reference at the same binder (or an independent
+            // `'static` result); an aggregate carrying the binder, a different
+            // binder, or an unbound outer lifetime cannot be mapped to the
+            // caller's argument loan and is rejected.
+            BaseType* return_type =
+                const_cast<BaseType*>(type->returnType.getType());
+            ReferenceType* return_ref = nullptr;
+            if (return_type != nullptr &&
+                return_type->kind() == BaseTypeKind::Reference) {
+                return_ref = return_type->as_reference_type_unsafe();
+            }
+            if (return_ref != nullptr) {
+                if (hrtb_type_mentions_lifetime(return_ref->type,
+                                                type->binder_lifetimes)) {
+                    auto& d = diagnoser.error(current_func_type
+                                                  ? current_func_type->get_location()
+                                                  : SourceLocation(0));
+                    d.with_code("SAFE-BORROW-099");
+                    d << "a higher-ranked reference result must not point at an aggregate carrying the same higher-ranked lifetime";
+                }
+                const auto return_name = hrtb_bare_lifetime(return_ref->lifetime);
+                const bool return_elided = return_name.empty() ||
+                                           return_name == "elided" ||
+                                           return_name == "self";
+                const bool return_static = return_name == "static";
+                const bool return_binder = hrtb_is_binder(
+                    return_name, type->binder_lifetimes);
+                if (!return_elided && !return_static && !return_binder) {
+                    auto& d = diagnoser.error(current_func_type
+                                                  ? current_func_type->get_location()
+                                                  : SourceLocation(0));
+                    d.with_code("SAFE-BORROW-099");
+                    d << "a higher-ranked borrowed result must use a binder or 'static; an outer lifetime cannot be mapped at the call site";
+                }
+                if ((return_elided || return_binder) && param_refs.empty()) {
+                    auto& d = diagnoser.error(current_func_type
+                                                  ? current_func_type->get_location()
+                                                  : SourceLocation(0));
+                    d.with_code("SAFE-BORROW-099");
+                    d << "a higher-ranked borrowed result requires a reference parameter";
+                }
+                if (return_binder) {
+                    bool matched_source = false;
+                    for (auto* param_ref : param_refs) {
+                        const auto param_name =
+                            hrtb_bare_lifetime(param_ref->lifetime);
+                        if (param_name.empty() || param_name == "elided" ||
+                            param_name == "self") {
+                            matched_source = true;
+                            break;
+                        }
+                        if (hrtb_is_binder(param_name,
+                                           type->binder_lifetimes) &&
+                            hrtb_bare_lifetime(param_name) ==
+                                hrtb_bare_lifetime(return_name)) {
+                            matched_source = true;
+                            break;
+                        }
+                    }
+                    if (!matched_source) {
+                        auto& d = diagnoser.error(current_func_type
+                                                      ? current_func_type->get_location()
+                                                      : SourceLocation(0));
+                        d.with_code("SAFE-BORROW-099");
+                        d << "the higher-ranked result lifetime must match a reference parameter lifetime";
+                    }
+                }
+            } else if (hrtb_type_mentions_lifetime(return_type,
+                                                   type->binder_lifetimes)) {
                 auto& d = diagnoser.error(current_func_type
                                               ? current_func_type->get_location()
                                               : SourceLocation(0));
                 d.with_code("SAFE-BORROW-099");
-                d << "a higher-ranked function type cannot return a borrowed value until HRTB region inference is implemented";
+                d << "a higher-ranked function type cannot return an aggregate carrying a higher-ranked borrow";
             }
         }
     }

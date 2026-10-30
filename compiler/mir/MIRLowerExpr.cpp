@@ -1221,8 +1221,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                                 }
                                 const TypeId crt = types_.map(call->getType());
                                 if (is_void_type(module_, crt)) {
-                                    builder_->call_indirect(fnptr, crt, cargs.data(),
-                                                            static_cast<uint32_t>(cargs.size()));
+                                    call_indirect_with_regions(
+                                        fnptr, crt, cargs.data(),
+                                        static_cast<uint32_t>(cargs.size()), ft_fn);
                                     destroy_call_temps_from(cmark, error);
                                     return MIRExprResult::void_result();
                                 }
@@ -1230,15 +1231,15 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                                     const PlaceId tmp =
                                         builder_->alloca(crt, MIRStorageClass::Temporary);
                                     builder_->zero_init(tmp);
-                                    builder_->call_indirect_sret(
+                                    call_indirect_sret_with_regions(
                                         fnptr, tmp, cargs.data(),
-                                        static_cast<uint32_t>(cargs.size()));
+                                        static_cast<uint32_t>(cargs.size()), ft_fn);
                                     destroy_call_temps_from(cmark, error);
                                     return MIRExprResult::place(tmp, crt);
                                 }
-                                const ValueId v = builder_->call_indirect(
+                                const ValueId v = call_indirect_with_regions(
                                     fnptr, crt, cargs.data(),
-                                    static_cast<uint32_t>(cargs.size()));
+                                    static_cast<uint32_t>(cargs.size()), ft_fn);
                                 destroy_call_temps_from(cmark, error);
                                 return MIRExprResult::value(v, crt);
                             }
@@ -1272,8 +1273,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                             }
                             const TypeId rt = types_.map(call->getType());
                             if (is_void_type(module_, rt)) {
-                                builder_->call_indirect(fnptr, rt, cargs.data(),
-                                                        static_cast<uint32_t>(cargs.size()));
+                                call_indirect_with_regions(
+                                    fnptr, rt, cargs.data(),
+                                    static_cast<uint32_t>(cargs.size()), ft_fn);
                                 destroy_call_temps_from(cmark, error);
                                 return MIRExprResult::void_result();
                             }
@@ -1281,15 +1283,16 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                                 const PlaceId tmp =
                                     builder_->alloca(rt, MIRStorageClass::Temporary);
                                 builder_->zero_init(tmp);
-                                builder_->call_indirect_sret(
+                                call_indirect_sret_with_regions(
                                     fnptr, tmp, cargs.data(),
-                                    static_cast<uint32_t>(cargs.size()));
+                                    static_cast<uint32_t>(cargs.size()), ft_fn);
                                 destroy_call_temps_from(cmark, error);
                                 return MIRExprResult::place(tmp, rt);
                             }
                             const ValueId v =
-                                builder_->call_indirect(fnptr, rt, cargs.data(),
-                                                        static_cast<uint32_t>(cargs.size()));
+                                call_indirect_with_regions(
+                                    fnptr, rt, cargs.data(),
+                                    static_cast<uint32_t>(cargs.size()), ft_fn);
                             destroy_call_temps_from(cmark, error);
                             return MIRExprResult::value(v, rt);
                         }
@@ -1363,7 +1366,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     }
                     const TypeId rt = types_.map(call->getType());
                     if (is_void_type(module_, rt)) {
-                        builder_->call_indirect(fnptr, rt, cargs.data(), static_cast<uint32_t>(cargs.size()));
+                        call_indirect_with_regions(
+                            fnptr, rt, cargs.data(),
+                            static_cast<uint32_t>(cargs.size()), ast_fn);
                         destroy_call_temps_from(cmark, error);
                         return MIRExprResult::void_result();
                     }
@@ -1372,13 +1377,15 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         // returns void and writes through a leading pointer)
                         const PlaceId tmp = builder_->alloca(rt, MIRStorageClass::Temporary);
                         builder_->zero_init(tmp);
-                        builder_->call_indirect_sret(fnptr, tmp, cargs.data(),
-                                                     static_cast<uint32_t>(cargs.size()));
+                        call_indirect_sret_with_regions(
+                            fnptr, tmp, cargs.data(),
+                            static_cast<uint32_t>(cargs.size()), ast_fn);
                         destroy_call_temps_from(cmark, error);
                         return MIRExprResult::place(tmp, rt);
                     }
-                    const ValueId v = builder_->call_indirect(fnptr, rt, cargs.data(),
-                                                              static_cast<uint32_t>(cargs.size()));
+                    const ValueId v = call_indirect_with_regions(
+                        fnptr, rt, cargs.data(),
+                        static_cast<uint32_t>(cargs.size()), ast_fn);
                     destroy_call_temps_from(cmark, error);
                     return MIRExprResult::value(v, rt);
                 }

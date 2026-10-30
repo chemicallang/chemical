@@ -73,7 +73,7 @@ func lifetime_generic_impl_with_type_param_compiles(env : &mut TestEnv) {
 @test
 func lifetime_static_and_type_bounds_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "func <'a, T> keep_static(x : T) : int where T: 'static {\n    return 0\n}\nfunc <'a, T> keep_a(x : T) : int where T: 'static + 'a {\n    return 0\n}\nfunc static_ref(x : &'static int) : int {\n    return *x\n}\npublic func main() : int {\n    var one = 1\n    return keep_static(1) + keep_a(2) + static_ref(&one) - 1\n}\n"
+    var ch = "func <'a, T> keep_static(x : T) : int where T: 'static {\n    return 0\n}\nfunc <'a, T> keep_a(x : T) : int where T: 'static + 'a {\n    return 0\n}\npublic func main() : int {\n    return keep_static(1) + keep_a(2) - 2\n}\n"
     expect_compile_success(env, "lifetime_static_bounds_ok", ch)
 }
 

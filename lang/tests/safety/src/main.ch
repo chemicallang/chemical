@@ -777,7 +777,7 @@ func higher_ranked_callback_runs(env : &mut TestEnv) {
     safety_init_work_dir()
     // A lifetime-generic function value is accepted by a `for<'a>` function
     // pointer and called with a short-lived stack reference.
-    var ch = "func <'a> read_int(x : &'a int) : int { return *x }\nfunc apply(f : for<'a> (v : &'a int) => int, x : &int) : int {\n    return f(x)\n}\npublic func main() : int {\n    var x = 41\n    var f : for<'a> (v : &'a int) => int = read_int\n    if(f(&x) != 41) { return 1 }\n    if(apply(read_int, &x) != 41) { return 2 }\n    return 0\n}\n"
+    var ch = "func <'a> read_int(x : &'a int) : int { return *x }\nfunc bump(v : &mut int) { *v = *v + 1 }\nfunc id_ref(x : &int) : &int { return x }\nfunc sum2(a : &int, b : &int) : int { return *a + *b }\nfunc apply(f : for<'a> (v : &'a int) => int, x : &int) : int {\n    return f(x)\n}\nfunc apply_mut(f : for<'a> (v : &'a mut int) => void, x : &mut int) {\n    f(x)\n}\nfunc apply_ref(f : for<'a> (v : &'a int) => &'a int, x : &int) : &int {\n    return f(x)\n}\npublic func main() : int {\n    var x = 40\n    var f : for<'a> (v : &'a int) => int = read_int\n    if(f(&x) != 40) { return 1 }\n    if(apply(read_int, &x) != 40) { return 2 }\n    apply_mut(bump, &mut x)\n    if(x != 41) { return 3 }\n    var r = apply_ref(id_ref, &x)\n    if(*r != 41) { return 4 }\n    var a = 1\n    var b = 2\n    var f2 : for<'a> (p : &'a int, q : &'a int) => int = sum2\n    if(f2(&a, &b) != 3) { return 5 }\n    return 0\n}\n"
     var out = string()
     var rc = safety_compile_and_run(env, "higher_ranked_callback", ch, &mut out)
     if(rc != 0) {

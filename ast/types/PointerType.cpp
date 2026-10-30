@@ -81,6 +81,14 @@ bool ReferenceType::satisfies(BaseType* giveNonCan, Value* value, bool assignmen
     }
     if(givenKind == BaseTypeKind::Reference) {
         const auto ref = ((ReferenceType*) given);
+        // A `'static` target cannot be satisfied by a shorter (elided or
+        // named) source lifetime. Accepting it would let a stack reference
+        // masquerade as static storage in safe code.
+        const auto target_static =
+            lifetime == "static" || lifetime == "'static";
+        const auto source_static =
+            ref->lifetime == "static" || ref->lifetime == "'static";
+        if (target_static && !source_static) return false;
         return type->satisfies(ref->type) && (!is_mutable || ref->is_mutable);
     }
     // when assigning to a ref, we don't require l value

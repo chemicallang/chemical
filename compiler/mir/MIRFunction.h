@@ -87,6 +87,18 @@ struct MIRSourceLoc {
 inline constexpr uint32_t MIR_NO_SOURCE = 0xFFFFu;
 
 /**
+ * A higher-ranked function-type contract attached to one indirect call site.
+ * The runtime type of an erased function pointer has no lifetimes, so the
+ * caller records the source `FunctionType`'s region signature here. The
+ * borrow checker maps that contract's parameter regions onto the actual
+ * argument loans (S4.2 HRTB region inference).
+ */
+struct MIRCallRegionSignature {
+    uint32_t inst_index = MIR_INVALID_ID;
+    uint32_t signature = MIR_INVALID_ID;
+};
+
+/**
  * A source-level lexical scope, recorded only for debug info. The extent is a
  * half-open range of the *instruction stream* in emission order (the order the
  * lowerer walked the AST), which is what a debugger's `DILexicalBlock` needs —
@@ -122,6 +134,11 @@ struct MIRFunction {
     uint32_t region_signature = MIR_INVALID_ID;
     /** Highest region variable id allocated in this function (S4.4b). */
     uint32_t region_var_count = 0;
+    /**
+     * Per-call HRTB contracts keyed by the `CallIndirect` instruction index.
+     * Sorted by emission order; lookups are linear over a handful of sites.
+     */
+    std::vector<MIRCallRegionSignature> call_region_signatures;
     TypeId function_type = MIR_INVALID_ID;
     uint32_t flags = 0; // MF_WEAK_STUB; e.g. has sret, is lambda, is comptime-eliminated
 
@@ -160,6 +177,13 @@ struct MIRFunction {
         return best;
     }
 
+    uint32_t call_region_signature_at(uint32_t inst) const {
+        for (const MIRCallRegionSignature& entry : call_region_signatures) {
+            if (entry.inst_index == inst) return entry.signature;
+        }
+        return MIR_INVALID_ID;
+    }
+
     /** The declaration's source location (for a DISubprogram). */
     MIRSourceLoc decl_loc;
     bool has_decl_loc = false;
@@ -179,6 +203,7 @@ struct MIRFunction {
         lexical_scopes.clear();
         owned_places.clear();
         move_paths.clear();
+        call_region_signatures.clear();
         region_signature = MIR_INVALID_ID;
         region_var_count = 0;
         has_decl_loc = false;

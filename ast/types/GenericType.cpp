@@ -3,6 +3,9 @@
 
 #include "GenericType.h"
 #include "LinkedType.h"
+#include "ReferenceType.h"
+#include "PointerType.h"
+#include "ArrayType.h"
 #include <algorithm>
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/GenericStructDecl.h"
@@ -187,6 +190,57 @@ ASTNode* canonical_generic_decl(ASTNode* n) {
     }
     return n;
 }
+
+bool lifetime_is_static(chem::string_view name) {
+    return name == "static" || name == "'static";
+}
+
+bool static_lifetime_mismatch_type(BaseType* target, BaseType* source) {
+    if (target == nullptr || source == nullptr) return false;
+    BaseType* t = target->canonical();
+    BaseType* s = source->canonical();
+    if (t == nullptr || s == nullptr || t->kind() != s->kind()) return false;
+    switch (t->kind()) {
+        case BaseTypeKind::Reference: {
+            auto* tr = t->as_reference_type_unsafe();
+            auto* sr = s->as_reference_type_unsafe();
+            if (lifetime_is_static(tr->lifetime) &&
+                !lifetime_is_static(sr->lifetime)) {
+                return true;
+            }
+            return static_lifetime_mismatch_type(tr->type, sr->type);
+        }
+        case BaseTypeKind::Pointer:
+            return static_lifetime_mismatch_type(
+                t->as_pointer_type_unsafe()->type,
+                s->as_pointer_type_unsafe()->type);
+        case BaseTypeKind::Array:
+            return static_lifetime_mismatch_type(
+                t->as_array_type_unsafe()->elem_type,
+                s->as_array_type_unsafe()->elem_type);
+        case BaseTypeKind::Generic: {
+            auto* tg = t->as_generic_type_unsafe();
+            auto* sg = s->as_generic_type_unsafe();
+            const size_t count = std::min(tg->lifetime_args.size(),
+                                          sg->lifetime_args.size());
+            for (size_t i = 0; i < count; ++i) {
+                if (lifetime_is_static(tg->lifetime_args[i]) &&
+                    !lifetime_is_static(sg->lifetime_args[i])) {
+                    return true;
+                }
+            }
+            const size_t type_count = std::min(tg->types.size(), sg->types.size());
+            for (size_t i = 0; i < type_count; ++i) {
+                if (static_lifetime_mismatch_type(tg->types[i], sg->types[i])) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        default:
+            return false;
+    }
+}
 }
 
 bool GenericType::is_same(BaseType *pure_type) {
@@ -217,23 +271,55 @@ bool GenericType::is_same(BaseType *pure_type) {
 }
 
 bool GenericType::satisfies(BaseType *pure_type) {
-    const auto other = pure_type->canonical();
+    // As in `is_same`: canonicalizing a GenericType can unwrap it to a Linked
+    // form, which loses the concrete type identity and makes `Holder<'a>`
+    // compare unequal to itself through a call boundary.
+    const auto other = pure_type->kind() == BaseTypeKind::Generic
+                           ? pure_type
+                           : pure_type->canonical();
     if(other->kind() == BaseTypeKind::Generic) {
         const auto other_gen = other->as_generic_type_unsafe();
         // same declaration: compare type args pairwise
         const auto this_decl = canonical_generic_decl(referenced->linked);
         const auto other_decl = canonical_generic_decl(other_gen->referenced->linked);
         if(this_decl && other_decl && this_decl == other_decl) {
+            // Lifetime arguments are erased from the runtime type, so enforce
+            // the static-to-shorter direction here. `Holder<'static>` cannot
+            // accept a `Holder<'a>` value whose reference is a stack borrow.
+            const auto lifetime_count = std::min(lifetime_args.size(),
+                                                 other_gen->lifetime_args.size());
+            for(unsigned i = 0; i < lifetime_count; i++) {
+                const auto target_static = lifetime_args[i] == "static" ||
+                                           lifetime_args[i] == "'static";
+                const auto source_static = other_gen->lifetime_args[i] == "static" ||
+                                           other_gen->lifetime_args[i] == "'static";
+                if(target_static && !source_static) return false;
+            }
+            bool args_ok = true;
             const auto min_size = std::min(types.size(), other_gen->types.size());
             for(unsigned i = 0; i < min_size; i++) {
                 BaseType* this_arg = types[i];
                 BaseType* other_arg = other_gen->types[i];
-                if(!this_arg->satisfies(other_arg)) {
+                if (static_lifetime_mismatch_type(this_arg, other_arg)) {
                     return false;
                 }
+                if(!this_arg->satisfies(other_arg)) {
+                    args_ok = false;
+                    break;
+                }
             }
-            return true;
+            if (args_ok) return true;
+            // Preserve the pre-existing linked-struct fallback for generic
+            // argument positions that are still unresolved parameters.
+            return referenced->satisfies(other);
         }
+    }
+    // A linked/concrete instantiation does not carry its lifetime arguments
+    // through this path. Never guess that a shorter borrow satisfies a
+    // `'static` target; the struct-value constructor check covers the literal
+    // case and this covers a value passed through a call boundary.
+    for (chem::string_view lifetime : lifetime_args) {
+        if (lifetime == "static" || lifetime == "'static") return false;
     }
     // different declarations (inheritance) or non-generic other:
     // delegate to LinkedType::satisfies which handles inheritance, interfaces, etc.

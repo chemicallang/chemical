@@ -39,6 +39,12 @@ struct Loan {
     uint32_t borrow_lin = MIR_INVALID_ID;
     bool escaped = false; // passed to a call: interprocedural escape is S4.5
     /**
+     * A multi-borrow HRTB call may retain any of its arguments. Local
+     * referents are kept live until the end of the function so storage-end,
+     * move and alias checks conservatively cover a retained borrow.
+     */
+    bool pinned_live = false;
+    /**
      * Declared region for a reference read out of an aggregate parameter's
      * field (S4.2b). `MIR_INVALID_ID` for ordinary source borrows, where the
      * parameter's own region is the right fallback.
@@ -1130,6 +1136,16 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
             case MIROpcode::Call:
             case MIROpcode::CallIndirect: {
                 if (ops == nullptr) break;
+                bool has_callsite_sig = false;
+                MIRRegionSignature callsite_sig;
+                if (inst.opcode() == MIROpcode::CallIndirect) {
+                    const uint32_t sid =
+                        function.call_region_signature_at(ref.inst);
+                    if (sid != MIR_INVALID_ID &&
+                        module.region_signature_at(sid, callsite_sig)) {
+                        has_callsite_sig = true;
+                    }
+                }
                 // Start at operand 1; operand 1 may be the sret result place.
                 uint32_t first = 1;
                 if (ops[1].kind() == MIROperandKind::Place &&
@@ -1177,6 +1193,28 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         }
                     }
                 }
+                if (has_callsite_sig) {
+                    // The erased function-pointer type cannot carry lifetimes,
+                    // but the lowering recorded the source function type's
+                    // HRTB contract for this instruction. It is a callable
+                    // contract, not a body: the region mapping below uses it to
+                    // bind the result loan to the borrowed argument.
+                    known = true;
+                    TypeId result_type = MIR_INVALID_ID;
+                    if (inst.result_or_place != MIR_INVALID_ID) {
+                        if (inst.result_or_place < function.values.size()) {
+                            result_type = function.values[inst.result_or_place].type;
+                        } else if (inst.result_or_place < function.places.size()) {
+                            result_type = function.places[inst.result_or_place].type;
+                        }
+                    }
+                    returns_reference =
+                        result_type != MIR_INVALID_ID &&
+                        result_type < module.types.types.size() &&
+                        module.types.types[result_type].kind ==
+                            MIRTypeKind::Reference;
+                    returns_view = is_borrow_view_type(module, result_type);
+                }
                 struct RefArg {
                     uint16_t op_index = 0;
                     uint32_t param_index = MIR_INVALID_ID;
@@ -1203,7 +1241,9 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
 
                 const MIRRegionSignature* callee_sig = nullptr;
                 MIRRegionSignature callee_sig_copy;
-                if (known) {
+                if (has_callsite_sig) {
+                    callee_sig = &callsite_sig;
+                } else if (known) {
                     const uint32_t sid =
                         module.symbol_region_signature(ops[0].id);
                     if (sid != MIR_INVALID_ID &&
@@ -1216,6 +1256,55 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 const bool static_return =
                     callee_sig != nullptr &&
                     callee_sig->return_region == MIR_REGION_STATIC;
+
+                // A multi-borrow HRTB callback may store one argument borrow
+                // into another. Full region inference is not available, so
+                // accept only local/temporary referents and keep every loan
+                // live until function exit. A parameter/global referent could
+                // outlive the retained borrow in the caller, so it is rejected
+                // rather than guessed safe.
+                bool pinned_multi = false;
+                uint32_t hrtb_ref_params = 0;
+                if (callee_sig != nullptr) {
+                    for (MIRRegionId pr : callee_sig->param_regions) {
+                        if (pr != MIR_INVALID_ID) ++hrtb_ref_params;
+                    }
+                }
+                if (has_callsite_sig && hrtb_ref_params > 1) {
+                    bool all_local = ref_args.size() == hrtb_ref_params;
+                    for (const RefArg& ra : ref_args) {
+                        if (!all_local || ra.loan >= loans.size()) {
+                            all_local = false;
+                            break;
+                        }
+                        const LoanTarget& target = loans[ra.loan].target;
+                        if (!target.known || target.root >= function.places.size()) {
+                            all_local = false;
+                            break;
+                        }
+                        const auto sc = static_cast<MIRStorageClass>(
+                            function.places[target.root].storage_class);
+                        if (sc != MIRStorageClass::Local &&
+                            sc != MIRStorageClass::Temporary) {
+                            all_local = false;
+                            break;
+                        }
+                    }
+                    if (all_local) {
+                        pinned_multi = true;
+                        const uint32_t last =
+                            order.empty() ? 0 : static_cast<uint32_t>(order.size() - 1);
+                        for (const RefArg& ra : ref_args) {
+                            if (ra.loan >= loans.size()) continue;
+                            loans[ra.loan].pinned_live = true;
+                            loans[ra.loan].end = last;
+                        }
+                    } else {
+                        report(result.diagnostics, function, function_index, order, lin,
+                               "SAFE-BORROW-099",
+                               "a multi-borrow higher-ranked callback requires local reference arguments until full region inference is implemented");
+                    }
+                }
 
                 // A reference result aliases the argument whose declared
                 // region is the return region (or the unique argument whose
@@ -1350,9 +1439,10 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     if (mapped_source != MIR_INVALID_ID) {
                         value_params[inst.result_or_place] = mapped_source;
                     }
-                } else if (known && ref_args.size() <= 1) {
-                    // Known callee with no retained reference: the borrow ends
-                    // at the call.
+                } else if (known && (ref_args.size() <= 1 || pinned_multi)) {
+                    // Known callee with no retained reference, or a multi-borrow
+                    // HRTB call whose local referents are pinned until function
+                    // exit. The ordinary loan ends at the call.
                     for (uint16_t i = first; i < inst.operand_count; ++i) {
                         use_value(ops[i], lin, false);
                     }
@@ -1809,7 +1899,8 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
             if (inst.opcode() == MIROpcode::StorageDead && ops != nullptr &&
                 ops[0].kind() == MIROperandKind::Place) {
                 for (uint32_t l = 0; l < nloans; ++l) {
-                    if (!live[l] || loans[l].escaped || !loans[l].target.known) continue;
+                    if ((!live[l] && !loans[l].pinned_live) || loans[l].escaped ||
+                        !loans[l].target.known) continue;
                     if (loans[l].frame_loan) continue; // frame storage owns the view
                     if (loans[l].target.root != ops[0].id) continue;
                     report(result.diagnostics, function, function_index, order,
@@ -1851,7 +1942,8 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 moved.known = true;
 
                 for (uint32_t l = 0; l < nloans; ++l) {
-                    if (!live[l] || loans[l].escaped || !loans[l].target.known) continue;
+                    if ((!live[l] && !loans[l].pinned_live) || loans[l].escaped ||
+                        !loans[l].target.known) continue;
                     if (!has_back_edge && loans[l].end != MIR_INVALID_ID &&
                         loans[l].end < linear_of(b, ii, order)) {
                         continue;
@@ -1943,7 +2035,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     // An escaped loan's lifetime is unknown; do not report it
                     // as the *source* of a conflict either.
                     for (uint32_t other = 0; !loan.escaped && other < nloans; ++other) {
-                        if (other == l || !live[other]) continue;
+                        if (other == l || (!live[other] && !loans[other].pinned_live)) continue;
                         if (loans[other].escaped || !loans[other].target.known) continue;
                         // `live` is a CFG over-approximation; in an acyclic
                         // function a loan whose last use precedes this point is

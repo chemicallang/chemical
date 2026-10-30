@@ -2019,7 +2019,7 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
                 const bool fatal =
                     code == "SAFE-LIFE-001" || code == "SAFE-LIFE-002" ||
                     code == "SAFE-LIFE-003" || code == "SAFE-BORROW-001" ||
-                    code == "SAFE-BORROW-002";
+                    code == "SAFE-BORROW-002" || code == "SAFE-BORROW-099";
                 if (fatal) {
                     fatal_borrow = true;
                     if (borrow_error.empty()) {

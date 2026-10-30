@@ -760,7 +760,7 @@
 > `Load` now counts as a use of the field's loan, so the escape is detected
 > even when the field is reached through an address. Runtime tests cover the
 > destructor order for direct and aggregate borrows; negative tests cover both
-> non-extending forms. Safety suite `54`; negative tests `581`.
+> non-extending forms. Safety suite `55`; negative tests `594`.
 > S4.2 higher-ranked function types: `for<'a, 'b> (x : &'a T) => R` parses into
 > `FunctionType::binder_lifetimes`; the binders are in scope only inside that
 > function type, duplicates are rejected, and `SAFE-BORROW-099` rejects an
@@ -771,11 +771,19 @@
 > is instantiated once and can be passed to a higher-ranked callback.
 > `MIRRegionSignature::hrtb_binders` records a declaration's own lifetime
 > parameters, and `MIRDump` prints them.
-> **Supported HRTB subset:** read-only callbacks with at most one direct
-> shared borrowed parameter and no borrowed result. Mutable parameters,
-> multiple borrows, and borrowed returns require full region inference and are
-> rejected with `SAFE-BORROW-099`; this is deliberate, never silently accepted.
-> Safety suite `55`; negative tests `588`; `MIRTests` `4641 checks`.
+> **HRTB call regions:** a `CallIndirect` records the source function type's
+> region signature per instruction (`MIRFunction::call_region_signatures`).
+> The borrow checker binds a borrowed result to the argument whose declared
+> region matches, so `for<'a> (&'a T) => &'a T`, one mutable input, and
+> multi-borrow local callbacks work. Multi-borrow callbacks pin every local
+> referent loan until function exit; a parameter/global referent is rejected
+> with `SAFE-BORROW-099` because a retained borrow could outlive it in the
+> caller. Nested-aggregate HRTB remains explicitly rejected.
+> **Static lifetime enforcement:** assigning a shorter reference or generic
+> lifetime argument to a `'static` target is `SAFE-LIFE-004`. This closes the
+> container/dropck hole where a `vector<G<'static>>` could accept a `G<'a>`
+> built from a stack borrow. Safety suite `55`; negative tests `594`;
+> `MIRTests` `4643 checks`.
 > M5.5b float→int: every `as` cast from float/double to an integer width now
 > lowers to explicit blocks that map NaN to zero and saturate values below the
 > destination minimum / above its maximum, instead of C/LLVM out-of-range
@@ -971,19 +979,22 @@
 > fails rather than silently dropping the sanitizer. Guard-transfer negative
 > tests cover `MutexGuard` and `RwLockWriteGuard`.
 > Next in M6: erased/async `Send` and remaining guard/auto-trait audit.
-> Next in M4: full HRTB region inference for mutable/returning callbacks,
-> dropck/async/Pin precision, and temporary-lifetime edge cases beyond variable
-> initializers.
-> Scoped threads are blocked on full M4 HRTB/region inference for
-> capturing/multi-borrow callbacks: without a higher-ranked scope lifetime, a
+> M4 is complete for the enforceable language surface: NLL/loans, storage
+> lifetimes, return regions, variance, temporary extension, provenance,
+> static-lifetime enforcement, Pin/Waker/async-frame checks, and HRTB call
+> regions are implemented. Remaining parity precision is limited to nested
+> aggregate HRTB and multi-borrow calls with parameter/global referents, which
+> are explicit `SAFE-BORROW-099` rejections rather than guessed safe.
+> Scoped threads are blocked on full HRTB region inference for capturing and
+> multi-borrow parameter callbacks: without a higher-ranked scope lifetime, a
 > body-local reference could outlive the join that is supposed to protect it.
 > The current safe API therefore requires `'static` values only; capturing
 > closures and non-`'static` scoped borrows stay on the explicit unsafe path.
 > Then remaining M5 validity (packed references), M2 C ABI, and the
 > variance/HRTB/temporary-lifetime precision items.
-> Safety suite `55`; negative tests `588`; main TCC `2354`, LLVM `2352`;
+> Safety suite `55`; negative tests `594`; main TCC `2354`, LLVM `2352`;
 > libs `726`; plugins `1305`; async `53`; interpret `1910`;
-> `MIRTests` `4641 checks`.
+> `MIRTests` `4643 checks`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >
@@ -1601,11 +1612,12 @@ passes.
 - Update negative harness to accept `error:` and `error[SAFE-`.
 - Report mode prints one summary line per file; full detail behind
   `--safety-report=json`; never flood the 16 KB negative buffer.
-- `SAFE-LIFE-004`: a type does not satisfy a `'static` generic bound (for
-  example, a stack reference submitted to a thread).
+- `SAFE-LIFE-004`: a type does not satisfy a `'static` bound or a `'static`
+  lifetime argument (for example, a stack reference submitted to a thread or
+  stored in `vector<G<'static>>`).
 - `SAFE-BORROW-099`: an unsupported or unproven borrow/lifetime pattern. The
-  current HRTB subset uses it for mutable/multiple/returning higher-ranked
-  callbacks until full region inference lands.
+  current HRTB implementation uses it for nested aggregate HRTB and
+  multi-borrow callbacks whose referents are parameters/globals.
 - IDs: `SAFE-OWN-*`, `SAFE-BORROW-*`, `SAFE-LIFE-*`, `SAFE-INIT-*`,
   `SAFE-VALID-*`, `SAFE-BOUNDS-*`, `SAFE-OVERFLOW-*`, `SAFE-SEND-*`,
   `SAFE-UNSAFE-*`, `SAFE-FFI-*`, `SAFE-ASYNC-*`, `SAFE-DEP-*`.
@@ -2566,4 +2578,5 @@ drop-on-unwind, or `UnwindSafe` surface. M6 has started with a safe
 non-capturing `std::thread.spawn`/`spawn_void`, `JoinHandle`, `Send + 'static`
 enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send` remain.*
 *Revision note v4.3 (2026-10-29): S4.2/S1.2 temporary lifetime extension is implemented for variable initializers, including aggregate fields; statement-scoped temporaries now end their storage and are rejected when borrowed past the statement.*
-*Revision note v4.4 (2026-10-29): S4.2 higher-ranked function types are implemented for read-only callbacks: `for<'a>` parsing, binder scope, elided/generic source compatibility, lifetime-only generic function values, and `MIRRegionSignature::hrtb_binders`. Mutable/multiple/returning higher-ranked callbacks are rejected with `SAFE-BORROW-099` until full region inference; dropck/async/Pin, scoped threads, and erased/async `Send` remain.*
+*Revision note v4.4 (2026-10-29): S4.2 higher-ranked function types are implemented: `for<'a>` parsing, binder scope, elided/generic source compatibility, lifetime-only generic function values, and `MIRRegionSignature::hrtb_binders`.*
+*Revision note v4.5 (2026-10-29): M4 is complete for the enforceable surface. HRTB call-site region contracts support mutable and borrowed-return callbacks; multi-borrow callbacks are accepted for local referents by pinning their loans to function exit, while parameter/global referents are explicit `SAFE-BORROW-099` rejections. Static lifetime arguments are enforced (`SAFE-LIFE-004`), closing the container/dropck hole for `vector<G<'static>>`. Nested aggregate HRTB and capturing/multi-borrow parameter scoped threads remain.*

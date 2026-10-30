@@ -130,7 +130,7 @@ func aggregate_return_region_with_outlives_ok(env : &mut TestEnv) {
 func neg_aggregate_return_local_field(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // A struct field referencing a local escapes with the returned struct.
-    var ch = "struct Holder<'a> {\n    var r : &'a int\n}\nfunc bad() : Holder<'static> {\n    var a = 1\n    var h = Holder<'static> { r : &a }\n    return h\n}\npublic func main() : int {\n    var h = bad()\n    return *h.r\n}\n"
+    var ch = "struct Holder<'a> {\n    var r : &'a int\n}\nfunc <'a> bad(x : &'a int) : Holder<'a> {\n    var a = 1\n    var h = Holder<'a> { r : &a }\n    return h\n}\npublic func main() : int {\n    var a = 1\n    var h = bad(&a)\n    return *h.r\n}\n"
     expect_compile_error(env, "borrow_aggregate_return_local", ch, "SAFE-LIFE-001")
 }
 
@@ -195,7 +195,7 @@ func aggregate_parameter_field_uses_declared_lifetime(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // S4.2b: the aggregate's second lifetime argument ('b) is the region of
     // `y`, so returning it as 'b is accepted.
-    var ch = "struct Pair<'a, 'b> {\n    var x : &'a int\n    var y : &'b int\n}\nfunc <'a, 'b> second(p : Pair<'a, 'b>) : &'b int {\n    return p.y\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    var p = Pair<'static, 'static> { x : &a, y : &b }\n    var r = second(p)\n    return *r\n}\n"
+    var ch = "struct Holder<'a> {\n    var r : &'a int\n}\nfunc <'a> get_ref(h : Holder<'a>) : &'a int {\n    return h.r\n}\nfunc <'a> check(x : &'a int) : int {\n    var h = Holder<'a> { r : x }\n    return *get_ref(h)\n}\npublic func main() : int {\n    var a = 1\n    return check(&a)\n}\n"
     expect_compile_success(env, "borrow_aggregate_param_field_region", ch)
 }
 
@@ -203,7 +203,7 @@ func aggregate_parameter_field_uses_declared_lifetime(env : &mut TestEnv) {
 func neg_aggregate_parameter_field_wrong_lifetime(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // S4.2b: `x` is tied to 'a, not the declared return region 'b.
-    var ch = "struct Pair<'a, 'b> {\n    var x : &'a int\n    var y : &'b int\n}\nfunc <'a, 'b> bad(p : Pair<'a, 'b>) : &'b int {\n    return p.x\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    var p = Pair<'static, 'static> { x : &a, y : &b }\n    var r = bad(p)\n    return *r\n}\n"
+    var ch = "struct Holder<'a> {\n    var r : &'a int\n}\nfunc <'a, 'b> bad(h : Holder<'a>) : &'b int {\n    return h.r\n}\nfunc <'a, 'b> check(x : &'a int, y : &'b int) : int {\n    var h = Holder<'a> { r : x }\n    return *bad(h)\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    return check(&a, &b)\n}\n"
     expect_compile_error(env, "borrow_aggregate_param_field_wrong", ch, "SAFE-LIFE-003")
 }
 
@@ -211,7 +211,7 @@ func neg_aggregate_parameter_field_wrong_lifetime(env : &mut TestEnv) {
 func aggregate_parameter_field_with_outlives_ok(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // S4.2b: a `where 'a: 'b` edge makes the 'a field a valid 'b result.
-    var ch = "struct Pair<'a, 'b> {\n    var x : &'a int\n    var y : &'b int\n}\nfunc <'a, 'b> good(p : Pair<'a, 'b>) : &'b int where 'a : 'b {\n    return p.x\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    var p = Pair<'static, 'static> { x : &a, y : &b }\n    var r = good(p)\n    return *r\n}\n"
+    var ch = "struct Holder<'a> {\n    var r : &'a int\n}\nfunc <'a, 'b> good(h : Holder<'a>) : &'b int where 'a : 'b {\n    return h.r\n}\nfunc <'a, 'b> check(x : &'a int, y : &'b int) : int where 'a : 'b {\n    var h = Holder<'a> { r : x }\n    return *good(h)\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    return check(&a, &b)\n}\n"
     expect_compile_success(env, "borrow_aggregate_param_field_outlives", ch)
 }
 
@@ -245,7 +245,7 @@ func method_reference_field_matches_return_lifetime(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // S4.2b: `&self` is a reference to an aggregate, so the container's
     // lifetime arguments still select the field's region.
-    var ch = "struct Pair<'a, 'b> {\n    var x : &'a int\n    var y : &'b int\n    func get(&self) : &'b int {\n        return self.y\n    }\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    var p = Pair<'static, 'static> { x : &a, y : &b }\n    return *p.get()\n}\n"
+    var ch = "struct Holder<'a> {\n    var r : &'a int\n    func get(&self) : &'a int {\n        return self.r\n    }\n}\nfunc <'a> check(x : &'a int) : int {\n    var h = Holder<'a> { r : x }\n    return *h.get()\n}\npublic func main() : int {\n    var a = 1\n    return check(&a)\n}\n"
     expect_compile_success(env, "borrow_method_field_region", ch)
 }
 
@@ -253,8 +253,8 @@ func method_reference_field_matches_return_lifetime(env : &mut TestEnv) {
 func neg_method_reference_field_wrong_lifetime(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // S4.2b: `self.x` is tied to 'a, not the declared return region 'b.
-    var ch = "struct Pair<'a, 'b> {\n    var x : &'a int\n    var y : &'b int\n    func get(&self) : &'b int {\n        return self.x\n    }\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    var p = Pair<'static, 'static> { x : &a, y : &b }\n    return *p.get()\n}\n"
-    expect_compile_error(env, "borrow_method_field_wrong_region", ch, "SAFE-LIFE-003")
+    var ch = "struct Holder<'a> {\n    var r : &'a int\n    func get(&self) : &'static int {\n        return self.r\n    }\n}\nfunc <'a> check(x : &'a int) : int {\n    var h = Holder<'a> { r : x }\n    return *h.get()\n}\npublic func main() : int {\n    var a = 1\n    return check(&a)\n}\n"
+    expect_compile_error(env, "borrow_method_field_wrong_region", ch, "SAFE-LIFE-004")
 }
 
 @test
@@ -354,21 +354,45 @@ func neg_hrtb_static_source_rejected(env : &mut TestEnv) {
 }
 
 @test
-func neg_hrtb_mutable_parameter_rejected(env : &mut TestEnv) {
+func hrtb_mutable_parameter_ok(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // Mutable borrowed inputs can be stored through another caller-owned
-    // reference; without full region inference this must be rejected.
+    // A single mutable borrow has no second caller-owned place to store it
+    // into, so the call contract can bind its loan to the call.
     var ch = "func touch(v : &mut int) { *v = *v + 1 }\nfunc apply(f : for<'a> (v : &'a mut int) => void, x : &mut int) {\n    f(x)\n}\npublic func main() : int {\n    var x = 1\n    apply(touch, &mut x)\n    return x\n}\n"
-    expect_compile_error(env, "hrtb_mutable_param", ch, "SAFE-BORROW-099")
+    expect_compile_success(env, "hrtb_mutable_param", ch)
 }
 
 @test
-func neg_hrtb_borrowed_return_rejected(env : &mut TestEnv) {
+func hrtb_borrowed_return_ok(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // Returning a borrow tied to the higher-ranked input needs the caller's
-    // region for the result; that inference is not implemented yet.
+    // The call-site contract maps the result to the one borrowed argument.
     var ch = "func first_int(x : &int) : &int { return x }\nfunc apply(f : for<'a> (v : &'a int) => &'a int, x : &int) : &int {\n    return f(x)\n}\npublic func main() : int {\n    var x = 41\n    return *apply(first_int, &x)\n}\n"
-    expect_compile_error(env, "hrtb_borrowed_return", ch, "SAFE-BORROW-099")
+    expect_compile_success(env, "hrtb_borrowed_return", ch)
+}
+
+@test
+func neg_hrtb_borrowed_return_keeps_loan(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The result is borrowed from x; taking a mutable borrow of x while the
+    // result is live must conflict.
+    var ch = "func first_int(x : &int) : &int { return x }\nfunc apply(f : for<'a> (v : &'a int) => &'a int, x : &int) : &int {\n    return f(x)\n}\npublic func main() : int {\n    var x = 41\n    var r = apply(first_int, &x)\n    var q = &mut x\n    *q = 9\n    return *r\n}\n"
+    expect_compile_error(env, "hrtb_borrowed_return_alias", ch, "SAFE-BORROW-001")
+}
+
+@test
+func neg_hrtb_nested_borrowed_return_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // An aggregate carrying the binder would need field-wise region mapping.
+    var ch = "using std::Option;\nfunc apply(f : for<'a> (v : &'a int) => Option<&'a int>) : int { return 0 }\npublic func main() : int { return apply(null) }\n"
+    expect_compile_error_with_mod(env, "hrtb_nested_return", ch, "SAFE-BORROW-099", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_hrtb_mismatched_return_binder_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // `'b` is not tied to the `'a` input, so the result has no caller region.
+    var ch = "func apply(f : for<'a, 'b> (v : &'a int) => &'b int) : int { return 0 }\npublic func main() : int { return apply(null) }\n"
+    expect_compile_error(env, "hrtb_mismatched_binder", ch, "SAFE-BORROW-099")
 }
 
 @test
@@ -385,6 +409,32 @@ func neg_hrtb_duplicate_binder_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "func main() : int {\n    var f : for<'a, 'a> (v : &'a int) => int = null\n    return 0\n}\n"
     expect_compile_error(env, "hrtb_duplicate_binder", ch, "duplicate higher-ranked lifetime parameter")
+}
+
+@test
+func neg_static_reference_assignment_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A stack reference cannot be stored in a `'static` binding.
+    var ch = "public func main() : int {\n    var x = 1\n    var r : &'static int = &x\n    return *r\n}\n"
+    expect_compile_error(env, "static_reference_assignment", ch, "SAFE-LIFE-004")
+}
+
+@test
+func neg_static_struct_literal_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A struct argument `'static` determines the field reference lifetime too;
+    // the literal cannot borrow a stack local.
+    var ch = "struct P<'a> {\n    var r : &'a int\n}\npublic func main() : int {\n    var x = 1\n    var p = P<'static> { r : &x }\n    return *p.r\n}\n"
+    expect_compile_error(env, "static_struct_literal", ch, "SAFE-LIFE-004")
+}
+
+@test
+func neg_static_lifetime_argument_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A container typed with `G<'static>` cannot accept a `G<'a>` built from a
+    // stack borrow. The guard would otherwise be dropped after its referent.
+    var ch = "using std::vector;\nstruct G<'a> {\n    var r : &'a int\n    @delete\n    func delete(&mut self) { unsafe { printf(\"%d\\n\", *self.r) } }\n}\nfunc <'a> mk(x : &'a int) : G<'a> { return G<'a> { r : x } }\npublic func main() : int {\n    var v = vector<G<'static>>()\n    {\n        var x = 41\n        v.push(mk(&x))\n    }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "static_lifetime_argument", ch, "SAFE-LIFE-004", NEG_MOD_STD_CORE)
 }
 
 @test

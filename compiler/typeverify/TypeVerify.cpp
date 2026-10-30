@@ -2273,6 +2273,64 @@ void verify_interface_implementation(ImplementationsIndex& index, ASTDiagnoser& 
     }
 }
 
+static bool captures_function_local_storage(Value* value) {
+    if (value == nullptr) return false;
+    if (value->val_kind() == ValueKind::StructValue) {
+        auto* sv = value->as_struct_value_unsafe();
+        for (auto& entry : sv->values) {
+            if (captures_function_local_storage(entry.second.value)) return true;
+        }
+        return false;
+    }
+    if (value->val_kind() == ValueKind::ArrayValue) {
+        auto* av = value->as_array_value_unsafe();
+        for (Value* element : av->values) {
+            if (captures_function_local_storage(element)) return true;
+        }
+        return false;
+    }
+    if (value->val_kind() != ValueKind::LambdaFunc) {
+        return false;
+    }
+    auto* lambda = value->as_lambda_func_unsafe();
+    for (CapturedVariable* cap : lambda->captureList) {
+        if (cap == nullptr || !cap->capture_by_ref) continue;
+        ASTNode* linked = cap->linked;
+        if (linked == nullptr) continue;
+        bool is_global = linked->kind() == ASTNodeKind::VarInitStmt &&
+                         linked->as_var_init_unsafe()->is_top_level();
+        if (is_global) continue;
+        // Any by-reference capture of a non-global binding keeps a pointer
+        // into function storage (a reference local is itself such a pointer).
+        // Until the typed capture representation tracks the referent region,
+        // reject the escape conservatively.
+        return true;
+    }
+    return false;
+}
+
+static bool captures_function_local_storage(Value* value, const std::unordered_set<VarInitStatement*>& tainted) {
+    while (value != nullptr && value->val_kind() == ValueKind::CastedValue) {
+        value = value->as_casted_value_unsafe()->value;
+    }
+    Value* identifier = value;
+    if (identifier != nullptr && identifier->val_kind() == ValueKind::AccessChain) {
+        auto* chain = identifier->as_access_chain_unsafe();
+        if (chain->values.size() == 1) {
+            identifier = chain->values[0];
+        }
+    }
+    if (captures_function_local_storage(value)) return true;
+    if (identifier != nullptr && identifier->val_kind() == ValueKind::Identifier) {
+        ASTNode* linked = identifier->as_identifier_unsafe()->linked;
+        if (linked != nullptr && linked->kind() == ASTNodeKind::VarInitStmt &&
+            tainted.count(linked->as_var_init_unsafe()) != 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
     if(!stmt->attrs.signature_resolved) {
         return;
@@ -2295,6 +2353,9 @@ void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
         if(implicit == nullptr && !stmt->type->satisfies(value, false)) {
             unsatisfied_type_err(diagnoser, allocator, value, type);
         }
+    }
+    if(value && captures_function_local_storage(value, capture_escape_locals)) {
+        capture_escape_locals.insert(stmt);
     }
     if(stmt->known_type()->kind() == BaseTypeKind::Void) {
         diagnoser.error(stmt) << "variable with name '" << stmt->name_view() << "' type can't be of type void";
@@ -2607,6 +2668,18 @@ void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
     check_index_move(assign->value);
     visit_it(assign->value);
 
+    if (assign->lhs && assign->lhs->val_kind() == ValueKind::Identifier) {
+        ASTNode* linked = assign->lhs->as_identifier_unsafe()->linked;
+        if (linked != nullptr && linked->kind() == ASTNodeKind::VarInitStmt) {
+            auto* target = linked->as_var_init_unsafe();
+            if (captures_function_local_storage(assign->value, capture_escape_locals)) {
+                capture_escape_locals.insert(target);
+            } else {
+                capture_escape_locals.erase(target);
+            }
+        }
+    }
+
     const auto lhs = assign->lhs;
     const auto value = assign->value;
     const auto lhsType = lhs->getType();
@@ -2673,6 +2746,13 @@ void TypeVerifier::VisitReturnStmt(ReturnStatement *node) {
     check_index_move(node->value);
     RecursiveVisitor::VisitReturnStmt(node);
     auto& value = node->value;
+    if (value && captures_function_local_storage(value, capture_escape_locals)) {
+        diagnoser.error(value).with_code("SAFE-LIFE-001")
+            << "cannot return a function value that borrows function-local "
+               "storage by reference; capture by value, move the referent to "
+               "the heap, or keep the callback call-scoped";
+        return;
+    }
     if (value) {
         const auto func_type = current_func_type;
         if(func_type->data.signature_resolved && func_type->returnType) {

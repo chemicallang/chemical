@@ -749,6 +749,41 @@ func neg_function_instance_make2_requires_unsafe(env : &mut TestEnv) {
 }
 
 @test
+func neg_returning_by_reference_capture_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func make() : std::function<() => int> {\n    var x = 1\n    return |&x|() => { return *x }\n}\npublic func main() : int { return make()() }\n"
+    expect_compile_error_with_mod(env, "capture_escape_direct", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_returning_tainted_capture_variable_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func make() : std::function<() => int> {\n    var x = 1\n    var f : std::function<() => int> = |&x|() => { return *x }\n    return f\n}\npublic func main() : int { return make()() }\n"
+    expect_compile_error_with_mod(env, "capture_escape_variable", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_returning_struct_with_by_reference_capture_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct Holder {\n    var f : std::function<() => int>\n}\nfunc make() : Holder {\n    var x = 1\n    return Holder { f : |&x|() => { return *x } }\n}\npublic func main() : int { return make().f() }\n"
+    expect_compile_error_with_mod(env, "capture_escape_struct", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func returning_by_value_capture_is_allowed(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func make() : std::function<() => int> {\n    var x = 7\n    return |x|() => { return x }\n}\npublic func main() : int { return make()() }\n"
+    expect_compile_output_not_contains(env, "capture_by_value_return", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_function_instance_cannot_be_forged(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func dtor(obj : *mut void) { }\npublic func main() : int {\n    var f = std::default_function_instance {\n        fn_pointer : null,\n        fn_data_ptr : null,\n        buffer : zeroed<[32]char>(),\n        dtor : dtor,\n        is_heap : false\n    }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "function_instance_forge", ch, "SAFE-VIS-001", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_option_take_requires_mutable_receiver(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var o = std::Option.Some<int>(1)\n    const c = o\n    var x = c.take()\n    return x\n}\n"

@@ -5,22 +5,23 @@ public type destructor_type = (obj : *mut void) => void
 @retained
 public struct default_function_instance {
 
-    // the pointer to function we are going to call
-    var fn_pointer : *mut any
+    // The erased function/data pair is an unchecked runtime contract; safe
+    // code must not forge one. Construction goes through `make`/`new` below.
+    private var fn_pointer : *mut any
 
     // we store data pointer, so storage can be done on stack or heap
-    var fn_data_ptr : *mut any
+    private var fn_data_ptr : *mut any
 
     // 32 bytes of buffer, 4 pointers
     @maxalign
-    var buffer : [32]char
+    private var buffer : [32]char
 
     // a destructor pointer is stored inside the function so we can
     // handle destruction of any variables required
-    var dtor : (obj : *mut void) => void;
+    private var dtor : (obj : *mut void) => void;
 
     // is the captured struct allocated on heap
-    var is_heap : bool
+    private var is_heap : bool
 
     // TODO: raw capturing function type should be developed
     //  which can only take literal capturing functions

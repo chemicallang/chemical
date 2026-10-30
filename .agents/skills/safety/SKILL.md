@@ -274,7 +274,7 @@ Implemented:
   Statement temporaries now emit `StorageDead`, and `FieldAddr` + `Load` reads
   count as uses of the stored field loan, covering pointer-based field access.
   Runtime tests check direct and aggregate destructor order; negative tests
-  cover both non-extending forms. Safety suite `55`; negative tests `596`.
+  cover both non-extending forms. Safety suite `55`; negative tests `601`.
 - S4.2 higher-ranked function types: `for<'a, 'b> (x : &'a T) => R` parses into
   `FunctionType::binder_lifetimes`; binders are scoped to the function type,
   duplicate binders are rejected, and lifetime-only generic function values
@@ -293,7 +293,7 @@ Implemented:
   argument cannot satisfy `'static` (`SAFE-LIFE-004`). This closes the
   `vector<G<'static>>` dropck hole where a `G<'a>` built from a stack borrow
   could be stored and dropped after the referent.
-  Safety suite `55`; negative tests `596`; `MIRTests` `4643 checks`.
+  Safety suite `55`; negative tests `601`; `MIRTests` `4643 checks`.
 - M5.5b float→int: `as` casts from float/double to integer widths lower to
   explicit blocks (NaN → 0, out-of-range → destination minimum/maximum) instead
   of C/LLVM `fptosi` UB. LLVM float `Ne` is `fcmp une`, matching C's
@@ -334,7 +334,7 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `55`, negative tests `596`.
+  `55`, negative tests `601`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -354,7 +354,7 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `55`, negative `596`; TCC main `2354`, LLVM
+  TCC/LLVM lib runs. Safety suite `55`, negative `601`; TCC main `2354`, LLVM
   main `2352`, libs `730`, plugins `1305`, async `53`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
@@ -372,6 +372,14 @@ Implemented:
   `call_sret` buffers, and `argv` are registered as foreign ranges for the
   exact call/run lifetime. Negative tests cover foreign integer pointers,
   cross-frame pointers, and foreign `printf("%s")` arguments.
+- M4/M6.5 callback capture escape: returning a function value whose lambda
+  captures non-global storage **by reference** is `SAFE-LIFE-001`. The check
+  follows the taint through local variables/assignments and through direct
+  struct/array literals, so returning a callback or an aggregate containing it
+  cannot silently leave a pointer into the returning frame. Capturing by value
+  remains allowed. Escapes through opaque calls, fields assigned after
+  construction, and erased `std::function`/`FutureHandle` values still need the
+  typed capture/frame representation (M6.5).
 - M6 safe threads: `std::thread.spawn` accepts a non-capturing `(T) => U`
   entry with `T: Send + 'static`, `U: Send + 'static`; `spawn_void` is the
   void-returning form. `JoinHandle<T>` joins explicitly or from its destructor
@@ -415,7 +423,7 @@ Implemented:
   carry one explicit unsafe boundary around their raw context/job operations.
   Wrapping generic bodies exposed a missing `ValueNode::copy`, now implemented.
   In-tree stdlib/CBI/plugin/build.lab call sites were migrated; audit baseline
-  is `unsafe_blocks 574`, `unsafe_values 441`; negative `596`.
+  is `unsafe_blocks 574`, `unsafe_values 441`; negative `601`.
 - S2.2/S4.8 function pointers: `FunctionTypeData::requires_unsafe` is part of
   function type identity and is set for `unsafe func` and `@extern`. Calling a
   value of such a type in safe context is `SAFE-UNSAFE-002`; coercing it to a
@@ -466,6 +474,12 @@ Implemented:
   exempt. `zeroed<T>()` now requires `T: Zeroable`; audited internals use the
   explicit unsafe `std::mem.zeroed_unchecked<T>()`. Negative tests
   cover direct/generic reference rejection, a plain struct, and PhantomData.
+- M5.2/S2.6d erased function instance privacy: `std::default_function_instance`
+  keeps its code/data/destructor fields private. Safe code can only create one
+  through the checked `make` lambda path; the raw `make2` constructor remains
+  `unsafe func`, and a struct literal outside the type is `SAFE-VIS-001`.
+  This closes the last std erased-callback forgery path; the negative suite
+  covers the literal and the unsafe constructor.
 - S2.6 FFI enforced: `SAFE-FFI-001` is a hard error for a call to an
   `@extern` function from a safe context (the callee's contract is invisible
   to the compiler). Every in-tree call site is now inside a per-call

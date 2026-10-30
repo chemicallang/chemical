@@ -65,6 +65,13 @@ public:
     bool is_unsafe = false;
 
     /**
+     * Locals initialized with a function value that borrows function-local
+     * storage by reference. These cannot escape through a return until the
+     * typed capture representation lands (M6.5).
+     */
+    std::unordered_set<VarInitStatement*> capture_escape_locals;
+
+    /**
      * when set, IndexOperator destructible check is skipped
      * used when IndexOperator is on LHS of assignment or wrapped in AddrOfValue/ReferenceOfValue
      */

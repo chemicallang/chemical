@@ -749,6 +749,34 @@ func neg_function_instance_make2_requires_unsafe(env : &mut TestEnv) {
 }
 
 @test
+func neg_by_reference_callback_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var x = 1\n    var f : std::function<() => int> = |&x|() => { return *x }\n    return f()\n}\n"
+    expect_compile_error_with_mod(env, "by_ref_callback_safe", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_by_reference_callback_argument_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func take(f : std::function<() => int>) : int { return 0 }\npublic func main() : int {\n    var x = 1\n    return take(|&x|() => { return *x })\n}\n"
+    expect_compile_error_with_mod(env, "by_ref_callback_arg_safe", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_by_value_reference_capture_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var x = 1\n    var r = &x\n    var f : std::function<() => int> = |r|() => { return *r }\n    return f()\n}\n"
+    expect_compile_error_with_mod(env, "by_value_reference_capture", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func by_reference_callback_in_unsafe_is_allowed(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var x = 1\n    unsafe {\n        var f : std::function<() => int> = |&x|() => { return *x }\n        return f()\n    }\n}\n"
+    expect_compile_output_not_contains(env, "by_ref_callback_unsafe", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_returning_by_reference_capture_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "func make() : std::function<() => int> {\n    var x = 1\n    return |&x|() => { return *x }\n}\npublic func main() : int { return make()() }\n"

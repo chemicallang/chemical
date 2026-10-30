@@ -46,7 +46,7 @@ func test_fs_directory_iteration(env : &mut TestEnv) {
         var file_count = 0;
         var dir_count = 0;
     
-        var r = fs::read_dir(base.data(), |&file_count, &dir_count|(name : *char, len : size_t, is_dir : bool) => {
+        var r = unsafe(fs::read_dir(base.data(), |&file_count, &dir_count|(name : *char, len : size_t, is_dir : bool) => {
             // skip . and .. (though read_dir implementation usually filters them, let's be safe)
             if(len == 1 && name[0] == '.') { return true; }
             if(len == 2 && name[0] == '.' && name[1] == '.') { return true; }
@@ -57,7 +57,7 @@ func test_fs_directory_iteration(env : &mut TestEnv) {
                 file_count++;
             }
             return true;
-        });
+        }));
 
         expect_true(env, !(r is Result.Err), "read_dir failed");
         expect_true(env, file_count == 2, "should have 2 files");

@@ -46,16 +46,18 @@ func test_recursive_mutex_concurrent() : bool {
         var pool = std::concurrent::create_pool(num)
         var i = 0u
         while(i < num) {
-            var task : std::function<() => void> = |&mut m, &mut counter|() => {
-                m.lock()
-                *counter = *counter + 1u
-                std::concurrent::sleep_ms(1u)
-                m.lock()
-                *counter = *counter + 1u
-                m.unlock()
-                m.unlock()
+            unsafe {
+                var task : std::function<() => void> = |&mut m, &mut counter|() => {
+                    m.lock()
+                    *counter = *counter + 1u
+                    std::concurrent::sleep_ms(1u)
+                    m.lock()
+                    *counter = *counter + 1u
+                    m.unlock()
+                    m.unlock()
+                }
+                pool.submit_void(task)
             }
-            unsafe(pool.submit_void(task))
             i += 1u
         }
     }

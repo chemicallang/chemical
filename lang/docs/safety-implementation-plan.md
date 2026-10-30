@@ -760,7 +760,7 @@
 > `Load` now counts as a use of the field's loan, so the escape is detected
 > even when the field is reached through an address. Runtime tests cover the
 > destructor order for direct and aggregate borrows; negative tests cover both
-> non-extending forms. Safety suite `55`; negative tests `601`.
+> non-extending forms. Safety suite `55`; negative tests `605`.
 > S4.2 higher-ranked function types: `for<'a, 'b> (x : &'a T) => R` parses into
 > `FunctionType::binder_lifetimes`; the binders are in scope only inside that
 > function type, duplicates are rejected, and `SAFE-BORROW-099` rejects an
@@ -782,7 +782,7 @@
 > **Static lifetime enforcement:** assigning a shorter reference or generic
 > lifetime argument to a `'static` target is `SAFE-LIFE-004`. This closes the
 > container/dropck hole where a `vector<G<'static>>` could accept a `G<'a>`
-> built from a stack borrow. Safety suite `55`; negative tests `601`;
+> built from a stack borrow. Safety suite `55`; negative tests `605`;
 > `MIRTests` `4643 checks`.
 > M5.5b float→int: every `as` cast from float/double to an integer width now
 > lowers to explicit blocks that map NaN to zero and saturate values below the
@@ -991,11 +991,14 @@
 > system LLVM resource directory (or honors `CHEMICAL_TSAN_RESOURCES`) and
 > fails rather than silently dropping the sanitizer. Guard-transfer negative
 > tests cover `MutexGuard` and `RwLockWriteGuard`.
-> Callback capture escape: `SAFE-LIFE-001` rejects returning a function value
-> whose lambda captures non-global storage by reference, including through a
-> local/assignment taint and direct struct/array literals. Capturing by value is
-> accepted. Escapes through opaque calls, post-construction field assignment,
-> and erased `std::function`/`FutureHandle` values remain part of M6.5.
+> Callback capture escape: constructing a callback from a lambda that captures
+> non-global storage by reference, or captures a reference/view by value,
+> requires an unsafe boundary (`SAFE-UNSAFE-002`). Owned by-value captures stay
+> safe. `SAFE-LIFE-001` rejects direct/aggregate returns and follows local,
+> assignment, struct, and array taint. This closes safe construction paths for
+> the erased representation; an unsafe-created callback can still be propagated
+> by safe code, so the typed capture/frame representation remains required for
+> a complete invariant (M6.5).
 > Next in M6: concrete capture/future types for `std::function`/`FutureHandle`
 > and erased/async `Send`; capturing scoped closures follow. M6 now includes
 > join-before-return `std::thread.scoped_spawn`/`scoped_spawn_mut`,
@@ -1012,7 +1015,7 @@
 > outlive the join, so they stay on the explicit unsafe path.
 > Then remaining M5 validity (packed references), M2 C ABI, and the
 > variance/HRTB/temporary-lifetime precision items.
-> Safety suite `55`; negative tests `601`; main TCC `2354`, LLVM `2352`;
+> Safety suite `55`; negative tests `605`; main TCC `2354`, LLVM `2352`;
 > libs `730`; plugins `1305`; async `53`; interpret `1910`;
 > `MIRTests` `4643 checks`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
@@ -2602,4 +2605,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.5 (2026-10-29): M4 is complete for the enforceable surface. HRTB call-site region contracts support mutable and borrowed-return callbacks; multi-borrow callbacks are accepted for local referents by pinning their loans to function exit, while parameter/global referents are explicit `SAFE-BORROW-099` rejections. Static lifetime arguments are enforced (`SAFE-LIFE-004`), closing the container/dropck hole for `vector<G<'static>>`. Nested aggregate HRTB and capturing/multi-borrow parameter scoped threads remain.*
 *Revision note v4.6 (2026-10-30): M6 starts with join-before-return scoped borrows (`std::thread.scoped_spawn`/`scoped_spawn_mut`), `JoinHandle<T>: Sync` for `T: Send`, and generic-parameter identity fixes. General `Scope` handles, capturing scoped closures, and erased/async `Send` remain for M6.5.*
 *Revision note v4.7 (2026-10-30): M6.3 adds a multi-handle shared `scoped_run`/`ScopedScope<T>` (up to 32 workers, join-all-on-drop, unforgeable internal fields). M6.5 remains open: the current `%capture` instance wrapper is not the generated capture layout, so `std::function`/`FutureHandle` still need a concrete typed capture/frame representation before erased/async `Send` can be derived.*
-*Revision note v4.8 (2026-10-30): callback capture escape is rejected (`SAFE-LIFE-001`) for direct and aggregate returns, including taint through locals/assignments; `std::default_function_instance` fields are private. Opaque/erased escapes and `FutureHandle` still need the M6.5 typed representation.*
+*Revision note v4.8 (2026-10-30): callback capture escape is rejected (`SAFE-LIFE-001`) for direct and aggregate returns, including taint through locals/assignments; `std::default_function_instance` fields are private. By-reference and by-value reference/view captures now require an unsafe construction boundary (`SAFE-UNSAFE-002`); owned by-value captures remain safe. Opaque/erased propagation and `FutureHandle` still need the M6.5 typed representation.*

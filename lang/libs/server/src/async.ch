@@ -25,12 +25,14 @@ using std::string;
 // the synchronous `Server::S.serve`.
 public async func serve_files_async(srv : *mut Server, root : *char, port : uint = 8080u) : int {
     var fs_server = http::create_file_server(root)
-    srv.router.add("GET", "/:path*", |&fs_server|(req, res) => {
-        fs_server.serve_http(req, res)
-    })
-    srv.router.add("GET", "/", |&fs_server|(req, res) => {
-        fs_server.serve_http(req, res)
-    })
+    unsafe {
+        srv.router.add("GET", "/:path*", |&fs_server|(req, res) => {
+            fs_server.serve_http(req, res)
+        })
+        srv.router.add("GET", "/", |&fs_server|(req, res) => {
+            fs_server.serve_http(req, res)
+        })
+    }
     return await serve_coro(srv, port)
 }
 

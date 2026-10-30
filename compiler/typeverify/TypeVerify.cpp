@@ -1078,6 +1078,9 @@ void verifyComptimeArgument(ASTDiagnoser& diagnoser, BaseType* type, Value* valu
     }
 }
 
+static void require_unsafe_for_capture(
+        TypeVerifier& verifier, Value* value, BaseType* target_type, Value* location);
+
 void verifyArgumentsAreComptime(ASTDiagnoser& diagnoser, FunctionCall* call, FunctionType* func_type) {
     if(!func_type || !func_type->data.signature_resolved) return;
     unsigned i = 0;
@@ -2054,6 +2057,7 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
         const auto param = func_type->func_param_for_arg_at(i);
         if (param) {
             const auto value = call->values[i];
+            require_unsafe_for_capture(*this, value, param->type, value);
             auto implicit_constructor = param->type->implicit_constructor_for(value);
             if (implicit_constructor) {
                 // handle implicit constructor
@@ -2129,6 +2133,7 @@ void TypeVerifier::VisitStructValue(StructValue* structValue) {
         const auto member = structValue->direct_variable(val.first);
         if(member) {
             const auto mem_type = member->known_type();
+            require_unsafe_for_capture(*this, val_ptr, mem_type, value);
             auto implicit = mem_type->implicit_constructor_for(val_ptr);
             if (struct_value_static_lifetime_mismatch(
                     structValue, mem_type, value ? value->getType() : nullptr)) {
@@ -2273,7 +2278,97 @@ void verify_interface_implementation(ImplementationsIndex& index, ASTDiagnoser& 
     }
 }
 
+static Value* unwrap_capture_value(Value* value) {
+    while (value != nullptr) {
+        if (value->val_kind() == ValueKind::CastedValue) {
+            value = value->as_casted_value_unsafe()->value;
+        } else if (value->val_kind() == ValueKind::UnsafeValue) {
+            value = static_cast<UnsafeValue*>(value)->getValue();
+        } else {
+            break;
+        }
+    }
+    return value;
+}
+
+static bool capture_value_has_unsafe_marker(Value* value) {
+    while (value != nullptr) {
+        if (value->val_kind() == ValueKind::UnsafeValue) return true;
+        if (value->val_kind() == ValueKind::CastedValue) {
+            value = value->as_casted_value_unsafe()->value;
+        } else {
+            break;
+        }
+    }
+    return false;
+}
+
+static bool is_capturing_function_type(BaseType* type) {
+    if (type == nullptr) return false;
+    auto* canonical = type->canonical();
+    return canonical != nullptr &&
+           canonical->kind() == BaseTypeKind::CapturingFunction;
+}
+
+static bool capture_type_borrows(
+        BaseType* type,
+        std::unordered_set<MembersContainer*>& visiting) {
+    if (type == nullptr) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr) return false;
+    if (canonical->kind() == BaseTypeKind::Reference) {
+        auto* ref = canonical->as_reference_type_unsafe();
+        return !lifetime_name_is_static(ref->lifetime);
+    }
+    if (canonical->kind() == BaseTypeKind::Array) {
+        return capture_type_borrows(
+            const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
+            visiting);
+    }
+    if (canonical->kind() == BaseTypeKind::Generic) {
+        auto* generic = canonical->as_generic_type_unsafe();
+        for (auto& arg : generic->types) {
+            if (capture_type_borrows(const_cast<BaseType*>(arg.getType()), visiting)) return true;
+        }
+    }
+    auto* container = canonical->get_members_container();
+    if (container == nullptr) return false;
+    const std::string name = canonical->representation();
+    if (name.find("string_view") != std::string::npos ||
+        name.find("span") != std::string::npos ||
+        name.find("Chunk") != std::string::npos) {
+        return true;
+    }
+    if (!visiting.insert(container).second) return false;
+    for (auto* member : container->variables()) {
+        if (member->kind() == ASTNodeKind::StructMember) {
+            auto* field = member->as_struct_member_unsafe();
+            if (capture_type_borrows(const_cast<BaseType*>(field->type.getType()), visiting)) {
+                visiting.erase(container);
+                return true;
+            }
+        } else if (member->kind() == ASTNodeKind::VariantMember) {
+            auto* variant = member->as_variant_member_unsafe();
+            for (auto& entry : variant->values) {
+                if (entry.second && capture_type_borrows(
+                        const_cast<BaseType*>(entry.second->type.getType()), visiting)) {
+                    visiting.erase(container);
+                    return true;
+                }
+            }
+        }
+    }
+    visiting.erase(container);
+    return false;
+}
+
+static bool capture_type_borrows(BaseType* type) {
+    std::unordered_set<MembersContainer*> visiting;
+    return capture_type_borrows(type, visiting);
+}
+
 static bool captures_function_local_storage(Value* value) {
+    value = unwrap_capture_value(value);
     if (value == nullptr) return false;
     if (value->val_kind() == ValueKind::StructValue) {
         auto* sv = value->as_struct_value_unsafe();
@@ -2294,25 +2389,29 @@ static bool captures_function_local_storage(Value* value) {
     }
     auto* lambda = value->as_lambda_func_unsafe();
     for (CapturedVariable* cap : lambda->captureList) {
-        if (cap == nullptr || !cap->capture_by_ref) continue;
+        if (cap == nullptr) continue;
         ASTNode* linked = cap->linked;
         if (linked == nullptr) continue;
         bool is_global = linked->kind() == ASTNodeKind::VarInitStmt &&
                          linked->as_var_init_unsafe()->is_top_level();
         if (is_global) continue;
-        // Any by-reference capture of a non-global binding keeps a pointer
-        // into function storage (a reference local is itself such a pointer).
-        // Until the typed capture representation tracks the referent region,
-        // reject the escape conservatively.
-        return true;
+        if (cap->capture_by_ref) {
+            // The closure stores a pointer into the enclosing frame.
+            return true;
+        }
+        // A by-value capture of a reference is the same dangling pointer once
+        // the referent's frame dies; views and aggregates containing a
+        // reference have the same problem. Owned values (including string,
+        // vector, Box, Arc, Rc) contain no reference fields and stay safe.
+        if (capture_type_borrows(cap->known_type())) {
+            return true;
+        }
     }
     return false;
 }
 
 static bool captures_function_local_storage(Value* value, const std::unordered_set<VarInitStatement*>& tainted) {
-    while (value != nullptr && value->val_kind() == ValueKind::CastedValue) {
-        value = value->as_casted_value_unsafe()->value;
-    }
+    value = unwrap_capture_value(value);
     Value* identifier = value;
     if (identifier != nullptr && identifier->val_kind() == ValueKind::AccessChain) {
         auto* chain = identifier->as_access_chain_unsafe();
@@ -2329,6 +2428,22 @@ static bool captures_function_local_storage(Value* value, const std::unordered_s
         }
     }
     return false;
+}
+
+static void require_unsafe_for_capture(
+        TypeVerifier& verifier,
+        Value* value,
+        BaseType* target_type,
+        Value* location
+) {
+    if (verifier.is_unsafe || capture_value_has_unsafe_marker(value)) return;
+    if (!is_capturing_function_type(target_type)) return;
+    if (!captures_function_local_storage(value)) return;
+    verifier.diagnoser.error(location)
+        .with_code("SAFE-UNSAFE-002")
+        << "creating a callback that captures function-local storage by "
+           "reference requires an unsafe boundary until typed capture tracks "
+           "the referent lifetime";
 }
 
 void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
@@ -2356,6 +2471,9 @@ void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
     }
     if(value && captures_function_local_storage(value, capture_escape_locals)) {
         capture_escape_locals.insert(stmt);
+    }
+    if(type && value) {
+        require_unsafe_for_capture(*this, value, type, value);
     }
     if(stmt->known_type()->kind() == BaseTypeKind::Void) {
         diagnoser.error(stmt) << "variable with name '" << stmt->name_view() << "' type can't be of type void";
@@ -2683,6 +2801,7 @@ void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
     const auto lhs = assign->lhs;
     const auto value = assign->value;
     const auto lhsType = lhs->getType();
+    require_unsafe_for_capture(*this, value, lhsType, value);
 
     // check if expression is even assignable
     if(!is_assignable(lhs)) {
@@ -2765,6 +2884,7 @@ void TypeVerifier::VisitReturnStmt(ReturnStatement *node) {
             BaseType* expected_type = func && func->is_async()
                 ? func->inner_return_type()
                 : (BaseType*) func_type->returnType;
+            require_unsafe_for_capture(*this, value, expected_type, value);
             const auto implicit = expected_type->implicit_constructor_for(value);
             if (implicit &&
                 // this check means current function is not the implicit constructor we're trying to link for value

@@ -55,14 +55,17 @@ public func main(argc : int, argv : **char) : int { unsafe {
 
     var S = server.Server(cfg);
     
-    // Add catch-all route for static files
-    S.router.add("GET", "/:path*", |&fs_server|(req, res) => {
-        fs_server.serve_http(req, res);
-    });
-    // Also root
-    S.router.add("GET", "/", |&fs_server|(req, res) => {
-        fs_server.serve_http(req, res);
-    });
+    // Add catch-all route for static files. The callback borrows the local
+    // file server by reference; its lifetime is confined to this function.
+    unsafe {
+        S.router.add("GET", "/:path*", |&fs_server|(req, res) => {
+            fs_server.serve_http(req, res);
+        });
+        // Also root
+        S.router.add("GET", "/", |&fs_server|(req, res) => {
+            fs_server.serve_http(req, res);
+        });
+    }
 
     if(async_mode) {
         // Tier 6: drive the file server from the coroutine accept loop. The

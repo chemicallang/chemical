@@ -466,10 +466,12 @@ func test_concurrent_requests(env : &mut TestEnv) {
     var srv = server::Server(cfg);
     
     var request_count = 0u;
-    srv.router.add("GET", "/counter", |&mut request_count|(req, res) => {
-        *request_count = *request_count + 1u;
-        res.write_string(std::string::make_no_len("ok"));
-    });
+    unsafe {
+        srv.router.add("GET", "/counter", |&mut request_count|(req, res) => {
+            *request_count = *request_count + 1u;
+            res.write_string(std::string::make_no_len("ok"));
+        });
+    }
     
     var thread = srv.serve_async(8090u);
     std.concurrent.sleep_ms(100u);

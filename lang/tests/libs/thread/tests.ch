@@ -97,3 +97,44 @@ func thread_spawn_returns_send_value(env : &mut TestEnv) {
         env.error("safe thread result was not moved back to the caller")
     }
 }
+func scoped_increment(shared : &std::Arc<std::Mutex<int> >) {
+    var guard = shared.get().lock()
+    var value = guard.get()
+    *value = *value + 1
+}
+
+@test
+func thread_scoped_spawn_borrows_shared(env : &mut TestEnv) {
+    var shared = std::arc(std::new_mutex(0))
+    // The borrow is valid for the duration of the joining call; no 'static
+    // escape is needed.
+    std::thread.scoped_spawn<std::Arc<std::Mutex<int> > >(scoped_increment, &shared)
+    var guard = shared.get().lock()
+    if(*guard.get() != 1) {
+        env.error("scoped shared thread did not run")
+    }
+}
+
+func scoped_increment_mut(value : &mut int) {
+    *value = *value + 1
+}
+
+@test
+func thread_scoped_spawn_mut_borrows_local(env : &mut TestEnv) {
+    var value = 41
+    std::thread.scoped_spawn_mut<int>(scoped_increment_mut, &mut value)
+    if(value != 42) {
+        env.error("scoped mutable thread did not update its borrow")
+    }
+}
+
+func <T> thread_needs_sync(v : &T) : int where T : Sync { return 0 }
+
+@test
+func thread_join_handle_is_sync(env : &mut TestEnv) {
+    var h = std::thread.spawn<int, int>(thread_worker_add, 1)
+    if(thread_needs_sync(&h) != 0) {
+        env.error("JoinHandle should be Sync when T is Send")
+    }
+    h.join()
+}

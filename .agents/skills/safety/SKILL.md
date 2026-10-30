@@ -355,7 +355,7 @@ Implemented:
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
   TCC/LLVM lib runs. Safety suite `55`, negative `594`; TCC main `2354`, LLVM
-  main `2352`, libs `726`, plugins `1305`, async `53`, interpret `1910`.
+  main `2352`, libs `729`, plugins `1305`, async `53`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
   range-checked, frame places are registered individually, and globals,
@@ -372,18 +372,20 @@ Implemented:
   `call_sret` buffers, and `argv` are registered as foreign ranges for the
   exact call/run lifetime. Negative tests cover foreign integer pointers,
   cross-frame pointers, and foreign `printf("%s")` arguments.
-- M6 safe threads (first slice): `std::thread.spawn` accepts a non-capturing
-  `(T) => U` entry with `T: Send + 'static`, `U: Send + 'static`;
-  `spawn_void` is the void-returning form. `JoinHandle<T>` joins explicitly or
-  from its destructor and is `Send` when `T: Send`; `Thread.join` is public.
+- M6 safe threads: `std::thread.spawn` accepts a non-capturing `(T) => U`
+  entry with `T: Send + 'static`, `U: Send + 'static`; `spawn_void` is the
+  void-returning form. `JoinHandle<T>` joins explicitly or from its destructor
+  and is `Send + Sync` when `T: Send`; `Thread.join` is public.
   `T: 'static` is enforced for generic bounds (`SAFE-LIFE-004`), so a stack
-  reference cannot be submitted. Conditional audited `Send`/`Sync` impls were
-  added for `vector`, `deque`, `unordered_map`, and `ordered_map`. Capturing
-  closures/erased captures still use the explicit unsafe
-  `std::concurrent.spawn` path until M6.5. Guard-transfer negative tests cover
-  `MutexGuard`/`RwLockWriteGuard`. `scripts/thread-tsan.sh` runs a four-thread
-  `Arc<Mutex<int>>` smoke test under TSAN; it uses a system LLVM resource
-  directory when the bundled prebuild lacks `libclang_rt.tsan.a`.
+  reference cannot be submitted. `std::thread.scoped_spawn` / `scoped_spawn_mut`
+  join before returning and accept a non-`'static` borrowed value
+  (`T: Sync` for shared, `T: Send` for mutable), with local runtime tests.
+  General multi-handle `Scope` objects, capturing closures, and erased/async
+  captures remain on the explicit unsafe path until M6.5. Guard-transfer
+  negative tests cover `MutexGuard`/`RwLockWriteGuard`. `scripts/thread-tsan.sh`
+  runs a four-thread `Arc<Mutex<int>>` smoke test under TSAN; it uses a system
+  LLVM resource directory when the bundled prebuild lacks
+  `libclang_rt.tsan.a`.
 - S4.3b autoref / S4.7 two-phase: a reference receiver (`&self` / `&mut self`)
   now lowers to `Borrow`/`BorrowMut` instead of an untracked `AddressOf`, and
   method-call arguments are evaluated before the receiver borrow is activated.
@@ -507,14 +509,14 @@ Implemented:
 
 Next:
 
-- M6.5: erased/async `Send`. Scoped threads are
-  blocked on full M4 HRTB/region inference for capturing and multi-borrow
-  parameter callbacks: a body-local reference must not outlive the scope join,
-  which needs a higher-ranked scope lifetime. M4 is complete for the
-  enforceable surface; nested aggregate HRTB and multi-borrow callbacks with
-  parameter/global referents remain explicit `SAFE-BORROW-099` rejections.
-  Capturing closures and non-`'static` scoped borrows remain on the explicit
-  unsafe path. Then M5 packed references and M2 C ABI.
+- M6.5: erased/async `Send`. Scoped borrowing now has a sound
+  join-before-return primitive (`scoped_spawn`/`scoped_spawn_mut`); general
+  multi-handle `Scope` objects and capturing scoped closures still need full
+  region inference plus erased-capture `Send`/`'static` tracking. M4 is complete
+  for the enforceable surface; nested aggregate HRTB and multi-borrow callbacks
+  with parameter/global referents remain explicit `SAFE-BORROW-099` rejections.
+  Capturing closures and erased async frames remain on the explicit unsafe
+  path. Then M5 packed references and M2 C ABI.
 - S1.2 `'static`/bounds and S1.3a `PhantomData` are done; temporary lifetime
   extension and variance analysis move with the borrow checker (M4).
   S1.4a opt-in `Copy` is enforced (`SAFE-COPY-001`) and the in-tree tree is

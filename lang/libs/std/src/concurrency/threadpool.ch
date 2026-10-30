@@ -417,6 +417,7 @@ public namespace std {
         }
 
         unsafe impl<T> Send for JoinHandle<T> where T: Send { }
+        unsafe impl<T> Sync for JoinHandle<T> where T: Send { }
 
         // Both parameters are explicit until return-type inference from a
         // function pointer lands: `spawn<int, int>(worker, 41)`.
@@ -458,6 +459,73 @@ public namespace std {
                 }
             }
             return unsafe(std::concurrent.spawn(void_thread_entry<T>, data as *void))
+        }
+
+        @direct_init
+        public struct ScopedData<T : Sync> {
+            internal var f : (value : &T) => void
+            internal var value : *T
+        }
+
+        @direct_init
+        public struct ScopedMutData<T : Send> {
+            internal var f : (value : &mut T) => void
+            internal var value : *mut T
+        }
+
+        func <T> scoped_entry(arg : *void) : *void {
+            unsafe {
+                var data = arg as *mut ScopedData<T>
+                data.f(&*data.value)
+                delete data
+                return null
+            }
+        }
+
+        func <T> scoped_mut_entry(arg : *void) : *void {
+            unsafe {
+                var data = arg as *mut ScopedMutData<T>
+                data.f(&mut *data.value)
+                delete data
+                return null
+            }
+        }
+
+        // A scoped thread that is joined before returning. The shared value
+        // outlives the call by construction, and T: Sync makes sharing it with
+        // the worker sound. The entry is still a non-capturing function pointer;
+        // capturing scoped closures need the M6.5 erased-capture work.
+        public func <T> scoped_spawn(f : (value : &T) => void, value : &T) where T : Sync {
+            var data = unsafe(malloc(sizeof(ScopedData<T>))) as *mut ScopedData<T>
+            if(data == null) {
+                panic("failed to allocate scoped thread state")
+            }
+            unsafe {
+                new(data) ScopedData<T> {
+                    f : f,
+                    value : value as *T
+                }
+            }
+            var t = unsafe(std::concurrent.spawn(scoped_entry<T>, data as *void))
+            t.join()
+        }
+
+        // Mutable scoped thread: the borrow is exclusive for the duration of
+        // the call, and the thread is joined before it returns. T: Send is the
+        // permission to transfer mutable access to the worker.
+        public func <T> scoped_spawn_mut(f : (value : &mut T) => void, value : &mut T) where T : Send {
+            var data = unsafe(malloc(sizeof(ScopedMutData<T>))) as *mut ScopedMutData<T>
+            if(data == null) {
+                panic("failed to allocate scoped thread state")
+            }
+            unsafe {
+                new(data) ScopedMutData<T> {
+                    f : f,
+                    value : value as *mut T
+                }
+            }
+            var t = unsafe(std::concurrent.spawn(scoped_mut_entry<T>, data as *void))
+            t.join()
         }
     }
 

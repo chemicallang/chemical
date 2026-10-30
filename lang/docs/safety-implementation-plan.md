@@ -962,15 +962,18 @@
 > non-capturing `(T) => U` entry with `T: Send + 'static` and
 > `U: Send + 'static`; `std::thread.spawn_void` is the void-returning form.
 > `std::thread.JoinHandle<T>` joins on explicit `join()` or destructor and is
-> `Send` when `T: Send`; `std::concurrent.Thread.join` is now public. A
+> `Send + Sync` when `T: Send`; `std::concurrent.Thread.join` is now public.
+> `std::thread.scoped_spawn`/`scoped_spawn_mut` join before returning and accept
+> a non-`'static` borrowed value (`T: Sync` shared, `T: Send` mutable), with
+> runtime tests for both. A
 > non-`Send` argument (`Rc`, raw pointer) is rejected by the existing auto-trait
 > checker, and `T: 'static` is now enforced for generic bounds
 > (`SAFE-LIFE-004`): a reference into the caller's stack (directly or in a struct
 > field) cannot escape into a thread. `vector`, `deque`, `unordered_map`, and
 > `ordered_map` gained audited
 > conditional `Send`/`Sync` impls; `string`/`u16string` remain owned values.
-> Capturing closures and erased captures still use the explicit unsafe
-> `std::concurrent.spawn` path until M6.5.
+> General multi-handle `Scope` objects, capturing closures, and erased captures
+> still use the explicit unsafe `std::concurrent.spawn` path until M6.5.
 > **M6.2 TSAN:** `scripts/thread-tsan.sh` builds
 > `lang/tests/thread_tsan/chemical.mod` with `--tsan` and runs four safe
 > threads sharing `Arc<Mutex<int>>` (4000 serialized increments). The bundled
@@ -978,8 +981,10 @@
 > system LLVM resource directory (or honors `CHEMICAL_TSAN_RESOURCES`) and
 > fails rather than silently dropping the sanitizer. Guard-transfer negative
 > tests cover `MutexGuard` and `RwLockWriteGuard`.
-> Next in M6: erased/async `Send` and remaining guard/auto-trait audit.
-> M4 is complete for the enforceable language surface: NLL/loans, storage
+> Next in M6: erased/async `Send` and general multi-handle scoped threads.
+> M6 now includes join-before-return `std::thread.scoped_spawn`/
+> `scoped_spawn_mut` (non-`'static` borrows, `T: Sync`/`T: Send`) and
+> `JoinHandle<T>: Sync` when `T: Send`. M4 is complete for the enforceable language surface: NLL/loans, storage
 > lifetimes, return regions, variance, temporary extension, provenance,
 > static-lifetime enforcement, Pin/Waker/async-frame checks, and HRTB call
 > regions are implemented. Remaining parity precision is limited to nested
@@ -993,7 +998,7 @@
 > Then remaining M5 validity (packed references), M2 C ABI, and the
 > variance/HRTB/temporary-lifetime precision items.
 > Safety suite `55`; negative tests `594`; main TCC `2354`, LLVM `2352`;
-> libs `726`; plugins `1305`; async `53`; interpret `1910`;
+> libs `729`; plugins `1305`; async `53`; interpret `1910`;
 > `MIRTests` `4643 checks`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
@@ -2580,3 +2585,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.3 (2026-10-29): S4.2/S1.2 temporary lifetime extension is implemented for variable initializers, including aggregate fields; statement-scoped temporaries now end their storage and are rejected when borrowed past the statement.*
 *Revision note v4.4 (2026-10-29): S4.2 higher-ranked function types are implemented: `for<'a>` parsing, binder scope, elided/generic source compatibility, lifetime-only generic function values, and `MIRRegionSignature::hrtb_binders`.*
 *Revision note v4.5 (2026-10-29): M4 is complete for the enforceable surface. HRTB call-site region contracts support mutable and borrowed-return callbacks; multi-borrow callbacks are accepted for local referents by pinning their loans to function exit, while parameter/global referents are explicit `SAFE-BORROW-099` rejections. Static lifetime arguments are enforced (`SAFE-LIFE-004`), closing the container/dropck hole for `vector<G<'static>>`. Nested aggregate HRTB and capturing/multi-borrow parameter scoped threads remain.*
+*Revision note v4.6 (2026-10-30): M6 starts with join-before-return scoped borrows (`std::thread.scoped_spawn`/`scoped_spawn_mut`), `JoinHandle<T>: Sync` for `T: Send`, and generic-parameter identity fixes. General `Scope` handles, capturing scoped closures, and erased/async `Send` remain for M6.5.*

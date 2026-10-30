@@ -106,7 +106,7 @@ bool LinkedType::is_same(BaseType *other) {
                         }
                         i++;
                     }
-                    return false;
+                    return true;
                 }
             } else {
                 return linked == other_linked;

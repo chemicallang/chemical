@@ -1,6 +1,17 @@
 {
-  "generated_at": "2026-10-29T09:38:48Z",
+  "generated_at": "2026-10-30T09:50:59Z",
   "daily": [
+    "2026-10-30-windows-x64",
+    "2026-10-30-windows-mingw-x64",
+    "2026-10-30-windows-mingw-msvcrt-x64",
+    "2026-10-30-windows-mingw-arm64",
+    "2026-10-30-windows-arm64",
+    "2026-10-30-macos-x64",
+    "2026-10-30-macos-arm64",
+    "2026-10-30-linux-x64",
+    "2026-10-30-linux-arm64",
+    "2026-10-30-linux-alpine-x64",
+    "2026-10-30-linux-alpine-arm64",
     "2026-10-29-windows-x64",
     "2026-10-29-windows-mingw-x64",
     "2026-10-29-windows-mingw-msvcrt-x64",

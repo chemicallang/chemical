@@ -214,6 +214,41 @@ func neg_spawn_closure_rc_capture_rejected(env : &mut TestEnv) {
 }
 
 @test
+func neg_erased_callback_return_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func passthrough(f : std::function<() => int>) : std::function<() => int> {\n    return f\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "erased_callback_return", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_scoped_spawn_closure_rc_capture_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var r = std::rc(5)\n    std::thread.scoped_spawn_closure(|r|() => { var x = *r.get() })\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "scoped_closure_rc", ch, "does not satisfy where clause constraint 'C : Send'", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_async_spawn_send_rc_frame_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work() : int {\n    var r = std::rc(5)\n    var u = await async::yield_now()\n    return *r.get()\n}\npublic func main() : int {\n    var h = async::spawn_send(work())\n    return async::block_on<int>(h)\n}\n"
+    expect_compile_error_with_mod(env, "async_spawn_send_rc", ch, "SAFE-SEND-001", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_async_spawn_send_borrowed_frame_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work() : int {\n    var n = 5\n    var r = &n\n    var u = await async::yield_now()\n    return *r\n}\npublic func main() : int {\n    var h = async::spawn_send(work())\n    return async::block_on<int>(h)\n}\n"
+    expect_compile_error_with_mod(env, "async_spawn_send_borrow", ch, "SAFE-SEND-001", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_async_spawn_send_stored_future_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work() : int {\n    var u = await async::yield_now()\n    return 1\n}\npublic func main() : int {\n    var h = work()\n    var h2 = async::spawn_send(h)\n    return async::block_on<int>(h2)\n}\n"
+    expect_compile_error_with_mod(env, "async_spawn_send_stored", ch, "SAFE-SEND-001", NEG_MOD_ASYNC_STD)
+}
+
+@test
 func neg_spawn_closure_borrowed_capture_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var x = 5\n    unsafe {\n        var h = std::thread.spawn_closure(|&x|() => { return *x })\n        return h.join()\n    }\n}\n"

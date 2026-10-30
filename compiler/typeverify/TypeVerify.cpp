@@ -1669,6 +1669,76 @@ static bool type_satisfies_static_bound(
     return true;
 }
 
+// Does this type carry a callback whose capture witness still borrows a
+// non-'static referent? Such a value must not be returned from a safe function:
+// the caller would receive a callback pointing into the returning frame. This
+// covers callbacks reached through identifiers and aggregates, not only a
+// lambda literal.
+static bool contains_borrowed_capturing_function(
+        BaseType* type,
+        std::unordered_set<MembersContainer*>& visiting) {
+    if (type == nullptr) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr) return false;
+    switch (canonical->kind()) {
+        case BaseTypeKind::CapturingFunction: {
+            auto* cap = canonical->as_capturing_func_type_unsafe();
+            // Erased witnesses are handled at the direct return boundary; a
+            // struct with an ordinary std::function field is not itself a
+            // borrowed callback.
+            if (!cap->capture_env) return false;
+            std::unordered_set<MembersContainer*> static_visiting;
+            return !type_satisfies_static_bound(cap->capture_env, static_visiting);
+        }
+        case BaseTypeKind::Array:
+            return contains_borrowed_capturing_function(
+                const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
+                visiting);
+        case BaseTypeKind::Pointer:
+            return contains_borrowed_capturing_function(
+                const_cast<BaseType*>(canonical->as_pointer_type_unsafe()->type),
+                visiting);
+        case BaseTypeKind::Reference:
+            return contains_borrowed_capturing_function(
+                const_cast<BaseType*>(canonical->as_reference_type_unsafe()->type),
+                visiting);
+        case BaseTypeKind::Generic: {
+            auto* gen = canonical->as_generic_type_unsafe();
+            for (auto& arg : gen->types) {
+                if (contains_borrowed_capturing_function(
+                        const_cast<BaseType*>(arg.getType()), visiting)) return true;
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    auto* container = canonical->get_members_container();
+    if (container == nullptr) return false;
+    if (!visiting.insert(container).second) return false;
+    for (auto* member : container->variables()) {
+        if (member->kind() == ASTNodeKind::StructMember) {
+            auto* field = member->as_struct_member_unsafe();
+            if (contains_borrowed_capturing_function(
+                    const_cast<BaseType*>(field->type.getType()), visiting)) {
+                visiting.erase(container);
+                return true;
+            }
+        } else if (member->kind() == ASTNodeKind::VariantMember) {
+            auto* variant = member->as_variant_member_unsafe();
+            for (auto& entry : variant->values) {
+                if (entry.second && contains_borrowed_capturing_function(
+                        const_cast<BaseType*>(entry.second->type.getType()), visiting)) {
+                    visiting.erase(container);
+                    return true;
+                }
+            }
+        }
+    }
+    visiting.erase(container);
+    return false;
+}
+
 static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
     auto func = call->safe_linked_func();
     if (!func || !func->where_clause) return;
@@ -1920,9 +1990,99 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
     }
 }
 
+// Collect every local declaration (and parameter) that may live in an async
+// frame. Nested lambda/function bodies are separate frames; their captured
+// values still appear in the enclosing local's type.
+class AsyncFrameTypeCollector : public RecursiveVisitor<AsyncFrameTypeCollector> {
+public:
+    std::vector<BaseType*> types;
+
+    void VisitVarInitStmt(VarInitStatement* init) {
+        if (init != nullptr && init->known_type() != nullptr) {
+            types.push_back(init->known_type());
+        }
+    }
+
+    void VisitLambdaFunction(LambdaFunction*) {}
+    void VisitFunctionDecl(FunctionDeclaration*) {}
+};
+
+static void verify_async_send_frame(TypeVerifier& verifier, FunctionCall* call) {
+    if (call == nullptr || call->values.empty()) return;
+    Value* value = call->values[0];
+    while (value != nullptr) {
+        if (value->val_kind() == ValueKind::CastedValue) {
+            value = value->as_casted_value_unsafe()->value;
+        } else if (value->val_kind() == ValueKind::UnsafeValue) {
+            value = static_cast<UnsafeValue*>(value)->getValue();
+        } else if (value->val_kind() == ValueKind::AccessChain &&
+                   value->as_access_chain_unsafe()->values.size() == 1) {
+            value = value->as_access_chain_unsafe()->values[0];
+        } else {
+            break;
+        }
+    }
+    if (value == nullptr || value->val_kind() != ValueKind::FunctionCall) {
+        verifier.diagnoser.error(call).with_code("SAFE-SEND-001")
+            << "cannot prove this future's frame is Send; submit the result of a "
+               "direct async function call (not a stored/erased future handle)";
+        return;
+    }
+    auto* future_call = value->as_func_call_unsafe();
+    FunctionDeclaration* future_fn = future_call->safe_linked_func();
+    if (future_fn == nullptr || !future_fn->is_async() || !future_fn->body.has_value()) {
+        verifier.diagnoser.error(call).with_code("SAFE-SEND-001")
+            << "cannot prove this future's frame is Send; the operand is not a "
+               "direct async function call with a visible body";
+        return;
+    }
+
+    AsyncFrameTypeCollector collector;
+    for (FunctionParam* param : future_fn->params) {
+        if (param != nullptr && param->type != nullptr) {
+            collector.types.push_back(const_cast<BaseType*>(param->type.getType()));
+        }
+    }
+    collector.VisitScope(&future_fn->body.value());
+
+    for (BaseType* type : collector.types) {
+        if (type == nullptr) continue;
+        if (type->canonical()->kind() == BaseTypeKind::Void) continue;
+        std::unordered_set<MembersContainer*> visiting;
+        if (!type_satisfies_auto_trait(type, AutoTraitKind::Send, visiting,
+                                       &verifier.index,
+                                       (ASTNode*) verifier.coreNodes.send_interface,
+                                       (ASTNode*) verifier.coreNodes.sync_interface)) {
+            verifier.diagnoser.error(call).with_code("SAFE-SEND-001")
+                << "async frame value of type '" << type->representation()
+                << "' is not Send; move it to a synchronized/owned type or keep "
+                   "the future on the current thread";
+            return;
+        }
+        std::unordered_set<MembersContainer*> static_visiting;
+        if (!type_satisfies_static_bound(type, static_visiting)) {
+            verifier.diagnoser.error(call).with_code("SAFE-SEND-001")
+                << "async frame value of type '" << type->representation()
+                << "' borrows non-'static storage; submit an async function that "
+                   "owns all values it uses across an await";
+            return;
+        }
+    }
+}
+
 void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
     for (auto* value : call->values) check_index_move(value);
+    FunctionDeclaration* linked_call = call->safe_linked_func();
+    const bool scoped_capture_call = linked_call != nullptr &&
+        (linked_call->name_view() == chem::string_view("scoped_spawn_closure") ||
+         linked_call->name_view() == chem::string_view("scoped_run_closure"));
+    const bool prev_scoped_capture = allow_scoped_capture;
+    if (scoped_capture_call) allow_scoped_capture = true;
     RecursiveVisitor<TypeVerifier>::VisitFunctionCall(call);
+    allow_scoped_capture = prev_scoped_capture;
+    if (linked_call != nullptr && linked_call->name_view() == chem::string_view("spawn_send")) {
+        verify_async_send_frame(*this, call);
+    }
     // verifying the call mutability (self param is mutable and all that...)
     verify_call_mutability(*this, call);
     // this verifies comptimeness of arguments
@@ -2116,7 +2276,10 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
         const auto param = func_type->func_param_for_arg_at(i);
         if (param) {
             const auto value = call->values[i];
+            const bool prev_capture = allow_scoped_capture;
+            allow_scoped_capture = allow_scoped_capture || scoped_capture_call;
             require_unsafe_for_capture(*this, value, param->type, value);
+            allow_scoped_capture = prev_capture;
             auto implicit_constructor = param->type->implicit_constructor_for(value);
             if (implicit_constructor) {
                 // handle implicit constructor
@@ -2495,7 +2658,8 @@ static void require_unsafe_for_capture(
         BaseType* target_type,
         Value* location
 ) {
-    if (verifier.is_unsafe || capture_value_has_unsafe_marker(value)) return;
+    if (verifier.is_unsafe || verifier.allow_scoped_capture ||
+        capture_value_has_unsafe_marker(value)) return;
     if (!is_capturing_function_type(target_type)) return;
     if (!captures_function_local_storage(value)) return;
     verifier.diagnoser.error(location)
@@ -2975,6 +3139,20 @@ void TypeVerifier::VisitReturnStmt(ReturnStatement *node) {
                 ? func->inner_return_type()
                 : (BaseType*) func_type->returnType;
             require_unsafe_for_capture(*this, value, expected_type, value);
+            if (value != nullptr && value->getType() != nullptr) {
+                BaseType* returned = value->getType()->canonical();
+                bool erased_callback = returned != nullptr &&
+                    returned->kind() == BaseTypeKind::CapturingFunction &&
+                    !returned->as_capturing_func_type_unsafe()->capture_env;
+                std::unordered_set<MembersContainer*> capture_visiting;
+                if (erased_callback ||
+                    contains_borrowed_capturing_function(value->getType(), capture_visiting)) {
+                    diagnoser.error(value).with_code("SAFE-LIFE-001")
+                        << "cannot return a callback whose capture environment borrows \
+function-local storage or is erased; keep the callback call-scoped or use a \
+callback type carrying its capture witness";
+                }
+            }
             const auto implicit = expected_type->implicit_constructor_for(value);
             if (implicit &&
                 // this check means current function is not the implicit constructor we're trying to link for value

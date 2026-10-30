@@ -73,11 +73,13 @@ void SymbolResolver::link_core_nodes() {
         }
         const auto sendNode = find("Send");
         if(sendNode && sendNode->kind() == ASTNodeKind::InterfaceDecl) {
-            sendNode->as_interface_def_unsafe()->interface_bits.set(InterfaceBits::SEND_BIT);
+            coreNodes.send_interface = sendNode->as_interface_def_unsafe();
+            coreNodes.send_interface->interface_bits.set(InterfaceBits::SEND_BIT);
         }
         const auto syncNode = find("Sync");
         if(syncNode && syncNode->kind() == ASTNodeKind::InterfaceDecl) {
-            syncNode->as_interface_def_unsafe()->interface_bits.set(InterfaceBits::SYNC_BIT);
+            coreNodes.sync_interface = syncNode->as_interface_def_unsafe();
+            coreNodes.sync_interface->interface_bits.set(InterfaceBits::SYNC_BIT);
         }
         const auto unpinNode = find("Unpin");
         if(unpinNode && unpinNode->kind() == ASTNodeKind::InterfaceDecl) {

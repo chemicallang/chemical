@@ -168,6 +168,13 @@ public:
     InterfaceDefinition* zeroable_interface = nullptr;
 
     /**
+     * The `Send` / `Sync` marker interfaces. Cached so structural checks can
+     * honor audited `unsafe impl` overrides without re-resolving names.
+     */
+    InterfaceDefinition* send_interface = nullptr;
+    InterfaceDefinition* sync_interface = nullptr;
+
+    /**
      * get information about operator being overloaded, like function name to use
      */
     FunctionDeclaration* expr_operator_impl_base(Operation op) const {

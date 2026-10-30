@@ -746,7 +746,7 @@
 > frame field while the reference is still used (`SAFE-BORROW-002`); a borrow
 > that ends before the move is accepted. A view built from a pointer-returning
 > method (`s.data()`) inherits the receiver's loan too. `MIRTests` is `4638
-> checks`; negative tests `498`; async suite `53`.
+> checks`; negative tests `498`; async suite `54`.
 > S4.2/S1.2 temporary lifetime extension: a call result borrowed by a `var`
 > initializer (`var r = &make()`, `var h = H { r : &make() }`) is now a
 > block-local destructible rather than a statement temporary. The extended
@@ -760,7 +760,7 @@
 > `Load` now counts as a use of the field's loan, so the escape is detected
 > even when the field is reached through an address. Runtime tests cover the
 > destructor order for direct and aggregate borrows; negative tests cover both
-> non-extending forms. Safety suite `55`; negative tests `608`.
+> non-extending forms. Safety suite `55`; negative tests `613`.
 > S4.2 higher-ranked function types: `for<'a, 'b> (x : &'a T) => R` parses into
 > `FunctionType::binder_lifetimes`; the binders are in scope only inside that
 > function type, duplicates are rejected, and `SAFE-BORROW-099` rejects an
@@ -782,7 +782,7 @@
 > **Static lifetime enforcement:** assigning a shorter reference or generic
 > lifetime argument to a `'static` target is `SAFE-LIFE-004`. This closes the
 > container/dropck hole where a `vector<G<'static>>` could accept a `G<'a>`
-> built from a stack borrow. Safety suite `55`; negative tests `608`;
+> built from a stack borrow. Safety suite `55`; negative tests `613`;
 > `MIRTests` `4643 checks`.
 > M5.5b float→int: every `as` cast from float/double to an integer width now
 > lowers to explicit blocks that map NaN to zero and saturate values below the
@@ -1005,8 +1005,14 @@
 > variables acquire it from lambda initializers, and `std::typed_function<F,C>`
 > exposes it. Safe `std::thread.spawn_closure`/`spawn_void_closure` infer `C` and
 > require `C: Send + 'static`; owned captures run safely, `Rc` and borrowed
-> captures are rejected. `FutureHandle` frame witnesses, capturing scoped
-> closures, heterogeneous scopes, and unsafe-created callback propagation remain.
+> captures are rejected. Safe `async::spawn_send` adds a compiler frame check
+> (`SAFE-SEND-001`): a direct async call is accepted only when every frame
+> parameter/local is `Send + 'static`; stored/erased futures are rejected.
+> `FutureHandle` itself remains erased/`!Send`, so a type-level frame witness,
+> heterogeneous scopes, and complete unsafe-created callback propagation
+> remain. Capturing scoped closures are covered by
+> `std::thread.scoped_spawn_closure`: the witness may borrow caller storage
+> (`C: Send`, not `'static`) because the worker is joined inside the call.
 > Next in M6: a frame witness for `FutureHandle` and conditional async `Send`;
 > capturing scoped closures follow. M6 now includes
 > join-before-return `std::thread.scoped_spawn`/`scoped_spawn_mut`,
@@ -1023,8 +1029,8 @@
 > outlive the join, so they stay on the explicit unsafe path.
 > Then remaining M5 validity (packed references), M2 C ABI, and the
 > variance/HRTB/temporary-lifetime precision items.
-> Safety suite `55`; negative tests `608`; main TCC `2355`, LLVM `2353`;
-> libs `730`; plugins `1305`; async `53`; interpret `1910`;
+> Safety suite `55`; negative tests `613`; main TCC `2356`, LLVM `2354`;
+> libs `730`; plugins `1305`; async `54`; interpret `1910`;
 > `MIRTests` `4643 checks`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
@@ -2615,3 +2621,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.7 (2026-10-30): M6.3 adds a multi-handle shared `scoped_run`/`ScopedScope<T>` (up to 32 workers, join-all-on-drop, unforgeable internal fields). M6.5 remains open: the current `%capture` instance wrapper is not the generated capture layout, so `std::function`/`FutureHandle` still need a concrete typed capture/frame representation before erased/async `Send` can be derived.*
 *Revision note v4.8 (2026-10-30): callback capture escape is rejected (`SAFE-LIFE-001`) for direct and aggregate returns, including taint through locals/assignments; `std::default_function_instance` fields are private. By-reference and by-value reference/view captures now require an unsafe construction boundary (`SAFE-UNSAFE-002`); owned by-value captures remain safe. Opaque/erased propagation and `FutureHandle` still need the M6.5 typed representation.*
 *Revision note v4.9 (2026-10-30): M6.5 starts with a typed capture-environment witness on capturing function types. Lambdas build a synthetic capture environment at symbol resolution; auto traits and `'static` bounds derive from the captured fields. Plain `std::function` variables acquire the witness from their initializer, `std::typed_function<F,C>` exposes it, and safe `spawn_closure`/`spawn_void_closure` enforce `C: Send + 'static`. Owned captures are accepted; `Rc` and borrowed captures are rejected. `FutureHandle` frame witnesses and capturing scoped closures remain.*
+*Revision note v4.10 (2026-10-30): safe async submission starts with `async::spawn_send` and `SAFE-SEND-001`. The compiler walks a direct async callee's frame parameters and locals and requires each to be `Send + 'static`; stored/erased future handles are rejected because the frame cannot be proven. `FutureHandle` itself remains erased/`!Send` until a type-level frame witness is threaded through async lowering.*
+*Revision note v4.11 (2026-10-30): capturing scoped closures are safe through `std::thread.scoped_spawn_closure`. The call-site type check permits a borrowed capture witness only at this audited join-before-return boundary; `C: Send` still rejects `Rc` and other non-thread-safe captures. Safe async submission is covered by `async::spawn_send` (`SAFE-SEND-001`) for direct async calls; `FutureHandle` itself remains erased/`!Send`.*

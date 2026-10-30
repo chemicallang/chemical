@@ -65,6 +65,13 @@ public:
     bool is_unsafe = false;
 
     /**
+     * Set while visiting the arguments of a join-before-return scoped API.
+     * Its closure may borrow caller storage because the worker is joined before
+     * the call returns; the API implementation is audited to never store it.
+     */
+    bool allow_scoped_capture = false;
+
+    /**
      * Locals initialized with a function value that borrows function-local
      * storage by reference. These cannot escape through a return until the
      * typed capture representation lands (M6.5).

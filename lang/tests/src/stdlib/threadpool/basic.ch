@@ -377,6 +377,15 @@ func test_spawn_closure_owned_capture() : bool {
     return h.join() == 42
 }
 
+// 14) Capturing scoped closure with a borrowed stack value
+func test_scoped_spawn_closure_borrow() : bool {
+    var n = 5
+    std::thread.scoped_spawn_closure(|&mut n|() => {
+        *n = *n + 1
+    })
+    return n == 6
+}
+
 // main: run tests
 func test_thread_pool() {
         unsafe {
@@ -395,6 +404,7 @@ func test_thread_pool() {
         // test("test_large_return_future", test_large_return_future);
         test("test_mixed_quick_tasks", test_mixed_quick_tasks);
         test("test_spawn_closure_owned_capture", test_spawn_closure_owned_capture);
+        test("test_scoped_spawn_closure_borrow", test_scoped_spawn_closure_borrow);
 
         }
     }

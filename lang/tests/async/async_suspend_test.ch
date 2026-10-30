@@ -525,3 +525,19 @@ func test_async_suspend_moved_array(env : &mut TestEnv) {
 
         }
     }
+
+// Safe cross-thread submission: the compiler checks every frame local and
+// parameter is Send + 'static before allowing spawn_send.
+async func send_frame_work() : int {
+    var s = std::string("hi")
+    var u = await async::yield_now()
+    return s.size() as int
+}
+
+@test
+func test_async_spawn_send_owned_frame(env : &mut TestEnv) {
+    var r = async::block_on<int>(async::spawn_send(send_frame_work()))
+    if(r != 2) {
+        env.error("spawn_send should run an owned-Send frame")
+    }
+}

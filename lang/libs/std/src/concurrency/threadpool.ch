@@ -385,6 +385,11 @@ public namespace std {
             internal var f : %capture<() => void, std::default_function_instance>
         }
 
+        @direct_init
+        public struct ScopedClosureSpawnData {
+            internal var f : %capture<() => void, std::default_function_instance>
+        }
+
         func <T, U> thread_entry(arg : *void) : *void {
             unsafe {
                 var data = arg as *mut SpawnData<T, U>
@@ -419,6 +424,15 @@ public namespace std {
         func void_closure_thread_entry(arg : *void) : *void {
             unsafe {
                 var data = arg as *mut VoidClosureSpawnData
+                data.f()
+                delete data
+                return null
+            }
+        }
+
+        func scoped_closure_thread_entry(arg : *void) : *void {
+            unsafe {
+                var data = arg as *mut ScopedClosureSpawnData
                 data.f()
                 delete data
                 return null
@@ -541,6 +555,26 @@ public namespace std {
                 }
             }
             return unsafe(std::concurrent.spawn(void_closure_thread_entry, data as *void))
+        }
+
+        // A capturing closure whose borrowed captures are confined to this
+        // call: the worker is joined before returning. Construction is allowed
+        // without `unsafe` only at this audited call boundary; the capture
+        // witness must still be Send (so `&T` requires `T: Sync`), but it does
+        // not need to be `'static` because the call never returns with the
+        // worker alive.
+        public func <C> scoped_spawn_closure(f : %capture<() => void, std::default_function_instance, C>) where C : Send {
+            var data = unsafe(malloc(sizeof(ScopedClosureSpawnData))) as *mut ScopedClosureSpawnData
+            if(data == null) {
+                panic("failed to allocate scoped closure state")
+            }
+            unsafe {
+                new(data) ScopedClosureSpawnData {
+                    f : f
+                }
+            }
+            var t = unsafe(std::concurrent.spawn(scoped_closure_thread_entry, data as *void))
+            t.join()
         }
 
         @direct_init

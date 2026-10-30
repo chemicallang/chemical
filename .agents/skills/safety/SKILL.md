@@ -40,6 +40,8 @@ Implemented:
   - `SAFE-GLOBAL-002` — immutable global whose type is not `Sync`.
   - `SAFE-ZERO-001` — safe zero-initialization of a type that does not implement
     `Zeroable`.
+  - `SAFE-SEND-001` — a future frame submitted to `async::spawn_send` is not
+    provably `Send + 'static` (direct async calls only).
 - Negative harness accepts both `error:` and `error[SAFE-` and has
   `expect_compile_warning_id`.
 - Safety suite at `lang/tests/safety/` (`--safety`), wired through
@@ -263,7 +265,7 @@ Implemented:
   dropping another frame field while the reference is still used
   (`SAFE-BORROW-002`); a borrow that ends before the move is accepted. A view
   built from a pointer-returning method (`s.data()`) inherits the receiver's
-  loan too. Negative tests `498`; async suite `53`.
+  loan too. Negative tests `498`; async suite `54`.
 - S4.2/S1.2 temporary lifetime extension: a call result borrowed by a `var`
   initializer is registered as a block-local destructible instead of a
   statement temporary. The extended temporary is inserted before its owner in
@@ -274,7 +276,7 @@ Implemented:
   Statement temporaries now emit `StorageDead`, and `FieldAddr` + `Load` reads
   count as uses of the stored field loan, covering pointer-based field access.
   Runtime tests check direct and aggregate destructor order; negative tests
-  cover both non-extending forms. Safety suite `55`; negative tests `608`.
+  cover both non-extending forms. Safety suite `55`; negative tests `613`.
 - S4.2 higher-ranked function types: `for<'a, 'b> (x : &'a T) => R` parses into
   `FunctionType::binder_lifetimes`; binders are scoped to the function type,
   duplicate binders are rejected, and lifetime-only generic function values
@@ -293,7 +295,7 @@ Implemented:
   argument cannot satisfy `'static` (`SAFE-LIFE-004`). This closes the
   `vector<G<'static>>` dropck hole where a `G<'a>` built from a stack borrow
   could be stored and dropped after the referent.
-  Safety suite `55`; negative tests `608`; `MIRTests` `4643 checks`.
+  Safety suite `55`; negative tests `613`; `MIRTests` `4643 checks`.
 - M5.5b float→int: `as` casts from float/double to integer widths lower to
   explicit blocks (NaN → 0, out-of-range → destination minimum/maximum) instead
   of C/LLVM `fptosi` UB. LLVM float `Ne` is `fcmp une`, matching C's
@@ -334,7 +336,7 @@ Implemented:
   alignment and sizes above `isize::MAX`. `SAFE-FFI-002` rejects `@extern`
   functions passing/returning struct/union/variant by value until target C ABI
   classification is implemented (pointer FFI is still allowed). Safety suite
-  `55`, negative tests `608`.
+  `55`, negative tests `613`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -354,8 +356,8 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `55`, negative `608`; TCC main `2355`, LLVM
-  main `2352`, libs `730`, plugins `1305`, async `53`, interpret `1910`.
+  TCC/LLVM lib runs. Safety suite `55`, negative `613`; TCC main `2356`, LLVM
+  main `2354`, libs `730`, plugins `1305`, async `54`, interpret `1910`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
   range-checked, frame places are registered individually, and globals,
@@ -392,9 +394,17 @@ Implemented:
   exposes it explicitly. New safe entries `std::thread.spawn_closure` and
   `spawn_void_closure` infer `C`, enforce `C: Send + 'static`, and run the
   closure on a worker; `Rc` captures fail `C: Send`, borrowed captures fail
-  `'static`, and owned captures pass. `FutureHandle` frame witnesses, capturing
-  scoped closures, heterogeneous scopes, and propagation of an unsafe-created
-  borrowed callback through safe code remain.
+  `'static`, and owned captures pass. Safe `async::spawn_send` performs a
+  compiler frame check (`SAFE-SEND-001`): the operand must be a direct async
+  function call and every parameter/local in its frame must be `Send +
+  'static`; owned frames run, `Rc` and borrowed frames are rejected. A stored
+  or erased future is rejected because its frame cannot be proven. `FutureHandle`
+  itself still carries an erased frame and remains `!Send`; a frame witness on
+  the handle, heterogeneous scopes, and complete propagation of unsafe-created
+  borrowed callbacks remain. `std::thread.scoped_spawn_closure` is the safe
+  join-before-return form for a capturing closure: its witness may borrow
+  caller storage (`C: Send`, not `'static`) because the worker is joined inside
+  the call; `Rc` captures are still rejected.
 - M6 safe threads: `std::thread.spawn` accepts a non-capturing `(T) => U`
   entry with `T: Send + 'static`, `U: Send + 'static`; `spawn_void` is the
   void-returning form. `JoinHandle<T>` joins explicitly or from its destructor
@@ -438,7 +448,7 @@ Implemented:
   carry one explicit unsafe boundary around their raw context/job operations.
   Wrapping generic bodies exposed a missing `ValueNode::copy`, now implemented.
   In-tree stdlib/CBI/plugin/build.lab call sites were migrated; audit baseline
-  is `unsafe_blocks 575`, `unsafe_values 441`; negative `608`.
+  is `unsafe_blocks 576`, `unsafe_values 441`; negative `613`.
 - S2.2/S4.8 function pointers: `FunctionTypeData::requires_unsafe` is part of
   function type identity and is set for `unsafe func` and `@extern`. Calling a
   value of such a type in safe context is `SAFE-UNSAFE-002`; coercing it to a
@@ -784,6 +794,7 @@ Codes are stable and grouped by domain:
 | `SAFE-VALID-*` | invalid values / transmute / packed |
 | `SAFE-BOUNDS-*` | indexing |
 | `SAFE-OVERFLOW-*` | arithmetic |
+| `SAFE-SEND-001` | future frame is not provably `Send + 'static` (safe async submission) |
 | `SAFE-SEND-*` | Send/Sync / races |
 | `SAFE-UNSAFE-*` | unsafe boundary |
 | `SAFE-PROV-001` | reference created from a raw pointer in safe context (provenance, enforced) |

@@ -42,8 +42,9 @@ A language is only valuable if it satisfies all four:
 **Implementation status (2026-10-31).** “Complete memory safety” is the
 requirement, not a claim that parity is finished. The enforced surface (M0, M3,
 and the enforceable M4/M5/M6 rules) is green, but the open gaps include
-`FutureHandle` type-level lifetime/frame-witness expressiveness (direct borrow
-tracking and `SAFE-LIFE-005` landed), the full target-aware C ABI (LLVM now
+`FutureHandle<'a, T>`/frame-witness expressiveness (direct borrow tracking,
+`SAFE-LIFE-005`, and the `'static`/elided frame lifetime landed; full call-site
+inference remains), the full target-aware C ABI (LLVM now
 rejects unsupported targets instead of miscompiling), `dyn` having no
 auto-trait bounds, and the missing `FnOnce`/`FnMut`/`Fn` callable model. Load
 the `safety` skill and read `lang/docs/safety-implementation-plan.md` §4.5

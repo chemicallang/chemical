@@ -679,7 +679,15 @@ bool BaseType::isPointerOrReferenceCanonical() {
 
 bool BaseType::satisfies(Value* value, bool assignment) {
     const auto val_type = value->getType();
-    return satisfies(val_type->canonical());
+    if (val_type == nullptr) return false;
+    // Preserve a GenericType's type/lifetime arguments. `canonical()` can
+    // unwrap it to a LinkedType, which loses the lifetime args and makes two
+    // identical `Foo<'static, T>` values compare unequal.
+    const auto other = (val_type->kind() == BaseTypeKind::Generic &&
+                        kind() == BaseTypeKind::Generic)
+                           ? val_type
+                           : val_type->canonical();
+    return satisfies(other);
 }
 
 unsigned BaseType::type_alignment(const TargetData& data) {

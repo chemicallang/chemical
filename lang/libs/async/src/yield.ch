@@ -42,7 +42,7 @@ func yield_drop(frame : *mut void) {
         }
     }
 
-public func yield_now() : core::async::FutureHandle<core::async::Unit> {
+public func yield_now() : core::async::FutureHandle<'static, core::async::Unit> {
         unsafe {
         var st = unsafe(malloc(sizeof(YieldState))) as *mut YieldState
         if(st == null) {

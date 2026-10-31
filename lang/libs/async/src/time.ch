@@ -39,7 +39,7 @@ func sleep_drop(frame : *mut void) {
         }
     }
 
-public func sleep(millis : u64) : core::async::FutureHandle<core::async::Unit> {
+public func sleep(millis : u64) : core::async::FutureHandle<'static, core::async::Unit> {
         unsafe {
         var st = unsafe(malloc(sizeof(SleepState))) as *mut SleepState
         if(st == null) {

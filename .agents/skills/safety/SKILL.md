@@ -22,7 +22,7 @@ for the safe API surface we currently expose**, not full language parity.
 | `Send` / `Sync` | Auto traits + explicit/negative impls + nested conditional generic impls; data-race primitives |
 | Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; C ABI by-value support is x86-64 SysV only on LLVM |
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
-| Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle` direct borrows and `SAFE-LIFE-005` retaining-API escapes are checked (type-level lifetime parameter remains) |
+| Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
 | Type-system / stdlib parity | M1/M7 remain; M2/M8 remain |
 
@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2366/2366` |
 | LLVM main | `2364/2364` |
 | `@test` runner | `54/54` |
-| TCC/LLVM negative | `662/662` |
+| TCC/LLVM negative | `664/664` |
 | TCC/LLVM safety | `64/64` |
 | TCC/LLVM async | `58/58` |
 | TCC libs | `730/730` |
@@ -226,24 +226,29 @@ declared-negative type.
 These are verified gaps, not placeholders. Read this list before claiming full
 memory safety.
 
-1. **`FutureHandle<T>` still lacks a type-level lifetime parameter.**
-   MIR tracks direct async-call loans and `SAFE-LIFE-005` now rejects a future
-   (or a struct/array/`Option` containing one) passed to a safe callee that is
-   neither a known consumer (`block_on`/`spawn`/… ) nor returning a
-   future-containing result. This closes the direct return, local scope,
-   wrapper, method, struct-field, `Option`, `string_view`, and safe stash
-   cases in the negative suite. Remaining: a caller-visible
-   `FutureHandle<'a, T>`/frame witness is still absent, custom safe consumer
-   wrappers are conservatively rejected, and borrowed futures hidden behind a
-   reference or callback capture are not fully expressible.
+1. **`FutureHandle<'a, T>` carries a frame lifetime; full inference remains.**
+   Compiler-generated async returns use `'static` for an owning frame and an
+   elided lifetime when a parameter/frame value borrows. A borrowed handle
+   cannot satisfy a `FutureHandle<'static, T>` slot, `spawn_send` requires
+   `'static`, and a borrowed future returned through the legacy
+   lifetime-less `FutureHandle<T>` spelling is rejected. MIR tracks direct
+   async-call loans and `SAFE-LIFE-005` rejects a future (or a
+   struct/array/`Option` containing one) passed to a safe callee that is
+   neither a known consumer (`block_on`/`spawn` in the actual async/std library
+   namespace) nor returning a future-containing result. This closes the direct
+   return, local scope, wrapper, method, struct-field, `Option`, `string_view`,
+   and safe stash cases in the negative suite. Remaining: full call-site
+   lifetime inference/unification, custom safe consumer wrappers
+   (conservatively rejected), and borrowed futures hidden behind a reference
+   or callback capture.
 2. **Full target-aware C ABI remains M2.** LLVM now rejects by-value `@extern`
    aggregates on targets other than x86-64 SysV (`SAFE-FFI-003`); the C backend
    delegates to the host compiler. Windows/ARM ABI support, `repr`/layout
    coverage, variadics, callbacks, and FFI wrapper auditing remain.
 3. **`@scoped_callback` is body-checked, with a fixed sink list.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
-   scoped parameter anywhere except a known join-before-return API or another
-   annotated function. New scoped sink APIs must be added to that list; an
+   scoped parameter anywhere except a known join-before-return API (resolved by exact library
+   namespace) or another annotated function. New scoped sink APIs must be added to that list; an
    arbitrary user-defined sink is intentionally not trusted.
 4. **No `FnOnce`/`FnMut`/`Fn` callable model.**
    Non-`Copy` nested aggregate captures cannot be moved out of a reusable

@@ -39,17 +39,17 @@ public struct AsyncSocket {
     }
 
     // Await the next chunk of bytes (0 = EOF, <0 = error).
-    public func read(&self, buf : *mut u8, cap : usize) : core::async::FutureHandle<int> {
+    public func read(&self, buf : *mut u8, cap : usize) : core::async::FutureHandle<'static, int> {
         return recv_async(self.fd, buf, cap)
     }
 
     // Await a full write of `len` bytes (returns `len`, or <0 on error).
-    public func write(&self, data : *char, len : int) : core::async::FutureHandle<int> {
+    public func write(&self, data : *char, len : int) : core::async::FutureHandle<'static, int> {
         return send_async(self.fd, data, len)
     }
 
     // Await the next inbound connection; resolves with the accepted fd (>0) or 0.
-    public func accept(&self) : core::async::FutureHandle<int> {
+    public func accept(&self) : core::async::FutureHandle<'static, int> {
         return accept_async(self.fd)
     }
 }
@@ -67,7 +67,7 @@ public func async_listener(addr_str : *char, port : uint) : AsyncSocket {
 // ---- connect ---------------------------------------------------------------
 
 // Resolves with the connected fd (>0), or 0 on failure.
-public func dial_async(addr_str : *char, port : uint) : core::async::FutureHandle<int> {
+public func dial_async(addr_str : *char, port : uint) : core::async::FutureHandle<'static, int> {
     return unsafe(async::spawn_blocking<int>(|addr_str, port|() => {
         var s = dial(addr_str, port)
         if(s == 0 as Socket) {

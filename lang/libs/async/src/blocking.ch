@@ -111,7 +111,7 @@ public func blocking_pool() : *mut std::concurrent.ThreadPool {
 // The closure's captures are moved to a worker thread. `std::function` erases
 // their types, so the compiler cannot prove `Send`/`'static`; this is an
 // unsafe boundary until capture-type tracking lands (S6.5).
-public unsafe func <T> spawn_blocking(f : std::function<() => T>) : core::async::FutureHandle<T> {
+public unsafe func <T> spawn_blocking(f : std::function<() => T>) : core::async::FutureHandle<'static, T> {
         unsafe {
         var st = unsafe(malloc(sizeof(BlockingState<T>))) as *mut BlockingState<T>
         if(st == null) {

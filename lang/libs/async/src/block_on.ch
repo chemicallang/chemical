@@ -18,7 +18,7 @@ public func <T> block_on_send(handle : core::async::SendFutureHandle<T>) : T {
     return block_on<T>(unsafe(owned.into_future()))
 }
 
-public func <T> block_on(handle : core::async::FutureHandle<T>) : T {
+public func <'a, T> block_on(handle : core::async::FutureHandle<'a, T>) : T {
         unsafe {
         var e = executor()
         var cx = core::async::Context {

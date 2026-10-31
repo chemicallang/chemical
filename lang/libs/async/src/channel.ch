@@ -255,7 +255,7 @@ public struct Receiver<T> {
 
     // Await the next value; when every sender is gone (and the queue is empty)
     // become ready with `fallback` instead.
-    public func recv_or(&self, fallback : T) : core::async::FutureHandle<T> {
+    public func recv_or(&self, fallback : T) : core::async::FutureHandle<'static, T> {
         unsafe {
             var st = unsafe(malloc(sizeof(RecvState<T>))) as *mut RecvState<T>
             if(st == null) {

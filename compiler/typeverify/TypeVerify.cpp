@@ -2158,16 +2158,53 @@ static bool is_future_handle_ast_type(BaseType* type) {
         if (gen->referenced == nullptr || gen->referenced->linked == nullptr) {
             return false;
         }
-        if (gen->referenced->linked->kind() != ASTNodeKind::StructDecl) {
+        ASTNode* linked = gen->referenced->linked;
+        if (linked->kind() == ASTNodeKind::GenericStructDecl) {
+            auto* master = linked->as_gen_struct_def_unsafe()->master_impl;
+            return master != nullptr &&
+                   master->name_view() == chem::string_view("FutureHandle");
+        }
+        if (linked->kind() != ASTNodeKind::StructDecl) {
             return false;
         }
-        return gen->referenced->linked->as_struct_def_unsafe()->name_view() ==
+        return linked->as_struct_def_unsafe()->name_view() ==
                chem::string_view("FutureHandle");
     }
     auto* container = canonical->get_members_container();
     return container != nullptr && container->kind() == ASTNodeKind::StructDecl &&
            container->as_struct_def_unsafe()->name_view() ==
                chem::string_view("FutureHandle");
+}
+
+static GenericType* future_handle_generic(BaseType* type) {
+    if (type == nullptr) return nullptr;
+    BaseType* direct = type->kind() == BaseTypeKind::Generic
+                           ? type
+                           : type->canonical();
+    if (direct == nullptr || direct->kind() != BaseTypeKind::Generic) return nullptr;
+    auto* gen = direct->as_generic_type_unsafe();
+    if (!is_future_handle_ast_type(direct)) return nullptr;
+    return gen;
+}
+
+static bool future_handle_missing_lifetime(BaseType* type) {
+    if (!is_future_handle_ast_type(type)) return false;
+    auto* gen = future_handle_generic(type);
+    // A linked/canonical FutureHandle has already lost its lifetime args; it
+    // can only be the legacy spelling without a lifetime.
+    return gen == nullptr || gen->lifetime_args.empty();
+}
+
+static bool future_handle_has_nonstatic_lifetime(BaseType* type) {
+    if (!is_future_handle_ast_type(type)) return false;
+    auto* gen = future_handle_generic(type);
+    // Unknown/linked lifetime arguments are conservatively treated as borrows.
+    if (gen == nullptr) return true;
+    for (chem::string_view lifetime : gen->lifetime_args) {
+        if (lifetime.empty()) continue;
+        if (lifetime != "static" && lifetime != "'static") return true;
+    }
+    return false;
 }
 
 static bool contains_future_handle_ast_type(
@@ -2230,16 +2267,32 @@ static bool contains_future_handle_ast_type(BaseType* type) {
     return contains_future_handle_ast_type(type, visiting);
 }
 
+static bool is_namespace_named(ASTNode* node, const char* expected) {
+    return node != nullptr && node->kind() == ASTNodeKind::NamespaceDecl &&
+           node->as_namespace_unsafe()->name_view() ==
+               chem::string_view(expected, std::strlen(expected));
+}
+
+// Only the actual library entry points may be treated as future consumers.
+// Checking the immediate parent chain (async::*, async::test::*, std::thread::*,
+// std::concurrent::*) avoids accepting a user-defined `std::spawn` or
+// `concurrent::spawn` merely because its namespace contains an allowed word.
 static bool in_future_library_namespace(FunctionDeclaration* callee) {
-    for (ASTNode* parent = callee ? callee->parent() : nullptr; parent != nullptr;
-         parent = parent->parent()) {
-        if (parent->kind() != ASTNodeKind::NamespaceDecl) continue;
-        const auto name = parent->as_namespace_unsafe()->name_view();
-        if (name == chem::string_view("async") || name == chem::string_view("std") ||
-            name == chem::string_view("concurrent") ||
-            name == chem::string_view("thread")) {
-            return true;
-        }
+    ASTNode* parent = callee ? callee->parent() : nullptr;
+    if (parent == nullptr) return false;
+    if (is_namespace_named(parent, "async")) return true;
+    ASTNode* grandparent = parent->parent();
+    if (is_namespace_named(parent, "test") &&
+        is_namespace_named(grandparent, "async")) {
+        return true;
+    }
+    if (is_namespace_named(parent, "thread") &&
+        is_namespace_named(grandparent, "std")) {
+        return true;
+    }
+    if (is_namespace_named(parent, "concurrent") &&
+        is_namespace_named(grandparent, "std")) {
+        return true;
     }
     return false;
 }
@@ -3688,6 +3741,16 @@ void TypeVerifier::VisitReturnStmt(ReturnStatement *node) {
             BaseType* expected_type = func && func->is_async()
                 ? func->inner_return_type()
                 : (BaseType*) func_type->returnType;
+            if (future_handle_missing_lifetime(expected_type) &&
+                value != nullptr &&
+                future_handle_has_nonstatic_lifetime(value->getType())) {
+                diagnoser.error(value).with_code("SAFE-LIFE-001")
+                    << "cannot return a FutureHandle whose frame borrows "
+                       "function-local storage; declare the return lifetime "
+                       "(for example FutureHandle<'a, T>) or use a 'static "
+                       "handle";
+                return;
+            }
             require_unsafe_for_capture(*this, value, expected_type, value);
             if (value != nullptr && value->getType() != nullptr) {
                 std::unordered_set<MembersContainer*> capture_visiting;

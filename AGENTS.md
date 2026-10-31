@@ -28,11 +28,12 @@ after that, size + compile time + memory are reduced together. See
 
 **Safety implementation status (2026-10-31):** the enforceable core is green
 (M0, M3, and the enforceable M4/M5/M6 rules), but full parity is not done. The
-async `FutureHandle<T>` carries direct input loans through MIR and
-`SAFE-LIFE-005` rejects safe retaining APIs, but it has no type-level lifetime
-parameter yet; other blockers are the full target-aware C ABI (`SAFE-FFI-003`
-now rejects unsupported LLVM targets), `dyn` being conservatively `!Send`/
-`!Sync`/`!Unpin`, and the missing `FnOnce`/`FnMut`/`Fn` callable model.
+async `FutureHandle<'a, T>` now carries a frame lifetime (`'static` for owning
+frames, elided for borrowed frames) and `SAFE-LIFE-005` rejects safe retaining
+APIs, but full call-site lifetime inference is still missing; other blockers
+are the full target-aware C ABI (`SAFE-FFI-003` now rejects unsupported LLVM
+targets), `dyn` being conservatively `!Send`/`!Sync`/`!Unpin`, and the missing
+`FnOnce`/`FnMut`/`Fn` callable model.
 `@scoped_callback` is body-checked by `SAFE-SCOPED-001`, async constructors
 check allocation failure, and the audit gate runs in CI. Load the `safety` skill
 and read `lang/docs/safety-implementation-plan.md` §4.5 before claiming full

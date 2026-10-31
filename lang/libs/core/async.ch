@@ -86,8 +86,13 @@ public namespace async {
     // The concrete, move-only representation of every future. `@delete` is what
     // makes cancellation work: dropping a suspended handle runs the frame's
     // live-local destructors exactly once (Sections 8.5, 13.3).
+    //
+    // `'a` is the lifetime of borrowed state retained by the coroutine frame.
+    // An owning frame is `FutureHandle<'static, T>`; an async function that
+    // captures `&T` parameters returns an elided shorter lifetime, so it cannot
+    // be stored in a `'static` slot or submitted with `spawn_send`.
     @direct_init
-    public struct FutureHandle<T> {
+    public struct FutureHandle<'a, T> {
         private var frame : *mut void
         private var vtbl  : *mut FutureTable<T>
 
@@ -144,8 +149,8 @@ public namespace async {
 
         // Move the frame back into the erased representation. Used by the
         // block_on overload and by code that needs to await this handle.
-        public unsafe func into_future(&mut self) : FutureHandle<T> {
-            var out = zeroed:unsafe<FutureHandle<T>>()
+        public unsafe func into_future(&mut self) : FutureHandle<'static, T> {
+            var out = zeroed:unsafe<FutureHandle<'static, T>>()
             unsafe { out.set_raw(frame, vtbl) }
             frame = null
             vtbl = null
@@ -167,10 +172,10 @@ public namespace async {
     // Consume an erased handle and attach the Send witness. This is the
     // unchecked conversion used by audited submission APIs after their own
     // frame check; the original handle is emptied so the frame is dropped once.
-    public unsafe func <T> future_handle_into_send(handle : &mut FutureHandle<T>) : SendFutureHandle<T> {
+    public unsafe func <'a, T> future_handle_into_send(handle : &mut FutureHandle<'a, T>) : SendFutureHandle<T> {
         var out = zeroed:unsafe<SendFutureHandle<T>>()
         unsafe { out.set_raw(handle.frame_ptr(), handle.vtbl_ptr()) }
-        var empty = zeroed:unsafe<FutureHandle<T>>()
+        var empty = zeroed:unsafe<FutureHandle<'a, T>>()
         unsafe { handle.set_raw(empty.frame_ptr(), empty.vtbl_ptr()) }
         return out
     }
@@ -181,8 +186,8 @@ public namespace async {
      * libraries call this inside `unsafe`.
      */
     public unsafe func <T> future_handle_raw(frame : *mut void,
-                                              vtbl : *mut FutureTable<T>) : FutureHandle<T> {
-        var h = zeroed:unsafe<FutureHandle<T>>()
+                                              vtbl : *mut FutureTable<T>) : FutureHandle<'static, T> {
+        var h = zeroed:unsafe<FutureHandle<'static, T>>()
         unsafe { h.set_raw(frame, vtbl) }
         return h
     }

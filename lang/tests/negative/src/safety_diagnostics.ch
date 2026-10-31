@@ -270,6 +270,13 @@ func neg_async_spawn_send_borrowed_frame_rejected(env : &mut TestEnv) {
 }
 
 @test
+func neg_async_spawn_send_borrowed_future_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\npublic func main() : int {\n    var s = std::string(\"A\")\n    var h = work(&s)\n    var h2 = async::spawn_send(h)\n    return async::block_on<int>(h2)\n}\n"
+    expect_compile_error_with_mod(env, "async_spawn_send_borrowed", ch, "SAFE-LIFE-004", NEG_MOD_ASYNC_STD)
+}
+
+@test
 func neg_async_spawn_send_stored_future_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "async func work() : int {\n    var u = await async::yield_now()\n    return 1\n}\npublic func main() : int {\n    var h = work()\n    var h2 = async::spawn_send(h)\n    return async::block_on<int>(h2)\n}\n"
@@ -375,6 +382,13 @@ func neg_future_handle_in_struct_cannot_escape_to_retaining_api(env : &mut TestE
 }
 
 @test
+func neg_future_handle_consumer_namespace_spoof_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "using std::Option\npublic namespace concurrent {\n    func spawn(f : core::async::FutureHandle<int>, slot : &mut Option<core::async::FutureHandle<int>>) {\n        *slot = Option.Some<core::async::FutureHandle<int>>(f)\n    }\n}\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\npublic func main() : int {\n    var slot = Option.None<core::async::FutureHandle<int>>()\n    {\n        var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n        var h = work(&s)\n        concurrent::spawn(h, &mut slot)\n    }\n    var Some(h) = slot else unreachable\n    var r = async::block_on<int>(h)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "future_consumer_namespace_spoof", ch, "SAFE-LIFE-005", NEG_MOD_ASYNC_STD)
+}
+
+@test
 func neg_future_handle_cannot_escape_to_retaining_api(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "using std::Option\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc stash(f : core::async::FutureHandle<int>, slot : &mut Option<core::async::FutureHandle<int>>) {\n    *slot = Option.Some<core::async::FutureHandle<int>>(f)\n}\npublic func main() : int {\n    var slot = Option.None<core::async::FutureHandle<int>>()\n    {\n        var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n        var h = work(&s)\n        stash(h, &mut slot)\n    }\n    var Some(h) = slot else unreachable\n    var r = async::block_on<int>(h)\n    return 0\n}\n"
@@ -433,14 +447,14 @@ func neg_future_handle_wrapper_cannot_return_local_borrow(env : &mut TestEnv) {
 @test
 func neg_future_handle_free_wrapper_cannot_return_local_borrow(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc wrap(x : &std::string) : core::async::FutureHandle<int> {\n    return work(x)\n}\nfunc make_future() : core::async::FutureHandle<int> {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    return wrap(&s)\n}\npublic func main() : int { return 0 }\n"
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc <'a> wrap(x : &'a std::string) : core::async::FutureHandle<'a, int> {\n    return work(x)\n}\nfunc make_future() : core::async::FutureHandle<int> {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    return wrap(&s)\n}\npublic func main() : int { return 0 }\n"
     expect_compile_error_with_mod(env, "future_free_wrapper_local_borrow", ch, "SAFE-LIFE-001", NEG_MOD_ASYNC_STD)
 }
 
 @test
 func neg_future_handle_method_cannot_outlive_local_borrow(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "struct Owner {\n    var s : std::string\n    func work_future(&self) : core::async::FutureHandle<int> {\n        return work(&self.s)\n    }\n}\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\npublic func main() : int {\n    var h : core::async::FutureHandle<int>\n    {\n        var o = Owner { s : std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\") }\n        h = o.work_future()\n    }\n    var r = async::block_on<int>(h)\n    return 0\n}\n"
+    var ch = "struct Owner {\n    var s : std::string\n    func work_future(&self) : core::async::FutureHandle<'self, int> {\n        return work(&self.s)\n    }\n}\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\npublic func main() : int {\n    var h : core::async::FutureHandle<int>\n    {\n        var o = Owner { s : std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\") }\n        h = o.work_future()\n    }\n    var r = async::block_on<int>(h)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "future_method_local_borrow", ch, "SAFE-LIFE-002", NEG_MOD_ASYNC_STD)
 }
 
@@ -454,14 +468,14 @@ func neg_future_handle_cannot_return_local_view(env : &mut TestEnv) {
 @test
 func future_handle_wrapper_same_scope_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc wrap(x : &std::string) : core::async::FutureHandle<int> {\n    return work(x)\n}\npublic func main() : int {\n    var s = std::string(\"A\")\n    var h = wrap(&s)\n    var r = async::block_on<int>(h)\n    return r - 65\n}\n"
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc <'a> wrap(x : &'a std::string) : core::async::FutureHandle<'a, int> {\n    return work(x)\n}\npublic func main() : int {\n    var s = std::string(\"A\")\n    var h = wrap(&s)\n    var r = async::block_on<int>(h)\n    return r - 65\n}\n"
     expect_compile_success_with_mod(env, "future_wrapper_same_scope", ch, NEG_MOD_ASYNC_STD)
 }
 
 @test
 func future_handle_method_same_scope_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "struct Owner {\n    var s : std::string\n    func work_future(&self) : core::async::FutureHandle<int> {\n        return work(&self.s)\n    }\n}\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\npublic func main() : int {\n    var o = Owner { s : std::string(\"A\") }\n    var h = o.work_future()\n    var r = async::block_on<int>(h)\n    return r - 65\n}\n"
+    var ch = "struct Owner {\n    var s : std::string\n    func work_future(&self) : core::async::FutureHandle<'self, int> {\n        return work(&self.s)\n    }\n}\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\npublic func main() : int {\n    var o = Owner { s : std::string(\"A\") }\n    var h = o.work_future()\n    var r = async::block_on<int>(h)\n    return r - 65\n}\n"
     expect_compile_success_with_mod(env, "future_method_same_scope", ch, NEG_MOD_ASYNC_STD)
 }
 

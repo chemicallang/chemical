@@ -354,7 +354,7 @@ public func <T> spawn_task_drop(frame : *mut void) {
 // frame's captures are type-erased, so their `Send`/`'static` properties cannot
 // be checked here; submission is an unsafe boundary until erased-capture Send
 // tracking lands (S6.5).
-public unsafe func <T> spawn(handle : core::async::FutureHandle<T>) : core::async::FutureHandle<T> {
+public unsafe func <'a, T> spawn(handle : core::async::FutureHandle<'a, T>) : core::async::FutureHandle<'a, T> {
         unsafe {
         var e = executor()
         var st = unsafe(malloc(sizeof(JoinState<T>))) as *mut JoinState<T>
@@ -412,7 +412,7 @@ public unsafe func <T> spawn(handle : core::async::FutureHandle<T>) : core::asyn
 // The call-site check (`SAFE-SEND-001`) requires the operand to be a direct
 // async function call and verifies every frame local/parameter is Send and
 // 'static. The implementation then crosses the existing unsafe boundary.
-public func <T> spawn_send(handle : core::async::FutureHandle<T>) : core::async::SendFutureHandle<T> where T : Send {
+public func <T> spawn_send(handle : core::async::FutureHandle<'static, T>) : core::async::SendFutureHandle<T> where T : Send {
         var joined = unsafe(spawn<T>(handle))
         return unsafe(core::async.future_handle_into_send<T>(&mut joined))
 }
@@ -436,7 +436,7 @@ public func <T> spawn_send_handle(handle : core::async::SendFutureHandle<T>) : c
 //
 // Until the executor actually enforces that affinity and captures are checked,
 // this has the same unchecked-capture contract as `spawn` and is unsafe.
-public unsafe func <T> spawn_local(handle : core::async::FutureHandle<T>) : core::async::FutureHandle<T> {
+public unsafe func <'a, T> spawn_local(handle : core::async::FutureHandle<'a, T>) : core::async::FutureHandle<'a, T> {
         unsafe {
         return unsafe(spawn<T>(handle))
 

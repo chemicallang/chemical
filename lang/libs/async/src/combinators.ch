@@ -75,7 +75,7 @@ public func <T> select_drop(frame : *mut void) {
 
 // Become ready with whichever of `a`/`b` completes first. The other is
 // cancelled when this future is dropped.
-public func <T> select(a : core::async::FutureHandle<T>, b : core::async::FutureHandle<T>) : core::async::FutureHandle<T> {
+public func <'a, T> select(a : core::async::FutureHandle<'a, T>, b : core::async::FutureHandle<'a, T>) : core::async::FutureHandle<'a, T> {
         unsafe {
         var st = unsafe(malloc(sizeof(SelectState<T>))) as *mut SelectState<T>
         if(st == null) {
@@ -146,7 +146,7 @@ public func <T> timeout_or_drop(frame : *mut void) {
 // Await `handle`, but if it has not completed within `millis` milliseconds
 // cancel it and become `fallback` instead. Use a sentinel `fallback` to detect
 // the timeout at the call site.
-public func <T> timeout_or(handle : core::async::FutureHandle<T>, millis : u64, fallback : T) : core::async::FutureHandle<T> {
+public func <'a, T> timeout_or(handle : core::async::FutureHandle<'a, T>, millis : u64, fallback : T) : core::async::FutureHandle<'a, T> {
         unsafe {
         var st = unsafe(malloc(sizeof(TimeoutOrState<T>))) as *mut TimeoutOrState<T>
         if(st == null) {
@@ -174,7 +174,7 @@ public func <T> timeout_or(handle : core::async::FutureHandle<T>, millis : u64, 
 // Synchronous variant: drive `handle` to completion on the current thread, but
 // give up after `millis` and return `None`. The handle (and its frame) is
 // dropped either way, cancelling an unfinished child.
-public func <T> block_on_timeout(handle : core::async::FutureHandle<T>, millis : u64) : std::Option<T> {
+public func <'a, T> block_on_timeout(handle : core::async::FutureHandle<'a, T>, millis : u64) : std::Option<T> {
         unsafe {
         var e = executor()
         var cx = core::async::Context { waker : exec_make_waker(e) }

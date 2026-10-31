@@ -1884,15 +1884,12 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
         param_lifetimes.emplace_back(lt.data(), lt.size());
     }
     chem::string_view return_lt = decl->return_lifetime;
-    // An async function's frame stores its borrowed parameters until the
-    // future is polled or dropped. The handle type has no lifetime parameter
-    // yet, so give the declaration an elided return region and tie every
-    // borrowed input to it below. A non-async pass-through wrapper with a
-    // non-self reference parameter gets the same synthetic region; `&self`
-    // methods keep their declared signature unless the body itself creates a
-    // loan (owning futures such as `recv_or` must stay outliving-safe).
-    if (return_lt.empty() && future_borrow_return) return_lt = "elided";
+    // The handle type now carries its frame borrow lifetime (`'static` for an
+    // owning frame, an elided/named lifetime for borrowed frame state). Prefer
+    // that declared argument; fall back to the synthetic elided region for
+    // older declarations that still spell `FutureHandle<T>`.
     if (return_lt.empty()) return_lt = region_lifetime_of(decl->returnType);
+    if (return_lt.empty() && future_borrow_return) return_lt = "elided";
     std::vector<std::pair<std::string_view, std::string_view>> outlives;
     if (decl->where_clause) {
         for (const LifetimeBound& bound : decl->where_clause->lifetime_bounds) {

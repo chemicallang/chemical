@@ -206,7 +206,7 @@ public func ready_drop(frame : *mut void) {
         }
     }
 
-func make_ready(fd : int, events : short) : core::async::FutureHandle<core::async::Unit> {
+func make_ready(fd : int, events : short) : core::async::FutureHandle<'static, core::async::Unit> {
         unsafe {
         var st = unsafe(malloc(sizeof(ReadyState))) as *mut ReadyState
         if(st == null) {
@@ -235,14 +235,14 @@ func make_ready(fd : int, events : short) : core::async::FutureHandle<core::asyn
 public struct AsyncFd {
     var fd : int
 
-    public func readable(&self) : core::async::FutureHandle<core::async::Unit> {
+    public func readable(&self) : core::async::FutureHandle<'static, core::async::Unit> {
         unsafe {
             return make_ready(self.fd, posix::POLLIN)
     
         }
     }
 
-    public func writable(&self) : core::async::FutureHandle<core::async::Unit> {
+    public func writable(&self) : core::async::FutureHandle<'static, core::async::Unit> {
         unsafe {
             return make_ready(self.fd, posix::POLLOUT)
     
@@ -250,14 +250,14 @@ public struct AsyncFd {
     }
 }
 
-public func readable(fd : int) : core::async::FutureHandle<core::async::Unit> {
+public func readable(fd : int) : core::async::FutureHandle<'static, core::async::Unit> {
         unsafe {
         return make_ready(fd, posix::POLLIN)
 
         }
     }
 
-public func writable(fd : int) : core::async::FutureHandle<core::async::Unit> {
+public func writable(fd : int) : core::async::FutureHandle<'static, core::async::Unit> {
         unsafe {
         return make_ready(fd, posix::POLLOUT)
 

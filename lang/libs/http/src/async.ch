@@ -134,7 +134,7 @@ public async func head_async(client : *mut Client, url_str : *std::string_view) 
 
 // Await the next chunk of the response body (F12 streaming). Resolves with the
 // number of bytes read, 0 at end of body, <0 on error.
-public func read_chunk_async(b : *mut Body, dst : *mut u8, cap : usize) : core::async::FutureHandle<int> {
+public func read_chunk_async(b : *mut Body, dst : *mut u8, cap : usize) : core::async::FutureHandle<'static, int> {
     return body_read_async(b, dst, cap)
 }
 

@@ -1,12 +1,13 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.25)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.26)
 
 > **Status (2026-10-31):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
 > remain in progress; M8/M9 are pending. Direct async `FutureHandle` borrow
 > escapes are checked in MIR, `SAFE-LIFE-005` rejects safe retaining APIs, the
 > LLVM C ABI now rejects unsupported targets, `@scoped_callback` is body-checked,
-> and async constructors check allocation failure. Remaining async work is a
-> type-level `FutureHandle<'a, T>`/frame witness.
+> and async constructors check allocation failure. `FutureHandle<'a, T>` now
+> carries a frame lifetime (`'static` for owning frames, elided for borrowed
+> frames); full call-site lifetime inference remains.
 > S5.6b (unwinding) is withdrawn by policy: panic always aborts; no unwind
 > runtime, `catch_unwind`, or `UnwindSafe` traits are planned unless the C
 > backend later makes unwinding practical.
@@ -1079,7 +1080,7 @@
 > (layout and C ABI); C ABI classification for Windows/ARM, FFI wrappers, and
 > deeper HRTB precision remain (variance/temporary-lifetime extension are
 > implemented).
-> Safety suite `64`; negative tests `662`; main TCC `2366`, LLVM `2364`;
+> Safety suite `64`; negative tests `664`; main TCC `2366`, LLVM `2364`;
 > libs `730`; plugins `1305`; async `58`; interpret `1910`; server `10`;
 > TLS `599`; `MIRTests` `4643 checks`. The whole-tree audit
 > manifest (`lang/docs/safety/audit-modules.txt`) covers `94` modules with
@@ -1333,7 +1334,7 @@ approximate counts:
 |---|---|
 | TCC main / LLVM main | `2366` / `2364` |
 | `@test` runner | `54` |
-| TCC/LLVM negative | `662` / `662` |
+| TCC/LLVM negative | `664` / `664` |
 | TCC/LLVM safety | `64` / `64` |
 | TCC/LLVM async | `58` / `58` |
 | TCC libs | `730` |
@@ -1347,22 +1348,27 @@ new number as the honest baseline, not a regression.
 
 ### 4.5 Known remaining gaps / release blockers
 
-1. **`FutureHandle<T>` lacks a type-level lifetime parameter.** MIR tracks direct
-   frame borrows and `SAFE-LIFE-005` rejects a future (or a struct/array/`Option`
-   containing one) passed to a safe callee that is not a known consumer and does
-   not return a future-containing result. Direct returns, locals, wrappers,
-   methods, struct fields, `Option`, `string_view`, and safe stash APIs are
-   covered. Remaining: a caller-visible `FutureHandle<'a, T>`/frame witness,
-   custom consumer wrappers (conservatively rejected), and borrowed futures
-   hidden behind references or callback captures.
+1. **`FutureHandle<'a, T>` carries a frame lifetime; full inference remains.**
+   Generated async returns use `'static` for owning frames and an elided
+   lifetime when a parameter/frame value borrows. A borrowed handle cannot
+   satisfy a `FutureHandle<'static, T>` slot; `spawn_send` requires `'static`,
+   and a return to a legacy lifetime-less `FutureHandle<T>` from a borrowed
+   future is rejected. MIR tracks direct frame borrows and `SAFE-LIFE-005`
+   rejects a future (or a struct/array/`Option` containing one) passed to a safe
+   callee that is not a known consumer and does not return a future-containing
+   result. Direct returns, locals, wrappers, methods, struct fields, `Option`,
+   `string_view`, and safe stash APIs are covered. Remaining: full call-site
+   lifetime unification/inference, custom consumer wrappers (conservatively
+   rejected), and borrowed futures hidden behind references or callback
+   captures.
 2. **Full target-aware C ABI remains M2.** LLVM now rejects by-value `@extern`
    aggregates on non-x86-64-SysV targets with `SAFE-FFI-003`; the C backend uses
    the host C compiler. Windows/ARM ABI support, `repr`/layout coverage,
    variadics, callbacks, and FFI wrapper auditing remain.
 3. **`@scoped_callback` has a fixed, checked sink list.** `SAFE-SCOPED-001`
    rejects returning, storing, capturing, or passing the scoped parameter to an
-   unknown callee; only known join-before-return APIs and other annotated
-   functions are accepted. New scoped APIs need an explicit sink entry.
+   unknown callee; only known join-before-return APIs (resolved by exact library
+   namespace) and other annotated functions are accepted. New scoped APIs need an explicit sink entry.
 4. **No `FnOnce`/`FnMut`/`Fn` model.** Non-`Copy` nested aggregate captures are
    an explicit lowering error; `SAFE-MOVE-002` prevents the old bitwise-copy
    bug. M1.16/M6.6 work.
@@ -2749,4 +2755,7 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.24 (2026-10-31): `FutureHandle` borrow tracking, first slice. MIR now classifies `core::async::FutureHandle` as a borrow view (`MIRBorrowCheck::is_future_handle_type`/`is_borrow_view_type`); async declarations get a synthetic elided return region with outlives edges from every borrowed parameter and by-value aggregate field; ordinary non-`&self` wrappers returning a future carry their reference-parameter loan; by-value future handles and view parameters propagate their input loans through pass-through calls. The borrow checker follows the resulting loan through local assignment, struct fields, returns, and call liveness, rejecting `SAFE-LIFE-001`/`002` for the direct local return, local-scope, free-wrapper, method, struct-field, `Option`, and `string_view` cases. A synthetic region is deliberately not added for every `&self` method because owning futures such as `Channel::recv_or` can outlive their receiver handle; actual body loans still catch borrowing methods. Remaining gap: no type-level `FutureHandle<'a, T>` / caller-visible witness, so unknown/extern callees and generic containers that hide a future behind an unrelated result still need the lifetime model. New negative tests cover direct/local/wrapper/free-wrapper/method/local-view races plus a same-scope positive. Main TCC `2366`, LLVM `2364`, negative `656`, safety `64`, async `58`, libs `730`, `MIRTests` `4643`, TSAN pass.*
 
 
-*Revision note v4.25 (2026-10-31): P0 safety closure. (1) Every async future/state constructor in `yield.ch`, `time.ch`, `exec.ch`, `blocking.ch`, `combinators.ch`, `reactor.ch`, and the compiler frame hook in `frame.ch` now checks `malloc` before use. (2) `.github/workflows/safety-audit.yml` runs the whole-tree no-growth audit plus negative/safety suites on PRs and `main`. (3) `@scoped_callback` is compiler-checked by `SAFE-SCOPED-001`: the `std::scoped_send_function` parameter may only be forwarded to a known join-before-return sink or another annotated function. (4) `FutureHandle` safe-retaining APIs are rejected by `SAFE-LIFE-005` at the AST call boundary; this covers direct handles, struct/array/`Option` carriers, and unknown/indirect safe callees, while known consumers (`block_on*`, `spawn*`) and future-returning APIs remain accepted. The type-level `FutureHandle<'a, T>` witness is still future work. (5) LLVM now rejects by-value `@extern` aggregates on non-x86-64-SysV targets with `SAFE-FFI-003`; the C backend still delegates to the host ABI. Main TCC `2366`, LLVM `2364`, negative `662`, safety `64`, async `58`, libs `730`, `MIRTests` `4643`, TSAN pass; audit no growth.*
+*Revision note v4.25 (2026-10-31): P0 safety closure. (1) Every async future/state constructor in `yield.ch`, `time.ch`, `exec.ch`, `blocking.ch`, `combinators.ch`, `reactor.ch`, and the compiler frame hook in `frame.ch` now checks `malloc` before use. (2) `.github/workflows/safety-audit.yml` runs the whole-tree no-growth audit plus negative/safety suites on PRs and `main`. (3) `@scoped_callback` is compiler-checked by `SAFE-SCOPED-001`: the `std::scoped_send_function` parameter may only be forwarded to a known join-before-return sink or another annotated function. (4) `FutureHandle` safe-retaining APIs are rejected by `SAFE-LIFE-005` at the AST call boundary; this covers direct handles, struct/array/`Option` carriers, and unknown/indirect safe callees, while known consumers (`block_on*`, `spawn*`, resolved by exact library namespace) and future-returning APIs remain accepted; a negative test covers a user-defined `concurrent::spawn` spoof. The type-level frame lifetime is tracked in v4.26. (5) LLVM now rejects by-value `@extern` aggregates on non-x86-64-SysV targets with `SAFE-FFI-003`; the C backend still delegates to the host ABI. Main TCC `2366`, LLVM `2364`, negative `664`, safety `64`, async `58`, libs `730`, `MIRTests` `4643`, TSAN pass; audit no growth.*
+
+
+*Revision note v4.26 (2026-10-31): `FutureHandle<'a, T>` frame lifetime. Async returns carry `'static` for owning frames and an elided lifetime when a parameter/frame value borrows; `spawn_send` requires `FutureHandle<'static, T>` so a borrowed frame cannot cross a safe submission boundary. Return/parameter checks reject a borrowed future returned through the legacy lifetime-less `FutureHandle<T>` spelling. `BaseType::satisfies(Value*)` now preserves a `GenericType` when both sides are generic, so lifetime arguments are not lost before comparison; `GenericType::satisfies` additionally recognizes compiler-generated FutureHandle master/instantiation spellings. Existing positive wrappers/methods were updated to explicit `FutureHandle<'a, T>` signatures. Negative tests `664` (`async_spawn_send_borrowed` added); TCC/LLVM main `2366`/`2364`, async `58`, safety `64`, libs `730`. Remaining: full call-site lifetime inference/unification, references/callback captures, and custom future-consumer wrappers.*

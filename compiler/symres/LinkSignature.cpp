@@ -752,6 +752,109 @@ void TopLevelLinkSignature::VisitTypealiasStmt(TypealiasStatement* stmt) {
     }
 }
 
+static bool lifetime_name_is_static(chem::string_view name) {
+    return name == "static" || name == "'static";
+}
+
+// Does this type carry a non-'static reference (directly, through a generic
+// lifetime argument, or through a struct field)? An async frame stores every
+// such value until the future completes, so its handle must not be typed as
+// `'static`.
+static bool type_carries_borrow(
+        BaseType* type,
+        std::unordered_set<MembersContainer*>& visiting,
+        unsigned depth = 0) {
+    if (type == nullptr || depth > 8) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr) canonical = type;
+    switch (canonical->kind()) {
+        case BaseTypeKind::Reference: {
+            const auto lt = canonical->as_reference_type_unsafe()->lifetime;
+            return lt.empty() || !lifetime_name_is_static(lt);
+        }
+        case BaseTypeKind::Pointer:
+            return false;
+        case BaseTypeKind::Array:
+            return type_carries_borrow(
+                const_cast<BaseType*>(
+                    canonical->as_array_type_unsafe()->elem_type.getType()),
+                visiting, depth + 1);
+        case BaseTypeKind::CapturingFunction:
+            // An erased callback can hold an arbitrary borrowed capture.
+            return true;
+        case BaseTypeKind::Generic: {
+            auto* gen = canonical->as_generic_type_unsafe();
+            for (chem::string_view lt : gen->lifetime_args) {
+                if (!lt.empty() && !lifetime_name_is_static(lt)) return true;
+            }
+            for (auto& arg : gen->types) {
+                if (type_carries_borrow(
+                        const_cast<BaseType*>(arg.getType()), visiting,
+                        depth + 1)) {
+                    return true;
+                }
+            }
+            // A lifetime-parameterised aggregate written without its
+            // arguments has an elided (borrowed) lifetime.
+            auto* container = canonical->get_members_container();
+            if (container != nullptr && gen->lifetime_args.empty()) {
+                if (container->generic_parent != nullptr) {
+                    if (!container->generic_parent->lifetime_params.empty()) {
+                        return true;
+                    }
+                } else if (container->kind() == ASTNodeKind::StructDecl &&
+                           !container->as_struct_def_unsafe()->lifetime_params.empty()) {
+                    return true;
+                }
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    auto* container = canonical->get_members_container();
+    if (container == nullptr || !visiting.insert(container).second) {
+        return false;
+    }
+    // A linked instantiation often loses the written lifetime args. If the
+    // declaration itself is lifetime-parameterised (for example `string_view`
+    // or a legacy `FutureHandle<T>` spelling), conservatively treat the value
+    // as borrowing rather than claiming the frame is `'static`.
+    if (container->kind() == ASTNodeKind::StructDecl &&
+        !container->as_struct_def_unsafe()->lifetime_params.empty()) {
+        return true;
+    }
+    if (container->generic_parent != nullptr &&
+        !container->generic_parent->lifetime_params.empty()) {
+        return true;
+    }
+    for (BaseDefMember* member : container->variables()) {
+        if (member == nullptr || member->kind() != ASTNodeKind::StructMember) {
+            continue;
+        }
+        auto* field = member->as_struct_member_unsafe();
+        if (field != nullptr && type_carries_borrow(
+                const_cast<BaseType*>(field->type.getType()), visiting,
+                depth + 1)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static chem::string_view async_future_lifetime(FunctionDeclaration* node,
+                                               BaseType* inner) {
+    std::unordered_set<MembersContainer*> visiting;
+    if (type_carries_borrow(inner, visiting)) return chem::string_view("elided");
+    for (FunctionParam* param : node->params) {
+        if (param != nullptr && type_carries_borrow(
+                const_cast<BaseType*>(param->type.getType()), visiting)) {
+            return chem::string_view("elided");
+        }
+    }
+    return chem::string_view("static");
+}
+
 void visit_func_decl(TopLevelLinkSignature& sig, FunctionDeclaration* node) {
     auto& table = sig.table;
     table.scope_start();
@@ -804,9 +907,12 @@ void visit_func_decl(TopLevelLinkSignature& sig, FunctionDeclaration* node) {
         auto linked = new (allocator.allocate<LinkedType>())
             LinkedType(sig.linker.coreNodes.async.future_handle);
         std::vector<TypeLoc> args;
+        BaseType* inner_type = const_cast<BaseType*>(inner.getType());
         args.emplace_back(inner);
+        std::vector<chem::string_view> lifetime_args;
+        lifetime_args.push_back(async_future_lifetime(node, inner_type));
         auto generic = new (allocator.allocate<GenericType>())
-            GenericType(linked, std::move(args));
+            GenericType(linked, std::move(args), std::move(lifetime_args));
         node->returnType = TypeLoc(generic, loc);
         node->data.is_async = true;
         sig.visit(node->returnType);

@@ -6,7 +6,7 @@
 public namespace async {
 public namespace test {
 
-public func <T> block_on(handle : core::async::FutureHandle<T>) : T {
+public func <'a, T> block_on(handle : core::async::FutureHandle<'a, T>) : T {
     return async::block_on<T>(handle)
 }
 

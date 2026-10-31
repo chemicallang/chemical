@@ -191,6 +191,22 @@ ASTNode* canonical_generic_decl(ASTNode* n) {
     return n;
 }
 
+static bool generic_is_future_handle(GenericType* generic) {
+    if (generic == nullptr || generic->referenced == nullptr ||
+        generic->referenced->linked == nullptr) {
+        return false;
+    }
+    ASTNode* linked = generic->referenced->linked;
+    if (linked->kind() == ASTNodeKind::GenericStructDecl) {
+        auto* master = linked->as_gen_struct_def_unsafe()->master_impl;
+        return master != nullptr &&
+               master->name_view() == chem::string_view("FutureHandle");
+    }
+    return linked->kind() == ASTNodeKind::StructDecl &&
+           linked->as_struct_def_unsafe()->name_view() ==
+               chem::string_view("FutureHandle");
+}
+
 bool lifetime_is_static(chem::string_view name) {
     return name == "static" || name == "'static";
 }
@@ -254,7 +270,14 @@ bool GenericType::is_same(BaseType *pure_type) {
         // same declaration: compare type args pairwise
         const auto this_decl = canonical_generic_decl(referenced->linked);
         const auto other_decl = canonical_generic_decl(other_gen->referenced->linked);
-        if(this_decl && other_decl && this_decl == other_decl) {
+        // A generic struct can be referenced through its master declaration and
+        // through an instantiated shallow copy; canonical_generic_decl does not
+        // always collapse those. FutureHandle is compiler-generated at every
+        // async call, so compare its name + arguments directly as well.
+        const bool same_future_handle =
+            generic_is_future_handle(this) && generic_is_future_handle(other_gen);
+        if((this_decl && other_decl && this_decl == other_decl) ||
+           same_future_handle) {
             if (types.size() != other_gen->types.size()) return false;
             const auto min_size = std::min(types.size(), other_gen->types.size());
             for(unsigned i = 0; i < min_size; i++) {
@@ -282,7 +305,10 @@ bool GenericType::satisfies(BaseType *pure_type) {
         // same declaration: compare type args pairwise
         const auto this_decl = canonical_generic_decl(referenced->linked);
         const auto other_decl = canonical_generic_decl(other_gen->referenced->linked);
-        if(this_decl && other_decl && this_decl == other_decl) {
+        const bool same_future_handle =
+            generic_is_future_handle(this) && generic_is_future_handle(other_gen);
+        if((this_decl && other_decl && this_decl == other_decl) ||
+           same_future_handle) {
             // Lifetime arguments are erased from the runtime type, so enforce
             // the static-to-shorter direction here. `Holder<'static>` cannot
             // accept a `Holder<'a>` value whose reference is a stack borrow.

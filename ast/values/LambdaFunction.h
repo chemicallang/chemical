@@ -41,6 +41,9 @@ public:
      */
     TypeLoc capture_env = nullptr;
 
+    /** The enclosing context declared this lambda as a `FnOnce` callable. */
+    bool capture_target_once = false;
+
 
     /**
      * constructor

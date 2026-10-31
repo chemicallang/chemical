@@ -334,6 +334,23 @@ func test_capturing_lambda() {
             }
             return final == 33;
         })
+        test("fn once moves a by-value capture out", () => {
+            var s = std::string("hello")
+            var f : std::FnOnce<() => std::string> = |s|() => {
+                return s
+            }
+            var out = f()
+            return out.size() == 5
+        })
+        test("fn once keeps unmoved captures alive until the call", () => {
+            var a = std::string("hello")
+            var b = std::string("world")
+            var f : std::FnOnce<() => std::string> = |a, b|() => {
+                return a
+            }
+            var out = f()
+            return out.size() == 5
+        })
         test_capturing_lambda_destruction()
 
         }

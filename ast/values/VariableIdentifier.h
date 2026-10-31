@@ -26,6 +26,9 @@ public:
     ASTNode *linked = nullptr;
     bool is_ns;
 
+    /** This occurrence moves a by-value closure capture out of its environment. */
+    bool capture_move = false;
+
     /**
      * Interpreter inline cache: number of parent-scope hops from the evaluation
      * point to the scope that owns this identifier's binding. The syntactic

@@ -9,6 +9,8 @@ class CapturedVariable : public ASTNode {
 public:
 
     bool capture_by_ref;
+    /** A FnOnce lambda has moved this by-value capture out once. */
+    bool moved_out = false;
     chem::string_view name;
     unsigned int index;
     ASTNode *linked;
@@ -39,6 +41,7 @@ public:
             encoded_location()
         );
         var->linked = linked;
+        var->moved_out = moved_out;
         return var;
     }
 

@@ -30,10 +30,10 @@ Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2366/2366` |
-| LLVM main | `2364/2364` |
+| TCC main | `2368/2368` |
+| LLVM main | `2366/2366` |
 | `@test` runner | `54/54` |
-| TCC/LLVM negative | `668/668` |
+| TCC/LLVM negative | `671/671` |
 | TCC/LLVM safety | `64/64` |
 | TCC/LLVM async | `58/58` |
 | TCC libs | `730/730` |
@@ -251,14 +251,15 @@ memory safety.
    namespace) or another annotated function. New scoped sink APIs must be added to that list; an
    arbitrary user-defined sink is intentionally not trusted.
 4. **`Fn`/`FnMut`/`FnOnce` callable kinds are partially implemented.**
-   `std::Fn<T>` is the reusable callback type; `std::FnMut<T>` requires a
-   mutable local receiver; `std::FnOnce<T>` consumes its callback after the
-   first call (`SAFE-MOVE-003`, and the MIR move state rejects a second call).
-   The markers are conservatively `!Send`/`!Sync`. Remaining: full trait/interface
-   bounds, capture-kind inference for lambdas, moving a non-`Copy` capture out
-   of a `FnOnce` environment (still rejected by `SAFE-MOVE-002`), `FnOnce`
-   field calls (rejected until field drop-flag elaboration), and generic call
-   syntax through `Fn` bounds.
+   `std::Fn<T>` is the reusable callable type; `std::FnMut<T>` requires a
+   mutable local receiver; `std::FnOnce<T>` consumes the callback after its
+   first call (`SAFE-MOVE-003` plus the MIR destroyed-state check). A `FnOnce`
+   lambda may move a by-value capture out into an explicit `FnOnce` target;
+   per-capture drop flags prevent the closure environment from double-dropping
+   the moved field. Moving a capture into a reusable `Fn`/`FnMut` target is
+   still `SAFE-MOVE-002`, and moving the same capture twice is rejected.
+   Remaining: full trait/interface bounds and generic call syntax, field-stored
+   `FnOnce` calls, inferred-target once lambdas, and async closures.
 5. **HRTB precision is intentionally incomplete.**
    Deeper nested aggregate HRTB and multi-borrow callbacks mixing local and
    parameter/global referents (or distinct non-local regions) are explicit

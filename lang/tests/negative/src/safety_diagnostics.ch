@@ -487,6 +487,27 @@ func future_handle_same_scope_compiles(env : &mut TestEnv) {
 }
 
 @test
+func fn_once_capture_move_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var s = std::string(\"hello\")\n    var f : std::FnOnce<() => std::string> = |s|() => {\n        return s\n    }\n    var out = f()\n    return out.size() as int - 5\n}\n"
+    expect_compile_success_with_mod(env, "fn_once_capture_move", ch, NEG_MOD_STD_CORE)
+}
+
+@test
+func fn_reusable_capture_move_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var s = std::string(\"hello\")\n    var f : std::Fn<() => std::string> = |s|() => {\n        return s\n    }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "fn_reusable_capture_move", ch, "SAFE-MOVE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func fn_once_cannot_move_capture_twice(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var s = std::string(\"hello\")\n    var f : std::FnOnce<() => std::string> = |s|() => {\n        var a = s\n        var b = s\n        return a\n    }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "fn_once_double_capture_move", ch, "SAFE-MOVE-002", NEG_MOD_STD_CORE)
+}
+
+@test
 func fn_once_cannot_be_called_twice(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var f : std::FnOnce<() => int> = ||() => { return 1 }\n    var a = f()\n    var b = f()\n    return a + b\n}\n"

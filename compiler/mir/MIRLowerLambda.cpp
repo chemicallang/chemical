@@ -142,6 +142,54 @@ MIRExprResult MIRLowerer::lower_captured_variable(CapturedVariable* cap, bool as
     return MIRExprResult::value(builder_->field_load_ptr(ptr, fc, ft), ft);
 }
 
+static std::string capture_flag_name(unsigned index) {
+    return "__chx_cap_init_" + std::to_string(index);
+}
+
+bool MIRLowerer::capture_has_drop_flag(CapturedVariable* cap) {
+    return cap != nullptr && !cap->capture_by_ref &&
+           cap->known_type() != nullptr &&
+           destructor_symbol(cap->known_type()) != MIR_INVALID_ID;
+}
+
+MIRExprResult MIRLowerer::lower_moved_captured_variable(CapturedVariable* cap,
+                                                        std::string& error) {
+    if (cap == nullptr || lambda_closure_ptr_ == MIR_NULL) {
+        error = "moved capture used outside its lambda";
+        return MIRExprResult::error();
+    }
+    if (cap->capture_by_ref) {
+        return lower_captured_variable(cap, false, error);
+    }
+    const TypeId ft = types_.map(cap->known_type());
+    if (ft == MIR_INVALID_ID) {
+        error = "moved capture has no MIR type";
+        return MIRExprResult::error();
+    }
+    const ConstantId fc = module_.constants.add_string(
+        MIR_INVALID_ID, cap->name.data(), static_cast<uint32_t>(cap->name.size()));
+    if (abi::is_aggregate(module_, ft) && capture_has_drop_flag(cap)) {
+        const ValueId src = builder_->field_addr_ptr(lambda_closure_ptr_, fc, ft);
+        const PlaceId tmp = builder_->alloca(ft, MIRStorageClass::Temporary);
+        if (tmp == MIR_INVALID_ID) {
+            error = "failed to allocate moved capture temporary";
+            return MIRExprResult::error();
+        }
+        builder_->copy_ptr_to_place(tmp, src);
+        // Ownership moved into the temporary; the closure destructor must not
+        // destroy the original field.
+        const ConstantId flag = module_.constants.add_string(
+            MIR_INVALID_ID, capture_flag_name(cap->index).data(),
+            static_cast<uint32_t>(capture_flag_name(cap->index).size()));
+        const TypeId bool_t = types_.bool_type();
+        const ValueId zero = builder_->const_int(
+            bool_t, module_.constants.add_int(bool_t, 0));
+        builder_->field_store_ptr(lambda_closure_ptr_, flag, zero);
+        return MIRExprResult::place(tmp, ft);
+    }
+    return lower_captured_variable(cap, false, error);
+}
+
 MIRExprResult MIRLowerer::lower_extraction_value(ExtractionValue* ev, std::string& error) {
     Value* src = ev ? ev->value : nullptr;
     if (!src || src->val_kind() != ValueKind::LambdaFunc) {
@@ -371,6 +419,11 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
         sdef += "    " + c_type_of(module_, ft) + " " +
                 std::string(cap->name.data(), cap->name.size()) + ";\n";
     }
+    for (unsigned i = 0; i < lamb->captureList.size(); ++i) {
+        if (capture_has_drop_flag(lamb->captureList[i])) {
+            sdef += "    bool " + capture_flag_name(i) + ";\n";
+        }
+    }
     sdef += "};\n";
     lambda_defs_.push_back(sdef);
 
@@ -390,6 +443,18 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
             fi.index = static_cast<uint32_t>(cap_fields.size());
             fi.name_offset = module_.types.append_field_name(cap->name.data(), static_cast<uint32_t>(cap->name.size()));
             fi.name_length = static_cast<uint32_t>(cap->name.size());
+            cap_fields.push_back(fi);
+        }
+        for (unsigned i = 0; i < lamb->captureList.size(); ++i) {
+            if (!capture_has_drop_flag(lamb->captureList[i])) continue;
+            const std::string flag_name = capture_flag_name(i);
+            MIRFieldInfo fi;
+            fi.type = types_.bool_type();
+            fi.kind = static_cast<uint8_t>(MIRFieldKind::Direct);
+            fi.index = static_cast<uint32_t>(cap_fields.size());
+            fi.name_offset = module_.types.append_field_name(
+                flag_name.data(), static_cast<uint32_t>(flag_name.size()));
+            fi.name_length = static_cast<uint32_t>(flag_name.size());
             cap_fields.push_back(fi);
         }
         const uint32_t cfidx = module_.types.append_fields(cap_fields);
@@ -413,13 +478,20 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
         drec, dname.data(), static_cast<uint32_t>(dname.size()), dname.data(),
         static_cast<uint32_t>(dname.size()));
     std::string ddef = "static void " + dname + "(struct " + cap_name + "* self) {\n";
-    if (lamb->has_destructor_for_capture()) {
-        for (CapturedVariable* cap : lamb->captureList) {
-            const SymbolId d = destructor_symbol(cap->known_type());
-            if (d == MIR_INVALID_ID) continue;
-            const MIRSymbolRecord& dr = module_.symbols.get(d);
-            const std::string dn(module_.symbols.mangled_data(dr), dr.mangled_length);
-            const std::string fname(cap->name.data(), cap->name.size());
+    for (unsigned i = 0; i < lamb->captureList.size(); ++i) {
+        CapturedVariable* cap = lamb->captureList[i];
+        const SymbolId d = destructor_symbol(cap->known_type());
+        if (d == MIR_INVALID_ID) continue;
+        const MIRSymbolRecord& dr = module_.symbols.get(d);
+        const std::string dn(module_.symbols.mangled_data(dr), dr.mangled_length);
+        const std::string fname(cap->name.data(), cap->name.size());
+        if (capture_has_drop_flag(cap)) {
+            const std::string flag = capture_flag_name(i);
+            ddef += "    if(self->" + flag + ") {\n";
+            ddef += "        " + dn + "(&self->" + fname + ");\n";
+            ddef += "        self->" + flag + " = false;\n";
+            ddef += "    }\n";
+        } else {
             ddef += "    " + dn + "(&self->" + fname + ");\n";
         }
     }
@@ -442,18 +514,36 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
         const ValueId self_v = db.param(void_ptr);
         const TypeId cap_ptr_t = types_.pointer_type(cap_type, true);
         const ValueId cap_ptr = db.cast(self_v, cap_ptr_t);
-        if (lamb->has_destructor_for_capture()) {
-            for (CapturedVariable* cap : lamb->captureList) {
-                const SymbolId d = destructor_symbol(cap->known_type());
-                if (d == MIR_INVALID_ID) continue;
-                const TypeId ft = types_.map(cap->known_type());
-                const ConstantId fc = module_.constants.add_string(
-                    MIR_INVALID_ID, cap->name.data(),
-                    static_cast<uint32_t>(cap->name.size()));
-                const ValueId fa = db.field_addr_ptr(cap_ptr, fc, ft);
-                MIROperand a = MIROperand::value(fa, ft);
+        const TypeId bool_t = types_.bool_type();
+        for (unsigned i = 0; i < lamb->captureList.size(); ++i) {
+            CapturedVariable* cap = lamb->captureList[i];
+            const SymbolId d = destructor_symbol(cap->known_type());
+            if (d == MIR_INVALID_ID) continue;
+            const TypeId ft = types_.map(cap->known_type());
+            const ConstantId fc = module_.constants.add_string(
+                MIR_INVALID_ID, cap->name.data(),
+                static_cast<uint32_t>(cap->name.size()));
+            const ValueId fa = db.field_addr_ptr(cap_ptr, fc, ft);
+            MIROperand a = MIROperand::value(fa, ft);
+            if (!capture_has_drop_flag(cap)) {
                 db.call_scalar(d, types_.void_type(), &a, 1);
+                continue;
             }
+            const std::string flag_name = capture_flag_name(i);
+            const ConstantId flag = module_.constants.add_string(
+                MIR_INVALID_ID, flag_name.data(),
+                static_cast<uint32_t>(flag_name.size()));
+            const ValueId flag_v = db.field_load_ptr(cap_ptr, flag, bool_t);
+            const BlockId do_b = db.create_block();
+            const BlockId end_b = db.create_block();
+            db.cond_br(flag_v, do_b, end_b);
+            db.set_block(do_b);
+            db.call_scalar(d, types_.void_type(), &a, 1);
+            const ValueId zero = db.const_int(
+                bool_t, module_.constants.add_int(bool_t, 0));
+            db.field_store_ptr(cap_ptr, flag, zero);
+            db.br(end_b);
+            db.set_block(end_b);
         }
         db.ret_void();
         builder_ = saved_b;
@@ -672,6 +762,19 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
         return false;
     }
     builder_->zero_init(cap_temp);
+    {
+        const TypeId bool_t = types_.bool_type();
+        const ValueId one = builder_->const_int(
+            bool_t, module_.constants.add_int(bool_t, 1));
+        for (unsigned i = 0; i < lamb->captureList.size(); ++i) {
+            if (!capture_has_drop_flag(lamb->captureList[i])) continue;
+            const std::string flag_name = capture_flag_name(i);
+            const ConstantId flag = module_.constants.add_string(
+                MIR_INVALID_ID, flag_name.data(),
+                static_cast<uint32_t>(flag_name.size()));
+            builder_->field_store(cap_temp, flag, one);
+        }
+    }
     for (CapturedVariable* cap : lamb->captureList) {
         const ConstantId fc = module_.constants.add_string(
             MIR_INVALID_ID, cap->name.data(), static_cast<uint32_t>(cap->name.size()));

@@ -906,6 +906,11 @@ private:
     /** Resolve a captured variable inside a lambda body to its closure field. */
     MIRExprResult lower_captured_variable(CapturedVariable* cap, bool as_address,
                                           std::string& error);
+    /** Move a by-value closure capture out of its environment (FnOnce). */
+    MIRExprResult lower_moved_captured_variable(CapturedVariable* cap,
+                                                std::string& error);
+    /** Whether a closure capture needs a per-capture drop flag. */
+    bool capture_has_drop_flag(CapturedVariable* cap);
     /** Ensure a capturing lambda's closure struct/function/temp are generated. */
     bool materialize_capturing_lambda(LambdaFunction* lamb, std::string& error);
     /** Generate a non-capturing lambda function and yield its function pointer. */

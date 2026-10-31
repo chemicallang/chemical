@@ -59,6 +59,7 @@ static bool captures_function_local_storage(Value* value);
 static bool captures_function_local_storage(
         Value* value, const std::unordered_set<VarInitStatement*>& tainted);
 static bool moves_noncopy_capture(Value* value, LambdaFunction* lambda);
+static bool allow_capture_move(Value* value, LambdaFunction* lambda);
 
 bool TypeVerifier::da_type_has_destructor(VarInitStatement* v) {
     auto* t = v->known_type();
@@ -2410,6 +2411,29 @@ static void verify_closure_call_kind(TypeVerifier& verifier, FunctionCall* call)
     }
 }
 
+static LambdaFunction* lambda_value(Value* value) {
+    while (value != nullptr) {
+        if (value->val_kind() == ValueKind::UnsafeValue) {
+            value = static_cast<UnsafeValue*>(value)->getValue();
+        } else if (value->val_kind() == ValueKind::CastedValue) {
+            value = value->as_casted_value_unsafe()->value;
+        } else if (value->val_kind() == ValueKind::AccessChain &&
+                   value->as_access_chain_unsafe()->values.size() == 1) {
+            value = value->as_access_chain_unsafe()->values[0];
+        } else {
+            break;
+        }
+    }
+    return value != nullptr && value->val_kind() == ValueKind::LambdaFunc
+               ? value->as_lambda_func_unsafe() : nullptr;
+}
+
+static void mark_lambda_target(Value* value, BaseType* target) {
+    LambdaFunction* lambda = lambda_value(value);
+    if (lambda == nullptr || target == nullptr) return;
+    lambda->capture_target_once = closure_call_kind(target) == ClosureCallKind::FnOnce;
+}
+
 static void verify_future_argument_contract(TypeVerifier& verifier,
                                             FunctionCall* call) {
     if (call == nullptr || call->values.empty() || verifier.is_unsafe) return;
@@ -2524,11 +2548,18 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
          linked_call->name_view() == chem::string_view("scoped_run_closure"));
     const bool prev_scoped_capture = allow_scoped_capture;
     if (scoped_capture_call) allow_scoped_capture = true;
+    if (FunctionType* call_ft = call->function_type()) {
+        for (size_t i = 0; i < call->values.size(); ++i) {
+            FunctionParam* param = call_ft->func_param_for_arg_at(static_cast<unsigned>(i));
+            if (param != nullptr) mark_lambda_target(call->values[i], param->type);
+        }
+    }
     RecursiveVisitor<TypeVerifier>::VisitFunctionCall(call);
     allow_scoped_capture = prev_scoped_capture;
     if (current_lambda != nullptr) {
         for (Value* arg : call->values) {
-            if (moves_noncopy_capture(arg, current_lambda)) {
+            if (moves_noncopy_capture(arg, current_lambda) &&
+                !allow_capture_move(arg, current_lambda)) {
                 diagnoser.error(arg).with_code("SAFE-MOVE-002")
                     << "cannot move a by-value callback capture out of a reusable "
                        "callback; capture it by reference or use an explicit "
@@ -3305,9 +3336,13 @@ void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
     if(type) {
         visit(type);
     }
+    if(type && value) {
+        mark_lambda_target(value, type);
+    }
     if(value) {
         visit(value);
-        if(current_lambda != nullptr && moves_noncopy_capture(value, current_lambda)) {
+        if(current_lambda != nullptr && moves_noncopy_capture(value, current_lambda) &&
+            !allow_capture_move(value, current_lambda)) {
             diagnoser.error(value).with_code("SAFE-MOVE-002")
                 << "cannot move a by-value callback capture out of a reusable "
                    "callback; capture it by reference or use an explicit "
@@ -3667,8 +3702,10 @@ void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
         visit_it(assign->lhs);
     }
     check_index_move(assign->value);
+    mark_lambda_target(assign->value, assign->lhs->getType());
     visit_it(assign->value);
-    if (current_lambda != nullptr && moves_noncopy_capture(assign->value, current_lambda)) {
+    if (current_lambda != nullptr && moves_noncopy_capture(assign->value, current_lambda) &&
+        !allow_capture_move(assign->value, current_lambda)) {
         diagnoser.error(assign->value).with_code("SAFE-MOVE-002")
             << "cannot move a by-value callback capture out of a reusable "
                "callback; capture it by reference or use an explicit "
@@ -3795,16 +3832,53 @@ static bool moves_noncopy_capture(Value* value, LambdaFunction* lambda) {
     return type->requires_destructor();
 }
 
+static VariableIdentifier* capture_identifier(Value* value) {
+    while (value != nullptr) {
+        if (value->val_kind() == ValueKind::UnsafeValue) {
+            value = static_cast<UnsafeValue*>(value)->getValue();
+        } else if (value->val_kind() == ValueKind::CastedValue) {
+            value = value->as_casted_value_unsafe()->value;
+        } else if (value->val_kind() == ValueKind::AccessChain &&
+                   value->as_access_chain_unsafe()->values.size() == 1) {
+            value = value->as_access_chain_unsafe()->values[0];
+        } else {
+            break;
+        }
+    }
+    if (value == nullptr || value->val_kind() != ValueKind::Identifier) return nullptr;
+    auto* id = value->as_identifier_unsafe();
+    if (id->linked != nullptr &&
+        id->linked->kind() == ASTNodeKind::CapturedVariable) {
+        return id;
+    }
+    return nullptr;
+}
+
+static bool allow_capture_move(Value* value, LambdaFunction* lambda) {
+    if (lambda == nullptr || !lambda->capture_target_once) return false;
+    auto* id = capture_identifier(value);
+    if (id == nullptr) return false;
+    auto* cap = id->linked->as_captured_var_unsafe();
+    if (cap->capture_by_ref || cap->moved_out) return false;
+    cap->moved_out = true;
+    id->capture_move = true;
+    return true;
+}
+
 void TypeVerifier::VisitReturnStmt(ReturnStatement *node) {
     check_index_move(node->value);
+    if (node->value != nullptr && current_func_type != nullptr) {
+        mark_lambda_target(node->value, current_func_type->returnType);
+    }
     RecursiveVisitor::VisitReturnStmt(node);
     auto& value = node->value;
-    if (current_lambda != nullptr && moves_noncopy_capture(value, current_lambda)) {
-        diagnoser.error(value).with_code("SAFE-MOVE-002")
-            << "cannot move a by-value callback capture out of a reusable "
-               "callback; capture it by reference or use an explicit "
-               "once-callback";
-    }
+        if(current_lambda != nullptr && moves_noncopy_capture(value, current_lambda) &&
+            !allow_capture_move(value, current_lambda)) {
+            diagnoser.error(value).with_code("SAFE-MOVE-002")
+                << "cannot move a by-value callback capture out of a reusable "
+                   "callback; capture it by reference or use an explicit "
+                   "once-callback";
+        }
     if (value && captures_function_local_storage(value, capture_escape_locals)) {
         diagnoser.error(value).with_code("SAFE-LIFE-001")
             << "cannot return a function value that borrows function-local "

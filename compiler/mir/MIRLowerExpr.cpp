@@ -68,7 +68,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 return lower_pattern_identifier(id->linked->as_patt_match_id_unsafe(), error);
             }
             if (id->linked && id->linked->kind() == ASTNodeKind::CapturedVariable) {
-                return lower_captured_variable(id->linked->as_captured_var_unsafe(), false, error);
+                auto* cap = id->linked->as_captured_var_unsafe();
+                if (id->capture_move) return lower_moved_captured_variable(cap, error);
+                return lower_captured_variable(cap, false, error);
             }
             if (id->linked && id->linked->kind() == ASTNodeKind::ForInLoopStmt) {
                 auto* fl = id->linked->as_for_in_loop_unsafe();

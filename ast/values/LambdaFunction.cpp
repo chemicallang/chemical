@@ -59,6 +59,7 @@ Value* LambdaFunctionCopy::copy(ASTAllocator& allocator) {
     if (current->capture_env) {
         lambda->capture_env = current->capture_env.copy(allocator);
     }
+    lambda->capture_target_once = current->capture_target_once;
     scope.copy_into(lambda->scope, allocator, scope.parent());
     current->FunctionTypeBody::copy_into(*lambda, allocator, scope.parent());
     return lambda;

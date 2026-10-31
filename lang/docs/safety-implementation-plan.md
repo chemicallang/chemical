@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.27)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.28)
 
 > **Status (2026-10-31):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1080,7 +1080,7 @@
 > (layout and C ABI); C ABI classification for Windows/ARM, FFI wrappers, and
 > deeper HRTB precision remain (variance/temporary-lifetime extension are
 > implemented).
-> Safety suite `64`; negative tests `668`; main TCC `2366`, LLVM `2364`;
+> Safety suite `64`; negative tests `671`; main TCC `2368`, LLVM `2366`;
 > libs `730`; plugins `1305`; async `58`; interpret `1910`; server `10`;
 > TLS `599`; `MIRTests` `4643 checks`. The whole-tree audit
 > manifest (`lang/docs/safety/audit-modules.txt`) covers `94` modules with
@@ -1332,9 +1332,9 @@ approximate counts:
 
 | Gate | Result |
 |---|---|
-| TCC main / LLVM main | `2366` / `2364` |
+| TCC main / LLVM main | `2368` / `2366` |
 | `@test` runner | `54` |
-| TCC/LLVM negative | `668` / `668` |
+| TCC/LLVM negative | `671` / `671` |
 | TCC/LLVM safety | `64` / `64` |
 | TCC/LLVM async | `58` / `58` |
 | TCC libs | `730` |
@@ -1372,12 +1372,14 @@ new number as the honest baseline, not a regression.
 4. **`Fn`/`FnMut`/`FnOnce` callable kinds are partially implemented.**
    `std::Fn<T>` is the reusable callable type; `std::FnMut<T>` requires a
    mutable local receiver; `std::FnOnce<T>` consumes the callback after its
-   first call (`SAFE-MOVE-003` plus the MIR destroyed-state check). The markers
-   are conservatively `!Send`/`!Sync`. Remaining: full trait/interface bounds,
-   capture-kind inference for lambdas, moving non-`Copy` captures out of a
-   `FnOnce` environment (still `SAFE-MOVE-002`), field-stored `FnOnce` calls
-   (rejected until field drop-flag elaboration), generic call syntax through
-   `Fn` bounds, and async closures.
+   first call (`SAFE-MOVE-003` plus the MIR destroyed-state check). A `FnOnce`
+   lambda may move a by-value capture out into an explicit `FnOnce` target;
+   generated closure environments carry per-capture drop flags, so the
+   destructor skips fields whose ownership moved into the result. Moving a
+   capture into a reusable `Fn`/`FnMut` target is still `SAFE-MOVE-002`, and a
+   second move of the same capture is rejected. Remaining: full
+   trait/interface bounds and generic call syntax, field-stored `FnOnce` calls,
+   inferred-target once lambdas, and async closures.
 5. **HRTB precision.** Deeper nested aggregate HRTB and multi-borrow callbacks
    mixing local/parameter/global referents are explicit `SAFE-BORROW-099`
    rejections, never guessed-safe.
@@ -2770,3 +2772,6 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 
 
 *Revision note v4.27 (2026-10-31): first Fn callable-kind slice. Added `std::Fn<T>`, `std::FnMut<T>`, and `std::FnOnce<T>` aliases with `FnMutCapture`/`FnOnceCapture` markers. `FnMut` calls require a non-`const` local receiver; `FnOnce` calls require a moved receiver, destroy the callback environment after the call, and a second call is rejected by MIR (`SAFE-MOVE-003` plus the destroyed place state). Markers are conservative `!Send`/`!Sync`. Non-`Copy` capture moves remain blocked by `SAFE-MOVE-002`; field-stored `FnOnce` calls are rejected until field drop-flag elaboration. Added four regression tests (`fn_once_single_call`, `fn_once_double_call`, `fn_mut_mutable_call`, `fn_mut_const_receiver`). Negative tests `668`; main TCC/LLVM `2366`/`2364`, async `58`, safety `64`, libs `730`.*
+
+
+*Revision note v4.28 (2026-10-31): FnOnce capture moves + drop flags. Explicit `std::FnOnce<T>` targets now allow moving a by-value non-`Copy` capture out of the lambda body. Closure capture structs carry one drop flag per destructible by-value capture; the generated destructor skips moved fields, and `lower_moved_captured_variable` transfers the value into a temporary while clearing its flag. Reusable `std::Fn`/`FnMut` targets and second moves remain rejected by `SAFE-MOVE-002`. A runtime test moves a captured `string` out of a `FnOnce` and returns it (`2368` TCC / `2366` LLVM main); negative tests cover reusable-target rejection, double capture move, and the existing call-once cases (`671`). Remaining: full trait bounds/generic call syntax, field-stored `FnOnce`, inferred once lambdas, async closures.*

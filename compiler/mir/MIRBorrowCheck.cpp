@@ -229,6 +229,22 @@ bool observes_borrow(const MIRModule& module, TypeId type) {
  * not expose a reference field (they are C-compatible pointer+length pairs),
  * so the ordinary reference loan tracking would let them outlive their source.
  */
+bool is_future_handle_type(const MIRModule& module, TypeId type) {
+    if (type == MIR_INVALID_ID || type >= module.types.types.size()) {
+        return false;
+    }
+    const MIRTypeRecord& rec = module.types.types[type];
+    if (rec.kind != MIRTypeKind::Struct && rec.kind != MIRTypeKind::Union) {
+        return false;
+    }
+    const std::string_view name = module.types.name_view(type);
+    // `SendFutureHandle` is a distinct type (and contains the substring), so
+    // exclude it here: only the erased local future needs borrow tracking.
+    return !name.empty() &&
+           name.find("FutureHandle") != std::string_view::npos &&
+           name.find("SendFutureHandle") == std::string_view::npos;
+}
+
 bool is_borrow_view_type(const MIRModule& module, TypeId type) {
     if (type == MIR_INVALID_ID || type >= module.types.types.size()) {
         return false;
@@ -243,7 +259,11 @@ bool is_borrow_view_type(const MIRModule& module, TypeId type) {
     // `std_stdspan__cgs__0`), so match the type token as a substring.
     return name.find("string_view") != std::string_view::npos ||
            name.find("span") != std::string_view::npos ||
-           name.find("Chunk") != std::string_view::npos;
+           name.find("Chunk") != std::string_view::npos ||
+           // A future's frame stores the borrowed arguments until the future
+           // is polled or dropped. The handle is a raw frame/vtable pair, so
+           // the ordinary reference-field walk cannot see that borrow.
+           is_future_handle_type(module, type);
 }
 
 /** True when `from` outlives `to` (identity, 'static, elided, or a where edge). */
@@ -532,6 +552,61 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
         }
         return false;
     };
+    // Resolve a view/future loan carried either directly by a place or through
+    // the address value the lowering uses for a by-value aggregate argument.
+    auto operand_view_loan = [&](const MIROperand& op, TypeId& type,
+                                 uint32_t& loan, uint32_t& param) -> bool {
+        loan = MIR_INVALID_ID;
+        param = MIR_INVALID_ID;
+        type = MIR_INVALID_ID;
+        if (op.kind() == MIROperandKind::Place && op.id < function.places.size()) {
+            type = function.places[op.id].type;
+            const auto it = place_loans.find(op.id);
+            if (it != place_loans.end()) loan = it->second;
+            const auto pp = place_params.find(op.id);
+            if (pp != place_params.end()) param = pp->second;
+            return loan != MIR_INVALID_ID;
+        }
+        if (op.kind() != MIROperandKind::Value) return false;
+        // The address value for a by-value aggregate argument is emitted as
+        // AddressOf. Use its original place type/loan even when AddressOf
+        // retargets a borrowing-view temporary to the view's source.
+        if (op.id < function.values.size()) {
+            const uint32_t def = function.values[op.id].def_inst;
+            if (def < function.instructions.size()) {
+                const MIRInstruction& dinst = function.instructions[def];
+                const MIROperand* dops = dinst.operand_count == 0
+                                             ? nullptr
+                                             : &function.operands[dinst.operand_offset];
+                if (dinst.opcode() == MIROpcode::AddressOf && dops != nullptr &&
+                    dops[0].kind() == MIROperandKind::Place &&
+                    dops[0].id < function.places.size()) {
+                    type = function.places[dops[0].id].type;
+                    const auto it = place_loans.find(dops[0].id);
+                    if (it != place_loans.end()) loan = it->second;
+                    const auto pp = place_params.find(dops[0].id);
+                    if (pp != place_params.end()) param = pp->second;
+                    if (loan != MIR_INVALID_ID) return true;
+                }
+            }
+        }
+        const auto at = address_targets.find(op.id);
+        if (at != address_targets.end() && at->second.known &&
+            at->second.root < function.places.size()) {
+            type = function.places[at->second.root].type;
+            const auto it = place_loans.find(at->second.root);
+            if (it != place_loans.end()) loan = it->second;
+            const auto pp = place_params.find(at->second.root);
+            if (pp != place_params.end()) param = pp->second;
+            if (loan != MIR_INVALID_ID) return true;
+        }
+        if (op.id < function.values.size()) type = function.values[op.id].type;
+        const auto vit = value_loans.find(op.id);
+        if (vit != value_loans.end()) loan = vit->second;
+        const auto vp = value_params.find(op.id);
+        if (vp != value_params.end()) param = vp->second;
+        return loan != MIR_INVALID_ID;
+    };
 
     for (uint32_t lin = 0; lin < order.size(); ++lin) {
         const InstRef ref = order[lin];
@@ -555,7 +630,8 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 // temporary itself owns no storage, so the loan must target the
                 // view's source (`to_view().trim()` returns the original
                 // string's loan, not the temporary's).
-                if (is_borrow_view_type(module, function.places[t.root].type)) {
+                if (is_borrow_view_type(module, function.places[t.root].type) &&
+                    !is_future_handle_type(module, function.places[t.root].type)) {
                     const auto view_loan = place_loans.find(address_place);
                     if (view_loan != place_loans.end() &&
                         view_loan->second < loans.size()) {
@@ -1422,6 +1498,36 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                                           : loans[loan].target.param_index;
                     ref_args.push_back(ra);
                 }
+                // A FutureHandle is a by-value frame/vtable pair whose frame
+                // may retain a caller loan. Ordinary pass-through wrappers
+                // (`identity(f)`, the executor's `spawn(f)`) must carry that
+                // loan to their result even though the argument is not a
+                // reference operand and has no region parameter.
+                std::vector<RefArg> future_args;
+                for (uint16_t i = first; i < inst.operand_count; ++i) {
+                    TypeId arg_type = MIR_INVALID_ID;
+                    uint32_t arg_loan = MIR_INVALID_ID;
+                    uint32_t arg_param = MIR_INVALID_ID;
+                    if (!operand_view_loan(ops[i], arg_type, arg_loan, arg_param)) {
+                        continue;
+                    }
+                    // A by-value borrow view (`string_view`, `span`, `Chunk`)
+                    // can be stored in the future's frame just like a direct
+                    // `&T` parameter. Carry its source loan through the future
+                    // result as well.
+                    if (!is_borrow_view_type(module, arg_type) ||
+                        arg_loan >= loans.size()) {
+                        continue;
+                    }
+                    RefArg ra;
+                    ra.op_index = i;
+                    ra.param_index = static_cast<uint32_t>(i - first);
+                    ra.loan = arg_loan;
+                    ra.source_param = arg_param != MIR_INVALID_ID
+                                          ? arg_param
+                                          : loans[arg_loan].target.param_index;
+                    future_args.push_back(ra);
+                }
                 const MIRRegionSignature* callee_sig = nullptr;
                 MIRRegionSignature callee_sig_copy;
                 if (has_callsite_sig) {
@@ -1595,6 +1701,16 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 // region is the return region (or the unique argument whose
                 // region outlives it). This makes `pick(&mut a, &mut b)` keep
                 // the correct loan alive instead of dropping both.
+                TypeId mapped_result_type = MIR_INVALID_ID;
+                if (inst.result_or_place != MIR_INVALID_ID) {
+                    if (inst.result_or_place < function.places.size()) {
+                        mapped_result_type = function.places[inst.result_or_place].type;
+                    } else if (inst.result_or_place < function.values.size()) {
+                        mapped_result_type = function.values[inst.result_or_place].type;
+                    }
+                }
+                const bool future_result =
+                    is_future_handle_type(module, mapped_result_type);
                 uint32_t mapped_loan = MIR_INVALID_ID;
                 uint32_t mapped_source = MIR_INVALID_ID;
                 std::vector<uint32_t> ambiguous_loans;
@@ -1628,16 +1744,36 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                             for (const RefArg* ra : candidates) {
                                 ambiguous_loans.push_back(ra->loan);
                             }
-                        } else if (!static_return && ref_args.size() == 1) {
+                        } else if (!static_return && ref_args.size() == 1 &&
+                                   !future_result) {
                             // Elided region: the single reference is the only
                             // possible source. A `'static` result owns its
-                            // storage, so it retains no argument loan.
+                            // storage, so it retains no argument loan. A future
+                            // handle needs the async declaration's synthetic
+                            // return region; an ordinary constructor such as
+                            // `spawn_blocking` is an unsafe, explicitly erased
+                            // boundary and must not borrow through this fallback.
                             mapped_loan = ref_args[0].loan;
                             mapped_source = ref_args[0].source_param;
                         }
                     } else if (!static_return && ref_args.size() == 1) {
                         mapped_loan = ref_args[0].loan;
                         mapped_source = ref_args[0].source_param;
+                    }
+                }
+
+                if (future_result && mapped_loan == MIR_INVALID_ID &&
+                    !future_args.empty()) {
+                    // No declared return region: preserve the input handle's
+                    // loan through a by-value pass-through wrapper. If several
+                    // input handles are present, keep every candidate alive
+                    // rather than guessing which one the callee returns.
+                    mapped_loan = future_args[0].loan;
+                    mapped_source = future_args[0].source_param;
+                    if (future_args.size() > 1) {
+                        for (const RefArg& fa : future_args) {
+                            ambiguous_loans.push_back(fa.loan);
+                        }
                     }
                 }
 
@@ -1670,7 +1806,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     inst.result_or_place < function.places.size()) {
                     uint32_t view_loan = mapped_loan;
                     uint32_t view_source = mapped_source;
-                    if (view_loan == MIR_INVALID_ID) {
+                    if (view_loan == MIR_INVALID_ID && !future_result) {
                         for (uint16_t i = first; i < inst.operand_count; ++i) {
                             if (ops[i].kind() != MIROperandKind::Value) continue;
                             const auto at = address_targets.find(ops[i].id);
@@ -1976,6 +2112,32 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                                         ? nullptr
                                         : &function.operands[inst.operand_offset];
             for (uint16_t i = 0; ops != nullptr && i < inst.operand_count; ++i) {
+                if (ops[i].kind() == MIROperandKind::Place &&
+                    inst.opcode() == MIROpcode::Call &&
+                    ops[i].id < function.places.size() &&
+                    is_future_handle_type(module,
+                                          function.places[ops[i].id].type)) {
+                    // A by-value call argument reads the view/future stored in
+                    // that place. Without this, a FutureHandle local is
+                    // considered dead at its source's StorageDead even though
+                    // it is consumed later. Restrict this to Call operands:
+                    // treating every place operand as a use over-approximates
+                    // ordinary borrows (and caused false SAFE-BORROW-001 hits in
+                    // the test launcher).
+                    const auto pit = place_loans.find(ops[i].id);
+                    if (pit != place_loans.end() && pit->second < nloans &&
+                        !defined_in_block[pit->second]) {
+                        block_use[b][pit->second] = true;
+                    }
+                    const auto pal = place_aliases.find(ops[i].id);
+                    if (pal != place_aliases.end()) {
+                        for (uint32_t alias : pal->second) {
+                            if (alias < nloans && !defined_in_block[alias]) {
+                                block_use[b][alias] = true;
+                            }
+                        }
+                    }
+                }
                 if (ops[i].kind() != MIROperandKind::Value) continue;
                 const auto it = value_loans.find(ops[i].id);
                 if (it != value_loans.end() && it->second < nloans &&

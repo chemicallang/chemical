@@ -41,10 +41,10 @@ A language is only valuable if it satisfies all four:
 
 **Implementation status (2026-10-31).** “Complete memory safety” is the
 requirement, not a claim that parity is finished. The enforced surface (M0, M3,
-and the enforceable M4/M5/M6 rules) is green, but the critical open gaps are
-`FutureHandle` lifetime erasure (safe async UAF), LLVM C ABI not being
-target-gated (x86-64 SysV only), `dyn` having no auto-trait bounds, and
-`@scoped_callback` being a trust annotation. Load the `safety` skill and read
+and the enforceable M4/M5/M6 rules) is green, but the open gaps include
+`FutureHandle` type-level lifetime expressiveness (direct borrow tracking now
+landed), LLVM C ABI not being target-gated (x86-64 SysV only), `dyn` having no
+auto-trait bounds, and `@scoped_callback` being a trust annotation. Load the `safety` skill and read
 `lang/docs/safety-implementation-plan.md` §4.5 before making safety/roadmap
 claims.
 

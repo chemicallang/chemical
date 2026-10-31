@@ -1,9 +1,10 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.23)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.24)
 
 > **Status (2026-10-31):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
-> remain in progress; M8/M9 are pending. The critical open soundness gap is
-> async `FutureHandle` lifetime erasure.
+> remain in progress; M8/M9 are pending. Direct async `FutureHandle` borrow
+> escapes are now checked in MIR; the remaining gap is type-level lifetime
+> expressiveness for unknown callees and generic containers.
 > S5.6b (unwinding) is withdrawn by policy: panic always aborts; no unwind
 > runtime, `catch_unwind`, or `UnwindSafe` traits are planned unless the C
 > backend later makes unwinding practical.
@@ -1076,7 +1077,7 @@
 > (layout and C ABI); C ABI classification for Windows/ARM, FFI wrappers, and
 > deeper HRTB precision remain (variance/temporary-lifetime extension are
 > implemented).
-> Safety suite `64`; negative tests `647`; main TCC `2366`, LLVM `2364`;
+> Safety suite `64`; negative tests `656`; main TCC `2366`, LLVM `2364`;
 > libs `730`; plugins `1305`; async `58`; interpret `1910`; server `10`;
 > TLS `599`; `MIRTests` `4643 checks`. The whole-tree audit
 > manifest (`lang/docs/safety/audit-modules.txt`) covers `94` modules with
@@ -1330,7 +1331,7 @@ approximate counts:
 |---|---|
 | TCC main / LLVM main | `2366` / `2364` |
 | `@test` runner | `54` |
-| TCC/LLVM negative | `647` / `647` |
+| TCC/LLVM negative | `656` / `656` |
 | TCC/LLVM safety | `64` / `64` |
 | TCC/LLVM async | `58` / `58` |
 | TCC libs | `730` |
@@ -1344,12 +1345,16 @@ new number as the honest baseline, not a regression.
 
 ### 4.5 Known remaining gaps / release blockers
 
-1. **`FutureHandle<T>`/`SendFutureHandle<T>` erase borrows (critical).** An
-   async function returning a handle has no lifetime parameter, so safe code can
-   return a future whose frame borrows a local, then poll it after the local
-   dies. `Channel::recv_or` now owns a receiver count, so it is not an instance
-   of this gap. Needs a type-level lifetime/frame witness or precise escape
-   analysis.
+1. **`FutureHandle<T>` lifetime erasure is partially closed.** MIR treats a
+   future handle as a borrow view and propagates direct reference parameters,
+   by-value view parameters, and by-value future handles through ordinary
+   wrappers; direct returns/locals/fields/`Option`/`string_view` escapes are
+   rejected (see negative suite). A type-level `FutureHandle<'a, T>` (or an
+   equivalent caller-visible frame witness) is still missing, so unknown/extern
+   callees and generic containers that hide a future behind an unrelated result
+   need explicit lifetime support. This is the remaining release blocker in
+   this area, not the old direct return bug.
+
 2. **LLVM C ABI is x86-64 SysV only and not target-gated.**
    `compiler/CodegenMir.cpp` applies the SysV classifier unconditionally; the C
    backend delegates to the host compiler, but LLVM on Windows/ARM can
@@ -2444,9 +2449,11 @@ indicative; full parity is a large program (see §15.9).
 | S4.10 | Enforce | Green. |
 
 **Current M4 status:** the enforceable borrow/lifetime surface is implemented
-and enforced. The critical remaining async gap is `FutureHandle` lifetime
-erasure (§4.5); deeper HRTB nesting and mixed multi-borrow referents remain
-explicit `SAFE-BORROW-099` rejections.
+and enforced. `FutureHandle` direct frame borrows are now tracked as MIR borrow
+views through locals/fields/wrappers; the remaining async gap is type-level
+lifetime expressiveness (unknown callees/generic containers, §4.5). Deeper HRTB
+nesting and mixed multi-borrow referents remain explicit `SAFE-BORROW-099`
+rejections.
 
 ### M5 — Validity/runtime (2 months)
 
@@ -2727,4 +2734,7 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 
 *Revision note v4.22 (2026-10-31): M6.0 concurrency audit. `ArcInner<T>` uses one mutex for both reference counts; independent count locks could double-free when the last strong and last weak owners dropped concurrently, and `ArcWeak::upgrade` could increment the strong count after a concurrent last-strong drop destroyed the value. Count updates, upgrade's test-and-increment, and the last-owner free decision now share that lock; the value destructor runs outside it behind an explicit `value_state` transition so a destructor that touches its own Arc counts cannot deadlock. `ArcWeak<T>` is `Send + Sync` when `T: Send + Sync`. `MutexGuard`, `RwLockReadGuard`, and `RwLockWriteGuard` carry explicit `!Send`/`!Sync` impls. New 200-iteration runtime tests race upgrade/weak-drop against a worker's last-strong drop. `./scripts/test.sh --llvm --thread-tsan` now runs the TSAN smoke test and fails loudly when no TSAN runtime is available. Audit surface dropped to `unsafe_blocks 3661` / `unsafe_values 4890` / `raw_pointer_derefs 969`; main TCC `2366`, LLVM `2364`, @test `54`, negative `641`, safety `63`. Remaining M6 audit targets: remaining std auto-trait coverage and broader TSAN scenarios.*
 
-*Revision note v4.23 (2026-10-31): safety audit. The audit found and fixed four concrete holes. (1) Nested fields bypassed conditional generic `!Send`/`!Sync` impls: `Outer { var w : Wrapper<int> }` was accepted as `Send` even when `impl<T> !Send for Wrapper<T> where T: Copy` applied; `TypeVerifierAutoTraitContext` now evaluates conditional generic positive and negative impls at every nested concrete instantiation. (2) Immutable globals accepted an explicit `impl !Sync` because `SAFE-GLOBAL-002` called structural derivation without the Send/Sync interfaces; it now passes them together with the context. (3) `dyn I` was structurally `Send`/`Sync`/`Unpin` even though the erased implementor could hold `Rc`/raw pointers; a `dyn` backed by `Rc` could be sent through `std::thread.spawn`. Dynamic objects are now conservatively `!Send`/`!Sync`/`!Unpin` until `dyn I + Send/Sync` is represented. (4) Nested conditional `!Unpin` is now treated conservatively as negative. The safety report previously skipped **every** `ImplDefinition` body; it now walks impl bodies, raising the reviewed baseline from `unsafe_blocks 3661`/`unsafe_values 4890` to `3765`/`4898` (`raw_pointer_derefs 1065`, `extern_calls 1296`, `panic_calls 95`) — this is corrected coverage, not new unsafe code. `vector::resize` now checks capacity-doubling overflow; `string::move_data_to_heap` and `async::channel` check allocations; channel `recv_or` futures now hold a receiver count and release it on drop; `Sender`/`Receiver`/`ChannelShared`/`RecvState` fields are internal and channel handles are audited `Send + Sync` for `T: Send`; `ArcWeak` is audited `Send + Sync` under the shared count lock. Known blockers remain: `FutureHandle` lifetime erasure (critical), LLVM C ABI not target-gated, `@scoped_callback` trust, `dyn` auto-trait bounds, unfinished async-runtime allocation checks, and local-only audit CI. Tests: TCC main `2366`, LLVM `2364`, @test `54`, negative `647`, safety `64`, async `58`, libs `730`, `MIRTests` `4643`, TSAN pass.*
+*Revision note v4.23 (2026-10-31): safety audit. The audit found and fixed four concrete holes. (1) Nested fields bypassed conditional generic `!Send`/`!Sync` impls: `Outer { var w : Wrapper<int> }` was accepted as `Send` even when `impl<T> !Send for Wrapper<T> where T: Copy` applied; `TypeVerifierAutoTraitContext` now evaluates conditional generic positive and negative impls at every nested concrete instantiation. (2) Immutable globals accepted an explicit `impl !Sync` because `SAFE-GLOBAL-002` called structural derivation without the Send/Sync interfaces; it now passes them together with the context. (3) `dyn I` was structurally `Send`/`Sync`/`Unpin` even though the erased implementor could hold `Rc`/raw pointers; a `dyn` backed by `Rc` could be sent through `std::thread.spawn`. Dynamic objects are now conservatively `!Send`/`!Sync`/`!Unpin` until `dyn I + Send/Sync` is represented. (4) Nested conditional `!Unpin` is now treated conservatively as negative. The safety report previously skipped **every** `ImplDefinition` body; it now walks impl bodies, raising the reviewed baseline from `unsafe_blocks 3661`/`unsafe_values 4890` to `3765`/`4898` (`raw_pointer_derefs 1065`, `extern_calls 1296`, `panic_calls 95`) — this is corrected coverage, not new unsafe code. `vector::resize` now checks capacity-doubling overflow; `string::move_data_to_heap` and `async::channel` check allocations; channel `recv_or` futures now hold a receiver count and release it on drop; `Sender`/`Receiver`/`ChannelShared`/`RecvState` fields are internal and channel handles are audited `Send + Sync` for `T: Send`; `ArcWeak` is audited `Send + Sync` under the shared count lock. Known blockers at that audit point: `FutureHandle` lifetime erasure (direct escapes were closed in v4.24), LLVM C ABI not target-gated, `@scoped_callback` trust, `dyn` auto-trait bounds, unfinished async-runtime allocation checks, and local-only audit CI. Tests: TCC main `2366`, LLVM `2364`, @test `54`, negative `647`, safety `64`, async `58`, libs `730`, `MIRTests` `4643`, TSAN pass.*
+
+
+*Revision note v4.24 (2026-10-31): `FutureHandle` borrow tracking, first slice. MIR now classifies `core::async::FutureHandle` as a borrow view (`MIRBorrowCheck::is_future_handle_type`/`is_borrow_view_type`); async declarations get a synthetic elided return region with outlives edges from every borrowed parameter and by-value aggregate field; ordinary non-`&self` wrappers returning a future carry their reference-parameter loan; by-value future handles and view parameters propagate their input loans through pass-through calls. The borrow checker follows the resulting loan through local assignment, struct fields, returns, and call liveness, rejecting `SAFE-LIFE-001`/`002` for the direct local return, local-scope, free-wrapper, method, struct-field, `Option`, and `string_view` cases. A synthetic region is deliberately not added for every `&self` method because owning futures such as `Channel::recv_or` can outlive their receiver handle; actual body loans still catch borrowing methods. Remaining gap: no type-level `FutureHandle<'a, T>` / caller-visible witness, so unknown/extern callees and generic containers that hide a future behind an unrelated result still need the lifetime model. New negative tests cover direct/local/wrapper/free-wrapper/method/local-view races plus a same-scope positive. Main TCC `2366`, LLVM `2364`, negative `656`, safety `64`, async `58`, libs `730`, `MIRTests` `4643`, TSAN pass.*

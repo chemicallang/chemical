@@ -22,7 +22,7 @@ for the safe API surface we currently expose**, not full language parity.
 | `Send` / `Sync` | Auto traits + explicit/negative impls + nested conditional generic impls; data-race primitives |
 | Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; C ABI by-value support is x86-64 SysV only on LLVM |
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
-| Async | Shipped, `Pin`/Waker/frame loans; **`FutureHandle` still erases borrows (critical gap)** |
+| Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle` results now carry input loans in MIR (type-level lifetime parameter remains) |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
 | Type-system / stdlib parity | M1/M7 remain; M2/M8 remain |
 
@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2366/2366` |
 | LLVM main | `2364/2364` |
 | `@test` runner | `54/54` |
-| TCC/LLVM negative | `647/647` |
+| TCC/LLVM negative | `656/656` |
 | TCC/LLVM safety | `64/64` |
 | TCC/LLVM async | `58/58` |
 | TCC libs | `730/730` |
@@ -107,7 +107,11 @@ MIR is the sole producer of init/move/drop state:
   etc.).
 
 Region signatures are built from declarations before body lowering; MIR types
-are lifetime-erased and regions live in per-function side tables. Temporary
+are lifetime-erased and regions live in per-function side tables. An async
+function returning a `FutureHandle` gets a synthetic elided return region and
+outlives edges from every borrowed parameter; `MIRBorrowCheck` also treats a
+`FutureHandle` as a borrow view so the input loan follows the handle through
+locals, fields, and ordinary by-value wrappers. Temporary
 lifetime extension, variance, `PhantomData`, `Pin`, Waker ownership, and
 async frame loans are implemented for the supported surface.
 
@@ -211,26 +215,22 @@ declared-negative type.
 These are verified gaps, not placeholders. Read this list before claiming full
 memory safety.
 
-1. **`FutureHandle<T>`/`SendFutureHandle<T>` erase borrows — critical.**
-   An async function returning `FutureHandle<T>` has no lifetime parameter. Safe
-   code can return a future whose frame borrows a local:
+1. **`FutureHandle<T>` lifetime erasure is partially closed.**
+   MIR now classifies a future handle as a borrow view and propagates the loans
+   of direct `&T` parameters, by-value `string_view`/`span`/`Chunk`
+   parameters, and by-value future handles through ordinary pass-through
+   wrappers. Assigning/moving the handle into a local or struct field and
+   returning it is checked by `SAFE-LIFE-001`/`002`. This closes the direct
+   `return work(&local)`, local-scope, free-wrapper, method, struct-field,
+   `Option`, and `string_view` cases covered by the negative suite.
 
-   ```chemical
-   async func work(x : &string) : int {
-       var u = await async::yield_now()
-       return x.get(0) as int
-   }
-   func make_future() : core::async::FutureHandle<int> {
-       var s = string("...")
-       return work(&s)          // accepted today; frame points at dead `s`
-   }
-   ```
-
-   Polling the returned handle is a use-after-free. `Channel::recv_or` now owns
-   a receiver count, so it is not an instance of this gap. The fix for async
-   functions is a real lifetime/frame witness (e.g. `FutureHandle<'a, T>`) or a
-   precise escape analysis; do not paper over it with an `unsafe` boundary in
-   safe APIs.
+   What remains is **type-level lifetime expressiveness**, not the old direct
+   UAF: `FutureHandle` has no `'a` parameter, so an API cannot state a
+   caller-visible borrow, and an unknown/extern callee receiving a future is
+   still treated as an escape boundary. Generic containers and APIs that hide a
+   future behind an unrelated result type need the same explicit lifetime/frame
+   witness. Do not address those with safe `unsafe` wrappers; extend the
+   lifetime model.
 
 2. **LLVM C ABI is x86-64 SysV only, without a target gate.**
    `compiler/CodegenMir.cpp` classifies by-value extern aggregates using the

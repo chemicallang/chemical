@@ -368,6 +368,69 @@ func neg_nested_conditional_not_unpin_rejected(env : &mut TestEnv) {
 }
 
 @test
+func neg_future_handle_cannot_return_local_borrow(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc make_future() : core::async::FutureHandle<int> {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    return work(&s)\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "future_return_local_borrow", ch, "SAFE-LIFE-001", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_cannot_outlive_local_borrow(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\npublic func main() : int {\n    var h : core::async::FutureHandle<int>\n    {\n        var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n        h = work(&s)\n    }\n    var r = async::block_on<int>(h)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "future_outlives_local_borrow", ch, "SAFE-LIFE-002", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_wrapper_cannot_return_local_borrow(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc identity(h : core::async::FutureHandle<int>) : core::async::FutureHandle<int> { return h }\nfunc make_future() : core::async::FutureHandle<int> {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    return identity(work(&s))\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "future_wrapper_return_local_borrow", ch, "SAFE-LIFE-001", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_free_wrapper_cannot_return_local_borrow(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc wrap(x : &std::string) : core::async::FutureHandle<int> {\n    return work(x)\n}\nfunc make_future() : core::async::FutureHandle<int> {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    return wrap(&s)\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "future_free_wrapper_local_borrow", ch, "SAFE-LIFE-001", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_method_cannot_outlive_local_borrow(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct Owner {\n    var s : std::string\n    func work_future(&self) : core::async::FutureHandle<int> {\n        return work(&self.s)\n    }\n}\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\npublic func main() : int {\n    var h : core::async::FutureHandle<int>\n    {\n        var o = Owner { s : std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\") }\n        h = o.work_future()\n    }\n    var r = async::block_on<int>(h)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "future_method_local_borrow", ch, "SAFE-LIFE-002", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_cannot_return_local_view(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : std::string_view) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc make_future() : core::async::FutureHandle<int> {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    return work(s.to_view())\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "future_return_local_view", ch, "SAFE-LIFE-001", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func future_handle_wrapper_same_scope_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc wrap(x : &std::string) : core::async::FutureHandle<int> {\n    return work(x)\n}\npublic func main() : int {\n    var s = std::string(\"A\")\n    var h = wrap(&s)\n    var r = async::block_on<int>(h)\n    return r - 65\n}\n"
+    expect_compile_success_with_mod(env, "future_wrapper_same_scope", ch, NEG_MOD_ASYNC_STD)
+}
+
+@test
+func future_handle_method_same_scope_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct Owner {\n    var s : std::string\n    func work_future(&self) : core::async::FutureHandle<int> {\n        return work(&self.s)\n    }\n}\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\npublic func main() : int {\n    var o = Owner { s : std::string(\"A\") }\n    var h = o.work_future()\n    var r = async::block_on<int>(h)\n    return r - 65\n}\n"
+    expect_compile_success_with_mod(env, "future_method_same_scope", ch, NEG_MOD_ASYNC_STD)
+}
+
+@test
+func future_handle_same_scope_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\npublic func main() : int {\n    var s = std::string(\"A\")\n    var h = work(&s)\n    var r = async::block_on<int>(h)\n    return r - 65\n}\n"
+    expect_compile_success_with_mod(env, "future_same_scope", ch, NEG_MOD_ASYNC_STD)
+}
+
+@test
 func neg_dyn_object_is_not_send(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "interface Show {\n    func show(&self) : int\n}\nstruct RcImpl {\n    var r : std::Rc<int>\n}\nimpl Show for RcImpl {\n    func show(&self) : int { return *self.r.get() }\n}\nfunc worker(x : dyn Show) : int { return x.show() }\npublic func main() : int {\n    var v = RcImpl { r : std::rc(1) }\n    var d : dyn Show = dyn<Show>(v)\n    var t = std::thread.spawn<dyn Show, int>(worker, d)\n    return t.join() - 1\n}\n"

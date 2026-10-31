@@ -28,8 +28,9 @@ after that, size + compile time + memory are reduced together. See
 
 **Safety implementation status (2026-10-31):** the enforceable core is green
 (M0, M3, and the enforceable M4/M5/M6 rules), but full parity is not done. The
-critical open gap is **`FutureHandle<T>` lifetime erasure** (safe async code can
-return a future borrowing a dead local); other blockers are the LLVM C ABI being
+async `FutureHandle<T>` now carries direct input loans through MIR, but has no
+type-level lifetime parameter yet (unknown callees/generic containers remain);
+other blockers are the LLVM C ABI being
 x86-64 SysV-only without a target gate, `dyn` being conservatively `!Send`/
 `!Sync`/`!Unpin`, `@scoped_callback` being a trust annotation, and incomplete
 async-runtime allocation checks. Load the `safety` skill and read

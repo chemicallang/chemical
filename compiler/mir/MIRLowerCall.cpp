@@ -1760,6 +1760,18 @@ SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
     return s;
 }
 
+/** True for the compiler-generated async protocol handle. */
+static bool is_future_handle_type(BaseType* type) {
+    if (type == nullptr) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr || canonical->kind() != BaseTypeKind::Generic) return false;
+    auto* gen = canonical->as_generic_type_unsafe();
+    if (gen->referenced == nullptr || gen->referenced->linked == nullptr) return false;
+    if (gen->referenced->linked->kind() != ASTNodeKind::StructDecl) return false;
+    const auto name = gen->referenced->linked->as_struct_def_unsafe()->name_view();
+    return name == "FutureHandle";
+}
+
 static chem::string_view region_lifetime_of(BaseType* type) {
     if (type == nullptr) return {};
     // Direct `&'a T` first; then aggregate/generic lifetime arguments such as
@@ -1830,6 +1842,25 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
             }
         }
     }
+    const bool future_handle_return =
+        is_future_handle_type(const_cast<BaseType*>(decl->returnType.getType()));
+    bool has_non_self_reference_param = false;
+    for (FunctionParam* param : decl->params) {
+        if (param == nullptr || param->type == nullptr) continue;
+        if (param->name_view() == "self" || param->name_view() == "this") continue;
+        BaseType* pc = const_cast<BaseType*>(param->type.getType())->canonical();
+        if (pc != nullptr && pc->kind() == BaseTypeKind::Reference) {
+            has_non_self_reference_param = true;
+            break;
+        }
+    }
+    // An async future owns a frame containing every borrowed input. An
+    // ordinary (non-async) function returning a FutureHandle from a non-self
+    // reference parameter is a pass-through wrapper; its result carries that
+    // input loan too. `&self` wrappers are left alone: many return a future
+    // built from an fd/int and do not actually retain the receiver.
+    const bool future_borrow_return = future_handle_return &&
+        (decl->is_async() || has_non_self_reference_param);
     std::vector<std::string_view> param_lifetimes;
     param_lifetimes.reserve(decl->params.size());
     for (FunctionParam* param : decl->params) {
@@ -1840,9 +1871,27 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
             (param->name_view() == "self" || param->name_view() == "this")) {
             lt = "elided";
         }
+        // An async future's frame retains every direct `&T` parameter. A
+        // reference without an explicit lifetime is the elided input region;
+        // tie it to the synthetic future return region below.
+        if (lt.empty() && future_borrow_return && param && param->type) {
+            BaseType* pt = const_cast<BaseType*>(param->type.getType());
+            BaseType* pc = pt != nullptr ? pt->canonical() : nullptr;
+            if (pc != nullptr && pc->kind() == BaseTypeKind::Reference) {
+                lt = "elided";
+            }
+        }
         param_lifetimes.emplace_back(lt.data(), lt.size());
     }
     chem::string_view return_lt = decl->return_lifetime;
+    // An async function's frame stores its borrowed parameters until the
+    // future is polled or dropped. The handle type has no lifetime parameter
+    // yet, so give the declaration an elided return region and tie every
+    // borrowed input to it below. A non-async pass-through wrapper with a
+    // non-self reference parameter gets the same synthetic region; `&self`
+    // methods keep their declared signature unless the body itself creates a
+    // loan (owning futures such as `recv_or` must stay outliving-safe).
+    if (return_lt.empty() && future_borrow_return) return_lt = "elided";
     if (return_lt.empty()) return_lt = region_lifetime_of(decl->returnType);
     std::vector<std::pair<std::string_view, std::string_view>> outlives;
     if (decl->where_clause) {
@@ -1867,6 +1916,17 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
         const size_t own = decl->generic_parent->lifetime_params.size();
         for (size_t i = 0; i < own && i < sig.lifetime_param_count; ++i) {
             sig.hrtb_binders.push_back(static_cast<MIRRegionId>(i + 1));
+        }
+    }
+    if (future_borrow_return && sig.return_region != MIR_INVALID_ID &&
+        sig.return_region != MIR_REGION_STATIC) {
+        // The future owns a frame containing every borrowed input. Make the
+        // declared return region outlived by each parameter region so the
+        // generic region machinery can attach those loans to the handle.
+        for (MIRRegionId pr : sig.param_regions) {
+            if (pr != MIR_INVALID_ID && pr != MIR_REGION_STATIC) {
+                sig.outlives.emplace_back(pr, sig.return_region);
+            }
         }
     }
 
@@ -1968,6 +2028,16 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
                 fr.region = region;
                 fr.variance = static_cast<MIRVariance>(uses[li]);
                 sig.param_field_regions[pi].push_back(fr);
+            }
+        }
+    }
+    if (future_borrow_return && sig.return_region != MIR_INVALID_ID &&
+        sig.return_region != MIR_REGION_STATIC) {
+        for (const auto& fields : sig.param_field_regions) {
+            for (const MIRParamFieldRegion& fr : fields) {
+                if (fr.region != MIR_INVALID_ID && fr.region != MIR_REGION_STATIC) {
+                    sig.outlives.emplace_back(fr.region, sig.return_region);
+                }
             }
         }
     }

@@ -2236,6 +2236,9 @@ void SymResLinkBody::VisitAccessChain(AccessChain *chain) {
 
 }
 
+static BaseType* callable_bound_signature_for(FunctionDeclaration* fd,
+                                               GenericTypeParameter* param);
+
 void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
 
     const auto parent_val = call->parent_val;
@@ -2293,7 +2296,26 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
             auto& value = *values[i];
             const auto param = func_type->func_param_for_arg_at(i);
             if(param) {
-                const auto expected_type = param->type;
+                BaseType* expected_type = const_cast<BaseType*>(param->type.getType());
+                if (expected_type != nullptr) {
+                    ASTNode* expected_node = expected_type->get_direct_linked_node();
+                    if (expected_node != nullptr &&
+                        expected_node->kind() == ASTNodeKind::GenericTypeParam) {
+                        FunctionDeclaration* callee = call->safe_linked_func();
+                        if (callee == nullptr) {
+                            ASTNode* linked = parent_val->get_chain_last_linked();
+                            if (linked != nullptr &&
+                                linked->kind() == ASTNodeKind::FunctionDecl) {
+                                callee = linked->as_function_unsafe();
+                            }
+                        }
+                        if (BaseType* bound_sig = callable_bound_signature_for(
+                                callee,
+                                expected_node->as_generic_type_param_unsafe())) {
+                            expected_type = bound_sig;
+                        }
+                    }
+                }
                 visitor.visit(&value, expected_type);
             } else {
                 diagnoser.error(&value) << "too many arguments given, expected " << std::to_string(func_param_size) << " given " << std::to_string(values_size);
@@ -2424,6 +2446,46 @@ void materialize_lambda(
     }
 }
 
+static BaseType* callable_bound_signature_for(FunctionDeclaration* fd,
+                                               GenericTypeParameter* param) {
+    if (fd == nullptr || fd->where_clause == nullptr || param == nullptr) {
+        return nullptr;
+    }
+    for (auto& constraint : fd->where_clause->constraints) {
+        const bool same_param = constraint.param == param ||
+            (constraint.param != nullptr &&
+             constraint.param->param_index == param->param_index &&
+             constraint.param_name == param->identifier);
+        if (!same_param) continue;
+        for (auto& trait_type : constraint.constraints) {
+            ASTNode* node = trait_type->get_direct_linked_node();
+            if (node == nullptr) continue;
+            InterfaceDefinition* iface = nullptr;
+            if (node->kind() == ASTNodeKind::InterfaceDecl) {
+                iface = node->as_interface_def_unsafe();
+            } else if (node->kind() == ASTNodeKind::GenericInterfaceDecl) {
+                iface = node->as_gen_interface_decl_unsafe()->master_impl;
+            }
+            if (iface == nullptr) continue;
+            const auto name = iface->name_view();
+            if (name != chem::string_view("Fn") &&
+                name != chem::string_view("FnMut")) {
+                continue;
+            }
+            BaseType* canonical = trait_type->canonical();
+            auto* generic = (trait_type->kind() == BaseTypeKind::Generic)
+                                ? trait_type->as_generic_type_unsafe()
+                                : (canonical && canonical->kind() == BaseTypeKind::Generic
+                                       ? canonical->as_generic_type_unsafe()
+                                       : nullptr);
+            if (generic != nullptr && !generic->types.empty()) {
+                return const_cast<BaseType*>(generic->types[0].getType());
+            }
+        }
+    }
+    return nullptr;
+}
+
 // probably won't use allocator (see materialize_lambda_parameters)
 void materialize_argument_type(ASTAllocator& allocator, ASTDiagnoser& diagnoser, BaseType* expected_type, Value* arg) {
     switch(arg->kind()) {
@@ -2470,11 +2532,28 @@ void FunctionCall::report_concrete_types(ASTAllocator& allocator, ASTDiagnoser& 
         return;
     }
 
+    FunctionDeclaration* callee = call->safe_linked_func();
+    if (callee == nullptr && parent_val != nullptr) {
+        ASTNode* linked = parent_val->get_chain_last_linked();
+        if (linked != nullptr && linked->kind() == ASTNodeKind::FunctionDecl) {
+            callee = linked->as_function_unsafe();
+        }
+    }
     unsigned i = 0;
     const auto values_size = values.size();
     while (i < values_size) {
         const auto param = func_type ? func_type->func_param_for_arg_at(i) : nullptr;
-        const auto expected_type = param ? param->type : nullptr;
+        BaseType* expected_type = param ? const_cast<BaseType*>(param->type.getType()) : nullptr;
+        if (expected_type != nullptr) {
+            ASTNode* expected_node = expected_type->get_direct_linked_node();
+            if (expected_node != nullptr &&
+                expected_node->kind() == ASTNodeKind::GenericTypeParam) {
+                if (BaseType* bound_sig = callable_bound_signature_for(
+                        callee, expected_node->as_generic_type_param_unsafe())) {
+                    expected_type = bound_sig;
+                }
+            }
+        }
         materialize_argument_type(allocator, diagnoser, expected_type, values[i]);
         i++;
     }
@@ -2489,6 +2568,52 @@ void FunctionCall::report_concrete_types(ASTAllocator& allocator, ASTDiagnoser& 
 // can call a generic struct which has a constructor
 // can call a variant member of a variant
 // can call a variant member to instantiate a generic variant
+static BaseType* callable_bound_signature(SymResLinkBody& visitor, ASTNode* linked) {
+    if (linked == nullptr) return nullptr;
+    if (linked->kind() == ASTNodeKind::FunctionParam) {
+        auto* fp = linked->as_func_param_unsafe();
+        BaseType* pt = fp && fp->type ? const_cast<BaseType*>(fp->type.getType()) : nullptr;
+        linked = pt ? pt->get_direct_linked_node() : nullptr;
+    }
+    if (linked == nullptr || linked->kind() != ASTNodeKind::GenericTypeParam) {
+        return nullptr;
+    }
+    auto* param = linked->as_generic_type_param_unsafe();
+    auto* body = visitor.current_func_type;
+    auto* func = body ? body->as_function() : nullptr;
+    if (func == nullptr || func->where_clause == nullptr) return nullptr;
+    for (auto& constraint : func->where_clause->constraints) {
+        if (constraint.param != param) continue;
+        for (auto& trait_type : constraint.constraints) {
+            ASTNode* node = trait_type->get_direct_linked_node();
+            if (node == nullptr) continue;
+            InterfaceDefinition* iface = nullptr;
+            if (node->kind() == ASTNodeKind::InterfaceDecl) {
+                iface = node->as_interface_def_unsafe();
+            } else if (node->kind() == ASTNodeKind::GenericInterfaceDecl) {
+                iface = node->as_gen_interface_decl_unsafe()->master_impl;
+            }
+            if (iface == nullptr) continue;
+            const auto name = iface->name_view();
+            if (name != chem::string_view("Fn") &&
+                name != chem::string_view("FnMut")) {
+                continue;
+            }
+            BaseType* trait = trait_type;
+            BaseType* canonical = trait ? trait->canonical() : nullptr;
+            auto* generic = (trait && trait->kind() == BaseTypeKind::Generic)
+                                ? trait->as_generic_type_unsafe()
+                                : (canonical && canonical->kind() == BaseTypeKind::Generic
+                                       ? canonical->as_generic_type_unsafe()
+                                       : nullptr);
+            if (generic != nullptr && !generic->types.empty()) {
+                return const_cast<BaseType*>(generic->types[0].getType());
+            }
+        }
+    }
+    return nullptr;
+}
+
 bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseType* expected_type, bool link_implicit_constructor) {
 
     GenericFuncDecl* gen_decl = nullptr;
@@ -2542,6 +2667,21 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
     // determine constructor being called
     // after this call, parent id should NOT be linked with a struct / generic struct / variant
     call->link_constructor(visitor.getAllocator(), visitor.generic_instantiator, !visitor.generic_context, InstantiationRequirement::SignatureFinalization);
+
+    // A generic type parameter bounded by `Fn<F>`/`FnMut<F>`/`FnOnce<F>` is
+    // callable through the signature `F`. The concrete instantiation replaces
+    // the parameter before MIR lowering; here we only need to give the call its
+    // signature so generic-body linking can continue.
+    if (linked_kind == ASTNodeKind::GenericTypeParam ||
+        linked_kind == ASTNodeKind::FunctionParam) {
+        if (BaseType* callable_sig = callable_bound_signature(visitor, linked)) {
+            FunctionType* callable_fn = callable_sig->get_canonical_function_type();
+            if (callable_fn != nullptr && callable_fn->returnType) {
+                call->setType(const_cast<BaseType*>(callable_fn->returnType.getType()));
+                goto ending_block;
+            }
+        }
+    }
 
     // check if variant member is not being called
     // then we must get a function type

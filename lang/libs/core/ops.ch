@@ -194,14 +194,14 @@ public interface IndexMut<Idx, Output> : Index<Idx, Output> {
     func index(&mut self, idx : Idx) : &mut Output;
 }
 
-/** TODO
-// Call (function call operator)
-//
-// The practical callable kinds currently live in the std library as the
-// `std::Fn<T>`, `std::FnMut<T>`, and `std::FnOnce<T>` capture-type aliases.
-// Full trait bounds over variadic argument packs and associated `Output` remain
-// pending the callable-kind/ownership model.
-**/
+// Callable-kind bounds. These are marker interfaces over a function signature
+// `F`; the callable kinds themselves are the std capture-type aliases
+// `std::Fn<T>`, `std::FnMut<T>`, and `std::FnOnce<T>`. Generic call syntax
+// through these bounds is still being lowered; the bounds already enforce the
+// callable-kind hierarchy at generic call sites.
+public interface Fn<F> { }
+public interface FnMut<F> { }
+public interface FnOnce<F> { }
 
 }   // <-- ops end
 }  //  <-- core end

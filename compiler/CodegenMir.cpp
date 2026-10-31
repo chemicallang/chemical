@@ -486,6 +486,7 @@ void Codegen::mir_ensure_panic_runtime() {
         {"__chc_div_zero_fail", "division by zero"},
         {"__chc_shift_fail", "shift amount out of range"},
         {"__chc_alloc_fail", "allocation failed"},
+        {"__chc_call_moved_fail", "callback was already moved"},
         {"__chc_enum_fail", "invalid enum value"},
     };
     for (const FailureEntry& entry : failures) {

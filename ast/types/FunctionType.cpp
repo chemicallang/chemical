@@ -155,14 +155,50 @@ bool hrtb_types_compatible(
 
 } // namespace
 
+CaptureCallKind CapturingFunctionType::call_kind_value() {
+    if (capture_env) {
+        BaseType* env = capture_env->canonical();
+        auto* container = env ? env->get_members_container() : nullptr;
+        auto named = [&](const char* name) {
+            if (container != nullptr) {
+                if (container->kind() == ASTNodeKind::StructDecl) {
+                    return container->as_struct_def_unsafe()->name_view() ==
+                           chem::string_view(name, std::strlen(name));
+                }
+                if (container->kind() == ASTNodeKind::GenericStructDecl) {
+                    auto* master = container->as_gen_struct_def_unsafe()->master_impl;
+                    return master != nullptr &&
+                           master->name_view() ==
+                               chem::string_view(name, std::strlen(name));
+                }
+            }
+            return env != nullptr &&
+                   env->representation().find(name) != std::string::npos;
+        };
+        if (named("FnOnceCapture")) return CaptureCallKind::FnOnce;
+        if (named("FnMutCapture")) return CaptureCallKind::FnMut;
+    }
+    return call_kind;
+}
+
 bool CapturingFunctionType::satisfies(BaseType *type) {
     switch(type->kind()) {
         case BaseTypeKind::Function:
             // `satisfies` is evaluated on the target with the source as the
             // argument; preserve that direction for higher-ranked targets.
             return type->as_function_type_unsafe()->satisfies(func_type);
-        case BaseTypeKind::CapturingFunction:
-            return type->as_capturing_func_type_unsafe()->func_type->satisfies(func_type);
+        case BaseTypeKind::CapturingFunction: {
+            auto* source = type->as_capturing_func_type_unsafe();
+            const CaptureCallKind target_kind = call_kind_value();
+            const CaptureCallKind source_kind = source->call_kind_value();
+            // Fn can be used as FnMut/FnOnce; FnMut can be used as FnOnce;
+            // FnOnce cannot be used where repeatable access is required.
+            if (target_kind == CaptureCallKind::Fn &&
+                source_kind != CaptureCallKind::Fn) return false;
+            if (target_kind == CaptureCallKind::FnMut &&
+                source_kind == CaptureCallKind::FnOnce) return false;
+            return source->func_type->satisfies(func_type);
+        }
         default:
             return false;
     }

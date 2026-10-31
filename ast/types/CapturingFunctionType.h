@@ -4,6 +4,8 @@
 
 #include "ast/base/TypeLoc.h"
 
+enum class CaptureCallKind : uint8_t { Fn, FnMut, FnOnce };
+
 class CapturingFunctionType : public BaseType {
 public:
 
@@ -25,14 +27,22 @@ public:
     TypeLoc capture_env;
 
     /**
+     * Callable-kind semantics. Marker aliases set this from their capture
+     * witness; an inferred lambda type may set it directly.
+     */
+    CaptureCallKind call_kind = CaptureCallKind::Fn;
+
+    /**
      * constructor
      */
     CapturingFunctionType(
         TypeLoc func_type,
         TypeLoc instance_type,
-        TypeLoc capture_env = nullptr
+        TypeLoc capture_env = nullptr,
+        CaptureCallKind call_kind = CaptureCallKind::Fn
     ) : BaseType(BaseTypeKind::CapturingFunction),
-        func_type(func_type), instance_type(instance_type), capture_env(capture_env)
+        func_type(func_type), instance_type(instance_type), capture_env(capture_env),
+        call_kind(call_kind)
     {
 
     }
@@ -44,7 +54,8 @@ public:
     BaseType* copy(ASTAllocator &allocator) final {
         return new (allocator.allocate<CapturingFunctionType>()) CapturingFunctionType(
             func_type.copy(allocator), instance_type.copy(allocator),
-            capture_env ? capture_env.copy(allocator) : TypeLoc(nullptr)
+            capture_env ? capture_env.copy(allocator) : TypeLoc(nullptr),
+            call_kind
         );
     }
 
@@ -62,6 +73,9 @@ public:
     }
 
     bool satisfies(BaseType *type) override;
+
+    /** Resolve the callable kind (marker witness or inferred field). */
+    CaptureCallKind call_kind_value();
 
     uint64_t byte_size(const TargetData& target) override {
         return instance_type->byte_size(target);

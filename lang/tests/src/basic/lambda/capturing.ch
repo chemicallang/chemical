@@ -8,8 +8,16 @@ func cap_func_ret() : std::function<() => int> {
         }
     }
 
+func <F> call_fn_bound(f : F) : int where F : core::ops::Fn<() => int> {
+    return f()
+}
+
 struct CapLambTestCont {
     var lamb1 : std::function<() => int>
+}
+
+struct FnOnceFieldHolder {
+    var f : std::FnOnce<() => std::string>
 }
 
 struct CapLambRefTestCont {
@@ -340,6 +348,17 @@ func test_capturing_lambda() {
                 return s
             }
             var out = f()
+            return out.size() == 5
+        })
+        test("generic Fn bound can call a lambda", () => {
+            return call_fn_bound(||() => { return 27 }) == 27
+        })
+        test("fn once field call moves its capture out", () => {
+            var s = std::string("hello")
+            var h = FnOnceFieldHolder {
+                f : |s|() => { return s }
+            }
+            var out = h.f()
             return out.size() == 5
         })
         test("fn once keeps unmoved captures alive until the call", () => {

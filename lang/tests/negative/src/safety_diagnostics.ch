@@ -487,6 +487,34 @@ func future_handle_same_scope_compiles(env : &mut TestEnv) {
 }
 
 @test
+func fn_bound_accepts_callable(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <F> accept(f : F) : int where F : core::ops::Fn<() => int> {\n    return 1\n}\npublic func main() : int {\n    return accept(||() => { return 1 }) - 1\n}\n"
+    expect_compile_success_with_mod(env, "fn_bound_callable", ch, NEG_MOD_STD_CORE)
+}
+
+@test
+func fn_bound_rejects_noncallable(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <F> accept(f : F) : int where F : core::ops::Fn<() => int> {\n    return 1\n}\npublic func main() : int {\n    return accept(1)\n}\n"
+    expect_compile_error_with_mod(env, "fn_bound_noncallable", ch, "SAFE-MOVE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func fn_bound_rejects_fn_once_as_fn(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <F> accept(f : F) : int where F : core::ops::Fn<() => int> {\n    return 1\n}\npublic func main() : int {\n    var f : std::FnOnce<() => int> = ||() => { return 1 }\n    return accept(f)\n}\n"
+    expect_compile_error_with_mod(env, "fn_bound_once_as_fn", ch, "SAFE-MOVE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func fn_bound_generic_call_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <F> call(f : F) : int where F : core::ops::Fn<() => int> {\n    return f()\n}\npublic func main() : int {\n    return call(||() => { return 1 }) - 1\n}\n"
+    expect_compile_success_with_mod(env, "fn_bound_generic_call", ch, NEG_MOD_STD_CORE)
+}
+
+@test
 func fn_once_capture_move_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var s = std::string(\"hello\")\n    var f : std::FnOnce<() => std::string> = |s|() => {\n        return s\n    }\n    var out = f()\n    return out.size() as int - 5\n}\n"

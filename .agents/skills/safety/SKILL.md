@@ -30,10 +30,10 @@ Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2368/2368` |
-| LLVM main | `2366/2366` |
+| TCC main | `2370/2370` |
+| LLVM main | `2368/2368` |
 | `@test` runner | `54/54` |
-| TCC/LLVM negative | `671/671` |
+| TCC/LLVM negative | `675/675` |
 | TCC/LLVM safety | `64/64` |
 | TCC/LLVM async | `58/58` |
 | TCC libs | `730/730` |
@@ -255,11 +255,14 @@ memory safety.
    mutable local receiver; `std::FnOnce<T>` consumes the callback after its
    first call (`SAFE-MOVE-003` plus the MIR destroyed-state check). A `FnOnce`
    lambda may move a by-value capture out into an explicit `FnOnce` target;
-   per-capture drop flags prevent the closure environment from double-dropping
-   the moved field. Moving a capture into a reusable `Fn`/`FnMut` target is
-   still `SAFE-MOVE-002`, and moving the same capture twice is rejected.
-   Remaining: full trait/interface bounds and generic call syntax, field-stored
-   `FnOnce` calls, inferred-target once lambdas, and async closures.
+   per-capture drop flags prevent double-dropping moved fields. Field-stored
+   `FnOnce` calls move the field into a temporary and zero the source; a second
+   call reaches a runtime abort through the null callback check. `core::ops::Fn`/
+   `FnMut`/`FnOnce` marker bounds are enforced, and generic call syntax through
+   `Fn`/`FnMut` bounds is lowered (capturing generic lambda inference remains).
+   Remaining: `FnOnce` generic-call ownership, inferred-target once lambdas,
+   broader `FnMut` mutability checks, full variadic/associated-output trait
+   bounds, and async closures.
 5. **HRTB precision is intentionally incomplete.**
    Deeper nested aggregate HRTB and multi-borrow callbacks mixing local and
    parameter/global referents (or distinct non-local regions) are explicit
@@ -410,7 +413,7 @@ Coded output renders `error[SAFE-*]:` / `warn[SAFE-*]:`; uncoded output keeps
 | `SAFE-LIFE-005` | future-containing value passed to a retaining safe API |
 | `SAFE-MOVE-001` | move/access/assignment after move, or array-element move |
 | `SAFE-MOVE-002` | non-Copy callback capture moved out of a reusable callback |
-| `SAFE-MOVE-003` | FnOnce called through a reference/field, or FnMut receiver is not mutable |
+| `SAFE-MOVE-003` | FnOnce called through a reference, or FnMut receiver is not mutable |
 | `SAFE-PROV-001` | raw/integer/null converted to a reference |
 | `SAFE-REPR-001` | invalid `@repr("transparent")` shape |
 | `SAFE-SCOPED-001` | `@scoped_callback` parameter used outside a scoped sink |

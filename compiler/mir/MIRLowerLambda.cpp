@@ -293,17 +293,31 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
                env->representation().find(name) != std::string::npos;
     };
     const bool fn_once = marker_named("FnOnceCapture");
+    ValueId once_source_ptr = MIR_NULL;
+    ValueId once_source_size = MIR_NULL;
     if (fn_once) {
-        if (recv.kind != MIRExprKind::Place) {
+        if (recv.kind == MIRExprKind::Address) {
+            const TypeId inst_type = types_.map(inst);
+            once_source_ptr = static_cast<ValueId>(recv.id);
+            const PlaceId tmp = builder_->alloca(inst_type, MIRStorageClass::Temporary);
+            if (tmp == MIR_INVALID_ID) {
+                error = "failed to allocate moved FnOnce field";
+                return MIRExprResult::error();
+            }
+            builder_->copy_ptr_to_place(tmp, once_source_ptr);
+            once_source_size = builder_->size_of(inst_type, types_.u64_type());
+            recv = MIRExprResult::place(tmp, inst_type);
+        } else if (recv.kind != MIRExprKind::Place) {
             error = "calling a FnOnce callback requires moving the callback into the call";
             return MIRExprResult::error();
-        }
-        const PlaceId pid = static_cast<PlaceId>(recv.id);
-        if (pid < builder_->function().places.size() &&
-            builder_->function().places[pid].init_state ==
-                static_cast<uint8_t>(MIRInitState::Destroyed)) {
-            error = "a FnOnce callback cannot be called after it was moved";
-            return MIRExprResult::error();
+        } else {
+            const PlaceId pid = static_cast<PlaceId>(recv.id);
+            if (pid < builder_->function().places.size() &&
+                builder_->function().places[pid].init_state ==
+                    static_cast<uint8_t>(MIRInitState::Destroyed)) {
+                error = "a FnOnce callback cannot be called after it was moved";
+                return MIRExprResult::error();
+            }
         }
     }
     FunctionDeclaration* get_fn = resolve_method_fallback(inst, "get_fn_ptr");
@@ -320,6 +334,16 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
     };
     auto finish_fn_once = [&]() {
         if (!fn_once || recv.kind != MIRExprKind::Place) return;
+        if (once_source_ptr != MIR_NULL) {
+            // The field's bytes were copied into the temporary. Zero the
+            // source so its owner does not drop the capture environment twice
+            // and a later call faults through the null function pointer.
+            const TypeId u8t = types_.char_type();
+            const ValueId zero = builder_->const_int(
+                u8t, module_.constants.add_int(u8t, 0));
+            builder_->memset_ptr(once_source_ptr, zero, once_source_size);
+            return;
+        }
         const PlaceId pid = static_cast<PlaceId>(recv.id);
         const SymbolId dtor = destructor_symbol(inst);
         if (dtor != MIR_INVALID_ID) {
@@ -338,6 +362,15 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
     const ValueId fnptr = (fnr.kind == MIRExprKind::Place)
                               ? builder_->load(static_cast<PlaceId>(fnr.id), fnr.type)
                               : static_cast<ValueId>(fnr.id);
+    if (fn_once) {
+        const TypeId bool_t = types_.bool_type();
+        const ValueId null_v = builder_->const_null(
+            vpt, module_.constants.add_null(vpt));
+        const ConstantId ne = module_.constants.add_int(
+            MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Ne));
+        emit_abort_unless(builder_->compare(fnptr, null_v, ne, bool_t),
+                          "__chc_call_moved_fail");
+    }
     const ValueId dataptr = (dr.kind == MIRExprKind::Place)
                                 ? builder_->load(static_cast<PlaceId>(dr.id), dr.type)
                                 : static_cast<ValueId>(dr.id);

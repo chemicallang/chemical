@@ -1957,9 +1957,49 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
         // Check each trait constraint
         for (auto& trait_type : constraint.constraints) {
             auto trait_node = trait_type->get_direct_linked_node();
-            if (!trait_node || trait_node->kind() != ASTNodeKind::InterfaceDecl) continue;
+            if (!trait_node ||
+                (trait_node->kind() != ASTNodeKind::InterfaceDecl &&
+                 trait_node->kind() != ASTNodeKind::GenericInterfaceDecl)) {
+                continue;
+            }
 
-            auto interface_def = trait_node->as_interface_def_unsafe();
+            auto interface_def = trait_node->kind() == ASTNodeKind::InterfaceDecl
+                ? trait_node->as_interface_def_unsafe()
+                : trait_node->as_gen_interface_decl_unsafe()->master_impl;
+            if (interface_def == nullptr) continue;
+
+            const auto early_name = interface_def->name_view();
+            if (early_name == chem::string_view("Fn") ||
+                early_name == chem::string_view("FnMut") ||
+                early_name == chem::string_view("FnOnce")) {
+                BaseType* source_canonical = concrete_type->canonical();
+                CaptureCallKind source_kind = CaptureCallKind::Fn;
+                if (source_canonical != nullptr &&
+                    source_canonical->kind() == BaseTypeKind::CapturingFunction) {
+                    source_kind = source_canonical->as_capturing_func_type_unsafe()->call_kind_value();
+                }
+                const bool callable =
+                    source_canonical != nullptr &&
+                    (source_canonical->kind() == BaseTypeKind::Function ||
+                     source_canonical->kind() == BaseTypeKind::CapturingFunction);
+                bool kind_ok = callable;
+                if (callable) {
+                    if (early_name == chem::string_view("Fn")) {
+                        kind_ok = source_kind == CaptureCallKind::Fn;
+                    } else if (early_name == chem::string_view("FnMut")) {
+                        kind_ok = source_kind == CaptureCallKind::Fn ||
+                                  source_kind == CaptureCallKind::FnMut;
+                    }
+                }
+                if (!kind_ok) {
+                    diagnoser.error(call).with_code("SAFE-MOVE-002")
+                        << "type '" << concrete_type->representation()
+                        << "' does not satisfy callable bound '"
+                        << constraint.param_name << " : "
+                        << trait_type->representation() << "'";
+                }
+                continue;
+            }
 
             if (is_zeroable_interface(interface_def)) {
                 std::unordered_set<MembersContainer*> visiting;
@@ -2113,6 +2153,39 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
                 if (container == nullptr || container->default_constructor_func() != nullptr) {
                     continue;
                 }
+            }
+
+            const auto interface_name = interface_def->name_view();
+            if (interface_name == chem::string_view("Fn") ||
+                interface_name == chem::string_view("FnMut") ||
+                interface_name == chem::string_view("FnOnce")) {
+                BaseType* source_canonical = concrete_type->canonical();
+                CaptureCallKind source_kind = CaptureCallKind::Fn;
+                if (source_canonical != nullptr &&
+                    source_canonical->kind() == BaseTypeKind::CapturingFunction) {
+                    source_kind = source_canonical->as_capturing_func_type_unsafe()->call_kind_value();
+                }
+                const bool callable =
+                    source_canonical != nullptr &&
+                    (source_canonical->kind() == BaseTypeKind::Function ||
+                     source_canonical->kind() == BaseTypeKind::CapturingFunction);
+                bool kind_ok = callable;
+                if (callable) {
+                    if (interface_name == chem::string_view("Fn")) {
+                        kind_ok = source_kind == CaptureCallKind::Fn;
+                    } else if (interface_name == chem::string_view("FnMut")) {
+                        kind_ok = source_kind == CaptureCallKind::Fn ||
+                                  source_kind == CaptureCallKind::FnMut;
+                    }
+                }
+                if (!kind_ok) {
+                    diagnoser.error(call).with_code("SAFE-MOVE-002")
+                        << "type '" << concrete_type->representation()
+                        << "' does not satisfy callable bound '"
+                        << constraint.param_name << " : "
+                        << trait_type->representation() << "'";
+                }
+                continue;
             }
 
             // For other interface constraints: check implementations index
@@ -2356,9 +2429,11 @@ static ClosureCallKind closure_call_kind(BaseType* type) {
     BaseType* canonical = type ? type->canonical() : nullptr;
     auto* cap = canonical ? canonical->get_cap_func_type() : nullptr;
     if (cap == nullptr) return ClosureCallKind::Fn;
-    if (closure_marker_named(cap, "FnOnceCapture")) return ClosureCallKind::FnOnce;
-    if (closure_marker_named(cap, "FnMutCapture")) return ClosureCallKind::FnMut;
-    return ClosureCallKind::Fn;
+    switch (cap->call_kind_value()) {
+        case CaptureCallKind::FnOnce: return ClosureCallKind::FnOnce;
+        case CaptureCallKind::FnMut: return ClosureCallKind::FnMut;
+        default: return ClosureCallKind::Fn;
+    }
 }
 
 static Value* unwrap_closure_receiver(Value* value) {
@@ -2389,11 +2464,6 @@ static void verify_closure_call_kind(TypeVerifier& verifier, FunctionCall* call)
             verifier.diagnoser.error(call->parent_val).with_code("SAFE-MOVE-003")
                 << "cannot call a FnOnce callback through a reference; move the callback into the call";
             return;
-        }
-        Value* receiver = unwrap_closure_receiver(call->parent_val);
-        if (receiver != nullptr && receiver->val_kind() == ValueKind::AccessChain) {
-            verifier.diagnoser.error(call->parent_val).with_code("SAFE-MOVE-003")
-                << "calling a FnOnce callback stored in a field is not supported yet; move the field into a local first";
         }
         return;
     }
@@ -2852,7 +2922,13 @@ static bool struct_value_static_lifetime_mismatch(
 }
 
 void TypeVerifier::VisitStructValue(StructValue* structValue) {
-    for (auto& val : structValue->values) check_index_move(val.second.value);
+    for (auto& val : structValue->values) {
+        check_index_move(val.second.value);
+        const auto member = structValue->direct_variable(val.first);
+        if (member != nullptr) {
+            mark_lambda_target(val.second.value, member->known_type());
+        }
+    }
     RecursiveVisitor<TypeVerifier>::VisitStructValue(structValue);
     for (auto &val: structValue->values) {
         auto& val_ptr = val.second.value;
@@ -3321,7 +3397,8 @@ static void specialize_capture_witness(
     if (!witness) return;
 
     auto* specialized = new (verifier.allocator.allocate<CapturingFunctionType>())
-        CapturingFunctionType(cap->func_type, cap->instance_type, witness);
+        CapturingFunctionType(cap->func_type, cap->instance_type, witness,
+                              cap->call_kind_value());
     stmt->type = TypeLoc(specialized, stmt->type.getLocation());
 }
 

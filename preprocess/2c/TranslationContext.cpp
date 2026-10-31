@@ -273,6 +273,9 @@ void CTranslationContext::prepare_translate() {
           "static inline void __chc_alloc_fail(const char* file, uint32_t line, uint32_t column) {\n"
           "    __chc_panic(\"allocation failed\", file, line, column);\n"
           "}\n"
+          "static inline void __chc_call_moved_fail(const char* file, uint32_t line, uint32_t column) {\n"
+          "    __chc_panic(\"callback was already moved\", file, line, column);\n"
+          "}\n"
           "static inline void __chc_enum_fail(const char* file, uint32_t line, uint32_t column) {\n"
           "    __chc_panic(\"invalid enum value\", file, line, column);\n"
           "}\n");

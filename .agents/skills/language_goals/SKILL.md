@@ -48,7 +48,9 @@ inference remains), the full target-aware C ABI (LLVM now
 rejects unsupported targets instead of miscompiling), `dyn` having no
 auto-trait bounds, and the partially implemented `Fn`/`FnMut`/`FnOnce` callable
 model (call-once/mutable-receiver kinds and `FnOnce` capture moves with
-per-capture drop flags exist; trait bounds/generic call syntax remain). Load
+per-capture drop flags, field-stored `FnOnce` calls, callable bounds, and
+`Fn`/`FnMut` generic call syntax exist; `FnOnce` generic-call ownership,
+inferred once lambdas, and async closures remain). Load
 the `safety` skill and read `lang/docs/safety-implementation-plan.md` §4.5
 before making safety/roadmap claims.
 

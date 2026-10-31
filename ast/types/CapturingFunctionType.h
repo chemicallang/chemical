@@ -32,6 +32,9 @@ public:
      */
     CaptureCallKind call_kind = CaptureCallKind::Fn;
 
+    /** This expected type was synthesized from a generic `Fn`/`FnMut`/`FnOnce` bound. */
+    bool from_generic_bound = false;
+
     /**
      * constructor
      */
@@ -39,10 +42,11 @@ public:
         TypeLoc func_type,
         TypeLoc instance_type,
         TypeLoc capture_env = nullptr,
-        CaptureCallKind call_kind = CaptureCallKind::Fn
+        CaptureCallKind call_kind = CaptureCallKind::Fn,
+        bool from_generic_bound = false
     ) : BaseType(BaseTypeKind::CapturingFunction),
         func_type(func_type), instance_type(instance_type), capture_env(capture_env),
-        call_kind(call_kind)
+        call_kind(call_kind), from_generic_bound(from_generic_bound)
     {
 
     }
@@ -55,7 +59,7 @@ public:
         return new (allocator.allocate<CapturingFunctionType>()) CapturingFunctionType(
             func_type.copy(allocator), instance_type.copy(allocator),
             capture_env ? capture_env.copy(allocator) : TypeLoc(nullptr),
-            call_kind
+            call_kind, from_generic_bound
         );
     }
 

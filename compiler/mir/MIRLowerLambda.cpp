@@ -292,7 +292,8 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
         return env != nullptr &&
                env->representation().find(name) != std::string::npos;
     };
-    const bool fn_once = marker_named("FnOnceCapture");
+    const bool fn_once = cap != nullptr &&
+        cap->call_kind_value() == CaptureCallKind::FnOnce;
     ValueId once_source_ptr = MIR_NULL;
     ValueId once_source_size = MIR_NULL;
     if (fn_once) {

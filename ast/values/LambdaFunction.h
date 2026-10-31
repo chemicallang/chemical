@@ -44,6 +44,9 @@ public:
     /** The enclosing context declared this lambda as a `FnOnce` callable. */
     bool capture_target_once = false;
 
+    /** The variable initializer inferred a capturing callable type for this lambda. */
+    bool inferred_capture_target = false;
+
 
     /**
      * constructor

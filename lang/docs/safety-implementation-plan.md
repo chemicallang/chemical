@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.31)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.32)
 
 > **Status (2026-10-31):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1080,7 +1080,7 @@
 > (layout and C ABI); C ABI classification for Windows/ARM, FFI wrappers, and
 > deeper HRTB precision remain (variance/temporary-lifetime extension are
 > implemented).
-> Safety suite `64`; negative tests `678`; main TCC `2372`, LLVM `2370`;
+> Safety suite `64`; negative tests `679`; main TCC `2376`, LLVM `2374`;
 > libs `730`; plugins `1305`; async `58`; interpret `1910`; server `10`;
 > TLS `599`; `MIRTests` `4643 checks`. The whole-tree audit
 > manifest (`lang/docs/safety/audit-modules.txt`) covers `94` modules with
@@ -1332,9 +1332,9 @@ approximate counts:
 
 | Gate | Result |
 |---|---|
-| TCC main / LLVM main | `2372` / `2370` |
+| TCC main / LLVM main | `2376` / `2374` |
 | `@test` runner | `54` |
-| TCC/LLVM negative | `678` / `678` |
+| TCC/LLVM negative | `679` / `679` |
 | TCC/LLVM safety | `64` / `64` |
 | TCC/LLVM async | `58` / `58` |
 | TCC libs | `730` |
@@ -1369,7 +1369,7 @@ new number as the honest baseline, not a regression.
    rejects returning, storing, capturing, or passing the scoped parameter to an
    unknown callee; only known join-before-return APIs (resolved by exact library
    namespace) and other annotated functions are accepted. New scoped APIs need an explicit sink entry.
-4. **`Fn`/`FnMut`/`FnOnce` callable kinds are partially implemented.**\n   `std::Fn<T>` is the reusable callable type; `std::FnMut<T>` requires a\n   mutable local/field receiver; `std::FnOnce<T>` consumes the callback after\n   its first call (`SAFE-MOVE-003` plus the MIR destroyed-state check). A\n   `FnOnce` lambda may move a by-value capture out into an explicit `FnOnce`\n   target; per-capture drop flags prevent double-dropping moved fields.\n   Field-stored `FnOnce` calls move the field into a temporary and zero the\n   source, with a runtime null-callback abort on reuse. `core::ops::Fn`/\n   `FnMut`/`FnOnce` marker bounds are enforced, and generic call syntax through\n   all three bounds is lowered. Generic `FnOnce` calls consume explicit or\n   non-capturing callbacks and reject a second call in MIR. Remaining:\n   inferred once lambdas, capturing generic lambda inference, broader `FnMut`\n   parameter mutability, full variadic/associated-output trait bounds, and\n   async closures.\n5. **HRTB precision.** Deeper nested aggregate HRTB and multi-borrow callbacks
+4. **`Fn`/`FnMut`/`FnOnce` callable kinds are partially implemented.**\n   `std::Fn<T>` is the reusable callable type; `std::FnMut<T>` requires a\n   mutable local/field receiver; `std::FnOnce<T>` consumes the callback after\n   its first call (`SAFE-MOVE-003` plus the MIR destroyed-state check). A\n   `FnOnce` lambda may move a by-value capture out into an explicit `FnOnce`\n   target; per-capture drop flags prevent double-dropping moved fields.\n   Field-stored `FnOnce` calls move the field into a temporary and zero the\n   source, with a runtime null-callback abort on reuse. `core::ops::Fn`/\n   `FnMut`/`FnOnce` marker bounds are enforced. Generic call syntax through all\n   three bounds is lowered, including capturing lambdas and explicit or\n   non-capturing `FnOnce` callbacks. An untyped capturing lambda initializer\n   infers a callable type, upgrades to `FnOnce` when its body moves a capture,\n   and rejects a second call in MIR. Remaining: full variadic/associated-output\n   trait bounds and async closures.\n5. **HRTB precision.** Deeper nested aggregate HRTB and multi-borrow callbacks
    mixing local/parameter/global referents are explicit `SAFE-BORROW-099`
    rejections, never guessed-safe.
 6. **`dyn` has no auto-trait bounds.** It is conservatively `!Send`/`!Sync`/
@@ -2774,3 +2774,6 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 
 
 *Revision note v4.31 (2026-10-31): FnOnce generic calls + FnMut receiver chains. Generic `FnOnce` bounds now materialize the callback signature for explicit `std::FnOnce` values and non-capturing lambdas; the callback is consumed by its first call and a second call is rejected by MIR (`FnOnce callback cannot be called after it was moved`). `FnMut` receiver checks now walk field chains, so a `const`/immutable holder cannot call a mutable callback. Added runtime tests for generic `FnOnce` consumption and mutable `FnMut` fields, plus negative tests for a second `FnOnce` call and a const `FnMut` field receiver. Main TCC/LLVM `2372`/`2370`; negative `678`. Remaining: inferred once lambdas, capturing generic lambda inference, broader `FnMut` parameter mutability, full variadic/associated-output bounds, async closures.*
+
+
+*Revision note v4.32 (2026-10-31): inferred and generic capturing Fn callables. Untyped capturing lambda initializers now infer the default function-instance callable type; a body that moves a non-Copy capture upgrades to FnOnce, while non-moving closures remain reusable. Generic Fn/FnMut/FnOnce bounds materialize a capturing expected type from the bound signature, so capturing lambdas infer the concrete callable type (including generic FnOnce capture moves). Added runtime tests for inferred FnOnce, reusable inferred captures, generic capturing Fn calls, and generic FnOnce capture moves; added a negative test for a second inferred FnOnce call. Main TCC/LLVM `2376`/`2374`; negative `679`. Remaining: full variadic/associated-output trait bounds and async closures.*

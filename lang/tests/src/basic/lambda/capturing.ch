@@ -16,6 +16,15 @@ func <F> consume_fn_once_bound(f : F) : int where F : core::ops::FnOnce<() => in
     return f()
 }
 
+func <F> call_capturing_fn_bound(f : F, x : int) : int where F : core::ops::Fn<(v : int) => int> {
+    return f(x)
+}
+
+func <F> consume_capturing_fn_once_bound(f : F) : int where F : core::ops::FnOnce<() => std::string> {
+    var out = f()
+    return out.size() as int
+}
+
 struct CapLambTestCont {
     var lamb1 : std::function<() => int>
 }
@@ -368,6 +377,25 @@ func test_capturing_lambda() {
             }
             var out = h.f()
             return out.size() == 5
+        })
+        test("inferred FnOnce lambda moves its capture", () => {
+            var s = std::string("hello")
+            var f = |s|() => { return s }
+            var out = f()
+            return out.size() == 5
+        })
+        test("inferred reusable capturing lambda stays reusable", () => {
+            var n = 3
+            var f = |n|() => { return n }
+            return f() + f() == 6
+        })
+        test("generic Fn bound infers a capturing lambda", () => {
+            var n = 2
+            return call_capturing_fn_bound(|n|(v : int) => { return v + n }, 40) == 42
+        })
+        test("generic FnOnce bound moves a capturing lambda", () => {
+            var s = std::string("hello")
+            return consume_capturing_fn_once_bound(|s|() => { return s }) == 5
         })
         test("generic FnOnce bound consumes the callback", () => {
             var s = 20

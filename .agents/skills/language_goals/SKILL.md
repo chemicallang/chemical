@@ -49,9 +49,9 @@ rejects unsupported targets instead of miscompiling), `dyn` having no
 auto-trait bounds, and the partially implemented `Fn`/`FnMut`/`FnOnce` callable
 model (call-once/mutable-receiver kinds and `FnOnce` capture moves with
 per-capture drop flags, field-stored `FnOnce` calls, callable bounds, generic
-`Fn`/`FnMut`/`FnOnce` call syntax, and `FnMut` receiver-chain checks exist;
-inferred once lambdas, capturing generic lambda inference, and async closures
-remain). Load
+`Fn`/`FnMut`/`FnOnce` call syntax, `FnMut` receiver-chain checks, and
+inferred/generic capturing Fn callables exist; full variadic/associated-output
+bounds and async closures remain). Load
 the `safety` skill and read `lang/docs/safety-implementation-plan.md` §4.5
 before making safety/roadmap claims.
 

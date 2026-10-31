@@ -2511,6 +2511,7 @@ static LambdaFunction* lambda_value(Value* value) {
 static void mark_lambda_target(Value* value, BaseType* target) {
     LambdaFunction* lambda = lambda_value(value);
     if (lambda == nullptr || target == nullptr) return;
+    if (lambda->inferred_capture_target) return;
     lambda->capture_target_once = closure_call_kind(target) == ClosureCallKind::FnOnce;
 }
 
@@ -3426,6 +3427,7 @@ void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
     if(type && value) {
         mark_lambda_target(value, type);
     }
+    LambdaFunction* inferred_lambda = type == nullptr ? nullptr : lambda_value(value);
     if(value) {
         visit(value);
         if(current_lambda != nullptr && moves_noncopy_capture(value, current_lambda) &&
@@ -3434,6 +3436,15 @@ void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
                 << "cannot move a by-value callback capture out of a reusable "
                    "callback; capture it by reference or use an explicit "
                    "once-callback";
+        }
+    }
+    if (inferred_lambda != nullptr && inferred_lambda->inferred_capture_target &&
+        inferred_lambda->capture_target_once && type) {
+        BaseType* canonical = type->canonical();
+        if (canonical != nullptr &&
+            canonical->kind() == BaseTypeKind::CapturingFunction) {
+            canonical->as_capturing_func_type_unsafe()->call_kind =
+                CaptureCallKind::FnOnce;
         }
     }
 
@@ -3942,11 +3953,15 @@ static VariableIdentifier* capture_identifier(Value* value) {
 }
 
 static bool allow_capture_move(Value* value, LambdaFunction* lambda) {
-    if (lambda == nullptr || !lambda->capture_target_once) return false;
+    if (lambda == nullptr) return false;
+    if (!lambda->capture_target_once && !lambda->inferred_capture_target) return false;
     auto* id = capture_identifier(value);
     if (id == nullptr) return false;
     auto* cap = id->linked->as_captured_var_unsafe();
     if (cap->capture_by_ref || cap->moved_out) return false;
+    if (lambda->inferred_capture_target) {
+        lambda->capture_target_once = true;
+    }
     cap->moved_out = true;
     id->capture_move = true;
     return true;

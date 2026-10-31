@@ -1204,6 +1204,36 @@ static void refine_var_capture_witness(VarInitStatement* node, ASTAllocator& all
     node->type = TypeLoc(specialized, node->type.getLocation());
 }
 
+static LambdaFunction* unwrap_lambda_value(Value* value) {
+    while (value != nullptr) {
+        if (value->val_kind() == ValueKind::CastedValue) {
+            value = value->as_casted_value_unsafe()->value;
+        } else if (value->val_kind() == ValueKind::UnsafeValue) {
+            value = static_cast<UnsafeValue*>(value)->getValue();
+        } else if (value->val_kind() == ValueKind::AccessChain &&
+                   value->as_access_chain_unsafe()->values.size() == 1) {
+            value = value->as_access_chain_unsafe()->values[0];
+        } else {
+            break;
+        }
+    }
+    return value != nullptr && value->val_kind() == ValueKind::LambdaFunc
+               ? value->as_lambda_func_unsafe() : nullptr;
+}
+
+static BaseType* default_function_instance_type(SymbolResolver& linker) {
+    ASTNode* stdns = linker.find("std");
+    if (stdns == nullptr || stdns->kind() != ASTNodeKind::NamespaceDecl) {
+        return nullptr;
+    }
+    auto* ns = stdns->as_namespace_unsafe();
+    auto it = ns->extended.find(chem::string_view("default_function_instance"));
+    if (it == ns->extended.end()) return nullptr;
+    ASTNode* node = it->second;
+    if (node == nullptr || node->kind() != ASTNodeKind::StructDecl) return nullptr;
+    return node->as_struct_def_unsafe()->known_type();
+}
+
 void SymResLinkBody::VisitVarInitStmt(VarInitStatement* node) {
     if(node->is_top_level()) {
         return;
@@ -1219,6 +1249,26 @@ void SymResLinkBody::VisitVarInitStmt(VarInitStatement* node) {
     }
     if(value) {
         visit(value, node->type_ptr_fast());
+    }
+    // An untyped capturing lambda initializer needs a callable type, not the
+    // raw function-pointer type its AST node carries. Infer the ordinary
+    // `std::function` layout with the actual capture witness; type checking
+    // upgrades the callable kind to FnOnce if the body moves a capture.
+    if (!type && value) {
+        LambdaFunction* lambda = unwrap_lambda_value(value);
+        if (lambda != nullptr && !lambda->captureList.empty() &&
+            lambda->capture_env != nullptr) {
+            if (BaseType* instance = default_function_instance_type(linker)) {
+                auto* inferred = new (getAstAllocator().allocate<CapturingFunctionType>())
+                    CapturingFunctionType(TypeLoc((FunctionType*) lambda,
+                                                  lambda->encoded_location()),
+                                          TypeLoc(instance, lambda->encoded_location()),
+                                          lambda->capture_env,
+                                          CaptureCallKind::Fn);
+                type = TypeLoc(inferred, lambda->encoded_location());
+                lambda->inferred_capture_target = true;
+            }
+        }
     }
     refine_var_capture_witness(node, getAstAllocator());
 
@@ -2237,7 +2287,8 @@ void SymResLinkBody::VisitAccessChain(AccessChain *chain) {
 }
 
 static BaseType* callable_bound_signature_for(FunctionDeclaration* fd,
-                                               GenericTypeParameter* param);
+                                               GenericTypeParameter* param,
+                                               CaptureCallKind* kind_out = nullptr);
 
 static FunctionDeclaration* callable_callee(FunctionCall* call) {
     if (call == nullptr) return nullptr;
@@ -2317,10 +2368,27 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
                     if (expected_node != nullptr &&
                         expected_node->kind() == ASTNodeKind::GenericTypeParam) {
                         FunctionDeclaration* callee = callable_callee(call);
+                        CaptureCallKind bound_kind = CaptureCallKind::Fn;
                         if (BaseType* bound_sig = callable_bound_signature_for(
                                 callee,
-                                expected_node->as_generic_type_param_unsafe())) {
+                                expected_node->as_generic_type_param_unsafe(),
+                                &bound_kind)) {
                             expected_type = bound_sig;
+                            // A capturing lambda needs a capturing expected type
+                            // so the capture links against the concrete bound
+                            // signature and generic inference sees its witness.
+                            if (LambdaFunction* lambda = unwrap_lambda_value(&value);
+                                lambda != nullptr && !lambda->captureList.empty()) {
+                                if (BaseType* instance =
+                                        default_function_instance_type(visitor.linker)) {
+                                    expected_type = new (visitor.getAstAllocator()
+                                        .allocate<CapturingFunctionType>())
+                                        CapturingFunctionType(
+                                            TypeLoc(bound_sig, value.encoded_location()),
+                                            TypeLoc(instance, value.encoded_location()),
+                                            nullptr, bound_kind, true);
+                                }
+                            }
                         }
                     }
                 }
@@ -2455,7 +2523,9 @@ void materialize_lambda(
 }
 
 static BaseType* callable_bound_signature_for(FunctionDeclaration* fd,
-                                               GenericTypeParameter* param) {
+                                               GenericTypeParameter* param,
+                                               CaptureCallKind* kind_out) {
+    if (kind_out != nullptr) *kind_out = CaptureCallKind::Fn;
     if (fd == nullptr || fd->where_clause == nullptr || param == nullptr) {
         return nullptr;
     }
@@ -2480,6 +2550,13 @@ static BaseType* callable_bound_signature_for(FunctionDeclaration* fd,
                 name != chem::string_view("FnMut") &&
                 name != chem::string_view("FnOnce")) {
                 continue;
+            }
+            if (kind_out != nullptr) {
+                if (name == chem::string_view("FnOnce")) {
+                    *kind_out = CaptureCallKind::FnOnce;
+                } else if (name == chem::string_view("FnMut")) {
+                    *kind_out = CaptureCallKind::FnMut;
+                }
             }
             BaseType* canonical = trait_type->canonical();
             auto* generic = (trait_type->kind() == BaseTypeKind::Generic)
@@ -3699,6 +3776,32 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
     }
 
     build_lambda_capture_env(lambVal, getAstAllocator());
+
+    // A capturing lambda passed to a generic `Fn`/`FnMut`/`FnOnce` bound gets
+    // the concrete callable type (default instance + capture witness), so the
+    // generic argument `F` is not just the raw function pointer.
+    if (!captureList.empty() && canonical_exp != nullptr &&
+        canonical_exp->kind() == BaseTypeKind::CapturingFunction) {
+        auto* expected_cap = canonical_exp->as_capturing_func_type_unsafe();
+        if (expected_cap->from_generic_bound) {
+            BaseType* instance = expected_cap->instance_type
+                ? const_cast<BaseType*>(expected_cap->instance_type.getType())
+                : default_function_instance_type(linker);
+            if (instance != nullptr) {
+                const CaptureCallKind kind = expected_cap->call_kind_value();
+                auto* inferred = new (getAstAllocator().allocate<CapturingFunctionType>())
+                    CapturingFunctionType(expected_cap->func_type,
+                                          TypeLoc(instance, lambVal->encoded_location()),
+                                          lambVal->capture_env,
+                                          kind);
+                lambVal->setType(inferred);
+                if (kind == CaptureCallKind::FnOnce) {
+                    lambVal->inferred_capture_target = true;
+                    lambVal->capture_target_once = true;
+                }
+            }
+        }
+    }
 
     // verify has return
     if(returnType->canonical()->kind() != BaseTypeKind::Void) {

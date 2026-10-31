@@ -2328,6 +2328,88 @@ static FunctionDeclaration* future_call_callee(FunctionCall* call) {
     return nullptr;
 }
 
+enum class ClosureCallKind : uint8_t { Fn, FnMut, FnOnce };
+
+static bool closure_marker_named(CapturingFunctionType* cap, const char* name) {
+    if (cap == nullptr || !cap->capture_env) return false;
+    BaseType* env = cap->capture_env->canonical();
+    if (env == nullptr) return false;
+    auto* container = env->get_members_container();
+    if (container == nullptr) {
+        return env->representation().find(name) != std::string::npos;
+    }
+    if (container->kind() == ASTNodeKind::StructDecl) {
+        return container->as_struct_def_unsafe()->name_view() ==
+               chem::string_view(name, std::strlen(name));
+    }
+    if (container->kind() == ASTNodeKind::GenericStructDecl) {
+        auto* master = container->as_gen_struct_def_unsafe()->master_impl;
+        return master != nullptr &&
+               master->name_view() == chem::string_view(name, std::strlen(name));
+    }
+    // A typealias instantiation can leave the marker as an unlinked named type.
+    return env->representation().find(name) != std::string::npos;
+}
+
+static ClosureCallKind closure_call_kind(BaseType* type) {
+    BaseType* canonical = type ? type->canonical() : nullptr;
+    auto* cap = canonical ? canonical->get_cap_func_type() : nullptr;
+    if (cap == nullptr) return ClosureCallKind::Fn;
+    if (closure_marker_named(cap, "FnOnceCapture")) return ClosureCallKind::FnOnce;
+    if (closure_marker_named(cap, "FnMutCapture")) return ClosureCallKind::FnMut;
+    return ClosureCallKind::Fn;
+}
+
+static Value* unwrap_closure_receiver(Value* value) {
+    while (value != nullptr) {
+        if (value->val_kind() == ValueKind::UnsafeValue) {
+            value = static_cast<UnsafeValue*>(value)->getValue();
+        } else if (value->val_kind() == ValueKind::CastedValue) {
+            value = value->as_casted_value_unsafe()->value;
+        } else if (value->val_kind() == ValueKind::AccessChain &&
+                   value->as_access_chain_unsafe()->values.size() == 1) {
+            value = value->as_access_chain_unsafe()->values[0];
+        } else {
+            break;
+        }
+    }
+    return value;
+}
+
+static void verify_closure_call_kind(TypeVerifier& verifier, FunctionCall* call) {
+    if (call == nullptr || call->parent_val == nullptr || verifier.is_unsafe) return;
+    const ClosureCallKind kind = closure_call_kind(call->parent_val->getType());
+    if (kind == ClosureCallKind::Fn) return;
+    BaseType* receiver_type = call->parent_val->getType();
+    BaseType* receiver_canonical = receiver_type ? receiver_type->canonical() : nullptr;
+    if (kind == ClosureCallKind::FnOnce) {
+        if (receiver_canonical != nullptr &&
+            receiver_canonical->kind() == BaseTypeKind::Reference) {
+            verifier.diagnoser.error(call->parent_val).with_code("SAFE-MOVE-003")
+                << "cannot call a FnOnce callback through a reference; move the callback into the call";
+            return;
+        }
+        Value* receiver = unwrap_closure_receiver(call->parent_val);
+        if (receiver != nullptr && receiver->val_kind() == ValueKind::AccessChain) {
+            verifier.diagnoser.error(call->parent_val).with_code("SAFE-MOVE-003")
+                << "calling a FnOnce callback stored in a field is not supported yet; move the field into a local first";
+        }
+        return;
+    }
+    // FnMut: a const binding cannot provide the mutable receiver the callable
+    // needs. Parameters and fields are checked by the normal move/mutation
+    // flow; this catches the simple local case early.
+    Value* receiver = unwrap_closure_receiver(call->parent_val);
+    if (receiver != nullptr && receiver->val_kind() == ValueKind::Identifier) {
+        ASTNode* linked = receiver->as_identifier_unsafe()->linked;
+        if (linked != nullptr && linked->kind() == ASTNodeKind::VarInitStmt &&
+            linked->as_var_init_unsafe()->is_const()) {
+            verifier.diagnoser.error(call->parent_val).with_code("SAFE-MOVE-003")
+                << "calling a FnMut callback requires a mutable receiver";
+        }
+    }
+}
+
 static void verify_future_argument_contract(TypeVerifier& verifier,
                                             FunctionCall* call) {
     if (call == nullptr || call->values.empty() || verifier.is_unsafe) return;
@@ -2459,6 +2541,7 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
     }
     // verifying the call mutability (self param is mutable and all that...)
     verify_call_mutability(*this, call);
+    verify_closure_call_kind(*this, call);
     verify_future_argument_contract(*this, call);
     // this verifies comptimeness of arguments
     // TODO: this verifyArguments need to be moved to this .cpp file (make static)

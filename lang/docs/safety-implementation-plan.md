@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.26)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.27)
 
 > **Status (2026-10-31):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1080,7 +1080,7 @@
 > (layout and C ABI); C ABI classification for Windows/ARM, FFI wrappers, and
 > deeper HRTB precision remain (variance/temporary-lifetime extension are
 > implemented).
-> Safety suite `64`; negative tests `664`; main TCC `2366`, LLVM `2364`;
+> Safety suite `64`; negative tests `668`; main TCC `2366`, LLVM `2364`;
 > libs `730`; plugins `1305`; async `58`; interpret `1910`; server `10`;
 > TLS `599`; `MIRTests` `4643 checks`. The whole-tree audit
 > manifest (`lang/docs/safety/audit-modules.txt`) covers `94` modules with
@@ -1334,7 +1334,7 @@ approximate counts:
 |---|---|
 | TCC main / LLVM main | `2366` / `2364` |
 | `@test` runner | `54` |
-| TCC/LLVM negative | `664` / `664` |
+| TCC/LLVM negative | `668` / `668` |
 | TCC/LLVM safety | `64` / `64` |
 | TCC/LLVM async | `58` / `58` |
 | TCC libs | `730` |
@@ -1369,9 +1369,15 @@ new number as the honest baseline, not a regression.
    rejects returning, storing, capturing, or passing the scoped parameter to an
    unknown callee; only known join-before-return APIs (resolved by exact library
    namespace) and other annotated functions are accepted. New scoped APIs need an explicit sink entry.
-4. **No `FnOnce`/`FnMut`/`Fn` model.** Non-`Copy` nested aggregate captures are
-   an explicit lowering error; `SAFE-MOVE-002` prevents the old bitwise-copy
-   bug. M1.16/M6.6 work.
+4. **`Fn`/`FnMut`/`FnOnce` callable kinds are partially implemented.**
+   `std::Fn<T>` is the reusable callable type; `std::FnMut<T>` requires a
+   mutable local receiver; `std::FnOnce<T>` consumes the callback after its
+   first call (`SAFE-MOVE-003` plus the MIR destroyed-state check). The markers
+   are conservatively `!Send`/`!Sync`. Remaining: full trait/interface bounds,
+   capture-kind inference for lambdas, moving non-`Copy` captures out of a
+   `FnOnce` environment (still `SAFE-MOVE-002`), field-stored `FnOnce` calls
+   (rejected until field drop-flag elaboration), generic call syntax through
+   `Fn` bounds, and async closures.
 5. **HRTB precision.** Deeper nested aggregate HRTB and multi-borrow callbacks
    mixing local/parameter/global referents are explicit `SAFE-BORROW-099`
    rejections, never guessed-safe.
@@ -1747,6 +1753,8 @@ passes.
   join-before-return scoped sink.
 - `SAFE-FFI-003`: LLVM by-value `@extern` aggregate on a target other than
   x86-64 System V.
+- `SAFE-MOVE-003`: a `FnOnce` callback is called through a reference or a
+  field, or a `FnMut` callback is called through a `const` local binding.
 - `SAFE-BORROW-099`: an unsupported or unproven borrow/lifetime pattern. The
   current HRTB implementation uses it for deeper aggregate nesting and for
   multi-borrow callbacks whose referents are mixed local/parameter or have
@@ -2759,3 +2767,6 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 
 
 *Revision note v4.26 (2026-10-31): `FutureHandle<'a, T>` frame lifetime. Async returns carry `'static` for owning frames and an elided lifetime when a parameter/frame value borrows; `spawn_send` requires `FutureHandle<'static, T>` so a borrowed frame cannot cross a safe submission boundary. Return/parameter checks reject a borrowed future returned through the legacy lifetime-less `FutureHandle<T>` spelling. `BaseType::satisfies(Value*)` now preserves a `GenericType` when both sides are generic, so lifetime arguments are not lost before comparison; `GenericType::satisfies` additionally recognizes compiler-generated FutureHandle master/instantiation spellings. Existing positive wrappers/methods were updated to explicit `FutureHandle<'a, T>` signatures. Negative tests `664` (`async_spawn_send_borrowed` added); TCC/LLVM main `2366`/`2364`, async `58`, safety `64`, libs `730`. Remaining: full call-site lifetime inference/unification, references/callback captures, and custom future-consumer wrappers.*
+
+
+*Revision note v4.27 (2026-10-31): first Fn callable-kind slice. Added `std::Fn<T>`, `std::FnMut<T>`, and `std::FnOnce<T>` aliases with `FnMutCapture`/`FnOnceCapture` markers. `FnMut` calls require a non-`const` local receiver; `FnOnce` calls require a moved receiver, destroy the callback environment after the call, and a second call is rejected by MIR (`SAFE-MOVE-003` plus the destroyed place state). Markers are conservative `!Send`/`!Sync`. Non-`Copy` capture moves remain blocked by `SAFE-MOVE-002`; field-stored `FnOnce` calls are rejected until field drop-flag elaboration. Added four regression tests (`fn_once_single_call`, `fn_once_double_call`, `fn_mut_mutable_call`, `fn_mut_const_receiver`). Negative tests `668`; main TCC/LLVM `2366`/`2364`, async `58`, safety `64`, libs `730`.*

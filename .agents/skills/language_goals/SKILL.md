@@ -46,7 +46,9 @@ and the enforceable M4/M5/M6 rules) is green, but the open gaps include
 `SAFE-LIFE-005`, and the `'static`/elided frame lifetime landed; full call-site
 inference remains), the full target-aware C ABI (LLVM now
 rejects unsupported targets instead of miscompiling), `dyn` having no
-auto-trait bounds, and the missing `FnOnce`/`FnMut`/`Fn` callable model. Load
+auto-trait bounds, and the partially implemented `Fn`/`FnMut`/`FnOnce` callable
+model (call-once/mutable-receiver kinds exist; capture moves/trait bounds
+remain). Load
 the `safety` skill and read `lang/docs/safety-implementation-plan.md` §4.5
 before making safety/roadmap claims.
 

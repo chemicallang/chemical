@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2366/2366` |
 | LLVM main | `2364/2364` |
 | `@test` runner | `54/54` |
-| TCC/LLVM negative | `664/664` |
+| TCC/LLVM negative | `668/668` |
 | TCC/LLVM safety | `64/64` |
 | TCC/LLVM async | `58/58` |
 | TCC libs | `730/730` |
@@ -250,12 +250,15 @@ memory safety.
    scoped parameter anywhere except a known join-before-return API (resolved by exact library
    namespace) or another annotated function. New scoped sink APIs must be added to that list; an
    arbitrary user-defined sink is intentionally not trusted.
-4. **No `FnOnce`/`FnMut`/`Fn` callable model.**
-   Non-`Copy` nested aggregate captures cannot be moved out of a reusable
-   callback; they are an explicit lowering error. `SAFE-MOVE-002` prevents the
-   old bitwise-copy/double-own bug. Implementing once-call semantics is
-   M1.16/M6.6 work.
-
+4. **`Fn`/`FnMut`/`FnOnce` callable kinds are partially implemented.**
+   `std::Fn<T>` is the reusable callback type; `std::FnMut<T>` requires a
+   mutable local receiver; `std::FnOnce<T>` consumes its callback after the
+   first call (`SAFE-MOVE-003`, and the MIR move state rejects a second call).
+   The markers are conservatively `!Send`/`!Sync`. Remaining: full trait/interface
+   bounds, capture-kind inference for lambdas, moving a non-`Copy` capture out
+   of a `FnOnce` environment (still rejected by `SAFE-MOVE-002`), `FnOnce`
+   field calls (rejected until field drop-flag elaboration), and generic call
+   syntax through `Fn` bounds.
 5. **HRTB precision is intentionally incomplete.**
    Deeper nested aggregate HRTB and multi-borrow callbacks mixing local and
    parameter/global referents (or distinct non-local regions) are explicit
@@ -406,6 +409,7 @@ Coded output renders `error[SAFE-*]:` / `warn[SAFE-*]:`; uncoded output keeps
 | `SAFE-LIFE-005` | future-containing value passed to a retaining safe API |
 | `SAFE-MOVE-001` | move/access/assignment after move, or array-element move |
 | `SAFE-MOVE-002` | non-Copy callback capture moved out of a reusable callback |
+| `SAFE-MOVE-003` | FnOnce called through a reference/field, or FnMut receiver is not mutable |
 | `SAFE-PROV-001` | raw/integer/null converted to a reference |
 | `SAFE-REPR-001` | invalid `@repr("transparent")` shape |
 | `SAFE-SCOPED-001` | `@scoped_callback` parameter used outside a scoped sink |

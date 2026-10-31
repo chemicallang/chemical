@@ -32,8 +32,9 @@ async `FutureHandle<'a, T>` now carries a frame lifetime (`'static` for owning
 frames, elided for borrowed frames) and `SAFE-LIFE-005` rejects safe retaining
 APIs, but full call-site lifetime inference is still missing; other blockers
 are the full target-aware C ABI (`SAFE-FFI-003` now rejects unsupported LLVM
-targets), `dyn` being conservatively `!Send`/`!Sync`/`!Unpin`, and the missing
-`FnOnce`/`FnMut`/`Fn` callable model.
+targets), `dyn` being conservatively `!Send`/`!Sync`/`!Unpin`, and the partially
+implemented `Fn`/`FnMut`/`FnOnce` callable model (call-once/mutable-receiver
+kinds exist; capture moves and trait bounds remain).
 `@scoped_callback` is body-checked by `SAFE-SCOPED-001`, async constructors
 check allocation failure, and the audit gate runs in CI. Load the `safety` skill
 and read `lang/docs/safety-implementation-plan.md` §4.5 before claiming full

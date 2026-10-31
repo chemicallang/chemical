@@ -170,4 +170,27 @@ impl !Sync for ScopedSendCapture { }
 @partial_instantiate
 public type scoped_send_function<T> = %capture<T, default_function_instance, ScopedSendCapture>;
 
+// Callable-kind markers. `std::Fn<T>` is the ordinary reusable callback;
+// `FnMut<T>` may mutate captured state and requires a mutable receiver;
+// `FnOnce<T>` is consumed by its first call. The markers are intentionally
+// !Send/!Sync until the callable kind has a full capture witness: accepting a
+// replayable or cross-thread callback through an erased marker would be
+// unsound.
+public struct FnMutCapture { }
+impl !Send for FnMutCapture { }
+impl !Sync for FnMutCapture { }
+
+public struct FnOnceCapture { }
+impl !Send for FnOnceCapture { }
+impl !Sync for FnOnceCapture { }
+
+@partial_instantiate
+public type Fn<T> = %capture<T, default_function_instance>;
+
+@partial_instantiate
+public type FnMut<T> = %capture<T, default_function_instance, FnMutCapture>;
+
+@partial_instantiate
+public type FnOnce<T> = %capture<T, default_function_instance, FnOnceCapture>;
+
 }

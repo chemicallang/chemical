@@ -105,6 +105,7 @@
 #include "ast/structures/BaseDefMember.h"
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/UnnamedStruct.h"
+#include "ast/structures/GenericStructDecl.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/types/StructType.h"
 #include "compiler/symres/ImplementationsIndex.h"
@@ -219,6 +220,44 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
         error = "capturing function instance could not be resolved";
         return MIRExprResult::error();
     }
+    auto marker_named = [&](const char* name) -> bool {
+        if (cap == nullptr || !cap->capture_env) return false;
+        BaseType* env = cap->capture_env->canonical();
+        auto* container = env ? env->get_members_container() : nullptr;
+        if (container == nullptr) {
+            return env != nullptr &&
+                   env->representation().find(name) != std::string::npos;
+        }
+        if (container->kind() == ASTNodeKind::StructDecl) {
+            return container->as_struct_def_unsafe()->name_view() ==
+                   chem::string_view(name, std::strlen(name));
+        }
+        if (container->kind() == ASTNodeKind::GenericStructDecl) {
+            auto* master = container->as_gen_struct_def_unsafe()->master_impl;
+            if (master != nullptr &&
+                master->name_view() == chem::string_view(name, std::strlen(name))) {
+                return true;
+            }
+        }
+        // A typealias instantiation can leave the marker as an unlinked named
+        // type; its spelling is the stable identity in that case.
+        return env != nullptr &&
+               env->representation().find(name) != std::string::npos;
+    };
+    const bool fn_once = marker_named("FnOnceCapture");
+    if (fn_once) {
+        if (recv.kind != MIRExprKind::Place) {
+            error = "calling a FnOnce callback requires moving the callback into the call";
+            return MIRExprResult::error();
+        }
+        const PlaceId pid = static_cast<PlaceId>(recv.id);
+        if (pid < builder_->function().places.size() &&
+            builder_->function().places[pid].init_state ==
+                static_cast<uint8_t>(MIRInitState::Destroyed)) {
+            error = "a FnOnce callback cannot be called after it was moved";
+            return MIRExprResult::error();
+        }
+    }
     FunctionDeclaration* get_fn = resolve_method_fallback(inst, "get_fn_ptr");
     FunctionDeclaration* get_data = resolve_method_fallback(inst, "get_data_ptr");
     if (!get_fn || !get_data) {
@@ -230,6 +269,18 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
         id.linked = m;
         FunctionCall sc(&id, m->returnType, ZERO_LOC);
         return lower_method_call(recv, cc, &sc, error);
+    };
+    auto finish_fn_once = [&]() {
+        if (!fn_once || recv.kind != MIRExprKind::Place) return;
+        const PlaceId pid = static_cast<PlaceId>(recv.id);
+        const SymbolId dtor = destructor_symbol(inst);
+        if (dtor != MIR_INVALID_ID) {
+            builder_->destroy(pid, dtor);
+        }
+        // A FnOnce call consumes the callback. The closure body cannot move a
+        // capture out yet (SAFE-MOVE-002), so destroying the environment here
+        // is the correct drop; mark the place moved so a second call fails.
+        mark_moved(pid);
     };
     MIRExprResult fnr = call_method(get_fn);
     if (!fnr.ok()) return fnr;
@@ -266,6 +317,7 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
     if (is_void_type(module_, crt)) {
         builder_->call_indirect(cfn, crt, cargs.data(), static_cast<uint32_t>(cargs.size()));
         destroy_call_temps_from(ccap, error);
+        finish_fn_once();
         return MIRExprResult::void_result();
     }
     if (abi::needs_sret(module_, crt)) {
@@ -289,11 +341,13 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
         builder_->call_indirect(scfn, types_.void_type(), sargs.data(),
                                 static_cast<uint32_t>(sargs.size()));
         destroy_call_temps_from(ccap, error);
+        finish_fn_once();
         return MIRExprResult::place(tmp, crt);
     }
     const ValueId cv =
         builder_->call_indirect(cfn, crt, cargs.data(), static_cast<uint32_t>(cargs.size()));
     destroy_call_temps_from(ccap, error);
+    finish_fn_once();
     return MIRExprResult::value(cv, crt);
 }
 

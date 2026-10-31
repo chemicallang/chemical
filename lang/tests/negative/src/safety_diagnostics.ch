@@ -487,6 +487,34 @@ func future_handle_same_scope_compiles(env : &mut TestEnv) {
 }
 
 @test
+func fn_once_cannot_be_called_twice(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var f : std::FnOnce<() => int> = ||() => { return 1 }\n    var a = f()\n    var b = f()\n    return a + b\n}\n"
+    expect_compile_error_with_mod(env, "fn_once_double_call", ch, "FnOnce callback cannot be called after it was moved", NEG_MOD_STD_CORE)
+}
+
+@test
+func fn_once_single_call_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var f : std::FnOnce<() => int> = ||() => { return 1 }\n    return f()\n}\n"
+    expect_compile_success_with_mod(env, "fn_once_single_call", ch, NEG_MOD_STD_CORE)
+}
+
+@test
+func fn_mut_requires_mutable_receiver(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    const f : std::FnMut<() => int> = ||() => { return 1 }\n    return f()\n}\n"
+    expect_compile_error_with_mod(env, "fn_mut_const_receiver", ch, "SAFE-MOVE-003", NEG_MOD_STD_CORE)
+}
+
+@test
+func fn_mut_mutable_call_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var f : std::FnMut<() => int> = ||() => { return 1 }\n    return f()\n}\n"
+    expect_compile_success_with_mod(env, "fn_mut_mutable_call", ch, NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_dyn_object_is_not_send(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "interface Show {\n    func show(&self) : int\n}\nstruct RcImpl {\n    var r : std::Rc<int>\n}\nimpl Show for RcImpl {\n    func show(&self) : int { return *self.r.get() }\n}\nfunc worker(x : dyn Show) : int { return x.show() }\npublic func main() : int {\n    var v = RcImpl { r : std::rc(1) }\n    var d : dyn Show = dyn<Show>(v)\n    var t = std::thread.spawn<dyn Show, int>(worker, d)\n    return t.join() - 1\n}\n"

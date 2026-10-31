@@ -5,6 +5,7 @@
 #include "MIRABI.h"
 #include "MIRPrototype.h"
 
+#include <atomic>
 #include <cstdlib>
 #include <iostream>
 #include <optional>
@@ -303,8 +304,9 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
         return false;
     }
 
-    static uint64_t s_counter = 0;
-    const std::string lname = "__chemda_cap_" + std::to_string(s_counter++);
+    static std::atomic<uint64_t> s_counter{0};
+    const std::string lname = "__chemda_cap_" +
+        std::to_string(s_counter.fetch_add(1, std::memory_order_relaxed));
     const std::string cap_name = lname + "_cap";
 
     // 1. the closure struct definition + type
@@ -621,6 +623,54 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
             MIR_INVALID_ID, cap->name.data(), static_cast<uint32_t>(cap->name.size()));
         PlaceId lp = place_for_linked(cap->linked);
         if (lp == MIR_INVALID_ID) lp = place_for_name(cap->name);
+        if (lp == MIR_INVALID_ID && cap->linked != nullptr &&
+            cap->linked->kind() == ASTNodeKind::CapturedVariable) {
+            // A nested closure capturing a variable that the enclosing closure
+            // already captured. The outer capture lives in the enclosing
+            // closure environment, not in a local place; resolve it through
+            // that environment instead. A borrowed nested capture stores the
+            // address of the original variable; a by-value capture loads its
+            // value (a by-reference outer capture is dereferenced first).
+            auto* outer = cap->linked->as_captured_var_unsafe();
+            const TypeId oft = types_.map(outer->known_type());
+            const TypeId original =
+                outer->capture_by_ref && outer->refType.type != nullptr
+                    ? types_.map(outer->refType.type)
+                    : oft;
+            if (cap->capture_by_ref) {
+                if (outer->capture_by_ref) {
+                    // The enclosing field already holds the referent pointer.
+                    MIRExprResult v = lower_captured_variable(outer, false, error);
+                    if (!v.ok()) return false;
+                    builder_->field_store(cap_temp, fc, static_cast<ValueId>(v.id));
+                } else {
+                    // The enclosing field owns the variable; store its address.
+                    MIRExprResult a = lower_captured_variable(outer, true, error);
+                    if (!a.ok()) return false;
+                    const TypeId ptrt = types_.pointer_type(oft, true);
+                    ValueId ptr = a.kind == MIRExprKind::Place
+                                      ? builder_->address_of(static_cast<PlaceId>(a.id), ptrt)
+                                      : builder_->cast(static_cast<ValueId>(a.id), ptrt);
+                    builder_->field_store(cap_temp, fc, ptr);
+                }
+            } else {
+                // A by-value nested capture of an aggregate would move the
+                // field out of the enclosing closure environment; that needs
+                // callable/move semantics that do not exist yet.
+                if (abi::is_aggregate(module_, original)) {
+                    error = "nested closure cannot move an aggregate capture out of the enclosing closure";
+                    return false;
+                }
+                MIRExprResult v = lower_captured_variable(outer, false, error);
+                if (!v.ok()) return false;
+                ValueId value = static_cast<ValueId>(v.id);
+                if (outer->capture_by_ref) {
+                    value = builder_->load_indirect(value, original);
+                }
+                builder_->field_store(cap_temp, fc, value);
+            }
+            continue;
+        }
         if (lp == MIR_INVALID_ID) {
             error = "captured variable does not resolve to a local place";
             return false;
@@ -684,8 +734,9 @@ MIRExprResult MIRLowerer::lower_lambda(LambdaFunction* lamb, std::string& error)
 
 MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
                                                           std::string& error) {
-    static uint64_t s_lambda_counter = 0;
-    const std::string lname = "__chemda_" + std::to_string(s_lambda_counter++);
+    static std::atomic<uint64_t> s_lambda_counter{0};
+    const std::string lname = "__chemda_" +
+        std::to_string(s_lambda_counter.fetch_add(1, std::memory_order_relaxed));
 
     const TypeId ret = lamb->returnType ? types_.map(lamb->returnType) : types_.void_type();
     const bool l_sret = abi::needs_sret(module_, ret);

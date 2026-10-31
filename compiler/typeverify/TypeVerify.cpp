@@ -2141,8 +2141,18 @@ static void verify_async_send_frame(TypeVerifier& verifier, FunctionCall* call) 
 void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
     for (auto* value : call->values) check_index_move(value);
     FunctionDeclaration* linked_call = call->safe_linked_func();
+    // Scoped entry points join their workers before returning, so a borrowed
+    // capture is sound without an unsafe boundary. The value-passing forms and
+    // the heterogeneous-scope entries are the same contract. A top-level
+    // `std::thread.spawn_closure` keeps requiring `'static` (and therefore an
+    // unsafe marker for a borrowed capture).
     const bool scoped_capture_call = linked_call != nullptr &&
         (linked_call->name_view() == chem::string_view("scoped_spawn_closure") ||
+         linked_call->name_view() == chem::string_view("scoped_spawn_closure_value") ||
+         linked_call->name_view() == chem::string_view("scoped_spawn_closure_mut") ||
+         linked_call->name_view() == chem::string_view("scoped_spawn_closure_in") ||
+         linked_call->name_view() == chem::string_view("scoped_spawn_closure_value_in") ||
+         linked_call->name_view() == chem::string_view("scoped_spawn_closure_mut_in") ||
          linked_call->name_view() == chem::string_view("scoped_run_closure"));
     const bool prev_scoped_capture = allow_scoped_capture;
     if (scoped_capture_call) allow_scoped_capture = true;

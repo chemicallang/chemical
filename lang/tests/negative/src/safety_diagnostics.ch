@@ -291,6 +291,20 @@ func neg_scoped_scope_cannot_be_forged(env : &mut TestEnv) {
 }
 
 @test
+func neg_scoped_closure_scope_rc_capture_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    std::thread.scoped_run_closure(||(scope : &mut std::thread.ScopedClosureScope) => {\n        var r = std::rc(5)\n        std::thread.scoped_spawn_closure_in(scope, |r|() => { var x = *r.get() })\n    })\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "scoped_closure_scope_rc", ch, "does not satisfy where clause constraint 'C : Send'", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_scoped_closure_scope_cannot_be_forged(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var s = std::thread.ScopedClosureScope {\n        threads : zeroed<[32]*mut std::concurrent.Thread>(),\n        count : 0\n    }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "scoped_closure_scope_forge", ch, "SAFE-VIS-001", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_safe_send_impl_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Raw {\n    var p : *mut int\n}\nimpl Send for Raw {}\npublic func main() : int { return 0 }\n"

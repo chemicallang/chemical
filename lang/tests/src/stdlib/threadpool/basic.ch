@@ -396,6 +396,69 @@ func test_pool_submit_closure_owned_capture() : bool {
     return r == 42
 }
 
+// 16) Heterogeneous scoped scope: two workers capture different stack values
+func test_scoped_run_closure_heterogeneous() : bool {
+    var a = 1
+    var b = 10
+    std::thread.scoped_run_closure(|&mut a, &mut b|(scope : &mut std::thread.ScopedClosureScope) => {
+        std::thread.scoped_spawn_closure_in(scope, |&mut a|() => {
+            *a = *a + 1
+        })
+        std::thread.scoped_spawn_closure_in(scope, |&mut b|() => {
+            *b = *b + 10
+        })
+    })
+    return a == 2 && b == 20
+}
+
+// 17) Value-passing capturing scoped closure: the closure has its own capture
+// environment and also receives a mutable borrow.
+func test_scoped_spawn_closure_value() : bool {
+    var delta = 5
+    var value = 10
+    std::thread.scoped_spawn_closure_mut(|&delta|(target : &mut int) => {
+        *target = *target + *delta
+    }, &mut value)
+    return value == 15
+}
+
+// 18) The same value-passing form inside a heterogeneous scope. The body only
+// captures the value; the spawned closure is non-capturing.
+func test_scoped_run_closure_value() : bool {
+    var counter = 0
+    std::thread.scoped_run_closure(|&mut counter|(scope : &mut std::thread.ScopedClosureScope) => {
+        std::thread.scoped_spawn_closure_mut_in(scope, ||(target : &mut int) => {
+            *target = *target + 1
+        }, counter)
+    })
+    return counter == 1
+}
+
+// 19) A nested closure may copy an outer captured scalar by value while also
+// borrowing another outer value.
+func test_scoped_run_closure_by_value_capture() : bool {
+    var a = 7
+    var seen = 0
+    std::thread.scoped_run_closure(|&mut a, &mut seen|(scope : &mut std::thread.ScopedClosureScope) => {
+        std::thread.scoped_spawn_closure_in(scope, |a, &mut seen|() => {
+            *seen = a
+        })
+    })
+    return seen == 7
+}
+
+// 20) Shared value-passing inside a heterogeneous scope.
+func test_scoped_run_closure_shared_value() : bool {
+    var seen = 0
+    var base = 41
+    std::thread.scoped_run_closure(|&mut seen, &base|(scope : &mut std::thread.ScopedClosureScope) => {
+        std::thread.scoped_spawn_closure_value_in(scope, |&mut seen|(value : &int) => {
+            *seen = *value + 1
+        }, base)
+    })
+    return seen == 42
+}
+
 func test_thread_pool() {
         unsafe {
         test("test_basic_single_thread", test_basic_single_thread);
@@ -415,6 +478,11 @@ func test_thread_pool() {
         test("test_spawn_closure_owned_capture", test_spawn_closure_owned_capture);
         test("test_scoped_spawn_closure_borrow", test_scoped_spawn_closure_borrow);
         test("test_pool_submit_closure_owned_capture", test_pool_submit_closure_owned_capture);
+        test("test_scoped_run_closure_heterogeneous", test_scoped_run_closure_heterogeneous);
+        test("test_scoped_spawn_closure_value", test_scoped_spawn_closure_value);
+        test("test_scoped_run_closure_value", test_scoped_run_closure_value);
+        test("test_scoped_run_closure_by_value_capture", test_scoped_run_closure_by_value_capture);
+        test("test_scoped_run_closure_shared_value", test_scoped_run_closure_shared_value);
 
         }
     }

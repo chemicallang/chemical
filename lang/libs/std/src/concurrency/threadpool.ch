@@ -405,6 +405,21 @@ public namespace std {
             internal var f : %capture<() => void, std::default_function_instance>
         }
 
+        // A capturing scoped closure that also receives a borrowed value. The
+        // capture witness stays on the call-site parameter; the stored field is
+        // erased because the worker is joined before the scope returns.
+        @direct_init
+        public struct ScopedClosureValueData<T> {
+            internal var f : %capture<(value : &T) => void, std::default_function_instance>
+            internal var value : *T
+        }
+
+        @direct_init
+        public struct ScopedClosureMutData<T> {
+            internal var f : %capture<(value : &mut T) => void, std::default_function_instance>
+            internal var value : *mut T
+        }
+
         func <T, U> thread_entry(arg : *void) : *void {
             unsafe {
                 var data = arg as *mut SpawnData<T, U>
@@ -449,6 +464,24 @@ public namespace std {
             unsafe {
                 var data = arg as *mut ScopedClosureSpawnData
                 data.f()
+                delete data
+                return null
+            }
+        }
+
+        func <T> scoped_closure_value_entry(arg : *void) : *void {
+            unsafe {
+                var data = arg as *mut ScopedClosureValueData<T>
+                data.f(&*data.value)
+                delete data
+                return null
+            }
+        }
+
+        func <T> scoped_closure_mut_entry(arg : *void) : *void {
+            unsafe {
+                var data = arg as *mut ScopedClosureMutData<T>
+                data.f(&mut *data.value)
                 delete data
                 return null
             }
@@ -592,6 +625,49 @@ public namespace std {
             t.join()
         }
 
+        // Value-passing form of the capturing scoped closure: the closure has
+        // its own capture environment and also receives a shared borrowed
+        // value. The worker is joined before returning, so the capture witness
+        // only needs `Send` (not `'static`); `T: Sync` is what makes sharing
+        // the value with the worker sound.
+        public func <T, C> scoped_spawn_closure_value(
+            f : %capture<(value : &T) => void, std::default_function_instance, C>,
+            value : &T
+        ) where C : Send, T : Sync {
+            var data = unsafe(malloc(sizeof(ScopedClosureValueData<T>))) as *mut ScopedClosureValueData<T>
+            if(data == null) {
+                panic("failed to allocate scoped closure state")
+            }
+            unsafe {
+                new(data) ScopedClosureValueData<T> {
+                    f : f,
+                    value : value as *T
+                }
+            }
+            var t = unsafe(std::concurrent.spawn(scoped_closure_value_entry<T>, data as *void))
+            t.join()
+        }
+
+        // Mutable value-passing form. `T: Send` permits transferring mutable
+        // access to the worker; the join happens before the borrow ends.
+        public func <T, C> scoped_spawn_closure_mut(
+            f : %capture<(value : &mut T) => void, std::default_function_instance, C>,
+            value : &mut T
+        ) where C : Send, T : Send {
+            var data = unsafe(malloc(sizeof(ScopedClosureMutData<T>))) as *mut ScopedClosureMutData<T>
+            if(data == null) {
+                panic("failed to allocate scoped closure state")
+            }
+            unsafe {
+                new(data) ScopedClosureMutData<T> {
+                    f : f,
+                    value : value as *mut T
+                }
+            }
+            var t = unsafe(std::concurrent.spawn(scoped_closure_mut_entry<T>, data as *void))
+            t.join()
+        }
+
         @direct_init
         public struct ScopedData<T : Sync> {
             internal var f : (value : &T) => void
@@ -723,6 +799,132 @@ public namespace std {
         public func <T> scoped_run(value : &T, body : (scope : &mut ScopedScope<T>) => void) where T : Sync {
             var scope = ScopedScope<T> {
                 value : value as *T,
+                threads : zeroed<[32]*mut std::concurrent.Thread>(),
+                count : 0
+            }
+            body(&mut scope)
+        }
+
+        // A multi-handle scope for heterogeneous capturing closures. Each
+        // worker may capture a different set of stack values; the scope joins
+        // every worker in its destructor before `scoped_run_closure` returns.
+        // The fields are internal and no method detaches a handle, so the
+        // captured borrows cannot outlive the enclosing call.
+        @direct_init
+        public struct ScopedClosureScope {
+            internal var threads : [32]*mut std::concurrent.Thread
+            internal var count : size_t
+
+            @delete
+            func delete(&mut self) {
+                var i : size_t = 0
+                while(i < count) {
+                    var slot = threads[i]
+                    unsafe {
+                        std::concurrent.join_thread(slot)
+                        dealloc slot
+                    }
+                    i = i + 1
+                }
+                count = 0
+            }
+        }
+
+        // Free-function forms are used because a generic method cannot infer
+        // the capture witness `C` from a lambda argument yet. They are the only
+        // way to add a worker to a `ScopedClosureScope`; the scope fields stay
+        // internal and no detach operation exists.
+        public func <C> scoped_spawn_closure_in(
+            scope : &mut ScopedClosureScope,
+            f : %capture<() => void, std::default_function_instance, C>
+        ) where C : Send {
+            if(scope.count >= 32) {
+                panic("scoped closure limit exceeded")
+            }
+            var data = unsafe(malloc(sizeof(ScopedClosureSpawnData))) as *mut ScopedClosureSpawnData
+            if(data == null) {
+                panic("failed to allocate scoped closure state")
+            }
+            unsafe {
+                new(data) ScopedClosureSpawnData {
+                    f : f
+                }
+            }
+            var t = unsafe(std::concurrent.spawn(scoped_closure_thread_entry, data as *void))
+            var slot = unsafe(malloc(sizeof(std::concurrent.Thread))) as *mut std::concurrent.Thread
+            if(slot == null) {
+                panic("failed to allocate scoped thread handle")
+            }
+            unsafe { memcpy(slot, &raw t, sizeof(std::concurrent.Thread)) }
+            scope.threads[scope.count] = slot
+            scope.count = scope.count + 1
+        }
+
+        public func <T, C> scoped_spawn_closure_value_in(
+            scope : &mut ScopedClosureScope,
+            f : %capture<(value : &T) => void, std::default_function_instance, C>,
+            value : &T
+        ) where C : Send, T : Sync {
+            if(scope.count >= 32) {
+                panic("scoped closure limit exceeded")
+            }
+            var data = unsafe(malloc(sizeof(ScopedClosureValueData<T>))) as *mut ScopedClosureValueData<T>
+            if(data == null) {
+                panic("failed to allocate scoped closure state")
+            }
+            unsafe {
+                new(data) ScopedClosureValueData<T> {
+                    f : f,
+                    value : value as *T
+                }
+            }
+            var t = unsafe(std::concurrent.spawn(scoped_closure_value_entry<T>, data as *void))
+            var slot = unsafe(malloc(sizeof(std::concurrent.Thread))) as *mut std::concurrent.Thread
+            if(slot == null) {
+                panic("failed to allocate scoped thread handle")
+            }
+            unsafe { memcpy(slot, &raw t, sizeof(std::concurrent.Thread)) }
+            scope.threads[scope.count] = slot
+            scope.count = scope.count + 1
+        }
+
+        public func <T, C> scoped_spawn_closure_mut_in(
+            scope : &mut ScopedClosureScope,
+            f : %capture<(value : &mut T) => void, std::default_function_instance, C>,
+            value : &mut T
+        ) where C : Send, T : Send {
+            if(scope.count >= 32) {
+                panic("scoped closure limit exceeded")
+            }
+            var data = unsafe(malloc(sizeof(ScopedClosureMutData<T>))) as *mut ScopedClosureMutData<T>
+            if(data == null) {
+                panic("failed to allocate scoped closure state")
+            }
+            unsafe {
+                new(data) ScopedClosureMutData<T> {
+                    f : f,
+                    value : value as *mut T
+                }
+            }
+            var t = unsafe(std::concurrent.spawn(scoped_closure_mut_entry<T>, data as *void))
+            var slot = unsafe(malloc(sizeof(std::concurrent.Thread))) as *mut std::concurrent.Thread
+            if(slot == null) {
+                panic("failed to allocate scoped thread handle")
+            }
+            unsafe { memcpy(slot, &raw t, sizeof(std::concurrent.Thread)) }
+            scope.threads[scope.count] = slot
+            scope.count = scope.count + 1
+        }
+
+        // Scoped execution with a heterogeneous closure scope. `body` runs on
+        // the calling thread and receives the only mutable handle to the scope;
+        // every worker spawned by the body is joined when the scope is dropped,
+        // before this call returns. The body may capture caller storage because
+        // it is not moved to a worker.
+        public func <B> scoped_run_closure(
+            body : %capture<(scope : &mut ScopedClosureScope) => void, std::default_function_instance, B>
+        ) {
+            var scope = ScopedClosureScope {
                 threads : zeroed<[32]*mut std::concurrent.Thread>(),
                 count : 0
             }

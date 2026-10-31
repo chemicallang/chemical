@@ -3377,9 +3377,13 @@ void copy_func_params_types(
             //  we should keep this name empty or make an attribute for unused parameter
             copied->name = to_param->name;
         } else if(verify_type) {
-            // user gave the type
+            // user gave the type. A still-generic expected type is checked
+            // again after instantiation, where the concrete argument is known;
+            // rejecting it here would reject every lambda passed to a generic
+            // callback signature (`func <T> f(cb : (x : &mut T) => void)`).
             assert(to_param->type != nullptr);
-            if(!from_param->type->is_same(to_param->type)) {
+            if(!from_param->type->is_same(to_param->type) &&
+               !type_mentions_generic_param(from_param->type)) {
                 diagnoser.error("Lambda function parameter type mismatch", to_param);
             }
         }
@@ -3399,7 +3403,8 @@ bool link_lambda(
     copy_func_params_types(tyBuilder, func_type->params, params, allocator, diagnoser, func);
     if(!returnType) {
         returnType = func_type->returnType;
-    } else if(!returnType->is_same(func_type->returnType)) {
+    } else if(!returnType->is_same(func_type->returnType) &&
+              !type_mentions_generic_param(func_type->returnType)) {
         diagnoser.error((Value*) func) << "Lambda function type expected return type to be " << func_type->returnType->representation() << " but got lambda with return type " << returnType->representation();
     }
     func->setIsCapturing(func_type->isCapturing());

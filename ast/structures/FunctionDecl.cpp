@@ -287,7 +287,14 @@ FunctionDeclaration *FunctionDeclaration::as_function() {
 }
 
 BaseType* CapturedVariable::known_type() {
-    auto val_type = linked->known_type();
+    // A nested closure captures the original variable, not the enclosing
+    // closure's capture slot. Follow the capture chain so a by-reference
+    // outer capture does not turn a nested `&mut x` into `&mut &mut x`.
+    ASTNode* src = linked;
+    while(src != nullptr && src->kind() == ASTNodeKind::CapturedVariable) {
+        src = src->as_captured_var_unsafe()->linked;
+    }
+    auto val_type = src != nullptr ? src->known_type() : nullptr;
     if(capture_by_ref) {
         refType.type = val_type;
         return &refType;

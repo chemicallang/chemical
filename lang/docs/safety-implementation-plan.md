@@ -1045,18 +1045,24 @@
 > Scoped threads without captures are covered by join-before-return
 > `scoped_spawn`/`scoped_spawn_mut` and the multi-handle shared `scoped_run`
 > scope, including non-`'static` borrows. Capturing scoped callbacks are covered
-> by `std::thread.scoped_spawn_closure` for the no-argument captured form;
-> heterogeneous multi-value scopes and value-passing capturing scoped closures
-> remain open. Packed layout and `@repr("C"/"packed")` are implemented
+> by `std::thread.scoped_spawn_closure` for the no-argument captured form.
+> `std::thread.scoped_run_closure` / `ScopedClosureScope` cover heterogeneous
+> multi-value scopes (distinct capture witnesses in one join-all scope), and
+> the value-passing forms (`scoped_spawn_closure_value`/`_mut` plus scope
+> `scoped_spawn_closure_value_in`/`_mut_in`) pass a borrowed value to a
+> captured closure. Nested closures resolve captures through the enclosing
+> closure environment, and generic callback parameters are deferred to
+> instantiation. Bare erased callback parameters and raw `FutureHandle<T>`
+> `!Send` remain. Packed layout and `@repr("C"/"packed")` are implemented
 > (including `SAFE-VALID-008` for references to packed fields);
 > `@repr("transparent")` is implemented for checked single-field structs
 > (layout and C ABI); C ABI classification for Windows/ARM, FFI wrappers, and
 > the variance/HRTB/temporary-lifetime precision items remain.
-> Safety suite `63`; negative tests `631`; main TCC `2357`, LLVM `2355`;
+> Safety suite `63`; negative tests `633`; main TCC `2362`, LLVM `2360`;
 > libs `730`; plugins `1305`; async `56`; interpret `1910`; server `10`;
 > TLS `599`; safety `63`; `MIRTests` `4643 checks`. The whole-tree audit
 > manifest (`lang/docs/safety/audit-modules.txt`) covers `94` modules with
-> `unsafe_blocks 3663` / `unsafe_values 4890`; see
+> `unsafe_blocks 3664` / `unsafe_values 4890`; see
 > `lang/docs/safety/migration-metrics.md`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
@@ -2660,3 +2666,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.16 (2026-10-30): a non-Copy by-value callback capture could be returned, assigned, or passed by value out of a reusable lambda; the generated closure call bitwise-copied the capture, so repeated calls could double-own/destroy it. `SAFE-MOVE-002` now rejects the direct move forms (return, var initializer, assignment, call argument). This is a conservative guard, not full Rust-style callable semantics: `FnOnce`/`FnMut`/`Fn` traits and a once-callback type remain M1.16/M6.6 work.*
 *Revision note v4.17 (2026-10-30): P1 precision/API slice. MIR move/borrow checking now consumes the checked `impl Copy` marker: a copy-shaped `MoveInit` leaves the source initialized and keeps its loans live (arrays and nested Copy fields included). `@repr("transparent")` is implemented for single-field structs with field-equal size/alignment and C ABI, with `SAFE-REPR-001` rejecting multi-field/inheriting shapes and annotation conflicts. Packed-field reference rejection now propagates through nested fields and array elements. The MIR interpreter now handles `Switch`, `Copy`/`Move`, atomic load/store/compare-exchange/integer RMW, and `AtomicFence`; `Unreachable`/`Throw`, async and inline asm remain explicit hard interpreter errors where they have no comptime meaning. Safety suite `62`, negative `625`.*
 *Revision note v4.18 (2026-10-30): HRTB precision. A higher-ranked function-type parameter may now be a single-level aggregate whose binder mentions are direct reference fields; MIR records field regions and maps a field-derived borrowed result back to the caller loan. Multi-borrow HRTB calls now accept parameter/global referents when every non-local referent shares one declared region; local/parameter mixes, distinct non-local regions, and deeper aggregate nesting remain explicit `SAFE-BORROW-099` rejections. Universal/router plugin surfaces were revalidated. Safety suite `63`, negative `631`.*
+*Revision note v4.19 (2026-10-31): M6.5 scoped closure breadth. `std::thread.scoped_run_closure` adds a heterogeneous multi-value scope (`ScopedClosureScope`) whose free spawn entries (`scoped_spawn_closure_in`, `_value_in`, `_mut_in`) accept distinct typed capture witnesses and join every worker on scope drop. Value-passing captured closures are available standalone (`scoped_spawn_closure_value`/`_mut`) and through the scope; all are `C: Send` and borrow-confined by the join-before-return boundary. MIR now materializes a nested closure capture through the enclosing closure environment, and `CapturedVariable::known_type` follows the capture chain to the original variable (no accidental `&mut &mut T`). Generic callback parameter types in lambda signatures are deferred to instantiation instead of rejected while still generic, enabling value-passing forms over `T`. The generated-lambda name counters are atomic, so parallel module lowering cannot emit duplicate `__chemda_*` symbols. Remaining M6.5 gaps: bare erased `std::function` parameters and raw `FutureHandle<T>` `!Send`; nested by-value aggregate captures are an explicit lowering error. Main TCC `2362`, LLVM `2360`; negative `633`; safety `63`.*

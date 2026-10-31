@@ -157,4 +157,17 @@ impl !Sync for SendStaticCapture { }
 @partial_instantiate
 public type send_function<T> = %capture<T, default_function_instance, SendStaticCapture>;
 
+/**
+ * Type-level marker for a callback whose capture environment was proven
+ * `Send` but may borrow caller storage. It is deliberately not `Send` itself:
+ * it may only be handed to a join-before-return scoped API, never to an
+ * unscoped thread submission that could outlive the borrowed values.
+ */
+public struct ScopedSendCapture { }
+impl !Send for ScopedSendCapture { }
+impl !Sync for ScopedSendCapture { }
+
+@partial_instantiate
+public type scoped_send_function<T> = %capture<T, default_function_instance, ScopedSendCapture>;
+
 }

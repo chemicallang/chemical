@@ -88,6 +88,15 @@ void annot_handler_no_mangle(Parser* parser, ASTNode* node, std::vector<Value*>&
     }
 }
 
+void annot_handler_scoped_callback(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
+    auto* func = node->as_function();
+    if(func) {
+        func->attrs.scoped_callback = true;
+    } else {
+        parser->error("@scoped_callback may only be applied to a function");
+    }
+}
+
 void annot_handler_constructor(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     const auto func = node->as_function();
     if(func) {
@@ -489,6 +498,7 @@ void AnnotationController::initialize() {
             { "expand", { annot_handler_expand, "expand", AnnotationDefType::Handler } },
             { "delete", { annot_handler_delete, "delete", AnnotationDefType::Handler } },
             { "unsafe", { annot_handler_unsafe, "unsafe", AnnotationDefType::Handler } },
+            { "scoped_callback", { annot_handler_scoped_callback, "scoped_callback", AnnotationDefType::Handler } },
             { "never_destructed", { annot_handler_never_destructed, "never_destructed", AnnotationDefType::Handler } },
             { "stdcall", { annot_handler_stdcall, "stdcall", AnnotationDefType::Handler } },
             { "dllimport", { annot_handler_dllimport, "dllimport", AnnotationDefType::Handler } },

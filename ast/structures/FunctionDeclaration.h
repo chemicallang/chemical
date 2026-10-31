@@ -132,6 +132,13 @@ struct FuncDeclAttributes {
      */
     bool is_unsafe = false;
     /**
+     * This function only forwards its callback to a join-before-return scoped
+     * API (a `std::scoped_send_function` parameter may borrow the caller's
+     * stack). The compiler permits constructing such a callback at the call
+     * site without an `unsafe` boundary.
+     */
+    bool scoped_callback = false;
+    /**
      * is this function overriding a function
      */
     bool is_override = false;

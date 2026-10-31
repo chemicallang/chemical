@@ -480,6 +480,36 @@ func test_send_function_to_thread() : bool {
     return spawn_send_callback(|x|() => { return x + 1 }) == 42
 }
 
+// 23) A non-generic borrow-carrying callback. `@scoped_callback` is the
+// audited contract that the parameter is only forwarded to a join-before-return
+// scoped API.
+@scoped_callback
+func run_scoped_send(f : std::scoped_send_function<() => void>) {
+    std::thread.scoped_spawn_closure_erased(f)
+}
+func test_scoped_send_function_parameter() : bool {
+    var n = 1
+    run_scoped_send(|&mut n|() => {
+        *n = *n + 1
+    })
+    return n == 2
+}
+
+// 24) Marker callbacks inside a heterogeneous scope.
+func test_scoped_send_function_scope() : bool {
+    var a = 1
+    var b = 10
+    std::thread.scoped_run_closure(|&mut a, &mut b|(scope : &mut std::thread.ScopedClosureScope) => {
+        std::thread.scoped_spawn_closure_in_erased(scope, |&mut a|() => {
+            *a = *a + 1
+        })
+        std::thread.scoped_spawn_closure_in_erased(scope, |&mut b|() => {
+            *b = *b + 10
+        })
+    })
+    return a == 2 && b == 20
+}
+
 func test_thread_pool() {
         unsafe {
         test("test_basic_single_thread", test_basic_single_thread);
@@ -506,6 +536,8 @@ func test_thread_pool() {
         test("test_scoped_run_closure_shared_value", test_scoped_run_closure_shared_value);
         test("test_send_function_parameter", test_send_function_parameter);
         test("test_send_function_to_thread", test_send_function_to_thread);
+        test("test_scoped_send_function_parameter", test_scoped_send_function_parameter);
+        test("test_scoped_send_function_scope", test_scoped_send_function_scope);
 
         }
     }

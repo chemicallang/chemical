@@ -2148,12 +2148,19 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
     // `std::thread.spawn_closure` keeps requiring `'static` (and therefore an
     // unsafe marker for a borrowed capture).
     const bool scoped_capture_call = linked_call != nullptr &&
-        (linked_call->name_view() == chem::string_view("scoped_spawn_closure") ||
+        (linked_call->attrs.scoped_callback ||
+         linked_call->name_view() == chem::string_view("scoped_spawn_closure") ||
          linked_call->name_view() == chem::string_view("scoped_spawn_closure_value") ||
          linked_call->name_view() == chem::string_view("scoped_spawn_closure_mut") ||
          linked_call->name_view() == chem::string_view("scoped_spawn_closure_in") ||
          linked_call->name_view() == chem::string_view("scoped_spawn_closure_value_in") ||
          linked_call->name_view() == chem::string_view("scoped_spawn_closure_mut_in") ||
+         linked_call->name_view() == chem::string_view("scoped_spawn_closure_erased") ||
+         linked_call->name_view() == chem::string_view("scoped_spawn_closure_value_erased") ||
+         linked_call->name_view() == chem::string_view("scoped_spawn_closure_mut_erased") ||
+         linked_call->name_view() == chem::string_view("scoped_spawn_closure_in_erased") ||
+         linked_call->name_view() == chem::string_view("scoped_spawn_closure_value_in_erased") ||
+         linked_call->name_view() == chem::string_view("scoped_spawn_closure_mut_in_erased") ||
          linked_call->name_view() == chem::string_view("scoped_run_closure"));
     const bool prev_scoped_capture = allow_scoped_capture;
     if (scoped_capture_call) allow_scoped_capture = true;
@@ -2645,7 +2652,7 @@ static bool is_capturing_function_type(BaseType* type) {
 // `std::send_function<T>` uses an empty marker as its type-level capture
 // witness. The marker itself is trivially Send + 'static; the guarantee comes
 // from verifying the real capture environment when the value is created.
-static bool is_send_static_capture_marker(BaseType* type) {
+static bool is_capture_marker(BaseType* type, const char* marker_name) {
     if (type == nullptr) return false;
     auto* canonical = type->canonical();
     if (canonical == nullptr || canonical->kind() != BaseTypeKind::CapturingFunction) {
@@ -2658,13 +2665,21 @@ static bool is_send_static_capture_marker(BaseType* type) {
     auto* container = env->get_members_container();
     if (container != nullptr && container->kind() == ASTNodeKind::StructDecl &&
         container->as_struct_def_unsafe()->name_view() ==
-            chem::string_view("SendStaticCapture")) {
+            chem::string_view(marker_name, strlen(marker_name))) {
         return true;
     }
     // Generic typealias instantiation can leave the marker as an unlinked
     // named type; its spelling is the stable internal identity in that case.
     const std::string spelling = env->representation();
-    return spelling.find("SendStaticCapture") != std::string::npos;
+    return spelling.find(marker_name) != std::string::npos;
+}
+
+static bool is_send_static_capture_marker(BaseType* type) {
+    return is_capture_marker(type, "SendStaticCapture");
+}
+
+static bool is_scoped_send_capture_marker(BaseType* type) {
+    return is_capture_marker(type, "ScopedSendCapture");
 }
 
 // The real capture environment carried by a callback value, when it is still
@@ -2831,7 +2846,9 @@ static void require_unsafe_for_capture(
     // the concrete capture type is erased. Check the real witness whenever the
     // value is created/assigned, including outside an unsafe block: the marker
     // is a safe type and must not be forgeable by an unsafe-created callback.
-    if (is_send_static_capture_marker(target_type)) {
+    const bool send_static_marker = is_send_static_capture_marker(target_type);
+    const bool scoped_marker = is_scoped_send_capture_marker(target_type);
+    if (send_static_marker || scoped_marker) {
         TypeLoc witness = capture_witness_of_value(value);
         BaseType* witness_type = witness ? witness->canonical() : nullptr;
         if (witness_type == nullptr) {
@@ -2850,12 +2867,14 @@ static void require_unsafe_for_capture(
                    "it captures are not Send";
             return;
         }
-        std::unordered_set<MembersContainer*> static_visiting;
-        if (!type_satisfies_static_bound(witness_type, static_visiting)) {
-            verifier.diagnoser.error(location).with_code("SAFE-SEND-002")
-                << "cannot store this callback in std::send_function: it captures "
-                   "a non-'static borrow";
-            return;
+        if (send_static_marker) {
+            std::unordered_set<MembersContainer*> static_visiting;
+            if (!type_satisfies_static_bound(witness_type, static_visiting)) {
+                verifier.diagnoser.error(location).with_code("SAFE-SEND-002")
+                    << "cannot store this callback in std::send_function: it captures "
+                       "a non-'static borrow";
+                return;
+            }
         }
     }
 

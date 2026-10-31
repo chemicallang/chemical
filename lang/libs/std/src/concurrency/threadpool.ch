@@ -668,6 +668,62 @@ public namespace std {
             t.join()
         }
 
+        // Non-generic scoped entries for a parameter declared as
+        // `std::scoped_send_function<T>`. The marker proves the capture
+        // environment is Send but not 'static; the join below confines the
+        // borrow to the caller's frame.
+        public func scoped_spawn_closure_erased(
+            f : std::scoped_send_function<() => void>
+        ) {
+            var data = unsafe(malloc(sizeof(ScopedClosureSpawnData))) as *mut ScopedClosureSpawnData
+            if(data == null) {
+                panic("failed to allocate scoped closure state")
+            }
+            unsafe {
+                new(data) ScopedClosureSpawnData {
+                    f : f
+                }
+            }
+            var t = unsafe(std::concurrent.spawn(scoped_closure_thread_entry, data as *void))
+            t.join()
+        }
+
+        public func <T> scoped_spawn_closure_value_erased(
+            f : std::scoped_send_function<(value : &T) => void>,
+            value : &T
+        ) where T : Sync {
+            var data = unsafe(malloc(sizeof(ScopedClosureValueData<T>))) as *mut ScopedClosureValueData<T>
+            if(data == null) {
+                panic("failed to allocate scoped closure state")
+            }
+            unsafe {
+                new(data) ScopedClosureValueData<T> {
+                    f : f,
+                    value : value as *T
+                }
+            }
+            var t = unsafe(std::concurrent.spawn(scoped_closure_value_entry<T>, data as *void))
+            t.join()
+        }
+
+        public func <T> scoped_spawn_closure_mut_erased(
+            f : std::scoped_send_function<(value : &mut T) => void>,
+            value : &mut T
+        ) where T : Send {
+            var data = unsafe(malloc(sizeof(ScopedClosureMutData<T>))) as *mut ScopedClosureMutData<T>
+            if(data == null) {
+                panic("failed to allocate scoped closure state")
+            }
+            unsafe {
+                new(data) ScopedClosureMutData<T> {
+                    f : f,
+                    value : value as *mut T
+                }
+            }
+            var t = unsafe(std::concurrent.spawn(scoped_closure_mut_entry<T>, data as *void))
+            t.join()
+        }
+
         @direct_init
         public struct ScopedData<T : Sync> {
             internal var f : (value : &T) => void
@@ -893,6 +949,91 @@ public namespace std {
             f : %capture<(value : &mut T) => void, std::default_function_instance, C>,
             value : &mut T
         ) where C : Send, T : Send {
+            if(scope.count >= 32) {
+                panic("scoped closure limit exceeded")
+            }
+            var data = unsafe(malloc(sizeof(ScopedClosureMutData<T>))) as *mut ScopedClosureMutData<T>
+            if(data == null) {
+                panic("failed to allocate scoped closure state")
+            }
+            unsafe {
+                new(data) ScopedClosureMutData<T> {
+                    f : f,
+                    value : value as *mut T
+                }
+            }
+            var t = unsafe(std::concurrent.spawn(scoped_closure_mut_entry<T>, data as *void))
+            var slot = unsafe(malloc(sizeof(std::concurrent.Thread))) as *mut std::concurrent.Thread
+            if(slot == null) {
+                panic("failed to allocate scoped thread handle")
+            }
+            unsafe { memcpy(slot, &raw t, sizeof(std::concurrent.Thread)) }
+            scope.threads[scope.count] = slot
+            scope.count = scope.count + 1
+        }
+
+        // Marker forms for a heterogeneous scope. The marker is !Send, so it
+        // cannot be submitted to an unscoped thread API; these entries only
+        // live as long as the scope's join.
+        public func scoped_spawn_closure_in_erased(
+            scope : &mut ScopedClosureScope,
+            f : std::scoped_send_function<() => void>
+        ) {
+            if(scope.count >= 32) {
+                panic("scoped closure limit exceeded")
+            }
+            var data = unsafe(malloc(sizeof(ScopedClosureSpawnData))) as *mut ScopedClosureSpawnData
+            if(data == null) {
+                panic("failed to allocate scoped closure state")
+            }
+            unsafe {
+                new(data) ScopedClosureSpawnData {
+                    f : f
+                }
+            }
+            var t = unsafe(std::concurrent.spawn(scoped_closure_thread_entry, data as *void))
+            var slot = unsafe(malloc(sizeof(std::concurrent.Thread))) as *mut std::concurrent.Thread
+            if(slot == null) {
+                panic("failed to allocate scoped thread handle")
+            }
+            unsafe { memcpy(slot, &raw t, sizeof(std::concurrent.Thread)) }
+            scope.threads[scope.count] = slot
+            scope.count = scope.count + 1
+        }
+
+        public func <T> scoped_spawn_closure_value_in_erased(
+            scope : &mut ScopedClosureScope,
+            f : std::scoped_send_function<(value : &T) => void>,
+            value : &T
+        ) where T : Sync {
+            if(scope.count >= 32) {
+                panic("scoped closure limit exceeded")
+            }
+            var data = unsafe(malloc(sizeof(ScopedClosureValueData<T>))) as *mut ScopedClosureValueData<T>
+            if(data == null) {
+                panic("failed to allocate scoped closure state")
+            }
+            unsafe {
+                new(data) ScopedClosureValueData<T> {
+                    f : f,
+                    value : value as *T
+                }
+            }
+            var t = unsafe(std::concurrent.spawn(scoped_closure_value_entry<T>, data as *void))
+            var slot = unsafe(malloc(sizeof(std::concurrent.Thread))) as *mut std::concurrent.Thread
+            if(slot == null) {
+                panic("failed to allocate scoped thread handle")
+            }
+            unsafe { memcpy(slot, &raw t, sizeof(std::concurrent.Thread)) }
+            scope.threads[scope.count] = slot
+            scope.count = scope.count + 1
+        }
+
+        public func <T> scoped_spawn_closure_mut_in_erased(
+            scope : &mut ScopedClosureScope,
+            f : std::scoped_send_function<(value : &mut T) => void>,
+            value : &mut T
+        ) where T : Send {
             if(scope.count >= 32) {
                 panic("scoped closure limit exceeded")
             }

@@ -333,6 +333,20 @@ func neg_send_function_is_not_sync(env : &mut TestEnv) {
 }
 
 @test
+func neg_scoped_send_function_needs_contract(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func run(f : std::scoped_send_function<() => void>) {\n    std::thread.scoped_spawn_closure_erased(f)\n}\npublic func main() : int {\n    var n = 1\n    run(|&mut n|() => { *n = *n + 1 })\n    return n\n}\n"
+    expect_compile_error_with_mod(env, "scoped_send_no_contract", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_scoped_send_function_is_not_send(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <T> needs_send(v : T) : int where T : Send { return 0 }\nfunc take(f : std::scoped_send_function<() => void>) : int { return needs_send(f) }\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "scoped_send_not_send", ch, "does not satisfy where clause constraint 'T : Send'", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_safe_send_impl_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Raw {\n    var p : *mut int\n}\nimpl Send for Raw {}\npublic func main() : int { return 0 }\n"

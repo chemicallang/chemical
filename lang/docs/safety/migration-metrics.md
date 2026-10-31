@@ -17,8 +17,8 @@ TCCCompiler <module> --check --no-cache --safety-report json
 ```
 
 `--check` parses, resolves, type-checks, lowers to MIR and runs the structural
-MIR verifier without emitting C/LLVM or linking. The compiler emits one JSON
-report per module. The script merges duplicate module reports conservatively
+verifier, borrow checker and move/init checker without emitting C/LLVM or
+linking. The compiler emits one JSON report per module. The script merges duplicate module reports conservatively
 (per-metric maximum), sums the unique modules, and compares the totals to the
 baseline.
 
@@ -26,28 +26,34 @@ baseline.
 reviewed migration that intentionally adds an unsafe boundary must ship with an
 updated baseline and a justification in the same change.
 
+The report walks `ImplDefinition` bodies as of the 2026-10-31 audit. Earlier
+baselines skipped all impl bodies and therefore undercounted the unsafe surface;
+the current larger totals are corrected coverage, not a new-code regression.
+Generic master/concrete impls may double-count some syntax, so treat the total
+as a conservative upper bound.
+
 ## Current whole-tree totals (94 modules)
 
 | Metric | Count |
 |---|---:|
-| `unsafe_blocks` | 3661 |
-| `unsafe_values` | 4890 |
-| `raw_pointer_types` | 9258 |
-| `raw_pointer_derefs` | 969 |
-| `raw_pointer_addrs` | 10005 |
-| `raw_pointer_casts` | 2858 |
+| `unsafe_blocks` | 3765 |
+| `unsafe_values` | 4898 |
+| `raw_pointer_types` | 9351 |
+| `raw_pointer_derefs` | 1065 |
+| `raw_pointer_addrs` | 10026 |
+| `raw_pointer_casts` | 2871 |
 | `extern_decls` | 873 |
-| `extern_calls` | 1260 |
-| `variadic_calls` | 276 |
+| `extern_calls` | 1296 |
+| `variadic_calls` | 295 |
 | `inline_asm` | 57 |
 | `mutable_globals` | 141 |
 | `extern_globals` | 7 |
-| `panic_calls` | 90 |
-| `allocator_calls` | 170 |
+| `panic_calls` | 95 |
+| `allocator_calls` | 173 |
 | `dealloc_stmts` | 176 |
 | `delete_stmts` | 22 |
 | `destruct_stmts` | 23 |
-| `memory_calls` | 83 |
+| `memory_calls` | 84 |
 | `new_values` | 7 |
 | `abort_calls` | 0 |
 | `unreachable_stmts` | 0 |
@@ -60,9 +66,9 @@ updated baseline and a justification in the same change.
 | `::css_parser` | 462 | 57 | 672 | 18 |
 | `::tls_integration_tests` | 453 | 2823 | 857 | 157 |
 | `::tls` | 373 | 1007 | 738 | 164 |
-| `::common_tests` | 290 | 4 | 235 | 17 |
+| `::common_tests` | 322 | 4 | 242 | 17 |
 | `::universal_cbi` | 228 | 15 | 850 | 3 |
-| `::std` | 157 | 112 | 256 | 126 |
+| `::std` | 165 | 115 | 271 | 137 |
 | `::window` | 123 | 24 | 315 | 88 |
 | `::process` | 104 | 78 | 54 | 110 |
 | `::html_cbi` | 91 | 14 | 376 | 2 |

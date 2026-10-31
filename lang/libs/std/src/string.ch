@@ -270,6 +270,9 @@ public struct string {
             }
             // +1 is for safety, we need to add a null terminator (always)
             var d = unsafe(malloc(capacity + 1)) as *mut char
+            if(d == null) {
+                panic("string allocation failed")
+            }
             unsafe { memcpy(d, from_data, length) }
             d[length] = '\0'
             storage.heap.data = d;

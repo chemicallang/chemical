@@ -26,6 +26,16 @@ dropping capabilities. The **first** release may be much larger (7–15 MB) to s
 after that, size + compile time + memory are reduced together. See
 `lang/docs/language-goals.md` §2.
 
+**Safety implementation status (2026-10-31):** the enforceable core is green
+(M0, M3, and the enforceable M4/M5/M6 rules), but full parity is not done. The
+critical open gap is **`FutureHandle<T>` lifetime erasure** (safe async code can
+return a future borrowing a dead local); other blockers are the LLVM C ABI being
+x86-64 SysV-only without a target gate, `dyn` being conservatively `!Send`/
+`!Sync`/`!Unpin`, `@scoped_callback` being a trust annotation, and incomplete
+async-runtime allocation checks. Load the `safety` skill and read
+`lang/docs/safety-implementation-plan.md` §4.5 before claiming full memory
+safety or changing these areas.
+
 **Rust relationship:** adopt Rust-familiar **memory-safety semantics** (ownership, move
 semantics, a borrow checker) so agents trained on Rust transfer their instincts — but
 keep Chemical syntax (e.g. return types use `:` not `->`). This is **not** another Rust.
@@ -494,7 +504,7 @@ All built-in annotations recognized by the compiler:
 | `@deprecated` | func, struct, etc. | Marks item as deprecated (optionally with message: `@deprecated("use new_func")`) |
 | `@no_mangle` | func | Don't mangle the function name |
 | `@override` | func (top-level) | Let a top-level function coexist with a same-named function from a **different module** (no duplicate-symbol error). Used for an application `main` overriding a library's test `main`. Still errors for same-module duplicates, or when both sides are `@no_mangle`/`@extern`. Does **not** remove the library's tests. See [`annotations` skill](.agents/skills/annotations/SKILL.md#top-level-override) |
-| `@scoped_callback` | func | Declares that a `std::scoped_send_function<T>` parameter is only forwarded to a join-before-return scoped API, so a borrowed capture may be constructed without an `unsafe` boundary. See `.agents/skills/safety/SKILL.md` |
+| `@scoped_callback` | func | Declares that a `std::scoped_send_function<T>` parameter is only forwarded to a join-before-return scoped API, so a borrowed capture may be constructed without an `unsafe` boundary. This is an audited trust contract: a lying implementation can create a safe-code dangling borrow. See `.agents/skills/safety/SKILL.md` |
 | `@static` | func (in struct) | Static member function (no `self` parameter) |
 | `@implicit` | func parameter | Implicit parameter (not passed explicitly by caller) |
 | `@constructor` | func | Marks a constructor method (replaces default init) |

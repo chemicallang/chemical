@@ -1320,7 +1320,8 @@ static BaseType* infer_generic_arg_from_call(
  */
 static bool generic_negative_impl_applies(TypeVerifier& verifier,
                                           GenericImplDecl* impl,
-                                          BaseType* concrete);
+                                          BaseType* concrete,
+                                          AutoTraitContext* context = nullptr);
 
 static bool enum_has_zero_member(EnumDeclaration* decl) {
     if (decl == nullptr) return false;
@@ -1492,7 +1493,8 @@ static bool zeroable_type_satisfied(
 }
 
 static bool trait_constraint_satisfied(TypeVerifier& verifier, BaseType* concrete,
-                                       BaseType* trait_type) {
+                                       BaseType* trait_type,
+                                       AutoTraitContext* context = nullptr) {
     if (concrete == nullptr || trait_type == nullptr) return false;
     auto* trait_node = trait_type->get_direct_linked_node();
     if (trait_node == nullptr || trait_node->kind() != ASTNodeKind::InterfaceDecl) {
@@ -1510,7 +1512,7 @@ static bool trait_constraint_satisfied(TypeVerifier& verifier, BaseType* concret
             return trait_constraint_satisfied(
                 verifier,
                 const_cast<BaseType*>(concrete->as_array_type_unsafe()->elem_type.getType()),
-                trait_type
+                trait_type, context
             );
         }
         auto* container = concrete->get_members_container();
@@ -1542,7 +1544,7 @@ static bool trait_constraint_satisfied(TypeVerifier& verifier, BaseType* concret
         const auto kind = iface->interface_bits.has(InterfaceBits::SEND_BIT)
                               ? AutoTraitKind::Send : AutoTraitKind::Sync;
         return type_satisfies_auto_trait(concrete, kind, visiting, &verifier.index,
-                                         (ASTNode*) iface, (ASTNode*) iface);
+                                         (ASTNode*) iface, (ASTNode*) iface, context);
     }
 
     if (iface->interface_bits.has(InterfaceBits::UNPIN_BIT)) {
@@ -1578,7 +1580,8 @@ static bool trait_constraint_satisfied(TypeVerifier& verifier, BaseType* concret
  */
 static bool generic_negative_impl_applies(TypeVerifier& verifier,
                                           GenericImplDecl* impl,
-                                          BaseType* concrete) {
+                                          BaseType* concrete,
+                                          AutoTraitContext* context) {
     if (impl == nullptr) return false;
     auto* gen = concrete && concrete->kind() == BaseTypeKind::Generic
                     ? concrete->as_generic_type_unsafe() : nullptr;
@@ -1598,7 +1601,7 @@ static bool generic_negative_impl_applies(TypeVerifier& verifier,
         if (arg == nullptr || is_generic_param(arg)) return false;
         for (auto& trait : param->traits) {
             if (!trait_constraint_satisfied(verifier, arg,
-                                            const_cast<BaseType*>(trait.getType()))) {
+                                            const_cast<BaseType*>(trait.getType()), context)) {
                 return false;
             }
         }
@@ -1610,7 +1613,7 @@ static bool generic_negative_impl_applies(TypeVerifier& verifier,
             if (arg == nullptr || is_generic_param(arg)) return false;
             for (auto& trait : constraint.constraints) {
                 if (!trait_constraint_satisfied(verifier, arg,
-                                                const_cast<BaseType*>(trait.getType()))) {
+                                                const_cast<BaseType*>(trait.getType()), context)) {
                     return false;
                 }
             }
@@ -1618,6 +1621,69 @@ static bool generic_negative_impl_applies(TypeVerifier& verifier,
     }
     return true;
 }
+
+/**
+ * Type-checker implementation of the explicit auto-trait decision hook.
+ *
+ * It answers only for impls that are actually registered (concrete or
+ * conditional generic), returning Unknown when the structural walk should
+ * continue. This keeps the recursive structural derivation in AutoTraits.h
+ * while honoring `impl<T> Send/Sync` bounds and negative impls for nested
+ * generic fields.
+ */
+class TypeVerifierAutoTraitContext final : public AutoTraitContext {
+public:
+    explicit TypeVerifierAutoTraitContext(TypeVerifier& verifier) : verifier(verifier) {}
+
+    Decision decide(BaseType* type, AutoTraitKind kind,
+                    ASTNode* send_interface, ASTNode* sync_interface) override {
+        if (type == nullptr) return Decision::Unknown;
+        ASTNode* iface = kind == AutoTraitKind::Send ? send_interface : sync_interface;
+        if (iface == nullptr) return Decision::Unknown;
+        auto* canonical = type->canonical();
+        if (canonical == nullptr || !deciding.insert(canonical).second) {
+            return Decision::Unknown;
+        }
+        auto finish = [&](Decision decision) {
+            deciding.erase(canonical);
+            return decision;
+        };
+        auto* container = canonical->get_members_container();
+        auto* for_ = container != nullptr
+            ? (ASTAny*) container : (ASTAny*) canonical;
+        if (container != nullptr && verifier.index.has_negative_impl(iface, for_)) {
+            return finish(Decision::Negative);
+        }
+        if (container != nullptr && verifier.index.get_impl(iface, container) != nullptr) {
+            return finish(Decision::Positive);
+        }
+        if (container != nullptr && container->generic_parent != nullptr) {
+            for (auto* candidate : verifier.index.generic_negative_impls_for(
+                     (ASTNode*) container->generic_parent, iface)) {
+                if (generic_negative_impl_applies(verifier, candidate, canonical, this)) {
+                    return finish(Decision::Negative);
+                }
+            }
+            for (auto* candidate : verifier.index.generic_impls_for(
+                     (ASTNode*) container->generic_parent)) {
+                if (candidate == nullptr || candidate->master_impl == nullptr) continue;
+                auto* candidate_iface = const_cast<BaseType*>(
+                    candidate->master_impl->interface_type.getType());
+                auto* candidate_node = candidate_iface
+                    ? candidate_iface->get_direct_linked_node() : nullptr;
+                if (candidate_node != iface) continue;
+                if (generic_negative_impl_applies(verifier, candidate, canonical, this)) {
+                    return finish(Decision::Positive);
+                }
+            }
+        }
+        return finish(Decision::Unknown);
+    }
+
+private:
+    TypeVerifier& verifier;
+    std::unordered_set<const BaseType*> deciding;
+};
 
 /** `'static` is stored by the parser without the leading quote. */
 static bool is_static_lifetime(chem::string_view lifetime) {
@@ -1952,12 +2018,14 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
                 auto container = concrete_type->get_members_container();
                 auto* for_ = container != nullptr
                     ? (ASTAny*) container : (ASTAny*) concrete_type->canonical();
+                TypeVerifierAutoTraitContext auto_trait_context(verifier);
                 if (container != nullptr && container->generic_parent != nullptr) {
                     bool negative = false;
                     for (auto* candidate : verifier.index.generic_negative_impls_for(
                              (ASTNode*) container->generic_parent,
                              (ASTNode*) interface_def)) {
-                        if (generic_negative_impl_applies(verifier, candidate, concrete_type)) {
+                        if (generic_negative_impl_applies(verifier, candidate, concrete_type,
+                                                          &auto_trait_context)) {
                             negative = true;
                             break;
                         }
@@ -1988,7 +2056,8 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
                         auto* candidate_node = candidate_iface
                             ? candidate_iface->get_direct_linked_node() : nullptr;
                         if (candidate_node != (ASTNode*) interface_def) continue;
-                        if (generic_negative_impl_applies(verifier, candidate, concrete_type)) {
+                        if (generic_negative_impl_applies(verifier, candidate, concrete_type,
+                                                          &auto_trait_context)) {
                             generic_positive = true;
                             break;
                         }
@@ -2001,7 +2070,8 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
                 if (!type_satisfies_auto_trait(concrete_type, kind, visiting,
                                                &verifier.index,
                                                (ASTNode*) interface_def,
-                                               (ASTNode*) interface_def)) {
+                                               (ASTNode*) interface_def,
+                                               &auto_trait_context)) {
                     diagnoser.error(call) << "type '" << concrete_type->representation()
                         << "' does not satisfy where clause constraint '"
                         << constraint.param_name << " : "
@@ -2114,6 +2184,7 @@ static void verify_async_send_frame(TypeVerifier& verifier, FunctionCall* call) 
     }
     collector.VisitScope(&future_fn->body.value());
 
+    TypeVerifierAutoTraitContext auto_trait_context(verifier);
     for (BaseType* type : collector.types) {
         if (type == nullptr) continue;
         if (type->canonical()->kind() == BaseTypeKind::Void) continue;
@@ -2121,7 +2192,8 @@ static void verify_async_send_frame(TypeVerifier& verifier, FunctionCall* call) 
         if (!type_satisfies_auto_trait(type, AutoTraitKind::Send, visiting,
                                        &verifier.index,
                                        (ASTNode*) verifier.coreNodes.send_interface,
-                                       (ASTNode*) verifier.coreNodes.sync_interface)) {
+                                       (ASTNode*) verifier.coreNodes.sync_interface,
+                                       &auto_trait_context)) {
             verifier.diagnoser.error(call).with_code("SAFE-SEND-001")
                 << "async frame value of type '" << type->representation()
                 << "' is not Send; move it to a synchronized/owned type or keep "
@@ -2802,6 +2874,18 @@ static bool captures_function_local_storage(Value* value) {
 static bool captures_function_local_storage(Value* value, const std::unordered_set<VarInitStatement*>& tainted) {
     value = unwrap_capture_value(value);
     if (captures_function_local_storage(value)) return true;
+    if (value != nullptr && value->val_kind() == ValueKind::StructValue) {
+        auto* sv = value->as_struct_value_unsafe();
+        for (auto& entry : sv->values) {
+            if (captures_function_local_storage(entry.second.value, tainted)) return true;
+        }
+    }
+    if (value != nullptr && value->val_kind() == ValueKind::ArrayValue) {
+        auto* av = value->as_array_value_unsafe();
+        for (Value* element : av->values) {
+            if (captures_function_local_storage(element, tainted)) return true;
+        }
+    }
     // Follow the root of an access chain/index expression: `h.f` or `arr[i]`
     // is tainted when the owning local was tainted by storing a borrowed
     // callback into it.
@@ -2858,10 +2942,12 @@ static void require_unsafe_for_capture(
             return;
         }
         std::unordered_set<MembersContainer*> send_visiting;
+        TypeVerifierAutoTraitContext auto_trait_context(verifier);
         if (!type_satisfies_auto_trait(witness_type, AutoTraitKind::Send,
                                        send_visiting, &verifier.index,
                                        (ASTNode*) verifier.coreNodes.send_interface,
-                                       (ASTNode*) verifier.coreNodes.sync_interface)) {
+                                       (ASTNode*) verifier.coreNodes.sync_interface,
+                                       &auto_trait_context)) {
             verifier.diagnoser.error(location).with_code("SAFE-SEND-002")
                 << "cannot store this callback in std::send_function: the values "
                    "it captures are not Send";
@@ -2974,8 +3060,12 @@ void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
         if (stmt->is_const() && !stmt->is_comptime() && !stmt->is_extern() &&
             !stmt->is_thread_local()) {
             std::unordered_set<MembersContainer*> visiting;
+            TypeVerifierAutoTraitContext auto_trait_context(*this);
             if (!type_satisfies_auto_trait(stmt->known_type(), AutoTraitKind::Sync,
-                                           visiting, &index)) {
+                                           visiting, &index,
+                                           (ASTNode*) coreNodes.send_interface,
+                                           (ASTNode*) coreNodes.sync_interface,
+                                           &auto_trait_context)) {
                 diagnoser.error(stmt).with_code("SAFE-GLOBAL-002")
                     << "immutable global '" << stmt->name_view()
                     << "' has a non-Sync type; use a thread-local global, a "

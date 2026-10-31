@@ -166,12 +166,12 @@ public:
     }
 
     void VisitImplDecl(ImplDefinition* def) {
-        // Generic master impls can be finalized into concrete instantiations
-        // whose master nodes are no longer safe to walk after codegen. The
-        // concrete methods are reached through their owning module/type
-        // declarations; skip the master impl here rather than dereferencing a
-        // stale evaluated-container entry.
-        (void) def;
+        // Impl method bodies are their own container and are not reached from
+        // the struct/interface declaration walk. The safety report runs after
+        // type checking and before codegen, so the master/concrete containers
+        // are still stable; skipping them silently undercounted every interface
+        // impl body in the audit.
+        RecursiveVisitor<SafetyReportVisitor>::VisitImplDecl(def);
     }
 
     void VisitPointerType(PointerType* type) {

@@ -1,12 +1,21 @@
-# Chemical Full Safety Parity Plan (v4.1)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.23)
 
-> **Status:** In progress — M0 and M3 complete; M1/M2/M4/M5/M6 in progress.
+> **Status (2026-10-31):** M0 and M3 complete; M4/M5/M6 are complete for the
+> currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
+> remain in progress; M8/M9 are pending. The critical open soundness gap is
+> async `FutureHandle` lifetime erasure.
 > S5.6b (unwinding) is withdrawn by policy: panic always aborts; no unwind
 > runtime, `catch_unwind`, or `UnwindSafe` traits are planned unless the C
 > backend later makes unwinding practical.
 > **Supersedes:** v2/v3/v3.1/v3.2 (git history).
 >
 > ## Implementation status (2026-10-29)
+>
+> **Historical log — kept for decision archaeology.** The entries below are a
+> chronological record of the first implementation waves. Several “next”/“still
+> pending” lines are now superseded. For current status use §4 (implemented
+> surface and open gaps) and §15 (milestones); for the agent-facing summary use
+> the `safety` skill.
 >
 > **Landed**
 > - `Diag` optional stable `code`; coded output is `error[SAFE-*]:` /
@@ -36,9 +45,9 @@
 >     extern globals;
 >   - collected after type checking and before codegen, with per-module dedup;
 >   - safety-suite test verifies the report contains pointer/deref counts.
->   - Known limitation: generic/master impl bodies are skipped (their evaluated
->     containers can be stale after instantiation); concrete declarations are
->     reported. This is tracked for S0.3 audit refinement.
+>   - Historical limitation (fixed 2026-10-31): impl bodies were skipped;
+>     `SafetyReportVisitor` now walks them. Generic master/concrete impls can
+>     still double-count syntax, so totals are conservative.
 >
 > - S0.3 baseline/audit gate:
 >   - `scripts/safety-audit.sh` checks `--safety-report` totals against
@@ -1065,12 +1074,13 @@
 > (including `SAFE-VALID-008` for references to packed fields);
 > `@repr("transparent")` is implemented for checked single-field structs
 > (layout and C ABI); C ABI classification for Windows/ARM, FFI wrappers, and
-> the variance/HRTB/temporary-lifetime precision items remain.
-> Safety suite `63`; negative tests `641`; main TCC `2366`, LLVM `2364`;
-> libs `730`; plugins `1305`; async `56`; interpret `1910`; server `10`;
-> TLS `599`; safety `63`; `MIRTests` `4643 checks`. The whole-tree audit
+> deeper HRTB precision remain (variance/temporary-lifetime extension are
+> implemented).
+> Safety suite `64`; negative tests `647`; main TCC `2366`, LLVM `2364`;
+> libs `730`; plugins `1305`; async `58`; interpret `1910`; server `10`;
+> TLS `599`; `MIRTests` `4643 checks`. The whole-tree audit
 > manifest (`lang/docs/safety/audit-modules.txt`) covers `94` modules with
-> `unsafe_blocks 3661` / `unsafe_values 4890`; see
+> `unsafe_blocks 3765` / `unsafe_values 4898` (impl bodies included); see
 > `lang/docs/safety/migration-metrics.md`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
@@ -1258,27 +1268,25 @@ but keep aliasing/race checks. GC is a later mode.
 
 ## 4. Current-state audit
 
-### 4.1 What exists
+### 4.1 Implemented surface (2026-10-31)
 
 | Mechanism | State | Notes |
 |---|---|---|
-| Destructors/RAII | Implemented | `@delete`, automatic member destructors, MIR `Drop`/`Destroy`, top-level drop flags. |
-| Move tracking | Partial | Ad-hoc vectors in `SymResLinkBody`; not flow-sensitive. |
-| `Copy` | "No destructor" rule | `where T: Copy` satisfied by non-destructible types; no opt-in, no `Drop` conflict. This is unsound for resource wrappers. |
-| `Clone`/`Default`/`Delete` | Manual | Bounds only. |
-| References | Pointer-shaped | `&T`/`&mut T`; lifetimes not attached to most view fields. |
-| Lifetime syntax | Partial | Single `'a` on structs, `: 'self` return annotation. |
-| `unsafe` | Weakly enforced | Deref warns; `@unsafe` check commented; `unsafe` disables DA; `unsafe "no_lifetime_check"` disables the only lifetime check. |
-| FFI | `@extern` | Calls safe syntax; aggregate parameters use non-C ABI in MIR. |
-| Runtime checks | None | Bounds/overflow/null/validity unchecked. |
-| Thread safety | No model | Raw pthread/OS wrappers, atomics, `std::concurrent`; no `Send`/`Sync`. |
-| Trait objects | Partial | Basic dynamic dispatch works; lifetimes/coercion of `dyn` unmodelled. |
-| Slices/unsized | Absent | Arrays/raw pointers only. |
-| Tuples/const generics/associated types/impl Trait/HRTB | Partial | HRTB read-only single-borrow function types are implemented; tuples/const generics/GATs/impl Trait remain absent for full parity. |
-| `&str`/UTF-8 | Absent | `string`/`string_view` are byte containers. |
-| Async | Shipped | Self-referential frames; no `Pin`; `FutureHandle<T>` erases borrows. |
-| Derive macros | Absent | CBI macros exist; no built-in derive. |
-| Macros/plugins | Generate AST/raw JS | Generated Chemical checked normally; raw JS outside native safety. |
+| Destructors/RAII | Implemented | `@delete`, member destructors, MIR `Drop`/`Destroy`, per-path drop flags. |
+| Move/init tracking | Implemented in MIR | `MIRMoveCheck` is the sole init/drop producer; partial struct/array init modeled. Field-wise drop elaboration for partial **array** moves remains. |
+| `Copy` | Opt-in and enforced | `SAFE-COPY-001/002/003`; primitives/pointers/references/functions/arrays built-in. |
+| `Clone`/`Default` | Manual bounds | Automatic `Clone` derivation remains M1 work. |
+| References/lifetimes | Enforced for supported surface | `MIRRegionSignature`, NLL loans, storage lifetimes, return regions, variance, temporary extension, `'static`, HRTB call regions. |
+| `unsafe` | Enforced | Raw pointer/reference/asm/extern/global boundaries; named escape flags removed; `unsafe` never disables move/borrow/init checks. |
+| FFI | Enforced calls; C ABI partial | `SAFE-FFI-001/002`; by-value structs/unions on x86-64 SysV (LLVM not target-gated yet). |
+| Runtime checks | Implemented | Array/vector/deque/string/span/map bounds, div/mod/shift, checked signed arithmetic, defined float→int, allocation/layout guards, abort-only panic. |
+| Thread safety | Enforced safe surface | `Send`/`Sync` auto traits, explicit/negative impls, nested conditional generic impls, scoped/owned thread APIs, `Arc`/channel audit, TSAN smoke. |
+| Async | Shipped with one critical gap | `Pin`/Waker/frame loans; `spawn_send` frame check; **`FutureHandle` erases borrows**. |
+| Trait objects | Partial | Basic dynamic dispatch; `dyn` is conservatively `!Send`/`!Sync`/`!Unpin` because auto-trait bounds on `dyn` are not represented. |
+| Slices/tuples/const generics/GATs/`impl Trait` | Partial/absent | Full parity remains M1. |
+| `&str`/UTF-8 | Byte-string surface | `string`/`string_view`; UTF-8 parity M1. |
+| Derive | Absent | CBI macros exist; no built-in derive. |
+| Macros/plugins | Generated Chemical checked | Raw generated JS stays outside native safety. |
 
 ### 4.2 Measured migration scale
 
@@ -1302,56 +1310,81 @@ approximate counts:
 
 **Conclusion:** a language/runtime/std migration, not a warning flip.
 
-### 4.3 Existing checks and fate
+### 4.3 Historical checks and their replacements
 
-| Check | Where | Fate |
-|---|---|---|
-| Definite assignment | `TypeVerify` | Replaced by MIR move/init; remove `da_in_unsafe` at replacement. |
-| Destructible deref/index | `TypeVerify`/`SymResLinkBody` | Replaced by borrow rules + raw-pointer unsafe; remove for `&mut String`/`&mut Vec`. |
-| Temporary lifetime escape | `TypeVerify::VisitFunctionCall` | Replaced by lifetime inference. |
-| Move tracking | `SymResLinkBody` | Replaced by MIR move/init. |
-| `unsafe` deref warning | `SymResLinkBody` | Becomes error under unsafe checker. |
-| `@unsafe` | `FunctionDeclaration` | Replaced by `unsafe func`; deprecated alias removed before release. |
-| `unsafe "no_lifetime_check"` | `UnsafeBlock::flag_name` | Removed; named flags are not a semantic escape. |
-| `@allow_zeroed`/`zeroed:unsafe` | Annotation/value | Replaced by `unsafe impl Zeroable`/`unsafe`. |
-| Module `safety`/`safe_mode`/`checks.*` | `LabModuleOptions`, `ModuleOptionRegistry`, `lab.ch` | Removed; no user opt-out. |
+| Old check | Replacement |
+|---|---|
+| Definite assignment in `TypeVerify` | `MIRMoveCheck` (init/move/drop dataflow). |
+| Destructible deref/index in `TypeVerify`/`SymResLinkBody` | Borrow rules + raw-pointer `SAFE-UNSAFE-001`. |
+| Temporary lifetime escape in `VisitFunctionCall` | Region/lifetime analysis + `SAFE-LIFE-001/002/003`. |
+| Move tracking in `SymResLinkBody` | MIR move/init checker. |
+| `unsafe` deref warning | Enforced `SAFE-UNSAFE-001/002/003`. |
+| `@unsafe` alias | `unsafe func`; `unsafe(...)`/`unsafe {}` contexts. |
+| `unsafe "no_lifetime_check"` | Removed; named flags are not semantic escapes. |
+| `@allow_zeroed`/`zeroed:unsafe` | `unsafe impl Zeroable` + `std::mem.zeroed_unchecked`. |
+| Module `safety`/`safe_mode`/`checks.*` | Removed; no user opt-out. |
 
-### 4.4 Baseline
+### 4.4 Baseline (2026-10-31 audit)
 
-Pin the baseline SHA and commands in S0.3. Current tree after generic impls:
-TCC `2318`, LLVM `2316`, interpreter `1907`, plugins `1305`, negative `327`.
-Re-baseline explicitly; checked-in logs may lag.
+| Gate | Result |
+|---|---|
+| TCC main / LLVM main | `2366` / `2364` |
+| `@test` runner | `54` |
+| TCC/LLVM negative | `647` / `647` |
+| TCC/LLVM safety | `64` / `64` |
+| TCC/LLVM async | `58` / `58` |
+| TCC libs | `730` |
+| `MIRTests` | `4643 checks` |
+| TSAN smoke | pass (`--llvm --thread-tsan`) |
+| Whole-tree audit | `unsafe_blocks 3765`, `unsafe_values 4898`, `raw_pointer_derefs 1065`, `panic_calls 95` |
 
-### 4.5 Known soundness bugs to fix before enforcement
+The audit count is higher than the historical `3661/4890` because the report
+previously skipped **all** `ImplDefinition` bodies; it now walks them. Treat the
+new number as the honest baseline, not a regression.
 
-1. Raw-pointer-derived references/casts unchecked (`&*p`, `p as &mut T`,
-   `0 as &T`).
-2. Aggregate init/`@direct_init` privacy is enforced for `Layout`, `NonNull`,
-   `Box`, `Rc`/`Weak`, `Arc`/`ArcWeak`, `vector`, `deque`, `span`,
-   `string_view`, `string`, `u16string`, maps and lock/cell state;
-   `FutureHandle`/`Waker`/remaining iterator and function-capture types still
-   need the same audit.
-3. `vector::get_ref(&self) -> &mut T`.
-4. `string_view`/`span`/`Chunk`/`dyn`/`std::function`/`FutureHandle` erase
-   lifetimes.
-5. Unchecked allocation arithmetic/OOM in vector/string.
-6. `default_function_instance` inline-buffer self-pointer: **fixed** by moving
-   every capture to an aligned heap allocation; moving the erased function no
-   longer leaves `fn_data_ptr` pointing into the source frame. The inline
-   buffer field remains for layout compatibility but is unused.
-7. `unsafe` disables definite assignment; `unsafe(expr)`/`unsafe "flag"` are
-   inconsistent.
-8. `@extern` aggregate ABI is implemented for x86-64 SysV structs/unions;
-   Windows/ARM and variant layouts still need target-specific classification.
-9. Drop flags are AST heuristics, not per move path; partial moves/variants not
-   tracked; `MIRMovePath` never built.
-10. `MIRType` is module-interned; function-local regions must not go into it.
-11. Bounds/overflow lowering does not fit one-terminator/single-result MIR.
-12. C signed arithmetic and float→int casts are UB; release wrapping must be
-    lowered explicitly.
-13. Comptime/interpreter memory ops have no bounds/provenance checks.
-14. `--check` stops before MIR, so it misses safety checks.
-15. `vector::get` returns `T` for `Copy`; changing it breaks ~1,000 sites.
+### 4.5 Known remaining gaps / release blockers
+
+1. **`FutureHandle<T>`/`SendFutureHandle<T>` erase borrows (critical).** An
+   async function returning a handle has no lifetime parameter, so safe code can
+   return a future whose frame borrows a local, then poll it after the local
+   dies. `Channel::recv_or` now owns a receiver count, so it is not an instance
+   of this gap. Needs a type-level lifetime/frame witness or precise escape
+   analysis.
+2. **LLVM C ABI is x86-64 SysV only and not target-gated.**
+   `compiler/CodegenMir.cpp` applies the SysV classifier unconditionally; the C
+   backend delegates to the host compiler, but LLVM on Windows/ARM can
+   miscompile by-value `@extern` aggregates. Make `MIRABI` target-aware or
+   reject unsupported targets.
+3. **`@scoped_callback` is a trust annotation.** A lying implementation can
+   return/store a borrowed callback and create a safe-code dangling borrow.
+   Treat it as an audited unsafe contract; validate the body or make it an
+   explicit unsafe assertion.
+4. **No `FnOnce`/`FnMut`/`Fn` model.** Non-`Copy` nested aggregate captures are
+   an explicit lowering error; `SAFE-MOVE-002` prevents the old bitwise-copy
+   bug. M1.16/M6.6 work.
+5. **HRTB precision.** Deeper nested aggregate HRTB and multi-borrow callbacks
+   mixing local/parameter/global referents are explicit `SAFE-BORROW-099`
+   rejections, never guessed-safe.
+6. **`dyn` has no auto-trait bounds.** It is conservatively `!Send`/`!Sync`/
+   `!Unpin`; `dyn I + Send` cannot be expressed, and `Box<dyn I>`/`Arc<dyn I>`
+   cannot cross threads. M1.19.
+7. **Async runtime allocation checks are incomplete.** Channel, vector
+   `resize`, and string heap import were fixed; future constructors in
+   `yield.ch`, `time.ch`, `exec.ch`, `blocking.ch`, `combinators.ch`, and
+   `reactor.ch` still allocate state/vtables without a null check.
+8. **Audit gate is local, not CI-wired.** `scripts/safety-audit.sh` enforces
+   no-growth, but no GitHub workflow runs it. `--update` is a reviewed manual
+   baseline change.
+9. **Audit reporting precision.** Impl bodies are now counted; generic
+   master/concrete impls can double-count syntax. `unsafe func`/`unsafe impl`
+   declarations are not separate metrics yet.
+10. **Partial-array drop elaboration** remains pending; whole-array moves and
+    `Copy` element/field paths are handled.
+11. **Interpreter** reports async/coroutine opcodes, inline asm, dynamic
+    call/vtables and `Unreachable`/`Throw` as explicit hard errors; it does not
+    silently execute them. Bounds/provenance/tombstones are implemented.
+12. **Panic unwinding is withdrawn by policy.** No `catch_unwind`, no
+    `UnwindSafe`, no drop-on-unwind.
 
 ---
 
@@ -2410,6 +2443,11 @@ indicative; full parity is a large program (see §15.9).
 | S4.9 | Migration | Tree clean. |
 | S4.10 | Enforce | Green. |
 
+**Current M4 status:** the enforceable borrow/lifetime surface is implemented
+and enforced. The critical remaining async gap is `FutureHandle` lifetime
+erasure (§4.5); deeper HRTB nesting and mixed multi-borrow referents remain
+explicit `SAFE-BORROW-099` rejections.
+
 ### M5 — Validity/runtime (2 months)
 
 | ID | Feature | Exit |
@@ -2432,6 +2470,15 @@ indicative; full parity is a large program (see §15.9).
 | S6.3 | Threads/scoped threads | Thread tests. |
 | S6.4 | Interior mutability | Negative/panic. |
 | S6.5 | Erased/async Send | Async/net. |
+
+**Current M6 status:** S6.1 (Send/Sync enforcement), S6.3 (threads/scoped
+threads), S6.4 (interior mutability) and S6.5 (erased/async Send) are enforced
+for the safe surface. S6.2 has the TSAN smoke (`--llvm --thread-tsan`), volatile
+unsafe gating, and audited lock/channel primitives. S6.0 is ongoing: `Arc`/
+`ArcWeak` are audited; `dyn` is conservatively `!Send`/`!Sync`; channel handles
+are audited; remaining executor/iterator/future-type auto-trait coverage is
+still part of the std audit. The critical async gap is the `FutureHandle`
+lifetime erasure in §4.5.
 
 ### M7 — Stdlib full surface (3–4 months)
 
@@ -2679,3 +2726,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.21 (2026-10-31): M6.5 borrowed-callback parameters. `std::scoped_send_function<T>` uses a `ScopedSendCapture` marker: construction verifies the real capture environment is `Send` (not necessarily `'static`), and the marker is deliberately `!Send`/`!Sync`, so it cannot be handed to an unscoped thread API. New join-before-return entries (`scoped_spawn_closure_erased`/`_value_erased`/`_mut_erased` and the `_in_erased` scope forms) accept it. `@scoped_callback` on a function declares that its `scoped_send_function` parameter is only forwarded to such an API; the call site may then create a borrowed capture without `unsafe`. Without the annotation the call remains `SAFE-UNSAFE-002`. Main TCC `2366`, LLVM `2364`; negative `641`; safety `63`.*
 
 *Revision note v4.22 (2026-10-31): M6.0 concurrency audit. `ArcInner<T>` uses one mutex for both reference counts; independent count locks could double-free when the last strong and last weak owners dropped concurrently, and `ArcWeak::upgrade` could increment the strong count after a concurrent last-strong drop destroyed the value. Count updates, upgrade's test-and-increment, and the last-owner free decision now share that lock; the value destructor runs outside it behind an explicit `value_state` transition so a destructor that touches its own Arc counts cannot deadlock. `ArcWeak<T>` is `Send + Sync` when `T: Send + Sync`. `MutexGuard`, `RwLockReadGuard`, and `RwLockWriteGuard` carry explicit `!Send`/`!Sync` impls. New 200-iteration runtime tests race upgrade/weak-drop against a worker's last-strong drop. `./scripts/test.sh --llvm --thread-tsan` now runs the TSAN smoke test and fails loudly when no TSAN runtime is available. Audit surface dropped to `unsafe_blocks 3661` / `unsafe_values 4890` / `raw_pointer_derefs 969`; main TCC `2366`, LLVM `2364`, @test `54`, negative `641`, safety `63`. Remaining M6 audit targets: remaining std auto-trait coverage and broader TSAN scenarios.*
+
+*Revision note v4.23 (2026-10-31): safety audit. The audit found and fixed four concrete holes. (1) Nested fields bypassed conditional generic `!Send`/`!Sync` impls: `Outer { var w : Wrapper<int> }` was accepted as `Send` even when `impl<T> !Send for Wrapper<T> where T: Copy` applied; `TypeVerifierAutoTraitContext` now evaluates conditional generic positive and negative impls at every nested concrete instantiation. (2) Immutable globals accepted an explicit `impl !Sync` because `SAFE-GLOBAL-002` called structural derivation without the Send/Sync interfaces; it now passes them together with the context. (3) `dyn I` was structurally `Send`/`Sync`/`Unpin` even though the erased implementor could hold `Rc`/raw pointers; a `dyn` backed by `Rc` could be sent through `std::thread.spawn`. Dynamic objects are now conservatively `!Send`/`!Sync`/`!Unpin` until `dyn I + Send/Sync` is represented. (4) Nested conditional `!Unpin` is now treated conservatively as negative. The safety report previously skipped **every** `ImplDefinition` body; it now walks impl bodies, raising the reviewed baseline from `unsafe_blocks 3661`/`unsafe_values 4890` to `3765`/`4898` (`raw_pointer_derefs 1065`, `extern_calls 1296`, `panic_calls 95`) — this is corrected coverage, not new unsafe code. `vector::resize` now checks capacity-doubling overflow; `string::move_data_to_heap` and `async::channel` check allocations; channel `recv_or` futures now hold a receiver count and release it on drop; `Sender`/`Receiver`/`ChannelShared`/`RecvState` fields are internal and channel handles are audited `Send + Sync` for `T: Send`; `ArcWeak` is audited `Send + Sync` under the shared count lock. Known blockers remain: `FutureHandle` lifetime erasure (critical), LLVM C ABI not target-gated, `@scoped_callback` trust, `dyn` auto-trait bounds, unfinished async-runtime allocation checks, and local-only audit CI. Tests: TCC main `2366`, LLVM `2364`, @test `54`, negative `647`, safety `64`, async `58`, libs `730`, `MIRTests` `4643`, TSAN pass.*

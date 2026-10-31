@@ -347,6 +347,48 @@ func neg_scoped_send_function_is_not_send(env : &mut TestEnv) {
 }
 
 @test
+func neg_nested_conditional_negative_send_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct Wrapper<T> {\n    var value : T\n}\nimpl<T> !Send for Wrapper<T> where T: Copy { }\nstruct Outer {\n    var w : Wrapper<int>\n}\nfunc <T> needs_send(v : T) : int where T: Send { return 0 }\npublic func main() : int {\n    var w = Wrapper<int> { value : 1 }\n    var o = Outer { w : w }\n    return needs_send(o)\n}\n"
+    expect_compile_error_with_mod(env, "nested_conditional_negative_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
+}
+
+@test
+func nested_conditional_positive_send_allowed(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct Wrapper<T> {\n    var p : *mut T\n}\nunsafe impl<T> Send for Wrapper<T> where T: Send { }\nstruct Outer {\n    var w : Wrapper<int>\n}\nfunc <T> needs_send(v : T) : int where T: Send { return 0 }\npublic func main() : int {\n    var w = Wrapper<int> { p : null }\n    var o = Outer { w : w }\n    return needs_send(o)\n}\n"
+    expect_compile_output_not_contains(env, "nested_conditional_positive_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_nested_conditional_not_unpin_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct Wrapper<T> {\n    var value : T\n}\nimpl<T> !core::Unpin for Wrapper<T> where T: core::Unpin { }\nstruct Outer {\n    var w : Wrapper<int>\n}\nfunc <T> needs_unpin(v : T) : int where T: core::Unpin { return 0 }\npublic func main() : int {\n    var w = Wrapper<int> { value : 1 }\n    var o = Outer { w : w }\n    return needs_unpin(o)\n}\n"
+    expect_compile_error_with_mod(env, "nested_conditional_not_unpin", ch, "does not satisfy", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_dyn_object_is_not_send(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface Show {\n    func show(&self) : int\n}\nstruct RcImpl {\n    var r : std::Rc<int>\n}\nimpl Show for RcImpl {\n    func show(&self) : int { return *self.r.get() }\n}\nfunc worker(x : dyn Show) : int { return x.show() }\npublic func main() : int {\n    var v = RcImpl { r : std::rc(1) }\n    var d : dyn Show = dyn<Show>(v)\n    var t = std::thread.spawn<dyn Show, int>(worker, d)\n    return t.join() - 1\n}\n"
+    expect_compile_error_with_mod(env, "dyn_object_not_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_async_sender_forgery_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var s = async::Sender<int> { shared : null }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "async_sender_forgery", ch, "SAFE-VIS-001", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_immutable_global_declared_not_sync(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct X {\n    var v : int\n}\nimpl !Sync for X { }\nconst G : X = X { v : 1 }\npublic func main() : int {\n    return G.v - 1\n}\n"
+    expect_compile_error_with_mod(env, "global_declared_not_sync", ch, "SAFE-GLOBAL-002", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_safe_send_impl_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Raw {\n    var p : *mut int\n}\nimpl Send for Raw {}\npublic func main() : int { return 0 }\n"

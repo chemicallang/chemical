@@ -12,18 +12,18 @@
 public namespace async {
 
 public struct ChannelNode<T> {
-    var value : T
-    var next : *mut ChannelNode<T>
+    internal var value : T
+    internal var next : *mut ChannelNode<T>
 }
 
 public struct ChannelShared<T> {
-    var m : std::mutex
-    var head : *mut ChannelNode<T>
-    var tail : *mut ChannelNode<T>
-    var closed : bool
-    var senders : int
-    var receivers : int
-    var waker : core::async::Waker
+    internal var m : std::mutex
+    internal var head : *mut ChannelNode<T>
+    internal var tail : *mut ChannelNode<T>
+    internal var closed : bool
+    internal var senders : int
+    internal var receivers : int
+    internal var waker : core::async::Waker
 }
 
 // Move a `T` out of a heap node without running a destructor. The node is then
@@ -111,6 +111,10 @@ public func <T> channel_push(s : *mut ChannelShared<T>, value : T) : bool {
             return false
         }
         var node = unsafe(malloc(sizeof(ChannelNode<T>))) as *mut ChannelNode<T>
+        if(node == null) {
+            s.m.unlock()
+            panic("failed to allocate channel node")
+        }
         new(node) ChannelNode<T> {
             value : value,
             next : null
@@ -156,7 +160,7 @@ public func <T> channel_pop_opt(s : *mut ChannelShared<T>) : std::Option<T> {
 
 @direct_init
 public struct Sender<T> {
-    var shared : *mut ChannelShared<T>
+    internal var shared : *mut ChannelShared<T>
 
     public func send(&self, value : T) : bool {
         unsafe {
@@ -216,7 +220,7 @@ public struct Sender<T> {
 
 @direct_init
 public struct Receiver<T> {
-    var shared : *mut ChannelShared<T>
+    internal var shared : *mut ChannelShared<T>
 
     // Non-blocking receive. Returns `None` when nothing is queued (the channel
     // may still be open or already be closed).
@@ -254,11 +258,22 @@ public struct Receiver<T> {
     public func recv_or(&self, fallback : T) : core::async::FutureHandle<T> {
         unsafe {
             var st = unsafe(malloc(sizeof(RecvState<T>))) as *mut RecvState<T>
+            if(st == null) {
+                panic("failed to allocate channel receive state")
+            }
             var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
+            if(vtbl == null) {
+                unsafe { free(st) }
+                panic("failed to allocate channel receive vtable")
+            }
             vtbl.poll = recv_poll<T>
             vtbl.drop = recv_drop<T>
+            var shared = self.shared
+            shared.m.lock()
+            shared.receivers = shared.receivers + 1
+            shared.m.unlock()
             new(st) RecvState<T> {
-                shared : self.shared,
+                shared : shared,
                 fallback : std::Option.Some<T>(fallback),
                 vtbl : vtbl
             }
@@ -284,9 +299,9 @@ public struct Receiver<T> {
 }
 
 public struct RecvState<T> {
-    var shared : *mut ChannelShared<T>
-    var fallback : std::Option<T>
-    var vtbl : *mut core::async::FutureTable<T>
+    internal var shared : *mut ChannelShared<T>
+    internal var fallback : std::Option<T>
+    internal var vtbl : *mut core::async::FutureTable<T>
 }
 
 @retained
@@ -319,8 +334,15 @@ public func <T> recv_drop(frame : *mut void) {
         unsafe {
         var st = frame as *mut RecvState<T>
         var vtbl = st.vtbl
+        var shared = st.shared
         unsafe {
             delete st
+        }
+        if(shared != null) {
+            shared.m.lock()
+            shared.receivers = shared.receivers - 1
+            shared.m.unlock()
+            channel_release_shared<T>(shared)
         }
         if(vtbl != null) {
             unsafe {
@@ -339,9 +361,23 @@ public struct Channel<T> {
     var receiver : Receiver<T>
 }
 
+// A sender/receiver owns a shared, mutex-protected channel allocation. Moving
+// a handle to another thread is safe when the payload is Send; every counter,
+// queue link and waker update happens under `ChannelShared.m`. The fields are
+// internal so safe code cannot forge a handle around an arbitrary pointer.
+unsafe impl<T> Send for Sender<T> where T: Send { }
+unsafe impl<T> Sync for Sender<T> where T: Send { }
+unsafe impl<T> Send for Receiver<T> where T: Send { }
+unsafe impl<T> Sync for Receiver<T> where T: Send { }
+unsafe impl<T> Send for Channel<T> where T: Send { }
+unsafe impl<T> Sync for Channel<T> where T: Send { }
+
 public func <T> channel() : Channel<T> {
         unsafe {
         var s = unsafe(malloc(sizeof(ChannelShared<T>))) as *mut ChannelShared<T>
+        if(s == null) {
+            panic("failed to allocate channel")
+        }
         new(s) ChannelShared<T> {
             m : std::mutex(),
             head : null,

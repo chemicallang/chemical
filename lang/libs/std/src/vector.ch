@@ -65,7 +65,11 @@ public struct vector<T> {
             if(data_cap != 0) {
                 new_cap = data_cap;
             }
+            const max_cap = ((0 as size_t) - 1);
             while (new_cap < new_size) {
+                if(new_cap > max_cap / 2) {
+                    panic("vector capacity overflow")
+                }
                 new_cap = new_cap * 2;
             }
             reserve(new_cap);

@@ -306,3 +306,16 @@ Key correctness details:
   chained method calls / aggregate construction / indexing aggregate elements.
 - Aggregate layout (size/fields) not yet filled in `MIRTypeRecord`.
 - `MIRTests` must stay green before every MIR commit.
+
+
+## Safety validation in `ASTProcessor`
+
+Every MIR-eligible function goes through `mir::verify_function`,
+`mir::check_function_borrows`, and `mir::check_function_moves` inside the
+`mir_lower_and_emit_into` validation lambda before any backend sees it.
+`SAFE-LIFE-001/002/003/004`, `SAFE-BORROW-001/002/099`, `SAFE-MOVE-001`,
+`SAFE-INIT-001`, and `SAFE-VALID-008` are hard errors (the older
+"report-only" comment in `ASTProcessor.cpp` is stale). `--check` lowers and runs
+the same validation without emitting or linking. Safety-report coverage is
+separate: `compiler/safety/SafetyReport.cpp` walks module/type declarations and
+now also `ImplDefinition` bodies.

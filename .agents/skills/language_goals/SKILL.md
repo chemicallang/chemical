@@ -39,6 +39,15 @@ A language is only valuable if it satisfies all four:
 | 2 | **Enforceable no-panic policy** | A module can forbid panics entirely; the compiler errors if any function can panic. Forces agents to *report* errors (via `Result`/effects) instead of aborting. |
 | 3 | **Runs everywhere** | Browser (as JS), WASM, JVM bytecode, Android, native (C + LLVM), **and native with GC** (C + LLVM binary with an embedded collector — no hosted VM). One project, structured to run on every target. |
 
+**Implementation status (2026-10-31).** “Complete memory safety” is the
+requirement, not a claim that parity is finished. The enforced surface (M0, M3,
+and the enforceable M4/M5/M6 rules) is green, but the critical open gaps are
+`FutureHandle` lifetime erasure (safe async UAF), LLVM C ABI not being
+target-gated (x86-64 SysV only), `dyn` having no auto-trait bounds, and
+`@scoped_callback` being a trust annotation. Load the `safety` skill and read
+`lang/docs/safety-implementation-plan.md` §4.5 before making safety/roadmap
+claims.
+
 **Toolchain constraint (equally binding, §2 of the doc).** The non-LLVM release compiler
 (`TCCCompiler` / `chemical`, TinyCC-based) must be **< 4 MB ambitiously, hard ceiling
 5 MB — never more** as the steady state. It must **still support the whole language and
@@ -149,7 +158,8 @@ These are the known gaps toward Requirement 3 — mostly **unsolved** today:
 ## See also
 
 - Canonical doc: [`lang/docs/language-goals.md`](../../../lang/docs/language-goals.md)
-- Safety posture: [`lang/docs/chemical-safety-analysis.md`](../../../lang/docs/chemical-safety-analysis.md)
+- Safety skill: [`safety`](../safety/SKILL.md)
+- Historical safety research (superseded): [`lang/docs/chemical-safety-analysis.md`](../../../lang/docs/chemical-safety-analysis.md)
 - Safety plan: [`lang/docs/safety-implementation-plan.md`](../../../lang/docs/safety-implementation-plan.md)
 - Panics/effects: [`lang/docs/effect-system-proposal.md`](../../../lang/docs/effect-system-proposal.md)
 - Cross-compilation: [`lang/docs/cross-compilation.md`](../../../lang/docs/cross-compilation.md)

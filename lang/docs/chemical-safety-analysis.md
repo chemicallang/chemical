@@ -1,5 +1,14 @@
 # Chemical Language — Comprehensive Safety Analysis
 
+> **Historical research document (updated 18 July 2026) — superseded.**
+> This document predates the full-parity safety plan and the enforced
+> `SAFE-*` rule set. Its per-module opt-in/flag suggestions are **not** the
+> current design (there is no user safety opt-out). Use
+> [`safety-implementation-plan.md`](safety-implementation-plan.md) and the
+> [`safety` skill](../../.agents/skills/safety/SKILL.md) for current status,
+> including the open `FutureHandle` lifetime and target-C-ABI gaps.
+
+
 > **Status: Research Document — Updated July 18, 2026**
 >
 > A thorough analysis of Chemical's current safety posture, missing safety features,

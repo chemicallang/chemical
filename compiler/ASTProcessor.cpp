@@ -2002,8 +2002,8 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
             error = "MIR verifier: " + result.diagnostics.front().message;
             return false;
         }
-        // S4.4a report-only loan analysis. This never fails the build yet; the
-        // migrate/enforce steps follow once the in-tree tree is clean.
+        // S4.4a loan analysis. The codes listed as fatal below are enforced
+        // hard errors; any other borrow diagnostic remains a report-only warning.
         const auto borrows = mir::check_function_borrows(module, check);
         bool fatal_borrow = false;
         std::string borrow_error;

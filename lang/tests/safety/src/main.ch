@@ -326,6 +326,13 @@ func vector_capacity_overflow_panics(env : &mut TestEnv) {
 }
 
 @test
+func vector_resize_overflow_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var v = std::vector<int>()\n    v.resize((0 as size_t) - 1)\n    return 0\n}\n"
+    expect_runtime_panic(env, "vector_resize_overflow", ch)
+}
+
+@test
 func string_capacity_overflow_panics(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "public func main() : int {\n    var s = std::string(\"x\")\n    s.reserve((0 as size_t) - 1)\n    return 0\n}\n"

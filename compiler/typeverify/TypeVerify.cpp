@@ -1296,8 +1296,9 @@ static BaseType* infer_generic_arg_from_call(
                 }
                 if (unwrapped != nullptr && unwrapped->val_kind() == ValueKind::LambdaFunc) {
                     found = const_cast<BaseType*>(unwrapped->as_lambda_func_unsafe()->capture_env.getType());
-                } else if (arg_type != nullptr && arg_type->kind() == BaseTypeKind::CapturingFunction) {
-                    auto* arg_cap = arg_type->as_capturing_func_type_unsafe();
+                } else if (arg_type != nullptr && arg_type->canonical() != nullptr &&
+                           arg_type->canonical()->kind() == BaseTypeKind::CapturingFunction) {
+                    auto* arg_cap = arg_type->canonical()->as_capturing_func_type_unsafe();
                     found = arg_cap->capture_env ? const_cast<BaseType*>(arg_cap->capture_env.getType()) : nullptr;
                 }
                 if (found != nullptr) return found;
@@ -2641,6 +2642,48 @@ static bool is_capturing_function_type(BaseType* type) {
            canonical->kind() == BaseTypeKind::CapturingFunction;
 }
 
+// `std::send_function<T>` uses an empty marker as its type-level capture
+// witness. The marker itself is trivially Send + 'static; the guarantee comes
+// from verifying the real capture environment when the value is created.
+static bool is_send_static_capture_marker(BaseType* type) {
+    if (type == nullptr) return false;
+    auto* canonical = type->canonical();
+    if (canonical == nullptr || canonical->kind() != BaseTypeKind::CapturingFunction) {
+        return false;
+    }
+    auto* cap = canonical->as_capturing_func_type_unsafe();
+    if (!cap->capture_env) return false;
+    auto* env = cap->capture_env->canonical();
+    if (env == nullptr) return false;
+    auto* container = env->get_members_container();
+    if (container != nullptr && container->kind() == ASTNodeKind::StructDecl &&
+        container->as_struct_def_unsafe()->name_view() ==
+            chem::string_view("SendStaticCapture")) {
+        return true;
+    }
+    // Generic typealias instantiation can leave the marker as an unlinked
+    // named type; its spelling is the stable internal identity in that case.
+    const std::string spelling = env->representation();
+    return spelling.find("SendStaticCapture") != std::string::npos;
+}
+
+// The real capture environment carried by a callback value, when it is still
+// visible in the type system. Null means the witness was erased.
+static TypeLoc capture_witness_of_value(Value* value) {
+    value = unwrap_capture_value(value);
+    if (value == nullptr) return nullptr;
+    if (value->val_kind() == ValueKind::LambdaFunc) {
+        return value->as_lambda_func_unsafe()->capture_env;
+    }
+    BaseType* type = value->getType();
+    if (type == nullptr) return nullptr;
+    auto* canonical = type->canonical();
+    if (canonical != nullptr && canonical->kind() == BaseTypeKind::CapturingFunction) {
+        return canonical->as_capturing_func_type_unsafe()->capture_env;
+    }
+    return nullptr;
+}
+
 static bool capture_type_borrows(
         BaseType* type,
         std::unordered_set<MembersContainer*>& visiting) {
@@ -2782,9 +2825,42 @@ static void require_unsafe_for_capture(
         BaseType* target_type,
         Value* location
 ) {
+    if (!is_capturing_function_type(target_type)) return;
+
+    // `std::send_function<T>` keeps a verified Send + 'static guarantee after
+    // the concrete capture type is erased. Check the real witness whenever the
+    // value is created/assigned, including outside an unsafe block: the marker
+    // is a safe type and must not be forgeable by an unsafe-created callback.
+    if (is_send_static_capture_marker(target_type)) {
+        TypeLoc witness = capture_witness_of_value(value);
+        BaseType* witness_type = witness ? witness->canonical() : nullptr;
+        if (witness_type == nullptr) {
+            verifier.diagnoser.error(location).with_code("SAFE-SEND-002")
+                << "cannot prove this callback is Send + 'static: its capture "
+                   "witness was erased; pass a lambda or std::typed_function<F, C>";
+            return;
+        }
+        std::unordered_set<MembersContainer*> send_visiting;
+        if (!type_satisfies_auto_trait(witness_type, AutoTraitKind::Send,
+                                       send_visiting, &verifier.index,
+                                       (ASTNode*) verifier.coreNodes.send_interface,
+                                       (ASTNode*) verifier.coreNodes.sync_interface)) {
+            verifier.diagnoser.error(location).with_code("SAFE-SEND-002")
+                << "cannot store this callback in std::send_function: the values "
+                   "it captures are not Send";
+            return;
+        }
+        std::unordered_set<MembersContainer*> static_visiting;
+        if (!type_satisfies_static_bound(witness_type, static_visiting)) {
+            verifier.diagnoser.error(location).with_code("SAFE-SEND-002")
+                << "cannot store this callback in std::send_function: it captures "
+                   "a non-'static borrow";
+            return;
+        }
+    }
+
     if (verifier.is_unsafe || verifier.allow_scoped_capture ||
         capture_value_has_unsafe_marker(value)) return;
-    if (!is_capturing_function_type(target_type)) return;
     if (!captures_function_local_storage(value)) return;
     verifier.diagnoser.error(location)
         .with_code("SAFE-UNSAFE-002")

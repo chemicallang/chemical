@@ -305,6 +305,34 @@ func neg_scoped_closure_scope_cannot_be_forged(env : &mut TestEnv) {
 }
 
 @test
+func neg_send_function_rc_capture_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func take(f : std::send_function<() => int>) : int { return f() }\npublic func main() : int {\n    var r = std::rc(5)\n    return take(|r|() => { return *r.get() })\n}\n"
+    expect_compile_error_with_mod(env, "send_function_rc", ch, "SAFE-SEND-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_send_function_erased_capture_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func take(f : std::send_function<() => int>) : int { return f() }\nfunc pass(f : std::function<() => int>) : int { return take(f) }\npublic func main() : int { return pass(||() => { return 1 }) }\n"
+    expect_compile_error_with_mod(env, "send_function_erased", ch, "SAFE-SEND-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_send_function_borrowed_capture_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func take(f : std::send_function<() => int>) : int { return f() }\npublic func main() : int {\n    var x = 1\n    return take(|&x|() => { return *x })\n}\n"
+    expect_compile_error_with_mod(env, "send_function_borrow", ch, "SAFE-SEND-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_send_function_is_not_sync(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <T> needs_sync(v : T) : int where T : Sync { return 0 }\nfunc take(f : std::send_function<() => int>) : int { return needs_sync(f) }\npublic func main() : int { return take(||() => { return 1 }) }\n"
+    expect_compile_error_with_mod(env, "send_function_not_sync", ch, "does not satisfy where clause constraint 'T : Sync'", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_safe_send_impl_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Raw {\n    var p : *mut int\n}\nimpl Send for Raw {}\npublic func main() : int { return 0 }\n"

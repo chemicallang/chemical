@@ -136,4 +136,25 @@ public type function<T> = %capture<T, default_function_instance>;
 @partial_instantiate
 public type typed_function<T, C> = %capture<T, default_function_instance, C>;
 
+/**
+ * Type-level marker for a callback whose capture environment was proven
+ * `Send + 'static` when it was created. Unlike a bare `std::function<F>`
+ * parameter, a `send_function<F>` parameter keeps that guarantee at every
+ * later use, so a non-generic safe API can accept it and hand it to a thread
+ * without naming the concrete capture type.
+ *
+ * The marker is empty and carries no runtime data; verification happens when
+ * the lambda (or a typed callback) is assigned to the parameter.
+ */
+public struct SendStaticCapture { }
+
+// The marker proves `Send`, not `Sync`: a closure environment may contain
+// interior mutability that is safe to move but not to share. Keeping the
+// marker `!Sync` keeps `send_function` !Sync unless a future marker proves
+// both properties.
+impl !Sync for SendStaticCapture { }
+
+@partial_instantiate
+public type send_function<T> = %capture<T, default_function_instance, SendStaticCapture>;
+
 }

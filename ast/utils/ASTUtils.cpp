@@ -427,8 +427,9 @@ void infer_types_by_args(
         }
         case BaseTypeKind::CapturingFunction: {
             auto* param_cap = param_type->as_capturing_func_type_unsafe();
-            if (arg_type->kind() == BaseTypeKind::CapturingFunction) {
-                auto* arg_cap = arg_type->as_capturing_func_type_unsafe();
+            BaseType* arg_canon = arg_type->canonical();
+            if (arg_canon != nullptr && arg_canon->kind() == BaseTypeKind::CapturingFunction) {
+                auto* arg_cap = arg_canon->as_capturing_func_type_unsafe();
                 infer_types_by_args(diagnoser, params_node, generic_list_size,
                                     param_cap->func_type, arg_cap->func_type,
                                     inferred, debug_value);
@@ -437,11 +438,12 @@ void infer_types_by_args(
                                         param_cap->capture_env, arg_cap->capture_env,
                                         inferred, debug_value);
                 }
-            } else if (arg_type->kind() == BaseTypeKind::Function) {
+            } else if (arg_canon != nullptr && arg_canon->kind() == BaseTypeKind::Function) {
                 infer_types_by_args(diagnoser, params_node, generic_list_size,
-                                    param_cap->func_type, arg_type,
+                                    param_cap->func_type,
+                                    {arg_canon, arg_type.encoded_location()},
                                     inferred, debug_value);
-                auto* lambda = arg_type->as_function_type_unsafe()->as_lambda();
+                auto* lambda = arg_canon->as_function_type_unsafe()->as_lambda();
                 if (param_cap->capture_env && lambda && lambda->capture_env) {
                     infer_types_by_args(diagnoser, params_node, generic_list_size,
                                         param_cap->capture_env, lambda->capture_env,

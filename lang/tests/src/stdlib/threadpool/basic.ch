@@ -459,6 +459,27 @@ func test_scoped_run_closure_shared_value() : bool {
     return seen == 42
 }
 
+// 21) A non-generic std::send_function parameter keeps the verified
+// Send + 'static capture witness after the concrete capture type is erased.
+func take_send_callback(f : std::send_function<() => int>) : int {
+    return f()
+}
+func test_send_function_parameter() : bool {
+    var x = 41
+    return take_send_callback(|x|() => { return x + 1 }) == 42
+}
+
+// 22) The same guarantee is enough for a safe thread submission without
+// naming the capture environment at the call site.
+func spawn_send_callback(f : std::send_function<() => int>) : int {
+    var h = std::thread.spawn_closure(f)
+    return h.join()
+}
+func test_send_function_to_thread() : bool {
+    var x = 41
+    return spawn_send_callback(|x|() => { return x + 1 }) == 42
+}
+
 func test_thread_pool() {
         unsafe {
         test("test_basic_single_thread", test_basic_single_thread);
@@ -483,6 +504,8 @@ func test_thread_pool() {
         test("test_scoped_run_closure_value", test_scoped_run_closure_value);
         test("test_scoped_run_closure_by_value_capture", test_scoped_run_closure_by_value_capture);
         test("test_scoped_run_closure_shared_value", test_scoped_run_closure_shared_value);
+        test("test_send_function_parameter", test_send_function_parameter);
+        test("test_send_function_to_thread", test_send_function_to_thread);
 
         }
     }

@@ -654,12 +654,30 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
                     builder_->field_store(cap_temp, fc, ptr);
                 }
             } else {
-                // A by-value nested capture of an aggregate would move the
-                // field out of the enclosing closure environment; that needs
-                // callable/move semantics that do not exist yet.
+                // A by-value nested capture of an aggregate copies the value.
+                // A non-Copy aggregate would have to move the field out of the
+                // enclosing closure environment; that needs callable/move
+                // semantics (FnOnce) that do not exist yet.
                 if (abi::is_aggregate(module_, original)) {
-                    error = "nested closure cannot move an aggregate capture out of the enclosing closure";
-                    return false;
+                    if (!mir_type_is_copy(module_.types, original)) {
+                        error = "nested closure cannot move a non-Copy aggregate capture out of the enclosing closure";
+                        return false;
+                    }
+                    MIRExprResult a = lower_captured_variable(outer, true, error);
+                    if (!a.ok()) return false;
+                    const TypeId ptrt = types_.pointer_type(original, true);
+                    ValueId ptr = a.kind == MIRExprKind::Place
+                                      ? builder_->address_of(static_cast<PlaceId>(a.id), ptrt)
+                                      : builder_->cast(static_cast<ValueId>(a.id), ptrt);
+                    const PlaceId tmp = builder_->alloca(original, MIRStorageClass::Temporary);
+                    if (tmp == MIR_INVALID_ID) {
+                        error = "failed to allocate nested closure copy";
+                        return false;
+                    }
+                    builder_->copy_ptr_to_place(tmp, ptr);
+                    builder_->mark_initialized(tmp);
+                    builder_->field_store_place(cap_temp, fc, tmp);
+                    continue;
                 }
                 MIRExprResult v = lower_captured_variable(outer, false, error);
                 if (!v.ok()) return false;

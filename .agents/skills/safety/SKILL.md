@@ -11,7 +11,7 @@ The source tree wins over any status note here.
 
 ## Current status (2026-10-30)
 
-**M0 (S0.1–S0.6), M3, M4, and the enforceable M5/M6 surface are implemented. M1/M2/M7 are advanced; M6.5 has two API-completeness gaps (bare erased callback parameters and raw `FutureHandle<T>` `!Send`); heterogeneous and value-passing scoped closures are implemented. Packed layout and `@repr("C"/"packed"/"transparent")` are implemented; non-x86-64 C ABIs remain. S5.6b (unwinding) is withdrawn by policy: panic always aborts.**
+**M0 (S0.1–S0.6), M3, M4, and the enforceable M5/M6 surface are implemented. M1/M2/M7 are advanced; M6.5 is complete for the safe API surface: heterogeneous/value-passing scoped closures and `std::send_function<T>` are implemented; the remaining boundary is intentional (`raw FutureHandle<T>` is `!Send`, and a bare `std::function` parameter still erases unless the signature uses `send_function`/`typed_function`). Packed layout and `@repr("C"/"packed"/"transparent")` are implemented; non-x86-64 C ABIs remain. S5.6b (unwinding) is withdrawn by policy: panic always aborts.**
 
 Implemented:
 
@@ -42,6 +42,9 @@ Implemented:
     `Zeroable`.
   - `SAFE-SEND-001` — a future frame submitted to `async::spawn_send` is not
     provably `Send + 'static` (direct async calls only).
+  - `SAFE-SEND-002` — a callback stored in `std::send_function<T>` does not
+    have a provable `Send + 'static` capture witness (Rc capture, borrowed
+    capture, or an erased `std::function` parameter).
 - Negative harness accepts both `error:` and `error[SAFE-` and has
   `expect_compile_warning_id`.
 - Safety suite at `lang/tests/safety/` (`--safety`), wired through
@@ -340,7 +343,7 @@ Implemented:
   functions passing/returning a Chemical variant by value; structs/unions use
   the x86-64 SysV C ABI on both backends (pointer FFI remains allowed, other
   target ABIs still need classification). Safety suite `63`, negative tests
-  `633`.
+  `637`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -360,8 +363,8 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `63`, negative `633`; TCC main `2362`, LLVM
-  main `2360`, libs `730`, plugins `1305`, async `56`, interpret `1910`,
+  TCC/LLVM lib runs. Safety suite `63`, negative `637`; TCC main `2364`, LLVM
+  main `2362`, libs `730`, plugins `1305`, async `56`, interpret `1910`,
   server `10`, TLS `599`, safety `63`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
   tombstone ranges, every read/write and `memcpy`/`memmove`/`memset` is
@@ -439,8 +442,13 @@ Implemented:
   closure also receive a shared/mutable borrowed value. Nested closures now
   materialize a capture through the enclosing closure environment (the
   `CapturedVariable::known_type` chain follows to the original variable, and
-  generic callback parameters are deferred to instantiation). Bare erased
-  callback parameters remain. Guard-transfer negative tests cover
+  generic callback parameters are deferred to instantiation). A non-generic
+  `std::send_function<T>` parameter keeps the verified `Send + 'static`
+  guarantee after the concrete capture type is erased (`SAFE-SEND-002`
+  rejects `Rc`, borrowed, and erased witnesses), so a plain API can accept a
+  callback and submit it to a worker without naming `C`. Bare `std::function`
+  parameters still erase unless the signature uses `send_function<T>` or
+  `typed_function<F, C>`. Guard-transfer negative tests cover
   `MutexGuard`/`RwLockWriteGuard`. `scripts/thread-tsan.sh`
   runs a four-thread `Arc<Mutex<int>>` smoke test under TSAN; it uses a system
   LLVM resource directory when the bundled prebuild lacks
@@ -578,14 +586,18 @@ Implemented:
 
 Next:
 
-- M6.5 remaining: bare `std::function` parameters still erase their capture
-  witness (use `std::typed_function<F, C>` when a signature must expose it),
-  and raw `FutureHandle<T>` remains `!Send` outside the checked
-  `spawn_send`/`SendFutureHandle` boundary. `async::spawn_send_handle` accepts a
-  stored `SendFutureHandle`, and `std::concurrent.submit_closure` is a safe
-  typed-capture thread-pool submission. Heterogeneous multi-value scopes and
-  value-passing capturing scoped closures are implemented; nested by-value
-  aggregate captures remain an explicit lowering error. M4 is complete
+- M6.5 remaining: raw `FutureHandle<T>` is intentionally `!Send` outside the
+  checked `spawn_send`/`SendFutureHandle` boundary (the frame may contain
+  non-Send values even when `T: Send`; safe submission returns the typed
+  handle). Bare `std::function` parameters still erase their capture witness;
+  use `std::send_function<T>` for a non-generic `Send + 'static` parameter or
+  `std::typed_function<F, C>` when the exact environment must be exposed.
+  `async::spawn_send_handle` accepts a stored `SendFutureHandle`, and
+  `std::concurrent.submit_closure` is a safe typed-capture thread-pool
+  submission. Heterogeneous multi-value scopes and value-passing capturing
+  scoped closures are implemented. A nested by-value capture of a `Copy`
+  aggregate is copied; a non-`Copy` aggregate remains an explicit lowering
+  error (capture it by reference instead). M4 is complete
   for the enforceable surface; deeper aggregate HRTB nesting, mixed
   local/parameter multi-borrow referents, and distinct non-local regions
   remain explicit `SAFE-BORROW-099` rejections.
@@ -848,6 +860,7 @@ Codes are stable and grouped by domain:
 | `SAFE-BOUNDS-*` | indexing |
 | `SAFE-OVERFLOW-*` | arithmetic |
 | `SAFE-SEND-001` | future frame is not provably `Send + 'static` (safe async submission) |
+| `SAFE-SEND-002` | callback capture is not provably `Send + 'static` (erased, `Rc`, or borrowed) |
 | `SAFE-SEND-*` | Send/Sync / races |
 | `SAFE-UNSAFE-*` | unsafe boundary |
 | `SAFE-PROV-001` | reference created from a raw pointer in safe context (provenance, enforced) |

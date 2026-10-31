@@ -2146,6 +2146,159 @@ public:
     void VisitFunctionDecl(FunctionDeclaration*) {}
 };
 
+
+static Value* unwrap_capture_value(Value* value);
+
+static bool is_future_handle_ast_type(BaseType* type) {
+    if (type == nullptr) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr) return false;
+    if (canonical->kind() == BaseTypeKind::Generic) {
+        auto* gen = canonical->as_generic_type_unsafe();
+        if (gen->referenced == nullptr || gen->referenced->linked == nullptr) {
+            return false;
+        }
+        if (gen->referenced->linked->kind() != ASTNodeKind::StructDecl) {
+            return false;
+        }
+        return gen->referenced->linked->as_struct_def_unsafe()->name_view() ==
+               chem::string_view("FutureHandle");
+    }
+    auto* container = canonical->get_members_container();
+    return container != nullptr && container->kind() == ASTNodeKind::StructDecl &&
+           container->as_struct_def_unsafe()->name_view() ==
+               chem::string_view("FutureHandle");
+}
+
+static bool contains_future_handle_ast_type(
+        BaseType* type, std::unordered_set<BaseType*>& visiting, unsigned depth = 0) {
+    if (type == nullptr || depth > 8) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr || !visiting.insert(canonical).second) return false;
+    if (is_future_handle_ast_type(canonical)) return true;
+    if (canonical->kind() == BaseTypeKind::Array) {
+        return contains_future_handle_ast_type(
+            const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
+            visiting, depth + 1);
+    }
+    if (canonical->kind() == BaseTypeKind::Generic) {
+        auto* gen = canonical->as_generic_type_unsafe();
+        for (auto& arg : gen->types) {
+            if (contains_future_handle_ast_type(
+                    const_cast<BaseType*>(arg.getType()), visiting, depth + 1)) {
+                return true;
+            }
+        }
+    }
+    if (canonical->kind() == BaseTypeKind::CapturingFunction) {
+        auto* cap = canonical->as_capturing_func_type_unsafe();
+        if (cap->capture_env) {
+            return contains_future_handle_ast_type(
+                const_cast<BaseType*>(cap->capture_env.getType()), visiting, depth + 1);
+        }
+        return false;
+    }
+    auto* container = canonical->get_members_container();
+    if (container == nullptr) return false;
+    for (BaseDefMember* member : container->variables()) {
+        if (member == nullptr) continue;
+        if (member->kind() == ASTNodeKind::StructMember) {
+            auto* field = member->as_struct_member_unsafe();
+            if (field != nullptr && contains_future_handle_ast_type(
+                    const_cast<BaseType*>(field->type.getType()), visiting, depth + 1)) {
+                return true;
+            }
+        } else if (member->kind() == ASTNodeKind::VariantMember) {
+            auto* variant = member->as_variant_member_unsafe();
+            if (variant != nullptr) {
+                for (auto& entry : variant->values) {
+                    auto* param = entry.second;
+                    if (param != nullptr && contains_future_handle_ast_type(
+                            const_cast<BaseType*>(param->type.getType()),
+                            visiting, depth + 1)) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+static bool contains_future_handle_ast_type(BaseType* type) {
+    std::unordered_set<BaseType*> visiting;
+    return contains_future_handle_ast_type(type, visiting);
+}
+
+static bool in_future_library_namespace(FunctionDeclaration* callee) {
+    for (ASTNode* parent = callee ? callee->parent() : nullptr; parent != nullptr;
+         parent = parent->parent()) {
+        if (parent->kind() != ASTNodeKind::NamespaceDecl) continue;
+        const auto name = parent->as_namespace_unsafe()->name_view();
+        if (name == chem::string_view("async") || name == chem::string_view("std") ||
+            name == chem::string_view("concurrent") ||
+            name == chem::string_view("thread")) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool is_future_consumer_decl(FunctionDeclaration* callee) {
+    if (callee == nullptr || !in_future_library_namespace(callee)) return false;
+    chem::string_view name = callee->generic_parent != nullptr
+                                 ? callee->generic_parent->name_view()
+                                 : callee->name_view();
+    std::string_view n(name.data(), name.size());
+    for (const char* marker : {"__cfg_", "__cgs__"}) {
+        const size_t at = n.find(marker);
+        if (at != std::string_view::npos) n = n.substr(0, at);
+    }
+    return n == "block_on" || n == "block_on_send" || n == "block_on_timeout" ||
+           n == "spawn" || n == "spawn_void" || n == "spawn_closure" ||
+           n == "spawn_send" || n == "spawn_send_handle" ||
+           n == "spawn_local";
+}
+
+static FunctionDeclaration* future_call_callee(FunctionCall* call) {
+    if (call == nullptr || call->parent_val == nullptr) return nullptr;
+    FunctionDeclaration* callee = call->safe_linked_func();
+    if (callee != nullptr) return callee;
+    ASTNode* linked = call->parent_val->get_chain_last_linked();
+    if (linked == nullptr) return nullptr;
+    if (linked->kind() == ASTNodeKind::FunctionDecl) {
+        return linked->as_function_unsafe();
+    }
+    if (linked->kind() == ASTNodeKind::GenericFuncDecl) {
+        return linked->as_gen_func_decl_unsafe()->master_impl;
+    }
+    return nullptr;
+}
+
+static void verify_future_argument_contract(TypeVerifier& verifier,
+                                            FunctionCall* call) {
+    if (call == nullptr || call->values.empty() || verifier.is_unsafe) return;
+    FunctionDeclaration* callee = future_call_callee(call);
+    BaseType* result_type = const_cast<BaseType*>(call->getType());
+    const bool result_carries = contains_future_handle_ast_type(result_type);
+    if (callee != nullptr && (callee->is_async() || callee->is_unsafe() ||
+                              is_future_consumer_decl(callee))) {
+        return;
+    }
+    if (result_carries) return;
+    for (Value* arg : call->values) {
+        Value* value = unwrap_capture_value(arg);
+        if (value == nullptr) continue;
+        BaseType* type = const_cast<BaseType*>(value->getType());
+        if (!contains_future_handle_ast_type(type)) continue;
+        verifier.diagnoser.error(value).with_code("SAFE-LIFE-005")
+            << "a FutureHandle cannot be passed to a safe function that may "
+               "retain it; consume it with block_on/spawn or return it from the "
+               "API";
+        return;
+    }
+}
+
 static void verify_async_send_frame(TypeVerifier& verifier, FunctionCall* call) {
     if (call == nullptr || call->values.empty()) return;
     Value* value = call->values[0];
@@ -2253,6 +2406,7 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
     }
     // verifying the call mutability (self param is mutable and all that...)
     verify_call_mutability(*this, call);
+    verify_future_argument_contract(*this, call);
     // this verifies comptimeness of arguments
     // TODO: this verifyArguments need to be moved to this .cpp file (make static)
     const auto curr_func_type = current_func_type;
@@ -4059,6 +4213,108 @@ void TypeVerifier::VisitReferenceType(ReferenceType* type) {
     RecursiveVisitor::VisitReferenceType(type);
 }
 
+
+static Value* unwrap_scoped_callback_argument(Value* value) {
+    while (value != nullptr) {
+        if (value->val_kind() == ValueKind::CastedValue) {
+            value = value->as_casted_value_unsafe()->value;
+        } else if (value->val_kind() == ValueKind::UnsafeValue) {
+            value = static_cast<UnsafeValue*>(value)->getValue();
+        } else if (value->val_kind() == ValueKind::AccessChain &&
+                   value->as_access_chain_unsafe()->values.size() == 1) {
+            value = value->as_access_chain_unsafe()->values[0];
+        } else {
+            break;
+        }
+    }
+    return value;
+}
+
+// `@scoped_callback` is a compiler-checked forwarding contract: the annotated
+// function may only forward its `std::scoped_send_function` parameter to a
+// join-before-return scoped submission. This visitor rejects the parameter being
+// returned, stored, captured, or passed anywhere else. Allowing another
+// annotated function is sound because that callee is itself checked by this rule.
+class ScopedCallbackContract final : public RecursiveVisitor<ScopedCallbackContract> {
+public:
+    TypeVerifier& verifier;
+    FunctionParam* target;
+    std::unordered_set<Value*> allowed_arguments;
+    bool reported = false;
+
+    ScopedCallbackContract(TypeVerifier& verifier, FunctionParam* target)
+        : verifier(verifier), target(target) {}
+
+    static bool is_scoped_sink(FunctionDeclaration* callee) {
+        if (callee == nullptr) return false;
+        if (callee->attrs.scoped_callback) return true;
+        if (!in_future_library_namespace(callee)) return false;
+        const auto name = callee->name_view();
+        return name == chem::string_view("scoped_spawn_closure") ||
+               name == chem::string_view("scoped_spawn_closure_value") ||
+               name == chem::string_view("scoped_spawn_closure_mut") ||
+               name == chem::string_view("scoped_spawn_closure_in") ||
+               name == chem::string_view("scoped_spawn_closure_value_in") ||
+               name == chem::string_view("scoped_spawn_closure_mut_in") ||
+               name == chem::string_view("scoped_spawn_closure_erased") ||
+               name == chem::string_view("scoped_spawn_closure_value_erased") ||
+               name == chem::string_view("scoped_spawn_closure_mut_erased") ||
+               name == chem::string_view("scoped_spawn_closure_in_erased") ||
+               name == chem::string_view("scoped_spawn_closure_value_in_erased") ||
+               name == chem::string_view("scoped_spawn_closure_mut_in_erased") ||
+               name == chem::string_view("scoped_run_closure");
+    }
+
+    void VisitFunctionCall(FunctionCall* call) {
+        if (call != nullptr && is_scoped_sink(call->safe_linked_func())) {
+            for (Value* arg : call->values) {
+                Value* unwrapped = unwrap_scoped_callback_argument(arg);
+                if (unwrapped != nullptr && unwrapped->val_kind() == ValueKind::Identifier &&
+                    unwrapped->as_identifier_unsafe()->linked == target) {
+                    allowed_arguments.insert(unwrapped);
+                }
+            }
+        }
+        RecursiveVisitor<ScopedCallbackContract>::VisitFunctionCall(call);
+    }
+
+    void VisitVariableIdentifier(VariableIdentifier* id) {
+        if (id != nullptr && id->linked == target &&
+            allowed_arguments.find(id) == allowed_arguments.end() && !reported) {
+            reported = true;
+            verifier.diagnoser.error(id).with_code("SAFE-SCOPED-001")
+                << "a @scoped_callback parameter may only be forwarded to a "
+                   "join-before-return scoped API; it cannot be returned, stored, "
+                   "captured, or passed to another function";
+        }
+    }
+};
+
+static void verify_scoped_callback_contract(TypeVerifier& verifier,
+                                            FunctionDeclaration* decl) {
+    if (decl == nullptr || !decl->attrs.scoped_callback) return;
+    if (!decl->body.has_value()) {
+        verifier.diagnoser.error(decl).with_code("SAFE-SCOPED-001")
+            << "@scoped_callback requires a visible body so the compiler can "
+               "verify that the scoped callback is only forwarded to a "
+               "join-before-return API";
+        return;
+    }
+    bool found = false;
+    for (FunctionParam* param : decl->params) {
+        if (param == nullptr || param->type == nullptr) continue;
+        BaseType* type = const_cast<BaseType*>(param->type.getType());
+        if (!is_scoped_send_capture_marker(type)) continue;
+        found = true;
+        ScopedCallbackContract contract(verifier, param);
+        contract.VisitScope(&*decl->body);
+    }
+    if (!found) {
+        verifier.diagnoser.error(decl).with_code("SAFE-SCOPED-001")
+            << "@scoped_callback requires a std::scoped_send_function parameter";
+    }
+}
+
 void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {
     apply_signature_lifetime_elision(decl, diagnoser);
     if(decl->where_clause) {
@@ -4140,6 +4396,7 @@ void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {
     current_func_type = prev;
     is_public_comptime_context = prev_pub_comptime;
 
+    verify_scoped_callback_contract(*this, decl);
 }
 
 void TypeVerifier::VisitLambdaFunction(LambdaFunction *func) {

@@ -358,7 +358,14 @@ public unsafe func <T> spawn(handle : core::async::FutureHandle<T>) : core::asyn
         unsafe {
         var e = executor()
         var st = unsafe(malloc(sizeof(JoinState<T>))) as *mut JoinState<T>
+        if(st == null) {
+            panic("failed to allocate spawn join state")
+        }
         var join_vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
+        if(join_vtbl == null) {
+            unsafe { dealloc st }
+            panic("failed to allocate spawn join vtable")
+        }
         join_vtbl.poll = spawn_join_poll<T>
         join_vtbl.drop = spawn_join_drop<T>
         new(st) JoinState<T> {
@@ -372,7 +379,22 @@ public unsafe func <T> spawn(handle : core::async::FutureHandle<T>) : core::asyn
             vtbl : join_vtbl
         }
         var task = unsafe(malloc(sizeof(SpawnTask<T>))) as *mut SpawnTask<T>
+        if(task == null) {
+            unsafe {
+                dealloc join_vtbl
+                dealloc st
+            }
+            panic("failed to allocate spawn task")
+        }
         var task_vtbl = unsafe(malloc(sizeof(TaskVTable))) as *mut TaskVTable
+        if(task_vtbl == null) {
+            unsafe {
+                dealloc task
+                dealloc join_vtbl
+                dealloc st
+            }
+            panic("failed to allocate spawn task vtable")
+        }
         task_vtbl.poll = spawn_task_poll<T>
         task_vtbl.drop = spawn_task_drop<T>
         new(task) SpawnTask<T> {

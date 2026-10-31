@@ -51,6 +51,7 @@
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/TargetParser/Triple.h>
 #include <functional>
 #include <unordered_map>
 #include <vector>
@@ -64,8 +65,31 @@
 // turns the fully-populated MIR module into LLVM IR.
 
 
+static bool mir_c_abi_target_supported(const std::string& triple) {
+    // The by-value `@extern` classifier in CodegenMir implements the x86-64
+    // System V convention. Microsoft x64 and all other architectures have
+    // different aggregate passing/return rules, so emitting the SysV shape
+    // there would silently miscompile. Keep the C backend unrestricted: it
+    // delegates the ABI to the host C compiler.
+    llvm::Triple t(llvm::Triple::normalize(triple));
+    return t.getArch() == llvm::Triple::x86_64 && !t.isOSWindows();
+}
+
 static void mir_emit_llvm_module(Codegen& gen, LabModule* module,
                                  mir::MIRTypeBuilder& types, mir::MIRModule& m) {
+    if (!mir_c_abi_target_supported(gen.target_triple)) {
+        for (uint32_t i = 0; i < m.symbols.symbols.size(); ++i) {
+            const mir::MIRSymbolRecord& rec = m.symbols.symbols[i];
+            if (rec.c_abi_type == mir::MIR_INVALID_ID) continue;
+            std::cerr << "error[SAFE-FFI-003]: by-value @extern aggregates "
+                         "require the x86-64 System V C ABI; target '"
+                      << gen.target_triple << "' is not supported\n";
+            gen.error(ZERO_LOC).with_code("SAFE-FFI-003")
+                << "by-value @extern aggregates require the x86-64 System V C "
+                   "ABI; target '" << gen.target_triple << "' is not supported";
+            return;
+        }
+    }
     if (getenv("MIR_LLVM_TRACE"))
         std::cerr << "[MIR-LLVM] emitting module " << module->format()
                   << " functions=" << m.functions.size() << "\n";

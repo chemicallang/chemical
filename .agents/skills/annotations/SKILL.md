@@ -177,7 +177,7 @@ All built-ins are registered in `AnnotationController::initialize()` (`compiler/
 | `@cpp` | function | `set_cpp_mangle(true)` + `set_no_mangle(true)` (C++ mangle TODO) | `AnnotationController.cpp:279` |
 | `@static` | interface | `interface->set_is_static(true)` | `AnnotationController.cpp:291` |
 | `@override` | function | `func->set_override(true)`; lets a top-level function coexist with a same-named function from a **different module** (see [Top-Level `@override`](#top-level-override)) | `AnnotationController.cpp:300` |
-| `@scoped_callback` | function | `func->attrs.scoped_callback = true`; declares that a `std::scoped_send_function<T>` parameter is only forwarded to a join-before-return scoped API, so a borrowed capture is accepted without `unsafe`; this is an audited trust contract (a lying body is unsound) | `AnnotationController.cpp:91` |
+| `@scoped_callback` | function | `func->attrs.scoped_callback = true`; compiler-checked contract that a `std::scoped_send_function<T>` parameter is only forwarded to a known join-before-return scoped API (or another annotated function), so a borrowed capture is accepted without `unsafe`; returning/storing/capturing it is `SAFE-SCOPED-001` | `AnnotationController.cpp:91` |
 | `@deprecated` | node with `set_deprecated` | `node->set_deprecated(true)` | `AnnotationController.cpp:300` |
 | `@align(N)` | struct or struct member | required alignment from first constant integer arg; errors if absent/zero | `AnnotationController.cpp:306` |
 | `@packed` | struct or union | packed layout (alignment 1); rejects arguments and `@align` conflicts | `AnnotationController.cpp` |

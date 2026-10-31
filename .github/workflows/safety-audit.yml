@@ -1,0 +1,55 @@
+name: Safety Audit
+
+# The safety audit is a read-only no-growth gate over every entry point in
+# lang/docs/safety/audit-modules.txt. It compiles the tree with --check and
+# compares the merged unsafe-surface totals with the reviewed baseline.
+#
+# Keep this on pull requests and main: the audit is the only check that notices
+# an accidental escape from an unsafe boundary or a newly added raw operation.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: safety-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Whole-tree safety audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build python3
+
+      - name: Set up TinyCC
+        run: ./scripts/setup.sh
+
+      - name: Configure TCCCompiler
+        run: ./scripts/configure.sh --no-llvm --generator Ninja
+
+      - name: Build TCCCompiler
+        run: ./scripts/build.sh --tcc -j "$(nproc)"
+
+      - name: Run whole-tree safety audit
+        run: ./scripts/safety-audit.sh
+
+      - name: Run safety regression suites
+        run: |
+          ./scripts/test.sh --tcc --no-build --negative -j "$(nproc)"
+          ./scripts/test.sh --tcc --no-build --safety -j "$(nproc)"

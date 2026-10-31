@@ -36,7 +36,7 @@ as a conservative upper bound.
 
 | Metric | Count |
 |---|---:|
-| `unsafe_blocks` | 3765 |
+| `unsafe_blocks` | 3768 |
 | `unsafe_values` | 4898 |
 | `raw_pointer_types` | 9351 |
 | `raw_pointer_derefs` | 1065 |
@@ -48,9 +48,9 @@ as a conservative upper bound.
 | `inline_asm` | 57 |
 | `mutable_globals` | 141 |
 | `extern_globals` | 7 |
-| `panic_calls` | 95 |
+| `panic_calls` | 104 |
 | `allocator_calls` | 173 |
-| `dealloc_stmts` | 176 |
+| `dealloc_stmts` | 179 |
 | `delete_stmts` | 22 |
 | `destruct_stmts` | 23 |
 | `memory_calls` | 84 |
@@ -75,7 +75,7 @@ as a conservative upper bound.
 | `::lib_tests` | 87 | 131 | 211 | 47 |
 | `::webview` | 82 | 25 | 224 | 70 |
 | `::page` | 77 | 46 | 85 | 38 |
-| `::async` | 70 | 26 | 94 | 25 |
+| `::async` | 73 | 26 | 94 | 25 |
 | `::webview_tests` | 66 | 7 | 72 | 2 |
 | `::fs` | 64 | 41 | 118 | 44 |
 | `::http` | 60 | 30 | 133 | 20 |
@@ -100,3 +100,10 @@ as a conservative upper bound.
   checking continues inside it.
 - The interpreter and both code generators consume the same MIR safety checks,
   so these counts are not backend-specific.
+
+
+*2026-10-31 update:* the async allocation-hardening pass added checked failure
+paths to the future/state constructors (`yield`, `time`, `exec`, `blocking`,
+`combinators`, `reactor`, and the compiler frame hook). This intentionally adds
+9 `panic` sites and 3 cleanup `unsafe { dealloc ... }` blocks in the `::async`
+module; the reviewed totals are `panic_calls 104` and `unsafe_blocks 3768`.

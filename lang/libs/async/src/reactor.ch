@@ -73,6 +73,10 @@ public func reactor_register(fd : int, events : short, waker : core::async::Wake
             ww = waker.clone()
         }
         var node = unsafe(malloc(sizeof(ReactorFd))) as *mut ReactorFd
+        if(node == null) {
+            e.m.unlock()
+            panic("failed to allocate reactor node")
+        }
         new(node) ReactorFd {
             fd : fd,
             events : events,
@@ -115,6 +119,10 @@ public func reactor_poll(timeout_ms : int) : int {
             return 0
         }
         var pfd = unsafe(malloc(n * sizeof(posix::PollFd))) as *mut posix::PollFd
+        if(pfd == null) {
+            e.m.unlock()
+            panic("failed to allocate reactor poll set")
+        }
         var idx = 0u
         it = e.head
         while(it != null) {
@@ -201,7 +209,14 @@ public func ready_drop(frame : *mut void) {
 func make_ready(fd : int, events : short) : core::async::FutureHandle<core::async::Unit> {
         unsafe {
         var st = unsafe(malloc(sizeof(ReadyState))) as *mut ReadyState
+        if(st == null) {
+            panic("failed to allocate ready state")
+        }
         var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<core::async::Unit>))) as *mut core::async::FutureTable<core::async::Unit>
+        if(vtbl == null) {
+            unsafe { dealloc st }
+            panic("failed to allocate ready vtable")
+        }
         vtbl.poll = ready_poll
         vtbl.drop = ready_drop
         new(st) ReadyState {

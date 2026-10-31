@@ -42,9 +42,16 @@ func sleep_drop(frame : *mut void) {
 public func sleep(millis : u64) : core::async::FutureHandle<core::async::Unit> {
         unsafe {
         var st = unsafe(malloc(sizeof(SleepState))) as *mut SleepState
+        if(st == null) {
+            panic("failed to allocate sleep state")
+        }
         st.start_ms = std::now_milli()
         st.millis = millis as i64
         var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<core::async::Unit>))) as *mut core::async::FutureTable<core::async::Unit>
+        if(vtbl == null) {
+            unsafe { dealloc st }
+            panic("failed to allocate sleep vtable")
+        }
         vtbl.poll = sleep_poll
         vtbl.drop = sleep_drop
         st.vtbl = vtbl

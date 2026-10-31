@@ -22,7 +22,7 @@ for the safe API surface we currently expose**, not full language parity.
 | `Send` / `Sync` | Auto traits + explicit/negative impls + nested conditional generic impls; data-race primitives |
 | Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; C ABI by-value support is x86-64 SysV only on LLVM |
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
-| Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle` results now carry input loans in MIR (type-level lifetime parameter remains) |
+| Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle` direct borrows and `SAFE-LIFE-005` retaining-API escapes are checked (type-level lifetime parameter remains) |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
 | Type-system / stdlib parity | M1/M7 remain; M2/M8 remain |
 
@@ -33,13 +33,13 @@ Latest measured baseline:
 | TCC main | `2366/2366` |
 | LLVM main | `2364/2364` |
 | `@test` runner | `54/54` |
-| TCC/LLVM negative | `656/656` |
+| TCC/LLVM negative | `662/662` |
 | TCC/LLVM safety | `64/64` |
 | TCC/LLVM async | `58/58` |
 | TCC libs | `730/730` |
 | `MIRTests` | `4643 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
-| Whole-tree audit | `unsafe_blocks 3765`, `unsafe_values 4898`, `raw_pointer_derefs 1065` |
+| Whole-tree audit | `unsafe_blocks 3768`, `unsafe_values 4898`, `raw_pointer_derefs 1065`, `panic_calls 104` |
 | Audit result | `no growth` against `lang/docs/safety/audit-baseline.json` |
 
 The audit totals increased from the historical `3661/4890` in the 2026-10-31
@@ -60,6 +60,12 @@ first honest whole-tree count, not a new unsafe-code regression.
 - `SAFE-FFI-001` — `@extern` call from safe context.
 - `SAFE-FFI-002` — `@extern` function passing/returning a Chemical variant by
   value (no C layout).
+- `SAFE-FFI-003` — LLVM by-value `@extern` aggregate on a target other than
+  x86-64 System V; use the C backend or a supported target until `MIRABI` is
+  target-aware.
+- `SAFE-SCOPED-001` — `@scoped_callback` parameter used for anything other than
+  forwarding to a join-before-return scoped API (or another audited
+  `@scoped_callback` function).
 - `SAFE-GLOBAL-001` — mutable top-level `var`, `static mut`, or `@extern`
   global access outside `unsafe`; thread-local/comptime globals exempt.
 - `SAFE-GLOBAL-002` — immutable global whose type is not `Sync` (including
@@ -105,6 +111,10 @@ MIR is the sole producer of init/move/drop state:
 - `SAFE-LIFE-004` — a type does not satisfy a `'static` bound/lifetime argument
   (stack reference submitted to a thread, stored in a `'static` container,
   etc.).
+- `SAFE-LIFE-005` — a value containing a `FutureHandle` is passed to a safe
+  callee that is not a known future consumer and does not return a
+  future-containing result; the callee could retain the handle past its
+  referent.
 
 Region signatures are built from declarations before body lowering; MIR types
 are lifetime-erased and regions live in per-function side tables. An async
@@ -155,8 +165,9 @@ Safe submission surfaces:
   proven).
 - `std::scoped_send_function<T>` — non-generic borrowed-capture parameter;
   marker `ScopedSendCapture` is `!Send`/`!Sync` so it cannot reach an unscoped
-  API. `@scoped_callback` on a function declares that the parameter is only
-  forwarded to a join-before-return scoped API.
+  API. `@scoped_callback` is compiler-checked: its parameter may only be
+  forwarded to a known join-before-return scoped API (or another annotated
+  function); returning/storing/capturing it is `SAFE-SCOPED-001`.
 - `std::concurrent.submit_closure` — safe typed-capture pool submission.
 - `async::spawn` / `spawn_local` / `spawn_blocking` / `concurrent.spawn` are
   explicit `unsafe` boundaries; the safe async path is `spawn_send` /
@@ -215,38 +226,25 @@ declared-negative type.
 These are verified gaps, not placeholders. Read this list before claiming full
 memory safety.
 
-1. **`FutureHandle<T>` lifetime erasure is partially closed.**
-   MIR now classifies a future handle as a borrow view and propagates the loans
-   of direct `&T` parameters, by-value `string_view`/`span`/`Chunk`
-   parameters, and by-value future handles through ordinary pass-through
-   wrappers. Assigning/moving the handle into a local or struct field and
-   returning it is checked by `SAFE-LIFE-001`/`002`. This closes the direct
-   `return work(&local)`, local-scope, free-wrapper, method, struct-field,
-   `Option`, and `string_view` cases covered by the negative suite.
-
-   What remains is **type-level lifetime expressiveness**, not the old direct
-   UAF: `FutureHandle` has no `'a` parameter, so an API cannot state a
-   caller-visible borrow, and an unknown/extern callee receiving a future is
-   still treated as an escape boundary. Generic containers and APIs that hide a
-   future behind an unrelated result type need the same explicit lifetime/frame
-   witness. Do not address those with safe `unsafe` wrappers; extend the
-   lifetime model.
-
-2. **LLVM C ABI is x86-64 SysV only, without a target gate.**
-   `compiler/CodegenMir.cpp` classifies by-value extern aggregates using the
-   SysV rules unconditionally. The C backend delegates ABI to the host C
-   compiler, so it is correct per target; the LLVM backend on Windows x64 or
-   ARM/AArch64 can miscompile by-value `@extern` structs/unions. Either make
-   `MIRABI` target-aware or reject unsupported targets for by-value extern
-   aggregates.
-
-3. **`@scoped_callback` is a trust annotation.**
-   The compiler permits a borrowed capture at a call to an annotated function
-   because it assumes the parameter is only forwarded to a join-before-return
-   scoped API. A lying implementation can return/store the callback and create a
-   safe-code dangling borrow. Treat the annotation like an audited `unsafe`
-   contract; validate the body or make it an explicit unsafe assertion.
-
+1. **`FutureHandle<T>` still lacks a type-level lifetime parameter.**
+   MIR tracks direct async-call loans and `SAFE-LIFE-005` now rejects a future
+   (or a struct/array/`Option` containing one) passed to a safe callee that is
+   neither a known consumer (`block_on`/`spawn`/… ) nor returning a
+   future-containing result. This closes the direct return, local scope,
+   wrapper, method, struct-field, `Option`, `string_view`, and safe stash
+   cases in the negative suite. Remaining: a caller-visible
+   `FutureHandle<'a, T>`/frame witness is still absent, custom safe consumer
+   wrappers are conservatively rejected, and borrowed futures hidden behind a
+   reference or callback capture are not fully expressible.
+2. **Full target-aware C ABI remains M2.** LLVM now rejects by-value `@extern`
+   aggregates on targets other than x86-64 SysV (`SAFE-FFI-003`); the C backend
+   delegates to the host compiler. Windows/ARM ABI support, `repr`/layout
+   coverage, variadics, callbacks, and FFI wrapper auditing remain.
+3. **`@scoped_callback` is body-checked, with a fixed sink list.**
+   `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
+   scoped parameter anywhere except a known join-before-return API or another
+   annotated function. New scoped sink APIs must be added to that list; an
+   arbitrary user-defined sink is intentionally not trusted.
 4. **No `FnOnce`/`FnMut`/`Fn` callable model.**
    Non-`Copy` nested aggregate captures cannot be moved out of a reusable
    callback; they are an explicit lowering error. `SAFE-MOVE-002` prevents the
@@ -265,19 +263,16 @@ memory safety.
    and `Box<dyn I>`/`Arc<dyn I>` cannot cross threads. Full `dyn` bounds are
    M1.19.
 
-7. **Async runtime allocations are not uniformly checked.**
-   `channel.ch`, `vector::resize`, and `string::move_data_to_heap` now reject
-   allocation failure/capacity overflow. Several future constructors in
-   `yield.ch`, `time.ch`, `exec.ch`, `blocking.ch`, `combinators.ch`, and
-   `reactor.ch` still allocate state/vtables without a null check before
-   dereferencing. Audit these under S5.3 before release.
-
-8. **The audit gate is local, not CI-wired.**
-   `scripts/safety-audit.sh` enforces no-growth against
-   `lang/docs/safety/audit-baseline.json`, but `.github/workflows` does not run
-   it. `--update` is a reviewed manual baseline change. Wire it into nightly/PR
-   CI (M8 release hardening).
-
+7. **Async runtime allocation checks are current but must stay current.**
+   Every future constructor in `yield.ch`, `time.ch`, `exec.ch`, `blocking.ch`,
+   `combinators.ch`, `reactor.ch`, and `frame.ch` now checks its `malloc`; new
+   constructors must use the same checked/`new` pattern. Broader stdlib
+   allocation-failure coverage remains part of M7.
+8. **The audit gate is now CI-wired, but platform breadth remains.**
+   `.github/workflows/safety-audit.yml` runs `scripts/safety-audit.sh` on
+   pull requests and `main`. The audit module list is host-platform-oriented;
+   Windows/OS-gated sources need target-specific audit coverage, and
+   `--update` remains a reviewed manual baseline change.
 9. **Audit reporting details.**
    `SafetyReportVisitor` now walks `ImplDefinition` bodies (previously skipped
    entirely). Generic master/concrete impls can double-count some syntax, so the
@@ -313,9 +308,11 @@ Use the witness-carrying forms when a signature must expose a guarantee:
   marker is `!Send`/`!Sync`; only join-before-return scoped APIs accept it.
 - `std::typed_function<F, C>` — expose the concrete capture environment `C`.
 
-`@scoped_callback` is the audited contract for forwarding a
+`@scoped_callback` is the compiler-checked contract for forwarding a
 `scoped_send_function` parameter. Without it, constructing a borrowed capture
-for a parameter requires `unsafe` (`SAFE-UNSAFE-002`).
+for a parameter requires `unsafe` (`SAFE-UNSAFE-002`). Use is additionally
+checked by `SAFE-SCOPED-001`: returning, storing, capturing, or passing the
+parameter to an unknown callee is rejected.
 
 Capturing closures that borrow local storage require an `unsafe` boundary
 unless they are passed to a recognized join-before-return scoped API. Owned
@@ -393,6 +390,7 @@ Coded output renders `error[SAFE-*]:` / `warn[SAFE-*]:`; uncoded output keeps
 | `SAFE-DROP-001` | invalid destructor signature |
 | `SAFE-FFI-001` | `@extern` call in safe context |
 | `SAFE-FFI-002` | by-value Chemical variant across `@extern` ABI |
+| `SAFE-FFI-003` | LLVM by-value extern aggregate on unsupported target ABI |
 | `SAFE-GLOBAL-001` | mutable/extern global access in safe context |
 | `SAFE-GLOBAL-002` | immutable global whose type is not `Sync` |
 | `SAFE-INIT-001` | use/move/drop of an uninitialized place |
@@ -400,10 +398,12 @@ Coded output renders `error[SAFE-*]:` / `warn[SAFE-*]:`; uncoded output keeps
 | `SAFE-LIFE-002` | loan outlives referent storage |
 | `SAFE-LIFE-003` | returned reference violates declared return lifetime |
 | `SAFE-LIFE-004` | type does not satisfy `'static`/lifetime bound |
+| `SAFE-LIFE-005` | future-containing value passed to a retaining safe API |
 | `SAFE-MOVE-001` | move/access/assignment after move, or array-element move |
 | `SAFE-MOVE-002` | non-Copy callback capture moved out of a reusable callback |
 | `SAFE-PROV-001` | raw/integer/null converted to a reference |
 | `SAFE-REPR-001` | invalid `@repr("transparent")` shape |
+| `SAFE-SCOPED-001` | `@scoped_callback` parameter used outside a scoped sink |
 | `SAFE-SEND-001` | async frame not provably `Send + 'static` |
 | `SAFE-SEND-002` | callback capture not provably `Send`/`Send + 'static` |
 | `SAFE-TRAIT-001` | `unsafe interface` implemented without `unsafe impl` |

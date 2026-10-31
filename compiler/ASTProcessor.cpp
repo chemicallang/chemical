@@ -2018,7 +2018,8 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
                     d.code != nullptr ? std::string_view(d.code) : std::string_view();
                 const bool fatal =
                     code == "SAFE-LIFE-001" || code == "SAFE-LIFE-002" ||
-                    code == "SAFE-LIFE-003" || code == "SAFE-BORROW-001" ||
+                    code == "SAFE-LIFE-003" || code == "SAFE-LIFE-005" ||
+                    code == "SAFE-BORROW-001" ||
                     code == "SAFE-BORROW-002" || code == "SAFE-BORROW-099" ||
                     code == "SAFE-VALID-008";
                 if (fatal) {

@@ -78,7 +78,14 @@ public func <T> select_drop(frame : *mut void) {
 public func <T> select(a : core::async::FutureHandle<T>, b : core::async::FutureHandle<T>) : core::async::FutureHandle<T> {
         unsafe {
         var st = unsafe(malloc(sizeof(SelectState<T>))) as *mut SelectState<T>
+        if(st == null) {
+            panic("failed to allocate select state")
+        }
         var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
+        if(vtbl == null) {
+            unsafe { dealloc st }
+            panic("failed to allocate select vtable")
+        }
         vtbl.poll = select_poll<T>
         vtbl.drop = select_drop<T>
         new(st) SelectState<T> {
@@ -142,7 +149,14 @@ public func <T> timeout_or_drop(frame : *mut void) {
 public func <T> timeout_or(handle : core::async::FutureHandle<T>, millis : u64, fallback : T) : core::async::FutureHandle<T> {
         unsafe {
         var st = unsafe(malloc(sizeof(TimeoutOrState<T>))) as *mut TimeoutOrState<T>
+        if(st == null) {
+            panic("failed to allocate timeout state")
+        }
         var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
+        if(vtbl == null) {
+            unsafe { dealloc st }
+            panic("failed to allocate timeout vtable")
+        }
         vtbl.poll = timeout_or_poll<T>
         vtbl.drop = timeout_or_drop<T>
         new(st) TimeoutOrState<T> {

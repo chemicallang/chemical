@@ -6,7 +6,11 @@ public namespace async {
 
     @no_mangle
     public func chemical_async_frame_alloc(size : u64, align : u64) : *mut void {
-        return unsafe(malloc(size))
+        var frame = unsafe(malloc(size))
+        if(frame == null) {
+            panic("failed to allocate async frame")
+        }
+        return frame
     }
 
     @no_mangle

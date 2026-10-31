@@ -45,8 +45,15 @@ func yield_drop(frame : *mut void) {
 public func yield_now() : core::async::FutureHandle<core::async::Unit> {
         unsafe {
         var st = unsafe(malloc(sizeof(YieldState))) as *mut YieldState
+        if(st == null) {
+            panic("failed to allocate yield state")
+        }
         st.yielded = false
         var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<core::async::Unit>))) as *mut core::async::FutureTable<core::async::Unit>
+        if(vtbl == null) {
+            unsafe { dealloc st }
+            panic("failed to allocate yield vtable")
+        }
         vtbl.poll = yield_poll
         vtbl.drop = yield_drop
         st.vtbl = vtbl

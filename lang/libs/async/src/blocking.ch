@@ -114,7 +114,14 @@ public func blocking_pool() : *mut std::concurrent.ThreadPool {
 public unsafe func <T> spawn_blocking(f : std::function<() => T>) : core::async::FutureHandle<T> {
         unsafe {
         var st = unsafe(malloc(sizeof(BlockingState<T>))) as *mut BlockingState<T>
+        if(st == null) {
+            panic("failed to allocate blocking state")
+        }
         var vtbl = unsafe(malloc(sizeof(core::async::FutureTable<T>))) as *mut core::async::FutureTable<T>
+        if(vtbl == null) {
+            unsafe { dealloc st }
+            panic("failed to allocate blocking vtable")
+        }
         vtbl.poll = blocking_poll<T>
         vtbl.drop = blocking_drop<T>
         new(st) BlockingState<T> {

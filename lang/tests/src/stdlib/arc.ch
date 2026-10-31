@@ -178,3 +178,63 @@ func arc_try_unwrap_with_weak_handle(env : &mut TestEnv) {
 
         }
     }
+
+// M6/S6.0: ArcWeak crosses threads under the same bound as Arc. The shared
+// ArcInner lock makes test-and-increment and the last-strong/last-weak drop
+// decisions atomic with respect to each other.
+func arc_worker_read_and_drop(a : std::Arc<int>) : int {
+    return *a.get()
+}
+
+func arc_worker_drop_after_delay(a : std::Arc<int>) : int {
+    std::concurrent.sleep_ms(1)
+    return *a.get()
+}
+
+func <T> arc_weak_needs_send_sync(w : &T) : int where T : Send + Sync { return 0 }
+
+@test
+func arc_weak_is_send_and_sync(env : &mut TestEnv) {
+    var a = std::arc(5)
+    var w = a.downgrade()
+    if(arc_weak_needs_send_sync(&w) != 0) {
+        env.error("ArcWeak should be Send + Sync when T is Send + Sync")
+    }
+}
+
+@test
+func arc_weak_upgrade_races_last_strong_drop(env : &mut TestEnv) {
+    var i = 0
+    while(i < 200) {
+        var a = std::arc(42)
+        var w = a.downgrade()
+        var t = std::thread.spawn<std::Arc<int>, int>(arc_worker_drop_after_delay, a)
+        var up = w.upgrade()
+        if(up is Option.Some) {
+            var Some(b) = up else unreachable
+            if(*b.get() != 42) {
+                env.error("ArcWeak::upgrade returned a destroyed value")
+                return
+            }
+        }
+        t.join()
+        i = i + 1
+    }
+}
+
+@test
+func arc_weak_drop_races_last_strong_drop(env : &mut TestEnv) {
+    var i = 0
+    while(i < 200) {
+        var a = std::arc(7)
+        var w = a.downgrade()
+        var t = std::thread.spawn<std::Arc<int>, int>(arc_worker_drop_after_delay, a)
+        {
+            // Move the weak handle into a shorter scope so its drop can overlap
+            // the worker's last-strong drop.
+            var moved = w
+        }
+        t.join()
+        i = i + 1
+    }
+}

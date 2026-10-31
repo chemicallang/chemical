@@ -101,6 +101,14 @@ public struct RwLockWriteGuard<T> {
     }
 }
 
+// Read/write guards are tied to the thread that acquired the lock. The raw
+// pointers already derive !Send/!Sync; the explicit negatives prevent a future
+// representation change from silently making them transferable.
+impl<T> !Send for RwLockReadGuard<T> { }
+impl<T> !Sync for RwLockReadGuard<T> { }
+impl<T> !Send for RwLockWriteGuard<T> { }
+impl<T> !Sync for RwLockWriteGuard<T> { }
+
 public func <T> new_rwlock(value : T) : RwLock<T> {
     return RwLock<T> {
         lock : rwlock(),

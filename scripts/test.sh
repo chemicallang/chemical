@@ -20,6 +20,7 @@ TEST_INTERPRET=false
 TEST_NEGATIVE=false
 TEST_SAFETY=false
 TEST_MIR=false
+TEST_THREAD_TSAN=false
 TEST_TLS=false
 TEST_PROCESS=false
 TEST_WEBVIEW=false
@@ -61,6 +62,7 @@ usage() {
   echo "  --negative              Run negative (compile-fail) safety tests only"
   echo "  --safety                Run the runtime/parity safety suite (passes --arg-test-safety)"
   echo "  --mirtests              Build and run the MIR unit tests (MIRTests)"
+  echo "  --thread-tsan           Build and run the M6 thread data-race smoke test under TSAN (LLVM only)"
   echo "  --plugins               Include compiler plugin tests (passes --arg-test-plugins)"
   echo "  --tls                   Build & run the TLS integration test suite (passes --arg-test-tls)"
   echo "  --process               Build & run the process/environment test suite (passes --arg-test-process)"
@@ -119,6 +121,7 @@ while [ $# -gt 0 ]; do
     --negative) TEST_NEGATIVE=true ;;
     --safety) TEST_SAFETY=true ;;
     --mirtests) TEST_MIR=true ;;
+    --thread-tsan) TEST_THREAD_TSAN=true ;;
     --plugins) TEST_PLUGINS=true ;;
     --tls) TEST_TLS=true ;;
     --process) TEST_PROCESS=true ;;
@@ -447,6 +450,19 @@ if [ "$TEST_MIR" = true ]; then
   cmake --build "$BUILD_DIR" --config Debug --target MIRTests -j "$JOBS"
   echo "==> Running MIRTests..."
   "$BUILD_DIR/MIRTests"
+  exit $?
+fi
+
+if [ "$TEST_THREAD_TSAN" = true ]; then
+  if [ "$TARGET" != "Compiler" ]; then
+    echo "Error: --thread-tsan requires --llvm (TCC does not support sanitizers)"
+    exit 1
+  fi
+  if [ "$BUILD_TARGET" = true ]; then
+    echo "==> Building Compiler..."
+    cmake --build "$BUILD_DIR" --config Debug --target Compiler -j "$JOBS"
+  fi
+  COMPILER="$BUILD_DIR/Compiler" "$SCRIPT_DIR/thread-tsan.sh"
   exit $?
 fi
 

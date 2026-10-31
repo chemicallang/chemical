@@ -63,6 +63,12 @@ public struct MutexGuard<T> {
     }
 }
 
+// A guard may only be used on the thread that acquired the lock. The raw
+// pointers already derive !Send/!Sync; keep the explicit negative impls so a
+// future representation change cannot silently make guards transferable.
+impl<T> !Send for MutexGuard<T> { }
+impl<T> !Sync for MutexGuard<T> { }
+
 public func <T> new_mutex(value : T) : Mutex<T> {
     return Mutex<T> {
         m : mutex(),

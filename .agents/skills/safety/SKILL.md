@@ -343,7 +343,7 @@ Implemented:
   functions passing/returning a Chemical variant by value; structs/unions use
   the x86-64 SysV C ABI on both backends (pointer FFI remains allowed, other
   target ABIs still need classification). Safety suite `63`, negative tests
-  `639`.
+  `641`.
 - M5.2a validity/determinism: `SAFE-VALID-002` rejects non-bool to `bool`
   casts in safe code (atomic CAS uses `!= 0`); `SAFE-VALID-003` rejects an
   integer literal that is not a declared enum member; `SAFE-VALID-004` rejects
@@ -363,7 +363,7 @@ Implemented:
   single-return comptime calls fold through the AST; template arguments that
   are local consts use their AST initializer. The intermittent
   `span`/`string_view` `intrinsics::size` rejection is gone in repeated
-  TCC/LLVM lib runs. Safety suite `63`, negative `639`; TCC main `2366`, LLVM
+  TCC/LLVM lib runs. Safety suite `63`, negative `641`; TCC main `2366`, LLVM
   main `2364`, libs `730`, plugins `1305`, async `56`, interpret `1910`,
   server `10`, TLS `599`, safety `63`.
 - M5.7a interpreter memory guard: host `malloc`/`realloc` blocks have live and
@@ -453,6 +453,18 @@ Implemented:
   runs a four-thread `Arc<Mutex<int>>` smoke test under TSAN; it uses a system
   LLVM resource directory when the bundled prebuild lacks
   `libclang_rt.tsan.a`.
+- M6.0 Arc/ArcWeak audit: `ArcInner<T>` now uses one mutex for both reference
+  counts. Independent strong/weak locks allowed the last strong and last weak
+  owners to free the block twice, and `ArcWeak::upgrade` could test
+  `strong != 0` and then increment after a concurrent last-strong drop
+  destroyed the value. Count updates, `upgrade`'s test-and-increment, and the
+  last-owner free decision now share that lock; the value destructor runs
+  outside it behind an explicit `value_state` transition so a destructor that
+  touches its own Arc counts cannot deadlock. `ArcWeak<T>` is `Send + Sync`
+  when `T: Send + Sync`; lock guards have explicit `!Send`/`!Sync` impls. New
+  200-iteration runtime tests race upgrade/weak-drop against a worker's
+  last-strong drop on TCC and LLVM. `./scripts/test.sh --llvm --thread-tsan`
+  runs the TSAN smoke test and fails loudly when no TSAN runtime is available.
 - S4.3b autoref / S4.7 two-phase: a reference receiver (`&self` / `&mut self`)
   now lowers to `Borrow`/`BorrowMut` instead of an untracked `AddressOf`, and
   method-call arguments are evaluated before the receiver borrow is activated.
@@ -477,7 +489,7 @@ Implemented:
   Wrapping generic bodies exposed a missing `ValueNode::copy`, now implemented.
   In-tree stdlib/CBI/plugin/build.lab call sites were migrated. The audit now
   compiles the whole-tree entry-point list (`94` modules) with `--check`; the
-  baseline is `unsafe_blocks 3667`, `unsafe_values 4895`; negative `639`.
+  baseline is `unsafe_blocks 3661`, `unsafe_values 4890`; negative `641`.
 - S2.2/S4.8 function pointers: `FunctionTypeData::requires_unsafe` is part of
   function type identity and is set for `unsafe func` and `@extern`. Calling a
   value of such a type in safe context is `SAFE-UNSAFE-002`; coercing it to a

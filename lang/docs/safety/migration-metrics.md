@@ -30,11 +30,11 @@ updated baseline and a justification in the same change.
 
 | Metric | Count |
 |---|---:|
-| `unsafe_blocks` | 3667 |
-| `unsafe_values` | 4895 |
-| `raw_pointer_types` | 9259 |
-| `raw_pointer_derefs` | 974 |
-| `raw_pointer_addrs` | 10010 |
+| `unsafe_blocks` | 3661 |
+| `unsafe_values` | 4890 |
+| `raw_pointer_types` | 9258 |
+| `raw_pointer_derefs` | 969 |
+| `raw_pointer_addrs` | 10005 |
 | `raw_pointer_casts` | 2858 |
 | `extern_decls` | 873 |
 | `extern_calls` | 1260 |
@@ -62,7 +62,7 @@ updated baseline and a justification in the same change.
 | `::tls` | 373 | 1007 | 738 | 164 |
 | `::common_tests` | 290 | 4 | 235 | 17 |
 | `::universal_cbi` | 228 | 15 | 850 | 3 |
-| `::std` | 163 | 117 | 257 | 126 |
+| `::std` | 157 | 112 | 256 | 126 |
 | `::window` | 123 | 24 | 315 | 88 |
 | `::process` | 104 | 78 | 54 | 110 |
 | `::html_cbi` | 91 | 14 | 376 | 2 |

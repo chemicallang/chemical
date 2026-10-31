@@ -852,6 +852,10 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 params += declarator(module, ptypes[i], param_arg_name(nm, i));
             }
         }
+        if (ftr.flags & TF_VARIADIC) {
+            if (!params.empty()) params += ", ";
+            params += "...";
+        }
         std::string head(fnname);
         head += '(';
         head += params;
@@ -871,6 +875,10 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 if (i) out += ", ";
                 char nm[24];
                 append_c_declarator(module, ptypes[i], param_arg_name(nm, i), out);
+            }
+            if (ftr.flags & TF_VARIADIC) {
+                if (!ptypes.empty()) out += ", ";
+                out += "...";
             }
         }
         out += ')';

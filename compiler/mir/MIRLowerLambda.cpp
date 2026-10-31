@@ -593,7 +593,10 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     std::vector<TypeId>& ptypes = _ptypes.v;
     ptypes.push_back(void_ptr);
     if (l_sret) ptypes.push_back(types_.pointer_type(ret, true));
-    for (FunctionParam* p : lamb->params) {
+    const size_t lambda_param_count = lamb->isVariadic() && !lamb->params.empty()
+        ? lamb->params.size() - 1 : lamb->params.size();
+    for (size_t pi = 0; pi < lambda_param_count; ++pi) {
+        FunctionParam* p = lamb->params[pi];
         TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
         if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
             pt = types_.pointer_type(module_.types.get(pt).element, true);
@@ -602,7 +605,8 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
         }
         ptypes.push_back(pt);
     }
-    const TypeId ftype = types_.function_signature(l_sret ? types_.void_type() : ret, ptypes);
+    const TypeId ftype = types_.function_signature(
+        l_sret ? types_.void_type() : ret, ptypes, lamb->isVariadic());
     MIRSymbolRecord rec;
     rec.kind = MIRSymbolKind::Function;
     rec.linkage = MIRLinkage::Internal;
@@ -709,7 +713,8 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     lambda_closure_ptr_ = b.cast(this_v, cap_ptr_t);
     lambda_closure_type_ = cap_type;
 
-    for (FunctionParam* p : lamb->params) {
+    for (size_t pi = 0; pi < lambda_param_count; ++pi) {
+        FunctionParam* p = lamb->params[pi];
         TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
         if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
             pt = types_.pointer_type(module_.types.get(pt).element, true);
@@ -959,7 +964,10 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     std::vector<TypeId>& ptypes = _ptypes.v;
     if (needs_this) ptypes.push_back(void_ptr_t);
     if (l_sret) ptypes.push_back(types_.pointer_type(ret, true));
-    for (FunctionParam* p : lamb->params) {
+    const size_t lambda_param_count = lamb->isVariadic() && !lamb->params.empty()
+        ? lamb->params.size() - 1 : lamb->params.size();
+    for (size_t pi = 0; pi < lambda_param_count; ++pi) {
+        FunctionParam* p = lamb->params[pi];
         TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
         if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
             pt = types_.pointer_type(module_.types.get(pt).element, true);
@@ -968,7 +976,8 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
         }
         ptypes.push_back(pt);
     }
-    const TypeId ftype = types_.function_signature(l_sret ? types_.void_type() : ret, ptypes);
+    const TypeId ftype = types_.function_signature(
+        l_sret ? types_.void_type() : ret, ptypes, lamb->isVariadic());
 
     MIRSymbolRecord rec;
     rec.kind = MIRSymbolKind::Function;
@@ -1070,7 +1079,8 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     }
 
     bool ok = true;
-    for (FunctionParam* p : lamb->params) {
+    for (size_t pi = 0; pi < lambda_param_count; ++pi) {
+        FunctionParam* p = lamb->params[pi];
         TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
         if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
             pt = types_.pointer_type(module_.types.get(pt).element, true);

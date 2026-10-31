@@ -30,8 +30,8 @@ Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2376/2376` |
-| LLVM main | `2374/2374` |
+| TCC main | `2378/2378` |
+| LLVM main | `2376/2376` |
 | `@test` runner | `54/54` |
 | TCC/LLVM negative | `679/679` |
 | TCC/LLVM safety | `64/64` |
@@ -250,7 +250,20 @@ memory safety.
    scoped parameter anywhere except a known join-before-return API (resolved by exact library
    namespace) or another annotated function. New scoped sink APIs must be added to that list; an
    arbitrary user-defined sink is intentionally not trusted.
-4. **`Fn`/`FnMut`/`FnOnce` callable kinds are partially implemented.**\n   `std::Fn<T>` is the reusable callable type; `std::FnMut<T>` requires a\n   mutable local/field receiver; `std::FnOnce<T>` consumes the callback after\n   its first call (`SAFE-MOVE-003` plus the MIR destroyed-state check). A\n   `FnOnce` lambda may move a by-value capture out into an explicit `FnOnce`\n   target; per-capture drop flags prevent double-dropping moved fields.\n   Field-stored `FnOnce` calls move the field into a temporary and zero the\n   source, with a runtime null-callback abort on reuse. `core::ops::Fn`/\n   `FnMut`/`FnOnce` marker bounds are enforced. Generic call syntax through all\n   three bounds is lowered, including capturing lambdas and explicit or\n   non-capturing `FnOnce` callbacks. An untyped capturing lambda initializer\n   now infers a callable type; if its body moves a capture, the type is\n   upgraded to `FnOnce` and a second call is rejected. Remaining: full\n   variadic/associated-output trait bounds and async closures.\n5. **HRTB precision is intentionally incomplete.**
+4. **`Fn`/`FnMut`/`FnOnce` callable kinds are implemented for fixed and variadic
+   function signatures.** `std::Fn<T>` is the reusable callable type;
+   `std::FnMut<T>` requires a mutable local/field receiver; `std::FnOnce<T>`
+   consumes the callback after its first call (`SAFE-MOVE-003` plus the MIR
+   destroyed-state check). A `FnOnce` lambda may move a by-value capture out into
+   an explicit `FnOnce` target; per-capture drop flags prevent double-dropping
+   moved fields. Field-stored `FnOnce` calls move the field into a temporary and
+   zero the source, with a runtime null-callback abort on reuse. `core::ops::Fn`/
+   `FnMut`/`FnOnce` marker bounds are enforced for fixed and variadic signatures,
+   and generic call syntax through all three bounds is lowered, including
+   capturing lambdas and explicit or non-capturing `FnOnce` callbacks. Untyped
+   capturing lambda initializers infer a callable type and upgrade to `FnOnce`
+   when their body moves a capture. Remaining: async closures.
+5. **HRTB precision is intentionally incomplete.**
    Deeper nested aggregate HRTB and multi-borrow callbacks mixing local and
    parameter/global referents (or distinct non-local regions) are explicit
    `SAFE-BORROW-099` rejections. This is a false-negative/rewrite requirement,

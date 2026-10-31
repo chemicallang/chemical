@@ -36,8 +36,8 @@ targets), `dyn` being conservatively `!Send`/`!Sync`/`!Unpin`, and the partially
 implemented `Fn`/`FnMut`/`FnOnce` callable model (call-once/mutable-receiver
 kinds, `FnOnce` capture moves with per-capture drop flags, field-stored `FnOnce`
 calls, callable bounds, generic `Fn`/`FnMut`/`FnOnce` call syntax, `FnMut`
-receiver-chain checks, and inferred/generic capturing Fn callables exist; full
-variadic/associated-output bounds and async closures remain).
+receiver-chain checks, inferred/generic capturing Fn callables, and fixed/variadic
+Fn bounds exist; async closures remain).
 `@scoped_callback` is body-checked by `SAFE-SCOPED-001`, async constructors
 check allocation failure, and the audit gate runs in CI. Load the `safety` skill
 and read `lang/docs/safety-implementation-plan.md` §4.5 before claiming full

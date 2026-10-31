@@ -25,6 +25,14 @@ func <F> consume_capturing_fn_once_bound(f : F) : int where F : core::ops::FnOnc
     return out.size() as int
 }
 
+func variadic_callback_target(x : int, rest : any...) : int {
+    return x + 1
+}
+
+func <F> call_variadic_fn_bound(f : F) : int where F : core::ops::Fn<(x : int, rest : any...) => int> {
+    return f(1, 2, 3)
+}
+
 struct CapLambTestCont {
     var lamb1 : std::function<() => int>
 }
@@ -392,6 +400,14 @@ func test_capturing_lambda() {
         test("generic Fn bound infers a capturing lambda", () => {
             var n = 2
             return call_capturing_fn_bound(|n|(v : int) => { return v + n }, 40) == 42
+        })
+        test("variadic Fn bound calls a variadic function", () => {
+            return call_variadic_fn_bound(variadic_callback_target) == 2
+        })
+        test("variadic Fn bound infers a variadic lambda", () => {
+            return call_variadic_fn_bound(
+                ||(x : int, rest : any...) => { return x + 1 }
+            ) == 2
         })
         test("generic FnOnce bound moves a capturing lambda", () => {
             var s = std::string("hello")

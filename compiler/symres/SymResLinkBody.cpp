@@ -2239,6 +2239,21 @@ void SymResLinkBody::VisitAccessChain(AccessChain *chain) {
 static BaseType* callable_bound_signature_for(FunctionDeclaration* fd,
                                                GenericTypeParameter* param);
 
+static FunctionDeclaration* callable_callee(FunctionCall* call) {
+    if (call == nullptr) return nullptr;
+    if (FunctionDeclaration* fd = call->safe_linked_func()) return fd;
+    if (call->parent_val == nullptr) return nullptr;
+    ASTNode* linked = call->parent_val->get_chain_last_linked();
+    if (linked == nullptr) return nullptr;
+    if (linked->kind() == ASTNodeKind::FunctionDecl) {
+        return linked->as_function_unsafe();
+    }
+    if (linked->kind() == ASTNodeKind::GenericFuncDecl) {
+        return linked->as_gen_func_decl_unsafe()->master_impl;
+    }
+    return nullptr;
+}
+
 void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
 
     const auto parent_val = call->parent_val;
@@ -2301,14 +2316,7 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
                     ASTNode* expected_node = expected_type->get_direct_linked_node();
                     if (expected_node != nullptr &&
                         expected_node->kind() == ASTNodeKind::GenericTypeParam) {
-                        FunctionDeclaration* callee = call->safe_linked_func();
-                        if (callee == nullptr) {
-                            ASTNode* linked = parent_val->get_chain_last_linked();
-                            if (linked != nullptr &&
-                                linked->kind() == ASTNodeKind::FunctionDecl) {
-                                callee = linked->as_function_unsafe();
-                            }
-                        }
+                        FunctionDeclaration* callee = callable_callee(call);
                         if (BaseType* bound_sig = callable_bound_signature_for(
                                 callee,
                                 expected_node->as_generic_type_param_unsafe())) {
@@ -2469,7 +2477,8 @@ static BaseType* callable_bound_signature_for(FunctionDeclaration* fd,
             if (iface == nullptr) continue;
             const auto name = iface->name_view();
             if (name != chem::string_view("Fn") &&
-                name != chem::string_view("FnMut")) {
+                name != chem::string_view("FnMut") &&
+                name != chem::string_view("FnOnce")) {
                 continue;
             }
             BaseType* canonical = trait_type->canonical();
@@ -2532,13 +2541,7 @@ void FunctionCall::report_concrete_types(ASTAllocator& allocator, ASTDiagnoser& 
         return;
     }
 
-    FunctionDeclaration* callee = call->safe_linked_func();
-    if (callee == nullptr && parent_val != nullptr) {
-        ASTNode* linked = parent_val->get_chain_last_linked();
-        if (linked != nullptr && linked->kind() == ASTNodeKind::FunctionDecl) {
-            callee = linked->as_function_unsafe();
-        }
-    }
+    FunctionDeclaration* callee = callable_callee(call);
     unsigned i = 0;
     const auto values_size = values.size();
     while (i < values_size) {
@@ -2596,7 +2599,8 @@ static BaseType* callable_bound_signature(SymResLinkBody& visitor, ASTNode* link
             if (iface == nullptr) continue;
             const auto name = iface->name_view();
             if (name != chem::string_view("Fn") &&
-                name != chem::string_view("FnMut")) {
+                name != chem::string_view("FnMut") &&
+                name != chem::string_view("FnOnce")) {
                 continue;
             }
             BaseType* trait = trait_type;

@@ -2467,14 +2467,24 @@ static void verify_closure_call_kind(TypeVerifier& verifier, FunctionCall* call)
         }
         return;
     }
-    // FnMut: a const binding cannot provide the mutable receiver the callable
-    // needs. Parameters and fields are checked by the normal move/mutation
-    // flow; this catches the simple local case early.
+    // FnMut needs a mutable receiver. Check a direct local binding and a
+    // receiver chain (for example `holder.callback()` or `self.callback()`),
+    // because a `const`/immutable parent cannot provide mutable capture state.
     Value* receiver = unwrap_closure_receiver(call->parent_val);
     if (receiver != nullptr && receiver->val_kind() == ValueKind::Identifier) {
         ASTNode* linked = receiver->as_identifier_unsafe()->linked;
         if (linked != nullptr && linked->kind() == ASTNodeKind::VarInitStmt &&
             linked->as_var_init_unsafe()->is_const()) {
+            verifier.diagnoser.error(call->parent_val).with_code("SAFE-MOVE-003")
+                << "calling a FnMut callback requires a mutable receiver";
+            return;
+        }
+    }
+    if (call->parent_val->val_kind() == ValueKind::AccessChain) {
+        auto* chain = call->parent_val->as_access_chain_unsafe();
+        if (chain->values.size() >= 2 &&
+            !check_chain_mutability(verifier, chain->values,
+                                    (int)chain->values.size() - 2)) {
             verifier.diagnoser.error(call->parent_val).with_code("SAFE-MOVE-003")
                 << "calling a FnMut callback requires a mutable receiver";
         }

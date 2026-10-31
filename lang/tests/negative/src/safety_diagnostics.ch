@@ -515,6 +515,27 @@ func fn_bound_generic_call_compiles(env : &mut TestEnv) {
 }
 
 @test
+func fn_once_bound_generic_call_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <F> consume(f : F) : int where F : core::ops::FnOnce<() => int> {\n    return f()\n}\npublic func main() : int {\n    var s = 20\n    var f : std::FnOnce<() => int> = |s|() => { return s + 1 }\n    return consume(f) - 21\n}\n"
+    expect_compile_success_with_mod(env, "fn_once_bound_generic_call", ch, NEG_MOD_STD_CORE)
+}
+
+@test
+func fn_once_bound_double_call_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <F> consume(f : F) : int where F : core::ops::FnOnce<() => int> {\n    var a = f()\n    var b = f()\n    return a + b\n}\npublic func main() : int {\n    var s = 20\n    var f : std::FnOnce<() => int> = |s|() => { return s }\n    return consume(f)\n}\n"
+    expect_compile_error_with_mod(env, "fn_once_bound_double_call", ch, "FnOnce callback cannot be called after it was moved", NEG_MOD_STD_CORE)
+}
+
+@test
+func fn_mut_field_const_receiver_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct Holder {\n    var f : std::FnMut<() => int>\n}\npublic func main() : int {\n    const h = Holder { f : ||() => { return 1 } }\n    return h.f()\n}\n"
+    expect_compile_error_with_mod(env, "fn_mut_field_const_receiver", ch, "SAFE-MOVE-003", NEG_MOD_STD_CORE)
+}
+
+@test
 func fn_once_capture_move_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var s = std::string(\"hello\")\n    var f : std::FnOnce<() => std::string> = |s|() => {\n        return s\n    }\n    var out = f()\n    return out.size() as int - 5\n}\n"

@@ -12,12 +12,20 @@ func <F> call_fn_bound(f : F) : int where F : core::ops::Fn<() => int> {
     return f()
 }
 
+func <F> consume_fn_once_bound(f : F) : int where F : core::ops::FnOnce<() => int> {
+    return f()
+}
+
 struct CapLambTestCont {
     var lamb1 : std::function<() => int>
 }
 
 struct FnOnceFieldHolder {
     var f : std::FnOnce<() => std::string>
+}
+
+struct FnMutFieldHolder {
+    var f : std::FnMut<() => int>
 }
 
 struct CapLambRefTestCont {
@@ -360,6 +368,15 @@ func test_capturing_lambda() {
             }
             var out = h.f()
             return out.size() == 5
+        })
+        test("generic FnOnce bound consumes the callback", () => {
+            var s = 20
+            var f : std::FnOnce<() => int> = |s|() => { return s + 1 }
+            return consume_fn_once_bound(f) == 21
+        })
+        test("FnMut field call uses a mutable holder", () => {
+            var h = FnMutFieldHolder { f : ||() => { return 9 } }
+            return h.f() == 9
         })
         test("fn once keeps unmoved captures alive until the call", () => {
             var a = std::string("hello")

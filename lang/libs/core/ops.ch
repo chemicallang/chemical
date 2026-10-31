@@ -197,8 +197,8 @@ public interface IndexMut<Idx, Output> : Index<Idx, Output> {
 // Callable-kind bounds. These are marker interfaces over a function signature
 // `F`; the callable kinds themselves are the std capture-type aliases
 // `std::Fn<T>`, `std::FnMut<T>`, and `std::FnOnce<T>`. Generic call syntax
-// through these bounds is still being lowered; the bounds already enforce the
-// callable-kind hierarchy at generic call sites.
+// through these bounds is lowered for explicit/non-capturing callbacks; the
+// bounds enforce the callable-kind hierarchy at generic call sites.
 public interface Fn<F> { }
 public interface FnMut<F> { }
 public interface FnOnce<F> { }

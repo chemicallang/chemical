@@ -35,8 +35,9 @@ are the full target-aware C ABI (`SAFE-FFI-003` now rejects unsupported LLVM
 targets), `dyn` being conservatively `!Send`/`!Sync`/`!Unpin`, and the partially
 implemented `Fn`/`FnMut`/`FnOnce` callable model (call-once/mutable-receiver
 kinds, `FnOnce` capture moves with per-capture drop flags, field-stored `FnOnce`
-calls, callable bounds, and `Fn`/`FnMut` generic call syntax exist; `FnOnce`
-generic-call ownership, inferred once lambdas, and async closures remain).
+calls, callable bounds, generic `Fn`/`FnMut`/`FnOnce` call syntax, and `FnMut`
+receiver-chain checks exist; inferred once lambdas, capturing generic lambda
+inference, and async closures remain).
 `@scoped_callback` is body-checked by `SAFE-SCOPED-001`, async constructors
 check allocation failure, and the audit gate runs in CI. Load the `safety` skill
 and read `lang/docs/safety-implementation-plan.md` §4.5 before claiming full

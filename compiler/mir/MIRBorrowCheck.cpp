@@ -475,6 +475,99 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
         }
     }
 
+    // A reference parameter is a caller-owned borrow. Seed it as a loan so
+    // passing it through a wrapper/future call carries the caller's region
+    // instead of looking like an unborrowed value. This is the call-site side
+    // of lifetime inference for `fn wrap(x: &'a T) -> FutureHandle<'a, U>`.
+    for (uint32_t p = 0; p < function.places.size(); ++p) {
+        const MIRPlaceDef& pd = function.places[p];
+        if (pd.storage_class != static_cast<uint8_t>(MIRStorageClass::Parameter)) {
+            continue;
+        }
+        if (!has_fn_region_sig || !fn_region_sig.future_return) continue;
+        if (pd.type == MIR_INVALID_ID || pd.type >= module.types.types.size()) {
+            continue;
+        }
+        const MIRTypeRecord& tr = module.types.types[pd.type];
+        // MIR lowers `&T` parameters to pointer slots. A pointer parameter is
+        // a caller-owned reference only when its region signature names an
+        // input region; raw-pointer parameters have no region and stay out.
+        const bool reference_region =
+            has_fn_region_sig && pd.param_index != MIR_INVALID_ID &&
+            pd.param_index < fn_region_sig.param_regions.size() &&
+            fn_region_sig.param_regions[pd.param_index] != MIR_INVALID_ID;
+        if (tr.kind != MIRTypeKind::Reference &&
+            !(tr.kind == MIRTypeKind::Pointer && reference_region)) {
+            continue;
+        }
+        if (place_loans.find(p) != place_loans.end()) continue;
+        Loan loan;
+        loan.target.root = p;
+        loan.target.path = pd.move_path_id;
+        loan.target.param_index = pd.param_index;
+        loan.target.known = true;
+        loan.mutable_loan = (tr.flags & TF_MUTABLE) != 0;
+        loan.start = 0;
+        loan.end = 0;
+        loan.escaped = true;
+        if (has_fn_region_sig && pd.param_index != MIR_INVALID_ID &&
+            pd.param_index < fn_region_sig.param_regions.size()) {
+            loan.region = fn_region_sig.param_regions[pd.param_index];
+        }
+        const uint32_t idx = static_cast<uint32_t>(loans.size());
+        loans.push_back(std::move(loan));
+        place_loans[p] = idx;
+        if (pd.param_index != MIR_INVALID_ID) {
+            place_params[p] = pd.param_index;
+        }
+    }
+
+    auto preserves_reference_parameter_loan = [&](PlaceId pid) -> bool {
+        if (!has_fn_region_sig || !fn_region_sig.future_return) return false;
+        if (pid == MIR_INVALID_ID || pid >= function.places.size()) return false;
+        const MIRPlaceDef& pp = function.places[pid];
+        if (pp.storage_class != static_cast<uint8_t>(MIRStorageClass::Parameter)) {
+            return false;
+        }
+        if (pp.type == MIR_INVALID_ID || pp.type >= module.types.types.size()) {
+            return false;
+        }
+        const MIRTypeRecord& tr = module.types.types[pp.type];
+        if (tr.kind == MIRTypeKind::Reference) return true;
+        return tr.kind == MIRTypeKind::Pointer && has_fn_region_sig &&
+               pp.param_index != MIR_INVALID_ID &&
+               pp.param_index < fn_region_sig.param_regions.size() &&
+               fn_region_sig.param_regions[pp.param_index] != MIR_INVALID_ID;
+    };
+
+    auto ensure_reference_parameter_loan = [&](PlaceId pid) -> uint32_t {
+        const auto existing = place_loans.find(pid);
+        if (existing != place_loans.end()) return existing->second;
+        if (!preserves_reference_parameter_loan(pid)) return MIR_INVALID_ID;
+        const MIRPlaceDef& pp = function.places[pid];
+        const MIRTypeRecord& tr = module.types.types[pp.type];
+        Loan loan;
+        loan.target.root = pid;
+        loan.target.path = pp.move_path_id;
+        loan.target.param_index = pp.param_index;
+        loan.target.known = true;
+        loan.mutable_loan = (tr.flags & TF_MUTABLE) != 0;
+        loan.start = 0;
+        loan.end = 0;
+        loan.escaped = true;
+        if (has_fn_region_sig && pp.param_index != MIR_INVALID_ID &&
+            pp.param_index < fn_region_sig.param_regions.size()) {
+            loan.region = fn_region_sig.param_regions[pp.param_index];
+        }
+        const uint32_t idx = static_cast<uint32_t>(loans.size());
+        loans.push_back(std::move(loan));
+        place_loans[pid] = idx;
+        if (pp.param_index != MIR_INVALID_ID) {
+            place_params[pid] = pp.param_index;
+        }
+        return idx;
+    };
+
     // A coroutine poll/resume function receives references through frame
     // fields that were created before the suspension. Treat each reference
     // frame field as a live loan rooted at the frame pointer so a move/drop of
@@ -856,6 +949,9 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 }
                 // Loading a reference local yields another value carrying its loan.
                 if (ops[0].kind() == MIROperandKind::Place) {
+                    if (ops[0].id < function.places.size()) {
+                        ensure_reference_parameter_loan(ops[0].id);
+                    }
                     const auto it = place_loans.find(ops[0].id);
                     if (it != place_loans.end() && inst.result_or_place != MIR_INVALID_ID) {
                         value_loans[inst.result_or_place] = it->second;
@@ -1016,14 +1112,14 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                                 place_loans[ops[0].id] = lit->second;
                                 loans[lit->second].end = lin;
                                 place_loans.erase(ops[1].id);
-                            } else {
+                            } else if (!preserves_reference_parameter_loan(ops[0].id)) {
                                 place_loans.erase(ops[0].id);
                             }
                             const auto pit = place_params.find(ops[1].id);
                             if (pit != place_params.end()) {
                                 place_params[ops[0].id] = pit->second;
                                 place_params.erase(ops[1].id);
-                            } else {
+                            } else if (!preserves_reference_parameter_loan(ops[0].id)) {
                                 place_params.erase(ops[0].id);
                             }
                             const auto pal = place_aliases.find(ops[1].id);
@@ -1134,7 +1230,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         if (!copying) {
                             place_params.erase(ops[1].id);
                         }
-                    } else {
+                    } else if (!preserves_reference_parameter_loan(ops[0].id)) {
                         place_params.erase(ops[0].id);
                     }
                     const auto pa = place_aliases.find(ops[1].id);
@@ -1477,11 +1573,14 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                             }
                         }
                     } else if (ops[i].kind() == MIROperandKind::Place &&
-                               has_callsite_sig) {
+                               (has_callsite_sig ||
+                                (known && preserves_reference_parameter_loan(
+                                              ops[i].id)))) {
                         // Place-formed reference arguments are needed by the
-                        // HRTB callsite contract; ordinary calls keep the
-                        // pre-existing value-only behavior so moving a local
-                        // view into a normal call still ends its loan.
+                        // HRTB callsite contract and by ordinary calls that pass
+                        // a reference parameter through (`fn wrap(x: &'a T)`).
+                        // Other place operands keep the pre-existing behavior so
+                        // moving a local by-value view still ends its loan.
                         const auto it = place_loans.find(ops[i].id);
                         if (it != place_loans.end() && it->second < loans.size()) {
                             loan = it->second;

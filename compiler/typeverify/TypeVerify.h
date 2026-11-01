@@ -90,6 +90,15 @@ public:
     std::unordered_set<VarInitStatement*> future_capture_locals;
 
     /**
+     * Cache for the syntactic custom-future-consumer check. A safe function
+     * whose body only forwards a future-containing parameter to a known
+     * consumer (or another checked consumer) may be called safely; anything
+     * that could retain the future must stay rejected.
+     */
+    std::unordered_map<FunctionDeclaration*, bool> future_consumer_cache;
+    std::unordered_set<FunctionDeclaration*> future_consumer_checking;
+
+    /**
      * when set, IndexOperator destructible check is skipped
      * used when IndexOperator is on LHS of assignment or wrapped in AddrOfValue/ReferenceOfValue
      */

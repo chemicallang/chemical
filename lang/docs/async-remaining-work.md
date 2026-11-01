@@ -13,7 +13,7 @@ frame + `__poll` + `__drop` + vtable + ramp (helpers as C text, poll/ramp as
 MIR) driven by the shared `AsyncLoweringPlan`, using the
 `AsyncFrameAlloc`/`AsyncAwait`/`AsyncFinish`/`AsyncRampFinish` opcodes and
 frame-resident places (`MIRStorageClass::FrameField`/`FramePtr`). `--async` is
-green (68/68) with no async function routed to legacy. See
+green (69/69) with no async function routed to legacy. See
 `compiler/mir/README.md` and `.agents/skills/mir/SKILL.md`. The items below
 about the *LLVM* coroutine path and the library workarounds still apply.
 

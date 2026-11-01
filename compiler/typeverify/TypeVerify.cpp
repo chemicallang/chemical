@@ -2662,6 +2662,137 @@ static void mark_lambda_target(Value* value, BaseType* target) {
     lambda->capture_target_once = closure_call_kind(target) == ClosureCallKind::FnOnce;
 }
 
+static bool is_safe_future_consumer(TypeVerifier& verifier,
+                                    FunctionDeclaration* callee,
+                                    unsigned depth = 0);
+
+static Value* unwrap_future_consumer_argument(Value* value) {
+    while (value != nullptr) {
+        if (value->val_kind() == ValueKind::CastedValue) {
+            value = value->as_casted_value_unsafe()->value;
+        } else if (value->val_kind() == ValueKind::UnsafeValue) {
+            value = static_cast<UnsafeValue*>(value)->getValue();
+        } else if (value->val_kind() == ValueKind::AccessChain &&
+                   value->as_access_chain_unsafe()->values.size() == 1) {
+            value = value->as_access_chain_unsafe()->values[0];
+        } else {
+            break;
+        }
+    }
+    return value;
+}
+
+/**
+ * Syntactic body check for a user-defined future consumer.
+ *
+ * A safe function with a FutureHandle parameter may be called when its body
+ * only forwards that parameter to a known consumer (`block_on`/`spawn*`) or to
+ * another function that passes this same check. Any other use could retain the
+ * handle (return, field/global store, callback capture, unknown callee), so it
+ * is rejected. This is deliberately conservative; it never accepts an
+ * unproven storing wrapper.
+ */
+class FutureConsumerContract final : public RecursiveVisitor<FutureConsumerContract> {
+public:
+    TypeVerifier& verifier;
+    const std::unordered_set<ASTNode*>& targets;
+    std::unordered_set<Value*> allowed_arguments;
+    bool ok = true;
+
+    FutureConsumerContract(TypeVerifier& verifier,
+                           const std::unordered_set<ASTNode*>& targets)
+        : verifier(verifier), targets(targets) {}
+
+    bool is_target_identifier(Value* value) const {
+        value = unwrap_future_consumer_argument(value);
+        return value != nullptr && value->val_kind() == ValueKind::Identifier &&
+               targets.count(value->as_identifier_unsafe()->linked) != 0;
+    }
+
+    void VisitFunctionCall(FunctionCall* call) {
+        if (call == nullptr) return;
+        FunctionDeclaration* callee = call->safe_linked_func();
+        const bool sink = callee != nullptr &&
+            (is_future_consumer_decl(callee) ||
+             is_safe_future_consumer(verifier, callee));
+        for (Value* arg : call->values) {
+            if (!is_target_identifier(arg)) continue;
+            Value* unwrapped = unwrap_future_consumer_argument(arg);
+            if (sink) {
+                allowed_arguments.insert(unwrapped);
+            } else {
+                ok = false;
+            }
+        }
+        RecursiveVisitor<FutureConsumerContract>::VisitFunctionCall(call);
+    }
+
+    void VisitVariableIdentifier(VariableIdentifier* id) {
+        if (id != nullptr && targets.count(id->linked) != 0 &&
+            allowed_arguments.find(id) == allowed_arguments.end()) {
+            ok = false;
+        }
+        RecursiveVisitor<FutureConsumerContract>::VisitVariableIdentifier(id);
+    }
+
+    void VisitLambdaFunction(LambdaFunction* lambda) {
+        if (lambda != nullptr) {
+            for (CapturedVariable* cap : lambda->captureList) {
+                if (cap != nullptr && targets.count(cap->linked) != 0) {
+                    ok = false;
+                }
+            }
+        }
+        RecursiveVisitor<FutureConsumerContract>::VisitLambdaFunction(lambda);
+    }
+
+    void VisitUnsafeBlock(UnsafeBlock* block) {
+        // A safe consumer must not hide the future in an unsafe operation or
+        // call an unsafe sink; the caller cannot see that boundary.
+        ok = false;
+        RecursiveVisitor<FutureConsumerContract>::VisitUnsafeBlock(block);
+    }
+};
+
+static bool is_safe_future_consumer(TypeVerifier& verifier,
+                                    FunctionDeclaration* callee,
+                                    unsigned depth) {
+    if (callee == nullptr || depth > 8 || !callee->body.has_value()) {
+        return false;
+    }
+    const auto cached = verifier.future_consumer_cache.find(callee);
+    if (cached != verifier.future_consumer_cache.end()) {
+        return cached->second;
+    }
+    if (!verifier.future_consumer_checking.insert(callee).second) {
+        // A forwarding cycle has no proven terminating consumer.
+        return false;
+    }
+    std::unordered_set<ASTNode*> targets;
+    for (FunctionParam* param : callee->params) {
+        if (param == nullptr || param->type == nullptr) continue;
+        if (contains_future_handle_ast_type(
+                const_cast<BaseType*>(param->type.getType()))) {
+            targets.insert(param);
+        }
+    }
+    bool ok = false;
+    if (!targets.empty()) {
+        // A future-returning function already satisfies the caller contract;
+        // it is not a terminal consumer. Requiring a non-future result keeps
+        // this check focused on functions that must release the input.
+        BaseType* result = const_cast<BaseType*>(callee->returnType.getType());
+        if (!contains_future_handle_ast_type(result)) {
+            FutureConsumerContract contract(verifier, targets);
+            contract.VisitScope(&*callee->body);
+            ok = contract.ok;
+        }
+    }
+    verifier.future_consumer_checking.erase(callee);
+    verifier.future_consumer_cache[callee] = ok;
+    return ok;
+}
+
 static void verify_future_argument_contract(TypeVerifier& verifier,
                                             FunctionCall* call) {
     if (call == nullptr || call->values.empty() || verifier.is_unsafe) return;
@@ -2669,7 +2800,8 @@ static void verify_future_argument_contract(TypeVerifier& verifier,
     BaseType* result_type = const_cast<BaseType*>(call->getType());
     const bool result_carries = contains_future_handle_ast_type(result_type);
     if (callee != nullptr && (callee->is_async() || callee->is_unsafe() ||
-                              is_future_consumer_decl(callee))) {
+                              is_future_consumer_decl(callee) ||
+                              is_safe_future_consumer(verifier, callee))) {
         return;
     }
     if (result_carries) return;

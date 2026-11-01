@@ -62,6 +62,13 @@ struct MIRRegionSignature {
     std::vector<std::vector<MIRParamFieldRegion>> param_field_regions;
     /** HRTB binders recorded for a declaration's own lifetime parameters. */
     std::vector<MIRRegionId> hrtb_binders;
+    /**
+     * The declared return type contains a `FutureHandle`. The borrow checker
+     * seeds caller-owned loans for reference parameters only on such functions;
+     * ordinary reference-returning APIs keep their pre-existing inference and
+     * avoid treating every raw-pointer helper as a future-frame alias.
+     */
+    bool future_return = false;
 
     bool has_regions() const {
         return lifetime_param_count != 0 || return_region != MIR_INVALID_ID ||

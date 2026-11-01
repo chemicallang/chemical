@@ -566,3 +566,19 @@ func test_async_spawn_send_stored_handle(env : &mut TestEnv) {
         env.error("a stored SendFutureHandle should be resubmittable")
     }
 }
+
+func consume_future_custom(h : core::async::FutureHandle<int>) : int {
+    return async::block_on<int>(h)
+}
+
+func consume_future_outer(h : core::async::FutureHandle<int>) : int {
+    return consume_future_custom(h)
+}
+
+@test
+func test_future_custom_consumer(env : &mut TestEnv) {
+    var r = consume_future_outer(suspend_two(1))
+    if(r != 42) {
+        env.error("a body-checked custom future consumer should be callable")
+    }
+}

@@ -29,10 +29,13 @@ after that, size + compile time + memory are reduced together. See
 **Safety implementation status (2026-10-31):** the enforceable core is green
 (M0, M3, and the enforceable M4/M5/M6 rules), but full parity is not done. The
 async `FutureHandle<'a, T>` now carries a frame lifetime (`'static` for owning
-frames, elided for borrowed frames) and `SAFE-LIFE-005` rejects safe retaining
-APIs, but full call-site lifetime inference is still missing; other blockers
-are the full target-aware C ABI (`SAFE-FFI-003` now rejects unsupported LLVM
-targets), `dyn` being conservatively `!Send`/`!Sync`/`!Unpin`, and the partially
+frames, elided for borrowed frames); `SAFE-LIFE-005` rejects safe retaining
+APIs, and call-site binding covers reference parameters, aggregate wrappers,
+references/callback captures, and body-checked custom consumers. Higher-order
+and aliased future inference plus non-`Copy` struct-field drop elaboration
+remain; other blockers are the full target-aware C ABI (`SAFE-FFI-003` now
+rejects unsupported LLVM targets), `dyn` being conservatively
+`!Send`/`!Sync`/`!Unpin`, and the partially
 implemented `Fn`/`FnMut`/`FnOnce` callable model (call-once/mutable-receiver
 kinds, `FnOnce` capture moves with per-capture drop flags, field-stored `FnOnce`
 calls, callable bounds, generic `Fn`/`FnMut`/`FnOnce` call syntax, `FnMut`

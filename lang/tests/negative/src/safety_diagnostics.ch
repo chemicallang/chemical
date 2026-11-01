@@ -391,7 +391,7 @@ func neg_future_handle_consumer_namespace_spoof_rejected(env : &mut TestEnv) {
 @test
 func neg_future_handle_reference_cannot_escape_to_retaining_api(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc stash_ref(r : &core::async::FutureHandle<int>) {\n}\npublic func main() : int {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    var h = work(&s)\n    stash_ref(&h)\n    return 0\n}\n"
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc stash_ref(r : &core::async::FutureHandle<int>) : int {\n    var local = r\n    return 0\n}\npublic func main() : int {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    var h = work(&s)\n    stash_ref(&h)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "future_reference_escape_retaining_api", ch, "SAFE-LIFE-005", NEG_MOD_ASYNC_STD)
 }
 
@@ -512,6 +512,41 @@ func future_handle_aggregate_wrapper_same_scope_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct W { var h : core::async::FutureHandle<int> }\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc wrap(h : core::async::FutureHandle<int>) : W {\n    return W { h : h }\n}\npublic func main() : int {\n    var s = std::string(\"A\")\n    var w = wrap(work(&s))\n    return 0\n}\n"
     expect_compile_success_with_mod(env, "future_aggregate_wrapper_same_scope", ch, NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_unsafe_custom_consumer_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc unsafe_consumer(h : core::async::FutureHandle<int>) {\n    unsafe {\n        var f = async::spawn(h)\n    }\n}\npublic func main() : int {\n    var s = std::string(\"A\")\n    var h = work(&s)\n    unsafe_consumer(h)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "future_unsafe_custom_consumer", ch, "SAFE-LIFE-005", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func future_handle_custom_consumer_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc consume_future(h : core::async::FutureHandle<int>) : int {\n    return async::block_on<int>(h)\n}\nfunc consume_outer(h : core::async::FutureHandle<int>) : int {\n    return consume_future(h)\n}\npublic func main() : int {\n    var s = std::string(\"A\")\n    var h = work(&s)\n    return consume_outer(h) - 65\n}\n"
+    expect_compile_success_with_mod(env, "future_custom_consumer", ch, NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_wrong_return_region_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc <'a, 'b> bad(x : &'a std::string, y : &'b std::string) : core::async::FutureHandle<'b, int> {\n    return work(x)\n}\npublic func main() : int {\n    var y = std::string(\"A\")\n    var h : core::async::FutureHandle<int>\n    {\n        var x = std::string(\"B\")\n        h = bad(&x, &y)\n    }\n    var r = async::block_on<int>(h)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "future_wrong_return_region", ch, "SAFE-LIFE-003", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_aggregate_wrapper_erased_lifetime_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct W { var h : core::async::FutureHandle<int> }\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc <'a> wrap(x : &'a std::string) : W {\n    return W { h : work(x) }\n}\nfunc make_w() : W {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    return wrap(&s)\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "future_aggregate_wrapper_erased_lifetime", ch, "SAFE-LIFE-003", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func future_handle_two_lifetime_region_inference_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc <'a, 'b> choose(x : &'a std::string, y : &'b std::string) : core::async::FutureHandle<'a, int> {\n    return work(x)\n}\npublic func main() : int {\n    var x = std::string(\"A\")\n    var h : core::async::FutureHandle<int>\n    {\n        var y = std::string(\"B\")\n        h = choose(&x, &y)\n    }\n    var r = async::block_on<int>(h)\n    return r - 65\n}\n"
+    expect_compile_success_with_mod(env, "future_two_lifetime_inference", ch, NEG_MOD_ASYNC_STD)
 }
 
 @test

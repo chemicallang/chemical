@@ -1080,8 +1080,8 @@
 > (layout and C ABI); C ABI classification for Windows/ARM, FFI wrappers, and
 > deeper HRTB precision remain (variance/temporary-lifetime extension are
 > implemented).
-> Safety suite `64`; negative tests `686`; main TCC `2378`, LLVM `2376`;
-> libs `730`; plugins `1305`; async `68`; interpret `1910`; server `10`;
+> Safety suite `64`; negative tests `691`; main TCC `2378`, LLVM `2376`;
+> libs `730`; plugins `1305`; async `69`; interpret `1910`; server `10`;
 > TLS `599`; `MIRTests` `4643 checks`. The whole-tree audit
 > manifest (`lang/docs/safety/audit-modules.txt`) covers `94` modules with
 > `unsafe_blocks 3774` / `unsafe_values 4901` (impl bodies included; see
@@ -1334,9 +1334,9 @@ approximate counts:
 |---|---|
 | TCC main / LLVM main | `2378` / `2376` |
 | `@test` runner | `54` |
-| TCC/LLVM negative | `686` / `686` |
+| TCC/LLVM negative | `691` / `691` |
 | TCC/LLVM safety | `64` / `64` |
-| TCC/LLVM async | `68` / `68` |
+| TCC/LLVM async | `69` / `69` |
 | TCC libs | `730` |
 | `MIRTests` | `4643 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
@@ -1363,9 +1363,18 @@ new number as the honest baseline, not a compiler regression.
    lambda capture list, including an erased `std::function` field/argument
    (including a callback assigned after declaration through the taint set), so a
    borrowed future cannot be hidden behind a reference or callback capture.
-   MIR loan propagation also follows a future-containing aggregate returned by a
-   pass-through wrapper (`fn wrap(h) -> W`). Remaining: full call-site lifetime
-   unification/inference and custom consumer wrappers (conservatively rejected).
+   MIR loan propagation follows a future-containing aggregate returned by a
+   pass-through wrapper (`fn wrap(h) -> W`), distinguishes the declared return
+   region of a wrapper from the region it actually returns (`SAFE-LIFE-003`),
+   and seeds caller-owned loans for reference parameters of future-returning
+   functions, including elided reference parameters. A safe custom consumer is
+   accepted when its body only forwards the handle to a known consumer or
+   another checked consumer; storing/returning/capturing it remains rejected,
+   and a consumer body containing an unsafe block is not trusted.
+   Remaining: higher-order callbacks and generic containers that erase the
+   FutureHandle lifetime inside an unrelated result, plus custom consumers that
+   alias the handle through locals/fields (the body check accepts direct
+   forwarding only).
 2. **Full target-aware C ABI remains M2.** LLVM now rejects by-value `@extern`
    aggregates on non-x86-64-SysV targets with `SAFE-FFI-003`; the C backend uses
    the host C compiler. Windows/ARM ABI support, `repr`/layout coverage,
@@ -2808,3 +2817,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.34 (2026-11-01): async closures. `async |captures|(params) => ...` is now lowered on TCC and LLVM instead of diagnosed. A capturing async closure is conservatively a `FnOnce` callable: the ramp moves the whole `default_function_instance` (including the capture allocation base) into the coroutine frame, `poll` binds captured names through the frame's `fn_data_ptr`, and the frame destroys the instance on normal completion, cancellation, or a never-polled drop. Non-capturing async closures remain reusable function pointers. Explicit `FnOnce`/generic bound targets and field-stored callables are covered; a capturing async closure assigned to `Fn`/`FnMut` is rejected, and a borrowed capture cannot be typed as `FutureHandle<'static, T>` (`SAFE-LIFE-004`). Async suite `68` TCC/LLVM; main `2378`/`2376`; negative `680`; safety `64`; libs `730`; `MIRTests` `4643`.*
 
 *Revision note v4.35 (2026-11-01): `SAFE-LIFE-005` reference and callback-capture closure. `contains_future_handle_ast_type` now recurses through safe references, so `&FutureHandle` (including inside `Option`/arrays/structs) cannot be passed to an unknown safe callee. The argument scan also inspects the real lambda capture list and struct-literal/field initializers, catching a future hidden in a callback whose static `std::function` type erased the capture witness. Added negative tests for a reference escape, a direct capturing lambda argument, a field-stored capturing callback, a callback assigned after declaration, and a future-containing aggregate wrapper returned from a local borrow. Main TCC/LLVM `2378`/`2376`; negative `686`; safety `64`; async `68`; libs `730`; `MIRTests` `4643`. Remaining: full call-site lifetime unification and custom consumer wrappers.*
+
+*Revision note v4.36 (2026-11-01): FutureHandle call-site inference and custom consumers. Reference parameters of future-returning functions are seeded as caller-owned loans (including elided `&T`), so `fn <'a,'b> wrap(x:&'a T) -> FutureHandle<'b,U>` is checked against the region it actually returns (`SAFE-LIFE-003`) instead of synthetic "all inputs outlive the result" edges; those edges now apply only to async functions whose frame retains every input. Aggregate `FutureHandle` returns are detected through references, pointers, arrays, generics, structs, variants, and callback captures. A safe user-defined consumer is accepted when its body only forwards the handle to `block_on`/`spawn*` or another checked consumer; storing, returning, capturing, or passing it to an unknown callee is rejected. Added wrong-region, two-lifetime inference, aggregate-wrapper, custom-consumer, and unsafe-consumer tests. Main TCC/LLVM `2378`/`2376`; negative `691`; safety `64`; async `69`; libs `730`; interpret `1910`; `MIRTests` `4643`.*

@@ -1772,6 +1772,89 @@ static bool is_future_handle_type(BaseType* type) {
     return name == "FutureHandle";
 }
 
+/**
+ * Does a return type contain a FutureHandle in an aggregate/reference/generic
+ * position? A wrapper returning such a value retains the input frame borrow
+ * just like a direct handle return, even when the aggregate spelling erases the
+ * lifetime argument.
+ */
+static bool contains_future_handle_type(BaseType* type,
+                                        std::unordered_set<BaseType*>& visiting,
+                                        unsigned depth = 0) {
+    if (type == nullptr || depth > 8) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr || !visiting.insert(canonical).second) return false;
+    if (is_future_handle_type(canonical)) return true;
+    switch (canonical->kind()) {
+        case BaseTypeKind::Reference:
+            return contains_future_handle_type(
+                const_cast<BaseType*>(canonical->as_reference_type_unsafe()->type),
+                visiting, depth + 1);
+        case BaseTypeKind::Pointer:
+            return contains_future_handle_type(
+                const_cast<BaseType*>(canonical->as_pointer_type_unsafe()->type),
+                visiting, depth + 1);
+        case BaseTypeKind::Array:
+            return contains_future_handle_type(
+                const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
+                visiting, depth + 1);
+        case BaseTypeKind::Generic: {
+            auto* gen = canonical->as_generic_type_unsafe();
+            for (auto& arg : gen->types) {
+                if (contains_future_handle_type(
+                        const_cast<BaseType*>(arg.getType()), visiting,
+                        depth + 1)) {
+                    return true;
+                }
+            }
+            break;
+        }
+        case BaseTypeKind::CapturingFunction: {
+            auto* cap = canonical->as_capturing_func_type_unsafe();
+            if (cap->capture_env &&
+                contains_future_handle_type(
+                    const_cast<BaseType*>(cap->capture_env.getType()),
+                    visiting, depth + 1)) {
+                return true;
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    auto* container = canonical->get_members_container();
+    if (container == nullptr) return false;
+    for (BaseDefMember* member : container->variables()) {
+        if (member == nullptr) continue;
+        if (member->kind() == ASTNodeKind::StructMember) {
+            auto* field = member->as_struct_member_unsafe();
+            if (field != nullptr && contains_future_handle_type(
+                    const_cast<BaseType*>(field->type.getType()), visiting,
+                    depth + 1)) {
+                return true;
+            }
+        } else if (member->kind() == ASTNodeKind::VariantMember) {
+            auto* variant = member->as_variant_member_unsafe();
+            if (variant != nullptr) {
+                for (auto& entry : variant->values) {
+                    auto* param = entry.second;
+                    if (param != nullptr && contains_future_handle_type(
+                            const_cast<BaseType*>(param->type.getType()),
+                            visiting, depth + 1)) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+static bool contains_future_handle_type(BaseType* type) {
+    std::unordered_set<BaseType*> visiting;
+    return contains_future_handle_type(type, visiting);
+}
+
 static chem::string_view region_lifetime_of(BaseType* type) {
     if (type == nullptr) return {};
     // Direct `&'a T` first; then aggregate/generic lifetime arguments such as
@@ -1843,7 +1926,7 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
         }
     }
     const bool future_handle_return =
-        is_future_handle_type(const_cast<BaseType*>(decl->returnType.getType()));
+        contains_future_handle_type(const_cast<BaseType*>(decl->returnType.getType()));
     bool has_non_self_reference_param = false;
     for (FunctionParam* param : decl->params) {
         if (param == nullptr || param->type == nullptr) continue;
@@ -1861,6 +1944,12 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
     // built from an fd/int and do not actually retain the receiver.
     const bool future_borrow_return = future_handle_return &&
         (decl->is_async() || has_non_self_reference_param);
+    // Only an async function's own frame retains every borrowed input. A
+    // non-async pass-through wrapper returns a future produced by another call;
+    // its actual loan is mapped from that call, so adding synthetic
+    // `param_region -> return_region` edges here would falsely claim that every
+    // input outlives the declared return lifetime.
+    const bool async_future_return = future_handle_return && decl->is_async();
     std::vector<std::string_view> param_lifetimes;
     param_lifetimes.reserve(decl->params.size());
     for (FunctionParam* param : decl->params) {
@@ -1871,10 +1960,10 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
             (param->name_view() == "self" || param->name_view() == "this")) {
             lt = "elided";
         }
-        // An async future's frame retains every direct `&T` parameter. A
-        // reference without an explicit lifetime is the elided input region;
-        // tie it to the synthetic future return region below.
-        if (lt.empty() && future_borrow_return && param && param->type) {
+        // An elided reference parameter is the caller's input region. Tie it
+        // to the synthetic future return region below when applicable, and give
+        // ordinary wrappers a caller-visible region for result-loan mapping.
+        if (lt.empty() && param && param->type) {
             BaseType* pt = const_cast<BaseType*>(param->type.getType());
             BaseType* pc = pt != nullptr ? pt->canonical() : nullptr;
             if (pc != nullptr && pc->kind() == BaseTypeKind::Reference) {
@@ -1906,6 +1995,7 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
         std::string_view(return_lt.data(), return_lt.size()),
         outlives
     );
+    sig.future_return = future_handle_return;
     // A generic function's own lifetime parameters are universally quantified
     // at every use site (the higher-ranked contract of a function value).
     // Container lifetimes are not: they come from the enclosing instantiation.
@@ -1915,7 +2005,7 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
             sig.hrtb_binders.push_back(static_cast<MIRRegionId>(i + 1));
         }
     }
-    if (future_borrow_return && sig.return_region != MIR_INVALID_ID &&
+    if (async_future_return && sig.return_region != MIR_INVALID_ID &&
         sig.return_region != MIR_REGION_STATIC) {
         // The future owns a frame containing every borrowed input. Make the
         // declared return region outlived by each parameter region so the
@@ -2028,7 +2118,7 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
             }
         }
     }
-    if (future_borrow_return && sig.return_region != MIR_INVALID_ID &&
+    if (async_future_return && sig.return_region != MIR_INVALID_ID &&
         sig.return_region != MIR_REGION_STATIC) {
         for (const auto& fields : sig.param_field_regions) {
             for (const MIRParamFieldRegion& fr : fields) {

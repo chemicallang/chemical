@@ -33,9 +33,9 @@ Latest measured baseline:
 | TCC main | `2378/2378` |
 | LLVM main | `2376/2376` |
 | `@test` runner | `54/54` |
-| TCC/LLVM negative | `686/686` |
+| TCC/LLVM negative | `691/691` |
 | TCC/LLVM safety | `64/64` |
-| TCC/LLVM async | `68/68` |
+| TCC/LLVM async | `69/69` |
 | TCC libs | `730/730` |
 | `MIRTests` | `4643 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
@@ -245,9 +245,16 @@ memory safety.
    including erased `std::function` fields/arguments and callbacks assigned
    after declaration, so a borrowed future cannot hide behind a reference or
    callback capture. MIR loan propagation also follows a future-containing
-   aggregate returned by a pass-through wrapper. Remaining: full call-site
-   lifetime inference/unification and custom safe consumer wrappers
-   (conservatively rejected).
+   aggregate returned by a pass-through wrapper, checks the wrapper's actual
+   return region against its declared `FutureHandle` lifetime, and seeds loans
+   for reference parameters of future-returning functions (including elided
+   `&T`). A safe custom consumer is accepted when its body only forwards the
+   handle to a known consumer or another checked consumer; storing, returning,
+   capturing, or passing it to an unknown callee is rejected; a consumer body
+   containing an unsafe block is not trusted. Remaining:
+   higher-order callbacks, generic containers that erase the handle lifetime in
+   an unrelated result, and consumers that alias the handle through locals or
+   fields.
 2. **Full target-aware C ABI remains M2.** LLVM now rejects by-value `@extern`
    aggregates on targets other than x86-64 SysV (`SAFE-FFI-003`); the C backend
    delegates to the host compiler. Windows/ARM ABI support, `repr`/layout

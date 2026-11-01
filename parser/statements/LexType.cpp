@@ -25,6 +25,7 @@
 #include "ast/types/AnyType.h"
 #include "ast/types/BoolType.h"
 #include "ast/types/StructType.h"
+#include "ast/structures/StructMember.h"
 #include "ast/types/UnionType.h"
 #include "ast/types/DoubleType.h"
 #include "ast/types/FloatType.h"
@@ -240,6 +241,57 @@ BaseType* make_dynamic_type(ASTAllocator& allocator, BaseType* elem_type, Source
             // TODO error out unknown child type with dynamic type
             return new (allocator.allocate<DynamicType>()) DynamicType(t);
     }
+}
+
+StructType* Parser::makeTupleType(ASTAllocator& allocator, const std::vector<TypeLoc>& types,
+                                  SourceLocation location) {
+    auto* tuple = new (allocator.allocate<StructType>()) StructType(
+        chem::string_view(""), parent_node, location);
+    tuple->is_tuple = true;
+    for(size_t i = 0; i < types.size(); i++) {
+        std::string field_name = "_" + std::to_string(i);
+        const auto name = allocate_view(allocator,
+            chem::string_view(field_name.data(), field_name.size()));
+        auto* member = new (allocator.allocate<StructMember>()) StructMember(
+            name, types[i], nullptr, tuple, types[i].getLocation(), false,
+            AccessSpecifier::Public);
+        tuple->insert_variable_no_check(member);
+    }
+    return tuple;
+}
+
+TypeLoc Parser::parseTupleTypeLoc(ASTAllocator& allocator) {
+    auto* start = token;
+    token++; // '('
+    std::vector<TypeLoc> elements;
+    bool had_comma = false;
+    while(true) {
+        consumeNewLines();
+        if(token->type == TokenType::RParen) break;
+        auto element = parseTypeLoc(allocator);
+        if(!element) {
+            error("expected a type in tuple type");
+            break;
+        }
+        elements.push_back(element);
+        if(consumeToken(TokenType::CommaSym)) {
+            had_comma = true;
+            continue;
+        }
+        break;
+    }
+    if(!consumeToken(TokenType::RParen)) {
+        unexpected_error("expected ')' after tuple type");
+        return getErroredType(allocator);
+    }
+    const auto loc = loc_single(start);
+    if(elements.empty()) {
+        return { typeBuilder.getVoidType(), loc };
+    }
+    if(elements.size() == 1 && !had_comma) {
+        return elements.front();
+    }
+    return { makeTupleType(allocator, elements, loc), loc };
 }
 
 StructType* Parser::parseStructType(ASTAllocator& allocator) {
@@ -540,8 +592,36 @@ TypeLoc Parser::parseTypeLocNoPostOps(ASTAllocator& allocator) {
             return parseStructTypeLoc(allocator);
         case TokenType::UnionKw:
             return parseUnionTypeLoc(allocator);
-        case TokenType::LParen:
-            return parseLambdaTypeLoc(allocator, false);
+        case TokenType::LParen: {
+            // A parenthesized type is a function type only when the matching
+            // `)` is followed by `=>` (or `:`); otherwise it is a tuple type.
+            // The scan is balanced and ignores newlines, so multi-line
+            // function types such as the CSS parser's ValueParserFn work.
+            const Token* p = token;
+            int depth = 0;
+            bool function_type = false;
+            while(p != nullptr) {
+                if(p->type == TokenType::LParen || p->type == TokenType::LBracket ||
+                   p->type == TokenType::LBrace) {
+                    depth++;
+                } else if(p->type == TokenType::RParen || p->type == TokenType::RBracket ||
+                          p->type == TokenType::RBrace) {
+                    depth--;
+                    if(depth == 0) {
+                        p++;
+                        function_type = p != nullptr &&
+                            (p->type == TokenType::LambdaSym ||
+                             p->type == TokenType::ColonSym);
+                        break;
+                    }
+                }
+                p++;
+            }
+            if(function_type) {
+                return parseLambdaTypeLoc(allocator, false);
+            }
+            return parseTupleTypeLoc(allocator);
+        }
         case TokenType::LBracket:{
             auto& t = *token;
             token++;

@@ -363,6 +363,87 @@ TypeId MIRTypeBuilder::aggregate_type(MIRTypeKind kind, const void* decl, BaseTy
     return id;
 }
 
+TypeId MIRTypeBuilder::tuple_type(StructType* type) {
+    std::vector<TypeId> elements;
+    elements.reserve(type->variables().size());
+    for (auto* member : type->variables()) {
+        elements.push_back(member != nullptr && member->known_type() != nullptr
+                               ? map(member->known_type())
+                               : opaque_type());
+    }
+    auto cached = tuple_types_.find(elements);
+    if (cached != tuple_types_.end()) return cached->second;
+
+    MIRTypeRecord r;
+    r.kind = MIRTypeKind::Struct;
+    r.decl = next_decl_id_++;
+    uint8_t flags = TF_NONE;
+    bool copy = true;
+    bool contains_future = false;
+    bool contains_view = false;
+    for (TypeId element : elements) {
+        if (element >= module_.types.size()) continue;
+        const MIRTypeRecord& er = module_.types.get(element);
+        if (er.flags & TF_HAS_DESTRUCTOR) flags |= TF_HAS_DESTRUCTOR;
+        if (er.flags & TF_USER_DESTRUCTOR) flags |= TF_USER_DESTRUCTOR;
+        if (!mir_type_is_copy(module_.types, element)) copy = false;
+        contains_future = contains_future || er.contains_future_handle;
+        contains_view = contains_view || er.contains_borrow_view;
+    }
+    r.flags = flags;
+    r.copy = copy;
+    r.contains_future_handle = contains_future;
+    r.contains_borrow_view = contains_view;
+
+    std::vector<MIRFieldInfo> fields;
+    fields.reserve(elements.size());
+    for (size_t i = 0; i < elements.size(); ++i) {
+        MIRFieldInfo fi;
+        fi.type = elements[i];
+        fi.kind = static_cast<uint8_t>(MIRFieldKind::Direct);
+        fi.index = static_cast<uint32_t>(i);
+        std::string name = "_" + std::to_string(i);
+        fi.name_offset = module_.types.append_field_name(name.data(),
+                                                         static_cast<uint32_t>(name.size()));
+        fi.name_length = static_cast<uint32_t>(name.size());
+        fields.push_back(fi);
+    }
+    const TypeId id = intern(r);
+    const uint32_t field_index = fields.empty() ? MIR_INVALID_ID
+                                                : module_.types.append_fields(fields);
+    module_.types.update(id, [&](MIRTypeRecord& rec) {
+        rec.data_count = static_cast<uint32_t>(fields.size());
+        rec.field_index = field_index;
+    });
+    compute_aggregate_layout(module_.types, id);
+    // Name the C tag structurally, not from MIR ids: the declaration and body
+    // phases may map the same element types to different ids, but a prototype
+    // and its definition must use the same tag.
+    uint64_t name_hash = 1469598103934665603ull;
+    for (auto* member : type->variables()) {
+        const std::string spelling = (member && member->known_type())
+                                         ? member->known_type()->representation()
+                                         : std::string("?");
+        for (unsigned char c : spelling) {
+            name_hash ^= c;
+            name_hash *= 1099511628211ull;
+        }
+        name_hash ^= 0xFFu;
+        name_hash *= 1099511628211ull;
+    }
+    std::string name = "__chx_tuple_" + std::to_string(name_hash);
+    module_.types.set_name(id, name.data(), static_cast<uint32_t>(name.size()));
+    module_.record_inline_struct(id, type);
+    // A tuple used in a prototype needs its tag declared before that
+    // prototype (an incomplete tag is enough; the body is emitted later).
+    MIRDeclItem forward;
+    forward.kind = MIRDeclKind::ForwardStruct;
+    forward.name = name;
+    module_.declarations.items.push_back(std::move(forward));
+    tuple_types_[elements] = id;
+    return id;
+}
+
 void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode* decl,
                                            BaseType* type) {
     if (kind == MIRTypeKind::Int) return; // enums have no fields
@@ -764,6 +845,11 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
             break;
         }
         case BaseTypeKind::Struct: {
+            auto* struct_type = type->as_struct_type_unsafe();
+            if (struct_type->is_tuple) {
+                id = tuple_type(struct_type);
+                break;
+            }
             const void* decl = type->get_direct_linked_struct();
             if (!decl) decl = type->get_direct_linked_node();
             id = aggregate_type(MIRTypeKind::Struct, decl, type);

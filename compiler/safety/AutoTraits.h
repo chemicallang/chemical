@@ -203,6 +203,21 @@ inline bool type_satisfies_auto_trait(
                 send_interface, sync_interface, context);
             return capres;
         }
+        case BaseTypeKind::Struct: {
+            auto* st = type->as_struct_type_unsafe();
+            if (st->is_tuple) {
+                for (auto* member : st->variables()) {
+                    if (member == nullptr || member->known_type() == nullptr) continue;
+                    if (!type_satisfies_auto_trait(
+                            member->known_type(), kind, visiting, index,
+                            send_interface, sync_interface, context)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            break;
+        }
         case BaseTypeKind::Generic: {
             auto* gen = type->as_generic_type_unsafe();
             for(auto& arg : gen->types) {
@@ -312,6 +327,20 @@ inline bool type_satisfies_unpin(
 ) {
     if(type == nullptr) return true;
     switch(type->kind()) {
+        case BaseTypeKind::Struct: {
+            auto* st = type->as_struct_type_unsafe();
+            if (st->is_tuple) {
+                for (auto* member : st->variables()) {
+                    if (member == nullptr || member->known_type() == nullptr) continue;
+                    if (!type_satisfies_unpin(member->known_type(), visiting, index,
+                                              unpin_interface)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            break;
+        }
         case BaseTypeKind::Array:
             return type_satisfies_unpin(
                 const_cast<BaseType*>(type->as_array_type_unsafe()->elem_type.getType()),

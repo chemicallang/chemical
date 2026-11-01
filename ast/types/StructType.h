@@ -19,6 +19,14 @@ public:
     chem::string_view name;
 
     /**
+     * A structural tuple type `(T1, T2, ...)` is represented as an inline
+     * struct whose members are named `_0`, `_1`, ... . The flag keeps its
+     * source spelling and lets type facts (destructor, auto traits) walk the
+     * same member list without materializing a named declaration.
+     */
+    bool is_tuple = false;
+
+    /**
      * constructor
      */
     StructType(
@@ -36,6 +44,10 @@ public:
     }
 
     bool satisfies(BaseType *type) final;
+
+    uint64_t byte_size(const TargetData& target) final {
+        return total_byte_size(target);
+    }
 
     ASTNode* linked_node() override {
         return this;

@@ -357,7 +357,21 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, std::vector<Valu
 
         }
 
+        const bool was_dot = token->type == TokenType::DotSym;
         token++;
+
+        if(was_dot && token->type == TokenType::Number) {
+            auto* number = token;
+            token++;
+            std::string field_name = "_";
+            field_name.append(number->value.data(), number->value.size());
+            const auto name = allocate_view(allocator,
+                chem::string_view(field_name.data(), field_name.size()));
+            values.emplace_back(
+                new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(name, loc_single(number))
+            );
+            continue;
+        }
 
         auto next_id = consumeIdentifierOrKeyword();
         if(next_id) {

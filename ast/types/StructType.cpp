@@ -34,5 +34,9 @@ bool StructType::satisfies(BaseType *type) {
 
 BaseType* StructTypeCopy::copy(ASTAllocator& allocator) {
     const auto type = (StructType*) this;
-    return new (allocator.allocate<StructType>()) StructType(type->name, type->parent(), type->encoded_location());
+    auto* copied = new (allocator.allocate<StructType>()) StructType(
+        type->name, type->parent(), type->encoded_location());
+    copied->is_tuple = type->is_tuple;
+    type->copy_direct_variables_into(*copied, allocator, copied);
+    return copied;
 }

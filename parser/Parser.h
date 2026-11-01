@@ -65,6 +65,9 @@ public:
      */
     ASTNode* parent_node = nullptr;
 
+    /** Suppress diagnostics while speculatively parsing a lambda/parenthesized form. */
+    bool suppress_errors = false;
+
     /**
      * constructor
      */
@@ -335,6 +338,7 @@ public:
      * create info diagnostic with the following message at current token position
      */
     inline void error(const chem::string_view& message) {
+        if(suppress_errors) return;
         diagnostic(DiagSeverity::Error) << message;
     }
 
@@ -342,6 +346,7 @@ public:
      * create info diagnostic with the following message at current token position
      */
     inline void unexpected_error(const chem::string_view& message) {
+        if(suppress_errors) return;
         diagnostic(DiagSeverity::Error) << message << ", got '" << token->value << '\'';
     }
 
@@ -717,6 +722,12 @@ public:
      * parses a single struct type with location
      */
     TypeLoc parseStructTypeLoc(ASTAllocator& allocator);
+
+    /** Build the inline struct backing a tuple type/literal. */
+    StructType* makeTupleType(ASTAllocator& allocator, const std::vector<TypeLoc>& types, SourceLocation location);
+
+    /** Parses `(T1, T2, ...)` in type position. */
+    TypeLoc parseTupleTypeLoc(ASTAllocator& allocator);
 
     /**
      * parses a single union type

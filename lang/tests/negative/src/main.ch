@@ -629,3 +629,9 @@ public func main(argc : int, argv : **char) {
     neg_init_work_dir()
     test_runner(argc, argv)
 }
+@test
+func neg_tuple_element_type_mismatch(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var t : (int, bool) = (1, 2)\n    return 0\n}\n"
+    expect_compile_error(env, "tuple_element_type_mismatch", ch, "does not satisfy type")
+}

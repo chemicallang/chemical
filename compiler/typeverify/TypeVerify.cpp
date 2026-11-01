@@ -1510,6 +1510,20 @@ static bool trait_constraint_satisfied(TypeVerifier& verifier, BaseType* concret
         return zeroable_type_satisfied(verifier, concrete, iface, visiting);
     }
 
+    auto tuple_members_satisfy = [&]() -> bool {
+        if (concrete->kind() != BaseTypeKind::Struct) return false;
+        auto* st = concrete->as_struct_type_unsafe();
+        if (!st->is_tuple) return false;
+        for (auto* member : st->variables()) {
+            if (member == nullptr || member->known_type() == nullptr) return false;
+            if (!trait_constraint_satisfied(verifier, member->known_type(),
+                                            trait_type, context)) {
+                return false;
+            }
+        }
+        return true;
+    };
+
     if (iface->interface_bits.has(InterfaceBits::COPY_BIT)) {
         if (concrete->kind() == BaseTypeKind::Array) {
             return trait_constraint_satisfied(
@@ -1518,6 +1532,7 @@ static bool trait_constraint_satisfied(TypeVerifier& verifier, BaseType* concret
                 trait_type, context
             );
         }
+        if (tuple_members_satisfy()) return true;
         auto* container = concrete->get_members_container();
         if (container == nullptr) return true;
         return verifier.index.get_impl(iface, container) != nullptr;
@@ -1557,6 +1572,7 @@ static bool trait_constraint_satisfied(TypeVerifier& verifier, BaseType* concret
     }
 
     if (iface->interface_bits.has(InterfaceBits::CLONE_BIT)) {
+        if (tuple_members_satisfy()) return true;
         auto* container = concrete->get_members_container();
         if (container == nullptr) return true;
         if (verifier.coreNodes.copy_interface != nullptr &&

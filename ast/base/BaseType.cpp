@@ -153,6 +153,15 @@ bool BaseType::requires_destructor() {
     if(kind() == BaseTypeKind::CapturingFunction) {
         return as_capturing_func_type_unsafe()->instance_type->requires_destructor();
     }
+    if(kind() == BaseTypeKind::Struct) {
+        for(auto* member : as_struct_type_unsafe()->variables()) {
+            if(member != nullptr && member->known_type() != nullptr &&
+               member->known_type()->requires_destructor()) {
+                return true;
+            }
+        }
+        return false;
+    }
     auto node = get_direct_linked_node();
     if(!node) return false;
     auto node_kind = node->kind();

@@ -22,6 +22,11 @@ bool Parser::parseLambdaAfterParamsList(ASTAllocator& allocator, LambdaFunction*
         return false;
     }
 
+    // The `=>` commits this as a lambda (a tuple literal can never have one),
+    // so report any body diagnostics normally even if the caller was probing
+    // the parenthesized form speculatively.
+    suppress_errors = false;
+
     auto braceBlock = parseBraceBlock("lambda", parent_node, allocator);
     if(braceBlock.has_value()) {
         lambda->scope = std::move(braceBlock.value());

@@ -1099,6 +1099,22 @@ void RepresentationVisitor::VisitStringType(StringType *func) {
 }
 
 void RepresentationVisitor::VisitStructType(StructType *def) {
+    if(def->is_tuple) {
+        write("(");
+        unsigned i = 0;
+        const auto size = def->variables().size();
+        for(auto* member : def->variables()) {
+            if(member == nullptr || member->known_type() == nullptr) {
+                write("?");
+            } else {
+                visit(member->known_type());
+            }
+            if(i + 1 < size) write(", ");
+            i++;
+        }
+        write(")");
+        return;
+    }
     write("struct ");
     write(def->name);
     if(!def->inherited.empty()) {

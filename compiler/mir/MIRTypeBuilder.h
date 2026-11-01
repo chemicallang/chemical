@@ -11,6 +11,7 @@
 #include "MIRKeyMap.h"
 
 #include <atomic>
+#include <map>
 #include <functional>
 #include <mutex>
 #include <string>
@@ -18,6 +19,7 @@
 
 class BaseType;
 class ASTNode;
+class StructType;
 
 namespace mir {
 
@@ -189,6 +191,8 @@ private:
     TypeId int_type(bool is_unsigned, uint32_t bits);
     TypeId pointer_like(MIRTypeKind kind, TypeId child, bool is_mutable);
     TypeId aggregate_type(MIRTypeKind kind, const void* decl, BaseType* type);
+    /** Intern a structural tuple aggregate by its element type ids. */
+    TypeId tuple_type(StructType* type);
     TypeId function_type(BaseType* type);
     /** Give an inline (anonymous/locally-named) struct type a stable C name. */
     void ensure_inline_struct_name(TypeId id, BaseType* struct_type);
@@ -248,6 +252,7 @@ private:
     std::function<std::string(ASTNode*)> name_resolver_;
     std::function<bool(BaseType*)> copy_resolver_;
     TypeId fat_pointer_id_ = MIR_INVALID_ID;
+    std::map<std::vector<TypeId>, TypeId> tuple_types_;
     uint32_t inline_counter_ = 0;
     /**
      * Guards `memo_`, `decl_ids_`, `decl_types_`, `fat_pointer_id_` and

@@ -4441,6 +4441,24 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
     if(!structValue->resolve_container(diagnoser)) {
         return;
     }
+    // A tuple literal is represented as an inline struct with `_0`, `_1`, ...
+    // members. Its element types are known only after the element expressions
+    // are linked, so seed them here before the member/initializer checks run.
+    if(auto* tuple_type = structValue->getRefType()->as_struct_type()) {
+        if(tuple_type->is_tuple) {
+            for(auto* member : tuple_type->variables()) {
+                if(member == nullptr) continue;
+                auto found = structValue->values.find(member->name);
+                if(found == structValue->values.end() || found->second.value == nullptr) continue;
+                visit(found->second.value, nullptr);
+                auto* element_type = found->second.value->getType();
+                if(element_type != nullptr) {
+                    member->as_struct_member_unsafe()->type =
+                        TypeLoc(element_type, member->encoded_location());
+                }
+            }
+        }
+    }
     if (!generic_context && !structValue->ensure_specialized_container(generic_instantiator, diagnoser, InstantiationRequirement::SignatureFinalization)) {
         return;
     }

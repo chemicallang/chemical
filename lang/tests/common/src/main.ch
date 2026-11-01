@@ -39,6 +39,7 @@ public func run_common_tests() {
     test_numbers();
     test_floating_expr();
     test_struct_values();
+    test_tuples();
     test_in_value();
     test_for_loop();
     test_inc_dec();

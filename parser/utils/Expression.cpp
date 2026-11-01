@@ -18,6 +18,9 @@
 #include "ast/structures/FunctionParam.h"
 #include "utils/ValueAndOperatorStack.h"
 #include "ast/values/IndexOperator.h"
+#include "ast/values/StructValue.h"
+#include "ast/base/TypeBuilder.h"
+#include "ast/types/StructType.h"
 
 void shunting_yard_on_operator(ValueAndOperatorStack& stack, ValueAndOperatorStack& final, Operation o1) {
     auto o1_precedence = to_precedence(o1);
@@ -142,6 +145,17 @@ static Value* parseAccessChainAfterValue(Parser* parser, ASTAllocator& allocator
         auto type = parser->token->type;
         if (type == TokenType::DotSym) {
             parser->token++;
+            if (parser->token->type == TokenType::Number) {
+                auto* number = parser->token;
+                parser->token++;
+                std::string field_name = "_";
+                field_name.append(number->value.data(), number->value.size());
+                auto name = parser->allocate_view(allocator,
+                    chem::string_view(field_name.data(), field_name.size()));
+                values.push_back(new (allocator.allocate<VariableIdentifier>())
+                    VariableIdentifier(name, parser->loc_single(number)));
+                continue;
+            }
             auto id = parser->consumeIdentifierOrKeyword();
             if (!id) {
                 parser->error("expected identifier after '.'");
@@ -205,7 +219,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
     // lambda with no params
     if(consumeToken(TokenType::RParen)) {
         auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, loc_single(token));;
-        parseLambdaAfterParamsList(allocator, lamb);
+        if(!parseLambdaAfterParamsList(allocator, lamb)) return nullptr;
         return lamb;
     }
 
@@ -220,9 +234,12 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, loc_single(token));
         auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), nullptr, 0, nullptr, false, parent_node, loc_single(identifier));
         lamb->params.emplace_back(param);
-        parseLambdaAfterParamsList(allocator, lamb);
+        if(!parseLambdaAfterParamsList(allocator, lamb)) return nullptr;
         return lamb;
     } else if (consumeToken(TokenType::ColonSym)) {
+        // A parenthesized tuple cannot contain a top-level `:` after its first
+        // element; this is the typed-lambda form, so report type errors.
+        suppress_errors = false;
         const auto typeLoc = parseTypeLoc(allocator);
         auto type = typeLoc.getType();
         if (type) {
@@ -235,43 +252,20 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         if (consumeToken(TokenType::CommaSym)) {
             lamb->setIsVariadic(parseParameterList(allocator, lamb->params, true, false));
         }
-        parseLambdaAfterComma(this, allocator,  lamb);
+        if(!parseLambdaAfterComma(this, allocator,  lamb)) return nullptr;
         return lamb;
     } else if (consumeToken(TokenType::CommaSym)) {
         auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, loc_single(token));
         auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), nullptr, 0, nullptr, false, parent_node, loc_single(identifier));
         lamb->params.emplace_back(param);
         lamb->setIsVariadic(parseParameterList(allocator, lamb->params, true, false));
-        parseLambdaAfterComma(this, allocator, lamb);
+        if(!parseLambdaAfterComma(this, allocator, lamb)) return nullptr;
         return lamb;
     }
 
-    // nested parenthesized expression
-    Value* first_value = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, identifier->value), loc_single(identifier), false);
-    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(loc_single(identifier));
-    chain->values.emplace_back((Value*) first_value);
-    const auto structValue = parseAccessChainAfterId(allocator, chain->values, identifier->position);
-    const auto value = structValue ? structValue : singlify_chain(chain);
-    const auto finalValue = parseAfterValue(allocator, value);
-    auto expr = parseRemainingExpression(allocator, finalValue, identifier);
-
-    if(!consumeToken(TokenType::RParen)) {
-        error("expected ')' after the nested parenthesized expression");
-        return expr;
-    }
-
-    if (token->type == TokenType::DotSym) {
-        expr = parseAccessChainAfterValue(this, allocator, expr);
-    }
-
-    // TODO check for bad syntax
-    // this allows (a as &Point).a as ubigint + 2
-    // as ubigint + 2 should not be allowed maybe ((a as &Point).a as ubigint) + 2
-
-    const auto afterVl = parseAfterValue(allocator, expr);
-
-    return parseRemainingExpression(allocator, afterVl, identifier);
-
+    // Not a lambda parameter list. The caller rolls the token back and parses
+    // this as a parenthesized expression or tuple literal.
+    return nullptr;
 }
 
 Value* Parser::parseParenExpressionNoAfterValue(ASTAllocator& allocator) {
@@ -281,10 +275,52 @@ Value* Parser::parseParenExpressionNoAfterValue(ASTAllocator& allocator) {
 
         token++;
 
-        const auto expression = parseExpression(allocator, false, false);
+        const auto expression = parseExpression(allocator, true, false);
         if(!expression) {
             error("expected a nested expression after '(' in the expression");
             return nullptr;
+        }
+
+        if (consumeToken(TokenType::CommaSym)) {
+            std::vector<Value*> elements;
+            elements.push_back(expression);
+            while(true) {
+                consumeNewLines();
+                if(token->type == TokenType::RParen) break;
+                auto element = parseExpression(allocator, true, false);
+                if(!element) {
+                    error("expected an expression in tuple value");
+                    break;
+                }
+                elements.push_back(element);
+                if(!consumeToken(TokenType::CommaSym)) break;
+            }
+            consumeNewLines();
+            if (!consumeToken(TokenType::RParen)) {
+                error("missing ')' after tuple value");
+                return nullptr;
+            }
+            std::vector<TypeLoc> types;
+            types.reserve(elements.size());
+            for(auto* element : elements) {
+                BaseType* type = element ? element->getType() : nullptr;
+                types.push_back(TypeLoc(type ? type : (BaseType*) typeBuilder.getVoidType(),
+                                        element ? element->encoded_location() : loc_single(&tok)));
+            }
+            auto* tuple_type = makeTupleType(allocator, types, loc_single(&tok));
+            auto* tuple_value = new (allocator.allocate<StructValue>()) StructValue(
+                tuple_type, loc_single(&tok));
+            for(size_t i = 0; i < elements.size(); i++) {
+                std::string field_name = "_" + std::to_string(i);
+                const auto name = allocate_view(allocator,
+                    chem::string_view(field_name.data(), field_name.size()));
+                tuple_value->values.emplace(name,
+                    StructMemberInitializer{name, elements[i]});
+            }
+            if(token->type == TokenType::DotSym) {
+                return parseAccessChainAfterValue(this, allocator, tuple_value);
+            }
+            return tuple_value;
         }
 
         if (!consumeToken(TokenType::RParen)) {
@@ -386,13 +422,21 @@ Value* Parser::parseExpression(ASTAllocator& allocator, bool parseStruct, bool p
 
     if (token->type == TokenType::LParen) {
         if(parseLambda) {
+            // `(a, b)` is ambiguous with an untyped lambda parameter list.
+            // Try the lambda form speculatively, roll back to the `(` on
+            // failure, and let the normal parenthesized/tuple parser handle it.
+            Token* const lambda_start = token;
+            const int lambda_generic_depth = pending_greater_count;
             token++;
+            const bool previous_suppression = suppress_errors;
+            suppress_errors = true;
             auto value = parseLambdaOrExprAfterLParen(allocator);
+            suppress_errors = previous_suppression;
             if(value) {
                 return value;
-            } else {
-                token--;
             }
+            token = lambda_start;
+            pending_greater_count = lambda_generic_depth;
         }
         const auto start_tok = token;
         auto parenExpression = parseParenExpression(allocator);

@@ -416,7 +416,6 @@ bool member_requires_dtor(BaseType* mt) {
 void MIRLowerer::register_destructible(PlaceId place, BaseType* type,
                                        bool whole_value_initialized) {
     const SymbolId dtor = destructor_symbol(type);
-    if (dtor == MIR_INVALID_ID) return;
 
     // A local or by-value parameter whose struct only has generated drop glue
     // tracks each destructible field/element separately. The flags are armed
@@ -433,10 +432,22 @@ void MIRLowerer::register_destructible(PlaceId place, BaseType* type,
         field_wise_storage = storage == MIRStorageClass::Local ||
                              storage == MIRStorageClass::Parameter;
     }
+    bool tuple_field_wise = false;
     if (field_wise_storage) {
         BaseType* canon = type ? type->canonical() : nullptr;
         ASTNode* node = canon ? canon->get_direct_linked_canonical_node() : nullptr;
-        if (canon && canon->kind() == BaseTypeKind::Array) {
+        if (canon && canon->kind() == BaseTypeKind::Struct &&
+            canon->as_struct_type_unsafe()->is_tuple) {
+            auto* st = canon->as_struct_type_unsafe();
+            for (auto* var : st->variables()) {
+                if (!var || !var->known_type()) continue;
+                if (!member_requires_dtor(var->known_type())) continue;
+                field_flags.push_back(
+                    build_drop_field(var->name, var->known_type(), 1)
+                );
+            }
+            tuple_field_wise = true;
+        } else if (canon && canon->kind() == BaseTypeKind::Array) {
             // A fixed array of destructible elements can be built element by
             // element when the index is a compile-time constant. Very large
             // arrays keep the whole-value drop (partial init stays rejected).
@@ -469,6 +480,8 @@ void MIRLowerer::register_destructible(PlaceId place, BaseType* type,
             }
         }
     }
+    if (dtor == MIR_INVALID_ID && !tuple_field_wise) return;
+
     const bool field_wise = !field_flags.empty();
     if (field_wise) {
         builder_->function().places[place].field_wise_drop = true;
@@ -546,6 +559,17 @@ MIRLowerer::MIRDropField MIRLowerer::build_drop_field(const chem::string_view& n
     f.type = type;
     BaseType* canon = type ? type->canonical() : nullptr;
     ASTNode* node = canon ? canon->get_direct_linked_canonical_node() : nullptr;
+    if (depth < 32 && canon && canon->kind() == BaseTypeKind::Struct &&
+        canon->as_struct_type_unsafe()->is_tuple) {
+        for (auto* var : canon->as_struct_type_unsafe()->variables()) {
+            if (!var || !var->known_type()) continue;
+            if (!member_requires_dtor(var->known_type())) continue;
+            f.children.push_back(
+                build_drop_field(var->name, var->known_type(), depth + 1)
+            );
+        }
+        if (!f.children.empty()) return f;
+    }
     if (depth < 32 && canon && node && node->kind() == ASTNodeKind::StructDecl &&
         !canon->has_user_destructor()) {
         auto* sd = node->as_struct_def_unsafe();

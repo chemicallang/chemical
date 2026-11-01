@@ -30,18 +30,18 @@ Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2406/2406` |
-| LLVM main | `2404/2404` |
+| TCC main | `2409/2409` |
+| LLVM main | `2407/2407` |
 | `@test` runner | `56/56` |
 | TCC/LLVM negative | `727/727` |
-| TCC/LLVM safety | `71/71` |
+| TCC/LLVM safety | `72/72` |
 | TCC/LLVM async | `69/69` |
 | TCC libs | `730/730` |
 | TCC plugins | `1305/1305` |
 | TCC interpret | `1921/1921` |
 | `MIRTests` | `4682 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
-| Whole-tree audit | `unsafe_blocks 3775`, `unsafe_values 4904`, `raw_pointer_types 9368`, `raw_pointer_derefs 1069`, `panic_calls 107` |
+| Whole-tree audit | `unsafe_blocks 3775`, `unsafe_values 4907`, `raw_pointer_types 9370`, `raw_pointer_derefs 1069`, `panic_calls 108` |
 | Audit result | `no growth` against `lang/docs/safety/audit-baseline.json` |
 
 The audit totals increased from the historical `3661/4890` in the 2026-10-31
@@ -365,8 +365,9 @@ memory safety.
     vector-backed `std::boxed_slice<T>`, and `&str` to UTF-8-validated
     `std::str` (`lang/docs/slices.md`). Indexing, mutable writes, ownership
     moves, UTF-8 validation, and local-escape rejection are implemented. The
-    `IndexMut` interface now declares `index_mut`. Explicit `&'a` lifetimes, range indexing, `split_at`/`split`/`windows`,
-    and slice patterns remain M1 work.
+    `IndexMut` interface now declares `index_mut`. Explicit `&'a` lifetimes,
+    range indexing, `split`/`windows`/`chunks`, and slice patterns remain M1
+    work.
 
 14. **Tuples are a first slice.** `(T1, T2)` types, `(e1, e2)` literals,
     `._0` access, parameters/returns, nested tuples, `Copy`/`Send`/`Sync`/`Unpin`

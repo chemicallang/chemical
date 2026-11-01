@@ -524,9 +524,9 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 auto mark_element_initialized = [&]() {
                     if (eflag != MIR_INVALID_ID) builder_->set_drop(eflag, true);
                 };
-                if (base.kind == MIRExprKind::Place) {
-                    const TypeId bt = builder_->function().places[base.id].type;
-                    if (abi::is_struct_like(module_, bt)) {
+                const TypeId bt = (base.kind == MIRExprKind::Place)
+                    ? builder_->function().places[base.id].type : base.type;
+                if (abi::is_struct_like(module_, bt)) {
                         // `x[i] = v` on a struct uses the `IndexMut` method
                         BaseType* recv_t = io->parent_val ? io->parent_val->getType() : nullptr;
                         FunctionDeclaration* fd = resolve_method_fallback(recv_t, "index_mut");
@@ -573,7 +573,6 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         }
                         builder_->store_indirect(static_cast<ValueId>(ref.id), rv);
                         return true;
-                    }
                 }
                 MIRExprResult r = lower_expr(as->value, error);
                 if (!r.ok()) return false;

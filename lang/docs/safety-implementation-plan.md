@@ -1338,17 +1338,17 @@ approximate counts:
 
 | Gate | Result |
 |---|---|
-| TCC main / LLVM main | `2406` / `2404` |
+| TCC main / LLVM main | `2409` / `2407` |
 | `@test` runner | `56` |
 | TCC/LLVM negative | `727` / `727` |
-| TCC/LLVM safety | `71` / `71` |
+| TCC/LLVM safety | `72` / `72` |
 | TCC/LLVM async | `69` / `69` |
 | TCC libs | `730` |
 | TCC plugins | `1305` |
 | TCC interpret | `1921` |
 | `MIRTests` | `4682 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
-| Whole-tree audit | `unsafe_blocks 3775`, `unsafe_values 4904`, `raw_pointer_types 9368`, `raw_pointer_derefs 1069`, `panic_calls 107` |
+| Whole-tree audit | `unsafe_blocks 3775`, `unsafe_values 4907`, `raw_pointer_types 9370`, `raw_pointer_derefs 1069`, `panic_calls 108` |
 
 The audit count is higher than the historical `3661/4890` because the report
 previously skipped **all** `ImplDefinition` bodies; it now walks them, and the
@@ -2913,3 +2913,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.50 (2026-11-02): bare `[T]`, mutable `&mut [T]`, and owning `Box<[T]>` slices. `[T]`/`&[T]` map to `std::span<T>`; `&mut [T]` maps to `std::mut_span<T>` (constructed from `&mut vector<T>`, with writes and `IndexMut`); `Box<[T]>` maps to the vector-backed owning `std::boxed_slice<T>`. The `IndexMut` interface now declares `index_mut` so shared `Index` and mutable `IndexMut` can coexist without duplicate C members. Shared-slice assignment is rejected; mutable views of arrays require the explicit unsafe pointer/length constructor. Added bare/vector/owning/mutable tests and negative tests for shared mutation, array-to-mutable-view, and mutable-view escape. Audit baseline was updated for the new std view types (`raw_pointer_types 9363 -> 9367`); no unsafe/panic growth. Main TCC/LLVM `2401`/`2399`; negative `725`; safety `70`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass. Design/limits: `lang/docs/slices.md`; explicit `&'a` lifetimes, array-backed mutable slices, and sub-slicing remain.
 
 *Revision note v4.51 (2026-11-02): safe mutable array slices and subviews. `&mut [T]` now constructs from `&mut arr` as well as `&mut vector<T>`; const arrays and plain array values are rejected, and mutable array views are borrow-checked for local escapes. Added `subview(start,end)` for `span`, `mut_span`, and `Box<[T]>` (`subview_mut` for the boxed form), plus bounds-panic coverage. Range syntax, `split_at`, `split`, and `windows`/`chunks` remain future work. Audit baseline updated for the added std methods (`panic_calls 106 -> 107`, `raw_pointer_types 9367 -> 9368`, `unsafe_values 4902 -> 4904`). Main TCC/LLVM `2406`/`2404`; negative `727`; safety `71`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.
+
+*Revision note v4.52 (2026-11-02): `split_at` and field-index MIR fix. `span`, `mut_span`, and `Box<[T]>` expose `split_at`; shared splits return `slice_pair<T>`, mutable splits return `mut_slice_pair<T>`, with checked bounds and panic coverage. MIR indexing now recognizes struct-like receivers reached through field access (e.g. `parts.first[i]`), not only direct places, so slice fields index through `Index`/`IndexMut` correctly. `split`, range syntax, `windows`/`chunks`, and patterns remain. Audit baseline updated (`panic_calls 107 -> 108`, `raw_pointer_types 9368 -> 9370`, `unsafe_values 4904 -> 4907`). Main TCC/LLVM `2409`/`2407`; negative `727`; safety `72`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.

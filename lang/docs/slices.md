@@ -99,13 +99,19 @@ mutable_middle[0] = 9
 var owned : Box<[int]> = values
 var shared = owned.subview(1, 3)
 var mutable = owned.subview_mut(1, 3)
+
+var parts = view.split_at(2)
+parts.first[0]
+parts.second[0]
 ```
 
 - `subview(start, end)` is bounds checked and panics on an invalid range.
 - Shared subviews are `span<T>`; mutable subviews are `mut_span<T>`.
 - `Box<[T]>` exposes `subview` and `subview_mut`.
-- Range syntax (`view[a..b]`), `split_at`, `split`, `windows`, and `chunks` are
-  not implemented yet.
+- `split_at(index)` returns `slice_pair<T>` (`mut_slice_pair<T>` for mutable
+  views) with `first`/`second` fields.
+- Range syntax (`view[a..b]`), `split`, `windows`, and `chunks` are not
+  implemented yet.
 
 ## `&str`
 
@@ -136,7 +142,7 @@ var view = text.to_view()      // std::string_view
 - `[T]`/`&[T]` are view aliases, not a first-class unsized `[T]` type.
 - `Box<[T]>` is a vector-backed owning wrapper, not a raw boxed allocation.
 - No slice pattern/destructuring syntax, range sub-slicing (`view[a..b]`),
-  `split_at`, `split`, or `windows`/`chunks` iterators yet.
+  `split`, or `windows`/`chunks` iterators yet.
 - `&str` has no separate lifetime parameter; the MIR view analysis keeps the
   source loan alive and rejects local escapes. A future `str<'a>`/`&'a str`
   spelling can make the lifetime explicit.

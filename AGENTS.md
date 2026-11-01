@@ -42,8 +42,8 @@ ABI (LLVM covers x86-64 SysV, Windows x64 and AAPCS64; `SAFE-FFI-003` rejects
 unsupported targets), `dyn` being conservatively `!Send`/`!Sync` when no
 explicit `+ Send`/`+ Sync` bound is written (`+ Unpin` is construction-checked),
 basic tuples and `[T]`/`&[T]`/`&mut [T]`/`Box<[T]>` slices plus `&str` views
-(array/vector views, mutable array/vector indexing, subviews, owning boxed
-slices, UTF-8 validation, local-escape rejection), and the partially
+(array/vector views, mutable array/vector indexing, subviews/split_at, owning
+boxed slices, UTF-8 validation, local-escape rejection), and the partially
 implemented `Fn`/`FnMut`/`FnOnce` callable model (call-once/mutable-receiver
 kinds, `FnOnce` capture moves with per-capture drop flags, field-stored `FnOnce`
 calls, callable bounds, generic `Fn`/`FnMut`/`FnOnce` call syntax, `FnMut`

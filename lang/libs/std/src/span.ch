@@ -1,5 +1,17 @@
 public namespace std {
 
+@direct_init
+public struct slice_pair<T> {
+    public var first : span<T>
+    public var second : span<T>
+}
+
+@direct_init
+public struct mut_slice_pair<T> {
+    public var first : mut_span<T>
+    public var second : mut_span<T>
+}
+
 public struct span<T> {
 
     // The pointer/length pair is the span invariant; user code uses get/size.
@@ -64,6 +76,24 @@ public struct span<T> {
             ptr = unsafe(_data + start)
         }
         return unsafe(span<T>(ptr, end - start))
+    }
+
+    func split_at(&self, at : size_t) : slice_pair<T> {
+        if(at > _size) {
+            panic("span split_at out of bounds")
+        }
+        var left_ptr : *T = null
+        if(at != 0) {
+            left_ptr = _data
+        }
+        var right_ptr : *T = null
+        if(at < _size) {
+            right_ptr = unsafe(_data + at)
+        }
+        return slice_pair<T> {
+            first : unsafe(span<T>(left_ptr, at)),
+            second : unsafe(span<T>(right_ptr, _size - at))
+        }
     }
 
     unsafe impl core::iterable::Linear<T> for span<T> {
@@ -166,6 +196,24 @@ public struct mut_span<T> {
             ptr = unsafe(_data + start)
         }
         return unsafe(mut_span<T>(ptr, end - start))
+    }
+
+    func split_at(&mut self, at : size_t) : mut_slice_pair<T> {
+        if(at > _size) {
+            panic("mut_span split_at out of bounds")
+        }
+        var left_ptr : *mut T = null
+        if(at != 0) {
+            left_ptr = _data
+        }
+        var right_ptr : *mut T = null
+        if(at < _size) {
+            right_ptr = unsafe(_data + at)
+        }
+        return mut_slice_pair<T> {
+            first : unsafe(mut_span<T>(left_ptr, at)),
+            second : unsafe(mut_span<T>(right_ptr, _size - at))
+        }
     }
 
     func as_span(&self) : span<T> {

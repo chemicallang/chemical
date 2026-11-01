@@ -1662,33 +1662,35 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 idx = MIRExprResult::value(builder_->load_indirect(pv, it), it);
             }
             emit_array_index_bounds_check(base, idx);
-            if (base.kind == MIRExprKind::Place) {
-                const TypeId bt = builder_->function().places[base.id].type;
-                if (abi::is_struct_like(module_, bt)) {
-                    // `x[i]` on a struct uses the `Index`/`IndexMut` method
-                    BaseType* recv_t = io->parent_val ? io->parent_val->getType() : nullptr;
-                    FunctionDeclaration* fd = resolve_method_fallback(recv_t, "index");
-                    if (!fd) fd = resolve_method_fallback(recv_t, "index_mut");
-                    if (!fd) {
-                        error = "index operator overloading is not yet supported";
-                        return MIRExprResult::error();
-                    }
-                    VariableIdentifier op_id(chem::string_view("index"), nullptr, ZERO_LOC);
-                    op_id.linked = fd;
-                    FunctionCall op_call(&op_id, fd->returnType, ZERO_LOC);
-                    op_call.values.push_back(io->idx);
-                    MIRExprResult r = lower_method_call(base, recv_t, &op_call, error);
-                    if (!r.ok()) return r;
-                    // the method returns `&Output`: dereference to the element
-                    if (r.kind == MIRExprKind::Value || r.kind == MIRExprKind::Address) {
-                        if (abi::is_aggregate(module_, type)) {
-                            return MIRExprResult::address(static_cast<ValueId>(r.id), type);
-                        }
-                        return MIRExprResult::value(
-                            builder_->load_indirect(static_cast<ValueId>(r.id), type), type);
-                    }
-                    return r;
+            const TypeId base_t = (base.kind == MIRExprKind::Place)
+                                      ? builder_->function().places[base.id].type
+                                      : base.type;
+            if (abi::is_struct_like(module_, base_t)) {
+                // `x[i]` on a struct/field value uses the `Index`/`IndexMut`
+                // method. A field access (`pair.first[i]`) is not a place in
+                // MIR, but its receiver type is still the slice struct.
+                BaseType* recv_t = io->parent_val ? io->parent_val->getType() : nullptr;
+                FunctionDeclaration* fd = resolve_method_fallback(recv_t, "index");
+                if (!fd) fd = resolve_method_fallback(recv_t, "index_mut");
+                if (!fd) {
+                    error = "index operator overloading is not yet supported";
+                    return MIRExprResult::error();
                 }
+                VariableIdentifier op_id(chem::string_view("index"), nullptr, ZERO_LOC);
+                op_id.linked = fd;
+                FunctionCall op_call(&op_id, fd->returnType, ZERO_LOC);
+                op_call.values.push_back(io->idx);
+                MIRExprResult r = lower_method_call(base, recv_t, &op_call, error);
+                if (!r.ok()) return r;
+                // the method returns `&Output`: dereference to the element
+                if (r.kind == MIRExprKind::Value || r.kind == MIRExprKind::Address) {
+                    if (abi::is_aggregate(module_, type)) {
+                        return MIRExprResult::address(static_cast<ValueId>(r.id), type);
+                    }
+                    return MIRExprResult::value(
+                        builder_->load_indirect(static_cast<ValueId>(r.id), type), type);
+                }
+                return r;
             }
             if (abi::is_aggregate(module_, type)) {
                 // aggregate element: return its address (an lvalue), not a load

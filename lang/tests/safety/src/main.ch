@@ -277,6 +277,13 @@ func span_bounds_panics(env : &mut TestEnv) {
 }
 
 @test
+func span_split_at_out_of_bounds_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var a : [3]int = [1, 2, 3]\n    var s : [int] = a\n    var x = s.split_at(4)\n    return 0\n}\n"
+    expect_runtime_panic(env, "span_split_at_out_of_bounds_panics", ch)
+}
+
+@test
 func span_subview_out_of_bounds_panics(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "public func main() : int {\n    var a : [3]int = [1, 2, 3]\n    var s : [int] = a\n    var x = s.subview(0, 4)\n    return 0\n}\n"

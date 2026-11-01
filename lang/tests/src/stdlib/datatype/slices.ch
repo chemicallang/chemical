@@ -128,4 +128,27 @@ func test_slices() {
         mutable[0] = 7
         return shared.size() == 1 && shared[0] == 7 && owned[1] == 7
     })
+    test("split_at returns two shared subviews", () => {
+        var arr : [5]int = [1, 2, 3, 4, 5]
+        var view : [int] = arr
+        var parts = view.split_at(2)
+        return parts.first.size() == 2 && parts.second.size() == 3 && parts.first[1] == 2 && parts.second[0] == 3
+    })
+    test("split_at returns two mutable subviews", () => {
+        var arr : [5]int = [1, 2, 3, 4, 5]
+        var view : &mut [int] = &mut arr
+        var parts = view.split_at(2)
+        parts.first[0] = 9
+        parts.second[0] = 8
+        return arr[0] == 9 && arr[2] == 8
+    })
+    test("Box<[T]> split_at returns shared subviews", () => {
+        var values = std::vector<int>()
+        values.push(5)
+        values.push(6)
+        values.push(7)
+        var owned : Box<[int]> = values
+        var parts = owned.split_at(1)
+        return parts.first.size() == 1 && parts.second.size() == 2 && parts.first[0] == 5 && parts.second[0] == 6
+    })
 }

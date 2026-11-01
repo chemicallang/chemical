@@ -22,6 +22,18 @@
 
 namespace mir {
 
+/**
+ * The target's C aggregate-passing convention. The classifier in MIRABI.h
+ * switches on this; a backend never re-derives it from the host compiler.
+ */
+enum class MIRABIKind : uint8_t {
+    SysVX86_64 = 0,
+    WindowsX64 = 1,
+    SysVX86_32 = 2,
+    AAPCS64 = 3,
+    Unknown = 255,
+};
+
 /** target-independent layout facts the emitters need */
 struct MIRModuleLayout {
     bool is64Bit = true;
@@ -29,6 +41,8 @@ struct MIRModuleLayout {
     bool windows = false;
     uint32_t pointer_size = 8;
     uint32_t pointer_alignment = 8;
+    /** C ABI for by-value `@extern` structs/unions (`MIRABI.h`). */
+    MIRABIKind c_abi = MIRABIKind::SysVX86_64;
 };
 
 /** Round `value` up to the next multiple of `align` (0/1 rounds nothing). */

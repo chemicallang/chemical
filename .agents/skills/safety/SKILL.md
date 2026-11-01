@@ -20,7 +20,7 @@ for the safe API surface we currently expose**, not full language parity.
 | Init / moves / drops | Implemented in MIR (`MIRMoveCheck`); local/parameter struct fields and whole-array fields are field-tracked; unsupported move shapes reject with `SAFE-MOVE-004` |
 | Borrows / lifetimes | Implemented for the enforceable surface (regions, NLL loans, storage lifetimes, return regions, variance, temporary extension, provenance, HRTB call regions) |
 | `Send` / `Sync` | Auto traits + explicit/negative impls + nested conditional generic impls; data-race primitives |
-| Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; C ABI by-value support is x86-64 SysV only on LLVM |
+| Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; target-aware by-value C ABI on x86-64 SysV, Windows x64 and AArch64 AAPCS64; other targets reject by-value extern aggregates |
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
 | Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
@@ -33,11 +33,11 @@ Latest measured baseline:
 | TCC main | `2378/2378` |
 | LLVM main | `2376/2376` |
 | `@test` runner | `54/54` |
-| TCC/LLVM negative | `702/702` |
+| TCC/LLVM negative | `703/703` |
 | TCC/LLVM safety | `69/69` |
 | TCC/LLVM async | `69/69` |
 | TCC libs | `730/730` |
-| `MIRTests` | `4643 checks` |
+| `MIRTests` | `4682 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
 | Whole-tree audit | `unsafe_blocks 3774`, `unsafe_values 4901`, `raw_pointer_derefs 1065`, `panic_calls 104` |
 | Audit result | `no growth` against `lang/docs/safety/audit-baseline.json` |
@@ -263,10 +263,15 @@ memory safety.
    `FutureHandle<'static, T>` captures are accepted. Remaining: higher-order
    callback contracts with free (non-HRTB) lifetime parameters, and opaque
    containers MIR cannot inspect.
-2. **Full target-aware C ABI remains M2.** LLVM now rejects by-value `@extern`
-   aggregates on targets other than x86-64 SysV (`SAFE-FFI-003`); the C backend
-   delegates to the host compiler. Windows/ARM ABI support, `repr`/layout
-   coverage, variadics, callbacks, and FFI wrapper auditing remain.
+2. **Target-aware C ABI is implemented for the main native conventions.**
+   `MIRABI` classifies by-value `@extern` structs/unions for x86-64 System V,
+   Windows x64 and AArch64 AAPCS64, including HFA register parts at exact
+   aggregate offsets; LLVM uses `byval` only on System V memory parameters and
+   plain pointers on Windows/AArch64, matching Clang. i386/ARM32/Windows ARM64
+   and unknown targets reject by-value extern aggregates with `SAFE-FFI-003`;
+   the C backend delegates to the host compiler. Remaining: i386/ARM32/Windows
+   ARM64 classifiers, variadic aggregate arguments, callback calling-convention
+   auditing, and full FFI wrapper auditing.
 3. **`@scoped_callback` is body-checked, with a fixed sink list.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter anywhere except a known join-before-return API (resolved by exact library

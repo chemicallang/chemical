@@ -6,6 +6,7 @@
 // mir-implementation-plan.md §9 Stage 1.
 
 #include "compiler/mir/MIR.h"
+#include "compiler/mir/MIRABI.h"
 #include "compiler/mir/MIRBuilder.h"
 #include "compiler/mir/MIRDeclPrinter.h"
 #include "compiler/mir/MIREmitter.h"
@@ -2786,6 +2787,121 @@ static bool test_move_check() {
     return true;
 }
 
+// ── target-aware C aggregate ABI ───────────────────────────────────────────
+static bool test_c_abi_classifier() {
+    MIRModule m;
+    const TypeId ch = mir_layout_int(m, 1, IK_CHAR);
+    const TypeId i32 = mir_layout_int(m, 4, IK_INT);
+    const TypeId f32 = mir_layout_float(m, 4);
+    const TypeId f64 = mir_layout_float(m, 8);
+
+    const TypeId pair = mir_layout_agg(m, MIRTypeKind::Struct,
+                                       {{"a", i32}, {"b", i32}});
+    const TypeId one_char = mir_layout_agg(m, MIRTypeKind::Struct, {{"c", ch}});
+    const TypeId two_floats = mir_layout_agg(m, MIRTypeKind::Struct,
+                                             {{"a", f32}, {"b", f32}});
+    const TypeId two_doubles = mir_layout_agg(m, MIRTypeKind::Struct,
+                                              {{"a", f64}, {"b", f64}});
+    const TypeId mixed = mir_layout_agg(m, MIRTypeKind::Struct,
+                                        {{"a", i32}, {"b", f32}});
+    const TypeId big = mir_layout_agg(m, MIRTypeKind::Struct,
+                                      {{"a", i32}, {"b", i32}, {"c", i32},
+                                       {"d", i32}, {"e", i32}});
+    const TypeId float3_array = mir_layout_array(m, f32, 3);
+    const TypeId float3 = mir_layout_agg(m, MIRTypeKind::Struct,
+                                          {{"a", float3_array}});
+    const TypeId union_if = mir_layout_agg(m, MIRTypeKind::Union,
+                                           {{"i", i32}, {"f", f32}});
+    const TypeId union_ff = mir_layout_agg(m, MIRTypeKind::Union,
+                                           {{"a", f32}, {"b", f32}});
+    const TypeId four_doubles = mir_layout_agg(m, MIRTypeKind::Struct,
+                                               {{"a", f64}, {"b", f64},
+                                                {"c", f64}, {"d", f64}});
+    const TypeId five_floats = mir_layout_agg(m, MIRTypeKind::Struct,
+                                              {{"a", mir_layout_array(m, f32, 5)}});
+
+    abi::MIRABIInfo info;
+
+    // System V x86-64: the original eightbyte classification.
+    m.layout.c_abi = MIRABIKind::SysVX86_64;
+    CHECK(abi::classify_c_abi(m, pair, info));
+    CHECK(!info.memory && info.parts.size() == 1 &&
+          info.parts[0].size == 8 && info.parts[0].offset == 0 &&
+          !info.parts[0].floating);
+    CHECK(abi::classify_c_abi(m, one_char, info));
+    CHECK(!info.memory && info.parts.size() == 1 &&
+          info.parts[0].size == 1 && !info.parts[0].floating);
+    CHECK(abi::classify_c_abi(m, two_floats, info));
+    CHECK(!info.memory && info.parts.size() == 1 &&
+          info.parts[0].floating);
+    CHECK(abi::classify_c_abi(m, mixed, info));
+    CHECK(!info.memory && info.parts.size() == 1 &&
+          !info.parts[0].floating); // INTEGER dominates the eightbyte
+    CHECK(abi::classify_c_abi(m, union_if, info));
+    CHECK(!info.memory && info.parts.size() == 1 &&
+          !info.parts[0].floating);
+    CHECK(abi::classify_c_abi(m, big, info) && info.memory);
+
+    // Windows x64: only 1/2/4/8-byte aggregates use an integer register.
+    m.layout.c_abi = MIRABIKind::WindowsX64;
+    CHECK(abi::classify_c_abi(m, pair, info));
+    CHECK(!info.memory && info.parts.size() == 1 &&
+          info.parts[0].size == 8 && !info.parts[0].floating);
+    CHECK(abi::classify_c_abi(m, one_char, info));
+    CHECK(!info.memory && info.parts.size() == 1 &&
+          info.parts[0].size == 1 && !info.parts[0].floating);
+    CHECK(abi::classify_c_abi(m, big, info) && info.memory);
+
+    // AArch64 AAPCS64: HFAs in FP registers, other composites in x regs.
+    m.layout.c_abi = MIRABIKind::AAPCS64;
+    CHECK(abi::classify_c_abi(m, two_floats, info));
+    CHECK(!info.memory && info.parts.size() == 2 &&
+          info.parts[0].floating && info.parts[0].size == 4 &&
+          info.parts[0].offset == 0 &&
+          info.parts[1].floating && info.parts[1].size == 4 &&
+          info.parts[1].offset == 4);
+    CHECK(abi::classify_c_abi(m, two_doubles, info));
+    CHECK(!info.memory && info.parts.size() == 2 &&
+          info.parts[0].floating && info.parts[0].size == 8);
+    CHECK(abi::classify_c_abi(m, float3, info));
+    CHECK(!info.memory && info.parts.size() == 3 &&
+          info.parts[0].floating && info.parts[2].size == 4);
+    CHECK(abi::classify_c_abi(m, union_ff, info));
+    CHECK(!info.memory && info.parts.size() == 1 &&
+          info.parts[0].floating && info.parts[0].size == 4);
+    CHECK(abi::classify_c_abi(m, four_doubles, info));
+    CHECK(!info.memory && info.parts.size() == 4 &&
+          info.parts[3].floating && info.parts[3].size == 8 &&
+          info.parts[3].offset == 24);
+    CHECK(abi::classify_c_abi(m, five_floats, info) && info.memory);
+    CHECK(abi::classify_c_abi(m, pair, info));
+    CHECK(!info.memory && info.parts.size() == 1 &&
+          info.parts[0].size == 8 && !info.parts[0].floating);
+    CHECK(abi::classify_c_abi(m, mixed, info));
+    CHECK(!info.memory && info.parts.size() == 1 &&
+          info.parts[0].size == 8 && !info.parts[0].floating);
+    CHECK(abi::classify_c_abi(m, big, info) && info.memory);
+
+    // i386 passes every aggregate in memory; unknown targets are rejected by
+    // the caller's c_abi_supported gate.
+    m.layout.c_abi = MIRABIKind::SysVX86_32;
+    CHECK(abi::classify_c_abi(m, pair, info) && info.memory);
+    CHECK(!abi::c_abi_supported(m));
+    m.layout.c_abi = MIRABIKind::Unknown;
+    CHECK(abi::classify_c_abi(m, pair, info) && info.memory);
+    CHECK(!abi::c_abi_supported(m));
+    m.layout.c_abi = MIRABIKind::WindowsX64;
+    CHECK(abi::c_abi_supported(m));
+    m.layout.c_abi = MIRABIKind::AAPCS64;
+    CHECK(abi::c_abi_supported(m));
+
+    // Only C aggregates classify; a variant must stay an explicit FFI error.
+    const TypeId variant = mir_layout_agg(m, MIRTypeKind::Variant,
+                                          {{"a", i32}});
+    CHECK(!abi::classify_c_abi(m, variant, info));
+    return true;
+}
+
 int main() {
     bool ok = true;
     ok &= test_arena();
@@ -2804,6 +2920,7 @@ int main() {
     ok &= test_control_flow_emitter();
     ok &= test_type_names();
     ok &= test_aggregate_layout();
+    ok &= test_c_abi_classifier();
     ok &= test_aggregate_plan();
     ok &= test_function_facts();
     ok &= test_value_facts();

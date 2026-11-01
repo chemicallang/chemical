@@ -1511,6 +1511,16 @@ func neg_thread_handle_cannot_be_forged(env : &mut TestEnv) {
 }
 
 @test
+func neg_by_value_extern_on_unsupported_target_rejected(env : &mut TestEnv) {
+    // The target-aware C ABI/SAFE-FFI-003 gate is the LLVM backend; TCCCompiler
+    // delegates aggregate layout to the host C compiler.
+    if(intrinsics::get_backend_name() != "LLVM") { return }
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@extern struct Pair { var a : int; var b : int }\n@extern func pair_sum(p : Pair) : int\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_target(env, "ffi_unsupported_target", ch, "SAFE-FFI-003", NEG_MOD, "armv7-unknown-linux-gnueabihf")
+}
+
+@test
 func neg_extern_variant_by_value_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "variant Payload {\n    Value(n : int)\n}\n@extern func take(p : Payload) : int\npublic func main() : int {\n    var p = Payload.Value(1)\n    return unsafe(take(p))\n}\n"

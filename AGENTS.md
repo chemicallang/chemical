@@ -35,8 +35,8 @@ pointer containers, references/callback captures, body-checked custom consumers
 (including local aliases), and owning `'static` captures. Higher-order callback
 inference and unsupported async/temporary field-move shapes remain (the latter
 are rejected with `SAFE-MOVE-004`); other blockers are the full target-aware C
-ABI (`SAFE-FFI-003` now rejects unsupported LLVM targets), `dyn` being
-conservatively
+ABI (LLVM covers x86-64 SysV, Windows x64 and AAPCS64; `SAFE-FFI-003` rejects
+unsupported targets), `dyn` being conservatively
 `!Send`/`!Sync`/`!Unpin`, and the partially
 implemented `Fn`/`FnMut`/`FnOnce` callable model (call-once/mutable-receiver
 kinds, `FnOnce` capture moves with per-capture drop flags, field-stored `FnOnce`

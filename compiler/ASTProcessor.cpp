@@ -17,6 +17,7 @@ static void ct_stat(const char* tag, const char* name) {
 #include "compiler/typeverify/TypeVerifyAPI.h"
 #include "preprocess/2c/TranslationContext.h"
 #include "compiler/mir/MIRComptime.h"
+#include "compiler/mir/MIRABI.h"
 #include "utils/Benchmark.h"
 #include "utils/JoinedTasks.h"
 #include <sstream>
@@ -37,6 +38,26 @@ static void ct_stat(const char* tag, const char* name) {
 #include "utils/StackSpace.h"
 #include <filesystem>
 #include <random>
+
+/** Map the front-end target data to the MIR C aggregate ABI. */
+static mir::MIRABIKind mir_c_abi_kind(const TargetData& td) {
+    if (td.wasm32 || td.wasm64 || td.arm) return mir::MIRABIKind::Unknown;
+    if (td.x86_64) {
+        return td.windows ? mir::MIRABIKind::WindowsX64
+                          : mir::MIRABIKind::SysVX86_64;
+    }
+    // i386's aggregate convention splits small structs into scalar arguments
+    // and uses byval for others; we do not emulate it yet, so @extern by-value
+    // aggregates are rejected there rather than emitted with the wrong shape.
+    if (td.x86 || td.i386) return mir::MIRABIKind::Unknown;
+    if (td.aarch64) {
+        // Microsoft ARM64 differs from AAPCS64 in variadic and HFA details;
+        // reject by-value extern aggregates there instead of guessing.
+        return td.windows ? mir::MIRABIKind::Unknown
+                          : mir::MIRABIKind::AAPCS64;
+    }
+    return mir::MIRABIKind::Unknown;
+}
 
 static void ct_stat_decl(const char* tag, FunctionDeclaration* d) {
     if (!std::getenv("CT_STAT") || !d) return;
@@ -2710,6 +2731,7 @@ int ASTProcessor::implement_module(
         mir_interp_program ? mir_interp_program->visitor_mutex : mir_mutex_local;
     mir_module.layout.is64Bit = c_visitor.comptime_scope.target_data.is64Bit;
     mir_module.layout.windows = c_visitor.comptime_scope.target_data.windows;
+    mir_module.layout.c_abi = mir_c_abi_kind(c_visitor.comptime_scope.target_data);
     // Type-name mangling is serialized by the builder's own lock and reads no
     // shared mutable mangler state, so it does not take the visitor lock (which
     // would invert the builder->visitor order).
@@ -3096,6 +3118,7 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     mir_module.set_single_threaded(!kEnableParallelLowering);
     mir_module.layout.is64Bit = c_visitor.comptime_scope.target_data.is64Bit;
     mir_module.layout.windows = c_visitor.comptime_scope.target_data.windows;
+    mir_module.layout.c_abi = mir_c_abi_kind(c_visitor.comptime_scope.target_data);
     mir::MIRTypeBuilder mir_types(mir_module);
     // One lock for every access to the shared `c_visitor` (the mangler, the
     // comptime scope, the AST allocator, diagnostics, `iface->active_user`,

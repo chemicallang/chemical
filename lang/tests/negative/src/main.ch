@@ -62,7 +62,7 @@ internal func string_contains(haystack : *char, needle : *char) : bool { unsafe 
     return false
  }}
 
-internal func run_compiler_capture(mod_path : *char, out_path : *char, output_buf : *mut char, buf_size : int, mode : *char = "") : int { unsafe {
+internal func run_compiler_capture(mod_path : *char, out_path : *char, output_buf : *mut char, buf_size : int, mode : *char = "", extra_args : *char = "") : int { unsafe {
     var cmd : char[2048]
     var mode_flag : *char = ""
     if(mode[0] != 0) {
@@ -77,15 +77,15 @@ internal func run_compiler_capture(mod_path : *char, out_path : *char, output_bu
         // is the canonical way to quote a command for cmd.exe and keeps paths
         // with spaces working.
         if(mode[0] != 0) {
-            sprintf(unsafe(&raw mut cmd[0]), "cmd /S /C \"\"%s\" \"%s\" --no-cache %s%s -o \"%s\"\" 2>&1", intrinsics::get_compiler_path(), mod_path, mode_flag, mode, out_path)
+            sprintf(unsafe(&raw mut cmd[0]), "cmd /S /C \"\"%s\" \"%s\" --no-cache %s%s%s -o \"%s\"\" 2>&1", intrinsics::get_compiler_path(), mod_path, mode_flag, mode, extra_args, out_path)
         } else {
-            sprintf(unsafe(&raw mut cmd[0]), "cmd /S /C \"\"%s\" \"%s\" --no-cache -o \"%s\"\" 2>&1", intrinsics::get_compiler_path(), mod_path, out_path)
+            sprintf(unsafe(&raw mut cmd[0]), "cmd /S /C \"\"%s\" \"%s\" --no-cache%s -o \"%s\"\" 2>&1", intrinsics::get_compiler_path(), mod_path, extra_args, out_path)
         }
     } else {
         if(mode[0] != 0) {
-            sprintf(unsafe(&raw mut cmd[0]), "\"%s\" \"%s\" --no-cache %s%s -o \"%s\" 2>&1", intrinsics::get_compiler_path(), mod_path, mode_flag, mode, out_path)
+            sprintf(unsafe(&raw mut cmd[0]), "\"%s\" \"%s\" --no-cache %s%s%s -o \"%s\" 2>&1", intrinsics::get_compiler_path(), mod_path, mode_flag, mode, extra_args, out_path)
         } else {
-            sprintf(unsafe(&raw mut cmd[0]), "\"%s\" \"%s\" --no-cache -o \"%s\" 2>&1", intrinsics::get_compiler_path(), mod_path, out_path)
+            sprintf(unsafe(&raw mut cmd[0]), "\"%s\" \"%s\" --no-cache%s -o \"%s\" 2>&1", intrinsics::get_compiler_path(), mod_path, extra_args, out_path)
         }
     }
     var pipe = popen(unsafe(&raw mut cmd[0]), "r")
@@ -401,6 +401,33 @@ internal func expect_compile_success(env : &mut TestEnv, name : *char, ch_conten
 
         }
     }
+
+internal func expect_compile_error_with_target(env : &mut TestEnv, name : *char, ch_content : *char, expected_sub : *char, mod_content : *char, target : *char) {
+    unsafe {
+        setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
+        var mod_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
+        var out_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
+        var extra : char[256]
+        unsafe { sprintf(unsafe(&raw mut extra[0]), " --target %s", target) }
+        var output_buf : char[65536]
+        var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536, "", unsafe(&raw extra[0]))
+        var out_view = unsafe(&raw output_buf[0])
+        var has_error = string_contains(out_view, "error:") || string_contains(out_view, "error[")
+        var has_sub = if(unsafe(strlen(expected_sub)) == 0) true else string_contains(out_view, expected_sub)
+        if(rc == 0) {
+            env.error("expected compiler to fail but it succeeded")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        } else if(!has_error) {
+            env.error("expected compiler error but did not find one")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        } else if(!has_sub) {
+            env.error("expected error substring not found in output")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        }
+    }
+}
 
 internal func expect_compile_success_with_mod(env : &mut TestEnv, name : *char, ch_content : *char, mod_content : *char) {
         unsafe {

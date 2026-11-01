@@ -96,6 +96,15 @@ used for the corresponding `where` bound; a mismatch is `SAFE-SEND-003`.
 `+ Unpin` also follows the `PhantomPinned` negative-impl path. `dyn I` without a
 bound remains `!Send`/`!Sync`/`!Unpin`.
 
+## Object safety
+
+An interface is usable as `dyn I` only when every method has a self receiver
+(static/zero-receiver methods have no vtable slot) and `Self` does not appear
+directly or nested in a parameter or return type. This rejects interfaces whose
+dynamic call would need a different ABI, such as a zero-argument static method.
+Generic methods are rejected as before. Associated items are not part of the
+interface surface yet.
+
 ## Upcasting
 
 `dyn Derived` is assignable to `dyn Base` when `Base` is in `Derived`'s

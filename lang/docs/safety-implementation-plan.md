@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.46)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.47)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1338,7 +1338,7 @@ approximate counts:
 |---|---|
 | TCC main / LLVM main | `2383` / `2381` |
 | `@test` runner | `56` |
-| TCC/LLVM negative | `718` / `718` |
+| TCC/LLVM negative | `719` / `719` |
 | TCC/LLVM safety | `69` / `69` |
 | TCC/LLVM async | `69` / `69` |
 | TCC libs | `730` |
@@ -1447,8 +1447,10 @@ new number as the honest baseline, not a compiler regression.
    `dyn I + Sync` are represented and checked against the concrete value at
    construction (`SAFE-SEND-003`); `+ Unpin` is checked with the same
    PhantomPinned negative-impl path, and unbound `dyn` remains
-   `!Send`/`!Sync`/`!Unpin`. `Box<dyn I>`/`Arc<dyn I>` can cross threads only
-   with the explicit bound. See
+   `!Send`/`!Sync`/`!Unpin`. Object safety now also requires every interface
+   method to have a self receiver and rejects `Self` nested in parameters or
+   returns (for example a static/zero-receiver method). `Box<dyn I>`/`Arc<dyn I>`
+   can cross threads only with the explicit bound. See
    `lang/docs/dyn-object-model.md`; M1.19.
 7. **Async allocation checks are current, not permanently complete.**
    `yield.ch`, `time.ch`, `exec.ch`, `blocking.ch`, `combinators.ch`,
@@ -2897,3 +2899,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.45 (2026-11-01): `dyn + Send/Sync`. `DynamicType` now carries explicit Send/Sync auto-trait bits; the parser accepts `dyn I + Send + Sync` in type position and `dyn<I + Send + Sync>(value)` in construction. `DynamicType::satisfies` requires the target's bounds to be a subset of the source's, so `dyn I` cannot silently become `dyn I + Send`. Auto-trait derivation consults the bits instead of treating every dynamic object as unbound; `dyn` without a bound remains `!Send`/`!Sync`. Type verification checks the concrete value's structural/impl Send/Sync at construction and reports `SAFE-SEND-003` on failure. Added positive Send+Sync construction/where-clause coverage and a negative `Rc`-backed construction test. `+ Unpin` remains unimplemented. Main TCC/LLVM `2383`/`2381`; `@test` `56`; negative `717`; safety `69`; async `69`; libs `730`; interpret `1915`; `MIRTests` `4682`; audit no growth; TSAN pass.
 
 *Revision note v4.46 (2026-11-01): `dyn + Unpin`. `DynamicType` now represents an explicit `+ Unpin` bit; `core::Unpin` is cached in `CoreNodes` (it lives inside `namespace core`, unlike top-level Send/Sync), and `type_satisfies_unpin` consults the bit instead of rejecting every dynamic object. Construction `dyn<I + Unpin>(value)` checks the concrete value through the same structural/negative-impl path used by `where T: Unpin`; `PhantomPinned` is rejected with `SAFE-SEND-003`. Added positive `+ Unpin` coverage and a negative `PhantomPinned` construction test. Main TCC/LLVM `2383`/`2381`; `@test` `56`; negative `718`; safety `69`; async `69`; libs `730`; interpret `1915`; `MIRTests` `4682`; audit no growth; TSAN pass.
+
+*Revision note v4.47 (2026-11-01): `dyn` object-safety checks. `is_object_safe` now requires every interface method to have a self receiver (static/zero-receiver methods have no vtable slot) and rejects `Self` appearing directly or nested in a parameter/return type, including pointers, arrays, generics and function types. The self parameter is excluded from the `Self` scan. Added a negative static-method object-safety test. Main TCC/LLVM `2383`/`2381`; `@test` `56`; negative `719`; safety `69`; async `69`; libs `730`; interpret `1915`; `MIRTests` `4682`; audit no growth; TSAN pass.

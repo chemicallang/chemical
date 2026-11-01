@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2383/2383` |
 | LLVM main | `2381/2381` |
 | `@test` runner | `56/56` |
-| TCC/LLVM negative | `718/718` |
+| TCC/LLVM negative | `719/719` |
 | TCC/LLVM safety | `69/69` |
 | TCC/LLVM async | `69/69` |
 | TCC libs | `730/730` |
@@ -317,7 +317,8 @@ memory safety.
    `drop_erased<T>` function. `dyn Derived` upcasts to `dyn Base` when Base is
    in the first-inheritance chain (vtable-prefix compatible). `dyn I + Send` and
    `dyn I + Sync`/`+ Unpin` are construction-checked (`SAFE-SEND-003`); unbound
-   `dyn` is conservatively `!Send`/`!Sync`/`!Unpin`. Conservative
+   `dyn` is conservatively `!Send`/`!Sync`/`!Unpin`. Object safety requires a
+   self receiver and rejects `Self` nested in parameters/returns. Conservative
    `!Send`/`!Sync`/`!Unpin` avoids sending an `Rc`-backed
    `dyn` object, but `dyn I + Send` cannot be expressed and
    `Box<dyn I>`/`Arc<dyn I>` cannot cross threads. Full `dyn` bounds are M1.19;

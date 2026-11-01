@@ -863,6 +863,13 @@ func neg_dyn_unpin_bound_rejects_phantom_pinned(env : &mut TestEnv) {
 }
 
 @test
+func neg_dyn_static_method_is_not_object_safe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface Factory {\n    func make() : int\n}\nstruct FactoryImpl { var n : int }\nimpl Factory for FactoryImpl {\n    func make() : int { return n }\n}\npublic func main() : int {\n    var s = FactoryImpl { n : 1 }\n    var d : dyn Factory = dyn<Factory>(s)\n    return d.make() - 1\n}\n"
+    expect_compile_error_with_mod(env, "dyn_static_method_not_object_safe", ch, "not object safe", NEG_MOD_CORE)
+}
+
+@test
 func neg_dyn_object_is_not_send(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "interface Show {\n    func show(&self) : int\n}\nstruct RcImpl {\n    var r : std::Rc<int>\n}\nimpl Show for RcImpl {\n    func show(&self) : int { return *self.r.get() }\n}\nfunc worker(x : dyn Show) : int { return x.show() }\npublic func main() : int {\n    var v = RcImpl { r : std::rc(1) }\n    var d : dyn Show = dyn<Show>(v)\n    var t = std::thread.spawn<dyn Show, int>(worker, d)\n    return t.join() - 1\n}\n"

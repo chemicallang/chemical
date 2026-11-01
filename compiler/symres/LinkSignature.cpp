@@ -1470,17 +1470,94 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
     table.scope_end();
 }
 
+static bool type_mentions_interface(BaseType* type, InterfaceDefinition* node,
+                                    std::unordered_set<BaseType*>& visiting,
+                                    unsigned depth = 0) {
+    if (type == nullptr || depth > 8) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr || !visiting.insert(canonical).second) return false;
+    if (canonical->get_direct_linked_node() == node) return true;
+    switch (canonical->kind()) {
+        case BaseTypeKind::Reference:
+            return type_mentions_interface(
+                const_cast<BaseType*>(canonical->as_reference_type_unsafe()->type),
+                node, visiting, depth + 1);
+        case BaseTypeKind::Pointer:
+            return type_mentions_interface(
+                const_cast<BaseType*>(canonical->as_pointer_type_unsafe()->type),
+                node, visiting, depth + 1);
+        case BaseTypeKind::Array:
+            return type_mentions_interface(
+                const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
+                node, visiting, depth + 1);
+        case BaseTypeKind::Generic: {
+            auto* gen = canonical->as_generic_type_unsafe();
+            for (auto& arg : gen->types) {
+                if (type_mentions_interface(
+                        const_cast<BaseType*>(arg.getType()), node, visiting,
+                        depth + 1)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        case BaseTypeKind::Function: {
+            auto* fn = canonical->as_function_type_unsafe();
+            for (auto* param : fn->params) {
+                if (param != nullptr && type_mentions_interface(
+                        const_cast<BaseType*>(param->type.getType()), node,
+                        visiting, depth + 1)) {
+                    return true;
+                }
+            }
+            return type_mentions_interface(
+                const_cast<BaseType*>(fn->returnType.getType()), node, visiting,
+                depth + 1);
+        }
+        case BaseTypeKind::CapturingFunction: {
+            auto* cap = canonical->as_capturing_func_type_unsafe();
+            return type_mentions_interface(cap->get_func_type(), node, visiting,
+                                           depth + 1);
+        }
+        default:
+            return false;
+    }
+}
+
 bool is_object_safe(InterfaceDefinition* node) {
-    // determining if the interface is object safe
+    // Object safety: every dynamic method needs a self receiver (static
+    // methods have no vtable slot); Self may not appear directly or nested in a
+    // parameter/return type; generic methods are not object safe.
     for(const auto func_node : node->evaluated_nodes()) {
         switch(func_node->kind()) {
             case ASTNodeKind::FunctionDecl:{
                 const auto func = func_node->as_function_unsafe();
-                if(func->returnType->get_direct_linked_node() == node) {
+                // At signature-linking time the self parameter may not be
+                // marked implicit yet; identify it by its receiver name too.
+                auto is_self_param = [](FunctionParam* param) {
+                    return param != nullptr &&
+                        (param->name == "self" || param->name == "this" ||
+                         param->is_implicit());
+                };
+                FunctionParam* self_param = func->get_self_param();
+                if (self_param == nullptr && !func->params.empty() &&
+                    is_self_param(func->params.front())) {
+                    self_param = func->params.front();
+                }
+                if (self_param == nullptr) {
+                    return false;
+                }
+                std::unordered_set<BaseType*> visiting;
+                if(type_mentions_interface(
+                       const_cast<BaseType*>(func->returnType.getType()), node,
+                       visiting)) {
                     return false;
                 }
                 for(const auto param : func->params) {
-                    if(param->type->get_direct_linked_node() == node) {
+                    if(param == self_param) continue;
+                    if(param != nullptr && type_mentions_interface(
+                           const_cast<BaseType*>(param->type.getType()), node,
+                           visiting)) {
                         return false;
                     }
                 }

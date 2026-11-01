@@ -1067,6 +1067,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     if (l_sret) {
         sret_ptr_type_ = types_.pointer_type(ret, true);
         sret_ptr_ = b.param(sret_ptr_type_);
+        fn.sret_pointer = sret_ptr_;
     }
     const TypeId cap_ptr_t = types_.pointer_type(cap_type, true);
     lambda_closure_ptr_ = b.cast(this_v, cap_ptr_t);
@@ -1456,6 +1457,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     if (l_sret) {
         sret_ptr_type_ = types_.pointer_type(ret, true);
         sret_ptr_ = b.param(sret_ptr_type_);
+        fn.sret_pointer = sret_ptr_;
     }
 
     bool ok = true;

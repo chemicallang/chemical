@@ -2073,6 +2073,117 @@ static bool contains_future_handle_type(BaseType* type) {
     return contains_future_handle_type(type, visiting);
 }
 
+/**
+ * Collect named lifetimes mentioned by a function-type parameter/return.
+ * These are *free* from the function type's point of view (the enclosing
+ * function/aggregate owns them), but the call-site region signature still has
+ * to know which parameters share a region with the result. Pick up references,
+ * generic lifetime arguments (including `FutureHandle<'a, T>`), arrays and
+ * single-level aggregate fields. Raw pointers are deliberately not followed:
+ * their pointee has no safe borrow.
+ */
+static void collect_named_lifetimes(
+        BaseType* type, std::vector<chem::string_view>& out,
+        std::unordered_set<BaseType*>& visiting, unsigned depth = 0) {
+    if (type == nullptr || depth > 8) return;
+    // Generic lifetime arguments are on the written type; a linked/canonical
+    // instantiation may be the underlying struct and no longer carry them.
+    if (type->kind() == BaseTypeKind::Generic) {
+        for (chem::string_view lt : type->as_generic_type_unsafe()->lifetime_args) {
+            if (lt.empty() || lt == "static" || lt == "'static" ||
+                lt == "self" || lt == "'self" || lt == "elided" ||
+                lt == "'elided") {
+                continue;
+            }
+            const chem::string_view bare = strip_lifetime_quote(lt);
+            bool seen = false;
+            for (chem::string_view existing : out) {
+                if (existing == bare) { seen = true; break; }
+            }
+            if (!seen) out.push_back(bare);
+        }
+    }
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr || !visiting.insert(canonical).second) return;
+    auto add = [&](chem::string_view lifetime) {
+        if (lifetime.empty() || lifetime == "static" ||
+            lifetime == "'static" || lifetime == "self" ||
+            lifetime == "'self" || lifetime == "elided" ||
+            lifetime == "'elided") {
+            return;
+        }
+        const chem::string_view bare = strip_lifetime_quote(lifetime);
+        for (chem::string_view existing : out) {
+            if (existing == bare) return;
+        }
+        out.push_back(bare);
+    };
+    switch (canonical->kind()) {
+        case BaseTypeKind::Reference: {
+            auto* ref = canonical->as_reference_type_unsafe();
+            add(ref->lifetime);
+            collect_named_lifetimes(const_cast<BaseType*>(ref->type), out,
+                                    visiting, depth + 1);
+            return;
+        }
+        case BaseTypeKind::Array:
+            collect_named_lifetimes(
+                const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
+                out, visiting, depth + 1);
+            return;
+        case BaseTypeKind::Generic: {
+            auto* gen = canonical->as_generic_type_unsafe();
+            for (chem::string_view lt : gen->lifetime_args) add(lt);
+            for (auto& arg : gen->types) {
+                collect_named_lifetimes(const_cast<BaseType*>(arg.getType()), out,
+                                        visiting, depth + 1);
+            }
+            return;
+        }
+        case BaseTypeKind::CapturingFunction: {
+            auto* cap = canonical->as_capturing_func_type_unsafe();
+            if (cap->capture_env) {
+                collect_named_lifetimes(
+                    const_cast<BaseType*>(cap->capture_env.getType()), out,
+                    visiting, depth + 1);
+            }
+            return;
+        }
+        case BaseTypeKind::Pointer:
+        case BaseTypeKind::Function:
+            // Raw pointers do not carry a safe borrow; a nested function type
+            // owns its own binders and must not leak them into this contract.
+            return;
+        default:
+            break;
+    }
+    auto* container = canonical->get_members_container();
+    if (container == nullptr) return;
+    for (BaseDefMember* member : container->variables()) {
+        if (member == nullptr) continue;
+        if (member->kind() == ASTNodeKind::StructMember) {
+            auto* field = member->as_struct_member_unsafe();
+            if (field != nullptr) {
+                collect_named_lifetimes(
+                    const_cast<BaseType*>(field->type.getType()), out,
+                    visiting, depth + 1);
+            }
+        } else if (member->kind() == ASTNodeKind::VariantMember) {
+            auto* variant = member->as_variant_member_unsafe();
+            if (variant != nullptr) {
+                for (auto& entry : variant->values) {
+                    auto* param = entry.second;
+                    if (param != nullptr) {
+                        collect_named_lifetimes(
+                            const_cast<BaseType*>(param->type.getType()), out,
+                            visiting, depth + 1);
+                    }
+                }
+            }
+        }
+    }
+}
+
 static chem::string_view region_lifetime_of(BaseType* type) {
     if (type == nullptr) return {};
     // Direct `&'a T` first; then aggregate/generic lifetime arguments such as
@@ -2143,8 +2254,13 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
             }
         }
     }
+    // An `async func f() : T` declaration spills a FutureHandle through its
+    // generated ramp even though the source return type is `T`; treat it as a
+    // future-returning symbol so call-site loans follow the handle.
     const bool future_handle_return =
-        contains_future_handle_type(const_cast<BaseType*>(decl->returnType.getType()));
+        decl->is_async() ||
+        contains_future_handle_type(
+            const_cast<BaseType*>(decl->returnType.getType()));
     bool has_non_self_reference_param = false;
     for (FunctionParam* param : decl->params) {
         if (param == nullptr || param->type == nullptr) continue;
@@ -2350,14 +2466,60 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
 }
 
 uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
-    if (type == nullptr || type->binder_lifetimes.empty()) {
-        return MIR_INVALID_ID;
-    }
-    std::vector<std::string_view> lifetimes;
-    lifetimes.reserve(type->binder_lifetimes.size());
+    if (type == nullptr) return MIR_INVALID_ID;
+    std::vector<chem::string_view> names;
+    std::vector<bool> is_hrtb;
+    auto add_name = [&](chem::string_view name, bool hrtb) {
+        const chem::string_view bare = strip_lifetime_quote(name);
+        if (bare.empty() || bare == "static" || bare == "self" ||
+            bare == "elided") {
+            return;
+        }
+        for (size_t i = 0; i < names.size(); ++i) {
+            if (names[i] == bare) {
+                is_hrtb[i] = is_hrtb[i] || hrtb;
+                return;
+            }
+        }
+        names.push_back(bare);
+        is_hrtb.push_back(hrtb);
+    };
+    // Explicit `for<'a>` binders are higher-ranked. A function *value* of a
+    // lifetime-generic declaration (`func <'a> f`) is equally universal at
+    // its use site, even though its FunctionType has no binder list.
     for (chem::string_view binder : type->binder_lifetimes) {
-        const chem::string_view bare = strip_lifetime_quote(binder);
-        lifetimes.emplace_back(bare.data(), bare.size());
+        add_name(binder, true);
+    }
+    if (FunctionDeclaration* decl = type->as_function()) {
+        if (decl->generic_parent != nullptr) {
+            for (chem::string_view binder :
+                 decl->generic_parent->lifetime_params) {
+                add_name(binder, true);
+            }
+        }
+    }
+    // Named lifetimes in the parameter/return types that belong to the
+    // enclosing scope (free non-HRTB parameters). Their identity is enough for
+    // the call-site contract: a result region equal to an input region maps
+    // the input loan to the result.
+    {
+        std::unordered_set<BaseType*> visiting;
+        std::vector<chem::string_view> free_names;
+        for (FunctionParam* param : type->params) {
+            if (param != nullptr) {
+                collect_named_lifetimes(param->type, free_names, visiting);
+            }
+        }
+        collect_named_lifetimes(
+            const_cast<BaseType*>(type->returnType.getType()), free_names,
+            visiting);
+        for (chem::string_view name : free_names) add_name(name, false);
+    }
+    if (names.empty()) return MIR_INVALID_ID;
+    std::vector<std::string_view> lifetimes;
+    lifetimes.reserve(names.size());
+    for (chem::string_view name : names) {
+        lifetimes.emplace_back(name.data(), name.size());
     }
     std::vector<std::string_view> param_lifetimes;
     param_lifetimes.reserve(type->params.size());
@@ -2376,20 +2538,24 @@ uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
             param_lifetimes.emplace_back();
         }
     }
-    chem::string_view return_lt;
     BaseType* ret = const_cast<BaseType*>(type->returnType.getType());
-    BaseType* ret_canonical = ret ? ret->canonical() : nullptr;
-    if (ret_canonical != nullptr &&
-        ret_canonical->kind() == BaseTypeKind::Reference) {
-        return_lt = ret_canonical->as_reference_type_unsafe()->lifetime;
-        if (return_lt.empty()) return_lt = "elided";
+    chem::string_view return_lt = region_lifetime_of(ret);
+    if (return_lt.empty() && ret != nullptr) {
+        BaseType* ret_canonical = ret->canonical();
+        if (ret_canonical != nullptr &&
+            ret_canonical->kind() == BaseTypeKind::Reference) {
+            return_lt = "elided";
+        }
     }
     MIRRegionSignature sig = make_region_signature(
         lifetimes, param_lifetimes,
         std::string_view(return_lt.data(), return_lt.size()), {});
+    sig.future_return = contains_future_handle_type(ret);
     sig.hrtb_binders.reserve(lifetimes.size());
     for (size_t i = 0; i < lifetimes.size(); ++i) {
-        sig.hrtb_binders.push_back(static_cast<MIRRegionId>(i + 1));
+        if (is_hrtb[i]) {
+            sig.hrtb_binders.push_back(static_cast<MIRRegionId>(i + 1));
+        }
     }
 
     // HRTB aggregate parameters: a by-value struct may carry direct reference
@@ -2478,7 +2644,7 @@ uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
 }
 
 void MIRLowerer::attach_call_region_signature(FunctionType* type) {
-    if (type == nullptr || type->binder_lifetimes.empty()) return;
+    if (type == nullptr) return;
     MIRFunction& fn = builder_->function();
     if (fn.instructions.empty()) return;
     const uint32_t inst = static_cast<uint32_t>(fn.instructions.size() - 1);

@@ -634,6 +634,71 @@ func future_handle_method_same_scope_compiles(env : &mut TestEnv) {
 }
 
 @test
+func neg_future_handle_free_callback_cannot_return_local_borrow(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The callback type has a free lifetime (the enclosing function's `'a`),
+    // not an explicit `for<'b>` binder. Its returned FutureHandle still has to
+    // carry the caller's loan; a local temp must not satisfy it.
+    var ch = "async func work(x : &int) : int {\n    var u = await async::yield_now()\n    return *x\n}\nfunc <'b> from_ref(x : &'b int) : core::async::FutureHandle<'b, int> {\n    return work(x)\n}\nfunc <'a> apply(f : (x : &'a int) => core::async::FutureHandle<'a, int>) : core::async::FutureHandle<'a, int> {\n    var x = 41\n    return f(&x)\n}\npublic func main() : int {\n    var s = 1\n    var h = apply(from_ref)\n    return async::block_on<int>(h) - 41\n}\n"
+    expect_compile_error_with_mod(env, "future_free_callback_local_borrow", ch, "SAFE-LIFE-001", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_callback_without_source_lifetime_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A capture-owning callback has no reference/future parameter to tie the
+    // result frame lifetime to. The future may borrow the callback's captured
+    // storage, which dies when the callback is destroyed inside `apply`.
+    var ch = "async func work(x : &int) : int {\n    var u = await async::yield_now()\n    return *x\n}\nfunc <'a> apply(f : std::function<() => core::async::FutureHandle<'a, int>>) : core::async::FutureHandle<'a, int> {\n    return f()\n}\npublic func main() : int {\n    var s = 41\n    var h = apply(|s|() => { return work(&s) })\n    return async::block_on<int>(h) - 41\n}\n"
+    expect_compile_error_with_mod(env, "future_callback_no_source_lifetime", ch, "SAFE-BORROW-099", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_capturing_callback_cannot_return_capture_future(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // std::function erases the capture environment. A free lifetime on the
+    // callback result does not prove the future borrows the reference
+    // parameter rather than the callback's own captured value.
+    var ch = "async func work(x : &int) : int {\n    var u = await async::yield_now()\n    return *x\n}\nfunc <'a> apply(f : std::function<(x : &'a int) => core::async::FutureHandle<'a, int> >, x : &'a int) : core::async::FutureHandle<'a, int> {\n    return f(x)\n}\npublic func main() : int {\n    var s = 41\n    var x = 0\n    var h = apply(|s|(x : &int) => { return work(&s) }, &x)\n    return async::block_on<int>(h) - 41\n}\n"
+    expect_compile_error_with_mod(env, "future_capturing_callback_capture_future", ch, "SAFE-BORROW-099", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_hrtb_callback_cannot_return_local_borrow(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &int) : int {\n    var u = await async::yield_now()\n    return *x\n}\nfunc <'b> from_ref(x : &'b int) : core::async::FutureHandle<'b, int> {\n    return work(x)\n}\nfunc <'a> apply(f : for<'b> (x : &'b int) => core::async::FutureHandle<'b, int>) : core::async::FutureHandle<'a, int> {\n    var x = 41\n    return f(&x)\n}\npublic func main() : int {\n    var h = apply(from_ref)\n    return async::block_on<int>(h) - 41\n}\n"
+    expect_compile_error_with_mod(env, "future_hrtb_callback_local_borrow", ch, "SAFE-LIFE-001", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func future_handle_callback_future_parameter_same_scope_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc <'b> keep(h : core::async::FutureHandle<'b, int>) : core::async::FutureHandle<'b, int> {\n    return h\n}\nfunc <'a> pass(f : (h : core::async::FutureHandle<'a, int>) => core::async::FutureHandle<'a, int>, h : core::async::FutureHandle<'a, int>) : core::async::FutureHandle<'a, int> {\n    return f(h)\n}\npublic func main() : int {\n    var s = std::string(\"A\")\n    var h = work(&s)\n    var h2 = pass(keep, h)\n    return async::block_on<int>(h2) - 65\n}\n"
+    expect_compile_success_with_mod(env, "future_callback_future_param_same_scope", ch, NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_callback_future_parameter_escape(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc <'b> keep(h : core::async::FutureHandle<'b, int>) : core::async::FutureHandle<'b, int> {\n    return h\n}\nfunc <'a> pass(f : (h : core::async::FutureHandle<'a, int>) => core::async::FutureHandle<'a, int>, h : core::async::FutureHandle<'a, int>) : core::async::FutureHandle<'a, int> {\n    return f(h)\n}\npublic func main() : int {\n    var h2 : core::async::FutureHandle<int>\n    {\n        var s = std::string(\"A\")\n        var h = work(&s)\n        h2 = pass(keep, h)\n    }\n    var r = async::block_on<int>(h2)\n    return r - 65\n}\n"
+    expect_compile_error_with_mod(env, "future_callback_future_param_escape", ch, "SAFE-LIFE-002", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func future_handle_hrtb_callback_same_scope_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &int) : int {\n    var u = await async::yield_now()\n    return *x\n}\nfunc <'b> from_ref(x : &'b int) : core::async::FutureHandle<'b, int> {\n    return work(x)\n}\nfunc <'a> apply(f : for<'b> (x : &'b int) => core::async::FutureHandle<'b, int>, x : &'a int) : core::async::FutureHandle<'a, int> {\n    return f(x)\n}\npublic func main() : int {\n    var x = 41\n    var h = apply(from_ref, &x)\n    return async::block_on<int>(h) - 41\n}\n"
+    expect_compile_success_with_mod(env, "future_hrtb_callback_same_scope", ch, NEG_MOD_ASYNC_STD)
+}
+
+@test
+func future_handle_free_callback_same_scope_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &int) : int {\n    var u = await async::yield_now()\n    return *x\n}\nfunc <'b> from_ref(x : &'b int) : core::async::FutureHandle<'b, int> {\n    return work(x)\n}\nfunc <'a> apply(f : (x : &'a int) => core::async::FutureHandle<'a, int>, x : &'a int) : core::async::FutureHandle<'a, int> {\n    return f(x)\n}\npublic func main() : int {\n    var x = 41\n    var h = apply(from_ref, &x)\n    return async::block_on<int>(h) - 41\n}\n"
+    expect_compile_success_with_mod(env, "future_free_callback_same_scope", ch, NEG_MOD_ASYNC_STD)
+}
+
+@test
 func future_handle_same_scope_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\npublic func main() : int {\n    var s = std::string(\"A\")\n    var h = work(&s)\n    var r = async::block_on<int>(h)\n    return r - 65\n}\n"

@@ -731,7 +731,11 @@ void MIRBuilder::call_indirect_sret(ValueId fn, PlaceId result_place,
     ops[0] = MIROperand::value(fn, ft);
     ops[1] = MIROperand::place(result_place, rt);
     for (uint32_t i = 0; i < count; ++i) ops[i + 2] = args[i];
-    emit_impl(MIROpcode::CallIndirect, MIR_NULL, ops, count + 2);
+    // Record the sret destination as the instruction result, matching the
+    // direct-call convention. Consumers use operand 1 for the pointer itself;
+    // `result_or_place` is what lets the move/borrow checkers recover the
+    // aggregate result type instead of treating this as a void call.
+    emit_impl(MIROpcode::CallIndirect, result_place, ops, count + 2);
     if (result_place < func_.places.size()) {
         func_.places[result_place].init_state = static_cast<uint8_t>(MIRInitState::Initialized);
         set_place_move_path_state(func_, result_place, MIRInitState::Initialized, true);

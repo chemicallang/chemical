@@ -144,6 +144,8 @@ struct MIRFunction {
     std::vector<MIRCallRegionSignature> call_region_signatures;
     TypeId function_type = MIR_INVALID_ID;
     uint32_t flags = 0; // MF_WEAK_STUB; e.g. has sret, is lambda, is comptime-eliminated
+    /** Entry value holding the hidden sret destination, if this function has one. */
+    ValueId sret_pointer = MIR_INVALID_ID;
 
     MIRArray<MIRInstruction> instructions;
     MIRArray<MIROperand> operands;
@@ -209,6 +211,7 @@ struct MIRFunction {
         call_region_signatures.clear();
         region_signature = MIR_INVALID_ID;
         region_var_count = 0;
+        sret_pointer = MIR_INVALID_ID;
         has_decl_loc = false;
         parent_symbol = MIR_INVALID_ID;
         sources.clear();

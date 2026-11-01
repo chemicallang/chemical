@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2378/2378` |
 | LLVM main | `2376/2376` |
 | `@test` runner | `54/54` |
-| TCC/LLVM negative | `703/703` |
+| TCC/LLVM negative | `711/711` |
 | TCC/LLVM safety | `69/69` |
 | TCC/LLVM async | `69/69` |
 | TCC libs | `730/730` |
@@ -260,9 +260,15 @@ memory safety.
    through by-value wrappers; `Box`/`Rc`/`Arc` pointer containers and
    `Option::take`/`Box::into_inner` extractions carry the source loan; consumers
    may alias through a local (not a field/return/capture); owning
-   `FutureHandle<'static, T>` captures are accepted. Remaining: higher-order
-   callback contracts with free (non-HRTB) lifetime parameters, and opaque
-   containers MIR cannot inspect.
+   `FutureHandle<'static, T>` captures are accepted. Function-type call
+   contracts now carry free (non-HRTB) lifetimes; function values of
+   lifetime-generic declarations are higher-ranked, while free-lifetime calls
+   keep the conservative escape mark. A callback returning `FutureHandle` must
+   tie its frame lifetime to a reference/future parameter or use `'static`;
+   higher-ranked returns are accepted, and capture-owning callbacks returning a
+   free/legacy future are rejected at the call site. Remaining: opaque
+   containers beyond callbacks (for example user containers hiding a future
+   behind `*mut void`) and deeper nested HRTB aggregates.
 2. **Target-aware C ABI is implemented for the main native conventions.**
    `MIRABI` classifies by-value `@extern` structs/unions for x86-64 System V,
    Windows x64 and AArch64 AAPCS64, including HFA register parts at exact

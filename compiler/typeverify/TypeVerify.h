@@ -10,6 +10,7 @@
 #include <vector>
 
 class CoreNodes;
+class CapturingFunctionType;
 
 class TypeVerifier : public RecursiveVisitor<TypeVerifier> {
 public:
@@ -73,6 +74,9 @@ public:
      * the call returns; the API implementation is audited to never store it.
      */
     bool allow_scoped_capture = false;
+
+    /** Visiting the erased function type inside a capturing callback. */
+    bool inside_capturing_function_type = false;
 
     /**
      * Locals initialized with a function value that borrows function-local
@@ -160,6 +164,7 @@ public:
 
     void VisitFunctionDecl(FunctionDeclaration *decl);
     void VisitFunctionType(FunctionType* type);
+    void VisitCapturingFunctionType(CapturingFunctionType* type);
     void VisitReferenceType(ReferenceType* type);
 
     void VisitDeleteStmt(DestructStmt* stmt);

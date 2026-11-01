@@ -919,6 +919,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
 
     if (sret_) {
         sret_ptr_ = b.param(sret_ptr_type_);
+        func.sret_pointer = sret_ptr_;
     }
 
     if (self_param) {

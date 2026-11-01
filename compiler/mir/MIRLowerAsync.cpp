@@ -1013,6 +1013,7 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
         capture_src = b.param(types_.pointer_type(types_.void_type(), true));
     }
     sret_ptr_ = b.param(sret_ptr_type_);
+    func.sret_pointer = sret_ptr_;
     const PlaceId sret_place = b.alloca(sret_ptr_type_, MIRStorageClass::Parameter);
     b.store(sret_place, sret_ptr_);
 

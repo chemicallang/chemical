@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.38)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.39)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1338,7 +1338,7 @@ approximate counts:
 |---|---|
 | TCC main / LLVM main | `2378` / `2376` |
 | `@test` runner | `54` |
-| TCC/LLVM negative | `703` / `703` |
+| TCC/LLVM negative | `711` / `711` |
 | TCC/LLVM safety | `69` / `69` |
 | TCC/LLVM async | `69` / `69` |
 | TCC libs | `730` |
@@ -1381,9 +1381,17 @@ new number as the honest baseline, not a compiler regression.
    `Box::into_inner` carries the source loan. Custom consumers may alias the
    handle through a local (`var local = h; block_on(local)`), but not through a
    field/return/capture. Owning `FutureHandle<'static, T>` captures are no longer
-   treated as borrowed. Remaining: higher-order callback contracts whose
-   function type has free (non-HRTB) lifetime parameters, and opaque containers
-   that hide a handle behind a representation MIR cannot inspect.
+   treated as borrowed. Function-type call contracts now carry free (non-HRTB)
+   lifetimes from parameters/returns and generic arguments; a function value of
+   a lifetime-generic declaration is treated as higher-ranked, while a call
+   through a free-lifetime contract keeps the conservative escape mark. A
+   callback returning `FutureHandle` must tie its frame lifetime to a reference
+   or future parameter (or use `'static`); higher-ranked `FutureHandle` returns
+   are supported, and capture-owning callbacks whose result has a free/legacy
+   lifetime are rejected at the call site because the erased capture environment
+   may die before the future. Remaining: opaque containers beyond callbacks
+   (for example user containers that hide a future behind `*mut void`) and
+   deeper nested HRTB aggregates.
 2. **Target-aware C ABI is implemented for the main native conventions.**
    `MIRABI.h` classifies by-value structs/unions for x86-64 System V, Windows
    x64 and AArch64 AAPCS64 (HFAs up to four elements, two-eightbyte integer
@@ -2520,11 +2528,12 @@ indicative; full parity is a large program (see §15.9).
 **Current M4 status:** the enforceable borrow/lifetime surface is implemented
 and enforced. `FutureHandle` direct frame borrows are tracked as MIR borrow
 views through locals/fields/wrappers/pointer containers and the named extraction
-paths (`Option::take`, `Box::into_inner`); the remaining async gap is
-higher-order callback inference where the function type has a free (non-HRTB)
-lifetime parameter, plus opaque container representations MIR cannot inspect
-(§4.5 item 1). Deeper HRTB nesting and mixed multi-borrow referents remain
-explicit `SAFE-BORROW-099` rejections.
+paths (`Option::take`, `Box::into_inner`). Function-type call sites now carry
+free (non-HRTB) lifetimes and higher-ranked `FutureHandle` returns; callback
+results must have a reference/future source or `'static`, and free-lifetime
+capturing callbacks are rejected. The remaining async gap is opaque containers
+whose representation hides the handle (§4.5 item 1). Deeper HRTB nesting and
+mixed multi-borrow referents remain explicit `SAFE-BORROW-099` rejections.
 
 ### M5 — Validity/runtime (2 months)
 
@@ -2843,4 +2852,8 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 
 *Revision note v4.36 (2026-11-01): FutureHandle call-site inference and custom consumers. Reference parameters of future-returning functions are seeded as caller-owned loans (including elided `&T`), so `fn <'a,'b> wrap(x:&'a T) -> FutureHandle<'b,U>` is checked against the region it actually returns (`SAFE-LIFE-003`) instead of synthetic "all inputs outlive the result" edges; those edges now apply only to async functions whose frame retains every input. Aggregate `FutureHandle` returns are detected through references, pointers, arrays, generics, structs, variants, and callback captures. A safe user-defined consumer is accepted when its body only forwards the handle to `block_on`/`spawn*` or another checked consumer; storing, returning, capturing, or passing it to an unknown callee is rejected. Added wrong-region, two-lifetime inference, aggregate-wrapper, custom-consumer, and unsafe-consumer tests. Main TCC/LLVM `2378`/`2376`; negative `691`; safety `64`; async `69`; libs `730`; interpret `1910`; `MIRTests` `4643`.*
 
-*Revision note v4.38 (2026-11-01): target-aware C ABI. `MIRABI` now classifies by-value `@extern` structs/unions per target: x86-64 System V (eightbyte INTEGER/SSE, memory class), Windows x64 (1/2/4/8-byte integer aggregates, memory otherwise), and AArch64 AAPCS64 (HFAs of 1–4 floats/doubles including unions/arrays, other <=16-byte composites in integer registers, memory otherwise). Register parts carry their exact aggregate offset, so HFA loads/stores no longer assume 8-byte spacing. LLVM adds `byval` only on System V memory parameters; Windows/AArch64 use plain pointers, matching Clang. `MIRABIKind` is recorded in `MIRModuleLayout` from the target triple, and unsupported targets (i386, ARM32, Windows ARM64, WASM, unknown) still reject by-value extern aggregates with `SAFE-FFI-003`. Added `MIRTests` classifier coverage and an LLVM-target negative test. Main TCC/LLVM `2378`/`2376`; negative `703`; safety `69`; async `69`; libs `730`; interpret `1910`; `MIRTests` `4682`.\n\n*Revision note v4.37 (2026-11-01): field-wise drops + remaining FutureHandle inference. Local and by-value-parameter aggregates with generated drop glue now arm per-field/per-element drop flags on whole construction and clear the moved field's flag on a move, including nested fields and whole-array fields. Moves from user-destructor aggregates, async frames, globals, temporaries/expressions, and references/pointers are rejected with `SAFE-MOVE-004` rather than double-dropping. FutureHandle aggregate field loans are lifted through by-value wrappers, `Box`/`Rc`/`Arc` pointer containers and `Option::take`/`Box::into_inner` extractions carry the source loan, custom consumers accept local aliases, and owning `FutureHandle<'static, T>` captures are no longer rejected. Added runtime move/drop tests and negative unsound-acceptance tests. Main TCC/LLVM `2378`/`2376`; negative `702`; safety `69`; async `69`; libs `730`; interpret `1910`; `MIRTests` `4643`.*
+*Revision note v4.37 (2026-11-01): field-wise drops + remaining FutureHandle inference. Local and by-value-parameter aggregates with generated drop glue now arm per-field/per-element drop flags on whole construction and clear the moved field's flag on a move, including nested fields and whole-array fields. Moves from user-destructor aggregates, async frames, globals, temporaries/expressions, and references/pointers are rejected with `SAFE-MOVE-004` rather than double-dropping. FutureHandle aggregate field loans are lifted through by-value wrappers, `Box`/`Rc`/`Arc` pointer containers and `Option::take`/`Box::into_inner` extractions carry the source loan, custom consumers accept local aliases, and owning `FutureHandle<'static, T>` captures are no longer rejected. Added runtime move/drop tests and negative unsound-acceptance tests. Main TCC/LLVM `2378`/`2376`; negative `702`; safety `69`; async `69`; libs `730`; interpret `1910`; `MIRTests` `4643`.*
+
+*Revision note v4.38 (2026-11-01): target-aware C ABI. `MIRABI` now classifies by-value `@extern` structs/unions per target: x86-64 System V (eightbyte INTEGER/SSE, memory class), Windows x64 (1/2/4/8-byte integer aggregates, memory otherwise), and AArch64 AAPCS64 (HFAs of 1–4 floats/doubles including unions/arrays, other <=16-byte composites in integer registers, memory otherwise). Register parts carry their exact aggregate offset, so HFA loads/stores no longer assume 8-byte spacing. LLVM adds `byval` only on System V memory parameters; Windows/AArch64 use plain pointers, matching Clang. `MIRABIKind` is recorded in `MIRModuleLayout` from the target triple, and unsupported targets (i386, ARM32, Windows ARM64, WASM, unknown) still reject by-value extern aggregates with `SAFE-FFI-003`. Added `MIRTests` classifier coverage and an LLVM-target negative test. Main TCC/LLVM `2378`/`2376`; negative `703`; safety `69`; async `69`; libs `730`; interpret `1910`; `MIRTests` `4682`.
+
+*Revision note v4.39 (2026-11-01): FutureHandle higher-order inference. Function-type region signatures now collect free (non-HRTB) lifetime names from reference parameters, generic lifetime arguments such as `FutureHandle<'a, T>`, arrays and aggregate fields; function values of lifetime-generic declarations are marked higher-ranked. Indirect calls with a free-lifetime contract use the signature for result-loan mapping but keep the conservative escape mark, while fully higher-ranked contracts retain the existing non-retaining assumption. `MIRBorrowCheck` now recovers the sret destination for capturing lambdas (the sret parameter follows the hidden capture-environment pointer), so returning a future that borrows a lambda capture is checked. Callbacks returning a free `FutureHandle` require a reference/future parameter source or `'static`; HRTB `FutureHandle` returns are accepted; capture-owning lambdas returning a free/legacy future are rejected at the call site because the erased capture may die first. Added positive/negative coverage for free and HRTB callback returns and opaque capture-return cases. Main TCC/LLVM `2378`/`2376`; negative `711`; safety `69`; async `69`; libs `730`; interpret `1910`; `MIRTests` `4682`; audit no growth; TSAN pass.

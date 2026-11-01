@@ -2560,6 +2560,52 @@ static bool value_captures_future_handle(
     }
 }
 
+static chem::string_view hrtb_bare_lifetime(chem::string_view lifetime);
+static bool hrtb_is_binder(chem::string_view lifetime,
+                           const std::vector<chem::string_view>& binders);
+
+/** Resolve a callback value through a local initializer to its lambda body. */
+static LambdaFunction* resolve_future_callback_lambda(
+        Value* value, std::unordered_set<ASTNode*>& visiting,
+        unsigned depth = 0) {
+    if (value == nullptr || depth > 8) return nullptr;
+    value = unwrap_capture_value(value);
+    if (value->val_kind() == ValueKind::LambdaFunc) {
+        return value->as_lambda_func_unsafe();
+    }
+    if (!Value::isIdentifier(value->val_kind())) return nullptr;
+    ASTNode* linked = value->as_identifier_unsafe()->linked;
+    if (linked == nullptr || linked->kind() != ASTNodeKind::VarInitStmt ||
+        !visiting.insert(linked).second) {
+        return nullptr;
+    }
+    return resolve_future_callback_lambda(
+        linked->as_var_init_unsafe()->value, visiting, depth + 1);
+}
+
+/**
+ * A capture-owning callback whose result is a FutureHandle with a free
+ * lifetime may return a future borrowing its own capture environment. The
+ * callback object can die before the future, and MIR cannot inspect the
+ * erased capture representation, so the call site rejects it.
+ */
+static bool callback_returns_unproven_future(LambdaFunction* lambda) {
+    if (lambda == nullptr || lambda->captureList.empty()) return false;
+    BaseType* ret = const_cast<BaseType*>(lambda->returnType.getType());
+    if (!is_future_handle_ast_type(ret)) return false;
+    if (future_handle_missing_lifetime(ret)) return true;
+    if (GenericType* gen = future_handle_generic(ret)) {
+        for (chem::string_view lifetime : gen->lifetime_args) {
+            const auto bare = hrtb_bare_lifetime(lifetime);
+            if (bare.empty() || bare == "static") continue;
+            if (!hrtb_is_binder(lifetime, lambda->binder_lifetimes)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 static bool value_captures_future_handle(
         Value* value,
         const std::unordered_set<VarInitStatement*>* tainted = nullptr) {
@@ -2924,6 +2970,19 @@ static bool is_safe_future_consumer(TypeVerifier& verifier,
 static void verify_future_argument_contract(TypeVerifier& verifier,
                                             FunctionCall* call) {
     if (call == nullptr || call->values.empty() || verifier.is_unsafe) return;
+    // Capture-owning callbacks can hide their environment behind std::function.
+    // If such a callback returns a FutureHandle with a free lifetime, the result
+    // may borrow the callback's captured storage, which dies with the callback.
+    std::unordered_set<ASTNode*> callback_visiting;
+    for (Value* arg : call->values) {
+        LambdaFunction* lambda =
+            resolve_future_callback_lambda(arg, callback_visiting);
+        if (callback_returns_unproven_future(lambda)) {
+            verifier.diagnoser.error(arg).with_code("SAFE-BORROW-099")
+                << "a capturing callback returning FutureHandle must use 'static or a higher-ranked lifetime; its result may borrow the callback's captured storage";
+            return;
+        }
+    }
     FunctionDeclaration* callee = future_call_callee(call);
     BaseType* result_type = const_cast<BaseType*>(call->getType());
     const bool result_carries = contains_future_handle_ast_type(result_type);
@@ -4777,6 +4836,62 @@ static bool hrtb_aggregate_param_ok(
     }
     return true;
 }
+/**
+ * Source lifetimes a callback result may borrow from. A direct reference
+ * parameter supplies its own lifetime; a FutureHandle parameter supplies its
+ * frame lifetime; a single-level aggregate supplies its direct reference
+ * fields. A `'static` result needs no source.
+ */
+static bool function_type_future_return_sources(
+        FunctionType* type,
+        const std::vector<chem::string_view>& return_lifetimes,
+        std::vector<chem::string_view>& sources) {
+    auto add_source = [&](chem::string_view lifetime) {
+        if (lifetime.empty() || lifetime == "static" ||
+            lifetime == "'static") {
+            return;
+        }
+        const auto bare = hrtb_bare_lifetime(lifetime);
+        for (chem::string_view existing : sources) {
+            if (hrtb_bare_lifetime(existing) == bare) return;
+        }
+        sources.push_back(lifetime);
+    };
+    for (FunctionParam* param : type->params) {
+        BaseType* pt = param ? param->type : nullptr;
+        if (pt == nullptr) continue;
+        BaseType* canonical = pt->canonical();
+        if (canonical != nullptr && canonical->kind() == BaseTypeKind::Reference) {
+            add_source(canonical->as_reference_type_unsafe()->lifetime);
+            continue;
+        }
+        if (is_future_handle_ast_type(pt)) {
+            if (GenericType* gen = future_handle_generic(pt)) {
+                for (chem::string_view lifetime : gen->lifetime_args) {
+                    add_source(lifetime);
+                }
+            }
+            continue;
+        }
+        std::vector<chem::string_view> fields;
+        if (!return_lifetimes.empty() &&
+            hrtb_aggregate_param_ok(pt, return_lifetimes, &fields)) {
+            for (chem::string_view lifetime : fields) add_source(lifetime);
+        }
+    }
+    return !sources.empty();
+}
+
+void TypeVerifier::VisitCapturingFunctionType(CapturingFunctionType* type) {
+    // The inner function type is visited with this flag set so `VisitFunctionType`
+    // can apply the stricter capture rule even when the erased instance cannot
+    // be resolved back to a FunctionType here.
+    const bool saved = inside_capturing_function_type;
+    inside_capturing_function_type = true;
+    RecursiveVisitor<TypeVerifier>::VisitCapturingFunctionType(type);
+    inside_capturing_function_type = saved;
+}
+
 void TypeVerifier::VisitFunctionType(FunctionType* type) {
     const auto before = lifetime_scope.size();
     if (type != nullptr) {
@@ -4928,13 +5043,79 @@ void TypeVerifier::VisitFunctionType(FunctionType* type) {
                         d << "the higher-ranked result lifetime must match a reference parameter lifetime";
                     }
                 }
-            } else if (hrtb_type_mentions_lifetime(return_type,
+            } else if (!is_future_handle_ast_type(return_type) &&
+                       hrtb_type_mentions_lifetime(return_type,
                                                    type->binder_lifetimes)) {
                 auto& d = diagnoser.error(current_func_type
                                               ? current_func_type->get_location()
                                               : SourceLocation(0));
                 d.with_code("SAFE-BORROW-099");
                 d << "a higher-ranked function type cannot return an aggregate carrying a higher-ranked borrow";
+            }
+        }
+        // A FutureHandle callback result is a by-value borrow view. Unlike an
+        // ordinary aggregate, the MIR region signature can map its result
+        // lifetime to a reference/future parameter. Require such a source (or
+        // `'static`) so a callback with a free lifetime cannot return a future
+        // that borrows an opaque capture whose owner dies with the callback.
+        BaseType* future_ret =
+            const_cast<BaseType*>(type->returnType.getType());
+        if (is_future_handle_ast_type(future_ret)) {
+            std::vector<chem::string_view> return_lifetimes;
+            if (GenericType* gen = future_handle_generic(future_ret)) {
+                return_lifetimes = gen->lifetime_args;
+            }
+            std::vector<chem::string_view> sources;
+            function_type_future_return_sources(type, return_lifetimes, sources);
+            auto report_missing = [&]() {
+                auto& d = diagnoser.error(current_func_type
+                                              ? current_func_type->get_location()
+                                              : SourceLocation(0));
+                d.with_code("SAFE-BORROW-099");
+                d << "a callback returning FutureHandle must tie its frame lifetime to a reference or future parameter (or use 'static)";
+            };
+            if (return_lifetimes.empty()) {
+                // Legacy lifetime-less spelling is used by the C/TLS callback
+                // ABI and by older APIs; it carries no named free lifetime to
+                // prove or reject here. Capturing callbacks are handled by the
+                // call-site capture check below.
+            } else {
+                for (chem::string_view lifetime : return_lifetimes) {
+                    const auto bare = hrtb_bare_lifetime(lifetime);
+                    if (bare.empty() || bare == "static") continue;
+                    bool matched = false;
+                    for (chem::string_view source : sources) {
+                        if (hrtb_bare_lifetime(source) == bare) {
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (!matched) {
+                        report_missing();
+                        break;
+                    }
+                }
+            }
+        }
+        if (inside_capturing_function_type &&
+            is_future_handle_ast_type(future_ret)) {
+            bool unsafe_free = future_handle_missing_lifetime(future_ret);
+            if (GenericType* gen = future_handle_generic(future_ret)) {
+                for (chem::string_view lifetime : gen->lifetime_args) {
+                    const auto bare = hrtb_bare_lifetime(lifetime);
+                    if (bare.empty() || bare == "static") continue;
+                    if (!hrtb_is_binder(lifetime, type->binder_lifetimes)) {
+                        unsafe_free = true;
+                        break;
+                    }
+                }
+            }
+            if (unsafe_free) {
+                auto& d = diagnoser.error(current_func_type
+                                              ? current_func_type->get_location()
+                                              : SourceLocation(0));
+                d.with_code("SAFE-BORROW-099");
+                d << "a capturing callback returning FutureHandle must use 'static or a higher-ranked lifetime; a free lifetime could borrow the callback's capture environment";
             }
         }
     }

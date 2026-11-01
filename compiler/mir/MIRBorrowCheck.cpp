@@ -1520,6 +1520,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 // callees (indirect, extern, no body) keep the conservative
                 // escape mark.
                 bool known = false;
+                bool callsite_hrtb = false;
                 bool returns_reference = false;
                 bool returns_view = false;
                 bool extern_like = false;
@@ -1557,8 +1558,16 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     // but the lowering recorded the source function type's
                     // HRTB contract for this instruction. It is a callable
                     // contract, not a body: the region mapping below uses it to
-                    // bind the result loan to the borrowed argument.
-                    known = true;
+                    // bind the result loan to the borrowed argument. Only a
+                    // fully higher-ranked contract proves that the callee
+                    // cannot retain a caller-lifetime borrow; a free lifetime
+                    // contract is specialized to this call and must keep the
+                    // conservative escape mark.
+                    callsite_hrtb =
+                        callsite_sig.lifetime_param_count != 0 &&
+                        callsite_sig.hrtb_binders.size() ==
+                            callsite_sig.lifetime_param_count;
+                    known = callsite_hrtb;
                     TypeId result_type = MIR_INVALID_ID;
                     if (inst.result_or_place != MIR_INVALID_ID) {
                         if (inst.result_or_place < function.values.size()) {
@@ -1823,7 +1832,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         hrtb_ref_params += static_cast<uint32_t>(fields.size());
                     }
                 }
-                if (has_callsite_sig && hrtb_ref_params > 1) {
+                if (has_callsite_sig && callsite_hrtb && hrtb_ref_params > 1) {
                     bool all_local = ref_args.size() == hrtb_ref_params;
                     bool all_nonlocal_safe = ref_args.size() == hrtb_ref_params;
                     MIRRegionId nonlocal_region = MIR_INVALID_ID;
@@ -1911,7 +1920,8 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 uint32_t mapped_loan = MIR_INVALID_ID;
                 uint32_t mapped_source = MIR_INVALID_ID;
                 std::vector<uint32_t> ambiguous_loans;
-                if (known && (returns_reference || returns_view) &&
+                if ((known || has_callsite_sig) &&
+                    (returns_reference || returns_view || future_result) &&
                     inst.result_or_place != MIR_INVALID_ID) {
                     if (callee_sig != nullptr &&
                         callee_sig->return_region != MIR_INVALID_ID) {
@@ -1998,7 +2008,8 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 // ordinary tracking. Attach the source loan to the result place:
                 // a reference argument (the `&self` of `to_view`) or an
                 // `&raw`/address target (`span(&raw mut a[0], 3)`).
-                if (known && (returns_view || future_result) && !static_return &&
+                if ((known || has_callsite_sig) &&
+                    (returns_view || future_result) && !static_return &&
                     inst.result_or_place != MIR_INVALID_ID &&
                     inst.result_or_place < function.places.size()) {
                     uint32_t view_loan = mapped_loan;
@@ -2039,8 +2050,13 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 }
 
                 if (mapped_loan != MIR_INVALID_ID && returns_reference) {
+                    // A free-lifetime callback can retain an alias even while
+                    // it also returns one argument; keep the conservative
+                    // escape mark unless the contract is fully higher-ranked.
+                    const bool escaped =
+                        has_callsite_sig && !callsite_hrtb;
                     for (uint16_t i = first; i < inst.operand_count; ++i) {
-                        use_value(ops[i], lin, false);
+                        use_value(ops[i], lin, escaped);
                     }
                     value_loans[inst.result_or_place] = mapped_loan;
                     loans[mapped_loan].end = lin;
@@ -2095,9 +2111,13 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     // Aggregate returns use a hidden sret pointer: the value is
                     // stored to it immediately before `return` (which has no
                     // operand). Recover the source aggregate so its reference
-                    // fields are checked too. The sret pointer is the first
-                    // materialized parameter of the entry block.
+                    // fields are checked too. `MIRFunction::sret_pointer` names
+                    // the parameter; capturing lambdas place it after their
+                    // hidden capture-environment pointer.
                     auto is_sret_param = [&](ValueId value) -> bool {
+                        if (function.sret_pointer != MIR_INVALID_ID) {
+                            return value == function.sret_pointer;
+                        }
                         if (value >= function.values.size()) return false;
                         const uint32_t def = function.values[value].def_inst;
                         if (def >= function.instructions.size()) return false;

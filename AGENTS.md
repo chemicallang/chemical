@@ -32,9 +32,11 @@ async `FutureHandle<'a, T>` now carries a frame lifetime (`'static` for owning
 frames, elided for borrowed frames); `SAFE-LIFE-005` rejects safe retaining
 APIs, and call-site binding covers reference parameters, aggregate wrappers/fields,
 pointer containers, references/callback captures, body-checked custom consumers
-(including local aliases), and owning `'static` captures. Higher-order callback
-inference and unsupported async/temporary field-move shapes remain (the latter
-are rejected with `SAFE-MOVE-004`); other blockers are the full target-aware C
+(including local aliases), and owning `'static` captures. Free (non-HRTB)
+function-type lifetimes and higher-ranked `FutureHandle` callback returns are
+inferred; opaque type-erased containers beyond callbacks and unsupported
+async/temporary field-move shapes remain (the latter are rejected with
+`SAFE-MOVE-004`); other blockers are the full target-aware C
 ABI (LLVM covers x86-64 SysV, Windows x64 and AAPCS64; `SAFE-FFI-003` rejects
 unsupported targets), `dyn` being conservatively
 `!Send`/`!Sync`/`!Unpin`, and the partially

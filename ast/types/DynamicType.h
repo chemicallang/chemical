@@ -11,11 +11,12 @@ public:
         AutoTraitNone = 0,
         AutoTraitSend = 1u << 0,
         AutoTraitSync = 1u << 1,
+        AutoTraitUnpin = 1u << 2,
     };
 
     BaseType* referenced;
 
-    /** Explicit `dyn I + Send` / `dyn I + Sync` bounds (compile-time only). */
+    /** Explicit `dyn I + Send` / `+ Sync` / `+ Unpin` bounds (compile-time only). */
     uint8_t auto_traits = AutoTraitNone;
 
     /**

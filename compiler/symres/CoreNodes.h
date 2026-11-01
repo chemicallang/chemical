@@ -173,6 +173,7 @@ public:
      */
     InterfaceDefinition* send_interface = nullptr;
     InterfaceDefinition* sync_interface = nullptr;
+    InterfaceDefinition* unpin_interface = nullptr;
 
     /**
      * get information about operator being overloaded, like function name to use

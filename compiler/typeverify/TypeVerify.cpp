@@ -1716,6 +1716,16 @@ void TypeVerifier::VisitDynamicValue(DynamicValue* value) {
     if (dyn->has_auto_trait(DynamicType::AutoTraitSync)) {
         check(DynamicType::AutoTraitSync, AutoTraitKind::Sync, "Sync");
     }
+    if (dyn->has_auto_trait(DynamicType::AutoTraitUnpin)) {
+        std::unordered_set<MembersContainer*> visiting;
+        if (!type_satisfies_unpin(concrete, visiting, &index,
+                                  (ASTNode*) coreNodes.unpin_interface)) {
+            diagnoser.error(value).with_code("SAFE-SEND-003")
+                << "dynamic object construction promises 'Unpin', but the concrete "
+                   "value type '" << concrete->representation()
+                << "' does not satisfy it";
+        }
+    }
 }
 
 /** `'static` is stored by the parser without the leading quote. */

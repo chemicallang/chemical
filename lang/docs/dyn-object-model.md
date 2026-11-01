@@ -89,14 +89,12 @@ MIR: its `dyn` field points at heap storage that `data`/`drop` own.
 
 ## Auto-trait bounds
 
-`dyn I + Send` and `dyn I + Sync` are represented on the `DynamicType` and are
-compile-time-only: the two-word layout is unchanged. Construction
-`dyn<I + Send + Sync>(value)` checks the concrete value with the same
-structural/impl auto-trait derivation used for `where T: Send`; a mismatch is
-`SAFE-SEND-003`. `dyn I` without a bound remains `!Send`/`!Sync`.
-
-`+ Unpin` is not accepted yet. It needs the same construction check plus the
-`PhantomPinned`/negative-impl path.
+`dyn I + Send`, `dyn I + Sync`, and `dyn I + Unpin` are represented on the
+`DynamicType` and are compile-time-only: the two-word layout is unchanged.
+Construction checks the concrete value with the same structural/impl derivation
+used for the corresponding `where` bound; a mismatch is `SAFE-SEND-003`.
+`+ Unpin` also follows the `PhantomPinned` negative-impl path. `dyn I` without a
+bound remains `!Send`/`!Sync`/`!Unpin`.
 
 ## Upcasting
 
@@ -145,9 +143,9 @@ Implementation status and next steps:
    `SAFE-LIFE-001`/`002` rejections, and `std::DynBox<I>` / `std::dyn_box`
    with a stored type-specific drop function. `dyn Derived` → `dyn Base`
    upcasting is supported when Base is in the first-inheritance chain
-   (vtable-prefix compatible). `dyn I + Send`/`+ Sync` are construction-checked;
-   `+ Unpin` is still absent.
-2. Conditional `DynBox` `Send`/`Sync` and `+ Unpin`.
+   (vtable-prefix compatible). `dyn I + Send`/`+ Sync`/`+ Unpin` are
+   construction-checked.
+2. Conditional `DynBox` `Send`/`Sync`/`Unpin`.
 3. Object-safe associated items and remaining `dyn` object-safety checks.
 4. Continue M1.11 (`&str`/UTF-8) separately.
 

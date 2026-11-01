@@ -923,8 +923,10 @@ unsigned char Parser::parseDynamicAutoTraitMask(ASTAllocator& allocator) {
             mask |= DynamicType::AutoTraitSend;
         } else if(name == chem::string_view("Sync")) {
             mask |= DynamicType::AutoTraitSync;
+        } else if(name == chem::string_view("Unpin")) {
+            mask |= DynamicType::AutoTraitUnpin;
         } else {
-            error() << "unsupported dynamic auto trait '" << name << "' (expected Send or Sync)";
+            error() << "unsupported dynamic auto trait '" << name << "' (expected Send, Sync or Unpin)";
         }
     }
     return mask;

@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2383/2383` |
 | LLVM main | `2381/2381` |
 | `@test` runner | `56/56` |
-| TCC/LLVM negative | `717/717` |
+| TCC/LLVM negative | `718/718` |
 | TCC/LLVM safety | `69/69` |
 | TCC/LLVM async | `69/69` |
 | TCC libs | `730/730` |
@@ -316,8 +316,9 @@ memory safety.
    owns the concrete allocation and drops it exactly once through a stored
    `drop_erased<T>` function. `dyn Derived` upcasts to `dyn Base` when Base is
    in the first-inheritance chain (vtable-prefix compatible). `dyn I + Send` and
-   `dyn I + Sync` are construction-checked (`SAFE-SEND-003`); unbound `dyn` is
-   conservatively `!Send`/`!Sync`, and `+ Unpin` is still absent. Conservative `!Send`/`!Sync`/`!Unpin` avoids sending an `Rc`-backed
+   `dyn I + Sync`/`+ Unpin` are construction-checked (`SAFE-SEND-003`); unbound
+   `dyn` is conservatively `!Send`/`!Sync`/`!Unpin`. Conservative
+   `!Send`/`!Sync`/`!Unpin` avoids sending an `Rc`-backed
    `dyn` object, but `dyn I + Send` cannot be expressed and
    `Box<dyn I>`/`Arc<dyn I>` cannot cross threads. Full `dyn` bounds are M1.19;
    see `lang/docs/dyn-object-model.md`.
@@ -471,7 +472,7 @@ Coded output renders `error[SAFE-*]:` / `warn[SAFE-*]:`; uncoded output keeps
 | `SAFE-SCOPED-001` | `@scoped_callback` parameter used outside a scoped sink |
 | `SAFE-SEND-001` | async frame not provably `Send + 'static` |
 | `SAFE-SEND-002` | callback capture not provably `Send`/`Send + 'static` |
-| `SAFE-SEND-003` | dynamic object's concrete value does not satisfy `+ Send`/`+ Sync` |
+| `SAFE-SEND-003` | dynamic object's concrete value does not satisfy `+ Send`/`+ Sync`/`+ Unpin` |
 | `SAFE-TRAIT-001` | `unsafe interface` implemented without `unsafe impl` |
 | `SAFE-UNSAFE-001` | raw-pointer operation in safe context |
 | `SAFE-UNSAFE-002` | unsafe/extern call or unsafe-to-safe coercion |

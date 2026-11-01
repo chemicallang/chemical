@@ -205,7 +205,7 @@ func test_dynamic_dispatch() {
     })
     test("dyn + Send and + Sync bounds construct and satisfy where clauses", () => {
         var p = SendPhoneImpl { n : 12 }
-        var d : dyn SendPhone + Send + Sync = dyn<SendPhone + Sync + Send>(p)
+        var d : dyn SendPhone + Send + Sync + Unpin = dyn<SendPhone + Sync + Send + Unpin>(p)
         var sent = dyn_requires_send(d)
         var synced = dyn_requires_sync(sent)
         return synced.send_call() == 12

@@ -321,10 +321,11 @@ inline bool type_satisfies_unpin(
         case BaseTypeKind::Reference:
         case BaseTypeKind::Function:
             return true;
-        case BaseTypeKind::Dynamic:
-            // Without an explicit Unpin bound, the erased implementor may be
-            // !Unpin. Conservative: a dynamic object is not movable while pinned.
-            return false;
+        case BaseTypeKind::Dynamic: {
+            // Unbound dynamic objects may hide a PhantomPinned implementor.
+            auto* dyn = type->as_dynamic_type_unsafe();
+            return dyn->has_auto_trait(DynamicType::AutoTraitUnpin);
+        }
         case BaseTypeKind::CapturingFunction: {
             auto* cap = type->as_capturing_func_type_unsafe();
             if (!cap->capture_env) return false;

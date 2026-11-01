@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.45)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.46)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1290,7 +1290,7 @@ but keep aliasing/race checks. GC is a later mode.
 | Runtime checks | Implemented | Array/vector/deque/string/span/map bounds, div/mod/shift, checked signed arithmetic, defined float→int, allocation/layout guards, abort-only panic. |
 | Thread safety | Enforced safe surface | `Send`/`Sync` auto traits, explicit/negative impls, nested conditional generic impls, scoped/owned thread APIs, `Arc`/channel audit, TSAN smoke. |
 | Async | Shipped; type-level lifetime + field/container inference | `Pin`/Waker/frame loans; `spawn_send` frame check; MIR future borrow tracking through fields/wrappers/pointer containers + `SAFE-LIFE-005` retaining-API rejection. |
-| Trait objects | Partial | Basic dynamic dispatch; `dyn I + Send`/`+ Sync` are represented and construction-checked, `dyn` without bounds is conservatively `!Send`/`!Sync`, and `+ Unpin` is still absent. |
+| Trait objects | Partial | Basic dynamic dispatch; `dyn I + Send`/`+ Sync`/`+ Unpin` are represented and construction-checked, and `dyn` without bounds is conservatively `!Send`/`!Sync`/`!Unpin`. |
 | Slices/tuples/const generics/GATs/`impl Trait` | Partial/absent | Full parity remains M1. |
 | `&str`/UTF-8 | Byte-string surface | `string`/`string_view`; UTF-8 parity M1. |
 | Derive | Absent | CBI macros exist; no built-in derive. |
@@ -1338,7 +1338,7 @@ approximate counts:
 |---|---|
 | TCC main / LLVM main | `2383` / `2381` |
 | `@test` runner | `56` |
-| TCC/LLVM negative | `717` / `717` |
+| TCC/LLVM negative | `718` / `718` |
 | TCC/LLVM safety | `69` / `69` |
 | TCC/LLVM async | `69` / `69` |
 | TCC libs | `730` |
@@ -1445,8 +1445,9 @@ new number as the honest baseline, not a compiler regression.
    function. `dyn Derived` upcasts to `dyn Base` when Base is in the
    first-inheritance chain (vtable slots are a prefix). `dyn I + Send` and
    `dyn I + Sync` are represented and checked against the concrete value at
-   construction (`SAFE-SEND-003`); unbound `dyn` remains `!Send`/`!Sync`, and
-   `+ Unpin` is still absent. `Box<dyn I>`/`Arc<dyn I>` can cross threads only
+   construction (`SAFE-SEND-003`); `+ Unpin` is checked with the same
+   PhantomPinned negative-impl path, and unbound `dyn` remains
+   `!Send`/`!Sync`/`!Unpin`. `Box<dyn I>`/`Arc<dyn I>` can cross threads only
    with the explicit bound. See
    `lang/docs/dyn-object-model.md`; M1.19.
 7. **Async allocation checks are current, not permanently complete.**
@@ -2894,3 +2895,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.44 (2026-11-01): `dyn` upcasting. `DynamicType::satisfies` now accepts `dyn Derived` → `dyn Base` when Base is reachable through Derived's **first** inherited interface. The vtable builder flattens that chain first, so Base's method slots are a prefix of Derived's vtable and the fat pointer can be copied without thunking or adjustment. Upcasting through a later/incompatible inheritance branch and downcasting remain rejected. Added a runtime test covering `dyn Derived` assignment to `dyn Base` and calls through both vtables on TCC/LLVM/interpretation. Main TCC/LLVM `2382`/`2380`; `@test` `56`; negative `716`; safety `69`; async `69`; libs `730`; interpret `1914`; `MIRTests` `4682`; audit no growth; TSAN pass.
 
 *Revision note v4.45 (2026-11-01): `dyn + Send/Sync`. `DynamicType` now carries explicit Send/Sync auto-trait bits; the parser accepts `dyn I + Send + Sync` in type position and `dyn<I + Send + Sync>(value)` in construction. `DynamicType::satisfies` requires the target's bounds to be a subset of the source's, so `dyn I` cannot silently become `dyn I + Send`. Auto-trait derivation consults the bits instead of treating every dynamic object as unbound; `dyn` without a bound remains `!Send`/`!Sync`. Type verification checks the concrete value's structural/impl Send/Sync at construction and reports `SAFE-SEND-003` on failure. Added positive Send+Sync construction/where-clause coverage and a negative `Rc`-backed construction test. `+ Unpin` remains unimplemented. Main TCC/LLVM `2383`/`2381`; `@test` `56`; negative `717`; safety `69`; async `69`; libs `730`; interpret `1915`; `MIRTests` `4682`; audit no growth; TSAN pass.
+
+*Revision note v4.46 (2026-11-01): `dyn + Unpin`. `DynamicType` now represents an explicit `+ Unpin` bit; `core::Unpin` is cached in `CoreNodes` (it lives inside `namespace core`, unlike top-level Send/Sync), and `type_satisfies_unpin` consults the bit instead of rejecting every dynamic object. Construction `dyn<I + Unpin>(value)` checks the concrete value through the same structural/negative-impl path used by `where T: Unpin`; `PhantomPinned` is rejected with `SAFE-SEND-003`. Added positive `+ Unpin` coverage and a negative `PhantomPinned` construction test. Main TCC/LLVM `2383`/`2381`; `@test` `56`; negative `718`; safety `69`; async `69`; libs `730`; interpret `1915`; `MIRTests` `4682`; audit no growth; TSAN pass.

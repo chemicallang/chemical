@@ -81,15 +81,18 @@ void SymbolResolver::link_core_nodes() {
             coreNodes.sync_interface = syncNode->as_interface_def_unsafe();
             coreNodes.sync_interface->interface_bits.set(InterfaceBits::SYNC_BIT);
         }
-        const auto unpinNode = find("Unpin");
-        if(unpinNode && unpinNode->kind() == ASTNodeKind::InterfaceDecl) {
-            unpinNode->as_interface_def_unsafe()->interface_bits.set(InterfaceBits::UNPIN_BIT);
-        }
     }
 
     const auto coreNode = find("core");
     if (coreNode == nullptr || coreNode->kind() != ASTNodeKind::NamespaceDecl) return;
     if (coreNode->as_namespace_unsafe()->specifier() != AccessSpecifier::Public) return;
+
+    // Unpin lives inside `namespace core`, unlike the top-level Send/Sync.
+    const auto unpinNode = coreNode->child("Unpin");
+    if(unpinNode && unpinNode->kind() == ASTNodeKind::InterfaceDecl) {
+        coreNodes.unpin_interface = unpinNode->as_interface_def_unsafe();
+        coreNodes.unpin_interface->interface_bits.set(InterfaceBits::UNPIN_BIT);
+    }
 
     const auto opsNode = coreNode->child("ops");
     if (opsNode == nullptr || opsNode->kind() != ASTNodeKind::NamespaceDecl) return;

@@ -68,4 +68,10 @@ public struct span<T> {
 
 
 impl<T> Copy for span<T> {}
+
+impl<T> core::ops::Index<size_t, T> for span<T> {
+    func index(&self, loc : size_t) : &T {
+        return unsafe(&*self.get(loc))
+    }
+}
 }

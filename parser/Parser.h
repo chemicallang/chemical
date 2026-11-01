@@ -726,6 +726,9 @@ public:
     /** Build the inline struct backing a tuple type/literal. */
     StructType* makeTupleType(ASTAllocator& allocator, const std::vector<TypeLoc>& types, SourceLocation location);
 
+    /** Build a qualified type reference such as `std::span`. */
+    LinkedValueType* makeQualifiedValueType(ASTAllocator& allocator, const std::vector<chem::string_view>& parts, SourceLocation location);
+
     /** Parses `(T1, T2, ...)` in type position. */
     TypeLoc parseTupleTypeLoc(ASTAllocator& allocator);
 

@@ -243,6 +243,34 @@ BaseType* make_dynamic_type(ASTAllocator& allocator, BaseType* elem_type, Source
     }
 }
 
+LinkedValueType* Parser::makeQualifiedValueType(ASTAllocator& allocator,
+                                                const std::vector<chem::string_view>& parts,
+                                                SourceLocation location) {
+    std::vector<Value*> values;
+    values.reserve(parts.size());
+    for(const auto part : parts) {
+        values.push_back(new (allocator.allocate<VariableIdentifier>())
+            VariableIdentifier(allocate_view(allocator, part), location));
+    }
+    auto* chain = new (allocator.allocate<AccessChain>()) AccessChain(std::move(values), location);
+    return new (allocator.allocate<LinkedValueType>()) LinkedValueType(chain);
+}
+
+static bool token_can_start_type(TokenType type) {
+    if(Token::isKeywordOrId(type)) return true;
+    switch(type) {
+        case TokenType::LBracket:
+        case TokenType::MultiplySym:
+        case TokenType::AmpersandSym:
+        case TokenType::DynKw:
+        case TokenType::StructKw:
+        case TokenType::UnionKw:
+            return true;
+        default:
+            return false;
+    }
+}
+
 StructType* Parser::makeTupleType(ASTAllocator& allocator, const std::vector<TypeLoc>& types,
                                   SourceLocation location) {
     auto* tuple = new (allocator.allocate<StructType>()) StructType(
@@ -665,9 +693,40 @@ TypeLoc Parser::parseTypeLocNoPostOps(ASTAllocator& allocator) {
             if(is_mutable) {
                 token++;
             }
+            const auto ref_loc = loc_single(refToken);
+            // `&str` is the UTF-8 string view. `&[T]` is the borrowed slice
+            // view (the existing `std::span<T>` pointer/length type). Both are
+            // borrow-tracked view values; the parser aliases them before the
+            // generic reference type is built.
+            if(token->type == TokenType::Identifier &&
+               token->value == chem::string_view("str")) {
+                token++;
+                return { makeQualifiedValueType(allocator, { chem::string_view("std"), chem::string_view("str") }, ref_loc), ref_loc };
+            }
+            if(token->type == TokenType::LBracket) {
+                Token* const slice_start = token;
+                const bool prev_suppression = suppress_errors;
+                suppress_errors = true;
+                token++;
+                auto element = parseTypeLoc(allocator);
+                bool closed = consumeToken(TokenType::RBracket);
+                suppress_errors = prev_suppression;
+                if(element && closed && !token_can_start_type(token->type)) {
+                    std::vector<TypeLoc> args;
+                    args.push_back(element);
+                    auto* span = new (allocator.allocate<GenericType>()) GenericType(
+                        (LinkedType*) makeQualifiedValueType(
+                            allocator,
+                            { chem::string_view("std"), chem::string_view("span") },
+                            ref_loc),
+                        std::move(args));
+                    return { span, ref_loc };
+                }
+                token = slice_start;
+            }
             auto type = parseType(allocator);
             if(type) {
-                return { new(allocator.allocate<ReferenceType>()) ReferenceType(type, is_mutable, lifetime), loc_single(refToken) };
+                return { new(allocator.allocate<ReferenceType>()) ReferenceType(type, is_mutable, lifetime), ref_loc };
             } else {
                 error("expected a type after the &");
                 return getErroredType(allocator);;

@@ -298,6 +298,13 @@ func string_view_skip_past_size_panics(env : &mut TestEnv) {
 }
 
 @test
+func str_invalid_utf8_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var bytes : [1]char = [0xFF as char]\n    var view = unsafe(std::string_view(&raw mut bytes[0], 1))\n    var value = std::str.make_view(view)\n    return value.size() as int\n}\n"
+    expect_runtime_panic(env, "str_invalid_utf8_panics", ch)
+}
+
+@test
 func rc_use_after_try_unwrap_panics(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "public func main() : int {\n    var r = std::rc(1)\n    var first = r.try_unwrap()\n    var second = r.try_unwrap()\n    return 0\n}\n"

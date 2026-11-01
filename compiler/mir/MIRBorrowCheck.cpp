@@ -305,6 +305,7 @@ bool is_borrow_view_type(const MIRModule& module, TypeId type) {
     if (name.empty()) return false;
     // MIR names are the emitted C names (`std_stdstring_view`,
     // `std_stdspan__cgs__0`), so match the type token as a substring.
+    if (name == "std_stdstr") return true;
     return name.find("string_view") != std::string_view::npos ||
            name.find("span") != std::string_view::npos ||
            name.find("Chunk") != std::string_view::npos ||

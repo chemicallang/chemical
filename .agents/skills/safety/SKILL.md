@@ -24,23 +24,24 @@ for the safe API surface we currently expose**, not full language parity.
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
 | Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
-| Type-system / stdlib parity | M1 partial: basic tuples implemented; slices/`&str`/GATs/const generics/`impl Trait` remain. M7/M2/M8 remain. |
+| Type-system / stdlib parity | M1 partial: basic tuples and `&[T]`/`&str` borrowed views implemented; bare slices, `Box<[T]>`, GATs, const generics, `impl Trait`, derive remain. M7/M2/M8 remain. |
 
 Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2389/2389` |
-| LLVM main | `2387/2387` |
+| TCC main | `2397/2397` |
+| LLVM main | `2395/2395` |
 | `@test` runner | `56/56` |
-| TCC/LLVM negative | `720/720` |
-| TCC/LLVM safety | `69/69` |
+| TCC/LLVM negative | `722/722` |
+| TCC/LLVM safety | `70/70` |
 | TCC/LLVM async | `69/69` |
 | TCC libs | `730/730` |
+| TCC plugins | `1305/1305` |
 | TCC interpret | `1921/1921` |
 | `MIRTests` | `4682 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
-| Whole-tree audit | `unsafe_blocks 3774`, `unsafe_values 4901`, `raw_pointer_derefs 1069`, `panic_calls 104` |
+| Whole-tree audit | `unsafe_blocks 3775`, `unsafe_values 4902`, `raw_pointer_derefs 1069`, `panic_calls 106` |
 | Audit result | `no growth` against `lang/docs/safety/audit-baseline.json` |
 
 The audit totals increased from the historical `3661/4890` in the 2026-10-31
@@ -359,7 +360,14 @@ memory safety.
 12. **Panic unwinding is withdrawn.** Panic always aborts; there is no
     `catch_unwind`, `UnwindSafe`, or drop-on-unwind surface.
 
-13. **Tuples are a first slice.** `(T1, T2)` types, `(e1, e2)` literals,
+13. **`&[T]` and `&str` are borrowed-view aliases.** `&[T]` maps to
+    `std::span<T>` and `&str` maps to `std::str`, a UTF-8-validated
+    `string_view` wrapper (`lang/docs/slices.md`). Array/vector views,
+    indexing, `size`, UTF-8 validation, and local-escape rejection are
+    implemented. Bare `[T]`, `Box<[T]>`, mutable slice indexing, and explicit
+    `&'a str` lifetimes remain M1 work.
+
+14. **Tuples are a first slice.** `(T1, T2)` types, `(e1, e2)` literals,
     `._0` access, parameters/returns, nested tuples, `Copy`/`Send`/`Sync`/`Unpin`
     facts, and field-wise drops are implemented (`lang/docs/tuples.md`).
     Tuple structs, destructuring patterns, a real unit tuple value, and named

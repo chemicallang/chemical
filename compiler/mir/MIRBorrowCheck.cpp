@@ -245,6 +245,46 @@ bool is_future_handle_type(const MIRModule& module, TypeId type) {
            name.find("SendFutureHandle") == std::string_view::npos;
 }
 
+/**
+ * Does this type contain a `FutureHandle` in a field, payload, array element,
+ * or safe reference? A wrapper that returns such an aggregate carries the
+ * input future's frame borrow just like a direct handle return.
+ */
+bool contains_future_handle_type(const MIRModule& module, TypeId type,
+                                 std::unordered_set<TypeId>& visiting,
+                                 uint32_t depth = 0) {
+    if (type == MIR_INVALID_ID || type >= module.types.types.size() ||
+        depth > 8) {
+        return false;
+    }
+    if (is_future_handle_type(module, type)) return true;
+    if (!visiting.insert(type).second) return false;
+    const MIRTypeRecord& rec = module.types.types[type];
+    if (rec.kind == MIRTypeKind::Array ||
+        rec.kind == MIRTypeKind::Reference) {
+        return contains_future_handle_type(module, rec.element, visiting,
+                                           depth + 1);
+    }
+    if (rec.kind != MIRTypeKind::Struct && rec.kind != MIRTypeKind::Union &&
+        rec.kind != MIRTypeKind::Variant) {
+        return false;
+    }
+    for (uint32_t i = 0; i < rec.data_count; ++i) {
+        const MIRFieldInfo* field = module.types.field_of(type, i);
+        if (field == nullptr) continue;
+        if (contains_future_handle_type(module, field->type, visiting,
+                                        depth + 1)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool contains_future_handle_type(const MIRModule& module, TypeId type) {
+    std::unordered_set<TypeId> visiting;
+    return contains_future_handle_type(module, type, visiting);
+}
+
 bool is_borrow_view_type(const MIRModule& module, TypeId type) {
     if (type == MIR_INVALID_ID || type >= module.types.types.size()) {
         return false;
@@ -1512,10 +1552,11 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         continue;
                     }
                     // A by-value borrow view (`string_view`, `span`, `Chunk`)
-                    // can be stored in the future's frame just like a direct
-                    // `&T` parameter. Carry its source loan through the future
-                    // result as well.
-                    if (!is_borrow_view_type(module, arg_type) ||
+                    // or a future-containing aggregate can be stored in the
+                    // future's frame just like a direct `&T` parameter. Carry
+                    // its source loan through the future result as well.
+                    if ((!is_borrow_view_type(module, arg_type) &&
+                         !contains_future_handle_type(module, arg_type)) ||
                         arg_loan >= loans.size()) {
                         continue;
                     }
@@ -1710,7 +1751,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     }
                 }
                 const bool future_result =
-                    is_future_handle_type(module, mapped_result_type);
+                    contains_future_handle_type(module, mapped_result_type);
                 uint32_t mapped_loan = MIR_INVALID_ID;
                 uint32_t mapped_source = MIR_INVALID_ID;
                 std::vector<uint32_t> ambiguous_loans;
@@ -1801,7 +1842,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 // ordinary tracking. Attach the source loan to the result place:
                 // a reference argument (the `&self` of `to_view`) or an
                 // `&raw`/address target (`span(&raw mut a[0], 3)`).
-                if (known && returns_view && !static_return &&
+                if (known && (returns_view || future_result) && !static_return &&
                     inst.result_or_place != MIR_INVALID_ID &&
                     inst.result_or_place < function.places.size()) {
                     uint32_t view_loan = mapped_loan;

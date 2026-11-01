@@ -17,7 +17,7 @@ for the safe API surface we currently expose**, not full language parity.
 | Area | Status |
 |---|---|
 | Diagnostics/audit suites | Implemented: coded errors, negative/safety suites, whole-tree audit gate |
-| Init / moves / drops | Implemented in MIR (`MIRMoveCheck`); partial-array drop elaboration remains |
+| Init / moves / drops | Implemented in MIR (`MIRMoveCheck`); partial-array and non-`Copy` struct-field drop elaboration remains |
 | Borrows / lifetimes | Implemented for the enforceable surface (regions, NLL loans, storage lifetimes, return regions, variance, temporary extension, provenance, HRTB call regions) |
 | `Send` / `Sync` | Auto traits + explicit/negative impls + nested conditional generic impls; data-race primitives |
 | Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; C ABI by-value support is x86-64 SysV only on LLVM |
@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2378/2378` |
 | LLVM main | `2376/2376` |
 | `@test` runner | `54/54` |
-| TCC/LLVM negative | `684/684` |
+| TCC/LLVM negative | `686/686` |
 | TCC/LLVM safety | `64/64` |
 | TCC/LLVM async | `68/68` |
 | TCC libs | `730/730` |
@@ -93,7 +93,9 @@ MIR is the sole producer of init/move/drop state:
 - `SAFE-DROP-001` — invalid `@delete` signature (value self, missing self,
   non-void return, async, etc.).
 - Partial struct/array initialization and per-path drop flags are modeled.
-  Field-wise drop elaboration for partial **array** moves remains pending.
+  Field-wise drop elaboration for partial **array** moves and non-`Copy`
+  struct-field moves remains pending (the parent destructor can double-drop a
+  moved field; see plan item 10).
 
 ### Borrows / lifetimes
 
@@ -242,7 +244,8 @@ memory safety.
    references (`&FutureHandle`) and the lambda's real capture list/initializers,
    including erased `std::function` fields/arguments and callbacks assigned
    after declaration, so a borrowed future cannot hide behind a reference or
-   callback capture. Remaining: full call-site
+   callback capture. MIR loan propagation also follows a future-containing
+   aggregate returned by a pass-through wrapper. Remaining: full call-site
    lifetime inference/unification and custom safe consumer wrappers
    (conservatively rejected).
 2. **Full target-aware C ABI remains M2.** LLVM now rejects by-value `@extern`
@@ -299,9 +302,11 @@ memory safety.
    also does not count `unsafe func` declarations or `unsafe impl` declarations
    as separate metrics; both deserve an explicit audit metric before release.
 
-10. **Partial-array drop elaboration** remains pending; whole-array moves and
-    field/element `Copy` paths are handled, but field-wise drops for partially
-    moved fixed arrays are not.
+10. **Partial-array and non-`Copy` struct-field drop elaboration** remains
+    pending; whole-array moves and field/element `Copy` paths are handled, but
+    field-wise drops for partially moved fixed arrays and moving a non-`Copy`
+    field out of a value aggregate are not. The parent destructor can double-drop
+    the moved field; this is a release blocker (plan item 10).
 
 11. **Interpreter boundaries.** MIR interpreter bounds/provenance/tombstone
     checks are implemented. Async/coroutine opcodes, inline asm, dynamic

@@ -487,6 +487,13 @@ func neg_future_handle_method_cannot_outlive_local_borrow(env : &mut TestEnv) {
 }
 
 @test
+func neg_future_handle_aggregate_wrapper_cannot_return_local_borrow(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct W { var h : core::async::FutureHandle<int> }\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc wrap(h : core::async::FutureHandle<int>) : W {\n    return W { h : h }\n}\nfunc make_w() : W {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    return wrap(work(&s))\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "future_aggregate_wrapper_local_borrow", ch, "SAFE-LIFE-001", NEG_MOD_ASYNC_STD)
+}
+
+@test
 func neg_future_handle_cannot_return_local_view(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "async func work(x : std::string_view) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc make_future() : core::async::FutureHandle<int> {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    return work(s.to_view())\n}\npublic func main() : int { return 0 }\n"
@@ -498,6 +505,13 @@ func future_handle_wrapper_same_scope_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc <'a> wrap(x : &'a std::string) : core::async::FutureHandle<'a, int> {\n    return work(x)\n}\npublic func main() : int {\n    var s = std::string(\"A\")\n    var h = wrap(&s)\n    var r = async::block_on<int>(h)\n    return r - 65\n}\n"
     expect_compile_success_with_mod(env, "future_wrapper_same_scope", ch, NEG_MOD_ASYNC_STD)
+}
+
+@test
+func future_handle_aggregate_wrapper_same_scope_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct W { var h : core::async::FutureHandle<int> }\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc wrap(h : core::async::FutureHandle<int>) : W {\n    return W { h : h }\n}\npublic func main() : int {\n    var s = std::string(\"A\")\n    var w = wrap(work(&s))\n    return 0\n}\n"
+    expect_compile_success_with_mod(env, "future_aggregate_wrapper_same_scope", ch, NEG_MOD_ASYNC_STD)
 }
 
 @test

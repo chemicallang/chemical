@@ -2085,3 +2085,17 @@ func neg_mutable_slice_view_cannot_return_local_vector(env : &mut TestEnv) {
     var ch = "func bad() : &mut [int] {\n    var values = std::vector<int>()\n    values.push(1)\n    var view : &mut [int] = &mut values\n    return view\n}\npublic func main() : int {\n    var v = bad()\n    return v.size() as int\n}\n"
     expect_compile_error_with_mod(env, "mutable_slice_view_local_vector", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
 }
+
+@test
+func neg_mutable_slice_const_array_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    const a : [3]int = [1, 2, 3]\n    var s : &mut [int] = &mut a\n    s[0] = 9\n    return a[0]\n}\n"
+    expect_compile_error_with_mod(env, "mutable_slice_const_array", ch, "taking mutable reference of a constant", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_mutable_slice_array_view_cannot_escape(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func bad() : &mut [int] {\n    var a : [3]int = [1, 2, 3]\n    var s : &mut [int] = &mut a\n    return s\n}\npublic func main() : int {\n    var v = bad()\n    return v.size() as int\n}\n"
+    expect_compile_error_with_mod(env, "mutable_slice_array_escape", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
+}

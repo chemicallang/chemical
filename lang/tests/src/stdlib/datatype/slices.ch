@@ -94,4 +94,38 @@ func test_slices() {
         fill_mutable(&mut values)
         return view.size() == 2 && values.get(0) == 7 && values.get(1) == 7
     })
+    test("&mut [T] mutates an array view", () => {
+        var arr : [3]int = [1, 2, 3]
+        var view : &mut [int] = &mut arr
+        view[0] = 7
+        return view[0] == 7 && arr[0] == 7
+    })
+    test("&mut [T] passes an array to a mutating function", () => {
+        var arr : [3]int = [1, 2, 3]
+        fill_mutable(&mut arr)
+        return arr[0] == 7 && arr[1] == 7 && arr[2] == 7
+    })
+    test("span subview borrows a range", () => {
+        var arr : [5]int = [1, 2, 3, 4, 5]
+        var view : [int] = arr
+        var sub = view.subview(1, 4)
+        return sub.size() == 3 && sub[0] == 2 && sub[2] == 4
+    })
+    test("mut_span subview writes through the parent", () => {
+        var arr : [5]int = [1, 2, 3, 4, 5]
+        var view : &mut [int] = &mut arr
+        var sub = view.subview(1, 4)
+        sub[0] = 9
+        return arr[1] == 9
+    })
+    test("Box<[T]> subviews support shared and mutable views", () => {
+        var values = std::vector<int>()
+        values.push(5)
+        values.push(6)
+        var owned : Box<[int]> = values
+        var shared = owned.subview(1, 2)
+        var mutable = owned.subview_mut(1, 2)
+        mutable[0] = 7
+        return shared.size() == 1 && shared[0] == 7 && owned[1] == 7
+    })
 }

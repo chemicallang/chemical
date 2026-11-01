@@ -47,6 +47,21 @@ public struct boxed_slice<T> {
         return unsafe(span<T>(_values.data() as *T, _values.size()))
     }
 
+    func subview(&self, start : size_t, end : size_t) : span<T> {
+        return as_span().subview(start, end)
+    }
+
+    func subview_mut(&mut self, start : size_t, end : size_t) : mut_span<T> {
+        if(start > end || end > _values.size()) {
+            panic("boxed_slice subview out of bounds")
+        }
+        var ptr : *mut T = null
+        if(start < _values.size()) {
+            ptr = unsafe(_values.mutable_data() + start)
+        }
+        return unsafe(mut_span<T>(ptr, end - start))
+    }
+
 }
 
 

@@ -55,6 +55,17 @@ public struct span<T> {
         return _size == 0;
     }
 
+    func subview(&self, start : size_t, end : size_t) : span<T> {
+        if(start > end || end > _size) {
+            panic("span subview out of bounds")
+        }
+        var ptr : *T = null
+        if(start < _size) {
+            ptr = unsafe(_data + start)
+        }
+        return unsafe(span<T>(ptr, end - start))
+    }
+
     unsafe impl core::iterable::Linear<T> for span<T> {
         func data(&self) : *T {
             return _data;
@@ -86,6 +97,13 @@ public struct mut_span<T> {
     @expand
     comptime func make2(vec : %maybe_runtime<&mut vector<T>>) {
         return unsafe(constructor<T>(vec.mutable_data(), vec.size()))
+    }
+
+    @implicit
+    @constructor
+    @expand
+    comptime func make2(array : &mut []%maybe_runtime<T>) {
+        return unsafe(constructor<T>(array as *mut T, intrinsics::size(array)))
     }
 
 
@@ -137,6 +155,17 @@ public struct mut_span<T> {
 
     func empty(&self) : bool {
         return _size == 0;
+    }
+
+    func subview(&mut self, start : size_t, end : size_t) : mut_span<T> {
+        if(start > end || end > _size) {
+            panic("mut_span subview out of bounds")
+        }
+        var ptr : *mut T = null
+        if(start < _size) {
+            ptr = unsafe(_data + start)
+        }
+        return unsafe(mut_span<T>(ptr, end - start))
     }
 
     func as_span(&self) : span<T> {

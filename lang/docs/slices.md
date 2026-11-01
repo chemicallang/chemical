@@ -50,11 +50,11 @@ fill(&mut values)
 ```
 
 - Representation: `std::mut_span<T>` (mutable pointer + length).
-- Construction is currently limited to `&mut vector<T>`. A mutable array slice
-  needs an explicit `unsafe` constructor (`std::mut_span<T>(ptr, len)`); passing
-  an array value as a mutable view is rejected.
-- Reads, writes, `set`, `get_ref`, `get_mut`, `as_span`, `size`, and `Linear`
-  iteration are supported.
+- Construction is from `&mut vector<T>` or `&mut arr` (a mutable array
+  reference). A `const` array is rejected at type check; passing an array
+  value without `&mut` is rejected as well.
+- Reads, writes, `set`, `get_ref`, `get_mut`, `as_span`, `subview`, `size`, and
+  `Linear` iteration are supported.
 - `mut_span<T>` is not `Copy`; the compiler's `IndexMut` interface now declares
   `index_mut` (the old `IndexMut : Index` overload produced duplicate C members
   and could not be implemented).
@@ -82,8 +82,30 @@ owned.as_span()                   // borrowed span view
 - Construction is from a `vector<T>` via the implicit constructor. There is no
   array-to-boxed-slice constructor yet.
 - `Index` and `IndexMut` are implemented; `get_ref`, `get_mut`, `data`,
-  `size`, `empty`, `set`, and `as_span` are available.
+  `size`, `empty`, `set`, `as_span`, `subview`, and `subview_mut` are available.
 - It is not `Copy`; moving it transfers ownership.
+
+## Sub-slicing
+
+```chemical
+var arr : [5]int = [1, 2, 3, 4, 5]
+var view : [int] = arr
+var middle = view.subview(1, 4)   // elements 1..4
+
+var mutable_view : &mut [int] = &mut arr
+var mutable_middle = mutable_view.subview(1, 4)
+mutable_middle[0] = 9
+
+var owned : Box<[int]> = values
+var shared = owned.subview(1, 3)
+var mutable = owned.subview_mut(1, 3)
+```
+
+- `subview(start, end)` is bounds checked and panics on an invalid range.
+- Shared subviews are `span<T>`; mutable subviews are `mut_span<T>`.
+- `Box<[T]>` exposes `subview` and `subview_mut`.
+- Range syntax (`view[a..b]`), `split_at`, `split`, `windows`, and `chunks` are
+  not implemented yet.
 
 ## `&str`
 
@@ -113,10 +135,8 @@ var view = text.to_view()      // std::string_view
 
 - `[T]`/`&[T]` are view aliases, not a first-class unsized `[T]` type.
 - `Box<[T]>` is a vector-backed owning wrapper, not a raw boxed allocation.
-- Mutable slice views of arrays are not safe-yet: only `&mut vector<T>` is
-  accepted; arrays require the unsafe pointer/length constructor.
-- No slice pattern/destructuring syntax, sub-slicing, or `split`/`windows`
-  iterators yet.
+- No slice pattern/destructuring syntax, range sub-slicing (`view[a..b]`),
+  `split_at`, `split`, or `windows`/`chunks` iterators yet.
 - `&str` has no separate lifetime parameter; the MIR view analysis keeps the
   source loan alive and rejects local escapes. A future `str<'a>`/`&'a str`
   spelling can make the lifetime explicit.

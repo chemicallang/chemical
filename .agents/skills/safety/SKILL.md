@@ -24,24 +24,24 @@ for the safe API surface we currently expose**, not full language parity.
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
 | Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
-| Type-system / stdlib parity | M1 partial: basic tuples, `[T]`/`&[T]`, `&mut [T]`, `Box<[T]>`, and `&str` views implemented; explicit slice lifetimes, array-backed mutable slices, sub-slicing, GATs, const generics, `impl Trait`, derive remain. M7/M2/M8 remain. |
+| Type-system / stdlib parity | M1 partial: basic tuples, `[T]`/`&[T]`, `&mut [T]`, `Box<[T]>`, and `&str` views implemented; explicit slice lifetimes, range/split iteration, GATs, const generics, `impl Trait`, derive remain. M7/M2/M8 remain. |
 
 Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2401/2401` |
-| LLVM main | `2399/2399` |
+| TCC main | `2406/2406` |
+| LLVM main | `2404/2404` |
 | `@test` runner | `56/56` |
-| TCC/LLVM negative | `725/725` |
-| TCC/LLVM safety | `70/70` |
+| TCC/LLVM negative | `727/727` |
+| TCC/LLVM safety | `71/71` |
 | TCC/LLVM async | `69/69` |
 | TCC libs | `730/730` |
 | TCC plugins | `1305/1305` |
 | TCC interpret | `1921/1921` |
 | `MIRTests` | `4682 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
-| Whole-tree audit | `unsafe_blocks 3775`, `unsafe_values 4902`, `raw_pointer_types 9367`, `raw_pointer_derefs 1069`, `panic_calls 106` |
+| Whole-tree audit | `unsafe_blocks 3775`, `unsafe_values 4904`, `raw_pointer_types 9368`, `raw_pointer_derefs 1069`, `panic_calls 107` |
 | Audit result | `no growth` against `lang/docs/safety/audit-baseline.json` |
 
 The audit totals increased from the historical `3661/4890` in the 2026-10-31
@@ -365,9 +365,8 @@ memory safety.
     vector-backed `std::boxed_slice<T>`, and `&str` to UTF-8-validated
     `std::str` (`lang/docs/slices.md`). Indexing, mutable writes, ownership
     moves, UTF-8 validation, and local-escape rejection are implemented. The
-    `IndexMut` interface now declares `index_mut`. Explicit `&'a` lifetimes,
-    array-backed mutable slices, sub-slicing, and slice patterns remain M1
-    work.
+    `IndexMut` interface now declares `index_mut`. Explicit `&'a` lifetimes, range indexing, `split_at`/`split`/`windows`,
+    and slice patterns remain M1 work.
 
 14. **Tuples are a first slice.** `(T1, T2)` types, `(e1, e2)` literals,
     `._0` access, parameters/returns, nested tuples, `Copy`/`Send`/`Sync`/`Unpin`

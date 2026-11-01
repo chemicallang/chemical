@@ -1,6 +1,7 @@
 // std::Box tests.
 
 var box_drops = 0
+var dyn_box_drops = 0
 
 struct BoxCounter {
     var value : int
@@ -34,6 +35,23 @@ struct BoxDynValue {
 }
 
 impl BoxDynShow for BoxDynValue {
+    func value(&self) : int {
+        return n
+    }
+}
+
+struct BoxDynOwned {
+    var n : int
+
+    @delete
+    func delete(&mut self) {
+        unsafe {
+            dyn_box_drops = dyn_box_drops + 1
+        }
+    }
+}
+
+impl BoxDynShow for BoxDynOwned {
     func value(&self) : int {
         return n
     }
@@ -148,12 +166,29 @@ func box_into_inner_transfers_ownership(env : &mut TestEnv) {
 // The referent must outlive the box; this test keeps it in the caller frame.
 @test
 func box_dyn_view_dispatches_through_reference(env : &mut TestEnv) {
+    var value = BoxDynValue { n : 37 }
+    var b = std::box<dyn BoxDynShow>(dyn<BoxDynShow>(value))
+    var d = b.get()
+    if(d.value() != 37) {
+        env.error("Box<dyn I>::get did not dispatch through the fat pointer")
+    }
+}
+
+@test
+func dyn_box_owns_and_drops_erased_value_once(env : &mut TestEnv) {
     unsafe {
-        var value = BoxDynValue { n : 37 }
-        var b = std::box<dyn BoxDynShow>(dyn<BoxDynShow>(value))
-        var d = b.get()
-        if(d.value() != 37) {
-            env.error("Box<dyn I>::get did not dispatch through the fat pointer")
+        dyn_box_drops = 0
+    }
+    {
+        var b = std::dyn_box<BoxDynOwned, BoxDynShow>(BoxDynOwned { n : 41 })
+        var moved = b
+        if(moved.get().value() != 41) {
+            env.error("DynBox::get did not dispatch to the owned value")
+        }
+    }
+    unsafe {
+        if(dyn_box_drops != 1) {
+            env.error("DynBox did not drop its erased value exactly once")
         }
     }
 }

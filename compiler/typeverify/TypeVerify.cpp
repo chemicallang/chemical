@@ -3152,110 +3152,6 @@ static void verify_async_send_frame(TypeVerifier& verifier, FunctionCall* call) 
     }
 }
 
-/**
- * Does this type store a `dyn I` anywhere in its fields or generic arguments?
- * `Box<dyn I>` is the important case: it is a boxed fat-pointer view, not an
- * owning trait object, so the boxing call must be explicit until the referent
- * lifetime is tracked.
- */
-static bool contains_dynamic_type_ast(BaseType* type,
-                                      std::unordered_set<BaseType*>& visiting,
-                                      unsigned depth = 0) {
-    if (type == nullptr || depth > 8) return false;
-    if (type->kind() == BaseTypeKind::Generic) {
-        for (auto& arg : type->as_generic_type_unsafe()->types) {
-            if (contains_dynamic_type_ast(const_cast<BaseType*>(arg.getType()),
-                                          visiting, depth + 1)) {
-                return true;
-            }
-        }
-    }
-    BaseType* canonical = type->canonical();
-    if (canonical == nullptr || !visiting.insert(canonical).second) return false;
-    if (canonical->kind() == BaseTypeKind::Dynamic) return true;
-    switch (canonical->kind()) {
-        case BaseTypeKind::Reference:
-            return contains_dynamic_type_ast(
-                const_cast<BaseType*>(canonical->as_reference_type_unsafe()->type),
-                visiting, depth + 1);
-        case BaseTypeKind::Pointer:
-            return contains_dynamic_type_ast(
-                const_cast<BaseType*>(canonical->as_pointer_type_unsafe()->type),
-                visiting, depth + 1);
-        case BaseTypeKind::Array:
-            return contains_dynamic_type_ast(
-                const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
-                visiting, depth + 1);
-        case BaseTypeKind::CapturingFunction: {
-            auto* cap = canonical->as_capturing_func_type_unsafe();
-            return cap->capture_env && contains_dynamic_type_ast(
-                const_cast<BaseType*>(cap->capture_env.getType()),
-                visiting, depth + 1);
-        }
-        case BaseTypeKind::Function:
-            return false;
-        default:
-            break;
-    }
-    auto* container = canonical->get_members_container();
-    if (container == nullptr) return false;
-    for (BaseDefMember* member : container->variables()) {
-        if (member == nullptr) continue;
-        if (member->kind() == ASTNodeKind::StructMember) {
-            auto* field = member->as_struct_member_unsafe();
-            if (field != nullptr && contains_dynamic_type_ast(
-                    const_cast<BaseType*>(field->type.getType()),
-                    visiting, depth + 1)) {
-                return true;
-            }
-        } else if (member->kind() == ASTNodeKind::VariantMember) {
-            auto* variant = member->as_variant_member_unsafe();
-            if (variant != nullptr) {
-                for (auto& entry : variant->values) {
-                    auto* param = entry.second;
-                    if (param != nullptr && contains_dynamic_type_ast(
-                            const_cast<BaseType*>(param->type.getType()),
-                            visiting, depth + 1)) {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    return false;
-}
-
-static bool is_box_type_named(BaseType* type) {
-    if (type == nullptr) return false;
-    BaseType* canonical = type->canonical();
-    if (canonical == nullptr) return false;
-    auto name_of = [](ASTNode* node) -> chem::string_view {
-        if (node == nullptr || node->kind() != ASTNodeKind::StructDecl) {
-            return chem::string_view();
-        }
-        return node->as_struct_def_unsafe()->name_view();
-    };
-    if (canonical->kind() == BaseTypeKind::Generic) {
-        auto* gen = canonical->as_generic_type_unsafe();
-        if (gen->referenced != nullptr && gen->referenced->linked != nullptr) {
-            const auto n = name_of(gen->referenced->linked);
-            if (n == chem::string_view("Box")) return true;
-        }
-    }
-    auto* container = canonical->get_members_container();
-    if (container != nullptr && container->kind() == ASTNodeKind::StructDecl) {
-        return container->as_struct_def_unsafe()->name_view() ==
-               chem::string_view("Box");
-    }
-    return false;
-}
-
-static bool is_boxed_dynamic_type(BaseType* type) {
-    if (!is_box_type_named(type)) return false;
-    std::unordered_set<BaseType*> visiting;
-    return contains_dynamic_type_ast(type, visiting);
-}
-
 void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
     for (auto* value : call->values) check_index_move(value);
     FunctionDeclaration* linked_call = call->safe_linked_func();
@@ -3289,18 +3185,6 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
     }
     RecursiveVisitor<TypeVerifier>::VisitFunctionCall(call);
     allow_scoped_capture = prev_scoped_capture;
-    // `Box<dyn I>` owns the heap fat-pointer record, not the erased referent.
-    // Its referent lifetime is not tracked yet, so a safe `box(dyn<I>(x))`
-    // could return a dangling view. Require an explicit unsafe boundary until
-    // the borrow checker models the boxed view.
-    if (!is_unsafe && linked_call != nullptr &&
-        linked_call->name_view() == chem::string_view("box") &&
-        is_boxed_dynamic_type(const_cast<BaseType*>(call->getType()))) {
-        diagnoser.error(call).with_code("SAFE-DYN-001")
-            << "Box<dyn I> boxes a borrowed fat pointer; its referent lifetime is "
-               "not tracked yet, so construct it inside an unsafe block or keep the "
-               "referent alive for the boxed view";
-    }
     if (current_lambda != nullptr) {
         for (Value* arg : call->values) {
             if (moves_noncopy_capture(arg, current_lambda) &&

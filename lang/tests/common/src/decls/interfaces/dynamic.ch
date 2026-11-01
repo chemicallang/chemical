@@ -26,12 +26,12 @@ func call_actual_ref(phone : &dyn Phone) : int {
     return phone.call();
 }
 
-func ret_dyn_obj1(phone : SmartPhone) : dyn Phone {
-    return dyn<Phone>(phone);
+func ret_dyn_obj1(phone : &SmartPhone) : dyn Phone {
+    return dyn<Phone>(*phone);
 }
 
-func ret_dyn_obj2(phone : CellPhone) : dyn Phone {
-    return dyn<Phone>(phone);
+func ret_dyn_obj2(phone : &CellPhone) : dyn Phone {
+    return dyn<Phone>(*phone);
 }
 
 impl Phone for SmartPhone {
@@ -46,11 +46,9 @@ impl Phone for CellPhone {
     }
 }
 
-// A `dyn<I>` built from a *by-value* parameter is an address that outlives the
-// callee. The parameter's own place is a copy inside the callee's frame, so the
-// fat pointer must point at the caller's object instead — otherwise it dangles
-// and the very next call's frame (here `value`'s own 128-byte buffer) overwrites
-// it.
+// A returned `dyn<I>` must point at caller-owned storage. A by-value parameter
+// is a copy inside the callee frame, so this helper takes a reference instead;
+// the caller keeps the referent alive for as long as the returned view is used.
 interface FrameProbe {
 
     func value(&self) : int;
@@ -69,8 +67,8 @@ impl FrameProbe for FrameProbeImpl {
     }
 }
 
-func ret_frame_probe(x : FrameProbeImpl) : dyn FrameProbe {
-    return dyn<FrameProbe>(x);
+func ret_frame_probe(x : &FrameProbeImpl) : dyn FrameProbe {
+    return dyn<FrameProbe>(*x);
 }
 
 func test_dynamic_dispatch() {
@@ -89,20 +87,22 @@ func test_dynamic_dispatch() {
     })
     test("getting dynamic object from function return works - 1", () => {
         var p = SmartPhone { number1 : 88 }
-        var o = ret_dyn_obj1(p);
+        var o = ret_dyn_obj1(&p);
         return o.call() == 88;
     })
     test("getting dynamic object from function return works - 2", () => {
         var p = CellPhone { number2 : 66 }
-        var o = ret_dyn_obj2(p);
+        var o = ret_dyn_obj2(&p);
         return o.call() == 66;
     })
     test("storing struct as dynamic object in var init works - 1", () => {
-        var p : dyn Phone = dyn<Phone>(SmartPhone { number1 : 45 })
+        var obj = SmartPhone { number1 : 45 }
+        var p : dyn Phone = dyn<Phone>(obj)
         return p.call() == 45;
     })
     test("storing struct as dynamic object in var init works - 2", () => {
-        var p : dyn Phone = dyn<Phone>(CellPhone { number2 : 35 })
+        var obj = CellPhone { number2 : 35 }
+        var p : dyn Phone = dyn<Phone>(obj)
         return p.call() == 35;
     })
     test("storing struct ref as dynamic object in var init works - 1", () => {
@@ -116,46 +116,56 @@ func test_dynamic_dispatch() {
         return p.call() == 26;
     })
     test("assignment to dynamic object using struct works - 1", () => {
-        var p : dyn Phone = dyn<Phone>(SmartPhone { number1 : 57 })
-        p = dyn<Phone>(CellPhone { number2 : 73 })
+        var first = SmartPhone { number1 : 57 }
+        var p : dyn Phone = dyn<Phone>(first)
+        var next = CellPhone { number2 : 73 }
+        p = dyn<Phone>(next)
         return p.call() == 73;
     })
     test("assignment to dynamic object using struct works - 2", () => {
-        var p : dyn Phone = dyn<Phone>(CellPhone { number2 : 35 })
-        p = dyn<Phone>(SmartPhone { number1 : 26 })
+        var first = CellPhone { number2 : 35 }
+        var p : dyn Phone = dyn<Phone>(first)
+        var next = SmartPhone { number1 : 26 }
+        p = dyn<Phone>(next)
         return p.call() == 26;
     })
     test("assignment to dynamic object using struct ref works - 3", () => {
-        var p : dyn Phone = dyn<Phone>(SmartPhone { number1 : 57 })
+        var first = SmartPhone { number1 : 57 }
+        var p : dyn Phone = dyn<Phone>(first)
         var o = CellPhone { number2 : 73 };
         p = dyn<Phone>(o)
         return p.call() == 73;
     })
     test("assignment to dynamic object using struct ref works - 3", () => {
-        var p : dyn Phone = dyn<Phone>(CellPhone { number2 : 35 })
+        var first = CellPhone { number2 : 35 }
+        var p : dyn Phone = dyn<Phone>(first)
         var o = SmartPhone { number1 : 26 };
         p = dyn<Phone>(o)
         return p.call() == 26;
     })
     test("storing dynamic object as a struct member works - 2", () => {
-        var c = PhoneContainer { p : dyn<Phone>(SmartPhone { number1 : 33 }) }
+        var obj = SmartPhone { number1 : 33 }
+        var c = PhoneContainer { p : dyn<Phone>(obj) }
         return c.p.call() == 33;
     })
     test("storing dynamic object as a struct member works - 1", () => {
-        var c = PhoneContainer { p : dyn<Phone>(CellPhone { number2 : 55 }) }
+        var obj = CellPhone { number2 : 55 }
+        var c = PhoneContainer { p : dyn<Phone>(obj) }
         return c.p.call() == 55;
     })
     test("storing dynamic object in a array value works - 1", () => {
-        var p : []dyn Phone = [ dyn<Phone>(SmartPhone { number1 : 11 }) ]
+        var obj = SmartPhone { number1 : 11 }
+        var p : []dyn Phone = [ dyn<Phone>(obj) ]
         return p[0].call() == 11;
     })
     test("storing dynamic object in a array value works - 2", () => {
-        var p : []dyn Phone = [ dyn<Phone>(CellPhone { number2 : 88 }) ]
+        var obj = CellPhone { number2 : 88 }
+        var p : []dyn Phone = [ dyn<Phone>(obj) ]
         return p[0].call() == 88;
     })
     test("dynamic object built from a by-value parameter survives the callee frame", () => {
         var p = FrameProbeImpl { n : 88 }
-        var o = ret_frame_probe(p)
+        var o = ret_frame_probe(&p)
         return o.value() == 88;
     })
 }

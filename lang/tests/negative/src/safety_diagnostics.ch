@@ -835,10 +835,17 @@ func fn_mut_mutable_call_compiles(env : &mut TestEnv) {
 }
 
 @test
-func neg_boxed_dyn_view_requires_unsafe(env : &mut TestEnv) {
+func neg_boxed_dyn_view_cannot_return_local(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "interface Show {\n    func show(&self) : int\n}\nstruct S { var n : int }\nimpl Show for S { func show(&self) : int { return n } }\npublic func main() : int {\n    var s = S { n : 7 }\n    var b = std::box<dyn Show>(dyn<Show>(s))\n    return b.get().show() - 7\n}\n"
-    expect_compile_error_with_mod(env, "boxed_dyn_view", ch, "SAFE-DYN-001", NEG_MOD_STD_CORE)
+    var ch = "interface Show {\n    func show(&self) : int\n}\nstruct S { var n : int }\nimpl Show for S { func show(&self) : int { return n } }\nfunc make_boxed() : std::Box<dyn Show> {\n    var s = S { n : 7 }\n    return std::box<dyn Show>(dyn<Show>(s))\n}\npublic func main() : int {\n    var b = make_boxed()\n    return b.get().show() - 7\n}\n"
+    expect_compile_error_with_mod(env, "boxed_dyn_local_return", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_boxed_dyn_view_cannot_outlive_referent(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface Show {\n    func show(&self) : int\n}\nstruct S { var n : int }\nimpl Show for S { func show(&self) : int { return n } }\npublic func main() : int {\n    var b : std::Box<dyn Show>\n    {\n        var s = S { n : 7 }\n        b = std::box<dyn Show>(dyn<Show>(s))\n    }\n    return b.get().show() - 7\n}\n"
+    expect_compile_error_with_mod(env, "boxed_dyn_scope_escape", ch, "SAFE-LIFE-002", NEG_MOD_STD_CORE)
 }
 
 @test

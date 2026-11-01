@@ -40,7 +40,84 @@ namespace mir {
 
 namespace {
 
-/** Does an AST type mention FutureHandle in generic arguments/fields? */
+/**
+ * Does an AST type carry a `dyn I` fat pointer in its representation (directly,
+ * through a pointer/reference, or in an aggregate field)? This is the
+ * representation fact used to keep `Box<dyn I>` and other erased views alive.
+ */
+static bool ast_contains_dynamic_view(BaseType* type,
+                                      std::unordered_set<BaseType*>& visiting,
+                                      unsigned depth = 0) {
+    if (type == nullptr || depth > 8) return false;
+    if (type->kind() == BaseTypeKind::Dynamic) return true;
+    if (type->kind() == BaseTypeKind::Generic) {
+        for (auto& arg : type->as_generic_type_unsafe()->types) {
+            if (ast_contains_dynamic_view(const_cast<BaseType*>(arg.getType()),
+                                          visiting, depth + 1)) {
+                return true;
+            }
+        }
+    }
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr || !visiting.insert(canonical).second) return false;
+    if (canonical->kind() == BaseTypeKind::Dynamic) return true;
+    switch (canonical->kind()) {
+        case BaseTypeKind::Reference:
+            return ast_contains_dynamic_view(
+                const_cast<BaseType*>(canonical->as_reference_type_unsafe()->type),
+                visiting, depth + 1);
+        case BaseTypeKind::Pointer:
+            return ast_contains_dynamic_view(
+                const_cast<BaseType*>(canonical->as_pointer_type_unsafe()->type),
+                visiting, depth + 1);
+        case BaseTypeKind::Array:
+            return ast_contains_dynamic_view(
+                const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
+                visiting, depth + 1);
+        case BaseTypeKind::CapturingFunction: {
+            auto* cap = canonical->as_capturing_func_type_unsafe();
+            return cap->capture_env && ast_contains_dynamic_view(
+                const_cast<BaseType*>(cap->capture_env.getType()),
+                visiting, depth + 1);
+        }
+        case BaseTypeKind::Function:
+            return false;
+        default:
+            break;
+    }
+    auto* container = canonical->get_members_container();
+    if (container == nullptr) return false;
+    for (BaseDefMember* member : container->variables()) {
+        if (member == nullptr) continue;
+        if (member->kind() == ASTNodeKind::StructMember) {
+            auto* field = member->as_struct_member_unsafe();
+            if (field != nullptr && ast_contains_dynamic_view(
+                    const_cast<BaseType*>(field->type.getType()),
+                    visiting, depth + 1)) {
+                return true;
+            }
+        } else if (member->kind() == ASTNodeKind::VariantMember) {
+            auto* variant = member->as_variant_member_unsafe();
+            if (variant != nullptr) {
+                for (auto& entry : variant->values) {
+                    auto* param = entry.second;
+                    if (param != nullptr && ast_contains_dynamic_view(
+                            const_cast<BaseType*>(param->type.getType()),
+                            visiting, depth + 1)) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+static bool ast_contains_dynamic_view(BaseType* type) {
+    std::unordered_set<BaseType*> visiting;
+    return ast_contains_dynamic_view(type, visiting);
+}
+
 static bool ast_contains_future_handle(BaseType* type,
                                        std::unordered_set<BaseType*>& visiting,
                                        unsigned depth = 0) {
@@ -777,6 +854,18 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
                 rec.kind == MIRTypeKind::Pointer ||
                 rec.kind == MIRTypeKind::Reference) {
                 rec.contains_future_handle = true;
+            }
+        });
+    }
+    if (ast_contains_dynamic_view(type)) {
+        module_.types.update(id, [](MIRTypeRecord& rec) {
+            if (rec.kind == MIRTypeKind::Struct ||
+                rec.kind == MIRTypeKind::Union ||
+                rec.kind == MIRTypeKind::Variant ||
+                rec.kind == MIRTypeKind::Array ||
+                rec.kind == MIRTypeKind::Pointer ||
+                rec.kind == MIRTypeKind::Reference) {
+                rec.contains_borrow_view = true;
             }
         });
     }

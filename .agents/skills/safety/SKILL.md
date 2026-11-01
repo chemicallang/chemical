@@ -32,8 +32,8 @@ Latest measured baseline:
 |---|---|
 | TCC main | `2381/2381` |
 | LLVM main | `2379/2379` |
-| `@test` runner | `55/55` |
-| TCC/LLVM negative | `715/715` |
+| `@test` runner | `56/56` |
+| TCC/LLVM negative | `716/716` |
 | TCC/LLVM safety | `69/69` |
 | TCC/LLVM async | `69/69` |
 | TCC libs | `730/730` |
@@ -308,15 +308,16 @@ memory safety.
    `SAFE-BORROW-099` rejections. This is a false-negative/rewrite requirement,
    not a guessed-safe acceptance.
 
-6. **`dyn` is a borrowed fat pointer; its object model is partial.**
+6. **`dyn` is a borrowed fat pointer; `DynBox` owns.**
    `dyn I` is a target-aware two-word `{ data, vtable }` value, and `&dyn I`
    dispatches through the same vtable. `Box<dyn I>` is a generic box holding the
-   heap fat-pointer record, not an owning trait object; safe construction is
-   `SAFE-DYN-001` until the boxed view is modeled as a borrow. Owning erased
-   values need a separate drop contract. Conservative `!Send`/`!Sync`/`!Unpin`
-   avoids sending an `Rc`-backed `dyn` object, but `dyn I + Send` cannot be
-   expressed and `Box<dyn I>`/`Arc<dyn I>` cannot cross threads. Full `dyn`
-   bounds are M1.19; see `lang/docs/dyn-object-model.md`.
+   heap fat-pointer record, not an owning trait object; MIR tracks it as a
+   borrowed view (`SAFE-LIFE-001`/`002`). `std::DynBox<I>` / `std::dyn_box`
+   owns the concrete allocation and drops it exactly once through an owner
+   closure. Conservative `!Send`/`!Sync`/`!Unpin` avoids sending an `Rc`-backed
+   `dyn` object, but `dyn I + Send` cannot be expressed and
+   `Box<dyn I>`/`Arc<dyn I>` cannot cross threads. Full `dyn` bounds are M1.19;
+   see `lang/docs/dyn-object-model.md`.
 
 7. **Async runtime allocation checks are current but must stay current.**
    Every future constructor in `yield.ch`, `time.ch`, `exec.ch`, `blocking.ch`,
@@ -448,7 +449,6 @@ Coded output renders `error[SAFE-*]:` / `warn[SAFE-*]:`; uncoded output keeps
 | `SAFE-COPY-002` | `impl Copy` on a destructor-bearing type |
 | `SAFE-COPY-003` | `impl Copy` with a non-Copy field |
 | `SAFE-DROP-001` | invalid destructor signature |
-| `SAFE-DYN-001` | safe `Box<dyn I>` construction before boxed-view borrow tracking |
 | `SAFE-FFI-001` | `@extern` call in safe context |
 | `SAFE-FFI-002` | by-value Chemical variant across `@extern` ABI |
 | `SAFE-FFI-003` | LLVM by-value extern aggregate on unsupported target ABI |

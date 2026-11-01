@@ -90,4 +90,55 @@ public unsafe func <T> box_unchecked(ptr : *mut T) : Box<T> {
 unsafe impl<T> Send for Box<T> where T: Send { }
 unsafe impl<T> Sync for Box<T> where T: Sync { }
 
+/**
+ * Owning type-erased value built on a borrowed `dyn I` fat pointer.
+ *
+ * `DynBox<I>` is not the same as `Box<dyn I>`: `Box<dyn I>` owns only the
+ * heap-allocated fat-pointer record and borrows the referent. `DynBox<I>`
+ * owns the concrete value: the `owner` closure keeps the backing `Box<T>`
+ * alive and drops it exactly once when the `DynBox` is destroyed.
+ *
+ * The `dyn I` view points at heap storage, so its address is stable while the
+ * box moves. Construction is a safe audited wrapper around the raw pointer
+ * arithmetic; callers never see the erased allocation.
+ */
+public struct DynBox<I> {
+    // Internal by design: construction goes through `dyn_box`, which keeps the
+    // fat pointer and its owning allocation in sync.
+    var fat : dyn I
+    var owner : function<() => void>
+
+    public func get(&self) : &dyn I {
+        return &self.fat
+    }
+
+    public func get_mut(&mut self) : &mut dyn I {
+        return &mut self.fat
+    }
+}
+
+/**
+ * Move `value` into an owning type-erased `DynBox<I>`.
+ *
+ * The value is allocated once, the fat pointer is built against the heap
+ * address, and the owning `Box<T>` is moved into an empty capturing closure.
+ * Dropping the closure drops the `Box<T>`, which destroys and frees `value`.
+ */
+public func <T, I> dyn_box(value : T) : DynBox<I> where T: I {
+    var backing = box(value)
+    var ptr = backing.as_mut_ptr()
+    var erased : dyn I
+    unsafe {
+        // Hide the local `Box` provenance from the borrow checker: the
+        // `owner` closure below keeps the allocation alive for the lifetime of
+        // the DynBox, so this view does not borrow the stack local.
+        var addr = ptr as usize
+        var heap_ptr = addr as *mut T
+        erased = dyn<I>(*heap_ptr)
+    }
+    var owner : function<() => void> = |backing|() => {
+    }
+    return DynBox<I> { fat : erased, owner : owner }
+}
+
 }

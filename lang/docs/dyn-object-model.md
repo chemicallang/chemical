@@ -1,8 +1,9 @@
 # `dyn` object model — fat pointers and boxed views
 
-Status: design note (2026-11-01). This is the M1.19 starting point. It records
-what the compiler implements today and the decision needed before `Box<dyn I>`
-can become a safe owning API.
+Status: design note (2026-11-01). The first slice is implemented: `dyn` is a
+target-aware fat pointer, `Box<dyn I>` is a borrow-checked boxed view, and
+`std::DynBox<I>` provides owning type erasure. This note records the remaining
+design choices (vtable drop slot vs. owner closure, auto traits, upcasting).
 
 ## The invariant
 
@@ -52,13 +53,36 @@ Consequences:
 
 - `Box<dyn I>::get()` returns `&dyn I`; dynamic dispatch through that reference
   works (`&dyn` is peeled to its fat pointer before the vtable call).
-- The concrete value must outlive the box. The compiler does not yet model the
-  boxed view as a borrow, so a safe `box(dyn<I>(local))` can escape a dead
-  referent. Until that is fixed, constructing `Box<dyn I>` in safe code is
-  rejected with `SAFE-DYN-001`; an explicit `unsafe { }` block documents the
-  caller's obligation.
+- The concrete value must outlive the box. MIR now models the boxed view as a
+  borrow: returning a boxed view of a local is `SAFE-LIFE-001`, and a boxed view
+  that outlives the referent's scope is `SAFE-LIFE-002`. Safe construction needs
+  no `unsafe`.
 - `Box<dyn I>` does **not** run the concrete value's destructor. It frees only
   the fat-pointer record. A destructible referent must be owned elsewhere.
+
+## Owning `DynBox<I>`
+
+`std::DynBox<I>` is the Rust-like owning erased value. It is a struct rather
+than a special `Box<dyn I>` layout:
+
+```
+struct DynBox<I> {
+    fat: dyn I,
+    owner: std::function<() => void>
+}
+```
+
+`std::dyn_box<T, I>(value)` allocates `T` once with `std::box`, builds a
+`dyn I` view against that stable heap address, and moves the owning `Box<T>`
+into an empty capturing closure. The closure's destructor drops the `Box<T>`,
+so `DynBox` destroys the concrete value exactly once. `DynBox` itself is
+move-only because the owner closure is destructor-bearing.
+
+This costs a second allocation for the owner closure; a future vtable drop slot
+can remove it. The important property is that `DynBox` is already a safe,
+correct owning API and does not require changing `Box<T>`'s generic layout.
+`DynBox` is deliberately excluded from the borrowed-view classification in MIR:
+its `dyn` field points at heap storage that `owner` keeps alive.
 
 ## Rust comparison
 
@@ -73,10 +97,10 @@ We cannot make `Box<dyn I>` match Rust without one of:
    pointer instead of `{ *mut T }`. This breaks `Box<T>`'s uniform layout and
    needs generic specialization; it also changes `Box<T>`'s ABI for that one
    instantiation.
-2. **A distinct owning erased type**, for example `DynBox<I>` /
-   `OwnedDyn<I>`, with a vtable drop slot or a stored drop function. `Box<dyn I>`
-   stays a boxed borrowed view. This preserves generic `Box<T>` and keeps
-   `dyn` a pure fat pointer.
+2. **A distinct owning erased type**, `DynBox<I>`, with a stored owner/drop
+   contract. `Box<dyn I>` stays a boxed borrowed view. This preserves generic
+   `Box<T>` and keeps `dyn` a pure fat pointer. Implemented using an owner
+   closure; a vtable drop slot can optimize it later.
 3. **A definition that `Box<dyn I>` is the owning form** and a new
    compiler-specialized layout. This is the Rust-compatible option, but it is
    the largest change and should wait for generic impl/layout support.
@@ -87,27 +111,21 @@ Keep the invariant and separate the two concepts:
 
 - `dyn I` — two-word borrowed fat pointer.
 - `Box<dyn I>` — thin owning pointer to a heap fat-pointer **record** (boxed
-  view). Safe construction only after boxed-view borrow tracking lands; until
-  then `SAFE-DYN-001` requires `unsafe { }`.
-- `DynBox<I>` (name to be decided) — owning erased value. It owns one concrete
-  allocation and stores enough metadata to drop it and free it. This is the
-  Rust-like `Box<dyn Trait>` role.
+  view), with the referent borrow checked by MIR.
+- `DynBox<I>` — owning erased value; owns the concrete allocation and drops it
+  exactly once through its owner closure.
 
-Recommended implementation order:
+Implementation status and next steps:
 
 1. **Landed:** target-aware `dyn` size/alignment, `&dyn` dispatch through
-   `Box::get`, `Box<dyn>` boxed-view test under `unsafe`, and `SAFE-DYN-001`.
-2. Model `dyn` and `Box<dyn>` as borrow views in MIR so a boxed view cannot
-   outlive its referent; remove the `unsafe` requirement once the escape check
-   is proven.
-3. Add the owning erased type: a vtable drop slot (or stored drop function),
-   a checked `box_dyn<I>(value)` constructor, and drop/free glue. This must
-   handle destructible and non-`Copy` values exactly once.
-4. Then decide whether `Box<dyn I>` should remain a boxed view or be
-   redefined/specialized as the owning type. Do not silently change its
-   meaning later.
-5. Continue object-safety work: `dyn I + Send/Sync` auto-trait bounds,
-   upcasting (`dyn Derived` → `dyn Base`), and object-safe associated items.
+   `Box::get`, MIR borrow tracking for `dyn`/`Box<dyn>`, safe `Box<dyn>` with
+   `SAFE-LIFE-001`/`002` rejections, and `std::DynBox<I>` / `std::dyn_box`.
+2. Optimize `DynBox` with a vtable drop slot (or equivalent stored drop
+   function) to remove the owner-closure allocation; keep the owner-closure
+   implementation as the correctness baseline.
+3. `dyn I + Send/Sync` auto-trait bounds and `DynBox` Send/Sync conditionally.
+4. Upcasting (`dyn Derived` → `dyn Base`) and object-safe associated items.
+5. Continue M1.11 (`&str`/UTF-8) separately.
 
 ## `&str` note
 
@@ -121,9 +139,11 @@ view.
 
 - `lang/tests/common/src/values/sizeof_alignof.ch` — two-pointer size/alignment
   on the active target, including comptime `sizeof`/`alignof`.
-- `lang/tests/common/src/decls/interfaces/dynamic.ch` — by-value `dyn`
-  parameters/returns/fields/arrays and `&dyn` dispatch.
-- `lang/tests/src/stdlib/box.ch` — boxed `dyn` view under `unsafe`, including
-  dispatch through `Box::get`.
-- `lang/tests/negative/src/safety_diagnostics.ch` — safe `Box<dyn I>`
-  construction is `SAFE-DYN-001`.
+- `lang/tests/common/src/decls/interfaces/dynamic.ch` — `dyn`
+  parameters/returns/fields/arrays, `&dyn` dispatch, and referent-lifetime
+  hygiene.
+- `lang/tests/src/stdlib/box.ch` — safe boxed `dyn` view, `DynBox` owning
+  drop-once behavior, and dispatch through `Box::get`/`DynBox::get`.
+- `lang/tests/negative/src/safety_diagnostics.ch` — returning a boxed `dyn`
+  view of a local is `SAFE-LIFE-001`; letting it outlive the referent is
+  `SAFE-LIFE-002`.

@@ -107,6 +107,14 @@ struct MIRTypeRecord {
      * MIR borrow tracking uses this as a conservative future-view fact.
      */
     bool contains_future_handle = false;
+
+    /**
+     * The source type carries a borrowed view: `dyn I` (a two-word
+     * `{ data, vtable }` pointer) or an aggregate such as `Box<dyn I>` whose
+     * representation stores one. MIR borrow tracking must keep the view's
+     * source loan alive even though the representation is a raw pointer.
+     */
+    bool contains_borrow_view = false;
 };
 
 /**
@@ -421,6 +429,7 @@ struct MIRTypeTable {
         mix(r.copy ? 1u : 0u);
         mix(r.transparent ? 1u : 0u);
         mix(r.contains_future_handle ? 1u : 0u);
+        mix(r.contains_borrow_view ? 1u : 0u);
         if (r.kind == MIRTypeKind::Function) {
             for (uint32_t i = 0; i < r.data_count; ++i) {
                 const uint32_t idx = r.data_offset + i;
@@ -444,7 +453,8 @@ struct MIRTypeTable {
             a.field_index != b.field_index ||
             a.explicit_alignment != b.explicit_alignment || a.packed != b.packed ||
             a.copy != b.copy || a.transparent != b.transparent ||
-            a.contains_future_handle != b.contains_future_handle) {
+            a.contains_future_handle != b.contains_future_handle ||
+            a.contains_borrow_view != b.contains_borrow_view) {
             return false;
         }
         // Only function types store parameter types in the shared data pool;

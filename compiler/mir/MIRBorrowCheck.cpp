@@ -1,6 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "MIRBorrowCheck.h"
+#include "MIRTraversal.h"
 
 #include <algorithm>
 #include <string>
@@ -292,10 +293,15 @@ bool is_borrow_view_type(const MIRModule& module, TypeId type) {
         return false;
     }
     const MIRTypeRecord& rec = module.types.types[type];
+    const std::string_view name = module.types.name_view(type);
+    // `DynBox<I>` stores a `dyn I` view but owns its heap referent through the
+    // owner closure; it must not be treated as a borrowed view. `Box<dyn I>`
+    // remains a boxed borrowed view.
+    if (name.find("DynBox") != std::string_view::npos) return false;
+    if (rec.contains_borrow_view) return true;
     if (rec.kind != MIRTypeKind::Struct && rec.kind != MIRTypeKind::Union) {
         return false;
     }
-    const std::string_view name = module.types.name_view(type);
     if (name.empty()) return false;
     // MIR names are the emitted C names (`std_stdstring_view`,
     // `std_stdspan__cgs__0`), so match the type token as a substring.
@@ -700,7 +706,9 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
             if (it != place_loans.end()) loan = it->second;
             const auto pp = place_params.find(op.id);
             if (pp != place_params.end()) param = pp->second;
-            if (loan == MIR_INVALID_ID && contains_future_handle_type(module, type)) {
+            if (loan == MIR_INVALID_ID &&
+                (contains_future_handle_type(module, type) ||
+                 is_borrow_view_type(module, type))) {
                 // A future-bearing aggregate local stores its borrow in the
                 // FutureHandle field. Lift that field loan to the aggregate for
                 // by-value pass-through calls (`wrap(w)` / `identity(w)`).
@@ -734,7 +742,9 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     if (it != place_loans.end()) loan = it->second;
                     const auto pp = place_params.find(dops[0].id);
                     if (pp != place_params.end()) param = pp->second;
-                    if (loan == MIR_INVALID_ID && contains_future_handle_type(module, type)) {
+                    if (loan == MIR_INVALID_ID &&
+                        (contains_future_handle_type(module, type) ||
+                         is_borrow_view_type(module, type))) {
                         for (const auto& fl : field_loans) {
                             if (static_cast<PlaceId>(fl.first >> 32) != dops[0].id) continue;
                             if (fl.second >= loans.size()) continue;
@@ -1148,6 +1158,50 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     }
                     if (loan != MIR_INVALID_ID) {
                         field_loans[key] = loan;
+                        // A fat pointer / boxed-dyn aggregate stores its source
+                        // in a raw field. Lift that field loan to the whole
+                        // view place so a load of the view value (and a
+                        // by-value call such as `box(view)`) carries it.
+                        if (ops[0].id < function.places.size()) {
+                            const TypeId dest_type =
+                                function.places[ops[0].id].type;
+                            const std::string_view dname =
+                                module.types.name_view(dest_type);
+                            const bool fat_pointer =
+                                dname == "__chemical_fat_pointer__";
+                            const std::string_view field_name =
+                                constant_string_view(module, ops[1].id);
+                            // Only the data word of a fat pointer carries the
+                            // referent loan. The vtable word is a global
+                            // address and must not overwrite it.
+                            if (is_borrow_view_type(module, dest_type) &&
+                                (!fat_pointer || field_name == "first")) {
+                                place_loans[ops[0].id] = loan;
+                                loans[loan].end = lin;
+                                // A view of a local is still live at the
+                                // local's StorageDead; do not let the
+                                // materialized field loan inherit the
+                                // "interprocedural escape" exemption. A later
+                                // unknown call can set it again.
+                                if (loan < loans.size() &&
+                                    loans[loan].target.known &&
+                                    loans[loan].target.root <
+                                        function.places.size()) {
+                                    const auto sc = static_cast<MIRStorageClass>(
+                                        function.places[loans[loan].target.root]
+                                            .storage_class);
+                                    if (sc == MIRStorageClass::Local ||
+                                        sc == MIRStorageClass::Temporary ||
+                                        sc == MIRStorageClass::FrameField ||
+                                        sc == MIRStorageClass::FramePtr) {
+                                        loans[loan].escaped = false;
+                                    }
+                                }
+                                if (param != MIR_INVALID_ID) {
+                                    place_params[ops[0].id] = param;
+                                }
+                            }
+                        }
                     } else {
                         field_loans.erase(key);
                     }
@@ -2015,6 +2069,20 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     inst.result_or_place < function.places.size()) {
                     uint32_t view_loan = mapped_loan;
                     uint32_t view_source = mapped_source;
+                    if (view_loan == MIR_INVALID_ID && !future_args.empty() &&
+                        ops[0].kind() == MIROperandKind::Symbol) {
+                        // `box` copies a view into an owning box; the boxed
+                        // view still borrows the same referent. Do not apply
+                        // this to every view-returning callee: a function
+                        // such as `get_owned_parameter(view)` may copy the
+                        // bytes and return a view of its own storage.
+                        const std::string_view callee =
+                            symbol_name_view(module, ops[0].id);
+                        if (callee.find("box") != std::string_view::npos) {
+                            view_loan = future_args[0].loan;
+                            view_source = future_args[0].source_param;
+                        }
+                    }
                     if (view_loan == MIR_INVALID_ID && !future_result) {
                         for (uint16_t i = first; i < inst.operand_count; ++i) {
                             if (ops[i].kind() != MIROperandKind::Value) continue;

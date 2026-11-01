@@ -664,6 +664,30 @@ func neg_future_handle_capturing_callback_cannot_return_capture_future(env : &mu
 }
 
 @test
+func future_handle_hrtb_nested_aggregate_same_scope_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &int) : int {\n    var u = await async::yield_now()\n    return *x\n}\nstruct Inner<'a> { var h : core::async::FutureHandle<'a, int> }\nstruct Outer<'a> { var inner : Inner<'a> }\nfunc <'b> make_outer(x : &'b int) : Outer<'b> {\n    return Outer<'b> { inner : Inner<'b> { h : work(x) } }\n}\nfunc <'a> apply(f : for<'b> (x : &'b int) => Outer<'b>, x : &'a int) : Outer<'a> {\n    return f(x)\n}\npublic func main() : int {\n    var x = 41\n    var o = apply(make_outer, &x)\n    return async::block_on<int>(o.inner.h) - 41\n}\n"
+    expect_compile_success_with_mod(env, "future_hrtb_nested_aggregate", ch, NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_hrtb_nested_aggregate_local_borrow(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &int) : int {\n    var u = await async::yield_now()\n    return *x\n}\nstruct Inner<'a> { var h : core::async::FutureHandle<'a, int> }\nstruct Outer<'a> { var inner : Inner<'a> }\nfunc <'b> make_outer(x : &'b int) : Outer<'b> {\n    return Outer<'b> { inner : Inner<'b> { h : work(x) } }\n}\nfunc <'a> apply(f : for<'b> (x : &'b int) => Outer<'b>) : Outer<'a> {\n    var x = 41\n    return f(&x)\n}\npublic func main() : int {\n    var o = apply(make_outer)\n    return async::block_on<int>(o.inner.h) - 41\n}\n"
+    expect_compile_error_with_mod(env, "future_hrtb_nested_aggregate_local", ch, "SAFE-LIFE-001", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_opaque_container_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The generic container hides its element behind *mut void; a safe API
+    // returning it could retain a future whose frame borrow is invisible to
+    // MIR. The call site rejects the type-erased result.
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nstruct Opaque<T> { var p : *mut void }\nfunc <'a> wrap(h : core::async::FutureHandle<'a, int>) : Opaque<core::async::FutureHandle<'a, int>> {\n    var o = Opaque<core::async::FutureHandle<'a, int>> { p : null }\n    unsafe { o.p = &raw mut h as *mut void }\n    return o\n}\npublic func main() : int {\n    var o : Opaque<core::async::FutureHandle<int>>\n    {\n        var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n        o = wrap(work(&s))\n    }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "future_opaque_container", ch, "SAFE-LIFE-005", NEG_MOD_ASYNC_STD)
+}
+
+@test
 func neg_future_handle_hrtb_callback_cannot_return_local_borrow(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "async func work(x : &int) : int {\n    var u = await async::yield_now()\n    return *x\n}\nfunc <'b> from_ref(x : &'b int) : core::async::FutureHandle<'b, int> {\n    return work(x)\n}\nfunc <'a> apply(f : for<'b> (x : &'b int) => core::async::FutureHandle<'b, int>) : core::async::FutureHandle<'a, int> {\n    var x = 41\n    return f(&x)\n}\npublic func main() : int {\n    var h = apply(from_ref)\n    return async::block_on<int>(h) - 41\n}\n"

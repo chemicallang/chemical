@@ -99,6 +99,14 @@ struct MIRTypeRecord {
 
     /** Source requested the C transparent-newtype layout. */
     bool transparent = false;
+
+    /**
+     * The source type mentions a `FutureHandle` anywhere in its generic
+     * arguments or fields, even when the representation erases it (for
+     * example a type-erased generic container with a `*mut void` field).
+     * MIR borrow tracking uses this as a conservative future-view fact.
+     */
+    bool contains_future_handle = false;
 };
 
 /**
@@ -412,6 +420,7 @@ struct MIRTypeTable {
         mix(r.packed ? 1u : 0u);
         mix(r.copy ? 1u : 0u);
         mix(r.transparent ? 1u : 0u);
+        mix(r.contains_future_handle ? 1u : 0u);
         if (r.kind == MIRTypeKind::Function) {
             for (uint32_t i = 0; i < r.data_count; ++i) {
                 const uint32_t idx = r.data_offset + i;
@@ -434,7 +443,8 @@ struct MIRTypeTable {
             a.data_count != b.data_count || a.int_kind != b.int_kind ||
             a.field_index != b.field_index ||
             a.explicit_alignment != b.explicit_alignment || a.packed != b.packed ||
-            a.copy != b.copy || a.transparent != b.transparent) {
+            a.copy != b.copy || a.transparent != b.transparent ||
+            a.contains_future_handle != b.contains_future_handle) {
             return false;
         }
         // Only function types store parameter types in the shared data pool;

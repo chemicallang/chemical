@@ -32,10 +32,109 @@
 #include "ast/structures/VariablesContainer.h"
 
 #include <string_view>
+#include <cstdio>
+#include <cstdlib>
+#include <unordered_set>
 
 namespace mir {
 
 namespace {
+
+/** Does an AST type mention FutureHandle in generic arguments/fields? */
+static bool ast_contains_future_handle(BaseType* type,
+                                       std::unordered_set<BaseType*>& visiting,
+                                       unsigned depth = 0) {
+    if (type == nullptr || depth > 8) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr || !visiting.insert(canonical).second) return false;
+    auto* container = canonical->get_members_container();
+    if (container != nullptr && container->kind() == ASTNodeKind::StructDecl &&
+        container->as_struct_def_unsafe()->name_view() ==
+            chem::string_view("FutureHandle")) {
+        return true;
+    }
+    if (canonical->kind() == BaseTypeKind::Generic) {
+        auto* gen = canonical->as_generic_type_unsafe();
+        if (gen->referenced != nullptr && gen->referenced->linked != nullptr &&
+            gen->referenced->linked->kind() == ASTNodeKind::StructDecl &&
+            gen->referenced->linked->as_struct_def_unsafe()->name_view() ==
+                chem::string_view("FutureHandle")) {
+            return true;
+        }
+        for (auto& arg : gen->types) {
+            if (ast_contains_future_handle(const_cast<BaseType*>(arg.getType()),
+                                           visiting, depth + 1)) {
+                return true;
+            }
+        }
+    }
+    if (type != canonical && type->kind() == BaseTypeKind::Generic) {
+        auto* gen = type->as_generic_type_unsafe();
+        for (auto& arg : gen->types) {
+            if (ast_contains_future_handle(const_cast<BaseType*>(arg.getType()),
+                                           visiting, depth + 1)) {
+                return true;
+            }
+        }
+    }
+    switch (canonical->kind()) {
+        case BaseTypeKind::Reference:
+            return ast_contains_future_handle(
+                const_cast<BaseType*>(canonical->as_reference_type_unsafe()->type),
+                visiting, depth + 1);
+        case BaseTypeKind::Pointer:
+            return ast_contains_future_handle(
+                const_cast<BaseType*>(canonical->as_pointer_type_unsafe()->type),
+                visiting, depth + 1);
+        case BaseTypeKind::Array:
+            return ast_contains_future_handle(
+                const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
+                visiting, depth + 1);
+        case BaseTypeKind::CapturingFunction: {
+            auto* cap = canonical->as_capturing_func_type_unsafe();
+            return cap->capture_env && ast_contains_future_handle(
+                const_cast<BaseType*>(cap->capture_env.getType()),
+                visiting, depth + 1);
+        }
+        case BaseTypeKind::Function:
+            // A callback's parameter/return types are a contract, not a value
+            // stored in the callback. MIR tracks those through region/fallback
+            // rules; do not mark the callback itself as a future container.
+            return false;
+        default:
+            break;
+    }
+    if (container == nullptr) return false;
+    for (BaseDefMember* member : container->variables()) {
+        if (member == nullptr) continue;
+        if (member->kind() == ASTNodeKind::StructMember) {
+            auto* field = member->as_struct_member_unsafe();
+            if (field != nullptr && ast_contains_future_handle(
+                    const_cast<BaseType*>(field->type.getType()),
+                    visiting, depth + 1)) {
+                return true;
+            }
+        } else if (member->kind() == ASTNodeKind::VariantMember) {
+            auto* variant = member->as_variant_member_unsafe();
+            if (variant != nullptr) {
+                for (auto& entry : variant->values) {
+                    auto* param = entry.second;
+                    if (param != nullptr && ast_contains_future_handle(
+                            const_cast<BaseType*>(param->type.getType()),
+                            visiting, depth + 1)) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+static bool ast_contains_future_handle(BaseType* type) {
+    std::unordered_set<BaseType*> visiting;
+    return ast_contains_future_handle(type, visiting);
+}
 
 // `long`/`ulong` are target-dependent: 64-bit on 64-bit POSIX, but 32-bit on
 // Windows (LLP64). Mirrors `IntNType::num_bits(TargetData)`.
@@ -669,6 +768,18 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
             break;
     }
 
+    if (ast_contains_future_handle(type)) {
+        module_.types.update(id, [](MIRTypeRecord& rec) {
+            if (rec.kind == MIRTypeKind::Struct ||
+                rec.kind == MIRTypeKind::Union ||
+                rec.kind == MIRTypeKind::Variant ||
+                rec.kind == MIRTypeKind::Array ||
+                rec.kind == MIRTypeKind::Pointer ||
+                rec.kind == MIRTypeKind::Reference) {
+                rec.contains_future_handle = true;
+            }
+        });
+    }
     memo_.set(type_key, id);
     if (tm) tm->memo.set(type_key, id);
     return id;

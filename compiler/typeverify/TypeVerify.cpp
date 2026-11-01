@@ -2350,6 +2350,77 @@ static bool contains_future_handle_ast_type(BaseType* type) {
 }
 
 /**
+ * Like `contains_future_handle_ast_type`, but only follows storage that a
+ * value actually carries: fields, pointers, arrays and variant payloads. It
+ * deliberately does not treat a generic argument as a stored future. This
+ * distinguishes an inspectable `Holder<FutureHandle>` from an opaque
+ * `Opaque<FutureHandle>` whose representation is a `*mut void`.
+ */
+static bool contains_future_handle_storage_ast_type(
+        BaseType* type, std::unordered_set<BaseType*>& visiting,
+        unsigned depth = 0) {
+    if (type == nullptr || depth > 8) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr || !visiting.insert(canonical).second) return false;
+    if (is_future_handle_ast_type(canonical)) return true;
+    switch (canonical->kind()) {
+        case BaseTypeKind::Reference:
+            return contains_future_handle_storage_ast_type(
+                const_cast<BaseType*>(canonical->as_reference_type_unsafe()->type),
+                visiting, depth + 1);
+        case BaseTypeKind::Pointer:
+            return contains_future_handle_storage_ast_type(
+                const_cast<BaseType*>(canonical->as_pointer_type_unsafe()->type),
+                visiting, depth + 1);
+        case BaseTypeKind::Array:
+            return contains_future_handle_storage_ast_type(
+                const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
+                visiting, depth + 1);
+        case BaseTypeKind::CapturingFunction: {
+            auto* cap = canonical->as_capturing_func_type_unsafe();
+            return cap->capture_env && contains_future_handle_storage_ast_type(
+                const_cast<BaseType*>(cap->capture_env.getType()),
+                visiting, depth + 1);
+        }
+        case BaseTypeKind::Function:
+            return false;
+        default:
+            break;
+    }
+    auto* container = canonical->get_members_container();
+    if (container == nullptr) return false;
+    for (BaseDefMember* member : container->variables()) {
+        if (member == nullptr) continue;
+        if (member->kind() == ASTNodeKind::StructMember) {
+            auto* field = member->as_struct_member_unsafe();
+            if (field != nullptr && contains_future_handle_storage_ast_type(
+                    const_cast<BaseType*>(field->type.getType()),
+                    visiting, depth + 1)) {
+                return true;
+            }
+        } else if (member->kind() == ASTNodeKind::VariantMember) {
+            auto* variant = member->as_variant_member_unsafe();
+            if (variant != nullptr) {
+                for (auto& entry : variant->values) {
+                    auto* param = entry.second;
+                    if (param != nullptr && contains_future_handle_storage_ast_type(
+                            const_cast<BaseType*>(param->type.getType()),
+                            visiting, depth + 1)) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+static bool contains_future_handle_storage_ast_type(BaseType* type) {
+    std::unordered_set<BaseType*> visiting;
+    return contains_future_handle_storage_ast_type(type, visiting);
+}
+
+/**
  * Like `contains_future_handle_ast_type`, but an owning `FutureHandle<'static,T>`
  * (or an aggregate containing only static handles) does not make a callback
  * capture borrow. This is used by the capture-escape check; call contracts keep
@@ -2986,6 +3057,14 @@ static void verify_future_argument_contract(TypeVerifier& verifier,
     FunctionDeclaration* callee = future_call_callee(call);
     BaseType* result_type = const_cast<BaseType*>(call->getType());
     const bool result_carries = contains_future_handle_ast_type(result_type);
+    if (result_carries && callee != nullptr && !callee->is_unsafe() &&
+        !callee->is_async() && !is_future_consumer_decl(callee) &&
+        !is_safe_future_consumer(verifier, callee) &&
+        !contains_future_handle_storage_ast_type(result_type)) {
+        verifier.diagnoser.error(call).with_code("SAFE-LIFE-005")
+            << "a safe function returns a type-erased container that may hold a FutureHandle; expose the future in the container's fields or return it directly";
+        return;
+    }
     if (callee != nullptr && (callee->is_async() || callee->is_unsafe() ||
                               is_future_consumer_decl(callee) ||
                               is_safe_future_consumer(verifier, callee))) {
@@ -4836,6 +4915,107 @@ static bool hrtb_aggregate_param_ok(
     }
     return true;
 }
+/** Collect the single lifetime carried by a nested FutureHandle result. */
+static void collect_future_lifetimes_ast(
+        BaseType* type, std::vector<chem::string_view>& future_lifetimes,
+        std::vector<chem::string_view>& aggregate_lifetimes,
+        std::unordered_set<BaseType*>& visiting, unsigned depth = 0) {
+    if (type == nullptr || depth > 8) return;
+    auto add_unique = [](std::vector<chem::string_view>& out,
+                         chem::string_view value) {
+        if (value.empty() || value == "static" || value == "'static") return;
+        const auto bare = hrtb_bare_lifetime(value);
+        for (chem::string_view existing : out) {
+            if (hrtb_bare_lifetime(existing) == bare) return;
+        }
+        out.push_back(value);
+    };
+    if (is_future_handle_ast_type(type)) {
+        if (GenericType* gen = future_handle_generic(type)) {
+            for (chem::string_view lt : gen->lifetime_args) {
+                add_unique(future_lifetimes, lt);
+            }
+        }
+        return;
+    }
+    if (depth == 0 && type->kind() == BaseTypeKind::Generic) {
+        for (chem::string_view lt : type->as_generic_type_unsafe()->lifetime_args) {
+            add_unique(aggregate_lifetimes, lt);
+        }
+    }
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr || !visiting.insert(canonical).second) return;
+    if (is_future_handle_ast_type(canonical)) {
+        if (GenericType* gen = future_handle_generic(canonical)) {
+            for (chem::string_view lt : gen->lifetime_args) {
+                add_unique(future_lifetimes, lt);
+            }
+        }
+        return;
+    }
+    switch (canonical->kind()) {
+        case BaseTypeKind::Reference:
+            collect_future_lifetimes_ast(
+                const_cast<BaseType*>(canonical->as_reference_type_unsafe()->type),
+                future_lifetimes, aggregate_lifetimes, visiting, depth + 1);
+            return;
+        case BaseTypeKind::Array:
+            collect_future_lifetimes_ast(
+                const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
+                future_lifetimes, aggregate_lifetimes, visiting, depth + 1);
+            return;
+        case BaseTypeKind::Generic: {
+            auto* gen = canonical->as_generic_type_unsafe();
+            for (auto& arg : gen->types) {
+                collect_future_lifetimes_ast(
+                    const_cast<BaseType*>(arg.getType()), future_lifetimes,
+                    aggregate_lifetimes, visiting, depth + 1);
+            }
+            break;
+        }
+        case BaseTypeKind::CapturingFunction: {
+            auto* cap = canonical->as_capturing_func_type_unsafe();
+            if (cap->capture_env) {
+                collect_future_lifetimes_ast(
+                    const_cast<BaseType*>(cap->capture_env.getType()),
+                    future_lifetimes, aggregate_lifetimes, visiting, depth + 1);
+            }
+            return;
+        }
+        case BaseTypeKind::Function:
+        case BaseTypeKind::Pointer:
+            return;
+        default:
+            break;
+    }
+    auto* container = canonical->get_members_container();
+    if (container == nullptr) return;
+    for (BaseDefMember* member : container->variables()) {
+        if (member == nullptr) continue;
+        if (member->kind() == ASTNodeKind::StructMember) {
+            auto* field = member->as_struct_member_unsafe();
+            if (field != nullptr) {
+                collect_future_lifetimes_ast(
+                    const_cast<BaseType*>(field->type.getType()),
+                    future_lifetimes, aggregate_lifetimes, visiting, depth + 1);
+            }
+        } else if (member->kind() == ASTNodeKind::VariantMember) {
+            auto* variant = member->as_variant_member_unsafe();
+            if (variant != nullptr) {
+                for (auto& entry : variant->values) {
+                    auto* param = entry.second;
+                    if (param != nullptr) {
+                        collect_future_lifetimes_ast(
+                            const_cast<BaseType*>(param->type.getType()),
+                            future_lifetimes, aggregate_lifetimes, visiting,
+                            depth + 1);
+                    }
+                }
+            }
+        }
+    }
+}
+
 /**
  * Source lifetimes a callback result may borrow from. A direct reference
  * parameter supplies its own lifetime; a FutureHandle parameter supplies its
@@ -5043,7 +5223,7 @@ void TypeVerifier::VisitFunctionType(FunctionType* type) {
                         d << "the higher-ranked result lifetime must match a reference parameter lifetime";
                     }
                 }
-            } else if (!is_future_handle_ast_type(return_type) &&
+            } else if (!contains_future_handle_ast_type(return_type) &&
                        hrtb_type_mentions_lifetime(return_type,
                                                    type->binder_lifetimes)) {
                 auto& d = diagnoser.error(current_func_type
@@ -5060,11 +5240,15 @@ void TypeVerifier::VisitFunctionType(FunctionType* type) {
         // that borrows an opaque capture whose owner dies with the callback.
         BaseType* future_ret =
             const_cast<BaseType*>(type->returnType.getType());
-        if (is_future_handle_ast_type(future_ret)) {
-            std::vector<chem::string_view> return_lifetimes;
-            if (GenericType* gen = future_handle_generic(future_ret)) {
-                return_lifetimes = gen->lifetime_args;
-            }
+        if (contains_future_handle_ast_type(future_ret)) {
+            std::vector<chem::string_view> future_lifetimes;
+            std::vector<chem::string_view> aggregate_lifetimes;
+            std::unordered_set<BaseType*> lt_visiting;
+            collect_future_lifetimes_ast(future_ret, future_lifetimes,
+                                         aggregate_lifetimes, lt_visiting);
+            std::vector<chem::string_view> return_lifetimes =
+                aggregate_lifetimes.size() == 1 ? aggregate_lifetimes
+                                                : future_lifetimes;
             std::vector<chem::string_view> sources;
             function_type_future_return_sources(type, return_lifetimes, sources);
             auto report_missing = [&]() {

@@ -1981,13 +1981,28 @@ SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
 /** True for the compiler-generated async protocol handle. */
 static bool is_future_handle_type(BaseType* type) {
     if (type == nullptr) return false;
+    if (type->kind() == BaseTypeKind::Generic) {
+        auto* direct = type->as_generic_type_unsafe();
+        if (direct->referenced != nullptr &&
+            direct->referenced->linked != nullptr &&
+            direct->referenced->linked->kind() == ASTNodeKind::StructDecl &&
+            direct->referenced->linked->as_struct_def_unsafe()->name_view() ==
+                "FutureHandle") {
+            return true;
+        }
+    }
     BaseType* canonical = type->canonical();
-    if (canonical == nullptr || canonical->kind() != BaseTypeKind::Generic) return false;
-    auto* gen = canonical->as_generic_type_unsafe();
-    if (gen->referenced == nullptr || gen->referenced->linked == nullptr) return false;
-    if (gen->referenced->linked->kind() != ASTNodeKind::StructDecl) return false;
-    const auto name = gen->referenced->linked->as_struct_def_unsafe()->name_view();
-    return name == "FutureHandle";
+    if (canonical == nullptr) return false;
+    if (canonical->kind() == BaseTypeKind::Generic) {
+        auto* gen = canonical->as_generic_type_unsafe();
+        return gen->referenced != nullptr && gen->referenced->linked != nullptr &&
+               gen->referenced->linked->kind() == ASTNodeKind::StructDecl &&
+               gen->referenced->linked->as_struct_def_unsafe()->name_view() ==
+                   "FutureHandle";
+    }
+    auto* container = canonical->get_members_container();
+    return container != nullptr && container->kind() == ASTNodeKind::StructDecl &&
+           container->as_struct_def_unsafe()->name_view() == "FutureHandle";
 }
 
 /**
@@ -2071,6 +2086,117 @@ static bool contains_future_handle_type(BaseType* type,
 static bool contains_future_handle_type(BaseType* type) {
     std::unordered_set<BaseType*> visiting;
     return contains_future_handle_type(type, visiting);
+}
+
+/**
+ * The single frame lifetime carried by a (possibly nested) FutureHandle in a
+ * return type. `FutureHandle<'a,T>`, `Option<FutureHandle<'a,T>>` and
+ * `W<'a>` with a future field all resolve to `'a`; multiple distinct
+ * lifetimes are ambiguous and yield an empty view.
+ */
+static chem::string_view future_handle_lifetime_of(BaseType* type) {
+    std::vector<chem::string_view> future_lifetimes;
+    std::vector<chem::string_view> aggregate_lifetimes;
+    std::unordered_set<BaseType*> visiting;
+    auto add_unique = [](std::vector<chem::string_view>& out,
+                         chem::string_view value) {
+        if (value.empty() || value == "static" || value == "'static") return;
+        const chem::string_view bare = strip_lifetime_quote(value);
+        for (chem::string_view existing : out) {
+            if (strip_lifetime_quote(existing) == bare) return;
+        }
+        out.push_back(bare);
+    };
+    std::function<void(BaseType*, unsigned)> walk =
+        [&](BaseType* t, unsigned depth) {
+            if (t == nullptr || depth > 8) return;
+            const bool direct_future = is_future_handle_type(t);
+            if (direct_future) {
+                if (t->kind() == BaseTypeKind::Generic) {
+                    for (chem::string_view lt :
+                         t->as_generic_type_unsafe()->lifetime_args) {
+                        add_unique(future_lifetimes, lt);
+                    }
+                }
+                return;
+            }
+            if (depth == 0 && t->kind() == BaseTypeKind::Generic) {
+                auto* gen = t->as_generic_type_unsafe();
+                for (chem::string_view lt : gen->lifetime_args) {
+                    add_unique(aggregate_lifetimes, lt);
+                }
+            }
+            BaseType* canonical = t->canonical();
+            if (canonical == nullptr || !visiting.insert(canonical).second) return;
+            if (is_future_handle_type(canonical)) {
+                if (canonical->kind() == BaseTypeKind::Generic) {
+                    for (chem::string_view lt :
+                         canonical->as_generic_type_unsafe()->lifetime_args) {
+                        add_unique(future_lifetimes, lt);
+                    }
+                }
+                return;
+            }
+            switch (canonical->kind()) {
+                case BaseTypeKind::Reference:
+                    walk(const_cast<BaseType*>(
+                             canonical->as_reference_type_unsafe()->type),
+                         depth + 1);
+                    return;
+                case BaseTypeKind::Array:
+                    walk(const_cast<BaseType*>(
+                             canonical->as_array_type_unsafe()->elem_type.getType()),
+                         depth + 1);
+                    return;
+                case BaseTypeKind::Generic: {
+                    auto* gen = canonical->as_generic_type_unsafe();
+                    for (auto& arg : gen->types) {
+                        walk(const_cast<BaseType*>(arg.getType()), depth + 1);
+                    }
+                    break;
+                }
+                case BaseTypeKind::CapturingFunction: {
+                    auto* cap = canonical->as_capturing_func_type_unsafe();
+                    if (cap->capture_env) {
+                        walk(const_cast<BaseType*>(cap->capture_env.getType()),
+                             depth + 1);
+                    }
+                    return;
+                }
+                case BaseTypeKind::Function:
+                case BaseTypeKind::Pointer:
+                    return;
+                default:
+                    break;
+            }
+            auto* container = canonical->get_members_container();
+            if (container == nullptr) return;
+            for (BaseDefMember* member : container->variables()) {
+                if (member == nullptr) continue;
+                if (member->kind() == ASTNodeKind::StructMember) {
+                    auto* field = member->as_struct_member_unsafe();
+                    if (field != nullptr) {
+                        walk(const_cast<BaseType*>(field->type.getType()),
+                             depth + 1);
+                    }
+                } else if (member->kind() == ASTNodeKind::VariantMember) {
+                    auto* variant = member->as_variant_member_unsafe();
+                    if (variant != nullptr) {
+                        for (auto& entry : variant->values) {
+                            auto* param = entry.second;
+                            if (param != nullptr) {
+                                walk(const_cast<BaseType*>(param->type.getType()),
+                                     depth + 1);
+                            }
+                        }
+                    }
+                }
+            }
+        };
+    walk(type, 0);
+    if (aggregate_lifetimes.size() == 1) return aggregate_lifetimes[0];
+    if (future_lifetimes.size() == 1) return future_lifetimes[0];
+    return {};
 }
 
 /**
@@ -2540,6 +2666,10 @@ uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
     }
     BaseType* ret = const_cast<BaseType*>(type->returnType.getType());
     chem::string_view return_lt = region_lifetime_of(ret);
+    if (contains_future_handle_type(ret)) {
+        const chem::string_view future_lt = future_handle_lifetime_of(ret);
+        if (!future_lt.empty()) return_lt = future_lt;
+    }
     if (return_lt.empty() && ret != nullptr) {
         BaseType* ret_canonical = ret->canonical();
         if (ret_canonical != nullptr &&

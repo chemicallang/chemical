@@ -260,6 +260,7 @@ bool contains_future_handle_type(const MIRModule& module, TypeId type,
     if (is_future_handle_type(module, type)) return true;
     if (!visiting.insert(type).second) return false;
     const MIRTypeRecord& rec = module.types.types[type];
+    if (rec.contains_future_handle) return true;
     if (rec.kind == MIRTypeKind::Array ||
         rec.kind == MIRTypeKind::Reference ||
         rec.kind == MIRTypeKind::Pointer) {

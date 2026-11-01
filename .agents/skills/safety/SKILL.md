@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2378/2378` |
 | LLVM main | `2376/2376` |
 | `@test` runner | `54/54` |
-| TCC/LLVM negative | `711/711` |
+| TCC/LLVM negative | `714/714` |
 | TCC/LLVM safety | `69/69` |
 | TCC/LLVM async | `69/69` |
 | TCC libs | `730/730` |
@@ -266,9 +266,12 @@ memory safety.
    keep the conservative escape mark. A callback returning `FutureHandle` must
    tie its frame lifetime to a reference/future parameter or use `'static`;
    higher-ranked returns are accepted, and capture-owning callbacks returning a
-   free/legacy future are rejected at the call site. Remaining: opaque
-   containers beyond callbacks (for example user containers hiding a future
-   behind `*mut void`) and deeper nested HRTB aggregates.
+   free/legacy future are rejected at the call site. Nested aggregate returns
+   resolve the FutureHandle lifetime through `Outer<'a> -> Inner<'a> ->
+   FutureHandle<'a>`; type-erased generic containers are rejected at safe call
+   boundaries with `SAFE-LIFE-005`, while inspectable lifetime-carrying
+   wrappers remain accepted. Remaining: type erasure performed entirely inside `unsafe`, and
+   non-lifetime generic wrappers that erase the nested future lifetime.
 2. **Target-aware C ABI is implemented for the main native conventions.**
    `MIRABI` classifies by-value `@extern` structs/unions for x86-64 System V,
    Windows x64 and AArch64 AAPCS64, including HFA register parts at exact

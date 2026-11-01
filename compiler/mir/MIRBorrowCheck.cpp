@@ -261,7 +261,8 @@ bool contains_future_handle_type(const MIRModule& module, TypeId type,
     if (!visiting.insert(type).second) return false;
     const MIRTypeRecord& rec = module.types.types[type];
     if (rec.kind == MIRTypeKind::Array ||
-        rec.kind == MIRTypeKind::Reference) {
+        rec.kind == MIRTypeKind::Reference ||
+        rec.kind == MIRTypeKind::Pointer) {
         return contains_future_handle_type(module, rec.element, visiting,
                                            depth + 1);
     }
@@ -698,6 +699,19 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
             if (it != place_loans.end()) loan = it->second;
             const auto pp = place_params.find(op.id);
             if (pp != place_params.end()) param = pp->second;
+            if (loan == MIR_INVALID_ID && contains_future_handle_type(module, type)) {
+                // A future-bearing aggregate local stores its borrow in the
+                // FutureHandle field. Lift that field loan to the aggregate for
+                // by-value pass-through calls (`wrap(w)` / `identity(w)`).
+                for (const auto& fl : field_loans) {
+                    if (static_cast<PlaceId>(fl.first >> 32) != op.id) continue;
+                    if (fl.second >= loans.size()) continue;
+                    loan = fl.second;
+                    const auto fp = field_params.find(fl.first);
+                    if (fp != field_params.end()) param = fp->second;
+                    break;
+                }
+            }
             return loan != MIR_INVALID_ID;
         }
         if (op.kind() != MIROperandKind::Value) return false;
@@ -719,6 +733,16 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     if (it != place_loans.end()) loan = it->second;
                     const auto pp = place_params.find(dops[0].id);
                     if (pp != place_params.end()) param = pp->second;
+                    if (loan == MIR_INVALID_ID && contains_future_handle_type(module, type)) {
+                        for (const auto& fl : field_loans) {
+                            if (static_cast<PlaceId>(fl.first >> 32) != dops[0].id) continue;
+                            if (fl.second >= loans.size()) continue;
+                            loan = fl.second;
+                            const auto fp = field_params.find(fl.first);
+                            if (fp != field_params.end()) param = fp->second;
+                            break;
+                        }
+                    }
                     if (loan != MIR_INVALID_ID) return true;
                 }
             }
@@ -847,6 +871,39 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 if (inst.result_or_place != MIR_INVALID_ID) {
                     address_targets[inst.result_or_place] = projected;
                     if (packed_projection) packed_places.insert(inst.result_or_place);
+                    // A field address of a future-bearing aggregate carries the
+                    // aggregate's whole-place loan when the field itself has no
+                    // dedicated reference-field loan (the common `W { h: f }`
+                    // case). This makes `block_on(w.h)` a use of the frame
+                    // borrow so the referent cannot end first.
+                    TypeId ft = MIR_INVALID_ID;
+                    if (inst.result_or_place < function.values.size()) {
+                        ft = function.values[inst.result_or_place].type;
+                    } else if (inst.result_or_place < function.places.size()) {
+                        ft = function.places[inst.result_or_place].type;
+                    }
+                    if (ft != MIR_INVALID_ID &&
+                        contains_future_handle_type(module, ft) &&
+                        value_loans.find(inst.result_or_place) == value_loans.end()) {
+                        uint32_t fl = MIR_INVALID_ID;
+                        if (ops[1].kind() == MIROperandKind::Constant) {
+                            const auto lit = field_loans.find(
+                                field_key(base.root, ops[1].id));
+                            if (lit != field_loans.end()) fl = lit->second;
+                        }
+                        if (fl == MIR_INVALID_ID) {
+                            const auto plt = place_loans.find(base.root);
+                            if (plt != place_loans.end()) fl = plt->second;
+                        }
+                        if (fl != MIR_INVALID_ID && fl < loans.size()) {
+                            value_loans[inst.result_or_place] = fl;
+                            loans[fl].end = lin;
+                            const auto pp = place_params.find(base.root);
+                            if (pp != place_params.end()) {
+                                value_params[inst.result_or_place] = pp->second;
+                            }
+                        }
+                    }
                 }
                 break;
             }
@@ -2494,6 +2551,16 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
 
             // Move/drop while a live loan targets an overlapping place.
             PlaceId moved_place = MIR_INVALID_ID;
+            LoanTarget moved_target;
+            bool have_moved_target = false;
+            auto set_moved_value_target = [&](const MIROperand& op) {
+                if (op.kind() != MIROperandKind::Value) return;
+                const auto at = address_targets.find(op.id);
+                if (at != address_targets.end() && at->second.known) {
+                    moved_target = at->second;
+                    have_moved_target = true;
+                }
+            };
             switch (inst.opcode()) {
                 case MIROpcode::MoveInit:
                     if (inst.operand_count >= 2 && ops != nullptr &&
@@ -2507,6 +2574,12 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                           mir_type_is_copy(module.types,
                                            function.places[ops[0].id].type))) {
                         moved_place = ops[0].id;
+                    } else if (ops != nullptr &&
+                               ops[0].kind() == MIROperandKind::Value &&
+                               !(ops[0].id < function.values.size() &&
+                                 mir_type_is_copy(module.types,
+                                                  function.values[ops[0].id].type))) {
+                        set_moved_value_target(ops[0]);
                     }
                     break;
                 case MIROpcode::Drop:
@@ -2529,7 +2602,10 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 moved.root = moved_place;
                 moved.path = function.places[moved_place].move_path_id;
                 moved.known = true;
-
+                moved_target = moved;
+                have_moved_target = true;
+            }
+            if (have_moved_target) {
                 for (uint32_t l = 0; l < nloans; ++l) {
                     if ((!live[l] && !loans[l].pinned_live) || loans[l].escaped ||
                         !loans[l].target.known) continue;
@@ -2538,8 +2614,10 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         continue;
                     }
 
-                    bool overlap = targets_overlap(function, loans[l].target, moved);
-                    if (!overlap && loans[l].frame_loan) {
+                    bool overlap = borrow_targets_overlap(loans[l].target, moved_target);
+                    if (!overlap && loans[l].frame_loan &&
+                        moved_place != MIR_INVALID_ID &&
+                        moved_place < function.places.size()) {
                         const MIRPlaceDef& mp = function.places[moved_place];
                         if (mp.storage_class ==
                                 static_cast<uint8_t>(MIRStorageClass::FrameField) &&

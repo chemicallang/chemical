@@ -761,6 +761,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     builder_->field_store(
                         temp, fc,
                         builder_->load_indirect(static_cast<ValueId>(r.id), ft));
+                    if (!mark_field_moved(init.value, r, error)) {
+                        return MIRExprResult::error();
+                    }
                     ++it;
                     continue;
                 }
@@ -1620,6 +1623,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         // `*ptr` element: copy the pointee into the element
                         builder_->element_store(place, idx,
                                                 builder_->load_indirect(e.id, et));
+                        if (!mark_field_moved(arr->values[i], e, error)) {
+                            return MIRExprResult::error();
+                        }
                     } else {
                         builder_->element_store(place, idx, static_cast<ValueId>(e.id));
                     }

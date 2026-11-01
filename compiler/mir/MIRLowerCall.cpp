@@ -115,6 +115,19 @@ bool MIRLowerer::lower_call_args_for(FunctionDeclaration* fd, bool self_included
             temp_extension_operand_ = saved_extension;
         }
         if (!r.ok()) return false;
+        {
+            // A by-value field/aggregate argument is moved into the callee.
+            BaseType* at = values[i] ? values[i]->getType() : nullptr;
+            BaseType* ac = at ? at->canonical() : nullptr;
+            const bool by_value_arg =
+                !(param_type && (param_type->kind() == BaseTypeKind::Reference ||
+                                 param_type->kind() == BaseTypeKind::Pointer));
+            const bool array_arg = ac && ac->kind() == BaseTypeKind::Array;
+            if (by_value_arg && !array_arg && r.kind == MIRExprKind::Address &&
+                !mark_field_moved(values[i], r, error)) {
+                return false;
+            }
+        }
         // a non-pointer value passed to a reference parameter must be
         // materialized in a temporary whose address is passed
         if (param_type && param_type->kind() == BaseTypeKind::Reference &&
@@ -405,14 +418,22 @@ void MIRLowerer::register_destructible(PlaceId place, BaseType* type,
     const SymbolId dtor = destructor_symbol(type);
     if (dtor == MIR_INVALID_ID) return;
 
-    // A bare local whose struct only has generated drop glue may be initialized
-    // field by field, so each owned field gets its own drop flag. Any other
-    // destructible keeps the single whole-value flag (and therefore requires a
-    // whole-value construction).
+    // A local or by-value parameter whose struct only has generated drop glue
+    // tracks each destructible field/element separately. The flags are armed
+    // when the value is constructed as a whole and cleared when a field is
+    // moved out, so the parent destructor never drops a moved field. A type
+    // with a user destructor keeps one whole-value flag (the user body decides
+    // what to drop); moving a non-Copy field out of it is rejected.
     std::vector<MIRDropField> field_flags;
-    if (!whole_value_initialized && !async_ && place < builder_->function().places.size() &&
-        builder_->function().places[place].storage_class ==
-            static_cast<uint8_t>(MIRStorageClass::Local)) {
+    bool field_wise_storage = false;
+    if (!async_ && place < builder_->function().places.size()) {
+        const auto storage = static_cast<MIRStorageClass>(
+            builder_->function().places[place].storage_class
+        );
+        field_wise_storage = storage == MIRStorageClass::Local ||
+                             storage == MIRStorageClass::Parameter;
+    }
+    if (field_wise_storage) {
         BaseType* canon = type ? type->canonical() : nullptr;
         ASTNode* node = canon ? canon->get_direct_linked_canonical_node() : nullptr;
         if (canon && canon->kind() == BaseTypeKind::Array) {
@@ -451,6 +472,11 @@ void MIRLowerer::register_destructible(PlaceId place, BaseType* type,
     const bool field_wise = !field_flags.empty();
     if (field_wise) {
         builder_->function().places[place].field_wise_drop = true;
+        // A whole-value construction initializes every tracked field/element.
+        // An uninitialized bare declaration leaves the flags false.
+        if (whole_value_initialized) {
+            set_drop_fields(field_flags, true);
+        }
     }
 
     PlaceId flag = MIR_INVALID_ID;
@@ -520,7 +546,7 @@ MIRLowerer::MIRDropField MIRLowerer::build_drop_field(const chem::string_view& n
     f.type = type;
     BaseType* canon = type ? type->canonical() : nullptr;
     ASTNode* node = canon ? canon->get_direct_linked_canonical_node() : nullptr;
-    if (depth < 2 && canon && node && node->kind() == ASTNodeKind::StructDecl &&
+    if (depth < 32 && canon && node && node->kind() == ASTNodeKind::StructDecl &&
         !canon->has_user_destructor()) {
         auto* sd = node->as_struct_def_unsafe();
         for (auto& inh : sd->inherited) {
@@ -592,6 +618,198 @@ MIRLowerer::MIRDropField* MIRLowerer::drop_field_for_path(
         return node;
     }
     return nullptr;
+}
+
+bool MIRLowerer::field_move_target(Value* value, PlaceId& base,
+                                    std::vector<std::string>& path,
+                                    BaseType*& field_type,
+                                    std::string& error) {
+    Value* t = value;
+    for (int guard = 0; guard < 4 && t; ++guard) {
+        if (t->val_kind() == ValueKind::AccessChain) {
+            auto* c = t->as_access_chain_unsafe();
+            if (c->values.size() == 1) { t = c->values[0]; continue; }
+            break;
+        }
+        if (t->val_kind() == ValueKind::UnsafeValue) {
+            auto* u = static_cast<UnsafeValue*>(t);
+            if (u->getValue()) { t = u->getValue(); continue; }
+            break;
+        }
+        break;
+    }
+    if (!t || t->val_kind() != ValueKind::AccessChain) return false;
+    auto* chain = t->as_access_chain_unsafe();
+    if (chain->values.size() < 2) return false;
+    Value* b = chain->values[0];
+    for (int guard = 0; guard < 4 && b; ++guard) {
+        if (b->val_kind() == ValueKind::AccessChain) {
+            auto* c = b->as_access_chain_unsafe();
+            if (c->values.size() == 1) { b = c->values[0]; continue; }
+            break;
+        }
+        if (b->val_kind() == ValueKind::UnsafeValue) {
+            auto* u = static_cast<UnsafeValue*>(b);
+            if (u->getValue()) { b = u->getValue(); continue; }
+            break;
+        }
+        break;
+    }
+    if (!b || b->val_kind() != ValueKind::Identifier) return false;
+    auto* bid = b->as_identifier_unsafe();
+    base = place_for_linked(bid->linked);
+    if (base == MIR_INVALID_ID) base = place_for_name(bid->value);
+    if (base == MIR_INVALID_ID) return false;
+    path.clear();
+    for (size_t i = 1; i < chain->values.size(); ++i) {
+        if (chain->values[i]->val_kind() == ValueKind::IndexOperator) {
+            // Array elements are deliberately rejected by the front end for
+            // destructible types; moving the whole array is a field move.
+            return false;
+        }
+        std::string fname;
+        if (!member_field_path(chain->values[i - 1], chain->values[i], fname, error)) {
+            return false;
+        }
+        // Inherited members arrive as `Base.field`; the drop tree stores the
+        // base name and its child separately.
+        size_t start = 0;
+        while (start <= fname.size()) {
+            const size_t dot = fname.find('.', start);
+            const size_t end = dot == std::string::npos ? fname.size() : dot;
+            if (end > start) path.emplace_back(fname.substr(start, end - start));
+            if (dot == std::string::npos) break;
+            start = dot + 1;
+        }
+    }
+    field_type = chain->values.back()->getType();
+    return !path.empty();
+}
+
+bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
+                                  std::string& error) {
+    // A field selected from a temporary/expression has no named place whose
+    // drop flags survive long enough to clear. Reject a destructor-bearing
+    // move instead of letting the temporary and the destination both drop it.
+    {
+        Value* probe = value;
+        for (int guard = 0; guard < 4 && probe; ++guard) {
+            if (probe->val_kind() == ValueKind::AccessChain) {
+                auto* c = probe->as_access_chain_unsafe();
+                if (c->values.size() == 1) { probe = c->values[0]; continue; }
+                if (c->values.size() > 1) {
+                    Value* b = c->values[0];
+                    for (int bg = 0; bg < 4 && b; ++bg) {
+                        if (b->val_kind() == ValueKind::AccessChain) {
+                            auto* bc = b->as_access_chain_unsafe();
+                            if (bc->values.size() == 1) { b = bc->values[0]; continue; }
+                            break;
+                        }
+                        break;
+                    }
+                    if (b != nullptr && b->val_kind() != ValueKind::Identifier) {
+                        BaseType* ft = c->values.back()->getType();
+                        if (ft != nullptr &&
+                            destructor_symbol(ft) != MIR_INVALID_ID) {
+                            error = "SAFE-MOVE-004: cannot move a field with a "
+                                    "destructor out of a temporary/expression; "
+                                    "bind the value to a local first";
+                            return false;
+                        }
+                    }
+                }
+                break;
+            }
+            break;
+        }
+    }
+    PlaceId base = MIR_INVALID_ID;
+    std::vector<std::string> path;
+    BaseType* field_type = nullptr;
+    if (!field_move_target(value, base, path, field_type, error)) {
+        return true; // not a field lvalue: `*ptr`, `&value`, a call, ...
+    }
+    if (result.kind != MIRExprKind::Address) return true; // not a field move
+    const TypeId ft = field_type ? types_.map(field_type) : MIR_INVALID_ID;
+    const bool copying = ft != MIR_INVALID_ID &&
+                         mir_type_is_copy(module_.types, ft);
+    const bool needs_drop =
+        field_type != nullptr && destructor_symbol(field_type) != MIR_INVALID_ID;
+    if (base < builder_->function().places.size()) {
+        const TypeId bt = builder_->function().places[base].type;
+        if (bt < module_.types.types.size()) {
+            const MIRTypeKind bk = module_.types.get(bt).kind;
+            if ((bk == MIRTypeKind::Reference || bk == MIRTypeKind::Pointer) &&
+                !copying && needs_drop) {
+                error = "SAFE-MOVE-004: cannot move a non-Copy field with a "
+                        "destructor through a reference or pointer; copy the "
+                        "value or borrow the field";
+                return false;
+            }
+        }
+    }
+    MIRDestructible* dest = nullptr;
+    for (auto& d : destructibles_) {
+        if (d.place == base) { dest = &d; break; }
+    }
+    if (dest == nullptr) {
+        if (needs_drop && !copying) {
+            error = "SAFE-MOVE-004: cannot move a destructor-bearing field out of "
+                    "a value whose drops are not tracked; move the whole value "
+                    "or borrow the field";
+            return false;
+        }
+        return true;
+    }
+    if (dest->fields.empty()) {
+        const bool has_user_dtor =
+            base < builder_->function().places.size() &&
+            builder_->function().places[base].type < module_.types.types.size() &&
+            (module_.types.get(builder_->function().places[base].type).flags &
+             TF_USER_DESTRUCTOR) != 0;
+        const auto storage = base < builder_->function().places.size()
+                                 ? static_cast<MIRStorageClass>(
+                                       builder_->function().places[base].storage_class)
+                                 : MIRStorageClass::Local;
+        if (!copying && needs_drop &&
+            (has_user_dtor || dest->raw_escaped ||
+             storage == MIRStorageClass::FrameField ||
+             storage == MIRStorageClass::FramePtr ||
+             storage == MIRStorageClass::Global ||
+             storage == MIRStorageClass::Temporary)) {
+            error = "SAFE-MOVE-004: cannot move a non-Copy field out of a value "
+                    "whose field drops are not tracked (user destructor, async "
+                    "frame, global, or temporary); move the whole value or "
+                    "borrow it";
+            return false;
+        }
+        if (!copying && needs_drop) {
+            builder_->emit(MIROpcode::MoveOut, MIR_NULL,
+                           {MIROperand::value(result.id, result.type)});
+        }
+        return true;
+    }
+    MIRDropField* node = drop_field_for_path(base, path);
+    if (node == nullptr) {
+        // A field with no destructor needs no drop flag; moving it only
+        // affects the move-path dataflow (which the marker below updates).
+        if (copying || !needs_drop) {
+            return true;
+        }
+        error = "SAFE-MOVE-004: cannot move a non-Copy field through a value "
+                "whose field drops are not fully tracked; move the whole value "
+                "or borrow it";
+        return false;
+    }
+    if (node->flag != MIR_INVALID_ID) {
+        builder_->set_drop(node->flag, false);
+    }
+    set_drop_fields(node->children, false);
+    if (!copying && needs_drop) {
+        builder_->emit(MIROpcode::MoveOut, MIR_NULL,
+                       {MIROperand::value(result.id, result.type)});
+    }
+    return true;
 }
 
 void MIRLowerer::mark_path_initialized(PlaceId place,

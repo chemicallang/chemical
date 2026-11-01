@@ -2349,6 +2349,85 @@ static bool contains_future_handle_ast_type(BaseType* type) {
     return contains_future_handle_ast_type(type, visiting);
 }
 
+/**
+ * Like `contains_future_handle_ast_type`, but an owning `FutureHandle<'static,T>`
+ * (or an aggregate containing only static handles) does not make a callback
+ * capture borrow. This is used by the capture-escape check; call contracts keep
+ * the conservative all-handles form above.
+ */
+static bool contains_nonstatic_future_ast_type(
+        BaseType* type, std::unordered_set<BaseType*>& visiting,
+        unsigned depth = 0) {
+    if (type == nullptr || depth > 8) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr || !visiting.insert(canonical).second) return false;
+    if (is_future_handle_ast_type(canonical)) {
+        // A missing/legacy lifetime is conservatively borrowed; only an
+        // explicit `'static` argument proves ownership.
+        return future_handle_missing_lifetime(canonical) ||
+               future_handle_has_nonstatic_lifetime(canonical);
+    }
+    if (canonical->kind() == BaseTypeKind::Reference) {
+        return contains_nonstatic_future_ast_type(
+            const_cast<BaseType*>(canonical->as_reference_type_unsafe()->type),
+            visiting, depth + 1);
+    }
+    if (canonical->kind() == BaseTypeKind::Array) {
+        return contains_nonstatic_future_ast_type(
+            const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
+            visiting, depth + 1);
+    }
+    if (canonical->kind() == BaseTypeKind::Generic) {
+        auto* gen = canonical->as_generic_type_unsafe();
+        for (auto& arg : gen->types) {
+            if (contains_nonstatic_future_ast_type(
+                    const_cast<BaseType*>(arg.getType()), visiting, depth + 1)) {
+                return true;
+            }
+        }
+    }
+    if (canonical->kind() == BaseTypeKind::CapturingFunction) {
+        auto* cap = canonical->as_capturing_func_type_unsafe();
+        if (cap->capture_env) {
+            return contains_nonstatic_future_ast_type(
+                const_cast<BaseType*>(cap->capture_env.getType()), visiting,
+                depth + 1);
+        }
+        return false;
+    }
+    auto* container = canonical->get_members_container();
+    if (container == nullptr) return false;
+    for (BaseDefMember* member : container->variables()) {
+        if (member == nullptr) continue;
+        if (member->kind() == ASTNodeKind::StructMember) {
+            auto* field = member->as_struct_member_unsafe();
+            if (field != nullptr && contains_nonstatic_future_ast_type(
+                    const_cast<BaseType*>(field->type.getType()), visiting,
+                    depth + 1)) {
+                return true;
+            }
+        } else if (member->kind() == ASTNodeKind::VariantMember) {
+            auto* variant = member->as_variant_member_unsafe();
+            if (variant != nullptr) {
+                for (auto& entry : variant->values) {
+                    auto* param = entry.second;
+                    if (param != nullptr && contains_nonstatic_future_ast_type(
+                            const_cast<BaseType*>(param->type.getType()), visiting,
+                            depth + 1)) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+static bool contains_nonstatic_future_ast_type(BaseType* type) {
+    std::unordered_set<BaseType*> visiting;
+    return contains_nonstatic_future_ast_type(type, visiting);
+}
+
 // Resolve a value that names a struct literal through any number of variable
 // initializers. Used to inspect erased callback fields (`holder.callback`) whose
 // static type no longer carries the lambda's real capture witness.
@@ -2387,14 +2466,14 @@ static bool value_captures_future_handle(
         case ValueKind::LambdaFunc: {
             auto* lambda = value->as_lambda_func_unsafe();
             if (lambda->capture_env &&
-                contains_future_handle_ast_type(
+                contains_nonstatic_future_ast_type(
                     const_cast<BaseType*>(lambda->capture_env.getType()))) {
                 return true;
             }
             for (CapturedVariable* cap : lambda->captureList) {
                 if (cap == nullptr) continue;
                 BaseType* type = cap->known_type();
-                if (type != nullptr && contains_future_handle_ast_type(type)) {
+                if (type != nullptr && contains_nonstatic_future_ast_type(type)) {
                     return true;
                 }
                 ASTNode* linked = cap->linked;
@@ -2697,16 +2776,62 @@ public:
     TypeVerifier& verifier;
     const std::unordered_set<ASTNode*>& targets;
     std::unordered_set<Value*> allowed_arguments;
+    /**
+     * Local variables that provably hold the same future (or another alias of
+     * it). They may be forwarded to a sink, but not returned, stored, or
+     * captured. This accepts `var local = h; block_on(local)` without opening
+     * the retaining-wrapper hole.
+     */
+    std::unordered_set<ASTNode*> aliases;
     bool ok = true;
 
     FutureConsumerContract(TypeVerifier& verifier,
                            const std::unordered_set<ASTNode*>& targets)
         : verifier(verifier), targets(targets) {}
 
-    bool is_target_identifier(Value* value) const {
+    bool is_tracked_identifier(Value* value) const {
         value = unwrap_future_consumer_argument(value);
-        return value != nullptr && value->val_kind() == ValueKind::Identifier &&
-               targets.count(value->as_identifier_unsafe()->linked) != 0;
+        if (value == nullptr || value->val_kind() != ValueKind::Identifier) {
+            return false;
+        }
+        ASTNode* linked = value->as_identifier_unsafe()->linked;
+        return targets.count(linked) != 0 || aliases.count(linked) != 0;
+    }
+
+    bool is_target_identifier(Value* value) const {
+        return is_tracked_identifier(value);
+    }
+
+    bool mark_alias(Value* value, ASTNode* declaration) {
+        if (declaration == nullptr) return false;
+        Value* unwrapped = unwrap_future_consumer_argument(value);
+        if (!is_tracked_identifier(unwrapped)) return false;
+        if (unwrapped != nullptr && unwrapped->val_kind() == ValueKind::Identifier) {
+            allowed_arguments.insert(unwrapped);
+        }
+        aliases.insert(declaration);
+        return true;
+    }
+
+    void VisitVarInitStmt(VarInitStatement* init) {
+        if (init != nullptr && init->value != nullptr) {
+            mark_alias(init->value, init);
+        }
+        RecursiveVisitor<FutureConsumerContract>::VisitVarInitStmt(init);
+    }
+
+    void VisitAssignmentStmt(AssignStatement* assign) {
+        if (assign != nullptr && assign->value != nullptr &&
+            assign->assOp == Operation::Assignment && assign->lhs != nullptr) {
+            Value* lhs = unwrap_future_consumer_argument(assign->lhs);
+            if (lhs != nullptr && lhs->val_kind() == ValueKind::Identifier) {
+                ASTNode* linked = lhs->as_identifier_unsafe()->linked;
+                if (linked != nullptr && linked->kind() == ASTNodeKind::VarInitStmt) {
+                    mark_alias(assign->value, linked);
+                }
+            }
+        }
+        RecursiveVisitor<FutureConsumerContract>::VisitAssignmentStmt(assign);
     }
 
     void VisitFunctionCall(FunctionCall* call) {
@@ -2728,7 +2853,8 @@ public:
     }
 
     void VisitVariableIdentifier(VariableIdentifier* id) {
-        if (id != nullptr && targets.count(id->linked) != 0 &&
+        if (id != nullptr &&
+            (targets.count(id->linked) != 0 || aliases.count(id->linked) != 0) &&
             allowed_arguments.find(id) == allowed_arguments.end()) {
             ok = false;
         }
@@ -2738,7 +2864,9 @@ public:
     void VisitLambdaFunction(LambdaFunction* lambda) {
         if (lambda != nullptr) {
             for (CapturedVariable* cap : lambda->captureList) {
-                if (cap != nullptr && targets.count(cap->linked) != 0) {
+                if (cap != nullptr &&
+                    (targets.count(cap->linked) != 0 ||
+                     aliases.count(cap->linked) != 0)) {
                     ok = false;
                 }
             }

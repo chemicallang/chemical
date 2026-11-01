@@ -17,7 +17,7 @@ for the safe API surface we currently expose**, not full language parity.
 | Area | Status |
 |---|---|
 | Diagnostics/audit suites | Implemented: coded errors, negative/safety suites, whole-tree audit gate |
-| Init / moves / drops | Implemented in MIR (`MIRMoveCheck`); partial-array and non-`Copy` struct-field drop elaboration remains |
+| Init / moves / drops | Implemented in MIR (`MIRMoveCheck`); local/parameter struct fields and whole-array fields are field-tracked; unsupported move shapes reject with `SAFE-MOVE-004` |
 | Borrows / lifetimes | Implemented for the enforceable surface (regions, NLL loans, storage lifetimes, return regions, variance, temporary extension, provenance, HRTB call regions) |
 | `Send` / `Sync` | Auto traits + explicit/negative impls + nested conditional generic impls; data-race primitives |
 | Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; C ABI by-value support is x86-64 SysV only on LLVM |
@@ -33,8 +33,8 @@ Latest measured baseline:
 | TCC main | `2378/2378` |
 | LLVM main | `2376/2376` |
 | `@test` runner | `54/54` |
-| TCC/LLVM negative | `691/691` |
-| TCC/LLVM safety | `64/64` |
+| TCC/LLVM negative | `702/702` |
+| TCC/LLVM safety | `69/69` |
 | TCC/LLVM async | `69/69` |
 | TCC libs | `730/730` |
 | `MIRTests` | `4643 checks` |
@@ -90,12 +90,17 @@ MIR is the sole producer of init/move/drop state:
   move, or moving a destructor-bearing array element out by index.
 - `SAFE-MOVE-002` — moving a non-`Copy` by-value callback capture out of a
   reusable callback (return/var init/assignment/by-value argument).
+- `SAFE-MOVE-004` — moving a non-`Copy`/destructor-bearing field out of a value
+  whose field drops are not tracked (user destructor, async frame, global,
+  temporary/expression, or reference/pointer).
 - `SAFE-DROP-001` — invalid `@delete` signature (value self, missing self,
   non-void return, async, etc.).
 - Partial struct/array initialization and per-path drop flags are modeled.
-  Field-wise drop elaboration for partial **array** moves and non-`Copy`
-  struct-field moves remains pending (the parent destructor can double-drop a
-  moved field; see plan item 10).
+  Local and by-value-parameter aggregates with generated drop glue have one
+  flag per destructible field/element; moving a field clears its flag so the
+  parent cannot double-drop it. Unsupported move shapes (user destructor, async
+  frame, global, temporary/expression, reference/pointer) reject with
+  `SAFE-MOVE-004` (see plan item 10).
 
 ### Borrows / lifetimes
 
@@ -251,10 +256,13 @@ memory safety.
    `&T`). A safe custom consumer is accepted when its body only forwards the
    handle to a known consumer or another checked consumer; storing, returning,
    capturing, or passing it to an unknown callee is rejected; a consumer body
-   containing an unsafe block is not trusted. Remaining:
-   higher-order callbacks, generic containers that erase the handle lifetime in
-   an unrelated result, and consumers that alias the handle through locals or
-   fields.
+   containing an unsafe block is not trusted. Aggregate field loans are lifted
+   through by-value wrappers; `Box`/`Rc`/`Arc` pointer containers and
+   `Option::take`/`Box::into_inner` extractions carry the source loan; consumers
+   may alias through a local (not a field/return/capture); owning
+   `FutureHandle<'static, T>` captures are accepted. Remaining: higher-order
+   callback contracts with free (non-HRTB) lifetime parameters, and opaque
+   containers MIR cannot inspect.
 2. **Full target-aware C ABI remains M2.** LLVM now rejects by-value `@extern`
    aggregates on targets other than x86-64 SysV (`SAFE-FFI-003`); the C backend
    delegates to the host compiler. Windows/ARM ABI support, `repr`/layout
@@ -309,11 +317,14 @@ memory safety.
    also does not count `unsafe func` declarations or `unsafe impl` declarations
    as separate metrics; both deserve an explicit audit metric before release.
 
-10. **Partial-array and non-`Copy` struct-field drop elaboration** remains
-    pending; whole-array moves and field/element `Copy` paths are handled, but
-    field-wise drops for partially moved fixed arrays and moving a non-`Copy`
-    field out of a value aggregate are not. The parent destructor can double-drop
-    the moved field; this is a release blocker (plan item 10).
+10. **Partial-array and non-`Copy` struct-field drop elaboration.** Local and
+    by-value-parameter aggregates with generated drop glue carry per-field and
+    per-element flags; moving a field clears its flag, including nested fields
+    and whole-array fields. Any unsupported move shape (user destructor, async
+    frame, global, temporary/expression, reference/pointer) is rejected with
+    `SAFE-MOVE-004` instead of double-dropping. Remaining: per-field flags inside
+    async frames (moves rejected), and nested array fields beyond the top-level
+    element tracker may leak rather than double-drop.
 
 11. **Interpreter boundaries.** MIR interpreter bounds/provenance/tombstone
     checks are implemented. Async/coroutine opcodes, inline asm, dynamic

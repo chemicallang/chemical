@@ -1,13 +1,16 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.33)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.37)
 
-> **Status (2026-10-31):** M0 and M3 complete; M4/M5/M6 are complete for the
+> **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
 > remain in progress; M8/M9 are pending. Direct async `FutureHandle` borrow
 > escapes are checked in MIR, `SAFE-LIFE-005` rejects safe retaining APIs, the
 > LLVM C ABI now rejects unsupported targets, `@scoped_callback` is body-checked,
 > and async constructors check allocation failure. `FutureHandle<'a, T>` now
 > carries a frame lifetime (`'static` for owning frames, elided for borrowed
-> frames); full call-site lifetime inference remains.
+> frames); call-site binding covers aggregate fields/pointer containers and
+> custom-consumer local aliases, with the narrower gaps in §4.5 item 1.
+> Non-`Copy` struct-field drops are field-tracked; unsupported move shapes are
+> rejected with `SAFE-MOVE-004`.
 > S5.6b (unwinding) is withdrawn by policy: panic always aborts; no unwind
 > runtime, `catch_unwind`, or `UnwindSafe` traits are planned unless the C
 > backend later makes unwinding practical.
@@ -1080,7 +1083,7 @@
 > (layout and C ABI); C ABI classification for Windows/ARM, FFI wrappers, and
 > deeper HRTB precision remain (variance/temporary-lifetime extension are
 > implemented).
-> Safety suite `64`; negative tests `691`; main TCC `2378`, LLVM `2376`;
+> Safety suite `64`; negative tests `702`; main TCC `2378`, LLVM `2376`;
 > libs `730`; plugins `1305`; async `69`; interpret `1910`; server `10`;
 > TLS `599`; `MIRTests` `4643 checks`. The whole-tree audit
 > manifest (`lang/docs/safety/audit-modules.txt`) covers `94` modules with
@@ -1285,7 +1288,7 @@ but keep aliasing/race checks. GC is a later mode.
 | FFI | Enforced calls; C ABI partial | `SAFE-FFI-001/002/003`; by-value structs/unions on x86-64 SysV; LLVM rejects other targets instead of emitting the SysV shape. |
 | Runtime checks | Implemented | Array/vector/deque/string/span/map bounds, div/mod/shift, checked signed arithmetic, defined float→int, allocation/layout guards, abort-only panic. |
 | Thread safety | Enforced safe surface | `Send`/`Sync` auto traits, explicit/negative impls, nested conditional generic impls, scoped/owned thread APIs, `Arc`/channel audit, TSAN smoke. |
-| Async | Shipped; type-level lifetime remains | `Pin`/Waker/frame loans; `spawn_send` frame check; MIR future borrow tracking + `SAFE-LIFE-005` retaining-API rejection. |
+| Async | Shipped; type-level lifetime + field/container inference | `Pin`/Waker/frame loans; `spawn_send` frame check; MIR future borrow tracking through fields/wrappers/pointer containers + `SAFE-LIFE-005` retaining-API rejection. |
 | Trait objects | Partial | Basic dynamic dispatch; `dyn` is conservatively `!Send`/`!Sync`/`!Unpin` because auto-trait bounds on `dyn` are not represented. |
 | Slices/tuples/const generics/GATs/`impl Trait` | Partial/absent | Full parity remains M1. |
 | `&str`/UTF-8 | Byte-string surface | `string`/`string_view`; UTF-8 parity M1. |
@@ -1334,8 +1337,8 @@ approximate counts:
 |---|---|
 | TCC main / LLVM main | `2378` / `2376` |
 | `@test` runner | `54` |
-| TCC/LLVM negative | `691` / `691` |
-| TCC/LLVM safety | `64` / `64` |
+| TCC/LLVM negative | `702` / `702` |
+| TCC/LLVM safety | `69` / `69` |
 | TCC/LLVM async | `69` / `69` |
 | TCC libs | `730` |
 | `MIRTests` | `4643 checks` |
@@ -1371,10 +1374,15 @@ new number as the honest baseline, not a compiler regression.
    accepted when its body only forwards the handle to a known consumer or
    another checked consumer; storing/returning/capturing it remains rejected,
    and a consumer body containing an unsafe block is not trusted.
-   Remaining: higher-order callbacks and generic containers that erase the
-   FutureHandle lifetime inside an unrelated result, plus custom consumers that
-   alias the handle through locals/fields (the body check accepts direct
-   forwarding only).
+   Aggregate field loans are lifted when a future-bearing value is passed by
+   value (`wrap(w)` / `identity(w)`), `Box`/`Rc`/`Arc` pointer containers are
+   followed by MIR, and whole-place extraction through `Option::take` /
+   `Box::into_inner` carries the source loan. Custom consumers may alias the
+   handle through a local (`var local = h; block_on(local)`), but not through a
+   field/return/capture. Owning `FutureHandle<'static, T>` captures are no longer
+   treated as borrowed. Remaining: higher-order callback contracts whose
+   function type has free (non-HRTB) lifetime parameters, and opaque containers
+   that hide a handle behind a representation MIR cannot inspect.
 2. **Full target-aware C ABI remains M2.** LLVM now rejects by-value `@extern`
    aggregates on non-x86-64-SysV targets with `SAFE-FFI-003`; the C backend uses
    the host C compiler. Windows/ARM ABI support, `repr`/layout coverage,
@@ -1417,12 +1425,16 @@ new number as the honest baseline, not a compiler regression.
 9. **Audit reporting precision.** Impl bodies are now counted; generic
    master/concrete impls can double-count syntax. `unsafe func`/`unsafe impl`
    declarations are not separate metrics yet.
-10. **Partial-array and non-`Copy` struct-field drop elaboration** remains
-    pending. Whole-array moves and `Copy` element/field paths are handled, but
-    moving a non-`Copy` field out of a value aggregate can still leave the
-    parent aggregate destructor to drop the moved field (`FutureHandle` frame
-    double-drop is observable). Until per-field drop flags are emitted, this is
-    a release blocker; move the whole aggregate or access through a reference.
+10. **Partial-array and non-`Copy` struct-field drop elaboration.** Local and
+    by-value-parameter aggregates with generated drop glue now carry one drop
+    flag per destructible field/element (nested structs are tracked, whole
+    arrays are tracked element-wise up to the existing 64-element limit). Moving
+    a field clears its flag, so the parent destructor cannot double-drop it;
+    whole-array field moves are covered. Moves from a user-destructor aggregate,
+    an async frame, a global, a temporary/expression, or a reference/pointer are
+    rejected with `SAFE-MOVE-004` instead of being unsound. Remaining: per-field
+    flags inside async frames (currently rejected), and fields of arrays nested
+    deeper than the top-level array tracker may leak rather than double-drop.
 11. **Interpreter** reports async/coroutine opcodes, inline asm, dynamic
     call/vtables and `Unreachable`/`Throw` as explicit hard errors; it does not
     silently execute them. Bounds/provenance/tombstones are implemented.
@@ -2497,11 +2509,13 @@ indicative; full parity is a large program (see §15.9).
 | S4.10 | Enforce | Green. |
 
 **Current M4 status:** the enforceable borrow/lifetime surface is implemented
-and enforced. `FutureHandle` direct frame borrows are now tracked as MIR borrow
-views through locals/fields/wrappers; the remaining async gap is type-level
-lifetime expressiveness (unknown callees/generic containers, §4.5). Deeper HRTB
-nesting and mixed multi-borrow referents remain explicit `SAFE-BORROW-099`
-rejections.
+and enforced. `FutureHandle` direct frame borrows are tracked as MIR borrow
+views through locals/fields/wrappers/pointer containers and the named extraction
+paths (`Option::take`, `Box::into_inner`); the remaining async gap is
+higher-order callback inference where the function type has a free (non-HRTB)
+lifetime parameter, plus opaque container representations MIR cannot inspect
+(§4.5 item 1). Deeper HRTB nesting and mixed multi-borrow referents remain
+explicit `SAFE-BORROW-099` rejections.
 
 ### M5 — Validity/runtime (2 months)
 
@@ -2819,3 +2833,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.35 (2026-11-01): `SAFE-LIFE-005` reference and callback-capture closure. `contains_future_handle_ast_type` now recurses through safe references, so `&FutureHandle` (including inside `Option`/arrays/structs) cannot be passed to an unknown safe callee. The argument scan also inspects the real lambda capture list and struct-literal/field initializers, catching a future hidden in a callback whose static `std::function` type erased the capture witness. Added negative tests for a reference escape, a direct capturing lambda argument, a field-stored capturing callback, a callback assigned after declaration, and a future-containing aggregate wrapper returned from a local borrow. Main TCC/LLVM `2378`/`2376`; negative `686`; safety `64`; async `68`; libs `730`; `MIRTests` `4643`. Remaining: full call-site lifetime unification and custom consumer wrappers.*
 
 *Revision note v4.36 (2026-11-01): FutureHandle call-site inference and custom consumers. Reference parameters of future-returning functions are seeded as caller-owned loans (including elided `&T`), so `fn <'a,'b> wrap(x:&'a T) -> FutureHandle<'b,U>` is checked against the region it actually returns (`SAFE-LIFE-003`) instead of synthetic "all inputs outlive the result" edges; those edges now apply only to async functions whose frame retains every input. Aggregate `FutureHandle` returns are detected through references, pointers, arrays, generics, structs, variants, and callback captures. A safe user-defined consumer is accepted when its body only forwards the handle to `block_on`/`spawn*` or another checked consumer; storing, returning, capturing, or passing it to an unknown callee is rejected. Added wrong-region, two-lifetime inference, aggregate-wrapper, custom-consumer, and unsafe-consumer tests. Main TCC/LLVM `2378`/`2376`; negative `691`; safety `64`; async `69`; libs `730`; interpret `1910`; `MIRTests` `4643`.*
+
+*Revision note v4.37 (2026-11-01): field-wise drops + remaining FutureHandle inference. Local and by-value-parameter aggregates with generated drop glue now arm per-field/per-element drop flags on whole construction and clear the moved field's flag on a move, including nested fields and whole-array fields. Moves from user-destructor aggregates, async frames, globals, temporaries/expressions, and references/pointers are rejected with `SAFE-MOVE-004` rather than double-dropping. FutureHandle aggregate field loans are lifted through by-value wrappers, `Box`/`Rc`/`Arc` pointer containers and `Option::take`/`Box::into_inner` extractions carry the source loan, custom consumers accept local aliases, and owning `FutureHandle<'static, T>` captures are no longer rejected. Added runtime move/drop tests and negative unsound-acceptance tests. Main TCC/LLVM `2378`/`2376`; negative `702`; safety `69`; async `69`; libs `730`; interpret `1910`; `MIRTests` `4643`.*

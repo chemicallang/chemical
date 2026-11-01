@@ -316,6 +316,17 @@ int constant_drop_flag(const MIRModule& module, const MIRFunction& fn, ValueId v
     return -1;
 }
 
+bool is_copy_projection(const MIRModule& module, const MIRFunction& fn,
+                             const MIROperand& op) {
+    if (op.kind() == MIROperandKind::Place && op.id < fn.places.size()) {
+        return mir_type_is_copy(module.types, fn.places[op.id].type);
+    }
+    if (op.kind() == MIROperandKind::Value && op.id < fn.values.size()) {
+        return mir_type_is_copy(module.types, fn.values[op.id].type);
+    }
+    return false;
+}
+
 uint32_t root_of_path(const MIRFunction& fn, uint32_t path) {
     while (path != MIR_INVALID_ID && path < fn.move_paths.size() &&
            fn.move_paths[path].parent_path != MIR_INVALID_ID) {
@@ -473,15 +484,22 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
         }
         case MIROpcode::MoveOut: {
             // A by-value call argument (or another explicit move marker): the
-            // source must be initialized and becomes moved.
+            // source must be initialized and becomes moved. A field/subobject
+            // move is passed as its address-producing value and resolved
+            // through the address-path table built by FieldAddr/IndexAddr.
             if (ops == nullptr || inst.operand_count < 1) break;
-            const uint32_t path = path_for_projection(module, fn, ops[0], nullptr, 0);
+            uint32_t path = MIR_INVALID_ID;
+            if (ops[0].kind() == MIROperandKind::Place) {
+                path = path_for_projection(module, fn, ops[0], nullptr, 0);
+            } else if (ops[0].kind() == MIROperandKind::Value) {
+                const auto it = address_paths.find(ops[0].id);
+                if (it != address_paths.end()) path = it->second;
+            }
             require_initialized(out, fn, function_index, block, inst_index, path,
                                 states, "move from");
-            const bool copying = ops[0].kind() == MIROperandKind::Place &&
-                                 ops[0].id < fn.places.size() &&
-                                 mir_type_is_copy(module.types, fn.places[ops[0].id].type);
-            if (!copying) mark_path_moved(fn, states, path);
+            if (!is_copy_projection(module, fn, ops[0])) {
+                mark_path_moved(fn, states, path);
+            }
             break;
         }
         case MIROpcode::Drop: {

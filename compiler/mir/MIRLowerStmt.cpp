@@ -171,8 +171,12 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     return true;
                 }
                 if (r.kind == MIRExprKind::Address) {
-                    // copy the pointee into the variable (e.g. `var d = *c`)
+                    // copy the pointee into the variable (e.g. `var d = *c`).
+                    // If the initializer is a by-value field lvalue, this is a
+                    // move: after the source read, clear its drop flag so the
+                    // parent aggregate does not destroy it again.
                     builder_->copy_ptr_to_place(place, static_cast<ValueId>(r.id));
+                    if (!mark_field_moved(vi->value, r, error)) return false;
                     return true;
                 }
                 if (r.kind != MIRExprKind::Value) {
@@ -445,6 +449,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 if (r.kind == MIRExprKind::Address) {
                     const ValueId loaded =
                         builder_->load_indirect(static_cast<ValueId>(r.id), et);
+                    if (!mark_field_moved(as->value, r, error)) return false;
                     builder_->store_indirect(static_cast<ValueId>(p.id), loaded);
                     return true;
                 }
@@ -548,6 +553,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                             rv = builder_->load(static_cast<PlaceId>(r.id), et);
                         } else if (r.kind == MIRExprKind::Address) {
                             rv = builder_->load_indirect(static_cast<ValueId>(r.id), et);
+                            if (!mark_field_moved(as->value, r, error)) return false;
                         } else if (r.kind == MIRExprKind::Value) {
                             rv = static_cast<ValueId>(r.id);
                         } else {
@@ -588,6 +594,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 if (r.kind == MIRExprKind::Address) {
                     const ValueId loaded =
                         builder_->load_indirect(static_cast<ValueId>(r.id), et);
+                    if (!mark_field_moved(as->value, r, error)) return false;
                     if (base.kind == MIRExprKind::Place) {
                         destroy_old_element();
                         builder_->element_store(static_cast<PlaceId>(base.id),
@@ -860,6 +867,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 } else {
                     const ValueId loaded =
                         builder_->load_indirect(static_cast<ValueId>(r.id), place_type);
+                    if (!mark_field_moved(as->value, r, error)) return false;
                     builder_->store(place, loaded);
                 }
                 mark_initialized();
@@ -983,9 +991,11 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         const ValueId av = static_cast<ValueId>(r.id);
                         if (rsret) {
                             const ValueId loaded = builder_->load_indirect(av, frame.result_type);
+                            if (!mark_field_moved(rs->value, r, error)) return false;
                             builder_->copy_init(frame.result_place, loaded, frame.result_type);
                         } else {
                             builder_->store(frame.result_place, av);
+                            if (!mark_field_moved(rs->value, r, error)) return false;
                         }
                     } else if (r.kind == MIRExprKind::Value) {
                         const ValueId vv = static_cast<ValueId>(r.id);
@@ -1050,10 +1060,10 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 r = lower_expr(rs->value, error);
             }
             if (!r.ok()) return false;
-            emit_drops();
             if (r.kind == MIRExprKind::Void) {
                 // `return void_call()` in a void function
                 if (destructor_def_) emit_destructor_members(error);
+                emit_drops();
                 builder_->ret_void();
                 return true;
             }
@@ -1063,10 +1073,12 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                                    {MIROperand::value(sret_ptr_, sret_ptr_type_),
                                     MIROperand::place(static_cast<PlaceId>(r.id), sret_ret_type_)});
                 } else if (r.kind == MIRExprKind::Address) {
-                    // `return &raw obj.field` / an aggregate address: copy the
-                    // pointee into the sret destination
+                    // `return &raw obj.field` / an aggregate address: read the
+                    // pointee, account for a field move, then copy to the sret
+                    // destination. The read must precede the move marker.
                     const ValueId loaded =
                         builder_->load_indirect(static_cast<ValueId>(r.id), sret_ret_type_);
+                    if (!mark_field_moved(rs->value, r, error)) return false;
                     builder_->emit(MIROpcode::Store, MIR_NULL,
                                    {MIROperand::value(sret_ptr_, sret_ptr_type_),
                                     MIROperand::value(loaded, sret_ret_type_)});
@@ -1078,19 +1090,23 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     error = "returning an aggregate value is not yet supported";
                     return false;
                 }
+                emit_drops();
                 builder_->ret_void();
                 return true;
             }
             if (r.kind == MIRExprKind::Place) {
                 // a by-value aggregate (typedef struct, e.g. a fat pointer) return
                 const TypeId pt = builder_->function().places[r.id].type;
-                builder_->ret(builder_->load(static_cast<PlaceId>(r.id), pt));
+                const ValueId rv = builder_->load(static_cast<PlaceId>(r.id), pt);
+                emit_drops();
+                builder_->ret(rv);
                 return true;
             }
             if (r.kind != MIRExprKind::Value && r.kind != MIRExprKind::Address) {
                 error = "returning a non-value expression is not yet supported";
                 return false;
             }
+            emit_drops();
             builder_->ret(r.id);
             return true;
         }

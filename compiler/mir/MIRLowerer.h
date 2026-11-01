@@ -802,6 +802,19 @@ private:
     void emit_variant_destructor_members(VariantDefinition* vd, ValueId self_ptr,
                                          std::string& error);
     void mark_moved(PlaceId place);
+    /**
+     * Account for a by-value move of a field/subobject. Clears the matching
+     * per-field drop flag and emits a MIR move marker for the move checker.
+     * `result` is the lowered field address. Returns false only when the
+     * expression is not a field lvalue; sets `error` when the field belongs to
+     * an aggregate whose field drops cannot be tracked safely (a user
+     * destructor or an async frame value).
+     */
+    bool mark_field_moved(Value* value, MIRExprResult result, std::string& error);
+    /** Resolve an AST member chain to (base place, field path, field type). */
+    bool field_move_target(Value* value, PlaceId& base,
+                           std::vector<std::string>& path, BaseType*& field_type,
+                           std::string& error);
     void emit_drops();
     /** Drop destructibles registered at/after `mark`, innermost first. */
     void emit_drops_from(size_t mark);

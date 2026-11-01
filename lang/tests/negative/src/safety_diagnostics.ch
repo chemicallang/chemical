@@ -391,7 +391,7 @@ func neg_future_handle_consumer_namespace_spoof_rejected(env : &mut TestEnv) {
 @test
 func neg_future_handle_reference_cannot_escape_to_retaining_api(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc stash_ref(r : &core::async::FutureHandle<int>) : int {\n    var local = r\n    return 0\n}\npublic func main() : int {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    var h = work(&s)\n    stash_ref(&h)\n    return 0\n}\n"
+    var ch = "@thread_local var SLOT : *mut void = null\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc stash_ref(r : &core::async::FutureHandle<int>) {\n    unsafe { SLOT = r as *mut void }\n}\npublic func main() : int {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    var h = work(&s)\n    stash_ref(&h)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "future_reference_escape_retaining_api", ch, "SAFE-LIFE-005", NEG_MOD_ASYNC_STD)
 }
 
@@ -519,6 +519,83 @@ func neg_future_handle_unsafe_custom_consumer_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc unsafe_consumer(h : core::async::FutureHandle<int>) {\n    unsafe {\n        var f = async::spawn(h)\n    }\n}\npublic func main() : int {\n    var s = std::string(\"A\")\n    var h = work(&s)\n    unsafe_consumer(h)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "future_unsafe_custom_consumer", ch, "SAFE-LIFE-005", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_aggregate_field_borrow_escape(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct W { var h : core::async::FutureHandle<int> }\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc wrap(w : W) : W { return w }\npublic func main() : int {\n    var outer : W\n    {\n        var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n        var w = W { h : work(&s) }\n        outer = wrap(w)\n    }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "future_aggregate_field_escape", ch, "SAFE-LIFE-002", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_box_borrow_escape(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\npublic func main() : int {\n    var b : std::Box<core::async::FutureHandle<int>>\n    {\n        var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n        b = std::box(work(&s))\n    }\n    var h = b.into_inner()\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "future_box_escape", ch, "SAFE-LIFE-002", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_option_take_escape(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\npublic func main() : int {\n    var out : core::async::FutureHandle<int>\n    {\n        var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n        var opt = std::Option.Some<core::async::FutureHandle<int>>(work(&s))\n        out = opt.take()\n    }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "future_option_take_escape", ch, "SAFE-LIFE-002", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func future_handle_custom_consumer_alias_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc consume(h : core::async::FutureHandle<int>) : int {\n    var local = h\n    return async::block_on<int>(local)\n}\npublic func main() : int {\n    var s = std::string(\"A\")\n    var h = work(&s)\n    return consume(h) - 65\n}\n"
+    expect_compile_success_with_mod(env, "future_consumer_alias", ch, NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_custom_consumer_alias_escape(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc stash(h : core::async::FutureHandle<int>, slot : &mut std::Option<core::async::FutureHandle<int>>) {\n    var local = h\n    *slot = std::Option.Some<core::async::FutureHandle<int>>(local)\n}\npublic func main() : int {\n    var s = std::string(\"A\")\n    var h = work(&s)\n    var slot = std::Option.None<core::async::FutureHandle<int>>()\n    stash(h, &mut slot)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "future_consumer_alias_escape", ch, "SAFE-LIFE-005", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func future_handle_static_callback_capture_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work_owned() : int {\n    var u = await async::yield_now()\n    return 1\n}\nstruct Carrier { var h : core::async::FutureHandle<'static, int>; var tag : int }\nfunc stash_cb(cb : std::function<() => int>) {\n}\npublic func main() : int {\n    var c = Carrier { h : work_owned(), tag : 1 }\n    stash_cb(|c|() => { return c.tag })\n    return 0\n}\n"
+    expect_compile_success_with_mod(env, "future_static_capture", ch, NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_move_field_out_of_user_destructor_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@thread_local var drops : int = 0\nstruct R {\n    var id : int\n    @delete func del(&self) { drops = drops + 1 }\n}\nstruct W {\n    var r : R\n    @delete func del(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    var w = W { r : R { id : 1 } }\n    var r = w.r\n    return r.id\n}\n"
+    expect_compile_error_with_mod(env, "move_field_user_dtor", ch, "SAFE-MOVE-004", NEG_MOD)
+}
+
+@test
+func neg_move_field_from_temporary_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@thread_local var drops : int = 0\nstruct R {\n    var id : int\n    @delete func del(&self) { drops = drops + 1 }\n}\nstruct W { var r : R }\nfunc make() : W { return W { r : R { id : 1 } } }\npublic func main() : int {\n    var r = make().r\n    return r.id\n}\n"
+    expect_compile_error_with_mod(env, "move_field_temporary", ch, "SAFE-MOVE-004", NEG_MOD)
+}
+
+@test
+func neg_move_field_from_async_frame_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@thread_local var drops : int = 0\nstruct R {\n    var id : int\n    @delete func del(&self) { drops = drops + 1 }\n}\nstruct W { var r : R }\nasync func f() : int {\n    var w = W { r : R { id : 1 } }\n    var r = w.r\n    return r.id\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "move_field_async_frame", ch, "SAFE-MOVE-001", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_move_field_through_reference_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@thread_local var drops : int = 0\nstruct R {\n    var id : int\n    @delete func del(&self) { drops = drops + 1 }\n}\nstruct W { var r : R }\nfunc steal(w : &W) : R {\n    return w.r\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "move_field_through_ref", ch, "SAFE-MOVE-004", NEG_MOD)
+}
+
+@test
+func neg_use_parent_after_field_move_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@thread_local var drops : int = 0\nstruct R {\n    var id : int\n    @delete func del(&self) { drops = drops + 1 }\n}\nstruct W { var a : R; var b : R }\npublic func main() : int {\n    var w = W { a : R { id : 1 }, b : R { id : 2 } }\n    var r = w.a\n    var w2 = w\n    return r.id + w2.a.id\n}\n"
+    expect_compile_error_with_mod(env, "use_parent_after_field_move", ch, "SAFE-MOVE-001", NEG_MOD)
 }
 
 @test

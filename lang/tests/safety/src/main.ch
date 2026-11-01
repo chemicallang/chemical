@@ -567,6 +567,61 @@ func partial_array_init_destroys_only_initialized_elements(env : &mut TestEnv) {
 }
 
 @test
+func moved_struct_field_is_not_destroyed_by_parent(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Tracker\n    var b : Tracker\n}\npublic func main() : int {\n    {\n        var s = S { a : Tracker { id : 1 }, b : Tracker { id : 2 } }\n        {\n            var moved = s.b\n            if(moved.id != 2) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "moved_struct_field", ch, &mut out)
+    if(rc != 2) {
+        env.error("a moved field was destroyed by its parent (expected 2 drops)")
+    }
+}
+
+@test
+func returned_parameter_field_is_moved_once(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Tracker\n    var b : Tracker\n}\nfunc take(s : S) : Tracker {\n    return s.b\n}\npublic func main() : int {\n    {\n        var s = S { a : Tracker { id : 1 }, b : Tracker { id : 2 } }\n        var moved = take(s)\n        if(moved.id != 2) { return 10 }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "moved_param_field", ch, &mut out)
+    if(rc != 2) {
+        env.error("a returned parameter field was not moved exactly once")
+    }
+}
+
+@test
+func whole_array_element_reassignment_drops_old_value(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var arr = [Tracker { id : 1 }, Tracker { id : 2 }]\n        arr[0] = Tracker { id : 3 }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "array_element_reassign", ch, &mut out)
+    if(rc != 3) {
+        env.error("reassigning a whole-array element did not drop exactly the old and new values")
+    }
+}
+
+@test
+func moved_array_field_is_not_destroyed(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var arr : [2]Tracker\n}\npublic func main() : int {\n    {\n        var s = S { arr : [Tracker { id : 1 }, Tracker { id : 2 }] }\n        {\n            var moved = s.arr\n            if(moved[0].id != 1 || moved[1].id != 2) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "moved_array_field", ch, &mut out)
+    if(rc != 2) {
+        env.error("a moved array field was not moved exactly once")
+    }
+}
+
+@test
+func moved_nested_field_is_not_destroyed(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Inner {\n    var x : Tracker\n    var y : Tracker\n}\nstruct Outer {\n    var inner : Inner\n    var z : Tracker\n}\npublic func main() : int {\n    {\n        var o = Outer { inner : Inner { x : Tracker { id : 1 }, y : Tracker { id : 2 } }, z : Tracker { id : 3 } }\n        {\n            var moved = o.inner.y\n            if(moved.id != 2) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "moved_nested_field", ch, &mut out)
+    if(rc != 3) {
+        env.error("a moved nested field was destroyed by its parent")
+    }
+}
+
+@test
 func partial_array_reassignment_destroys_old_element(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&mut self) { unsafe { printf(\"drop %d\\n\", self.id) } }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]Tracker\n        arr[0] = Tracker { id : 1 }\n        arr[0] = Tracker { id : 9 }\n    }\n    unsafe { printf(\"end\\n\") }\n    return 0\n}\n"

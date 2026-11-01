@@ -26,15 +26,17 @@ dropping capabilities. The **first** release may be much larger (7–15 MB) to s
 after that, size + compile time + memory are reduced together. See
 `lang/docs/language-goals.md` §2.
 
-**Safety implementation status (2026-10-31):** the enforceable core is green
+**Safety implementation status (2026-11-01):** the enforceable core is green
 (M0, M3, and the enforceable M4/M5/M6 rules), but full parity is not done. The
 async `FutureHandle<'a, T>` now carries a frame lifetime (`'static` for owning
 frames, elided for borrowed frames); `SAFE-LIFE-005` rejects safe retaining
-APIs, and call-site binding covers reference parameters, aggregate wrappers,
-references/callback captures, and body-checked custom consumers. Higher-order
-and aliased future inference plus non-`Copy` struct-field drop elaboration
-remain; other blockers are the full target-aware C ABI (`SAFE-FFI-003` now
-rejects unsupported LLVM targets), `dyn` being conservatively
+APIs, and call-site binding covers reference parameters, aggregate wrappers/fields,
+pointer containers, references/callback captures, body-checked custom consumers
+(including local aliases), and owning `'static` captures. Higher-order callback
+inference and unsupported async/temporary field-move shapes remain (the latter
+are rejected with `SAFE-MOVE-004`); other blockers are the full target-aware C
+ABI (`SAFE-FFI-003` now rejects unsupported LLVM targets), `dyn` being
+conservatively
 `!Send`/`!Sync`/`!Unpin`, and the partially
 implemented `Fn`/`FnMut`/`FnOnce` callable model (call-once/mutable-receiver
 kinds, `FnOnce` capture moves with per-capture drop flags, field-stored `FnOnce`

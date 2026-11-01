@@ -3,7 +3,7 @@
 Status: design note (2026-11-01). The first slice is implemented: `dyn` is a
 target-aware fat pointer, `Box<dyn I>` is a borrow-checked boxed view, and
 `std::DynBox<I>` provides owning type erasure. This note records the remaining
-design choices (stored drop function vs. vtable drop slot, auto traits, upcasting).
+design choices (stored drop function vs. vtable drop slot, auto traits, associated items).
 
 ## The invariant
 
@@ -80,12 +80,21 @@ forgets the backing `Box<T>` so only `DynBox` owns the allocation. `DynBox`'s
 destructor calls the stored function once; `drop_erased<T>` runs the normal
 `delete` path (destructor, then free).
 
-This is one allocation for the value plus a three-word `DynBox` (fat pointer,
-data pointer, drop pointer). No owner-closure allocation is needed. `DynBox`
+This is one allocation for the value plus a four-word `DynBox` (a two-word
+fat pointer, a data pointer, and a drop pointer). No owner-closure allocation is needed. `DynBox`
 itself is move-only because it has an explicit destructor.
 
 `DynBox` is deliberately excluded from the borrowed-view classification in
 MIR: its `dyn` field points at heap storage that `data`/`drop` own.
+
+## Upcasting
+
+`dyn Derived` is assignable to `dyn Base` when `Base` is in `Derived`'s
+**first-inheritance chain**. The vtable builder flattens inherited interfaces
+before the interface's own methods, so in that case Base's method slots are a
+prefix of Derived's vtable and the two-word fat pointer can be copied unchanged.
+Upcasting through a later/incompatible branch is rejected; it would need vtable
+thunking or a pointer adjustment. Downcasting is not supported.
 
 ## Rust comparison
 
@@ -123,9 +132,11 @@ Implementation status and next steps:
 1. **Landed:** target-aware `dyn` size/alignment, `&dyn` dispatch through
    `Box::get`, MIR borrow tracking for `dyn`/`Box<dyn>`, safe `Box<dyn>` with
    `SAFE-LIFE-001`/`002` rejections, and `std::DynBox<I>` / `std::dyn_box`
-   with a stored type-specific drop function.
+   with a stored type-specific drop function. `dyn Derived` → `dyn Base`
+   upcasting is supported when Base is in the first-inheritance chain
+   (vtable-prefix compatible).
 2. `dyn I + Send/Sync` auto-trait bounds and conditional `DynBox` `Send`/`Sync`.
-3. Upcasting (`dyn Derived` → `dyn Base`) and object-safe associated items.
+3. Object-safe associated items and remaining `dyn` object-safety checks.
 4. Continue M1.11 (`&str`/UTF-8) separately.
 
 ## `&str` note

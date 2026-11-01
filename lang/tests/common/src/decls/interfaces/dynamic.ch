@@ -4,6 +4,26 @@ interface Phone {
 
 }
 
+interface BasePhone {
+    func base_call(&self) : int
+}
+
+interface DerivedPhone : BasePhone {
+    func derived_call(&self) : int
+}
+
+struct DualPhone {
+    var n : int
+}
+
+impl BasePhone for DualPhone {
+    func base_call(&self) : int { return n }
+}
+
+impl DerivedPhone for DualPhone {
+    func derived_call(&self) : int { return n + 1 }
+}
+
 struct SmartPhone {
     var number1 : int = 0
     var number2 : int = 0
@@ -162,6 +182,12 @@ func test_dynamic_dispatch() {
         var obj = CellPhone { number2 : 88 }
         var p : []dyn Phone = [ dyn<Phone>(obj) ]
         return p[0].call() == 88;
+    })
+    test("dyn Derived upcasts to dyn Base through a prefix vtable", () => {
+        var p = DualPhone { n : 9 }
+        var derived : dyn DerivedPhone = dyn<DerivedPhone>(p)
+        var base : dyn BasePhone = derived
+        return base.base_call() == 9 && derived.derived_call() == 10;
     })
     test("dynamic object built from a by-value parameter survives the callee frame", () => {
         var p = FrameProbeImpl { n : 88 }

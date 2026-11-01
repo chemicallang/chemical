@@ -30,8 +30,8 @@ Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2381/2381` |
-| LLVM main | `2379/2379` |
+| TCC main | `2382/2382` |
+| LLVM main | `2380/2380` |
 | `@test` runner | `56/56` |
 | TCC/LLVM negative | `716/716` |
 | TCC/LLVM safety | `69/69` |
@@ -314,7 +314,8 @@ memory safety.
    heap fat-pointer record, not an owning trait object; MIR tracks it as a
    borrowed view (`SAFE-LIFE-001`/`002`). `std::DynBox<I>` / `std::dyn_box`
    owns the concrete allocation and drops it exactly once through a stored
-   `drop_erased<T>` function. Conservative `!Send`/`!Sync`/`!Unpin` avoids sending an `Rc`-backed
+   `drop_erased<T>` function. `dyn Derived` upcasts to `dyn Base` when Base is
+   in the first-inheritance chain (vtable-prefix compatible). Conservative `!Send`/`!Sync`/`!Unpin` avoids sending an `Rc`-backed
    `dyn` object, but `dyn I + Send` cannot be expressed and
    `Box<dyn I>`/`Arc<dyn I>` cannot cross threads. Full `dyn` bounds are M1.19;
    see `lang/docs/dyn-object-model.md`.

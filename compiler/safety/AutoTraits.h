@@ -14,6 +14,7 @@
 #include "ast/types/ReferenceType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/CapturingFunctionType.h"
+#include "ast/types/DynamicType.h"
 #include "ast/types/LinkedType.h"
 #include "compiler/symres/ImplementationsIndex.h"
 
@@ -182,12 +183,15 @@ inline bool type_satisfies_auto_trait(
         }
         case BaseTypeKind::Function:
             return true;
-        case BaseTypeKind::Dynamic:
-            // A `dyn I` value erases its concrete implementor. The interface
-            // does not carry an auto-trait bound yet, so the object could be
-            // backed by an `Rc`/raw pointer. Treat every dynamic object as
-            // neither Send nor Sync until `dyn I + Send/Sync` is represented.
-            return false;
+        case BaseTypeKind::Dynamic: {
+            // Without an explicit `+ Send`/`+ Sync` bound the erased
+            // implementor may be an `Rc`/raw pointer. The bound is a
+            // construction-time promise checked against the concrete value.
+            auto* dyn = type->as_dynamic_type_unsafe();
+            return dyn->has_auto_trait(kind == AutoTraitKind::Send
+                                           ? DynamicType::AutoTraitSend
+                                           : DynamicType::AutoTraitSync);
+        }
         case BaseTypeKind::CapturingFunction: {
             // The capture witness is the generated environment's field list.
             // An erased callback has no witness, so it is conservatively

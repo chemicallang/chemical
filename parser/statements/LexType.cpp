@@ -187,6 +187,30 @@ LinkedValueType* Parser::parseLinkedValueType(ASTAllocator& allocator, Token* ty
  * since dyn Phone* or dyn *Phone means (dyn Phone)* or *(dyn Phone) and not dyn (*Phone) or dyn (Phone*)
  * since dyn &Phone or dyn &Phone means (dyn Phone)& or &(dyn Phone) and not dyn (&Phone) or dyn (Phone&)
  */
+static void apply_dynamic_auto_traits(BaseType* type, unsigned char mask) {
+    if(type == nullptr || mask == 0) return;
+    switch(type->kind()) {
+        case BaseTypeKind::Dynamic:
+            type->as_dynamic_type_unsafe()->auto_traits |= mask;
+            return;
+        case BaseTypeKind::Array:
+            apply_dynamic_auto_traits(
+                const_cast<BaseType*>(type->as_array_type_unsafe()->elem_type.getType()),
+                mask);
+            return;
+        case BaseTypeKind::Pointer:
+            apply_dynamic_auto_traits(
+                const_cast<BaseType*>(type->as_pointer_type_unsafe()->type), mask);
+            return;
+        case BaseTypeKind::Reference:
+            apply_dynamic_auto_traits(
+                const_cast<BaseType*>(type->as_reference_type_unsafe()->type), mask);
+            return;
+        default:
+            return;
+    }
+}
+
 BaseType* make_dynamic_type(ASTAllocator& allocator, BaseType* elem_type, SourceLocation location) {
     auto t = elem_type;
     const auto kind = elem_type->kind();
@@ -575,7 +599,9 @@ TypeLoc Parser::parseTypeLocNoPostOps(ASTAllocator& allocator) {
             auto type = parseType(allocator);
             if (type) {
                 const auto loc = loc_single(dynToken);
-                return { make_dynamic_type(allocator, type, loc), loc };
+                auto* dynamic = make_dynamic_type(allocator, type, loc);
+                apply_dynamic_auto_traits(dynamic, parseDynamicAutoTraitMask(allocator));
+                return { dynamic, loc };
             } else {
                 error("expected a type after the qualifier");
                 return getErroredType(allocator);

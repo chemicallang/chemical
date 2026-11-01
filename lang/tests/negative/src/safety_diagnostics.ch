@@ -849,6 +849,13 @@ func neg_boxed_dyn_view_cannot_outlive_referent(env : &mut TestEnv) {
 }
 
 @test
+func neg_dyn_send_bound_requires_send_concrete_value(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface Show {\n    func show(&self) : int\n}\nstruct RcImpl { var r : std::Rc<int> }\nimpl Show for RcImpl { func show(&self) : int { return *self.r.get() } }\npublic func main() : int {\n    var v = RcImpl { r : std::rc(1) }\n    var d : dyn Show + Send = dyn<Show + Send>(v)\n    return d.show() - 1\n}\n"
+    expect_compile_error_with_mod(env, "dyn_send_bound_requires_send", ch, "SAFE-SEND-003", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_dyn_object_is_not_send(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "interface Show {\n    func show(&self) : int\n}\nstruct RcImpl {\n    var r : std::Rc<int>\n}\nimpl Show for RcImpl {\n    func show(&self) : int { return *self.r.get() }\n}\nfunc worker(x : dyn Show) : int { return x.show() }\npublic func main() : int {\n    var v = RcImpl { r : std::rc(1) }\n    var d : dyn Show = dyn<Show>(v)\n    var t = std::thread.spawn<dyn Show, int>(worker, d)\n    return t.join() - 1\n}\n"

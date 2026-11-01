@@ -910,6 +910,26 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
     }
 }
 
+unsigned char Parser::parseDynamicAutoTraitMask(ASTAllocator& allocator) {
+    unsigned char mask = 0;
+    while(consumeToken(TokenType::PlusSym)) {
+        auto id = consumeIdentifierOrKeyword();
+        if(id == nullptr) {
+            error("expected Send or Sync after '+' in a dynamic type");
+            break;
+        }
+        const auto name = allocate_view(allocator, id->value);
+        if(name == chem::string_view("Send")) {
+            mask |= DynamicType::AutoTraitSend;
+        } else if(name == chem::string_view("Sync")) {
+            mask |= DynamicType::AutoTraitSync;
+        } else {
+            error() << "unsupported dynamic auto trait '" << name << "' (expected Send or Sync)";
+        }
+    }
+    return mask;
+}
+
 Value* Parser::parseDynamicValue(ASTAllocator& allocator) {
 
     const auto loc = loc_single(token);
@@ -926,7 +946,8 @@ Value* Parser::parseDynamicValue(ASTAllocator& allocator) {
         return nullptr;
     }
 
-    const auto dynType = new (allocator.allocate<DynamicType>()) DynamicType(type);
+    const unsigned char auto_traits = parseDynamicAutoTraitMask(allocator);
+    const auto dynType = new (allocator.allocate<DynamicType>()) DynamicType(type, auto_traits);
     auto value = new (allocator.allocate<DynamicValue>()) DynamicValue(nullptr, loc, dynType);
 
     if(!consumeGenericClose()) {

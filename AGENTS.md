@@ -39,8 +39,8 @@ safe calls returning type-erased generic containers are rejected
 (`SAFE-LIFE-005`). Unsupported async/temporary field-move shapes remain (the
 latter are rejected with `SAFE-MOVE-004`); other blockers are the full target-aware C
 ABI (LLVM covers x86-64 SysV, Windows x64 and AAPCS64; `SAFE-FFI-003` rejects
-unsupported targets), `dyn` being conservatively
-`!Send`/`!Sync`/`!Unpin`, and the partially
+unsupported targets), `dyn` being conservatively `!Send`/`!Sync` when no
+explicit `+ Send`/`+ Sync` bound is written (`+ Unpin` still absent), and the partially
 implemented `Fn`/`FnMut`/`FnOnce` callable model (call-once/mutable-receiver
 kinds, `FnOnce` capture moves with per-capture drop flags, field-stored `FnOnce`
 calls, callable bounds, generic `Fn`/`FnMut`/`FnOnce` call syntax, `FnMut`

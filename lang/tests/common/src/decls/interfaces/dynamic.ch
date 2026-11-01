@@ -24,6 +24,26 @@ impl DerivedPhone for DualPhone {
     func derived_call(&self) : int { return n + 1 }
 }
 
+interface SendPhone {
+    func send_call(&self) : int
+}
+
+struct SendPhoneImpl {
+    var n : int
+}
+
+impl SendPhone for SendPhoneImpl {
+    func send_call(&self) : int { return n }
+}
+
+func <T> dyn_requires_send(value : T) : T where T: Send {
+    return value
+}
+
+func <T> dyn_requires_sync(value : T) : T where T: Sync {
+    return value
+}
+
 struct SmartPhone {
     var number1 : int = 0
     var number2 : int = 0
@@ -182,6 +202,13 @@ func test_dynamic_dispatch() {
         var obj = CellPhone { number2 : 88 }
         var p : []dyn Phone = [ dyn<Phone>(obj) ]
         return p[0].call() == 88;
+    })
+    test("dyn + Send and + Sync bounds construct and satisfy where clauses", () => {
+        var p = SendPhoneImpl { n : 12 }
+        var d : dyn SendPhone + Send + Sync = dyn<SendPhone + Sync + Send>(p)
+        var sent = dyn_requires_send(d)
+        var synced = dyn_requires_sync(sent)
+        return synced.send_call() == 12
     })
     test("dyn Derived upcasts to dyn Base through a prefix vtable", () => {
         var p = DualPhone { n : 9 }

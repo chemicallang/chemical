@@ -46,6 +46,9 @@ bool DynamicType::satisfies(BaseType *type) {
         return false;
     }
     auto* other = (DynamicType*) type;
+    // The target's auto-trait promises must already be carried by the source:
+    // `dyn I` cannot silently become `dyn I + Send`.
+    if ((other->auto_traits & ~auto_traits) != 0) return false;
     if (referenced->satisfies(other->referenced)) return true;
     std::unordered_set<InterfaceDefinition*> seen;
     return interface_prefix_extends(linked_interface(referenced),

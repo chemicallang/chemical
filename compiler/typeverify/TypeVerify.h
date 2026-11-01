@@ -11,6 +11,7 @@
 
 class CoreNodes;
 class CapturingFunctionType;
+class DynamicValue;
 
 class TypeVerifier : public RecursiveVisitor<TypeVerifier> {
 public:
@@ -203,6 +204,7 @@ public:
 
     void VisitUnsafeValue(UnsafeValue* value);
     void VisitZeroedValue(ZeroedValue* value);
+    void VisitDynamicValue(DynamicValue* value);
 
     void VisitAwaitExpression(AwaitExpression* value);
 

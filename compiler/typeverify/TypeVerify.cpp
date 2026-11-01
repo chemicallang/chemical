@@ -34,6 +34,8 @@
 #include "ast/values/ReferenceOfValue.h"
 #include "ast/values/UnsafeValue.h"
 #include "ast/values/ZeroedValue.h"
+#include "ast/values/DynamicValue.h"
+#include "ast/types/DynamicType.h"
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/EnumMember.h"
 #include "ast/values/AwaitExpression.h"
@@ -1685,6 +1687,36 @@ private:
     TypeVerifier& verifier;
     std::unordered_set<const BaseType*> deciding;
 };
+
+void TypeVerifier::VisitDynamicValue(DynamicValue* value) {
+    RecursiveVisitor<TypeVerifier>::VisitDynamicValue(value);
+    if (value == nullptr || value->value == nullptr) return;
+    DynamicType* dyn = value->getType();
+    if (dyn == nullptr || dyn->auto_traits == DynamicType::AutoTraitNone) return;
+    BaseType* concrete = value->value->getType();
+    if (concrete == nullptr) return;
+    TypeVerifierAutoTraitContext auto_trait_context(*this);
+    auto check = [&](DynamicType::AutoTrait trait, AutoTraitKind kind,
+                     const char* name) {
+        std::unordered_set<MembersContainer*> visiting;
+        if (!type_satisfies_auto_trait(
+                concrete, kind, visiting, &index,
+                (ASTNode*) coreNodes.send_interface,
+                (ASTNode*) coreNodes.sync_interface,
+                &auto_trait_context)) {
+            diagnoser.error(value).with_code("SAFE-SEND-003")
+                << "dynamic object construction promises '" << name
+                << "', but the concrete value type '"
+                << concrete->representation() << "' does not satisfy it";
+        }
+    };
+    if (dyn->has_auto_trait(DynamicType::AutoTraitSend)) {
+        check(DynamicType::AutoTraitSend, AutoTraitKind::Send, "Send");
+    }
+    if (dyn->has_auto_trait(DynamicType::AutoTraitSync)) {
+        check(DynamicType::AutoTraitSync, AutoTraitKind::Sync, "Sync");
+    }
+}
 
 /** `'static` is stored by the parser without the leading quote. */
 static bool is_static_lifetime(chem::string_view lifetime) {

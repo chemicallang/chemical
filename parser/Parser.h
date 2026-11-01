@@ -1078,6 +1078,11 @@ public:
     Value* parseDynamicValue(ASTAllocator& allocator);
 
     /**
+     * Parses the optional `+ Send` / `+ Sync` bounds after a `dyn` object type.
+     */
+    unsigned char parseDynamicAutoTraitMask(ASTAllocator& allocator);
+
+    /**
      * parses a single zeroed value
      */
     Value* parseZeroedValue(ASTAllocator& allocator);

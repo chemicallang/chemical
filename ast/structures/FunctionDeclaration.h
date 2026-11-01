@@ -307,7 +307,7 @@ public:
      * `FutureHandle<T>` return type. For non-async (or not-yet-wrapped)
      * functions this is just the declared return type.
      */
-    BaseType* inner_return_type();
+    // inherited from FunctionTypeBody
 
     inline void set_async(bool value) {
         attrs.is_async = value;

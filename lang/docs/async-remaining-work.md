@@ -13,7 +13,7 @@ frame + `__poll` + `__drop` + vtable + ramp (helpers as C text, poll/ramp as
 MIR) driven by the shared `AsyncLoweringPlan`, using the
 `AsyncFrameAlloc`/`AsyncAwait`/`AsyncFinish`/`AsyncRampFinish` opcodes and
 frame-resident places (`MIRStorageClass::FrameField`/`FramePtr`). `--async` is
-green (53/53) with no async function routed to legacy. See
+green (68/68) with no async function routed to legacy. See
 `compiler/mir/README.md` and `.agents/skills/mir/SKILL.md`. The items below
 about the *LLVM* coroutine path and the library workarounds still apply.
 
@@ -68,14 +68,13 @@ the backend verifier:
 | ~~2~~ | ~~**B25**~~ | ~~Combinator await inside a spawned coroutine loses `Context` (LLVM)~~ — ✅ FIXED | `LLVMCoroutine.cpp` | M |
 | ~~3~~ | ~~**B20**~~ | ~~Composite-generic field access in a generic body~~ — ✅ FIXED | symres/generics | L |
 | ~~4~~ | ~~**B15-W**~~ | ~~Async debug info disabled (LLVM `debug_complete`)~~ — ✅ FIXED | `LLVMCoroutine.cpp` | M |
-| 5 | **AC** | Async closures not lowered | parser/symres/codegen | L |
+| ~~5~~ | ~~**AC**~~ | ~~Async closures not lowered~~ — ✅ FIXED | parser/symres/codegen | L |
 | ~~6~~ | ~~**TLS-VT**~~ | ~~TLS has no non-blocking transport~~ — ✅ FIXED | `tls` | L |
 | ~~7~~ | ~~**WIN-IOCP**~~ | ~~Windows async reactor is a stub~~ — ✅ FIXED | `async`/`net` win | L |
 | ~~8~~ | ~~**POSIX-EPOLL**~~ | ~~POSIX reactor is `select(2)`~~ — ✅ FIXED | `async` posix | M |
 
-**B15-W, B20, B23, B24, B25, B26, POSIX-EPOLL, TLS-VT and WIN-IOCP are fixed**
-(kept below for reference). The only item left is **AC** (async closures). All are
-independent unless noted.
+**B15-W, B20, B23, B24, B25, B26, POSIX-EPOLL, TLS-VT, WIN-IOCP and AC are fixed**
+(kept below for reference). There are no open items in this worklist.
 
 ---
 
@@ -269,23 +268,21 @@ independent unless noted.
 
 ---
 
-## AC — Async closures are not lowered
+## AC — Async closures — ✅ FIXED
 
-- **Status:** Parsed, then **diagnosed** (`async closures are not yet supported;
-  use a named async func instead`). **Priority: Medium (feature).**
-- **Symptom:** `var f = async |x: int|() : int => { return await work(x) }` is a
-  symres error on both backends.
-- **Root cause / where:** an async closure carries a capture struct
-  (`write_lambda_function`), so lowering needs a closure-specific
-  frame/vtable emitter that stores the capture struct in the frame and binds
-  `this` to it in `poll`. Diagnostic:
-  `compiler/symres/SymResLinkBody.cpp::VisitLambdaFunction`.
-- **Current workaround:** use a named `async func`.
-- **Definition of done:** async closures compile and run on TCC and LLVM, with
-  captures; remove the diagnostic and add tests.
-- **Files:** `ast/values/LambdaFunction.cpp`, `compiler/async/AwaitNormalizePass.cpp`,
-  `compiler/backend/LLVMCoroutine.cpp`, `preprocess/2c/2cASTVisitor.cpp`,
-  `compiler/symres/SymResLinkBody.cpp`.
+- **Status:** Lowered on TCC and LLVM. A capturing async closure is a `FnOnce`
+  callable; a non-capturing async closure remains a reusable function pointer.
+- **Implementation:** `compiler/mir/MIRLowerLambda.cpp` synthesizes an async
+  declaration and reuses `lower_async_function`. The future frame carries the
+  whole `default_function_instance`; `poll` binds captured names through its
+  `fn_data_ptr`; the frame's destructor releases the instance exactly once on
+  normal completion, cancellation, or an unpolled drop. `lower_capturing_function_call`
+  transfers the consumed instance into the ramp and zeroes the source instance
+  without running its destructor.
+- **Tests:** `lang/tests/async/async_closure_test.ch` covers capture + await,
+  non-capturing reuse, explicit/generic `FnOnce` targets, parameters, fields,
+  normal completion, unpolled drop, and cancellation. Negative coverage rejects
+  a capturing async closure assigned to a reusable `Fn`.
 
 ---
 

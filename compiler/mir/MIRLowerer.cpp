@@ -13,6 +13,9 @@
 
 namespace mir {
 
+MIRLowerer::~MIRLowerer() = default;
+
+
 // The lowerer currently lowering on this thread. The translation driver wires
 // the shared comptime callbacks once (they capture the *driver* lowerer); a
 // parallel worker lowers through its own lowerer, so the callbacks consult this

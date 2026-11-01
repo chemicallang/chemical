@@ -47,6 +47,17 @@ public:
     /** The variable initializer inferred a capturing callable type for this lambda. */
     bool inferred_capture_target = false;
 
+    /**
+     * Runtime function-instance type used by a capturing callable. Kept on the
+     * lambda because the lambda AST node itself is a function type, not the
+     * capturing wrapper type; async lowering needs the instance layout to move
+     * the capture environment into its future frame.
+     */
+    BaseType* capture_instance_type = nullptr;
+
+    /** The explicit async-callable lifetime was checked against its captures. */
+    bool async_future_lifetime_checked = false;
+
 
     /**
      * constructor

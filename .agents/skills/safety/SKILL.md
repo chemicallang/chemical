@@ -33,19 +33,20 @@ Latest measured baseline:
 | TCC main | `2378/2378` |
 | LLVM main | `2376/2376` |
 | `@test` runner | `54/54` |
-| TCC/LLVM negative | `679/679` |
+| TCC/LLVM negative | `680/680` |
 | TCC/LLVM safety | `64/64` |
-| TCC/LLVM async | `58/58` |
+| TCC/LLVM async | `68/68` |
 | TCC libs | `730/730` |
 | `MIRTests` | `4643 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
-| Whole-tree audit | `unsafe_blocks 3768`, `unsafe_values 4898`, `raw_pointer_derefs 1065`, `panic_calls 104` |
+| Whole-tree audit | `unsafe_blocks 3774`, `unsafe_values 4901`, `raw_pointer_derefs 1065`, `panic_calls 104` |
 | Audit result | `no growth` against `lang/docs/safety/audit-baseline.json` |
 
 The audit totals increased from the historical `3661/4890` in the 2026-10-31
 audit because `SafetyReportVisitor` previously skipped **every**
 `ImplDefinition` body. It now walks impl bodies, so the larger number is the
-first honest whole-tree count, not a new unsafe-code regression.
+first honest whole-tree count, not a new unsafe-code regression. The async
+closure fixtures add a few audited raw C future-ABI sites.
 
 ## What is enforced (by domain)
 
@@ -262,7 +263,10 @@ memory safety.
    and generic call syntax through all three bounds is lowered, including
    capturing lambdas and explicit or non-capturing `FnOnce` callbacks. Untyped
    capturing lambda initializers infer a callable type and upgrade to `FnOnce`
-   when their body moves a capture. Remaining: async closures.
+   when their body moves a capture. Capturing async closures are also lowered:
+   they are conservatively `FnOnce`, and the future frame owns the function
+   instance and capture allocation, releasing it exactly once on completion,
+   cancellation, or an unpolled drop.
 5. **HRTB precision is intentionally incomplete.**
    Deeper nested aggregate HRTB and multi-borrow callbacks mixing local and
    parameter/global referents (or distinct non-local regions) are explicit

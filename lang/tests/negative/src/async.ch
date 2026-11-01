@@ -41,10 +41,18 @@ public func async_main_trampoline_runs(env : &mut TestEnv) {
 }
 
 @test
-public func neg_async_closure_errors(env : &mut TestEnv) {
+public func neg_async_closure_reusable_target_errors(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "public func main() : int {\n    var f = async ||(y : int) => { return y + 1 }\n    return f(41)\n}\n"
-    expect_compile_error(env, "async_closure", ch, "async closures are not yet supported")
+    var ch = "public func main() : int {\n    var x = 1\n    var f : std::Fn<(y : int) => core::async::FutureHandle<'static, int>> = async |x|(y : int) => { return y + x }\n    var h = f(1)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "async_closure_reusable_target", ch, "must be called through FnOnce", NEG_MOD_ASYNC_STD)
+}
+
+
+@test
+public func neg_async_closure_static_borrowed_capture_errors(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var x = 41\n    var r = &x\n    var f : std::FnOnce<(y : int) => core::async::FutureHandle<'static, int>> = async |r|(y : int) => { return y + *r }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "async_closure_static_borrow", ch, "SAFE-LIFE-004", NEG_MOD_ASYNC_STD)
 }
 
 @test

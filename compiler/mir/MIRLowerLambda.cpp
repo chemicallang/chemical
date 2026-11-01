@@ -115,7 +115,8 @@
 namespace mir {
 MIRExprResult MIRLowerer::lower_captured_variable(CapturedVariable* cap, bool as_address,
                                                   std::string& error) {
-    if (lambda_closure_ptr_ == MIR_NULL) {
+    if (lambda_closure_ptr_ == MIR_NULL &&
+        !(async_ && async_capture_ptr_from_frame_)) {
         error = "captured variable used outside its lambda";
         return MIRExprResult::error();
     }
@@ -124,7 +125,11 @@ MIRExprResult MIRLowerer::lower_captured_variable(CapturedVariable* cap, bool as
         MIR_INVALID_ID, nm.data(), static_cast<uint32_t>(nm.size()));
     BaseType* ct = cap->known_type();
     const TypeId ft = types_.map(ct);
-    const ValueId ptr = lambda_closure_ptr_;
+    const ValueId ptr = captured_env_ptr();
+    if (ptr == MIR_NULL) {
+        error = "captured variable has no capture environment";
+        return MIRExprResult::error();
+    }
     if (cap->capture_by_ref) {
         // the field is a pointer to the referent; the captured variable is that
         // reference, so its value is the pointer itself
@@ -152,9 +157,34 @@ bool MIRLowerer::capture_has_drop_flag(CapturedVariable* cap) {
            destructor_symbol(cap->known_type()) != MIR_INVALID_ID;
 }
 
+ValueId MIRLowerer::captured_env_ptr() {
+    // A polled async closure's frame owns the function instance. The data
+    // pointer must be reloaded in the current basic block: caching it in L0
+    // leaves resume blocks using an SSA value that does not dominate them.
+    if (!async_ || !async_capture_ptr_from_frame_) return lambda_closure_ptr_;
+    if (builder_ == nullptr || async_capture_slot_ == MIR_INVALID_ID ||
+        async_capture_instance_type_ == nullptr ||
+        async_capture_type_ == MIR_INVALID_ID) {
+        return MIR_NULL;
+    }
+    const MIRNumberedName cf = async_slot_field(async_capture_slot_);
+    const ConstantId cap_fc = module_.constants.add_string(
+        MIR_INVALID_ID, cf.data(), static_cast<uint32_t>(cf.size()));
+    const TypeId inst_t = types_.map(async_capture_instance_type_);
+    const ValueId inst_ptr = builder_->field_addr_ptr(async_capture_frame_, cap_fc, inst_t);
+    const ConstantId data_fc = module_.constants.add_string(
+        MIR_INVALID_ID, "fn_data_ptr", 11);
+    const TypeId void_ptr = types_.pointer_type(types_.void_type(), true);
+    const ValueId data = builder_->field_load_ptr(inst_ptr, data_fc, void_ptr);
+    const TypeId cap_t = async_capture_type_;
+    return builder_->cast(data, types_.pointer_type(cap_t, true));
+}
+
 MIRExprResult MIRLowerer::lower_moved_captured_variable(CapturedVariable* cap,
                                                         std::string& error) {
-    if (cap == nullptr || lambda_closure_ptr_ == MIR_NULL) {
+    if (cap == nullptr ||
+        (lambda_closure_ptr_ == MIR_NULL &&
+         !(async_ && async_capture_ptr_from_frame_))) {
         error = "moved capture used outside its lambda";
         return MIRExprResult::error();
     }
@@ -166,10 +196,15 @@ MIRExprResult MIRLowerer::lower_moved_captured_variable(CapturedVariable* cap,
         error = "moved capture has no MIR type";
         return MIRExprResult::error();
     }
+    const ValueId env = captured_env_ptr();
+    if (env == MIR_NULL) {
+        error = "moved capture has no capture environment";
+        return MIRExprResult::error();
+    }
     const ConstantId fc = module_.constants.add_string(
         MIR_INVALID_ID, cap->name.data(), static_cast<uint32_t>(cap->name.size()));
     if (abi::is_aggregate(module_, ft) && capture_has_drop_flag(cap)) {
-        const ValueId src = builder_->field_addr_ptr(lambda_closure_ptr_, fc, ft);
+        const ValueId src = builder_->field_addr_ptr(env, fc, ft);
         const PlaceId tmp = builder_->alloca(ft, MIRStorageClass::Temporary);
         if (tmp == MIR_INVALID_ID) {
             error = "failed to allocate moved capture temporary";
@@ -184,7 +219,7 @@ MIRExprResult MIRLowerer::lower_moved_captured_variable(CapturedVariable* cap,
         const TypeId bool_t = types_.bool_type();
         const ValueId zero = builder_->const_int(
             bool_t, module_.constants.add_int(bool_t, 0));
-        builder_->field_store_ptr(lambda_closure_ptr_, flag, zero);
+        builder_->field_store_ptr(env, flag, zero);
         return MIRExprResult::place(tmp, ft);
     }
     return lower_captured_variable(cap, false, error);
@@ -294,6 +329,34 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
     };
     const bool fn_once = cap != nullptr &&
         cap->call_kind_value() == CaptureCallKind::FnOnce;
+    auto returns_future_handle = [&]() -> bool {
+        if (cap == nullptr) return false;
+        FunctionType* ft = cap->get_func_type();
+        if (ft == nullptr || ft->returnType == nullptr) return false;
+        BaseType* rt = const_cast<BaseType*>(ft->returnType.getType());
+        if (rt == nullptr) return false;
+        rt = rt->canonical();
+        if (rt == nullptr || rt->kind() != BaseTypeKind::Generic) return false;
+        auto* gen = rt->as_generic_type_unsafe();
+        auto* linked = gen->referenced != nullptr ? gen->referenced->linked : nullptr;
+        return linked != nullptr && linked->kind() == ASTNodeKind::StructDecl &&
+               linked->as_extendable_members_container_unsafe()->name_view() ==
+                   chem::string_view("FutureHandle");
+    };
+    // An explicit `std::FnOnce<(args) => FutureHandle<...>>` carries the
+    // `FnOnceCapture` marker rather than the concrete lambda environment. It
+    // denotes the async-closure ABI even if a specialized copy lost the flag.
+    const bool async_marker = fn_once && returns_future_handle() &&
+        marker_named("FnOnceCapture");
+    const bool async_closure = cap != nullptr &&
+        (cap->async_closure ||
+         (cap->get_func_type() != nullptr && cap->get_func_type()->isAsync() &&
+          fn_once) ||
+         async_marker);
+    if (async_closure && !fn_once) {
+        error = "an async closure returns a FutureHandle and must be called through FnOnce";
+        return MIRExprResult::error();
+    }
     ValueId once_source_ptr = MIR_NULL;
     ValueId once_source_size = MIR_NULL;
     if (fn_once) {
@@ -346,6 +409,19 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
             return;
         }
         const PlaceId pid = static_cast<PlaceId>(recv.id);
+        if (async_closure) {
+            // The future frame copied the whole function instance (and owns
+            // its capture allocation). Zero the consumed source without
+            // running its destructor, which would free that allocation twice.
+            const TypeId inst_t = types_.map(inst);
+            const ValueId bytes = builder_->size_of(inst_t, types_.u64_type());
+            const ValueId zero = builder_->const_int(
+                types_.char_type(), module_.constants.add_int(types_.char_type(), 0));
+            const TypeId ptr_t = types_.pointer_type(inst_t, true);
+            builder_->memset_ptr(builder_->address_of(pid, ptr_t), zero, bytes);
+            mark_moved(pid);
+            return;
+        }
         const SymbolId dtor = destructor_symbol(inst);
         if (dtor != MIR_INVALID_ID) {
             builder_->destroy(pid, dtor);
@@ -357,8 +433,11 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
     };
     MIRExprResult fnr = call_method(get_fn);
     if (!fnr.ok()) return fnr;
-    MIRExprResult dr = call_method(get_data);
-    if (!dr.ok()) return dr;
+    MIRExprResult dr = MIRExprResult::void_result();
+    if (!async_closure) {
+        dr = call_method(get_data);
+        if (!dr.ok()) return dr;
+    }
     const TypeId vpt = types_.pointer_type(types_.void_type(), true);
     const ValueId fnptr = (fnr.kind == MIRExprKind::Place)
                               ? builder_->load(static_cast<PlaceId>(fnr.id), fnr.type)
@@ -372,9 +451,26 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
         emit_abort_unless(builder_->compare(fnptr, null_v, ne, bool_t),
                           "__chc_call_moved_fail");
     }
-    const ValueId dataptr = (dr.kind == MIRExprKind::Place)
-                                ? builder_->load(static_cast<PlaceId>(dr.id), dr.type)
-                                : static_cast<ValueId>(dr.id);
+    ValueId dataptr = MIR_NULL;
+    if (async_closure) {
+        // The ramp takes ownership of the whole function instance, so pass its
+        // address rather than the already-erased data pointer.
+        const TypeId inst_t = types_.map(inst);
+        const TypeId inst_ptr_t = types_.pointer_type(inst_t, true);
+        if (recv.kind == MIRExprKind::Address) {
+            dataptr = builder_->cast(static_cast<ValueId>(recv.id), vpt);
+        } else if (recv.kind == MIRExprKind::Place) {
+            const PlaceId pid = static_cast<PlaceId>(recv.id);
+            dataptr = builder_->cast(builder_->address_of(pid, inst_ptr_t), vpt);
+        } else {
+            error = "an async closure call requires a concrete function instance";
+            return MIRExprResult::error();
+        }
+    } else {
+        dataptr = (dr.kind == MIRExprKind::Place)
+                      ? builder_->load(static_cast<PlaceId>(dr.id), dr.type)
+                      : static_cast<ValueId>(dr.id);
+    }
     MIRArgScope _ag_scope(*this);
     std::vector<MIROperand>& cargs = _ag_scope.v;
     cargs.push_back(MIROperand::value(dataptr, vpt));
@@ -431,6 +527,243 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
     destroy_call_temps_from(ccap, error);
     finish_fn_once();
     return MIRExprResult::value(cv, crt);
+}
+
+
+bool MIRLowerer::materialize_async_capturing_lambda(
+        LambdaFunction* lamb, TypeId cap_type, BaseType* instance_type,
+        SymbolId dtor_sym, SymbolId& ramp_sym, TypeId& ramp_type,
+        std::string& error) {
+    static std::atomic<uint64_t> s_async_counter{0};
+    const std::string name = "__chemda_async_cap_" +
+        std::to_string(s_async_counter.fetch_add(1, std::memory_order_relaxed));
+
+    // A synthetic declaration gives the existing coroutine planner/lowering a
+    // normal function-shaped body. The lambda body nodes are shared (linked in
+    // the enclosing scope); the normalization pass only rewrites the synthetic
+    // body vector. The capture environment is supplied as a frame slot and the
+    // hidden data pointer is the capturing-function ABI's first argument.
+    // The MIR function/region caches are keyed by the declaration address, so
+    // this node must outlive the lowering call and have a stable, unique
+    // address (a stack temporary gets reused and aliases the previous closure).
+    async_synthetic_names_.push_back(name);
+    const std::string& stable_name = async_synthetic_names_.back();
+    auto decl_owner = std::make_unique<FunctionDeclaration>(
+        chem::string_view(stable_name.data(), static_cast<unsigned>(stable_name.size())),
+        lamb->returnType, lamb->isVariadic(), lamb->get_parent(),
+        lamb->encoded_location());
+    FunctionDeclaration& decl = *decl_owner;
+    decl.body = lamb->scope.shallow_copy();
+    decl.params = lamb->params;
+    decl.set_async(true);
+    decl.data.is_async = true;
+    decl.data.signature_resolved = true;
+    async_synthetic_decls_.push_back(std::move(decl_owner));
+
+    // Save the enclosing function's general lowering state.
+    MIRBuilder* saved_builder = builder_;
+    MIRArena* saved_arena = arena_;
+    FunctionTypeBody* saved_cur = current_func_;
+    const bool saved_comptime_fn = current_fn_is_comptime_;
+    auto saved_var = std::move(var_places_);
+    auto saved_name = std::move(name_places_);
+    auto saved_destructibles = std::move(destructibles_);
+    auto saved_scope_places = std::move(scope_places_);
+    auto saved_call_temps = std::move(call_temps_);
+    auto saved_stmt_temps = std::move(stmt_temps_);
+    const bool saved_binding_init = binding_init_;
+    const bool saved_temp_extension = temp_extension_operand_;
+    const PlaceId saved_extension_anchor = extension_anchor_;
+    auto saved_pattern_bases = std::move(pattern_bases_);
+    auto saved_pattern_results = std::move(pattern_results_);
+    const bool saved_sret = sret_;
+    const ValueId saved_sret_ptr = sret_ptr_;
+    const TypeId saved_sret_ret = sret_ret_type_;
+    const TypeId saved_sret_ptr_t = sret_ptr_type_;
+    BaseType* saved_return_type = return_type_;
+    auto saved_break = std::move(break_targets_);
+    auto saved_continue = std::move(continue_targets_);
+    auto saved_inline = std::move(inline_frames_);
+    auto saved_comptime = std::move(comptime_bindings_);
+    const bool saved_journal = scope_journal_;
+    FunctionParam* saved_self_param = current_self_param_;
+    ExtendableMembersContainerNode* saved_dtor_def = destructor_def_;
+
+    // Save the enclosing async lowering state (a nested async ramp has its own
+    // frame/poll/drop/site tables and must not clobber an outer async body).
+    const bool saved_async = async_;
+    BaseType* saved_inner = async_inner_;
+    BaseType* saved_handle = async_handle_;
+    BaseType* saved_table = async_table_;
+    BaseType* saved_poll_base = async_poll_base_;
+    BaseType* saved_context = async_context_;
+    const TypeId saved_frame_type = async_frame_type_;
+    const TypeId saved_frame_ptr_type = async_frame_ptr_type_;
+    auto saved_plan = std::move(async_plan_);
+    MIRFunction saved_poll = std::move(async_poll_);
+    MIRFunction saved_drop = std::move(async_drop_);
+    std::string saved_pre = std::move(async_pre_decls_);
+    std::string saved_post = std::move(async_post_decls_);
+    const PlaceId saved_poll_ret = async_poll_ret_;
+    const PlaceId saved_poll_frame = async_poll_frame_;
+    const PlaceId saved_poll_cx = async_poll_cx_;
+    const ValueId saved_poll_af = async_poll_af_val_;
+    const ValueId saved_ramp_af = async_ramp_af_val_;
+    auto saved_resident = std::move(async_resident_);
+    auto saved_drop_flags = std::move(async_drop_flag_slots_);
+    auto saved_site_poll = std::move(async_site_poll_);
+    auto saved_resume_blocks = std::move(async_resume_blocks_);
+    const PlaceId saved_ramp_af_place = async_ramp_af_;
+    const PlaceId saved_ramp_result = async_ramp_result_;
+    const BlockId saved_ramp_done = async_ramp_done_;
+    const bool saved_in_ramp = async_in_ramp_;
+    std::string saved_mangled = std::move(async_mangled_);
+    auto saved_site_index = std::move(async_site_index_);
+    auto saved_child_places = std::move(async_child_places_);
+    auto saved_result_places = std::move(async_result_places_);
+    auto saved_spills = std::move(async_spills_);
+    auto saved_cont_blocks = std::move(async_cont_blocks_);
+    const TypeId saved_capture_type = async_capture_type_;
+    BaseType* saved_capture_instance_type = async_capture_instance_type_;
+    const bool saved_capture_hidden_data = async_capture_hidden_data_;
+    const bool saved_is_closure = async_is_closure_;
+    const bool saved_capture_ptr_from_frame = async_capture_ptr_from_frame_;
+    const ValueId saved_capture_frame = async_capture_frame_;
+    const SymbolId saved_capture_dtor = async_capture_dtor_;
+    const unsigned saved_capture_slot = async_capture_slot_;
+    const ValueId saved_lambda_ptr = lambda_closure_ptr_;
+    const TypeId saved_lambda_type = lambda_closure_type_;
+    const bool saved_async_main_emitted = async_main_emitted_;
+
+    var_places_.clear();
+    name_places_.clear();
+    destructibles_.clear();
+    scope_places_.clear();
+    call_temps_.clear();
+    stmt_temps_.clear();
+    binding_init_ = false;
+    temp_extension_operand_ = false;
+    extension_anchor_ = MIR_INVALID_ID;
+    pattern_bases_.clear();
+    pattern_results_.clear();
+    break_targets_.clear();
+    continue_targets_.clear();
+    inline_frames_.clear();
+    comptime_bindings_.clear();
+    scope_journal_ = false;
+    current_func_ = lamb;
+    current_fn_is_comptime_ = false;
+    current_self_param_ = lamb->get_self_param();
+    destructor_def_ = nullptr;
+    if (set_current_func_) set_current_func_(lamb);
+
+    async_capture_type_ = cap_type;
+    async_capture_instance_type_ = instance_type;
+    async_capture_hidden_data_ = instance_type != nullptr ||
+        (lamb->isCapturing() && lamb->capture_instance_type != nullptr);
+    async_is_closure_ = true;
+    async_capture_ptr_from_frame_ = false;
+    async_capture_frame_ = MIR_NULL;
+    async_capture_dtor_ = dtor_sym;
+    async_capture_slot_ = MIR_INVALID_ID;
+
+    MIRFunction ramp;
+    bool ok = lower_async_function(&decl, *arena_, ramp, error);
+
+    std::string poll_c;
+    std::string ramp_c;
+    if (ok) {
+        std::string emit_error;
+        ok = emit_function_c(async_poll_, module_, poll_c, emit_error);
+        if (ok) ok = emit_function_c(ramp, module_, ramp_c, emit_error);
+        if (!ok) error = emit_error;
+    }
+    if (ok) {
+        lambda_defs_.push_back(std::move(async_pre_decls_));
+        lambda_defs_.push_back(std::move(poll_c));
+        lambda_defs_.push_back(std::move(async_post_decls_));
+        lambda_defs_.push_back(std::move(ramp_c));
+        lambda_functions_.push_back(async_poll_);
+        lambda_functions_.push_back(async_drop_);
+        lambda_functions_.push_back(ramp);
+        ramp_sym = ramp.symbol;
+        ramp_type = ramp.function_type;
+    }
+
+    // Restore the enclosing function's state.
+    builder_ = saved_builder;
+    arena_ = saved_arena;
+    current_func_ = saved_cur;
+    current_fn_is_comptime_ = saved_comptime_fn;
+    if (set_current_func_) set_current_func_(saved_cur);
+    var_places_ = std::move(saved_var);
+    name_places_ = std::move(saved_name);
+    destructibles_ = std::move(saved_destructibles);
+    scope_places_ = std::move(saved_scope_places);
+    call_temps_ = std::move(saved_call_temps);
+    stmt_temps_ = std::move(saved_stmt_temps);
+    binding_init_ = saved_binding_init;
+    temp_extension_operand_ = saved_temp_extension;
+    extension_anchor_ = saved_extension_anchor;
+    pattern_bases_ = std::move(saved_pattern_bases);
+    pattern_results_ = std::move(saved_pattern_results);
+    sret_ = saved_sret;
+    sret_ptr_ = saved_sret_ptr;
+    sret_ret_type_ = saved_sret_ret;
+    sret_ptr_type_ = saved_sret_ptr_t;
+    return_type_ = saved_return_type;
+    break_targets_ = std::move(saved_break);
+    continue_targets_ = std::move(saved_continue);
+    inline_frames_ = std::move(saved_inline);
+    comptime_bindings_ = std::move(saved_comptime);
+    scope_journal_ = saved_journal;
+    current_self_param_ = saved_self_param;
+    destructor_def_ = saved_dtor_def;
+
+    async_ = saved_async;
+    async_inner_ = saved_inner;
+    async_handle_ = saved_handle;
+    async_table_ = saved_table;
+    async_poll_base_ = saved_poll_base;
+    async_context_ = saved_context;
+    async_frame_type_ = saved_frame_type;
+    async_frame_ptr_type_ = saved_frame_ptr_type;
+    async_plan_ = std::move(saved_plan);
+    async_poll_ = std::move(saved_poll);
+    async_drop_ = std::move(saved_drop);
+    async_pre_decls_ = std::move(saved_pre);
+    async_post_decls_ = std::move(saved_post);
+    async_poll_ret_ = saved_poll_ret;
+    async_poll_frame_ = saved_poll_frame;
+    async_poll_cx_ = saved_poll_cx;
+    async_poll_af_val_ = saved_poll_af;
+    async_ramp_af_val_ = saved_ramp_af;
+    async_resident_ = std::move(saved_resident);
+    async_drop_flag_slots_ = std::move(saved_drop_flags);
+    async_site_poll_ = std::move(saved_site_poll);
+    async_resume_blocks_ = std::move(saved_resume_blocks);
+    async_ramp_af_ = saved_ramp_af_place;
+    async_ramp_result_ = saved_ramp_result;
+    async_ramp_done_ = saved_ramp_done;
+    async_in_ramp_ = saved_in_ramp;
+    async_mangled_ = std::move(saved_mangled);
+    async_site_index_ = std::move(saved_site_index);
+    async_child_places_ = std::move(saved_child_places);
+    async_result_places_ = std::move(saved_result_places);
+    async_spills_ = std::move(saved_spills);
+    async_cont_blocks_ = std::move(saved_cont_blocks);
+    async_capture_type_ = saved_capture_type;
+    async_capture_instance_type_ = saved_capture_instance_type;
+    async_capture_hidden_data_ = saved_capture_hidden_data;
+    async_is_closure_ = saved_is_closure;
+    async_capture_ptr_from_frame_ = saved_capture_ptr_from_frame;
+    async_capture_frame_ = saved_capture_frame;
+    async_capture_dtor_ = saved_capture_dtor;
+    async_capture_slot_ = saved_capture_slot;
+    lambda_closure_ptr_ = saved_lambda_ptr;
+    lambda_closure_type_ = saved_lambda_type;
+    async_main_emitted_ = saved_async_main_emitted;
+    return ok;
 }
 
 bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string& error) {
@@ -584,6 +917,32 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
         lambda_functions_.push_back(dfn);
     }
 
+    TypeId async_ramp_type = MIR_INVALID_ID;
+    SymbolId async_ramp_sym = MIR_INVALID_ID;
+    if (lamb->isAsync()) {
+        // The symres callable inference stores the runtime instance type on
+        // the lambda; the lambda node itself is a FunctionType, not its
+        // capturing wrapper, so getType() cannot reveal the instance layout.
+        BaseType* instance_type = lamb->capture_instance_type;
+        if (instance_type == nullptr) {
+            error = "async closure callable instance type could not be resolved";
+            return false;
+        }
+        const SymbolId instance_dtor = destructor_symbol(instance_type);
+        if (instance_dtor == MIR_INVALID_ID) {
+            error = "async closure function instance has no destructor";
+            return false;
+        }
+        if (!materialize_async_capturing_lambda(
+                lamb, cap_type, instance_type, instance_dtor,
+                async_ramp_sym, async_ramp_type, error)) {
+            return false;
+        }
+    }
+
+    TypeId lambda_ftype = MIR_INVALID_ID;
+    SymbolId lambda_sym = MIR_INVALID_ID;
+    if (!lamb->isAsync()) {
     // 3. the lambda function: `ret <lname>(void* this, <sret?>, <params>)`
     //    (matches the legacy capturing-function ABI: the hidden data pointer
     //    comes before the sret pointer)
@@ -794,6 +1153,10 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
 
     if (!ok) return false;
 
+    lambda_ftype = ftype;
+    lambda_sym = sym;
+    } // !lamb->isAsync()
+
     // 4. materialize the closure temp in the enclosing function
     const PlaceId cap_temp = builder_->alloca(cap_type, MIRStorageClass::Temporary);
     if (cap_temp == MIR_INVALID_ID) {
@@ -910,8 +1273,9 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     LambdaMaterialization m;
     m.cap_type = cap_type;
     m.cap_temp = cap_temp;
-    m.fn_ptr_type = ftype;
-    m.fn_ptr = builder_->function_addr(sym, m.fn_ptr_type);
+    m.fn_ptr_type = lamb->isAsync() ? async_ramp_type : lambda_ftype;
+    m.fn_ptr = builder_->function_addr(
+        lamb->isAsync() ? async_ramp_sym : lambda_sym, m.fn_ptr_type);
     m.dtor_type = types_.function_signature(types_.void_type(), {void_ptr});
     m.dtor_ptr = builder_->function_addr(dtor_sym, m.dtor_type);
     lambda_materializations_[lamb] = m;
@@ -948,6 +1312,22 @@ MIRExprResult MIRLowerer::lower_lambda(LambdaFunction* lamb, std::string& error)
 
 MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
                                                           std::string& error) {
+    if (lamb->isAsync()) {
+        SymbolId ramp_sym = MIR_INVALID_ID;
+        TypeId ramp_type = MIR_INVALID_ID;
+        if (!materialize_async_capturing_lambda(
+                lamb, MIR_INVALID_ID, nullptr, MIR_INVALID_ID,
+                ramp_sym, ramp_type, error)) {
+            return MIRExprResult::error();
+        }
+        TypeId lam_type = types_.map(lamb->getType());
+        if (lam_type == MIR_INVALID_ID ||
+            (module_.types.get(lam_type).kind != MIRTypeKind::Function &&
+             module_.types.get(lam_type).kind != MIRTypeKind::Pointer)) {
+            lam_type = types_.pointer_type(ramp_type, true);
+        }
+        return MIRExprResult::value(builder_->function_addr(ramp_sym, lam_type), lam_type);
+    }
     static std::atomic<uint64_t> s_lambda_counter{0};
     const std::string lname = "__chemda_" +
         std::to_string(s_lambda_counter.fetch_add(1, std::memory_order_relaxed));

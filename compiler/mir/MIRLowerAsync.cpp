@@ -141,6 +141,43 @@ PlaceId MIRLowerer::async_resident_place(ASTNode* node) const {
     auto it = var_places_.find(node);
     return it == var_places_.end() ? MIR_INVALID_ID : it->second;
 }
+
+void MIRLowerer::async_emit_capture_drop(MIRBuilder& b, ValueId frame) {
+    if (async_capture_slot_ == MIR_INVALID_ID || async_capture_type_ == MIR_INVALID_ID ||
+        async_capture_dtor_ == MIR_INVALID_ID) {
+        return;
+    }
+    const unsigned slot = async_capture_slot_;
+    const MIRNumberedName cf = async_slot_field(slot);
+    const MIRNumberedName ff = async_drop_flag_field(slot);
+    const ConstantId cap_fc = module_.constants.add_string(
+        MIR_INVALID_ID, cf.data(), static_cast<uint32_t>(cf.size()));
+    const ConstantId flag_fc = module_.constants.add_string(
+        MIR_INVALID_ID, ff.data(), static_cast<uint32_t>(ff.size()));
+    MIRTypeRecord u8_rec;
+    u8_rec.kind = MIRTypeKind::Int;
+    u8_rec.size = 1;
+    u8_rec.alignment = 1;
+    u8_rec.int_kind = IK_U8;
+    const TypeId u8 = module_.types.intern(u8_rec);
+    const TypeId cap_t = async_capture_type_;
+    const ValueId flag = b.field_load_ptr(frame, flag_fc, u8);
+    const ValueId zero = b.const_int(u8, module_.constants.add_int(u8, 0));
+    const ValueId live_flag = b.compare(
+        flag, zero,
+        module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Ne)),
+        types_.bool_type());
+    const BlockId drop_b = b.create_block();
+    const BlockId end_b = b.create_block();
+    b.cond_br(live_flag, drop_b, end_b);
+    b.set_block(drop_b);
+    const ValueId cap_addr = b.field_addr_ptr(frame, cap_fc, cap_t);
+    MIROperand arg = MIROperand::value(cap_addr, cap_t);
+    b.call_scalar(async_capture_dtor_, types_.void_type(), &arg, 1);
+    b.field_store_ptr(frame, flag_fc, zero);
+    b.br(end_b);
+    b.set_block(end_b);
+}
 void MIRLowerer::async_emit_spill(const AwaitSite&) {}
 void MIRLowerer::async_emit_reload(const AwaitSite&) {}
 void MIRLowerer::async_emit_pending_return() {}
@@ -174,6 +211,24 @@ bool MIRLowerer::lower_async_function(FunctionDeclaration* decl, MIRArena& arena
     // hoist nested awaits into VarInitStatements before planning the frame
     if (async_normalize_) async_normalize_(decl);
     async_plan_ = build_async_plan(decl);
+    // An async closure owns its capture environment in the future frame. It is
+    // one extra slot, created before every body local, so cancellation drops it
+    // after the locals that may still refer into it.
+    async_capture_slot_ = MIR_INVALID_ID;
+    if (async_capture_instance_type_ != nullptr) {
+        AsyncFrameSlot slot;
+        slot.name = chem::string_view("__chx_capture", 13);
+        slot.type = async_capture_instance_type_;
+        slot.destructible = true;
+        slot.node = nullptr;
+        async_capture_slot_ = static_cast<unsigned>(async_plan_.slots.size());
+        async_plan_.slots.push_back(slot);
+        async_plan_.slot_count = static_cast<unsigned>(async_plan_.slots.size());
+        // The environment is dropped once from the frame's common completion
+        // block, not from every suspension site: a future dropped before its
+        // first poll (state 0) must release it too.
+        async_plan_.needs_frame = true;
+    }
     const AsyncCTypes t = resolve_async_c_types(decl);
     if (!t.ok) {
         error = "async lowering could not resolve the core::async protocol types";
@@ -211,6 +266,9 @@ bool MIRLowerer::lower_async_function(FunctionDeclaration* decl, MIRArena& arena
     }
     for (auto& site : async_plan_.sites) {
         for (auto id : site.live_drops) async_drop_flag_slots_.insert(id);
+    }
+    if (async_capture_slot_ != MIR_INVALID_ID) {
+        async_drop_flag_slots_.insert(async_capture_slot_);
     }
     for (size_t id = 0; id < async_plan_.slots.size(); ++id) {
         const auto& slot = async_plan_.slots[id];
@@ -371,7 +429,8 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
         for (auto id : async_plan_.sites[i].live_drops) {
             const auto& slot = async_plan_.slots[id];
             if (slot.type == nullptr) continue;
-            SymbolId dtor = destructor_symbol(slot.type);
+            SymbolId dtor = (id == async_capture_slot_)
+                ? async_capture_dtor_ : destructor_symbol(slot.type);
             std::string dname = mir_sym_name(module_, dtor);
             if (dname.empty()) continue;
             const MIRNumberedName slot_field = async_slot_field(id);
@@ -407,6 +466,17 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
         async_post_decls_ += "            break;\n";
     }
     async_post_decls_ += "        default: break;\n    }\n";
+    if (async_capture_slot_ != MIR_INVALID_ID && async_capture_dtor_ != MIR_INVALID_ID) {
+        const MIRNumberedName cf = async_slot_field(async_capture_slot_);
+        const MIRNumberedName ff = async_drop_flag_field(async_capture_slot_);
+        const std::string dname = mir_sym_name(module_, async_capture_dtor_);
+        std::string field = "__chx__af->";
+        field.append(cf.data(), cf.size());
+        std::string flag = "__chx__af->";
+        flag.append(ff.data(), ff.size());
+        async_post_decls_ += "    if(" + flag + ") { " + dname + "(&" + field +
+                             "); " + flag + " = 0; }\n";
+    }
     async_post_decls_ += "    chemical_async_frame_free(__frame, sizeof(struct " + frame +
                          "), _Alignof(struct " + frame + "));\n}\n";
     // vtable definition (references __poll and __drop, both defined above)
@@ -620,6 +690,15 @@ bool MIRLowerer::async_lower_poll_body(FunctionDeclaration* decl, std::string& e
             bind_name(p->name, place);
         }
     }
+    if (async_capture_slot_ != MIR_INVALID_ID) {
+        // Captured names in the lambda body resolve through a pointer loaded
+        // from the frame in the block where they are used. A cached SSA value
+        // from L0 would not dominate resume blocks. The frame owns the whole
+        // function instance, so its data pointer stays valid across suspensions.
+        async_capture_ptr_from_frame_ = true;
+        async_capture_frame_ = af;
+        lambda_closure_type_ = async_capture_type_;
+    }
     if (decl->body.has_value()) {
         if (!lower_scope_nodes(decl->body->nodes, error)) {
             builder_ = nullptr;
@@ -628,6 +707,7 @@ bool MIRLowerer::async_lower_poll_body(FunctionDeclaration* decl, std::string& e
     }
     if (!b.current_block_terminated()) {
         emit_drops();
+        async_emit_capture_drop(b, af);
         b.emit(MIROpcode::AsyncFinish, MIR_NULL,
                {MIROperand::place(af_place, async_frame_ptr_type_),
                 MIROperand::place(ret_place, poll_ptr),
@@ -834,6 +914,10 @@ bool MIRLowerer::async_lower_drop_body(FunctionDeclaration* decl, std::string& e
     }
 
     b.set_block(done_b);
+    // The capture environment is initialized in the ramp, before state 0, so
+    // it is released from the common completion path (cancellation at any
+    // site, a never-polled future, or normal completion).
+    async_emit_capture_drop(b, af);
     const SymbolId free_sym = func_symbol("chemical_async_frame_free",
                                           {void_ptr, u64, u64}, types_.void_type(),
                                           MIRLinkage::External);
@@ -856,6 +940,8 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
                                   std::string& error) {
     // The ramp returns the handle; for the eager path it runs the body inline.
     const bool eager = async_plan_.sites.empty();
+    async_capture_ptr_from_frame_ = false;
+    async_capture_frame_ = MIR_NULL;
     const TypeId handle_t = types_.map(async_handle_);
     sret_ = true;
     sret_ret_type_ = handle_t;
@@ -870,6 +956,11 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
     {
         MIRScratch<TypeId> _ptypes(*this);
         std::vector<TypeId>& ptypes = _ptypes.v;
+        // A capturing async closure uses the capturing-function ABI: the
+        // hidden environment pointer precedes the sret pointer.
+        if (async_capture_hidden_data_) {
+            ptypes.push_back(types_.pointer_type(types_.void_type(), true));
+        }
         ptypes.push_back(sret_ptr_type_);
         if (self_param) {
             TypeId pt = self_param->type ? types_.map(self_param->type) : types_.opaque_type();
@@ -890,8 +981,25 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
             ptypes.push_back(pt);
         }
         const TypeId ftype = types_.function_signature(types_.void_type(), ptypes);
-        func.symbol = intern_function(decl);
-        module_.symbols.set_type(func.symbol, ftype);
+        if (async_is_closure_) {
+            // A synthetic closure declaration has a unique generated name. Do
+            // not route it through `intern_function`: that cache is keyed by
+            // AST declaration addresses and would be wrong if a node were
+            // reused, and the closure is not a source-level symbol.
+            MIRSymbolRecord rec;
+            rec.kind = MIRSymbolKind::Function;
+            rec.linkage = MIRLinkage::Internal;
+            rec.has_body = true;
+            rec.type = ftype;
+            func.symbol = module_.symbols.add(
+                rec, async_mangled_.data(),
+                static_cast<uint32_t>(async_mangled_.size()),
+                async_mangled_.data(),
+                static_cast<uint32_t>(async_mangled_.size()));
+        } else {
+            func.symbol = intern_function(decl);
+            module_.symbols.set_type(func.symbol, ftype);
+        }
         func.function_type = ftype;
     }
 
@@ -900,6 +1008,10 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
     const BlockId entry = b.create_block();
     b.set_block(entry);
     func.entry_block = entry;
+    ValueId capture_src = MIR_NULL;
+    if (async_capture_hidden_data_) {
+        capture_src = b.param(types_.pointer_type(types_.void_type(), true));
+    }
     sret_ptr_ = b.param(sret_ptr_type_);
     const PlaceId sret_place = b.alloca(sret_ptr_type_, MIRStorageClass::Parameter);
     b.store(sret_place, sret_ptr_);
@@ -930,6 +1042,31 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
     ValueId nullv = b.const_null(types_.map(async_context_),
                                  module_.constants.add_int(types_.map(async_context_), 0));
     b.field_store_ptr(af, cx_fc, nullv);
+
+    // Take ownership of the whole function instance (including its capture
+    // allocation base) by copying it into the frame. The call site zeroes the
+    // source instance immediately after the ramp returns, so only the frame
+    // runs the instance destructor and frees the captured values.
+    if (async_capture_instance_type_ != nullptr) {
+        const TypeId inst_t = types_.map(async_capture_instance_type_);
+        const MIRNumberedName cf = async_slot_field(async_capture_slot_);
+        const ConstantId cap_fc = module_.constants.add_string(
+            MIR_INVALID_ID, cf.data(), static_cast<uint32_t>(cf.size()));
+        const PlaceId cap_tmp = b.alloca(inst_t, MIRStorageClass::Temporary);
+        b.copy_ptr_to_place(cap_tmp, capture_src);
+        b.field_store_ptr(af, cap_fc, b.load(cap_tmp, inst_t));
+        const MIRNumberedName ff = async_drop_flag_field(async_capture_slot_);
+        const ConstantId flag_fc = module_.constants.add_string(
+            MIR_INVALID_ID, ff.data(), static_cast<uint32_t>(ff.size()));
+        ValueId one = b.const_int(types_.u32_type(),
+                                  module_.constants.add_int(types_.u32_type(), 1));
+        b.field_store_ptr(af, flag_fc, one);
+        if (eager) {
+            async_capture_ptr_from_frame_ = true;
+            async_capture_frame_ = af;
+            lambda_closure_type_ = async_capture_type_;
+        }
+    }
 
     // bind self/params and spill parameters into the frame
     if (self_param) {
@@ -1001,6 +1138,7 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
         }
         if (!b.current_block_terminated()) b.br(async_ramp_done_);
         b.set_block(async_ramp_done_);
+        async_emit_capture_drop(b, af);
         async_in_ramp_ = false;
     }
     // return the handle

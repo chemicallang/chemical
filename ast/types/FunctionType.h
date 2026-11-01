@@ -304,6 +304,13 @@ public:
     virtual SourceLocation get_location() = 0;
 
     /**
+     * The body result type of an async function/closure: the `T` inside the
+     * `FutureHandle<T>` return type. For non-async (or not-yet-wrapped)
+     * bodies this is just the declared return type.
+     */
+    BaseType* inner_return_type();
+
+    /**
        * copy function type body into the other
        */
     inline void shallow_copy_into(FunctionTypeBody& other, ASTAllocator& allocator, ASTNode* new_parent) {

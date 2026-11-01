@@ -61,6 +61,8 @@ Value* LambdaFunctionCopy::copy(ASTAllocator& allocator) {
     }
     lambda->capture_target_once = current->capture_target_once;
     lambda->inferred_capture_target = current->inferred_capture_target;
+    lambda->capture_instance_type = current->capture_instance_type;
+    lambda->async_future_lifetime_checked = current->async_future_lifetime_checked;
     scope.copy_into(lambda->scope, allocator, scope.parent());
     current->FunctionTypeBody::copy_into(*lambda, allocator, scope.parent());
     return lambda;

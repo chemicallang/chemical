@@ -3409,7 +3409,7 @@ static void specialize_capture_witness(
 
     auto* specialized = new (verifier.allocator.allocate<CapturingFunctionType>())
         CapturingFunctionType(cap->func_type, cap->instance_type, witness,
-                              cap->call_kind_value());
+                              cap->call_kind_value(), false, cap->async_closure);
     stmt->type = TypeLoc(specialized, stmt->type.getLocation());
 }
 
@@ -3995,10 +3995,10 @@ void TypeVerifier::VisitReturnStmt(ReturnStatement *node) {
             if(func && func->is_constructor_fn()) {
                 return;
             }
-            // async functions return FutureHandle<T>, but `return expr` must
-            // produce the inner T (design Section 15).
-            BaseType* expected_type = func && func->is_async()
-                ? func->inner_return_type()
+            // async functions/closures return FutureHandle<T>, but `return expr`
+            // must produce the inner T (design Section 15).
+            BaseType* expected_type = func_type->isAsync()
+                ? func_type->inner_return_type()
                 : (BaseType*) func_type->returnType;
             if (future_handle_missing_lifetime(expected_type) &&
                 value != nullptr &&
@@ -4040,8 +4040,8 @@ static/heap storage";
         const auto func_type = current_func_type;
         if(func_type->returnType && func_type->returnType->kind() != BaseTypeKind::Void) {
             const auto func = func_type->as_function();
-            BaseType* expected_type = func && func->is_async()
-                ? func->inner_return_type()
+            BaseType* expected_type = func_type->isAsync()
+                ? func_type->inner_return_type()
                 : (BaseType*) func_type->returnType;
             if(expected_type != nullptr && expected_type->kind() != BaseTypeKind::Void) {
                 diagnoser.error(node) << "function expects a non void return of type '" << expected_type->representation() << "'";

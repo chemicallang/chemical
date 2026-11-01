@@ -14,8 +14,9 @@
 
 ## 1. Problem
 
-Async ships but with workarounds. The remaining worked-around item is **AC** —
-async closures are parsed but not lowered. Platform items B15-W, B20, B23–B26,
+Async ships and the remaining worked-around item, **AC** (async closures), is
+now delivered: capturing async closures are lowered as `FnOnce` callables whose
+future frame owns the capture allocation. Platform items B15-W, B20, B23–B26,
 POSIX-EPOLL, TLS-VT and WIN-IOCP are fixed. On top of that, the docs **disagree**
 about the LLVM path: `compiler/mir/README.md`'s top note and
 `mir-llvm-migration.md` mark MIR→LLVM as _PLANNED_, while `compiler/CodegenMir.cpp`
@@ -24,7 +25,7 @@ The active path must be established before relying on either claim.
 
 ## 2. Goals & non-goals
 
-- **In scope:** lower async closures; establish/complete the LLVM async path;
+- **Delivered:** lower async closures; establish/complete the LLVM async path;
   remove library workarounds once the compiler fixes are green across the
   verification matrix.
 - **Out of scope:** new async APIs; runtime redesign.

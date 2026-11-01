@@ -290,14 +290,12 @@ distinguishes by position:
   (`parser/structures/Function.cpp`); `async` followed by a lambda introduces an
   async closure (`Parser::parseAsyncClosureValue`,
   `parser/values/LambdaValue.cpp`, called from `AccessChain.cpp`,
-  `LexStatement.cpp`, `LexValue.cpp`). Async closures parse but are rejected in
-  symres.
+  `LexStatement.cpp`, `LexValue.cpp`). Async closures are lowered by MIR.
 - `await expr` is an expression (`AwaitExpression`), so `var v = await f()` and
   `return await f()` parse; a bare `await f()` **statement** does not — see the
   `chemical_source` skill.
 
-> Async closures parse here but are **not lowered** (symres diagnoses them).
-> See `lang/docs/async-remaining-work.md` (item **AC**) for the fix plan.
+> Async closures parse here and are lowered by MIR (`MIRLowerLambda.cpp`).
 
 ### Error Recovery
 

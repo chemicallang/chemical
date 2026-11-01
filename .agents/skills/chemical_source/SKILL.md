@@ -1329,9 +1329,10 @@ supported yet, B20).
   like `FutureTable<Result<T, E>>` (B20). The shipped libraries still pass raw
   fds/handles and return flat pointer boxes; follow that pattern when
   hand-authoring a `Future`.
-- **Async closures** (`async |x|(...) => { ... }`) are parsed but **not lowered**
-  — the compiler diagnoses them (`async closures are not yet supported; use a
-  named async func instead`). Use a named `async func`.
+- **Async closures** (`async |x|(...) => { ... }`) are lowered on TCC and LLVM.
+  A capturing async closure owns its capture environment in the future frame and
+  is therefore conservatively a `FnOnce`; a non-capturing one is a reusable
+  function pointer. Use `FnOnce` for an explicit callable target.
 - **No interpreter/comptime async**: the interpreter treats `await` as
   transparent (it just evaluates the inner expression). Futures that are not
   ready on the first poll cannot suspend at comptime.

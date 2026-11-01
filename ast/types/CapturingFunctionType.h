@@ -36,6 +36,13 @@ public:
     bool from_generic_bound = false;
 
     /**
+     * The callable is an async closure (or an explicit `FnOnce` target whose
+     * return is a `FutureHandle`). Calling it moves the function instance into
+     * the future frame instead of erasing it to the capture data pointer.
+     */
+    bool async_closure = false;
+
+    /**
      * constructor
      */
     CapturingFunctionType(
@@ -43,10 +50,12 @@ public:
         TypeLoc instance_type,
         TypeLoc capture_env = nullptr,
         CaptureCallKind call_kind = CaptureCallKind::Fn,
-        bool from_generic_bound = false
+        bool from_generic_bound = false,
+        bool async_closure = false
     ) : BaseType(BaseTypeKind::CapturingFunction),
         func_type(func_type), instance_type(instance_type), capture_env(capture_env),
-        call_kind(call_kind), from_generic_bound(from_generic_bound)
+        call_kind(call_kind), from_generic_bound(from_generic_bound),
+        async_closure(async_closure)
     {
 
     }
@@ -59,7 +68,7 @@ public:
         return new (allocator.allocate<CapturingFunctionType>()) CapturingFunctionType(
             func_type.copy(allocator), instance_type.copy(allocator),
             capture_env ? capture_env.copy(allocator) : TypeLoc(nullptr),
-            call_kind, from_generic_bound
+            call_kind, from_generic_bound, async_closure
         );
     }
 
@@ -67,7 +76,8 @@ public:
         if (type->kind() != BaseTypeKind::CapturingFunction) return false;
         auto* other = type->as_capturing_func_type_unsafe();
         if (!func_type->is_same(other->func_type) ||
-            !instance_type->is_same(other->instance_type)) {
+            !instance_type->is_same(other->instance_type) ||
+            async_closure != other->async_closure) {
             return false;
         }
         if (capture_env == nullptr || other->capture_env == nullptr) {

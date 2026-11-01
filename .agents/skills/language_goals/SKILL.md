@@ -50,8 +50,8 @@ auto-trait bounds, and the partially implemented `Fn`/`FnMut`/`FnOnce` callable
 model (call-once/mutable-receiver kinds and `FnOnce` capture moves with
 per-capture drop flags, field-stored `FnOnce` calls, callable bounds, generic
 `Fn`/`FnMut`/`FnOnce` call syntax, `FnMut` receiver-chain checks,
-inferred/generic capturing Fn callables, and fixed/variadic Fn bounds exist;
-async closures remain). Load
+inferred/generic capturing Fn callables, fixed/variadic Fn bounds, and async
+closures with capture-owning frames exist). Load
 the `safety` skill and read `lang/docs/safety-implementation-plan.md` §4.5
 before making safety/roadmap claims.
 

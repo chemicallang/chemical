@@ -454,9 +454,9 @@ combinator inside a coroutine that is itself polled as a task (B25). Small
 variants (`Result<int, string>`, `Option<...>`) and pointer/int payloads are
 fine.
 
-Async **closures** are not lowered here (the C backend emits the diagnostic;
-LLVM keeps the eager bootstrap). See `lang/docs/async-remaining-work.md` for the
-remaining items (AC, POSIX-EPOLL).
+Async **closures** use the same MIR coroutine lowering as named async functions;
+capturing closures frame-own their function instance and are `FnOnce`. See
+`lang/docs/async-remaining-work.md` (no open items).
 
 > **B23, B25, B26 and B15-W fixed.** `Codegen::writeReturnStmtFor`'s coroutine
 > branch used to store a `StructValue` alloca pointer into the frame's struct

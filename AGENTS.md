@@ -36,8 +36,8 @@ targets), `dyn` being conservatively `!Send`/`!Sync`/`!Unpin`, and the partially
 implemented `Fn`/`FnMut`/`FnOnce` callable model (call-once/mutable-receiver
 kinds, `FnOnce` capture moves with per-capture drop flags, field-stored `FnOnce`
 calls, callable bounds, generic `Fn`/`FnMut`/`FnOnce` call syntax, `FnMut`
-receiver-chain checks, inferred/generic capturing Fn callables, and fixed/variadic
-Fn bounds exist; async closures remain).
+receiver-chain checks, inferred/generic capturing Fn callables, fixed/variadic
+Fn bounds, and async closures with capture-owning future frames exist).
 `@scoped_callback` is body-checked by `SAFE-SCOPED-001`, async constructors
 check allocation failure, and the audit gate runs in CI. Load the `safety` skill
 and read `lang/docs/safety-implementation-plan.md` §4.5 before claiming full
@@ -452,9 +452,9 @@ internals, read [`lang/docs/async-remaining-work.md`](lang/docs/async-remaining-
 an actionable, one-item-at-a-time worklist with symptom, root cause, workaround,
 and definition of done for each item.
 
-Pending items (recommended fix order):
-
-1. **AC** — async closures parsed but not lowered
+Pending items: none for the shipped async closure feature. The remaining Fn work
+is outside async closures (for example, a capturing async closure is
+conservatively `FnOnce` because its future owns the capture environment).
 
 **B15-W, B20, B23, B24, B25, B26, POSIX-EPOLL, TLS-VT and WIN-IOCP are fixed**
 — see the worklist. (B15-W was the LLVM `debug_complete` debug-info limitation:

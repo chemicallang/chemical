@@ -927,13 +927,13 @@ void SymResLinkBody::VisitReturnStmt(ReturnStatement* node) {
 
         const auto func_type = current_func_type;
         BaseType* exp_type = func_type->returnType ? func_type->returnType : nullptr;
-        // An async function's declared return type is `FutureHandle<T>`, but the
-        // body's `return expr` produces the inner `T`. Use the unwrapped type for
-        // linking and the move check, otherwise `return local_struct` fails with
-        // "unknown value being moved, where the struct types don't match" (B16).
-        const auto ret_func = func_type->as_function();
-        if(ret_func != nullptr && ret_func->is_async()) {
-            const auto inner = ret_func->inner_return_type();
+        // An async function/closure's declared return type is
+        // `FutureHandle<T>`, but the body's `return expr` produces the inner
+        // `T`. Use the unwrapped type for linking and the move check,
+        // otherwise `return local_struct` fails with "unknown value being
+        // moved, where the struct types don't match" (B16).
+        if(func_type->isAsync()) {
+            const auto inner = func_type->inner_return_type();
             if(inner != nullptr) {
                 exp_type = inner;
             }
@@ -1200,7 +1200,9 @@ static void refine_var_capture_witness(VarInitStatement* node, ASTAllocator& all
     }
     if (!witness) return;
     auto* specialized = new (allocator.allocate<CapturingFunctionType>())
-        CapturingFunctionType(cap->func_type, cap->instance_type, witness);
+        CapturingFunctionType(cap->func_type, cap->instance_type, witness,
+                              cap->call_kind_value(), cap->from_generic_bound,
+                              cap->async_closure);
     node->type = TypeLoc(specialized, node->type.getLocation());
 }
 
@@ -1264,9 +1266,16 @@ void SymResLinkBody::VisitVarInitStmt(VarInitStatement* node) {
                                                   lambda->encoded_location()),
                                           TypeLoc(instance, lambda->encoded_location()),
                                           lambda->capture_env,
-                                          CaptureCallKind::Fn);
+                                          lambda->isAsync()
+                                              ? CaptureCallKind::FnOnce
+                                              : CaptureCallKind::Fn);
+                inferred->async_closure = lambda->isAsync();
                 type = TypeLoc(inferred, lambda->encoded_location());
                 lambda->inferred_capture_target = true;
+                lambda->capture_instance_type = instance;
+                if (lambda->isAsync()) {
+                    lambda->capture_target_once = true;
+                }
             }
         }
     }
@@ -3123,10 +3132,21 @@ void SymResLinkBody::VisitReferenceType(ReferenceType* type) {
     visit(type->type, type_location);
 }
 
+static bool is_future_handle_ast_type(BaseType* type);
+
 void SymResLinkBody::VisitCapturingFunctionType(CapturingFunctionType* type) {
     visit(type->func_type);
     visit(type->instance_type);
     if (type->capture_env) visit(type->capture_env);
+    // Explicit `std::FnOnce<(args) => FutureHandle<...>>` targets denote the
+    // async-closure ABI. Marking the type keeps the call site from mistaking a
+    // synchronous capturing callback returning a future for an async closure.
+    if (type->call_kind_value() == CaptureCallKind::FnOnce &&
+        type->get_func_type() != nullptr && type->get_func_type()->returnType &&
+        is_future_handle_ast_type(
+            const_cast<BaseType*>(type->get_func_type()->returnType.getType()))) {
+        type->async_closure = true;
+    }
 }
 
 void link_container(SymResLinkBody& visitor, VariablesContainerBase* container) {
@@ -3662,17 +3682,210 @@ static void build_lambda_capture_env(LambdaFunction* lambda, ASTAllocator& alloc
     lambda->capture_env = TypeLoc(env->known_type(), lambda->encoded_location());
 }
 
-void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
+static bool async_lambda_backend_lowers(SymbolResolver& linker) {
+    if (linker.comptime_scope.backend_context == nullptr) return false;
+    const auto name = linker.comptime_scope.backend_context->name();
+    return name == "C" || name == "LLVM";
+}
 
-    // A lowering backend turns `async func` into the FutureHandle protocol, but
-    // async closures carry a capture context and are not lowered yet. Emit a
-    // clear diagnostic instead of generating a body that references a frame that
-    // was never emitted.
-    if(lambVal->isAsync() && linker.comptime_scope.backend_context != nullptr
-       && (linker.comptime_scope.backend_context->name() == "C"
-           || linker.comptime_scope.backend_context->name() == "LLVM")) {
-        diagnoser.error(lambVal) << "async closures are not yet supported; use a named `async func` instead";
+static bool async_lambda_protocol_in_scope(SymbolResolver& linker) {
+    return linker.find(chem::string_view("core")) != nullptr
+        || linker.find(chem::string_view("async")) != nullptr;
+}
+
+static bool lambda_lifetime_is_static(chem::string_view name) {
+    return name == "static" || name == "'static";
+}
+
+// Does a type carry a non-'static reference directly, through a generic
+// lifetime argument, or through an aggregate field? Mirrors the async
+// declaration lifetime rule so an async closure with a borrowed capture cannot
+// be mis-typed as an owning `FutureHandle<'static, T>`.
+static bool lambda_type_carries_borrow(
+        BaseType* type,
+        std::unordered_set<MembersContainer*>& visiting,
+        unsigned depth = 0) {
+    if (type == nullptr || depth > 8) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr) canonical = type;
+    switch (canonical->kind()) {
+        case BaseTypeKind::Reference: {
+            const auto lt = canonical->as_reference_type_unsafe()->lifetime;
+            return lt.empty() || !lambda_lifetime_is_static(lt);
+        }
+        case BaseTypeKind::Pointer:
+            return false;
+        case BaseTypeKind::Array:
+            return lambda_type_carries_borrow(
+                const_cast<BaseType*>(
+                    canonical->as_array_type_unsafe()->elem_type.getType()),
+                visiting, depth + 1);
+        case BaseTypeKind::CapturingFunction:
+            return true;
+        case BaseTypeKind::Generic: {
+            auto* gen = canonical->as_generic_type_unsafe();
+            for (chem::string_view lt : gen->lifetime_args) {
+                if (!lt.empty() && !lambda_lifetime_is_static(lt)) return true;
+            }
+            for (auto& arg : gen->types) {
+                if (lambda_type_carries_borrow(
+                        const_cast<BaseType*>(arg.getType()), visiting,
+                        depth + 1)) {
+                    return true;
+                }
+            }
+            auto* container = canonical->get_members_container();
+            if (container != nullptr && gen->lifetime_args.empty()) {
+                if (container->generic_parent != nullptr) {
+                    if (!container->generic_parent->lifetime_params.empty()) {
+                        return true;
+                    }
+                } else if (container->kind() == ASTNodeKind::StructDecl &&
+                           !container->as_struct_def_unsafe()->lifetime_params.empty()) {
+                    return true;
+                }
+            }
+            break;
+        }
+        default:
+            break;
     }
+    auto* container = canonical->get_members_container();
+    if (container == nullptr || !visiting.insert(container).second) return false;
+    if (container->kind() == ASTNodeKind::StructDecl &&
+        !container->as_struct_def_unsafe()->lifetime_params.empty()) {
+        return true;
+    }
+    if (container->generic_parent != nullptr &&
+        !container->generic_parent->lifetime_params.empty()) {
+        return true;
+    }
+    for (BaseDefMember* member : container->variables()) {
+        if (member == nullptr || member->kind() != ASTNodeKind::StructMember) continue;
+        auto* field = member->as_struct_member_unsafe();
+        if (field != nullptr && lambda_type_carries_borrow(
+                const_cast<BaseType*>(field->type.getType()), visiting,
+                depth + 1)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static chem::string_view async_lambda_future_lifetime(LambdaFunction* lambda,
+                                                      BaseType* inner) {
+    std::unordered_set<MembersContainer*> visiting;
+    if (lambda_type_carries_borrow(inner, visiting)) {
+        return chem::string_view("elided");
+    }
+    for (FunctionParam* param : lambda->params) {
+        if (param != nullptr && lambda_type_carries_borrow(
+                const_cast<BaseType*>(param->type.getType()), visiting)) {
+            return chem::string_view("elided");
+        }
+    }
+    for (CapturedVariable* cap : lambda->captureList) {
+        if (cap == nullptr) continue;
+        if (cap->capture_by_ref) return chem::string_view("elided");
+        if (lambda_type_carries_borrow(
+                const_cast<BaseType*>(cap->known_type()), visiting)) {
+            return chem::string_view("elided");
+        }
+    }
+    return chem::string_view("static");
+}
+
+static bool is_future_handle_ast_type(BaseType* type) {
+    if (type == nullptr) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr || canonical->kind() != BaseTypeKind::Generic) return false;
+    auto* gen = canonical->as_generic_type_unsafe();
+    auto* linked = gen->referenced != nullptr ? gen->referenced->linked : nullptr;
+    return linked != nullptr && linked->kind() == ASTNodeKind::StructDecl &&
+           linked->as_extendable_members_container_unsafe()->name_view() ==
+               chem::string_view("FutureHandle");
+}
+
+/**
+ * Rewrite an async closure's source return type `T` into `FutureHandle<'a, T>`
+ * exactly like `visit_func_decl` does for a named async function. The lambda
+ * body keeps producing the inner `T`; all return checks use
+ * `FunctionTypeBody::inner_return_type`.
+ */
+static void wrap_async_lambda_return(LambdaFunction* lambda,
+                                     SymbolResolver& linker,
+                                     ASTAllocator& allocator,
+                                     ASTDiagnoser& diagnoser) {
+    if (lambda == nullptr || !lambda->isAsync()) return;
+    if (!async_lambda_backend_lowers(linker)) return;
+    if (!async_lambda_protocol_in_scope(linker)) return;
+    if (linker.find(chem::string_view("async")) == nullptr) {
+        diagnoser.error(lambda)
+            << "async closures require the `async` library; add `import async` to this module";
+        return;
+    }
+    auto& future_handle = linker.coreNodes.async.future_handle;
+    if (future_handle == nullptr || !lambda->returnType) return;
+    BaseType* current = const_cast<BaseType*>(lambda->returnType.getType());
+    if (is_future_handle_ast_type(current)) {
+        if (!lambda->async_future_lifetime_checked) {
+            lambda->async_future_lifetime_checked = true;
+            auto* gen = current->canonical()->as_generic_type_unsafe();
+            BaseType* inner = gen != nullptr && !gen->types.empty()
+                ? const_cast<BaseType*>(gen->types[0].getType()) : nullptr;
+            const chem::string_view required =
+                async_lambda_future_lifetime(lambda, inner);
+            bool static_target = true;
+            if (gen != nullptr) {
+                for (chem::string_view lt : gen->lifetime_args) {
+                    if (!lt.empty() && !lambda_lifetime_is_static(lt)) {
+                        static_target = false;
+                        break;
+                    }
+                }
+            }
+            if (required == "elided" && static_target) {
+                diagnoser.error(lambda).with_code("SAFE-LIFE-004")
+                    << "an async closure whose captures borrow non-'static storage "
+                       "cannot produce FutureHandle<'static, T>; use an elided "
+                       "lifetime target";
+            }
+        }
+        return;
+    }
+
+    const auto loc = lambda->returnType.getLocation();
+    auto inner = lambda->returnType;
+    if (current != nullptr && current->canonical()->kind() == BaseTypeKind::Void &&
+        linker.coreNodes.async.unit != nullptr) {
+        auto unit_linked = new (allocator.allocate<LinkedType>())
+            LinkedType(linker.coreNodes.async.unit);
+        inner = TypeLoc(unit_linked, loc);
+    }
+    auto linked = new (allocator.allocate<LinkedType>()) LinkedType(future_handle);
+    std::vector<TypeLoc> args;
+    args.emplace_back(inner);
+    std::vector<chem::string_view> lifetime_args;
+    lifetime_args.push_back(async_lambda_future_lifetime(
+        lambda, const_cast<BaseType*>(inner.getType())));
+    auto generic = new (allocator.allocate<GenericType>())
+        GenericType(linked, std::move(args), std::move(lifetime_args));
+    lambda->returnType = TypeLoc(generic, loc);
+    lambda->data.is_async = true;
+    lambda->setIsAsync(true);
+}
+
+static bool capturing_target_is_async(CapturingFunctionType* cap) {
+    if (cap == nullptr || cap->call_kind_value() != CaptureCallKind::FnOnce) {
+        return false;
+    }
+    FunctionType* ft = cap->get_func_type();
+    return ft != nullptr && ft->returnType &&
+           is_future_handle_ast_type(
+               const_cast<BaseType*>(ft->returnType.getType()));
+}
+
+void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 
     auto& scope = lambVal->scope;
     auto& returnType = lambVal->returnType;
@@ -3726,6 +3939,17 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
             data.signature_resolved = true;
         }
 
+        // An explicit callable target spells the async call result
+        // (`... => FutureHandle<T>`). Wrap the lambda's source `T` before
+        // `link_lambda` compares the signatures; the body still returns `T`
+        // because every return check unwraps the handle.
+        if (lambVal->isAsync() && func_type->returnType &&
+            is_future_handle_ast_type(
+                const_cast<BaseType*>(func_type->returnType.getType()))) {
+            wrap_async_lambda_return(lambVal, linker, getAstAllocator(), diagnoser);
+            if (lambVal->returnType) visit(lambVal->returnType);
+        }
+
         // will also create parameters that don't exist, assign types to parameters not given
         // assigned types won't be visited (assumed linked)
         link_lambda(getTypeBuilder(), lambVal, getAstAllocator(), diagnoser, func_type);
@@ -3738,12 +3962,37 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 
     }
 
+    // The lambda body has been linked against the source result type. Turn an
+    // async closure's declared return into the `FutureHandle<T>` call result
+    // before building its callable/capture type and the MIR ramp.
+    if (lambVal->isAsync()) {
+        wrap_async_lambda_return(lambVal, linker, getAstAllocator(), diagnoser);
+        if (lambVal->returnType) visit(lambVal->returnType);
+    }
+
     if(captureList.empty()) {
 
         if(canonical_exp) {
             const auto capFunc = canonical_exp->get_cap_func_type();
             if(capFunc) {
+                if (lambVal->isAsync() &&
+                    capFunc->call_kind_value() != CaptureCallKind::FnOnce) {
+                    diagnoser.error(lambVal)
+                        << "an async closure must be called through FnOnce";
+                }
+                if (lambVal->isAsync()) {
+                    const_cast<CapturingFunctionType*>(capFunc)->async_closure = true;
+                }
+                if (!lambVal->isAsync() && !captureList.empty() &&
+                    capturing_target_is_async(const_cast<CapturingFunctionType*>(capFunc))) {
+                    diagnoser.error(lambVal)
+                        << "a synchronous capturing closure cannot satisfy an async FnOnce target";
+                }
                 lambVal->setIsCapturing(true);
+                if (capFunc->instance_type) {
+                    lambVal->capture_instance_type =
+                        const_cast<BaseType*>(capFunc->instance_type.getType());
+                }
             }
         }
 
@@ -3753,6 +4002,24 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
             const auto capFunc = canonical_exp->get_cap_func_type();
             if(capFunc == nullptr) {
                 diagnoser.error("the lambda function type is not capturing", lambVal);
+            } else {
+                if (lambVal->isAsync() &&
+                    capFunc->call_kind_value() != CaptureCallKind::FnOnce) {
+                    diagnoser.error(lambVal)
+                        << "a capturing async closure owns its capture environment and must be called through FnOnce";
+                }
+                if (lambVal->isAsync()) {
+                    const_cast<CapturingFunctionType*>(capFunc)->async_closure = true;
+                }
+                if (!lambVal->isAsync() && !captureList.empty() &&
+                    capturing_target_is_async(const_cast<CapturingFunctionType*>(capFunc))) {
+                    diagnoser.error(lambVal)
+                        << "a synchronous capturing closure cannot satisfy an async FnOnce target";
+                }
+                if (capFunc->instance_type) {
+                    lambVal->capture_instance_type =
+                        const_cast<BaseType*>(capFunc->instance_type.getType());
+                }
             }
         }
 
@@ -3788,13 +4055,17 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
                 ? const_cast<BaseType*>(expected_cap->instance_type.getType())
                 : default_function_instance_type(linker);
             if (instance != nullptr) {
-                const CaptureCallKind kind = expected_cap->call_kind_value();
+                const CaptureCallKind kind = lambVal->isAsync()
+                    ? CaptureCallKind::FnOnce
+                    : expected_cap->call_kind_value();
                 auto* inferred = new (getAstAllocator().allocate<CapturingFunctionType>())
                     CapturingFunctionType(expected_cap->func_type,
                                           TypeLoc(instance, lambVal->encoded_location()),
                                           lambVal->capture_env,
                                           kind);
+                inferred->async_closure = lambVal->isAsync();
                 lambVal->setType(inferred);
+                lambVal->capture_instance_type = instance;
                 if (kind == CaptureCallKind::FnOnce) {
                     lambVal->inferred_capture_target = true;
                     lambVal->capture_target_once = true;
@@ -3803,8 +4074,24 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
         }
     }
 
-    // verify has return
-    if(returnType->canonical()->kind() != BaseTypeKind::Void) {
+    // verify has return against the async body result, not the rewritten
+    // FutureHandle<T> call result
+    BaseType* check_ret = lambVal->isAsync()
+        ? lambVal->inner_return_type() : const_cast<BaseType*>(returnType.getType());
+    bool needs_return = check_ret != nullptr;
+    if (needs_return) {
+        const auto check_canon = check_ret->canonical();
+        if (check_canon->kind() == BaseTypeKind::Void) {
+            needs_return = false;
+        } else {
+            const auto linked = check_ret->linked_node();
+            if (linked != nullptr && linked->kind() == ASTNodeKind::StructDecl &&
+                linked->as_struct_def_unsafe()->name_view() == chem::string_view("Unit")) {
+                needs_return = false;
+            }
+        }
+    }
+    if (needs_return) {
         verify_has_return(diagnoser, lambVal->scope, lambVal->encoded_location());
     }
 

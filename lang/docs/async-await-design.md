@@ -3514,11 +3514,13 @@ LLVM; TinyCC compiles the output.
 > `Ready`, `vtbl->drop`, cast result) that both the C and the LLVM backend emit
 > from the same MIR. Regression test above now passes on both backends.
 >
-> **Async closures are still diagnosed, not lowered.** An async closure carries a
-> capture struct emitted by `write_lambda_function`, so lowering it needs
-> closure-specific frame/vtable emission; the C backend keeps a clear diagnostic
-> (LLVM/interpreter keep the eager bootstrap). A module that has `core` but not
-> the `async` library is diagnosed instead of failing to link
+> **Async closures are lowered on TCC and LLVM.** `MIRLowerLambda.cpp`
+> synthesizes an async declaration and reuses `lower_async_function`; the frame
+> owns the whole function instance (including the capture allocation), `poll`
+> binds captured names through its `fn_data_ptr`, and the frame destructor
+> releases it exactly once. A capturing async closure is conservatively a
+> `FnOnce`; a non-capturing one is a reusable function pointer. A module that has
+> `core` but not the `async` library is diagnosed instead of failing to link
 > (`chemical_async_frame_alloc` unresolved). Compiling an `async func` in a
 > module without `core` no longer crashes the compiler: the return type is left
 > unwrapped and the function keeps the eager bootstrap.
@@ -3585,12 +3587,11 @@ LLVM; TinyCC compiles the output.
 > loop/block result) instead. This also fixes any other loop-expression/struct
 > move on LLVM.
 >
-> **Known limits (next).** Async closures require a closure-specific
-> frame/vtable emitter that stores the capture struct in the frame and binds
-> `this` to it in `poll`; until that lands the C backend keeps the clear
-> diagnostic (above) rather than emitting broken code. Arrays cannot be
-> default-initialized from an arbitrary expression (only `zeroed`, a literal, or
-> another array identifier).
+> **Known limits (next).** Capturing async closures are conservatively `FnOnce`
+> because their future owns the capture environment; reusable `Fn`/`FnMut`
+> async closures need reference-counted or borrowed capture frames. Arrays cannot
+> be default-initialized from an arbitrary expression (only `zeroed`, a literal,
+> or another array identifier).
 >
 > **Discovered blocker for the library-side shortcut (must be a compiler
 > lowering pass, not a library helper).** A generic function reference cannot

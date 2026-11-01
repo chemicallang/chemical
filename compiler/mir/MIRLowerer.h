@@ -16,6 +16,7 @@
 
 #include <deque>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <set>
 #include <string>
@@ -253,6 +254,9 @@ struct MIRNumberedName {
 
 class MIRLowerer {
 public:
+
+    ~MIRLowerer();
+
     friend struct MIRArgScope;
     template <class T> friend struct MIRScratch;
     MIRLowerer(MIRModule& module, MIRTypeBuilder& types)
@@ -909,10 +913,17 @@ private:
     /** Move a by-value closure capture out of its environment (FnOnce). */
     MIRExprResult lower_moved_captured_variable(CapturedVariable* cap,
                                                 std::string& error);
+    /** Current capture-environment pointer (reloaded from an async frame). */
+    ValueId captured_env_ptr();
     /** Whether a closure capture needs a per-capture drop flag. */
     bool capture_has_drop_flag(CapturedVariable* cap);
     /** Ensure a capturing lambda's closure struct/function/temp are generated. */
     bool materialize_capturing_lambda(LambdaFunction* lamb, std::string& error);
+    /** Generate the coroutine ramp/poll/drop for a capturing async closure. */
+    bool materialize_async_capturing_lambda(LambdaFunction* lamb, TypeId cap_type,
+                                            BaseType* instance_type, SymbolId dtor_sym,
+                                            SymbolId& ramp_sym, TypeId& ramp_type,
+                                            std::string& error);
     /** Generate a non-capturing lambda function and yield its function pointer. */
     MIRExprResult materialize_noncapturing_lambda(LambdaFunction* lamb, std::string& error);
     /** Lower a call through a capturing function instance (`std::function`). */
@@ -926,6 +937,8 @@ private:
     bool async_lower_poll_body(FunctionDeclaration* decl, std::string& error);
     bool async_lower_drop_body(FunctionDeclaration* decl, std::string& error);
     bool async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func, std::string& error);
+    /** Destroy the frame-resident async-closure capture environment once. */
+    void async_emit_capture_drop(MIRBuilder& b, ValueId frame);
     bool async_lower_await_var_init(VarInitStatement* stmt, size_t site_index, std::string& error);
     void async_emit_spill(const struct AwaitSite& site);
     void async_emit_reload(const struct AwaitSite& site);
@@ -1290,6 +1303,9 @@ private:
         TypeId dtor_type = MIR_INVALID_ID;
     };
     std::unordered_map<LambdaFunction*, LambdaMaterialization> lambda_materializations_;
+    /** Stable storage for synthetic async-closure declarations and their names. */
+    std::deque<std::string> async_synthetic_names_;
+    std::vector<std::unique_ptr<FunctionDeclaration>> async_synthetic_decls_;
     /** The current lambda's closure pointer (a `*struct cap`), while lowering it. */
     ValueId lambda_closure_ptr_ = MIR_NULL;
     TypeId lambda_closure_type_ = MIR_INVALID_ID;
@@ -1329,6 +1345,21 @@ private:
     PlaceId async_ramp_result_ = MIR_INVALID_ID;
     BlockId async_ramp_done_ = MIR_INVALID_ID;
     bool async_in_ramp_ = false;
+    /**
+     * Async-closure support: when non-null, the frame carries one inline
+     * capture-environment slot and the ramp receives the environment pointer
+     * as a hidden leading argument (the capturing-function ABI). The call site
+     * transfers ownership by zeroing the source instance after the ramp copies
+     * the environment into the future frame.
+     */
+    TypeId async_capture_type_ = MIR_INVALID_ID; // generated capture-struct type
+    BaseType* async_capture_instance_type_ = nullptr;
+    bool async_capture_hidden_data_ = false;
+    bool async_is_closure_ = false;
+    bool async_capture_ptr_from_frame_ = false;
+    ValueId async_capture_frame_ = MIR_NULL;
+    SymbolId async_capture_dtor_ = MIR_INVALID_ID;
+    unsigned async_capture_slot_ = MIR_INVALID_ID;
     /** set once the `int main` trampoline has been built, so it is emitted once */
     bool async_main_emitted_ = false;
     // per-site lowering info

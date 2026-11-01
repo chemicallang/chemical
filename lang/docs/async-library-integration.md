@@ -60,7 +60,7 @@ purely additive.
 | `await` in `async func` (eager and suspending) | ✅ both backends |
 | Cancellation runs frame destructors exactly once | ✅ both backends |
 | `async func main` → synchronous `int main` trampoline | ✅ both backends |
-| Async closures (`async \|...\|`) | ❌ diagnosed, not lowered |
+| Async closures (`async \|...\|`) | ✅ lowered (capturing forms are `FnOnce`) |
 | Interpreter / comptime | ❌ eager/transparent only |
 
 Evidence: `lang/tests/async/` (33 tests) via `./scripts/test.sh --async`.
@@ -561,7 +561,7 @@ already live in `--negative`.
 | **R4** | `tls` calls `net::send_all`/`recv_all` directly | transport swap is invasive | function-pointer transport on `SSLContext`; default = current sync calls; guard with all existing `--tls` tests |
 | **R5** | `FutureHandle<T>` is move-only | accidental copies fail | document move-only; `block_on` consumes by value |
 | **R6** | no `Send`/auto traits; per-thread executor (D7) | cross-thread migration unsound | document thread affinity; route cross-thread work through `spawn_blocking`/channels |
-| **R7** | interpreter/comptime and async closures unsupported | library async code can't run in comptime; closures must be named | document; keep async out of interpreter-only paths |
+| **R7** | interpreter/comptime async unsupported | library async code can't run in comptime | document; keep async out of interpreter-only paths |
 | **R8** | adding `import async` to libs grows the dependency graph and binary | compile time / size | runtime is opt-in per package; `core` protocol stays dependency-free |
 
 ---
@@ -622,10 +622,9 @@ by a compiler limitation. B27 (globals after an `async func`) and B28
 **fixed**.
 
 > **Remaining → actionable worklist:**
-> [`async-remaining-work.md`](./async-remaining-work.md). Only **AC** (async
-> closures are parsed but not lowered) is left. B15-W (async debug info), B20,
-> B24, B25, POSIX-EPOLL (the reactor is now epoll/kqueue) and TLS-VT have all
-> been fixed from that list, as has WIN-IOCP (see below).
+> [`async-remaining-work.md`](./async-remaining-work.md) has no open items.
+> Async closures, B15-W (async debug info), B20, B24, B25, POSIX-EPOLL (the
+> reactor is now epoll/kqueue), TLS-VT and WIN-IOCP are all fixed.
 
 ### B10 — Generic function *references* are not parsed or instantiated (HIGH) — ✅ FIXED
 

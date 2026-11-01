@@ -1080,11 +1080,11 @@
 > (layout and C ABI); C ABI classification for Windows/ARM, FFI wrappers, and
 > deeper HRTB precision remain (variance/temporary-lifetime extension are
 > implemented).
-> Safety suite `64`; negative tests `679`; main TCC `2378`, LLVM `2376`;
-> libs `730`; plugins `1305`; async `58`; interpret `1910`; server `10`;
+> Safety suite `64`; negative tests `680`; main TCC `2378`, LLVM `2376`;
+> libs `730`; plugins `1305`; async `68`; interpret `1910`; server `10`;
 > TLS `599`; `MIRTests` `4643 checks`. The whole-tree audit
 > manifest (`lang/docs/safety/audit-modules.txt`) covers `94` modules with
-> `unsafe_blocks 3768` / `unsafe_values 4898` (impl bodies included; see
+> `unsafe_blocks 3774` / `unsafe_values 4901` (impl bodies included; see
 > `lang/docs/safety/migration-metrics.md`).
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
@@ -1334,17 +1334,18 @@ approximate counts:
 |---|---|
 | TCC main / LLVM main | `2378` / `2376` |
 | `@test` runner | `54` |
-| TCC/LLVM negative | `679` / `679` |
+| TCC/LLVM negative | `680` / `680` |
 | TCC/LLVM safety | `64` / `64` |
-| TCC/LLVM async | `58` / `58` |
+| TCC/LLVM async | `68` / `68` |
 | TCC libs | `730` |
 | `MIRTests` | `4643 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
-| Whole-tree audit | `unsafe_blocks 3768`, `unsafe_values 4898`, `raw_pointer_derefs 1065`, `panic_calls 104` |
+| Whole-tree audit | `unsafe_blocks 3774`, `unsafe_values 4901`, `raw_pointer_derefs 1065`, `panic_calls 104` |
 
 The audit count is higher than the historical `3661/4890` because the report
-previously skipped **all** `ImplDefinition` bodies; it now walks them. Treat the
-new number as the honest baseline, not a regression.
+previously skipped **all** `ImplDefinition` bodies; it now walks them, and the
+new async-closure fixtures exercise the documented raw C future ABI. Treat the
+new number as the honest baseline, not a compiler regression.
 
 ### 4.5 Known remaining gaps / release blockers
 
@@ -1381,7 +1382,9 @@ new number as the honest baseline, not a regression.
    and generic call syntax through all three bounds is lowered, including
    capturing lambdas and explicit or non-capturing `FnOnce` callbacks. Untyped
    capturing lambda initializers infer a callable type and upgrade to `FnOnce`
-   when their body moves a capture. Remaining: async closures.
+   when their body moves a capture. Capturing async closures are lowered as
+   `FnOnce` and frame-own their function instance/capture allocation; a
+   borrowed capture cannot be typed as `FutureHandle<'static, T>`.
 5. **HRTB precision.** Deeper nested aggregate HRTB and multi-borrow callbacks
    mixing local/parameter/global referents are explicit `SAFE-BORROW-099`
    rejections, never guessed-safe.
@@ -2793,3 +2796,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 
 
 *Revision note v4.33 (2026-10-31): variadic Fn signatures. MIR function definitions now spell the C variadic tail for both ordinary functions and lambdas, and lambda function types carry `TF_VARIADIC`; generic `Fn`/`FnMut`/`FnOnce` bounds therefore work with variadic signatures and variadic lambda arguments. Associated output is carried by the function type (`Fn<(args...) => Out>`). Added runtime tests for a variadic named callback and a variadic lambda through an `Fn` bound. Main TCC/LLVM `2378`/`2376`; negative `679`. Remaining: async closures.*
+
+*Revision note v4.34 (2026-11-01): async closures. `async |captures|(params) => ...` is now lowered on TCC and LLVM instead of diagnosed. A capturing async closure is conservatively a `FnOnce` callable: the ramp moves the whole `default_function_instance` (including the capture allocation base) into the coroutine frame, `poll` binds captured names through the frame's `fn_data_ptr`, and the frame destroys the instance on normal completion, cancellation, or a never-polled drop. Non-capturing async closures remain reusable function pointers. Explicit `FnOnce`/generic bound targets and field-stored callables are covered; a capturing async closure assigned to `Fn`/`FnMut` is rejected, and a borrowed capture cannot be typed as `FutureHandle<'static, T>` (`SAFE-LIFE-004`). Async suite `68` TCC/LLVM; main `2378`/`2376`; negative `680`; safety `64`; libs `730`; `MIRTests` `4643`.*

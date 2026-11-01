@@ -44,7 +44,7 @@
 #include "ast/base/TypeBuilder.h"
 #include "utils/StackSpace.h"
 
-BaseType* FunctionDeclaration::inner_return_type() {
+BaseType* FunctionTypeBody::inner_return_type() {
     auto rt = const_cast<BaseType*>(returnType.getType());
     // A lowered async function has its declared return type rewritten to
     // `FutureHandle<T>` by TopLevelLinkSignature, while its body still produces the
@@ -54,7 +54,7 @@ BaseType* FunctionDeclaration::inner_return_type() {
     // `returnType` stays the source type, which may itself be an ordinary generic
     // such as `Result<std::vector<u8>, FsError>`. Peeling its first type argument
     // would corrupt move/type matching ("unknown value being moved").
-    if(!attrs.is_async || rt == nullptr || rt->kind() != BaseTypeKind::Generic) {
+    if(!data.is_async || rt == nullptr || rt->kind() != BaseTypeKind::Generic) {
         return rt;
     }
     const auto gen = rt->as_generic_type_unsafe();

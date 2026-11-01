@@ -921,6 +921,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     builder_->field_store_ptr(async_poll_af_val_, res_fc, v);
                 }
                 emit_drops();
+                async_emit_capture_drop(*builder_, async_poll_af_val_);
                 builder_->emit(
                     MIROpcode::AsyncFinish, MIR_NULL,
                     {MIROperand::place(async_poll_frame_, async_frame_ptr_type_),

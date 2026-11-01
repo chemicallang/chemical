@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.40)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.41)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1336,9 +1336,9 @@ approximate counts:
 
 | Gate | Result |
 |---|---|
-| TCC main / LLVM main | `2378` / `2376` |
-| `@test` runner | `54` |
-| TCC/LLVM negative | `714` / `714` |
+| TCC main / LLVM main | `2381` / `2379` |
+| `@test` runner | `55` |
+| TCC/LLVM negative | `715` / `715` |
 | TCC/LLVM safety | `69` / `69` |
 | TCC/LLVM async | `69` / `69` |
 | TCC libs | `730` |
@@ -1433,9 +1433,16 @@ new number as the honest baseline, not a compiler regression.
 5. **HRTB precision.** Deeper nested aggregate HRTB and multi-borrow callbacks
    mixing local/parameter/global referents are explicit `SAFE-BORROW-099`
    rejections, never guessed-safe.
-6. **`dyn` has no auto-trait bounds.** It is conservatively `!Send`/`!Sync`/
-   `!Unpin`; `dyn I + Send` cannot be expressed, and `Box<dyn I>`/`Arc<dyn I>`
-   cannot cross threads. M1.19.
+6. **`dyn` object model is partially implemented.** `dyn I` is a target-aware
+   two-word borrowed fat pointer (`{ data, vtable }`); `&dyn I` dispatches
+   through the same vtable, including through `Box::get`. `Box<dyn I>` is a
+   generic `Box` holding a heap fat-pointer **record**, not a Rust-style owning
+   trait object: it owns the two words, not the referent. Safe construction is
+   rejected with `SAFE-DYN-001` until the boxed view is modeled as a borrow;
+   owning erased values need a separate drop contract (`DynBox<I>` or a vtable
+   drop slot). `dyn` is also conservatively `!Send`/`!Sync`/`!Unpin`;
+   `dyn I + Send` cannot be expressed, and `Box<dyn I>`/`Arc<dyn I>` cannot
+   cross threads. See `lang/docs/dyn-object-model.md`; M1.19.
 7. **Async allocation checks are current, not permanently complete.**
    `yield.ch`, `time.ch`, `exec.ch`, `blocking.ch`, `combinators.ch`,
    `reactor.ch`, and `frame.ch` now check allocation failure before writing.
@@ -2870,3 +2877,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.39 (2026-11-01): FutureHandle higher-order inference. Function-type region signatures now collect free (non-HRTB) lifetime names from reference parameters, generic lifetime arguments such as `FutureHandle<'a, T>`, arrays and aggregate fields; function values of lifetime-generic declarations are marked higher-ranked. Indirect calls with a free-lifetime contract use the signature for result-loan mapping but keep the conservative escape mark, while fully higher-ranked contracts retain the existing non-retaining assumption. `MIRBorrowCheck` now recovers the sret destination for capturing lambdas (the sret parameter follows the hidden capture-environment pointer), so returning a future that borrows a lambda capture is checked. Callbacks returning a free `FutureHandle` require a reference/future parameter source or `'static`; HRTB `FutureHandle` returns are accepted; capture-owning lambdas returning a free/legacy future are rejected at the call site because the erased capture may die first. Added positive/negative coverage for free and HRTB callback returns and opaque capture-return cases. Main TCC/LLVM `2378`/`2376`; negative `711`; safety `69`; async `69`; libs `730`; interpret `1910`; `MIRTests` `4682`; audit no growth; TSAN pass.
 
 *Revision note v4.40 (2026-11-01): FutureHandle nested aggregates and opaque containers. Function-type region signatures now recover the single FutureHandle lifetime from nested return types (`Outer<'a> -> Inner<'a> -> FutureHandle<'a>`) and prefer the aggregate's lifetime argument over a nested declaration's erased binder. HRTB aggregate returns containing a FutureHandle are accepted when the result lifetime has a reference/future source, and the result loan propagates through the nested return. A safe call returning a type-erased generic container whose representation does not expose the future in a field is rejected with `SAFE-LIFE-005`; inspectable lifetime-carrying wrappers remain accepted. MIRTypeRecord carries a conservative `contains_future_handle` fact for erased generic containers. Added nested-aggregate positive/local-borrow-negative tests and an opaque-container negative test. Main TCC/LLVM `2378`/`2376`; negative `714`; safety `69`; async `69`; libs `730`; interpret `1910`; `MIRTests` `4682`; audit no growth; TSAN pass.
+
+*Revision note v4.41 (2026-11-01): `dyn` fat-pointer first slice. `dyn I` now reports target-aware two-pointer size and pointer alignment (instead of hard-coded 64-bit values). Dynamic dispatch peels one `&`/`*` indirection, so `Box<dyn I>::get()` (`&dyn I`) dispatches through the fat pointer's vtable rather than falling back to a static interface method; the same path works on TCC and LLVM. `Box<dyn I>` is documented as a boxed fat-pointer **view** (the generic `Box<T>` owns the two-word record, not the referent). Safe construction is conservatively rejected with `SAFE-DYN-001` until boxed-view borrow tracking lands; owning erased values need a separate drop contract. Added `sizeof`/`alignof` tests, an `&dyn` dispatch test, a boxed-view runtime test under `unsafe`, and a negative `SAFE-DYN-001` test. Design: `lang/docs/dyn-object-model.md`. Main TCC/LLVM `2381`/`2379`; negative `715`; safety `69`; async `69`; libs `730`; interpret `1913`; `MIRTests` `4682`; audit no growth (intentional `raw_pointer_types` +2 from the boxed-dyn test).

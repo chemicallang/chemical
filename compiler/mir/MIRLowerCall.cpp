@@ -1611,9 +1611,28 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
     }
 
     // dynamic (interface) dispatch: `((vt_t*) fat.second)->method(fat.first, args...)`
-    if (recv_type && recv_type->canonical() &&
-        recv_type->canonical()->kind() == BaseTypeKind::Dynamic) {
-        auto* dt = recv_type->canonical()->as_dynamic_type_unsafe();
+    // A receiver can be the fat pointer itself (`dyn I`) or a reference/pointer
+    // to one (`&dyn I`, as returned by `Box<T>::get`, or `*dyn I`). Peel one
+    // indirection so the call still dispatches through `second`, not through a
+    // static interface method with the wrong ABI.
+    BaseType* recv_can = recv_type ? recv_type->canonical() : nullptr;
+    BaseType* dyn_recv = recv_can;
+    bool dyn_indirect = false;
+    if (recv_can && (recv_can->kind() == BaseTypeKind::Reference ||
+                     recv_can->kind() == BaseTypeKind::Pointer)) {
+        BaseType* inner = recv_can->kind() == BaseTypeKind::Reference
+                              ? const_cast<BaseType*>(
+                                    recv_can->as_reference_type_unsafe()->type)
+                              : const_cast<BaseType*>(
+                                    recv_can->as_pointer_type_unsafe()->type);
+        BaseType* inner_can = inner ? inner->canonical() : nullptr;
+        if (inner_can && inner_can->kind() == BaseTypeKind::Dynamic) {
+            dyn_recv = inner_can;
+            dyn_indirect = true;
+        }
+    }
+    if (dyn_recv && dyn_recv->kind() == BaseTypeKind::Dynamic) {
+        auto* dt = dyn_recv->as_dynamic_type_unsafe();
         BaseType* iface_type = dt ? dt->referenced : nullptr;
         ASTNode* iface_node =
             iface_type ? iface_type->get_direct_linked_canonical_node() : nullptr;
@@ -1644,8 +1663,12 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
             fat_t = builder_->function().places[recv.id].type;
             fat = builder_->load(recv.id, fat_t);
         } else if (recv.kind == MIRExprKind::Address) {
-            // an lvalue address: the operand is a pointer to the fat pointer
-            fat_t = types_.pointer_type(recv.type, true);
+            // A direct `dyn` lvalue address is a pointer to the fat pointer.
+            // An already-indirect receiver (`&dyn` / `*dyn`) is that pointer
+            // itself; wrapping it again would make the emitter dereference a
+            // pointer-to-pointer.
+            fat_t = dyn_indirect ? recv.type
+                                 : types_.pointer_type(recv.type, true);
             fat = static_cast<ValueId>(recv.id);
         } else {
             fat = static_cast<ValueId>(recv.id);

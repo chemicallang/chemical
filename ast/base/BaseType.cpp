@@ -728,8 +728,10 @@ unsigned BaseType::type_alignment(const TargetData& data) {
         case BaseTypeKind::String:
         case BaseTypeKind::Void:
         case BaseTypeKind::Unknown:
-        case BaseTypeKind::Dynamic:
             return 8;
+        case BaseTypeKind::Dynamic:
+            // two pointers: { data, vtable }
+            return data.is64Bit ? 8 : 4;
         case BaseTypeKind::Bool:
             return 1;
         case BaseTypeKind::Double:

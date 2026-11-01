@@ -22,6 +22,10 @@ func call_actual(phone : dyn Phone) : int {
     return phone.call();
 }
 
+func call_actual_ref(phone : &dyn Phone) : int {
+    return phone.call();
+}
+
 func ret_dyn_obj1(phone : SmartPhone) : dyn Phone {
     return dyn<Phone>(phone);
 }
@@ -77,6 +81,11 @@ func test_dynamic_dispatch() {
     test("passing struct as dynamic object in function argument works - 2", () => {
         var p = CellPhone { number2 : 22 }
         return call_actual(dyn<Phone>(p)) == 22;
+    })
+    test("dynamic dispatch through a reference to a fat pointer works", () => {
+        var p = SmartPhone { number1 : 64 }
+        var d : dyn Phone = dyn<Phone>(p)
+        return call_actual_ref(&d) == 64;
     })
     test("getting dynamic object from function return works - 1", () => {
         var p = SmartPhone { number1 : 88 }

@@ -25,6 +25,20 @@ func <T> box_requires_send(value : T) : T where T: Send {
     return value
 }
 
+interface BoxDynShow {
+    func value(&self) : int
+}
+
+struct BoxDynValue {
+    var n : int
+}
+
+impl BoxDynShow for BoxDynValue {
+    func value(&self) : int {
+        return n
+    }
+}
+
 @test
 func box_drops_inner_value_once(env : &mut TestEnv) {
         unsafe {
@@ -130,3 +144,16 @@ func box_into_inner_transfers_ownership(env : &mut TestEnv) {
 
         }
     }
+// `Box<dyn I>` owns the heap fat-pointer record, not the concrete referent.
+// The referent must outlive the box; this test keeps it in the caller frame.
+@test
+func box_dyn_view_dispatches_through_reference(env : &mut TestEnv) {
+    unsafe {
+        var value = BoxDynValue { n : 37 }
+        var b = std::box<dyn BoxDynShow>(dyn<BoxDynShow>(value))
+        var d = b.get()
+        if(d.value() != 37) {
+            env.error("Box<dyn I>::get did not dispatch through the fat pointer")
+        }
+    }
+}

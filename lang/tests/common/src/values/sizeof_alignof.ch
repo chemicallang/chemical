@@ -56,6 +56,10 @@ struct SOT8 {
     var c : char;
 };
 
+interface SizeOfDynInterface {
+    func value(&self) : int;
+}
+
 func test_sizeof_alignof() {
     test("sizeof int", () => {
         var i = sizeof(int)
@@ -233,5 +237,13 @@ func test_sizeof_alignof() {
     })
     test("sizeof i64 and u64 is 8 bytes", () => {
         return sizeof(i64) == 8 && sizeof(u64) == 8
+    })
+    test("dyn interface is a two-pointer fat pointer", () => {
+        return sizeof(dyn SizeOfDynInterface) == sizeof(*void) * 2 &&
+            sizeof(dyn SizeOfDynInterface) == comptime_size_of<dyn SizeOfDynInterface>()
+    })
+    test("alignof dyn interface matches pointer alignment", () => {
+        return alignof(dyn SizeOfDynInterface) == alignof(*void) &&
+            alignof(dyn SizeOfDynInterface) == comptime_align_of<dyn SizeOfDynInterface>()
     })
 }

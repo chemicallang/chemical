@@ -835,6 +835,13 @@ func fn_mut_mutable_call_compiles(env : &mut TestEnv) {
 }
 
 @test
+func neg_boxed_dyn_view_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface Show {\n    func show(&self) : int\n}\nstruct S { var n : int }\nimpl Show for S { func show(&self) : int { return n } }\npublic func main() : int {\n    var s = S { n : 7 }\n    var b = std::box<dyn Show>(dyn<Show>(s))\n    return b.get().show() - 7\n}\n"
+    expect_compile_error_with_mod(env, "boxed_dyn_view", ch, "SAFE-DYN-001", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_dyn_object_is_not_send(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "interface Show {\n    func show(&self) : int\n}\nstruct RcImpl {\n    var r : std::Rc<int>\n}\nimpl Show for RcImpl {\n    func show(&self) : int { return *self.r.get() }\n}\nfunc worker(x : dyn Show) : int { return x.show() }\npublic func main() : int {\n    var v = RcImpl { r : std::rc(1) }\n    var d : dyn Show = dyn<Show>(v)\n    var t = std::thread.spawn<dyn Show, int>(worker, d)\n    return t.join() - 1\n}\n"

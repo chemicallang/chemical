@@ -31,10 +31,7 @@ public:
         return referenced->linked_node();
     }
 
-    uint64_t byte_size(const TargetData& target) final {
-        // Dynamic type is a fat pointer: data pointer + vtable pointer = 16 bytes on 64-bit
-        return 16;
-    }
+    uint64_t byte_size(const TargetData& target) final;
 
 
 };

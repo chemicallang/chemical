@@ -91,12 +91,24 @@ unsafe impl<T> Send for Box<T> where T: Send { }
 unsafe impl<T> Sync for Box<T> where T: Sync { }
 
 /**
+ * Drop one heap-allocated `T` behind an erased pointer.
+ *
+ * This is the type-specific drop contract `DynBox` stores. It is instantiated
+ * once per `T` and calls the normal `delete` path (destructor, then free).
+ */
+func <T> drop_erased(p : *mut void) {
+    unsafe {
+        delete p as *mut T
+    }
+}
+
+/**
  * Owning type-erased value built on a borrowed `dyn I` fat pointer.
  *
  * `DynBox<I>` is not the same as `Box<dyn I>`: `Box<dyn I>` owns only the
  * heap-allocated fat-pointer record and borrows the referent. `DynBox<I>`
- * owns the concrete value: the `owner` closure keeps the backing `Box<T>`
- * alive and drops it exactly once when the `DynBox` is destroyed.
+ * owns the concrete value: `data` is the heap allocation and `drop` destroys
+ * and frees it exactly once.
  *
  * The `dyn I` view points at heap storage, so its address is stable while the
  * box moves. Construction is a safe audited wrapper around the raw pointer
@@ -104,9 +116,18 @@ unsafe impl<T> Sync for Box<T> where T: Sync { }
  */
 public struct DynBox<I> {
     // Internal by design: construction goes through `dyn_box`, which keeps the
-    // fat pointer and its owning allocation in sync.
+    // fat pointer, data pointer, and drop function in sync.
     var fat : dyn I
-    var owner : function<() => void>
+    var data : *mut void
+    var drop : (p : *mut void) => void
+
+    @delete
+    func delete(&mut self) {
+        if(self.data != null) {
+            self.drop(self.data)
+            self.data = null
+        }
+    }
 
     public func get(&self) : &dyn I {
         return &self.fat
@@ -121,24 +142,26 @@ public struct DynBox<I> {
  * Move `value` into an owning type-erased `DynBox<I>`.
  *
  * The value is allocated once, the fat pointer is built against the heap
- * address, and the owning `Box<T>` is moved into an empty capturing closure.
- * Dropping the closure drops the `Box<T>`, which destroys and frees `value`.
+ * address, and the backing `Box<T>` is forgotten after its pointer is captured.
+ * `DynBox` calls the stored `drop_erased<T>` function once, which invokes the
+ * normal destructor/free path for the concrete value.
  */
 public func <T, I> dyn_box(value : T) : DynBox<I> where T: I {
     var backing = box(value)
     var ptr = backing.as_mut_ptr()
     var erased : dyn I
     unsafe {
-        // Hide the local `Box` provenance from the borrow checker: the
-        // `owner` closure below keeps the allocation alive for the lifetime of
-        // the DynBox, so this view does not borrow the stack local.
+        // Hide the local `Box` provenance from the borrow checker: `DynBox`
+        // owns the heap allocation through `data`/`drop`, so this view does not
+        // borrow the stack local.
         var addr = ptr as usize
         var heap_ptr = addr as *mut T
         erased = dyn<I>(*heap_ptr)
     }
-    var owner : function<() => void> = |backing|() => {
-    }
-    return DynBox<I> { fat : erased, owner : owner }
+    var drop_fn : (p : *mut void) => void = drop_erased<T>
+    intrinsics::forget(backing)
+    return DynBox<I> { fat : erased, data : ptr as *mut void, drop : drop_fn }
 }
+
 
 }

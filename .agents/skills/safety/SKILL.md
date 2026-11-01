@@ -313,8 +313,8 @@ memory safety.
    dispatches through the same vtable. `Box<dyn I>` is a generic box holding the
    heap fat-pointer record, not an owning trait object; MIR tracks it as a
    borrowed view (`SAFE-LIFE-001`/`002`). `std::DynBox<I>` / `std::dyn_box`
-   owns the concrete allocation and drops it exactly once through an owner
-   closure. Conservative `!Send`/`!Sync`/`!Unpin` avoids sending an `Rc`-backed
+   owns the concrete allocation and drops it exactly once through a stored
+   `drop_erased<T>` function. Conservative `!Send`/`!Sync`/`!Unpin` avoids sending an `Rc`-backed
    `dyn` object, but `dyn I + Send` cannot be expressed and
    `Box<dyn I>`/`Arc<dyn I>` cannot cross threads. Full `dyn` bounds are M1.19;
    see `lang/docs/dyn-object-model.md`.

@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.42)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.43)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1441,7 +1441,8 @@ new number as the honest baseline, not a compiler regression.
    boxed view as a borrow, so returning it from a local is `SAFE-LIFE-001` and
    letting it outlive the referent is `SAFE-LIFE-002`. `std::DynBox<I>` /
    `std::dyn_box<T, I>` provides the owning erased value: it owns one concrete
-   allocation and drops it exactly once through an owner closure. `dyn` is still
+   allocation and drops it exactly once through a stored `drop_erased<T>`
+   function. `dyn` is still
    conservatively `!Send`/`!Sync`/`!Unpin`; `dyn I + Send` cannot be expressed,
    and `Box<dyn I>`/`Arc<dyn I>` cannot cross threads. See
    `lang/docs/dyn-object-model.md`; M1.19.
@@ -2883,3 +2884,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.41 (2026-11-01): `dyn` fat-pointer first slice. `dyn I` now reports target-aware two-pointer size and pointer alignment (instead of hard-coded 64-bit values). Dynamic dispatch peels one `&`/`*` indirection, so `Box<dyn I>::get()` (`&dyn I`) dispatches through the fat pointer's vtable rather than falling back to a static interface method; the same path works on TCC and LLVM. `Box<dyn I>` is documented as a boxed fat-pointer **view** (the generic `Box<T>` owns the two-word record, not the referent). Safe construction is conservatively rejected with `SAFE-DYN-001` until boxed-view borrow tracking lands; owning erased values need a separate drop contract. Added `sizeof`/`alignof` tests, an `&dyn` dispatch test, a boxed-view runtime test under `unsafe`, and a negative `SAFE-DYN-001` test. Design: `lang/docs/dyn-object-model.md`. Main TCC/LLVM `2381`/`2379`; negative `715`; safety `69`; async `69`; libs `730`; interpret `1913`; `MIRTests` `4682`; audit no growth (intentional `raw_pointer_types` +2 from the boxed-dyn test).
 
 *Revision note v4.42 (2026-11-01): `dyn` borrow tracking and owning `DynBox`. MIR type records now carry a conservative `contains_borrow_view` fact for `dyn` and aggregates that store a `dyn` fat pointer. A fat pointer's data-word field store lifts the referent loan to the view; the vtable word is ignored. `Box<dyn I>` is therefore borrow-checked as a view: returning a boxed local is `SAFE-LIFE-001`, and a boxed view that outlives its referent scope is `SAFE-LIFE-002`; safe construction no longer needs `unsafe` or `SAFE-DYN-001` (retired). View-result loan mapping is narrowed to `box`, so copy-owning APIs such as `get_owned_parameter(view)` do not inherit the argument's loan. Added `std::DynBox<I>` and `std::dyn_box<T, I>`: the constructor allocates the concrete value once, builds a `dyn I` against the heap address, and moves the owning `Box<T>` into an empty capturing closure, which drops it exactly once. `DynBox` is excluded from the borrowed-view classification because it owns the heap storage; destructor tests cover drop-once. Existing dynamic tests were corrected to keep a referent alive instead of returning a view of a by-value parameter. Main TCC/LLVM `2381`/`2379`; `@test` `56`; negative `716`; safety `69`; async `69`; libs `730`; interpret `1913`; `MIRTests` `4682`; audit no growth (reviewed `raw_pointer_derefs 1068`, `raw_pointer_types 9361`); TSAN pass.
+
+*Revision note v4.43 (2026-11-01): `DynBox` stored drop contract. `DynBox<I>` now stores `{ fat, data, drop }` instead of an owner closure: `dyn_box<T, I>` allocates `T` once, captures the heap pointer, stores the monomorphized `drop_erased<T>`, and forgets the backing `Box<T>`. The destructor calls the stored function once, which runs the normal `delete` path (destructor + free). This removes the owner-closure allocation while preserving drop-once semantics and the safe `DynBox::get`/`get_mut` surface. `DynBox` remains move-only and excluded from borrowed-view tracking because it owns the heap storage. Main TCC/LLVM `2381`/`2379`; `@test` `56`; negative `716`; safety `69`; async `69`; libs `730`; interpret `1913`; `MIRTests` `4682`; audit no growth; TSAN pass.

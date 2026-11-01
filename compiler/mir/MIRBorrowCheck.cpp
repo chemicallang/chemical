@@ -295,7 +295,7 @@ bool is_borrow_view_type(const MIRModule& module, TypeId type) {
     const MIRTypeRecord& rec = module.types.types[type];
     const std::string_view name = module.types.name_view(type);
     // `DynBox<I>` stores a `dyn I` view but owns its heap referent through the
-    // owner closure; it must not be treated as a borrowed view. `Box<dyn I>`
+    // data/drop pair; it must not be treated as a borrowed view. `Box<dyn I>`
     // remains a boxed borrowed view.
     if (name.find("DynBox") != std::string_view::npos) return false;
     if (rec.contains_borrow_view) return true;

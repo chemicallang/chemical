@@ -3,7 +3,7 @@
 Status: design note (2026-11-01). The first slice is implemented: `dyn` is a
 target-aware fat pointer, `Box<dyn I>` is a borrow-checked boxed view, and
 `std::DynBox<I>` provides owning type erasure. This note records the remaining
-design choices (vtable drop slot vs. owner closure, auto traits, upcasting).
+design choices (stored drop function vs. vtable drop slot, auto traits, upcasting).
 
 ## The invariant
 
@@ -68,21 +68,24 @@ than a special `Box<dyn I>` layout:
 ```
 struct DynBox<I> {
     fat: dyn I,
-    owner: std::function<() => void>
+    data: *mut void,
+    drop: (p : *mut void) => void
 }
 ```
 
 `std::dyn_box<T, I>(value)` allocates `T` once with `std::box`, builds a
-`dyn I` view against that stable heap address, and moves the owning `Box<T>`
-into an empty capturing closure. The closure's destructor drops the `Box<T>`,
-so `DynBox` destroys the concrete value exactly once. `DynBox` itself is
-move-only because the owner closure is destructor-bearing.
+`dyn I` view against that stable heap address, captures the raw data pointer,
+and stores `drop_erased<T>` as the type-specific drop contract. It then
+forgets the backing `Box<T>` so only `DynBox` owns the allocation. `DynBox`'s
+destructor calls the stored function once; `drop_erased<T>` runs the normal
+`delete` path (destructor, then free).
 
-This costs a second allocation for the owner closure; a future vtable drop slot
-can remove it. The important property is that `DynBox` is already a safe,
-correct owning API and does not require changing `Box<T>`'s generic layout.
-`DynBox` is deliberately excluded from the borrowed-view classification in MIR:
-its `dyn` field points at heap storage that `owner` keeps alive.
+This is one allocation for the value plus a three-word `DynBox` (fat pointer,
+data pointer, drop pointer). No owner-closure allocation is needed. `DynBox`
+itself is move-only because it has an explicit destructor.
+
+`DynBox` is deliberately excluded from the borrowed-view classification in
+MIR: its `dyn` field points at heap storage that `data`/`drop` own.
 
 ## Rust comparison
 
@@ -113,19 +116,17 @@ Keep the invariant and separate the two concepts:
 - `Box<dyn I>` — thin owning pointer to a heap fat-pointer **record** (boxed
   view), with the referent borrow checked by MIR.
 - `DynBox<I>` — owning erased value; owns the concrete allocation and drops it
-  exactly once through its owner closure.
+  exactly once through its stored drop function.
 
 Implementation status and next steps:
 
 1. **Landed:** target-aware `dyn` size/alignment, `&dyn` dispatch through
    `Box::get`, MIR borrow tracking for `dyn`/`Box<dyn>`, safe `Box<dyn>` with
-   `SAFE-LIFE-001`/`002` rejections, and `std::DynBox<I>` / `std::dyn_box`.
-2. Optimize `DynBox` with a vtable drop slot (or equivalent stored drop
-   function) to remove the owner-closure allocation; keep the owner-closure
-   implementation as the correctness baseline.
-3. `dyn I + Send/Sync` auto-trait bounds and `DynBox` Send/Sync conditionally.
-4. Upcasting (`dyn Derived` → `dyn Base`) and object-safe associated items.
-5. Continue M1.11 (`&str`/UTF-8) separately.
+   `SAFE-LIFE-001`/`002` rejections, and `std::DynBox<I>` / `std::dyn_box`
+   with a stored type-specific drop function.
+2. `dyn I + Send/Sync` auto-trait bounds and conditional `DynBox` `Send`/`Sync`.
+3. Upcasting (`dyn Derived` → `dyn Base`) and object-safe associated items.
+4. Continue M1.11 (`&str`/UTF-8) separately.
 
 ## `&str` note
 

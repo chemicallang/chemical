@@ -82,6 +82,14 @@ public:
     std::unordered_set<VarInitStatement*> capture_escape_locals;
 
     /**
+     * Locals that may currently hold a callback whose real capture
+     * environment contains a `FutureHandle`, including through an erased
+     * `std::function` type. Updated on initializers/assignments so a later
+     * `SAFE-LIFE-005` argument check can follow the taint.
+     */
+    std::unordered_set<VarInitStatement*> future_capture_locals;
+
+    /**
      * when set, IndexOperator destructible check is skipped
      * used when IndexOperator is on LHS of assignment or wrapped in AddrOfValue/ReferenceOfValue
      */

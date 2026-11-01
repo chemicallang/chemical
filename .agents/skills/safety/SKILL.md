@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2378/2378` |
 | LLVM main | `2376/2376` |
 | `@test` runner | `54/54` |
-| TCC/LLVM negative | `680/680` |
+| TCC/LLVM negative | `684/684` |
 | TCC/LLVM safety | `64/64` |
 | TCC/LLVM async | `68/68` |
 | TCC libs | `730/730` |
@@ -238,10 +238,13 @@ memory safety.
    neither a known consumer (`block_on`/`spawn` in the actual async/std library
    namespace) nor returning a future-containing result. This closes the direct
    return, local scope, wrapper, method, struct-field, `Option`, `string_view`,
-   and safe stash cases in the negative suite. Remaining: full call-site
-   lifetime inference/unification, custom safe consumer wrappers
-   (conservatively rejected), and borrowed futures hidden behind a reference
-   or callback capture.
+   and safe stash cases in the negative suite. `SAFE-LIFE-005` now follows safe
+   references (`&FutureHandle`) and the lambda's real capture list/initializers,
+   including erased `std::function` fields/arguments and callbacks assigned
+   after declaration, so a borrowed future cannot hide behind a reference or
+   callback capture. Remaining: full call-site
+   lifetime inference/unification and custom safe consumer wrappers
+   (conservatively rejected).
 2. **Full target-aware C ABI remains M2.** LLVM now rejects by-value `@extern`
    aggregates on targets other than x86-64 SysV (`SAFE-FFI-003`); the C backend
    delegates to the host compiler. Windows/ARM ABI support, `repr`/layout

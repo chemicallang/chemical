@@ -2287,6 +2287,14 @@ static bool contains_future_handle_ast_type(
     BaseType* canonical = type->canonical();
     if (canonical == nullptr || !visiting.insert(canonical).second) return false;
     if (is_future_handle_ast_type(canonical)) return true;
+    if (canonical->kind() == BaseTypeKind::Reference) {
+        // A safe reference to a borrowed future can be retained by a callee
+        // just as easily as the handle itself. Raw pointers are deliberately
+        // not followed: observing the pointee still requires `unsafe`.
+        return contains_future_handle_ast_type(
+            const_cast<BaseType*>(canonical->as_reference_type_unsafe()->type),
+            visiting, depth + 1);
+    }
     if (canonical->kind() == BaseTypeKind::Array) {
         return contains_future_handle_ast_type(
             const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
@@ -2339,6 +2347,145 @@ static bool contains_future_handle_ast_type(
 static bool contains_future_handle_ast_type(BaseType* type) {
     std::unordered_set<BaseType*> visiting;
     return contains_future_handle_ast_type(type, visiting);
+}
+
+// Resolve a value that names a struct literal through any number of variable
+// initializers. Used to inspect erased callback fields (`holder.callback`) whose
+// static type no longer carries the lambda's real capture witness.
+static StructValue* resolve_future_capture_struct_value(
+        Value* value, std::unordered_set<ASTNode*>& visiting, unsigned depth = 0) {
+    if (value == nullptr || depth > 8) return nullptr;
+    value = unwrap_capture_value(value);
+    if (value->val_kind() == ValueKind::StructValue) {
+        return value->as_struct_value_unsafe();
+    }
+    if (!Value::isIdentifier(value->val_kind())) return nullptr;
+    ASTNode* linked = value->as_identifier_unsafe()->linked;
+    if (linked == nullptr || linked->kind() != ASTNodeKind::VarInitStmt) {
+        return nullptr;
+    }
+    if (!visiting.insert(linked).second) return nullptr;
+    return resolve_future_capture_struct_value(
+        linked->as_var_init_unsafe()->value, visiting, depth + 1);
+}
+
+/**
+ * Whether a callback value carries a future in its real capture environment.
+ *
+ * `contains_future_handle_ast_type` covers the common inferred/typed callback
+ * whose capture witness is still present. An erased `std::function` field or a
+ * direct lambda argument can lose that witness in the static type, so follow the
+ * lambda capture list and struct-literal initializers as well.
+ */
+static bool value_captures_future_handle(
+        Value* value, std::unordered_set<ASTNode*>& visiting,
+        const std::unordered_set<VarInitStatement*>* tainted,
+        unsigned depth = 0) {
+    if (value == nullptr || depth > 8) return false;
+    value = unwrap_capture_value(value);
+    switch (value->val_kind()) {
+        case ValueKind::LambdaFunc: {
+            auto* lambda = value->as_lambda_func_unsafe();
+            if (lambda->capture_env &&
+                contains_future_handle_ast_type(
+                    const_cast<BaseType*>(lambda->capture_env.getType()))) {
+                return true;
+            }
+            for (CapturedVariable* cap : lambda->captureList) {
+                if (cap == nullptr) continue;
+                BaseType* type = cap->known_type();
+                if (type != nullptr && contains_future_handle_ast_type(type)) {
+                    return true;
+                }
+                ASTNode* linked = cap->linked;
+                if (linked == nullptr || !visiting.insert(linked).second) continue;
+                if (linked->kind() == ASTNodeKind::VarInitStmt) {
+                    auto* captured_var = linked->as_var_init_unsafe();
+                    if (tainted != nullptr &&
+                        tainted->count(captured_var) != 0) {
+                        return true;
+                    }
+                    if (value_captures_future_handle(
+                            captured_var->value, visiting, tainted,
+                            depth + 1)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        case ValueKind::Identifier: {
+            ASTNode* linked = value->as_identifier_unsafe()->linked;
+            if (linked == nullptr || linked->kind() != ASTNodeKind::VarInitStmt ||
+                !visiting.insert(linked).second) {
+                return false;
+            }
+            auto* var = linked->as_var_init_unsafe();
+            if (tainted != nullptr) {
+                // Initializer/assignment taint is recorded by the enclosing
+                // statement visit; do not re-follow the initializer here or a
+                // later clean assignment could not clear it.
+                return tainted->count(var) != 0;
+            }
+            return value_captures_future_handle(
+                var->value, visiting, tainted, depth + 1);
+        }
+        case ValueKind::AccessChain: {
+            auto* chain = value->as_access_chain_unsafe();
+            if (chain->values.empty()) return false;
+            Value* base = chain->values[0];
+            if (Value::isIdentifier(base->val_kind())) {
+                ASTNode* linked = base->as_identifier_unsafe()->linked;
+                if (linked != nullptr && linked->kind() == ASTNodeKind::VarInitStmt &&
+                    tainted != nullptr &&
+                    tainted->count(linked->as_var_init_unsafe()) != 0) {
+                    // The whole holder may carry a tainted callback in any
+                    // field; reject rather than identifying the wrong member.
+                    return true;
+                }
+            }
+            for (size_t i = 1; i < chain->values.size(); ++i) {
+                StructValue* container = resolve_future_capture_struct_value(
+                    base, visiting, depth + 1);
+                if (container == nullptr) return false;
+                Value* part = chain->values[i];
+                if (part == nullptr || !Value::isIdentifier(part->val_kind())) {
+                    return false;
+                }
+                const chem::string_view name =
+                    part->as_identifier_unsafe()->value;
+                auto it = container->values.find(name);
+                if (it == container->values.end() || it->second.value == nullptr) {
+                    return false;
+                }
+                if (i + 1 == chain->values.size()) {
+                    return value_captures_future_handle(
+                        it->second.value, visiting, tainted, depth + 1);
+                }
+                base = it->second.value;
+            }
+            return false;
+        }
+        case ValueKind::StructValue: {
+            auto* struct_value = value->as_struct_value_unsafe();
+            for (auto& entry : struct_value->values) {
+                if (value_captures_future_handle(
+                        entry.second.value, visiting, tainted, depth + 1)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        default:
+            return false;
+    }
+}
+
+static bool value_captures_future_handle(
+        Value* value,
+        const std::unordered_set<VarInitStatement*>* tainted = nullptr) {
+    std::unordered_set<ASTNode*> visiting;
+    return value_captures_future_handle(value, visiting, tainted);
 }
 
 static bool is_namespace_named(ASTNode* node, const char* expected) {
@@ -2530,7 +2677,10 @@ static void verify_future_argument_contract(TypeVerifier& verifier,
         Value* value = unwrap_capture_value(arg);
         if (value == nullptr) continue;
         BaseType* type = const_cast<BaseType*>(value->getType());
-        if (!contains_future_handle_ast_type(type)) continue;
+        if (!contains_future_handle_ast_type(type) &&
+            !value_captures_future_handle(value, &verifier.future_capture_locals)) {
+            continue;
+        }
         verifier.diagnoser.error(value).with_code("SAFE-LIFE-005")
             << "a FutureHandle cannot be passed to a safe function that may "
                "retain it; consume it with block_on/spawn or return it from the "
@@ -3460,6 +3610,9 @@ void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
     if(value && captures_function_local_storage(value, capture_escape_locals)) {
         capture_escape_locals.insert(stmt);
     }
+    if (value && value_captures_future_handle(value, &future_capture_locals)) {
+        future_capture_locals.insert(stmt);
+    }
     if(type && value) {
         require_unsafe_for_capture(*this, value, type, value);
     }
@@ -3815,6 +3968,11 @@ void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
             capture_escape_locals.insert(target);
         } else {
             capture_escape_locals.erase(target);
+        }
+        if (value_captures_future_handle(assign->value, &future_capture_locals)) {
+            future_capture_locals.insert(target);
+        } else {
+            future_capture_locals.erase(target);
         }
     }
 

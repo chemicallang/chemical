@@ -1080,7 +1080,7 @@
 > (layout and C ABI); C ABI classification for Windows/ARM, FFI wrappers, and
 > deeper HRTB precision remain (variance/temporary-lifetime extension are
 > implemented).
-> Safety suite `64`; negative tests `680`; main TCC `2378`, LLVM `2376`;
+> Safety suite `64`; negative tests `684`; main TCC `2378`, LLVM `2376`;
 > libs `730`; plugins `1305`; async `68`; interpret `1910`; server `10`;
 > TLS `599`; `MIRTests` `4643 checks`. The whole-tree audit
 > manifest (`lang/docs/safety/audit-modules.txt`) covers `94` modules with
@@ -1334,7 +1334,7 @@ approximate counts:
 |---|---|
 | TCC main / LLVM main | `2378` / `2376` |
 | `@test` runner | `54` |
-| TCC/LLVM negative | `680` / `680` |
+| TCC/LLVM negative | `684` / `684` |
 | TCC/LLVM safety | `64` / `64` |
 | TCC/LLVM async | `68` / `68` |
 | TCC libs | `730` |
@@ -1358,10 +1358,12 @@ new number as the honest baseline, not a compiler regression.
    rejects a future (or a struct/array/`Option` containing one) passed to a safe
    callee that is not a known consumer and does not return a future-containing
    result. Direct returns, locals, wrappers, methods, struct fields, `Option`,
-   `string_view`, and safe stash APIs are covered. Remaining: full call-site
-   lifetime unification/inference, custom consumer wrappers (conservatively
-   rejected), and borrowed futures hidden behind references or callback
-   captures.
+   `string_view`, and safe stash APIs are covered. `SAFE-LIFE-005` now follows
+   references (`&FutureHandle`) and the real lambda capture list, including an
+   erased `std::function` field/argument (including a callback assigned after
+   declaration through the taint set), so a borrowed future cannot be hidden
+   behind a reference or callback capture. Remaining: full call-site lifetime
+   unification/inference and custom consumer wrappers (conservatively rejected).
 2. **Full target-aware C ABI remains M2.** LLVM now rejects by-value `@extern`
    aggregates on non-x86-64-SysV targets with `SAFE-FFI-003`; the C backend uses
    the host C compiler. Windows/ARM ABI support, `repr`/layout coverage,
@@ -2798,3 +2800,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.33 (2026-10-31): variadic Fn signatures. MIR function definitions now spell the C variadic tail for both ordinary functions and lambdas, and lambda function types carry `TF_VARIADIC`; generic `Fn`/`FnMut`/`FnOnce` bounds therefore work with variadic signatures and variadic lambda arguments. Associated output is carried by the function type (`Fn<(args...) => Out>`). Added runtime tests for a variadic named callback and a variadic lambda through an `Fn` bound. Main TCC/LLVM `2378`/`2376`; negative `679`. Remaining: async closures.*
 
 *Revision note v4.34 (2026-11-01): async closures. `async |captures|(params) => ...` is now lowered on TCC and LLVM instead of diagnosed. A capturing async closure is conservatively a `FnOnce` callable: the ramp moves the whole `default_function_instance` (including the capture allocation base) into the coroutine frame, `poll` binds captured names through the frame's `fn_data_ptr`, and the frame destroys the instance on normal completion, cancellation, or a never-polled drop. Non-capturing async closures remain reusable function pointers. Explicit `FnOnce`/generic bound targets and field-stored callables are covered; a capturing async closure assigned to `Fn`/`FnMut` is rejected, and a borrowed capture cannot be typed as `FutureHandle<'static, T>` (`SAFE-LIFE-004`). Async suite `68` TCC/LLVM; main `2378`/`2376`; negative `680`; safety `64`; libs `730`; `MIRTests` `4643`.*
+
+*Revision note v4.35 (2026-11-01): `SAFE-LIFE-005` reference and callback-capture closure. `contains_future_handle_ast_type` now recurses through safe references, so `&FutureHandle` (including inside `Option`/arrays/structs) cannot be passed to an unknown safe callee. The argument scan also inspects the real lambda capture list and struct-literal/field initializers, catching a future hidden in a callback whose static `std::function` type erased the capture witness. Added negative tests for a reference escape, a direct capturing lambda argument, a field-stored capturing callback, and a callback assigned after declaration. Main TCC/LLVM `2378`/`2376`; negative `684`; safety `64`; async `68`; libs `730`; `MIRTests` `4643`. Remaining: full call-site lifetime unification and custom consumer wrappers.*

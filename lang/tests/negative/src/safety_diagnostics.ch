@@ -389,6 +389,34 @@ func neg_future_handle_consumer_namespace_spoof_rejected(env : &mut TestEnv) {
 }
 
 @test
+func neg_future_handle_reference_cannot_escape_to_retaining_api(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc stash_ref(r : &core::async::FutureHandle<int>) {\n}\npublic func main() : int {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    var h = work(&s)\n    stash_ref(&h)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "future_reference_escape_retaining_api", ch, "SAFE-LIFE-005", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_direct_callback_capture_cannot_escape(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nstruct Carrier { var h : core::async::FutureHandle<int>; var tag : int }\nfunc stash_cb(cb : std::function<() => int>) {\n}\npublic func main() : int {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    var c = Carrier { h : work(&s), tag : 1 }\n    stash_cb(|c|() => { return c.tag })\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "future_direct_callback_capture_retaining_api", ch, "SAFE-LIFE-005", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_callback_field_capture_cannot_escape(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nstruct Carrier { var h : core::async::FutureHandle<int>; var tag : int }\nstruct Holder { var cb : std::function<() => int> }\nfunc stash_cb(cb : std::function<() => int>) {\n}\npublic func main() : int {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    var c = Carrier { h : work(&s), tag : 1 }\n    var holder = Holder { cb : |c|() => { return c.tag } }\n    stash_cb(holder.cb)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "future_callback_field_capture_retaining_api", ch, "SAFE-LIFE-005", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_future_handle_assigned_callback_capture_cannot_escape(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nstruct Carrier { var h : core::async::FutureHandle<int>; var tag : int }\nfunc stash_cb(cb : std::function<() => int>) {\n}\npublic func main() : int {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    var c = Carrier { h : work(&s), tag : 1 }\n    var cb : std::function<() => int>\n    cb = |c|() => { return c.tag }\n    stash_cb(cb)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "future_assigned_callback_capture_retaining_api", ch, "SAFE-LIFE-005", NEG_MOD_ASYNC_STD)
+}
+
+@test
 func neg_future_handle_cannot_escape_to_retaining_api(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "using std::Option\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc stash(f : core::async::FutureHandle<int>, slot : &mut Option<core::async::FutureHandle<int>>) {\n    *slot = Option.Some<core::async::FutureHandle<int>>(f)\n}\npublic func main() : int {\n    var slot = Option.None<core::async::FutureHandle<int>>()\n    {\n        var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n        var h = work(&s)\n        stash(h, &mut slot)\n    }\n    var Some(h) = slot else unreachable\n    var r = async::block_on<int>(h)\n    return 0\n}\n"

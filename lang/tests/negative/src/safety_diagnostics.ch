@@ -2064,3 +2064,24 @@ func neg_str_view_cannot_return_local_string(env : &mut TestEnv) {
     var ch = "func bad() : &str {\n    var value = std::string(\"hello\")\n    var view : &str = &value\n    return view\n}\npublic func main() : int {\n    var s = bad()\n    return s.size() as int - 5\n}\n"
     expect_compile_error_with_mod(env, "str_view_local_string", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
 }
+
+@test
+func neg_shared_slice_cannot_mutate(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var a : [3]int = [1, 2, 3]\n    var s : &[int] = a\n    s[0] = 9\n    return a[0]\n}\n"
+    expect_compile_error_with_mod(env, "shared_slice_mutation", ch, "cannot assign through a shared slice view", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_mutable_slice_requires_mutable_source(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var a : [3]int = [1, 2, 3]\n    var s : &mut [int] = a\n    s[0] = 9\n    return a[0]\n}\n"
+    expect_compile_error_with_mod(env, "mutable_slice_from_array", ch, "does not satisfy type 'mut_span", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_mutable_slice_view_cannot_return_local_vector(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func bad() : &mut [int] {\n    var values = std::vector<int>()\n    values.push(1)\n    var view : &mut [int] = &mut values\n    return view\n}\npublic func main() : int {\n    var v = bad()\n    return v.size() as int\n}\n"
+    expect_compile_error_with_mod(env, "mutable_slice_view_local_vector", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
+}

@@ -24,16 +24,16 @@ for the safe API surface we currently expose**, not full language parity.
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
 | Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
-| Type-system / stdlib parity | M1 partial: basic tuples and `&[T]`/`&str` borrowed views implemented; bare slices, `Box<[T]>`, GATs, const generics, `impl Trait`, derive remain. M7/M2/M8 remain. |
+| Type-system / stdlib parity | M1 partial: basic tuples, `[T]`/`&[T]`, `&mut [T]`, `Box<[T]>`, and `&str` views implemented; explicit slice lifetimes, array-backed mutable slices, sub-slicing, GATs, const generics, `impl Trait`, derive remain. M7/M2/M8 remain. |
 
 Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2397/2397` |
-| LLVM main | `2395/2395` |
+| TCC main | `2401/2401` |
+| LLVM main | `2399/2399` |
 | `@test` runner | `56/56` |
-| TCC/LLVM negative | `722/722` |
+| TCC/LLVM negative | `725/725` |
 | TCC/LLVM safety | `70/70` |
 | TCC/LLVM async | `69/69` |
 | TCC libs | `730/730` |
@@ -41,7 +41,7 @@ Latest measured baseline:
 | TCC interpret | `1921/1921` |
 | `MIRTests` | `4682 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
-| Whole-tree audit | `unsafe_blocks 3775`, `unsafe_values 4902`, `raw_pointer_derefs 1069`, `panic_calls 106` |
+| Whole-tree audit | `unsafe_blocks 3775`, `unsafe_values 4902`, `raw_pointer_types 9367`, `raw_pointer_derefs 1069`, `panic_calls 106` |
 | Audit result | `no growth` against `lang/docs/safety/audit-baseline.json` |
 
 The audit totals increased from the historical `3661/4890` in the 2026-10-31
@@ -360,12 +360,14 @@ memory safety.
 12. **Panic unwinding is withdrawn.** Panic always aborts; there is no
     `catch_unwind`, `UnwindSafe`, or drop-on-unwind surface.
 
-13. **`&[T]` and `&str` are borrowed-view aliases.** `&[T]` maps to
-    `std::span<T>` and `&str` maps to `std::str`, a UTF-8-validated
-    `string_view` wrapper (`lang/docs/slices.md`). Array/vector views,
-    indexing, `size`, UTF-8 validation, and local-escape rejection are
-    implemented. Bare `[T]`, `Box<[T]>`, mutable slice indexing, and explicit
-    `&'a str` lifetimes remain M1 work.
+13. **Slices and `&str` are view/owning aliases.** `[T]`/`&[T]` map to
+    `std::span<T>`, `&mut [T]` to `std::mut_span<T>`, `Box<[T]>` to the owning
+    vector-backed `std::boxed_slice<T>`, and `&str` to UTF-8-validated
+    `std::str` (`lang/docs/slices.md`). Indexing, mutable writes, ownership
+    moves, UTF-8 validation, and local-escape rejection are implemented. The
+    `IndexMut` interface now declares `index_mut`. Explicit `&'a` lifetimes,
+    array-backed mutable slices, sub-slicing, and slice patterns remain M1
+    work.
 
 14. **Tuples are a first slice.** `(T1, T2)` types, `(e1, e2)` literals,
     `._0` access, parameters/returns, nested tuples, `Copy`/`Send`/`Sync`/`Unpin`

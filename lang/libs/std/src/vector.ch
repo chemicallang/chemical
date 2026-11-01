@@ -168,6 +168,10 @@ public struct vector<T> {
         return self.data_ptr;
     }
 
+    func mutable_data(&mut self) : *mut T {
+        return data_ptr;
+    }
+
     func last_ptr(&self) : *mut T {
         __vector_nonempty_check(data_size)
         return unsafe(data_ptr + (data_size - 1));

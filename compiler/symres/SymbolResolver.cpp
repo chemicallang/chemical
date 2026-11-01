@@ -152,7 +152,7 @@ void SymbolResolver::link_core_nodes() {
     coreNodes.ops.dec_post = func_of_interface(opsNode, "Decrement", "dec_post");
 
     coreNodes.ops.index = func_of_interface(opsNode, "Index", "index");
-    coreNodes.ops.index_mut = func_of_interface(opsNode, "IndexMut", "index");
+    coreNodes.ops.index_mut = func_of_interface(opsNode, "IndexMut", "index_mut");
 
     const auto iterableNode = coreNode->child("iterable");
     if (iterableNode == nullptr || iterableNode->kind() != ASTNodeKind::NamespaceDecl) return;

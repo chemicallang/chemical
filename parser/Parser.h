@@ -729,6 +729,15 @@ public:
     /** Build a qualified type reference such as `std::span`. */
     LinkedValueType* makeQualifiedValueType(ASTAllocator& allocator, const std::vector<chem::string_view>& parts, SourceLocation location);
 
+    /** Build the compiler-known borrowed slice view `[T]`. */
+    GenericType* makeSpanType(ASTAllocator& allocator, TypeLoc element, SourceLocation location);
+
+    /** Build the owning `Box<[T]>` replacement type. */
+    GenericType* makeBoxedSliceType(ASTAllocator& allocator, TypeLoc element, SourceLocation location);
+
+    /** Build the mutable borrowed slice view `&mut [T]`. */
+    GenericType* makeMutSpanType(ASTAllocator& allocator, TypeLoc element, SourceLocation location);
+
     /** Parses `(T1, T2, ...)` in type position. */
     TypeLoc parseTupleTypeLoc(ASTAllocator& allocator);
 

@@ -530,7 +530,18 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         // `x[i] = v` on a struct uses the `IndexMut` method
                         BaseType* recv_t = io->parent_val ? io->parent_val->getType() : nullptr;
                         FunctionDeclaration* fd = resolve_method_fallback(recv_t, "index_mut");
-                        if (!fd) fd = resolve_method_fallback(recv_t, "index");
+                        if (!fd) {
+                            // Shared borrowed slice views are immutable. The
+                            // legacy struct-index path may use a read-only
+                            // `index` for assignment, but `span` must not.
+                            const std::string_view type_name =
+                                module_.types.name_view(bt);
+                            if (type_name.find("span") != std::string_view::npos) {
+                                error = "cannot assign through a shared slice view";
+                                return false;
+                            }
+                            fd = resolve_method_fallback(recv_t, "index");
+                        }
                         if (!fd) {
                             error = "index operator overloading is not yet supported";
                             return false;

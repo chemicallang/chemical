@@ -191,7 +191,7 @@ public interface Index<Idx, Output> {
 }
 
 public interface IndexMut<Idx, Output> : Index<Idx, Output> {
-    func index(&mut self, idx : Idx) : &mut Output;
+    func index_mut(&mut self, idx : Idx) : &mut Output;
 }
 
 // Callable-kind bounds. These are marker interfaces over a function signature

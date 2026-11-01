@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.49)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.50)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1292,7 +1292,7 @@ but keep aliasing/race checks. GC is a later mode.
 | Async | Shipped; type-level lifetime + field/container inference | `Pin`/Waker/frame loans; `spawn_send` frame check; MIR future borrow tracking through fields/wrappers/pointer containers + `SAFE-LIFE-005` retaining-API rejection. |
 | Trait objects | Partial | Basic dynamic dispatch; `dyn I + Send`/`+ Sync`/`+ Unpin` are represented and construction-checked, and `dyn` without bounds is conservatively `!Send`/`!Sync`/`!Unpin`. |
 | Tuples | Basic slice implemented | Construction, `._0` access, parameters/returns, nested tuples, assignment, structural `Copy`/`Send`/`Sync`/`Unpin`, and field-wise drops. Tuple structs/destructuring/unit values remain. |
-| Slices / `&str` | Basic borrowed view | `&[T]` aliases `std::span<T>` (array/vector views, indexing, `size`); `&str` aliases `std::str` with UTF-8 validation; view escapes are borrow-checked. Bare `[T]`, `Box<[T]>`, mutable slices, explicit lifetimes remain. |
+| Slices / `&str` | Borrowed, mutable, and owning slices | `[T]`/`&[T]` alias `std::span<T>`; `&mut [T]` aliases `std::mut_span<T>`; `Box<[T]>` aliases `std::boxed_slice<T>`; `&str` aliases UTF-8-validated `std::str`. Indexing, writes, owning moves, local-escape checks, and the `IndexMut` interface are implemented. Explicit lifetimes, array-backed mutable slices, sub-slicing, and patterns remain. |
 | Const generics/GATs/`impl Trait` | Absent | Full parity remains M1. |
 | `&str`/UTF-8 | Byte-string surface | `string`/`string_view`; UTF-8 parity M1. |
 | Derive | Absent | CBI macros exist; no built-in derive. |
@@ -1338,9 +1338,9 @@ approximate counts:
 
 | Gate | Result |
 |---|---|
-| TCC main / LLVM main | `2397` / `2395` |
+| TCC main / LLVM main | `2401` / `2399` |
 | `@test` runner | `56` |
-| TCC/LLVM negative | `722` / `722` |
+| TCC/LLVM negative | `725` / `725` |
 | TCC/LLVM safety | `70` / `70` |
 | TCC/LLVM async | `69` / `69` |
 | TCC libs | `730` |
@@ -1348,7 +1348,7 @@ approximate counts:
 | TCC interpret | `1921` |
 | `MIRTests` | `4682 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
-| Whole-tree audit | `unsafe_blocks 3775`, `unsafe_values 4902`, `raw_pointer_derefs 1069`, `panic_calls 106` |
+| Whole-tree audit | `unsafe_blocks 3775`, `unsafe_values 4902`, `raw_pointer_types 9367`, `raw_pointer_derefs 1069`, `panic_calls 106` |
 
 The audit count is higher than the historical `3661/4890` because the report
 previously skipped **all** `ImplDefinition` bodies; it now walks them, and the
@@ -2909,3 +2909,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.48 (2026-11-01): tuples (first slice). Tuple types `(T1, T2)` and literals `(e1, e2)` are represented as structural inline `StructType`s with generated `_0`, `_1`, ... members; `._0` access parses numeric field access and nested tuples work. MIR interns tuple aggregates by element type ids with a structural C tag, so prototypes and bodies agree. Tuple facts include structural equality, element-wise `Copy`/`Send`/`Sync`/`Unpin`, parameter/return passing, and field-wise drop-once (including destructor-bearing elements). The parser speculatively tries the lambda form for `(a, b) => ...`, rolls back on failure, and suppresses speculative diagnostics; multi-line tuple types/values and function-type parameter lists are supported. Added six positive tuple tests (including a `Copy` bound test) and a tuple element type mismatch negative. CBI plugin/universal/router suites recompiled and pass. Main TCC/LLVM `2389`/`2387`; `@test` `56`; negative `720`; safety `70`; async `69`; libs `730`; interpret `1921`; plugins `1305`; `MIRTests` `4682`; audit no growth after a reviewed `raw_pointer_derefs 1068 -> 1069` baseline bump for the tuple drop test; TSAN pass. Design/limitations: `lang/docs/tuples.md`; tuple structs, destructuring patterns, and a real unit tuple value remain.
 
 *Revision note v4.49 (2026-11-01): `&[T]` and `&str` view slice. `&[T]` is parsed as `std::span<T>`; array and `&vector<T>` constructors provide the view, the new `Index` impl enables `view[i]`, and existing MIR view tracking rejects returning a view of a local (`SAFE-LIFE-001`). `&str` is parsed as the new `std::str`, a non-owning `std::string_view` wrapper whose safe constructors validate UTF-8 and abort on invalid bytes; `str`/`string_view` views carry source loans and reject local escapes. Added positive array/vector/string/literal tests, UTF-8 valid/invalid validation coverage, and negative `&[T]`/`&str` local-return tests. The audit baseline was intentionally updated for `std::str` (`panic_calls 104 -> 106`, `raw_pointer_types 9361 -> 9363`, `unsafe_blocks 3774 -> 3775`, `unsafe_values 4901 -> 4902`). Main TCC/LLVM `2397`/`2395`; `@test` `56`; negative `722`; safety `70`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass. Design/limits: `lang/docs/slices.md`; bare `[T]`, `Box<[T]>`, mutable slices, and explicit `&'a str` lifetimes remain.
+
+*Revision note v4.50 (2026-11-02): bare `[T]`, mutable `&mut [T]`, and owning `Box<[T]>` slices. `[T]`/`&[T]` map to `std::span<T>`; `&mut [T]` maps to `std::mut_span<T>` (constructed from `&mut vector<T>`, with writes and `IndexMut`); `Box<[T]>` maps to the vector-backed owning `std::boxed_slice<T>`. The `IndexMut` interface now declares `index_mut` so shared `Index` and mutable `IndexMut` can coexist without duplicate C members. Shared-slice assignment is rejected; mutable views of arrays require the explicit unsafe pointer/length constructor. Added bare/vector/owning/mutable tests and negative tests for shared mutation, array-to-mutable-view, and mutable-view escape. Audit baseline was updated for the new std view types (`raw_pointer_types 9363 -> 9367`); no unsafe/panic growth. Main TCC/LLVM `2401`/`2399`; negative `725`; safety `70`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass. Design/limits: `lang/docs/slices.md`; explicit `&'a` lifetimes, array-backed mutable slices, and sub-slicing remain.

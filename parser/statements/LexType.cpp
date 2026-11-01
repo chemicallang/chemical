@@ -88,8 +88,30 @@ bool Parser::consumeGenericClose() {
     return false;
 }
 
+static chem::string_view linked_type_leaf_name(BaseType* type);
+
 BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idType) {
     if(consumeToken(TokenType::LessThanSym)) {
+        // `Box<[T]>` is an owning slice, not a box around a borrowed view.
+        // Recognize the exact slice-shaped argument before the general type
+        // parser turns `[T]` into `std::span<T>`.
+        if(linked_type_leaf_name(idType) == chem::string_view("Box") &&
+           token->type == TokenType::LBracket) {
+            Token* const save = token;
+            const int saved_pending = pending_greater_count;
+            const bool prev_suppression = suppress_errors;
+            suppress_errors = true;
+            token++;
+            auto element = parseTypeLoc(allocator);
+            bool closed = consumeToken(TokenType::RBracket);
+            bool generic_closed = closed && consumeGenericClose();
+            suppress_errors = prev_suppression;
+            if(element && closed && generic_closed) {
+                return makeBoxedSliceType(allocator, element, ZERO_LOC);
+            }
+            token = save;
+            pending_greater_count = saved_pending;
+        }
         std::vector<TypeLoc> types;
         std::vector<chem::string_view> lifetime_args;
         do {
@@ -269,6 +291,61 @@ static bool token_can_start_type(TokenType type) {
         default:
             return false;
     }
+}
+
+static chem::string_view linked_type_leaf_name(BaseType* type) {
+    if(type == nullptr || type->kind() != BaseTypeKind::Linked) return {};
+    auto* linked = type->as_linked_type_unsafe();
+    if(linked->is_named()) {
+        return static_cast<NamedLinkedType*>(linked)->debug_link_name();
+    }
+    if(linked->is_value()) {
+        auto* value_type = static_cast<LinkedValueType*>(linked);
+        Value* value = value_type->value;
+        if(value != nullptr && value->val_kind() == ValueKind::AccessChain) {
+            const auto& parts = value->as_access_chain_unsafe()->values;
+            if(!parts.empty()) {
+                Value* last = parts.back();
+                if(last != nullptr && last->val_kind() == ValueKind::Identifier) {
+                    return last->as_identifier_unsafe()->value;
+                }
+            }
+        }
+    }
+    return {};
+}
+
+GenericType* Parser::makeSpanType(ASTAllocator& allocator, TypeLoc element, SourceLocation location) {
+    std::vector<TypeLoc> args;
+    args.push_back(element);
+    return new (allocator.allocate<GenericType>()) GenericType(
+        (LinkedType*) makeQualifiedValueType(
+            allocator,
+            { chem::string_view("std"), chem::string_view("span") },
+            location),
+        std::move(args));
+}
+
+GenericType* Parser::makeBoxedSliceType(ASTAllocator& allocator, TypeLoc element, SourceLocation location) {
+    std::vector<TypeLoc> args;
+    args.push_back(element);
+    return new (allocator.allocate<GenericType>()) GenericType(
+        (LinkedType*) makeQualifiedValueType(
+            allocator,
+            { chem::string_view("std"), chem::string_view("boxed_slice") },
+            location),
+        std::move(args));
+}
+
+GenericType* Parser::makeMutSpanType(ASTAllocator& allocator, TypeLoc element, SourceLocation location) {
+    std::vector<TypeLoc> args;
+    args.push_back(element);
+    return new (allocator.allocate<GenericType>()) GenericType(
+        (LinkedType*) makeQualifiedValueType(
+            allocator,
+            { chem::string_view("std"), chem::string_view("mut_span") },
+            location),
+        std::move(args));
 }
 
 StructType* Parser::makeTupleType(ASTAllocator& allocator, const std::vector<TypeLoc>& types,
@@ -652,6 +729,23 @@ TypeLoc Parser::parseTypeLocNoPostOps(ASTAllocator& allocator) {
         }
         case TokenType::LBracket:{
             auto& t = *token;
+            // `[T]` (no trailing element type) is the borrowed slice view.
+            // Speculatively parse it as a type; `[N]T` and `[]T` fall back to
+            // the existing array parser because either the inner parse fails
+            // or a type follows the closing bracket.
+            {
+                Token* const save = token;
+                const bool prev_suppression = suppress_errors;
+                suppress_errors = true;
+                token++;
+                auto element = parseTypeLoc(allocator);
+                bool closed = consumeToken(TokenType::RBracket);
+                suppress_errors = prev_suppression;
+                if(element && closed && !token_can_start_type(token->type)) {
+                    return { makeSpanType(allocator, element, loc_single(&t)), loc_single(&t) };
+                }
+                token = save;
+            }
             token++;
             // optional array size
             auto expr = parseExpression(allocator);
@@ -712,15 +806,10 @@ TypeLoc Parser::parseTypeLocNoPostOps(ASTAllocator& allocator) {
                 bool closed = consumeToken(TokenType::RBracket);
                 suppress_errors = prev_suppression;
                 if(element && closed && !token_can_start_type(token->type)) {
-                    std::vector<TypeLoc> args;
-                    args.push_back(element);
-                    auto* span = new (allocator.allocate<GenericType>()) GenericType(
-                        (LinkedType*) makeQualifiedValueType(
-                            allocator,
-                            { chem::string_view("std"), chem::string_view("span") },
-                            ref_loc),
-                        std::move(args));
-                    return { span, ref_loc };
+                    auto* slice = is_mutable
+                        ? makeMutSpanType(allocator, element, ref_loc)
+                        : makeSpanType(allocator, element, ref_loc);
+                    return { slice, ref_loc };
                 }
                 token = slice_start;
             }

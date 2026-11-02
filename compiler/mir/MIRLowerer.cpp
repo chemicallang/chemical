@@ -432,6 +432,9 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error,
                 if (pmid->matchExpr != nullptr && pmid->matchExpr->is_tuple) {
                     return lower_pattern_element(pmid->matchExpr, pmid, true, error);
                 }
+                if (pmid->matchExpr != nullptr && pmid->matchExpr->is_array_pattern) {
+                    return lower_array_pattern_element(pmid->matchExpr, pmid, true, error);
+                }
                 return lower_pattern_payload(pmid->matchExpr, pmid->member_param, true, error);
             }
             // Tuple destructuring binds a local: fall through to the normal

@@ -411,7 +411,7 @@ struct PlanVisitor : public RecursiveVisitor<PlanVisitor> {
     void VisitPatternMatchExprNode(PatternMatchExprNode* node) {
         // Tuple destructuring introduces one real local per element. They need
         // frame slots like any other local when they are live across an await.
-        if(node != nullptr && node->value.is_tuple) {
+        if(node != nullptr && (node->value.is_tuple || node->value.is_array_pattern)) {
             for(auto* id : node->value.param_names) {
                 if(id == nullptr) continue;
                 live.push_back(add_slot(id->identifier, id->known_type(), id));

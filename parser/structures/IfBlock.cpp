@@ -26,33 +26,48 @@ std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator
     if(isVar || t.type == TokenType::ConstKw) {
         token++;
 
-        const auto id = consumeIdentifierOrKeyword();
-        if(id == nullptr) {
-            error("expected an identifier for pattern match");
-            return std::nullopt;
-        }
-
-        const auto tokType = token->type;
-        const auto lBrace = tokType == TokenType::LBrace;
-        if(lBrace || tokType == TokenType::LParen) {
-            token++;
+        if(token->type == TokenType::LBracket) {
+            const auto patternMatch = new (allocator.allocate<PatternMatchExpr>())
+                PatternMatchExpr(!isVar, false, chem::string_view(""), loc_single(t));
+            token++; // '['
+            parseArrayPatternElements(allocator, patternMatch);
+            if(!consumeToken(TokenType::EqualSym)) {
+                error("expected '=' after array pattern");
+            }
+            const auto valueExpr = parseExpression(allocator, false, false);
+            patternMatch->expression = valueExpr != nullptr
+                                           ? valueExpr
+                                           : getErroredValue(allocator);
+            expr = (Value*) patternMatch;
         } else {
-            error("expected a left parenthesis for pattern match");
-            return std::nullopt;
-        }
+            const auto id = consumeIdentifierOrKeyword();
+            if(id == nullptr) {
+                error("expected an identifier for pattern match");
+                return std::nullopt;
+            }
 
-        // pattern match expression
-        const auto patternMatch = new (allocator.allocate<PatternMatchExpr>()) PatternMatchExpr(
-                !isVar, lBrace, allocate_view(allocator, id->value), loc_single(t)
-        );
+            const auto tokType = token->type;
+            const auto lBrace = tokType == TokenType::LBrace;
+            if(lBrace || tokType == TokenType::LParen) {
+                token++;
+            } else {
+                error("expected a left parenthesis for pattern match");
+                return std::nullopt;
+            }
 
-        // parse pattern match
-        parsePatternMatchExprAfterId(allocator, patternMatch, lBrace, false);
+            // pattern match expression
+            const auto patternMatch = new (allocator.allocate<PatternMatchExpr>()) PatternMatchExpr(
+                    !isVar, lBrace, allocate_view(allocator, id->value), loc_single(t)
+            );
+
+            // parse pattern match
+            parsePatternMatchExprAfterId(allocator, patternMatch, lBrace, false);
 
 #ifdef LSP_BUILD
-        id->linked = (ASTAny*) patternMatch;
+            id->linked = (ASTAny*) patternMatch;
 #endif
-        expr = (Value*) patternMatch;
+            expr = (Value*) patternMatch;
+        }
 
     } else {
         const auto valueExpr = parseExpression(allocator);

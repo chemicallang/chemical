@@ -678,6 +678,12 @@ private:
     /** Lower one positional element of a tuple destructuring pattern. */
     MIRExprResult lower_pattern_element(PatternMatchExpr* pm, PatternMatchIdentifier* id,
                                         bool as_address, std::string& error);
+    /** Lower one fixed-array destructuring element. */
+    MIRExprResult lower_array_pattern_element(PatternMatchExpr* pm,
+                                              PatternMatchIdentifier* id,
+                                              bool as_address,
+                                              std::string& error);
+    bool lower_array_pattern_node(PatternMatchExpr* pm, std::string& error);
     /** Lower a pattern match's member-tag comparison (`tag == index`). */
     MIRExprResult lower_pattern_cond(PatternMatchExpr* pm, std::string& error);
     /** Lower a pattern match expression (value position). */

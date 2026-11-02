@@ -191,8 +191,11 @@ func <'a, 'b> shorten(values : &'a [int]) : &'b [int] where 'a : 'b {
 
 - `[T]`/`&[T]` are view aliases, not a first-class unsized `[T]` type.
 - `Box<[T]>` is a vector-backed owning wrapper, not a raw boxed allocation.
-- No slice pattern/destructuring syntax or a `for`-iterable windows/chunks
-  cursor yet (use `.get(i)`).
+- Fixed-size arrays support flat patterns (`var [a, b] = arr`,
+  `[first, .., last]`, `_`). `[T]`/`&[T]` support exact refutable condition
+  patterns (`if(var [a, b] = view)`); slice rest patterns, `&mut [T]`/`Box<[T]>`
+  patterns, and statement forms with an `else` path are not implemented yet.
+- `windows`/`chunks` cursors are not `for`-iterable yet (use `.get(i)`).
 - Explicit `&'a [T]`, `&'a mut [T]`, and `&'a str` forms are supported; the
   elided forms rely on MIR view analysis to keep the source loan alive and
   reject local escapes.

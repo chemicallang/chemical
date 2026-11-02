@@ -614,6 +614,12 @@ public:
     );
 
     /**
+     * Parses the element list of an array pattern after its '[', through ']'.
+     * Sets is_array_pattern, array_rest_index and the bound identifiers.
+     */
+    bool parseArrayPatternElements(ASTAllocator& allocator, PatternMatchExpr* into);
+
+    /**
      * parse allowDeclarations or initialization tokens
      * like var x : int; or var x : int = 5;
      * @param allowDeclarations when true, it will allow allowDeclarations only without the value initialization

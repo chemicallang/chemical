@@ -667,3 +667,29 @@ func neg_tuple_struct_constructor_arity(env : &mut TestEnv) {
     expect_compile_error(env, "tuple_struct_constructor_arity", ch,
                          "doesn't have a constructor")
 }
+
+@test
+func neg_array_pattern_arity_mismatch(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var values : [3]int = [1, 2, 3]\n    var [a, b] = values\n    return a + b\n}\n"
+    expect_compile_error(env, "array_pattern_arity_mismatch", ch,
+                         "array pattern has 2 names but the value has 3 elements")
+}
+
+@test
+func neg_array_pattern_non_copy(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var values : [2]std::string = [std::string(\"a\"), std::string(\"b\")]\n    var [a, b] = values\n    return (a.size() + b.size()) as int\n}\n"
+    expect_compile_error_with_mod(env, "array_pattern_non_copy", ch,
+                                  "array destructuring currently requires Copy elements",
+                                  NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_slice_rest_pattern_not_implemented(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var values : [3]int = [1, 2, 3]\n    var view : [int] = values\n    if(var [a, .., z] = view) { return a + z }\n    return 1\n}\n"
+    expect_compile_error_with_mod(env, "slice_rest_pattern_not_implemented", ch,
+                                  "slice rest patterns are not implemented yet",
+                                  NEG_MOD_STD_CORE)
+}

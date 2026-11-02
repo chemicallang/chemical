@@ -55,6 +55,10 @@ public:
      */
     BaseType* bound_type = nullptr;
     uint32_t tuple_index = 0xFFFFFFFFu;
+    /** Source index for a fixed-array destructuring pattern. */
+    uint32_t array_index = 0xFFFFFFFFu;
+    /** `_` discards this element; no local is declared or bound. */
+    bool is_wildcard = false;
 
     /**
      * constructor
@@ -78,6 +82,8 @@ public:
         copied->member_param = member_param;
         copied->bound_type = bound_type;
         copied->tuple_index = tuple_index;
+        copied->array_index = array_index;
+        copied->is_wildcard = is_wildcard;
         return copied;
     }
 
@@ -109,6 +115,13 @@ public:
      * a variant payload. Tuple patterns are irrefutable and have no `else`.
      */
     bool is_tuple = false;
+
+    /**
+     * A fixed-size array pattern (`var [a, b] = arr`). `array_rest_index`
+     * is the pattern position of `..`, or -1 for an exact-length pattern.
+     */
+    bool is_array_pattern = false;
+    int32_t array_rest_index = -1;
 
     /**
      * the member name inside the variant
@@ -172,6 +185,8 @@ public:
         }
         copied->destructure_by_name = destructure_by_name;
         copied->is_tuple = is_tuple;
+        copied->is_array_pattern = is_array_pattern;
+        copied->array_rest_index = array_rest_index;
         copied->expression = expression->copy(allocator);
         auto& elseExpr = copied->elseExpression;
         elseExpr.kind = elseExpression.kind;

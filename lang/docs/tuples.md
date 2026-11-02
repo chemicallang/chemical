@@ -3,7 +3,8 @@
 Status: implemented for construction, field access, parameters/returns,
 nested tuples, element assignment, `Copy`, auto traits, drop-once semantics,
 flat tuple destructuring (`var (a, b) = value`), named tuple structs
-(`struct Point(int, int)`), and the unit tuple `()`.
+(`struct Point(int, int)`), fixed-array patterns (`var [a, b] = arr`), and the
+unit tuple `()`.
 
 ## Syntax
 
@@ -34,6 +35,11 @@ var point = Point(3, 4)              // positional constructor
 var generic = Pair<int>(5, 6)
 var (x, y) = point                   // tuple-struct destructuring
 var unit : () = ()                   // unit tuple value/type
+
+var values : [4]int = [1, 2, 3, 4]
+var [a, b, c, d] = values            // exact fixed-array pattern
+var [first, .., last] = values       // one `..` rest marker
+var [_, second, _, fourth] = values  // `_` discards
 ```
 
 - `(T)` is a parenthesized type, not a one-element tuple.
@@ -79,6 +85,25 @@ identifier elements only; nested patterns (`var ((a, b), c)`) and wildcard
 elements (`var (_, b)`) are not implemented yet. `if(var (a, b) = value)` is
 also not part of this slice.
 
+## Fixed-array patterns
+
+`var [a, b] = arr` destructures a fixed-size array of exactly the pattern
+length. One `..` may appear anywhere to ignore a middle or tail run:
+`[first, .., last]`, `[.., tail]`, `[head, ..]`, and `[..]`. `_` discards one
+element without binding a local. The source is evaluated once; Copy elements
+are copied into the bindings before later mutation of the source.
+
+This first slice requires `Copy` element types. Destructuring a non-Copy array
+(`[std::string; N]`) is rejected with `SAFE-MOVE-004`; move the array into a
+local and index it explicitly.
+
+Slice views (`[T]`, `&[T]`) support exact refutable patterns in condition
+position: `if(var [a, b] = view) { ... }` binds only when `view.size()` equals
+the pattern length. These condition bindings read through the view rather than
+taking a snapshot; use the fixed-array statement form if a snapshot is needed.
+Slice rest patterns (`[a, .., z]`) and `Box<[T]>` patterns are not implemented
+yet.
+
 ## Type facts
 
 - Structural equality: `(int, bool)` equals another `(int, bool)`.
@@ -92,9 +117,12 @@ also not part of this slice.
 
 ## Not implemented
 
-- Nested tuple patterns, wildcard elements, and tuple patterns in `if`/match
-  position.
+- Nested tuple/array patterns and patterns in `if`/match position. Flat tuple
+  and fixed-array patterns support `_`, but nested patterns do not.
 - Tuple-struct field visibility and methods/inherent impls written inline after
   the field list.
 - `impl Trait for (T1, T2)` / methods on structural tuples.
+- Slice rest patterns, `&mut [T]`/`Box<[T]>` patterns, statement forms with an
+  `else` path, and non-Copy array destructuring. Exact `[T]`/`&[T]` condition
+  patterns are supported.
 - Slices, `&str`, const generics, GATs, and `impl Trait` are separate M1 work.

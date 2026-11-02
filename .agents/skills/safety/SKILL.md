@@ -24,7 +24,7 @@ for the safe API surface we currently expose**, not full language parity.
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
 | Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
-| Type-system / stdlib parity | M1 partial: basic tuples, `[T]`/`&[T]`, `&mut [T]`, `Box<[T]>`, `&str` views, explicit slice/string lifetimes, and generic delimiter/predicate slice splitting implemented; slice patterns, GATs, const generics, `impl Trait`, derive remain. M7/M2/M8 remain. |
+| Type-system / stdlib parity | M1 partial: basic tuples/tuple structs, fixed-array patterns, exact `[T]`/`&[T]` condition patterns, `&mut [T]`, `Box<[T]>`, `&str` views, explicit slice/string lifetimes, and generic delimiter/predicate slice splitting implemented; slice rest/`&mut`/`Box<[T]>` patterns, GATs, const generics, `impl Trait`, derive remain. M7/M2/M8 remain. |
 
 Latest measured baseline:
 

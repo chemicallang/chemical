@@ -20,6 +20,42 @@ VarInitStatement* fix_stmt(VarInitStatement* stmt, TypeBuilder& builder) {
     return stmt;
 }
 
+bool Parser::parseArrayPatternElements(ASTAllocator& allocator, PatternMatchExpr* into) {
+    into->is_array_pattern = true;
+    int32_t pattern_index = 0;
+    while(true) {
+        consumeNewLines();
+        if(token->type == TokenType::RBracket) break;
+        if(token->type == TokenType::DotDotSym) {
+            if(into->array_rest_index >= 0) {
+                error("an array pattern can contain only one '..'");
+            } else {
+                into->array_rest_index = pattern_index;
+            }
+            token++;
+        } else {
+            const auto element_id = consumeIdentifierOrKeyword();
+            if(!element_id) {
+                error("expected an identifier or '..' in array pattern");
+                return false;
+            }
+            const auto pmId = new (allocator.allocate<PatternMatchIdentifier>())
+                PatternMatchIdentifier(into, allocate_view(allocator, element_id->value),
+                                       parent_node, loc_single(element_id));
+            pmId->is_wildcard = element_id->value == "_";
+            into->param_names.emplace_back(pmId);
+        }
+        pattern_index++;
+        if(consumeToken(TokenType::CommaSym)) continue;
+        break;
+    }
+    if(!consumeToken(TokenType::RBracket)) {
+        error("expected ']' after array pattern");
+        return false;
+    }
+    return true;
+}
+
 void Parser::parsePatternMatchExprAfterId(
         ASTAllocator& allocator,
         PatternMatchExpr* patternMatch,
@@ -148,6 +184,32 @@ ASTNode* Parser::parseVarInitializationTokens(
         token++;
     }
 
+    if(matchExpr && token->type == TokenType::LBracket) {
+        // Fixed-array destructuring: `var [a, b] = arr`, optionally with one
+        // `..` at any position (`[first, .., last]`).
+        const auto patternMatchExpr = new (allocator.allocate<PatternMatchExprNode>())
+            PatternMatchExprNode(is_const, false, chem::string_view(""),
+                                 loc_single(start_tok), parent_node);
+        token++; // '['
+        parseArrayPatternElements(allocator, &patternMatchExpr->value);
+        if(!consumeToken(TokenType::EqualSym)) {
+            error("expected '=' after array pattern");
+            patternMatchExpr->value.expression = getErroredValue(allocator);
+        } else {
+            const auto expr = parseExpressionOrArrayOrStruct(allocator);
+            if(expr) {
+                patternMatchExpr->value.expression = expr;
+            } else {
+                error("expected an expression after '=' in array pattern");
+                patternMatchExpr->value.expression = getErroredValue(allocator);
+            }
+        }
+        if(token->type == TokenType::ElseKw) {
+            error("fixed-array patterns are irrefutable and do not take an else branch");
+        }
+        return patternMatchExpr;
+    }
+
     if(matchExpr && token->type == TokenType::LParen) {
         // Tuple destructuring: `var (a, b) = value`. This is irrefutable, so
         // unlike a variant pattern it has no `else` branch.
@@ -170,6 +232,7 @@ ASTNode* Parser::parseVarInitializationTokens(
                                        allocate_view(allocator, tuple_id->value),
                                        parent_node, loc_single(tuple_id));
             pmId->tuple_index = tuple_index++;
+            pmId->is_wildcard = tuple_id->value == "_";
             patternMatchExpr->value.param_names.emplace_back(pmId);
             if(consumeToken(TokenType::CommaSym)) continue;
             break;

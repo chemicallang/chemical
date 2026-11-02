@@ -1391,6 +1391,19 @@ MIRExprResult MIRLowerer::lower_pattern_payload(PatternMatchExpr* pm, VariantMem
     return MIRExprResult::error();
 }
 
+namespace {
+bool is_slice_view_type(BaseType* type) {
+    if (type == nullptr) return false;
+    BaseType* canonical = type->canonical();
+    ASTNode* linked = canonical != nullptr
+                          ? canonical->get_direct_linked_canonical_node()
+                          : nullptr;
+    if (linked == nullptr || linked->kind() != ASTNodeKind::StructDecl) return false;
+    const auto name = linked->as_struct_def_unsafe()->name_view();
+    return name == chem::string_view("span") || name == chem::string_view("mut_span");
+}
+} // namespace
+
 MIRExprResult MIRLowerer::lower_pattern_element(PatternMatchExpr* pm,
                                                 PatternMatchIdentifier* id,
                                                 bool as_address,
@@ -1428,6 +1441,63 @@ MIRExprResult MIRLowerer::lower_pattern_element(PatternMatchExpr* pm,
     return MIRExprResult::error();
 }
 
+MIRExprResult MIRLowerer::lower_array_pattern_element(PatternMatchExpr* pm,
+                                                      PatternMatchIdentifier* id,
+                                                      bool as_address,
+                                                      std::string& error) {
+    if (!pm || !pm->is_array_pattern || !id ||
+        id->array_index == 0xFFFFFFFFu) {
+        error = "invalid array pattern element";
+        return MIRExprResult::error();
+    }
+    BaseType* element_type = id->known_type();
+    if (element_type == nullptr) {
+        error = "array pattern element has no resolved type";
+        return MIRExprResult::error();
+    }
+    MIRExprResult base = lower_pattern_base(pm, error);
+    if (!base.ok()) return base;
+    const TypeId et = types_.map(element_type);
+    const TypeId idx_t = types_.u32_type();
+    const ValueId idx = builder_->const_int(
+        idx_t, module_.constants.add_int(idx_t, id->array_index));
+    if (is_slice_view_type(pm->expression->getType())) {
+        const ConstantId data_fc = module_.constants.add_string(
+            MIR_INVALID_ID, "_data", 5);
+        const TypeId ptr_t = types_.pointer_type(et, true);
+        ValueId data = MIR_NULL;
+        if (base.kind == MIRExprKind::Place) {
+            data = builder_->field_load(static_cast<PlaceId>(base.id), data_fc, ptr_t);
+        } else if (base.kind == MIRExprKind::Address ||
+                   base.kind == MIRExprKind::Value) {
+            data = builder_->field_load_ptr(static_cast<ValueId>(base.id), data_fc, ptr_t);
+        } else {
+            error = "slice pattern expression is not a slice lvalue";
+            return MIRExprResult::error();
+        }
+        if (as_address || abi::is_aggregate(module_, et)) {
+            return MIRExprResult::address(builder_->index_addr_ptr(data, idx, et), et);
+        }
+        return MIRExprResult::value(builder_->index_load(data, idx, et), et);
+    }
+    if (base.kind == MIRExprKind::Place) {
+        const PlaceId bp = static_cast<PlaceId>(base.id);
+        if (as_address || abi::is_aggregate(module_, et)) {
+            return MIRExprResult::address(builder_->index_addr(bp, idx, et), et);
+        }
+        return MIRExprResult::value(builder_->element_load(bp, idx, et), et);
+    }
+    if (base.kind == MIRExprKind::Address || base.kind == MIRExprKind::Value) {
+        const ValueId bv = static_cast<ValueId>(base.id);
+        if (as_address || abi::is_aggregate(module_, et)) {
+            return MIRExprResult::address(builder_->index_addr_ptr(bv, idx, et), et);
+        }
+        return MIRExprResult::value(builder_->index_load(bv, idx, et), et);
+    }
+    error = "array pattern expression is not an array lvalue";
+    return MIRExprResult::error();
+}
+
 MIRExprResult MIRLowerer::lower_pattern_cond(PatternMatchExpr* pm, std::string& error) {
     if (pm && pm->is_tuple) {
         // A tuple pattern matches every tuple of the right shape.
@@ -1435,6 +1505,47 @@ MIRExprResult MIRLowerer::lower_pattern_cond(PatternMatchExpr* pm, std::string& 
         const ValueId yes = builder_->const_int(
             bool_t, module_.constants.add_int(bool_t, 1));
         return MIRExprResult::value(yes, bool_t);
+    }
+    if (pm && pm->is_array_pattern) {
+        BaseType* value_type = pm->expression != nullptr
+                                   ? pm->expression->getType()
+                                   : nullptr;
+        if (value_type != nullptr) value_type = value_type->canonical();
+        if (value_type != nullptr && value_type->kind() == BaseTypeKind::Array) {
+            const TypeId bool_t = types_.bool_type();
+            const ValueId yes = builder_->const_int(
+                bool_t, module_.constants.add_int(bool_t, 1));
+            return MIRExprResult::value(yes, bool_t);
+        }
+        if (!is_slice_view_type(value_type)) {
+            error = "array pattern value is not a fixed-size array or slice view";
+            return MIRExprResult::error();
+        }
+        MIRExprResult base = lower_pattern_base(pm, error);
+        if (!base.ok()) return base;
+        const ConstantId size_fc = module_.constants.add_string(
+            MIR_INVALID_ID, "_size", 5);
+        const TypeId st = types_.u64_type();
+        ValueId size = MIR_NULL;
+        if (base.kind == MIRExprKind::Place) {
+            size = builder_->field_load(static_cast<PlaceId>(base.id), size_fc, st);
+        } else if (base.kind == MIRExprKind::Address ||
+                   base.kind == MIRExprKind::Value) {
+            size = builder_->field_load_ptr(static_cast<ValueId>(base.id), size_fc, st);
+        } else {
+            error = "slice pattern expression is not a slice lvalue";
+            return MIRExprResult::error();
+        }
+        const ValueId count = builder_->const_int(
+            st, module_.constants.add_int(st, pm->param_names.size()));
+        const MIRBinaryOp op = pm->array_rest_index >= 0
+                                   ? MIRBinaryOp::Ge
+                                   : MIRBinaryOp::Eq;
+        const ConstantId pred = module_.constants.add_int(
+            MIR_INVALID_ID, static_cast<uint64_t>(op));
+        const TypeId bool_t = types_.bool_type();
+        return MIRExprResult::value(
+            builder_->compare(size, count, pred, bool_t), bool_t);
     }
     if (!pm || !pm->member) {
         error = "invalid pattern match condition";
@@ -1563,12 +1674,92 @@ MIRExprResult MIRLowerer::lower_pattern_match_value(PatternMatchExpr* pm, std::s
     return lower_pattern_payload(pm, first, false, error);
 }
 
+bool MIRLowerer::lower_array_pattern_node(PatternMatchExpr* pm,
+                                          std::string& error) {
+    if (pm == nullptr || pm->expression == nullptr) {
+        error = "array pattern has no value expression";
+        return false;
+    }
+    BaseType* value_type = pm->expression->getType();
+    if (value_type != nullptr) value_type = value_type->canonical();
+    if (value_type == nullptr || value_type->kind() != BaseTypeKind::Array) {
+        error = "array pattern value is not a fixed-size array";
+        return false;
+    }
+    auto* array_type = value_type->as_array_type_unsafe();
+    BaseType* element_type = array_type->elem_type;
+    if (element_type == nullptr) {
+        error = "array pattern has no element type";
+        return false;
+    }
+    const TypeId et = types_.map(element_type);
+    if (!mir_type_is_copy(module_.types, et)) {
+        error = "SAFE-MOVE-004: array destructuring currently requires Copy "
+                "elements; move the array into a local and index it explicitly";
+        return false;
+    }
+    MIRExprResult base = lower_pattern_base(pm, error);
+    if (!base.ok()) return false;
+    for (PatternMatchIdentifier* id : pm->param_names) {
+        if (id == nullptr) {
+            error = "invalid array pattern identifier";
+            return false;
+        }
+        if (id->is_wildcard) continue;
+        const TypeId vt = types_.map(id->known_type());
+        PlaceId place = MIR_INVALID_ID;
+        if (async_) {
+            const MIRNumberedName resident = async_resident_field(id);
+            if (!resident.empty()) {
+                const ConstantId fc = module_.constants.add_string(
+                    MIR_INVALID_ID, resident.data(),
+                    static_cast<uint32_t>(resident.size()));
+                place = builder_->alloca_frame(vt, fc);
+            }
+        }
+        if (place == MIR_INVALID_ID) {
+            place = builder_->alloca(vt, MIRStorageClass::Local);
+        }
+        if (place == MIR_INVALID_ID) {
+            error = "failed to allocate a place for an array pattern element";
+            return false;
+        }
+        {
+            const auto storage = static_cast<MIRStorageClass>(
+                builder_->function().places[place].storage_class);
+            if (storage != MIRStorageClass::FrameField &&
+                storage != MIRStorageClass::FramePtr) {
+                builder_->storage_live(place);
+                scope_places_.push_back(place);
+            }
+        }
+        bind(id, place);
+        bind_name(id->identifier, place);
+        MIRExprResult element = lower_array_pattern_element(pm, id, false, error);
+        if (!element.ok()) return false;
+        if (element.kind == MIRExprKind::Address) {
+            builder_->copy_ptr_to_place(place, static_cast<ValueId>(element.id));
+        } else if (element.kind == MIRExprKind::Value) {
+            ValueId value = static_cast<ValueId>(element.id);
+            if (element.type != vt) value = builder_->cast(value, vt);
+            builder_->store(place, value);
+        } else {
+            error = "array pattern element does not produce a value";
+            return false;
+        }
+    }
+    return true;
+}
+
 bool MIRLowerer::lower_pattern_match_node(PatternMatchExprNode* node, std::string& error) {
     if (node == nullptr) {
         error = "null pattern match node";
         return false;
     }
     PatternMatchExpr* pm = &node->value;
+    if (pm->is_array_pattern) {
+        return lower_array_pattern_node(pm, error);
+    }
     if (!pm->is_tuple) {
         MIRExprResult r = lower_pattern_match_value(pm, error);
         return r.ok();
@@ -1629,6 +1820,10 @@ bool MIRLowerer::lower_pattern_match_node(PatternMatchExprNode* node, std::strin
             error = "invalid tuple pattern identifier";
             return false;
         }
+        if (id->is_wildcard) {
+            elements.push_back(MIRExprResult::void_result());
+            continue;
+        }
         MIRExprResult element = lower_pattern_element(pm, id, false, error);
         if (!element.ok()) return false;
         elements.push_back(element);
@@ -1636,6 +1831,7 @@ bool MIRLowerer::lower_pattern_match_node(PatternMatchExprNode* node, std::strin
     for (size_t element_index = 0; element_index < pm->param_names.size();
          ++element_index) {
         PatternMatchIdentifier* id = pm->param_names[element_index];
+        if (id->is_wildcard) continue;
         BaseType* element_type = id->known_type();
         if (element_type == nullptr) {
             error = "tuple pattern element has no resolved type";
@@ -1734,6 +1930,17 @@ MIRExprResult MIRLowerer::lower_pattern_identifier(PatternMatchIdentifier* id,
     }
     if (pm->is_tuple) {
         return lower_pattern_element(pm, id, false, error);
+    }
+    if (pm->is_array_pattern) {
+        BaseType* element_type = id->known_type();
+        const TypeId et = element_type != nullptr ? types_.map(element_type)
+                                                   : MIR_INVALID_ID;
+        if (et == MIR_INVALID_ID || !mir_type_is_copy(module_.types, et)) {
+            error = "cannot bind a non-Copy array/slice pattern element by "
+                    "value; index the value or take a reference instead";
+            return MIRExprResult::error();
+        }
+        return lower_array_pattern_element(pm, id, false, error);
     }
     // a DefValue result temp holds only the first destructured parameter; the
     // other parameters read their own payload field

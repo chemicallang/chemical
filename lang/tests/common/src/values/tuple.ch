@@ -69,7 +69,8 @@ func test_tuples() {
     test("tuple destructuring from a call and one-element pattern", () => {
         var (a, b) = tuple_pair(7, true)
         const (c,) = (9,)
-        return a == 7 && b && c == 9
+        var (_, only) = (11, 12)
+        return a == 7 && b && c == 9 && only == 12
     })
     test("tuple destructuring moves destructible elements exactly once", () => {
         var first = 0
@@ -117,5 +118,24 @@ func test_tuples() {
         var unit : () = ()
         var copy = unit
         return sizeof(()) == 0
+    })
+    test("array patterns bind exact and rest elements", () => {
+        var values : [4]int = [1, 2, 3, 4]
+        var [a, b, c, d] = values
+        var [first, .., last] = values
+        var [.., tail] = values
+        var [head, ..] = values
+        var [_, x, _, y] = values
+        values[0] = 99
+        return a == 1 && b == 2 && c == 3 && d == 4 &&
+               first == 1 && last == 4 && tail == 4 && head == 1 &&
+               x == 2 && y == 4
+    })
+    test("array patterns bind Copy aggregate elements", () => {
+        var pairs : [2](int, int) = [(1, 2), (3, 4)]
+        var [left, right] = pairs
+        pairs[0]._0 = 9
+        return left._0 == 1 && left._1 == 2 &&
+               right._0 == 3 && right._1 == 4
     })
 }

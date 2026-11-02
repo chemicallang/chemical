@@ -314,7 +314,82 @@ void GenericInstantiator::VisitPatternMatchExpr(PatternMatchExpr* value) {
             if(member == nullptr) continue;
             nameId->bound_type = const_cast<BaseType*>(member->type.getType());
             nameId->tuple_index = static_cast<uint32_t>(i);
-            table.declare(nameId->identifier, nameId);
+            if(!nameId->is_wildcard) {
+                table.declare(nameId->identifier, nameId);
+            }
+        }
+        return;
+    }
+    if(value->is_array_pattern) {
+        if(value->expression == nullptr) return;
+        BaseType* value_type = value->expression->getType();
+        if(value_type != nullptr) value_type = value_type->canonical();
+        if(value_type == nullptr) return;
+        BaseType* element_type = nullptr;
+        bool slice_view = false;
+        uint64_t array_size = 0;
+        if(value_type->kind() == BaseTypeKind::Array) {
+            auto* array_type = value_type->as_array_type_unsafe();
+            if(!array_type->has_array_size() || array_type->elem_type == nullptr) return;
+            array_size = array_type->get_array_size();
+            element_type = array_type->elem_type;
+        } else {
+            ASTNode* linked = value_type->get_direct_linked_canonical_node();
+            if(linked != nullptr && linked->kind() == ASTNodeKind::StructDecl) {
+                auto* view = linked->as_struct_def_unsafe();
+                const auto name = view->name_view();
+                if(name == chem::string_view("span") ||
+                   name == chem::string_view("mut_span")) {
+                    slice_view = true;
+                    if(value_type->kind() == BaseTypeKind::Generic) {
+                        auto* generic = value_type->as_generic_type_unsafe();
+                        if(!generic->types.empty()) {
+                            element_type = const_cast<BaseType*>(generic->types.front().getType());
+                        }
+                    }
+                    if(element_type == nullptr) {
+                        auto* data = view->direct_variable(chem::string_view("_data"));
+                        BaseType* data_type = data != nullptr ? data->known_type() : nullptr;
+                        if(data_type != nullptr) data_type = data_type->canonical();
+                        if(data_type != nullptr && data_type->kind() == BaseTypeKind::Pointer) {
+                            element_type = data_type->as_pointer_type_unsafe()->type;
+                        }
+                    }
+                }
+            }
+        }
+        if(element_type == nullptr) return;
+        const size_t name_count = value->param_names.size();
+        const int32_t rest = value->array_rest_index;
+        if(slice_view) {
+            if(rest >= 0) return;
+            for(size_t i = 0; i < name_count; ++i) {
+                const auto nameId = value->param_names[i];
+                nameId->bound_type = element_type;
+                nameId->array_index = static_cast<uint32_t>(i);
+                if(!nameId->is_wildcard) {
+                    table.declare(nameId->identifier, nameId);
+                }
+            }
+            return;
+        }
+        if(rest < 0) {
+            if(array_size != name_count) return;
+        } else {
+            if(static_cast<size_t>(rest) > name_count) return;
+            if(array_size < name_count) return;
+        }
+        for(size_t i = 0; i < name_count; ++i) {
+            size_t source_index = i;
+            if(rest >= 0 && i >= static_cast<size_t>(rest)) {
+                source_index = static_cast<size_t>(array_size) - (name_count - i);
+            }
+            const auto nameId = value->param_names[i];
+            nameId->bound_type = element_type;
+            nameId->array_index = static_cast<uint32_t>(source_index);
+            if(!nameId->is_wildcard) {
+                table.declare(nameId->identifier, nameId);
+            }
         }
         return;
     }

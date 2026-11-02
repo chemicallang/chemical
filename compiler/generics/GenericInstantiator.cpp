@@ -1068,7 +1068,53 @@ void GenericInstantiator::FinalizeSignature(GenericStructDecl* decl, StructDefin
 
 }
 
+/**
+ * A method whose where-clause requires an operator interface (PartialEq/Eq)
+ * cannot be lowered for a concrete type that does not implement it. Generic
+ * structs are monomorphized eagerly, so every method body is finalized for
+ * every instantiation, including helpers that are never called. Skip the
+ * body in that case instead of reporting an error from inside the unused
+ * method; a real call is still rejected by where-clause verification.
+ */
+static bool member_where_clause_satisfied(GenericInstantiator& instantiator, FunctionDeclaration* func) {
+    if(func->where_clause == nullptr) return true;
+    for(const auto& constraint : func->where_clause->constraints) {
+        if(constraint.param == nullptr) continue;
+        const auto found = instantiator.active_type_map.find(constraint.param);
+        if(found == instantiator.active_type_map.end() || found->second == nullptr) continue;
+        BaseType* concrete = found->second;
+        auto* linked = concrete->get_direct_linked_node();
+        if(linked != nullptr && linked->kind() == ASTNodeKind::GenericTypeParam) continue;
+        for(const auto& trait : constraint.constraints) {
+            auto* trait_node = trait->get_direct_linked_node();
+            if(trait_node == nullptr) continue;
+            InterfaceDefinition* interface_def = nullptr;
+            if(trait_node->kind() == ASTNodeKind::InterfaceDecl) {
+                interface_def = trait_node->as_interface_def_unsafe();
+            } else if(trait_node->kind() == ASTNodeKind::GenericInterfaceDecl) {
+                interface_def = trait_node->as_gen_interface_decl_unsafe()->master_impl;
+            }
+            if(interface_def == nullptr) continue;
+            const auto name = interface_def->name_view();
+            if(name != chem::string_view("PartialEq") && name != chem::string_view("Eq")) continue;
+            auto* container = concrete->get_members_container();
+            if(container == nullptr) continue;
+            if(instantiator.implsIndex.get_impl(interface_def, container) == nullptr) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 void finalize_member_func_body(GenericInstantiator& instantiator, FunctionDeclaration* func) {
+    if(!member_where_clause_satisfied(instantiator, func)) {
+        // Do not lower a method body whose bounds are unsatisfied. Clearing the
+        // concrete copy's body keeps MIR from seeing unresolved generic types;
+        // a real call is rejected by where-clause verification.
+        func->body.reset();
+        return;
+    }
     if(func->body.has_value()) {
         // get the table
         auto& table = instantiator.table;

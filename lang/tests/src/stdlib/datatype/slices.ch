@@ -210,4 +210,22 @@ func test_slices() {
         var parts = view.split_by(||(x : &int) : bool => *x == 0)
         return parts.size() == 4 && parts.get(0)[0] == 1 && parts.get(1)[0] == 2 && parts.get(2).size() == 0 && parts.get(3)[0] == 4
     })
+    test("split partitions on a delimiter", () => {
+        var arr : [7]int = [1, 0, 2, 3, 0, 0, 4]
+        var view : [int] = arr
+        var parts = view.split(0)
+        if(parts.size() != 4 || parts.get(0)[0] != 1 || parts.get(1)[0] != 2) return false
+        if(parts.get(2).size() != 0 || parts.get(3)[0] != 4) return false
+        var text_arr : [5]char = ['a', ',', 'b', ',', 'c']
+        var text : [char] = text_arr
+        var text_parts = text.split(',')
+        if(text_parts.size() != 3 || text_parts.get(1)[0] != 'b') return false
+        var values = std::vector<int>()
+        values.push(1)
+        values.push(0)
+        values.push(2)
+        var owned : Box<[int]> = values
+        var owned_parts = owned.split(0)
+        return owned_parts.size() == 2 && owned_parts.get(1)[0] == 2
+    })
 }

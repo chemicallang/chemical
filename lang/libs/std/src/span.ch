@@ -89,6 +89,40 @@ public struct span_split<T> {
     }
 }
 
+@direct_init
+public struct span_delim_split<T> {
+    internal var _source : span<T>
+    internal var _delim : T
+    internal var _count : size_t
+
+    func size(&self) : size_t {
+        return _count
+    }
+
+    func empty(&self) : bool {
+        return _count == 0
+    }
+
+    func get(&self, index : size_t) : span<T> where T: Copy + core::ops::PartialEq {
+        if(index >= _count) panic("span split index out of bounds")
+        var start : size_t = 0
+        var segment : size_t = 0
+        var i : size_t = 0
+        while(i < _source.size()) {
+            var value = unsafe(*_source.get(i))
+            if(value == _delim) {
+                if(segment == index) {
+                    return _source.subview(start, i)
+                }
+                segment += 1
+                start = i + 1
+            }
+            i += 1
+        }
+        return _source.subview(start, _source.size())
+    }
+}
+
 public struct span<T> {
 
     // The pointer/length pair is the span invariant; user code uses get/size.
@@ -199,6 +233,21 @@ public struct span<T> {
         return span_split<T> {
             _source : unsafe(span<T>(_data, _size)),
             _predicate : predicate,
+            _count : count
+        }
+    }
+
+    func split(&self, delim : T) : span_delim_split<T> where T: Copy + core::ops::PartialEq {
+        var count : size_t = 1
+        var i : size_t = 0
+        while(i < _size) {
+            var value = unsafe(*get(i))
+            if(value == delim) count += 1
+            i += 1
+        }
+        return span_delim_split<T> {
+            _source : unsafe(span<T>(_data, _size)),
+            _delim : delim,
             _count : count
         }
     }
@@ -331,6 +380,10 @@ public struct mut_span<T> {
 
     func split_by(&self, predicate : (value:&T)=>bool) : span_split<T> where T: Copy {
         return as_span().split_by(predicate)
+    }
+
+    func split(&self, delim : T) : span_delim_split<T> where T: Copy + core::ops::PartialEq {
+        return as_span().split(delim)
     }
 
     func as_span(&self) : span<T> {

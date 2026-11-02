@@ -31,6 +31,13 @@ func neg_generic_where_clause_fail(env : &mut TestEnv) {
 }
 
 @test
+func neg_generic_split_missing_partial_eq(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@direct_init\nstruct NoEq {\n    var x : int\n}\nfunc main() {\n    var arr : [2]NoEq = [NoEq { x : 0 }, NoEq { x : 1 }]\n    var view : [NoEq] = arr\n    var parts = view.split(NoEq { x : 0 })\n}\n"
+    expect_compile_error_with_mod(env, "generic_split_missing_eq", ch, "does not satisfy where clause constraint", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_generic_recursive(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Node 'T {\n    var next : Node<Node<'T>>\n}\nfunc main() {}\n"

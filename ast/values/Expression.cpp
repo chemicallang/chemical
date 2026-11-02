@@ -34,6 +34,17 @@ inline EnumDeclaration* getEnumDecl(BaseType* type) {
     return type->get_direct_linked_enum();
 }
 
+/**
+ * A generic type parameter is resolved to its concrete argument only when the
+ * generic declaration is instantiated. Until then its type is not a primitive
+ * and has no members container, so comparison/operator validation must be
+ * deferred instead of being rejected at the generic declaration.
+ */
+static bool is_unresolved_generic_param(BaseType* type) {
+    const auto* linked = type->get_linked_canonical_node(true, false);
+    return linked != nullptr && linked->kind() == ASTNodeKind::GenericTypeParam;
+}
+
 FunctionDeclaration* Expression::get_overloaded_func(const CoreNodes& coreNodes, const ImplementationsIndex& implsIndex) {
     const auto first_canonical = firstValue->getType()->canonical();
     const auto node = first_canonical->get_linked_canonical_node(true, false);
@@ -83,6 +94,11 @@ BaseType* Expression::get_determined_type(
     auto firstType = expr->firstValue->getType();
     auto secondType = expr->secondValue->getType();
     if(expr->operation >= Operation::IndexBooleanReturningStart && expr->operation <= Operation::IndexBooleanReturningEnd) {
+        // Generic type parameters are checked again after instantiation, when
+        // the concrete argument supplies the operator/member information.
+        if(is_unresolved_generic_param(firstType) || is_unresolved_generic_param(secondType)) {
+            return typeBuilder.getBoolType();
+        }
         // check first type is primitive
         if(!firstType->isPrimitive()) {
             // check if overloaded operator exists

@@ -67,6 +67,10 @@ public struct boxed_slice<T> {
         return as_span().split_by(predicate)
     }
 
+    func split(&self, delim : T) : span_delim_split<T> where T: Copy + core::ops::PartialEq {
+        return as_span().split(delim)
+    }
+
     func subview_mut(&mut self, start : size_t, end : size_t) : mut_span<T> {
         if(start > end || end > _values.size()) {
             panic("boxed_slice subview out of bounds")

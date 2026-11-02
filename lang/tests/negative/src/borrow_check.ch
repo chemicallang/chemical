@@ -2,6 +2,21 @@
 // SAFE-LIFE-* are enforced (compilation fails); positive cases assert success.
 
 @test
+func neg_explicit_slice_lifetimes(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var wrong_region = "func <'a, 'b> bad(values : &'a [int]) : &'b [int] {\n    return values\n}\npublic func main() : int {\n    var arr : [2]int = [1, 2]\n    var out = bad(arr)\n    return out[0]\n}\n"
+    expect_compile_error_with_mod(env, "slice_wrong_return_lifetime", wrong_region, "SAFE-LIFE-003", NEG_MOD_STD_CORE)
+    var static_slice = "func <'a> bad(values : &'a [int]) : &'static [int] {\n    return values\n}\npublic func main() : int {\n    var arr : [2]int = [1, 2]\n    var out = bad(arr)\n    return out[0]\n}\n"
+    expect_compile_error_with_mod(env, "slice_static_lifetime", static_slice, "SAFE-LIFE-004", NEG_MOD_STD_CORE)
+    var static_str = "func <'a> bad(value : &'a str) : &'static str {\n    return value\n}\npublic func main() : int {\n    var value : &str = \"hi\"\n    var out = bad(value)\n    return out.size() as int\n}\n"
+    expect_compile_error_with_mod(env, "str_static_lifetime", static_str, "SAFE-LIFE-004", NEG_MOD_STD_CORE)
+    var elided_slice = "func bad(values : &[int]) : &'static [int] {\n    return values\n}\npublic func main() : int {\n    var arr : [2]int = [1, 2]\n    var out = bad(arr)\n    return out[0]\n}\n"
+    expect_compile_error_with_mod(env, "elided_slice_static_lifetime", elided_slice, "SAFE-LIFE-004", NEG_MOD_STD_CORE)
+    var elided_str = "func bad(value : &str) : &'static str {\n    return value\n}\npublic func main() : int {\n    var value : &str = \"hi\"\n    var out = bad(value)\n    return out.size() as int\n}\n"
+    expect_compile_error_with_mod(env, "elided_str_static_lifetime", elided_str, "str<static>", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_borrow_mutable_alias_warns(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var x = 1\n    var a = &mut x\n    var b = &mut x\n    *a = 2\n    *b = 3\n    return x\n}\n"

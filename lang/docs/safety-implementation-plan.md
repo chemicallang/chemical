@@ -1292,7 +1292,7 @@ but keep aliasing/race checks. GC is a later mode.
 | Async | Shipped; type-level lifetime + field/container inference | `Pin`/Waker/frame loans; `spawn_send` frame check; MIR future borrow tracking through fields/wrappers/pointer containers + `SAFE-LIFE-005` retaining-API rejection. |
 | Trait objects | Partial | Basic dynamic dispatch; `dyn I + Send`/`+ Sync`/`+ Unpin` are represented and construction-checked, and `dyn` without bounds is conservatively `!Send`/`!Sync`/`!Unpin`. |
 | Tuples | Basic slice implemented | Construction, `._0` access, parameters/returns, nested tuples, assignment, structural `Copy`/`Send`/`Sync`/`Unpin`, and field-wise drops. Tuple structs/destructuring/unit values remain. |
-| Slices / `&str` | Borrowed, mutable, and owning slices | `[T]`/`&[T]` alias `std::span<T>`; `&mut [T]` aliases `std::mut_span<T>`; `Box<[T]>` aliases `std::boxed_slice<T>`; `&str` aliases UTF-8-validated `std::str`. Indexing, writes, owning moves, local-escape checks, and the `IndexMut` interface are implemented. Explicit lifetimes, slice patterns, and a raw unsized `[T]` remain. |
+| Slices / `&str` | Borrowed, mutable, and owning slices | `[T]`/`&[T]` alias `std::span<T>`; `&mut [T]` aliases `std::mut_span<T>`; `Box<[T]>` aliases `std::boxed_slice<T>`; `&str` aliases UTF-8-validated `std::str`. Indexing, writes, owning moves, local-escape checks, and the `IndexMut` interface are implemented. Slice patterns and a raw unsized `[T]` remain. |
 | Const generics/GATs/`impl Trait` | Absent | Full parity remains M1. |
 | `&str`/UTF-8 | Byte-string surface | `string`/`string_view`; UTF-8 parity M1. |
 | Derive | Absent | CBI macros exist; no built-in derive. |
@@ -1338,7 +1338,7 @@ approximate counts:
 
 | Gate | Result |
 |---|---|
-| TCC main / LLVM main | `2418` / `2416` |
+| TCC main / LLVM main | `2419` / `2417` |
 | `@test` runner | `56` |
 | TCC/LLVM negative | `727` / `727` |
 | TCC/LLVM safety | `74` / `74` |
@@ -2921,3 +2921,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.54 (2026-11-02): predicate slice splitting. Added `split_by(predicate)` for `span`, `mut_span`, and `Box<[T]>`, returning a non-allocating `span_split<T>` cursor with checked `.get(i)`. Generic delimiter `split`/`split_by` remains blocked on generic `PartialEq` operator resolution; `split_by` with a predicate is available, and `&str`/`string_view` keep `.split(delim)`. Audit baseline updated (`panic_calls 111 -> 112`, `unsafe_values 4909 -> 4912`, `raw_pointer_derefs 1069 -> 1071`). Main TCC/LLVM `2417`/`2415`; negative `727`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.
 
 *Revision note v4.55 (2026-11-02): generic delimiter slicing + instantiation gating. Generic equality/comparison now defers the operand check when either side is an unresolved generic parameter and re-checks it at concrete instantiation, so user generic functions and generic-struct methods can use `==` without weakening concrete type checking. Monomorphized member bodies whose `PartialEq`/`Eq` where-bound is not satisfied by the concrete struct argument are no longer lowered (the body is cleared), avoiding errors from unused helper methods such as `span<ImportSymbol>.split`; real calls still fail where-clause verification. `span`, `mut_span`, and `Box<[T]>` now expose `split(delim)` returning `span_delim_split<T>`, and `split_by(predicate)` remains available. Audit baseline updated (`panic_calls 112 -> 113`, `unsafe_values 4912 -> 4915`, `raw_pointer_derefs 1071 -> 1073`). Main TCC/LLVM `2418`/`2416`; negative `728`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.
+
+*Revision note v4.56 (2026-11-02): explicit slice/string lifetimes. `&'a [T]`, `&'a mut [T]`, and `&'a str` now preserve the lifetime argument on the `std::span`/`std::mut_span`/`std::str` alias instead of discarding it during parsing. MIR region signatures read the declared lifetime, so wrong return regions fail with `SAFE-LIFE-003` and shorter-lived slices/strings cannot satisfy `&'static` (`SAFE-LIFE-004`; the static-mismatch helper now keeps a written `GenericType` instead of canonicalizing away its lifetime args; a missing source lifetime argument is treated as an elided borrow, not `'static`, closing the elided `&[T]`/`&str` static-escape path). Elided forms retain ordinary inference. Added shared/str identity and `where 'a : 'b` positive coverage plus wrong-region and static-lifetime negative tests. Main TCC/LLVM `2419`/`2417`; negative `729`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.

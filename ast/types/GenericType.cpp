@@ -312,14 +312,16 @@ bool GenericType::satisfies(BaseType *pure_type) {
             // Lifetime arguments are erased from the runtime type, so enforce
             // the static-to-shorter direction here. `Holder<'static>` cannot
             // accept a `Holder<'a>` value whose reference is a stack borrow.
-            const auto lifetime_count = std::min(lifetime_args.size(),
-                                                 other_gen->lifetime_args.size());
-            for(unsigned i = 0; i < lifetime_count; i++) {
+            // A missing source lifetime argument is an elided borrow, not
+            // `'static`; accepting it would let a slice/str parameter escape.
+            for(unsigned i = 0; i < lifetime_args.size(); i++) {
                 const auto target_static = lifetime_args[i] == "static" ||
                                            lifetime_args[i] == "'static";
-                const auto source_static = other_gen->lifetime_args[i] == "static" ||
-                                           other_gen->lifetime_args[i] == "'static";
-                if(target_static && !source_static) return false;
+                if(!target_static) continue;
+                const auto source_static = i < other_gen->lifetime_args.size() &&
+                    (other_gen->lifetime_args[i] == "static" ||
+                     other_gen->lifetime_args[i] == "'static");
+                if(!source_static) return false;
             }
             bool args_ok = true;
             const auto min_size = std::min(types.size(), other_gen->types.size());

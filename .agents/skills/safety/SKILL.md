@@ -24,16 +24,16 @@ for the safe API surface we currently expose**, not full language parity.
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
 | Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
-| Type-system / stdlib parity | M1 partial: basic tuples, `[T]`/`&[T]`, `&mut [T]`, `Box<[T]>`, `&str` views, and generic delimiter/predicate slice splitting implemented; explicit slice lifetimes, slice patterns, GATs, const generics, `impl Trait`, derive remain. M7/M2/M8 remain. |
+| Type-system / stdlib parity | M1 partial: basic tuples, `[T]`/`&[T]`, `&mut [T]`, `Box<[T]>`, `&str` views, explicit slice/string lifetimes, and generic delimiter/predicate slice splitting implemented; slice patterns, GATs, const generics, `impl Trait`, derive remain. M7/M2/M8 remain. |
 
 Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2418/2418` |
-| LLVM main | `2416/2416` |
+| TCC main | `2419/2419` |
+| LLVM main | `2417/2417` |
 | `@test` runner | `56/56` |
-| TCC/LLVM negative | `728/728` |
+| TCC/LLVM negative | `729/729` |
 | TCC/LLVM safety | `74/74` |
 | TCC/LLVM async | `69/69` |
 | TCC libs | `730/730` |
@@ -366,8 +366,9 @@ memory safety.
     `std::str` (`lang/docs/slices.md`). Indexing, mutable writes, ownership
     moves, UTF-8 validation, and local-escape rejection are implemented. The
     `IndexMut` interface now declares `index_mut`. `split(delim)` and
-    `split_by(predicate)` cover delimiter/predicate splitting. Explicit `&'a`
-    lifetimes, slice patterns, and a raw unsized `[T]` remain M1 work.
+    `split_by(predicate)` cover delimiter/predicate splitting, and `&'a [T]` /
+    `&'a str` carry explicit region lifetimes. Slice patterns and a raw unsized
+    `[T]` remain M1 work.
 
 14. **Tuples are a first slice.** `(T1, T2)` types, `(e1, e2)` literals,
     `._0` access, parameters/returns, nested tuples, `Copy`/`Send`/`Sync`/`Unpin`

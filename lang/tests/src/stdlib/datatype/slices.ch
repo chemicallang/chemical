@@ -20,6 +20,18 @@ func bare_slice_total(values : [int]) : int {
     return total
 }
 
+func <'a> explicit_slice_identity(values : &'a [int]) : &'a [int] {
+    return values
+}
+
+func <'a, 'b> explicit_slice_longer(values : &'a [int]) : &'b [int] where 'a : 'b {
+    return values
+}
+
+func <'a> explicit_str_identity(value : &'a str) : &'a str {
+    return value
+}
+
 func fill_mutable(values : &mut [int]) {
     for(var i = 0u; i < values.size(); i++) {
         values[i] = 7
@@ -209,6 +221,16 @@ func test_slices() {
         var view : [int] = arr
         var parts = view.split_by(||(x : &int) : bool => *x == 0)
         return parts.size() == 4 && parts.get(0)[0] == 1 && parts.get(1)[0] == 2 && parts.get(2).size() == 0 && parts.get(3)[0] == 4
+    })
+    test("explicit slice and str lifetimes", () => {
+        var arr : [3]int = [7, 8, 9]
+        var same = explicit_slice_identity(arr)
+        if(same.size() != 3 || same[1] != 8) return false
+        var longer = explicit_slice_longer(arr)
+        if(longer[2] != 9) return false
+        var text : &str = "hello"
+        var again = explicit_str_identity(text)
+        return again.size() == 5 && again.get(0) == 'h'
     })
     test("split partitions on a delimiter", () => {
         var arr : [7]int = [1, 0, 2, 3, 0, 0, 4]

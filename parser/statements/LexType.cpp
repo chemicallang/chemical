@@ -315,15 +315,17 @@ static chem::string_view linked_type_leaf_name(BaseType* type) {
     return {};
 }
 
-GenericType* Parser::makeSpanType(ASTAllocator& allocator, TypeLoc element, SourceLocation location) {
+GenericType* Parser::makeSpanType(ASTAllocator& allocator, TypeLoc element, SourceLocation location, chem::string_view lifetime) {
     std::vector<TypeLoc> args;
     args.push_back(element);
+    std::vector<chem::string_view> lifetimes;
+    if(!lifetime.empty()) lifetimes.push_back(lifetime);
     return new (allocator.allocate<GenericType>()) GenericType(
         (LinkedType*) makeQualifiedValueType(
             allocator,
             { chem::string_view("std"), chem::string_view("span") },
             location),
-        std::move(args));
+        std::move(args), std::move(lifetimes));
 }
 
 GenericType* Parser::makeBoxedSliceType(ASTAllocator& allocator, TypeLoc element, SourceLocation location) {
@@ -337,15 +339,28 @@ GenericType* Parser::makeBoxedSliceType(ASTAllocator& allocator, TypeLoc element
         std::move(args));
 }
 
-GenericType* Parser::makeMutSpanType(ASTAllocator& allocator, TypeLoc element, SourceLocation location) {
+GenericType* Parser::makeMutSpanType(ASTAllocator& allocator, TypeLoc element, SourceLocation location, chem::string_view lifetime) {
     std::vector<TypeLoc> args;
     args.push_back(element);
+    std::vector<chem::string_view> lifetimes;
+    if(!lifetime.empty()) lifetimes.push_back(lifetime);
     return new (allocator.allocate<GenericType>()) GenericType(
         (LinkedType*) makeQualifiedValueType(
             allocator,
             { chem::string_view("std"), chem::string_view("mut_span") },
             location),
-        std::move(args));
+        std::move(args), std::move(lifetimes));
+}
+
+GenericType* Parser::makeStrType(ASTAllocator& allocator, chem::string_view lifetime, SourceLocation location) {
+    std::vector<chem::string_view> lifetimes;
+    if(!lifetime.empty()) lifetimes.push_back(lifetime);
+    return new (allocator.allocate<GenericType>()) GenericType(
+        (LinkedType*) makeQualifiedValueType(
+            allocator,
+            { chem::string_view("std"), chem::string_view("str") },
+            location),
+        std::vector<TypeLoc>(), std::move(lifetimes));
 }
 
 StructType* Parser::makeTupleType(ASTAllocator& allocator, const std::vector<TypeLoc>& types,
@@ -795,7 +810,10 @@ TypeLoc Parser::parseTypeLocNoPostOps(ASTAllocator& allocator) {
             if(token->type == TokenType::Identifier &&
                token->value == chem::string_view("str")) {
                 token++;
-                return { makeQualifiedValueType(allocator, { chem::string_view("std"), chem::string_view("str") }, ref_loc), ref_loc };
+                if(lifetime.empty()) {
+                    return { makeQualifiedValueType(allocator, { chem::string_view("std"), chem::string_view("str") }, ref_loc), ref_loc };
+                }
+                return { makeStrType(allocator, lifetime, ref_loc), ref_loc };
             }
             if(token->type == TokenType::LBracket) {
                 Token* const slice_start = token;
@@ -807,8 +825,8 @@ TypeLoc Parser::parseTypeLocNoPostOps(ASTAllocator& allocator) {
                 suppress_errors = prev_suppression;
                 if(element && closed && !token_can_start_type(token->type)) {
                     auto* slice = is_mutable
-                        ? makeMutSpanType(allocator, element, ref_loc)
-                        : makeSpanType(allocator, element, ref_loc);
+                        ? makeMutSpanType(allocator, element, ref_loc, lifetime)
+                        : makeSpanType(allocator, element, ref_loc, lifetime);
                     return { slice, ref_loc };
                 }
                 token = slice_start;

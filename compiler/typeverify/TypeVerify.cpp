@@ -370,8 +370,10 @@ static bool lifetime_name_is_static(chem::string_view name) {
 /** Does a `'static` target contain a lifetime argument the source cannot meet? */
 static bool static_lifetime_mismatch(BaseType* target, BaseType* source) {
     if (target == nullptr || source == nullptr) return false;
-    BaseType* t = target->canonical();
-    BaseType* s = source->canonical();
+    // Keep a written GenericType intact: canonicalizing a slice/str alias can
+    // unwrap it to the linked struct and lose the lifetime argument.
+    BaseType* t = target->kind() == BaseTypeKind::Generic ? target : target->canonical();
+    BaseType* s = source->kind() == BaseTypeKind::Generic ? source : source->canonical();
     if (t == nullptr || s == nullptr || t->kind() != s->kind()) return false;
     switch (t->kind()) {
         case BaseTypeKind::Reference: {
@@ -393,11 +395,18 @@ static bool static_lifetime_mismatch(BaseType* target, BaseType* source) {
                 s->as_array_type_unsafe()->elem_type);
         case BaseTypeKind::Generic: {
             auto* tg = t->as_generic_type_unsafe();
+            if (s->kind() != BaseTypeKind::Generic) {
+                // The source lost its written lifetime argument (an elided
+                // slice/str alias); it cannot satisfy a `'static` target.
+                for (chem::string_view lifetime : tg->lifetime_args) {
+                    if (lifetime_name_is_static(lifetime)) return true;
+                }
+                return false;
+            }
             auto* sg = s->as_generic_type_unsafe();
-            const size_t count = std::min(tg->lifetime_args.size(),
-                                          sg->lifetime_args.size());
-            for (size_t i = 0; i < count; ++i) {
-                if (lifetime_name_is_static(tg->lifetime_args[i]) &&
+            for (size_t i = 0; i < tg->lifetime_args.size(); ++i) {
+                if (!lifetime_name_is_static(tg->lifetime_args[i])) continue;
+                if (i >= sg->lifetime_args.size() ||
                     !lifetime_name_is_static(sg->lifetime_args[i])) {
                     return true;
                 }

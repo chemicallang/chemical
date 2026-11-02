@@ -159,15 +159,43 @@ var view = text.to_view()      // std::string_view
 - Returning a `&str` derived from a local `std::string` is rejected by
   `SAFE-LIFE-001`.
 
+## Explicit lifetimes
+
+Borrowed slices and `&str` accept a named lifetime:
+
+```chemical
+func <'a> identity(values : &'a [int]) : &'a [int] {
+    return values
+}
+
+func <'a> text(value : &'a str) : &'a str {
+    return value
+}
+
+func <'a, 'b> shorten(values : &'a [int]) : &'b [int] where 'a : 'b {
+    return values
+}
+```
+
+- The lifetime is carried on the `std::span` / `std::mut_span` / `std::str`
+  generic type and is erased before MIR; MIR region signatures are built from
+  the declaration before erasure.
+- Returning `&'a [int]` as `&'b [int]` without a `where 'a : 'b` bound is
+  rejected with `SAFE-LIFE-003`.
+- Returning a shorter-lived slice or `&str` as `&'static` is rejected with
+  `SAFE-LIFE-004`, including elided `&[T]`/`&str` sources whose written type
+  has no lifetime argument.
+- Elided forms (`&[T]`, `&mut [T]`, `&str`) keep their existing inference.
+
 ## Limits of this slice
 
 - `[T]`/`&[T]` are view aliases, not a first-class unsized `[T]` type.
 - `Box<[T]>` is a vector-backed owning wrapper, not a raw boxed allocation.
 - No slice pattern/destructuring syntax or a `for`-iterable windows/chunks
   cursor yet (use `.get(i)`).
-- `&str` has no separate lifetime parameter; the MIR view analysis keeps the
-  source loan alive and rejects local escapes. A future `str<'a>`/`&'a str`
-  spelling can make the lifetime explicit.
+- Explicit `&'a [T]`, `&'a mut [T]`, and `&'a str` forms are supported; the
+  elided forms rely on MIR view analysis to keep the source loan alive and
+  reject local escapes.
 - The checked `std::try_from_utf8` surface exists; the `str` convenience
   constructors still panic on invalid bytes.
 - `[T]`, `&[T]`, `&mut [T]`, `Box<[T]>`, and `&str` depend on the `std` module

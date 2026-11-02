@@ -693,3 +693,18 @@ func neg_slice_rest_pattern_not_implemented(env : &mut TestEnv) {
                                   "slice rest patterns are not implemented yet",
                                   NEG_MOD_STD_CORE)
 }
+
+@test
+func associated_type_binding_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface HasItem {\n    type Item\n    func value(&self) : int\n}\nstruct HasItemImpl {\n    var n : int\n}\nimpl HasItem for HasItemImpl {\n    type Item = int\n    func value(&self) : int { return self.n }\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_success(env, "associated_type_binding_compiles", ch)
+}
+
+@test
+func neg_associated_type_missing_binding(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface HasItem {\n    type Item\n}\nstruct HasItemImpl { var n : int }\nimpl HasItem for HasItemImpl { }\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "associated_type_missing_binding", ch,
+                         "type does not implement associated type 'Item'")
+}

@@ -3665,8 +3665,27 @@ void verify_interface_implementation(ImplementationsIndex& index, ASTDiagnoser& 
         }
     }
 
-    // Iterate over all functions in the interface
+    auto find_associated_binding = [&](const chem::string_view& name) -> TypealiasStatement* {
+        for (auto* node : implementor->evaluated_nodes()) {
+            if (node == nullptr || node->kind() != ASTNodeKind::TypealiasStmt) continue;
+            auto* alias = node->as_typealias_unsafe();
+            if (alias->name_view() == name && !alias->is_associated()) return alias;
+        }
+        return nullptr;
+    };
+
+    // Iterate over all functions and associated types in the interface
     for (auto& node : interface->evaluated_nodes()) {
+        if (node->kind() == ASTNodeKind::TypealiasStmt &&
+            node->as_typealias_unsafe()->is_associated()) {
+            auto* associated = node->as_typealias_unsafe();
+            if (find_associated_binding(associated->name_view()) == nullptr) {
+                diagnoser.error(implementor)
+                    << "type does not implement associated type '"
+                    << associated->name_view() << "'";
+            }
+            continue;
+        }
         if (node->kind() == ASTNodeKind::FunctionDecl) {
             const auto func_node = node->as_function_unsafe();
             if(func_node->body.has_value()) {

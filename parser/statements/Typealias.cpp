@@ -139,7 +139,20 @@ ASTNode* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifie
         annotate(alias);
 
         if(!consumeToken(TokenType::EqualSym)) {
+            const auto parent_kind = prev_parent_node != nullptr
+                                         ? prev_parent_node->kind()
+                                         : ASTNodeKind::FileScope;
+            if(parent_kind == ASTNodeKind::InterfaceDecl ||
+               parent_kind == ASTNodeKind::GenericInterfaceDecl) {
+                // `type Item` inside an interface is an associated-type
+                // declaration; the implementation supplies the concrete type.
+                alias->set_associated(true);
+                parent_node = prev_parent_node;
+                return final_decl;
+            }
             unexpected_error("expected '=' after the type tokens");
+            parent_node = prev_parent_node;
+            return final_decl;
         }
 
         // parse the type (which can be an if expression)

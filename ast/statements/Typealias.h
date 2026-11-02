@@ -35,6 +35,12 @@ struct TypealiasDeclAttributes {
      */
     bool is_inlined = false;
 
+    /**
+     * `type Item` inside an interface: an associated-type declaration whose
+     * concrete definition is supplied by each implementation.
+     */
+    bool is_associated = false;
+
 };
 
 class TypealiasStatement : public ASTNode {
@@ -126,6 +132,14 @@ public:
 
     inline void set_no_mangle(bool mangle) {
         attrs.is_no_mangle = mangle;
+    }
+
+    inline bool is_associated() const {
+        return attrs.is_associated;
+    }
+
+    inline void set_associated(bool value) {
+        attrs.is_associated = value;
     }
 
     inline const chem::string_view& name_view() const {

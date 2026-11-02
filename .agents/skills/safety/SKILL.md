@@ -30,10 +30,10 @@ Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2429/2429` |
-| LLVM main | `2427/2427` |
+| TCC main | `2430/2430` |
+| LLVM main | `2428/2428` |
 | `@test` runner | `56/56` |
-| TCC/LLVM negative | `764/764` |
+| TCC/LLVM negative | `765/765` |
 | TCC/LLVM safety | `74/74` |
 | TCC/LLVM async | `70/70` |
 | TCC libs | `732/732` |
@@ -419,10 +419,11 @@ memory safety.
     `Context`, `SendFutureHandle`) are covered; erased `FutureHandle` stays
     conservatively `!Send`/`!Sync`. Nested conditional `Unpin` now uses the
     explicit-impl context, so conditional positive impls are evaluated while
-    `!Unpin` still wins. Raw-pointer views (`span`/`str`/`string_view`) remain
-    conservatively `!Send`/`!Sync` until their borrow lifetime is in the type.
-    Remaining: executor/iterator state-structure coverage (currently
-    conservative raw-pointer state) and the generic-impl `Unpin` bound path.
+    `!Unpin` still wins. Thread-pool `Future<T>` is `Send` for `T: Send`, and
+    `ThreadPool` is audited `Send + Sync`. Raw-pointer views
+    (`span`/`str`/`string_view`) remain conservatively `!Send`/`!Sync` until
+    their borrow lifetime is in the type. Remaining: executor/iterator raw
+    state structures and the generic-impl `Unpin` bound path.
 
 ## Callback and `Fn` model
 

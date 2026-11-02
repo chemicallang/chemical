@@ -196,6 +196,13 @@ public namespace std {
             }
         }
 
+        // A `Future<T>` owns the consumer side of one promise. Moving it to
+        // another thread is safe when the result is Send: the promise state is
+        // protected by its mutex/condvar, and `get` is the only operation that
+        // transfers `T` out. The future is not `Sync` because it has no shared
+        // (`&self`) access; only the owning thread may consume it.
+        unsafe impl<T> Send for Future<T> where T : Send { }
+
         public struct Task{
             var f:std.function<() => void>
         }
@@ -330,6 +337,14 @@ public namespace std {
     }
 
         }
+
+        // The pool owns a heap `PoolData` reached through a private pointer.
+        // Moving the handle is safe; sharing it is safe because every safe
+        // submission path locks `PoolData.m`, and the safe closure entry point
+        // requires the task's capture witness to be Send + 'static. The
+        // unchecked `submit`/`submit_void` entry points remain unsafe.
+        unsafe impl Send for ThreadPool { }
+        unsafe impl Sync for ThreadPool { }
 
         // Safe capturing submission. The capture witness proves the environment
         // is Send and contains no borrowed stack storage; the task is owned by

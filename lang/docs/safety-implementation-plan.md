@@ -2649,11 +2649,12 @@ the audit found and fixed a `&T` Send rule that missed a nested `!Sync`
 `Unpin` positive/negative impls now use the explicit-impl context; only the
 generic-impl bound path remains conservative. `dyn` without explicit bounds is
 conservatively `!Send`/`!Sync` (explicit `+ Send`/`+ Sync` are checked at
-construction); channel handles are audited. Remaining: executor/iterator
-state-structure coverage (currently conservative raw-pointer state) and the
-deliberately conservative raw-pointer views (`span`/`str`/`string_view`). The
-remaining async gap is the type-level `FutureHandle` lifetime/frame witness in
-§4.5, not the direct borrow escape.
+construction); channel handles are audited. Thread-pool `Future<T>` is `Send`
+for `T: Send`, and `ThreadPool` is `Send + Sync` behind its locked `PoolData`.
+Remaining: executor/iterator state-structure coverage (currently conservative
+raw-pointer state) and the deliberately conservative raw-pointer views
+(`span`/`str`/`string_view`). The remaining async gap is the type-level
+`FutureHandle` lifetime/frame witness in §4.5, not the direct borrow escape.
 
 ### M7 — Stdlib full surface (3–4 months)
 
@@ -3002,3 +3003,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.71 (2026-11-02): stdlib auto-trait audit. Found and fixed a soundness bug in the shared-reference rule: `T: Send` recursively checked `&U` with the Send interface where the Sync interface was required, so an explicit `!Sync` was missed and `&Cell`/`&RefCell` was accepted as Send. Both the direct where-clause path and generic-impl bound path now pass the real Send/Sync interfaces. Added explicit `!Send`/`!Sync` for `Rc`/`Weak`, `RefCell`, `Ref`, and `RefMut`; the remaining explicit impls were reviewed against their invariants. New regression tests cover `&NotSync`, `&RefCell`, the generic-impl path, and the `&mut T: Send` positive case. Design/limits: `lang/docs/safety/auto-traits-audit.md`. Main TCC/LLVM `2429`/`2427`; negative `760`; safety `74`; async `69`; TCC libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4682`; TSAN pass; audit no growth.
 *Revision note v4.72 (2026-11-02): S6.0 async/Unpin completion. Nested conditional `Unpin` now goes through the explicit auto-trait context: a conditional positive `impl<T> Unpin for W<T> where T: Unpin` is evaluated at a concrete nested instantiation, while conditional `!Unpin` still wins and the generic-impl bound path stays conservative. Added public async value auto-trait coverage (`Poll<T>`, `Waker`, `Context`, `SendFutureHandle<T>`, with erased `FutureHandle` conservatively `!Send`/`!Sync`); executor/future state structures and `Chunk<T>` remain conservative raw-pointer state. Design/limits: `lang/docs/safety/auto-traits-audit.md`. Main TCC/LLVM `2429`/`2427`; negative `762`; safety `74`; async `70`; TCC libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4682`; TSAN pass; audit no growth.
 *Revision note v4.73 (2026-11-02): legacy lock guards. `lock_guard` and `recursive_lock_guard` now carry explicit `!Send`/`!Sync` impls, matching `MutexGuard`/`RwLock` guards; both hold a raw mutex pointer and unlock in their destructor. Negative tests use type-only Send assertions. Negative suite `764`. Audit doc updated.
+*Revision note v4.74 (2026-11-02): stdlib residual auto-trait conservatism. Thread-pool `Future<T>` now has `Send` for `T: Send` (the promise is mutex/condvar protected and `get` is the only `T` transfer), and `ThreadPool` has audited `Send + Sync` (private heap `PoolData`, locked safe submission, `Send + 'static` capture witness). Added type-only positive/negative coverage and a thread-pool test that consumes `Future<int>` on another thread. The pointer-backed `span`/`mut_span`/`str` views and executor/iterator raw state remain conservative because their types do not carry a lifetime/ownership witness; the generic-impl `Unpin` bound path remains conservative. Negative suite `765`; main TCC/LLVM `2430`/`2428`; safety `74`; async `70`; libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4682`; TSAN pass; audit no growth.

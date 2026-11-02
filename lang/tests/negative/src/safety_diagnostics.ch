@@ -2049,6 +2049,15 @@ func neg_thread_spawn_vector_of_non_send_rejected(env : &mut TestEnv) {
 }
 
 @test
+func neg_thread_pool_future_of_rc_not_send(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <T> needs_send_type() : int where T : Send { return 0 }\npublic func main() : int {\n    return needs_send_type<std::concurrent.Future<std::Rc<int> > >()\n}\n"
+    expect_compile_error_with_mod(env, "thread_pool_future_rc_not_send", ch,
+                                  "does not satisfy where clause constraint 'T : Send'",
+                                  NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_thread_spawn_mutex_guard_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "func worker(g : std::MutexGuard<int>) : int {\n    return 0\n}\npublic func main() : int {\n    var m = std::new_mutex(1)\n    var g = m.lock()\n    var t = std::thread.spawn<std::MutexGuard<int>, int>(worker, g)\n    return t.join()\n}\n"

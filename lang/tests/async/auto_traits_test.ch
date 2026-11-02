@@ -37,6 +37,15 @@ func async_public_value_types_are_send_and_sync(env : &mut TestEnv) {
     if(async_needs_sync_type<core::async::SendFutureHandle<int> >() != 0) {
         env.error("SendFutureHandle<int> should be Sync")
     }
+    if(async_needs_send_type<std::concurrent.Future<int> >() != 0) {
+        env.error("thread-pool Future<int> should be Send when its result is Send")
+    }
+    if(async_needs_send_type<std::concurrent.ThreadPool>() != 0) {
+        env.error("ThreadPool should be Send")
+    }
+    if(async_needs_sync_type<std::concurrent.ThreadPool>() != 0) {
+        env.error("ThreadPool should be Sync")
+    }
 
     // A SendFutureHandle is produced only by the checked submission surface;
     // the type-level assertions above cover the erased value form.

@@ -1816,7 +1816,7 @@
       "unreachable_stmts": 0,
       "unsafe_blocks": 166,
       "unsafe_func_decls": 27,
-      "unsafe_impl_decls": 9,
+      "unsafe_impl_decls": 11,
       "unsafe_values": 129,
       "variadic_calls": 14
     },
@@ -2467,7 +2467,7 @@
     "unreachable_stmts": 0,
     "unsafe_blocks": 3775,
     "unsafe_func_decls": 36,
-    "unsafe_impl_decls": 15,
+    "unsafe_impl_decls": 17,
     "unsafe_values": 4915,
     "variadic_calls": 295
   }

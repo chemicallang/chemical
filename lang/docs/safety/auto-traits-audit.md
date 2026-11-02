@@ -51,6 +51,8 @@ Regression tests:
 | `Waker` | `Send + Sync` unconditionally | The vtable contract requires wake/clone/drop to be callable from any thread; `from_raw` is unsafe, and `empty()` is a null no-op. |
 | `SendFutureHandle<T>` | `Send + Sync` if `T: Send` | A frame is promoted here only after `spawn_send` proves `Send + 'static`; construction is unsafe/private and `Sync` only exposes raw pointer reads. |
 | `Sender<T>`, `Receiver<T>`, `Channel<T>` | `Send + Sync` if `T: Send` | All counters, queue links, and wakeups are under `ChannelShared.m`; handles cannot be forged. |
+| `std::concurrent.Future<T>` | `Send` if `T: Send` | Owns the consumer side of one promise; the promise state is mutex/condvar protected and `get` is the only operation that transfers `T`. |
+| `std::concurrent.ThreadPool` | `Send + Sync` | The private `PoolData` is heap-allocated; safe submission locks its mutex and the safe closure entry point requires a `Send + 'static` capture witness. Unchecked `submit`/`submit_void` stay unsafe. |
 
 ## Explicit negative impls
 
@@ -117,21 +119,20 @@ lifetime witness that would make the transfer sound:
   pairs. A shared view should eventually be `Send`/`Sync` under `T: Sync`, but
   only after the view carries the borrow lifetime in the type; otherwise a
   view of a local could pass a `Send + 'static` boundary.
-- `ThreadPool` and the thread-pool `Future<T>` hold raw pointers and are not
-  part of the safe cross-thread surface.
 - `std::function<F>` with an erased capture witness is conservatively
   `!Send`/`!Sync`; use `send_function`, `scoped_send_function`, or
   `typed_function` when a witness must be exposed.
-- Conditional positive `Unpin` impls are still not evaluated in the nested
-  path; this can reject, never accept an `!Unpin` value.
+- Conditional positive `Unpin` impls are evaluated in the type-checker and
+  dynamic-object paths; the generic-impl bound path still conservatively
+  rejects them because it has no type-checker context.
 
 ## Gates
 
 The audit is covered by the negative safety suite and the existing
 `arc`/`box`/`mutex`/`rwlock`/`thread`/`channel` tests, plus:
 
-- TCC main `2429/2429`, LLVM main `2427/2427`
-- TCC/LLVM negative `764/764`
+- TCC main `2430/2430`, LLVM main `2428/2428`
+- TCC/LLVM negative `765/765`
 - TCC/LLVM safety `74/74`, async `70/70`
 - TCC libs `732/732`, plugins `1305/1305`
 - TCC interpret `1931/1931`

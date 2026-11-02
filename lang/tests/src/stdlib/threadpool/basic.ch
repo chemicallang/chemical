@@ -396,6 +396,21 @@ func test_pool_submit_closure_owned_capture() : bool {
     return r == 42
 }
 
+// 15b) A thread-pool future may be consumed on a different thread when its
+// result is Send. The promise is mutex/condvar protected; `get` is the only
+// operation that transfers T.
+func consume_pool_future(f : std::concurrent.Future<int>) : int {
+    return f.get()
+}
+
+func test_pool_future_moves_across_threads() : bool {
+    var pool = std::concurrent::create_pool(2u)
+    var x = 41
+    var f = std::concurrent.submit_closure(|x|() => { return x + 1 }, &pool)
+    var t = std::thread.spawn<std::concurrent.Future<int>, int>(consume_pool_future, f)
+    return t.join() == 42
+}
+
 // 16) Heterogeneous scoped scope: two workers capture different stack values
 func test_scoped_run_closure_heterogeneous() : bool {
     var a = 1
@@ -529,6 +544,7 @@ func test_thread_pool() {
         test("test_spawn_closure_owned_capture", test_spawn_closure_owned_capture);
         test("test_scoped_spawn_closure_borrow", test_scoped_spawn_closure_borrow);
         test("test_pool_submit_closure_owned_capture", test_pool_submit_closure_owned_capture);
+        test("test_pool_future_moves_across_threads", test_pool_future_moves_across_threads);
         test("test_scoped_run_closure_heterogeneous", test_scoped_run_closure_heterogeneous);
         test("test_scoped_spawn_closure_value", test_scoped_spawn_closure_value);
         test("test_scoped_run_closure_value", test_scoped_run_closure_value);

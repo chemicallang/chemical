@@ -41,15 +41,25 @@ static void ct_stat(const char* tag, const char* name) {
 
 /** Map the front-end target data to the MIR C aggregate ABI. */
 static mir::MIRABIKind mir_c_abi_kind(const TargetData& td) {
-    if (td.wasm32 || td.wasm64 || td.arm) return mir::MIRABIKind::Unknown;
+    if (td.wasm32 || td.wasm64) return mir::MIRABIKind::Unknown;
     if (td.x86_64) {
         return td.windows ? mir::MIRABIKind::WindowsX64
                           : mir::MIRABIKind::SysVX86_64;
     }
-    // i386's aggregate convention splits small structs into scalar arguments
-    // and uses byval for others; we do not emulate it yet, so @extern by-value
-    // aggregates are rejected there rather than emitted with the wrong shape.
-    if (td.x86 || td.i386) return mir::MIRABIKind::Unknown;
+    // i386: System V passes every aggregate in memory; Windows i386 uses the
+    // same stack parameter shape but returns 1/2/4/8-byte aggregates in EAX/EDX.
+    if (td.x86 || td.i386) {
+        return td.windows ? mir::MIRABIKind::WindowsX86
+                          : mir::MIRABIKind::SysVX86_32;
+    }
+    if (td.arm) {
+        // Microsoft ARM32 uses a different aggregate convention. Linux/BSD
+        // ARM32 follows AAPCS; the *eabihf environments additionally use the
+        // VFP HFA rules.
+        if (td.windows) return mir::MIRABIKind::Unknown;
+        return td.hard_float ? mir::MIRABIKind::AAPCS32HF
+                             : mir::MIRABIKind::AAPCS32;
+    }
     if (td.aarch64) {
         // Microsoft ARM64 differs from AAPCS64 in variadic and HFA details;
         // reject by-value extern aggregates there instead of guessing.

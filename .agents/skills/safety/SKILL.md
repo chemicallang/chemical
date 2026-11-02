@@ -20,7 +20,7 @@ for the safe API surface we currently expose**, not full language parity.
 | Init / moves / drops | Implemented in MIR (`MIRMoveCheck`); local/parameter struct fields and whole-array fields are field-tracked; unsupported move shapes reject with `SAFE-MOVE-004` |
 | Borrows / lifetimes | Implemented for the enforceable surface (regions, NLL loans, storage lifetimes, return regions, variance, temporary extension, provenance, HRTB call regions) |
 | `Send` / `Sync` | Auto traits + explicit/negative impls + nested conditional generic impls; data-race primitives. Stdlib explicit impls audited (2026-11-02); the shared-reference Send rule now checks nested `!Sync` correctly (`lang/docs/safety/auto-traits-audit.md`). |
-| Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; target-aware by-value C ABI on x86-64 SysV, Windows x64 and AArch64 AAPCS64; other targets reject by-value extern aggregates |
+| Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; target-aware by-value C ABI on x86-64 SysV, Windows x64, i386 SysV/Windows, ARM32 AAPCS (soft/hard-float) and AArch64 AAPCS64; Windows ARM64/unknown targets and variadic aggregate arguments reject instead of guessing |
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
 | Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
@@ -33,13 +33,13 @@ Latest measured baseline:
 | TCC main | `2430/2430` |
 | LLVM main | `2428/2428` |
 | `@test` runner | `56/56` |
-| TCC/LLVM negative | `765/765` |
+| TCC/LLVM negative | `767/767` |
 | TCC/LLVM safety | `74/74` |
 | TCC/LLVM async | `70/70` |
 | TCC libs | `732/732` |
 | TCC plugins | `1305/1305` |
 | TCC interpret | `1931/1931` |
-| `MIRTests` | `4682 checks` |
+| `MIRTests` | `4726 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
 | Whole-tree audit | `unsafe_blocks 3775`, `unsafe_values 4915`, `raw_pointer_types 9370`, `raw_pointer_derefs 1073`, `panic_calls 113` |
 | Audit result | `no growth` against `lang/docs/safety/audit-baseline.json` |
@@ -63,9 +63,12 @@ closure fixtures add a few audited raw C future-ABI sites.
 - `SAFE-FFI-001` — `@extern` call from safe context.
 - `SAFE-FFI-002` — `@extern` function passing/returning a Chemical variant by
   value (no C layout).
-- `SAFE-FFI-003` — LLVM by-value `@extern` aggregate on a target other than
-  x86-64 System V; use the C backend or a supported target until `MIRABI` is
-  target-aware.
+- `SAFE-FFI-003` — LLVM by-value `@extern` aggregate on a target without a C
+  ABI classifier (currently Windows ARM64 and unknown/WASM targets); use the C
+  backend or a supported target.
+- `SAFE-FFI-004` — a by-value aggregate is passed through a variadic `@extern`
+  call; pass a pointer or scalar instead (C default promotions cover scalars,
+  not a guessed aggregate layout).
 - `SAFE-SCOPED-001` — `@scoped_callback` parameter used for anything other than
   forwarding to a join-before-return scoped API (or another audited
   `@scoped_callback` function).
@@ -282,13 +285,18 @@ memory safety.
    inside an explicit `unsafe` boundary.
 2. **Target-aware C ABI is implemented for the main native conventions.**
    `MIRABI` classifies by-value `@extern` structs/unions for x86-64 System V,
-   Windows x64 and AArch64 AAPCS64, including HFA register parts at exact
-   aggregate offsets; LLVM uses `byval` only on System V memory parameters and
-   plain pointers on Windows/AArch64, matching Clang. i386/ARM32/Windows ARM64
-   and unknown targets reject by-value extern aggregates with `SAFE-FFI-003`;
-   the C backend delegates to the host compiler. Remaining: i386/ARM32/Windows
-   ARM64 classifiers, variadic aggregate arguments, callback calling-convention
-   auditing, and full FFI wrapper auditing.
+   Windows x64, i386 System V, Windows i386, ARM32 AAPCS (soft-float and
+   hard-float/AAPCS-VFP) and AArch64 AAPCS64. The classifier is parameter/return
+   aware because i386 Windows and ARM32 return small aggregates in registers
+   while passing parameters differently; ARM32 hard-float handles HFAs and the
+   Clang 64-byte split/byval threshold. LLVM uses `byval` on the targets that
+   require it (SysV x86, i386 Windows, ARM32) and plain pointers on
+   Windows x64/AArch64, matching Clang. Windows ARM64 and unknown targets reject
+   by-value extern aggregates with `SAFE-FFI-003`; by-value aggregates passed
+   through a variadic `@extern` call are rejected with `SAFE-FFI-004`. The C
+   backend delegates to the host compiler. Remaining: Windows ARM64, variadic
+   scalar default-promotion coverage, callback calling-convention auditing, and
+   full FFI wrapper auditing.
 3. **`@scoped_callback` is body-checked, with a fixed sink list.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter anywhere except a known join-before-return API (resolved by exact library
@@ -523,7 +531,8 @@ Coded output renders `error[SAFE-*]:` / `warn[SAFE-*]:`; uncoded output keeps
 | `SAFE-DROP-001` | invalid destructor signature |
 | `SAFE-FFI-001` | `@extern` call in safe context |
 | `SAFE-FFI-002` | by-value Chemical variant across `@extern` ABI |
-| `SAFE-FFI-003` | LLVM by-value extern aggregate on unsupported target ABI |
+| `SAFE-FFI-003` | LLVM by-value extern aggregate on a target without a C ABI classifier (Windows ARM64/unknown) |
+| `SAFE-FFI-004` | by-value aggregate passed through a variadic `@extern` call |
 | `SAFE-GLOBAL-001` | mutable/extern global access in safe context |
 | `SAFE-GLOBAL-002` | immutable global whose type is not `Sync` |
 | `SAFE-INIT-001` | use/move/drop of an uninitialized place |
@@ -698,4 +707,5 @@ When compiler C++ changed, omit `--no-build` or rebuild first:
       positive/negative impls, not just the top-level bound.
 - [ ] If touching async: consider the `FutureHandle` borrow-escape gap and
       `spawn_send` frame check.
-- [ ] If touching FFI: remember the LLVM C ABI is x86-64 SysV only.
+- [ ] If touching FFI: classify through `MIRABI` for the target; unsupported
+      conventions must reject with `SAFE-FFI-003` rather than emit a guessed shape.

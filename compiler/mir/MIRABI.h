@@ -107,6 +107,17 @@ struct MIRABIInfo {
     std::vector<MIRABIPart> parts;
 };
 
+/**
+ * The argument position being classified. Most targets use the same convention
+ * for parameters and returns, but i386 Windows and ARM32 do not: an aggregate
+ * that is returned in registers may still be passed on the stack (or as split
+ * words), so the classifier must know which side it is describing.
+ */
+enum class MIRABIUse : uint8_t {
+    Parameter,
+    Return,
+};
+
 namespace detail {
 
 inline int abi_scalar_class(const MIRModule& m, TypeId t) {
@@ -202,6 +213,37 @@ inline bool classify_sysv_x86_64(const MIRModule& m, TypeId t, MIRABIInfo& out,
 
 /** Windows x64: 1/2/4/8-byte aggregates travel as an integer; all others by ref. */
 inline bool classify_windows_x64(const MIRModule& m, TypeId t, MIRABIInfo& out) {
+    const MIRTypeRecord& r = m.types.get(t);
+    if (r.size == 1 || r.size == 2 || r.size == 4 || r.size == 8) {
+        out.parts.push_back(MIRABIPart{r.size, false, 0});
+        return true;
+    }
+    out.memory = true;
+    return true;
+}
+
+/**
+ * i386 System V: every aggregate argument is passed on the stack (LLVM models
+ * this as `byval`) and every aggregate return uses a hidden sret pointer,
+ * including one-byte structs. Clang and GCC agree on this shape.
+ */
+inline bool classify_sysv_x86_32(MIRABIUse use, MIRABIInfo& out) {
+    (void) use;
+    out.memory = true;
+    return true;
+}
+
+/**
+ * Windows i386 (cdecl): aggregate arguments are always passed by value on the
+ * stack, but 1/2/4/8-byte aggregate returns use EAX/EDX. Clang returns i8/i16/
+ * i32/i64 for those sizes and sret for every other aggregate.
+ */
+inline bool classify_windows_x86(const MIRModule& m, TypeId t, MIRABIUse use,
+                                 MIRABIInfo& out) {
+    if (use == MIRABIUse::Parameter) {
+        out.memory = true;
+        return true;
+    }
     const MIRTypeRecord& r = m.types.get(t);
     if (r.size == 1 || r.size == 2 || r.size == 4 || r.size == 8) {
         out.parts.push_back(MIRABIPart{r.size, false, 0});
@@ -308,16 +350,79 @@ inline bool classify_aapcs64(const MIRModule& m, TypeId t, MIRABIInfo& out) {
     return true;
 }
 
+/**
+ * ARM32 AAPCS. Clang's ARM backend splits composites up to 64 bytes into
+ * 4-byte words (8-byte words when the aggregate needs 8-byte alignment) and
+ * uses `byval` above that threshold. Returns of at most 4 bytes use r0; larger
+ * non-HFA returns use sret. The hard-float variant (AAPCS-VFP, selected by the
+ * `*eabihf` environment) additionally passes homogeneous float aggregates in
+ * s0-s15.
+ *
+ * This matches Clang's actual ARM lowering, which is the C ABI our LLVM
+ * backend must interoperate with. It is deliberately conservative above the
+ * 64-byte split threshold.
+ */
+inline bool classify_aapcs32(const MIRModule& m, TypeId t, MIRABIUse use,
+                             bool hard_float, MIRABIInfo& out) {
+    const MIRTypeRecord& r = m.types.get(t);
+    if (r.size == 0 || r.alignment == 0) {
+        out.memory = true;
+        return true;
+    }
+
+    if (hard_float) {
+        uint32_t base = 0;
+        uint32_t count = 0;
+        if (aapcs64_hfa_impl(m, t, base, count, 0)) {
+            for (uint32_t i = 0; i < count; ++i) {
+                out.parts.push_back(MIRABIPart{base, true, i * base});
+            }
+            return true;
+        }
+    }
+
+    if (use == MIRABIUse::Return) {
+        if (r.size <= 4) {
+            // C returns a 1-byte struct in i8, a 2-byte one in i16, and a
+            // 3/4-byte aggregate in i32 (the upper padding bits are undefined).
+            const uint32_t size = r.size == 1 ? 1 : (r.size == 2 ? 2 : 4);
+            out.parts.push_back(MIRABIPart{size, false, 0});
+            return true;
+        }
+        out.memory = true;
+        return true;
+    }
+
+    // Parameter. Above the clang split threshold the aggregate is passed by
+    // reference (`byval`); below it, each word is a separate integer part.
+    if (r.size > 64) {
+        out.memory = true;
+        return true;
+    }
+    const uint32_t chunk = r.alignment >= 8 ? 8 : 4;
+    const uint32_t count = (r.size + chunk - 1) / chunk;
+    for (uint32_t i = 0; i < count; ++i) {
+        const uint32_t offset = i * chunk;
+        const uint32_t remaining = r.size - offset;
+        const uint32_t bytes = remaining < chunk ? remaining : chunk;
+        out.parts.push_back(MIRABIPart{bytes, false, offset});
+    }
+    return true;
+}
+
 } // namespace detail
 
 /**
- * Classify a by-value struct/union for the target's C ABI. Returns false when
- * `t` is not a C aggregate (struct/union); variants are deliberately excluded
- * because their discriminator layout has no C counterpart. `memory` means the
- * caller passes a pointer (`byval`/`sret` in LLVM); `parts` describes the
- * register sequence otherwise.
+ * Classify a by-value struct/union for the target's C ABI in the given
+ * parameter/return position. Returns false when `t` is not a C aggregate
+ * (struct/union); variants are deliberately excluded because their
+ * discriminator layout has no C counterpart. `memory` means the caller passes a
+ * pointer (`byval`/`sret` in LLVM); `parts` describes the register sequence
+ * otherwise. The position matters on i386 Windows and ARM32, where aggregate
+ * parameters and returns use different conventions.
  */
-inline bool classify_c_abi(const MIRModule& m, TypeId t, MIRABIInfo& out) {
+inline bool classify_c_abi(const MIRModule& m, TypeId t, MIRABIUse use,
+                           MIRABIInfo& out) {
     out = MIRABIInfo{};
     if (!is_valid(m, t)) return false;
     const MIRTypeKind k = m.types.get(t).kind;
@@ -329,12 +434,15 @@ inline bool classify_c_abi(const MIRModule& m, TypeId t, MIRABIInfo& out) {
         case MIRABIKind::WindowsX64:
             return detail::classify_windows_x64(m, t, out);
         case MIRABIKind::SysVX86_32:
-            // i386 (System V and Windows cdecl) passes every aggregate on the
-            // stack and returns it through a hidden pointer.
-            out.memory = true;
-            return true;
+            return detail::classify_sysv_x86_32(use, out);
+        case MIRABIKind::WindowsX86:
+            return detail::classify_windows_x86(m, t, use, out);
         case MIRABIKind::AAPCS64:
             return detail::classify_aapcs64(m, t, out);
+        case MIRABIKind::AAPCS32:
+            return detail::classify_aapcs32(m, t, use, false, out);
+        case MIRABIKind::AAPCS32HF:
+            return detail::classify_aapcs32(m, t, use, true, out);
         case MIRABIKind::Unknown:
         default:
             // The caller must reject by-value extern aggregates before codegen.
@@ -348,7 +456,11 @@ inline bool c_abi_supported(const MIRModule& m) {
     switch (m.layout.c_abi) {
         case MIRABIKind::SysVX86_64:
         case MIRABIKind::WindowsX64:
+        case MIRABIKind::SysVX86_32:
+        case MIRABIKind::WindowsX86:
         case MIRABIKind::AAPCS64:
+        case MIRABIKind::AAPCS32:
+        case MIRABIKind::AAPCS32HF:
             return true;
         default:
             return false;

@@ -205,10 +205,11 @@ struct CABIInfo {
 };
 
 static bool c_abi_aggregate_info(Codegen& gen, const mir::MIRModule& m,
-                                 mir::TypeId t, CABIInfo& out) {
+                                 mir::TypeId t, mir::abi::MIRABIUse use,
+                                 CABIInfo& out) {
     out = CABIInfo{};
     mir::abi::MIRABIInfo info;
-    if (!mir::abi::classify_c_abi(m, t, info)) return false;
+    if (!mir::abi::classify_c_abi(m, t, use, info)) return false;
     out.aggregate = info.aggregate;
     out.memory = info.memory;
     for (const mir::abi::MIRABIPart& part : info.parts) {
@@ -234,14 +235,15 @@ static llvm::FunctionType* mir_c_fn_type(Codegen& gen, const mir::MIRModule& m,
     }
     const MIRTypeRecord& fr = m.types.get(ft);
     CABIInfo ret_info;
-    const bool ret_aggregate = c_abi_aggregate_info(gen, m, fr.element, ret_info);
+    const bool ret_aggregate = c_abi_aggregate_info(
+        gen, m, fr.element, mir::abi::MIRABIUse::Return, ret_info);
     const bool sret = ret_aggregate && ret_info.memory;
     std::vector<llvm::Type*> params;
     if (sret) params.push_back(gen.builder->getPtrTy());
     for (uint32_t i = 0; i < fr.data_count; ++i) {
         const TypeId pt = m.types.data[fr.data_offset + i];
         CABIInfo pi;
-        if (c_abi_aggregate_info(gen, m, pt, pi)) {
+        if (c_abi_aggregate_info(gen, m, pt, mir::abi::MIRABIUse::Parameter, pi)) {
             if (pi.memory) {
                 params.push_back(gen.builder->getPtrTy());
             } else {
@@ -271,7 +273,8 @@ static void c_abi_param_attrs(Codegen& gen, const MIRModule& m, uint32_t cft,
     const MIRTypeRecord& fr = m.types.get(cft);
     uint32_t index = 0;
     CABIInfo ret;
-    const bool ret_agg = c_abi_aggregate_info(gen, m, fr.element, ret);
+    const bool ret_agg = c_abi_aggregate_info(
+        gen, m, fr.element, mir::abi::MIRABIUse::Return, ret);
     auto add = [&](llvm::Attribute attr) {
         if (fn) fn->addParamAttr(index, attr);
         if (call) call->addParamAttr(index, attr);
@@ -283,20 +286,37 @@ static void c_abi_param_attrs(Codegen& gen, const MIRModule& m, uint32_t cft,
     for (uint32_t i = 0; i < fr.data_count; ++i) {
         const TypeId pt = m.types.data[fr.data_offset + i];
         CABIInfo pi;
-        if (c_abi_aggregate_info(gen, m, pt, pi)) {
+        if (c_abi_aggregate_info(gen, m, pt, mir::abi::MIRABIUse::Parameter, pi)) {
             if (pi.memory) {
-                // System V x86-64 passes memory-class aggregates with `byval`.
-                // Microsoft x64 and AAPCS64 pass a plain pointer to caller-
-                // allocated storage (matching Clang's `ptr noundef`), so adding
-                // `byval` there would describe a different callee shape.
-                if (m.layout.c_abi == mir::MIRABIKind::SysVX86_64) {
+                // The targets below pass memory-class aggregates with `byval`.
+                // Microsoft x64, Windows ARM64 and AAPCS64 pass a plain pointer
+                // to caller-allocated storage (matching Clang's `ptr noundef`),
+                // so adding `byval` there would describe a different callee
+                // shape.
+                const bool byval =
+                    m.layout.c_abi == mir::MIRABIKind::SysVX86_64 ||
+                    m.layout.c_abi == mir::MIRABIKind::SysVX86_32 ||
+                    m.layout.c_abi == mir::MIRABIKind::WindowsX86 ||
+                    m.layout.c_abi == mir::MIRABIKind::AAPCS32 ||
+                    m.layout.c_abi == mir::MIRABIKind::AAPCS32HF;
+                if (byval) {
                     add(llvm::Attribute::getWithByValType(*gen.ctx,
                                                           gen.mir_type(m, pt)));
-                    const uint32_t align = m.types.get(pt).alignment;
-                    if (align > 0) {
-                        add(llvm::Attribute::getWithAlignment(*gen.ctx,
-                                                              llvm::Align(align)));
+                    uint32_t align = m.types.get(pt).alignment;
+                    if (align == 0) align = 1;
+                    // Clang i386 uses the stack slot alignment (4) for every
+                    // byval aggregate, even one whose natural alignment is 8.
+                    // ARM32 preserves an 8-byte aggregate alignment but never
+                    // goes below the 4-byte stack slot.
+                    if (m.layout.c_abi == mir::MIRABIKind::SysVX86_32 ||
+                        m.layout.c_abi == mir::MIRABIKind::WindowsX86) {
+                        align = 4;
+                    } else if (m.layout.c_abi == mir::MIRABIKind::AAPCS32 ||
+                               m.layout.c_abi == mir::MIRABIKind::AAPCS32HF) {
+                        if (align < 4) align = 4;
                     }
+                    add(llvm::Attribute::getWithAlignment(*gen.ctx,
+                                                          llvm::Align(align)));
                 }
                 index++;
             } else {
@@ -2001,7 +2021,8 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     const bool c_abi = c_abi_fn != nullptr;
                     CABIInfo c_ret;
                     const bool c_ret_agg = c_abi &&
-                        c_abi_aggregate_info(*this, m, c_abi_fn->element, c_ret);
+                        c_abi_aggregate_info(*this, m, c_abi_fn->element,
+                                             mir::abi::MIRABIUse::Return, c_ret);
                     const bool c_mem_ret = c_ret_agg && c_ret.memory;
                     std::vector<llvm::Value*> args;
                     std::vector<TypeId> arg_types;
@@ -2030,10 +2051,16 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                                 m.types.get(ipt).kind == MIRTypeKind::Pointer) {
                                 const TypeId pointee = m.types.get(ipt).element;
                                 CABIInfo probe;
-                                if (c_abi_aggregate_info(*this, m, pointee, probe)) ipt = pointee;
+                                if (c_abi_aggregate_info(*this, m, pointee,
+                                                         mir::abi::MIRABIUse::Parameter,
+                                                         probe)) {
+                                    ipt = pointee;
+                                }
                             }
                             CABIInfo pi;
-                            if (c_abi_aggregate_info(*this, m, ipt, pi)) {
+                            if (c_abi_aggregate_info(*this, m, ipt,
+                                                     mir::abi::MIRABIUse::Parameter,
+                                                     pi)) {
                                 llvm::Value* base = av;
                                 if (o->kind() == MIROperandKind::Place) base = place_ptr(o->id);
                                 if (pi.memory) {

@@ -1,11 +1,12 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.50)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.75)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
 > remain in progress; M8/M9 are pending. Direct async `FutureHandle` borrow
 > escapes are checked in MIR, `SAFE-LIFE-005` rejects safe retaining APIs, the
-> LLVM C ABI is target-aware for x86-64 System V, Windows x64 and AAPCS64 (other
-> targets reject by-value `@extern` aggregates), `@scoped_callback` is
+> LLVM C ABI is target-aware for x86-64 System V, Windows x64, i386
+> SysV/Windows, ARM32 AAPCS (soft/hard-float) and AAPCS64 (Windows ARM64 and
+> unknown targets reject by-value `@extern` aggregates), `@scoped_callback` is
 > body-checked, and async constructors check allocation failure.
 > `FutureHandle<'a, T>` now carries a frame lifetime (`'static` for owning
 > frames, elided for borrowed frames); call-site binding covers aggregate
@@ -1291,7 +1292,7 @@ but keep aliasing/race checks. GC is a later mode.
 | `Clone`/`Default` | Manual bounds | Automatic `Clone` derivation remains M1 work. |
 | References/lifetimes | Enforced for supported surface | `MIRRegionSignature`, NLL loans, storage lifetimes, return regions, variance, temporary extension, `'static`, HRTB call regions. |
 | `unsafe` | Enforced | Raw pointer/reference/asm/extern/global boundaries; named escape flags removed; `unsafe` never disables move/borrow/init checks. |
-| FFI | Enforced calls; target-aware C ABI | `SAFE-FFI-001/002/003`; by-value structs/unions on x86-64 SysV, Windows x64 and AAPCS64; i386/ARM32/Windows ARM64/unknown targets reject by-value extern aggregates instead of emitting a guessed shape. |
+| FFI | Enforced calls; target-aware C ABI | `SAFE-FFI-001/002/003/004`; by-value structs/unions on x86-64 SysV, Windows x64, i386 SysV/Windows, ARM32 AAPCS (soft/hard-float) and AAPCS64; Windows ARM64/unknown targets reject by-value extern aggregates and variadic aggregate arguments are rejected instead of emitting a guessed shape. |
 | Runtime checks | Implemented | Array/vector/deque/string/span/map bounds, div/mod/shift, checked signed arithmetic, defined float→int, allocation/layout guards, abort-only panic. |
 | Thread safety | Enforced safe surface | `Send`/`Sync` auto traits, explicit/negative impls, nested conditional generic impls, scoped/owned thread APIs, `Arc`/channel audit, TSAN smoke. |
 | Async | Shipped; type-level lifetime + field/container inference | `Pin`/Waker/frame loans; `spawn_send` frame check; MIR future borrow tracking through fields/wrappers/pointer containers + `SAFE-LIFE-005` retaining-API rejection. |
@@ -1413,15 +1414,20 @@ new number as the honest baseline, not a compiler regression.
    boundary, which cannot be distinguished from other audited unsafe code.
 2. **Target-aware C ABI is implemented for the main native conventions.**
    `MIRABI.h` classifies by-value structs/unions for x86-64 System V, Windows
-   x64 and AArch64 AAPCS64 (HFAs up to four elements, two-eightbyte integer
-   composites, and memory-class byval/pointer/sret shapes). LLVM converts the
-   register parts at the exact aggregate offset; memory parameters use `byval`
-   only for System V and a plain pointer on Windows/AArch64, matching Clang.
-   i386/ARM32/Windows ARM64 and unknown targets reject by-value `@extern`
-   aggregates with `SAFE-FFI-003`; the C backend still delegates to the host C
-   compiler. Remaining: i386/ARM32 classifiers, Windows ARM64, variadic
-   aggregate arguments, callback calling-convention auditing, and full FFI
-   wrapper auditing.
+   x64, i386 System V, Windows i386, ARM32 AAPCS (soft-float and
+   hard-float/AAPCS-VFP) and AArch64 AAPCS64. Classification is
+   parameter/return-aware: i386 Windows and ARM32 return small aggregates in
+   registers while passing parameters differently; ARM32 hard-float handles
+   HFAs, and non-HFA parameters use Clang's 64-byte split/byval threshold. LLVM
+   converts register parts at the exact aggregate offset; memory parameters use
+   `byval` on SysV x86, i386 Windows and ARM32, and a plain pointer on Windows
+   x64/AArch64, matching Clang. Windows ARM64 and unknown targets reject
+   by-value `@extern` aggregates with `SAFE-FFI-003`; the C backend still
+   delegates to the host C compiler. By-value aggregates passed through a
+   variadic `@extern` call are rejected with `SAFE-FFI-004` (pointer/scalar
+   rewrite required). Remaining: Windows ARM64, variadic scalar
+   default-promotion coverage, callback calling-convention auditing, and full
+   FFI wrapper auditing.
 3. **`@scoped_callback` has a fixed, checked sink list.** `SAFE-SCOPED-001`
    rejects returning, storing, capturing, or passing the scoped parameter to an
    unknown callee; only known join-before-return APIs (resolved by exact library
@@ -1867,8 +1873,10 @@ passes.
   is neither a known consumer nor returns a future-containing result.
 - `SAFE-SCOPED-001`: an `@scoped_callback` parameter is used outside a known
   join-before-return scoped sink.
-- `SAFE-FFI-003`: LLVM by-value `@extern` aggregate on a target other than
-  x86-64 System V.
+- `SAFE-FFI-003`: LLVM by-value `@extern` aggregate on a target without a C ABI
+  classifier (currently Windows ARM64 and unknown/WASM targets).
+- `SAFE-FFI-004`: a by-value aggregate is passed through a variadic `@extern`
+  call; C default promotions cover scalars, not a guessed aggregate layout.
 - `SAFE-MOVE-003`: a `FnOnce` callback is called through a reference, or a
   `FnMut` callback is called through a `const` local or an immutable receiver
   chain/field.
@@ -2140,9 +2148,11 @@ threads, channels/executor.
 - `repr(C)`/`repr(transparent)`/`repr(packed)` for ABI types; `@extern struct` ≡
   `repr(C)` during migration.
 - **Target-aware C ABI**: by-value aggregates/returns and unions are classified
-  for SysV x86-64, Win64 and AAPCS64; i386/ARM32/Windows ARM64 reject. Remaining
-  here: bitfields (if supported), callback calling conventions, variadic
-  aggregate/default-promotion coverage, and FFI wrapper auditing.
+  for SysV x86-64, Win64, i386 SysV/Windows, ARM32 AAPCS soft/hard-float and
+  AAPCS64; Windows ARM64/unknown targets reject. Variadic by-value aggregate
+  arguments reject with `SAFE-FFI-004`. Remaining here: Windows ARM64,
+  bitfields (if supported), callback calling conventions, variadic scalar
+  default-promotion coverage, and FFI wrapper auditing.
 - `repr` layout static assertions.
 - Variadic default promotions (`char`→`int`, `float`→`double`); char signedness;
   bool representation; reject unsupported long double/128-bit.
@@ -3004,3 +3014,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.72 (2026-11-02): S6.0 async/Unpin completion. Nested conditional `Unpin` now goes through the explicit auto-trait context: a conditional positive `impl<T> Unpin for W<T> where T: Unpin` is evaluated at a concrete nested instantiation, while conditional `!Unpin` still wins and the generic-impl bound path stays conservative. Added public async value auto-trait coverage (`Poll<T>`, `Waker`, `Context`, `SendFutureHandle<T>`, with erased `FutureHandle` conservatively `!Send`/`!Sync`); executor/future state structures and `Chunk<T>` remain conservative raw-pointer state. Design/limits: `lang/docs/safety/auto-traits-audit.md`. Main TCC/LLVM `2429`/`2427`; negative `762`; safety `74`; async `70`; TCC libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4682`; TSAN pass; audit no growth.
 *Revision note v4.73 (2026-11-02): legacy lock guards. `lock_guard` and `recursive_lock_guard` now carry explicit `!Send`/`!Sync` impls, matching `MutexGuard`/`RwLock` guards; both hold a raw mutex pointer and unlock in their destructor. Negative tests use type-only Send assertions. Negative suite `764`. Audit doc updated.
 *Revision note v4.74 (2026-11-02): stdlib residual auto-trait conservatism. Thread-pool `Future<T>` now has `Send` for `T: Send` (the promise is mutex/condvar protected and `get` is the only `T` transfer), and `ThreadPool` has audited `Send + Sync` (private heap `PoolData`, locked safe submission, `Send + 'static` capture witness). Added type-only positive/negative coverage and a thread-pool test that consumes `Future<int>` on another thread. The pointer-backed `span`/`mut_span`/`str` views and executor/iterator raw state remain conservative because their types do not carry a lifetime/ownership witness; the generic-impl `Unpin` bound path remains conservative. Negative suite `765`; main TCC/LLVM `2430`/`2428`; safety `74`; async `70`; libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4682`; TSAN pass; audit no growth.
+
+*Revision note v4.75 (2026-11-02): C ABI classifier breadth (P0). `MIRABI` classification is now parameter/return-aware, which is required because i386 Windows and ARM32 return small aggregates in registers while passing parameters under different rules. Added i386 System V (all aggregate parameters byval, all aggregate returns sret), Windows i386 (byval parameters; i8/i16/i32/i64 returns for 1/2/4/8-byte aggregates, sret otherwise), and ARM32 AAPCS soft-float/hard-float (HFA register parts, 4/8-byte integer word splitting up to Clang's 64-byte threshold, small-register returns, larger non-HFA sret). Target selection records `hard_float` from the `*eabihf` environment in both LLVM and non-LLVM target parsers; the build-script `TargetData` mirror is extended at the end to preserve CBI field layout. LLVM applies `byval` for the new memory-class targets, and `MIRTests` covers every new classifier plus positive target-gate checks for i386 and ARM32. Windows ARM64 remains fail-closed with `SAFE-FFI-003`. By-value aggregates passed through a variadic `@extern` call are rejected with `SAFE-FFI-004` instead of handing the callee an internal aggregate pointer; scalar varargs remain supported. Remaining from the P0 item: Windows ARM64, variadic scalar default-promotion coverage, callback calling-convention auditing, and full FFI wrapper auditing. Main TCC/LLVM `2430`/`2428`; negative `767`; safety `74`; async `70`; libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4726`; TSAN pass; audit no growth.

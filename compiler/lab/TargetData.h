@@ -58,6 +58,8 @@ struct TargetData {
     bool s390x = false;
     bool wasm32 = false;
     bool wasm64 = false;
+    // ARM32 hard-float AAPCS-VFP variant (gnueabihf / musleabihf).
+    bool hard_float = false;
 
 };
 
@@ -193,6 +195,10 @@ consteval TargetData create_target_data() {
 
 #if defined(__wasm64__)
     d.wasm64 = true;
+#endif
+
+#if defined(__ARM_PCS_VFP)
+    d.hard_float = true;
 #endif
 
     // Bitness (pointer size)

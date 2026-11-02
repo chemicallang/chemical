@@ -2826,76 +2826,148 @@ static bool test_c_abi_classifier() {
                                                 {"c", f64}, {"d", f64}});
     const TypeId five_floats = mir_layout_agg(m, MIRTypeKind::Struct,
                                               {{"a", mir_layout_array(m, f32, 5)}});
+    const TypeId three_chars = mir_layout_agg(m, MIRTypeKind::Struct,
+                                              {{"a", ch}, {"b", ch}, {"c", ch}});
+    const TypeId huge = mir_layout_agg(
+        m, MIRTypeKind::Struct,
+        {{"a", mir_layout_array(m, i32, 17)}});
 
     abi::MIRABIInfo info;
 
     // System V x86-64: the original eightbyte classification.
     m.layout.c_abi = MIRABIKind::SysVX86_64;
-    CHECK(abi::classify_c_abi(m, pair, info));
+    CHECK(abi::classify_c_abi(m, pair, abi::MIRABIUse::Return, info));
     CHECK(!info.memory && info.parts.size() == 1 &&
           info.parts[0].size == 8 && info.parts[0].offset == 0 &&
           !info.parts[0].floating);
-    CHECK(abi::classify_c_abi(m, one_char, info));
+    CHECK(abi::classify_c_abi(m, one_char, abi::MIRABIUse::Return, info));
     CHECK(!info.memory && info.parts.size() == 1 &&
           info.parts[0].size == 1 && !info.parts[0].floating);
-    CHECK(abi::classify_c_abi(m, two_floats, info));
+    CHECK(abi::classify_c_abi(m, two_floats, abi::MIRABIUse::Return, info));
     CHECK(!info.memory && info.parts.size() == 1 &&
           info.parts[0].floating);
-    CHECK(abi::classify_c_abi(m, mixed, info));
+    CHECK(abi::classify_c_abi(m, mixed, abi::MIRABIUse::Return, info));
     CHECK(!info.memory && info.parts.size() == 1 &&
           !info.parts[0].floating); // INTEGER dominates the eightbyte
-    CHECK(abi::classify_c_abi(m, union_if, info));
+    CHECK(abi::classify_c_abi(m, union_if, abi::MIRABIUse::Return, info));
     CHECK(!info.memory && info.parts.size() == 1 &&
           !info.parts[0].floating);
-    CHECK(abi::classify_c_abi(m, big, info) && info.memory);
+    CHECK(abi::classify_c_abi(m, big, abi::MIRABIUse::Return, info) && info.memory);
 
     // Windows x64: only 1/2/4/8-byte aggregates use an integer register.
     m.layout.c_abi = MIRABIKind::WindowsX64;
-    CHECK(abi::classify_c_abi(m, pair, info));
+    CHECK(abi::classify_c_abi(m, pair, abi::MIRABIUse::Return, info));
     CHECK(!info.memory && info.parts.size() == 1 &&
           info.parts[0].size == 8 && !info.parts[0].floating);
-    CHECK(abi::classify_c_abi(m, one_char, info));
+    CHECK(abi::classify_c_abi(m, one_char, abi::MIRABIUse::Return, info));
     CHECK(!info.memory && info.parts.size() == 1 &&
           info.parts[0].size == 1 && !info.parts[0].floating);
-    CHECK(abi::classify_c_abi(m, big, info) && info.memory);
+    CHECK(abi::classify_c_abi(m, big, abi::MIRABIUse::Return, info) && info.memory);
 
     // AArch64 AAPCS64: HFAs in FP registers, other composites in x regs.
     m.layout.c_abi = MIRABIKind::AAPCS64;
-    CHECK(abi::classify_c_abi(m, two_floats, info));
+    CHECK(abi::classify_c_abi(m, two_floats, abi::MIRABIUse::Return, info));
     CHECK(!info.memory && info.parts.size() == 2 &&
           info.parts[0].floating && info.parts[0].size == 4 &&
           info.parts[0].offset == 0 &&
           info.parts[1].floating && info.parts[1].size == 4 &&
           info.parts[1].offset == 4);
-    CHECK(abi::classify_c_abi(m, two_doubles, info));
+    CHECK(abi::classify_c_abi(m, two_doubles, abi::MIRABIUse::Return, info));
     CHECK(!info.memory && info.parts.size() == 2 &&
           info.parts[0].floating && info.parts[0].size == 8);
-    CHECK(abi::classify_c_abi(m, float3, info));
+    CHECK(abi::classify_c_abi(m, float3, abi::MIRABIUse::Return, info));
     CHECK(!info.memory && info.parts.size() == 3 &&
           info.parts[0].floating && info.parts[2].size == 4);
-    CHECK(abi::classify_c_abi(m, union_ff, info));
+    CHECK(abi::classify_c_abi(m, union_ff, abi::MIRABIUse::Return, info));
     CHECK(!info.memory && info.parts.size() == 1 &&
           info.parts[0].floating && info.parts[0].size == 4);
-    CHECK(abi::classify_c_abi(m, four_doubles, info));
+    CHECK(abi::classify_c_abi(m, four_doubles, abi::MIRABIUse::Return, info));
     CHECK(!info.memory && info.parts.size() == 4 &&
           info.parts[3].floating && info.parts[3].size == 8 &&
           info.parts[3].offset == 24);
-    CHECK(abi::classify_c_abi(m, five_floats, info) && info.memory);
-    CHECK(abi::classify_c_abi(m, pair, info));
+    CHECK(abi::classify_c_abi(m, five_floats, abi::MIRABIUse::Return, info) && info.memory);
+    CHECK(abi::classify_c_abi(m, pair, abi::MIRABIUse::Return, info));
     CHECK(!info.memory && info.parts.size() == 1 &&
           info.parts[0].size == 8 && !info.parts[0].floating);
-    CHECK(abi::classify_c_abi(m, mixed, info));
+    CHECK(abi::classify_c_abi(m, mixed, abi::MIRABIUse::Return, info));
     CHECK(!info.memory && info.parts.size() == 1 &&
           info.parts[0].size == 8 && !info.parts[0].floating);
-    CHECK(abi::classify_c_abi(m, big, info) && info.memory);
+    CHECK(abi::classify_c_abi(m, big, abi::MIRABIUse::Return, info) && info.memory);
 
-    // i386 passes every aggregate in memory; unknown targets are rejected by
-    // the caller's c_abi_supported gate.
+    // i386 System V: every aggregate parameter and return is memory-class
+    // (parameters byval, returns sret), including one-byte structs.
     m.layout.c_abi = MIRABIKind::SysVX86_32;
-    CHECK(abi::classify_c_abi(m, pair, info) && info.memory);
-    CHECK(!abi::c_abi_supported(m));
+    CHECK(abi::classify_c_abi(m, pair, abi::MIRABIUse::Parameter, info) && info.memory);
+    CHECK(abi::classify_c_abi(m, pair, abi::MIRABIUse::Return, info) && info.memory);
+    CHECK(abi::classify_c_abi(m, one_char, abi::MIRABIUse::Return, info) && info.memory);
+    CHECK(abi::c_abi_supported(m));
+
+    // Windows i386: parameters are always byval, but 1/2/4/8-byte returns use
+    // EAX/EDX. Three-byte and larger returns use sret.
+    m.layout.c_abi = MIRABIKind::WindowsX86;
+    CHECK(abi::classify_c_abi(m, pair, abi::MIRABIUse::Parameter, info) && info.memory);
+    CHECK(abi::classify_c_abi(m, one_char, abi::MIRABIUse::Return, info));
+    CHECK(!info.memory && info.parts.size() == 1 && info.parts[0].size == 1);
+    CHECK(abi::classify_c_abi(m, pair, abi::MIRABIUse::Return, info));
+    CHECK(!info.memory && info.parts.size() == 1 && info.parts[0].size == 8);
+    CHECK(abi::classify_c_abi(m, three_chars, abi::MIRABIUse::Return, info) && info.memory);
+    CHECK(abi::classify_c_abi(m, big, abi::MIRABIUse::Return, info) && info.memory);
+    CHECK(abi::c_abi_supported(m));
+
+    // ARM32 AAPCS (soft-float): composites are split into integer words (eight
+    // bytes when the type needs eight-byte alignment); non-HFA returns larger
+    // than four bytes use sret.
+    m.layout.c_abi = MIRABIKind::AAPCS32;
+    CHECK(abi::classify_c_abi(m, pair, abi::MIRABIUse::Parameter, info));
+    CHECK(!info.memory && info.parts.size() == 2 &&
+          info.parts[0].size == 4 && !info.parts[0].floating);
+    CHECK(abi::classify_c_abi(m, two_floats, abi::MIRABIUse::Parameter, info));
+    CHECK(!info.memory && info.parts.size() == 2 &&
+          info.parts[0].size == 4 && !info.parts[0].floating);
+    CHECK(abi::classify_c_abi(m, two_doubles, abi::MIRABIUse::Parameter, info));
+    CHECK(!info.memory && info.parts.size() == 2 &&
+          info.parts[0].size == 8 && !info.parts[0].floating);
+    CHECK(abi::classify_c_abi(m, huge, abi::MIRABIUse::Parameter, info) && info.memory);
+    CHECK(abi::classify_c_abi(m, one_char, abi::MIRABIUse::Return, info));
+    CHECK(!info.memory && info.parts.size() == 1 && info.parts[0].size == 1);
+    CHECK(abi::classify_c_abi(m, three_chars, abi::MIRABIUse::Return, info));
+    CHECK(!info.memory && info.parts.size() == 1 && info.parts[0].size == 4);
+    CHECK(abi::classify_c_abi(m, pair, abi::MIRABIUse::Return, info) && info.memory);
+    CHECK(abi::classify_c_abi(m, two_floats, abi::MIRABIUse::Return, info) && info.memory);
+    CHECK(abi::c_abi_supported(m));
+
+    // ARM32 hard-float (AAPCS-VFP): homogeneous float aggregates travel in
+    // s0-s15; non-HFA composites keep the integer-word/sret shape.
+    m.layout.c_abi = MIRABIKind::AAPCS32HF;
+    CHECK(abi::classify_c_abi(m, two_floats, abi::MIRABIUse::Parameter, info));
+    CHECK(!info.memory && info.parts.size() == 2 &&
+          info.parts[0].floating && info.parts[0].size == 4);
+    CHECK(abi::classify_c_abi(m, two_floats, abi::MIRABIUse::Return, info));
+    CHECK(!info.memory && info.parts.size() == 2 &&
+          info.parts[1].floating && info.parts[1].offset == 4);
+    CHECK(abi::classify_c_abi(m, two_doubles, abi::MIRABIUse::Parameter, info));
+    CHECK(!info.memory && info.parts.size() == 2 &&
+          info.parts[0].floating && info.parts[0].size == 8);
+    CHECK(abi::classify_c_abi(m, two_doubles, abi::MIRABIUse::Return, info));
+    CHECK(!info.memory && info.parts.size() == 2 &&
+          info.parts[1].floating && info.parts[1].offset == 8);
+    CHECK(abi::classify_c_abi(m, float3, abi::MIRABIUse::Parameter, info));
+    CHECK(!info.memory && info.parts.size() == 3 && info.parts[2].floating);
+    CHECK(abi::classify_c_abi(m, float3, abi::MIRABIUse::Return, info));
+    CHECK(!info.memory && info.parts.size() == 3 && info.parts[2].offset == 8);
+    CHECK(abi::classify_c_abi(m, pair, abi::MIRABIUse::Parameter, info));
+    CHECK(!info.memory && info.parts.size() == 2 && !info.parts[0].floating);
+    CHECK(abi::classify_c_abi(m, pair, abi::MIRABIUse::Return, info) && info.memory);
+    CHECK(abi::classify_c_abi(m, five_floats, abi::MIRABIUse::Parameter, info));
+    CHECK(!info.memory && info.parts.size() == 5 && !info.parts[0].floating);
+    CHECK(abi::classify_c_abi(m, five_floats, abi::MIRABIUse::Return, info) && info.memory);
+    CHECK(abi::classify_c_abi(m, huge, abi::MIRABIUse::Parameter, info) && info.memory);
+    CHECK(abi::c_abi_supported(m));
+
+    // Windows ARM64 still has no classifier; the caller's c_abi_supported gate
+    // rejects by-value extern aggregates there. Unknown targets also reject.
     m.layout.c_abi = MIRABIKind::Unknown;
-    CHECK(abi::classify_c_abi(m, pair, info) && info.memory);
+    CHECK(abi::classify_c_abi(m, pair, abi::MIRABIUse::Return, info) && info.memory);
     CHECK(!abi::c_abi_supported(m));
     m.layout.c_abi = MIRABIKind::WindowsX64;
     CHECK(abi::c_abi_supported(m));
@@ -2905,7 +2977,7 @@ static bool test_c_abi_classifier() {
     // Only C aggregates classify; a variant must stay an explicit FFI error.
     const TypeId variant = mir_layout_agg(m, MIRTypeKind::Variant,
                                           {{"a", i32}});
-    CHECK(!abi::classify_c_abi(m, variant, info));
+    CHECK(!abi::classify_c_abi(m, variant, abi::MIRABIUse::Return, info));
     return true;
 }
 

@@ -117,6 +117,30 @@ bool MIRLowerer::lower_call_args_for(FunctionDeclaration* fd, bool self_included
             temp_extension_operand_ = saved_extension;
         }
         if (!r.ok()) return false;
+        // C varargs default-promote scalars, but a Chemical aggregate has no
+        // defined C vararg shape here. Passing the internal aggregate pointer
+        // would hand the callee a pointer where its ABI expects a by-value
+        // struct, so reject the call instead of emitting a guessed layout.
+        if (fd && fd->is_extern() && fd->isVariadic() && !fd->params.empty() &&
+            i + offset >= fd->params.size() - 1) {
+            // The lowered operand keeps the original aggregate type even when
+            // the source was converted through the erased `any` tail. A pointer
+            // or reference argument has pointer type here and remains valid for
+            // C varargs; an array decays through `push_call_arg`.
+            bool aggregate_arg = false;
+            if (r.type != MIR_INVALID_ID && r.type < module_.types.size()) {
+                const MIRTypeKind rk = module_.types.get(r.type).kind;
+                aggregate_arg = rk == MIRTypeKind::Struct ||
+                                rk == MIRTypeKind::Union ||
+                                rk == MIRTypeKind::Variant;
+            }
+            if (aggregate_arg) {
+                error = "SAFE-FFI-004: by-value aggregate passed through a "
+                        "variadic @extern call is not supported; pass a pointer "
+                        "or a scalar instead";
+                return false;
+            }
+        }
         {
             // A by-value field/aggregate argument is moved into the callee.
             BaseType* at = values[i] ? values[i]->getType() : nullptr;

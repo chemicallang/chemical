@@ -2873,6 +2873,14 @@ void init_target_data(llvm::Triple& triple, TargetData& data) {
         data.is64Bit = true;
     }
 
+    // ARM32 hard-float is selected by the *eabihf environments. It changes the
+    // aggregate ABI (HFA arguments/returns travel in s0-s15), so record it
+    // separately from the generic gnu/musl flag.
+    if (triple.getEnvironment() == llvm::Triple::GNUEABIHF ||
+        triple.getEnvironment() == llvm::Triple::MuslEABIHF) {
+        data.hard_float = true;
+    }
+
     // environment / libc detection from the triple, e.g. aarch64-linux-musl
     switch(triple.getEnvironment()) {
         case llvm::Triple::Musl:
@@ -3013,6 +3021,10 @@ void prepare_target_data(TargetData& data, const std::string& target_triple) {
         } else if (last.find("gnu") != std::string::npos) {
             data.gnu = true;
         }
+        // *eabihf selects the ARM32 hard-float (AAPCS-VFP) aggregate ABI.
+        if (last.size() >= 2 && last.compare(last.size() - 2, 2, "hf") == 0) {
+            data.hard_float = true;
+        }
     }
 
     // operating system: scan back-to-front for the last part that names an OS,
@@ -3129,6 +3141,7 @@ void declare_def_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, DefTh
     defThing.declare_value(allocator, "riscv64", boolType, boolValue(allocator, typeBuilder, data.riscv64));
     defThing.declare_value(allocator, "wasm32", boolType, boolValue(allocator, typeBuilder, data.wasm32));
     defThing.declare_value(allocator, "wasm64", boolType, boolValue(allocator, typeBuilder, data.wasm64));
+    defThing.declare_value(allocator, "hard_float", boolType, boolValue(allocator, typeBuilder, data.hard_float));
 }
 
 void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing, const TargetData& data) {

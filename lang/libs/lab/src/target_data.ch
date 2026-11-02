@@ -50,5 +50,7 @@ public struct TargetData {
     var s390x : bool = false;
     var wasm32 : bool = false;
     var wasm64 : bool = false;
+    // ARM32 hard-float AAPCS-VFP variant (gnueabihf / musleabihf).
+    var hard_float : bool = false;
 
 };

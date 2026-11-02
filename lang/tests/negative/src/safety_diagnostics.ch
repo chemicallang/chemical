@@ -1662,11 +1662,32 @@ func neg_thread_handle_cannot_be_forged(env : &mut TestEnv) {
 @test
 func neg_by_value_extern_on_unsupported_target_rejected(env : &mut TestEnv) {
     // The target-aware C ABI/SAFE-FFI-003 gate is the LLVM backend; TCCCompiler
-    // delegates aggregate layout to the host C compiler.
+    // delegates aggregate layout to the host C compiler. Microsoft ARM64 still
+    // has no classifier, so it must remain fail-closed.
     if(intrinsics::get_backend_name() != "LLVM") { return }
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "@extern struct Pair { var a : int; var b : int }\n@extern func pair_sum(p : Pair) : int\npublic func main() : int { return 0 }\n"
-    expect_compile_error_with_target(env, "ffi_unsupported_target", ch, "SAFE-FFI-003", NEG_MOD, "armv7-unknown-linux-gnueabihf")
+    var ch = "@extern struct Pair { var a : int; var b : int }\n@extern func pair_sum(p : Pair) : int\npublic func main() : int {\n    var p = Pair { a : 1, b : 2 }\n    return unsafe(pair_sum(p))\n}\n"
+    expect_compile_error_with_target(env, "ffi_unsupported_target", ch, "SAFE-FFI-003", NEG_MOD, "aarch64-pc-windows-msvc")
+}
+
+@test
+func ffi_i386_and_arm32_by_value_extern_are_classified(env : &mut TestEnv) {
+    // The C ABI gate must accept targets with a real classifier. The host may
+    // still fail to link a cross-target executable; only SAFE-FFI-003 matters.
+    if(intrinsics::get_backend_name() != "LLVM") { return }
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@extern struct Pair { var a : int; var b : int }\n@extern func pair_sum(p : Pair) : int\npublic func main() : int {\n    var p = Pair { a : 1, b : 2 }\n    return unsafe(pair_sum(p))\n}\n"
+    expect_compile_target_no_diagnostic(env, "ffi_i386_sysv_target", ch, "SAFE-FFI-003", NEG_MOD, "i386-unknown-linux-gnu")
+    expect_compile_target_no_diagnostic(env, "ffi_i386_windows_target", ch, "SAFE-FFI-003", NEG_MOD, "i386-pc-windows-msvc")
+    expect_compile_target_no_diagnostic(env, "ffi_arm32_soft_target", ch, "SAFE-FFI-003", NEG_MOD, "armv7-unknown-linux-gnueabi")
+    expect_compile_target_no_diagnostic(env, "ffi_arm32_hard_target", ch, "SAFE-FFI-003", NEG_MOD, "armv7-unknown-linux-gnueabihf")
+}
+
+@test
+func neg_variadic_extern_aggregate_argument_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@extern struct Pair { var a : int; var b : int }\n@extern func take_ints(n : int, _ : any...) : int\npublic func main() : int {\n    var p = Pair { a : 1, b : 2 }\n    return unsafe(take_ints(1, p))\n}\n"
+    expect_compile_error(env, "variadic_extern_aggregate", ch, "SAFE-FFI-004")
 }
 
 @test

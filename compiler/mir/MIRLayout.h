@@ -31,6 +31,10 @@ enum class MIRABIKind : uint8_t {
     WindowsX64 = 1,
     SysVX86_32 = 2,
     AAPCS64 = 3,
+    WindowsX86 = 4,
+    AAPCS32 = 5,
+    /** ARM32 hard-float (gnueabihf/musleabihf): HFA rules are active. */
+    AAPCS32HF = 6,
     Unknown = 255,
 };
 

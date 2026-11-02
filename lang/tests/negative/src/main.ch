@@ -429,6 +429,30 @@ internal func expect_compile_error_with_target(env : &mut TestEnv, name : *char,
     }
 }
 
+// Compiles for `target` and asserts the C ABI gate did not reject the
+// by-value extern aggregate. The link step may still fail when the host lacks
+// target startup files; that is unrelated to SAFE-FFI-003.
+internal func expect_compile_target_no_diagnostic(env : &mut TestEnv, name : *char, ch_content : *char, unexpected_sub : *char, mod_content : *char, target : *char) {
+    unsafe {
+        setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
+        var mod_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
+        var out_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
+        var extra : char[256]
+        unsafe { sprintf(unsafe(&raw mut extra[0]), " --target %s", target) }
+        var output_buf : char[65536]
+        run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536, "", unsafe(&raw extra[0]))
+        if(string_contains(unsafe(&raw output_buf[0]), unexpected_sub)) {
+            env.error("compiler rejected a supported target ABI")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        } else {
+            env.success("target ABI was accepted")
+        }
+        cleanup_test_dir(NEG_WORK_DIR, name)
+    }
+}
+
 internal func expect_compile_success_with_mod(env : &mut TestEnv, name : *char, ch_content : *char, mod_content : *char) {
         unsafe {
         setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)

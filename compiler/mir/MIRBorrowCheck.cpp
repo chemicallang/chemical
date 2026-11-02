@@ -1946,7 +1946,14 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                             }
                         }
                     }
-                    if (all_local || all_nonlocal_safe) {
+                    bool callback_may_retain = true;
+                    if (!callee_sig->param_may_retain.empty()) {
+                        callback_may_retain = false;
+                        for (uint8_t may_retain : callee_sig->param_may_retain) {
+                            if (may_retain) { callback_may_retain = true; break; }
+                        }
+                    }
+                    if ((!callback_may_retain) || all_local || all_nonlocal_safe) {
                         pinned_multi = true;
                         const uint32_t last =
                             order.empty() ? 0 : static_cast<uint32_t>(order.size() - 1);

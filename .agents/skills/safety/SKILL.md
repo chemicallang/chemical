@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2419/2419` |
 | LLVM main | `2417/2417` |
 | `@test` runner | `56/56` |
-| TCC/LLVM negative | `730/730` |
+| TCC/LLVM negative | `731/731` |
 | TCC/LLVM safety | `74/74` |
 | TCC/LLVM async | `69/69` |
 | TCC libs | `730/730` |
@@ -111,9 +111,10 @@ MIR is the sole producer of init/move/drop state:
 - `SAFE-BORROW-001` — overlapping live loans with at least one mutable loan.
 - `SAFE-BORROW-002` — move/drop of a place while a borrow of it is live.
 - `SAFE-BORROW-099` — a borrow/lifetime pattern the checker cannot prove safe
-  (e.g. deeper aggregate HRTB nesting, mixed local/parameter multi-borrow
-  referents, distinct non-local regions). This is an explicit rejection, never
-  a guessed-safe acceptance.
+  (e.g. deeper aggregate HRTB nesting, or a retaining multi-borrow callback).
+  Read-only mixed local/parameter/global and distinct-region multi-borrow calls
+  are accepted; this remains an explicit rejection, never a guessed-safe
+  acceptance.
 - `SAFE-LIFE-001` — returning a reference to a local/temporary/frame field.
 - `SAFE-LIFE-002` — a loan still live when the referent's storage ends.
 - `SAFE-LIFE-003` — returned reference does not outlive the declared return
@@ -306,10 +307,12 @@ memory safety.
    instance and capture allocation, releasing it exactly once on completion,
    cancellation, or an unpolled drop.
 5. **HRTB precision is intentionally incomplete.**
-   Deeper nested aggregate HRTB and multi-borrow callbacks mixing local and
-   parameter/global referents (or distinct non-local regions) are explicit
-   `SAFE-BORROW-099` rejections. This is a false-negative/rewrite requirement,
-   not a guessed-safe acceptance.
+   Read-only multi-borrow callbacks may mix local/parameter/global referents
+   and use distinct caller regions when no parameter exposes retaining storage.
+   Deeper nested aggregate HRTB, and multi-borrow callbacks with a mutable
+   reference slot, reference-containing pointee, generic parameter, or callback
+   parameter, remain explicit `SAFE-BORROW-099` rejections. This is a
+   false-negative/rewrite requirement, not a guessed-safe acceptance.
 
 6. **`dyn` is a borrowed fat pointer; `DynBox` owns.**
    `dyn I` is a target-aware two-word `{ data, vtable }` value, and `&dyn I`

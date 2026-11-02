@@ -2136,6 +2136,168 @@ static bool contains_future_handle_type(BaseType* type) {
 }
 
 /**
+ * Can a value of this type itself hold a reference/borrow view, making a
+ * borrowed parameter pointee capable of retaining another borrow? A plain int
+ * cannot; a reference, generic parameter, dynamic object, callback, aggregate
+ * field, or pointer/length view can.
+ */
+static bool ast_type_can_hold_borrow(BaseType* type,
+                                     std::unordered_set<BaseType*>& visiting,
+                                     unsigned depth = 0) {
+    if (type == nullptr || depth > 8) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr || !visiting.insert(canonical).second) return false;
+    auto* linked = canonical->get_direct_linked_node();
+    if (linked != nullptr && linked->kind() == ASTNodeKind::GenericTypeParam) {
+        return true;
+    }
+    switch (canonical->kind()) {
+        case BaseTypeKind::Reference:
+        case BaseTypeKind::Dynamic:
+        case BaseTypeKind::Function:
+        case BaseTypeKind::CapturingFunction:
+            return true;
+        case BaseTypeKind::Pointer:
+            // Storing through a raw pointer requires an unsafe boundary.
+            return false;
+        case BaseTypeKind::Array:
+            return ast_type_can_hold_borrow(
+                const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
+                visiting, depth + 1);
+        case BaseTypeKind::Generic: {
+            auto* gen = canonical->as_generic_type_unsafe();
+            auto* gen_linked = gen->referenced ? gen->referenced->linked : nullptr;
+            if (gen_linked != nullptr && gen_linked->kind() == ASTNodeKind::StructDecl) {
+                const auto name = gen_linked->as_struct_def_unsafe()->name_view();
+                if (name == chem::string_view("span") ||
+                    name == chem::string_view("mut_span") ||
+                    name == chem::string_view("string_view") ||
+                    name == chem::string_view("str") ||
+                    name == chem::string_view("FutureHandle") ||
+                    name == chem::string_view("Chunk") ||
+                    name == chem::string_view("slice_pair")) {
+                    return true;
+                }
+            }
+            for (auto& arg : gen->types) {
+                if (ast_type_can_hold_borrow(
+                        const_cast<BaseType*>(arg.getType()), visiting, depth + 1)) {
+                    return true;
+                }
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    auto* container = canonical->get_members_container();
+    if (container == nullptr) return false;
+    for (BaseDefMember* member : container->variables()) {
+        if (member == nullptr) continue;
+        if (member->kind() == ASTNodeKind::StructMember) {
+            auto* field = member->as_struct_member_unsafe();
+            if (field != nullptr && ast_type_can_hold_borrow(
+                    const_cast<BaseType*>(field->type.getType()), visiting, depth + 1)) {
+                return true;
+            }
+        } else if (member->kind() == ASTNodeKind::VariantMember) {
+            auto* variant = member->as_variant_member_unsafe();
+            if (variant != nullptr) {
+                for (auto& entry : variant->values) {
+                    auto* param = entry.second;
+                    if (param != nullptr && ast_type_can_hold_borrow(
+                            const_cast<BaseType*>(param->type.getType()), visiting,
+                            depth + 1)) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+static bool ast_type_can_hold_borrow(BaseType* type) {
+    std::unordered_set<BaseType*> visiting;
+    return ast_type_can_hold_borrow(type, visiting);
+}
+
+/**
+ * Can a callback parameter expose storage that can retain another borrowed
+ * argument? A by-value aggregate only does so through its reference fields
+ * (a reference to an int cannot hold a borrow; a reference to a reference or
+ * generic parameter can), recursively including nested aggregates.
+ */
+static bool ast_type_has_retaining_storage(BaseType* type,
+                                           std::unordered_set<BaseType*>& visiting,
+                                           unsigned depth = 0) {
+    if (type == nullptr || depth > 8) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr || !visiting.insert(canonical).second) return false;
+    auto* linked = canonical->get_direct_linked_node();
+    if (linked != nullptr && linked->kind() == ASTNodeKind::GenericTypeParam) {
+        return true;
+    }
+    switch (canonical->kind()) {
+        case BaseTypeKind::Reference:
+            return ast_type_can_hold_borrow(
+                const_cast<BaseType*>(canonical->as_reference_type_unsafe()->type));
+        case BaseTypeKind::Dynamic:
+        case BaseTypeKind::Function:
+        case BaseTypeKind::CapturingFunction:
+            return true;
+        case BaseTypeKind::Pointer:
+            return false;
+        case BaseTypeKind::Array:
+            return ast_type_has_retaining_storage(
+                const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
+                visiting, depth + 1);
+        case BaseTypeKind::Generic: {
+            auto* gen = canonical->as_generic_type_unsafe();
+            for (auto& arg : gen->types) {
+                if (ast_type_has_retaining_storage(
+                        const_cast<BaseType*>(arg.getType()), visiting, depth + 1)) {
+                    return true;
+                }
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    auto* container = canonical->get_members_container();
+    if (container == nullptr) return false;
+    for (BaseDefMember* member : container->variables()) {
+        if (member == nullptr) continue;
+        if (member->kind() == ASTNodeKind::StructMember) {
+            auto* field = member->as_struct_member_unsafe();
+            if (field != nullptr && ast_type_has_retaining_storage(
+                    const_cast<BaseType*>(field->type.getType()), visiting, depth + 1)) {
+                return true;
+            }
+        } else if (member->kind() == ASTNodeKind::VariantMember) {
+            auto* variant = member->as_variant_member_unsafe();
+            if (variant != nullptr) {
+                for (auto& entry : variant->values) {
+                    auto* param = entry.second;
+                    if (param != nullptr && ast_type_has_retaining_storage(
+                            const_cast<BaseType*>(param->type.getType()), visiting,
+                            depth + 1)) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+static bool ast_type_has_retaining_storage(BaseType* type) {
+    std::unordered_set<BaseType*> visiting;
+    return ast_type_has_retaining_storage(type, visiting);
+}
+
+/**
  * The single frame lifetime carried by a (possibly nested) FutureHandle in a
  * return type. `FutureHandle<'a,T>`, `Option<FutureHandle<'a,T>>` and
  * `W<'a>` with a future field all resolve to `'a`; multiple distinct
@@ -2728,6 +2890,21 @@ uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
         lifetimes, param_lifetimes,
         std::string_view(return_lt.data(), return_lt.size()), {});
     sig.future_return = contains_future_handle_type(ret);
+    sig.param_may_retain.resize(type->params.size(), 0);
+    for (size_t pi = 0; pi < type->params.size(); ++pi) {
+        FunctionParam* param = type->params[pi];
+        BaseType* pt = param ? param->type : nullptr;
+        BaseType* pc = pt ? pt->canonical() : nullptr;
+        if (pc == nullptr) continue;
+        bool may_retain = false;
+        if (pc->kind() == BaseTypeKind::Reference) {
+            may_retain = ast_type_can_hold_borrow(
+                const_cast<BaseType*>(pc->as_reference_type_unsafe()->type));
+        } else {
+            may_retain = ast_type_has_retaining_storage(pc);
+        }
+        if (may_retain) sig.param_may_retain[pi] = 1;
+    }
     sig.hrtb_binders.reserve(lifetimes.size());
     for (size_t i = 0; i < lifetimes.size(); ++i) {
         if (is_hrtb[i]) {

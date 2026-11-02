@@ -60,6 +60,13 @@ struct MIRRegionSignature {
      * parameters and for aggregates without lifetime-parameterised fields.
      */
     std::vector<std::vector<MIRParamFieldRegion>> param_field_regions;
+    /**
+     * One byte per parameter: nonzero when the parameter's pointee can store a
+     * reference/borrow view (so a higher-ranked callback could retain it).
+     * Empty for older signatures, which keep the conservative multi-borrow
+     * check.
+     */
+    std::vector<uint8_t> param_may_retain;
     /** HRTB binders recorded for a declaration's own lifetime parameters. */
     std::vector<MIRRegionId> hrtb_binders;
     /**
@@ -73,7 +80,8 @@ struct MIRRegionSignature {
     bool has_regions() const {
         return lifetime_param_count != 0 || return_region != MIR_INVALID_ID ||
                !param_regions.empty() || !outlives.empty() ||
-               !param_field_regions.empty() || !hrtb_binders.empty();
+               !param_field_regions.empty() || !param_may_retain.empty() ||
+               !hrtb_binders.empty();
     }
 };
 

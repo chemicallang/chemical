@@ -454,20 +454,30 @@ func hrtb_global_multiple_references_ok(env : &mut TestEnv) {
 }
 
 @test
-func neg_hrtb_mixed_local_parameter_rejected(env : &mut TestEnv) {
+func hrtb_mixed_local_parameter_ok(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // A local referent and a parameter referent have different proven lifetimes;
-    // accepting the pair could store the local borrow into caller storage.
+    // The callback has no reference-capable storage and returns an int, so the
+    // higher-ranked contract cannot retain the local borrow.
     var ch = "func sum2(a : &int, b : &int) : int { return *a + *b }\nfunc apply(f : for<'a> (x : &'a int, y : &'a int) => int, a : &int) : int {\n    var b = 2\n    return f(a, &b)\n}\npublic func main() : int {\n    var a = 1\n    return apply(sum2, &a)\n}\n"
-    expect_compile_error(env, "hrtb_mixed_local_param", ch, "SAFE-BORROW-099")
+    expect_compile_success(env, "hrtb_mixed_local_param", ch)
 }
 
 @test
-func neg_hrtb_distinct_parameter_regions_rejected(env : &mut TestEnv) {
+func hrtb_distinct_parameter_regions_ok(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // Distinct caller regions are not interchangeable without region inference.
+    // Read-only shared references carry no retaining storage, so distinct
+    // caller regions are safe for this callback.
     var ch = "func sum2(a : &int, b : &int) : int { return *a + *b }\nfunc apply(f : for<'a, 'b> (x : &'a int, y : &'b int) => int, a : &int, b : &int) : int {\n    return f(a, b)\n}\npublic func main() : int {\n    var a = 1\n    var b = 2\n    return apply(sum2, &a, &b)\n}\n"
-    expect_compile_error(env, "hrtb_distinct_regions", ch, "SAFE-BORROW-099")
+    expect_compile_success(env, "hrtb_distinct_regions", ch)
+}
+
+@test
+func neg_hrtb_retaining_mixed_local_parameter_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A generic parameter can be a reference slot, so the callback could store
+    // the local borrow into caller storage; keep the conservative rejection.
+    var ch = "func store_ref(x : &mut &int, y : &int) : int {\n    *x = y\n    return **x\n}\nfunc <T> apply(f : for<'a> (x : &'a mut T, y : &'a int) => int, a : &mut T) : int {\n    var b = 2\n    return f(a, &b)\n}\npublic func main() : int {\n    var a = 1\n    var r : &int = &a\n    return apply<&int>(store_ref, &mut r)\n}\n"
+    expect_compile_error(env, "hrtb_retaining_mixed_local_param", ch, "SAFE-BORROW-099")
 }
 
 @test

@@ -1052,13 +1052,14 @@
 > lifetimes, return regions, variance, temporary extension, provenance,
 > static-lifetime enforcement, Pin/Waker/async-frame checks, and HRTB call
 > regions are implemented. Remaining parity precision is limited to nested
-> aggregate HRTB and multi-borrow calls with parameter/global referents, which
-> are explicit `SAFE-BORROW-099` rejections rather than guessed safe. HRTB
-> parameters now support a single-level aggregate of direct reference fields,
-> including borrowed field results. Multi-borrow HRTB calls accept equal-region
-> parameter/global referents by pinning their loans to function exit; mixed
-> local/parameter referents, distinct regions, and deeper aggregate nesting
-> remain explicit `SAFE-BORROW-099` rejections.
+> aggregate HRTB only. HRTB parameters support a single-level aggregate of
+> direct reference fields, including borrowed field results. Multi-borrow HRTB
+> calls accept equal-region parameter/global referents by pinning their loans
+> to function exit, and now accept mixed local/parameter/global referents and
+> distinct caller regions when the callback has no retaining storage. A
+> callback with a mutable reference slot, reference-containing pointee, generic
+> parameter, or callback parameter keeps the conservative rule. Deeper
+> aggregate nesting remains an explicit `SAFE-BORROW-099` rejection.
 > Scoped threads without captures are covered by join-before-return
 > `scoped_spawn`/`scoped_spawn_mut` and the multi-handle shared `scoped_run`
 > scope, including non-`'static` borrows. Capturing scoped callbacks are covered
@@ -1435,9 +1436,14 @@ new number as the honest baseline, not a compiler regression.
    when their body moves a capture. Capturing async closures are lowered as
    `FnOnce` and frame-own their function instance/capture allocation; a
    borrowed capture cannot be typed as `FutureHandle<'static, T>`.
-5. **HRTB precision.** Deeper nested aggregate HRTB and multi-borrow callbacks
-   mixing local/parameter/global referents are explicit `SAFE-BORROW-099`
-   rejections, never guessed-safe.
+5. **HRTB precision.** Read-only multi-borrow callbacks may mix local,
+   parameter, and global referents, and may use distinct caller regions, when
+   no parameter exposes storage that can retain a reference. Multi-borrow
+   callbacks whose parameters can retain a borrow (mutable reference slots,
+   reference-containing pointees, generic parameters, callbacks) keep the
+   conservative equal-region/local-only rule. Deeper nested aggregate HRTB
+   still requires path-wise region inference and is an explicit
+   `SAFE-BORROW-099` rejection.
 6. **`dyn` object model is implemented for the safe surface.** `dyn I` is a
    target-aware two-word borrowed fat pointer (`{ data, vtable }`); `&dyn I`
    dispatches through the same vtable, including through `Box::get`. `Box<dyn I>`
@@ -2569,7 +2575,8 @@ containers are rejected at safe call boundaries (`SAFE-LIFE-005`); a
 non-lifetime wrapper or type alias that erases the nested future lifetime is
 covered by `SAFE-LIFE-001`. The remaining async gap is type erasure performed
 entirely inside an explicit `unsafe` boundary. Deeper non-future HRTB nesting
-and mixed multi-borrow referents remain explicit `SAFE-BORROW-099` rejections.
+remains an explicit `SAFE-BORROW-099` rejection; read-only mixed/distinct
+multi-borrow calls are accepted.
 
 ### M5 — Validity/runtime (2 months)
 
@@ -2932,3 +2939,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.57 (2026-11-02): unsafe-declaration audit metrics. The whole-tree safety report now counts `unsafe func` declarations (`unsafe_func_decls`) and `unsafe impl` declarations (`unsafe_impl_decls`) separately, closing the gap where these boundary witnesses were invisible in the audit. Reviewed baseline now records `unsafe_func_decls 36` and `unsafe_impl_decls 15`; all other reviewed totals are unchanged (`panic_calls 113`, `unsafe_values 4915`, `raw_pointer_derefs 1073`, `raw_pointer_types 9370` manually pinned). Migration metrics were refreshed from the baseline. Main TCC/LLVM `2419`/`2417`; negative `729`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.
 
 *Revision note v4.58 (2026-11-02): FutureHandle erasure coverage. Added negative tests for a `type Alias = FutureHandle<int>` return and a non-lifetime `Holder<FutureHandle<int>>` wrapper; both cannot return a future that borrows function-local storage (`SAFE-LIFE-001`). The documented remaining FutureHandle gap is now only user type erasure performed entirely inside an explicit `unsafe` boundary. Main TCC/LLVM `2419`/`2417`; negative `730`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.
+
+*Revision note v4.59 (2026-11-02): multi-borrow HRTB precision. Function-type region signatures now record whether each parameter exposes storage that can retain a reference (`param_may_retain`). A multi-borrow higher-ranked callback with two or more reference inputs is accepted with mixed local/parameter/global referents and distinct caller regions when no parameter can retain a borrow; all loans are pinned to function exit. A mutable reference slot, reference-containing pointee, generic parameter, or callback parameter still uses the conservative equal-region/local-only rule and rejects with `SAFE-BORROW-099` (negative coverage via a generic `&mut T` slot). Tests that previously expected rejection for read-only mixed/distinct regions are now positive; deeper nested aggregate HRTB remains an explicit rejection. Main TCC/LLVM `2419`/`2417`; negative `731`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.

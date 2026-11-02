@@ -1646,8 +1646,15 @@ static bool trait_constraint_satisfied(TypeVerifier& verifier, BaseType* concret
         std::unordered_set<MembersContainer*> visiting;
         const auto kind = iface->interface_bits.has(InterfaceBits::SEND_BIT)
                               ? AutoTraitKind::Send : AutoTraitKind::Sync;
+        // The nested walk must keep the real Send/Sync interfaces. Passing the
+        // queried interface twice makes a `T: Send` check recurse into `&U`
+        // with the Send interface as the Sync one, so an explicit `!Sync`
+        // (for example `Cell`/`RefCell`) is missed and `&U` is accepted as
+        // Send. That is a data race, not a false rejection.
         return type_satisfies_auto_trait(concrete, kind, visiting, &verifier.index,
-                                         (ASTNode*) iface, (ASTNode*) iface, context);
+                                         (ASTNode*) verifier.coreNodes.send_interface,
+                                         (ASTNode*) verifier.coreNodes.sync_interface,
+                                         context);
     }
 
     if (iface->interface_bits.has(InterfaceBits::UNPIN_BIT)) {
@@ -2253,8 +2260,8 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
                     ? AutoTraitKind::Send : AutoTraitKind::Sync;
                 if (!type_satisfies_auto_trait(concrete_type, kind, visiting,
                                                &verifier.index,
-                                               (ASTNode*) interface_def,
-                                               (ASTNode*) interface_def,
+                                               (ASTNode*) verifier.coreNodes.send_interface,
+                                               (ASTNode*) verifier.coreNodes.sync_interface,
                                                &auto_trait_context)) {
                     diagnoser.error(call) << "type '" << concrete_type->representation()
                         << "' does not satisfy where clause constraint '"

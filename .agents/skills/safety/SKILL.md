@@ -19,7 +19,7 @@ for the safe API surface we currently expose**, not full language parity.
 | Diagnostics/audit suites | Implemented: coded errors, negative/safety suites, whole-tree audit gate |
 | Init / moves / drops | Implemented in MIR (`MIRMoveCheck`); local/parameter struct fields and whole-array fields are field-tracked; unsupported move shapes reject with `SAFE-MOVE-004` |
 | Borrows / lifetimes | Implemented for the enforceable surface (regions, NLL loans, storage lifetimes, return regions, variance, temporary extension, provenance, HRTB call regions) |
-| `Send` / `Sync` | Auto traits + explicit/negative impls + nested conditional generic impls; data-race primitives |
+| `Send` / `Sync` | Auto traits + explicit/negative impls + nested conditional generic impls; data-race primitives. Stdlib explicit impls audited (2026-11-02); the shared-reference Send rule now checks nested `!Sync` correctly (`lang/docs/safety/auto-traits-audit.md`). |
 | Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; target-aware by-value C ABI on x86-64 SysV, Windows x64 and AArch64 AAPCS64; other targets reject by-value extern aggregates |
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
 | Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check |
@@ -30,15 +30,15 @@ Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2419/2419` |
-| LLVM main | `2417/2417` |
+| TCC main | `2429/2429` |
+| LLVM main | `2427/2427` |
 | `@test` runner | `56/56` |
-| TCC/LLVM negative | `743/743` |
+| TCC/LLVM negative | `760/760` |
 | TCC/LLVM safety | `74/74` |
 | TCC/LLVM async | `69/69` |
-| TCC libs | `730/730` |
+| TCC libs | `732/732` |
 | TCC plugins | `1305/1305` |
-| TCC interpret | `1921/1921` |
+| TCC interpret | `1931/1931` |
 | `MIRTests` | `4682 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
 | Whole-tree audit | `unsafe_blocks 3775`, `unsafe_values 4915`, `raw_pointer_types 9370`, `raw_pointer_derefs 1073`, `panic_calls 113` |
@@ -408,6 +408,17 @@ memory safety.
     associated types are marked non-object-safe (`lang/docs/associated-types.md`).
     `T::Item`, associated bounds/equality constraints, dyn projections, and GAT
     parameters remain M1.
+
+16. **Stdlib auto-trait audit (2026-11-02).** Every explicit stdlib
+    `Send`/`Sync` impl was reviewed in `lang/docs/safety/auto-traits-audit.md`.
+    The audit found and fixed a shared-reference bug: `T: Send` recursively
+    checked `&U` with the Send interface where Sync was required, so an
+    explicit `!Sync` (for example `Cell`/`RefCell`) was missed and `&U` was
+    accepted as Send. `Rc`/`Weak`, `RefCell`, `Ref`, and `RefMut` now carry
+    explicit negative impls. Raw-pointer views (`span`/`str`/`string_view`)
+    remain conservatively `!Send`/`!Sync` until their borrow lifetime is in the
+    type. Remaining: executor/iterator/future-type coverage and the
+    conservative `Unpin` nested-implementation path.
 
 ## Callback and `Fn` model
 

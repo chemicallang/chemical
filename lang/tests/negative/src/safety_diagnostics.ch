@@ -1333,14 +1333,14 @@ func neg_box_follows_inner_sync(env : &mut TestEnv) {
 func neg_rc_is_not_send(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\npublic func main() : int {\n    var r = std::rc(1)\n    var h = Holder<std::Rc<int>> { data = null }\n    return h.check()\n}\n"
-    expect_compile_error_with_mod(env, "rc_not_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
+    expect_compile_error_with_mod(env, "rc_not_send", ch, "is declared !Send", NEG_MOD_STD_CORE)
 }
 
 @test
 func neg_rc_is_not_sync(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var r = std::rc(1)\n    var h = Holder<std::Rc<int>> { data = null }\n    return h.check()\n}\n"
-    expect_compile_error_with_mod(env, "rc_not_sync", ch, "does not satisfy", NEG_MOD_STD_CORE)
+    expect_compile_error_with_mod(env, "rc_not_sync", ch, "is declared !Sync", NEG_MOD_STD_CORE)
 }
 
 @test
@@ -1361,7 +1361,7 @@ func neg_unsafe_method_call_requires_unsafe(env : &mut TestEnv) {
 func neg_ref_cell_is_not_sync(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var c = std::ref_cell(1)\n    var h = Holder<std::RefCell<int>> { data = null }\n    return h.check()\n}\n"
-    expect_compile_error_with_mod(env, "ref_cell_not_sync", ch, "does not satisfy", NEG_MOD_STD_CORE)
+    expect_compile_error_with_mod(env, "ref_cell_not_sync", ch, "is declared !Sync", NEG_MOD_STD_CORE)
 }
 
 @test
@@ -2001,7 +2001,7 @@ func neg_comptime_printf_foreign_string_rejected(env : &mut TestEnv) {
 func neg_thread_spawn_non_send_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "func worker(x : std::Rc<int>) : int {\n    return x.strong_count() as int\n}\npublic func main() : int {\n    var h = std::thread.spawn<std::Rc<int>, int>(worker, std::rc(1))\n    return h.join() - 1\n}\n"
-    expect_compile_error_with_mod(env, "thread_spawn_non_send", ch, "does not satisfy where clause constraint 'T : Send'", NEG_MOD_STD_CORE)
+    expect_compile_error_with_mod(env, "thread_spawn_non_send", ch, "is declared !Send", NEG_MOD_STD_CORE)
 }
 
 @test
@@ -2037,6 +2037,57 @@ func neg_thread_spawn_mutex_guard_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "func worker(g : std::MutexGuard<int>) : int {\n    return 0\n}\npublic func main() : int {\n    var m = std::new_mutex(1)\n    var g = m.lock()\n    var t = std::thread.spawn<std::MutexGuard<int>, int>(worker, g)\n    return t.join()\n}\n"
     expect_compile_error_with_mod(env, "thread_spawn_mutex_guard", ch, "is declared !Send", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_shared_reference_to_explicit_not_sync_is_not_send(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <T> needs_send(v : T) : int where T : Send { return 0 }\nstruct NotSync {\n    var x : int\n}\nimpl !Sync for NotSync { }\npublic func main() : int {\n    var n = NotSync { x : 1 }\n    return needs_send(&n)\n}\n"
+    expect_compile_error_with_mod(env, "shared_ref_not_sync_not_send", ch,
+                                  "does not satisfy where clause constraint 'T : Send'",
+                                  NEG_MOD_CORE)
+}
+
+@test
+func neg_shared_reference_to_ref_cell_is_not_send(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <T> needs_send(v : T) : int where T : Send { return 0 }\npublic func main() : int {\n    var rc = std::ref_cell(1)\n    return needs_send(&rc)\n}\n"
+    expect_compile_error_with_mod(env, "shared_ref_ref_cell_not_send", ch,
+                                  "does not satisfy where clause constraint 'T : Send'",
+                                  NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_generic_impl_bound_shared_ref_not_sync(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface Marker { }\nstruct Wrapper<T> {\n    var value : T\n}\nimpl<T> Marker for Wrapper<T> where T : Send { }\nfunc <T> needs_marker(v : T) : int where T : Marker { return 0 }\npublic func main() : int {\n    var rc = std::ref_cell(1)\n    var w = Wrapper<&std::RefCell<int>> { value : &rc }\n    return needs_marker(w)\n}\n"
+    expect_compile_error_with_mod(env, "generic_impl_shared_ref_not_sync", ch,
+                                  "does not satisfy where clause constraint 'T : Marker'",
+                                  NEG_MOD_STD_CORE)
+}
+
+@test
+func mutable_reference_to_send_not_sync_is_send(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <T> needs_send(v : T) : int where T : Send { return 0 }\nstruct NotSync {\n    var x : int\n}\nimpl !Sync for NotSync { }\npublic func main() : int {\n    var n = NotSync { x : 1 }\n    return needs_send(&mut n)\n}\n"
+    expect_compile_success_with_mod(env, "mutable_ref_send_not_sync", ch, NEG_MOD_CORE)
+}
+
+@test
+func neg_ref_cell_shared_is_not_sync(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <T> needs_sync(v : &T) : int where T : Sync { return 0 }\npublic func main() : int {\n    var rc = std::ref_cell(1)\n    return needs_sync(&rc)\n}\n"
+    expect_compile_error_with_mod(env, "ref_cell_shared_not_sync", ch,
+                                  "is declared !Sync", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_rc_value_is_not_send(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <T> needs_send(v : T) : int where T : Send { return 0 }\npublic func main() : int {\n    var rc = std::rc(1)\n    return needs_send(rc)\n}\n"
+    expect_compile_error_with_mod(env, "rc_value_not_send", ch,
+                                  "is declared !Send",
+                                  NEG_MOD_STD_CORE)
 }
 
 @test

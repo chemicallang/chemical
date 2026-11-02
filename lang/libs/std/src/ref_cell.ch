@@ -94,6 +94,16 @@ public struct RefMut<'a, T> {
     }
 }
 
+// The borrow state is a plain integer and `value` is an UnsafeCell, so a
+// shared `RefCell` must never be usable from two threads. The guards borrow
+// the cell and release its state in their destructor, so they are tied to the
+// same thread even if the RefCell representation changes.
+impl<T> !Sync for RefCell<T> { }
+impl<'a, T> !Send for Ref<'a, T> { }
+impl<'a, T> !Sync for Ref<'a, T> { }
+impl<'a, T> !Send for RefMut<'a, T> { }
+impl<'a, T> !Sync for RefMut<'a, T> { }
+
 public func <T> ref_cell(value : T) : RefCell<T> {
     return RefCell<T> {
         state : 0,

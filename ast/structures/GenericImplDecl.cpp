@@ -742,8 +742,8 @@ static bool check_generic_impl_bounds(
                 const auto kind = iface->interface_bits.has(InterfaceBits::SEND_BIT)
                     ? AutoTraitKind::Send : AutoTraitKind::Sync;
                 if(type_satisfies_auto_trait(concrete, kind, visiting, &index,
-                                             (ASTNode*) interface_key,
-                                             (ASTNode*) interface_key)) {
+                                             (ASTNode*) instantiator.getCoreNodes().send_interface,
+                                             (ASTNode*) instantiator.getCoreNodes().sync_interface)) {
                     return true;
                 }
                 // fall through to the standard bound diagnostic

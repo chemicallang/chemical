@@ -167,6 +167,15 @@ public struct Weak<T> {
     }
 }
 
+// Rc/Weak update their counts without synchronization. Keep the negative
+// auto-trait impls explicit even though the raw pointer field already derives
+// them, so a representation change cannot silently make a single-threaded
+// handle transferable.
+impl<T> !Send for Rc<T> { }
+impl<T> !Sync for Rc<T> { }
+impl<T> !Send for Weak<T> { }
+impl<T> !Sync for Weak<T> { }
+
 public func <T> rc(value : T) : Rc<T> {
     var inner = new RcInner<T> {
         strong : 1 as size_t,

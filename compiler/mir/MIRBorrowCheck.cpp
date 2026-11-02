@@ -415,6 +415,9 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
     std::unordered_map<uint64_t, uint32_t> field_loans;
     // A reference field sourced from a parameter (return-outlives check).
     std::unordered_map<uint64_t, uint32_t> field_params;
+    // A by-value aggregate copied into a field (`outer.view = inner`): the
+    // field's source place owns the nested reference-field loans.
+    std::unordered_map<uint64_t, PlaceId> field_place_sources;
     auto field_key = [](PlaceId base, ConstantId field) -> uint64_t {
         return (static_cast<uint64_t>(base) << 32) | static_cast<uint64_t>(field);
     };
@@ -1104,6 +1107,12 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     ops[0].kind() == MIROperandKind::Place &&
                     ops[1].kind() == MIROperandKind::Constant) {
                     const uint64_t key = field_key(ops[0].id, ops[1].id);
+                    if (value.kind() == MIROperandKind::Place &&
+                        value.id < function.places.size()) {
+                        field_place_sources[key] = value.id;
+                    } else {
+                        field_place_sources.erase(key);
+                    }
                     uint32_t loan = MIR_INVALID_ID;
                     uint32_t param = MIR_INVALID_ID;
                     if (value.kind() == MIROperandKind::Value) {
@@ -1248,6 +1257,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         }
                         std::vector<std::pair<uint64_t, uint32_t>> moved;
                         std::vector<std::pair<uint64_t, uint32_t>> moved_params;
+                        std::vector<std::pair<uint64_t, PlaceId>> moved_sources;
                         for (const auto& fl : field_loans) {
                             if (static_cast<PlaceId>(fl.first >> 32) != ops[1].id) continue;
                             const ConstantId field =
@@ -1260,6 +1270,12 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                                 static_cast<ConstantId>(fp.first & 0xFFFFFFFFu);
                             moved_params.emplace_back(field_key(ops[0].id, field), fp.second);
                         }
+                        for (const auto& fs : field_place_sources) {
+                            if (static_cast<PlaceId>(fs.first >> 32) != ops[1].id) continue;
+                            const ConstantId field =
+                                static_cast<ConstantId>(fs.first & 0xFFFFFFFFu);
+                            moved_sources.emplace_back(field_key(ops[0].id, field), fs.second);
+                        }
                         for (auto it2 = field_loans.begin(); it2 != field_loans.end();) {
                             if (static_cast<PlaceId>(it2->first >> 32) == ops[0].id) {
                                 it2 = field_loans.erase(it2);
@@ -1270,6 +1286,13 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         for (auto it2 = field_params.begin(); it2 != field_params.end();) {
                             if (static_cast<PlaceId>(it2->first >> 32) == ops[0].id) {
                                 it2 = field_params.erase(it2);
+                            } else {
+                                ++it2;
+                            }
+                        }
+                        for (auto it2 = field_place_sources.begin(); it2 != field_place_sources.end();) {
+                            if (static_cast<PlaceId>(it2->first >> 32) == ops[0].id) {
+                                it2 = field_place_sources.erase(it2);
                             } else {
                                 ++it2;
                             }
@@ -1281,6 +1304,9 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         for (const auto& m : moved_params) {
                             field_params[m.first] = m.second;
                         }
+                        for (const auto& m : moved_sources) {
+                            field_place_sources[m.first] = m.second;
+                        }
                         for (auto it2 = field_loans.begin(); it2 != field_loans.end();) {
                             if (static_cast<PlaceId>(it2->first >> 32) == ops[1].id) {
                                 it2 = field_loans.erase(it2);
@@ -1291,6 +1317,13 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         for (auto it2 = field_params.begin(); it2 != field_params.end();) {
                             if (static_cast<PlaceId>(it2->first >> 32) == ops[1].id) {
                                 it2 = field_params.erase(it2);
+                            } else {
+                                ++it2;
+                            }
+                        }
+                        for (auto it2 = field_place_sources.begin(); it2 != field_place_sources.end();) {
+                            if (static_cast<PlaceId>(it2->first >> 32) == ops[1].id) {
+                                it2 = field_place_sources.erase(it2);
                             } else {
                                 ++it2;
                             }
@@ -1849,6 +1882,85 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     }
                 }
 
+                // A by-value aggregate can nest reference fields deeper than
+                // the signature's single-level param_field_regions. Follow the
+                // aggregate field-source chain and add every leaf loan under
+                // the aggregate's declared region. This lets a nested borrowed
+                // result keep all of its possible source loans alive.
+                if (has_callsite_sig && callee_sig != nullptr) {
+                    std::vector<std::pair<uint32_t, uint32_t>> nested;
+                    auto collect_nested = [&](auto&& self, PlaceId base,
+                                              uint32_t depth) -> void {
+                        if (depth > 16) return;
+                        for (const auto& fl : field_loans) {
+                            if (static_cast<PlaceId>(fl.first >> 32) != base) continue;
+                            if (fl.second >= loans.size()) continue;
+                            uint32_t param = MIR_INVALID_ID;
+                            const auto fp = field_params.find(fl.first);
+                            if (fp != field_params.end()) param = fp->second;
+                            nested.emplace_back(fl.second, param);
+                        }
+                        for (const auto& fs : field_place_sources) {
+                            if (static_cast<PlaceId>(fs.first >> 32) != base) continue;
+                            self(self, fs.second, depth + 1);
+                        }
+                    };
+                    for (uint32_t pi = 0; pi < callee_sig->param_regions.size(); ++pi) {
+                        const uint32_t op_index = first + pi;
+                        if (op_index >= inst.operand_count) continue;
+                        const MIROperand& arg = ops[op_index];
+                        PlaceId field_base = MIR_INVALID_ID;
+                        if (arg.kind() == MIROperandKind::Place) {
+                            field_base = arg.id;
+                        } else if (arg.kind() == MIROperandKind::Value) {
+                            const auto at = address_targets.find(arg.id);
+                            if (at != address_targets.end() && at->second.known) {
+                                field_base = at->second.root;
+                            }
+                        }
+                        if (field_base == MIR_INVALID_ID ||
+                            field_base >= function.places.size()) {
+                            continue;
+                        }
+                        const TypeId pt = function.places[field_base].type;
+                        if (pt == MIR_INVALID_ID || pt >= module.types.types.size()) {
+                            continue;
+                        }
+                        const auto kind = module.types.types[pt].kind;
+                        if (kind != MIRTypeKind::Struct &&
+                            kind != MIRTypeKind::Union &&
+                            kind != MIRTypeKind::Variant &&
+                            kind != MIRTypeKind::Array) {
+                            continue;
+                        }
+                        nested.clear();
+                        collect_nested(collect_nested, field_base, 0);
+                        for (const auto& entry : nested) {
+                            const uint32_t loan = entry.first;
+                            const uint32_t param = entry.second;
+                            bool duplicate = false;
+                            for (const RefArg& existing : ref_args) {
+                                if (existing.loan == loan && existing.param_index == pi &&
+                                    existing.from_field) {
+                                    duplicate = true;
+                                    break;
+                                }
+                            }
+                            if (duplicate) continue;
+                            RefArg ra;
+                            ra.op_index = static_cast<uint16_t>(op_index);
+                            ra.param_index = pi;
+                            ra.loan = loan;
+                            ra.source_param = param != MIR_INVALID_ID
+                                                  ? param
+                                                  : loans[loan].target.param_index;
+                            ra.region = callee_sig->param_regions[pi];
+                            ra.from_field = true;
+                            ref_args.push_back(ra);
+                        }
+                    }
+                }
+
                 // A multi-borrow HRTB callback may store one argument borrow
                 // into another. Full region inference is not available, so
                 // accept only local/temporary referents and keep every loan
@@ -1890,6 +2002,10 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     for (const auto& fields : callee_sig->param_field_regions) {
                         hrtb_ref_params += static_cast<uint32_t>(fields.size());
                     }
+                }
+                if (has_callsite_sig) {
+                    hrtb_ref_params = std::max<uint32_t>(
+                        hrtb_ref_params, static_cast<uint32_t>(ref_args.size()));
                 }
                 if (has_callsite_sig && callsite_hrtb && hrtb_ref_params > 1) {
                     bool all_local = ref_args.size() == hrtb_ref_params;

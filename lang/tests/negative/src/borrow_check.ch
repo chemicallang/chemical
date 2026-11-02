@@ -428,12 +428,20 @@ func hrtb_deep_aggregate_ok(env : &mut TestEnv) {
 }
 
 @test
-func neg_hrtb_deep_aggregate_borrowed_result_rejected(env : &mut TestEnv) {
+func hrtb_deep_aggregate_borrowed_result_ok(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // A borrowed nested field result still needs path-wise MIR field mapping;
-    // keep the explicit rejection instead of returning an unmapped loan.
+    // The nested field loan is followed through the aggregate source chain and
+    // remains live while the returned reference is used.
     var ch = "struct View<'a> {\n    var p : &'a int\n}\nstruct Outer<'a> {\n    var view : View<'a>\n}\nfunc <'a> read_outer_ref(v : Outer<'a>) : &'a int {\n    return v.view.p\n}\nfunc <'a> apply(f : for<'b> (v : Outer<'b>) => &'b int, x : &'a int) : &'a int {\n    return f(Outer<'a> { view : View<'a> { p : x } })\n}\npublic func main() : int {\n    var x = 41\n    return *apply(read_outer_ref, &x) - 41\n}\n"
-    expect_compile_error(env, "hrtb_deep_aggregate_borrowed_result", ch, "SAFE-BORROW-099")
+    expect_compile_success(env, "hrtb_deep_aggregate_borrowed_result", ch)
+}
+
+@test
+func neg_hrtb_deep_aggregate_borrowed_result_alias(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The returned nested-field reference must keep the source loan alive.
+    var ch = "struct View<'a> {\n    var p : &'a int\n}\nstruct Outer<'a> {\n    var view : View<'a>\n}\nfunc <'a> read_outer_ref(v : Outer<'a>) : &'a int {\n    return v.view.p\n}\nfunc <'a> apply(f : for<'b> (v : Outer<'b>) => &'b int, x : &'a int) : &'a int {\n    return f(Outer<'a> { view : View<'a> { p : x } })\n}\npublic func main() : int {\n    var x = 41\n    var r = apply(read_outer_ref, &x)\n    var q = &mut x\n    *q = 9\n    return *r\n}\n"
+    expect_compile_error(env, "hrtb_deep_aggregate_borrowed_result_alias", ch, "SAFE-BORROW-001")
 }
 
 @test

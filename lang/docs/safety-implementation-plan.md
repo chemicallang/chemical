@@ -1052,16 +1052,16 @@
 > lifetimes, return regions, variance, temporary extension, provenance,
 > static-lifetime enforcement, Pin/Waker/async-frame checks, and HRTB call
 > regions are implemented. Remaining parity precision is limited to nested
-> borrowed nested aggregate results only. HRTB parameters support nested
-> aggregates of direct reference fields, including read-only calls; direct
-> field results remain supported. Multi-borrow HRTB
+> non-struct nested aggregates only. HRTB parameters support nested struct
+> aggregates of direct reference fields, including borrowed nested-field
+> results through the MIR field-source chain. Multi-borrow HRTB
 > calls accept equal-region parameter/global referents by pinning their loans
 > to function exit, and now accept mixed local/parameter/global referents and
 > distinct caller regions when the callback has no retaining storage. A
 > callback with a mutable reference slot, reference-containing pointee, generic
-> parameter, or callback parameter keeps the conservative rule. A borrowed
-> result taken from a nested aggregate field remains an explicit
-> `SAFE-BORROW-099` rejection pending path-wise field mapping.
+> parameter, or callback parameter keeps the conservative rule. Variant/array
+> nested payloads and multi-lifetime leaf precision remain explicit
+> `SAFE-BORROW-099` edge cases.
 > Scoped threads without captures are covered by join-before-return
 > `scoped_spawn`/`scoped_spawn_mut` and the multi-handle shared `scoped_run`
 > scope, including non-`'static` borrows. Capturing scoped callbacks are covered
@@ -1443,10 +1443,13 @@ new number as the honest baseline, not a compiler regression.
    no parameter exposes storage that can retain a reference. Multi-borrow
    callbacks whose parameters can retain a borrow (mutable reference slots,
    reference-containing pointees, generic parameters, callbacks) keep the
-   conservative equal-region/local-only rule. Nested aggregate parameters
-   whose leaves are direct reference fields are accepted recursively; a
-   borrowed result taken from a nested field still requires path-wise MIR
-   field mapping and is an explicit `SAFE-BORROW-099` rejection.
+   conservative equal-region/local-only rule. Nested struct aggregate
+   parameters whose leaves are direct reference fields are accepted
+   recursively, and a borrowed nested-field result keeps the aggregate's
+   source loans alive through the MIR field-source chain. Remaining edge cases
+   are non-struct nested aggregates (variant/array payloads), multi-lifetime
+   leaf precision beyond the aggregate's first lifetime argument, and the
+   intentionally conservative retaining multi-borrow rule.
 6. **`dyn` object model is implemented for the safe surface.** `dyn I` is a
    target-aware two-word borrowed fat pointer (`{ data, vtable }`); `&dyn I`
    dispatches through the same vtable, including through `Box::get`. `Box<dyn I>`
@@ -2577,10 +2580,10 @@ FutureHandle lifetime through aggregate lifetime arguments; type-erased generic
 containers are rejected at safe call boundaries (`SAFE-LIFE-005`); a
 non-lifetime wrapper or type alias that erases the nested future lifetime is
 covered by `SAFE-LIFE-001`. The remaining async gap is type erasure performed
-entirely inside an explicit `unsafe` boundary. Nested aggregate parameters are
-accepted when read-only; a borrowed nested aggregate result remains an explicit
-`SAFE-BORROW-099` rejection, while read-only mixed/distinct multi-borrow calls
-are accepted.
+entirely inside an explicit `unsafe` boundary. Nested struct aggregate
+parameters and borrowed nested-field results are accepted; non-struct nested
+payloads remain an explicit `SAFE-BORROW-099` edge case, while read-only
+mixed/distinct multi-borrow calls are accepted.
 
 ### M5 — Validity/runtime (2 months)
 
@@ -2947,3 +2950,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.59 (2026-11-02): multi-borrow HRTB precision. Function-type region signatures now record whether each parameter exposes storage that can retain a reference (`param_may_retain`). A multi-borrow higher-ranked callback with two or more reference inputs is accepted with mixed local/parameter/global referents and distinct caller regions when no parameter can retain a borrow; all loans are pinned to function exit. A mutable reference slot, reference-containing pointee, generic parameter, or callback parameter still uses the conservative equal-region/local-only rule and rejects with `SAFE-BORROW-099` (negative coverage via a generic `&mut T` slot). Tests that previously expected rejection for read-only mixed/distinct regions are now positive; deeper nested aggregate HRTB remains an explicit rejection. Main TCC/LLVM `2419`/`2417`; negative `731`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.
 
 *Revision note v4.60 (2026-11-02): nested aggregate HRTB parameters. `hrtb_aggregate_param_ok` now recursively validates nested struct aggregates of direct reference fields and rejects only reference-capable nested storage. A callback may take `Outer<'b> { view: View<'b> }` by value and read through it; a real nested-literal call was added as positive coverage. A borrowed result taken from a nested field is still rejected because MIR lacks path-wise leaf-field mapping (`SAFE-BORROW-099`); direct field results remain supported. Main TCC/LLVM `2419`/`2417`; negative `732`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.
+
+*Revision note v4.61 (2026-11-02): nested aggregate HRTB results. MIR now records whole-aggregate field-source places, follows the nested field-source chain to collect leaf reference loans, and binds them to the aggregate parameter's declared region. A callback returning `&'b int` from `Outer<'b> { view: View<'b> }` now keeps the source loan live; an alias test confirms a later mutable borrow is rejected with `SAFE-BORROW-001`. Type-verifier nested lifetime mapping now propagates the parent aggregate's actual lifetime into nested declarations. Remaining HRTB edge cases are variant/array nested payloads, multi-lifetime leaf precision beyond the aggregate's first lifetime argument, and the conservative retaining multi-borrow rule. Main TCC/LLVM `2419`/`2417`; negative `733`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.

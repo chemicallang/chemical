@@ -4919,7 +4919,9 @@ static bool hrtb_aggregate_param_ok_impl(
         std::vector<chem::string_view>* field_lifetimes,
         bool allow_nested,
         bool collect_lifetimes,
-        std::unordered_set<BaseType*>& visiting) {
+        std::unordered_set<BaseType*>& visiting,
+        const std::vector<chem::string_view>& parent_decl_lifetimes = {},
+        const std::vector<chem::string_view>& parent_actual_lifetimes = {}) {
     if (type == nullptr) return false;
     BaseType* canonical = type->canonical();
     if (canonical == nullptr) canonical = type;
@@ -4951,7 +4953,11 @@ static bool hrtb_aggregate_param_ok_impl(
                           : nullptr);
     std::vector<chem::string_view> actual_lifetimes = decl_lifetimes;
     if (gt != nullptr && gt->lifetime_args.size() == decl_lifetimes.size()) {
-        actual_lifetimes = gt->lifetime_args;
+        actual_lifetimes.clear();
+        for (chem::string_view lifetime : gt->lifetime_args) {
+            actual_lifetimes.push_back(hrtb_map_field_lifetime(
+                lifetime, parent_decl_lifetimes, parent_actual_lifetimes));
+        }
     }
     for (BaseDefMember* member : body->variables()) {
         auto* sm = member ? member->as_struct_member() : nullptr;
@@ -4984,12 +4990,13 @@ static bool hrtb_aggregate_param_ok_impl(
         if (hrtb_type_mentions_mapped_binder(
                 ft, decl_lifetimes, actual_lifetimes, binders)) {
             // A nested aggregate may carry the binder in its own direct
-            // reference fields. Validate it recursively, but do not expose its
-            // leaf lifetimes as result sources: borrowed nested results still
-            // need path-wise MIR field mapping.
+            // reference fields. Validate it recursively and expose its leaf
+            // lifetimes as result sources; MIR follows the aggregate's
+            // field-source chain to keep those loans alive.
             if (!allow_nested ||
-                !hrtb_aggregate_param_ok_impl(ft, binders, nullptr, true,
-                                             false, visiting)) {
+                !hrtb_aggregate_param_ok_impl(ft, binders, field_lifetimes, true,
+                                             collect_lifetimes, visiting,
+                                             decl_lifetimes, actual_lifetimes)) {
                 return false;
             }
         }

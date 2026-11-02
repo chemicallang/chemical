@@ -640,12 +640,40 @@ TypeLoc Parser::parseTypeLocNoPostOps(ASTAllocator& allocator) {
             const auto self_tok = token;
             token++;
             const auto type = get_self_kw_type(allocator, parent_node);
-            if(type) {
-                return { type, loc_single(self_tok) };
-            } else {
+            if(type == nullptr) {
                 error("couldn't find the parent declaration for 'Self' Type");
                 return getErroredType(allocator);
             }
+            if(token->type == TokenType::DoubleColonSym ||
+               token->type == TokenType::DotSym) {
+                // Associated-type projection: `Self::Item`. The first
+                // identifier is pre-linked to the enclosing container; the
+                // remaining chain is resolved by symbol resolution.
+                std::vector<Value*> values;
+                auto* self_id = new (allocator.allocate<VariableIdentifier>())
+                    VariableIdentifier(allocate_view(allocator, chem::string_view("Self")),
+                                       loc_single(self_tok), true);
+                self_id->linked = type->get_direct_linked_node();
+                values.emplace_back(self_id);
+                while(token->type == TokenType::DoubleColonSym ||
+                      token->type == TokenType::DotSym) {
+                    token++;
+                    const auto member = consumeIdentifierOrKeyword();
+                    if(member == nullptr) {
+                        error("expected an associated type name after 'Self::'");
+                        break;
+                    }
+                    values.emplace_back(new (allocator.allocate<VariableIdentifier>())
+                        VariableIdentifier(allocate_view(allocator, member->value),
+                                           loc_single(member), true));
+                }
+                auto* chain = new (allocator.allocate<AccessChain>())
+                    AccessChain(std::move(values), loc_single(self_tok));
+                return { new (allocator.allocate<LinkedValueType>())
+                             LinkedValueType(chain),
+                         loc_single(self_tok) };
+            }
+            return { type, loc_single(self_tok) };
         }
         case TokenType::UnsafeKw: {
             const auto unsafeToken = token;

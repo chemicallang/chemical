@@ -708,3 +708,18 @@ func neg_associated_type_missing_binding(env : &mut TestEnv) {
     expect_compile_error(env, "associated_type_missing_binding", ch,
                          "type does not implement associated type 'Item'")
 }
+
+@test
+func associated_type_projection_return_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface HasItem {\n    type Item\n    func value(&self) : Self::Item\n}\nstruct Counter { var n : int }\nimpl HasItem for Counter {\n    type Item = int\n    func value(&self) : int { return self.n }\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_success(env, "associated_type_projection_return_compiles", ch)
+}
+
+@test
+func neg_associated_type_projection_parameter(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface HasItem {\n    type Item\n    func set(&mut self, value : Self::Item)\n}\nstruct Counter { var n : int }\nimpl HasItem for Counter {\n    type Item = int\n    func set(&mut self, value : int) { self.n = value }\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "associated_type_projection_parameter", ch,
+                         "associated type projections in parameter position are not implemented yet")
+}

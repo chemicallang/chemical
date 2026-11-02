@@ -336,6 +336,52 @@ void TypeVerifier::VisitVariantDecl(VariantDefinition* def) {
     verify_container_field_types(*this, def);
 }
 
+static bool contains_associated_projection(BaseType* type, unsigned depth = 0) {
+    if (type == nullptr || depth > 12) return false;
+    if (type->kind() == BaseTypeKind::Linked) {
+        auto* linked = type->as_linked_type_unsafe();
+        if (linked->is_value()) {
+            ASTNode* node = linked->get_direct_linked_node();
+            if (node != nullptr && node->kind() == ASTNodeKind::TypealiasStmt &&
+                node->as_typealias_unsafe()->is_associated()) {
+                return true;
+            }
+        }
+    }
+    switch (type->kind()) {
+        case BaseTypeKind::Pointer:
+            return contains_associated_projection(
+                const_cast<BaseType*>(type->as_pointer_type_unsafe()->type), depth + 1);
+        case BaseTypeKind::Reference:
+            return contains_associated_projection(
+                const_cast<BaseType*>(type->as_reference_type_unsafe()->type), depth + 1);
+        case BaseTypeKind::Array:
+            return contains_associated_projection(
+                const_cast<BaseType*>(type->as_array_type_unsafe()->elem_type.getType()), depth + 1);
+        case BaseTypeKind::Generic: {
+            for (auto& arg : type->as_generic_type_unsafe()->types) {
+                if (contains_associated_projection(const_cast<BaseType*>(arg.getType()), depth + 1)) return true;
+            }
+            return false;
+        }
+        case BaseTypeKind::Function: {
+            auto* fn = type->as_function_type_unsafe();
+            for (auto* param : fn->params) {
+                if (param != nullptr &&
+                    contains_associated_projection(const_cast<BaseType*>(param->type.getType()), depth + 1)) {
+                    return true;
+                }
+            }
+            return contains_associated_projection(const_cast<BaseType*>(fn->returnType.getType()), depth + 1);
+        }
+        case BaseTypeKind::CapturingFunction:
+            return contains_associated_projection(
+                type->as_capturing_func_type_unsafe()->get_func_type(), depth + 1);
+        default:
+            return false;
+    }
+}
+
 void TypeVerifier::VisitInterfaceDecl(InterfaceDefinition* interface) {
     RecursiveVisitor::VisitInterfaceDecl(interface);
     // ensure that every inherited type after the first inherited type is an interface
@@ -345,6 +391,36 @@ void TypeVerifier::VisitInterfaceDecl(InterfaceDefinition* interface) {
         const auto node = inherits.type->get_direct_linked_canonical_node();
         if (node == nullptr || (node->kind() != ASTNodeKind::InterfaceDecl && node->kind() != ASTNodeKind::GenericInterfaceDecl)) {
             diagnoser.error(inherits.type.encoded_location()) << "interfaces can only inherit interfaces";
+        }
+    }
+    for (auto* node : interface->evaluated_nodes()) {
+        if (node == nullptr) continue;
+        if (node->kind() == ASTNodeKind::TypealiasStmt &&
+            node->as_typealias_unsafe()->is_associated()) {
+            // The current projection slice is static-dispatch only: the
+            // interface method signature still carries the placeholder type,
+            // so an unbound dynamic vtable would be unsound.
+            interface->set_object_safe(false);
+        }
+    }
+    auto check_params = [&](FunctionDeclaration* func) {
+        if (func == nullptr) return;
+        for (auto* param : func->params) {
+            if (param == nullptr) continue;
+            if (contains_associated_projection(const_cast<BaseType*>(param->type.getType()))) {
+                diagnoser.error(param->type.encoded_location())
+                    << "associated type projections in parameter position are "
+                       "not implemented yet; use the concrete type in the "
+                       "interface method signature";
+            }
+        }
+    };
+    for (auto* node : interface->evaluated_nodes()) {
+        if (node == nullptr) continue;
+        if (node->kind() == ASTNodeKind::FunctionDecl) {
+            check_params(node->as_function_unsafe());
+        } else if (node->kind() == ASTNodeKind::GenericFuncDecl) {
+            check_params(node->as_gen_func_decl_unsafe()->master_impl);
         }
     }
 }

@@ -24,6 +24,8 @@
 #include "ast/types/CapturingFunctionType.h"
 #include "ast/types/ArrayType.h"
 #include "ast/statements/AliasStmt.h"
+#include "ast/statements/Typealias.h"
+#include "ast/structures/GenericTypeDecl.h"
 #include "ast/structures/If.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/InterfaceDefinition.h"
@@ -228,6 +230,33 @@ void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, st
                 } else {
                     insert_func(func);
                 }
+                break;
+            }
+            case ASTNodeKind::TypealiasStmt: {
+                // Container-scoped aliases (including associated-type
+                // declarations) are addressable as children, which is what
+                // `Self::Item` projection resolution uses.
+                const auto alias = node->as_typealias_unsafe();
+                auto existing = indexes.find(alias->name_view());
+                if (existing != indexes.end() && existing->second != node) {
+                    linker.error(node) << "couldn't insert type alias because '"
+                                       << alias->name_view() << "' already exists";
+                } else {
+                    indexes[alias->name_view()] = node;
+                }
+                evaluated_container.emplace_back(node);
+                break;
+            }
+            case ASTNodeKind::GenericTypeDecl: {
+                const auto alias = node->as_gen_type_decl_unsafe()->master_impl;
+                auto existing = indexes.find(alias->name_view());
+                if (existing != indexes.end() && existing->second != node) {
+                    linker.error(node) << "couldn't insert generic type alias because '"
+                                       << alias->name_view() << "' already exists";
+                } else {
+                    indexes[alias->name_view()] = node;
+                }
+                evaluated_container.emplace_back(node);
                 break;
             }
             default:

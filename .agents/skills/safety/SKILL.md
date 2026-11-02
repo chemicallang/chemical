@@ -24,7 +24,7 @@ for the safe API surface we currently expose**, not full language parity.
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
 | Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
-| Type-system / stdlib parity | M1 partial: basic tuples/tuple structs, fixed-array patterns, exact `[T]`/`&[T]` condition patterns, `&mut [T]`, `Box<[T]>`, `&str` views, explicit slice/string lifetimes, generic delimiter/predicate slice splitting, and associated-type declarations/bindings implemented; associated projections, GATs, const generics, `impl Trait`, derive, and slice rest/`&mut`/`Box<[T]>` patterns remain. M7/M2/M8 remain. |
+| Type-system / stdlib parity | M1 partial: basic tuples/tuple structs, fixed-array patterns, exact `[T]`/`&[T]` condition patterns, `&mut [T]`, `Box<[T]>`, `&str` views, explicit slice/string lifetimes, generic delimiter/predicate slice splitting, and associated-type declarations/bindings plus return-position `Self::Item` projection implemented; parameter/generic projections, GATs, const generics, `impl Trait`, derive, and slice rest/`&mut`/`Box<[T]>` patterns remain. M7/M2/M8 remain. |
 
 Latest measured baseline:
 
@@ -400,12 +400,14 @@ memory safety.
     (`lang/docs/tuples.md`). Nested/wildcard destructuring and tuple
     methods/inherent impls remain M1 work.
 
-15. **Associated types are a declaration/binding slice.** Interface
-    `type Item` declarations and impl `type Item = T` bindings are parsed and
-    completeness-checked (`lang/docs/associated-types.md`). Projections
-    (`Self::Item`/`T::Item`), associated bounds/equality constraints, and GAT
-    parameters remain M1. The declaration is a contract, not a usable type
-    expression yet.
+15. **Associated types are a declaration/binding/return-projection slice.**
+    Interface `type Item` declarations, impl `type Item = T` bindings, and
+    completeness checking are implemented. Return-position `Self::Item` works
+    for static dispatch; parameter-position projections are rejected because
+    the interface prototype cannot spell the placeholder, and interfaces with
+    associated types are marked non-object-safe (`lang/docs/associated-types.md`).
+    `T::Item`, associated bounds/equality constraints, dyn projections, and GAT
+    parameters remain M1.
 
 ## Callback and `Fn` model
 

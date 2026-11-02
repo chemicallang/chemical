@@ -76,8 +76,6 @@ public struct boxed_slice<T> {
 
 }
 
-
-
 impl<T> core::ops::Index<size_t, T> for boxed_slice<T> {
     func index(&self, index : size_t) : &T {
         return self.get_ref(index)

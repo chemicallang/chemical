@@ -165,7 +165,6 @@ public struct span<T> {
 
 }
 
-
 impl<T> Copy for span<T> {}
 
 impl<T> core::ops::Index<size_t, T> for span<T> {
@@ -193,7 +192,6 @@ public struct mut_span<T> {
     comptime func make2(array : &mut []%maybe_runtime<T>) {
         return unsafe(constructor<T>(array as *mut T, intrinsics::size(array)))
     }
-
 
     @constructor
     unsafe func constructor(array_ptr : *mut T, array_size : size_t) {

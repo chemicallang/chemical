@@ -249,6 +249,9 @@ enum class TokenType {
     AsyncKw,
     AwaitKw,
 
+    // `..` slice/range syntax, appended after the keyword range
+    DotDotSym,
+
     IndexKwStart = ForKw,
     IndexKwEnd = ConstKw,
 

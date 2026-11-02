@@ -56,6 +56,14 @@ internal func str_utf8_valid(data : *char, len : size_t) : bool { unsafe {
     return true
 }}
 
+// Checked UTF-8 construction; returns the invalid view on failure.
+public func try_from_utf8(view : std::string_view) : std::Result<std::str, std::string_view> {
+    if(!str_utf8_valid(view.data(), view.size())) {
+        return std::Result.Err(view)
+    }
+    return std::Result.Ok(std::str { _view : view })
+}
+
 // A UTF-8 string view. Constructing one validates its bytes; `str` is a
 // non-owning view over caller storage. The method surface mirrors the useful
 // subset of `string_view` without exposing unchecked constructors.

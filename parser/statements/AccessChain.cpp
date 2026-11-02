@@ -12,6 +12,7 @@
 #include "ast/values/GenericInstIdentifier.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/IndexOperator.h"
+#include "ast/values/IntNumValue.h"
 #include "ast/types/LinkedType.h"
 #include "ast/types/GenericType.h"
 #include "ast/values/StructValue.h"
@@ -401,16 +402,58 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, std::vector<Valu
             break;
         case TokenType::LBracket: {
             const auto location = loc_single(token);
+            token++;
+
+            // `view[start..end]` is parsed as `view.subview(start, end)`.
+            // The range is only meaningful for slice/string views; ordinary
+            // containers use the normal index path below.
+            Value* index_expr = nullptr;
+            if(token->type == TokenType::DotDotSym) {
+                index_expr = new (allocator.allocate<IntNumValue>()) IntNumValue(
+                    0, typeBuilder.getUIntType(), location);
+            } else {
+                index_expr = parseExpression(allocator);
+                if (!index_expr) {
+                    error("expected an expression in indexing operators for access chain");
+                    return nullptr;
+                }
+            }
+            if(token->type == TokenType::DotDotSym) {
+                token++;
+                Value* end_expr = nullptr;
+                if(token->type == TokenType::RBracket) {
+                    // `view[start..]` / `view[..]`: end is `view.size()`.
+                    std::vector<Value*> size_chain = values;
+                    size_chain.emplace_back(new (allocator.allocate<VariableIdentifier>())
+                        VariableIdentifier(allocate_view(allocator, chem::string_view("size")), location));
+                    auto* size_receiver = take_parent(allocator, size_chain, location);
+                    end_expr = new (allocator.allocate<FunctionCall>()) FunctionCall(size_receiver, location);
+                } else {
+                    end_expr = parseExpression(allocator);
+                }
+                if (!end_expr) {
+                    error("expected an end expression after '..' in slice range");
+                    return nullptr;
+                }
+                std::vector<Value*> subview_chain = values;
+                subview_chain.emplace_back(new (allocator.allocate<VariableIdentifier>())
+                    VariableIdentifier(allocate_view(allocator, chem::string_view("subview")), location));
+                auto* receiver = take_parent(allocator, subview_chain, location);
+                auto* call = new (allocator.allocate<FunctionCall>()) FunctionCall(receiver, location);
+                call->values.push_back(index_expr);
+                call->values.push_back(end_expr);
+                if (!consumeToken(TokenType::RBracket)) {
+                    error("expected a closing bracket ] after slice range");
+                    return nullptr;
+                }
+                values.clear();
+                values.push_back(call);
+                return parseAccessChainAfterId(allocator, values, start, false, false);
+            }
+
             auto indexOp = new(allocator.allocate<IndexOperator>()) IndexOperator(take_parent(allocator, values, location), location);
             values.emplace_back(indexOp);
-            token++;
-            auto expr = parseExpression(allocator);
-            if (!expr) {
-                error("expected an expression in indexing operators for access chain");
-                indexOp->idx = getErroredValue(allocator);
-                return nullptr;
-            }
-            indexOp->idx = expr;
+            indexOp->idx = index_expr;
             if (!consumeToken(TokenType::RBracket)) {
                 error("expected a closing bracket ] in access chain");
                 return nullptr;

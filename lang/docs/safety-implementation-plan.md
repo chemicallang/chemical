@@ -1292,7 +1292,7 @@ but keep aliasing/race checks. GC is a later mode.
 | Async | Shipped; type-level lifetime + field/container inference | `Pin`/Waker/frame loans; `spawn_send` frame check; MIR future borrow tracking through fields/wrappers/pointer containers + `SAFE-LIFE-005` retaining-API rejection. |
 | Trait objects | Partial | Basic dynamic dispatch; `dyn I + Send`/`+ Sync`/`+ Unpin` are represented and construction-checked, and `dyn` without bounds is conservatively `!Send`/`!Sync`/`!Unpin`. |
 | Tuples | Basic slice implemented | Construction, `._0` access, parameters/returns, nested tuples, assignment, structural `Copy`/`Send`/`Sync`/`Unpin`, and field-wise drops. Tuple structs/destructuring/unit values remain. |
-| Slices / `&str` | Borrowed, mutable, and owning slices | `[T]`/`&[T]` alias `std::span<T>`; `&mut [T]` aliases `std::mut_span<T>`; `Box<[T]>` aliases `std::boxed_slice<T>`; `&str` aliases UTF-8-validated `std::str`. Indexing, writes, owning moves, local-escape checks, and the `IndexMut` interface are implemented. Explicit lifetimes, range indexing, split/windows, and patterns remain. |
+| Slices / `&str` | Borrowed, mutable, and owning slices | `[T]`/`&[T]` alias `std::span<T>`; `&mut [T]` aliases `std::mut_span<T>`; `Box<[T]>` aliases `std::boxed_slice<T>`; `&str` aliases UTF-8-validated `std::str`. Indexing, writes, owning moves, local-escape checks, and the `IndexMut` interface are implemented. Explicit lifetimes, generic slice `split`, slice patterns, and a raw unsized `[T]` remain. |
 | Const generics/GATs/`impl Trait` | Absent | Full parity remains M1. |
 | `&str`/UTF-8 | Byte-string surface | `string`/`string_view`; UTF-8 parity M1. |
 | Derive | Absent | CBI macros exist; no built-in derive. |
@@ -1338,17 +1338,17 @@ approximate counts:
 
 | Gate | Result |
 |---|---|
-| TCC main / LLVM main | `2409` / `2407` |
+| TCC main / LLVM main | `2416` / `2414` |
 | `@test` runner | `56` |
 | TCC/LLVM negative | `727` / `727` |
-| TCC/LLVM safety | `72` / `72` |
+| TCC/LLVM safety | `74` / `74` |
 | TCC/LLVM async | `69` / `69` |
 | TCC libs | `730` |
 | TCC plugins | `1305` |
 | TCC interpret | `1921` |
 | `MIRTests` | `4682 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
-| Whole-tree audit | `unsafe_blocks 3775`, `unsafe_values 4907`, `raw_pointer_types 9370`, `raw_pointer_derefs 1069`, `panic_calls 108` |
+| Whole-tree audit | `unsafe_blocks 3775`, `unsafe_values 4909`, `raw_pointer_types 9370`, `raw_pointer_derefs 1069`, `panic_calls 111` |
 
 The audit count is higher than the historical `3661/4890` because the report
 previously skipped **all** `ImplDefinition` bodies; it now walks them, and the
@@ -2915,3 +2915,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.51 (2026-11-02): safe mutable array slices and subviews. `&mut [T]` now constructs from `&mut arr` as well as `&mut vector<T>`; const arrays and plain array values are rejected, and mutable array views are borrow-checked for local escapes. Added `subview(start,end)` for `span`, `mut_span`, and `Box<[T]>` (`subview_mut` for the boxed form), plus bounds-panic coverage. Range syntax, `split_at`, `split`, and `windows`/`chunks` remain future work. Audit baseline updated for the added std methods (`panic_calls 106 -> 107`, `raw_pointer_types 9367 -> 9368`, `unsafe_values 4902 -> 4904`). Main TCC/LLVM `2406`/`2404`; negative `727`; safety `71`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.
 
 *Revision note v4.52 (2026-11-02): `split_at` and field-index MIR fix. `span`, `mut_span`, and `Box<[T]>` expose `split_at`; shared splits return `slice_pair<T>`, mutable splits return `mut_slice_pair<T>`, with checked bounds and panic coverage. MIR indexing now recognizes struct-like receivers reached through field access (e.g. `parts.first[i]`), not only direct places, so slice fields index through `Index`/`IndexMut` correctly. `split`, range syntax, `windows`/`chunks`, and patterns remain. Audit baseline updated (`panic_calls 107 -> 108`, `raw_pointer_types 9368 -> 9370`, `unsafe_values 4904 -> 4907`). Main TCC/LLVM `2409`/`2407`; negative `727`; safety `72`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.
+
+*Revision note v4.53 (2026-11-02): range indexing, windows/chunks, and checked UTF-8. `view[a..b]`, `view[..b]`, `view[a..]`, and `view[..]` parse into `subview` calls (shared, mutable, boxed, and string views). `windows(width)`/`chunks(width)` expose non-allocating `span_windows<T>`/`span_chunks<T>` cursors with `.get(i)`; zero chunk width and invalid ranges panic. `std::try_from_utf8(view)` returns `Result<str, string_view>` and rejects invalid bytes without aborting. Lexer `..` no longer consumes the first dot as a decimal point; CBI token enums were synchronized. Generic slice `split`, slice patterns, and lifetimes remain. Audit baseline updated (`panic_calls 108 -> 111`, `unsafe_values 4907 -> 4909`; raw pointer total 9370). Main TCC/LLVM `2416`/`2414`; negative `727`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.

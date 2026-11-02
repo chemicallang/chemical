@@ -103,6 +103,15 @@ var mutable = owned.subview_mut(1, 3)
 var parts = view.split_at(2)
 parts.first[0]
 parts.second[0]
+
+var middle = view[1..4]
+var prefix = view[..2]
+var suffix = view[2..]
+
+var windows = view.windows(3)
+windows.get(0)[0]
+var chunks = view.chunks(2)
+chunks.get(1)[0]
 ```
 
 - `subview(start, end)` is bounds checked and panics on an invalid range.
@@ -110,8 +119,12 @@ parts.second[0]
 - `Box<[T]>` exposes `subview` and `subview_mut`.
 - `split_at(index)` returns `slice_pair<T>` (`mut_slice_pair<T>` for mutable
   views) with `first`/`second` fields.
-- Range syntax (`view[a..b]`), `split`, `windows`, and `chunks` are not
-  implemented yet.
+- Range syntax is supported: `view[a..b]`, `view[..b]`, `view[a..]`, and
+  `view[..]` lower to `subview(a, b)`.
+- `windows(width)` and `chunks(width)` return `span_windows<T>` /
+  `span_chunks<T>`; use `.size()` and `.get(i)` to read each subview.
+- Generic slice `split` is not implemented; `&str`/`string_view` already have
+  `.split(delim)`.
 
 ## `&str`
 
@@ -132,6 +145,8 @@ var view = text.to_view()      // std::string_view
   `std::str.make_view(unsafe(std::string_view("\xFF", 1)))` aborts.
 - `std::str` is a non-owning view; `&str` is a parser alias for it.
 - It deliberately does not expose the unchecked `string_view` constructors.
+- `std::try_from_utf8(view)` returns `Result<str, string_view>` and does not
+  abort on invalid bytes.
 - Methods: `data`, `size`, `empty`, `get`, `to_view`, `subview`, `starts_with`,
   `ends_with`.
 - Returning a `&str` derived from a local `std::string` is rejected by
@@ -141,12 +156,12 @@ var view = text.to_view()      // std::string_view
 
 - `[T]`/`&[T]` are view aliases, not a first-class unsized `[T]` type.
 - `Box<[T]>` is a vector-backed owning wrapper, not a raw boxed allocation.
-- No slice pattern/destructuring syntax, range sub-slicing (`view[a..b]`),
-  `split`, or `windows`/`chunks` iterators yet.
+- No slice pattern/destructuring syntax, generic slice `split`, or a
+  `for`-iterable windows/chunks cursor yet (use `.get(i)`).
 - `&str` has no separate lifetime parameter; the MIR view analysis keeps the
   source loan alive and rejects local escapes. A future `str<'a>`/`&'a str`
   spelling can make the lifetime explicit.
-- `std::str` validation currently panics rather than returning a `Result`; a
-  checked `try_from_utf8` surface is future work.
+- The checked `std::try_from_utf8` surface exists; the `str` convenience
+  constructors still panic on invalid bytes.
 - `[T]`, `&[T]`, `&mut [T]`, `Box<[T]>`, and `&str` depend on the `std` module
   at the type level.

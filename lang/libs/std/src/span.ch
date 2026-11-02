@@ -12,6 +12,49 @@ public struct mut_slice_pair<T> {
     public var second : mut_span<T>
 }
 
+@direct_init
+public struct span_windows<T> {
+    internal var _source : span<T>
+    internal var _width : size_t
+
+    func size(&self) : size_t {
+        if(_width == 0 || _width > _source.size()) return 0
+        return _source.size() - _width + 1
+    }
+
+    func empty(&self) : bool {
+        return size() == 0
+    }
+
+    func get(&self, index : size_t) : span<T> {
+        if(index >= size()) panic("span window index out of bounds")
+        return _source.subview(index, index + _width)
+    }
+}
+
+@direct_init
+public struct span_chunks<T> {
+    internal var _source : span<T>
+    internal var _width : size_t
+
+    func size(&self) : size_t {
+        if(_width == 0 || _source.size() == 0) return 0
+        return (_source.size() + _width - 1) / _width
+    }
+
+    func empty(&self) : bool {
+        return size() == 0
+    }
+
+    func get(&self, index : size_t) : span<T> {
+        if(index >= size()) panic("span chunk index out of bounds")
+        var start = index * _width
+        var end = start + _width
+        if(end > _source.size()) end = _source.size()
+        return _source.subview(start, end)
+    }
+}
+
 public struct span<T> {
 
     // The pointer/length pair is the span invariant; user code uses get/size.
@@ -93,6 +136,21 @@ public struct span<T> {
         return slice_pair<T> {
             first : unsafe(span<T>(left_ptr, at)),
             second : unsafe(span<T>(right_ptr, _size - at))
+        }
+    }
+
+    func windows(&self, width : size_t) : span_windows<T> {
+        return span_windows<T> {
+            _source : unsafe(span<T>(_data, _size)),
+            _width : width
+        }
+    }
+
+    func chunks(&self, width : size_t) : span_chunks<T> {
+        if(width == 0) panic("span chunks width must be non-zero")
+        return span_chunks<T> {
+            _source : unsafe(span<T>(_data, _size)),
+            _width : width
         }
     }
 
@@ -214,6 +272,14 @@ public struct mut_span<T> {
             first : unsafe(mut_span<T>(left_ptr, at)),
             second : unsafe(mut_span<T>(right_ptr, _size - at))
         }
+    }
+
+    func windows(&self, width : size_t) : span_windows<T> {
+        return as_span().windows(width)
+    }
+
+    func chunks(&self, width : size_t) : span_chunks<T> {
+        return as_span().chunks(width)
     }
 
     func as_span(&self) : span<T> {

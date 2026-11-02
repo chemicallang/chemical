@@ -402,12 +402,13 @@ void read_alpha_or_digits(SourceProvider& provider) {
 // assumes that a digit exists at current location
 bool read_floating_digits(SourceProvider& provider) {
     read_digits(provider);
-    if(provider.increment('.')) {
+    // Do not swallow the first dot of `..` as a decimal point.
+    if(provider.peek() == '.' && provider.peek_ahead(1) != '.') {
+        provider.increment();
         read_digits(provider);
         return true;
-    } else {
-        return false;
     }
+    return false;
 }
 
 void read_number_suffix(SourceProvider& provider) {
@@ -840,12 +841,11 @@ Token Lexer::getNextToken() {
         case '.':
             if(provider.peek() == '.') {
                 provider.increment();
-                if(provider.readCharacter() == '.') {
+                if(provider.peek() == '.') {
+                    provider.increment();
                     return Token(TokenType::TripleDotSym, view_str(TripleDotCStr), pos);
-                } else {
-                    diagnoser.diagnostic("unexpected dot symbol '.'", chem::string_view(file_path), provider.position(), provider.position(), DiagSeverity::Error);
-                    return Token(TokenType::Unexpected, { "", 0 }, pos);
                 }
+                return Token(TokenType::DotDotSym, view_str(".."), pos);
             } else {
                 return Token(TokenType::DotSym, view_str(DotOpCStr), pos);
             }

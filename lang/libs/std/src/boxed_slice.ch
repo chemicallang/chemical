@@ -55,6 +55,14 @@ public struct boxed_slice<T> {
         return as_span().split_at(at)
     }
 
+    func windows(&self, width : size_t) : span_windows<T> {
+        return as_span().windows(width)
+    }
+
+    func chunks(&self, width : size_t) : span_chunks<T> {
+        return as_span().chunks(width)
+    }
+
     func subview_mut(&mut self, start : size_t, end : size_t) : mut_span<T> {
         if(start > end || end > _values.size()) {
             panic("boxed_slice subview out of bounds")

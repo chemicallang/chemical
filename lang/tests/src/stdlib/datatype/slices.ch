@@ -64,6 +64,20 @@ func test_slices() {
         var text : &str = "héllo 😀"
         return text.size() == 11
     })
+    test("try_from_utf8 accepts valid bytes", () => {
+        var result = std::try_from_utf8(std::string_view("héllo"))
+        if(result is Result.Ok) {
+            var Ok(value) = result else unreachable
+            return value.size() == 6
+        }
+        return false
+    })
+    test("try_from_utf8 rejects invalid bytes", () => {
+        var bytes : [1]char = [0xFF as char]
+        var view = unsafe(std::string_view(&raw mut bytes[0], 1))
+        var result = std::try_from_utf8(view)
+        return result is Result.Err
+    })
     test("[T] is a bare borrowed slice view", () => {
         var arr : [4]int = [1, 2, 3, 4]
         var view : [int] = arr
@@ -150,5 +164,44 @@ func test_slices() {
         var owned : Box<[int]> = values
         var parts = owned.split_at(1)
         return parts.first.size() == 1 && parts.second.size() == 2 && parts.first[0] == 5 && parts.second[0] == 6
+    })
+    test("range syntax subviews slices", () => {
+        var arr : [5]int = [1, 2, 3, 4, 5]
+        var view : [int] = arr
+        var middle = view[1..4]
+        var prefix = view[..2]
+        var suffix = view[3..]
+        var all = view[..]
+        return middle.size() == 3 && middle[0] == 2 && prefix.size() == 2 && suffix.size() == 2 && all.size() == 5
+    })
+    test("range syntax mutates a slice", () => {
+        var arr : [5]int = [1, 2, 3, 4, 5]
+        var view : &mut [int] = &mut arr
+        var middle = view[1..4]
+        middle[0] = 9
+        return arr[1] == 9
+    })
+    test("range syntax subviews strings and boxed slices", () => {
+        var text : &str = "hello"
+        var word = text[1..4]
+        var values = std::vector<int>()
+        values.push(5)
+        values.push(6)
+        values.push(7)
+        var owned : Box<[int]> = values
+        var sub = owned[1..3]
+        return word.size() == 3 && word.get(0) == 'e' && sub.size() == 2 && sub[0] == 6
+    })
+    test("windows returns overlapping subviews", () => {
+        var arr : [5]int = [1, 2, 3, 4, 5]
+        var view : [int] = arr
+        var windows = view.windows(3)
+        return windows.size() == 3 && windows.get(0)[0] == 1 && windows.get(2)[0] == 3
+    })
+    test("chunks returns disjoint subviews", () => {
+        var arr : [5]int = [1, 2, 3, 4, 5]
+        var view : [int] = arr
+        var chunks = view.chunks(2)
+        return chunks.size() == 3 && chunks.get(0).size() == 2 && chunks.get(1)[0] == 3 && chunks.get(2).size() == 1
     })
 }

@@ -41,7 +41,7 @@ extra operations.
 |---|---:|
 | `unsafe_blocks` | 3775 |
 | `unsafe_values` | 4915 |
-| `raw_pointer_types` | 9370 |
+| `raw_pointer_types` | 9371 |
 | `raw_pointer_derefs` | 1073 |
 | `raw_pointer_addrs` | 10027 |
 | `raw_pointer_casts` | 2875 |
@@ -115,7 +115,9 @@ module; the reviewed totals are `panic_calls 104` and `unsafe_blocks 3768`.
 
 *2026-11-02 update:* the v4.57 audit added explicit `unsafe_func_decls` (36)
 and `unsafe_impl_decls` (15) metrics. Current reviewed totals also include the
-slice/lifetime work (`panic_calls 113`, `unsafe_values 4915`,
-`raw_pointer_derefs 1073`, `raw_pointer_types 9370`). The raw-pointer total is
-the reviewed manual value; per-module JSON can vary by a few entries depending
-on module report ordering.
+slice/lifetime and tuple work (`panic_calls 113`, `unsafe_values 4915`,
+`raw_pointer_derefs 1073`, `raw_pointer_types 9371`). The extra raw-pointer type
+is the generated destructor's `*mut self` for the destructible tuple-struct
+test; it is compiler-generated boundary syntax, not a new source unsafe site.
+The raw-pointer total is the reviewed manual value; per-module JSON can vary by
+a few entries depending on module report ordering.

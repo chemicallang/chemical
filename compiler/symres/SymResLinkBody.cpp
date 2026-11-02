@@ -4220,18 +4220,25 @@ void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {
         }
         BaseType* value_type = expression->getType();
         if(value_type != nullptr) value_type = value_type->canonical();
-        StructType* tuple_type = nullptr;
+        VariablesContainerBase* tuple_container = nullptr;
         if(value_type != nullptr && value_type->kind() == BaseTypeKind::Struct) {
-            tuple_type = value_type->as_struct_type_unsafe();
+            auto* tuple_type = value_type->as_struct_type_unsafe();
+            if(tuple_type->is_tuple) tuple_container = tuple_type;
+        } else if(value_type != nullptr) {
+            ASTNode* linked = value_type->get_direct_linked_canonical_node();
+            if(linked != nullptr && linked->kind() == ASTNodeKind::StructDecl) {
+                auto* tuple_struct = linked->as_struct_def_unsafe();
+                if(tuple_struct->is_tuple_struct()) tuple_container = tuple_struct;
+            }
         }
-        if(tuple_type == nullptr || !tuple_type->is_tuple) {
+        if(tuple_container == nullptr) {
             diagnoser.error(expr) << "tuple destructuring requires a tuple value, found '"
                                   << (value_type != nullptr ? value_type->representation()
                                                             : std::string("unknown"))
                                   << "'";
             return;
         }
-        auto& elements = tuple_type->variables();
+        auto& elements = tuple_container->variables();
         if(elements.size() != param_names.size()) {
             diagnoser.error(expr) << "tuple pattern has "
                                   << std::to_string(param_names.size())

@@ -292,12 +292,19 @@ void GenericInstantiator::VisitPatternMatchExpr(PatternMatchExpr* value) {
         if(value->expression == nullptr) return;
         BaseType* value_type = value->expression->getType();
         if(value_type != nullptr) value_type = value_type->canonical();
-        StructType* tuple_type = nullptr;
+        VariablesContainerBase* tuple_container = nullptr;
         if(value_type != nullptr && value_type->kind() == BaseTypeKind::Struct) {
-            tuple_type = value_type->as_struct_type_unsafe();
+            auto* tuple_type = value_type->as_struct_type_unsafe();
+            if(tuple_type->is_tuple) tuple_container = tuple_type;
+        } else if(value_type != nullptr) {
+            ASTNode* linked = value_type->get_direct_linked_canonical_node();
+            if(linked != nullptr && linked->kind() == ASTNodeKind::StructDecl) {
+                auto* tuple_struct = linked->as_struct_def_unsafe();
+                if(tuple_struct->is_tuple_struct()) tuple_container = tuple_struct;
+            }
         }
-        if(tuple_type == nullptr || !tuple_type->is_tuple) return;
-        auto& elements = tuple_type->variables();
+        if(tuple_container == nullptr) return;
+        auto& elements = tuple_container->variables();
         if(elements.size() != value->param_names.size()) return;
         for(size_t i = 0; i < value->param_names.size(); ++i) {
             const auto nameId = value->param_names[i];

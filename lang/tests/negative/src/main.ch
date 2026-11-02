@@ -659,3 +659,11 @@ func neg_tuple_pattern_const_binding_assign(env : &mut TestEnv) {
     expect_compile_error(env, "tuple_pattern_const_binding_assign", ch,
                          "cannot assign to a non mutable value")
 }
+
+@test
+func neg_tuple_struct_constructor_arity(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct Point(int, int)\npublic func main() : int {\n    var point = Point(1)\n    return point._0\n}\n"
+    expect_compile_error(env, "tuple_struct_constructor_arity", ch,
+                         "doesn't have a constructor")
+}

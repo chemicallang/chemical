@@ -392,11 +392,13 @@ memory safety.
     `&'a str` carry explicit region lifetimes. Slice patterns and a raw unsized
     `[T]` remain M1 work.
 
-14. **Tuples are a first slice.** `(T1, T2)` types, `(e1, e2)` literals,
-    `._0` access, parameters/returns, nested tuples, `Copy`/`Send`/`Sync`/`Unpin`
-    facts, and field-wise drops are implemented (`lang/docs/tuples.md`).
-    Tuple structs, destructuring patterns, a real unit tuple value, and named
-    tuple impls remain M1 work.
+14. **Tuples are implemented for the current slice.** `(T1, T2)` types,
+    `(e1, e2)` literals, `._0` access, parameters/returns, nested tuples,
+    `Copy`/`Send`/`Sync`/`Unpin` facts, field-wise drops, flat destructuring
+    (`var (a, b) = value`), named/generic tuple structs
+    (`struct Point(int, int)`), and unit tuple `()` are implemented
+    (`lang/docs/tuples.md`). Nested/wildcard destructuring and tuple
+    methods/inherent impls remain M1 work.
 
 ## Callback and `Fn` model
 

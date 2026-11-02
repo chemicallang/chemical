@@ -406,7 +406,9 @@ TypeLoc Parser::parseTupleTypeLoc(ASTAllocator& allocator) {
     }
     const auto loc = loc_single(start);
     if(elements.empty()) {
-        return { typeBuilder.getVoidType(), loc };
+        // `()` is the unit tuple, not `void`. A missing return type still
+        // lowers to `void`; an explicit unit tuple is a zero-element aggregate.
+        return { makeTupleType(allocator, {}, loc), loc };
     }
     if(elements.size() == 1 && !had_comma) {
         return elements.front();

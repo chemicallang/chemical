@@ -274,6 +274,17 @@ Value* Parser::parseParenExpressionNoAfterValue(ASTAllocator& allocator) {
     if(tok.type == TokenType::LParen) {
 
         token++;
+        consumeNewLines();
+        if(token->type == TokenType::RParen) {
+            token++;
+            auto* unit_type = makeTupleType(allocator, {}, loc_single(&tok));
+            auto* unit_value = new (allocator.allocate<StructValue>())
+                StructValue(unit_type, loc_single(&tok));
+            if(token->type == TokenType::DotSym) {
+                return parseAccessChainAfterValue(this, allocator, unit_value);
+            }
+            return unit_value;
+        }
 
         const auto expression = parseExpression(allocator, true, false);
         if(!expression) {

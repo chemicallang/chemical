@@ -2,8 +2,8 @@
 
 Status: implemented for construction, field access, parameters/returns,
 nested tuples, element assignment, `Copy`, auto traits, drop-once semantics,
-and flat tuple destructuring (`var (a, b) = value`). Tuple structs and nested
-destructuring patterns are not implemented yet.
+flat tuple destructuring (`var (a, b) = value`), named tuple structs
+(`struct Point(int, int)`), and the unit tuple `()`.
 
 ## Syntax
 
@@ -25,14 +25,23 @@ func make_pair(a : int, b : bool) : (int, bool) {
 func consume(pair : (int, int)) : int {
     return pair._0 + pair._1
 }
+
+struct Point(int, int)               // named tuple struct
+struct Pair<T>(T, T)                 // generic tuple struct
+struct Unit()                        // zero-field tuple struct
+
+var point = Point(3, 4)              // positional constructor
+var generic = Pair<int>(5, 6)
+var (x, y) = point                   // tuple-struct destructuring
+var unit : () = ()                   // unit tuple value/type
 ```
 
 - `(T)` is a parenthesized type, not a one-element tuple.
 - `(T,)` is a one-element tuple.
 - `(x)` is a parenthesized expression, not a one-element tuple.
 - `(x,)` is a one-element tuple value.
-- `()` is currently treated as the void type; a unit tuple value is not
-  implemented.
+- `()` is the unit tuple type/value. A function with no explicit return type
+  still uses `void`.
 - Nested tuples work: `((1, 2), (3, 4))._0._1`.
 - `(a, b) => ...` remains a lambda; a tuple literal is distinguished by the
   absence of a following `=>`.
@@ -48,6 +57,13 @@ in a body produces the same C tag.
 The generated C fields are `_0`, `_1`, ...; the source spells them `.0`, `.1`,
 and the parser maps the numeric access to the generated member name.
 
+A named tuple struct is a normal `StructDefinition` whose fields are `_0`,
+`_1`, ... and whose generated positional constructor returns the struct. It is
+therefore nominal (unlike a structural tuple), participates in the normal
+constructor/destructor/auto-trait paths, and supports generic instantiation.
+Tuple struct fields are currently always public; per-field visibility is not
+part of this slice.
+
 ## Destructuring
 
 `var (a, b) = value` (and `const (a, b) = value`) binds each element to a new
@@ -57,10 +73,11 @@ not change the bindings. Destructible elements are moved with their per-field
 drop flags cleared, so each owned element is dropped exactly once. A bare
 one-element tuple uses a trailing comma: `var (only,) = value`.
 
-Tuple patterns are irrefutable: they do not take an `else` branch. The current
-slice supports flat identifier elements only; nested patterns (`var ((a, b),
-c)`) and wildcard elements (`var (_, b)`) are not implemented yet. `if(var
-(a, b) = value)` is also not part of this slice.
+Tuple patterns are irrefutable: they do not take an `else` branch. They work
+for structural tuples and named tuple structs. The current slice supports flat
+identifier elements only; nested patterns (`var ((a, b), c)`) and wildcard
+elements (`var (_, b)`) are not implemented yet. `if(var (a, b) = value)` is
+also not part of this slice.
 
 ## Type facts
 
@@ -69,12 +86,15 @@ c)`) and wildcard elements (`var (_, b)`) are not implemented yet. `if(var
 - `Send`/`Sync`/`Unpin` are derived from every element.
 - A tuple with destructible elements is dropped field-wise, exactly once.
 - Tuple values can be passed and returned by value; aggregate ABI rules apply.
+- A named tuple struct follows the normal struct facts: nominal equality,
+  field-wise `Copy`/`Send`/`Sync`/`Unpin`, generated destructor when needed,
+  and the standard aggregate ABI.
 
 ## Not implemented
 
 - Nested tuple patterns, wildcard elements, and tuple patterns in `if`/match
   position.
-- Tuple structs (`struct Point(int, int)`).
-- A real unit tuple `()` value.
-- `impl Trait for (T1, T2)` / named tuple methods.
+- Tuple-struct field visibility and methods/inherent impls written inline after
+  the field list.
+- `impl Trait for (T1, T2)` / methods on structural tuples.
 - Slices, `&str`, const generics, GATs, and `impl Trait` are separate M1 work.

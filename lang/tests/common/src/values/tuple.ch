@@ -20,6 +20,10 @@ struct TupleDropProbe {
     }
 }
 
+struct TupleStructPoint(int, int)
+struct TupleStructGeneric<T>(T, T)
+struct TupleStructDrops(TupleDropProbe, TupleDropProbe)
+
 func test_tuples() {
     test("tuple literal construction and element access", () => {
         var value = (1, true)
@@ -79,5 +83,39 @@ func test_tuples() {
             }
         }
         return first == 1 && second == 1
+    })
+    test("tuple struct construction and field access", () => {
+        var point = TupleStructPoint(3, 4)
+        var explicit : TupleStructPoint = TupleStructPoint(5, 6)
+        return point._0 == 3 && point._1 == 4 &&
+               explicit._0 == 5 && explicit._1 == 6
+    })
+    test("tuple struct destructuring", () => {
+        var (a, b) = TupleStructPoint(7, 8)
+        return a == 7 && b == 8
+    })
+    test("generic tuple struct construction and destructuring", () => {
+        var pair = TupleStructGeneric<int>(9, 10)
+        var (a, b) = pair
+        return a == 9 && b == 10
+    })
+    test("tuple struct destructible elements drop exactly once", () => {
+        var first = 0
+        var second = 0
+        {
+            var pair = TupleStructDrops(
+                TupleDropProbe { n : 1, counter : &mut first },
+                TupleDropProbe { n : 2, counter : &mut second })
+            var (left, right) = pair
+            if(left.n != 1 || right.n != 2) {
+                return false
+            }
+        }
+        return first == 1 && second == 1
+    })
+    test("unit tuple value and type", () => {
+        var unit : () = ()
+        var copy = unit
+        return sizeof(()) == 0
     })
 }

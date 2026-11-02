@@ -444,6 +444,43 @@ ASTNode* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpeci
             } while(consumeToken(TokenType::CommaSym));
         }
 
+        if(token->type == TokenType::LParen) {
+            // Tuple struct: `struct Point(int, int)`. The fields are positional
+            // `_0`, `_1`, ... and a matching constructor is generated so the
+            // existing `Point(1, 2)` call resolution works.
+            token++;
+            std::vector<TypeLoc> field_types;
+            while(true) {
+                consumeNewLines();
+                if(token->type == TokenType::RParen) break;
+                auto field_type = parseTypeLoc(allocator);
+                if(!field_type) {
+                    error("expected a type in tuple struct field list");
+                    break;
+                }
+                field_types.push_back(field_type);
+                if(consumeToken(TokenType::CommaSym)) continue;
+                break;
+            }
+            if(!consumeToken(TokenType::RParen)) {
+                error("expected ')' after tuple struct field list");
+            }
+            for(size_t i = 0; i < field_types.size(); i++) {
+                std::string field_name = "_" + std::to_string(i);
+                const auto name = allocate_view(allocator,
+                    chem::string_view(field_name.data(), field_name.size()));
+                auto* member = new (allocator.allocate<StructMember>()) StructMember(
+                    name, field_types[i], nullptr, decl, field_types[i].getLocation(),
+                    false, AccessSpecifier::Public);
+                decl->insert_variable_no_check(member);
+            }
+            decl->set_tuple_struct(true);
+            decl->set_direct_init(true);
+            decl->create_tuple_struct_constructor(allocator, specifier);
+            parent_node = prev_parent_node;
+            return final_decl;
+        }
+
         if(!consumeToken(TokenType::LBrace)) {
             error("expected a '{' for struct block");
             return final_decl;

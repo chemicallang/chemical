@@ -84,6 +84,12 @@ struct StructDeclAttributes {
      */
     bool transparent = false;
 
+    /**
+     * Declared with tuple syntax (`struct Point(int, int)`). Fields are
+     * positional `_0`, `_1`, ... and a positional constructor is generated.
+     */
+    bool is_tuple_struct = false;
+
 };
 
 class StructDefinition : public ExtendableMembersContainerNode {
@@ -226,6 +232,20 @@ public:
     inline void set_transparent(bool value) noexcept {
         attrs.transparent = value;
     }
+
+    inline bool is_tuple_struct() const noexcept {
+        return attrs.is_tuple_struct;
+    }
+
+    inline void set_tuple_struct(bool value) noexcept {
+        attrs.is_tuple_struct = value;
+    }
+
+    /**
+     * Generates the positional `make(_0, _1, ...)` constructor for a tuple
+     * struct. The fields must already be inserted.
+     */
+    void create_tuple_struct_constructor(ASTAllocator& allocator, AccessSpecifier specifier);
 
     inline bool has_destructor() {
         return destructor_func() != nullptr;

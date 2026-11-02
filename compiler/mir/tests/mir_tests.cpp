@@ -2416,8 +2416,13 @@ static bool test_region_signature() {
     // S4.2b: aggregate-parameter field regions are an ordinary appended fact.
     MIRRegionSignature field_sig;
     field_sig.param_field_regions.resize(1);
-    field_sig.param_field_regions[0].push_back(
-        {3, 7, 2, MIRVariance::Covariant});
+    MIRParamFieldRegion field_region;
+    field_region.field_index = 3;
+    field_region.field_name = 7;
+    field_region.path = {7};
+    field_region.region = 2;
+    field_region.variance = MIRVariance::Covariant;
+    field_sig.param_field_regions[0].push_back(field_region);
     CHECK(field_sig.has_regions());
     CHECK(field_sig.param_field_regions[0][0].field_index == 3);
     CHECK(field_sig.param_field_regions[0][0].region == 2);

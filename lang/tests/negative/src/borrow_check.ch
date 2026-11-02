@@ -445,6 +445,34 @@ func neg_hrtb_deep_aggregate_borrowed_result_alias(env : &mut TestEnv) {
 }
 
 @test
+func hrtb_pair_lifetime_precision_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The result borrows left only; right remains independently mutable.
+    var ch = "struct Pair<'a, 'b> {\n    var left : &'a int\n    var right : &'b int\n}\nfunc <'a, 'b> read_left(p : Pair<'a, 'b>) : &'a int {\n    return p.left\n}\nfunc <'a, 'b> apply(f : for<'x, 'y> (p : Pair<'x, 'y>) => &'x int, x : &'a int, y : &'b int) : &'a int {\n    return f(Pair<'a, 'b> { left : x, right : y })\n}\npublic func main() : int {\n    var x = 41\n    var y = 7\n    var r = apply(read_left, &x, &y)\n    var q = &mut y\n    *q = 9\n    return *r - 41\n}\n"
+    expect_compile_success(env, "hrtb_pair_lifetime_precision", ch)
+}
+
+@test
+func hrtb_nested_variant_array_params_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Variant payloads and array elements of a nested aggregate are valid
+    // read-only higher-ranked inputs.
+    var ch = "struct View<'a> {\n    var p : &'a int\n}\nfunc apply_opt(f : for<'b> (m : std::Option<View<'b>>) => int) : int { return 0 }\nfunc apply_arr(f : for<'b> (m : [2]View<'b>) => int) : int { return 0 }\npublic func main() : int { return 0 }\n"
+    expect_compile_success_with_mod(env, "hrtb_nested_variant_array_params", ch, NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_hrtb_nested_variant_array_borrowed_results(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Payload/element result mappings are not path-mapped yet; reject instead
+    // of returning an unmapped loan.
+    var opt = "struct View<'a> {\n    var p : &'a int\n}\nfunc apply_opt(f : for<'b> (m : std::Option<View<'b>>) => &'b int) : int { return 0 }\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "hrtb_variant_borrowed_result", opt, "SAFE-BORROW-099", NEG_MOD_STD_CORE)
+    var arr = "struct View<'a> {\n    var p : &'a int\n}\nfunc apply_arr(f : for<'b> (m : [2]View<'b>) => &'b int) : int { return 0 }\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "hrtb_array_borrowed_result", arr, "SAFE-BORROW-099", NEG_MOD_STD_CORE)
+}
+
+@test
 func hrtb_multiple_references_ok(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // Equal-region parameter referents are accepted; they cannot be stored

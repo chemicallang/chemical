@@ -1864,14 +1864,32 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         }
                         if (field_base == MIR_INVALID_ID) continue;
                         for (const MIRParamFieldRegion& fr : callee_sig->param_field_regions[pi]) {
-                            if (fr.field_name == MIR_INVALID_ID) continue;
-                            const auto it = field_loans.find(field_key(field_base, fr.field_name));
+                            std::vector<ConstantId> path = fr.path;
+                            if (path.empty()) {
+                                if (fr.field_name == MIR_INVALID_ID) continue;
+                                path.push_back(fr.field_name);
+                            }
+                            PlaceId current = field_base;
+                            bool resolved = true;
+                            uint64_t leaf_key = 0;
+                            for (size_t i = 0; i < path.size(); ++i) {
+                                leaf_key = field_key(current, path[i]);
+                                if (i + 1 == path.size()) break;
+                                const auto src = field_place_sources.find(leaf_key);
+                                if (src == field_place_sources.end()) {
+                                    resolved = false;
+                                    break;
+                                }
+                                current = src->second;
+                            }
+                            if (!resolved) continue;
+                            const auto it = field_loans.find(leaf_key);
                             if (it == field_loans.end() || it->second >= loans.size()) continue;
                             RefArg ra;
                             ra.op_index = static_cast<uint16_t>(op_index);
                             ra.param_index = pi;
                             ra.loan = it->second;
-                            const auto fp = field_params.find(field_key(field_base, fr.field_name));
+                            const auto fp = field_params.find(leaf_key);
                             ra.source_param = fp != field_params.end()
                                                   ? fp->second
                                                   : loans[ra.loan].target.param_index;
@@ -1920,6 +1938,11 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         }
                         if (field_base == MIR_INVALID_ID ||
                             field_base >= function.places.size()) {
+                            continue;
+                        }
+                        if (!callee_sig->param_field_regions[pi].empty()) {
+                            // Path-aware field records above already cover this
+                            // aggregate; do not add a region-less fallback.
                             continue;
                         }
                         const TypeId pt = function.places[field_base].type;

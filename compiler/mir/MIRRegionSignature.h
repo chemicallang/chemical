@@ -35,6 +35,8 @@ constexpr MIRRegionId MIR_REGION_ELIDED = 0xFFFFFFFEu;
 struct MIRParamFieldRegion {
     uint32_t field_index = MIR_INVALID_ID;
     ConstantId field_name = MIR_INVALID_ID;
+    /** Full root-to-leaf field path for a nested aggregate field. */
+    std::vector<ConstantId> path;
     MIRRegionId region = MIR_INVALID_ID;
     MIRVariance variance = MIRVariance::Bivariant;
 };

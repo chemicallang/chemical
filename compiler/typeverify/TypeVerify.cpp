@@ -4926,6 +4926,83 @@ static bool hrtb_aggregate_param_ok_impl(
     BaseType* canonical = type->canonical();
     if (canonical == nullptr) canonical = type;
     if (!visiting.insert(canonical).second) return true;
+    if (canonical->kind() == BaseTypeKind::Array) {
+        return hrtb_aggregate_param_ok_impl(
+            const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
+            binders, field_lifetimes, true, false, visiting,
+            parent_decl_lifetimes, parent_actual_lifetimes);
+    }
+    ASTNode* canonical_node = canonical->get_direct_linked_canonical_node();
+    if (canonical_node != nullptr &&
+        canonical_node->kind() == ASTNodeKind::VariantDecl) {
+        VariantDefinition* vd = canonical_node->as_variant_def_unsafe();
+        if (vd == nullptr) return false;
+        VariantDefinition* body = vd;
+        if (vd->generic_parent != nullptr &&
+            vd->generic_parent->kind() == ASTNodeKind::GenericVariantDecl &&
+            vd->variables().empty()) {
+            VariantDefinition* master =
+                vd->generic_parent->as_gen_variant_decl_unsafe()->master_impl;
+            if (master != nullptr) body = master;
+        }
+        std::vector<chem::string_view> decl_lifetimes;
+        if (body->generic_parent != nullptr) {
+            decl_lifetimes = body->generic_parent->lifetime_params;
+        }
+        auto* gt = (canonical->kind() == BaseTypeKind::Generic)
+                       ? canonical->as_generic_type_unsafe()
+                       : (type->kind() == BaseTypeKind::Generic
+                              ? type->as_generic_type_unsafe()
+                              : nullptr);
+        std::vector<chem::string_view> actual_lifetimes = decl_lifetimes;
+        if (gt != nullptr && gt->lifetime_args.size() == decl_lifetimes.size()) {
+            actual_lifetimes.clear();
+            for (chem::string_view lifetime : gt->lifetime_args) {
+                actual_lifetimes.push_back(hrtb_map_field_lifetime(
+                    lifetime, parent_decl_lifetimes, parent_actual_lifetimes));
+            }
+        }
+        for (BaseDefMember* member : body->variables()) {
+            auto* vm = member ? member->as_variant_member() : nullptr;
+            if (vm == nullptr) continue;
+            for (auto& entry : vm->values) {
+                auto* param = entry.second;
+                if (param == nullptr) continue;
+                BaseType* ft = const_cast<BaseType*>(param->type.getType());
+                if (ft == nullptr) continue;
+                BaseType* fc = ft->canonical();
+                if (fc == nullptr) continue;
+                if (fc->kind() == BaseTypeKind::Reference) {
+                    auto* ref = fc->as_reference_type_unsafe();
+                    const auto bare = hrtb_bare_lifetime(ref->lifetime);
+                    chem::string_view actual = ref->lifetime;
+                    for (size_t i = 0; i < decl_lifetimes.size(); ++i) {
+                        if (hrtb_bare_lifetime(decl_lifetimes[i]) == bare) {
+                            if (i < actual_lifetimes.size()) actual = actual_lifetimes[i];
+                            break;
+                        }
+                    }
+                    if (hrtb_is_binder(actual, binders)) {
+                        if (hrtb_type_mentions_mapped_binder(
+                                ref->type, decl_lifetimes, actual_lifetimes, binders)) {
+                            return false;
+                        }
+                        continue;
+                    }
+                }
+                if (hrtb_type_mentions_mapped_binder(
+                        ft, decl_lifetimes, actual_lifetimes, binders)) {
+                    if (!allow_nested ||
+                        !hrtb_aggregate_param_ok_impl(
+                            ft, binders, field_lifetimes, true, false, visiting,
+                            decl_lifetimes, actual_lifetimes)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
     StructDefinition* sd = canonical->get_direct_linked_struct();
     if (sd == nullptr) {
         ASTNode* node = canonical->get_direct_linked_canonical_node();

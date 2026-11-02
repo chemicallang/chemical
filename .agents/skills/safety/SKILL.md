@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2419/2419` |
 | LLVM main | `2417/2417` |
 | `@test` runner | `56/56` |
-| TCC/LLVM negative | `729/729` |
+| TCC/LLVM negative | `730/730` |
 | TCC/LLVM safety | `74/74` |
 | TCC/LLVM async | `69/69` |
 | TCC libs | `730/730` |
@@ -272,8 +272,9 @@ memory safety.
    resolve the FutureHandle lifetime through `Outer<'a> -> Inner<'a> ->
    FutureHandle<'a>`; type-erased generic containers are rejected at safe call
    boundaries with `SAFE-LIFE-005`, while inspectable lifetime-carrying
-   wrappers remain accepted. Remaining: type erasure performed entirely inside `unsafe`, and
-   non-lifetime generic wrappers that erase the nested future lifetime.
+   wrappers remain accepted. Non-lifetime wrappers and type aliases are
+   covered by `SAFE-LIFE-001`; remaining is type erasure performed entirely
+   inside an explicit `unsafe` boundary.
 2. **Target-aware C ABI is implemented for the main native conventions.**
    `MIRABI` classifies by-value `@extern` structs/unions for x86-64 System V,
    Windows x64 and AArch64 AAPCS64, including HFA register parts at exact

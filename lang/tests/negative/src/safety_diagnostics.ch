@@ -459,6 +459,15 @@ func neg_future_handle_cannot_return_local_borrow(env : &mut TestEnv) {
 }
 
 @test
+func neg_future_handle_non_lifetime_wrapper_cannot_return_local_borrow(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var alias = "type Alias = core::async::FutureHandle<int>\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc <'a> wrap(x : &'a std::string) : Alias {\n    return work(x)\n}\nfunc make() : Alias {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    return wrap(&s)\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "future_alias_local_borrow", alias, "SAFE-LIFE-001", NEG_MOD_ASYNC_STD)
+    var generic = "struct Holder<T> { var value : T }\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc <'a> erase(h : core::async::FutureHandle<'a, int>) : Holder<core::async::FutureHandle<int>> {\n    return Holder<core::async::FutureHandle<int>> { value : h }\n}\nfunc make() : Holder<core::async::FutureHandle<int>> {\n    var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n    return erase(work(&s))\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "future_non_lifetime_wrapper", generic, "SAFE-LIFE-001", NEG_MOD_ASYNC_STD)
+}
+
+@test
 func neg_future_handle_cannot_outlive_local_borrow(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\npublic func main() : int {\n    var h : core::async::FutureHandle<int>\n    {\n        var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n        h = work(&s)\n    }\n    var r = async::block_on<int>(h)\n    return 0\n}\n"

@@ -1401,9 +1401,10 @@ new number as the honest baseline, not a compiler regression.
    `SAFE-LIFE-005` when the representation does not expose the future in a
    storage field; `Outer<'a> -> Inner<'a>` wrappers with a real future field
    remain inspectable, while `Holder<T>`-style wrappers that erase the nested
-   future's lifetime are rejected. Remaining: user type erasure performed
-   entirely inside an `unsafe` boundary, and non-lifetime generic wrappers that
-   erase the nested future's lifetime.
+   future's lifetime are rejected. Non-lifetime wrappers, type aliases, and
+   `Holder<FutureHandle<int>>`-style erasures are covered by negative tests.
+   Remaining: user type erasure performed entirely inside an explicit `unsafe`
+   boundary, which cannot be distinguished from other audited unsafe code.
 2. **Target-aware C ABI is implemented for the main native conventions.**
    `MIRABI.h` classifies by-value structs/unions for x86-64 System V, Windows
    x64 and AArch64 AAPCS64 (HFAs up to four elements, two-eightbyte integer
@@ -2564,9 +2565,10 @@ free (non-HRTB) lifetimes and higher-ranked `FutureHandle` returns; callback
 results must have a reference/future source or `'static`, and free-lifetime
 capturing callbacks are rejected. Nested aggregate returns resolve the
 FutureHandle lifetime through aggregate lifetime arguments; type-erased generic
-containers are rejected at safe call boundaries (`SAFE-LIFE-005`). The
-remaining async gaps are unsafe-boundary type erasure and non-lifetime generic
-wrappers that erase the nested future lifetime. Deeper non-future HRTB nesting
+containers are rejected at safe call boundaries (`SAFE-LIFE-005`); a
+non-lifetime wrapper or type alias that erases the nested future lifetime is
+covered by `SAFE-LIFE-001`. The remaining async gap is type erasure performed
+entirely inside an explicit `unsafe` boundary. Deeper non-future HRTB nesting
 and mixed multi-borrow referents remain explicit `SAFE-BORROW-099` rejections.
 
 ### M5 — Validity/runtime (2 months)
@@ -2928,3 +2930,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.56 (2026-11-02): explicit slice/string lifetimes. `&'a [T]`, `&'a mut [T]`, and `&'a str` now preserve the lifetime argument on the `std::span`/`std::mut_span`/`std::str` alias instead of discarding it during parsing. MIR region signatures read the declared lifetime, so wrong return regions fail with `SAFE-LIFE-003` and shorter-lived slices/strings cannot satisfy `&'static` (`SAFE-LIFE-004`; the static-mismatch helper now keeps a written `GenericType` instead of canonicalizing away its lifetime args; a missing source lifetime argument is treated as an elided borrow, not `'static`, closing the elided `&[T]`/`&str` static-escape path). Elided forms retain ordinary inference. Added shared/str identity and `where 'a : 'b` positive coverage plus wrong-region and static-lifetime negative tests. Main TCC/LLVM `2419`/`2417`; negative `729`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.
 
 *Revision note v4.57 (2026-11-02): unsafe-declaration audit metrics. The whole-tree safety report now counts `unsafe func` declarations (`unsafe_func_decls`) and `unsafe impl` declarations (`unsafe_impl_decls`) separately, closing the gap where these boundary witnesses were invisible in the audit. Reviewed baseline now records `unsafe_func_decls 36` and `unsafe_impl_decls 15`; all other reviewed totals are unchanged (`panic_calls 113`, `unsafe_values 4915`, `raw_pointer_derefs 1073`, `raw_pointer_types 9370` manually pinned). Migration metrics were refreshed from the baseline. Main TCC/LLVM `2419`/`2417`; negative `729`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.
+
+*Revision note v4.58 (2026-11-02): FutureHandle erasure coverage. Added negative tests for a `type Alias = FutureHandle<int>` return and a non-lifetime `Holder<FutureHandle<int>>` wrapper; both cannot return a future that borrows function-local storage (`SAFE-LIFE-001`). The documented remaining FutureHandle gap is now only user type erasure performed entirely inside an explicit `unsafe` boundary. Main TCC/LLVM `2419`/`2417`; negative `730`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.

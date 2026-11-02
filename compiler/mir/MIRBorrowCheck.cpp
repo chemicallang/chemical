@@ -2299,6 +2299,54 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     }
                     return true;
                 };
+                // Caller-side region facts: a loan rooted at one of this
+                // function's parameters carries that parameter's declared
+                // region. Globals are effectively `'static`; locals have no
+                // caller region and cannot satisfy a caller-owned slot.
+                auto caller_region_of_loan = [&](uint32_t loan) -> MIRRegionId {
+                    if (loan >= loans.size()) return MIR_INVALID_ID;
+                    if (loans[loan].region != MIR_INVALID_ID) {
+                        return loans[loan].region;
+                    }
+                    const LoanTarget& target = loans[loan].target;
+                    if (!target.known) return MIR_INVALID_ID;
+                    if (target.root >= function.places.size()) {
+                        return MIR_REGION_STATIC;
+                    }
+                    if (!has_fn_region_sig) return MIR_INVALID_ID;
+                    const MIRPlaceDef& pd = function.places[target.root];
+                    if (pd.param_index == MIR_INVALID_ID ||
+                        pd.param_index >= fn_region_sig.param_regions.size()) {
+                        return MIR_INVALID_ID;
+                    }
+                    return fn_region_sig.param_regions[pd.param_index];
+                };
+                auto caller_region_outlives = [&](MIRRegionId longer,
+                                                  MIRRegionId shorter) -> bool {
+                    if (longer == MIR_INVALID_ID || shorter == MIR_INVALID_ID) {
+                        return false;
+                    }
+                    if (longer == shorter || longer == MIR_REGION_STATIC) {
+                        return true;
+                    }
+                    if (shorter == MIR_REGION_STATIC || !has_fn_region_sig) {
+                        return false;
+                    }
+                    std::vector<MIRRegionId> work;
+                    std::unordered_set<MIRRegionId> seen;
+                    work.push_back(longer);
+                    while (!work.empty()) {
+                        const MIRRegionId current = work.back();
+                        work.pop_back();
+                        if (!seen.insert(current).second) continue;
+                        for (const auto& edge : fn_region_sig.outlives) {
+                            if (edge.first != current) continue;
+                            if (edge.second == shorter) return true;
+                            work.push_back(edge.second);
+                        }
+                    }
+                    return false;
+                };
                 if (has_callsite_sig && callsite_hrtb && hrtb_ref_params > 1) {
                     bool all_local = ref_args.size() == hrtb_ref_params;
                     bool all_nonlocal_safe = ref_args.size() == hrtb_ref_params;
@@ -2381,8 +2429,76 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                             if (!retain_storage_local) break;
                         }
                     }
+                    // A caller-owned retaining slot can be proven safe with
+                    // explicit region ordering: the slot's outer borrow and
+                    // every possible source must outlive the declared region
+                    // stored in the slot's pointee.
+                    bool retain_regions_proven = false;
+                    if (callback_may_retain && !retain_storage_local &&
+                        has_fn_region_sig &&
+                        !callee_sig->param_may_retain.empty() &&
+                        !callee_sig->param_retain_regions.empty()) {
+                        retain_regions_proven = true;
+                        for (size_t rp = 0;
+                             rp < callee_sig->param_may_retain.size(); ++rp) {
+                            if (!callee_sig->param_may_retain[rp]) continue;
+                            bool found = false;
+                            for (const RefArg& slot : ref_args) {
+                                if (slot.param_index != rp) continue;
+                                found = true;
+                                if (loan_is_local_storage(slot.loan)) continue;
+                                const MIRRegionId outer =
+                                    caller_region_of_loan(slot.loan);
+                                if (outer == MIR_INVALID_ID) {
+                                    retain_regions_proven = false;
+                                    break;
+                                }
+                                const LoanTarget& target = loans[slot.loan].target;
+                                if (!target.known ||
+                                    target.root >= function.places.size()) {
+                                    retain_regions_proven = false;
+                                    break;
+                                }
+                                const MIRPlaceDef& pd =
+                                    function.places[target.root];
+                                if (pd.param_index == MIR_INVALID_ID ||
+                                    pd.param_index >=
+                                        fn_region_sig.param_retain_regions.size() ||
+                                    fn_region_sig
+                                        .param_retain_regions[pd.param_index]
+                                        .empty()) {
+                                    retain_regions_proven = false;
+                                    break;
+                                }
+                                for (MIRRegionId stored :
+                                     fn_region_sig
+                                         .param_retain_regions[pd.param_index]) {
+                                    if (!caller_region_outlives(outer, stored)) {
+                                        retain_regions_proven = false;
+                                        break;
+                                    }
+                                    for (const RefArg& src : ref_args) {
+                                        if (src.param_index == rp &&
+                                            src.loan == slot.loan) {
+                                            continue;
+                                        }
+                                        if (!caller_region_outlives(
+                                                caller_region_of_loan(src.loan),
+                                                stored)) {
+                                            retain_regions_proven = false;
+                                            break;
+                                        }
+                                    }
+                                    if (!retain_regions_proven) break;
+                                }
+                                if (!retain_regions_proven) break;
+                            }
+                            if (!found) retain_regions_proven = false;
+                            if (!retain_regions_proven) break;
+                        }
+                    }
                     if ((!callback_may_retain) || retain_storage_local ||
-                        all_local || all_nonlocal_safe) {
+                        retain_regions_proven || all_local || all_nonlocal_safe) {
                         pinned_multi = true;
                         const uint32_t last =
                             order.empty() ? 0 : static_cast<uint32_t>(order.size() - 1);

@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2419/2419` |
 | LLVM main | `2417/2417` |
 | `@test` runner | `56/56` |
-| TCC/LLVM negative | `742/742` |
+| TCC/LLVM negative | `743/743` |
 | TCC/LLVM safety | `74/74` |
 | TCC/LLVM async | `69/69` |
 | TCC libs | `730/730` |
@@ -111,9 +111,9 @@ MIR is the sole producer of init/move/drop state:
 - `SAFE-BORROW-001` — overlapping live loans with at least one mutable loan.
 - `SAFE-BORROW-002` — move/drop of a place while a borrow of it is live.
 - `SAFE-BORROW-099` — a borrow/lifetime pattern the checker cannot prove safe
-  (e.g. retaining storage in a caller-owned reference parameter when the
-  caller regions are mixed or distinct, or a retaining pointee with mismatched
-  binders). Nested struct aggregate parameters,
+  (e.g. retaining storage in a caller-owned reference parameter without a
+  provable outlives edge, a retaining pointee with mismatched binders, or
+  opaque retaining storage). Nested struct aggregate parameters,
   variant payloads, array elements, and borrowed nested results are supported,
   including per-leaf multi-lifetime precision. Read-only mixed
   local/parameter/global and distinct-region multi-borrow calls are accepted;
@@ -323,9 +323,11 @@ memory safety.
    `SAFE-BORROW-099` rejection. A retaining parameter whose loan target is a
    local/temporary or a by-value parameter copy may hold any argument borrow,
    so mixed/distinct sources are accepted and pinned to function exit.
-   Retaining storage reached through a reference parameter is caller-owned and
-   still requires one shared region; mixed/distinct sources remain explicit
-   `SAFE-BORROW-099` rejections. A retaining pointee is accepted when every
+   Retaining storage reached through a reference parameter is caller-owned. It
+   is accepted when the caller's `where` edges prove the slot's outer borrow and
+   every source outlive the stored region (`where 'o: 'i` for
+   `slot: &'o mut &'i T`); without that proof it remains an explicit
+   `SAFE-BORROW-099` rejection. A retaining pointee is accepted when every
    nested reference uses the same binder (`&'a mut &'a T`); a different binder
    or a free/`'static` lifetime is rejected. This is a false-negative/rewrite
    requirement, not a guessed-safe acceptance.

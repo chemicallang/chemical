@@ -1051,9 +1051,10 @@
 > multi-handle `scoped_run`, and `JoinHandle<T>: Sync` when `T: Send`. M4 is complete for the enforceable language surface: NLL/loans, storage
 > lifetimes, return regions, variance, temporary extension, provenance,
 > static-lifetime enforcement, Pin/Waker/async-frame checks, and HRTB call
-> regions are implemented. Remaining HRTB precision is caller-owned retaining
-> storage with distinct caller regions and retaining pointees with mismatched
-> binders. HRTB parameters support nested struct
+> regions are implemented. HRTB retaining storage now accepts caller-owned
+> slots when the caller's `where` edges prove the slot and every source outlive
+> the stored region; unproven caller-owned slots and mismatched-binder pointees
+> remain conservative. HRTB parameters support nested struct
 > aggregates, variant payloads, and array elements, borrowed nested results
 > through path-aware MIR field-source mapping, and per-leaf multi-lifetime
 > precision. Multi-borrow HRTB calls accept equal-region parameter/global
@@ -1446,10 +1447,13 @@ new number as the honest baseline, not a compiler regression.
    storage location. A local/temporary or by-value parameter copy may retain
    any argument borrow, so mixed local/parameter/global sources with distinct
    caller regions are accepted and all loans are pinned to function exit.
-   Retaining storage reached through a reference parameter is caller-owned and
-   still requires a single shared region. A retaining pointee is accepted when
-   every reference inside it uses the same binder (`&'a mut &'a T`); a pointee
-   with a different binder or a free/`'static` lifetime remains rejected.
+   Retaining storage reached through a reference parameter is caller-owned.
+   It is accepted when the caller's `where` edges prove the slot's outer borrow
+   and every source outlive the region stored in the slot's pointee (for
+   example `where 'o: 'i` for `slot: &'o mut &'i T`); otherwise it still
+   requires one shared region. A retaining pointee is accepted when every
+   reference inside it uses the same binder (`&'a mut &'a T`); a pointee with a
+   different binder or a free/`'static` lifetime remains rejected.
    Nested struct aggregate
    parameters whose leaves are direct reference fields are accepted
    recursively, and a borrowed nested-field result keeps the aggregate's
@@ -1462,8 +1466,9 @@ new number as the honest baseline, not a compiler regression.
    unsized arrays keep an explicit `SAFE-BORROW-099` rejection. Elements of one
    array share the element lifetime and are therefore conservatively aliased;
    the result cannot be used to mutate a sibling. Caller-owned retaining
-   storage with distinct caller regions and retaining pointees with mismatched
-   binders are the remaining HRTB precision edge cases.
+   storage without a provable outlives edge, opaque retaining storage with no
+   named region, and retaining pointees with mismatched binders are the
+   remaining HRTB precision edge cases.
 6. **`dyn` object model is implemented for the safe surface.** `dyn I` is a
    target-aware two-word borrowed fat pointer (`{ data, vtable }`); `&dyn I`
    dispatches through the same vtable, including through `Box::get`. `Box<dyn I>`
@@ -1868,8 +1873,8 @@ passes.
   chain/field.
 - `SAFE-BORROW-099`: an unsupported or unproven borrow/lifetime pattern. The
   current HRTB implementation uses it for retaining storage in a caller-owned
-  reference parameter when the caller regions are mixed or distinct, a
-  retaining pointee with mismatched binders, and other unproven shapes.
+  reference parameter without a provable outlives edge, a retaining pointee
+  with mismatched binders, opaque retaining storage, and other unproven shapes.
 - IDs: `SAFE-OWN-*`, `SAFE-BORROW-*`, `SAFE-LIFE-*`, `SAFE-INIT-*`,
   `SAFE-VALID-*`, `SAFE-BOUNDS-*`, `SAFE-OVERFLOW-*`, `SAFE-SEND-*`,
   `SAFE-UNSAFE-*`, `SAFE-FFI-*`, `SAFE-ASYNC-*`, `SAFE-SCOPED-*`,
@@ -2601,10 +2606,11 @@ are path-mapped too, so their borrowed results are accepted; same-lifetime
 array elements remain conservatively aliased. Read-only mixed/distinct
 multi-borrow calls are accepted. Retaining parameters backed by local or
 by-value storage also accept mixed/distinct sources, and a retaining pointee
-may contain references with the same binder (`&'a mut &'a T`). Only retaining
-storage in a caller-owned reference parameter with distinct regions, or a
-pointee with a different binder, remains an explicit `SAFE-BORROW-099` edge
-case.
+may contain references with the same binder (`&'a mut &'a T`). A caller-owned
+reference slot is accepted when the caller's `where` edges prove both its outer
+borrow and every source outlive the stored region. Without that proof, or for a
+pointee with a different binder or an opaque retaining type, the call remains
+an explicit `SAFE-BORROW-099` edge case.
 
 ### M5 — Validity/runtime (2 months)
 
@@ -2978,3 +2984,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.63 (2026-11-02): variant and array HRTB results. `MIRParamFieldRegion` paths now carry typed field/index steps. The function-type signature builder records variant payload leaves (`<Member>.<param>`) and constant array element leaves, and `MIRBorrowCheck` tracks fixed-array element source places and loans, carrying them through a whole-array local move. A callback returning a reference from a variant payload (`Maybe<'a>.Some(View<'a>)`) or a constant array element (`Refs<'a>.items[0]`) now keeps the source loan live; alias tests reject a later mutable borrow with `SAFE-BORROW-001`. Same-lifetime array elements are conservatively aliased because a region does not carry an index; fixed arrays larger than 64 elements (and unsized arrays) keep the explicit `SAFE-BORROW-099` rejection. Type verification now substitutes a generic variant/struct payload's type parameter from the concrete type argument and uses the master body for generic containers, so `for<'b> (m: Option<View<'b>>) => &'b int` and `Wrap<View<'b>>` are accepted and path-mapped. Main TCC/LLVM `2419`/`2417`; negative `739`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.
 *Revision note v4.64 (2026-11-02): retaining HRTB storage precision. `MIRBorrowCheck` now classifies each retaining parameter's loan-target storage. A local/temporary or by-value parameter copy dies with the call, so it may retain an argument borrow even when the sources are mixed local/parameter/global and have distinct caller regions; every loan is still pinned to function exit. Retaining storage reached through a reference parameter is caller-owned, so the equal-region rule remains and a mixed local/parameter source is rejected. Added `hrtb_retaining_local_slot_mixed_ok`; the existing generic nonlocal-slot negative stays. Main TCC/LLVM `2419`/`2417`; negative `740`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.
 *Revision note v4.65 (2026-11-02): same-binder retaining pointees. Type verification now allows a higher-ranked reference pointee whose nested references all use the same binder (`&'a mut &'a T`, including inside a by-value aggregate), while a pointee using a different binder or a free/`'static` lifetime remains `SAFE-BORROW-099`. Combined with the v4.64 storage-location rule, a local or by-value slot can retain a source borrow; a caller-owned reference slot still requires one shared region. Added positive `hrtb_retaining_aggregate_local_slot_ok` and negatives for a caller-owned slot with distinct regions and for a mismatched-binder pointee. Main TCC/LLVM `2419`/`2417`; negative `742`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.
+*Revision note v4.66 (2026-11-02): caller-owned retaining HRTB slots. Region signatures now record the named regions a parameter's retaining storage can hold (`param_retain_regions`); for `slot: &'o mut &'i T` that is `'i` while `param_regions` remains the outer `'o`. At a call, `MIRBorrowCheck` resolves each loan to the caller's declared region and accepts a caller-owned retaining slot when the caller's `where` outlives graph proves the slot's outer borrow and every source outlive the stored region. Without the proof the call still rejects, so the rule remains a proof requirement rather than a guessed acceptance. Added `hrtb_retaining_nonlocal_slot_outlives_ok`; the no-bound distinct-region negative stays. Main TCC/LLVM `2419`/`2417`; negative `743`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.

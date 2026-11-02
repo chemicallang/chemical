@@ -2556,6 +2556,43 @@ static chem::string_view map_field_lifetime(
     return lifetime;
 }
 
+static void fill_param_retain_regions(
+        MIRRegionSignature& sig,
+        const std::vector<FunctionParam*>& params,
+        const std::vector<std::string_view>& lifetimes) {
+    sig.param_may_retain.assign(params.size(), 0);
+    sig.param_retain_regions.assign(params.size(), {});
+    for (size_t pi = 0; pi < params.size(); ++pi) {
+        FunctionParam* param = params[pi];
+        BaseType* pt = param ? param->type : nullptr;
+        BaseType* pc = pt ? pt->canonical() : nullptr;
+        if (pc == nullptr) continue;
+        BaseType* storage = pc;
+        bool may_retain = false;
+        if (pc->kind() == BaseTypeKind::Reference) {
+            BaseType* pointee = const_cast<BaseType*>(
+                pc->as_reference_type_unsafe()->type);
+            may_retain = ast_type_can_hold_borrow(pointee);
+            storage = pointee;
+        } else {
+            may_retain = ast_type_has_retaining_storage(pc);
+        }
+        if (!may_retain) continue;
+        sig.param_may_retain[pi] = 1;
+        std::vector<chem::string_view> names;
+        std::unordered_set<BaseType*> visiting;
+        collect_named_lifetimes(storage, names, visiting);
+        std::unordered_set<MIRRegionId> seen;
+        for (chem::string_view name : names) {
+            const MIRRegionId region = region_id_for_lifetime(
+                lifetimes, std::string_view(name.data(), name.size()));
+            if (region != MIR_INVALID_ID && seen.insert(region).second) {
+                sig.param_retain_regions[pi].push_back(region);
+            }
+        }
+    }
+}
+
 static chem::string_view region_lifetime_of(BaseType* type) {
     if (type == nullptr) return {};
     // Direct `&'a T` first; then aggregate/generic lifetime arguments such as
@@ -2834,6 +2871,7 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
             }
         }
     }
+    fill_param_retain_regions(sig, decl->params, lifetimes);
     return module_.add_region_signature(std::move(sig));
 }
 
@@ -2942,6 +2980,7 @@ uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
         }
         if (may_retain) sig.param_may_retain[pi] = 1;
     }
+    fill_param_retain_regions(sig, type->params, lifetimes);
     sig.hrtb_binders.reserve(lifetimes.size());
     for (size_t i = 0; i < lifetimes.size(); ++i) {
         if (is_hrtb[i]) {

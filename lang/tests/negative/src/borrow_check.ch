@@ -570,6 +570,15 @@ func hrtb_retaining_aggregate_local_slot_ok(env : &mut TestEnv) {
 }
 
 @test
+func hrtb_retaining_nonlocal_slot_outlives_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The slot's outer borrow outlives the stored region, so a caller-owned
+    // retaining slot is safe even though its outer region is distinct.
+    var ch = "func <'a> stash(slot : &mut &'a int, x : &'a int) : int {\n    *slot = x\n    return 0\n}\nfunc <'o, 'i> apply(f : for<'c> (slot : &mut &'c int, x : &'c int) => int, slot : &'o mut &'i int, x : &'i int) : int where 'o : 'i {\n    return f(slot, x)\n}\npublic func main() : int {\n    var a = 1\n    var r : &int = &a\n    return apply(stash, &mut r, &a)\n}\n"
+    expect_compile_success(env, "hrtb_retaining_nonlocal_slot_outlives", ch)
+}
+
+@test
 func neg_hrtb_nonlocal_retaining_slot_distinct(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // The retaining slot is a caller-owned reference parameter with distinct

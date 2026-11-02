@@ -77,6 +77,13 @@ struct MIRRegionSignature {
      * check.
      */
     std::vector<uint8_t> param_may_retain;
+    /**
+     * Per parameter, the declared regions that its retaining storage can
+     * hold. For `slot: &'a mut &'b T`, `param_regions` is `'a` and this entry
+     * is `'b`. Empty means the storage has no named region (an opaque generic
+     * or callback), so the call-site region proof cannot use it.
+     */
+    std::vector<std::vector<MIRRegionId>> param_retain_regions;
     /** HRTB binders recorded for a declaration's own lifetime parameters. */
     std::vector<MIRRegionId> hrtb_binders;
     /**
@@ -91,7 +98,7 @@ struct MIRRegionSignature {
         return lifetime_param_count != 0 || return_region != MIR_INVALID_ID ||
                !param_regions.empty() || !outlives.empty() ||
                !param_field_regions.empty() || !param_may_retain.empty() ||
-               !hrtb_binders.empty();
+               !param_retain_regions.empty() || !hrtb_binders.empty();
     }
 };
 

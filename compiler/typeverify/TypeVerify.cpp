@@ -4851,10 +4851,10 @@ static bool hrtb_type_mentions_lifetime(
 }
 
 // A by-value aggregate can be a higher-ranked parameter when every mention
-// of the binder lives in a direct reference field. Such a field is the same
-// call input as a direct `&'a T` parameter; the MIR region signature records
-// its name so the call-site contract can bind the field's loan. Deeper
-// aggregate nesting still needs path-wise region inference and is rejected.
+// of the binder lives in a reference leaf (struct field, variant payload, or
+// fixed-array element). Such a leaf is the same call input as a direct
+// `&'a T` parameter; the MIR region signature records its path so the
+// call-site contract can bind the leaf's loan.
 // Map a lifetime name written on an aggregate declaration field (`'a`) to the
 // instantiation's actual lifetime argument (`'b`) before testing the binder.
 static chem::string_view hrtb_map_field_lifetime(
@@ -4868,6 +4868,32 @@ static chem::string_view hrtb_map_field_lifetime(
         }
     }
     return lifetime;
+}
+
+// A generic declaration body spells a payload/field as its type parameter
+// (`T` in `Option<T>`). Substitute a direct type-parameter reference from the
+// concrete generic argument list before checking whether that payload carries
+// a higher-ranked lifetime.
+static BaseType* hrtb_substitute_type_param(BaseType* type, GenericType* actual) {
+    if (type == nullptr || actual == nullptr) return type;
+    ASTNode* linked = nullptr;
+    if (type->kind() == BaseTypeKind::Generic) {
+        auto* gen = type->as_generic_type_unsafe();
+        if (!gen->types.empty()) return type;
+        linked = gen->referenced ? gen->referenced->linked : nullptr;
+    } else if (type->kind() == BaseTypeKind::Linked) {
+        linked = type->as_linked_type_unsafe()->linked;
+    } else {
+        return type;
+    }
+    if (linked == nullptr || linked->kind() != ASTNodeKind::GenericTypeParam) {
+        return type;
+    }
+    auto* param = linked->as_generic_type_param_unsafe();
+    if (param == nullptr || param->param_index >= actual->types.size()) return type;
+    BaseType* substituted =
+        const_cast<BaseType*>(actual->types[param->param_index].getType());
+    return substituted != nullptr ? substituted : type;
 }
 
 static bool hrtb_type_mentions_mapped_binder(
@@ -4926,10 +4952,38 @@ static bool hrtb_aggregate_param_ok_impl(
     BaseType* canonical = type->canonical();
     if (canonical == nullptr) canonical = type;
     if (!visiting.insert(canonical).second) return true;
+    if (canonical->kind() == BaseTypeKind::Reference) {
+        auto* ref = canonical->as_reference_type_unsafe();
+        const chem::string_view actual = hrtb_map_field_lifetime(
+            ref->lifetime, parent_decl_lifetimes, parent_actual_lifetimes);
+        if (hrtb_is_binder(actual, binders)) {
+            if (hrtb_type_mentions_mapped_binder(
+                    ref->type, parent_decl_lifetimes, parent_actual_lifetimes,
+                    binders)) {
+                return false;
+            }
+            if (field_lifetimes != nullptr && collect_lifetimes) {
+                field_lifetimes->push_back(actual);
+            }
+            return true;
+        }
+        return !hrtb_type_mentions_mapped_binder(
+            ref->type, parent_decl_lifetimes, parent_actual_lifetimes, binders);
+    }
     if (canonical->kind() == BaseTypeKind::Array) {
+        auto* array = canonical->as_array_type_unsafe();
+        BaseType* elem = const_cast<BaseType*>(array->elem_type.getType());
+        // MIR records one leaf path per constant element, bounded to 64. An
+        // unsized or larger array cannot be mapped without an element loan
+        // source, so keep the conservative HRTB rejection.
+        const uint64_t count = array->get_array_size();
+        if (elem == nullptr) return false;
+        if (count == 0 || count > 64) {
+            return !hrtb_type_mentions_mapped_binder(
+                elem, parent_decl_lifetimes, parent_actual_lifetimes, binders);
+        }
         return hrtb_aggregate_param_ok_impl(
-            const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
-            binders, field_lifetimes, true, false, visiting,
+            elem, binders, field_lifetimes, true, collect_lifetimes, visiting,
             parent_decl_lifetimes, parent_actual_lifetimes);
     }
     ASTNode* canonical_node = canonical->get_direct_linked_canonical_node();
@@ -4939,8 +4993,7 @@ static bool hrtb_aggregate_param_ok_impl(
         if (vd == nullptr) return false;
         VariantDefinition* body = vd;
         if (vd->generic_parent != nullptr &&
-            vd->generic_parent->kind() == ASTNodeKind::GenericVariantDecl &&
-            vd->variables().empty()) {
+            vd->generic_parent->kind() == ASTNodeKind::GenericVariantDecl) {
             VariantDefinition* master =
                 vd->generic_parent->as_gen_variant_decl_unsafe()->master_impl;
             if (master != nullptr) body = master;
@@ -4968,7 +5021,8 @@ static bool hrtb_aggregate_param_ok_impl(
             for (auto& entry : vm->values) {
                 auto* param = entry.second;
                 if (param == nullptr) continue;
-                BaseType* ft = const_cast<BaseType*>(param->type.getType());
+                BaseType* ft = hrtb_substitute_type_param(
+                    const_cast<BaseType*>(param->type.getType()), gt);
                 if (ft == nullptr) continue;
                 BaseType* fc = ft->canonical();
                 if (fc == nullptr) continue;
@@ -4987,6 +5041,9 @@ static bool hrtb_aggregate_param_ok_impl(
                                 ref->type, decl_lifetimes, actual_lifetimes, binders)) {
                             return false;
                         }
+                        if (field_lifetimes != nullptr && collect_lifetimes) {
+                            field_lifetimes->push_back(actual);
+                        }
                         continue;
                     }
                 }
@@ -4994,8 +5051,8 @@ static bool hrtb_aggregate_param_ok_impl(
                         ft, decl_lifetimes, actual_lifetimes, binders)) {
                     if (!allow_nested ||
                         !hrtb_aggregate_param_ok_impl(
-                            ft, binders, field_lifetimes, true, false, visiting,
-                            decl_lifetimes, actual_lifetimes)) {
+                            ft, binders, field_lifetimes, true, collect_lifetimes,
+                            visiting, decl_lifetimes, actual_lifetimes)) {
                         return false;
                     }
                 }
@@ -5013,8 +5070,7 @@ static bool hrtb_aggregate_param_ok_impl(
     if (sd == nullptr) return false;
     StructDefinition* body = sd;
     if (sd->generic_parent != nullptr &&
-        sd->generic_parent->kind() == ASTNodeKind::GenericStructDecl &&
-        sd->variables().empty()) {
+        sd->generic_parent->kind() == ASTNodeKind::GenericStructDecl) {
         StructDefinition* master =
             sd->generic_parent->as_gen_struct_def_unsafe()->master_impl;
         if (master != nullptr) body = master;
@@ -5039,7 +5095,8 @@ static bool hrtb_aggregate_param_ok_impl(
     for (BaseDefMember* member : body->variables()) {
         auto* sm = member ? member->as_struct_member() : nullptr;
         if (sm == nullptr) continue;
-        BaseType* ft = const_cast<BaseType*>(sm->type.getType());
+        BaseType* ft = hrtb_substitute_type_param(
+            const_cast<BaseType*>(sm->type.getType()), gt);
         if (ft == nullptr) continue;
         BaseType* fc = ft->canonical();
         if (fc == nullptr) continue;

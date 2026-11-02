@@ -418,8 +418,17 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
     // A by-value aggregate copied into a field (`outer.view = inner`): the
     // field's source place owns the nested reference-field loans.
     std::unordered_map<uint64_t, PlaceId> field_place_sources;
+    // A reference stored in a fixed-array element: key = (place << 32) | index.
+    std::unordered_map<uint64_t, uint32_t> element_loans;
+    std::unordered_map<uint64_t, uint32_t> element_params;
+    // A by-value aggregate copied into an array element: the element's source
+    // place owns the nested reference-field loans.
+    std::unordered_map<uint64_t, PlaceId> element_place_sources;
     auto field_key = [](PlaceId base, ConstantId field) -> uint64_t {
         return (static_cast<uint64_t>(base) << 32) | static_cast<uint64_t>(field);
+    };
+    auto element_key = [](PlaceId base, uint32_t index) -> uint64_t {
+        return (static_cast<uint64_t>(base) << 32) | static_cast<uint64_t>(index);
     };
     std::vector<Loan> loans;
 
@@ -445,9 +454,30 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
             }
             for (const MIRParamFieldRegion& fr :
                  param_sig.param_field_regions[pd.param_index]) {
-                if (fr.field_name == MIR_INVALID_ID) continue;
-                const uint64_t key = field_key(p, fr.field_name);
-                if (field_loans.find(key) != field_loans.end()) continue;
+                ConstantId leaf_field = fr.field_name;
+                uint32_t leaf_index = MIR_INVALID_ID;
+                if (!fr.path.empty()) {
+                    const MIRParamPathStep& leaf = fr.path.back();
+                    if (leaf.is_index) {
+                        leaf_field = MIR_INVALID_ID;
+                        leaf_index = leaf.index;
+                    } else {
+                        leaf_field = leaf.field;
+                    }
+                }
+                if (leaf_field == MIR_INVALID_ID &&
+                    leaf_index == MIR_INVALID_ID) {
+                    continue;
+                }
+                const uint64_t key = leaf_field != MIR_INVALID_ID
+                                          ? field_key(p, leaf_field)
+                                          : element_key(p, leaf_index);
+                if ((leaf_field != MIR_INVALID_ID &&
+                     field_loans.find(key) != field_loans.end()) ||
+                    (leaf_field == MIR_INVALID_ID &&
+                     element_loans.find(key) != element_loans.end())) {
+                    continue;
+                }
                 Loan loan;
                 loan.target.root = p;
                 loan.target.path = pd.move_path_id;
@@ -459,8 +489,13 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 loan.region = fr.region;
                 const uint32_t idx = static_cast<uint32_t>(loans.size());
                 loans.push_back(std::move(loan));
-                field_loans[key] = idx;
-                field_params[key] = pd.param_index;
+                if (leaf_field != MIR_INVALID_ID) {
+                    field_loans[key] = idx;
+                    field_params[key] = pd.param_index;
+                } else {
+                    element_loans[key] = idx;
+                    element_params[key] = pd.param_index;
+                }
             }
         }
     }
@@ -1082,6 +1117,39 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         }
                     }
                 }
+                // A fixed-array element load: `<place>[const]`. Carry the
+                // element's reference loan so `return v[0]` keeps its source
+                // alive just like a direct reference field load.
+                if (inst.operand_count >= 3 &&
+                    ops[1].kind() == MIROperandKind::Value &&
+                    inst.result_or_place != MIR_INVALID_ID) {
+                    uint64_t index = 0;
+                    if (constant_index(module, ops[1].id, function, index) &&
+                        index <= 0xFFFFFFFFull) {
+                        PlaceId base = MIR_INVALID_ID;
+                        if (ops[0].kind() == MIROperandKind::Place) {
+                            base = ops[0].id;
+                        } else if (ops[0].kind() == MIROperandKind::Value) {
+                            const auto at = address_targets.find(ops[0].id);
+                            if (at != address_targets.end() && at->second.known) {
+                                base = at->second.root;
+                            }
+                        }
+                        if (base != MIR_INVALID_ID) {
+                            const uint64_t key =
+                                element_key(base, static_cast<uint32_t>(index));
+                            const auto lit = element_loans.find(key);
+                            if (lit != element_loans.end()) {
+                                value_loans[inst.result_or_place] = lit->second;
+                                loans[lit->second].end = lin;
+                            }
+                            const auto lpi = element_params.find(key);
+                            if (lpi != element_params.end()) {
+                                value_params[inst.result_or_place] = lpi->second;
+                            }
+                        }
+                    }
+                }
                 break;
             }
             case MIROpcode::Store: {
@@ -1224,6 +1292,64 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         field_params.erase(key);
                     }
                 }
+                // A fixed-array element store: `<place>[const] = value`. The
+                // element is a real projection, so record its source place and
+                // reference loan separately from field stores.
+                if (inst.operand_count >= 3 &&
+                    ops[0].kind() == MIROperandKind::Place &&
+                    ops[1].kind() == MIROperandKind::Value) {
+                    uint64_t index = 0;
+                    if (constant_index(module, ops[1].id, function, index) &&
+                        index <= 0xFFFFFFFFull) {
+                        const uint64_t key =
+                            element_key(ops[0].id, static_cast<uint32_t>(index));
+                        if (value.kind() == MIROperandKind::Place &&
+                            value.id < function.places.size()) {
+                            element_place_sources[key] = value.id;
+                        } else {
+                            element_place_sources.erase(key);
+                        }
+                        uint32_t loan = MIR_INVALID_ID;
+                        uint32_t param = MIR_INVALID_ID;
+                        if (value.kind() == MIROperandKind::Value) {
+                            const auto vit = value_loans.find(value.id);
+                            if (vit != value_loans.end()) loan = vit->second;
+                            const auto vp = value_params.find(value.id);
+                            if (vp != value_params.end()) param = vp->second;
+                            if (loan == MIR_INVALID_ID) {
+                                const auto at = address_targets.find(value.id);
+                                if (at != address_targets.end() && at->second.known) {
+                                    Loan source;
+                                    source.target = at->second;
+                                    source.start = lin;
+                                    source.end = lin;
+                                    source.escaped = true;
+                                    loan = static_cast<uint32_t>(loans.size());
+                                    loans.push_back(std::move(source));
+                                    if (param == MIR_INVALID_ID) {
+                                        param = at->second.param_index;
+                                    }
+                                }
+                            }
+                        } else if (value.kind() == MIROperandKind::Place) {
+                            const auto vit = place_loans.find(value.id);
+                            if (vit != place_loans.end()) loan = vit->second;
+                            const auto pp = place_params.find(value.id);
+                            if (pp != place_params.end()) param = pp->second;
+                        }
+                        if (loan != MIR_INVALID_ID) {
+                            element_loans[key] = loan;
+                            if (param != MIR_INVALID_ID) {
+                                element_params[key] = param;
+                            } else {
+                                element_params.erase(key);
+                            }
+                        } else {
+                            element_loans.erase(key);
+                            element_params.erase(key);
+                        }
+                    }
+                }
                 // Whole-place store of a reference value: the place now holds it.
                 if (inst.operand_count == 2 && ops[0].kind() == MIROperandKind::Place) {
                     // A place source is a move: carry references stored in its
@@ -1324,6 +1450,86 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         for (auto it2 = field_place_sources.begin(); it2 != field_place_sources.end();) {
                             if (static_cast<PlaceId>(it2->first >> 32) == ops[1].id) {
                                 it2 = field_place_sources.erase(it2);
+                            } else {
+                                ++it2;
+                            }
+                        }
+                        // Fixed arrays carry their element reference facts
+                        // through a whole-place move exactly like fields.
+                        std::vector<std::pair<uint64_t, uint32_t>> moved_elements;
+                        std::vector<std::pair<uint64_t, uint32_t>> moved_element_params;
+                        std::vector<std::pair<uint64_t, PlaceId>> moved_element_sources;
+                        for (const auto& el : element_loans) {
+                            if (static_cast<PlaceId>(el.first >> 32) != ops[1].id) continue;
+                            const uint32_t index =
+                                static_cast<uint32_t>(el.first & 0xFFFFFFFFu);
+                            moved_elements.emplace_back(
+                                element_key(ops[0].id, index), el.second);
+                        }
+                        for (const auto& ep : element_params) {
+                            if (static_cast<PlaceId>(ep.first >> 32) != ops[1].id) continue;
+                            const uint32_t index =
+                                static_cast<uint32_t>(ep.first & 0xFFFFFFFFu);
+                            moved_element_params.emplace_back(
+                                element_key(ops[0].id, index), ep.second);
+                        }
+                        for (const auto& es : element_place_sources) {
+                            if (static_cast<PlaceId>(es.first >> 32) != ops[1].id) continue;
+                            const uint32_t index =
+                                static_cast<uint32_t>(es.first & 0xFFFFFFFFu);
+                            moved_element_sources.emplace_back(
+                                element_key(ops[0].id, index), es.second);
+                        }
+                        for (auto it2 = element_loans.begin(); it2 != element_loans.end();) {
+                            if (static_cast<PlaceId>(it2->first >> 32) == ops[0].id) {
+                                it2 = element_loans.erase(it2);
+                            } else {
+                                ++it2;
+                            }
+                        }
+                        for (auto it2 = element_params.begin(); it2 != element_params.end();) {
+                            if (static_cast<PlaceId>(it2->first >> 32) == ops[0].id) {
+                                it2 = element_params.erase(it2);
+                            } else {
+                                ++it2;
+                            }
+                        }
+                        for (auto it2 = element_place_sources.begin();
+                             it2 != element_place_sources.end();) {
+                            if (static_cast<PlaceId>(it2->first >> 32) == ops[0].id) {
+                                it2 = element_place_sources.erase(it2);
+                            } else {
+                                ++it2;
+                            }
+                        }
+                        for (const auto& m : moved_elements) {
+                            element_loans[m.first] = m.second;
+                            loans[m.second].end = lin;
+                        }
+                        for (const auto& m : moved_element_params) {
+                            element_params[m.first] = m.second;
+                        }
+                        for (const auto& m : moved_element_sources) {
+                            element_place_sources[m.first] = m.second;
+                        }
+                        for (auto it2 = element_loans.begin(); it2 != element_loans.end();) {
+                            if (static_cast<PlaceId>(it2->first >> 32) == ops[1].id) {
+                                it2 = element_loans.erase(it2);
+                            } else {
+                                ++it2;
+                            }
+                        }
+                        for (auto it2 = element_params.begin(); it2 != element_params.end();) {
+                            if (static_cast<PlaceId>(it2->first >> 32) == ops[1].id) {
+                                it2 = element_params.erase(it2);
+                            } else {
+                                ++it2;
+                            }
+                        }
+                        for (auto it2 = element_place_sources.begin();
+                             it2 != element_place_sources.end();) {
+                            if (static_cast<PlaceId>(it2->first >> 32) == ops[1].id) {
+                                it2 = element_place_sources.erase(it2);
                             } else {
                                 ++it2;
                             }
@@ -1864,35 +2070,66 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         }
                         if (field_base == MIR_INVALID_ID) continue;
                         for (const MIRParamFieldRegion& fr : callee_sig->param_field_regions[pi]) {
-                            std::vector<ConstantId> path = fr.path;
+                            std::vector<MIRParamPathStep> path = fr.path;
                             if (path.empty()) {
                                 if (fr.field_name == MIR_INVALID_ID) continue;
-                                path.push_back(fr.field_name);
+                                MIRParamPathStep step;
+                                step.field = fr.field_name;
+                                path.push_back(step);
                             }
                             PlaceId current = field_base;
                             bool resolved = true;
+                            bool leaf_is_index = false;
                             uint64_t leaf_key = 0;
                             for (size_t i = 0; i < path.size(); ++i) {
-                                leaf_key = field_key(current, path[i]);
-                                if (i + 1 == path.size()) break;
-                                const auto src = field_place_sources.find(leaf_key);
-                                if (src == field_place_sources.end()) {
-                                    resolved = false;
-                                    break;
+                                const MIRParamPathStep& step = path[i];
+                                leaf_is_index = step.is_index;
+                                if (step.is_index) {
+                                    leaf_key = element_key(current, step.index);
+                                } else {
+                                    leaf_key = field_key(current, step.field);
                                 }
-                                current = src->second;
+                                if (i + 1 == path.size()) break;
+                                if (step.is_index) {
+                                    const auto src =
+                                        element_place_sources.find(leaf_key);
+                                    if (src == element_place_sources.end()) {
+                                        resolved = false;
+                                        break;
+                                    }
+                                    current = src->second;
+                                } else {
+                                    const auto src =
+                                        field_place_sources.find(leaf_key);
+                                    if (src == field_place_sources.end()) {
+                                        resolved = false;
+                                        break;
+                                    }
+                                    current = src->second;
+                                }
                             }
                             if (!resolved) continue;
-                            const auto it = field_loans.find(leaf_key);
-                            if (it == field_loans.end() || it->second >= loans.size()) continue;
+                            uint32_t loan = MIR_INVALID_ID;
+                            uint32_t param = MIR_INVALID_ID;
+                            if (leaf_is_index) {
+                                const auto lit = element_loans.find(leaf_key);
+                                if (lit != element_loans.end()) loan = lit->second;
+                                const auto lpi = element_params.find(leaf_key);
+                                if (lpi != element_params.end()) param = lpi->second;
+                            } else {
+                                const auto fit = field_loans.find(leaf_key);
+                                if (fit != field_loans.end()) loan = fit->second;
+                                const auto fpi = field_params.find(leaf_key);
+                                if (fpi != field_params.end()) param = fpi->second;
+                            }
+                            if (loan == MIR_INVALID_ID || loan >= loans.size()) continue;
                             RefArg ra;
                             ra.op_index = static_cast<uint16_t>(op_index);
                             ra.param_index = pi;
-                            ra.loan = it->second;
-                            const auto fp = field_params.find(leaf_key);
-                            ra.source_param = fp != field_params.end()
-                                                  ? fp->second
-                                                  : loans[ra.loan].target.param_index;
+                            ra.loan = loan;
+                            ra.source_param = param != MIR_INVALID_ID
+                                                  ? param
+                                                  : loans[loan].target.param_index;
                             ra.region = fr.region;
                             ra.from_field = true;
                             ref_args.push_back(ra);

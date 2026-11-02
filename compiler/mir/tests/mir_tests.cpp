@@ -2419,7 +2419,9 @@ static bool test_region_signature() {
     MIRParamFieldRegion field_region;
     field_region.field_index = 3;
     field_region.field_name = 7;
-    field_region.path = {7};
+    MIRParamPathStep field_step;
+    field_step.field = 7;
+    field_region.path = {field_step};
     field_region.region = 2;
     field_region.variance = MIRVariance::Covariant;
     field_sig.param_field_regions[0].push_back(field_region);

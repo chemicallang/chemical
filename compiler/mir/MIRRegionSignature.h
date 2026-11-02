@@ -32,11 +32,19 @@ constexpr MIRRegionId MIR_REGION_ELIDED = 0xFFFFFFFEu;
  * reference uses (resolved through the parameter type's lifetime args), and
  * `variance` records whether that use is covariant/invariant.
  */
+struct MIRParamPathStep {
+    /** Field-name constant for a field step, or MIR_INVALID_ID. */
+    ConstantId field = MIR_INVALID_ID;
+    /** Constant array index for an index step, or MIR_INVALID_ID. */
+    uint32_t index = MIR_INVALID_ID;
+    bool is_index = false;
+};
+
 struct MIRParamFieldRegion {
     uint32_t field_index = MIR_INVALID_ID;
     ConstantId field_name = MIR_INVALID_ID;
-    /** Full root-to-leaf field path for a nested aggregate field. */
-    std::vector<ConstantId> path;
+    /** Full root-to-leaf field/index path for a nested aggregate leaf. */
+    std::vector<MIRParamPathStep> path;
     MIRRegionId region = MIR_INVALID_ID;
     MIRVariance variance = MIRVariance::Bivariant;
 };

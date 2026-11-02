@@ -1051,19 +1051,16 @@
 > multi-handle `scoped_run`, and `JoinHandle<T>: Sync` when `T: Send`. M4 is complete for the enforceable language surface: NLL/loans, storage
 > lifetimes, return regions, variance, temporary extension, provenance,
 > static-lifetime enforcement, Pin/Waker/async-frame checks, and HRTB call
-> regions are implemented. Remaining parity precision is limited to nested
-> nested variant/array borrowed results only. HRTB parameters support nested
-> struct aggregates of direct reference fields, borrowed nested-field results
-> through path-aware MIR field-source mapping, and per-leaf multi-lifetime
-> precision. Read-only variant/array payload parameters are accepted.
-> Multi-borrow HRTB
-> calls accept equal-region parameter/global referents by pinning their loans
-> to function exit, and now accept mixed local/parameter/global referents and
-> distinct caller regions when the callback has no retaining storage. A
-> callback with a mutable reference slot, reference-containing pointee, generic
-> parameter, or callback parameter keeps the conservative rule. A borrowed
-> result taken from a variant or array nested payload remains an explicit
-> `SAFE-BORROW-099` edge case pending element/payload loan mapping.
+> regions are implemented. Remaining HRTB precision is the intentionally
+> conservative retaining multi-borrow rule. HRTB parameters support nested
+> struct aggregates, variant payloads, and array elements, borrowed nested
+> results through path-aware MIR field-source mapping, and per-leaf
+> multi-lifetime precision. Multi-borrow HRTB calls accept equal-region
+> parameter/global referents by pinning their loans to function exit, and now
+> accept mixed local/parameter/global referents and distinct caller regions
+> when the callback has no retaining storage. A callback with a mutable
+> reference slot, reference-containing pointee, generic parameter, or callback
+> parameter keeps the conservative rule.
 > Scoped threads without captures are covered by join-before-return
 > `scoped_spawn`/`scoped_spawn_mut` and the multi-handle shared `scoped_run`
 > scope, including non-`'static` borrows. Capturing scoped callbacks are covered
@@ -1451,9 +1448,14 @@ new number as the honest baseline, not a compiler regression.
    source loans alive through the MIR field-source chain. Nested fields now
    carry their full root-to-leaf path and their own declared lifetime, so
    multi-lifetime aggregates (`Pair<'a, 'b>`) keep precise per-leaf loans.
-   Variant and array nested payloads are accepted as read-only parameters;
-   their borrowed results and the intentionally conservative retaining
-   multi-borrow rule remain explicit edge cases.
+   Variant payloads and constant array elements are part of the same
+   root-to-leaf path, so a borrowed payload/element result keeps its source
+   loan live. Fixed arrays up to 64 elements are path-mapped; larger or
+   unsized arrays keep an explicit `SAFE-BORROW-099` rejection. Elements of one
+   array share the element lifetime and are therefore conservatively aliased;
+   the result cannot be used to mutate a sibling. The intentionally
+   conservative retaining multi-borrow rule is the remaining HRTB precision
+   edge case.
 6. **`dyn` object model is implemented for the safe surface.** `dyn I` is a
    target-aware two-word borrowed fat pointer (`{ data, vtable }`); `&dyn I`
    dispatches through the same vtable, including through `Box::get`. `Box<dyn I>`
@@ -1857,9 +1859,9 @@ passes.
   `FnMut` callback is called through a `const` local or an immutable receiver
   chain/field.
 - `SAFE-BORROW-099`: an unsupported or unproven borrow/lifetime pattern. The
-  current HRTB implementation uses it for deeper aggregate nesting and for
-  multi-borrow callbacks whose referents are mixed local/parameter or have
-  distinct non-local regions.
+  current HRTB implementation uses it for retaining multi-borrow callbacks
+  (mutable reference slots, reference-containing pointees, generic parameters,
+  or callback parameters) and other unproven shapes.
 - IDs: `SAFE-OWN-*`, `SAFE-BORROW-*`, `SAFE-LIFE-*`, `SAFE-INIT-*`,
   `SAFE-VALID-*`, `SAFE-BOUNDS-*`, `SAFE-OVERFLOW-*`, `SAFE-SEND-*`,
   `SAFE-UNSAFE-*`, `SAFE-FFI-*`, `SAFE-ASYNC-*`, `SAFE-SCOPED-*`,
@@ -2586,10 +2588,11 @@ non-lifetime wrapper or type alias that erases the nested future lifetime is
 covered by `SAFE-LIFE-001`. The remaining async gap is type erasure performed
 entirely inside an explicit `unsafe` boundary. Nested struct aggregate
 parameters and borrowed nested-field results are accepted, including
-multi-lifetime leaf precision; read-only variant/array nested parameters are
-accepted, while borrowed variant/array results remain an explicit
-`SAFE-BORROW-099` edge case. Read-only mixed/distinct multi-borrow calls are
-accepted.
+multi-lifetime leaf precision. Variant payloads and constant array elements
+are path-mapped too, so their borrowed results are accepted; same-lifetime
+array elements remain conservatively aliased. Read-only mixed/distinct
+multi-borrow calls are accepted; retaining multi-borrow callbacks remain the
+explicit `SAFE-BORROW-099` edge case.
 
 ### M5 — Validity/runtime (2 months)
 
@@ -2960,3 +2963,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.61 (2026-11-02): nested aggregate HRTB results. MIR now records whole-aggregate field-source places, follows the nested field-source chain to collect leaf reference loans, and binds them to the aggregate parameter's declared region. A callback returning `&'b int` from `Outer<'b> { view: View<'b> }` now keeps the source loan live; an alias test confirms a later mutable borrow is rejected with `SAFE-BORROW-001`. Type-verifier nested lifetime mapping now propagates the parent aggregate's actual lifetime into nested declarations. Remaining HRTB edge cases are variant/array nested payloads, multi-lifetime leaf precision beyond the aggregate's first lifetime argument, and the conservative retaining multi-borrow rule. Main TCC/LLVM `2419`/`2417`; negative `733`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.
 
 *Revision note v4.62 (2026-11-02): HRTB edge cases. Nested field records now carry a full root-to-leaf constant path and each leaf resolves its own declared lifetime, so `Pair<'a,'b>` results borrow only the selected leaf (a sibling remains mutable). Variant and array nested payload parameters are validated recursively and accepted for read-only callbacks; borrowed variant/array results remain explicit `SAFE-BORROW-099` rejections pending element/payload loan mapping. MIRTests was updated for the path field. Main TCC/LLVM `2419`/`2417`; negative `736`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.
+*Revision note v4.63 (2026-11-02): variant and array HRTB results. `MIRParamFieldRegion` paths now carry typed field/index steps. The function-type signature builder records variant payload leaves (`<Member>.<param>`) and constant array element leaves, and `MIRBorrowCheck` tracks fixed-array element source places and loans, carrying them through a whole-array local move. A callback returning a reference from a variant payload (`Maybe<'a>.Some(View<'a>)`) or a constant array element (`Refs<'a>.items[0]`) now keeps the source loan live; alias tests reject a later mutable borrow with `SAFE-BORROW-001`. Same-lifetime array elements are conservatively aliased because a region does not carry an index; fixed arrays larger than 64 elements (and unsized arrays) keep the explicit `SAFE-BORROW-099` rejection. Type verification now substitutes a generic variant/struct payload's type parameter from the concrete type argument and uses the master body for generic containers, so `for<'b> (m: Option<View<'b>>) => &'b int` and `Wrap<View<'b>>` are accepted and path-mapped. Main TCC/LLVM `2419`/`2417`; negative `739`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.

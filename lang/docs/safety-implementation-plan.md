@@ -1466,9 +1466,12 @@ new number as the honest baseline, not a compiler regression.
    and `main`. The 94-entry list is host-platform-oriented; Windows/OS-gated
    sources need target-specific audit entries, and `--update` is reviewed
    manually.
-9. **Audit reporting precision.** Impl bodies are now counted; generic
-   master/concrete impls can double-count syntax. `unsafe func`/`unsafe impl`
-   declarations are not separate metrics yet.
+9. **Audit reporting precision.** Impl bodies are now counted, and
+   `unsafe func` / `unsafe impl` declarations are tracked as separate
+   `unsafe_func_decls` / `unsafe_impl_decls` metrics. Generic master/concrete
+   impls can still double-count syntax, and the module list remains
+   host-platform-oriented; Windows/OS-gated sources need target-specific audit
+   entries.
 10. **Partial-array and non-`Copy` struct-field drop elaboration.** Local and
     by-value-parameter aggregates with generated drop glue now carry one drop
     flag per destructible field/element (nested structs are tracked, whole
@@ -2923,3 +2926,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.55 (2026-11-02): generic delimiter slicing + instantiation gating. Generic equality/comparison now defers the operand check when either side is an unresolved generic parameter and re-checks it at concrete instantiation, so user generic functions and generic-struct methods can use `==` without weakening concrete type checking. Monomorphized member bodies whose `PartialEq`/`Eq` where-bound is not satisfied by the concrete struct argument are no longer lowered (the body is cleared), avoiding errors from unused helper methods such as `span<ImportSymbol>.split`; real calls still fail where-clause verification. `span`, `mut_span`, and `Box<[T]>` now expose `split(delim)` returning `span_delim_split<T>`, and `split_by(predicate)` remains available. Audit baseline updated (`panic_calls 112 -> 113`, `unsafe_values 4912 -> 4915`, `raw_pointer_derefs 1071 -> 1073`). Main TCC/LLVM `2418`/`2416`; negative `728`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.
 
 *Revision note v4.56 (2026-11-02): explicit slice/string lifetimes. `&'a [T]`, `&'a mut [T]`, and `&'a str` now preserve the lifetime argument on the `std::span`/`std::mut_span`/`std::str` alias instead of discarding it during parsing. MIR region signatures read the declared lifetime, so wrong return regions fail with `SAFE-LIFE-003` and shorter-lived slices/strings cannot satisfy `&'static` (`SAFE-LIFE-004`; the static-mismatch helper now keeps a written `GenericType` instead of canonicalizing away its lifetime args; a missing source lifetime argument is treated as an elided borrow, not `'static`, closing the elided `&[T]`/`&str` static-escape path). Elided forms retain ordinary inference. Added shared/str identity and `where 'a : 'b` positive coverage plus wrong-region and static-lifetime negative tests. Main TCC/LLVM `2419`/`2417`; negative `729`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.
+
+*Revision note v4.57 (2026-11-02): unsafe-declaration audit metrics. The whole-tree safety report now counts `unsafe func` declarations (`unsafe_func_decls`) and `unsafe impl` declarations (`unsafe_impl_decls`) separately, closing the gap where these boundary witnesses were invisible in the audit. Reviewed baseline now records `unsafe_func_decls 36` and `unsafe_impl_decls 15`; all other reviewed totals are unchanged (`panic_calls 113`, `unsafe_values 4915`, `raw_pointer_derefs 1073`, `raw_pointer_types 9370` manually pinned). Migration metrics were refreshed from the baseline. Main TCC/LLVM `2419`/`2417`; negative `729`; safety `74`; async `69`; libs `730`; plugins `1305`; interpret `1921`; `MIRTests` `4682`; audit no growth; TSAN pass.

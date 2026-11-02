@@ -22,6 +22,8 @@ void SafetyCounts::add(const SafetyCounts& other) {
     unsafe_blocks += other.unsafe_blocks;
     unsafe_values += other.unsafe_values;
     extern_decls += other.extern_decls;
+    unsafe_func_decls += other.unsafe_func_decls;
+    unsafe_impl_decls += other.unsafe_impl_decls;
     extern_calls += other.extern_calls;
     variadic_calls += other.variadic_calls;
     panic_calls += other.panic_calls;
@@ -42,7 +44,8 @@ void SafetyCounts::add(const SafetyCounts& other) {
 uint64_t SafetyCounts::total() const {
     return raw_pointer_types + raw_pointer_derefs + raw_pointer_addrs +
            raw_pointer_casts + unsafe_blocks + unsafe_values + extern_decls +
-           extern_calls + variadic_calls + panic_calls + abort_calls +
+           unsafe_func_decls + unsafe_impl_decls + extern_calls + variadic_calls +
+           panic_calls + abort_calls +
            unreachable_stmts + new_values + delete_stmts + dealloc_stmts +
            destruct_stmts + allocator_calls + memory_calls + inline_asm +
            mutable_globals + extern_globals + union_field_accesses;
@@ -65,7 +68,8 @@ namespace {
 const char* const kCountNames[] = {
     "raw_pointer_types", "raw_pointer_derefs", "raw_pointer_addrs",
     "raw_pointer_casts", "unsafe_blocks", "unsafe_values", "extern_decls",
-    "extern_calls", "variadic_calls", "panic_calls", "abort_calls",
+    "unsafe_func_decls", "unsafe_impl_decls", "extern_calls", "variadic_calls",
+    "panic_calls", "abort_calls",
     "unreachable_stmts", "new_values", "delete_stmts", "dealloc_stmts",
     "destruct_stmts", "allocator_calls", "memory_calls", "inline_asm",
     "mutable_globals", "extern_globals", "union_field_accesses"
@@ -75,7 +79,8 @@ const uint32_t SafetyCounts::* const kCountFields[] = {
     &SafetyCounts::raw_pointer_types, &SafetyCounts::raw_pointer_derefs,
     &SafetyCounts::raw_pointer_addrs, &SafetyCounts::raw_pointer_casts,
     &SafetyCounts::unsafe_blocks, &SafetyCounts::unsafe_values,
-    &SafetyCounts::extern_decls, &SafetyCounts::extern_calls,
+    &SafetyCounts::extern_decls, &SafetyCounts::unsafe_func_decls,
+    &SafetyCounts::unsafe_impl_decls, &SafetyCounts::extern_calls,
     &SafetyCounts::variadic_calls, &SafetyCounts::panic_calls,
     &SafetyCounts::abort_calls, &SafetyCounts::unreachable_stmts,
     &SafetyCounts::new_values, &SafetyCounts::delete_stmts,
@@ -130,6 +135,9 @@ public:
         if (decl->is_extern()) {
             bump(decl->encoded_location(), &SafetyCounts::extern_decls);
         }
+        if (decl->is_unsafe()) {
+            bump(decl->encoded_location(), &SafetyCounts::unsafe_func_decls);
+        }
         RecursiveVisitor<SafetyReportVisitor>::VisitFunctionDecl(decl);
     }
 
@@ -166,6 +174,9 @@ public:
     }
 
     void VisitImplDecl(ImplDefinition* def) {
+        if (def->attrs.is_unsafe) {
+            bump(def->encoded_location(), &SafetyCounts::unsafe_impl_decls);
+        }
         // Impl method bodies are their own container and are not reached from
         // the struct/interface declaration walk. The safety report runs after
         // type checking and before codegen, so the master/concrete containers

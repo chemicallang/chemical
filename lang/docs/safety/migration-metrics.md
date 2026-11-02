@@ -30,26 +30,31 @@ The report walks `ImplDefinition` bodies as of the 2026-10-31 audit. Earlier
 baselines skipped all impl bodies and therefore undercounted the unsafe surface;
 the current larger totals are corrected coverage, not a new-code regression.
 Generic master/concrete impls may double-count some syntax, so treat the total
-as a conservative upper bound.
+as a conservative upper bound. As of the v4.57 audit, `unsafe func` and
+`unsafe impl` declarations are counted separately (`unsafe_func_decls`,
+`unsafe_impl_decls`); these are declaration-level boundary witnesses, not
+extra operations.
 
 ## Current whole-tree totals (94 modules)
 
 | Metric | Count |
 |---|---:|
-| `unsafe_blocks` | 3768 |
-| `unsafe_values` | 4898 |
-| `raw_pointer_types` | 9351 |
-| `raw_pointer_derefs` | 1065 |
-| `raw_pointer_addrs` | 10026 |
-| `raw_pointer_casts` | 2871 |
+| `unsafe_blocks` | 3775 |
+| `unsafe_values` | 4915 |
+| `raw_pointer_types` | 9370 |
+| `raw_pointer_derefs` | 1073 |
+| `raw_pointer_addrs` | 10027 |
+| `raw_pointer_casts` | 2875 |
 | `extern_decls` | 873 |
-| `extern_calls` | 1296 |
+| `unsafe_func_decls` | 36 |
+| `unsafe_impl_decls` | 15 |
+| `extern_calls` | 1298 |
 | `variadic_calls` | 295 |
 | `inline_asm` | 57 |
-| `mutable_globals` | 141 |
+| `mutable_globals` | 142 |
 | `extern_globals` | 7 |
-| `panic_calls` | 104 |
-| `allocator_calls` | 173 |
+| `panic_calls` | 113 |
+| `allocator_calls` | 175 |
 | `dealloc_stmts` | 179 |
 | `delete_stmts` | 22 |
 | `destruct_stmts` | 23 |
@@ -107,3 +112,10 @@ paths to the future/state constructors (`yield`, `time`, `exec`, `blocking`,
 `combinators`, `reactor`, and the compiler frame hook). This intentionally adds
 9 `panic` sites and 3 cleanup `unsafe { dealloc ... }` blocks in the `::async`
 module; the reviewed totals are `panic_calls 104` and `unsafe_blocks 3768`.
+
+*2026-11-02 update:* the v4.57 audit added explicit `unsafe_func_decls` (36)
+and `unsafe_impl_decls` (15) metrics. Current reviewed totals also include the
+slice/lifetime work (`panic_calls 113`, `unsafe_values 4915`,
+`raw_pointer_derefs 1073`, `raw_pointer_types 9370`). The raw-pointer total is
+the reviewed manual value; per-module JSON can vary by a few entries depending
+on module report ordering.

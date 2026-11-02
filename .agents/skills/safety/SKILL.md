@@ -337,11 +337,11 @@ memory safety.
    Windows/OS-gated sources need target-specific audit coverage, and
    `--update` remains a reviewed manual baseline change.
 9. **Audit reporting details.**
-   `SafetyReportVisitor` now walks `ImplDefinition` bodies (previously skipped
-   entirely). Generic master/concrete impls can double-count some syntax, so the
-   audit is conservative rather than a precise source-line count. The report
-   also does not count `unsafe func` declarations or `unsafe impl` declarations
-   as separate metrics; both deserve an explicit audit metric before release.
+   `SafetyReportVisitor` walks `ImplDefinition` bodies (previously skipped
+   entirely) and now counts `unsafe func` / `unsafe impl` declarations as
+   `unsafe_func_decls` / `unsafe_impl_decls`. Generic master/concrete impls can
+   still double-count some syntax, so the audit is conservative rather than a
+   precise source-line count. The module list is still host-platform-oriented.
 
 10. **Partial-array and non-`Copy` struct-field drop elaboration.** Local and
     by-value-parameter aggregates with generated drop glue carry per-field and

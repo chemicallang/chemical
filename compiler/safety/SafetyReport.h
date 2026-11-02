@@ -24,6 +24,8 @@ struct SafetyCounts {
     uint32_t unsafe_blocks = 0;
     uint32_t unsafe_values = 0;
     uint32_t extern_decls = 0;
+    uint32_t unsafe_func_decls = 0;
+    uint32_t unsafe_impl_decls = 0;
     uint32_t extern_calls = 0;
     uint32_t variadic_calls = 0;
     uint32_t panic_calls = 0;

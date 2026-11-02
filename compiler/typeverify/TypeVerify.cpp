@@ -4913,13 +4913,17 @@ static bool hrtb_type_mentions_mapped_binder(
     }
 }
 
-static bool hrtb_aggregate_param_ok(
+static bool hrtb_aggregate_param_ok_impl(
         BaseType* type,
         const std::vector<chem::string_view>& binders,
-        std::vector<chem::string_view>* field_lifetimes = nullptr) {
+        std::vector<chem::string_view>* field_lifetimes,
+        bool allow_nested,
+        bool collect_lifetimes,
+        std::unordered_set<BaseType*>& visiting) {
     if (type == nullptr) return false;
     BaseType* canonical = type->canonical();
     if (canonical == nullptr) canonical = type;
+    if (!visiting.insert(canonical).second) return true;
     StructDefinition* sd = canonical->get_direct_linked_struct();
     if (sd == nullptr) {
         ASTNode* node = canonical->get_direct_linked_canonical_node();
@@ -4971,16 +4975,36 @@ static bool hrtb_aggregate_param_ok(
                         ref->type, decl_lifetimes, actual_lifetimes, binders)) {
                     return false;
                 }
-                if (field_lifetimes != nullptr) field_lifetimes->push_back(actual);
+                if (field_lifetimes != nullptr && collect_lifetimes) {
+                    field_lifetimes->push_back(actual);
+                }
                 continue;
             }
         }
         if (hrtb_type_mentions_mapped_binder(
                 ft, decl_lifetimes, actual_lifetimes, binders)) {
-            return false;
+            // A nested aggregate may carry the binder in its own direct
+            // reference fields. Validate it recursively, but do not expose its
+            // leaf lifetimes as result sources: borrowed nested results still
+            // need path-wise MIR field mapping.
+            if (!allow_nested ||
+                !hrtb_aggregate_param_ok_impl(ft, binders, nullptr, true,
+                                             false, visiting)) {
+                return false;
+            }
         }
     }
     return true;
+}
+
+static bool hrtb_aggregate_param_ok(
+        BaseType* type,
+        const std::vector<chem::string_view>& binders,
+        std::vector<chem::string_view>* field_lifetimes = nullptr,
+        bool allow_nested = false) {
+    std::unordered_set<BaseType*> visiting;
+    return hrtb_aggregate_param_ok_impl(type, binders, field_lifetimes,
+                                        allow_nested, true, visiting);
 }
 /** Collect the single lifetime carried by a nested FutureHandle result. */
 static void collect_future_lifetimes_ast(
@@ -5165,7 +5189,7 @@ void TypeVerifier::VisitFunctionType(FunctionType* type) {
                 if (pt != nullptr && pt->kind() != BaseTypeKind::Reference &&
                     hrtb_type_mentions_lifetime(pt, type->binder_lifetimes)) {
                     hrtb_aggregate_param_ok(pt, type->binder_lifetimes,
-                                            &aggregate_field_lifetimes[pi]);
+                                            &aggregate_field_lifetimes[pi], true);
                 }
             }
             for (auto* param : type->params) {
@@ -5188,12 +5212,13 @@ void TypeVerifier::VisitFunctionType(FunctionType* type) {
                     d << "a higher-ranked reference pointee must not carry the same higher-ranked lifetime";
                 } else if (!direct_ref &&
                            hrtb_type_mentions_lifetime(pt, type->binder_lifetimes) &&
-                           !hrtb_aggregate_param_ok(pt, type->binder_lifetimes)) {
+                           !hrtb_aggregate_param_ok(pt, type->binder_lifetimes,
+                                                    nullptr, true)) {
                     auto& d = diagnoser.error(current_func_type
                                                   ? current_func_type->get_location()
                                                   : SourceLocation(0));
                     d.with_code("SAFE-BORROW-099");
-                    d << "a higher-ranked parameter must be a direct reference or a single-level aggregate of direct reference fields; deeper aggregate nesting requires full region inference";
+                    d << "a higher-ranked parameter must be a direct reference or an aggregate of reference fields; reference-capable nested storage is not supported";
                 }
             }
 

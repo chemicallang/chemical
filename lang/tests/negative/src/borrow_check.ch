@@ -419,11 +419,21 @@ func neg_hrtb_aggregate_alias_rejected(env : &mut TestEnv) {
 }
 
 @test
-func neg_hrtb_deep_aggregate_rejected(env : &mut TestEnv) {
+func hrtb_deep_aggregate_ok(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // Deeper aggregates still require path-wise region inference.
-    var ch = "struct View<'a> {\n    var p : &'a int\n}\nstruct Outer<'a> {\n    var view : View<'a>\n}\nfunc apply_outer(f : for<'b> (v : Outer<'b>) => int) : int {\n    return 0\n}\npublic func main() : int { return 0 }\n"
-    expect_compile_error(env, "hrtb_deep_aggregate", ch, "SAFE-BORROW-099")
+    // A nested aggregate of direct reference fields is a valid higher-ranked
+    // parameter when the callback only reads through it.
+    var ch = "struct View<'a> {\n    var p : &'a int\n}\nstruct Outer<'a> {\n    var view : View<'a>\n}\nfunc <'a> read_outer(v : Outer<'a>) : int {\n    return *v.view.p\n}\nfunc <'a> apply(f : for<'b> (v : Outer<'b>) => int, x : &'a int) : int {\n    return f(Outer<'a> { view : View<'a> { p : x } })\n}\npublic func main() : int {\n    var x = 41\n    return apply(read_outer, &x) - 41\n}\n"
+    expect_compile_success(env, "hrtb_deep_aggregate", ch)
+}
+
+@test
+func neg_hrtb_deep_aggregate_borrowed_result_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A borrowed nested field result still needs path-wise MIR field mapping;
+    // keep the explicit rejection instead of returning an unmapped loan.
+    var ch = "struct View<'a> {\n    var p : &'a int\n}\nstruct Outer<'a> {\n    var view : View<'a>\n}\nfunc <'a> read_outer_ref(v : Outer<'a>) : &'a int {\n    return v.view.p\n}\nfunc <'a> apply(f : for<'b> (v : Outer<'b>) => &'b int, x : &'a int) : &'a int {\n    return f(Outer<'a> { view : View<'a> { p : x } })\n}\npublic func main() : int {\n    var x = 41\n    return *apply(read_outer_ref, &x) - 41\n}\n"
+    expect_compile_error(env, "hrtb_deep_aggregate_borrowed_result", ch, "SAFE-BORROW-099")
 }
 
 @test

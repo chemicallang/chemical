@@ -1391,7 +1391,51 @@ MIRExprResult MIRLowerer::lower_pattern_payload(PatternMatchExpr* pm, VariantMem
     return MIRExprResult::error();
 }
 
+MIRExprResult MIRLowerer::lower_pattern_element(PatternMatchExpr* pm,
+                                                PatternMatchIdentifier* id,
+                                                bool as_address,
+                                                std::string& error) {
+    if (!pm || !pm->is_tuple || !id || id->tuple_index == 0xFFFFFFFFu) {
+        error = "invalid tuple pattern element";
+        return MIRExprResult::error();
+    }
+    BaseType* element_type = id->known_type();
+    if (element_type == nullptr) {
+        error = "tuple pattern element has no resolved type";
+        return MIRExprResult::error();
+    }
+    MIRExprResult base = lower_pattern_base(pm, error);
+    if (!base.ok()) return base;
+    std::string fname = "_" + std::to_string(id->tuple_index);
+    const ConstantId fc = module_.constants.add_string(
+        MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
+    const TypeId ft = types_.map(element_type);
+    if (base.kind == MIRExprKind::Place) {
+        const PlaceId bp = static_cast<PlaceId>(base.id);
+        if (as_address || abi::is_aggregate(module_, ft)) {
+            return MIRExprResult::address(builder_->field_addr(bp, fc, ft), ft);
+        }
+        return MIRExprResult::value(builder_->field_load(bp, fc, ft), ft);
+    }
+    if (base.kind == MIRExprKind::Address || base.kind == MIRExprKind::Value) {
+        const ValueId bv = static_cast<ValueId>(base.id);
+        if (as_address || abi::is_aggregate(module_, ft)) {
+            return MIRExprResult::address(builder_->field_addr_ptr(bv, fc, ft), ft);
+        }
+        return MIRExprResult::value(builder_->field_load_ptr(bv, fc, ft), ft);
+    }
+    error = "tuple pattern expression is not an aggregate lvalue";
+    return MIRExprResult::error();
+}
+
 MIRExprResult MIRLowerer::lower_pattern_cond(PatternMatchExpr* pm, std::string& error) {
+    if (pm && pm->is_tuple) {
+        // A tuple pattern matches every tuple of the right shape.
+        const TypeId bool_t = types_.bool_type();
+        const ValueId yes = builder_->const_int(
+            bool_t, module_.constants.add_int(bool_t, 1));
+        return MIRExprResult::value(yes, bool_t);
+    }
     if (!pm || !pm->member) {
         error = "invalid pattern match condition";
         return MIRExprResult::error();
@@ -1520,8 +1564,155 @@ MIRExprResult MIRLowerer::lower_pattern_match_value(PatternMatchExpr* pm, std::s
 }
 
 bool MIRLowerer::lower_pattern_match_node(PatternMatchExprNode* node, std::string& error) {
-    MIRExprResult r = lower_pattern_match_value(&node->value, error);
-    return r.ok();
+    if (node == nullptr) {
+        error = "null pattern match node";
+        return false;
+    }
+    PatternMatchExpr* pm = &node->value;
+    if (!pm->is_tuple) {
+        MIRExprResult r = lower_pattern_match_value(pm, error);
+        return r.ok();
+    }
+    // Tuple destructuring is irrefutable. Evaluate the value once, then bind
+    // each element into its own local so later mutation of the source tuple
+    // does not change the destructured names.
+    MIRExprResult base = lower_pattern_base(pm, error);
+    if (!base.ok()) return false;
+    // Bind the whole tuple to a local first. This gives the pattern a stable
+    // owner, lets a tuple literal or call result be consumed safely, and keeps
+    // the source from being dropped after its fields move into the bindings.
+    BaseType* tuple_type = pm->expression != nullptr ? pm->expression->getType() : nullptr;
+    if (tuple_type == nullptr) {
+        error = "tuple pattern value has no type";
+        return false;
+    }
+    const TypeId tuple_vt = types_.map(tuple_type);
+    const PlaceId tuple_place = builder_->alloca(tuple_vt, MIRStorageClass::Local);
+    if (tuple_place == MIR_INVALID_ID) {
+        error = "failed to allocate a place for a tuple pattern value";
+        return false;
+    }
+    builder_->storage_live(tuple_place);
+    scope_places_.push_back(tuple_place);
+    register_destructible(tuple_place, tuple_type, true);
+    if (base.kind == MIRExprKind::Place) {
+        const PlaceId source = static_cast<PlaceId>(base.id);
+        const auto storage = static_cast<MIRStorageClass>(
+            builder_->function().places[source].storage_class);
+        if (storage == MIRStorageClass::Local ||
+            storage == MIRStorageClass::Parameter) {
+            mark_moved(source);
+        }
+        builder_->move_init(tuple_place, source, tuple_vt);
+    } else if (base.kind == MIRExprKind::Address) {
+        if (destructor_symbol(tuple_type) != MIR_INVALID_ID) {
+            error = "SAFE-MOVE-004: cannot destructure a tuple with a destructor "
+                    "out of a temporary/expression; bind the tuple to a local first";
+            return false;
+        }
+        builder_->copy_ptr_to_place(tuple_place, static_cast<ValueId>(base.id));
+    } else if (base.kind == MIRExprKind::Value) {
+        builder_->store(tuple_place, static_cast<ValueId>(base.id));
+    } else {
+        error = "tuple pattern value does not produce a value";
+        return false;
+    }
+    // Element reads below go through the owned local snapshot.
+    pattern_bases_[pm] = MIRExprResult::place(tuple_place, tuple_vt);
+    // Read every element before moving any field. Moving one destructible
+    // field makes a later read through the source aggregate a partial-move
+    // violation, even though the fields are disjoint.
+    std::vector<MIRExprResult> elements;
+    elements.reserve(pm->param_names.size());
+    for (PatternMatchIdentifier* id : pm->param_names) {
+        if (id == nullptr) {
+            error = "invalid tuple pattern identifier";
+            return false;
+        }
+        MIRExprResult element = lower_pattern_element(pm, id, false, error);
+        if (!element.ok()) return false;
+        elements.push_back(element);
+    }
+    for (size_t element_index = 0; element_index < pm->param_names.size();
+         ++element_index) {
+        PatternMatchIdentifier* id = pm->param_names[element_index];
+        BaseType* element_type = id->known_type();
+        if (element_type == nullptr) {
+            error = "tuple pattern element has no resolved type";
+            return false;
+        }
+        const TypeId vt = types_.map(element_type);
+        PlaceId place = MIR_INVALID_ID;
+        if (async_) {
+            const MIRNumberedName resident = async_resident_field(id);
+            if (!resident.empty()) {
+                const ConstantId fc = module_.constants.add_string(
+                    MIR_INVALID_ID, resident.data(),
+                    static_cast<uint32_t>(resident.size()));
+                place = builder_->alloca_frame(vt, fc);
+            }
+        }
+        if (place == MIR_INVALID_ID) {
+            place = builder_->alloca(vt, MIRStorageClass::Local);
+        }
+        if (place == MIR_INVALID_ID) {
+            error = "failed to allocate a place for a tuple pattern element";
+            return false;
+        }
+        {
+            const auto storage = static_cast<MIRStorageClass>(
+                builder_->function().places[place].storage_class);
+            if (storage != MIRStorageClass::FrameField &&
+                storage != MIRStorageClass::FramePtr) {
+                builder_->storage_live(place);
+                scope_places_.push_back(place);
+            }
+        }
+        bind(id, place);
+        bind_name(id->identifier, place);
+        if (abi::is_aggregate(module_, vt)) {
+            register_destructible(place, element_type, true);
+        }
+        MIRExprResult& element = elements[element_index];
+        if (element.kind == MIRExprKind::Place) {
+            builder_->move_init(place, static_cast<PlaceId>(element.id), vt);
+            mark_moved(static_cast<PlaceId>(element.id));
+        } else if (element.kind == MIRExprKind::Address) {
+            builder_->copy_ptr_to_place(place, static_cast<ValueId>(element.id));
+            // Clear the tuple local's field flag: the new binding owns the
+            // value. The pattern has already read every element, so this is a
+            // disjoint move, not a partial read.
+            const bool copying = mir_type_is_copy(module_.types, vt);
+            const bool needs_drop =
+                destructor_symbol(element_type) != MIR_INVALID_ID;
+            if (!copying && needs_drop) {
+                const std::string field_name =
+                    "_" + std::to_string(id->tuple_index);
+                MIRDropField* node =
+                    drop_field_for_path(tuple_place, {field_name});
+                if (node == nullptr) {
+                    error = "SAFE-MOVE-004: cannot move a destructible tuple "
+                            "element through a value whose field drops are not "
+                            "tracked; bind the tuple to an ordinary local first";
+                    return false;
+                }
+                if (node->flag != MIR_INVALID_ID) {
+                    builder_->set_drop(node->flag, false);
+                }
+                set_drop_fields(node->children, false);
+                builder_->emit(MIROpcode::MoveOut, MIR_NULL,
+                               {MIROperand::value(element.id, element.type)});
+            }
+        } else if (element.kind == MIRExprKind::Value) {
+            ValueId value = static_cast<ValueId>(element.id);
+            if (element.type != vt) value = builder_->cast(value, vt);
+            builder_->store(place, value);
+        } else {
+            error = "tuple pattern element does not produce a value";
+            return false;
+        }
+    }
+    return true;
 }
 
 MIRExprResult MIRLowerer::lower_pattern_identifier(PatternMatchIdentifier* id,
@@ -1530,6 +1721,19 @@ MIRExprResult MIRLowerer::lower_pattern_identifier(PatternMatchIdentifier* id,
     if (!pm) {
         error = "pattern identifier has no match expression";
         return MIRExprResult::error();
+    }
+    // A tuple pattern materializes each element into a local at the pattern
+    // statement; later reads must see that snapshot, not the source tuple.
+    const PlaceId bound = place_for_linked(id);
+    if (bound != MIR_INVALID_ID) {
+        const TypeId t = builder_->function().places[bound].type;
+        if (abi::is_aggregate(module_, t)) {
+            return MIRExprResult::place(bound, t);
+        }
+        return MIRExprResult::value(builder_->load(bound, t), t);
+    }
+    if (pm->is_tuple) {
+        return lower_pattern_element(pm, id, false, error);
     }
     // a DefValue result temp holds only the first destructured parameter; the
     // other parameters read their own payload field

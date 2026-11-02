@@ -288,6 +288,30 @@ void GenericInstantiator::VisitLambdaFunction(LambdaFunction *func) {
 void GenericInstantiator::VisitPatternMatchExpr(PatternMatchExpr* value) {
     RecursiveVisitor<GenericInstantiator>::VisitPatternMatchExpr(value);
 
+    if(value->is_tuple) {
+        if(value->expression == nullptr) return;
+        BaseType* value_type = value->expression->getType();
+        if(value_type != nullptr) value_type = value_type->canonical();
+        StructType* tuple_type = nullptr;
+        if(value_type != nullptr && value_type->kind() == BaseTypeKind::Struct) {
+            tuple_type = value_type->as_struct_type_unsafe();
+        }
+        if(tuple_type == nullptr || !tuple_type->is_tuple) return;
+        auto& elements = tuple_type->variables();
+        if(elements.size() != value->param_names.size()) return;
+        for(size_t i = 0; i < value->param_names.size(); ++i) {
+            const auto nameId = value->param_names[i];
+            auto* member = elements[i] != nullptr
+                               ? elements[i]->as_struct_member_unsafe()
+                               : nullptr;
+            if(member == nullptr) continue;
+            nameId->bound_type = const_cast<BaseType*>(member->type.getType());
+            nameId->tuple_index = static_cast<uint32_t>(i);
+            table.declare(nameId->identifier, nameId);
+        }
+        return;
+    }
+
     const auto member = value->find_member_from_expr(getAllocator(), diagnoser);
     if(member == nullptr) {
         return;

@@ -4212,6 +4212,49 @@ void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {
     // NOTE: heap-allocated: it may be stored as a value's expected type during
     // linking and must outlive this stack frame
     auto* dummy_ref = new ReferenceType(typeBuilder.getVoidType(), !expr->is_const);
+    if(expr->is_tuple) {
+        visit(expression, nullptr);
+        if(expression == nullptr) {
+            diagnoser.error("tuple pattern has no value expression", expr);
+            return;
+        }
+        BaseType* value_type = expression->getType();
+        if(value_type != nullptr) value_type = value_type->canonical();
+        StructType* tuple_type = nullptr;
+        if(value_type != nullptr && value_type->kind() == BaseTypeKind::Struct) {
+            tuple_type = value_type->as_struct_type_unsafe();
+        }
+        if(tuple_type == nullptr || !tuple_type->is_tuple) {
+            diagnoser.error(expr) << "tuple destructuring requires a tuple value, found '"
+                                  << (value_type != nullptr ? value_type->representation()
+                                                            : std::string("unknown"))
+                                  << "'";
+            return;
+        }
+        auto& elements = tuple_type->variables();
+        if(elements.size() != param_names.size()) {
+            diagnoser.error(expr) << "tuple pattern has "
+                                  << std::to_string(param_names.size())
+                                  << " names but the value has "
+                                  << std::to_string(elements.size()) << " elements";
+            return;
+        }
+        for(size_t i = 0; i < param_names.size(); ++i) {
+            const auto nameId = param_names[i];
+            auto* member = elements[i] != nullptr
+                               ? elements[i]->as_struct_member_unsafe()
+                               : nullptr;
+            if(member == nullptr) {
+                diagnoser.error(nameId) << "tuple element " << std::to_string(i)
+                                        << " is not a struct-like member";
+                continue;
+            }
+            nameId->bound_type = const_cast<BaseType*>(member->type.getType());
+            nameId->tuple_index = static_cast<uint32_t>(i);
+            declare_no_shadow(nameId->identifier, nameId);
+        }
+        return;
+    }
     visit(expression, dummy_ref);
     const auto child_member = expr->find_member_from_expr(getAstAllocator(), diagnoser);
     if(!child_member) {

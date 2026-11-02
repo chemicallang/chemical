@@ -1012,8 +1012,14 @@ ASTNode* ASTNode::child(const ChildResolver* resolver, const chem::string_view &
                 return variant->member_param->child(name);
             }
         }
-        case ASTNodeKind::PatternMatchId:
-            return as_patt_match_id_unsafe()->member_param->child(name);
+        case ASTNodeKind::PatternMatchId: {
+            auto* patt = as_patt_match_id_unsafe();
+            if (patt->bound_type != nullptr) {
+                return provide_child(resolver, patt->bound_type, name, this);
+            }
+            if (patt->member_param == nullptr) return nullptr;
+            return patt->member_param->child(name);
+        }
         default:
             return nullptr;
     }

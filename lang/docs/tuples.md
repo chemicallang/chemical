@@ -1,8 +1,9 @@
 # Tuples (first implementation slice)
 
 Status: implemented for construction, field access, parameters/returns,
-nested tuples, element assignment, `Copy`, auto traits, and drop-once
-semantics. Tuple structs and destructuring patterns are not implemented yet.
+nested tuples, element assignment, `Copy`, auto traits, drop-once semantics,
+and flat tuple destructuring (`var (a, b) = value`). Tuple structs and nested
+destructuring patterns are not implemented yet.
 
 ## Syntax
 
@@ -12,6 +13,10 @@ var typed : (int, bool) = pair       // tuple type
 var first = pair._0                  // element access
 var second = pair._1
 pair._0 = 9                          // element assignment
+
+var (a, b) = pair                    // flat destructuring
+var (only,) = (1,)                   // one-element tuple pattern
+const (x, y) = pair                  // const bindings
 
 func make_pair(a : int, b : bool) : (int, bool) {
     return (a, b)
@@ -43,6 +48,20 @@ in a body produces the same C tag.
 The generated C fields are `_0`, `_1`, ...; the source spells them `.0`, `.1`,
 and the parser maps the numeric access to the generated member name.
 
+## Destructuring
+
+`var (a, b) = value` (and `const (a, b) = value`) binds each element to a new
+local. The value is evaluated once and moved/copied into an owned local
+snapshot before the elements are bound, so mutating the source afterwards does
+not change the bindings. Destructible elements are moved with their per-field
+drop flags cleared, so each owned element is dropped exactly once. A bare
+one-element tuple uses a trailing comma: `var (only,) = value`.
+
+Tuple patterns are irrefutable: they do not take an `else` branch. The current
+slice supports flat identifier elements only; nested patterns (`var ((a, b),
+c)`) and wildcard elements (`var (_, b)`) are not implemented yet. `if(var
+(a, b) = value)` is also not part of this slice.
+
 ## Type facts
 
 - Structural equality: `(int, bool)` equals another `(int, bool)`.
@@ -53,7 +72,8 @@ and the parser maps the numeric access to the generated member name.
 
 ## Not implemented
 
-- Tuple destructuring (`var (a, b) = value`) and match patterns.
+- Nested tuple patterns, wildcard elements, and tuple patterns in `if`/match
+  position.
 - Tuple structs (`struct Point(int, int)`).
 - A real unit tuple `()` value.
 - `impl Trait for (T1, T2)` / named tuple methods.

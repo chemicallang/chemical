@@ -55,4 +55,29 @@ func test_tuples() {
         }
         return first == 1 && second == 1
     })
+    test("tuple destructuring binds a snapshot", () => {
+        var pair = (1, 2)
+        var (a, b) = pair
+        pair._0 = 9
+        pair._1 = 8
+        return a == 1 && b == 2
+    })
+    test("tuple destructuring from a call and one-element pattern", () => {
+        var (a, b) = tuple_pair(7, true)
+        const (c,) = (9,)
+        return a == 7 && b && c == 9
+    })
+    test("tuple destructuring moves destructible elements exactly once", () => {
+        var first = 0
+        var second = 0
+        {
+            var pair = (TupleDropProbe { n : 1, counter : &mut first },
+                        TupleDropProbe { n : 2, counter : &mut second })
+            var (left, right) = pair
+            if(left.n != 1 || right.n != 2) {
+                return false
+            }
+        }
+        return first == 1 && second == 1
+    })
 }

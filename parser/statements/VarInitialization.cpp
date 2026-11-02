@@ -148,6 +148,53 @@ ASTNode* Parser::parseVarInitializationTokens(
         token++;
     }
 
+    if(matchExpr && token->type == TokenType::LParen) {
+        // Tuple destructuring: `var (a, b) = value`. This is irrefutable, so
+        // unlike a variant pattern it has no `else` branch.
+        const auto patternMatchExpr = new (allocator.allocate<PatternMatchExprNode>())
+            PatternMatchExprNode(is_const, false, chem::string_view(""),
+                                 loc_single(start_tok), parent_node);
+        patternMatchExpr->value.is_tuple = true;
+        token++; // '('
+        uint32_t tuple_index = 0;
+        while(true) {
+            consumeNewLines();
+            if(token->type == TokenType::RParen) break;
+            const auto tuple_id = consumeIdentifierOrKeyword();
+            if(!tuple_id) {
+                error("expected an identifier in tuple pattern");
+                break;
+            }
+            const auto pmId = new (allocator.allocate<PatternMatchIdentifier>())
+                PatternMatchIdentifier(&patternMatchExpr->value,
+                                       allocate_view(allocator, tuple_id->value),
+                                       parent_node, loc_single(tuple_id));
+            pmId->tuple_index = tuple_index++;
+            patternMatchExpr->value.param_names.emplace_back(pmId);
+            if(consumeToken(TokenType::CommaSym)) continue;
+            break;
+        }
+        if(!consumeToken(TokenType::RParen)) {
+            error("expected ')' after tuple pattern");
+        }
+        if(!consumeToken(TokenType::EqualSym)) {
+            error("expected '=' after tuple pattern");
+            patternMatchExpr->value.expression = getErroredValue(allocator);
+        } else {
+            const auto expr = parseExpressionOrArrayOrStruct(allocator);
+            if(expr) {
+                patternMatchExpr->value.expression = expr;
+            } else {
+                error("expected an expression after '=' in tuple pattern");
+                patternMatchExpr->value.expression = getErroredValue(allocator);
+            }
+        }
+        if(token->type == TokenType::ElseKw) {
+            error("tuple patterns are irrefutable and do not take an else branch");
+        }
+        return patternMatchExpr;
+    }
+
     auto id = consumeIdentifierOrKeyword();
     if(!id) {
         error("expected an identifier for variable initialization");

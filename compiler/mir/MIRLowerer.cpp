@@ -428,7 +428,14 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error,
         }
         if (id->linked && id->linked->kind() == ASTNodeKind::PatternMatchId) {
             auto* pmid = id->linked->as_patt_match_id_unsafe();
-            return lower_pattern_payload(pmid->matchExpr, pmid->member_param, true, error);
+            if (place_for_linked(pmid) == MIR_INVALID_ID) {
+                if (pmid->matchExpr != nullptr && pmid->matchExpr->is_tuple) {
+                    return lower_pattern_element(pmid->matchExpr, pmid, true, error);
+                }
+                return lower_pattern_payload(pmid->matchExpr, pmid->member_param, true, error);
+            }
+            // Tuple destructuring binds a local: fall through to the normal
+            // address-of-place path below.
         }
         if (id->linked && id->linked->kind() == ASTNodeKind::CapturedVariable) {
             return lower_captured_variable(id->linked->as_captured_var_unsafe(), true, error);

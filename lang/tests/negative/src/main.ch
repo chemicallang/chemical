@@ -635,3 +635,27 @@ func neg_tuple_element_type_mismatch(env : &mut TestEnv) {
     var ch = "public func main() : int {\n    var t : (int, bool) = (1, 2)\n    return 0\n}\n"
     expect_compile_error(env, "tuple_element_type_mismatch", ch, "does not satisfy type")
 }
+
+@test
+func neg_tuple_pattern_arity_mismatch(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var (a, b) = (1, 2, 3)\n    return a\n}\n"
+    expect_compile_error(env, "tuple_pattern_arity_mismatch", ch,
+                         "tuple pattern has 2 names but the value has 3 elements")
+}
+
+@test
+func neg_tuple_pattern_requires_tuple(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var (a, b) = 1\n    return a + b\n}\n"
+    expect_compile_error(env, "tuple_pattern_requires_tuple", ch,
+                         "tuple destructuring requires a tuple value")
+}
+
+@test
+func neg_tuple_pattern_const_binding_assign(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var pair = (1, 2)\n    const (a, b) = pair\n    a = 5\n    return a + b\n}\n"
+    expect_compile_error(env, "tuple_pattern_const_binding_assign", ch,
+                         "cannot assign to a non mutable value")
+}

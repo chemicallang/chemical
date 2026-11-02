@@ -49,6 +49,14 @@ public:
     VariantMemberParam* member_param = nullptr;
 
     /**
+     * For a tuple destructuring pattern (`var (a, b) = value`), the concrete
+     * element type and position. Variant patterns leave these unset and use
+     * `member_param` instead.
+     */
+    BaseType* bound_type = nullptr;
+    uint32_t tuple_index = 0xFFFFFFFFu;
+
+    /**
      * constructor
      */
     PatternMatchIdentifier(
@@ -68,11 +76,16 @@ public:
             encoded_location()
         );
         copied->member_param = member_param;
+        copied->bound_type = bound_type;
+        copied->tuple_index = tuple_index;
         return copied;
     }
 
     inline BaseType* known_type() {
-        return member_param->type;
+        if (bound_type != nullptr) return bound_type;
+        return member_param != nullptr
+                   ? const_cast<BaseType*>(member_param->type.getType())
+                   : nullptr;
     }
 
 
@@ -90,6 +103,12 @@ public:
      * the param names match the member param in the variant
      */
     bool destructure_by_name;
+
+    /**
+     * A tuple pattern binds positional elements of a tuple value rather than
+     * a variant payload. Tuple patterns are irrefutable and have no `else`.
+     */
+    bool is_tuple = false;
 
     /**
      * the member name inside the variant
@@ -152,6 +171,7 @@ public:
             copied->param_names.emplace_back(id);
         }
         copied->destructure_by_name = destructure_by_name;
+        copied->is_tuple = is_tuple;
         copied->expression = expression->copy(allocator);
         auto& elseExpr = copied->elseExpression;
         elseExpr.kind = elseExpression.kind;

@@ -20,6 +20,7 @@
 #include "ast/structures/UnionDef.h"
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/statements/Typealias.h"
+#include "ast/values/PatternMatchExpr.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
@@ -198,7 +199,8 @@ bool is_node_assignable(ASTNode* node) {
             }
         }
         case ASTNodeKind::PatternMatchId: {
-            return true;
+            const auto* patt = node->as_patt_match_id_unsafe();
+            return patt->matchExpr == nullptr || !patt->matchExpr->is_const;
         }
         default:
             return false;

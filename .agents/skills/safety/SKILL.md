@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2419/2419` |
 | LLVM main | `2417/2417` |
 | `@test` runner | `56/56` |
-| TCC/LLVM negative | `739/739` |
+| TCC/LLVM negative | `742/742` |
 | TCC/LLVM safety | `74/74` |
 | TCC/LLVM async | `69/69` |
 | TCC libs | `730/730` |
@@ -111,11 +111,14 @@ MIR is the sole producer of init/move/drop state:
 - `SAFE-BORROW-001` — overlapping live loans with at least one mutable loan.
 - `SAFE-BORROW-002` — move/drop of a place while a borrow of it is live.
 - `SAFE-BORROW-099` — a borrow/lifetime pattern the checker cannot prove safe
-  (e.g. a retaining multi-borrow callback). Nested struct aggregate
-  parameters, variant payloads, array elements, and borrowed nested results
-  are supported, including per-leaf multi-lifetime precision. Read-only mixed
+  (e.g. retaining storage in a caller-owned reference parameter when the
+  caller regions are mixed or distinct, or a retaining pointee with mismatched
+  binders). Nested struct aggregate parameters,
+  variant payloads, array elements, and borrowed nested results are supported,
+  including per-leaf multi-lifetime precision. Read-only mixed
   local/parameter/global and distinct-region multi-borrow calls are accepted;
-  this remains an explicit rejection, never a guessed-safe acceptance.
+  local or by-value retaining storage also accepts them. This remains an
+  explicit rejection, never a guessed-safe acceptance.
 - `SAFE-LIFE-001` — returning a reference to a local/temporary/frame field.
 - `SAFE-LIFE-002` — a loan still live when the referent's storage ends.
 - `SAFE-LIFE-003` — returned reference does not outlive the declared return
@@ -317,11 +320,15 @@ memory safety.
    path-mapped, so their borrowed results keep the source loan live;
    same-lifetime array elements remain conservatively aliased, and fixed
    arrays larger than 64 elements (or unsized arrays) keep the explicit
-   `SAFE-BORROW-099` rejection. Multi-borrow
-   callbacks with a mutable reference slot, reference-containing pointee,
-   generic parameter, or callback parameter remain explicit
-   `SAFE-BORROW-099` rejections. This is a false-negative/rewrite requirement,
-   not a guessed-safe acceptance.
+   `SAFE-BORROW-099` rejection. A retaining parameter whose loan target is a
+   local/temporary or a by-value parameter copy may hold any argument borrow,
+   so mixed/distinct sources are accepted and pinned to function exit.
+   Retaining storage reached through a reference parameter is caller-owned and
+   still requires one shared region; mixed/distinct sources remain explicit
+   `SAFE-BORROW-099` rejections. A retaining pointee is accepted when every
+   nested reference uses the same binder (`&'a mut &'a T`); a different binder
+   or a free/`'static` lifetime is rejected. This is a false-negative/rewrite
+   requirement, not a guessed-safe acceptance.
 
 6. **`dyn` is a borrowed fat pointer; `DynBox` owns.**
    `dyn I` is a target-aware two-word `{ data, vtable }` value, and `&dyn I`

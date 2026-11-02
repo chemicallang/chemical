@@ -2267,6 +2267,38 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     hrtb_ref_params = std::max<uint32_t>(
                         hrtb_ref_params, static_cast<uint32_t>(ref_args.size()));
                 }
+                // A retaining parameter whose *own* storage is a local or a
+                // by-value parameter copy can safely hold any argument borrow:
+                // that storage dies with the call, so pinning the source loan to
+                // function exit is sufficient even when the caller regions
+                // differ. A reference parameter points at caller storage, so it
+                // still needs the equal-region rule below.
+                auto loan_is_local_storage = [&](uint32_t loan) -> bool {
+                    if (loan >= loans.size()) return false;
+                    const LoanTarget& target = loans[loan].target;
+                    if (!target.known || target.root >= function.places.size()) {
+                        return false;
+                    }
+                    const MIRPlaceDef& pd = function.places[target.root];
+                    const auto storage = static_cast<MIRStorageClass>(
+                        pd.storage_class);
+                    if (storage == MIRStorageClass::Local ||
+                        storage == MIRStorageClass::Temporary) {
+                        return true;
+                    }
+                    if (storage != MIRStorageClass::Parameter) return false;
+                    // A reference/pointer parameter addresses caller storage;
+                    // any other parameter is a by-value copy owned by this
+                    // frame.
+                    if (pd.type < module.types.types.size()) {
+                        const auto kind = module.types.types[pd.type].kind;
+                        if (kind == MIRTypeKind::Reference ||
+                            kind == MIRTypeKind::Pointer) {
+                            return false;
+                        }
+                    }
+                    return true;
+                };
                 if (has_callsite_sig && callsite_hrtb && hrtb_ref_params > 1) {
                     bool all_local = ref_args.size() == hrtb_ref_params;
                     bool all_nonlocal_safe = ref_args.size() == hrtb_ref_params;
@@ -2329,7 +2361,28 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                             if (may_retain) { callback_may_retain = true; break; }
                         }
                     }
-                    if ((!callback_may_retain) || all_local || all_nonlocal_safe) {
+                    bool retain_storage_local = false;
+                    if (callback_may_retain &&
+                        !callee_sig->param_may_retain.empty()) {
+                        retain_storage_local = true;
+                        for (size_t rp = 0;
+                             rp < callee_sig->param_may_retain.size(); ++rp) {
+                            if (!callee_sig->param_may_retain[rp]) continue;
+                            bool found = false;
+                            for (const RefArg& ra : ref_args) {
+                                if (ra.param_index != rp) continue;
+                                found = true;
+                                if (!loan_is_local_storage(ra.loan)) {
+                                    retain_storage_local = false;
+                                    break;
+                                }
+                            }
+                            if (!found) retain_storage_local = false;
+                            if (!retain_storage_local) break;
+                        }
+                    }
+                    if ((!callback_may_retain) || retain_storage_local ||
+                        all_local || all_nonlocal_safe) {
                         pinned_multi = true;
                         const uint32_t last =
                             order.empty() ? 0 : static_cast<uint32_t>(order.size() - 1);

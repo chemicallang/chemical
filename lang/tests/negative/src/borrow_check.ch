@@ -552,6 +552,36 @@ func hrtb_distinct_parameter_regions_ok(env : &mut TestEnv) {
 }
 
 @test
+func hrtb_retaining_local_slot_mixed_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The retaining slot is a local, so a parameter referent can be stored in
+    // it even though the caller regions differ; the slot dies with the call.
+    var ch = "func <'a> stash(slot : &mut &'a int, x : &'a int) : int {\n    *slot = x\n    return 0\n}\nfunc <'a> apply(f : for<'b> (slot : &mut &'b int, x : &'b int) => int, x : &'a int) : int {\n    var y = 7\n    var slot : &int = &y\n    f(&mut slot, x)\n    return *slot\n}\npublic func main() : int {\n    var x = 41\n    return apply(stash, &x) - 41\n}\n"
+    expect_compile_success(env, "hrtb_retaining_local_slot", ch)
+}
+
+@test
+func hrtb_retaining_aggregate_local_slot_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A by-value aggregate carrying a same-binder retaining reference can
+    // store a source parameter when the referenced slot is local.
+    var ch = "struct Stash<'a> {\n    var slot : &'a mut &'a int\n}\nfunc <'a> stash(st : Stash<'a>, x : &'a int) : int {\n    *st.slot = x\n    return 0\n}\nfunc <'a> apply(f : for<'b> (st : Stash<'b>, x : &'b int) => int, x : &'a int) : int {\n    var slot : &int = x\n    f(Stash<'a> { slot : &mut slot }, x)\n    return *slot\n}\npublic func main() : int {\n    var x = 41\n    return apply(stash, &x) - 41\n}\n"
+    expect_compile_success(env, "hrtb_retaining_aggregate_local_slot", ch)
+}
+
+@test
+func neg_hrtb_nonlocal_retaining_slot_distinct(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The retaining slot is a caller-owned reference parameter with distinct
+    // regions, so the callback could store a shorter borrow into it.
+    var ch = "func <'a> stash(slot : &mut &'a int, x : &'a int) : int {\n    *slot = x\n    return 0\n}\nfunc <'a, 'b, 'd> apply(f : for<'c> (slot : &mut &'c int, x : &'c int) => int, slot : &'a mut &'b int, x : &'d int) : int {\n    return f(slot, x)\n}\npublic func main() : int {\n    var a = 1\n    var r : &int = &a\n    var x = 2\n    return apply(stash, &mut r, &x)\n}\n"
+    expect_compile_error(env, "hrtb_nonlocal_retaining_slot_distinct", ch, "SAFE-BORROW-099")
+    // Two different binders in a retaining pointee are not provable.
+    var pointee = "func apply(f : for<'a, 'b> (slot : &'a mut &'b int) => int) : int { return 0 }\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "hrtb_pointee_other_binder", pointee, "SAFE-BORROW-099")
+}
+
+@test
 func neg_hrtb_retaining_mixed_local_parameter_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // A generic parameter can be a reference slot, so the callback could store

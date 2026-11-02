@@ -4896,6 +4896,102 @@ static BaseType* hrtb_substitute_type_param(BaseType* type, GenericType* actual)
     return substituted != nullptr ? substituted : type;
 }
 
+// A retaining pointee is safe to expose to a higher-ranked callback when every
+// reference inside it uses the same binder (for example `&'a mut &'a T`).
+// Different binders or a `'static`/free lifetime would let the callback store
+// a shorter borrow into longer-lived caller storage, which the call-site rule
+// cannot prove without full region ordering.
+static bool hrtb_pointee_retains_only_binder_impl(
+        BaseType* type,
+        chem::string_view binder,
+        const std::vector<chem::string_view>& decl_lifetimes,
+        const std::vector<chem::string_view>& actual_lifetimes,
+        std::unordered_set<BaseType*>& visiting) {
+    if (type == nullptr) return true;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr) canonical = type;
+    if (!visiting.insert(canonical).second) return true;
+    switch (canonical->kind()) {
+        case BaseTypeKind::Reference: {
+            auto* ref = canonical->as_reference_type_unsafe();
+            const chem::string_view actual = hrtb_map_field_lifetime(
+                ref->lifetime, decl_lifetimes, actual_lifetimes);
+            if (hrtb_bare_lifetime(actual) != hrtb_bare_lifetime(binder)) {
+                return false;
+            }
+            return hrtb_pointee_retains_only_binder_impl(
+                ref->type, binder, decl_lifetimes, actual_lifetimes, visiting);
+        }
+        case BaseTypeKind::Array:
+            return hrtb_pointee_retains_only_binder_impl(
+                const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
+                binder, decl_lifetimes, actual_lifetimes, visiting);
+        case BaseTypeKind::Pointer:
+            // Storing through a raw pointer requires an unsafe boundary.
+            return true;
+        case BaseTypeKind::Function:
+        case BaseTypeKind::CapturingFunction:
+        case BaseTypeKind::Dynamic:
+            return false;
+        case BaseTypeKind::Generic: {
+            auto* gen = canonical->as_generic_type_unsafe();
+            for (chem::string_view lifetime : gen->lifetime_args) {
+                const chem::string_view actual = hrtb_map_field_lifetime(
+                    lifetime, decl_lifetimes, actual_lifetimes);
+                if (hrtb_bare_lifetime(actual) != hrtb_bare_lifetime(binder)) {
+                    return false;
+                }
+            }
+            for (auto& arg : gen->types) {
+                if (!hrtb_pointee_retains_only_binder_impl(
+                        const_cast<BaseType*>(arg.getType()), binder,
+                        decl_lifetimes, actual_lifetimes, visiting)) {
+                    return false;
+                }
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    auto* container = canonical->get_members_container();
+    if (container == nullptr) return true;
+    for (BaseDefMember* member : container->variables()) {
+        if (member == nullptr) continue;
+        if (member->kind() == ASTNodeKind::StructMember) {
+            auto* field = member->as_struct_member_unsafe();
+            if (field != nullptr && !hrtb_pointee_retains_only_binder_impl(
+                    const_cast<BaseType*>(field->type.getType()), binder,
+                    decl_lifetimes, actual_lifetimes, visiting)) {
+                return false;
+            }
+        } else if (member->kind() == ASTNodeKind::VariantMember) {
+            auto* variant = member->as_variant_member_unsafe();
+            if (variant != nullptr) {
+                for (auto& entry : variant->values) {
+                    auto* param = entry.second;
+                    if (param != nullptr && !hrtb_pointee_retains_only_binder_impl(
+                            const_cast<BaseType*>(param->type.getType()), binder,
+                            decl_lifetimes, actual_lifetimes, visiting)) {
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+    return true;
+}
+
+static bool hrtb_pointee_retains_only_binder(
+        BaseType* type,
+        chem::string_view binder,
+        const std::vector<chem::string_view>& decl_lifetimes = {},
+        const std::vector<chem::string_view>& actual_lifetimes = {}) {
+    std::unordered_set<BaseType*> visiting;
+    return hrtb_pointee_retains_only_binder_impl(
+        type, binder, decl_lifetimes, actual_lifetimes, visiting);
+}
+
 static bool hrtb_type_mentions_mapped_binder(
         BaseType* type,
         const std::vector<chem::string_view>& decl_lifetimes,
@@ -4957,9 +5053,9 @@ static bool hrtb_aggregate_param_ok_impl(
         const chem::string_view actual = hrtb_map_field_lifetime(
             ref->lifetime, parent_decl_lifetimes, parent_actual_lifetimes);
         if (hrtb_is_binder(actual, binders)) {
-            if (hrtb_type_mentions_mapped_binder(
-                    ref->type, parent_decl_lifetimes, parent_actual_lifetimes,
-                    binders)) {
+            if (!hrtb_pointee_retains_only_binder(
+                    ref->type, actual, parent_decl_lifetimes,
+                    parent_actual_lifetimes)) {
                 return false;
             }
             if (field_lifetimes != nullptr && collect_lifetimes) {
@@ -5037,8 +5133,9 @@ static bool hrtb_aggregate_param_ok_impl(
                         }
                     }
                     if (hrtb_is_binder(actual, binders)) {
-                        if (hrtb_type_mentions_mapped_binder(
-                                ref->type, decl_lifetimes, actual_lifetimes, binders)) {
+                        if (!hrtb_pointee_retains_only_binder(
+                                ref->type, actual, decl_lifetimes,
+                                actual_lifetimes)) {
                             return false;
                         }
                         if (field_lifetimes != nullptr && collect_lifetimes) {
@@ -5111,8 +5208,9 @@ static bool hrtb_aggregate_param_ok_impl(
                 }
             }
             if (hrtb_is_binder(actual, binders)) {
-                if (hrtb_type_mentions_mapped_binder(
-                        ref->type, decl_lifetimes, actual_lifetimes, binders)) {
+                if (!hrtb_pointee_retains_only_binder(
+                        ref->type, actual, decl_lifetimes,
+                        actual_lifetimes)) {
                     return false;
                 }
                 if (field_lifetimes != nullptr && collect_lifetimes) {
@@ -5343,14 +5441,14 @@ void TypeVerifier::VisitFunctionType(FunctionType* type) {
                         pt->as_reference_type_unsafe()->lifetime,
                         type->binder_lifetimes);
                 if (direct_binder_ref &&
-                    hrtb_type_mentions_lifetime(
+                    !hrtb_pointee_retains_only_binder(
                         pt->as_reference_type_unsafe()->type,
-                        type->binder_lifetimes)) {
+                        pt->as_reference_type_unsafe()->lifetime)) {
                     auto& d = diagnoser.error(current_func_type
                                                   ? current_func_type->get_location()
                                                   : SourceLocation(0));
                     d.with_code("SAFE-BORROW-099");
-                    d << "a higher-ranked reference pointee must not carry the same higher-ranked lifetime";
+                    d << "a higher-ranked reference pointee may only contain references with the same binder lifetime";
                 } else if (!direct_ref &&
                            hrtb_type_mentions_lifetime(pt, type->binder_lifetimes) &&
                            !hrtb_aggregate_param_ok(pt, type->binder_lifetimes,

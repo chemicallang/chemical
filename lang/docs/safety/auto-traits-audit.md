@@ -60,10 +60,53 @@ Regression tests:
 | `UnsafeCell<T>`, `Cell<T>`, `RefCell<T>` | `!Sync` | Interior mutability through `&self`; `Send` still follows `T`. |
 | `Ref<'a,T>`, `RefMut<'a,T>` | `!Send`, `!Sync` | Guards carry a `&RefCell<T>` and release a non-atomic borrow state in their destructor. |
 | `MutexGuard<T>`, `RwLockReadGuard<T>`, `RwLockWriteGuard<T>` | `!Send`, `!Sync` | Guards are tied to the locking thread; moving/dropping on another thread would unlock from the wrong thread. |
+| `lock_guard`, `recursive_lock_guard` | `!Send`, `!Sync` | Legacy RAII lockers hold a raw mutex pointer and unlock in their destructor; they must stay on the locking thread. |
 | `SendStaticCapture` | `!Sync` | Proves `Send` only; an owned capture may still contain interior mutability. |
 | `ScopedSendCapture` | `!Send`, `!Sync` | May borrow caller storage; only a join-before-return scoped API may consume it. |
 | `FnMutCapture`, `FnOnceCapture` | `!Send`, `!Sync` | Replayable/once callable markers have no thread witness. |
 | Unbound `dyn I` | `!Send`, `!Sync`, `!Unpin` | The erased implementor may contain `Rc`/raw pointers. Explicit `+ Send`/`+ Sync` are construction-checked. |
+
+## Async, executor, and iterator coverage
+
+Public async value types are checked directly:
+
+| Type | Auto trait | Reason |
+|---|---|---|
+| `Poll<T>` | `Send`/`Sync` follows `T` | Variant payload only. |
+| `Waker` | `Send + Sync` | Vtable contract requires cross-thread wake/clone/drop; `from_raw` is unsafe. |
+| `Context` | `Send + Sync` when its waker is | Carries only the waker. |
+| `SendFutureHandle<T>` | `Send + Sync` when `T: Send` | Frame is promoted only after `spawn_send` proves `Send + 'static`; construction is private/unsafe. |
+| `FutureHandle<'a,T>` | conservatively `!Send`/`!Sync` | The erased frame may borrow the caller; crossing threads uses `SendFutureHandle`. |
+
+Executor/future state structures (`Executor`, `RawTask`, `TaskVTable`,
+`JoinState<T>`, `SpawnTask<T>`, `SelectState<T>`, `TimeoutOrState<T>`,
+`BlockingState<T>`, and the iterator `Chunk<T>`) hold raw pointers or erased
+callbacks and are conservatively `!Send`/`!Sync`. They are internal runtime
+state, not values exchanged through the safe cross-thread API; turning any of
+them into a safe transferable value requires a dedicated witness/API, not a
+blanket auto-trait impl.
+
+## Nested `Unpin`
+
+`Unpin` now uses the same explicit-impl context as `Send`/`Sync`, so a
+conditional positive impl is evaluated at a concrete nested instantiation:
+
+```chemical
+struct Wrapper<T> {
+    var marker : core::PhantomPinned
+    var value : T
+}
+
+impl<T> core::Unpin for Wrapper<T> where T: core::Unpin { }
+
+struct Outer { var w : Wrapper<int> }
+```
+
+`Outer` is `Unpin` for `Wrapper<int>` (the positive impl applies), and remains
+`!Unpin` for `Wrapper<PhantomPinned>` (the bound fails). A conditional
+`!Unpin` impl is still checked first and wins. The generic-impl bound path in
+`GenericImplDecl.cpp` remains conservative because it has no type-checker
+context; that is a false-rejection path, not an unsound acceptance.
 
 ## Deliberately conservative (false negatives, not unsoundness)
 
@@ -87,9 +130,11 @@ lifetime witness that would make the transfer sound:
 The audit is covered by the negative safety suite and the existing
 `arc`/`box`/`mutex`/`rwlock`/`thread`/`channel` tests, plus:
 
-- TCC/LLVM main and negative suites
-- TCC/LLVM safety and async suites
-- TCC libs and plugins
-- `MIRTests`
-- `--llvm --thread-tsan`
-- whole-tree safety audit (no growth)
+- TCC main `2429/2429`, LLVM main `2427/2427`
+- TCC/LLVM negative `764/764`
+- TCC/LLVM safety `74/74`, async `70/70`
+- TCC libs `732/732`, plugins `1305/1305`
+- TCC interpret `1931/1931`
+- `MIRTests` `4682 checks`
+- `--llvm --thread-tsan` pass
+- whole-tree safety audit: no growth

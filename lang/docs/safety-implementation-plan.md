@@ -2643,12 +2643,17 @@ unsafe gating, and audited lock/channel primitives. S6.0 is ongoing: the
 explicit stdlib impls are audited in `lang/docs/safety/auto-traits-audit.md`;
 the audit found and fixed a `&T` Send rule that missed a nested `!Sync`
 (`&Cell`/`&RefCell` was accepted as Send). `Rc`/`Weak`, `RefCell`, `Ref`, and
-`RefMut` now carry explicit negative impls; `dyn` without explicit bounds is
+`RefMut` now carry explicit negative impls; public async value types
+(`Poll`, `Waker`, `Context`, `SendFutureHandle`) are covered and the erased
+`FutureHandle` stays conservatively `!Send`/`!Sync`. Nested conditional
+`Unpin` positive/negative impls now use the explicit-impl context; only the
+generic-impl bound path remains conservative. `dyn` without explicit bounds is
 conservatively `!Send`/`!Sync` (explicit `+ Send`/`+ Sync` are checked at
-construction); channel handles are audited. Remaining: executor/iterator/
-future-type auto-trait coverage and the deliberately conservative raw-pointer
-views (`span`/`str`/`string_view`). The remaining async gap is the type-level
-`FutureHandle` lifetime/frame witness in §4.5, not the direct borrow escape.
+construction); channel handles are audited. Remaining: executor/iterator
+state-structure coverage (currently conservative raw-pointer state) and the
+deliberately conservative raw-pointer views (`span`/`str`/`string_view`). The
+remaining async gap is the type-level `FutureHandle` lifetime/frame witness in
+§4.5, not the direct borrow escape.
 
 ### M7 — Stdlib full surface (3–4 months)
 
@@ -2995,3 +3000,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.69 (2026-11-02): associated-type declarations and impl bindings. An interface may declare `type Item` (including on a generic interface) and every implementation must provide a matching `type Item = T`; missing bindings are a compile error. Associated declarations are not emitted as C typedefs. Projections (`Self::Item`/`T::Item`), associated bounds/equality constraints, and GAT parameters remain open and are the next step toward S1.12. Design/limits: `lang/docs/associated-types.md`. Main TCC/LLVM `2429`/`2427`; negative `752`; safety `74`; async `69`; TCC libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4682`; audit no growth.
 *Revision note v4.70 (2026-11-02): associated-type projection slice. `Self::Item` now parses as a qualified type projection and resolves through the enclosing interface's associated declaration. Return-position projections are accepted for static dispatch through an implementation; parameter-position projections are rejected because the interface prototype would emit a void placeholder. Container-scoped type aliases are indexed as children so the projection chain can resolve. Interfaces with associated types are marked non-object-safe until projections carry a real vtable type. `T::Item`, bounds/equality constraints, dyn projections, and GAT parameters remain. Main TCC/LLVM `2429`/`2427`; negative `754`; safety `74`; async `69`; TCC libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4682`; audit no growth.
 *Revision note v4.71 (2026-11-02): stdlib auto-trait audit. Found and fixed a soundness bug in the shared-reference rule: `T: Send` recursively checked `&U` with the Send interface where the Sync interface was required, so an explicit `!Sync` was missed and `&Cell`/`&RefCell` was accepted as Send. Both the direct where-clause path and generic-impl bound path now pass the real Send/Sync interfaces. Added explicit `!Send`/`!Sync` for `Rc`/`Weak`, `RefCell`, `Ref`, and `RefMut`; the remaining explicit impls were reviewed against their invariants. New regression tests cover `&NotSync`, `&RefCell`, the generic-impl path, and the `&mut T: Send` positive case. Design/limits: `lang/docs/safety/auto-traits-audit.md`. Main TCC/LLVM `2429`/`2427`; negative `760`; safety `74`; async `69`; TCC libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4682`; TSAN pass; audit no growth.
+*Revision note v4.72 (2026-11-02): S6.0 async/Unpin completion. Nested conditional `Unpin` now goes through the explicit auto-trait context: a conditional positive `impl<T> Unpin for W<T> where T: Unpin` is evaluated at a concrete nested instantiation, while conditional `!Unpin` still wins and the generic-impl bound path stays conservative. Added public async value auto-trait coverage (`Poll<T>`, `Waker`, `Context`, `SendFutureHandle<T>`, with erased `FutureHandle` conservatively `!Send`/`!Sync`); executor/future state structures and `Chunk<T>` remain conservative raw-pointer state. Design/limits: `lang/docs/safety/auto-traits-audit.md`. Main TCC/LLVM `2429`/`2427`; negative `762`; safety `74`; async `70`; TCC libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4682`; TSAN pass; audit no growth.
+*Revision note v4.73 (2026-11-02): legacy lock guards. `lock_guard` and `recursive_lock_guard` now carry explicit `!Send`/`!Sync` impls, matching `MutexGuard`/`RwLock` guards; both hold a raw mutex pointer and unlock in their destructor. Negative tests use type-only Send assertions. Negative suite `764`. Audit doc updated.

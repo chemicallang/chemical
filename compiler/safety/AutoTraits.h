@@ -64,6 +64,22 @@ public:
         ASTNode* send_interface,
         ASTNode* sync_interface
     ) = 0;
+
+    /**
+     * Optional explicit `Unpin` decision. Unpin is a safe auto trait, but a
+     * conditional positive impl (`impl<T> Unpin for W<T> where T: Unpin`)
+     * must still be evaluated at a concrete instantiation; otherwise a nested
+     * `W<int>` is rejected just because its raw field shape contains
+     * `PhantomPinned`. Returning Unknown falls back to the structural walk.
+     */
+    virtual Decision decide_unpin(
+        BaseType* type,
+        ASTNode* unpin_interface
+    ) {
+        (void) type;
+        (void) unpin_interface;
+        return Decision::Unknown;
+    }
 };
 
 inline bool type_satisfies_auto_trait(
@@ -260,24 +276,25 @@ inline bool type_satisfies_unpin(
     BaseType* type,
     std::unordered_set<MembersContainer*>& visiting,
     ImplementationsIndex* index = nullptr,
-    ASTNode* unpin_interface = nullptr
+    ASTNode* unpin_interface = nullptr,
+    AutoTraitContext* context = nullptr
 );
 
 inline bool unpin_members(
     MembersContainer* container,
     std::unordered_set<MembersContainer*>& visiting,
     ImplementationsIndex* index = nullptr,
-    ASTNode* unpin_interface = nullptr
+    ASTNode* unpin_interface = nullptr,
+    AutoTraitContext* context = nullptr
 ) {
     if(container == nullptr) return true;
-    if(index != nullptr && unpin_interface != nullptr) {
+    if(index != nullptr && unpin_interface != nullptr && context == nullptr) {
         if(index->has_negative_impl(unpin_interface, (ASTAny*) container)) return false;
         if(index->get_impl(unpin_interface, (ASTAny*) container) != nullptr) return true;
         if(container->generic_parent != nullptr &&
            index->has_generic_negative_impl(
                (ASTNode*) container->generic_parent, unpin_interface)) {
-            // Conservative for nested fields: unlike the Send/Sync path there
-            // is no TypeVerifier context here to evaluate the candidate's
+            // Without a verifier context we cannot evaluate the candidate's
             // bounds, and treating a possibly-applicable !Unpin impl as
             // negative is sound (a false rejection, never a false accept).
             return false;
@@ -290,7 +307,7 @@ inline bool unpin_members(
                 auto* field = (StructMember*) member;
                 if(!type_satisfies_unpin(
                     const_cast<BaseType*>(field->type.getType()), visiting, index,
-                    unpin_interface
+                    unpin_interface, context
                 )) {
                     visiting.erase(container);
                     return false;
@@ -303,7 +320,7 @@ inline bool unpin_members(
                     auto* param = entry.second;
                     if(param != nullptr && !type_satisfies_unpin(
                         const_cast<BaseType*>(param->type.getType()), visiting, index,
-                        unpin_interface
+                        unpin_interface, context
                     )) {
                         visiting.erase(container);
                         return false;
@@ -323,9 +340,20 @@ inline bool type_satisfies_unpin(
     BaseType* type,
     std::unordered_set<MembersContainer*>& visiting,
     ImplementationsIndex* index,
-    ASTNode* unpin_interface
+    ASTNode* unpin_interface,
+    AutoTraitContext* context
 ) {
     if(type == nullptr) return true;
+    if(context != nullptr) {
+        switch(context->decide_unpin(type, unpin_interface)) {
+            case AutoTraitContext::Decision::Negative:
+                return false;
+            case AutoTraitContext::Decision::Positive:
+                return true;
+            default:
+                break;
+        }
+    }
     switch(type->kind()) {
         case BaseTypeKind::Struct: {
             auto* st = type->as_struct_type_unsafe();
@@ -333,7 +361,7 @@ inline bool type_satisfies_unpin(
                 for (auto* member : st->variables()) {
                     if (member == nullptr || member->known_type() == nullptr) continue;
                     if (!type_satisfies_unpin(member->known_type(), visiting, index,
-                                              unpin_interface)) {
+                                              unpin_interface, context)) {
                         return false;
                     }
                 }
@@ -344,7 +372,7 @@ inline bool type_satisfies_unpin(
         case BaseTypeKind::Array:
             return type_satisfies_unpin(
                 const_cast<BaseType*>(type->as_array_type_unsafe()->elem_type.getType()),
-                visiting, index, unpin_interface
+                visiting, index, unpin_interface, context
             );
         case BaseTypeKind::Pointer:
         case BaseTypeKind::Reference:
@@ -359,20 +387,20 @@ inline bool type_satisfies_unpin(
             auto* cap = type->as_capturing_func_type_unsafe();
             if (!cap->capture_env) return false;
             return type_satisfies_unpin(cap->capture_env, visiting, index,
-                                        unpin_interface);
+                                        unpin_interface, context);
         }
         case BaseTypeKind::Generic: {
             auto* gen = type->as_generic_type_unsafe();
             for(auto& arg : gen->types) {
                 if(!type_satisfies_unpin(
                     const_cast<BaseType*>(arg.getType()), visiting, index,
-                    unpin_interface
+                    unpin_interface, context
                 )) {
                     return false;
                 }
             }
             return unpin_members(type->get_members_container(), visiting, index,
-                                 unpin_interface);
+                                 unpin_interface, context);
         }
         default:
             break;
@@ -383,5 +411,5 @@ inline bool type_satisfies_unpin(
     }
     auto* container = type->get_members_container();
     if(container == nullptr) return true;
-    return unpin_members(container, visiting, index, unpin_interface);
+    return unpin_members(container, visiting, index, unpin_interface, context);
 }

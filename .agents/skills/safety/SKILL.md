@@ -33,9 +33,9 @@ Latest measured baseline:
 | TCC main | `2429/2429` |
 | LLVM main | `2427/2427` |
 | `@test` runner | `56/56` |
-| TCC/LLVM negative | `760/760` |
+| TCC/LLVM negative | `764/764` |
 | TCC/LLVM safety | `74/74` |
-| TCC/LLVM async | `69/69` |
+| TCC/LLVM async | `70/70` |
 | TCC libs | `732/732` |
 | TCC plugins | `1305/1305` |
 | TCC interpret | `1931/1931` |
@@ -415,10 +415,14 @@ memory safety.
     checked `&U` with the Send interface where Sync was required, so an
     explicit `!Sync` (for example `Cell`/`RefCell`) was missed and `&U` was
     accepted as Send. `Rc`/`Weak`, `RefCell`, `Ref`, and `RefMut` now carry
-    explicit negative impls. Raw-pointer views (`span`/`str`/`string_view`)
-    remain conservatively `!Send`/`!Sync` until their borrow lifetime is in the
-    type. Remaining: executor/iterator/future-type coverage and the
-    conservative `Unpin` nested-implementation path.
+    explicit negative impls. Public async value types (`Poll`, `Waker`,
+    `Context`, `SendFutureHandle`) are covered; erased `FutureHandle` stays
+    conservatively `!Send`/`!Sync`. Nested conditional `Unpin` now uses the
+    explicit-impl context, so conditional positive impls are evaluated while
+    `!Unpin` still wins. Raw-pointer views (`span`/`str`/`string_view`) remain
+    conservatively `!Send`/`!Sync` until their borrow lifetime is in the type.
+    Remaining: executor/iterator state-structure coverage (currently
+    conservative raw-pointer state) and the generic-impl `Unpin` bound path.
 
 ## Callback and `Fn` model
 

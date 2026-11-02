@@ -375,6 +375,22 @@ func neg_nested_conditional_not_unpin_rejected(env : &mut TestEnv) {
 }
 
 @test
+func nested_conditional_positive_unpin_allowed(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct Wrapper<T> {\n    var marker : core::PhantomPinned\n    var value : T\n}\nimpl<T> core::Unpin for Wrapper<T> where T : core::Unpin { }\nstruct Outer {\n    var w : Wrapper<int>\n}\nfunc <T> needs_unpin(v : T) : int where T : core::Unpin { return 0 }\npublic func main() : int {\n    var w = Wrapper<int> { marker : core::PhantomPinned {}, value : 1 }\n    var o = Outer { w : w }\n    return needs_unpin(o)\n}\n"
+    expect_compile_success_with_mod(env, "nested_conditional_positive_unpin", ch, NEG_MOD_CORE)
+}
+
+@test
+func neg_nested_conditional_positive_unpin_bounds(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct Wrapper<T> {\n    var marker : core::PhantomPinned\n    var value : T\n}\nimpl<T> core::Unpin for Wrapper<T> where T : core::Unpin { }\nstruct Outer {\n    var w : Wrapper<core::PhantomPinned>\n}\nfunc <T> needs_unpin(v : T) : int where T : core::Unpin { return 0 }\npublic func main() : int {\n    var w = Wrapper<core::PhantomPinned> { marker : core::PhantomPinned {}, value : core::PhantomPinned {} }\n    var o = Outer { w : w }\n    return needs_unpin(o)\n}\n"
+    expect_compile_error_with_mod(env, "nested_conditional_positive_unpin_bounds", ch,
+                                  "does not satisfy where clause constraint 'T : Unpin'",
+                                  NEG_MOD_CORE)
+}
+
+@test
 func neg_future_handle_in_struct_cannot_escape_to_retaining_api(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "using std::Option\nstruct W { var h : core::async::FutureHandle<int> }\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc stash_w(w : W, slot : &mut Option<W>) {\n    *slot = Option.Some<W>(w)\n}\npublic func main() : int {\n    var slot = Option.None<W>()\n    {\n        var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n        var w = W { h : work(&s) }\n        stash_w(w, &mut slot)\n    }\n    var Some(w) = slot else unreachable\n    var r = async::block_on<int>(w.h)\n    return 0\n}\n"
@@ -2095,6 +2111,22 @@ func neg_mutex_guard_is_not_sync(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var m = std::new_mutex(1)\n    var g = m.lock()\n    var h = Holder<std::MutexGuard<int>> { data = null }\n    return h.check()\n}\n"
     expect_compile_error_with_mod(env, "mutex_guard_not_sync", ch, "is declared !Sync", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_lock_guard_is_not_send(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <T> needs_send_type() : int where T : Send { return 0 }\npublic func main() : int {\n    return needs_send_type<std::lock_guard>()\n}\n"
+    expect_compile_error_with_mod(env, "lock_guard_not_send", ch,
+                                  "is declared !Send", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_recursive_lock_guard_is_not_send(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <T> needs_send_type() : int where T : Send { return 0 }\npublic func main() : int {\n    return needs_send_type<std::recursive_lock_guard>()\n}\n"
+    expect_compile_error_with_mod(env, "recursive_lock_guard_not_send", ch,
+                                  "is declared !Send", NEG_MOD_STD_CORE)
 }
 
 @test

@@ -1660,7 +1660,7 @@ static bool trait_constraint_satisfied(TypeVerifier& verifier, BaseType* concret
     if (iface->interface_bits.has(InterfaceBits::UNPIN_BIT)) {
         std::unordered_set<MembersContainer*> visiting;
         return type_satisfies_unpin(concrete, visiting, &verifier.index,
-                                    (ASTNode*) iface);
+                                    (ASTNode*) iface, context);
     }
 
     if (iface->interface_bits.has(InterfaceBits::CLONE_BIT)) {
@@ -1748,9 +1748,17 @@ public:
 
     Decision decide(BaseType* type, AutoTraitKind kind,
                     ASTNode* send_interface, ASTNode* sync_interface) override {
-        if (type == nullptr) return Decision::Unknown;
         ASTNode* iface = kind == AutoTraitKind::Send ? send_interface : sync_interface;
-        if (iface == nullptr) return Decision::Unknown;
+        return decide_for_interface(type, iface);
+    }
+
+    Decision decide_unpin(BaseType* type, ASTNode* unpin_interface) override {
+        return decide_for_interface(type, unpin_interface);
+    }
+
+private:
+    Decision decide_for_interface(BaseType* type, ASTNode* iface) {
+        if (type == nullptr || iface == nullptr) return Decision::Unknown;
         auto* canonical = type->canonical();
         if (canonical == nullptr || !deciding.insert(canonical).second) {
             return Decision::Unknown;
@@ -1791,7 +1799,6 @@ public:
         return finish(Decision::Unknown);
     }
 
-private:
     TypeVerifier& verifier;
     std::unordered_set<const BaseType*> deciding;
 };
@@ -1827,7 +1834,8 @@ void TypeVerifier::VisitDynamicValue(DynamicValue* value) {
     if (dyn->has_auto_trait(DynamicType::AutoTraitUnpin)) {
         std::unordered_set<MembersContainer*> visiting;
         if (!type_satisfies_unpin(concrete, visiting, &index,
-                                  (ASTNode*) coreNodes.unpin_interface)) {
+                                  (ASTNode*) coreNodes.unpin_interface,
+                                  &auto_trait_context)) {
             diagnoser.error(value).with_code("SAFE-SEND-003")
                 << "dynamic object construction promises 'Unpin', but the concrete "
                    "value type '" << concrete->representation()
@@ -2275,8 +2283,10 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
 
             if (interface_def->interface_bits.has(InterfaceBits::UNPIN_BIT)) {
                 std::unordered_set<MembersContainer*> visiting;
+                TypeVerifierAutoTraitContext auto_trait_context(verifier);
                 if (!type_satisfies_unpin(concrete_type, visiting, &verifier.index,
-                                          (ASTNode*) interface_def)) {
+                                          (ASTNode*) interface_def,
+                                          &auto_trait_context)) {
                     diagnoser.error(call) << "type '" << concrete_type->representation()
                         << "' does not satisfy where clause constraint '"
                         << constraint.param_name << " : "

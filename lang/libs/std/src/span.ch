@@ -55,6 +55,40 @@ public struct span_chunks<T> {
     }
 }
 
+@direct_init
+public struct span_split<T> {
+    internal var _source : span<T>
+    internal var _predicate : (value:&T)=>bool
+    internal var _count : size_t
+
+    func size(&self) : size_t {
+        return _count
+    }
+
+    func empty(&self) : bool {
+        return _count == 0
+    }
+
+    func get(&self, index : size_t) : span<T> where T: Copy {
+        if(index >= _count) panic("span split index out of bounds")
+        var start : size_t = 0
+        var segment : size_t = 0
+        var i : size_t = 0
+        while(i < _source.size()) {
+            var value = unsafe(*_source.get(i))
+            if(_predicate(&value)) {
+                if(segment == index) {
+                    return _source.subview(start, i)
+                }
+                segment += 1
+                start = i + 1
+            }
+            i += 1
+        }
+        return _source.subview(start, _source.size())
+    }
+}
+
 public struct span<T> {
 
     // The pointer/length pair is the span invariant; user code uses get/size.
@@ -151,6 +185,21 @@ public struct span<T> {
         return span_chunks<T> {
             _source : unsafe(span<T>(_data, _size)),
             _width : width
+        }
+    }
+
+    func split_by(&self, predicate : (value:&T)=>bool) : span_split<T> where T: Copy {
+        var count : size_t = 1
+        var i : size_t = 0
+        while(i < _size) {
+            var value = unsafe(*get(i))
+            if(predicate(&value)) count += 1
+            i += 1
+        }
+        return span_split<T> {
+            _source : unsafe(span<T>(_data, _size)),
+            _predicate : predicate,
+            _count : count
         }
     }
 
@@ -278,6 +327,10 @@ public struct mut_span<T> {
 
     func chunks(&self, width : size_t) : span_chunks<T> {
         return as_span().chunks(width)
+    }
+
+    func split_by(&self, predicate : (value:&T)=>bool) : span_split<T> where T: Copy {
+        return as_span().split_by(predicate)
     }
 
     func as_span(&self) : span<T> {

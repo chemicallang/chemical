@@ -63,6 +63,10 @@ public struct boxed_slice<T> {
         return as_span().chunks(width)
     }
 
+    func split_by(&self, predicate : (value:&T)=>bool) : span_split<T> where T: Copy {
+        return as_span().split_by(predicate)
+    }
+
     func subview_mut(&mut self, start : size_t, end : size_t) : mut_span<T> {
         if(start > end || end > _values.size()) {
             panic("boxed_slice subview out of bounds")

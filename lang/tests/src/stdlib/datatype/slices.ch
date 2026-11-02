@@ -204,4 +204,10 @@ func test_slices() {
         var chunks = view.chunks(2)
         return chunks.size() == 3 && chunks.get(0).size() == 2 && chunks.get(1)[0] == 3 && chunks.get(2).size() == 1
     })
+    test("split_by partitions on a predicate", () => {
+        var arr : [7]int = [1, 0, 2, 3, 0, 0, 4]
+        var view : [int] = arr
+        var parts = view.split_by(||(x : &int) : bool => *x == 0)
+        return parts.size() == 4 && parts.get(0)[0] == 1 && parts.get(1)[0] == 2 && parts.get(2).size() == 0 && parts.get(3)[0] == 4
+    })
 }

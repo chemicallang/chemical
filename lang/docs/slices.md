@@ -112,6 +112,9 @@ var windows = view.windows(3)
 windows.get(0)[0]
 var chunks = view.chunks(2)
 chunks.get(1)[0]
+
+var parts = view.split_by(||(x : &int) : bool => *x == 0)
+parts.get(0)[0]
 ```
 
 - `subview(start, end)` is bounds checked and panics on an invalid range.
@@ -123,8 +126,9 @@ chunks.get(1)[0]
   `view[..]` lower to `subview(a, b)`.
 - `windows(width)` and `chunks(width)` return `span_windows<T>` /
   `span_chunks<T>`; use `.size()` and `.get(i)` to read each subview.
-- Generic slice `split` is not implemented; `&str`/`string_view` already have
-  `.split(delim)`.
+- `split_by(predicate)` returns `span_split<T>`; generic delimiter `split` is
+  still blocked on generic `PartialEq` operator resolution. `&str`/
+  `string_view` already have `.split(delim)`.
 
 ## `&str`
 
@@ -156,7 +160,7 @@ var view = text.to_view()      // std::string_view
 
 - `[T]`/`&[T]` are view aliases, not a first-class unsized `[T]` type.
 - `Box<[T]>` is a vector-backed owning wrapper, not a raw boxed allocation.
-- No slice pattern/destructuring syntax, generic slice `split`, or a
+- No slice pattern/destructuring syntax, generic delimiter `split`, or a
   `for`-iterable windows/chunks cursor yet (use `.get(i)`).
 - `&str` has no separate lifetime parameter; the MIR view analysis keeps the
   source loan alive and rejects local escapes. A future `str<'a>`/`&'a str`

@@ -83,10 +83,20 @@ Regression coverage:
 Regression coverage: `vector_zero_sized_element_panics` and
 `neg_u16_strlen_requires_unsafe`.
 
+## Tranche 4 — thread-pool Future ownership (2026-11-03)
+
+| Wrapper | Invariant | Enforcement |
+|---|---|---|
+| `concurrent.Future<T>` | the promise pointer is live and owned by the future | `p` is private; constructor is `unsafe`; `get` panics on an empty future instead of dereferencing null |
+| `concurrent.Promise<T>` | only the pool creates and synchronizes promises | fields and constructor are `internal` to `std` |
+
+Regression coverage: `neg_threadpool_future_constructor_requires_unsafe`
+(`SAFE-UNSAFE-002`).
+
 Still remaining in this group: actual zero-sized vector support, vector `set`
 replacement semantics, `string_view`/`u16string` raw constructors and numeric
 parsers, remaining `Rc`/`Arc` weak-handle invariants, `RefCell` guard escape,
-and the thread-pool raw state structures.
+and thread-pool worker cancellation/teardown invariants.
 
 ## Coverage
 

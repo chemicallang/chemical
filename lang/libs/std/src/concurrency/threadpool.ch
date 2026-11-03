@@ -128,13 +128,13 @@ public namespace std {
         }
 
         public struct Promise<T> {
-            var ready:bool;
-            var val:T;
-            var m:std.mutex;
-            var cv:std.condvar;
-            var future_dropped: bool;
+            internal var ready:bool;
+            internal var val:T;
+            internal var m:std.mutex;
+            internal var cv:std.condvar;
+            internal var future_dropped: bool;
 
-            @constructor func constructor(){
+            @constructor internal func constructor(){
                 var xx : T
                 return Promise<T> {
                     ready=false;
@@ -156,11 +156,16 @@ public namespace std {
         }
 
         public struct Future<T>{
-            var p:*mut Promise<T>
-            @constructor func constructor(pp:*mut Promise<T>) {
+            // The promise pointer is the Future's ownership invariant; only
+            // the pool submits a live promise.
+            private var p:*mut Promise<T>
+            @constructor unsafe func constructor(pp:*mut Promise<T>) {
                 return Future<T> { p : pp }
             }
             func get(&mut self):T {
+                if(p == null) {
+                    panic("Future is empty")
+                }
                 var thing : T
                 unsafe {
                     p.m.lock();

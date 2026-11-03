@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2433/2433` |
 | LLVM main | `2431/2431` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `777/777` |
+| TCC/LLVM negative | `778/778` |
 | TCC/LLVM safety | `76/76` |
 | TCC/LLVM async | `77/77` |
 | TCC libs | `734/734` |
@@ -317,15 +317,16 @@ memory safety.
    function-type identity, MIR, LLVM indirect calls, and C function-pointer
    spelling; scalar/pointer cdecl and stdcall callbacks are accepted. The C
    backend emits the convention on both the prototype and definition. FFI work:
-   tranches 1-3 of the semantic wrapper audit are complete
+   tranches 1-4 of the semantic wrapper audit are complete
    (`lang/docs/safety/ffi-wrapper-audit.md`: allocator ownership/zero-size,
    filesystem path/file handles and capacity, socket buffer/length/port
    validation, zero-sized Box allocation, DynBox field visibility, string
    append null validation, fail-closed zero-sized vectors, Rc/Arc count-overflow
-   checks, and unsafe-gated u16_strlen). The rest of the safe wrapper surface
-   (actual zero-sized vector support, string_view/u16string parsers,
-   Rc/Arc/RefCell/thread-pool invariants, directory/metadata/UTF-16, Windows
-   IPC, TLS/HTTP) and the target-specific audit list remain. The i386 Windows libraries are syntax/safety-clean.
+   checks, unsafe-gated u16_strlen, and thread-pool Future ownership/null
+   safety). The rest of the safe wrapper surface (actual zero-sized vector
+   support, string_view/u16string parsers, Rc/Arc/RefCell/thread-pool worker
+   invariants, directory/metadata/UTF-16, Windows IPC, TLS/HTTP) and the
+   target-specific audit list remain. The i386 Windows libraries are syntax/safety-clean.
 3. **`@scoped_callback` is body-checked, with a fixed sink list.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter anywhere except a known join-before-return API (resolved by exact library

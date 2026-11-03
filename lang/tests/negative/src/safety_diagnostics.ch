@@ -1997,6 +1997,13 @@ func neg_linear_safe_impl_rejected(env : &mut TestEnv) {
 }
 
 @test
+func neg_threadpool_future_constructor_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var f = std::concurrent.Future<int>(null)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "threadpool_future_ctor_unsafe", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_u16_strlen_requires_unsafe(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    std::u16_strlen(null)\n    return 0\n}\n"

@@ -2041,6 +2041,13 @@ func neg_u16_strlen_requires_unsafe(env : &mut TestEnv) {
 }
 
 @test
+func neg_split_views_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var s = std::string(\"a,b\")\n    var parts = s.split_views(',')\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "split_views_requires_unsafe", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_dyn_box_fields_private(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "interface I { func value(&self) : int }\npublic func main() : int {\n    var b : std::DynBox<I>\n    b.data = null\n    return 0\n}\n"

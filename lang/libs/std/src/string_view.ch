@@ -283,7 +283,26 @@ public namespace std {
             return s.to_double()
         }
 
-        func split(&self, delim : char) : std::vector<std::string_view> {
+        // Returning views from a container hides the source loan: the vector
+        // type has no lifetime that the borrow checker can tie to `self`.
+        // Safe callers get owned copies; use `split_views` (unsafe) when the
+        // caller can prove the source outlives every returned view.
+        func split(&self, delim : char) : std::vector<std::string> {
+            var res = std::vector<std::string>();
+            var start = 0u;
+            for (var i = 0u; i < _size; i++) {
+                if (get(i) == delim) {
+                    res.push(subview(start, i).to_string());
+                    start = i + 1;
+                }
+            }
+            if (start <= _size) {
+                res.push(subview(start, _size).to_string());
+            }
+            return res;
+        }
+
+        unsafe func split_views(&self, delim : char) : std::vector<std::string_view> {
             var res = std::vector<std::string_view>();
             var start = 0u;
             for (var i = 0u; i < _size; i++) {

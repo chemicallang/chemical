@@ -132,6 +132,23 @@ destructor on garbage bytes (a double-free for `string`-like results).
 Regression coverage: `test_pool_future_drops_result_once` submits a
 destructor-bearing result and asserts it is dropped exactly once.
 
+## Tranche 8 — safe containerized string splitting (2026-11-03)
+
+| Wrapper | Invariant | Enforcement |
+|---|---|---|
+| `string_view::split` | returned pieces cannot dangle past the source | safe form returns owned `vector<string>` copies; the container no longer hides the source loan |
+| `string::split` | same, for the owning string wrapper | delegates to the owned `string_view::split` |
+| `string_view::split_views` / `string::split_views` | zero-copy pieces require the source to outlive every view | **`unsafe func`**; safe callers must use the owned form |
+
+Previously `split` returned `vector<string_view>`; the nested view type has no
+lifetime the borrow checker can tie to `&self`, so returning the vector from a
+local string compiled and produced dangling views. The safe API now copies
+pieces; the zero-copy path is an explicit unsafe boundary.
+
+Regression coverage: `string split returns owned pieces`,
+`string_view split returns owned pieces`, `split pieces outlive the source`,
+and `neg_split_views_requires_unsafe`.
+
 Still remaining in this group: actual zero-sized vector support,
 `string_view`/`u16string` raw constructors, remaining `Rc`/`Arc` weak-handle
 invariants, `RefCell` guard escape, and thread-pool worker

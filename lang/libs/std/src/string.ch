@@ -697,12 +697,19 @@ public struct string {
         return unsafe(memcmp(data(), other.data(), other.size())) == 0;
     }
 
-    func trim(&self) : std::string_view {
+    func trim(&self) : 'self std::string_view {
         return to_view().trim();
     }
 
-    func split(&self, delim : char) : std::vector<std::string_view> {
+    // Safe splitting returns owned pieces. `split_views` is the explicit
+    // unsafe zero-copy form: the caller must keep this string alive for every
+    // returned view.
+    func split(&self, delim : char) : std::vector<std::string> {
         return to_view().split(delim);
+    }
+
+    unsafe func split_views(&self, delim : char) : std::vector<std::string_view> {
+        return unsafe(to_view().split_views(delim));
     }
 
     func ends_with(&self, other : &std::string_view) : bool {

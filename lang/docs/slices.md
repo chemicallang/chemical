@@ -131,7 +131,9 @@ predicate_parts.get(0)[0]
   `span_chunks<T>`; use `.size()` and `.get(i)` to read each subview.
 - `split(delim)` returns `span_delim_split<T>` and requires `T: Copy +
   core::ops::PartialEq`; `split_by(predicate)` returns `span_split<T>` for a
-  custom comparison. `&str`/`string_view` also have `.split(delim)`.
+  custom comparison. `&str`/`string_view` also have `.split(delim)`; the safe
+  form returns owned `vector<string>` pieces. Use the `unsafe split_views`
+  form only when the source outlives every returned view.
 
 ## `&str`
 

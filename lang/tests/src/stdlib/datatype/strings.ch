@@ -5,6 +5,11 @@ struct StringContainerAppendExpr {
     var str : std::string
 }
 
+func split_owned_local() : std::vector<std::string> {
+    var s = string("a,b")
+    return s.split(',')
+}
+
 func test_strings() {
         unsafe {
         test("two std::strings are equal", () => {
@@ -214,6 +219,25 @@ func test_strings() {
             c2.str = string("second")
             if(!c2.str.equals(&string("second"))) { return false }
             return true
+        })
+        test("string split returns owned pieces", () => {
+            var s = string("a,,c")
+            var parts = s.split(',')
+            if(parts.size() != 3) { return false }
+            if(parts.get_ref(0).get(0) != 'a') { return false }
+            if(!parts.get_ref(1).empty()) { return false }
+            return parts.get_ref(2).get(0) == 'c'
+        })
+        test("string_view split returns owned pieces", () => {
+            var v = std::string_view("x,y")
+            var parts = v.split(',')
+            if(parts.size() != 2) { return false }
+            return parts.get_ref(0).get(0) == 'x' && parts.get_ref(1).get(0) == 'y'
+        })
+        test("split pieces outlive the source", () => {
+            var parts = split_owned_local()
+            if(parts.size() != 2) { return false }
+            return parts.get_ref(0).get(0) == 'a' && parts.get_ref(1).get(0) == 'b'
         })
 
         }

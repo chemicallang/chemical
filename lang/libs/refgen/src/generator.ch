@@ -85,7 +85,7 @@ func process_doc_comment(comment : std::string_view, html : &mut std::string) {
     var sees = std::vector<std::string>();
 
     for (var i = 0u; i < lines.size(); i++) {
-        var line = lines.get(i).trim();
+        var line = lines.get_ptr(i).trim();
         if (line.starts_with("@param")) {
             params.push_back(std::string(line.subview(6, line.size()).trim().data()));
         } else if (line.starts_with("@return")) {

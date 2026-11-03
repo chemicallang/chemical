@@ -30,8 +30,8 @@ Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2430/2430` |
-| LLVM main | `2428/2428` |
+| TCC main | `2431/2431` |
+| LLVM main | `2429/2429` |
 | `@test` runner | `56/56` |
 | TCC/LLVM negative | `772/772` |
 | TCC/LLVM safety | `74/74` |
@@ -301,9 +301,7 @@ memory safety.
    delegates to the host compiler. `SAFE-FFI-005` now audits extern callback
    signatures: by-value aggregate callback parameters/returns and capturing
    callbacks are rejected, and every 32-bit Windows callback is rejected until
-   stdcall/cdecl metadata is represented. Remaining: variadic scalar
-   default-promotion coverage, explicit stdcall callback types, and full FFI
-   wrapper auditing.
+   stdcall/cdecl metadata is represented. Remaining: explicit stdcall callback types and full FFI wrapper auditing.
 3. **`@scoped_callback` is body-checked, with a fixed sink list.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter anywhere except a known join-before-return API (resolved by exact library

@@ -177,6 +177,24 @@ void MIRLowerer::append_c_drop_fields(std::string& out, const std::string& base,
     const std::string pad(indent, ' ');
     for (size_t i = fields.size(); i-- > 0;) {
         const MIRDropField& f = fields[i];
+        if (f.element_template) {
+            BaseType* canon = f.type ? f.type->canonical() : nullptr;
+            if (canon == nullptr || canon->kind() != BaseTypeKind::Array ||
+                f.array_count == 0) {
+                continue;
+            }
+            std::string array_base = base;
+            if (!f.name.empty()) {
+                array_base += '.';
+                array_base.append(f.name.data(), f.name.size());
+            }
+            out += pad + "for (unsigned long __chx_ei = " +
+                   std::to_string(f.array_count) + "; __chx_ei-- > 0;) {\n";
+            append_c_drop_fields_at(out, array_base + "[__chx_ei]",
+                                    f.children, indent + 2, "__chx_ei");
+            out += pad + "}\n";
+            continue;
+        }
         if (!f.children.empty()) {
             BaseType* canon = f.type ? f.type->canonical() : nullptr;
             if (canon != nullptr && canon->kind() == BaseTypeKind::Array) {
@@ -257,6 +275,73 @@ void MIRLowerer::append_c_drop_fields(std::string& out, const std::string& base,
         const std::string flag(module_.constants.data.data_at(fc.data_offset),
                                fc.data_count);
         out += pad + "if(__chx__af->" + flag + ") { " + dname + "(&" + base +
+               "); __chx__af->" + flag + " = 0; }\n";
+    }
+}
+
+void MIRLowerer::append_c_drop_fields_at(
+        std::string& out, const std::string& base,
+        const std::vector<MIRDropField>& fields, unsigned indent,
+        const std::string& element_index) {
+    const std::string pad(indent, ' ');
+    for (size_t i = fields.size(); i-- > 0;) {
+        const MIRDropField& f = fields[i];
+        std::string member = base;
+        if (!f.name.empty()) {
+            member += '.';
+            member.append(f.name.data(), f.name.size());
+        }
+        if (!f.children.empty()) {
+            BaseType* canon = f.type ? f.type->canonical() : nullptr;
+            if (canon != nullptr && canon->kind() == BaseTypeKind::Array) {
+                for (size_t j = f.children.size(); j-- > 0;) {
+                    const MIRDropField& e = f.children[j];
+                    const uint32_t index = e.array_index != MIR_INVALID_ID
+                                               ? e.array_index
+                                               : static_cast<uint32_t>(j);
+                    append_c_drop_fields_at(
+                        out, member + "[" + std::to_string(index) + "]",
+                        std::vector<MIRDropField>{e}, indent, element_index);
+                }
+            } else {
+                append_c_drop_fields_at(
+                    out, member, f.children, indent, element_index);
+            }
+            continue;
+        }
+        if (f.frame_flag_array != MIR_INVALID_ID) {
+            const SymbolId dtor = destructor_symbol(f.type);
+            if (dtor == MIR_INVALID_ID) continue;
+            const MIRSymbolRecord& dr = module_.symbols.get(dtor);
+            const std::string dname(module_.symbols.name_data(dr), dr.name_length);
+            if (dname.empty()) continue;
+            const MIRConstant& fc = module_.constants.get(f.frame_flag_array);
+            const std::string flag(module_.constants.data.data_at(fc.data_offset),
+                                   fc.data_count);
+            out += pad + "if(__chx__af->" + flag + "[" + element_index +
+                   "]) { " + dname + "(&" + member + "); __chx__af->" + flag +
+                   "[" + element_index + "] = 0; }\n";
+            continue;
+        }
+        if (f.frame_flag == MIR_INVALID_ID) continue;
+        BaseType* dt = f.type;
+        if (dt != nullptr) {
+            BaseType* canon = dt->canonical();
+            if (canon != nullptr && canon->kind() == BaseTypeKind::CapturingFunction) {
+                dt = const_cast<BaseType*>(
+                    canon->as_capturing_func_type_unsafe()->instance_type.getType()
+                );
+            }
+        }
+        const SymbolId dtor = destructor_symbol(dt);
+        if (dtor == MIR_INVALID_ID) continue;
+        const MIRSymbolRecord& dr = module_.symbols.get(dtor);
+        const std::string dname(module_.symbols.name_data(dr), dr.name_length);
+        if (dname.empty()) continue;
+        const MIRConstant& fc = module_.constants.get(f.frame_flag);
+        const std::string flag(module_.constants.data.data_at(fc.data_offset),
+                               fc.data_count);
+        out += pad + "if(__chx__af->" + flag + ") { " + dname + "(&" + member +
                "); __chx__af->" + flag + " = 0; }\n";
     }
 }
@@ -438,13 +523,14 @@ bool MIRLowerer::lower_async_function(FunctionDeclaration* decl, MIRArena& arena
             chem::string_view{}, st, 0, true, id, &seq
         );
         std::vector<MIRDropField> tree;
-        if (root.children.empty()) {
+        if (root.element_template || root.children.empty()) {
             // A large directly-destructible array carries its flag block on
-            // the root node itself; small arrays and aggregates expand into
-            // children.
-            if (root.flag_array == MIR_INVALID_ID &&
-                root.frame_flag_array == MIR_INVALID_ID &&
-                !root.element_template) {
+            // the root node; an element-template large array needs its root to
+            // retain element_template/array_count. Small arrays and ordinary
+            // aggregates expand into children.
+            if (!root.element_template &&
+                root.flag_array == MIR_INVALID_ID &&
+                root.frame_flag_array == MIR_INVALID_ID) {
                 continue;
             }
             tree.push_back(std::move(root));
@@ -1093,7 +1179,15 @@ bool MIRLowerer::async_lower_drop_body(FunctionDeclaration* decl, std::string& e
                     fields.size() == 1 && fields[0].name.empty() &&
                     first_canon != nullptr &&
                     first_canon->kind() == BaseTypeKind::Array;
-                if (whole_array_tree && fields[0].flag_array != MIR_INVALID_ID) {
+                const bool template_tree =
+                    whole_array_tree && fields[0].element_template;
+                if (template_tree) {
+                    destroy_array_template(
+                        addr, first_canon->as_array_type_unsafe()->elem_type,
+                        fields[0].children, fields[0].array_count
+                    );
+                } else if (whole_array_tree &&
+                           fields[0].flag_array != MIR_INVALID_ID) {
                     destroy_flag_array(
                         addr,
                         first_canon->as_array_type_unsafe()->elem_type,

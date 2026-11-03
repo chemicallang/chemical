@@ -1469,6 +1469,11 @@ private:
     void append_c_drop_fields(std::string& out, const std::string& base,
                               const std::vector<MIRDropField>& fields,
                               unsigned indent);
+    /** C drop text for one element of an array template. */
+    void append_c_drop_fields_at(std::string& out, const std::string& base,
+                                 const std::vector<MIRDropField>& fields,
+                                 unsigned indent,
+                                 const std::string& element_index);
     std::vector<TypeId> async_site_poll_;
     std::vector<BlockId> async_resume_blocks_;
     // ramp lowering state

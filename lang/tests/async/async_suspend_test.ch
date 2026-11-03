@@ -259,11 +259,26 @@ struct LargeFrameHolder {
     var inner : [100]DropCounter
 }
 
+struct FramePair {
+    var a : DropCounter
+    var b : DropCounter
+}
+
 async func suspend_large_array_field() : int {
     var h : LargeFrameHolder
     h.inner[0] = DropCounter { value : 1 }
     var n = await make_countdown(1, 5)
     return h.inner[0].value + n
+}
+
+async func suspend_large_template_array() : int {
+    var pairs : [100]FramePair
+    pairs[0] = FramePair {
+        a : DropCounter { value : 1 },
+        b : DropCounter { value : 2 }
+    }
+    var n = await make_countdown(1, 5)
+    return pairs[0].a.value + pairs[0].b.value + n
 }
 
 // A pointer to a cross-await local must stay valid after resume (frame-resident
@@ -315,6 +330,19 @@ func test_async_suspend_large_array_field(env : &mut TestEnv) {
         }
         if(suspend_drops != before + 1) {
             env.error("a large array field must drop exactly its initialized element")
+        }
+    }
+}
+
+@test
+func test_async_suspend_large_template_array(env : &mut TestEnv) {
+    unsafe {
+        var before = suspend_drops
+        if(async::block_on<int>(suspend_large_template_array()) != 8) {
+            env.error("a large generated-glue array across a suspension should be 8")
+        }
+        if(suspend_drops != before + 2) {
+            env.error("a large generated-glue frame array must drop exactly its initialized leaves")
         }
     }
 }

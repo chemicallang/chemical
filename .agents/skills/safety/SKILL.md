@@ -35,7 +35,7 @@ Latest measured baseline:
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `796/796` |
 | TCC/LLVM safety | `76/76` |
-| TCC/LLVM async | `80/80` |
+| TCC/LLVM async | `81/81` |
 | TCC libs | `735/735` |
 | TCC plugins | `1305/1305` |
 | TCC interpret | `1931/1931` |
@@ -431,13 +431,13 @@ memory safety.
     initialized leaves. Nested fixed arrays up to 1024 elements inside a
     template element are tracked recursively (each inner leaf gets its own
     outer-index flag array); a small outer array of large inner arrays uses a
-    per-element flag block. Directly destructible large arrays in async frame
-    slots use a frame-resident bool-flag block, so partial initialization and
-    cancellation drop only live elements. Any unsupported move shape (user
-    destructor, global, temporary/expression, reference/pointer) is rejected
-    with `SAFE-MOVE-004` instead of double-dropping. Remaining: inner arrays
-    above 1024, generated-glue large arrays in async frames, and unsized arrays
-    fall back to a whole-field flag.
+    per-element flag block. Large arrays in async frame slots use a
+    frame-resident bool-flag block, with generated-glue slots using an element
+    template whose leaves carry frame flag blocks. Any unsupported move shape
+    (user destructor, global, temporary/expression, reference/pointer) is
+    rejected with `SAFE-MOVE-004` instead of double-dropping. Remaining: inner
+    arrays above 1024, generated-glue large array fields inside a frame
+    aggregate, and unsized arrays fall back to a whole-field flag.
 
 11. **Interpreter boundaries.** MIR interpreter bounds/provenance/tombstone
     checks are implemented. Async/coroutine opcodes, inline asm, dynamic

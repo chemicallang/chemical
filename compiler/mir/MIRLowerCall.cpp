@@ -724,7 +724,7 @@ MIRLowerer::MIRDropField MIRLowerer::build_drop_field(const chem::string_view& n
                         return f;
                     }
                 }
-            } else if (!frame_flags && name.size() == 0 &&
+            } else if (name.size() == 0 &&
                        can_build_element_template(elem)) {
                 // Generated-glue element: one bool-array flag per leaf field.
                 MIRDropField tpl = build_drop_field(

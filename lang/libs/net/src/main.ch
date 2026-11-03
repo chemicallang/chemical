@@ -48,8 +48,8 @@ public namespace net {
         comptime if(def.windows) {
             // Windows returns INVALID_SOCKET (~0) on failure, which is not 0
             if (s == 0 as Socket || (s as longlong) < 0) {
-                var e = WSAGetLastError();
-                printf("socket() failed (WSAGetLastError): %d\n", e as int);
+                var e = unsafe(WSAGetLastError());
+                unsafe { printf("socket() failed (WSAGetLastError): %d\n", e as int); }
                 panic("socket() failed");
             }
         } else {
@@ -91,7 +91,7 @@ public namespace net {
         if(setr != 0) {
             // non-fatal; continue but log
             comptime if (def.windows) {
-                var e = WSAGetLastError();
+                var e = unsafe(WSAGetLastError());
                 // You can format e into string with FormatMessageA if needed (omitted here).
                 // For now we keep going.
             } else {
@@ -104,8 +104,8 @@ public namespace net {
         if(bind_r != 0) {
             // report platform error and close socket
             comptime if (def.windows) {
-                var e = WSAGetLastError();
-                printf("bind() failed (WSAGetLastError): %d\n", e as int);
+                var e = unsafe(WSAGetLastError());
+                unsafe { printf("bind() failed (WSAGetLastError): %d\n", e as int); }
                 panic("bind() failed (WSAGetLastError)");
             } else {
                 unsafe { perror("bind() failed") };
@@ -117,7 +117,7 @@ public namespace net {
         // listen
         if(sock_listen(s, 128) != 0) {
             comptime if(def.windows) {
-                var e = WSAGetLastError();
+                var e = unsafe(WSAGetLastError());
                 panic("listen() failed (WSA error)");
             } else {
                 unsafe { perror("listen() failed") };

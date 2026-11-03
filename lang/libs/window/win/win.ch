@@ -103,6 +103,8 @@ public struct WNDCLASSEXW {
     var lpszClassName : LPCWSTR
     var hIconSm : HICON
 }
+unsafe impl Zeroable for WNDCLASSEXW { }
+
 
 public struct MONITORINFO {
     var cbSize : DWORD
@@ -222,15 +224,18 @@ var g_dpi_system_fn : GetDpiForSystemFn = null
 var g_layered_fn : SetLayeredWindowAttributesFn = null
 
 func win_user32() : HMODULE {
+        unsafe {
     if(g_user32 == null) {
         var wname : [16]ushort
         widen_to_buf("user32.dll", &raw mut wname[0], 16)
         g_user32 = LoadLibraryW(&raw wname[0] as LPCWSTR)
     }
     return g_user32
-}
+
+        }}
 
 func win_get_dpi_for_system() : UINT {
+        unsafe {
     if(g_dpi_system_fn == null) {
         var m = win_user32()
         if(m != null) {
@@ -241,9 +246,11 @@ func win_get_dpi_for_system() : UINT {
         return 96
     }
     return g_dpi_system_fn()
-}
+
+        }}
 
 func win_set_layered_alpha(hwnd : HWND, alpha : BYTE) {
+        unsafe {
     if(g_layered_fn == null) {
         var m = win_user32()
         if(m != null) {
@@ -254,7 +261,8 @@ func win_set_layered_alpha(hwnd : HWND, alpha : BYTE) {
         return
     }
     g_layered_fn(hwnd, 0, alpha, LWA_ALPHA)
-}
+
+        }}
 
 // user32 (windows)
 @extern @stdcall @dllimport public func RegisterClassExW(lpWndClass : *mut WNDCLASSEXW) : ATOM
@@ -371,6 +379,7 @@ public struct Window {
 
     @make
     func make() : Window {
+        unsafe {
         return Window {
             hwnd : null,
             title : string(""),
@@ -400,7 +409,8 @@ public struct Window {
             drop_cb : null,
             command_cb : null
         }
-    }
+
+        }}
 }
 
 // ===========================================================================
@@ -408,6 +418,7 @@ public struct Window {
 // ===========================================================================
 
 func widen_to_buf(utf8 : *char, buf : *mut ushort, cap : size_t) {
+        unsafe {
     if(buf == null || cap == 0) {
         return
     }
@@ -415,9 +426,11 @@ func widen_to_buf(utf8 : *char, buf : *mut ushort, cap : size_t) {
     if(n <= 0) {
         buf[0] = 0
     }
-}
+
+        }}
 
 func wide_to_utf8(wide : *ushort, buf : *mut char, cap : size_t) {
+        unsafe {
     if(wide == null || buf == null || cap == 0) {
         return
     }
@@ -425,9 +438,11 @@ func wide_to_utf8(wide : *ushort, buf : *mut char, cap : size_t) {
     if(n <= 0) {
         buf[0] = 0
     }
-}
+
+        }}
 
 func current_modifiers() : int {
+        unsafe {
     var m = 0
     if((GetKeyState(VK_SHIFT) & 0x8000) != 0) {
         m |= MOD_SHIFT
@@ -439,9 +454,11 @@ func current_modifiers() : int {
         m |= MOD_ALT
     }
     return m
-}
+
+        }}
 
 func cursor_for_kind(kind : int) : HCURSOR {
+        unsafe {
     switch(kind) {
         CURSOR_IBEAM => return LoadCursorW(null, 32513 as LPCWSTR)
         CURSOR_WAIT => return LoadCursorW(null, 32514 as LPCWSTR)
@@ -458,13 +475,15 @@ func cursor_for_kind(kind : int) : HCURSOR {
         CURSOR_SIZEALL => return LoadCursorW(null, 32646 as LPCWSTR)
         default => return LoadCursorW(null, 32512 as LPCWSTR) // arrow
     }
-}
+
+        }}
 
 // ===========================================================================
 // window procedure
 // ===========================================================================
 
 func deliver_key(w : *mut Window, kind : int, key : int) {
+        unsafe {
     if(w.event_cb == null) {
         return
     }
@@ -473,9 +492,11 @@ func deliver_key(w : *mut Window, kind : int, key : int) {
     ev.key = key
     ev.modifiers = current_modifiers()
     w.event_cb(w.user_data, &raw mut ev)
-}
+
+        }}
 
 func deliver_char(w : *mut Window, ch : int) {
+        unsafe {
     if(w.event_cb == null) {
         return
     }
@@ -484,9 +505,11 @@ func deliver_char(w : *mut Window, ch : int) {
     ev.key_char = (ch & 0xFF) as uchar
     ev.modifiers = current_modifiers()
     w.event_cb(w.user_data, &raw mut ev)
-}
+
+        }}
 
 func deliver_mouse(w : *mut Window, kind : int, button : int, lp : LPARAM) {
+        unsafe {
     if(w.event_cb == null) {
         return
     }
@@ -497,7 +520,8 @@ func deliver_mouse(w : *mut Window, kind : int, button : int, lp : LPARAM) {
     ev.y = (((lp as DWORD) >> 16) & (0xFFFF as DWORD)) as int
     ev.modifiers = current_modifiers()
     w.event_cb(w.user_data, &raw mut ev)
-}
+
+        }}
 
 // True while a native message loop (window_run) is pumping messages.
 // `WM_DESTROY` only posts WM_QUIT when a loop is running: destroying a window
@@ -507,6 +531,7 @@ func deliver_mouse(w : *mut Window, kind : int, button : int, lp : LPARAM) {
 var g_msg_loop_active : bool = false
 
 func win_window_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT {
+        unsafe {
     var w = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut Window
     if(msg == WM_NCCREATE) {
         var cs = lp as *mut CREATESTRUCTW
@@ -633,13 +658,15 @@ func win_window_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESUL
         }
     }
     return 0
-}
+
+        }}
 
 // ===========================================================================
 // public API
 // ===========================================================================
 
 public func window_create(w : *mut Window) : std::Result<std::Unit, WindowError> {
+        unsafe {
     if(w.created) {
         return std.Result.Err(WindowError.InvalidState(string("window_create: window already created")))
     }
@@ -707,28 +734,36 @@ public func window_create(w : *mut Window) : std::Result<std::Unit, WindowError>
     }
 
     return std.Result.Ok(std::Unit{})
-}
+
+        }}
 
 public func window_destroy(w : *mut Window) {
+        unsafe {
     if(w.hwnd != null) {
         DestroyWindow(w.hwnd)
         w.hwnd = null
     }
     w.created = false
     w.visible = false
-}
+
+        }}
 
 public func window_is_created(w : *mut Window) : bool {
+        unsafe {
     return w.created && w.hwnd != null
-}
+
+        }}
 
 // --- title ---
 
 public func window_title(w : *mut Window) : string {
+        unsafe {
     return w.title.copy()
-}
+
+        }}
 
 public func window_set_title(w : *mut Window, title : *char) {
+        unsafe {
     w.title = string("")
     w.title.append_char_ptr(title)
     if(w.hwnd != null) {
@@ -736,16 +771,20 @@ public func window_set_title(w : *mut Window, title : *char) {
         widen_to_buf(title, &raw mut wbuf[0], 512)
         SetWindowTextW(w.hwnd, &raw wbuf[0])
     }
-}
+
+        }}
 
 // --- size / position (logical units) ---
 
 public func window_size(w : *mut Window) : Size {
+        unsafe {
     return Size.make(w.width, w.height)
-}
+
+        }}
 
 // Physical client size (for native layout/rendering code).
 public func window_client_size(w : *mut Window) : Size {
+        unsafe {
     if(w.hwnd != null) {
         var rc : RECT
         if(GetClientRect(w.hwnd, &raw mut rc)) {
@@ -753,9 +792,11 @@ public func window_client_size(w : *mut Window) : Size {
         }
     }
     return Size.make(w.width, w.height)
-}
+
+        }}
 
 public func window_set_size(w : *mut Window, width : int, height : int) {
+        unsafe {
     w.width = width
     w.height = height
     if(w.hwnd == null) {
@@ -780,9 +821,11 @@ public func window_set_size(w : *mut Window, width : int, height : int) {
         r.bottom - r.top,
         SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOMOVE | SWP_FRAMECHANGED
     )
-}
+
+        }}
 
 public func window_position(w : *mut Window) : Position {
+        unsafe {
     if(w.hwnd != null) {
         var rc : RECT
         if(GetWindowRect(w.hwnd, &raw mut rc)) {
@@ -790,41 +833,53 @@ public func window_position(w : *mut Window) : Position {
         }
     }
     return Position.make(w.x, w.y)
-}
+
+        }}
 
 public func window_set_position(w : *mut Window, x : int, y : int) {
+        unsafe {
     w.x = x
     w.y = y
     if(w.hwnd != null) {
         SetWindowPos(w.hwnd, null, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)
     }
-}
+
+        }}
 
 // --- min / max size (logical units) ---
 
 public func window_min_size(w : *mut Window) : Size {
+        unsafe {
     return Size.make(w.min_w, w.min_h)
-}
+
+        }}
 
 public func window_max_size(w : *mut Window) : Size {
+        unsafe {
     return Size.make(w.max_w, w.max_h)
-}
+
+        }}
 
 public func window_set_min_size(w : *mut Window, width : int, height : int) {
+        unsafe {
     w.min_w = width
     w.min_h = height
     // the constraint is applied by WM_GETMINMAXINFO on the next resize
-}
+
+        }}
 
 public func window_set_max_size(w : *mut Window, width : int, height : int) {
+        unsafe {
     w.max_w = width
     w.max_h = height
     // the constraint is applied by WM_GETMINMAXINFO on the next resize
-}
+
+        }}
 
 // --- state ---
 
 public func window_set_fullscreen(w : *mut Window, fullscreen : bool) {
+        unsafe {
     if(w.hwnd == null || fullscreen == w.fullscreen) {
         return
     }
@@ -858,66 +913,86 @@ public func window_set_fullscreen(w : *mut Window, fullscreen : bool) {
         )
         w.fullscreen = false
     }
-}
+
+        }}
 
 public func window_is_fullscreen(w : *mut Window) : bool {
+        unsafe {
     return w.fullscreen
-}
+
+        }}
 
 public func window_maximize(w : *mut Window) {
+        unsafe {
     if(w.hwnd != null) {
         ShowWindow(w.hwnd, SW_MAXIMIZE)
     }
-}
+
+        }}
 
 public func window_minimize(w : *mut Window) {
+        unsafe {
     if(w.hwnd != null) {
         ShowWindow(w.hwnd, SW_MINIMIZE)
     }
-}
+
+        }}
 
 public func window_restore(w : *mut Window) {
+        unsafe {
     if(w.hwnd != null) {
         ShowWindow(w.hwnd, SW_RESTORE)
     }
-}
+
+        }}
 
 public func window_show(w : *mut Window) {
+        unsafe {
     w.visible = true
     if(w.hwnd != null) {
         ShowWindow(w.hwnd, SW_SHOW)
         UpdateWindow(w.hwnd)
     }
-}
+
+        }}
 
 public func window_hide(w : *mut Window) {
+        unsafe {
     w.visible = false
     if(w.hwnd != null) {
         ShowWindow(w.hwnd, SW_HIDE)
     }
-}
+
+        }}
 
 public func window_focus(w : *mut Window) {
+        unsafe {
     if(w.hwnd != null) {
         SetForegroundWindow(w.hwnd)
         SetFocus(w.hwnd)
     }
-}
+
+        }}
 
 public func window_close(w : *mut Window) {
+        unsafe {
     if(w.hwnd != null) {
         SendMessageW(w.hwnd, WM_CLOSE, 0, 0)
     }
-}
+
+        }}
 
 // --- visual ---
 
 public func window_set_cursor(w : *mut Window, cursor : int) {
+        unsafe {
     w.cursor = cursor
     SetCursor(cursor_for_kind(cursor))
-}
+
+        }}
 
 public func window_set_icon(w : *mut Window, path : *char) {
+        unsafe {
     if(w.hwnd == null) {
         return
     }
@@ -935,9 +1010,11 @@ public func window_set_icon(w : *mut Window, path : *char) {
         SendMessageW(w.hwnd, WM_SETICON, ICON_BIG, icon as LPARAM)
         SendMessageW(w.hwnd, WM_SETICON, ICON_SMALL, icon as LPARAM)
     }
-}
+
+        }}
 
 public func window_set_opacity(w : *mut Window, opacity : double) {
+        unsafe {
     w.opacity = opacity
     if(w.hwnd == null) {
         return
@@ -951,9 +1028,11 @@ public func window_set_opacity(w : *mut Window, opacity : double) {
         alpha = 255
     }
     win_set_layered_alpha(w.hwnd, alpha as BYTE)
-}
+
+        }}
 
 public func window_set_always_on_top(w : *mut Window, on_top : bool) {
+        unsafe {
     w.always_on_top = on_top
     if(w.hwnd != null) {
         if(on_top) {
@@ -962,9 +1041,11 @@ public func window_set_always_on_top(w : *mut Window, on_top : bool) {
             SetWindowPos(w.hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
         }
     }
-}
+
+        }}
 
 public func window_set_decorated(w : *mut Window, decorated : bool) {
+        unsafe {
     if(decorated == w.decorated) {
         return
     }
@@ -980,11 +1061,13 @@ public func window_set_decorated(w : *mut Window, decorated : bool) {
     }
     SetWindowLongPtrW(w.hwnd, GWL_STYLE, style)
     SetWindowPos(w.hwnd, null, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED)
-}
+
+        }}
 
 // --- DPI / scale ---
 
 public func window_dpi(w : *mut Window) : int {
+        unsafe {
     if(w.hwnd != null) {
         var dpi = GetDpiForWindow(w.hwnd) as int
         if(dpi > 0) {
@@ -992,11 +1075,14 @@ public func window_dpi(w : *mut Window) : int {
         }
     }
     return w.dpi
-}
+
+        }}
 
 public func window_scale_factor(w : *mut Window) : double {
+        unsafe {
     return (window_dpi(w) as double) / 96.0
-}
+
+        }}
 
 // --- monitor information ---
 
@@ -1005,6 +1091,7 @@ var g_monitor_index_scratch : int = 0
 var g_monitor_rect_scratch : RECT = RECT { left : 0, top : 0, right : 0, bottom : 0 }
 
 func win_monitor_enum_proc(hmon : HMONITOR, hdc : HDC, lprc : *mut RECT, data : LPARAM) : BOOL {
+        unsafe {
     var mi : MONITORINFO
     mi.cbSize = sizeof(MONITORINFO) as DWORD
     GetMonitorInfoW(hmon, &raw mut mi)
@@ -1013,13 +1100,17 @@ func win_monitor_enum_proc(hmon : HMONITOR, hdc : HDC, lprc : *mut RECT, data : 
     }
     g_monitor_count_scratch += 1
     return 1
-}
+
+        }}
 
 public func window_monitor_count() : int {
+        unsafe {
     return GetSystemMetrics(SM_CMONITORS)
-}
+
+        }}
 
 public func window_monitor_bounds(index : int) : Rect {
+        unsafe {
     g_monitor_count_scratch = 0
     g_monitor_index_scratch = index
     EnumDisplayMonitors(null, null, win_monitor_enum_proc, 0)
@@ -1029,41 +1120,58 @@ public func window_monitor_bounds(index : int) : Rect {
         g_monitor_rect_scratch.right - g_monitor_rect_scratch.left,
         g_monitor_rect_scratch.bottom - g_monitor_rect_scratch.top
     )
-}
+
+        }}
 
 public func window_monitor_scale(index : int) : double {
+        unsafe {
     return (win_get_dpi_for_system() as double) / 96.0
-}
+
+        }}
 
 // --- callbacks ---
 
 public func window_set_user_data(w : *mut Window, data : *mut void) {
+        unsafe {
     w.user_data = data
-}
+
+        }}
 
 public func window_set_resize_callback(w : *mut Window, cb : ResizeCallback) {
+        unsafe {
     w.resize_cb = cb
-}
+
+        }}
 
 public func window_set_close_callback(w : *mut Window, cb : CloseCallback) {
+        unsafe {
     w.close_cb = cb
-}
+
+        }}
 
 public func window_set_focus_callback(w : *mut Window, cb : FocusCallback) {
+        unsafe {
     w.focus_cb = cb
-}
+
+        }}
 
 public func window_set_event_callback(w : *mut Window, cb : EventCallback) {
+        unsafe {
     w.event_cb = cb
-}
+
+        }}
 
 public func window_set_drop_callback(w : *mut Window, cb : DropCallback) {
+        unsafe {
     w.drop_cb = cb
-}
+
+        }}
 
 public func window_set_command_callback(w : *mut Window, cb : CommandCallback) {
+        unsafe {
     w.command_cb = cb
-}
+
+        }}
 
 // --- native handle ---
 
@@ -1071,12 +1179,15 @@ public func window_set_command_callback(w : *mut Window, cb : CommandCallback) {
 // Linux. Use with platform-specific code; the handle stays valid while the
 // window is created.
 public func window_native_handle(w : *mut Window) : *mut void {
+        unsafe {
     return w.hwnd as *mut void
-}
+
+        }}
 
 // --- message loop (thread-level) ---
 
 public func window_run() {
+        unsafe {
     var msg : MSG
     g_msg_loop_active = true
     while(GetMessageW(&raw mut msg, null, 0, 0) > 0) {
@@ -1084,30 +1195,37 @@ public func window_run() {
         DispatchMessageW(&raw mut msg)
     }
     g_msg_loop_active = false
-}
+
+        }}
 
 public func window_quit() {
+        unsafe {
     PostQuitMessage(0)
-}
+
+        }}
 
 /// Returns 1 if the last window_run() returned because a window was destroyed
 /// (the user closed it) rather than because window_quit() was called.
 /// On Windows this mirrors the Linux backend's g_quit_by_destroy flag.
 public func window_quit_by_destroy() : int {
+        unsafe {
     // On Windows, WM_DESTROY always calls PostQuitMessage which exits the
     // message loop, so the distinction between "user closed" and
     // "window_quit()" is not tracked separately.  Return 0 for now — the
     // webview library guards its destroy path with window_is_created() checks
     // which is sufficient on this platform.
     return 0
-}
+
+        }}
 
 /// Post a empty message to the window's message queue.
 /// Useful for waking up the message loop from another thread.
 public func window_post_empty_event() {
+        unsafe {
     // PostMessage with WM_NULL is the standard way to wake a message loop.
     PostMessageA(null, 0u32, 0, 0)
-}
+
+        }}
 
 // ===========================================================================
 // clipboard
@@ -1116,6 +1234,7 @@ public func window_post_empty_event() {
 /// Get the current clipboard text content.
 /// Returns Option.None if the clipboard is empty or doesn't contain text.
 public func window_get_clipboard() : Option<string> {
+        unsafe {
     if(OpenClipboard(null) == 0) {
         return Option.None<string>()
     }
@@ -1133,11 +1252,13 @@ public func window_get_clipboard() : Option<string> {
     GlobalUnlock(h_data)
     CloseClipboard()
     return Option.Some(result)
-}
+
+        }}
 
 /// Set the clipboard text content.
 /// Returns true on success.
 public func window_set_clipboard(text : string_view) : bool {
+        unsafe {
     if(OpenClipboard(null) == 0) {
         return false
     }
@@ -1160,7 +1281,8 @@ public func window_set_clipboard(text : string_view) : bool {
     SetClipboardData(CF_TEXT, h_mem)
     CloseClipboard()
     return true
-}
+
+        }}
 
 // ===========================================================================
 // timer
@@ -1177,6 +1299,7 @@ var g_timer_used : [16]bool
 var g_timer_winids : [16]UINT
 
 func win_timer_proc(hwnd : HWND, msg : UINT, timer_id : WPARAM, lp : LPARAM) : void {
+        unsafe {
     var rid = timer_id as UINT
     var i : int = 0
     while(i < MAX_TIMERS) {
@@ -1186,11 +1309,13 @@ func win_timer_proc(hwnd : HWND, msg : UINT, timer_id : WPARAM, lp : LPARAM) : v
         }
         i += 1
     }
-}
+
+        }}
 
 /// Set a periodic timer that calls the callback every `interval_ms` milliseconds.
 /// Returns a timer ID (positive) on success, 0 on failure.
 public func window_set_timer(interval_ms : int, cb : TimerCallback, data : *mut void) : int {
+        unsafe {
     // Find a free slot
     var idx = -1
     var i : int = 0
@@ -1214,10 +1339,12 @@ public func window_set_timer(interval_ms : int, cb : TimerCallback, data : *mut 
     }
     g_timer_winids[idx] = timer_id
     return idx + 1
-}
+
+        }}
 
 /// Cancel a previously set timer.
 public func window_cancel_timer(timer_id : int) {
+        unsafe {
     if(timer_id <= 0 || timer_id > MAX_TIMERS) { return }
     var idx = timer_id - 1
     if(g_timer_used[idx]) {
@@ -1227,7 +1354,8 @@ public func window_cancel_timer(timer_id : int) {
     g_timer_cbs[idx] = null
     g_timer_data[idx] = null
     g_timer_winids[idx] = 0
-}
+
+        }}
 
 // ===========================================================================
 // UI-thread async bridge (Tier 5) — Win32 backend
@@ -1242,28 +1370,36 @@ comptime const WIN_ASYNC_TIMER_ID : UINT = 0xFFF1
 
 // Poll the executor once per WM_TIMER.
 func win_async_timer_proc(hwnd : HWND, msg : UINT, timer_id : WPARAM, lp : LPARAM) {
+        unsafe {
     async::executor_poll_tasks(async::executor(), 4096u)
-}
+
+        }}
 
 // SetTimer with the same id replaces the previous timer, so a simple guard is
 // enough to keep the pump single.
 var g_async_pump_installed : bool = false
 func window_async_platform_install_pump() {
+        unsafe {
     if(g_async_pump_installed) { return }
     SetTimer(null, WIN_ASYNC_TIMER_ID, 1 as UINT, win_async_timer_proc as *mut void)
     g_async_pump_installed = true
-}
+
+        }}
 
 func window_async_platform_wake(arg : *mut void) {
+        unsafe {
     window_post_empty_event()
-}
+
+        }}
 
 func window_async_platform_pump() {
+        unsafe {
     var msg : MSG
     while(PeekMessageW(&raw mut msg, null, 0u32, 0u32, PM_REMOVE) != 0) {
         TranslateMessage(&raw mut msg)
         DispatchMessageW(&raw mut msg)
     }
-}
+
+        }}
 
 } // end namespace window

@@ -1,6 +1,7 @@
 public namespace fs {
 
 public func filetime_to_unix(ft : FILETIME) : i64 {
+        unsafe {
     const SECS_BETWEEN_EPOCHS : i64 = 11644473600;
     const HUNDRED_NANOSECONDS_PER_SEC : i64 = 10000000;
 
@@ -11,9 +12,11 @@ public func filetime_to_unix(ft : FILETIME) : i64 {
     var unix_time : i64 = (windows_time / HUNDRED_NANOSECONDS_PER_SEC) - SECS_BETWEEN_EPOCHS;
 
     return unix_time;
-}
+
+        }}
 
 public func unix_to_filetime(unix_time : i64) : FILETIME {
+        unsafe {
     const SECS_BETWEEN_EPOCHS : i64 = 11644473600;   // seconds between 1601 and 1970
     const HUNDRED_NANOSECONDS_PER_SEC : i64 = 10000000;
 
@@ -26,6 +29,7 @@ public func unix_to_filetime(unix_time : i64) : FILETIME {
     ft.dwHighDateTime = ((windows_time >> 32) & 0xFFFFFFFF) as u32;
 
     return ft;
-}
+
+        }}
 
 }

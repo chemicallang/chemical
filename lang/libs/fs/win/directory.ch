@@ -3,16 +3,19 @@ public namespace fs {
 using std::Result;
 
 public func create_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
+        unsafe {
     var ok = CreateDirectoryW(path as LPCWSTR, null);
     if(ok == 0) {
         var e = GetLastError();
         return Result.Err(winerr_to_fs(e as int));
     }
     return Result.Ok(UnitTy{});
-}
+
+        }}
 
 // create_dir_all (recursive)
 public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
+        unsafe {
     var buf : [PATH_MAX_BUF]char;
     var r = normalize_path(path, &raw mut buf[0], PATH_MAX_BUF as size_t);
     if(r is Result.Err) {
@@ -48,34 +51,42 @@ public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
         i++;
     }
     return Result.Ok(UnitTy{});
-}
+
+        }}
 
 // remove_dir (non-recursive) and remove_dir_all (recursive)
 public func remove_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
+        unsafe {
     var ok = RemoveDirectoryW(path as LPCWSTR);
     if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
     return Result.Ok(UnitTy{});
-}
+
+        }}
 
 struct CustomDeletor<T> {
     var _value : *mut T
     @make
     func make(value: *mut T) {
+        unsafe {
         return CustomDeletor<T> {
             _value : value
         }
-    }
+
+        }}
     @delete
     func delete(&self) {
+        unsafe {
         // destruct + free
         delete _value;
-    }
+
+        }}
 }
 
 // -----------------------------
 // Recursive remove_dir_all (public)
 // -----------------------------
 public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, FsError> {
+        unsafe {
     // Build pattern path\* for enumeration
     var search_ptr = malloc(sizeof(u16) * WIN_MAX_PATH) as *mut u16
     if (search_ptr == null) {
@@ -161,9 +172,11 @@ public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, Fs
     var remd = RemoveDirectoryW(path as LPCWSTR);
     if(remd == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
     return Result.Ok(UnitTy{});
-}
+
+        }}
 
 public func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+        unsafe {
     var wbuf : [WIN_MAX_PATH]u16;
     var n = GetTempPathW(WIN_MAX_PATH as u32, (&mut wbuf[0]) as LPWSTR);
     if(n == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
@@ -174,10 +187,12 @@ public func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError
     }
     var Ok(len) = conv else unreachable;
     return Result.Ok(len);
-}
+
+        }}
 
 // read_dir: callback style to avoid allocations. Callback signature: fn(name : *char, name_len : size_t, is_dir : bool) -> bool
 public func read_dir(path : *char, callback : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool>) : Result<UnitTy, FsError> {
+        unsafe {
     // Windows implementation using FindFirstFileW / FindNextFileW
     var wpath : [WIN_MAX_PATH]u16;
     var conv = utf8_to_utf16(path, &raw mut wpath[0], WIN_MAX_PATH as size_t);
@@ -217,9 +232,11 @@ public func read_dir(path : *char, callback : std::function<(name : *char, name_
     }
     FindClose(h);
     return Result.Ok(UnitTy{});
-}
+
+        }}
 
 public func create_dir(path : *char) : Result<UnitTy, FsError> {
+        unsafe {
     var w : [WIN_MAX_PATH]u16;
     var conv = utf8_to_utf16(path, &raw mut w[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) {
@@ -227,9 +244,11 @@ public func create_dir(path : *char) : Result<UnitTy, FsError> {
         return Result.Err(e)
     }
     return create_dir_native(&raw mut w[0]);
-}
+
+        }}
 
 public func remove_dir(path : *char) : Result<UnitTy, FsError> {
+        unsafe {
     var w : [WIN_MAX_PATH]u16;
     var conv = utf8_to_utf16(path, &raw mut w[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) {
@@ -237,17 +256,22 @@ public func remove_dir(path : *char) : Result<UnitTy, FsError> {
         return Result.Err(e)
     }
     return remove_dir_native(&raw mut w[0])
-}
+
+        }}
 
 public func remove_dir_all_recursive(path : *char) : Result<UnitTy, FsError> {
+        unsafe {
     var wbuf : [WIN_MAX_PATH]u16;
     var conv = utf8_to_utf16_inplace(path, &raw mut wbuf[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) { var Err(e) = conv else unreachable; return Result.Err(e); }
     return remove_dir_all_recursive_native(&raw mut wbuf[0]);
-}
+
+        }}
 
 public func mkdir(pathname : *char) : int {
+        unsafe {
     return _mkdir(pathname)
-}
+
+        }}
 
 }

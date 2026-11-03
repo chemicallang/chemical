@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.82)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.83)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1512,15 +1512,15 @@ new number as the honest baseline, not a compiler regression.
 8. **The audit gate is CI-wired; platform breadth is not complete.**
    `.github/workflows/safety-audit.yml` runs `scripts/safety-audit.sh` on PRs
    and `main`. The 94-entry list is host-platform-oriented. The i386 Windows
-   target is now safety-clean for `cstd`, `std`, `fs`, `net`, `test`, and
-   `async`; Windows `net/win` and `window/win` remain, and `--update` is
-   reviewed manually.
+   target is now safety-clean for `cstd`, `std`, `fs`, `net`, `test`, `async`,
+   `tls`, `window`, and `webview`; remaining platform work is non-Windows
+   OS-gated sources, and `--update` is reviewed manually.
 9. **Audit reporting precision.** Impl bodies are now counted, and
    `unsafe func` / `unsafe impl` declarations are tracked as separate
    `unsafe_func_decls` / `unsafe_impl_decls` metrics. Generic master/concrete
    impls can still double-count syntax, and the module list remains
-   host-platform-oriented; Windows `net/win`/`window/win` and other OS-gated
-   sources still need target-specific audit entries.
+   host-platform-oriented; non-Windows OS-gated sources still need
+   target-specific audit entries.
 10. **Partial-array and non-`Copy` struct-field drop elaboration.** Local and
     by-value-parameter aggregates with generated drop glue now carry one drop
     flag per destructible field/element (nested structs are tracked, whole
@@ -3051,3 +3051,7 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.81 (2026-11-03): 32-bit Windows cdecl callbacks + cstd audit. `FunctionTypeData` now records stdcall as part of function-type identity, so a `@stdcall` function declaration cannot be passed where a cdecl callback is expected. On 32-bit Windows, the default cdecl callback convention matches the internal scalar/pointer ABI, so `signal`/`atexit`/`at_quick_exit`/`call_once`-style callbacks are accepted; stdcall callback conversion remains rejected by `SAFE-FFI-005`. Audited and migrated `cstd/windows`: stdio caches are thread-local, extern calls are inside the audited wrappers, raw-pointer `read`/`write`/`popen`/`pclose`/`MoveMemory`/`FillMemory`/`ZeroMemory` are `unsafe func`, and `mkdir` matches the POSIX unsafe surface. Added an i386-Windows target check that imports `cstd` and asserts no `SAFE-*` diagnostics, plus cdecl/stdcall callback coverage. Main TCC/LLVM `2431`/`2429`; negative `774`; safety `74`; async `70`; libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
 
 *Revision note v4.82 (2026-11-03): Windows platform safety audit. Fixed the duplicate `InitializeSRWLock`/`AcquireSRWLockExclusive`/`TryAcquireSRWLockExclusive`/`ReleaseSRWLockExclusive`/`SRWLOCK_SIZE` declarations between `std/win/mutex.ch` and `std/win/rwlock.ch`, which blocked every i386 Windows target build. Audited Windows `std` synchronization/time/OsString/thread-pool wrappers and the test harness: extern calls and raw-pointer operations are now inside explicit audited `unsafe` boundaries, stdio caches are thread-local, and raw-pointer APIs are marked unsafe. Audited `async/win/reactor.ch` (pipe creation, reactor readiness, poll probing) and made `async::pipe` unsafe to match POSIX. The i386 Windows target now passes `--check` with no `SAFE-*` diagnostics for `cstd`, `std`, `fs`, `net`, `test`, and `async`; added a regression check importing those modules. Remaining platform work: `net/win` and `window/win` migrations. Main TCC/LLVM `2431`/`2429`; negative `774`; safety `74`; async `70`; libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
+
+*Revision note v4.83 (2026-11-03): complete i386 Windows library safety pass. Wrapped the Windows `net/win` IOCP/platform API, `fs/win` filesystem/UTF-8/metadata wrappers, `window/win`, and `webview/win` bodies in explicit audited unsafe boundaries; fixed the 32-bit `size_t` file-length shift (`nFileSizeHigh << 32` now goes through `u64`), added `Zeroable` for `WNDCLASSEXW`, and added the missing unsafe boundary for `osrand`'s `BCryptGenRandom`. The i386 Windows target now passes `--check` with no `SAFE-*` diagnostics for `cstd`, `std`, `fs`, `net`, `test`, `async`, `tls`, `window`, and `webview`; the negative regression imports all of them. Main TCC/LLVM `2431`/`2429`; negative `774`; safety `74`; async `70`; libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
+
+*Revision note v4.84 (2026-11-03): reviewed audit baseline update. The Windows platform migration adds `unsafe_blocks 3775 -> 3780` and `unsafe_values 4915 -> 4921`: `net` Windows error branches, `osrand`'s `BCryptGenRandom` call, and the new i386-Windows target regression test. All are intentional audited boundaries; `scripts/safety-audit.sh --update` was run and the baseline diff was reviewed. Main TCC/LLVM `2431`/`2429`; negative `774`; safety `74`; async `70`; libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth against the new baseline.

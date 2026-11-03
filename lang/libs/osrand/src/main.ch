@@ -15,7 +15,7 @@ public namespace osrand {
     public func random_fill(buf : *mut u8, len : size_t) : int {
         if(len == 0) { return 0 }
         comptime if(def.windows) {
-            var ret = BCryptGenRandom(0 as uintptr_t, buf, len as u32, BCRYPT_USE_SYSTEM_PREFERRED_RNG)
+            var ret = unsafe(BCryptGenRandom(0 as uintptr_t, buf, len as u32, BCRYPT_USE_SYSTEM_PREFERRED_RNG))
             if(ret != 0) { return -1 }
             return 0
         } else {

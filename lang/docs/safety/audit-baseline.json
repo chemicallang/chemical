@@ -1502,10 +1502,10 @@
       "raw_pointer_types": 57,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
-      "unsafe_blocks": 12,
+      "unsafe_blocks": 14,
       "unsafe_func_decls": 0,
       "unsafe_impl_decls": 0,
-      "unsafe_values": 18,
+      "unsafe_values": 22,
       "variadic_calls": 4
     },
     "::osrand": {
@@ -1531,7 +1531,7 @@
       "unsafe_blocks": 2,
       "unsafe_func_decls": 0,
       "unsafe_impl_decls": 0,
-      "unsafe_values": 2,
+      "unsafe_values": 3,
       "variadic_calls": 0
     },
     "::page": {
@@ -1814,10 +1814,10 @@
       "raw_pointer_types": 280,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
-      "unsafe_blocks": 166,
+      "unsafe_blocks": 169,
       "unsafe_func_decls": 27,
       "unsafe_impl_decls": 11,
-      "unsafe_values": 129,
+      "unsafe_values": 130,
       "variadic_calls": 14
     },
     "::styled_export": {
@@ -2465,10 +2465,10 @@
     "raw_pointer_types": 9371,
     "union_field_accesses": 0,
     "unreachable_stmts": 0,
-    "unsafe_blocks": 3775,
+    "unsafe_blocks": 3780,
     "unsafe_func_decls": 36,
     "unsafe_impl_decls": 17,
-    "unsafe_values": 4915,
+    "unsafe_values": 4921,
     "variadic_calls": 295
   }
 }

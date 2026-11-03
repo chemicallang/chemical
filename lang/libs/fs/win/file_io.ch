@@ -3,6 +3,7 @@ public namespace fs {
 using std::Result;
 
 func file_open_native(path : path_ptr, opts : OpenOptions) : Result<File, FsError> {
+        unsafe {
     var access : u32 = 0;
     if(opts.read) { access = access | 0x80000000u32; } // GENERIC_READ
     if(opts.write) { access = access | 0x40000000u32; } // GENERIC_WRITE
@@ -32,43 +33,55 @@ func file_open_native(path : path_ptr, opts : OpenOptions) : Result<File, FsErro
     }
     var f : File; f.win.handle = handle; f.valid = true;
     return Result.Ok(f);
-}
+
+        }}
 
 public func file_close(f : *mut File) : Result<UnitTy, FsError> {
+        unsafe {
     if(!f.valid) { return Result.Ok(UnitTy{}); }
     var ok = CloseHandle(f.win.handle);
     if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
     f.valid = false;
     return Result.Ok(UnitTy{});
-}
+
+        }}
 
 public func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
+        unsafe {
     var read_out : u32 = 0;
     var ok = ReadFile(f.win.handle, buf as *mut void, buf_len as u32, (&mut read_out) as *mut DWORD, null);
     if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
     return Result.Ok(read_out as size_t);
-}
+
+        }}
 
 public func file_write(f : *mut File, buf : *u8, buf_len : size_t) : Result<size_t, FsError> {
+        unsafe {
     var written : u32 = 0;
     var ok = WriteFile(f.win.handle, buf as *void, buf_len as u32, (&mut written) as *mut DWORD, null);
     if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
     return Result.Ok(written as size_t);
-}
+
+        }}
 
 public func file_flush(f : *mut File) : Result<UnitTy, FsError> {
+        unsafe {
     var ok = FlushFileBuffers(f.win.handle);
     if(ok == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
     return Result.Ok(UnitTy{});
-}
+
+        }}
 
 public func remove_file_native(path : path_ptr) : Result<UnitTy, FsError> {
+        unsafe {
     var deleted = DeleteFileW(path as LPCWSTR);
     if(deleted == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
     return Result.Ok(UnitTy{});
-}
+
+        }}
 
 func set_times_native(path : path_ptr, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
+        unsafe {
     var h = CreateFileW(path as LPCWSTR, 0x40000000 /*GENERIC_WRITE*/, 0, null, 3 /*OPEN_EXISTING*/, 0, null);
     if(h == INVALID_HANDLE_VALUE) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
     var cft = unix_to_filetime(0); // unused creation
@@ -78,15 +91,19 @@ func set_times_native(path : path_ptr, atime : i64, mtime : i64) : Result<UnitTy
     CloseHandle(h);
     if(ok == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
     return Result.Ok(UnitTy{});
-}
+
+        }}
 
 func copy_file_native(src : path_ptr, dst : path_ptr) : Result<UnitTy, FsError> {
+        unsafe {
     var ok = CopyFileW(src as LPCWSTR, dst as LPCWSTR, 0); // overwrite
     if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
     return Result.Ok(UnitTy{});
-}
+
+        }}
 
 func create_temp_file_in_native(dir : path_ptr, prefix : path_ptr, out_path : mut_path_ptr, fh : *mut File) : Result<UnitTy, FsError> {
+        unsafe {
     var res = GetTempFileNameW(dir as LPCWSTR, prefix as LPCWSTR, 0, out_path as LPWSTR);
     if(res == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
     // open file
@@ -100,16 +117,20 @@ func create_temp_file_in_native(dir : path_ptr, prefix : path_ptr, out_path : mu
     var Ok(f) = fo else unreachable;
     fh.valid = f.valid; fh.win.handle = f.win.handle;
     return Result.Ok(UnitTy{});
-}
+
+        }}
 
 public func remove_file(path : *char) : Result<UnitTy, FsError> {
+        unsafe {
     var w : [WIN_MAX_PATH]u16;
     var conv = utf8_to_utf16_inplace(path, &raw mut w[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) { var Err(e) = conv else unreachable; return Result.Err(e); }
     return remove_file_native(&raw mut w[0])
-}
+
+        }}
 
 public func copy_file(src : *char, dst : *char) : Result<UnitTy, FsError> {
+        unsafe {
     var wsrc : [WIN_MAX_PATH]u16; var wdst : [WIN_MAX_PATH]u16;
     var r1 = utf8_to_utf16(src, &raw mut wsrc[0], WIN_MAX_PATH as size_t);
     if(r1 is Result.Err) {
@@ -122,9 +143,11 @@ public func copy_file(src : *char, dst : *char) : Result<UnitTy, FsError> {
         return Result.Err(e)
     }
     return copy_file_native(&raw mut wsrc[0], &raw mut wdst[0])
-}
+
+        }}
 
 func create_temp_file_in(dir : *char, prefix : *char, out_path : *mut char, out_len : size_t, fh : *mut File) : Result<UnitTy, FsError> {
+        unsafe {
     var wdir : [WIN_MAX_PATH]u16; var wprefix : [TEMP_NAME_MAX]u16; var wout : [WIN_MAX_PATH]u16;
     var f1 = utf8_to_utf16(dir, &raw mut wdir[0], WIN_MAX_PATH as size_t)
     if(f1 is Result.Err) {
@@ -147,9 +170,11 @@ func create_temp_file_in(dir : *char, prefix : *char, out_path : *mut char, out_
         return Result.Err(e);
     }
     return result
-}
+
+        }}
 
 public func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
+        unsafe {
     // Convert path to UTF-16 and call CreateFileW
     var wbuf : [WIN_MAX_PATH]u16;
     var r = utf8_to_utf16(path, &raw mut wbuf[0], WIN_MAX_PATH as size_t);
@@ -158,9 +183,11 @@ public func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> 
         return Result.Err(e)
     }
     return file_open_native(&raw mut wbuf[0], opts)
-}
+
+        }}
 
 public func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
+        unsafe {
     var wbuf : [WIN_MAX_PATH]u16;
     var conv = utf8_to_utf16(path, &raw mut wbuf[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) {
@@ -168,7 +195,8 @@ public func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, F
         return Result.Err(e)
     }
     return set_times_native(&raw mut wbuf[0], atime, mtime)
-}
+
+        }}
 
 
 }

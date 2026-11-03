@@ -144,20 +144,26 @@ public comptime const SM_CYICON : int = 12
 // COINIT / HRESULT helpers (plain functions: they are called with runtime
 // values, so they must not be comptime-only)
 public func SUCCEEDED(hr : HRESULT) : bool {
+        unsafe {
     return hr >= 0
-}
+
+        }}
 
 public func FAILED(hr : HRESULT) : bool {
+        unsafe {
     return hr < 0
-}
+
+        }}
 
 public func HRESULT_FROM_WIN32(err : DWORD) : HRESULT {
+        unsafe {
     var e = err as HRESULT
     if(e <= 0) {
         return e
     }
     return ((err & (0x0000FFFF as DWORD)) | ((7 as DWORD) << 16) | (0x80000000 as DWORD)) as HRESULT
-}
+
+        }}
 
 // COREWEBVIEW2_PERMISSION_KIND (int so the vtable matches the C enum ABI)
 public comptime const PERMISSION_KIND_UNKNOWN : int = 0
@@ -597,13 +603,15 @@ public type CreateEnvWithOptionsFn = (browser_dir : LPCWSTR, user_data_dir : LPC
 public type GetBrowserVersionFn = (browser_dir : LPCWSTR, version : *mut LPWSTR) => HRESULT
 
 func loader_ensure(lib : *mut HMODULE) : HMODULE {
+        unsafe {
     if(*lib == null) {
         var wname : [64]ushort
         widen_to_buf("WebView2Loader.dll", &raw mut wname[0], 64)
         *lib = LoadLibraryW(&raw wname[0] as LPCWSTR)
     }
     return *lib
-}
+
+        }}
 
 func loader_create_environment(
     lib : *mut HMODULE,
@@ -612,6 +620,7 @@ func loader_create_environment(
     env_options : *mut void,
     handler : *mut ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler
 ) : HRESULT {
+        unsafe {
     var m = loader_ensure(lib)
     if(m == null) {
         return HRESULT_FROM_WIN32(ERROR_MOD_NOT_FOUND)
@@ -621,9 +630,11 @@ func loader_create_environment(
         return E_FAIL
     }
     return fn(browser_dir, user_data_dir, env_options, handler)
-}
+
+        }}
 
 func loader_get_browser_version(lib : *mut HMODULE, browser_dir : LPCWSTR, version : *mut LPWSTR) : HRESULT {
+        unsafe {
     var m = loader_ensure(lib)
     if(m == null) {
         return HRESULT_FROM_WIN32(ERROR_MOD_NOT_FOUND)
@@ -633,7 +644,8 @@ func loader_get_browser_version(lib : *mut HMODULE, browser_dir : LPCWSTR, versi
         return E_FAIL
     }
     return fn(browser_dir, version)
-}
+
+        }}
 
 // ===========================================================================
 // com_handler: one object implementing env + ctrl + permission interfaces
@@ -659,22 +671,29 @@ public struct Webview2ComHandler {
 
 // env_vtbl is member 0, so the env interface pointer IS the handler pointer.
 func handler_from_env(s : *mut ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler) : *mut Webview2ComHandler {
+        unsafe {
     return s as *mut Webview2ComHandler
-}
+
+        }}
 
 func handler_from_ctrl(s : *mut ICoreWebView2CreateCoreWebView2ControllerCompletedHandler) : *mut Webview2ComHandler {
+        unsafe {
     // the ctrl interface pointer is the address of the ctrl_vtbl field
     var base = s as *mut char
     return (base - (offsetof(Webview2ComHandler, ctrl_vtbl) as bigint)) as *mut Webview2ComHandler
-}
+
+        }}
 
 func handler_from_perm(s : *mut ICoreWebView2PermissionRequestedEventHandler) : *mut Webview2ComHandler {
+        unsafe {
     // the perm interface pointer is the address of the perm_vtbl field
     var base = s as *mut char
     return (base - (offsetof(Webview2ComHandler, perm_vtbl) as bigint)) as *mut Webview2ComHandler
-}
+
+        }}
 
 func handler_qi(h : *mut Webview2ComHandler, riid : REFIID, ppv : *mut *mut void) : HRESULT {
+        unsafe {
     if(ppv == null) {
         return E_POINTER
     }
@@ -695,15 +714,19 @@ func handler_qi(h : *mut Webview2ComHandler, riid : REFIID, ppv : *mut *mut void
     }
     *ppv = null
     return E_NOINTERFACE
-}
+
+        }}
 
 func env_addref(s : *mut ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler) : ULONG {
+        unsafe {
     var h = handler_from_env(s)
     h.ref_count += 1
     return h.ref_count
-}
+
+        }}
 
 func env_release(s : *mut ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler) : ULONG {
+        unsafe {
     var h = handler_from_env(s)
     if(h.ref_count > 1) {
         h.ref_count -= 1
@@ -711,13 +734,17 @@ func env_release(s : *mut ICoreWebView2CreateCoreWebView2EnvironmentCompletedHan
     }
     free(h as *mut void)
     return 0
-}
+
+        }}
 
 func env_qi(s : *mut ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler, riid : REFIID, ppv : *mut *mut void) : HRESULT {
+        unsafe {
     return handler_qi(handler_from_env(s), riid, ppv)
-}
+
+        }}
 
 func env_invoke(s : *mut ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler, res : HRESULT, env : *mut ICoreWebView2Environment) : HRESULT {
+        unsafe {
     var h = handler_from_env(s)
     if(SUCCEEDED(res)) {
         res = env.lpVtbl.CreateCoreWebView2Controller(
@@ -731,15 +758,19 @@ func env_invoke(s : *mut ICoreWebView2CreateCoreWebView2EnvironmentCompletedHand
     }
     handler_try_create_environment(h)
     return S_OK
-}
+
+        }}
 
 func ctrl_addref(s : *mut ICoreWebView2CreateCoreWebView2ControllerCompletedHandler) : ULONG {
+        unsafe {
     var h = handler_from_ctrl(s)
     h.ref_count += 1
     return h.ref_count
-}
+
+        }}
 
 func ctrl_release(s : *mut ICoreWebView2CreateCoreWebView2ControllerCompletedHandler) : ULONG {
+        unsafe {
     var h = handler_from_ctrl(s)
     if(h.ref_count > 1) {
         h.ref_count -= 1
@@ -747,13 +778,17 @@ func ctrl_release(s : *mut ICoreWebView2CreateCoreWebView2ControllerCompletedHan
     }
     free(h as *mut void)
     return 0
-}
+
+        }}
 
 func ctrl_qi(s : *mut ICoreWebView2CreateCoreWebView2ControllerCompletedHandler, riid : REFIID, ppv : *mut *mut void) : HRESULT {
+        unsafe {
     return handler_qi(handler_from_ctrl(s), riid, ppv)
-}
+
+        }}
 
 func ctrl_invoke(s : *mut ICoreWebView2CreateCoreWebView2ControllerCompletedHandler, res : HRESULT, controller : *mut ICoreWebView2Controller) : HRESULT {
+        unsafe {
     var h = handler_from_ctrl(s)
     if(FAILED(res)) {
         // See handler_try_create_environment() regarding
@@ -777,15 +812,19 @@ func ctrl_invoke(s : *mut ICoreWebView2CreateCoreWebView2ControllerCompletedHand
 
     h.cb(h.cb_ctx, controller, webview)
     return S_OK
-}
+
+        }}
 
 func perm_addref(s : *mut ICoreWebView2PermissionRequestedEventHandler) : ULONG {
+        unsafe {
     var h = handler_from_perm(s)
     h.ref_count += 1
     return h.ref_count
-}
+
+        }}
 
 func perm_release(s : *mut ICoreWebView2PermissionRequestedEventHandler) : ULONG {
+        unsafe {
     var h = handler_from_perm(s)
     if(h.ref_count > 1) {
         h.ref_count -= 1
@@ -793,20 +832,25 @@ func perm_release(s : *mut ICoreWebView2PermissionRequestedEventHandler) : ULONG
     }
     free(h as *mut void)
     return 0
-}
+
+        }}
 
 func perm_qi(s : *mut ICoreWebView2PermissionRequestedEventHandler, riid : REFIID, ppv : *mut *mut void) : HRESULT {
+        unsafe {
     return handler_qi(handler_from_perm(s), riid, ppv)
-}
+
+        }}
 
 func perm_invoke(s : *mut ICoreWebView2PermissionRequestedEventHandler, sender : *mut ICoreWebView2, args : *mut ICoreWebView2PermissionRequestedEventArgs) : HRESULT {
+        unsafe {
     var kind : int = 0
     args.lpVtbl.get_PermissionKind(args, &raw mut kind)
     if(kind == PERMISSION_KIND_CLIPBOARD_READ) {
         args.lpVtbl.put_State(args, PERMISSION_STATE_ALLOW)
     }
     return S_OK
-}
+
+        }}
 
 public const g_env_vtbl : ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandlerVtbl = ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandlerVtbl {
     QueryInterface : env_qi,
@@ -831,6 +875,7 @@ public const g_perm_vtbl : ICoreWebView2PermissionRequestedEventHandlerVtbl = IC
 
 // Retry creating a WebView2 environment.
 func handler_try_create_environment(h : *mut Webview2ComHandler) {
+        unsafe {
     // WebView creation fails with HRESULT_FROM_WIN32(ERROR_INVALID_STATE) if a
     // running instance using the same user data folder exists, and the
     // Environment objects have different EnvironmentOptions.
@@ -849,7 +894,8 @@ func handler_try_create_environment(h : *mut Webview2ComHandler) {
     }
     // Give up.
     h.cb(h.cb_ctx, null, null)
-}
+
+        }}
 
 // ===========================================================================
 // the webview engine
@@ -905,6 +951,7 @@ public struct WebView {
 
     @make
     func make() : WebView {
+        unsafe {
         var wv : WebView
         memset(&raw mut wv, 0, sizeof(WebView))
         wv.win = window::Window.make()
@@ -913,12 +960,14 @@ public struct WebView {
         wv.height = 600
         wv.pending_js_call = string("")
         return wv
-    }
+
+        }}
 }
 
 // ---- window procedures ----
 
 func wv_widget_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT {
+        unsafe {
     var wv = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut WebView
     if(msg == WM_NCCREATE) {
         var cs = lp as *mut CREATESTRUCTW
@@ -967,26 +1016,31 @@ func wv_widget_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT
         }
     }
     return 0
-}
+
+        }}
 
 // ---- standalone window callbacks (the top-level window lives in the window
 //      library; these keep the widget filling its client area and forward
 //      focus to the webview) ----
 
 func wv_win_resize_cb(data : *mut void, width : int, height : int) {
+        unsafe {
     var wv = data as *mut WebView
     if(wv != null && wv.widget != null) {
         MoveWindow(wv.widget, 0, 0, width, height, 1)
         wv_resize_webview(wv)
     }
-}
+
+        }}
 
 func wv_win_focus_cb(data : *mut void, focused : bool) {
+        unsafe {
     var wv = data as *mut WebView
     if(wv != null && focused && wv.controller != null) {
         wv.controller.lpVtbl.MoveFocus(wv.controller, MOVE_FOCUS_REASON_PROGRAMMATIC)
     }
-}
+
+        }}
 
 // ---- embed mode: subclassing the app-owned parent window ----
 
@@ -998,17 +1052,20 @@ var g_embed_prop_name : [32]ushort
 var g_embed_prop_ready : int = 0
 
 func wv_ensure_embed_prop_name() {
+        unsafe {
     if(g_embed_prop_ready == 0) {
         widen_to_buf("chem_webview_embed", &raw mut g_embed_prop_name[0], 32)
         g_embed_prop_ready = 1
     }
-}
+
+        }}
 
 // Subclass window proc installed on the embed parent window. It keeps the
 // webview widget pinned to its section (wv.bounds) when the parent is resized
 // and, on WM_NCDESTROY, restores the parent's original window proc and removes
 // the webview property before forwarding the message.
 func wv_embed_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT {
+        unsafe {
     var wv = GetPropW(hwnd, &raw g_embed_prop_name[0]) as *mut WebView
     if(wv == null) {
         return DefWindowProcW(hwnd, msg, wp, lp)
@@ -1048,15 +1105,18 @@ func wv_embed_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT 
         return CallWindowProcW(wv.parent_wndproc as WNDPROC, hwnd, msg, wp, lp)
     }
     return DefWindowProcW(hwnd, msg, wp, lp)
-}
+
+        }}
 
 func wv_attach_subclass(wv : *mut WebView) {
+        unsafe {
     wv_ensure_embed_prop_name()
     var parent_hwnd = wv.parent.hwnd
     wv.parent_wndproc = GetWindowLongPtrW(parent_hwnd, GWLP_WNDPROC)
     SetPropW(parent_hwnd, &raw g_embed_prop_name[0], wv as HANDLE)
     SetWindowLongPtrW(parent_hwnd, GWLP_WNDPROC, wv_embed_proc as LONG_PTR)
-}
+
+        }}
 
 // ---- embed context + callbacks ----
 
@@ -1068,6 +1128,7 @@ public struct EmbedCtx {
 }
 
 func embed_acquired_cb(ctx : *mut void, controller : *mut ICoreWebView2Controller, webview : *mut ICoreWebView2) {
+        unsafe {
     var ec = ctx as *mut EmbedCtx
     if(controller == null || webview == null) {
         ec.done = 1
@@ -1078,9 +1139,11 @@ func embed_acquired_cb(ctx : *mut void, controller : *mut ICoreWebView2Controlle
     ec.wv.controller = controller
     ec.wv.webview = webview
     ec.done = 1
-}
+
+        }}
 
 func embed_attempt_handler(ctx : *mut void) : HRESULT {
+        unsafe {
     var ec = ctx as *mut EmbedCtx
     return loader_create_environment(
         &raw mut ec.wv.loader_lib,
@@ -1089,10 +1152,12 @@ func embed_attempt_handler(ctx : *mut void) : HRESULT {
         null,
         &raw ec.handler.env_vtbl as *mut ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler
     )
-}
+
+        }}
 
 // UTF-8 narrow string -> UTF-16 buffer (truncated safely if too small).
 func widen_to_buf(utf8 : *char, buf : *mut ushort, cap : size_t) {
+        unsafe {
     if(buf == null || cap == 0) {
         return
     }
@@ -1100,13 +1165,15 @@ func widen_to_buf(utf8 : *char, buf : *mut ushort, cap : size_t) {
     if(n <= 0) {
         buf[0] = 0
     }
-}
+
+        }}
 
 // UTF-8 narrow string -> newly allocated UTF-16 buffer. Returns null on failure.
 // Unlike widen_to_buf this is not bounded by a fixed capacity, so large bridge
 // replies (e.g. a serialized video-info payload) survive intact. The caller owns
 // the returned buffer and must free it.
 func widen_alloc(utf8 : *char) : *mut ushort {
+        unsafe {
     if(utf8 == null) {
         return null
     }
@@ -1120,9 +1187,11 @@ func widen_alloc(utf8 : *char) : *mut ushort {
     }
     MultiByteToWideChar(65001, 0, utf8, -1, buf, needed)
     return buf
-}
+
+        }}
 
 func wv_embed(wv : *mut WebView, debug : int) : int {
+        unsafe {
     var ec = zeroed<EmbedCtx>()
     ec.wv = wv
 
@@ -1205,16 +1274,19 @@ func wv_embed(wv : *mut WebView, debug : int) : int {
         wv.controller.lpVtbl.MoveFocus(wv.controller, MOVE_FOCUS_REASON_PROGRAMMATIC)
     }
     return 0
-}
+
+        }}
 
 func wv_resize_webview(wv : *mut WebView) {
+        unsafe {
     if(wv.widget != null && wv.controller != null) {
         var bounds : RECT
         if(GetClientRect(wv.widget, &raw mut bounds)) {
             wv.controller.lpVtbl.put_Bounds(wv.controller, bounds)
         }
     }
-}
+
+        }}
 
 // ===========================================================================
 // evaluate_js result handler (ICoreWebView2ExecuteScriptCompletedHandler)
@@ -1230,11 +1302,14 @@ public struct JsEvalHandler {
 }
 
 func js_handler_from_iface(s : *mut ICoreWebView2ExecuteScriptCompletedHandler) : *mut JsEvalHandler {
+        unsafe {
     return s as *mut JsEvalHandler
-}
+
+        }}
 
 // Convert a UTF-16 result string to a malloc'd UTF-8 copy (caller frees).
 func js_result_to_utf8(wide : LPCWSTR) : *mut char {
+        unsafe {
     if(wide == null) {
         return null
     }
@@ -1248,9 +1323,11 @@ func js_result_to_utf8(wide : LPCWSTR) : *mut char {
     }
     WideCharToMultiByte(65001, 0, wide as *u16, -1, buf, needed, null, null)
     return buf
-}
+
+        }}
 
 func js_qi(s : *mut ICoreWebView2ExecuteScriptCompletedHandler, riid : REFIID, ppv : *mut *mut void) : HRESULT {
+        unsafe {
     if(ppv == null) {
         return E_POINTER
     }
@@ -1258,15 +1335,19 @@ func js_qi(s : *mut ICoreWebView2ExecuteScriptCompletedHandler, riid : REFIID, p
     *ppv = s as *mut void
     h.ref_count += 1
     return S_OK
-}
+
+        }}
 
 func js_addref(s : *mut ICoreWebView2ExecuteScriptCompletedHandler) : ULONG {
+        unsafe {
     var h = js_handler_from_iface(s)
     h.ref_count += 1
     return h.ref_count
-}
+
+        }}
 
 func js_release(s : *mut ICoreWebView2ExecuteScriptCompletedHandler) : ULONG {
+        unsafe {
     var h = js_handler_from_iface(s)
     if(h.ref_count > 1) {
         h.ref_count -= 1
@@ -1274,9 +1355,11 @@ func js_release(s : *mut ICoreWebView2ExecuteScriptCompletedHandler) : ULONG {
     }
     free(h as *mut void)
     return 0
-}
+
+        }}
 
 func js_invoke(s : *mut ICoreWebView2ExecuteScriptCompletedHandler, res : HRESULT, resultJson : LPCWSTR) : HRESULT {
+        unsafe {
     var h = js_handler_from_iface(s)
     if(h.cb != null) {
         if(SUCCEEDED(res) && resultJson != null) {
@@ -1292,7 +1375,8 @@ func js_invoke(s : *mut ICoreWebView2ExecuteScriptCompletedHandler, res : HRESUL
         }
     }
     return S_OK
-}
+
+        }}
 
 public const g_js_vtbl : ICoreWebView2ExecuteScriptCompletedHandlerVtbl = ICoreWebView2ExecuteScriptCompletedHandlerVtbl {
     QueryInterface : js_qi,
@@ -1309,14 +1393,16 @@ public const g_js_vtbl : ICoreWebView2ExecuteScriptCompletedHandlerVtbl = ICoreW
 // and a global _resolve callback (called via ExecuteScript from native)
 // to receive results back. No prompt() dialogs.
 // The native side calls: ExecuteScript("window.__webview__.onReply(id, status, result_json)")
-const WEBVIEW_BRIDGE_JS : *char = """(function(){'use strict';function generateId(){var c=window.crypto||window.msCrypto;var b=new Uint8Array(16);c.getRandomValues(b);return Array.prototype.slice.call(b).map(function(n){var s=n.toString(16);return((s.length%2)==1?'0':'')+s;}).join('');}var Webview=(function(){var _p={};function W(){}W.prototype.post=function(m){return window.chrome.webview.postMessage(m);};W.prototype.call=function(method){var _id=generateId();var _params=Array.prototype.slice.call(arguments,1);var promise=new Promise(function(resolve,reject){_p[_id]={resolve:resolve,reject:reject};});this.post(JSON.stringify({id:_id,method:method,params:_params}));return promise;};W.prototype.onReply=function(id,status,result){var promise=_p[id];if(result!==undefined){try{result=JSON.parse(result);}catch(e){promise.reject(new Error("Failed to parse binding result as JSON"));return;}}if(status===0){promise.resolve(result);}else{promise.reject(result);}};W.prototype.onBind=function(name){if(window.hasOwnProperty(name)){throw new Error('Property "'+name+'" already exists');}window[name]=(function(){var params=[name].concat(Array.prototype.slice.call(arguments));return W.prototype.call.apply(this,params);}).bind(this);};W.prototype.onUnbind=function(name){if(!window.hasOwnProperty(name)){throw new Error('Property "'+name+'" does not exist');}delete window[name];};return W;})();window.__webview__=new Webview();window.webview_bridge=window.__webview__;})()"""
+comptime const WEBVIEW_BRIDGE_JS : *char = """(function(){'use strict';function generateId(){var c=window.crypto||window.msCrypto;var b=new Uint8Array(16);c.getRandomValues(b);return Array.prototype.slice.call(b).map(function(n){var s=n.toString(16);return((s.length%2)==1?'0':'')+s;}).join('');}var Webview=(function(){var _p={};function W(){}W.prototype.post=function(m){return window.chrome.webview.postMessage(m);};W.prototype.call=function(method){var _id=generateId();var _params=Array.prototype.slice.call(arguments,1);var promise=new Promise(function(resolve,reject){_p[_id]={resolve:resolve,reject:reject};});this.post(JSON.stringify({id:_id,method:method,params:_params}));return promise;};W.prototype.onReply=function(id,status,result){var promise=_p[id];if(result!==undefined){try{result=JSON.parse(result);}catch(e){promise.reject(new Error("Failed to parse binding result as JSON"));return;}}if(status===0){promise.resolve(result);}else{promise.reject(result);}};W.prototype.onBind=function(name){if(window.hasOwnProperty(name)){throw new Error('Property "'+name+'" already exists');}window[name]=(function(){var params=[name].concat(Array.prototype.slice.call(arguments));return W.prototype.call.apply(this,params);}).bind(this);};W.prototype.onUnbind=function(name){if(!window.hasOwnProperty(name)){throw new Error('Property "'+name+'" does not exist');}delete window[name];};return W;})();window.__webview__=new Webview();window.webview_bridge=window.__webview__;})()"""
 
 // Heap-allocated holder for a bound JS<->native handler (same pattern as linux.ch).
 public struct JsBindHolder {
     var handler : JsBindHandler
     func set(&mut self, handler_ : JsBindHandler) {
+        unsafe {
         self.handler = handler_
-    }
+
+        }}
 }
 
 // WebMessageReceived COM handler — dispatches bridge postMessage() calls to the
@@ -1329,10 +1415,13 @@ public struct WebMessageHandler {
 }
 
 func wmh_from_iface(s : *mut ICoreWebView2WebMessageReceivedEventHandler) : *mut WebMessageHandler {
+        unsafe {
     return s as *mut WebMessageHandler
-}
+
+        }}
 
 func wmh_qi(s : *mut ICoreWebView2WebMessageReceivedEventHandler, riid : REFIID, ppv : *mut *mut void) : HRESULT {
+        unsafe {
     if(ppv == null) {
         return E_POINTER
     }
@@ -1340,15 +1429,19 @@ func wmh_qi(s : *mut ICoreWebView2WebMessageReceivedEventHandler, riid : REFIID,
     *ppv = s as *mut void
     h.ref_count += 1
     return S_OK
-}
+
+        }}
 
 func wmh_addref(s : *mut ICoreWebView2WebMessageReceivedEventHandler) : ULONG {
+        unsafe {
     var h = wmh_from_iface(s)
     h.ref_count += 1
     return h.ref_count
-}
+
+        }}
 
 func wmh_release(s : *mut ICoreWebView2WebMessageReceivedEventHandler) : ULONG {
+        unsafe {
     var h = wmh_from_iface(s)
     if(h.ref_count > 1) {
         h.ref_count -= 1
@@ -1356,11 +1449,13 @@ func wmh_release(s : *mut ICoreWebView2WebMessageReceivedEventHandler) : ULONG {
     }
     free(h as *mut void)
     return 0
-}
+
+        }}
 
 // === JSON helpers (ported from webview/webview json.hh) =====================
 // Escape a string into a JSON string literal (with surrounding quotes).
 func webview_json_escape(s : std::string_view) : string {
+        unsafe {
     var result = string("\"")
     var i : size_t = 0
     while(i < s.size()) {
@@ -1392,12 +1487,14 @@ func webview_json_escape(s : std::string_view) : string {
     }
     result.append('"')
     return result
-}
+
+        }}
 
 // Parse the value for `key` out of a JSON object. Returns the unescaped content
 // for quoted string values, or the raw text for arrays/objects/numbers. Returns
 // "" if the key is not found.
 func webview_json_parse(msg : std::string_view, key : std::string_view) : string {
+        unsafe {
     // Build needle: "key": (with both quotes around the key)
     var needle = string("\"")
     needle.append_view(&key)
@@ -1454,12 +1551,14 @@ func webview_json_parse(msg : std::string_view, key : std::string_view) : string
         j = j + 1
     }
     return out
-}
+
+        }}
 
 // WebMessageReceived callback. The JS bridge posts JSON like
 // {"id":"...","method":"name","params":[...]}. We parse it, call the
 // bound handler, and resolve the call via window.__webview__.onReply(id, 0, result).
 func wmh_invoke(s : *mut ICoreWebView2WebMessageReceivedEventHandler, sender : *mut ICoreWebView2, args : *mut ICoreWebView2WebMessageReceivedEventArgs) : HRESULT {
+        unsafe {
     var h = wmh_from_iface(s)
     var wv = h.wv
     if(!wv.bind_handler_set || wv.bind_ctx == null) {
@@ -1517,7 +1616,8 @@ func wmh_invoke(s : *mut ICoreWebView2WebMessageReceivedEventHandler, sender : *
 
     free(msg_utf8 as *mut void)
     return S_OK
-}
+
+        }}
 
 public const g_wmh_vtbl : ICoreWebView2WebMessageReceivedEventHandlerVtbl = ICoreWebView2WebMessageReceivedEventHandlerVtbl {
     QueryInterface : wmh_qi,
@@ -1530,19 +1630,22 @@ public const g_wmh_vtbl : ICoreWebView2WebMessageReceivedEventHandlerVtbl = ICor
 // Uses AddScriptToExecuteOnDocumentCreated so the script runs before any
 // page script executes. It is harmless when no handler is bound yet.
 func wv_inject_bridge(wv : *mut WebView) {
+        unsafe {
     if(wv.webview == null) {
         return
     }
     var js_buf : [8192]ushort
     widen_to_buf(WEBVIEW_BRIDGE_JS, &raw mut js_buf[0], 8192)
     wv.webview.lpVtbl.AddScriptToExecuteOnDocumentCreated(wv.webview, &raw js_buf[0], null)
-}
+
+        }}
 
 // ===========================================================================
 // public API (matches posix/linux.ch exactly)
 // ===========================================================================
 
 public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewError> {
+        unsafe {
     var err = wv_init(wv, 0)
     if(err != 0) {
         var msg = string("")
@@ -1567,7 +1670,8 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
     wv.initialized = true
     wv_inject_bridge(wv)
     return std::Result.Ok(std::Unit{})
-}
+
+        }}
 
 // ===========================================================================
 // public API: embed the webview into a section of an existing app window
@@ -1593,6 +1697,7 @@ public func webview_attach(
     width : int,
     height : int
 ) : std::Result<std::Unit, WebViewError> {
+        unsafe {
     if(parent == null) {
         return std.Result.Err(WebViewError.InitFailed(string("webview_attach: parent window is null")))
     }
@@ -1616,11 +1721,13 @@ public func webview_attach(
     wv.initialized = true
     wv_inject_bridge(wv)
     return std.Result.Ok(std::Unit{})
-}
+
+        }}
 
 // Move/resize the webview section inside the attached parent window (in the
 // parent's client coordinates). No-op in standalone mode.
 public func webview_set_bounds(wv : *mut WebView, x : int, y : int, width : int, height : int) {
+        unsafe {
     if(!wv.attached) {
         return
     }
@@ -1629,13 +1736,15 @@ public func webview_set_bounds(wv : *mut WebView, x : int, y : int, width : int,
         MoveWindow(wv.widget, x, y, width, height, 1)
         wv_resize_webview(wv)
     }
-}
+
+        }}
 
 // Returns 0 on success, negative error code otherwise.
 // NOTE: `wv` is expected to be created via WebView.make(), so all fields are
 // already initialized (a memset here would wipe the title/width/height fields
 // set by make()).
 func wv_init(wv : *mut WebView, debug : int) : int {
+        unsafe {
     // Verify the WebView2 runtime is available (via the loader).
     var version_info : LPWSTR = null
     var hr = loader_get_browser_version(&raw mut wv.loader_lib, null, &raw mut version_info)
@@ -1736,7 +1845,8 @@ func wv_init(wv : *mut WebView, debug : int) : int {
     }
 
     return wv_embed(wv, debug)
-}
+
+        }}
 
 // Re-store the current WebView pointer as user data on both HWNDs.
 // Must be called before any operation that can trigger window messages
@@ -1744,6 +1854,7 @@ func wv_init(wv : *mut WebView, debug : int) : int {
 // which returns the struct by value — the HWNDs still hold a pointer to the
 // original stack frame inside create() which becomes stale after the return.
 public func webview_rebind(wv : *mut WebView) {
+        unsafe {
     if(!wv.initialized) { return }
     // Re-store the Window pointer on the top-level HWND so that
     // win_window_proc reads the correct Window (and its resize/focus callbacks
@@ -1757,37 +1868,49 @@ public func webview_rebind(wv : *mut WebView) {
     if(wv.widget != null) {
         SetWindowLongPtrW(wv.widget, GWLP_USERDATA, wv as LONG_PTR)
     }
-}
+
+        }}
 
 public func webview_run(wv : *mut WebView) {
+        unsafe {
     webview_rebind(wv)
     window::window_run()
-}
+
+        }}
 
 // Like webview_run, but the message loop also drives the async executor, so
 // tasks submitted with `async::spawn_local` are polled on the UI thread.
 public func webview_run_async(wv : *mut WebView) {
+        unsafe {
     webview_rebind(wv)
     window::window_run_async()
-}
+
+        }}
 
 public func webview_stop(wv : *mut WebView) {
+        unsafe {
     window::window_quit()
-}
+
+        }}
 
 public func webview_title(wv : *mut WebView) : string {
+        unsafe {
     return wv.title.copy()
-}
+
+        }}
 
 public func webview_set_title(wv : *mut WebView, title : *char) {
+        unsafe {
     wv.title = string("")
     wv.title.append_char_ptr(title)
     if(!wv.attached && window::window_is_created(&raw mut wv.win)) {
         window::window_set_title(&raw mut wv.win, title)
     }
-}
+
+        }}
 
 func wv_set_size(wv : *mut WebView, width : int, height : int, hints : int) {
+        unsafe {
     if(wv.attached) {
         // embed mode: the section size is managed via webview_set_bounds
         return
@@ -1807,16 +1930,20 @@ func wv_set_size(wv : *mut WebView, width : int, height : int, hints : int) {
     } else {
         window::window_set_size(&raw mut wv.win, width, height)
     }
-}
+
+        }}
 
 public func webview_set_size(wv : *mut WebView, width : int, height : int) {
+        unsafe {
     wv.width = width
     wv.height = height
     webview_rebind(wv)
     wv_set_size(wv, width, height, WV_HINT_NONE)
-}
+
+        }}
 
 public func webview_show(wv : *mut WebView) {
+        unsafe {
     webview_rebind(wv)
     if(wv.attached) {
         // embed mode: the app owns the parent window; just make sure the
@@ -1831,9 +1958,11 @@ public func webview_show(wv : *mut WebView) {
         window::window_focus(&raw mut wv.win)
         wv.visible = true
     }
-}
+
+        }}
 
 public func webview_hide(wv : *mut WebView) {
+        unsafe {
     wv.visible = false
     if(wv.attached) {
         if(wv.widget != null) {
@@ -1842,9 +1971,11 @@ public func webview_hide(wv : *mut WebView) {
     } else if(window::window_is_created(&raw mut wv.win)) {
         window::window_hide(&raw mut wv.win)
     }
-}
+
+        }}
 
 public func webview_load_url(wv : *mut WebView, url : *char) {
+        unsafe {
     if(wv.webview == null) {
         return
     }
@@ -1854,9 +1985,11 @@ public func webview_load_url(wv : *mut WebView, url : *char) {
         wv.webview.lpVtbl.Navigate(wv.webview, wbuf)
         free(wbuf as *mut void)
     }
-}
+
+        }}
 
 public func webview_evaluate_js(wv : *mut WebView, js : *char) {
+        unsafe {
     if(wv.webview == null) {
         return
     }
@@ -1867,7 +2000,8 @@ public func webview_evaluate_js(wv : *mut WebView, js : *char) {
         wv.webview.lpVtbl.ExecuteScript(wv.webview, wbuf, null)
         free(wbuf as *mut void)
     }
-}
+
+        }}
 
 // Evaluate JavaScript and receive the result through an asynchronous callback.
 // `result` is a JSON-encoded string (WebView2's ExecuteScript result — e.g. a
@@ -1881,6 +2015,7 @@ public func webview_evaluate_js_result(
     cb : JsResultCallback,
     user_data : *mut void
 ) {
+        unsafe {
     if(wv.webview == null) {
         return
     }
@@ -1911,9 +2046,11 @@ public func webview_evaluate_js_result(
         // WebView2 never accepted the handler — drop our implied reference.
         js_release(&raw h.vtbl as *mut ICoreWebView2ExecuteScriptCompletedHandler)
     }
-}
+
+        }}
 
 public func webview_load_html(wv : *mut WebView, html : *char) {
+        unsafe {
     if(wv.webview == null) {
         return
     }
@@ -1925,9 +2062,11 @@ public func webview_load_html(wv : *mut WebView, html : *char) {
         wv.webview.lpVtbl.NavigateToString(wv.webview, wbuf)
         free(wbuf as *mut void)
     }
-}
+
+        }}
 
 public func webview_destroy(wv : *mut WebView) {
+        unsafe {
     wv.initialized = false
     wv.visible = false
     if(wv.bind_ctx != null) {
@@ -1973,7 +2112,8 @@ public func webview_destroy(wv : *mut WebView) {
         wv.loader_lib = null
     }
     CoUninitialize()
-}
+
+        }}
 
 // Access the webview's underlying window (from the window library). In
 // standalone mode this is the top-level window the webview created; in embed
@@ -1981,11 +2121,13 @@ public func webview_destroy(wv : *mut WebView) {
 // native UI with the webview: add controls, handle callbacks, set title/size,
 // etc. — all through the window library's API.
 public func webview_window(wv : *mut WebView) : *mut window::Window {
+        unsafe {
     if(wv.attached && wv.parent != null) {
         return wv.parent
     }
     return &raw mut wv.win
-}
+
+        }}
 
 // Bind a native handler to the JS window.__webview__.call(method, ...params).
 // The handler runs on the UI thread (inside the message loop) and its JSON
@@ -1994,6 +2136,7 @@ public func webview_window(wv : *mut WebView) : *mut window::Window {
 // On Windows this uses chrome.webview.postMessage() / WebMessageReceived —
 // the standard WebView2 bidirectional messaging API (no prompt() dialogs).
 public func webview_bind(wv : *mut WebView, handler : JsBindHandler) : std::Result<std::Unit, WebViewError> {
+        unsafe {
     if(wv.webview == null) {
         return std.Result.Err(WebViewError.InitFailed(string("webview_bind: webview is not initialized")))
     }
@@ -2026,7 +2169,8 @@ public func webview_bind(wv : *mut WebView, handler : JsBindHandler) : std::Resu
         return std.Result.Err(WebViewError.InitFailed(string("webview_bind: could not register message handler")))
     }
     return std.Result.Ok(std::Unit{})
-}
+
+        }}
 
 // ===========================================================================
 // New API features
@@ -2035,25 +2179,30 @@ public func webview_bind(wv : *mut WebView, handler : JsBindHandler) : std::Resu
 // Schedule a function to run on the UI thread. Thread-safe: can be called
 // from any thread. The function runs inside the next message-loop iteration.
 public func webview_dispatch(wv : *mut WebView, fn : DispatchCallback, arg : *mut void) {
+        unsafe {
     if(wv.widget == null || wv.dispatch_count >= 16) { return }
     var idx = wv.dispatch_count
     wv.dispatch_fns[idx] = fn
     wv.dispatch_args[idx] = arg
     wv.dispatch_count = idx + 1
     PostMessageW(wv.widget, WM_WV_APP, 0, 0)
-}
+
+        }}
 
 // Set window size with a hint controlling how width/height are interpreted.
 public func webview_set_size_hints(wv : *mut WebView, width : int, height : int, hint : int) {
+        unsafe {
     wv.width = width
     wv.height = height
     webview_rebind(wv)
     wv_set_size(wv, width, height, hint)
-}
+
+        }}
 
 // Inject JavaScript that runs on every page load (before window.onload).
 // Unlike evaluate_js which runs once, init scripts persist across navigations.
 public func webview_init(wv : *mut WebView, js : *char) {
+        unsafe {
     if(wv.webview == null) { return }
     // Exact-sized buffer: init scripts can be arbitrarily large (e.g. a bundled
     // JS runtime) and must not be silently truncated.
@@ -2062,10 +2211,12 @@ public func webview_init(wv : *mut WebView, js : *char) {
         wv.webview.lpVtbl.AddScriptToExecuteOnDocumentCreated(wv.webview, wbuf, null)
         free(wbuf as *mut void)
     }
-}
+
+        }}
 
 // Remove a binding previously created with webview_bind.
 public func webview_unbind(wv : *mut WebView, name : *char) {
+        unsafe {
     if(wv.webview == null) { return }
     if(wv.bind_ctx != null) {
         delete wv.bind_ctx
@@ -2077,10 +2228,12 @@ public func webview_unbind(wv : *mut WebView, name : *char) {
     js.append_char_ptr(name)
     js.append_view(std::string_view::make_no_len("')}"))
     webview_evaluate_js(wv, js.data())
-}
+
+        }}
 
 // Respond to an async binding call from the JS side.
 public func webview_return(wv : *mut WebView, id : *char, status : int, result : *char) {
+        unsafe {
     if(wv.webview == null) { return }
     var id_len : size_t = 0
     while(id[id_len] != '\0' as char) { id_len = id_len + 1 }
@@ -2104,10 +2257,12 @@ public func webview_return(wv : *mut WebView, id : *char, status : int, result :
     }
     js.append_view(std::string_view::make_no_len(")"))
     webview_evaluate_js(wv, js.data())
-}
+
+        }}
 
 // Get a native handle by kind.
 public func webview_get_native_handle(wv : *mut WebView, kind : int) : *mut void {
+        unsafe {
     if(kind == NATIVE_HANDLE_WINDOW) {
         if(wv.attached && wv.parent != null) {
             return wv.parent.hwnd as *mut void
@@ -2121,12 +2276,15 @@ public func webview_get_native_handle(wv : *mut WebView, kind : int) : *mut void
         return wv.controller as *mut void
     }
     return null
-}
+
+        }}
 
 // Get the library version information.
 public func webview_version() : WebViewVersion {
+        unsafe {
     return WebViewVersion { major : 0, minor : 12, patch : 1 }
-}
+
+        }}
 
 // --- Native folder picker (Windows IFileOpenDialog COM) ---
 
@@ -2211,6 +2369,7 @@ var IID_IShellItem : GUID = GUID { Data1 : 0x43826D1E, Data2 : 0xE718, Data3 : 0
 
 // Show a native folder-picker dialog. Returns the selected path or empty string.
 public func webview_browse_folder(title : *char) : string {
+        unsafe {
     var dialogRaw : *mut void = null
     var hr = CoCreateInstance(&raw mut CLSID_FileOpenDialog, null, CLSCTX_INPROC_SERVER, &raw mut IID_IFileOpenDialog, &raw mut dialogRaw)
     if(!SUCCEEDED(hr) || dialogRaw == null) { return string() }
@@ -2246,7 +2405,8 @@ public func webview_browse_folder(title : *char) : string {
     item.vtbl.Release(item as *mut void)
     dialog.vtbl.Release(dialog as *mut void)
     return result
-}
+
+        }}
 
 } // end namespace webview
 

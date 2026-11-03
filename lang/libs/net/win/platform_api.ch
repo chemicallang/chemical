@@ -36,24 +36,50 @@ public namespace net {
     // comptime const OPEN_EXISTING = 3u;
 
     func startup() {
+        unsafe {
         // WSADATA is ~400 bytes, [32]char is too small and causes stack corruption
         var wsaData : [512]char;
         WSAStartup(0x202 as ushort, &raw mut wsaData[0]);
-    }
-    func cleanup() { WSACleanup() }
+
+        }}
+    func cleanup() {
+        unsafe { WSACleanup()
+        }}
 
     // wrappers
-    func sock_socket(af:int, typ:int, proto:int) : Socket { return socket(af, typ, proto) as Socket }
-    func sock_bind(s:Socket, addr:*char, addrlen:int) : int { return bind(s as uintptr_t, addr, addrlen) }
-    func sock_listen(s:Socket, backlog:int) : int { return listen(s as uintptr_t, backlog) }
-    func sock_connect(s:Socket, addr:*char, addrlen:int) : int { return connect(s as uintptr_t, addr, addrlen) }
-    func sock_accept(s:Socket, addr:*mut char, addrlen:*mut int) : Socket { return accept(s as uintptr_t, addr, addrlen) as Socket }
-    func sock_recv(s:Socket, buf:*mut char, len:int) : int { return recv(s as uintptr_t, buf, len, 0) }
-    func sock_send(s:Socket, buf:*char, len:int) : int { return send(s as uintptr_t, buf, len, 0) }
-    func sock_close(s:Socket) { closesocket(s as uintptr_t) }
-    func sock_setsockopt(s:Socket, level:int, optname:int, optval:*char, optlen:int) : int { return setsockopt(s as uintptr_t, level, optname, optval, optlen) }
-    func sock_getaddrinfo(node:*char, service:*char, hints:*mut char, res:*mut *mut char) : int { return getaddrinfo(node, service, hints, res) }
-    func sock_freeaddrinfo(res:*mut char) { freeaddrinfo(res) }
+    func sock_socket(af:int, typ:int, proto:int) : Socket {
+        unsafe { return socket(af, typ, proto) as Socket
+        }}
+    func sock_bind(s:Socket, addr:*char, addrlen:int) : int {
+        unsafe { return bind(s as uintptr_t, addr, addrlen)
+        }}
+    func sock_listen(s:Socket, backlog:int) : int {
+        unsafe { return listen(s as uintptr_t, backlog)
+        }}
+    func sock_connect(s:Socket, addr:*char, addrlen:int) : int {
+        unsafe { return connect(s as uintptr_t, addr, addrlen)
+        }}
+    func sock_accept(s:Socket, addr:*mut char, addrlen:*mut int) : Socket {
+        unsafe { return accept(s as uintptr_t, addr, addrlen) as Socket
+        }}
+    func sock_recv(s:Socket, buf:*mut char, len:int) : int {
+        unsafe { return recv(s as uintptr_t, buf, len, 0)
+        }}
+    func sock_send(s:Socket, buf:*char, len:int) : int {
+        unsafe { return send(s as uintptr_t, buf, len, 0)
+        }}
+    func sock_close(s:Socket) {
+        unsafe { closesocket(s as uintptr_t)
+        }}
+    func sock_setsockopt(s:Socket, level:int, optname:int, optval:*char, optlen:int) : int {
+        unsafe { return setsockopt(s as uintptr_t, level, optname, optval, optlen)
+        }}
+    func sock_getaddrinfo(node:*char, service:*char, hints:*mut char, res:*mut *mut char) : int {
+        unsafe { return getaddrinfo(node, service, hints, res)
+        }}
+    func sock_freeaddrinfo(res:*mut char) {
+        unsafe { freeaddrinfo(res)
+        }}
 
     // Windows poll stub (uses WSAPoll, but we accept with a simple timeout approach)
     public struct pollfd {
@@ -62,19 +88,25 @@ public namespace net {
         var revents: short
     }
     func sock_poll(fds:*mut pollfd, nfds:ulong, timeout:int): int {
+        unsafe {
         // Windows: just return 1 (data available) immediately since accept() blocks anyway
         // Proper implementation would use WSAPoll, but this is Windows-stub
         return 1
-    }
+
+        }}
 
     public func set_nonblocking(s: Socket) {
+        unsafe {
         var argp: u32 = 1u;
         ioctlsocket(s as uintptr_t, FIONBIO, &raw mut argp);
-    }
+
+        }}
 
     public func set_blocking(s: Socket) {
+        unsafe {
         var argp: u32 = 0u;
         ioctlsocket(s as uintptr_t, FIONBIO, &raw mut argp);
-    }
+
+        }}
 
 }

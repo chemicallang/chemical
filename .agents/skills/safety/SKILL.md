@@ -20,7 +20,7 @@ for the safe API surface we currently expose**, not full language parity.
 | Init / moves / drops | Implemented in MIR (`MIRMoveCheck`); local/parameter struct fields and whole-array fields are field-tracked; unsupported move shapes reject with `SAFE-MOVE-004` |
 | Borrows / lifetimes | Implemented for the enforceable surface (regions, NLL loans, storage lifetimes, return regions, variance, temporary extension, provenance, HRTB call regions) |
 | `Send` / `Sync` | Auto traits + explicit/negative impls + nested conditional generic impls; data-race primitives. Stdlib explicit impls audited (2026-11-02); the shared-reference Send rule now checks nested `!Sync` correctly (`lang/docs/safety/auto-traits-audit.md`). |
-| Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; target-aware by-value C ABI on x86-64 SysV, Windows x64, i386 SysV/Windows, ARM32 AAPCS (soft/hard-float), AArch64 AAPCS64 and Microsoft ARM64; unknown targets, variadic aggregate arguments, and un-auditable extern callback ABIs reject instead of guessing. i386 Windows safety check is clean for `cstd`/`std`/`fs`/`net`/`test`/`async`; `net/win` and `window/win` remain |
+| Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; target-aware by-value C ABI on x86-64 SysV, Windows x64, i386 SysV/Windows, ARM32 AAPCS (soft/hard-float), AArch64 AAPCS64 and Microsoft ARM64; unknown targets, variadic aggregate arguments, and un-auditable extern callback ABIs reject instead of guessing. i386 Windows safety check is clean for `cstd`/`std`/`fs`/`net`/`test`/`async`/`tls`/`window`/`webview` |
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
 | Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
@@ -41,14 +41,16 @@ Latest measured baseline:
 | TCC interpret | `1931/1931` |
 | `MIRTests` | `4749 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
-| Whole-tree audit | `unsafe_blocks 3775`, `unsafe_values 4915`, `raw_pointer_types 9370`, `raw_pointer_derefs 1073`, `panic_calls 113` |
+| Whole-tree audit | `unsafe_blocks 3780`, `unsafe_values 4921`, `raw_pointer_types 9371`, `raw_pointer_derefs 1073`, `panic_calls 113` |
 | Audit result | `no growth` against `lang/docs/safety/audit-baseline.json` |
 
 The audit totals increased from the historical `3661/4890` in the 2026-10-31
 audit because `SafetyReportVisitor` previously skipped **every**
 `ImplDefinition` body. It now walks impl bodies, so the larger number is the
 first honest whole-tree count, not a new unsafe-code regression. The async
-closure fixtures add a few audited raw C future-ABI sites.
+closure fixtures add a few audited raw C future-ABI sites. The latest
+`+5 unsafe_blocks / +6 unsafe_values` bump is the reviewed Windows platform
+migration (`net` Windows branches, `osrand` BCrypt, and the new target test).
 
 ## What is enforced (by domain)
 
@@ -380,10 +382,11 @@ memory safety.
    `.github/workflows/safety-audit.yml` runs `scripts/safety-audit.sh` on
    pull requests and `main`. The audit module list is host-platform-oriented.
    The i386 Windows target now passes a safety check for `cstd`, `std`, `fs`,
-   `net`, `test`, and `async` (including thread-local stdio caches, explicit
-   unsafe OS wrappers, and a duplicate Windows mutex declaration fix).
-   Windows `net/win` and `window/win` still need migration, and `--update`
-   remains a reviewed manual baseline change.
+   `net`, `test`, `async`, `tls`, `window`, and `webview` (including
+   thread-local stdio caches, explicit unsafe OS wrappers, a duplicate Windows
+   mutex declaration fix, and the 32-bit `size_t` file-length shift fix).
+   Remaining platform work is non-Windows OS-gated sources and integrating the
+   target audit into the baseline, which still uses a host-oriented module list.
 9. **Audit reporting details.**
    `SafetyReportVisitor` walks `ImplDefinition` bodies (previously skipped
    entirely) and now counts `unsafe func` / `unsafe impl` declarations as

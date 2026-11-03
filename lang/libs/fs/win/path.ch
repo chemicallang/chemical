@@ -3,6 +3,7 @@ public namespace fs {
 using std::Result;
 
 func canonicalize(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+        unsafe {
     // Windows: GetFullPathNameW
     var wtmp : [WIN_MAX_PATH]u16;
     var r = utf8_to_utf16(path, &raw mut wtmp[0], WIN_MAX_PATH as size_t);
@@ -22,6 +23,7 @@ func canonicalize(path : *char, out : *mut char, out_len : size_t) : Result<size
     }
     var Ok(n) = conv else unreachable
     return Result.Ok(n);
-}
+
+        }}
 
 }

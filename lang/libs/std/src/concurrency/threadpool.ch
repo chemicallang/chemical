@@ -44,7 +44,7 @@ public namespace std {
         public func hardware_threads() : usize {
             comptime if (def.windows) {
                 var info = zeroed<SYSTEM_INFO>()
-                GetSystemInfo(&raw info)
+                unsafe { GetSystemInfo(&raw info) }
                 return info.dwNumberOfProcessors as usize
             } else {
                 var n = unsafe(sysconf(_SC_NPROCESSORS_ONLN))
@@ -53,7 +53,7 @@ public namespace std {
         }
         public func sleep_ms(ms: ulong) {
             comptime if (def.windows) {
-                Sleep(ms as u32)
+                unsafe { Sleep(ms as u32) }
             } else {
                 unsafe { usleep((ms * 1000) as int) }
             }
@@ -62,7 +62,7 @@ public namespace std {
         unsafe func spawn_native(entry:(arg : *void) => *void,arg:*void) : usize {
             comptime if(def.windows){
                 var tid:ulong=0u;
-                return CreateThread(null,0u,entry,arg,0u,&raw mut tid) as usize
+                return unsafe(CreateThread(null,0u,entry,arg,0u,&raw mut tid)) as usize
             } else {
                 var th:usize=0u;
                 // musl defaults to a 128KB thread stack when RLIMIT_STACK is
@@ -83,8 +83,10 @@ public namespace std {
         }
         func join_native(h:usize){
             comptime if(def.windows){
-                WaitForSingleObject(h as HANDLE, 0xFFFFFFFFu);
-                CloseHandle(h as HANDLE)
+                unsafe {
+                    WaitForSingleObject(h as HANDLE, 0xFFFFFFFFu);
+                    CloseHandle(h as HANDLE);
+                }
             } else {
                 unsafe { pthread_join(h,null) }
             }

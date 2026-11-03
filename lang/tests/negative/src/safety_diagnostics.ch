@@ -1733,6 +1733,7 @@ func windows_i386_cstd_has_no_safety_diagnostics(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int { return 0 }\n"
     expect_compile_target_no_diagnostic(env, "windows_i386_cstd_safety", ch, "SAFE-", NEG_MOD_CSTD, "i386-pc-windows-msvc")
+    expect_compile_target_no_diagnostic(env, "windows_i386_libs_safety", ch, "SAFE-", NEG_MOD_WIN_LIBS, "i386-pc-windows-msvc")
 }
 
 @test

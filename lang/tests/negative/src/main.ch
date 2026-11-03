@@ -189,6 +189,8 @@ internal const NEG_MOD_CSTD = "module neg_test\nsource \".\"\nimport cstd\n"
 
 // variant that imports core so the `Copy` marker interface is in scope
 internal const NEG_MOD_CORE = "module neg_test\nsource \".\"\nimport core\n"
+// Windows-target platform audit: these modules contain OS-gated FFI wrappers.
+internal const NEG_MOD_WIN_LIBS = "application neg_test\nsource \".\"\nimport cstd\nimport std\nimport fs\nimport net\nimport test\n"
 internal const NEG_MOD_STD_CORE = "module neg_test\nsource \".\"\nimport std\nimport core\n"
 
 // an application importing the async protocol, so `async func main` gets its

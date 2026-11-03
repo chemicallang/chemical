@@ -8,7 +8,8 @@
 
 public namespace async {
 
-    public func pipe(fds : *mut int) : int {
+    public unsafe func pipe(fds : *mut int) : int {
+        unsafe {
         var read_handle : HANDLE = null
         var write_handle : HANDLE = null
         if(!CreatePipe(&raw mut read_handle, &raw mut write_handle, null, 0u as DWORD)) {
@@ -20,6 +21,7 @@ public namespace async {
             return -1
         }
         return 0
+        }
     }
 
 }
@@ -43,6 +45,7 @@ public namespace posix {
     comptime const POLLHUP : short = 16
 
     public func reactor_is_ready(fd : int, events : short) : bool {
+        unsafe {
         if(fd < 0) { return false }
         var handle = _get_osfhandle(fd) as HANDLE
         if(handle == null || handle == INVALID_HANDLE_VALUE) { return false }
@@ -65,6 +68,7 @@ public namespace posix {
         }
 
         return ready
+        }
     }
 
     // Windows has no persistent readiness registration: `reactor_platform_poll`
@@ -72,6 +76,7 @@ public namespace posix {
     public func reactor_platform_register(fd : int, events : short, is_new : bool) { }
 
     public func reactor_platform_poll(fds : *mut PollFd, n : ulong, timeout_ms : int) : int {
+        unsafe {
         var deadline : i64 = 0
         var has_timeout = timeout_ms > 0
         if(has_timeout) {
@@ -122,6 +127,7 @@ public namespace posix {
                 return 0
             }
             Sleep(1u as DWORD)
+        }
         }
     }
 

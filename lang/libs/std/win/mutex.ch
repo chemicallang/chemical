@@ -8,21 +8,21 @@ public namespace std {
         @constructor
         func constructor() {
             var m = mutex { storage : [] }
-            InitializeSRWLock(&raw mut m.storage[0])
+            unsafe { InitializeSRWLock(&raw mut m.storage[0]) }
             return m;
         }
 
         func lock(&mut self) {
-            AcquireSRWLockExclusive(&raw mut storage[0])
+            unsafe { AcquireSRWLockExclusive(&raw mut storage[0]) }
         }
 
         func try_lock(&mut self) : bool {
-            var r = TryAcquireSRWLockExclusive(&raw mut storage[0])
+            var r = unsafe(TryAcquireSRWLockExclusive(&raw mut storage[0]))
             return r != 0
         }
 
         func unlock(&mut self) {
-            ReleaseSRWLockExclusive(&raw mut storage[0])
+            unsafe { ReleaseSRWLockExclusive(&raw mut storage[0]) }
         }
     }
 

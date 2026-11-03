@@ -45,32 +45,32 @@ public namespace std {
         @constructor
         func constructor() {
             var l = rwlock { storage : [] }
-            InitializeSRWLock(&raw mut l.storage[0])
+            unsafe { InitializeSRWLock(&raw mut l.storage[0]) }
             return l
         }
 
         func read_lock(&mut self) {
-            AcquireSRWLockShared(&raw mut storage[0])
+            unsafe { AcquireSRWLockShared(&raw mut storage[0]) }
         }
 
         func try_read_lock(&mut self) : bool {
-            return TryAcquireSRWLockShared(&raw mut storage[0]) != 0
+            return unsafe(TryAcquireSRWLockShared(&raw mut storage[0])) != 0
         }
 
         func write_lock(&mut self) {
-            AcquireSRWLockExclusive(&raw mut storage[0])
+            unsafe { AcquireSRWLockExclusive(&raw mut storage[0]) }
         }
 
         func try_write_lock(&mut self) : bool {
-            return TryAcquireSRWLockExclusive(&raw mut storage[0]) != 0
+            return unsafe(TryAcquireSRWLockExclusive(&raw mut storage[0])) != 0
         }
 
         func read_unlock(&mut self) {
-            ReleaseSRWLockShared(&raw mut storage[0])
+            unsafe { ReleaseSRWLockShared(&raw mut storage[0]) }
         }
 
         func write_unlock(&mut self) {
-            ReleaseSRWLockExclusive(&raw mut storage[0])
+            unsafe { ReleaseSRWLockExclusive(&raw mut storage[0]) }
         }
     }
 }

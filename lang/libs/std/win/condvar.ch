@@ -33,13 +33,13 @@ public namespace std {
         func constructor() {
             var c = CondVar { storage : [] }
             // InitializeConditionVariable does not fail and requires no destroy.
-            InitializeConditionVariable(&raw mut c.storage[0])
+            unsafe { InitializeConditionVariable(&raw mut c.storage[0]) }
             return c;
         }
 
         // wait (blocking). Caller must hold mutex before calling.
         func wait(&mut self, mutex : &mut std::mutex) {
-            var ok = SleepConditionVariableSRW(&raw mut storage[0], &raw mut mutex.storage[0], 0xFFFFFFFFu, 0u) // INFINITE
+            var ok = unsafe(SleepConditionVariableSRW(&raw mut storage[0], &raw mut mutex.storage[0], 0xFFFFFFFFu, 0u)) // INFINITE
             if(ok == 0) {
                 panic("SleepConditionVariableSRW failed in wait")
             }
@@ -48,12 +48,12 @@ public namespace std {
         // timed_wait: returns true if signalled, false if timed out.
         // timeout_ms is relative timeout in milliseconds.
         func timed_wait(&mut self, mutex : &mut std::mutex, timeout_ms : ulong) : bool {
-            var ok = SleepConditionVariableSRW(&raw mut storage[0], &raw mut mutex.storage[0], timeout_ms, 0u)
+            var ok = unsafe(SleepConditionVariableSRW(&raw mut storage[0], &raw mut mutex.storage[0], timeout_ms, 0u))
             return ok != 0
         }
 
         func notify_one(&mut self) {
-            WakeConditionVariable(&raw mut storage[0])
+            unsafe { WakeConditionVariable(&raw mut storage[0]) }
         }
 
         func signal(&mut self) {
@@ -61,7 +61,7 @@ public namespace std {
         }
 
         func notify_all(&mut self) {
-            WakeAllConditionVariable(&raw mut storage[0])
+            unsafe { WakeAllConditionVariable(&raw mut storage[0]) }
         }
 
         // destructor: Windows CONDITION_VARIABLE does not need explicit cleanup.

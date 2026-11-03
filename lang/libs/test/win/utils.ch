@@ -1,4 +1,5 @@
 func print_last_error(what : *char) {
+    unsafe {
     const err = GetLastError();
     var msg : LPVOID;
     FormatMessageA(
@@ -7,6 +8,7 @@ func print_last_error(what : *char) {
     );
     fprintf(get_stderr(), "%s failed with error %lu: %s\n", what, err, msg as *char);
     LocalFree(msg);
+    }
 }
 
 func get_test_pipe_name(id : int) : std::string {

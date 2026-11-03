@@ -8,6 +8,7 @@ public func TerminateProcess(hProcess : HANDLE, uExitCode : UINT) : BOOL;
 // client closes its handle; ReadFile only reports ERROR_BROKEN_PIPE once the
 // buffer is empty. Returns the number of messages processed.
 func drain_pipe_messages(state : &mut TestFunctionState, hPipe : HANDLE) : int {
+    unsafe {
     var drained : int = 0
     while(true) {
         var avail : DWORD = 0
@@ -25,9 +26,11 @@ func drain_pipe_messages(state : &mut TestFunctionState, hPipe : HANDLE) : int {
         drained += 1
     }
     return drained
+    }
 }
 
 func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, timeout_ms : uint) : int {
+    unsafe {
 
     var si : STARTUPINFOA
     var pi : PROCESS_INFORMATION;
@@ -208,4 +211,5 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
 
     return 0;
 
+    }
 }

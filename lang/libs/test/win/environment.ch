@@ -1,4 +1,5 @@
 func create_test_env(fn : *mut TestFunction, config : &mut TestRunnerConfig) : TestEnvImpl {
+    unsafe {
     var pipeName = get_test_pipe_name(fn.id)
     // connect to named pipe of parent executable
     var hPipe : HANDLE;
@@ -23,5 +24,6 @@ func create_test_env(fn : *mut TestFunction, config : &mut TestRunnerConfig) : T
     return TestEnvImpl {
         fn : fn,
         pipeHandle : hPipe
+    }
     }
 }

@@ -116,7 +116,7 @@ struct OsString {
             if (utf8.empty()) return std::u16string();
 
             // Get required length (in wchar_t units)
-            var req = MultiByteToWideChar(CP_UTF8, 0, utf8.data(), utf8.size() as int, NULL, 0);
+            var req = unsafe(MultiByteToWideChar(CP_UTF8, 0, utf8.data(), utf8.size() as int, NULL, 0));
             if (req == 0) {
                 // TODO: return a result
                 // throw std::runtime_error("utf8_to_u16: MultiByteToWideChar failed")
@@ -126,7 +126,7 @@ struct OsString {
             // Fill a temporary std::u16string (wchar_t is 16-bit on Windows)
             var tmp = std::u16string();
             tmp.reserve(req as uint)
-            var res = MultiByteToWideChar(CP_UTF8, 0, utf8.data(), utf8.size() as int, tmp.data() as LPWSTR, req);
+            var res = unsafe(MultiByteToWideChar(CP_UTF8, 0, utf8.data(), utf8.size() as int, tmp.data() as LPWSTR, req));
             if (res == 0) {
                 // TODO: return a result
                 // throw std::runtime_error("utf8_to_u16: MultiByteToWideChar failed second pass");
@@ -148,7 +148,7 @@ struct OsString {
             tmp.append_with_len(str.data(), str.size())
 
             // Get required length in bytes
-            var req = WideCharToMultiByte(CP_UTF8, 0, tmp.data(), tmp.size() as int, NULL, 0, NULL, NULL);
+            var req = unsafe(WideCharToMultiByte(CP_UTF8, 0, tmp.data(), tmp.size() as int, NULL, 0, NULL, NULL));
             if (req == 0) {
                 // TODO: return a result
                 // throw std::runtime_error("u16_to_utf8: WideCharToMultiByte failed")
@@ -157,7 +157,7 @@ struct OsString {
 
             var out = std::string();
             out.reserve(req as uint)
-            var res = WideCharToMultiByte(CP_UTF8, 0, tmp.data(), tmp.size() as int, out.data() as LPSTR, req, NULL, NULL);
+            var res = unsafe(WideCharToMultiByte(CP_UTF8, 0, tmp.data(), tmp.size() as int, out.data() as LPSTR, req, NULL, NULL));
             if (res == 0) {
                 // TODO: return a result
                 // throw std::runtime_error("u16_to_utf8: WideCharToMultiByte failed second pass")

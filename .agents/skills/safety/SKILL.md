@@ -20,7 +20,7 @@ for the safe API surface we currently expose**, not full language parity.
 | Init / moves / drops | Implemented in MIR (`MIRMoveCheck`); local/parameter struct fields and whole-array fields are field-tracked; unsupported move shapes reject with `SAFE-MOVE-004` |
 | Borrows / lifetimes | Implemented for the enforceable surface (regions, NLL loans, storage lifetimes, return regions, variance, temporary extension, provenance, HRTB call regions) |
 | `Send` / `Sync` | Auto traits + explicit/negative impls + nested conditional generic impls; data-race primitives. Stdlib explicit impls audited (2026-11-02); the shared-reference Send rule now checks nested `!Sync` correctly (`lang/docs/safety/auto-traits-audit.md`). |
-| Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; target-aware by-value C ABI on x86-64 SysV, Windows x64, i386 SysV/Windows, ARM32 AAPCS (soft/hard-float), AArch64 AAPCS64 and Microsoft ARM64; unknown targets, variadic aggregate arguments, and un-auditable extern callback ABIs reject instead of guessing |
+| Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; target-aware by-value C ABI on x86-64 SysV, Windows x64, i386 SysV/Windows, ARM32 AAPCS (soft/hard-float), AArch64 AAPCS64 and Microsoft ARM64; unknown targets, variadic aggregate arguments, and un-auditable extern callback ABIs reject instead of guessing. i386 Windows safety check is clean for `cstd`/`std`/`fs`/`net`/`test`/`async`; `net/win` and `window/win` remain |
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
 | Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
@@ -378,9 +378,12 @@ memory safety.
    allocation-failure coverage remains part of M7.
 8. **The audit gate is now CI-wired, but platform breadth remains.**
    `.github/workflows/safety-audit.yml` runs `scripts/safety-audit.sh` on
-   pull requests and `main`. The audit module list is host-platform-oriented;
-   Windows/OS-gated sources need target-specific audit coverage, and
-   `--update` remains a reviewed manual baseline change.
+   pull requests and `main`. The audit module list is host-platform-oriented.
+   The i386 Windows target now passes a safety check for `cstd`, `std`, `fs`,
+   `net`, `test`, and `async` (including thread-local stdio caches, explicit
+   unsafe OS wrappers, and a duplicate Windows mutex declaration fix).
+   Windows `net/win` and `window/win` still need migration, and `--update`
+   remains a reviewed manual baseline change.
 9. **Audit reporting details.**
    `SafetyReportVisitor` walks `ImplDefinition` bodies (previously skipped
    entirely) and now counts `unsafe func` / `unsafe impl` declarations as

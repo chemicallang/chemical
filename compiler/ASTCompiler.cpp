@@ -81,19 +81,34 @@ static void mir_emit_llvm_module(Codegen& gen, LabModule* module,
             return;
         }
     }
-    // The LLVM emitter has no 32-bit stdcall calling-convention lowering (the
-    // C backend spells it through `__chem_stdcall`). Reject instead of silently
-    // emitting a cdecl declaration/call on i386/ARM32 targets.
+    // The LLVM emitter supports the x86 stdcall calling convention on the two
+    // 32-bit x86 targets (Linux/i386 and Windows/i386); LLVM supplies the
+    // Windows COFF `_name@N` decoration from the function type itself. Variadic
+    // stdcall has no interoperable stack-cleanup rule, and ARM32 has no stdcall
+    // convention, so keep those fail-closed.
     if (!m.layout.is64Bit) {
+        const bool x86_32 = m.layout.c_abi == mir::MIRABIKind::WindowsX86 ||
+                            m.layout.c_abi == mir::MIRABIKind::SysVX86_32;
         for (uint32_t i = 0; i < m.symbols.symbols.size(); ++i) {
             const mir::MIRSymbolRecord& rec = m.symbols.symbols[i];
             if (!rec.stdcall) continue;
-            gen.error(ZERO_LOC).with_code("SAFE-FFI-006")
-                << "32-bit @stdcall symbols are not supported by the LLVM "
-                   "backend for target '"
-                << gen.target_triple
-                << "'; use the C backend or remove @stdcall";
-            return;
+            bool variadic = false;
+            if (rec.type != mir::MIR_INVALID_ID && rec.type < m.types.size()) {
+                const mir::MIRTypeRecord& tr = m.types.get(rec.type);
+                variadic = tr.kind == mir::MIRTypeKind::Function &&
+                           (tr.flags & mir::TF_VARIADIC) != 0;
+            }
+            if (!x86_32 || variadic) {
+                gen.error(ZERO_LOC).with_code("SAFE-FFI-006")
+                    << (variadic
+                            ? "variadic @stdcall symbols are not supported by "
+                              "the LLVM backend"
+                            : "32-bit @stdcall is only supported on x86 "
+                              "targets by the LLVM backend")
+                    << " for target '" << gen.target_triple
+                    << "'; use the C backend or remove @stdcall";
+                return;
+            }
         }
     }
     if (getenv("MIR_LLVM_TRACE"))

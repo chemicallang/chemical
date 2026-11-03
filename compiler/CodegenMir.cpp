@@ -505,6 +505,13 @@ llvm::Function* Codegen::mir_function(const mir::MIRModule& m, uint32_t symbol) 
     llvm::Function* fn = llvm::Function::Create(
         fty, weak_stub ? llvm::GlobalValue::WeakAnyLinkage
                        : llvm::GlobalValue::ExternalLinkage, name, module.get());
+    // 32-bit x86 stdcall: LLVM derives the Windows COFF `_name@N` decoration
+    // from the function type and this calling convention. The C backend spells
+    // the same convention through `__chem_stdcall`.
+    if (rec.stdcall && (m.layout.c_abi == mir::MIRABIKind::WindowsX86 ||
+                        m.layout.c_abi == mir::MIRABIKind::SysVX86_32)) {
+        fn->setCallingConv(llvm::CallingConv::X86_StdCall);
+    }
     if (c_abi) c_abi_param_attrs(*this, m, rec.c_abi_type, fn, nullptr);
     // The unwind policy the AST backend applied to every function it created
     // (`create_func`). A debug / debug_complete build keeps unwind tables so a
@@ -2109,7 +2116,9 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                         llvm::FunctionType* fty =
                             llvm::cast<llvm::Function>(callee)->getFunctionType();
                         coerce_args(args, fty, &arg_types);
-                        ci = builder->CreateCall(llvm::cast<llvm::Function>(callee), args);
+                        llvm::Function* callee_fn = llvm::cast<llvm::Function>(callee);
+                        ci = builder->CreateCall(callee_fn, args);
+                        ci->setCallingConv(callee_fn->getCallingConv());
                         if (c_abi) c_abi_param_attrs(*this, m, callee_rec->c_abi_type, nullptr, ci);
                     } else {
                         const MIROperand* f = arg(0);
@@ -2118,6 +2127,12 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                         if (!fty) break;
                         coerce_args(args, fty, &arg_types);
                         ci = builder->CreateCall(fty, callee, args);
+                        // A direct function-address operand keeps its stdcall
+                        // convention; a loaded pointer has no convention in its
+                        // type yet (32-bit Windows callbacks stay rejected).
+                        if (auto* direct = llvm::dyn_cast<llvm::Function>(callee)) {
+                            ci->setCallingConv(direct->getCallingConv());
+                        }
                     }
                     if (call_sret && c_abi) {
                         if (!c_mem_ret) {

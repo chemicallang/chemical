@@ -1682,6 +1682,8 @@ func ffi_i386_and_arm32_by_value_extern_are_classified(env : &mut TestEnv) {
     expect_compile_target_no_diagnostic(env, "ffi_arm32_soft_target", ch, "SAFE-FFI-003", NEG_MOD, "armv7-unknown-linux-gnueabi")
     expect_compile_target_no_diagnostic(env, "ffi_arm32_hard_target", ch, "SAFE-FFI-003", NEG_MOD, "armv7-unknown-linux-gnueabihf")
     expect_compile_target_no_diagnostic(env, "ffi_arm64_windows_target", ch, "SAFE-FFI-003", NEG_MOD, "aarch64-pc-windows-msvc")
+    var stdcall_src = "@extern @stdcall public func std_call_fn(x : int) : int\npublic func main() : int { return 0 }\n"
+    expect_compile_target_no_diagnostic(env, "ffi_i386_windows_stdcall", stdcall_src, "SAFE-FFI-006", NEG_MOD, "i386-pc-windows-msvc")
 }
 
 @test
@@ -1721,11 +1723,15 @@ func neg_extern_callback_on_i386_windows_rejected(env : &mut TestEnv) {
 }
 
 @test
-func neg_stdcall_on_i386_windows_rejected(env : &mut TestEnv) {
+func neg_stdcall_unsupported_targets_rejected(env : &mut TestEnv) {
     if(intrinsics::get_backend_name() != "LLVM") { return }
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "@extern @stdcall public func std_call_fn(x : int) : int\npublic func main() : int { return 0 }\n"
-    expect_compile_error_with_target(env, "stdcall_i386_windows", ch, "SAFE-FFI-006", NEG_MOD, "i386-pc-windows-msvc")
+    // ARM32 has no stdcall convention.
+    expect_compile_error_with_target(env, "stdcall_arm32", ch, "SAFE-FFI-006", NEG_MOD, "armv7-unknown-linux-gnueabi")
+    // Variadic stdcall has no interoperable stack-cleanup rule.
+    var variadic = "@extern @stdcall public func std_call_var(fmt : *char, _ : any...) : int\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_target(env, "stdcall_variadic", variadic, "SAFE-FFI-006", NEG_MOD, "i386-pc-windows-msvc")
 }
 
 @test

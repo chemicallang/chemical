@@ -72,8 +72,9 @@ closure fixtures add a few audited raw C future-ABI sites.
 - `SAFE-FFI-005` — an `@extern` signature contains a callback with a by-value
   struct/union parameter or return, a capturing function, or (on 32-bit
   Windows) a callback whose stdcall/cdecl convention is not represented.
-- `SAFE-FFI-006` — the LLVM backend cannot emit a 32-bit `@stdcall` symbol/call;
-  use the C backend or remove the annotation.
+- `SAFE-FFI-006` — a 32-bit `@stdcall` symbol is variadic or targets a
+  non-x86 convention. Direct x86 32-bit stdcall is supported; use the C backend
+  or remove the annotation for unsupported shapes.
 - `SAFE-SCOPED-001` — `@scoped_callback` parameter used for anything other than
   forwarding to a join-before-return scoped API (or another audited
   `@scoped_callback` function).
@@ -303,10 +304,11 @@ memory safety.
    delegates to the host compiler. `SAFE-FFI-005` now audits extern callback
    signatures: by-value aggregate callback parameters/returns and capturing
    callbacks are rejected, and every 32-bit Windows callback is rejected until
-   stdcall/cdecl metadata is represented. `SAFE-FFI-006` rejects 32-bit
-   `@stdcall` symbols in the LLVM backend (the C backend still supports them).
-   Remaining: actual 32-bit stdcall support/callback metadata and full FFI
-   wrapper auditing.
+   stdcall/cdecl metadata is represented. `SAFE-FFI-006` now only rejects
+   variadic `@stdcall` and non-x86 32-bit targets: LLVM emits `x86_stdcallcc`
+   for i386 Linux/Windows and derives the Windows COFF `_name@N` decoration
+   from the function type. Remaining: 32-bit Windows callback convention
+   metadata and full FFI wrapper auditing.
 3. **`@scoped_callback` is body-checked, with a fixed sink list.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter anywhere except a known join-before-return API (resolved by exact library
@@ -544,7 +546,7 @@ Coded output renders `error[SAFE-*]:` / `warn[SAFE-*]:`; uncoded output keeps
 | `SAFE-FFI-003` | LLVM by-value extern aggregate on a target without a C ABI classifier (RISC-V/WASM/unknown) |
 | `SAFE-FFI-004` | by-value aggregate passed through a variadic `@extern` call |
 | `SAFE-FFI-005` | extern callback ABI/convention cannot be audited or differs from C |
-| `SAFE-FFI-006` | 32-bit `@stdcall` symbol is not supported by the LLVM backend |
+| `SAFE-FFI-006` | variadic `@stdcall` or non-x86 32-bit `@stdcall` |
 | `SAFE-GLOBAL-001` | mutable/extern global access in safe context |
 | `SAFE-GLOBAL-002` | immutable global whose type is not `Sync` |
 | `SAFE-INIT-001` | use/move/drop of an uninitialized place |

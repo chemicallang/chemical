@@ -20,7 +20,7 @@ for the safe API surface we currently expose**, not full language parity.
 | Init / moves / drops | Implemented in MIR (`MIRMoveCheck`); local/parameter struct fields and whole-array fields are field-tracked; unsupported move shapes reject with `SAFE-MOVE-004` |
 | Borrows / lifetimes | Implemented for the enforceable surface (regions, NLL loans, storage lifetimes, return regions, variance, temporary extension, provenance, HRTB call regions) |
 | `Send` / `Sync` | Auto traits + explicit/negative impls + nested conditional generic impls; data-race primitives. Stdlib explicit impls audited (2026-11-02); the shared-reference Send rule now checks nested `!Sync` correctly (`lang/docs/safety/auto-traits-audit.md`). |
-| Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; target-aware by-value C ABI on x86-64 SysV, Windows x64, i386 SysV/Windows, ARM32 AAPCS (soft/hard-float) and AArch64 AAPCS64; Windows ARM64/unknown targets and variadic aggregate arguments reject instead of guessing |
+| Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; target-aware by-value C ABI on x86-64 SysV, Windows x64, i386 SysV/Windows, ARM32 AAPCS (soft/hard-float) and AArch64 AAPCS64; Windows ARM64/unknown targets, variadic aggregate arguments, and un-auditable extern callback ABIs reject instead of guessing |
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
 | Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2430/2430` |
 | LLVM main | `2428/2428` |
 | `@test` runner | `56/56` |
-| TCC/LLVM negative | `767/767` |
+| TCC/LLVM negative | `772/772` |
 | TCC/LLVM safety | `74/74` |
 | TCC/LLVM async | `70/70` |
 | TCC libs | `732/732` |
@@ -69,6 +69,9 @@ closure fixtures add a few audited raw C future-ABI sites.
 - `SAFE-FFI-004` — a by-value aggregate is passed through a variadic `@extern`
   call; pass a pointer or scalar instead (C default promotions cover scalars,
   not a guessed aggregate layout).
+- `SAFE-FFI-005` — an `@extern` signature contains a callback with a by-value
+  struct/union parameter or return, a capturing function, or (on 32-bit
+  Windows) a callback whose stdcall/cdecl convention is not represented.
 - `SAFE-SCOPED-001` — `@scoped_callback` parameter used for anything other than
   forwarding to a join-before-return scoped API (or another audited
   `@scoped_callback` function).
@@ -294,9 +297,12 @@ memory safety.
    Windows x64/AArch64, matching Clang. Windows ARM64 and unknown targets reject
    by-value extern aggregates with `SAFE-FFI-003`; by-value aggregates passed
    through a variadic `@extern` call are rejected with `SAFE-FFI-004`. The C
-   backend delegates to the host compiler. Remaining: Windows ARM64, variadic
-   scalar default-promotion coverage, callback calling-convention auditing, and
-   full FFI wrapper auditing.
+   backend delegates to the host compiler. `SAFE-FFI-005` now audits extern
+   callback signatures: by-value aggregate callback parameters/returns and
+   capturing callbacks are rejected, and every 32-bit Windows callback is
+   rejected until stdcall/cdecl metadata is represented. Remaining: Windows
+   ARM64, variadic scalar default-promotion coverage, explicit stdcall callback
+   types, and full FFI wrapper auditing.
 3. **`@scoped_callback` is body-checked, with a fixed sink list.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter anywhere except a known join-before-return API (resolved by exact library
@@ -533,6 +539,7 @@ Coded output renders `error[SAFE-*]:` / `warn[SAFE-*]:`; uncoded output keeps
 | `SAFE-FFI-002` | by-value Chemical variant across `@extern` ABI |
 | `SAFE-FFI-003` | LLVM by-value extern aggregate on a target without a C ABI classifier (Windows ARM64/unknown) |
 | `SAFE-FFI-004` | by-value aggregate passed through a variadic `@extern` call |
+| `SAFE-FFI-005` | extern callback ABI/convention cannot be audited or differs from C |
 | `SAFE-GLOBAL-001` | mutable/extern global access in safe context |
 | `SAFE-GLOBAL-002` | immutable global whose type is not `Sync` |
 | `SAFE-INIT-001` | use/move/drop of an uninitialized place |

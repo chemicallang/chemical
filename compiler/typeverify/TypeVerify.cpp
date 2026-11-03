@@ -22,6 +22,7 @@
 #include "compiler/symres/SymbolResolver.h"
 #include "compiler/symres/CoreNodes.h"
 #include "compiler/safety/AutoTraits.h"
+#include "compiler/lab/TargetData.h"
 #include "core/source/LocationManager.h"
 #include "ast/values/IndexOperator.h"
 #include "ast/structures/WhereClause.h"
@@ -873,6 +874,79 @@ static bool is_extern_by_value_aggregate(BaseType* type) {
     // rejection rather than guessing a foreign layout.
     ASTNode* linked = canonical->get_direct_linked_canonical_node();
     return linked != nullptr && linked->kind() == ASTNodeKind::VariantDecl;
+}
+
+/**
+ * A C callback is a plain function pointer. The internal Chemical function
+ * ABI passes aggregates by pointer/sret, which is not the C callback ABI for a
+ * by-value struct/union return or parameter. Capturing functions are not C
+ * function pointers at all, and 32-bit Windows callbacks need stdcall metadata
+ * that the type system does not carry yet. Reject all three shapes instead of
+ * emitting a guessed callback convention.
+ */
+struct CCallbackAudit {
+    bool has_callback = false;
+    bool bad_aggregate = false;
+    bool capturing = false;
+};
+
+static bool is_c_by_value_aggregate_type(BaseType* type) {
+    if (type == nullptr) return false;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr) return false;
+    switch (canonical->kind()) {
+        case BaseTypeKind::Struct:
+        case BaseTypeKind::Union:
+            return true;
+        default:
+            break;
+    }
+    ASTNode* linked = canonical->get_direct_linked_canonical_node();
+    return linked != nullptr &&
+           (linked->kind() == ASTNodeKind::StructDecl ||
+            linked->kind() == ASTNodeKind::UnionDecl ||
+            linked->kind() == ASTNodeKind::VariantDecl);
+}
+
+static void audit_ccallback_type(BaseType* type, CCallbackAudit& out, unsigned depth = 0) {
+    if (type == nullptr || depth > 16) return;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr) return;
+    switch (canonical->kind()) {
+        case BaseTypeKind::Function: {
+            out.has_callback = true;
+            auto* ft = canonical->as_function_type_unsafe();
+            if (ft == nullptr) break;
+            if (is_c_by_value_aggregate_type(const_cast<BaseType*>(ft->returnType.getType()))) {
+                out.bad_aggregate = true;
+            }
+            for (FunctionParam* param : ft->params) {
+                if (param == nullptr || param->type == nullptr) continue;
+                if (is_c_by_value_aggregate_type(param->type)) {
+                    out.bad_aggregate = true;
+                } else {
+                    audit_ccallback_type(param->type, out, depth + 1);
+                }
+            }
+            audit_ccallback_type(const_cast<BaseType*>(ft->returnType.getType()), out, depth + 1);
+            break;
+        }
+        case BaseTypeKind::CapturingFunction:
+            out.has_callback = true;
+            out.capturing = true;
+            break;
+        case BaseTypeKind::Pointer:
+            audit_ccallback_type(canonical->as_pointer_type_unsafe()->type, out, depth + 1);
+            break;
+        case BaseTypeKind::Reference:
+            audit_ccallback_type(canonical->as_reference_type_unsafe()->type, out, depth + 1);
+            break;
+        case BaseTypeKind::Array:
+            audit_ccallback_type(const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()), out, depth + 1);
+            break;
+        default:
+            break;
+    }
 }
 
 void verify_call_mutability(TypeVerifier& verifier, FunctionCall* call) {
@@ -4228,8 +4302,8 @@ void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
     }
 }
 
-void type_verify(ImplementationsIndex& index, CoreNodes& coreNodes, ASTDiagnoser& diagnoser, ASTAllocator& allocator, std::span<ASTNode*> nodes) {
-    TypeVerifier verifier(index, coreNodes, allocator, diagnoser);
+void type_verify(ImplementationsIndex& index, CoreNodes& coreNodes, ASTDiagnoser& diagnoser, ASTAllocator& allocator, const TargetData& target_data, std::span<ASTNode*> nodes) {
+    TypeVerifier verifier(index, coreNodes, allocator, diagnoser, target_data);
     for(const auto node : nodes) {
         verifier.visit(node);
     }
@@ -5895,6 +5969,35 @@ void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {
     }
     if(decl->attrs.is_extern && !decl->is_comptime() && decl->body.has_value()) {
         diagnoser.error(decl) << "an `@extern` function cannot have a body; remove the body or the `@extern` annotation";
+    }
+    if(decl->attrs.is_extern && !decl->is_comptime()) {
+        CCallbackAudit callback_audit;
+        audit_ccallback_type(const_cast<BaseType*>(decl->returnType.getType()),
+                             callback_audit);
+        for(FunctionParam* param : decl->params) {
+            if(param != nullptr) {
+                audit_ccallback_type(param->type, callback_audit);
+            }
+        }
+        if(callback_audit.capturing) {
+            diagnoser.error(decl).with_code("SAFE-FFI-005")
+                << "extern function '" << decl->name_view()
+                << "' uses a capturing function callback; a C callback must be "
+                   "a plain function pointer";
+        } else if(callback_audit.bad_aggregate) {
+            diagnoser.error(decl).with_code("SAFE-FFI-005")
+                << "extern function '" << decl->name_view()
+                << "' has a callback with a by-value struct/union parameter or "
+                   "return; the internal callback ABI differs from the C ABI "
+                   "(use a pointer/scalar callback signature)";
+        } else if(callback_audit.has_callback && target_data.windows &&
+                  !target_data.is64Bit) {
+            diagnoser.error(decl).with_code("SAFE-FFI-005")
+                << "extern function '" << decl->name_view()
+                << "' has a callback on 32-bit Windows; stdcall/cdecl callback "
+                   "metadata is not represented yet, so the callback convention "
+                   "cannot be audited";
+        }
     }
     if(decl->attrs.is_delete_fn && !decl->is_generated_fn() &&
        decl->params.size() == 1 && decl->params[0]->name_view() == "self") {

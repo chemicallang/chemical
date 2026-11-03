@@ -1684,6 +1684,42 @@ func ffi_i386_and_arm32_by_value_extern_are_classified(env : &mut TestEnv) {
 }
 
 @test
+func neg_extern_callback_by_value_aggregate_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@extern struct Pair { var a : int; var b : int }\n@extern func register_cb(cb : (p : Pair) => int) : int\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "extern_callback_aggregate", ch, "SAFE-FFI-005")
+}
+
+@test
+func neg_extern_callback_returning_aggregate_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@extern struct Pair { var a : int; var b : int }\n@extern func make_cb() : () => Pair\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "extern_callback_aggregate_return", ch, "SAFE-FFI-005")
+}
+
+@test
+func extern_scalar_callback_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@extern func register_cb(cb : (x : int) => int) : int\npublic func main() : int { return 0 }\n"
+    expect_compile_success(env, "extern_scalar_callback", ch)
+}
+
+@test
+func extern_pointer_aggregate_callback_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@extern struct Pair { var a : int; var b : int }\n@extern func register_cb(cb : (p : *mut Pair) => int) : int\npublic func main() : int { return 0 }\n"
+    expect_compile_success(env, "extern_pointer_aggregate_callback", ch)
+}
+
+@test
+func neg_extern_callback_on_i386_windows_rejected(env : &mut TestEnv) {
+    if(intrinsics::get_backend_name() != "LLVM") { return }
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@extern func register_cb(cb : (x : int) => int) : int\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_target(env, "extern_callback_i386_windows", ch, "SAFE-FFI-005", NEG_MOD, "i386-pc-windows-msvc")
+}
+
+@test
 func neg_variadic_extern_aggregate_argument_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "@extern struct Pair { var a : int; var b : int }\n@extern func take_ints(n : int, _ : any...) : int\npublic func main() : int {\n    var p = Pair { a : 1, b : 2 }\n    return unsafe(take_ints(1, p))\n}\n"

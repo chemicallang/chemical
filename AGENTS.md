@@ -40,8 +40,9 @@ safe calls returning type-erased generic containers are rejected
 latter are rejected with `SAFE-MOVE-004`); other blockers are the full target-aware C
 ABI (LLVM covers x86-64 SysV, Windows x64, i386 SysV/Windows, ARM32
 AAPCS soft/hard-float and AAPCS64; `SAFE-FFI-003` rejects Windows ARM64 and
-unknown targets, `SAFE-FFI-004` rejects variadic by-value aggregate arguments),
-`dyn` being conservatively `!Send`/`!Sync` when no
+unknown targets, `SAFE-FFI-004` rejects variadic by-value aggregate arguments,
+`SAFE-FFI-005` rejects un-auditable extern callback ABIs), `dyn` being
+conservatively `!Send`/`!Sync` when no
 explicit `+ Send`/`+ Sync` bound is written (`+ Unpin` is construction-checked),
 basic tuples and `[T]`/`&[T]`/`&mut [T]`/`Box<[T]>` slices plus `&str` views
 (array/vector views, mutable array/vector indexing,

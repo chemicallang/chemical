@@ -12,6 +12,7 @@
 class CoreNodes;
 class CapturingFunctionType;
 class DynamicValue;
+struct TargetData;
 
 class TypeVerifier : public RecursiveVisitor<TypeVerifier> {
 public:
@@ -35,6 +36,9 @@ public:
      * the diagnoser to report errors
      */
     ASTDiagnoser& diagnoser;
+
+    /** Target facts used by the ABI/FFI audits. */
+    const TargetData& target_data;
 
     /**
      * is used to verify return statement values
@@ -125,8 +129,10 @@ public:
         ImplementationsIndex& index,
         CoreNodes& coreNodes,
         ASTAllocator& allocator,
-        ASTDiagnoser& diagnoser
-    ) : index(index), coreNodes(coreNodes), allocator(allocator), diagnoser(diagnoser) {
+        ASTDiagnoser& diagnoser,
+        const TargetData& target_data
+    ) : index(index), coreNodes(coreNodes), allocator(allocator), diagnoser(diagnoser),
+        target_data(target_data) {
 
     }
 

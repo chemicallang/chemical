@@ -14,6 +14,7 @@ class BaseType;
 
 class ImplementationsIndex;
 class CoreNodes;
+struct TargetData;
 
 void unsatisfied_type_err(ASTDiagnoser& diagnoser, Value* value, BaseType* type);
 
@@ -26,5 +27,6 @@ void type_verify(
     CoreNodes& coreNodes,
     ASTDiagnoser& diagnoser,
     ASTAllocator& allocator,
+    const TargetData& target_data,
     std::span<ASTNode*> nodes
 );

@@ -71,10 +71,22 @@ Regression coverage:
 - `neg_dyn_box_fields_private` (`cannot access internal member`)
 - `string_append_null_panics`
 
-Still remaining in this group: `vector` zero-sized elements and `set` replacement
-semantics, `string_view`/`u16string` raw constructors and numeric parsers,
-`Rc`/`Arc` count invariants under weak handles, `RefCell` guard escape, and the
-thread-pool raw state structures.
+## Tranche 3 — collections, reference counts, UTF-16 helper (2026-11-03)
+
+| Wrapper | Invariant | Enforcement |
+|---|---|---|
+| `vector<T>` constructors | zero-sized elements would make pointer arithmetic/indexing invalid | fail closed with a runtime panic instead of creating a malformed vector |
+| `Rc::clone/downgrade`, `Weak::upgrade` | strong/weak counts cannot wrap to zero while handles remain | count-overflow panic before increment |
+| `Arc::clone/downgrade`, `ArcWeak::upgrade` | same, under the count lock | count-overflow panic before increment |
+| `u16_strlen` | dereferences a caller-provided UTF-16 pointer | now `unsafe func`; internal caller uses an explicit unsafe boundary |
+
+Regression coverage: `vector_zero_sized_element_panics` and
+`neg_u16_strlen_requires_unsafe`.
+
+Still remaining in this group: actual zero-sized vector support, vector `set`
+replacement semantics, `string_view`/`u16string` raw constructors and numeric
+parsers, remaining `Rc`/`Arc` weak-handle invariants, `RefCell` guard escape,
+and the thread-pool raw state structures.
 
 ## Coverage
 

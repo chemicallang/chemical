@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.89)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.90)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1434,13 +1434,16 @@ new number as the honest baseline, not a compiler regression.
    targets fail-closed; LLVM now emits `x86_stdcallcc` for direct i386
    Linux/Windows symbols and derives the Windows COFF `_name@N` decoration
    from the function type. `cstd/windows` is safety-clean on an i386 Windows
-   target. Tranche 1 (allocator ownership/zero-size, filesystem path/file null
-   and capacity checks, socket buffer/length/port validation) and tranche 2
-   (`Box` zero-sized allocation, `DynBox` field visibility, string append null
-   validation) are complete; see `lang/docs/safety/ffi-wrapper-audit.md`.
-   Remaining: the rest of the safe wrapper surface (vector/string_view/u16string,
-   Rc/Arc/RefCell/thread-pool, directory/metadata/UTF-16, Windows IPC,
-   TLS/HTTP) and the target-specific audit list.
+   target. Tranches 1-3 of the semantic wrapper audit are complete: allocator
+   ownership/zero-size, filesystem path/file null and capacity checks, socket
+   buffer/length/port validation, zero-sized `Box` allocation, `DynBox` field
+   visibility, string append null validation, fail-closed zero-sized vectors,
+   `Rc`/`Arc` count-overflow checks, and unsafe-gated `u16_strlen`. See
+   `lang/docs/safety/ffi-wrapper-audit.md`. Remaining: actual zero-sized vector
+   support and `set` replacement semantics, string_view/u16string raw
+   constructors and numeric parsers, remaining Rc/Arc/RefCell/thread-pool
+   invariants, directory/metadata/UTF-16, Windows IPC, TLS/HTTP, and the
+   target-specific audit list.
 3. **`@scoped_callback` has a fixed, checked sink list.** `SAFE-SCOPED-001`
    rejects returning, storing, capturing, or passing the scoped parameter to an
    unknown callee; only known join-before-return APIs (resolved by exact library
@@ -3067,3 +3070,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.87 (2026-11-03): raw escape after a field move. `MIRDestructible` now records `field_moved`; `mark_raw_escaped` keeps field-wise drop flags when a field (or the whole value) was already moved, instead of switching to a whole-value drop that would double-drop the moved field. Raw writes into a moved-from field can still leak, but cannot double-drop. Added a runtime regression for `&raw mut` after a field move. Final drop-elaboration gates: main TCC/LLVM `2431`/`2429`; negative `774`; safety `74`; async `76`; libs `732`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth against the reviewed test-only baseline (`unsafe_blocks 3790`, `unsafe_values 4921`).
 *Revision note v4.88 (2026-11-03): semantic FFI wrapper audit, tranche 1. Allocator ownership is now an explicit unsafe boundary: `GlobalAllocator.dealloc/grow/shrink` and `dealloc_bytes` require `unsafe`; zero-sized allocations are freeable; grow/shrink to zero returns `AllocError.InvalidLayout` instead of `realloc(ptr, 0)`, which can free while returning an error; debug tracking no longer dereferences a null allocation. Filesystem wrappers validate null paths/handles/buffers, use checked path-length arithmetic, and reject `atomic_write` temp paths that would overflow the fixed stack buffer; POSIX temp-file creation bounds both the template and the caller output. Socket wrappers reject null buffers with positive lengths, negative send lengths, lengths outside signed `int`, null addresses, and ports above 65535; the port conversion buffer is bounded. Added allocator zero-size/grow-to-zero, null filesystem input, near-`PATH_MAX` atomic-write, and invalid socket port/buffer tests. Full audit matrix and remaining modules: `lang/docs/safety/ffi-wrapper-audit.md`. Main TCC/LLVM `2433`/`2431`; negative `775`; safety `74`; async `77`; libs `734`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth after a reviewed `unsafe_func_decls 36 -> 40` and test-only raw-pointer baseline update.
 *Revision note v4.89 (2026-11-03): semantic FFI wrapper audit, tranche 2 (ownership wrappers and strings). Zero-sized `Box<T>` values now allocate one byte, so `Box::box` never produces a null pointer that `get`/`delete` would mishandle. `DynBox`'s `fat`/`data`/`drop` fields are internal rather than safe-code constructible, preventing a caller from pairing an arbitrary data pointer with a mismatched or null drop function. String append entry points reject null sources before `strlen`/`memcpy`, while zero-length appends remain no-ops. Added a zero-sized Box runtime test, a `DynBox` field-visibility negative test, and a null-append runtime-panic test. Full audit matrix and remaining modules: `lang/docs/safety/ffi-wrapper-audit.md`. Main TCC/LLVM `2433`/`2431`; `@test` `57`; negative `776`; safety `75`; async `77`; libs `734`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth after a reviewed `panic_calls 113 -> 116` test/validation baseline update.
+*Revision note v4.90 (2026-11-03): semantic FFI wrapper audit, tranche 3 (collections and reference counts). `vector<T>` constructors now fail closed for zero-sized element types instead of creating a vector whose indexing/pointer arithmetic would be invalid. `Rc`/`Weak` and `Arc`/`ArcWeak` check count overflow before increments so a wrapped count can never free storage while a handle remains. `u16_strlen` is now an unsafe raw-pointer utility; its internal caller uses an explicit unsafe boundary. Added a zero-sized-vector runtime-panic test and a `u16_strlen` unsafe-call negative test. Full audit matrix and remaining modules: `lang/docs/safety/ffi-wrapper-audit.md`. Main TCC/LLVM `2433`/`2431`; `@test` `57`; negative `777`; safety `76`; async `77`; libs `734`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth after a reviewed `panic_calls 116 -> 124`, `unsafe_func_decls 40 -> 41`, and `unsafe_values 4921 -> 4922` baseline update.

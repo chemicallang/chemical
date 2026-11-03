@@ -24,6 +24,9 @@ public struct vector<T> {
 
     @constructor
     func make() {
+        if(sizeof(T) == 0) {
+            panic("vector does not support zero-sized element types")
+        }
         return vector<T> {
             data_ptr : null,
             data_size : 0,
@@ -34,6 +37,9 @@ public struct vector<T> {
     @constructor
     func make_with_capacity(init_cap : size_t) {
         const elem_size = sizeof(T)
+        if(elem_size == 0) {
+            panic("vector does not support zero-sized element types")
+        }
         if(elem_size != 0 && init_cap > ((0 as size_t) - 1) / elem_size) {
             panic("vector capacity overflow")
         }

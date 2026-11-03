@@ -49,6 +49,9 @@ public struct Rc<T> {
         }
         var inner = self.ptr
         unsafe {
+            if(inner.strong == ((0 as size_t) - 1)) {
+                panic("Rc strong count overflow")
+            }
             inner.strong = inner.strong + 1
         }
         return Rc<T> {
@@ -62,6 +65,9 @@ public struct Rc<T> {
         }
         var inner = self.ptr
         unsafe {
+            if(inner.weak == ((0 as size_t) - 1)) {
+                panic("Rc weak count overflow")
+            }
             inner.weak = inner.weak + 1
         }
         return unsafe(weak_unchecked<T>(inner))
@@ -147,6 +153,9 @@ public struct Weak<T> {
             return Option.None<Rc<T>>()
         }
         unsafe {
+            if(inner.strong == ((0 as size_t) - 1)) {
+                panic("Rc strong count overflow")
+            }
             inner.strong = inner.strong + 1
         }
         return Option.Some<Rc<T>>(unsafe(rc_unchecked<T>(inner)))

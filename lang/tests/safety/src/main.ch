@@ -354,6 +354,13 @@ func box_use_after_into_inner_panics(env : &mut TestEnv) {
 }
 
 @test
+func vector_zero_sized_element_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "struct Empty {}\npublic func main() : int {\n    var v = std::vector<Empty>()\n    return 0\n}\n"
+    expect_runtime_panic(env, "vector_zero_sized_element_panics", ch)
+}
+
+@test
 func vector_capacity_overflow_panics(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "public func main() : int {\n    var v = std::vector<int>()\n    v.reserve((0 as size_t) - 1)\n    return 0\n}\n"

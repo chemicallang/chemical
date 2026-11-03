@@ -33,15 +33,15 @@ Latest measured baseline:
 | TCC main | `2433/2433` |
 | LLVM main | `2431/2431` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `776/776` |
-| TCC/LLVM safety | `75/75` |
+| TCC/LLVM negative | `777/777` |
+| TCC/LLVM safety | `76/76` |
 | TCC/LLVM async | `77/77` |
 | TCC libs | `734/734` |
 | TCC plugins | `1305/1305` |
 | TCC interpret | `1931/1931` |
 | `MIRTests` | `4749 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
-| Whole-tree audit | `unsafe_blocks 3790`, `unsafe_values 4921`, `raw_pointer_addrs 10035`, `raw_pointer_casts 2876`, `raw_pointer_types 9375`, `raw_pointer_derefs 1073`, `unsafe_func_decls 40`, `panic_calls 116` |
+| Whole-tree audit | `unsafe_blocks 3790`, `unsafe_values 4922`, `raw_pointer_addrs 10035`, `raw_pointer_casts 2876`, `raw_pointer_types 9375`, `raw_pointer_derefs 1073`, `unsafe_func_decls 41`, `panic_calls 124` |
 | Audit result | `no growth` against `lang/docs/safety/audit-baseline.json` |
 
 The audit totals increased from the historical `3661/4890` in the 2026-10-31
@@ -52,8 +52,8 @@ closure fixtures add a few audited raw C future-ABI sites. The latest
 `+5 unsafe_blocks / +6 unsafe_values` bump was the reviewed Windows platform
 migration; the current `unsafe_blocks 3790` / `raw_pointer_types 9375` baseline
 also includes the async drop-elaboration regression tests and the semantic
-wrapper tranches (`unsafe_func_decls 36 -> 40`, `panic_calls 113 -> 116`, plus
-test-only raw-pointer sites).
+wrapper tranches (`unsafe_func_decls 36 -> 41`, `panic_calls 113 -> 124`,
+`unsafe_values 4921 -> 4922`, plus test-only raw-pointer sites).
 
 ## What is enforced (by domain)
 
@@ -317,14 +317,15 @@ memory safety.
    function-type identity, MIR, LLVM indirect calls, and C function-pointer
    spelling; scalar/pointer cdecl and stdcall callbacks are accepted. The C
    backend emits the convention on both the prototype and definition. FFI work:
-   tranches 1-2 of the semantic wrapper audit are complete
+   tranches 1-3 of the semantic wrapper audit are complete
    (`lang/docs/safety/ffi-wrapper-audit.md`: allocator ownership/zero-size,
    filesystem path/file handles and capacity, socket buffer/length/port
-   validation, zero-sized Box allocation, DynBox field visibility, and string
-   append null validation). The rest of the safe wrapper surface
-   (vector/string_view/u16string, Rc/Arc/RefCell/thread-pool,
-   directory/metadata/UTF-16, Windows IPC, TLS/HTTP) and the target-specific
-   audit list remain. The i386 Windows libraries are syntax/safety-clean.
+   validation, zero-sized Box allocation, DynBox field visibility, string
+   append null validation, fail-closed zero-sized vectors, Rc/Arc count-overflow
+   checks, and unsafe-gated u16_strlen). The rest of the safe wrapper surface
+   (actual zero-sized vector support, string_view/u16string parsers,
+   Rc/Arc/RefCell/thread-pool invariants, directory/metadata/UTF-16, Windows
+   IPC, TLS/HTTP) and the target-specific audit list remain. The i386 Windows libraries are syntax/safety-clean.
 3. **`@scoped_callback` is body-checked, with a fixed sink list.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter anywhere except a known join-before-return API (resolved by exact library

@@ -88,6 +88,9 @@ public struct Arc<T> {
         unsafe {
             var lp = &raw mut inner.lock
             lp.lock()
+            if(inner.strong == ((0 as size_t) - 1)) {
+                panic("Arc strong count overflow")
+            }
             inner.strong = inner.strong + 1
             lp.unlock()
         }
@@ -104,6 +107,9 @@ public struct Arc<T> {
         unsafe {
             var lp = &raw mut inner.lock
             lp.lock()
+            if(inner.weak == ((0 as size_t) - 1)) {
+                panic("Arc weak count overflow")
+            }
             inner.weak = inner.weak + 1
             lp.unlock()
         }
@@ -235,6 +241,9 @@ public struct ArcWeak<T> {
             lp.lock()
             alive = inner.strong != 0
             if(alive) {
+                if(inner.strong == ((0 as size_t) - 1)) {
+                    panic("Arc strong count overflow")
+                }
                 inner.strong = inner.strong + 1
             }
             lp.unlock()

@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2437/2437` |
 | LLVM main | `2435/2435` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `785/785` |
+| TCC/LLVM negative | `786/786` |
 | TCC/LLVM safety | `76/76` |
 | TCC/LLVM async | `77/77` |
 | TCC libs | `735/735` |
@@ -127,13 +127,15 @@ MIR is the sole producer of init/move/drop state:
 - `SAFE-BORROW-002` — move/drop of a place while a borrow of it is live.
 - `SAFE-BORROW-099` — a borrow/lifetime pattern the checker cannot prove safe
   (e.g. retaining storage in a caller-owned reference parameter without a
-  provable outlives edge, a retaining pointee with mismatched binders, or
-  opaque retaining storage). Nested struct aggregate parameters,
+  source-to-stored outlives edge, a retaining pointee with mismatched binders,
+  or opaque retaining storage). Nested struct aggregate parameters,
   variant payloads, array elements, and borrowed nested results are supported,
   including per-leaf multi-lifetime precision. Read-only mixed
   local/parameter/global and distinct-region multi-borrow calls are accepted;
-  local or by-value retaining storage also accepts them. This remains an
-  explicit rejection, never a guessed-safe acceptance.
+  local or by-value retaining storage also accepts them. A caller-owned slot is
+  accepted when every source outlives the stored region; the slot's outer
+  borrow only needs to cover the call. This remains an explicit rejection,
+  never a guessed-safe acceptance.
 - `SAFE-LIFE-001` — returning a reference to a local/temporary/frame field.
 - `SAFE-LIFE-002` — a loan still live when the referent's storage ends.
 - `SAFE-LIFE-003` — returned reference does not outlive the declared return
@@ -366,9 +368,10 @@ memory safety.
    local/temporary or a by-value parameter copy may hold any argument borrow,
    so mixed/distinct sources are accepted and pinned to function exit.
    Retaining storage reached through a reference parameter is caller-owned. It
-   is accepted when the caller's `where` edges prove the slot's outer borrow and
-   every source outlive the stored region (`where 'o: 'i` for
-   `slot: &'o mut &'i T`); without that proof it remains an explicit
+   is accepted when every source outlives the stored region (`where 'i: 's` for
+   `slot: &'o mut &'s T, x: &'i T`); the slot's outer borrow only needs to cover
+   the call, so an unrelated `'o` is accepted when the pointee and source share
+   their declared region. Without the source edge it remains an explicit
    `SAFE-BORROW-099` rejection. A retaining pointee is accepted when every
    nested reference uses the same binder (`&'a mut &'a T`); a different binder
    or a free/`'static` lifetime is rejected. This is a false-negative/rewrite

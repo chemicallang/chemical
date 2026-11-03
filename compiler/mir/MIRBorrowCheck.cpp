@@ -2467,10 +2467,12 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                             if (!retain_storage_local) break;
                         }
                     }
-                    // A caller-owned retaining slot can be proven safe with
-                    // explicit region ordering: the slot's outer borrow and
-                    // every possible source must outlive the declared region
-                    // stored in the slot's pointee.
+                    // A caller-owned retaining slot can be proven safe when
+                    // every possible source outlives the declared region
+                    // stored in the slot's pointee. The slot's outer borrow
+                    // only has to cover the call itself: after it ends the
+                    // caller can still read the stored reference, whose own
+                    // declared region is checked against the source here.
                     bool retain_regions_proven = false;
                     if (callback_may_retain && !retain_storage_local &&
                         has_fn_region_sig &&
@@ -2511,10 +2513,6 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                                 for (MIRRegionId stored :
                                      fn_region_sig
                                          .param_retain_regions[pd.param_index]) {
-                                    if (!caller_region_outlives(outer, stored)) {
-                                        retain_regions_proven = false;
-                                        break;
-                                    }
                                     for (const RefArg& src : ref_args) {
                                         if (src.param_index == rp &&
                                             src.loan == slot.loan) {

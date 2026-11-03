@@ -597,6 +597,17 @@ func hrtb_retaining_nonlocal_slot_outlives_ok(env : &mut TestEnv) {
 }
 
 @test
+func hrtb_retaining_nonlocal_slot_type_proves_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The slot's pointee and the source already share `'i`; storing the
+    // source cannot outlive its own declared region even though the slot's
+    // outer borrow region `'o` is unrelated. Only the source-to-stored
+    // region edge is required.
+    var ch = "func <'a> stash(slot : &mut &'a int, x : &'a int) : int {\n    *slot = x\n    return 0\n}\nfunc <'o, 'i> apply(f : for<'c> (slot : &mut &'c int, x : &'c int) => int, slot : &'o mut &'i int, x : &'i int) : int {\n    return f(slot, x)\n}\npublic func main() : int {\n    var a = 1\n    var r : &int = &a\n    return apply(stash, &mut r, &a) - 0\n}\n"
+    expect_compile_success(env, "hrtb_retaining_nonlocal_slot_type_proves", ch)
+}
+
+@test
 func neg_hrtb_nonlocal_retaining_slot_distinct(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // The retaining slot is a caller-owned reference parameter with distinct

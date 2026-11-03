@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.97)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.98)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1053,9 +1053,11 @@
 > lifetimes, return regions, variance, temporary extension, provenance,
 > static-lifetime enforcement, Pin/Waker/async-frame checks, and HRTB call
 > regions are implemented. HRTB retaining storage now accepts caller-owned
-> slots when the caller's `where` edges prove the slot and every source outlive
-> the stored region; unproven caller-owned slots and mismatched-binder pointees
-> remain conservative. HRTB parameters support nested struct
+> slots when the caller's `where` edges prove every source outlives the stored
+> region; the slot's outer borrow only has to cover the call, so an unrelated
+> outer region is no longer rejected when the pointee and source already share
+> their declared region. Unproven caller-owned slots and mismatched-binder
+> pointees remain conservative. HRTB parameters support nested struct
 > aggregates, variant payloads, and array elements, borrowed nested results
 > through path-aware MIR field-source mapping, and per-leaf multi-lifetime
 > precision. Multi-borrow HRTB calls accept equal-region parameter/global
@@ -1478,10 +1480,12 @@ new number as the honest baseline, not a compiler regression.
    any argument borrow, so mixed local/parameter/global sources with distinct
    caller regions are accepted and all loans are pinned to function exit.
    Retaining storage reached through a reference parameter is caller-owned.
-   It is accepted when the caller's `where` edges prove the slot's outer borrow
-   and every source outlive the region stored in the slot's pointee (for
-   example `where 'o: 'i` for `slot: &'o mut &'i T`); otherwise it still
-   requires one shared region. A retaining pointee is accepted when every
+   It is accepted when every source outlives the region stored in the slot's
+   pointee (for example `where 'i: 's` for `slot: &'o mut &'s T, x: &'i T`).
+   The slot's outer borrow (`'o`) only has to cover the call, so an unrelated
+   outer region is accepted when the pointee and source already share their
+   declared region; without a source-to-stored edge it still requires one
+   shared region. A retaining pointee is accepted when every
    reference inside it uses the same binder (`&'a mut &'a T`); a pointee with a
    different binder or a free/`'static` lifetime remains rejected.
    Nested struct aggregate
@@ -2663,8 +2667,8 @@ array elements remain conservatively aliased. Read-only mixed/distinct
 multi-borrow calls are accepted. Retaining parameters backed by local or
 by-value storage also accept mixed/distinct sources, and a retaining pointee
 may contain references with the same binder (`&'a mut &'a T`). A caller-owned
-reference slot is accepted when the caller's `where` edges prove both its outer
-borrow and every source outlive the stored region. Without that proof, or for a
+reference slot is accepted when every source outlives the stored region; its
+outer borrow only needs to cover the call. Without that source edge, or for a
 pointee with a different binder or an opaque retaining type, the call remains
 an explicit `SAFE-BORROW-099` edge case.
 

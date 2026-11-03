@@ -66,7 +66,11 @@ public struct Box<T> {
 }
 
 public func <T> box(value : T) : Box<T> {
-    var ptr = unsafe(malloc(sizeof(T))) as *mut T
+    // A zero-sized value still needs a real, freeable allocation; malloc(0)
+    // may return null and would make Box::get panic or delete an invalid ptr.
+    var bytes : size_t = sizeof(T)
+    if(bytes == 0) { bytes = 1 }
+    var ptr = unsafe(malloc(bytes)) as *mut T
     if(ptr == null) {
         panic("box allocation failed")
     }
@@ -116,10 +120,13 @@ func <T> drop_erased(p : *mut void) {
  */
 public struct DynBox<I> {
     // Internal by design: construction goes through `dyn_box`, which keeps the
-    // fat pointer, data pointer, and drop function in sync.
-    var fat : dyn I
-    var data : *mut void
-    var drop : (p : *mut void) => void
+    // fat pointer, data pointer, and drop function in sync. If these fields
+    // were constructible from safe code outside std, a caller could pair
+    // `data` with a mismatched `drop` (or a null drop) and corrupt memory on
+    // destruction.
+    internal var fat : dyn I
+    internal var data : *mut void
+    internal var drop : (p : *mut void) => void
 
     @delete
     func delete(&mut self) {

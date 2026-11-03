@@ -775,6 +775,13 @@ func bounds_failure_reports_reason(env : &mut TestEnv) {
 }
 
 @test
+func string_append_null_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var s = std::string(\"x\")\n    s.append_char_ptr(null)\n    return 0\n}\n"
+    expect_runtime_panic(env, "string_append_null_panics", ch)
+}
+
+@test
 func panic_reports_message(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "public func main() : int {\n    panic(\"safety panic message\")\n    return 0\n}\n"

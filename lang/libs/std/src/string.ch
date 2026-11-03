@@ -412,6 +412,8 @@ public struct string {
 
     func append_with_len(&mut self, value : *char, len : size_t) {
         unsafe {
+            if(len == 0) { return }
+            if(value == null) { panic("string append from a null pointer") }
             // offset, where we start writing
             const offset = size()
             const max_size = (0 as size_t) - 1
@@ -458,6 +460,7 @@ public struct string {
     }
 
     func append_char_ptr(&mut self, value : *char) {
+        if(value == null) { panic("string append from a null pointer") }
         append_with_len(value, unsafe(strlen(value)));
     }
 
@@ -466,6 +469,7 @@ public struct string {
     }
 
     func append_str(&mut self, value : *string) {
+        if(value == null) { panic("string append from a null string") }
         unsafe {
             append_with_len(value.data(), value.size())
     

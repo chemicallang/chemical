@@ -55,6 +55,27 @@ view.
 | `dial` | non-null address; port is a valid TCP/UDP port | rejects null and `> 65535`; bounded port string |
 | `recv_async`/`send_async` | same buffer/length rules as the synchronous path | `-1` on violation |
 
+## Tranche 2 — ownership wrappers and strings (2026-11-03)
+
+| Wrapper | Invariant | Enforcement |
+|---|---|---|
+| `Box::box` | zero-sized `T` still yields a non-null, freeable allocation | zero-sized values allocate one byte |
+| `DynBox` | `fat`/`data`/`drop` stay synchronized and only `dyn_box` can construct them | fields are `internal` (not constructible outside `std`) |
+| `string.append_with_len` | a null source is only valid for a zero-length append | zero length returns; null with a positive length panics |
+| `string.append_char_ptr` | source is non-null before `strlen` | null panics |
+| `string.append_str` | source string pointer is non-null | null panics |
+
+Regression coverage:
+
+- `box_zero_sized_value_allocates_freeable_storage`
+- `neg_dyn_box_fields_private` (`cannot access internal member`)
+- `string_append_null_panics`
+
+Still remaining in this group: `vector` zero-sized elements and `set` replacement
+semantics, `string_view`/`u16string` raw constructors and numeric parsers,
+`Rc`/`Arc` count invariants under weak handles, `RefCell` guard escape, and the
+thread-pool raw state structures.
+
 ## Coverage
 
 - `lang/tests/src/stdlib/alloc/alloc_tests.ch`: zero-size freeable allocation;

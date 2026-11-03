@@ -111,6 +111,18 @@ func box_moves_without_copying(env : &mut TestEnv) {
         }
     }
 
+struct BoxEmptyValue {
+}
+
+@test
+func box_zero_sized_value_allocates_freeable_storage(env : &mut TestEnv) {
+    var b = std::box(BoxEmptyValue {})
+    var ptr = b.as_ptr()
+    if(ptr == null) {
+        env.error("Box<zero-sized> returned a null pointer")
+    }
+}
+
 @test
 func box_owns_string_value(env : &mut TestEnv) {
     {

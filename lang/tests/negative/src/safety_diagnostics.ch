@@ -1997,6 +1997,13 @@ func neg_linear_safe_impl_rejected(env : &mut TestEnv) {
 }
 
 @test
+func neg_dyn_box_fields_private(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface I { func value(&self) : int }\npublic func main() : int {\n    var b : std::DynBox<I>\n    b.data = null\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "dyn_box_private_fields", ch, "cannot access internal member", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_dealloc_bytes_requires_unsafe(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    std::alloc::dealloc_bytes(null)\n    return 0\n}\n"

@@ -136,6 +136,6 @@ The audit is covered by the negative safety suite and the existing
 - TCC/LLVM safety `74/74`, async `70/70`
 - TCC libs `732/732`, plugins `1305/1305`
 - TCC interpret `1931/1931`
-- `MIRTests` `4726 checks`
+- `MIRTests` `4749 checks`
 - `--llvm --thread-tsan` pass
 - whole-tree safety audit: no growth

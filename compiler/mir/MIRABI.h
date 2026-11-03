@@ -410,6 +410,42 @@ inline bool classify_aapcs32(const MIRModule& m, TypeId t, MIRABIUse use,
     return true;
 }
 
+/**
+ * Microsoft ARM64: HFAs travel by value in the FP registers. Other composites
+ * up to 8 bytes travel in x0 as one integer part, 9-16 bytes in x0/x1, and
+ * larger composites in caller-owned memory (a plain pointer). Returns use the
+ * exact integer width for <=8 bytes and x0/x1 for 9-16 bytes; larger returns
+ * use sret.
+ */
+inline bool classify_windows_arm64(const MIRModule& m, TypeId t, MIRABIUse use,
+                                   MIRABIInfo& out) {
+    (void) use;
+    const MIRTypeRecord& r = m.types.get(t);
+    if (r.size == 0 || r.alignment == 0) {
+        out.memory = true;
+        return true;
+    }
+    uint32_t base = 0;
+    uint32_t count = 0;
+    if (aapcs64_hfa_impl(m, t, base, count, 0)) {
+        for (uint32_t i = 0; i < count; ++i) {
+            out.parts.push_back(MIRABIPart{base, true, i * base});
+        }
+        return true;
+    }
+    if (r.size > 16) {
+        out.memory = true;
+        return true;
+    }
+    if (r.size <= 8) {
+        out.parts.push_back(MIRABIPart{r.size, false, 0});
+        return true;
+    }
+    out.parts.push_back(MIRABIPart{8, false, 0});
+    out.parts.push_back(MIRABIPart{r.size - 8, false, 8});
+    return true;
+}
+
 } // namespace detail
 
 /**
@@ -443,6 +479,8 @@ inline bool classify_c_abi(const MIRModule& m, TypeId t, MIRABIUse use,
             return detail::classify_aapcs32(m, t, use, false, out);
         case MIRABIKind::AAPCS32HF:
             return detail::classify_aapcs32(m, t, use, true, out);
+        case MIRABIKind::WindowsARM64:
+            return detail::classify_windows_arm64(m, t, use, out);
         case MIRABIKind::Unknown:
         default:
             // The caller must reject by-value extern aggregates before codegen.
@@ -461,6 +499,7 @@ inline bool c_abi_supported(const MIRModule& m) {
         case MIRABIKind::AAPCS64:
         case MIRABIKind::AAPCS32:
         case MIRABIKind::AAPCS32HF:
+        case MIRABIKind::WindowsARM64:
             return true;
         default:
             return false;

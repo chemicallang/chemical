@@ -2831,6 +2831,10 @@ static bool test_c_abi_classifier() {
     const TypeId huge = mir_layout_agg(
         m, MIRTypeKind::Struct,
         {{"a", mir_layout_array(m, i32, 17)}});
+    const TypeId char12 = mir_layout_agg(
+        m, MIRTypeKind::Struct, {{"a", mir_layout_array(m, ch, 12)}});
+    const TypeId char16 = mir_layout_agg(
+        m, MIRTypeKind::Struct, {{"a", mir_layout_array(m, ch, 16)}});
 
     abi::MIRABIInfo info;
 
@@ -2964,8 +2968,41 @@ static bool test_c_abi_classifier() {
     CHECK(abi::classify_c_abi(m, huge, abi::MIRABIUse::Parameter, info) && info.memory);
     CHECK(abi::c_abi_supported(m));
 
-    // Windows ARM64 still has no classifier; the caller's c_abi_supported gate
-    // rejects by-value extern aggregates there. Unknown targets also reject.
+    // Windows ARM64: HFAs use FP parts; non-HFA composites up to 16 bytes use
+    // x0/x1 and larger ones use caller memory. Both parameters and returns use
+    // the same register split, with exact integer widths for small returns.
+    m.layout.c_abi = MIRABIKind::WindowsARM64;
+    CHECK(abi::classify_c_abi(m, pair, abi::MIRABIUse::Parameter, info));
+    CHECK(!info.memory && info.parts.size() == 1 &&
+          info.parts[0].size == 8 && !info.parts[0].floating);
+    CHECK(abi::classify_c_abi(m, three_chars, abi::MIRABIUse::Parameter, info));
+    CHECK(!info.memory && info.parts.size() == 1 && info.parts[0].size == 3);
+    CHECK(abi::classify_c_abi(m, char12, abi::MIRABIUse::Parameter, info));
+    CHECK(!info.memory && info.parts.size() == 2 &&
+          info.parts[0].size == 8 && info.parts[1].size == 4 &&
+          info.parts[1].offset == 8);
+    CHECK(abi::classify_c_abi(m, char16, abi::MIRABIUse::Parameter, info));
+    CHECK(!info.memory && info.parts.size() == 2 &&
+          info.parts[0].size == 8 && info.parts[1].size == 8);
+    CHECK(abi::classify_c_abi(m, big, abi::MIRABIUse::Parameter, info) && info.memory);
+    CHECK(abi::classify_c_abi(m, three_chars, abi::MIRABIUse::Return, info));
+    CHECK(!info.memory && info.parts.size() == 1 && info.parts[0].size == 3);
+    CHECK(abi::classify_c_abi(m, char12, abi::MIRABIUse::Return, info));
+    CHECK(!info.memory && info.parts.size() == 2 &&
+          info.parts[0].size == 8 && info.parts[1].size == 4);
+    CHECK(abi::classify_c_abi(m, char16, abi::MIRABIUse::Return, info));
+    CHECK(!info.memory && info.parts.size() == 2 &&
+          info.parts[0].size == 8 && info.parts[1].size == 8);
+    CHECK(abi::classify_c_abi(m, big, abi::MIRABIUse::Return, info) && info.memory);
+    CHECK(abi::classify_c_abi(m, two_floats, abi::MIRABIUse::Parameter, info));
+    CHECK(!info.memory && info.parts.size() == 2 && info.parts[0].floating);
+    CHECK(abi::classify_c_abi(m, two_floats, abi::MIRABIUse::Return, info));
+    CHECK(!info.memory && info.parts.size() == 2 && info.parts[1].floating);
+    CHECK(abi::classify_c_abi(m, two_doubles, abi::MIRABIUse::Parameter, info));
+    CHECK(!info.memory && info.parts.size() == 2 && info.parts[0].size == 8);
+    CHECK(abi::c_abi_supported(m));
+
+    // Unknown targets still reject by-value extern aggregates.
     m.layout.c_abi = MIRABIKind::Unknown;
     CHECK(abi::classify_c_abi(m, pair, abi::MIRABIUse::Return, info) && info.memory);
     CHECK(!abi::c_abi_supported(m));

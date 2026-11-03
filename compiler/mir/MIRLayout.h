@@ -35,6 +35,8 @@ enum class MIRABIKind : uint8_t {
     AAPCS32 = 5,
     /** ARM32 hard-float (gnueabihf/musleabihf): HFA rules are active. */
     AAPCS32HF = 6,
+    /** Microsoft ARM64: HFA composites, up to 16 bytes in x registers. */
+    WindowsARM64 = 7,
     Unknown = 255,
 };
 

@@ -1662,12 +1662,12 @@ func neg_thread_handle_cannot_be_forged(env : &mut TestEnv) {
 @test
 func neg_by_value_extern_on_unsupported_target_rejected(env : &mut TestEnv) {
     // The target-aware C ABI/SAFE-FFI-003 gate is the LLVM backend; TCCCompiler
-    // delegates aggregate layout to the host C compiler. Microsoft ARM64 still
-    // has no classifier, so it must remain fail-closed.
+    // delegates aggregate layout to the host C compiler. RISC-V still has no
+    // classifier, so it must remain fail-closed.
     if(intrinsics::get_backend_name() != "LLVM") { return }
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "@extern struct Pair { var a : int; var b : int }\n@extern func pair_sum(p : Pair) : int\npublic func main() : int {\n    var p = Pair { a : 1, b : 2 }\n    return unsafe(pair_sum(p))\n}\n"
-    expect_compile_error_with_target(env, "ffi_unsupported_target", ch, "SAFE-FFI-003", NEG_MOD, "aarch64-pc-windows-msvc")
+    expect_compile_error_with_target(env, "ffi_unsupported_target", ch, "SAFE-FFI-003", NEG_MOD, "riscv64-unknown-linux-gnu")
 }
 
 @test
@@ -1681,6 +1681,7 @@ func ffi_i386_and_arm32_by_value_extern_are_classified(env : &mut TestEnv) {
     expect_compile_target_no_diagnostic(env, "ffi_i386_windows_target", ch, "SAFE-FFI-003", NEG_MOD, "i386-pc-windows-msvc")
     expect_compile_target_no_diagnostic(env, "ffi_arm32_soft_target", ch, "SAFE-FFI-003", NEG_MOD, "armv7-unknown-linux-gnueabi")
     expect_compile_target_no_diagnostic(env, "ffi_arm32_hard_target", ch, "SAFE-FFI-003", NEG_MOD, "armv7-unknown-linux-gnueabihf")
+    expect_compile_target_no_diagnostic(env, "ffi_arm64_windows_target", ch, "SAFE-FFI-003", NEG_MOD, "aarch64-pc-windows-msvc")
 }
 
 @test

@@ -20,7 +20,7 @@ for the safe API surface we currently expose**, not full language parity.
 | Init / moves / drops | Implemented in MIR (`MIRMoveCheck`); local/parameter struct fields and whole-array fields are field-tracked; unsupported move shapes reject with `SAFE-MOVE-004` |
 | Borrows / lifetimes | Implemented for the enforceable surface (regions, NLL loans, storage lifetimes, return regions, variance, temporary extension, provenance, HRTB call regions) |
 | `Send` / `Sync` | Auto traits + explicit/negative impls + nested conditional generic impls; data-race primitives. Stdlib explicit impls audited (2026-11-02); the shared-reference Send rule now checks nested `!Sync` correctly (`lang/docs/safety/auto-traits-audit.md`). |
-| Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; target-aware by-value C ABI on x86-64 SysV, Windows x64, i386 SysV/Windows, ARM32 AAPCS (soft/hard-float) and AArch64 AAPCS64; Windows ARM64/unknown targets, variadic aggregate arguments, and un-auditable extern callback ABIs reject instead of guessing |
+| Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; target-aware by-value C ABI on x86-64 SysV, Windows x64, i386 SysV/Windows, ARM32 AAPCS (soft/hard-float), AArch64 AAPCS64 and Microsoft ARM64; unknown targets, variadic aggregate arguments, and un-auditable extern callback ABIs reject instead of guessing |
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
 | Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
@@ -39,7 +39,7 @@ Latest measured baseline:
 | TCC libs | `732/732` |
 | TCC plugins | `1305/1305` |
 | TCC interpret | `1931/1931` |
-| `MIRTests` | `4726 checks` |
+| `MIRTests` | `4749 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
 | Whole-tree audit | `unsafe_blocks 3775`, `unsafe_values 4915`, `raw_pointer_types 9370`, `raw_pointer_derefs 1073`, `panic_calls 113` |
 | Audit result | `no growth` against `lang/docs/safety/audit-baseline.json` |
@@ -64,7 +64,7 @@ closure fixtures add a few audited raw C future-ABI sites.
 - `SAFE-FFI-002` — `@extern` function passing/returning a Chemical variant by
   value (no C layout).
 - `SAFE-FFI-003` — LLVM by-value `@extern` aggregate on a target without a C
-  ABI classifier (currently Windows ARM64 and unknown/WASM targets); use the C
+  ABI classifier (currently RISC-V, WASM and other unknown targets); use the C
   backend or a supported target.
 - `SAFE-FFI-004` — a by-value aggregate is passed through a variadic `@extern`
   call; pass a pointer or scalar instead (C default promotions cover scalars,
@@ -289,20 +289,21 @@ memory safety.
 2. **Target-aware C ABI is implemented for the main native conventions.**
    `MIRABI` classifies by-value `@extern` structs/unions for x86-64 System V,
    Windows x64, i386 System V, Windows i386, ARM32 AAPCS (soft-float and
-   hard-float/AAPCS-VFP) and AArch64 AAPCS64. The classifier is parameter/return
-   aware because i386 Windows and ARM32 return small aggregates in registers
-   while passing parameters differently; ARM32 hard-float handles HFAs and the
-   Clang 64-byte split/byval threshold. LLVM uses `byval` on the targets that
+   hard-float/AAPCS-VFP), AArch64 AAPCS64 and Microsoft ARM64. The classifier is
+   parameter/return aware because i386 Windows and ARM32 return small aggregates
+   in registers while passing parameters differently; ARM32 hard-float handles
+   HFAs and the Clang 64-byte split/byval threshold, while Microsoft ARM64 uses
+   HFA FP parts and x0/x1 up to 16 bytes. LLVM uses `byval` on the targets that
    require it (SysV x86, i386 Windows, ARM32) and plain pointers on
-   Windows x64/AArch64, matching Clang. Windows ARM64 and unknown targets reject
-   by-value extern aggregates with `SAFE-FFI-003`; by-value aggregates passed
-   through a variadic `@extern` call are rejected with `SAFE-FFI-004`. The C
-   backend delegates to the host compiler. `SAFE-FFI-005` now audits extern
-   callback signatures: by-value aggregate callback parameters/returns and
-   capturing callbacks are rejected, and every 32-bit Windows callback is
-   rejected until stdcall/cdecl metadata is represented. Remaining: Windows
-   ARM64, variadic scalar default-promotion coverage, explicit stdcall callback
-   types, and full FFI wrapper auditing.
+   Windows x64/ARM64/AArch64, matching Clang. Unknown targets reject by-value
+   extern aggregates with `SAFE-FFI-003`; by-value aggregates passed through a
+   variadic `@extern` call are rejected with `SAFE-FFI-004`. The C backend
+   delegates to the host compiler. `SAFE-FFI-005` now audits extern callback
+   signatures: by-value aggregate callback parameters/returns and capturing
+   callbacks are rejected, and every 32-bit Windows callback is rejected until
+   stdcall/cdecl metadata is represented. Remaining: variadic scalar
+   default-promotion coverage, explicit stdcall callback types, and full FFI
+   wrapper auditing.
 3. **`@scoped_callback` is body-checked, with a fixed sink list.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter anywhere except a known join-before-return API (resolved by exact library
@@ -537,7 +538,7 @@ Coded output renders `error[SAFE-*]:` / `warn[SAFE-*]:`; uncoded output keeps
 | `SAFE-DROP-001` | invalid destructor signature |
 | `SAFE-FFI-001` | `@extern` call in safe context |
 | `SAFE-FFI-002` | by-value Chemical variant across `@extern` ABI |
-| `SAFE-FFI-003` | LLVM by-value extern aggregate on a target without a C ABI classifier (Windows ARM64/unknown) |
+| `SAFE-FFI-003` | LLVM by-value extern aggregate on a target without a C ABI classifier (RISC-V/WASM/unknown) |
 | `SAFE-FFI-004` | by-value aggregate passed through a variadic `@extern` call |
 | `SAFE-FFI-005` | extern callback ABI/convention cannot be audited or differs from C |
 | `SAFE-GLOBAL-001` | mutable/extern global access in safe context |

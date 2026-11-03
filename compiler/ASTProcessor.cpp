@@ -61,9 +61,7 @@ static mir::MIRABIKind mir_c_abi_kind(const TargetData& td) {
                              : mir::MIRABIKind::AAPCS32;
     }
     if (td.aarch64) {
-        // Microsoft ARM64 differs from AAPCS64 in variadic and HFA details;
-        // reject by-value extern aggregates there instead of guessing.
-        return td.windows ? mir::MIRABIKind::Unknown
+        return td.windows ? mir::MIRABIKind::WindowsARM64
                           : mir::MIRABIKind::AAPCS64;
     }
     return mir::MIRABIKind::Unknown;

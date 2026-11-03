@@ -373,6 +373,7 @@ static bool mir_struct_like_return(const MIRModule& module, TypeId t) {
 }
 
 static void append_fn_ptr_type(const MIRModule& module, const MIRTypeRecord& r, std::string& out) {
+    if (r.std_call) out += "__chem_stdcall ";
     const bool sret = mir_struct_like_return(module, r.element);
     if (sret) out += "void";
     else append_c_type_of(module, r.element, out);
@@ -429,6 +430,7 @@ static void append_decl_type(const MIRModule& module, TypeId type, std::string_v
         return;
     }
     const bool sret = mir_struct_like_return(module, r.element);
+    if (r.std_call) out += "__chem_stdcall ";
     std::string& params = decl_scratch(depth);
     if (sret) {
         append_c_type_of(module, r.element, params);
@@ -838,6 +840,12 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
     }
 
     if (is_static) out += "static ";
+    if (function.symbol != MIR_INVALID_ID && function.symbol < module.symbols.size() &&
+        module.symbols.get(function.symbol).stdcall) {
+        // The prototype's name carries the C calling-convention prefix; the
+        // definition has to spell it too or i386 C rejects the redeclaration.
+        out += "__chem_stdcall ";
+    }
     if (module.types.get(ftr.element).kind == MIRTypeKind::Function) {
         // a function returning a function pointer needs a nested declarator:
         // `ret (*(*name)(params))(retparams)` — the one case that needs the

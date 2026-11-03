@@ -1722,9 +1722,12 @@ func extern_callback_conventions_on_i386_windows(env : &mut TestEnv) {
     // matches the internal function ABI for scalar/pointer signatures.
     var cdecl = "@extern func register_cb(cb : (x : int) => int) : int\npublic func main() : int { return 0 }\n"
     expect_compile_target_no_diagnostic(env, "extern_cdecl_callback_i386_windows", cdecl, "SAFE-FFI-005", NEG_MOD, "i386-pc-windows-msvc")
+    // An explicit stdcall callback type is represented on x86 32-bit.
+    var stdcall = "@stdcall\ntype STDCALL_CB = (x : int) => int\n@extern func register_cb(cb : STDCALL_CB) : int\npublic func main() : int { return 0 }\n"
+    expect_compile_target_no_diagnostic(env, "extern_stdcall_callback_i386_windows", stdcall, "SAFE-FFI-005", NEG_MOD, "i386-pc-windows-msvc")
     // A stdcall function declaration is not a cdecl callback value.
-    var stdcall = "@stdcall\n@extern\nfunc std_cb(x : int) : int\n@extern func register_cb(cb : (x : int) => int) : int\npublic func main() : int {\n    unsafe { register_cb(std_cb) }\n    return 0\n}\n"
-    expect_compile_error_with_target(env, "extern_stdcall_callback_i386_windows", stdcall, "does not satisfy", NEG_MOD, "i386-pc-windows-msvc")
+    var mismatch = "@stdcall\n@extern\nfunc std_cb(x : int) : int\n@extern func register_cb(cb : (x : int) => int) : int\npublic func main() : int {\n    unsafe { register_cb(std_cb) }\n    return 0\n}\n"
+    expect_compile_error_with_target(env, "extern_stdcall_cdecl_mismatch", mismatch, "does not satisfy", NEG_MOD, "i386-pc-windows-msvc")
 }
 
 @test

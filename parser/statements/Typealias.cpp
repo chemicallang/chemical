@@ -5,6 +5,7 @@
 #include "ast/structures/GenericTypeDecl.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/types/IfType.h"
+#include "ast/types/FunctionType.h"
 
 std::pair<Value*, TypeLoc> parseTypeIffy(Parser& parser, ASTAllocator& allocator) {
     auto& token = parser.token;
@@ -177,6 +178,18 @@ ASTNode* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifie
                     error("expected a type after '='");
                 }
                 break;
+            }
+        }
+
+        if(alias->is_std_call()) {
+            auto* type = alias->actual_type ? alias->actual_type.getType() : nullptr;
+            auto* fn = type != nullptr
+                           ? const_cast<BaseType*>(type)->canonical()->as_function_type()
+                           : nullptr;
+            if(fn != nullptr) {
+                fn->setStdCall(true);
+            } else {
+                error("@stdcall type alias must alias a function type");
             }
         }
 

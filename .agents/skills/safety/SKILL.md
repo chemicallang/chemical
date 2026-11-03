@@ -72,8 +72,9 @@ migration (`net` Windows branches, `osrand` BCrypt, and the new target test).
   call; pass a pointer or scalar instead (C default promotions cover scalars,
   not a guessed aggregate layout).
 - `SAFE-FFI-005` — an `@extern` signature contains a callback with a by-value
-  struct/union parameter or return, a capturing function, or a 32-bit Windows
-  stdcall callback (default cdecl scalar/pointer callbacks are accepted).
+  struct/union parameter or return or a capturing function. Scalar/pointer
+  callbacks are accepted, including explicit `@stdcall` function types on
+  32-bit x86.
 - `SAFE-FFI-006` — a 32-bit `@stdcall` symbol is variadic or targets a
   non-x86 convention. Direct x86 32-bit stdcall is supported; use the C backend
   or remove the annotation for unsupported shapes.
@@ -303,17 +304,18 @@ memory safety.
    Windows x64/ARM64/AArch64, matching Clang. Unknown targets reject by-value
    extern aggregates with `SAFE-FFI-003`; by-value aggregates passed through a
    variadic `@extern` call are rejected with `SAFE-FFI-004`. The C backend
-   delegates to the host compiler. `SAFE-FFI-005` now audits extern callback
+   delegates to the host compiler. `SAFE-FFI-005` audits extern callback
    signatures: by-value aggregate callback parameters/returns and capturing
-   callbacks are rejected, and every 32-bit Windows callback is rejected until
-   stdcall/cdecl metadata is represented. `SAFE-FFI-006` now only rejects
+   callbacks are rejected; scalar/pointer cdecl and explicit `@stdcall`
+   callbacks are accepted. `SAFE-FFI-006` now only rejects
    variadic `@stdcall` and non-x86 32-bit targets: LLVM emits `x86_stdcallcc`
    for i386 Linux/Windows and derives the Windows COFF `_name@N` decoration
-   from the function type. On 32-bit Windows, default cdecl callbacks are
-   accepted for scalar/pointer signatures; stdcall callback conversion is still
-   rejected. The `cstd/windows` wrappers were audited and migrated (thread-local
-   stdio caches, unsafe raw-pointer APIs, checked target build). Remaining:
-   stdcall callback conversion and the rest of the FFI wrapper audit.
+   from the function type. `@stdcall` type aliases carry the convention through
+   function-type identity, MIR, LLVM indirect calls, and C function-pointer
+   spelling; scalar/pointer cdecl and stdcall callbacks are accepted. The C
+   backend emits the convention on both the prototype and definition. Remaining
+   FFI work is the full semantic wrapper audit; the i386 Windows libraries are
+   syntax/safety-clean.
 3. **`@scoped_callback` is body-checked, with a fixed sink list.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter anywhere except a known join-before-return API (resolved by exact library
@@ -554,7 +556,7 @@ Coded output renders `error[SAFE-*]:` / `warn[SAFE-*]:`; uncoded output keeps
 | `SAFE-FFI-002` | by-value Chemical variant across `@extern` ABI |
 | `SAFE-FFI-003` | LLVM by-value extern aggregate on a target without a C ABI classifier (RISC-V/WASM/unknown) |
 | `SAFE-FFI-004` | by-value aggregate passed through a variadic `@extern` call |
-| `SAFE-FFI-005` | extern callback ABI/convention cannot be audited or differs from C (including 32-bit Windows stdcall callbacks) |
+| `SAFE-FFI-005` | extern callback has a by-value aggregate parameter/return or is capturing |
 | `SAFE-FFI-006` | variadic `@stdcall` or non-x86 32-bit `@stdcall` |
 | `SAFE-GLOBAL-001` | mutable/extern global access in safe context |
 | `SAFE-GLOBAL-002` | immutable global whose type is not `Sync` |

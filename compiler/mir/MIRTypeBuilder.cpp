@@ -676,6 +676,7 @@ TypeId MIRTypeBuilder::function_type(BaseType* type) {
         n -= 1;
         r.flags |= TF_VARIADIC;
     }
+    if (ft->isStdCall()) r.std_call = true;
     // params are mapped first into a temporary to avoid re-entrancy issues
     std::vector<TypeId> param_ids;
     param_ids.reserve(n);

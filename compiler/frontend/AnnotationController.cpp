@@ -147,7 +147,14 @@ void annot_handler_stdcall(Parser* parser, ASTNode* node, std::vector<Value*>& a
         func->set_std_call(true);
         return;
     }
-    parser->error("couldn't make the function stdcall");
+    if(node->kind() == ASTNodeKind::TypealiasStmt) {
+        // The right-hand side is parsed after annotations are applied, so
+        // record the request here and let the typealias parser attach it once
+        // the function type exists.
+        node->as_typealias_unsafe()->set_std_call(true);
+        return;
+    }
+    parser->error("couldn't make the function or function-type alias stdcall");
 }
 
 void annot_handler_dllimport(Parser* parser, ASTNode* node, std::vector<Value*>& args) {

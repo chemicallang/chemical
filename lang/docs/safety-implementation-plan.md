@@ -1427,16 +1427,14 @@ new number as the honest baseline, not a compiler regression.
    delegates to the host C compiler. By-value aggregates passed through a
    variadic `@extern` call are rejected with `SAFE-FFI-004` (pointer/scalar
    rewrite required). `SAFE-FFI-005` audits callback signatures: by-value
-   aggregate callback parameters/returns and capturing callbacks are rejected;
-   on 32-bit Windows, default cdecl scalar/pointer callbacks are accepted.
-   `SAFE-FFI-006` keeps variadic `@stdcall` and non-x86 32-bit
+   aggregate callback parameters/returns and capturing callbacks are rejected.
+   Scalar/pointer cdecl and explicit `@stdcall` callbacks are accepted on 32-bit
+   x86; `@stdcall` is part of function-type identity and flows through MIR and
+   both backends. `SAFE-FFI-006` keeps variadic `@stdcall` and non-x86 32-bit
    targets fail-closed; LLVM now emits `x86_stdcallcc` for direct i386
    Linux/Windows symbols and derives the Windows COFF `_name@N` decoration
-   from the function type. On 32-bit Windows, default cdecl callbacks are
-   accepted for scalar/pointer signatures; stdcall callback conversion remains
-   rejected. `cstd/windows` is now safety-clean on an i386 Windows target.
-   Remaining: stdcall callback conversion and the rest of the FFI wrapper
-   audit.
+   from the function type. `cstd/windows` is safety-clean on an i386 Windows
+   target. Remaining: the full semantic FFI wrapper audit.
 3. **`@scoped_callback` has a fixed, checked sink list.** `SAFE-SCOPED-001`
    rejects returning, storing, capturing, or passing the scoped parameter to an
    unknown callee; only known join-before-return APIs (resolved by exact library
@@ -1888,8 +1886,8 @@ passes.
 - `SAFE-FFI-004`: a by-value aggregate is passed through a variadic `@extern`
   call; C default promotions cover scalars, not a guessed aggregate layout.
 - `SAFE-FFI-005`: an `@extern` callback has a by-value aggregate parameter or
-  return, is a capturing function, or is a 32-bit Windows stdcall callback
-  (default cdecl scalar/pointer callbacks are accepted).
+  return, or is a capturing function. Scalar/pointer cdecl and explicit
+  `@stdcall` callbacks are accepted.
 - `SAFE-FFI-006`: variadic `@stdcall` or a non-x86 32-bit `@stdcall` target;
   use the C backend or remove the annotation. Direct x86 32-bit stdcall is
   supported.
@@ -2168,12 +2166,11 @@ threads, channels/executor.
   soft/hard-float and AAPCS64; unknown targets reject. Variadic by-value
   aggregate arguments reject with `SAFE-FFI-004`. Extern callbacks with
   by-value aggregate parameters/returns or capturing functions reject with
-  `SAFE-FFI-005`; 32-bit Windows accepts default cdecl scalar/pointer callbacks.
-  `SAFE-FFI-006` rejects variadic and non-x86 32-bit `@stdcall`; LLVM
+  `SAFE-FFI-005`; scalar/pointer cdecl and explicit `@stdcall` callbacks are
+  accepted. `SAFE-FFI-006` rejects variadic and non-x86 32-bit `@stdcall`; LLVM
   emits `x86_stdcallcc` (and COFF `_name@N` decoration) for supported i386
-  symbols. 32-bit Windows accepts default cdecl scalar/pointer callbacks;
-  stdcall callback conversion is still rejected. Remaining here: bitfields (if
-  supported), stdcall callback conversion, and FFI wrapper auditing.
+  symbols. Remaining here: bitfields (if supported) and the full semantic FFI
+  wrapper audit.
 - `repr` layout static assertions.
 - Variadic default promotions (`char`→`int`, `float`→`double`); char signedness;
   bool representation; reject unsupported long double/128-bit.
@@ -3055,3 +3052,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.83 (2026-11-03): complete i386 Windows library safety pass. Wrapped the Windows `net/win` IOCP/platform API, `fs/win` filesystem/UTF-8/metadata wrappers, `window/win`, and `webview/win` bodies in explicit audited unsafe boundaries; fixed the 32-bit `size_t` file-length shift (`nFileSizeHigh << 32` now goes through `u64`), added `Zeroable` for `WNDCLASSEXW`, and added the missing unsafe boundary for `osrand`'s `BCryptGenRandom`. The i386 Windows target now passes `--check` with no `SAFE-*` diagnostics for `cstd`, `std`, `fs`, `net`, `test`, `async`, `tls`, `window`, and `webview`; the negative regression imports all of them. Main TCC/LLVM `2431`/`2429`; negative `774`; safety `74`; async `70`; libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
 
 *Revision note v4.84 (2026-11-03): reviewed audit baseline update. The Windows platform migration adds `unsafe_blocks 3775 -> 3780` and `unsafe_values 4915 -> 4921`: `net` Windows error branches, `osrand`'s `BCryptGenRandom` call, and the new i386-Windows target regression test. All are intentional audited boundaries; `scripts/safety-audit.sh --update` was run and the baseline diff was reviewed. Main TCC/LLVM `2431`/`2429`; negative `774`; safety `74`; async `70`; libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth against the new baseline.
+
+*Revision note v4.85 (2026-11-03): stdcall callback types. `FunctionTypeData` now records stdcall for both declarations and `@stdcall type` aliases; the parser applies the annotation after the right-hand side and MIR interns the flag on function types. LLVM emits `x86_stdcallcc` for indirect calls through a stdcall function pointer and keeps the direct-call/declaration convention; `SAFE-FFI-005` now accepts scalar/pointer stdcall callbacks on 32-bit x86. The C emitter prefixes function-pointer types, indirect calls, and definitions with `__chem_stdcall` (verified with `-m32 -fsyntax-only`), so prototypes and definitions agree. `SAFE-FFI-006` remains fail-closed for variadic stdcall and non-x86 32-bit targets. Added positive i386-Windows stdcall-callback coverage, a cdecl/stdcall type-mismatch negative, and IR/C checks. Main TCC/LLVM `2431`/`2429`; negative `774`; safety `74`; async `70`; libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.

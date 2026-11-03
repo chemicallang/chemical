@@ -115,6 +115,9 @@ struct MIRTypeRecord {
      * source loan alive even though the representation is a raw pointer.
      */
     bool contains_borrow_view = false;
+
+    /** Function type: source requested the Windows x86 stdcall convention. */
+    bool std_call = false;
 };
 
 /**
@@ -423,6 +426,7 @@ struct MIRTypeTable {
         mix(r.decl);
         mix(r.data_count);
         mix(r.int_kind);
+        mix(static_cast<uint64_t>(r.std_call));
         mix(r.field_index);
         mix(r.explicit_alignment);
         mix(r.packed ? 1u : 0u);
@@ -454,7 +458,8 @@ struct MIRTypeTable {
             a.explicit_alignment != b.explicit_alignment || a.packed != b.packed ||
             a.copy != b.copy || a.transparent != b.transparent ||
             a.contains_future_handle != b.contains_future_handle ||
-            a.contains_borrow_view != b.contains_borrow_view) {
+            a.contains_borrow_view != b.contains_borrow_view ||
+            a.std_call != b.std_call) {
             return false;
         }
         // Only function types store parameter types in the shared data pool;

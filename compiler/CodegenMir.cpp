@@ -2128,10 +2128,15 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                         coerce_args(args, fty, &arg_types);
                         ci = builder->CreateCall(fty, callee, args);
                         // A direct function-address operand keeps its stdcall
-                        // convention; a loaded pointer has no convention in its
-                        // type yet (32-bit Windows callbacks stay rejected).
+                        // convention; a loaded stdcall function pointer carries
+                        // the convention in its MIR function type.
                         if (auto* direct = llvm::dyn_cast<llvm::Function>(callee)) {
                             ci->setCallingConv(direct->getCallingConv());
+                        } else if (ft != MIR_INVALID_ID && ft < m.types.size() &&
+                                   m.types.get(ft).std_call &&
+                                   (m.layout.c_abi == mir::MIRABIKind::WindowsX86 ||
+                                    m.layout.c_abi == mir::MIRABIKind::SysVX86_32)) {
+                            ci->setCallingConv(llvm::CallingConv::X86_StdCall);
                         }
                     }
                     if (call_sret && c_abi) {

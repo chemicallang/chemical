@@ -41,6 +41,12 @@ struct TypealiasDeclAttributes {
      */
     bool is_associated = false;
 
+    /**
+     * `@stdcall type Callback = (...) => ...`: applied to the function type
+     * after the right-hand side has been parsed.
+     */
+    bool is_std_call = false;
+
 };
 
 class TypealiasStatement : public ASTNode {
@@ -140,6 +146,14 @@ public:
 
     inline void set_associated(bool value) {
         attrs.is_associated = value;
+    }
+
+    inline bool is_std_call() const {
+        return attrs.is_std_call;
+    }
+
+    inline void set_std_call(bool value) {
+        attrs.is_std_call = value;
     }
 
     inline const chem::string_view& name_view() const {

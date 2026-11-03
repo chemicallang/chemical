@@ -89,6 +89,20 @@ static void mir_emit_llvm_module(Codegen& gen, LabModule* module,
     if (!m.layout.is64Bit) {
         const bool x86_32 = m.layout.c_abi == mir::MIRABIKind::WindowsX86 ||
                             m.layout.c_abi == mir::MIRABIKind::SysVX86_32;
+        // Function *types* (callbacks and function pointers) carry the same
+        // convention fact; reject them on non-x86 32-bit targets and for
+        // variadic signatures before the emitter sees an indirect call.
+        for (uint32_t i = 0; i < m.types.size(); ++i) {
+            const mir::MIRTypeRecord& tr = m.types.get(i);
+            if (!tr.std_call) continue;
+            if (!x86_32 || (tr.flags & mir::TF_VARIADIC) != 0) {
+                gen.error(ZERO_LOC).with_code("SAFE-FFI-006")
+                    << "32-bit @stdcall function types are only supported on "
+                       "non-variadic x86 targets for target '"
+                    << gen.target_triple << "'; use the C backend or remove @stdcall";
+                return;
+            }
+        }
         for (uint32_t i = 0; i < m.symbols.symbols.size(); ++i) {
             const mir::MIRSymbolRecord& rec = m.symbols.symbols[i];
             if (!rec.stdcall) continue;

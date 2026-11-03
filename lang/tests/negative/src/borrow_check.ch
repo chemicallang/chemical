@@ -498,6 +498,36 @@ func neg_hrtb_large_array_element_result_aliases(env : &mut TestEnv) {
 }
 
 @test
+func hrtb_struct_large_array_element_result_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A large direct-reference array in a struct field uses one wildcard
+    // element loan keyed by (root, field), so the borrowed result keeps the
+    // caller source live.
+    var ch = "struct Refs<'a> {\n    var items : [65]&'a int\n}\nfunc <'a> read_refs(r : Refs<'a>) : &'a int {\n    return r.items[0]\n}\nfunc <'a> apply(f : for<'b> (r : Refs<'b>) => &'b int, x : &'a int, y : &'a int) : &'a int {\n    var items : [65]&'a int = [x, y, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x]\n    return f(Refs<'a> { items : items })\n}\npublic func main() : int {\n    var x = 41\n    var y = 7\n    var r = apply(read_refs, &x, &y)\n    return *r - 41\n}\n"
+    expect_compile_success(env, "hrtb_struct_large_array_element_result", ch)
+}
+
+@test
+func neg_hrtb_struct_large_array_element_result_aliases(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct Refs<'a> {\n    var items : [65]&'a int\n}\nfunc <'a> read_refs(r : Refs<'a>) : &'a int {\n    return r.items[0]\n}\nfunc <'a> apply(f : for<'b> (r : Refs<'b>) => &'b int, x : &'a int, y : &'a int) : &'a int {\n    var items : [65]&'a int = [x, y, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x]\n    return f(Refs<'a> { items : items })\n}\npublic func main() : int {\n    var x = 41\n    var y = 7\n    var r = apply(read_refs, &x, &y)\n    var q = &mut y\n    *q = 9\n    return *r - 41\n}\n"
+    expect_compile_error(env, "hrtb_struct_large_array_result_alias", ch, "SAFE-BORROW-001")
+}
+
+@test
+func neg_hrtb_large_array_nested_struct_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Two aggregate levels remain rejected: only a direct struct field has a
+    // wildcard key the MIR call contract can map.
+    var ch = "struct Inner<'a> {\n    var items : [65]&'a int\n}\nstruct Outer<'a> {\n    var inner : Inner<'a>\n}\nfunc apply(f : for<'b> (o : Outer<'b>) => int) : int { return 0 }\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "hrtb_large_array_nested_struct", ch, "SAFE-BORROW-099")
+    // An array of structs is also not a direct field: its MIR path has an
+    // element step before the field, so keep it fail-closed too.
+    var array_of_structs = "struct Inner<'a> {\n    var items : [65]&'a int\n}\nfunc apply(f : for<'b> (o : [2]Inner<'b>) => int) : int { return 0 }\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "hrtb_large_array_array_of_structs", array_of_structs, "SAFE-BORROW-099")
+}
+
+@test
 func hrtb_generic_struct_borrowed_result_ok(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // A type-parameterised wrapper is substituted from the concrete type
@@ -518,10 +548,6 @@ func neg_hrtb_variant_array_result_aliases(env : &mut TestEnv) {
     expect_compile_error(env, "hrtb_array_result_alias", array, "SAFE-BORROW-001")
     var wrapper = "struct View<'a> {\n    var p : &'a int\n}\nstruct Wrap<T> {\n    var value : T\n}\nfunc <'a> read_wrap(w : Wrap<View<'a>>) : &'a int {\n    return w.value.p\n}\nfunc <'a> apply(f : for<'b> (w : Wrap<View<'b>>) => &'b int, x : &'a int) : &'a int {\n    return f(Wrap<View<'a>> { value : View<'a> { p : x } })\n}\npublic func main() : int {\n    var x = 41\n    var r = apply(read_wrap, &x)\n    var q = &mut x\n    *q = 9\n    return *r\n}\n"
     expect_compile_error(env, "hrtb_generic_struct_result_alias", wrapper, "SAFE-BORROW-001")
-    // More than 64 constant element leaves are not path-mapped; reject the
-    // borrowed result instead of accepting an unmapped loan.
-    var large = "struct Refs<'a> {\n    var items : [100]&'a int\n}\nfunc apply(f : for<'b> (r : Refs<'b>) => &'b int) : int { return 0 }\npublic func main() : int { return 0 }\n"
-    expect_compile_error(env, "hrtb_large_array_result", large, "SAFE-BORROW-099")
 }
 
 @test
@@ -614,10 +640,44 @@ func neg_hrtb_nonlocal_retaining_slot_distinct(env : &mut TestEnv) {
     // regions, so the callback could store a shorter borrow into it.
     var ch = "func <'a> stash(slot : &mut &'a int, x : &'a int) : int {\n    *slot = x\n    return 0\n}\nfunc <'a, 'b, 'd> apply(f : for<'c> (slot : &mut &'c int, x : &'c int) => int, slot : &'a mut &'b int, x : &'d int) : int {\n    return f(slot, x)\n}\npublic func main() : int {\n    var a = 1\n    var r : &int = &a\n    var x = 2\n    return apply(stash, &mut r, &x)\n}\n"
     expect_compile_error(env, "hrtb_nonlocal_retaining_slot_distinct", ch, "SAFE-BORROW-099")
-    // A pointee reference must use one of the callback's binders; a `'static`
-    // pointee has no source edge the call site can prove.
-    var pointee = "func apply(f : for<'a> (slot : &'a mut &'static int) => int) : int { return 0 }\npublic func main() : int { return 0 }\n"
-    expect_compile_error(env, "hrtb_pointee_static", pointee, "SAFE-BORROW-099")
+}
+
+@test
+func hrtb_pointee_static_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A static pointee can only receive static references; no source edge is
+    // required when the caller's slot is initialized with a static value.
+    var ch = "func read_static(slot : &mut &'static int) : int { return 0 }\nfunc apply(f : for<'a> (slot : &'a mut &'static int) => int) : int {\n    var r : &'static int = unsafe(null as &'static int)\n    return f(&mut r)\n}\npublic func main() : int {\n    return apply(read_static)\n}\n"
+    expect_compile_success(env, "hrtb_pointee_static", ch)
+}
+
+@test
+func hrtb_pointee_free_lifetime_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A free pointee lifetime is accepted when the same lifetime is a direct
+    // reference parameter, so the call contract can map the source loan to
+    // the retained region.
+    var ch = "func <'a, 'o> stash(slot : &'a mut &'o int, x : &'o int) : int {\n    *slot = x\n    return 0\n}\nfunc <'o> apply(f : for<'a> (slot : &'a mut &'o int, x : &'o int) => int, slot : &'o mut &'o int, x : &'o int) : int {\n    return f(slot, x)\n}\npublic func main() : int {\n    var a = 1\n    var r : &int = &a\n    return apply(stash, &mut r, &a) - 0\n}\n"
+    expect_compile_success(env, "hrtb_pointee_free_lifetime", ch)
+}
+
+@test
+func neg_hrtb_opaque_retaining_storage_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // `T` can retain `y` but exposes no named stored region, so the equal
+    // call-region shortcut cannot prove what it stores. A caller-owned slot
+    // with a caller-owned source must fail closed.
+    var ch = "func store_ref(x : &mut &int, y : &int) : int {\n    *x = y\n    return 0\n}\nfunc <T, 'i> apply(f : for<'a> (x : &'a mut T, y : &'a int) => int, x : &'i mut T, y : &'i int) : int {\n    return f(x, y)\n}\npublic func main() : int {\n    var a = 1\n    var r : &int = &a\n    return apply<&int>(store_ref, &mut r, &a)\n}\n"
+    expect_compile_error(env, "hrtb_opaque_retaining_storage", ch, "SAFE-BORROW-099")
+}
+
+@test
+func neg_hrtb_pointee_free_lifetime_without_source(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A free pointee lifetime with no direct reference source cannot be mapped
+    // by the call contract; keep the explicit rejection.
+    var ch = "func read_slot(slot : &mut &int) : int { return 0 }\nfunc <'o> apply(f : for<'a> (slot : &'a mut &'o int) => int) : int {\n    var x = 1\n    var r : &int = &x\n    return f(&mut r)\n}\npublic func main() : int {\n    return apply(read_slot)\n}\n"
+    expect_compile_error(env, "hrtb_pointee_free_lifetime_without_source", ch, "SAFE-BORROW-099")
 }
 
 @test

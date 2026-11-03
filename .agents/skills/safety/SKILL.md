@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2437/2437` |
 | LLVM main | `2435/2435` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `789/789` |
+| TCC/LLVM negative | `796/796` |
 | TCC/LLVM safety | `76/76` |
 | TCC/LLVM async | `77/77` |
 | TCC libs | `735/735` |
@@ -127,8 +127,8 @@ MIR is the sole producer of init/move/drop state:
 - `SAFE-BORROW-002` — move/drop of a place while a borrow of it is live.
 - `SAFE-BORROW-099` — a borrow/lifetime pattern the checker cannot prove safe
   (e.g. retaining storage in a caller-owned reference parameter without a
-  source-to-stored outlives edge, a retaining pointee with a free/`'static`
-  lifetime, or opaque retaining storage). Nested struct aggregate parameters,
+  source-to-stored outlives edge, a free pointee lifetime with no direct
+  reference source, or opaque retaining storage). Nested struct aggregate parameters,
   variant payloads, array elements, and borrowed nested results are supported,
   including per-leaf multi-lifetime precision. Read-only mixed
   local/parameter/global and distinct-region multi-borrow calls are accepted;
@@ -360,10 +360,11 @@ memory safety.
    through the path-aware MIR field-source chain, and each leaf uses its own
    declared lifetime. Variant payloads and constant array elements are also
    path-mapped, so their borrowed results keep the source loan live;
-   same-lifetime array elements remain conservatively aliased. A top-level
-   fixed array of direct references larger than 64 elements uses one wildcard
-   element step and one shared element-loan region; larger arrays nested in a
-   struct, arrays of aggregates, and unsized arrays keep the explicit
+   same-lifetime array elements remain conservatively aliased. A fixed array
+   of direct references larger than 64 elements uses one wildcard element step
+   and one shared element-loan region; this works at the top level and for one
+   direct struct field (keyed by root and field). Arrays nested more than one
+   aggregate level, arrays of aggregates, and unsized arrays keep the explicit
    `SAFE-BORROW-099` rejection. A retaining parameter whose loan target is a
    local/temporary or a by-value parameter copy may hold any argument borrow,
    so mixed/distinct sources are accepted and pinned to function exit.
@@ -374,9 +375,11 @@ memory safety.
    their declared region. Without the source edge it remains an explicit
    `SAFE-BORROW-099` rejection. A retaining pointee is accepted when every
    nested reference uses one of the callback's binders (`&'a mut &'a T` or
-   `&'a mut &'b T`); the call site checks every source against every stored
-   region. A free/`'static` lifetime is rejected. This is a
-   false-negative/rewrite requirement, not a guessed-safe acceptance.
+   `&'a mut &'b T`), `'static`, or a free lifetime carried by a direct
+   reference parameter; the call site checks every source against every stored
+   region. Opaque retaining storage with no named region is rejected for a
+   caller-owned slot instead of using the equal-region shortcut. This is a
+   false-negative/rewrite boundary, not a guessed-safe acceptance.
 
 6. **`dyn` is a borrowed fat pointer; `DynBox` owns.**
    `dyn I` is a target-aware two-word `{ data, vtable }` value, and `&dyn I`

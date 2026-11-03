@@ -421,10 +421,12 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
     // A reference stored in a fixed-array element: key = (place << 32) | index.
     std::unordered_map<uint64_t, uint32_t> element_loans;
     std::unordered_map<uint64_t, uint32_t> element_params;
-    // A top-level large array of direct references: one loan covers every
-    // element, so the region signature records a wildcard element step.
-    std::unordered_map<PlaceId, uint32_t> element_all_loans;
-    std::unordered_map<PlaceId, uint32_t> element_all_params;
+    // A large array of direct references: one loan covers every element, so
+    // the region signature records a wildcard element step. The key is
+    // (root place, direct field index) so a struct with two large array fields
+    // keeps separate element loans; MIR_INVALID_ID means the top-level array.
+    std::unordered_map<uint64_t, uint32_t> element_all_loans;
+    std::unordered_map<uint64_t, uint32_t> element_all_params;
     // A by-value aggregate copied into an array element: the element's source
     // place owns the nested reference-field loans.
     std::unordered_map<uint64_t, PlaceId> element_place_sources;
@@ -433,6 +435,11 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
     };
     auto element_key = [](PlaceId base, uint32_t index) -> uint64_t {
         return (static_cast<uint64_t>(base) << 32) | static_cast<uint64_t>(index);
+    };
+    auto wildcard_key = [](PlaceId root, uint32_t field) -> uint64_t {
+        const uint64_t encoded =
+            field == MIR_INVALID_ID ? 0xFFFFFFFFull : static_cast<uint64_t>(field);
+        return (static_cast<uint64_t>(root) << 32) | encoded;
     };
     std::vector<Loan> loans;
 
@@ -477,7 +484,8 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 }
                 uint64_t key = 0;
                 if (wildcard_element) {
-                    if (element_all_loans.find(p) != element_all_loans.end()) {
+                    key = wildcard_key(p, fr.field_index);
+                    if (element_all_loans.find(key) != element_all_loans.end()) {
                         continue;
                     }
                 } else {
@@ -503,8 +511,8 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 const uint32_t idx = static_cast<uint32_t>(loans.size());
                 loans.push_back(std::move(loan));
                 if (wildcard_element) {
-                    element_all_loans[p] = idx;
-                    element_all_params[p] = pd.param_index;
+                    element_all_loans[key] = idx;
+                    element_all_params[key] = pd.param_index;
                 } else if (leaf_field != MIR_INVALID_ID) {
                     field_loans[key] = idx;
                     field_params[key] = pd.param_index;
@@ -1143,19 +1151,46 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     if (constant_index(module, ops[1].id, function, index) &&
                         index <= 0xFFFFFFFFull) {
                         PlaceId base = MIR_INVALID_ID;
+                        PlaceId wildcard_root = MIR_INVALID_ID;
+                        uint32_t wildcard_field = MIR_INVALID_ID;
                         if (ops[0].kind() == MIROperandKind::Place) {
                             base = ops[0].id;
+                            wildcard_root = base;
+                            if (base < function.places.size()) {
+                                const uint32_t path =
+                                    function.places[base].move_path_id;
+                                if (path != MIR_INVALID_ID &&
+                                    path < function.move_paths.size()) {
+                                    const MIRMovePathNode& node =
+                                        function.move_paths[path];
+                                    wildcard_field = node.field_index;
+                                    if (node.root_place != MIR_INVALID_ID) {
+                                        wildcard_root = node.root_place;
+                                    }
+                                }
+                            }
                         } else if (ops[0].kind() == MIROperandKind::Value) {
                             const auto at = address_targets.find(ops[0].id);
                             if (at != address_targets.end() && at->second.known) {
                                 base = at->second.root;
+                                wildcard_root = at->second.root;
+                                for (auto it =
+                                         at->second.projections.rbegin();
+                                     it != at->second.projections.rend(); ++it) {
+                                    if (!it->array) {
+                                        wildcard_field = it->index;
+                                        break;
+                                    }
+                                }
                             }
                         }
                         if (base != MIR_INVALID_ID) {
                             const uint64_t key =
                                 element_key(base, static_cast<uint32_t>(index));
+                            const uint64_t all_key =
+                                wildcard_key(wildcard_root, wildcard_field);
                             const auto lit = element_loans.find(key);
-                            const auto all = element_all_loans.find(base);
+                            const auto all = element_all_loans.find(all_key);
                             const uint32_t loan_id =
                                 lit != element_loans.end()
                                     ? lit->second
@@ -1167,7 +1202,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                                 loans[loan_id].end = lin;
                             }
                             const auto lpi = element_params.find(key);
-                            const auto lpa = element_all_params.find(base);
+                            const auto lpa = element_all_params.find(all_key);
                             if (lpi != element_params.end()) {
                                 value_params[inst.result_or_place] = lpi->second;
                             } else if (lpa != element_all_params.end()) {
@@ -2111,6 +2146,16 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                             for (size_t i = 0; i < path.size(); ++i) {
                                 const MIRParamPathStep& step = path[i];
                                 leaf_is_index = step.is_index;
+                                // A direct struct field holding a large
+                                // reference array is keyed by (root, field
+                                // index); do not descend through a by-value
+                                // field-copy source.
+                                if (!step.is_index && i + 1 < path.size() &&
+                                    path[i + 1].is_index &&
+                                    path[i + 1].index == MIR_INVALID_ID) {
+                                    wildcard_element = true;
+                                    break;
+                                }
                                 if (step.is_index) {
                                     if (step.index == MIR_INVALID_ID) {
                                         wildcard_element = true;
@@ -2145,9 +2190,11 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                             uint32_t loan = MIR_INVALID_ID;
                             uint32_t param = MIR_INVALID_ID;
                             if (wildcard_element) {
-                                const auto lit = element_all_loans.find(current);
+                                const uint64_t all_key =
+                                    wildcard_key(current, fr.field_index);
+                                const auto lit = element_all_loans.find(all_key);
                                 if (lit != element_all_loans.end()) loan = lit->second;
-                                const auto lpi = element_all_params.find(current);
+                                const auto lpi = element_all_params.find(all_key);
                                 if (lpi != element_all_params.end()) param = lpi->second;
                             } else if (leaf_is_index) {
                                 const auto lit = element_loans.find(leaf_key);
@@ -2386,60 +2433,6 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     return false;
                 };
                 if (has_callsite_sig && callsite_hrtb && hrtb_ref_params > 1) {
-                    bool all_local = ref_args.size() == hrtb_ref_params;
-                    bool all_nonlocal_safe = ref_args.size() == hrtb_ref_params;
-                    MIRRegionId nonlocal_region = MIR_INVALID_ID;
-                    for (const RefArg& ra : ref_args) {
-                        if (ra.loan >= loans.size()) {
-                            all_local = false;
-                            all_nonlocal_safe = false;
-                            break;
-                        }
-                        const LoanTarget& target = loans[ra.loan].target;
-                        if (!target.known) {
-                            all_local = false;
-                            all_nonlocal_safe = false;
-                            break;
-                        }
-                        if (target.root >= function.places.size()) {
-                            // Global/static referents carry a known target but no
-                            // local frame place. They outlive the current call;
-                            // treat them as the non-local case (still require a
-                            // shared declared region below).
-                            all_local = false;
-                            if (ra.region == MIR_INVALID_ID) {
-                                all_nonlocal_safe = false;
-                            } else if (nonlocal_region == MIR_INVALID_ID) {
-                                nonlocal_region = ra.region;
-                            } else if (nonlocal_region != ra.region) {
-                                all_nonlocal_safe = false;
-                            }
-                            continue;
-                        }
-                        const auto sc = static_cast<MIRStorageClass>(
-                            function.places[target.root].storage_class);
-                        const bool local = sc == MIRStorageClass::Local ||
-                                           sc == MIRStorageClass::Temporary;
-                        if (!local) all_local = false;
-                        if (local || (sc != MIRStorageClass::Parameter &&
-                                      sc != MIRStorageClass::Global)) {
-                            all_nonlocal_safe = false;
-                        } else {
-                            // A callback can only retain a parameter/global
-                            // borrow if every non-local input shares the same
-                            // declared region (or is static). Different caller
-                            // regions could otherwise be stored into a longer
-                            // lived referent, which full region inference must
-                            // prove and this local analysis cannot.
-                            if (ra.region == MIR_INVALID_ID) {
-                                all_nonlocal_safe = false;
-                            } else if (nonlocal_region == MIR_INVALID_ID) {
-                                nonlocal_region = ra.region;
-                            } else if (nonlocal_region != ra.region) {
-                                all_nonlocal_safe = false;
-                            }
-                        }
-                    }
                     bool callback_may_retain = true;
                     if (!callee_sig->param_may_retain.empty()) {
                         callback_may_retain = false;
@@ -2533,8 +2526,14 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                             if (!retain_regions_proven) break;
                         }
                     }
-                    if ((!callback_may_retain) || retain_storage_local ||
-                        retain_regions_proven || all_local || all_nonlocal_safe) {
+                    // A read-only contract may mix local/non-local referents,
+                    // but retaining storage owned by the caller must prove
+                    // where it stores. Opaque storage with no named region is
+                    // rejected: the callback can store through a generic or
+                    // reference-capable type whose own lifetime is unrelated
+                    // to the shared call region.
+                    if (!callback_may_retain || retain_storage_local ||
+                        retain_regions_proven) {
                         pinned_multi = true;
                         const uint32_t last =
                             order.empty() ? 0 : static_cast<uint32_t>(order.size() - 1);

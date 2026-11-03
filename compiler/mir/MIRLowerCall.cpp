@@ -3325,9 +3325,8 @@ static void collect_named_lifetimes(
     // instantiation may be the underlying struct and no longer carry them.
     if (type->kind() == BaseTypeKind::Generic) {
         for (chem::string_view lt : type->as_generic_type_unsafe()->lifetime_args) {
-            if (lt.empty() || lt == "static" || lt == "'static" ||
-                lt == "self" || lt == "'self" || lt == "elided" ||
-                lt == "'elided") {
+            if (lt.empty() || lt == "self" || lt == "'self" ||
+                lt == "elided" || lt == "'elided") {
                 continue;
             }
             const chem::string_view bare = strip_lifetime_quote(lt);
@@ -3341,8 +3340,7 @@ static void collect_named_lifetimes(
     BaseType* canonical = type->canonical();
     if (canonical == nullptr || !visiting.insert(canonical).second) return;
     auto add = [&](chem::string_view lifetime) {
-        if (lifetime.empty() || lifetime == "static" ||
-            lifetime == "'static" || lifetime == "self" ||
+        if (lifetime.empty() || lifetime == "self" ||
             lifetime == "'self" || lifetime == "elided" ||
             lifetime == "'elided") {
             return;
@@ -3726,13 +3724,7 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
             if (ft == nullptr) continue;
             const chem::string_view fname = sm->name_view();
             BaseType* ftc = ft->canonical();
-            if (ftc == nullptr || ftc->kind() != BaseTypeKind::Reference) {
-                // Declaration signatures seed only direct reference fields;
-                // function-type signatures add nested/variant/array leaves.
-                continue;
-            }
-            const std::vector<Variance> uses =
-                variance.lifetime_uses(ftc, decl_lifetimes);
+            if (ftc == nullptr) continue;
             uint32_t field_index = MIR_INVALID_ID;
             const std::string_view fname_sv(fname.data(), fname.size());
             for (uint32_t i = 0; i < rec.data_count; ++i) {
@@ -3744,6 +3736,41 @@ uint32_t MIRLowerer::intern_region_signature(FunctionDeclaration* decl) {
             }
             const ConstantId field_name = module_.constants.add_string(
                 MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
+            if (ftc->kind() == BaseTypeKind::Array) {
+                auto* array = ftc->as_array_type_unsafe();
+                BaseType* elem = const_cast<BaseType*>(array->elem_type.getType());
+                BaseType* elem_canonical =
+                    elem != nullptr ? elem->canonical() : nullptr;
+                if (array->get_array_size() > 64 && elem_canonical != nullptr &&
+                    elem_canonical->kind() == BaseTypeKind::Reference) {
+                    auto* ref = elem_canonical->as_reference_type_unsafe();
+                    const chem::string_view actual = map_field_lifetime(
+                        ref->lifetime, decl_lifetimes, actual_lifetimes);
+                    const MIRRegionId region = region_id_for_lifetime(
+                        lifetimes, std::string_view(actual.data(), actual.size()));
+                    if (region != MIR_INVALID_ID) {
+                        MIRParamFieldRegion fr;
+                        fr.field_index = field_index;
+                        fr.field_name = field_name;
+                        fr.region = region;
+                        fr.variance = MIRVariance::Covariant;
+                        fr.path.push_back(
+                            MIRParamPathStep{field_name, MIR_INVALID_ID, false});
+                        fr.path.push_back(
+                            MIRParamPathStep{MIR_INVALID_ID, MIR_INVALID_ID, true});
+                        sig.param_field_regions[pi].push_back(fr);
+                    }
+                }
+                continue;
+            }
+            if (ftc->kind() != BaseTypeKind::Reference) {
+                // Declaration signatures seed only direct reference fields and
+                // direct large reference arrays; function-type signatures add
+                // nested/variant leaves.
+                continue;
+            }
+            const std::vector<Variance> uses =
+                variance.lifetime_uses(ftc, decl_lifetimes);
             for (size_t li = 0; li < uses.size() && li < actual_lifetimes.size(); ++li) {
                 if (uses[li] == Variance::Bivariant) continue;
                 const chem::string_view actual = actual_lifetimes[li];
@@ -4017,6 +4044,42 @@ uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
                         sig.param_field_regions[pi].push_back(fr);
                         path.pop_back();
                         continue;
+                    }
+                    if (ftc->kind() == BaseTypeKind::Array && path.empty()) {
+                        auto* array = ftc->as_array_type_unsafe();
+                        BaseType* elem = const_cast<BaseType*>(
+                            array->elem_type.getType());
+                        BaseType* elem_canonical =
+                            elem != nullptr ? elem->canonical() : nullptr;
+                        if (array->get_array_size() > 64 &&
+                            elem_canonical != nullptr &&
+                            elem_canonical->kind() == BaseTypeKind::Reference) {
+                            auto* ref = elem_canonical->as_reference_type_unsafe();
+                            const chem::string_view actual = map_field_lifetime(
+                                ref->lifetime, decl_lifetimes, actual_lifetimes);
+                            const MIRRegionId region = region_id_for_lifetime(
+                                lifetimes,
+                                std::string_view(actual.data(), actual.size()));
+                            if (region != MIR_INVALID_ID) {
+                                path.push_back(MIRParamPathStep{
+                                    fc, MIR_INVALID_ID, false});
+                                path.push_back(MIRParamPathStep{
+                                    MIR_INVALID_ID, MIR_INVALID_ID, true});
+                                MIRParamFieldRegion fr;
+                                fr.field_index = find_field_index(
+                                    tid,
+                                    std::string_view(field_name.data(),
+                                                     field_name.size()));
+                                fr.field_name = fc;
+                                fr.path = path;
+                                fr.region = region;
+                                fr.variance = MIRVariance::Covariant;
+                                sig.param_field_regions[pi].push_back(fr);
+                                path.pop_back();
+                                path.pop_back();
+                                continue;
+                            }
+                        }
                     }
                     const TypeId field_tid = types_.map(ftc);
                     if (field_tid == MIR_INVALID_ID ||

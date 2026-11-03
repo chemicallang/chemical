@@ -889,8 +889,16 @@ bool MIRLowerer::can_build_element_template(BaseType* type, int depth) {
     if (type == nullptr || depth > 32) return false;
     BaseType* canon = type->canonical();
     if (canon == nullptr) return false;
-    // Nested arrays would need a second index dimension in the template.
-    if (canon->kind() == BaseTypeKind::Array) return false;
+    if (canon->kind() == BaseTypeKind::Array) {
+        // A nested fixed array reuses the per-outer-element flag arrays: each
+        // inner leaf gets its own outer-index flag array. Bounded inner arrays
+        // keep the template tree finite; larger inner arrays still fall back.
+        auto* array = canon->as_array_type_unsafe();
+        BaseType* elem = const_cast<BaseType*>(array->elem_type.getType());
+        const uint64_t count = array->get_array_size();
+        if (elem == nullptr || count == 0 || count > 64) return false;
+        return can_build_element_template(elem, depth + 1);
+    }
     if (destructor_symbol(type) == MIR_INVALID_ID) return false;
     if (canon->has_user_destructor()) return true;
     ASTNode* node = canon->get_direct_linked_canonical_node();
@@ -950,6 +958,17 @@ void MIRLowerer::destroy_drop_fields_at(ValueId self_ptr,
                 MIR_INVALID_ID, f.name.data(), static_cast<uint32_t>(f.name.size())
             );
             addr = builder_->field_addr_ptr(self_ptr, fc, ft);
+        } else if (f.array_index != MIR_INVALID_ID) {
+            // A nested array inside a template element: self_ptr points at the
+            // array subobject, so offset to the inner element before reading
+            // its outer-index leaf flag.
+            const TypeId et = types_.map(f.type);
+            const TypeId eptr = types_.pointer_type(et, true);
+            const ValueId base = builder_->cast(self_ptr, eptr);
+            const ValueId index = builder_->const_int(
+                types_.u32_type(),
+                module_.constants.add_int(types_.u32_type(), f.array_index));
+            addr = builder_->index_addr_ptr(base, index, et);
         }
         if (f.flag_array != MIR_INVALID_ID) {
             MIRDropFlagRef ref = flag_array_ref_value(f.flag_array, elem_index);

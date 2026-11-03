@@ -75,6 +75,7 @@ func run_executable_tests() {
     test_phantom_data();
     test_array_assignment();
     test_large_array_partial_init();
+    test_large_array_nested_templates();
     test_pointer_to_array();
     test_optional_type();
     test_result_type();

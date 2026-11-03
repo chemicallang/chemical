@@ -103,3 +103,51 @@ func test_large_array_partial_init() {
         }
     })
 }
+
+struct LargeArrayNested {
+    var inner : [2]LargeArrayDrop
+}
+
+struct LargeArrayNestedStruct {
+    var inner : [2]LargeArrayStruct
+}
+
+func test_large_array_nested_templates() {
+    test("large generated-glue arrays track nested array leaves", () => {
+        unsafe {
+            large_array_drop_count = 0
+            {
+                var arr : [100]LargeArrayNested
+                arr[0] = LargeArrayNested {
+                    inner : [LargeArrayDrop { value : 1 }, LargeArrayDrop { value : 2 }]
+                }
+                arr[99] = LargeArrayNested {
+                    inner : [LargeArrayDrop { value : 3 }, LargeArrayDrop { value : 4 }]
+                }
+                if(arr[0].inner[1].value != 2 || arr[99].inner[0].value != 3) { return false }
+            }
+            return large_array_drop_count == 4
+        }
+    })
+    test("large generated-glue arrays track nested struct-array leaves", () => {
+        unsafe {
+            large_array_drop_count = 0
+            {
+                var arr : [100]LargeArrayNestedStruct
+                arr[0] = LargeArrayNestedStruct {
+                    inner : [
+                        LargeArrayStruct { a : LargeArrayDrop { value : 1 }, b : LargeArrayDrop { value : 2 } },
+                        LargeArrayStruct { a : LargeArrayDrop { value : 3 }, b : LargeArrayDrop { value : 4 } }
+                    ]
+                }
+                arr[99] = LargeArrayNestedStruct {
+                    inner : [
+                        LargeArrayStruct { a : LargeArrayDrop { value : 5 }, b : LargeArrayDrop { value : 6 } },
+                        LargeArrayStruct { a : LargeArrayDrop { value : 7 }, b : LargeArrayDrop { value : 8 } }
+                    ]
+                }
+            }
+            return large_array_drop_count == 8
+        }
+    })
+}

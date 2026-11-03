@@ -428,10 +428,13 @@ memory safety.
     bool-flag array per element. Larger arrays of generated-glue aggregates use
     an element template with one bool-flag array per leaf field, so whole-element
     and per-field constant-index initialization/replacement drop only the
-    initialized leaves. Any unsupported move shape (user destructor, global,
-    temporary/expression, reference/pointer) is rejected with `SAFE-MOVE-004`
-    instead of double-dropping. Remaining: nested arrays inside an element,
-    async frame slots, and unsized arrays fall back to a whole-field flag.
+    initialized leaves. Nested fixed arrays of up to 64 elements inside a
+    template element are tracked recursively (each inner leaf gets its own
+    outer-index flag array). Any unsupported move shape (user destructor,
+    global, temporary/expression, reference/pointer) is rejected with
+    `SAFE-MOVE-004` instead of double-dropping. Remaining: inner arrays larger
+    than 64, large arrays in async frame slots, and unsized arrays fall back to
+    a whole-field flag.
 
 11. **Interpreter boundaries.** MIR interpreter bounds/provenance/tombstone
     checks are implemented. Async/coroutine opcodes, inline asm, dynamic

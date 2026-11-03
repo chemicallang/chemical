@@ -191,6 +191,16 @@ func partial_array_element_init_is_allowed(env : &mut TestEnv) {
 }
 
 @test
+func partial_large_array_element_init_is_allowed(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Large arrays of directly destructible elements use a bool flag block,
+    // so constant-index initialization keeps working past the old 64-element
+    // scalar-flag limit.
+    var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [100]DT\n        arr[0] = DT { x : 1 }\n        arr[99] = DT { x : 2 }\n    }\n    return 0\n}\n"
+    expect_compile_success(env, "partial_large_array_init_ok", ch)
+}
+
+@test
 func neg_partial_array_dynamic_index(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // A dynamic index cannot update a per-element drop flag, so it may only

@@ -492,7 +492,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 // A bare local array of destructible elements has a drop flag
                 // per element. For a compile-time index the old element is
                 // destroyed only when that flag is live, then the flag is armed.
-                PlaceId eflag = MIR_INVALID_ID;
+                MIRDropFlagRef eflag;
                 if (io->idx && io->idx->val_kind() == ValueKind::IntN) {
                     const uint64_t element_index =
                         io->idx->as_int_num_value_unsafe()->get_num_value();
@@ -534,13 +534,21 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     );
                 };
                 auto destroy_old_element = [&]() {
-                    if (eflag == MIR_INVALID_ID) return;
+                    if (!eflag.valid()) return;
                     const SymbolId edtor = destructor_symbol(io->getType());
                     if (edtor == MIR_INVALID_ID) return;
                     emit_dtor_ptr_cond(element_address(), io->getType(), eflag);
                 };
                 auto mark_element_initialized = [&]() {
-                    if (eflag != MIR_INVALID_ID) builder_->set_drop(eflag, true);
+                    if (eflag.place != MIR_INVALID_ID) {
+                        builder_->set_drop(eflag.place, true);
+                    } else if (eflag.address != MIR_NULL) {
+                        const TypeId bool_t = types_.bool_type();
+                        const ValueId true_value = builder_->const_bool(
+                            bool_t, module_.constants.add_bool(bool_t, true)
+                        );
+                        builder_->store_indirect(eflag.address, true_value);
+                    }
                 };
                 const TypeId bt = (base.kind == MIRExprKind::Place)
                     ? builder_->function().places[base.id].type : base.type;

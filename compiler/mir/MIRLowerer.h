@@ -757,8 +757,20 @@ private:
         ConstantId frame_flag = MIR_INVALID_ID;
         // `MIR_INVALID_ID` for a struct field; the element index otherwise.
         uint32_t array_index = MIR_INVALID_ID;
+        // A large array of directly-destructible elements uses one bool flag
+        // per element in a local bool array instead of one place per element.
+        // `flag`/`children` are unused when this is set. Async frame flags keep
+        // the expanded form because each frame flag is a named scalar field.
+        PlaceId flag_array = MIR_INVALID_ID;
+        uint64_t flag_count = 0;
         // Nested owned fields/elements (generated-glue structs and arrays).
         std::vector<MIRDropField> children;
+    };
+    /** A drop flag that is either a scalar place or an indexed bool-array slot. */
+    struct MIRDropFlagRef {
+        PlaceId place = MIR_INVALID_ID;
+        ValueId address = MIR_NULL;
+        bool valid() const { return place != MIR_INVALID_ID || address != MIR_NULL; }
     };
     struct MIRDestructible {
         PlaceId place;
@@ -783,12 +795,12 @@ private:
     /** Destroy one member only when its per-field drop flag is true. */
     void emit_member_dtor_cond(ValueId self_ptr, const chem::string_view& member,
                                BaseType* mt, PlaceId flag);
-    /** Per-element drop flag for `place[index]`, or MIR_INVALID_ID. */
-    PlaceId drop_flag_for_element(PlaceId place, uint64_t index);
+    /** Per-element drop flag for `place[index]`, or an invalid ref. */
+    MIRDropFlagRef drop_flag_for_element(PlaceId place, uint64_t index);
     /** Per-element flag under a struct-field path (`left.right[index]`). */
-    PlaceId drop_flag_for_path_index(PlaceId place,
-                                     const std::vector<std::string>& path,
-                                     uint64_t index);
+    MIRDropFlagRef drop_flag_for_path_index(PlaceId place,
+                                            const std::vector<std::string>& path,
+                                            uint64_t index);
     /** Build the drop node for one owned field (recursing structs/arrays). */
     MIRDropField build_drop_field(const chem::string_view& name, BaseType* type,
                                   int depth, bool frame_flags = false,
@@ -804,7 +816,19 @@ private:
                                    std::vector<MIRDropField>& elements,
                                    BaseType* element_type);
     /** Destroy one value through an address, gated by an optional flag. */
-    void emit_dtor_ptr_cond(ValueId address, BaseType* type, PlaceId flag);
+    void emit_dtor_ptr_cond(ValueId address, BaseType* type,
+                            MIRDropFlagRef flag);
+    /** Allocate a zeroed local bool array used for per-element drop flags. */
+    PlaceId make_drop_flag_array(uint64_t count);
+    /** Destroy every initialized element of a large leaf array. */
+    void destroy_flag_array(ValueId array_ptr, BaseType* element_type,
+                            PlaceId flags, uint64_t count);
+    /** Set every slot of a large-array flag block. */
+    void set_flag_array(PlaceId flags, uint64_t count, bool value);
+    /** Address of one slot in a large-array flag block. */
+    MIRDropFlagRef flag_array_ref(PlaceId flags, uint64_t index);
+    /** Address of a dynamically indexed slot in a large-array flag block. */
+    MIRDropFlagRef flag_array_ref_value(PlaceId flags, ValueId index);
     /** Arm/clear every flag in a drop-node list. */
     void set_drop_fields(std::vector<MIRDropField>& fields, bool value);
     /** Find the drop node for a field path (`inner.x`), or nullptr. */

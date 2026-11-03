@@ -43,3 +43,28 @@ func test_array_assignment() {
 struct ArrayFieldHolder {
     var bytes : [4]u8
 }
+
+var large_array_drop_count = 0
+
+struct LargeArrayDrop {
+    var value : int
+    @delete
+    func delete(&mut self) {
+        unsafe { large_array_drop_count = large_array_drop_count + 1 }
+    }
+}
+
+func test_large_array_partial_init() {
+    test("large arrays track per-element drop flags", () => {
+        unsafe {
+            large_array_drop_count = 0
+            {
+                var arr : [100]LargeArrayDrop
+                arr[0] = LargeArrayDrop { value : 1 }
+                arr[99] = LargeArrayDrop { value : 2 }
+                if(arr[0].value != 1 || arr[99].value != 2) { return false }
+            }
+            return large_array_drop_count == 2
+        }
+    })
+}

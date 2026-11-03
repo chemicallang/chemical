@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.01)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.02)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1558,12 +1558,17 @@ new number as the honest baseline, not a compiler regression.
     leaf field with an element template, so constant-index whole-element and
     per-field initialization/replacement keep working past the old 64-element
     limit. Only initialized leaves are dropped; a partially initialized sibling
-    field is never passed to its destructor. Nested fixed arrays of up to 64
-    elements inside a template element are tracked recursively: each inner leaf
-    gets its own outer-index flag array, and inner element addresses are offset
-    from the template base. Inner arrays larger than 64, large arrays in async
-    frame slots, and unsized arrays still fall back to a whole-field flag.
-    Whole-array field moves are covered. Moving a field clears its flag,
+    field is never passed to its destructor. Nested fixed arrays inside a
+    template element are tracked recursively up to 1024 inner elements: each
+    inner leaf gets its own outer-index flag array, and inner element addresses
+    are offset from the template base. A small outer array whose element is
+    itself a large array uses one flag block per element; whole-element
+    assignment/destruction arms or drops the whole inner block. Directly
+    destructible large arrays in async frame slots now use a frame-resident
+    bool-flag block, so partial initialization across suspension no longer
+    leaks or drops uninitialized slots. Inner arrays above 1024, generated-glue
+    large arrays in async frames, and unsized arrays still fall back to a
+    whole-field flag. Whole-array field moves are covered. Moving a field clears its flag,
     so the parent destructor cannot double-drop it. Async frame flags are
     frame-resident and are used by normal completion, cancellation, and resume
     cleanup; a moved frame field no longer rejects with `SAFE-MOVE-004`. Moves
@@ -3118,3 +3123,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.99 (2026-11-03): mismatched retaining-pointee binders. A retaining pointee may now use different binders from the callback (`&'a mut &'b T`), not only the same binder (`&'a mut &'a T`). Every nested reference must still use a binder of that function type, and the call-site retaining rule checks every source against every stored region, so a shorter source cannot be stored into a longer caller slot without the caller's outlives edge. A free or `'static` pointee lifetime remains `SAFE-BORROW-099`. Added positive local-slot and caller-slot tests plus a distinct-source negative. Main TCC `2437`; negative `789`; safety `76`; async `77`; audit no change.
 *Revision note v5.00 (2026-11-03): remaining HRTB precision. Large direct-reference arrays are now supported inside one direct struct field: MIR records a `[field, wildcard]` path, the borrow checker keys the wildcard element loan by `(root, field index)`, and element loads resolve the same key through field projections. Arrays nested more than one aggregate level, arrays of aggregates, and unsized arrays remain `SAFE-BORROW-099`. Retaining pointees may use distinct binders, `'static`, or a free lifetime carried by a direct reference parameter; the call-site rule still checks every source against every stored region. Opaque retaining storage with no named region is now fail-closed for caller-owned slots: the multi-borrow equal-region shortcut no longer accepts it, closing a dangling-store hole. Added positive/negative tests for struct large arrays, static/free pointee lifetimes, and opaque retaining storage. Main TCC/LLVM `2437`/`2435`; negative `796`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; audit no growth.
 *Revision note v5.01 (2026-11-03): nested arrays in large drop templates. A large generated-glue array's element template can now contain fixed arrays of up to 64 elements: each inner leaf gets its own outer-index bool-flag array, and `destroy_drop_fields_at` offsets the template base by the inner `array_index` before reading the flag/dropping the element. Whole-element initialization/destruction covers nested arrays of directly destructible elements and nested struct-array leaves without dropping uninitialized siblings. Inner arrays larger than 64, large arrays in async frame slots, and unsized arrays remain on the whole-field fallback. Added runtime drop-counter tests for `[100] { inner: [2]DT }` and `[100] { inner: [2]{a:DT,b:DT} }`. Main TCC/LLVM `2439`/`2437`; `@test` `57`; negative `796`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; audit no growth.
+*Revision note v5.02 (2026-11-03): drop elaboration for large inner arrays and async frame slots. Inner fixed arrays up to 1024 elements inside a large template element now expand into outer-index leaf flag arrays; small outer arrays whose element is itself a large array carry one flag block per element, and whole-element assignment/destruction arms or drops the whole block (`MIRDropElementRef::flag_array`/`whole_children`). Directly destructible large arrays in async frame slots use a frame-resident bool-flag block (`frame_flag_array`), added to both the C frame struct and the MIR frame type, so partial initialization and cancellation drop exactly the live elements. Generated-glue large arrays in async frames, inner arrays above 1024, and unsized arrays remain on the whole-field fallback. Added TCC/LLVM runtime tests for `[100]{inner:[65]DT}`, small-outer/nested-large arrays, and partial large arrays across normal completion/cancellation. Main TCC/LLVM `2442`/`2440`; `@test` `57`; negative `796`; safety `76`; async `80`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; audit no growth.

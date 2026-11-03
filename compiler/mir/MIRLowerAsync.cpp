@@ -156,11 +156,18 @@ unsigned MIRLowerer::async_slot_id_for(PlaceId place) const {
     return id;
 }
 
-void MIRLowerer::collect_drop_flag_fields(const std::vector<MIRDropField>& fields,
-                                          std::vector<ConstantId>& out) const {
+void MIRLowerer::collect_drop_flag_fields(
+        const std::vector<MIRDropField>& fields,
+        std::vector<ConstantId>& out,
+        std::vector<ConstantId>& array_out,
+        std::vector<uint64_t>& count_out) const {
     for (const auto& f : fields) {
         if (f.frame_flag != MIR_INVALID_ID) out.push_back(f.frame_flag);
-        collect_drop_flag_fields(f.children, out);
+        if (f.frame_flag_array != MIR_INVALID_ID) {
+            array_out.push_back(f.frame_flag_array);
+            count_out.push_back(f.frame_flag_count);
+        }
+        collect_drop_flag_fields(f.children, out, array_out, count_out);
     }
 }
 
@@ -195,6 +202,40 @@ void MIRLowerer::append_c_drop_fields(std::string& out, const std::string& base,
                 }
                 append_c_drop_fields(out, member, f.children, indent);
             }
+            continue;
+        }
+        if (f.frame_flag_array != MIR_INVALID_ID) {
+            BaseType* array_type = f.type;
+            BaseType* array_canon =
+                array_type != nullptr ? array_type->canonical() : nullptr;
+            if (array_canon == nullptr ||
+                array_canon->kind() != BaseTypeKind::Array ||
+                f.frame_flag_count == 0) {
+                continue;
+            }
+            BaseType* elem = const_cast<BaseType*>(
+                array_canon->as_array_type_unsafe()->elem_type.getType());
+            const SymbolId dtor = destructor_symbol(elem);
+            if (dtor == MIR_INVALID_ID) continue;
+            const MIRSymbolRecord& dr = module_.symbols.get(dtor);
+            const std::string dname(module_.symbols.name_data(dr), dr.name_length);
+            if (dname.empty()) continue;
+            const MIRConstant& fc = module_.constants.get(f.frame_flag_array);
+            const std::string flag(module_.constants.data.data_at(fc.data_offset),
+                                   fc.data_count);
+            std::string array_base = base;
+            if (!f.name.empty()) {
+                array_base += '.';
+                array_base.append(f.name.data(), f.name.size());
+            }
+            out += pad + "{\n";
+            out += pad + "  for (unsigned long __chx_fi = " +
+                   std::to_string(f.frame_flag_count) + "; __chx_fi-- > 0;) {\n";
+            out += pad + "    if(__chx__af->" + flag +
+                   "[__chx_fi]) { " + dname + "(&" + array_base +
+                   "[__chx_fi]); __chx__af->" + flag + "[__chx_fi] = 0; }\n";
+            out += pad + "  }\n";
+            out += pad + "}\n";
             continue;
         }
         if (f.frame_flag == MIR_INVALID_ID) continue;
@@ -296,6 +337,8 @@ bool MIRLowerer::lower_async_function(FunctionDeclaration* decl, MIRArena& arena
     async_drop_flag_slots_.clear();
     async_slot_fields_.clear();
     async_field_flag_fields_.clear();
+    async_field_flag_array_fields_.clear();
+    async_field_flag_array_counts_.clear();
     async_site_index_.clear();
     // hoist nested awaits into VarInitStatements before planning the frame
     if (async_normalize_) async_normalize_(decl);
@@ -394,9 +437,24 @@ bool MIRLowerer::lower_async_function(FunctionDeclaration* decl, MIRArena& arena
         MIRDropField root = build_drop_field(
             chem::string_view{}, st, 0, true, id, &seq
         );
-        if (root.children.empty()) continue;
-        collect_drop_flag_fields(root.children, async_field_flag_fields_);
-        async_slot_fields_[id] = std::move(root.children);
+        std::vector<MIRDropField> tree;
+        if (root.children.empty()) {
+            // A large directly-destructible array carries its flag block on
+            // the root node itself; small arrays and aggregates expand into
+            // children.
+            if (root.flag_array == MIR_INVALID_ID &&
+                root.frame_flag_array == MIR_INVALID_ID &&
+                !root.element_template) {
+                continue;
+            }
+            tree.push_back(std::move(root));
+        } else {
+            tree = std::move(root.children);
+        }
+        collect_drop_flag_fields(tree, async_field_flag_fields_,
+                                 async_field_flag_array_fields_,
+                                 async_field_flag_array_counts_);
+        async_slot_fields_[id] = std::move(tree);
     }
 
     async_emit_frame_helpers(decl);
@@ -467,6 +525,17 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
                                 c.data_count);
         async_pre_decls_ += ';';
     }
+    for (size_t i = 0; i < async_field_flag_array_fields_.size() &&
+                       i < async_field_flag_array_counts_.size(); ++i) {
+        const ConstantId flag = async_field_flag_array_fields_[i];
+        const MIRConstant& c = module_.constants.get(flag);
+        async_pre_decls_ += " uint8_t ";
+        async_pre_decls_.append(module_.constants.data.data_at(c.data_offset),
+                                c.data_count);
+        async_pre_decls_ += '[';
+        append_uint(async_pre_decls_, async_field_flag_array_counts_[i]);
+        async_pre_decls_ += "];";
+    }
     async_pre_decls_ += " };\n";
 
     // The frame's *runtime* fields must also live in the MIR type table: the C
@@ -527,6 +596,16 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
             push(chem::string_view(module_.constants.data.data_at(c.data_offset),
                                    c.data_count),
                  module_.types.intern(r));
+        }
+        for (size_t i = 0; i < async_field_flag_array_fields_.size() &&
+                           i < async_field_flag_array_counts_.size(); ++i) {
+            const ConstantId flag = async_field_flag_array_fields_[i];
+            const MIRConstant& c = module_.constants.get(flag);
+            const TypeId array_type = types_.sized_array_type(
+                types_.char_type(), async_field_flag_array_counts_[i]);
+            push(chem::string_view(module_.constants.data.data_at(c.data_offset),
+                                   c.data_count),
+                 array_type);
         }
         const uint32_t fidx = module_.types.append_fields(fs);
         module_.types.update(async_frame_type_, [&](MIRTypeRecord& fr) {
@@ -1006,7 +1085,22 @@ bool MIRLowerer::async_lower_drop_body(FunctionDeclaration* decl, std::string& e
                 materialize_drop_fields(fields, false);
                 const TypeId ptrt = types_.pointer_type(slot_ty, true);
                 const ValueId addr = b.address_of(place, ptrt);
-                if (canon && canon->kind() == BaseTypeKind::Array) {
+                BaseType* first_type =
+                    !fields.empty() ? fields[0].type : nullptr;
+                BaseType* first_canon =
+                    first_type != nullptr ? first_type->canonical() : nullptr;
+                const bool whole_array_tree =
+                    fields.size() == 1 && fields[0].name.empty() &&
+                    first_canon != nullptr &&
+                    first_canon->kind() == BaseTypeKind::Array;
+                if (whole_array_tree && fields[0].flag_array != MIR_INVALID_ID) {
+                    destroy_flag_array(
+                        addr,
+                        first_canon->as_array_type_unsafe()->elem_type,
+                        fields[0].flag_array, fields[0].flag_count
+                    );
+                } else if (canon && canon->kind() == BaseTypeKind::Array &&
+                           !whole_array_tree) {
                     destroy_array_drop_fields(
                         addr, fields, canon->as_array_type_unsafe()->elem_type
                     );

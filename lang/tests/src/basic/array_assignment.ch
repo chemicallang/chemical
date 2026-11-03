@@ -151,3 +151,48 @@ func test_large_array_nested_templates() {
         }
     })
 }
+
+
+struct LargeArrayNestedLarge {
+    var inner : [65]LargeArrayDrop
+}
+
+func test_large_array_nested_above_64() {
+    test("large templates track inner arrays above 64 elements", () => {
+        unsafe {
+            large_array_drop_count = 0
+            {
+                var arr : [100]LargeArrayNestedLarge
+                arr[0] = LargeArrayNestedLarge {
+                    inner : [LargeArrayDrop { value : 0 }, LargeArrayDrop { value : 1 }, LargeArrayDrop { value : 2 }, LargeArrayDrop { value : 3 }, LargeArrayDrop { value : 4 }, LargeArrayDrop { value : 5 }, LargeArrayDrop { value : 6 }, LargeArrayDrop { value : 7 }, LargeArrayDrop { value : 8 }, LargeArrayDrop { value : 9 }, LargeArrayDrop { value : 10 }, LargeArrayDrop { value : 11 }, LargeArrayDrop { value : 12 }, LargeArrayDrop { value : 13 }, LargeArrayDrop { value : 14 }, LargeArrayDrop { value : 15 }, LargeArrayDrop { value : 16 }, LargeArrayDrop { value : 17 }, LargeArrayDrop { value : 18 }, LargeArrayDrop { value : 19 }, LargeArrayDrop { value : 20 }, LargeArrayDrop { value : 21 }, LargeArrayDrop { value : 22 }, LargeArrayDrop { value : 23 }, LargeArrayDrop { value : 24 }, LargeArrayDrop { value : 25 }, LargeArrayDrop { value : 26 }, LargeArrayDrop { value : 27 }, LargeArrayDrop { value : 28 }, LargeArrayDrop { value : 29 }, LargeArrayDrop { value : 30 }, LargeArrayDrop { value : 31 }, LargeArrayDrop { value : 32 }, LargeArrayDrop { value : 33 }, LargeArrayDrop { value : 34 }, LargeArrayDrop { value : 35 }, LargeArrayDrop { value : 36 }, LargeArrayDrop { value : 37 }, LargeArrayDrop { value : 38 }, LargeArrayDrop { value : 39 }, LargeArrayDrop { value : 40 }, LargeArrayDrop { value : 41 }, LargeArrayDrop { value : 42 }, LargeArrayDrop { value : 43 }, LargeArrayDrop { value : 44 }, LargeArrayDrop { value : 45 }, LargeArrayDrop { value : 46 }, LargeArrayDrop { value : 47 }, LargeArrayDrop { value : 48 }, LargeArrayDrop { value : 49 }, LargeArrayDrop { value : 50 }, LargeArrayDrop { value : 51 }, LargeArrayDrop { value : 52 }, LargeArrayDrop { value : 53 }, LargeArrayDrop { value : 54 }, LargeArrayDrop { value : 55 }, LargeArrayDrop { value : 56 }, LargeArrayDrop { value : 57 }, LargeArrayDrop { value : 58 }, LargeArrayDrop { value : 59 }, LargeArrayDrop { value : 60 }, LargeArrayDrop { value : 61 }, LargeArrayDrop { value : 62 }, LargeArrayDrop { value : 63 }, LargeArrayDrop { value : 64 }]
+                }
+                if(arr[0].inner[64].value != 64) { return false }
+            }
+            return large_array_drop_count == 65
+        }
+    })
+    test("small outer arrays destroy whole large direct arrays", () => {
+        unsafe {
+            large_array_drop_count = 0
+            {
+                var arr : [2][65]LargeArrayDrop
+                arr[0] = [LargeArrayDrop { value : 0 }, LargeArrayDrop { value : 1 }, LargeArrayDrop { value : 2 }, LargeArrayDrop { value : 3 }, LargeArrayDrop { value : 4 }, LargeArrayDrop { value : 5 }, LargeArrayDrop { value : 6 }, LargeArrayDrop { value : 7 }, LargeArrayDrop { value : 8 }, LargeArrayDrop { value : 9 }, LargeArrayDrop { value : 10 }, LargeArrayDrop { value : 11 }, LargeArrayDrop { value : 12 }, LargeArrayDrop { value : 13 }, LargeArrayDrop { value : 14 }, LargeArrayDrop { value : 15 }, LargeArrayDrop { value : 16 }, LargeArrayDrop { value : 17 }, LargeArrayDrop { value : 18 }, LargeArrayDrop { value : 19 }, LargeArrayDrop { value : 20 }, LargeArrayDrop { value : 21 }, LargeArrayDrop { value : 22 }, LargeArrayDrop { value : 23 }, LargeArrayDrop { value : 24 }, LargeArrayDrop { value : 25 }, LargeArrayDrop { value : 26 }, LargeArrayDrop { value : 27 }, LargeArrayDrop { value : 28 }, LargeArrayDrop { value : 29 }, LargeArrayDrop { value : 30 }, LargeArrayDrop { value : 31 }, LargeArrayDrop { value : 32 }, LargeArrayDrop { value : 33 }, LargeArrayDrop { value : 34 }, LargeArrayDrop { value : 35 }, LargeArrayDrop { value : 36 }, LargeArrayDrop { value : 37 }, LargeArrayDrop { value : 38 }, LargeArrayDrop { value : 39 }, LargeArrayDrop { value : 40 }, LargeArrayDrop { value : 41 }, LargeArrayDrop { value : 42 }, LargeArrayDrop { value : 43 }, LargeArrayDrop { value : 44 }, LargeArrayDrop { value : 45 }, LargeArrayDrop { value : 46 }, LargeArrayDrop { value : 47 }, LargeArrayDrop { value : 48 }, LargeArrayDrop { value : 49 }, LargeArrayDrop { value : 50 }, LargeArrayDrop { value : 51 }, LargeArrayDrop { value : 52 }, LargeArrayDrop { value : 53 }, LargeArrayDrop { value : 54 }, LargeArrayDrop { value : 55 }, LargeArrayDrop { value : 56 }, LargeArrayDrop { value : 57 }, LargeArrayDrop { value : 58 }, LargeArrayDrop { value : 59 }, LargeArrayDrop { value : 60 }, LargeArrayDrop { value : 61 }, LargeArrayDrop { value : 62 }, LargeArrayDrop { value : 63 }, LargeArrayDrop { value : 64 }]
+                if(arr[0][64].value != 64) { return false }
+            }
+            return large_array_drop_count == 65
+        }
+    })
+    test("small outer arrays destroy whole large nested arrays", () => {
+        unsafe {
+            large_array_drop_count = 0
+            {
+                var arr : [2]LargeArrayNestedLarge
+                arr[0] = LargeArrayNestedLarge {
+                    inner : [LargeArrayDrop { value : 0 }, LargeArrayDrop { value : 1 }, LargeArrayDrop { value : 2 }, LargeArrayDrop { value : 3 }, LargeArrayDrop { value : 4 }, LargeArrayDrop { value : 5 }, LargeArrayDrop { value : 6 }, LargeArrayDrop { value : 7 }, LargeArrayDrop { value : 8 }, LargeArrayDrop { value : 9 }, LargeArrayDrop { value : 10 }, LargeArrayDrop { value : 11 }, LargeArrayDrop { value : 12 }, LargeArrayDrop { value : 13 }, LargeArrayDrop { value : 14 }, LargeArrayDrop { value : 15 }, LargeArrayDrop { value : 16 }, LargeArrayDrop { value : 17 }, LargeArrayDrop { value : 18 }, LargeArrayDrop { value : 19 }, LargeArrayDrop { value : 20 }, LargeArrayDrop { value : 21 }, LargeArrayDrop { value : 22 }, LargeArrayDrop { value : 23 }, LargeArrayDrop { value : 24 }, LargeArrayDrop { value : 25 }, LargeArrayDrop { value : 26 }, LargeArrayDrop { value : 27 }, LargeArrayDrop { value : 28 }, LargeArrayDrop { value : 29 }, LargeArrayDrop { value : 30 }, LargeArrayDrop { value : 31 }, LargeArrayDrop { value : 32 }, LargeArrayDrop { value : 33 }, LargeArrayDrop { value : 34 }, LargeArrayDrop { value : 35 }, LargeArrayDrop { value : 36 }, LargeArrayDrop { value : 37 }, LargeArrayDrop { value : 38 }, LargeArrayDrop { value : 39 }, LargeArrayDrop { value : 40 }, LargeArrayDrop { value : 41 }, LargeArrayDrop { value : 42 }, LargeArrayDrop { value : 43 }, LargeArrayDrop { value : 44 }, LargeArrayDrop { value : 45 }, LargeArrayDrop { value : 46 }, LargeArrayDrop { value : 47 }, LargeArrayDrop { value : 48 }, LargeArrayDrop { value : 49 }, LargeArrayDrop { value : 50 }, LargeArrayDrop { value : 51 }, LargeArrayDrop { value : 52 }, LargeArrayDrop { value : 53 }, LargeArrayDrop { value : 54 }, LargeArrayDrop { value : 55 }, LargeArrayDrop { value : 56 }, LargeArrayDrop { value : 57 }, LargeArrayDrop { value : 58 }, LargeArrayDrop { value : 59 }, LargeArrayDrop { value : 60 }, LargeArrayDrop { value : 61 }, LargeArrayDrop { value : 62 }, LargeArrayDrop { value : 63 }, LargeArrayDrop { value : 64 }]
+                }
+                if(arr[0].inner[0].value != 0) { return false }
+            }
+            return large_array_drop_count == 65
+        }
+    })
+}

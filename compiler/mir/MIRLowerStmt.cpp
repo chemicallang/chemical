@@ -535,6 +535,16 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 };
                 auto destroy_old_element = [&]() {
                     if (!eflag.valid()) return;
+                    if (eflag.whole_children) {
+                        MIRDropElementRef fresh = drop_flag_for_element(
+                            eflag.place, eflag.index
+                        );
+                        if (fresh.template_node == nullptr) return;
+                        destroy_drop_fields(
+                            element_address(), fresh.template_node->children
+                        );
+                        return;
+                    }
                     if (eflag.template_node != nullptr) {
                         // Re-resolve: lowering the RHS may have reallocated the
                         // destructibles vector that owns the template node.
@@ -549,12 +559,32 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         );
                         return;
                     }
+                    if (eflag.flag_array != MIR_INVALID_ID) {
+                        BaseType* canon = io->getType() != nullptr
+                                              ? io->getType()->canonical()
+                                              : nullptr;
+                        if (canon != nullptr &&
+                            canon->kind() == BaseTypeKind::Array) {
+                            destroy_flag_array(
+                                element_address(),
+                                canon->as_array_type_unsafe()->elem_type,
+                                eflag.flag_array, eflag.flag_count
+                            );
+                        }
+                        return;
+                    }
                     const SymbolId edtor = destructor_symbol(io->getType());
                     if (edtor == MIR_INVALID_ID) return;
                     emit_dtor_ptr_cond(element_address(), io->getType(), eflag.flag);
                 };
                 auto mark_element_initialized = [&]() {
-                    if (eflag.template_node != nullptr) {
+                    if (eflag.whole_children) {
+                        MIRDropElementRef fresh = drop_flag_for_element(
+                            eflag.place, eflag.index
+                        );
+                        if (fresh.template_node == nullptr) return;
+                        set_drop_fields(fresh.template_node->children, true);
+                    } else if (eflag.template_node != nullptr) {
                         MIRDropElementRef fresh = drop_flag_for_element(
                             eflag.place, eflag.index
                         );
@@ -562,6 +592,10 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         set_drop_fields_at(
                             fresh.template_node->children,
                             static_cast<ValueId>(idx.id), true
+                        );
+                    } else if (eflag.flag_array != MIR_INVALID_ID) {
+                        set_flag_array(
+                            eflag.flag_array, eflag.flag_count, true
                         );
                     } else if (eflag.flag.place != MIR_INVALID_ID) {
                         builder_->set_drop(eflag.flag.place, true);

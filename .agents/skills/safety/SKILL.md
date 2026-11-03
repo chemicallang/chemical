@@ -30,12 +30,12 @@ Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2437/2437` |
-| LLVM main | `2435/2435` |
+| TCC main | `2442/2442` |
+| LLVM main | `2440/2440` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `796/796` |
 | TCC/LLVM safety | `76/76` |
-| TCC/LLVM async | `77/77` |
+| TCC/LLVM async | `80/80` |
 | TCC libs | `735/735` |
 | TCC plugins | `1305/1305` |
 | TCC interpret | `1931/1931` |
@@ -428,13 +428,16 @@ memory safety.
     bool-flag array per element. Larger arrays of generated-glue aggregates use
     an element template with one bool-flag array per leaf field, so whole-element
     and per-field constant-index initialization/replacement drop only the
-    initialized leaves. Nested fixed arrays of up to 64 elements inside a
+    initialized leaves. Nested fixed arrays up to 1024 elements inside a
     template element are tracked recursively (each inner leaf gets its own
-    outer-index flag array). Any unsupported move shape (user destructor,
-    global, temporary/expression, reference/pointer) is rejected with
-    `SAFE-MOVE-004` instead of double-dropping. Remaining: inner arrays larger
-    than 64, large arrays in async frame slots, and unsized arrays fall back to
-    a whole-field flag.
+    outer-index flag array); a small outer array of large inner arrays uses a
+    per-element flag block. Directly destructible large arrays in async frame
+    slots use a frame-resident bool-flag block, so partial initialization and
+    cancellation drop only live elements. Any unsupported move shape (user
+    destructor, global, temporary/expression, reference/pointer) is rejected
+    with `SAFE-MOVE-004` instead of double-dropping. Remaining: inner arrays
+    above 1024, generated-glue large arrays in async frames, and unsized arrays
+    fall back to a whole-field flag.
 
 11. **Interpreter boundaries.** MIR interpreter bounds/provenance/tombstone
     checks are implemented. Async/coroutine opcodes, inline asm, dynamic

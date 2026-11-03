@@ -239,6 +239,33 @@ async func suspend_destructible_array() : int {
     return cs[0].value + cs[1].value + n
 }
 
+// A large array with only one initialized element: the frame-resident flag
+// block must drop that element and not the 99 uninitialized slots.
+async func suspend_large_destructible_array() : int {
+    var cs : [100]DropCounter
+    cs[0] = DropCounter { value : 1 }
+    var n = await make_countdown(1, 5)
+    return cs[0].value + n
+}
+
+async func suspend_large_destructible_array_cancel() : int {
+    var cs : [100]DropCounter
+    cs[0] = DropCounter { value : 1 }
+    var n = await make_countdown(100, 0)
+    return cs[0].value + n
+}
+
+struct LargeFrameHolder {
+    var inner : [100]DropCounter
+}
+
+async func suspend_large_array_field() : int {
+    var h : LargeFrameHolder
+    h.inner[0] = DropCounter { value : 1 }
+    var n = await make_countdown(1, 5)
+    return h.inner[0].value + n
+}
+
 // A pointer to a cross-await local must stay valid after resume (frame-resident
 // locals have a stable address, unlike the old spill/reload approach).
 async func suspend_escaped_ptr() : int {
@@ -263,6 +290,54 @@ func test_async_suspend_destructible_arrays(env : &mut TestEnv) {
     }
     if(async::block_on<int>(suspend_destructible_array()) != 8) {
         env.error("an array of DropCounters across a suspension should be 8")
+    }
+}
+
+@test
+func test_async_suspend_large_destructible_array(env : &mut TestEnv) {
+    unsafe {
+        var before = suspend_drops
+        if(async::block_on<int>(suspend_large_destructible_array()) != 6) {
+            env.error("a large partially initialized array across a suspension should be 6")
+        }
+        if(suspend_drops != before + 1) {
+            env.error("a large partially initialized frame array must drop exactly its initialized element")
+        }
+    }
+}
+
+@test
+func test_async_suspend_large_array_field(env : &mut TestEnv) {
+    unsafe {
+        var before = suspend_drops
+        if(async::block_on<int>(suspend_large_array_field()) != 6) {
+            env.error("a large array field across a suspension should be 6")
+        }
+        if(suspend_drops != before + 1) {
+            env.error("a large array field must drop exactly its initialized element")
+        }
+    }
+}
+
+@test
+func test_async_suspend_large_array_cancel_drops(env : &mut TestEnv) {
+    unsafe {
+        var before = suspend_drops
+        {
+            var h = suspend_large_destructible_array_cancel()
+            var cx = core::async::Context {
+                waker : core::async::Waker.empty()
+            }
+            var p = h.vtbl_ptr().poll(h.frame_ptr(), &raw mut cx)
+            if(p is core::async::Poll.Pending) {
+                // dropping `h` cancels the suspended future
+            } else {
+                env.error("expected the large-array future to be pending")
+            }
+        }
+        if(suspend_drops != before + 1) {
+            env.error("cancelling a suspended large array must drop exactly its initialized element")
+        }
     }
 }
 

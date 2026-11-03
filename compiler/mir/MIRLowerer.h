@@ -755,6 +755,10 @@ private:
         // Async frame flag field name (a bool stored in the coroutine frame).
         // `flag` is the per-function place materialized from this name.
         ConstantId frame_flag = MIR_INVALID_ID;
+        // A large array in a frame uses a frame-resident bool-flag array:
+        // `frame_flag_count` entries named `frame_flag_array`.
+        ConstantId frame_flag_array = MIR_INVALID_ID;
+        uint64_t frame_flag_count = 0;
         // `MIR_INVALID_ID` for a struct field; the element index otherwise.
         uint32_t array_index = MIR_INVALID_ID;
         // A large array of directly-destructible elements uses one bool flag
@@ -788,7 +792,17 @@ private:
         // lowering the RHS may have grown/reallocated `destructibles_`.
         PlaceId place = MIR_INVALID_ID;
         uint64_t index = 0;
-        bool valid() const { return flag.valid() || template_node != nullptr; }
+        // A whole outer element that is itself a large array: initialize or
+        // destroy all of its inner element flags, not one slot.
+        PlaceId flag_array = MIR_INVALID_ID;
+        uint64_t flag_count = 0;
+        // A small outer array element with generated field children: arm or
+        // destroy the whole child tree rather than one outer-index slot.
+        bool whole_children = false;
+        bool valid() const {
+            return flag.valid() || template_node != nullptr ||
+                   flag_array != MIR_INVALID_ID;
+        }
     };
     struct MIRDestructible {
         PlaceId place;
@@ -1442,11 +1456,15 @@ private:
     // corresponding places from the same names.
     std::unordered_map<unsigned, std::vector<MIRDropField>> async_slot_fields_;
     std::vector<ConstantId> async_field_flag_fields_;
+    std::vector<ConstantId> async_field_flag_array_fields_;
+    std::vector<uint64_t> async_field_flag_array_counts_;
     /** Parse the slot id out of a `__chx_slot_<id>` frame field. */
     unsigned async_slot_id_for(PlaceId place) const;
-    /** Collect every frame flag name in a drop tree. */
+    /** Collect every scalar/array frame flag name in a drop tree. */
     void collect_drop_flag_fields(const std::vector<MIRDropField>& fields,
-                                  std::vector<ConstantId>& out) const;
+                                  std::vector<ConstantId>& out,
+                                  std::vector<ConstantId>& array_out,
+                                  std::vector<uint64_t>& count_out) const;
     /** Append C drop code for one frame slot tree. */
     void append_c_drop_fields(std::string& out, const std::string& base,
                               const std::vector<MIRDropField>& fields,

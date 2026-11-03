@@ -240,7 +240,10 @@ public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, Fs
 
 public func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
         unsafe {
+        if(out == null) { return Result.Err(FsError.InvalidInput()); }
         var tmp : *char = "/tmp\0";
+        var needed : size_t = 5; // "/tmp" plus NUL
+        if(out_len < needed) { return Result.Err(FsError.PathTooLong()); }
         var i : size_t = 0; while(tmp[i] != 0) { out[i] = tmp[i]; i++ }
         out[i] = 0;
         return Result.Ok(i);

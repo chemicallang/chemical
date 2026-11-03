@@ -177,9 +177,11 @@ public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, Fs
 
 public func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
         unsafe {
+    if(out == null || out_len == 0) { return Result.Err(FsError.InvalidInput()); }
     var wbuf : [WIN_MAX_PATH]u16;
     var n = GetTempPathW(WIN_MAX_PATH as u32, (&mut wbuf[0]) as LPWSTR);
     if(n == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
+    if(n >= WIN_MAX_PATH as u32) { return Result.Err(FsError.PathTooLong()); }
     var conv = utf16_to_utf8(&raw mut wbuf[0], out, out_len);
     if(conv is Result.Err) {
         var Err(e) = conv else unreachable;
@@ -203,9 +205,14 @@ public func read_dir(path : *char, callback : std::function<(name : *char, name_
     var Ok(wlen) = conv else unreachable
     // append \* pattern
     var pattern : [WIN_MAX_PATH]u16;
-    var p : size_t = 0; while(wpath[p] != 0) { pattern[p] = wpath[p]; p++ }
-    if(p == 0) { pattern[p++] = '.' as u16; }
-    if(p > 0 && pattern[p-1] != '\\' && pattern[p-1] != '/') { pattern[p++] = '\\'; }
+    var p : size_t = 0; while(p < WIN_MAX_PATH as size_t && wpath[p] != 0) { pattern[p] = wpath[p]; p++ }
+    if(p == WIN_MAX_PATH as size_t) { return Result.Err(FsError.PathTooLong()); }
+    if(p == 0) { if(p + 1 >= WIN_MAX_PATH as size_t) { return Result.Err(FsError.PathTooLong()); } pattern[p++] = '.' as u16; }
+    if(p > 0 && pattern[p-1] != '\\' && pattern[p-1] != '/') {
+        if(p + 1 >= WIN_MAX_PATH as size_t) { return Result.Err(FsError.PathTooLong()); }
+        pattern[p++] = '\\';
+    }
+    if(p + 2 > WIN_MAX_PATH as size_t) { return Result.Err(FsError.PathTooLong()); }
     pattern[p] = '*'; pattern[p+1] = 0;
     var findData : WIN32_FIND_DATAW;
     var h = FindFirstFileW((&mut pattern[0]) as LPCWSTR, &raw mut findData);

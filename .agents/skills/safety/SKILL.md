@@ -30,18 +30,18 @@ Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2433/2433` |
-| LLVM main | `2431/2431` |
+| TCC main | `2434/2434` |
+| LLVM main | `2432/2432` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `778/778` |
 | TCC/LLVM safety | `76/76` |
 | TCC/LLVM async | `77/77` |
-| TCC libs | `734/734` |
+| TCC libs | `735/735` |
 | TCC plugins | `1305/1305` |
 | TCC interpret | `1931/1931` |
 | `MIRTests` | `4749 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
-| Whole-tree audit | `unsafe_blocks 3790`, `unsafe_values 4922`, `raw_pointer_addrs 10035`, `raw_pointer_casts 2876`, `raw_pointer_types 9375`, `raw_pointer_derefs 1073`, `unsafe_func_decls 41`, `panic_calls 124` |
+| Whole-tree audit | `unsafe_blocks 3790`, `unsafe_values 4922`, `raw_pointer_addrs 10036`, `raw_pointer_casts 2876`, `raw_pointer_types 9375`, `raw_pointer_derefs 1073`, `unsafe_func_decls 41`, `panic_calls 124` |
 | Audit result | `no growth` against `lang/docs/safety/audit-baseline.json` |
 
 The audit totals increased from the historical `3661/4890` in the 2026-10-31
@@ -317,16 +317,17 @@ memory safety.
    function-type identity, MIR, LLVM indirect calls, and C function-pointer
    spelling; scalar/pointer cdecl and stdcall callbacks are accepted. The C
    backend emits the convention on both the prototype and definition. FFI work:
-   tranches 1-4 of the semantic wrapper audit are complete
+   tranches 1-5 of the semantic wrapper audit are complete
    (`lang/docs/safety/ffi-wrapper-audit.md`: allocator ownership/zero-size,
    filesystem path/file handles and capacity, socket buffer/length/port
    validation, zero-sized Box allocation, DynBox field visibility, string
    append null validation, fail-closed zero-sized vectors, Rc/Arc count-overflow
-   checks, unsafe-gated u16_strlen, and thread-pool Future ownership/null
-   safety). The rest of the safe wrapper surface (actual zero-sized vector
-   support, string_view/u16string parsers, Rc/Arc/RefCell/thread-pool worker
-   invariants, directory/metadata/UTF-16, Windows IPC, TLS/HTTP) and the
-   target-specific audit list remain. The i386 Windows libraries are syntax/safety-clean.
+   checks, unsafe-gated u16_strlen, thread-pool Future ownership/null safety,
+   vector replacement drops, and filesystem temp/copy path buffer bounds). The
+   rest of the safe wrapper surface (actual zero-sized vector support,
+   string_view/u16string parsers, Rc/Arc/RefCell/thread-pool worker invariants,
+   directory/metadata/UTF-16, Windows IPC, TLS/HTTP) and the target-specific
+   audit list remain. The i386 Windows libraries are syntax/safety-clean.
 3. **`@scoped_callback` is body-checked, with a fixed sink list.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter anywhere except a known join-before-return API (resolved by exact library

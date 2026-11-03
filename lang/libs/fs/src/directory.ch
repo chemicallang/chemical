@@ -25,11 +25,21 @@ public func copy_directory(src : *char, dst : *char, preserve_metadata : bool) :
             if(name_len == 2 && name[0] == '.' && name[1] == '.') { return true; }
             var srcchild : [PATH_MAX_BUF]char;
             var dstchild : [PATH_MAX_BUF]char;
-            var p : size_t = 0; while(src[p] != 0) { srcchild[p] = src[p]; p++ }
-            if(p > 0 && srcchild[p-1] != '/') { srcchild[p++] = '/'; }
+            var p : size_t = 0; while(p < PATH_MAX_BUF as size_t && src[p] != 0) { srcchild[p] = src[p]; p++ }
+            if(p == PATH_MAX_BUF as size_t) { return false; }
+            if(p > 0 && srcchild[p-1] != '/') {
+                if(p + 1 >= PATH_MAX_BUF as size_t) { return false; }
+                srcchild[p++] = '/';
+            }
+            if(name_len >= PATH_MAX_BUF as size_t - p) { return false; }
             var q : size_t = 0; while(q <= name_len) { srcchild[p + q] = name[q]; q++ }
-            var r : size_t = 0; while(dst[r] != 0) { dstchild[r] = dst[r]; r++ }
-            if(r > 0 && dstchild[r-1] != '/') { dstchild[r++] = '/'; }
+            var r : size_t = 0; while(r < PATH_MAX_BUF as size_t && dst[r] != 0) { dstchild[r] = dst[r]; r++ }
+            if(r == PATH_MAX_BUF as size_t) { return false; }
+            if(r > 0 && dstchild[r-1] != '/') {
+                if(r + 1 >= PATH_MAX_BUF as size_t) { return false; }
+                dstchild[r++] = '/';
+            }
+            if(name_len >= PATH_MAX_BUF as size_t - r) { return false; }
             q = 0; while(q <= name_len) { dstchild[r + q] = name[q]; q++ }
             if(is_dir) {
                 var c = copy_directory(&raw mut srcchild[0], &raw mut dstchild[0], preserve_metadata);

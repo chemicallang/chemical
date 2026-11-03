@@ -129,6 +129,15 @@ func test_fs_path_null_inputs_rejected(env : &mut TestEnv) {
 }
 
 @test
+func test_fs_temp_dir_rejects_small_or_null_output(env : &mut TestEnv) {
+    var small : [2]char;
+    var r1 = fs::temp_dir(&raw mut small[0], 2 as size_t);
+    expect_true(env, r1 is Result.Err, "temp_dir must reject a too-small output buffer");
+    var r2 = fs::temp_dir(null, 0 as size_t);
+    expect_true(env, r2 is Result.Err, "temp_dir must reject a null output buffer");
+}
+
+@test
 func test_fs_path_normalize(env : &mut TestEnv) {
     var buf : [PATH_MAX_BUF]char;
     

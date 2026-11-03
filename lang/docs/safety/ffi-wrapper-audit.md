@@ -93,10 +93,22 @@ Regression coverage: `vector_zero_sized_element_panics` and
 Regression coverage: `neg_threadpool_future_constructor_requires_unsafe`
 (`SAFE-UNSAFE-002`).
 
-Still remaining in this group: actual zero-sized vector support, vector `set`
-replacement semantics, `string_view`/`u16string` raw constructors and numeric
-parsers, remaining `Rc`/`Arc` weak-handle invariants, `RefCell` guard escape,
-and thread-pool worker cancellation/teardown invariants.
+## Tranche 5 — vector replacement and filesystem buffers (2026-11-03)
+
+| Wrapper | Invariant | Enforcement |
+|---|---|---|
+| `vector::set` | replacing an element drops the old value exactly once | `destruct get_ptr(index)` before storing the new value |
+| `fs::temp_dir` | output non-null and large enough for `/tmp` plus NUL | null and capacity rejection |
+| `fs::copy_directory` | constructed child paths fit `PATH_MAX_BUF` | bounded copies and capacity checks before appending names |
+| Windows `fs::read_dir` | `pattern` fits `WIN_MAX_PATH` | bounded path copy and capacity checks |
+
+Regression coverage: the vector destructor-counter replacement test and
+`test_fs_temp_dir_rejects_small_or_null_output`.
+
+Still remaining in this group: actual zero-sized vector support,
+`string_view`/`u16string` raw constructors and numeric parsers, remaining
+`Rc`/`Arc` weak-handle invariants, `RefCell` guard escape, and thread-pool
+worker cancellation/teardown invariants.
 
 ## Coverage
 

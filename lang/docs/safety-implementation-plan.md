@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.91)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.92)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1438,10 +1438,11 @@ new number as the honest baseline, not a compiler regression.
    ownership/zero-size, filesystem path/file null and capacity checks, socket
    buffer/length/port validation, zero-sized `Box` allocation, `DynBox` field
    visibility, string append null validation, fail-closed zero-sized vectors,
-   `Rc`/`Arc` count-overflow checks, unsafe-gated `u16_strlen`, and thread-pool
-   `Future` ownership/null safety. See `lang/docs/safety/ffi-wrapper-audit.md`.
-   Remaining: actual zero-sized vector support and `set` replacement semantics,
-   string_view/u16string raw constructors and numeric parsers, remaining
+   `Rc`/`Arc` count-overflow checks, unsafe-gated `u16_strlen`, thread-pool
+   `Future` ownership/null safety, vector replacement drops, and filesystem
+   temp/copy path buffer bounds. See
+   `lang/docs/safety/ffi-wrapper-audit.md`. Remaining: actual zero-sized vector
+   support, string_view/u16string raw constructors and numeric parsers, remaining
    Rc/Arc/RefCell invariants, thread-pool worker cancellation/teardown,
    directory/metadata/UTF-16, Windows IPC, TLS/HTTP, and the target-specific
    audit list.
@@ -3073,3 +3074,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.89 (2026-11-03): semantic FFI wrapper audit, tranche 2 (ownership wrappers and strings). Zero-sized `Box<T>` values now allocate one byte, so `Box::box` never produces a null pointer that `get`/`delete` would mishandle. `DynBox`'s `fat`/`data`/`drop` fields are internal rather than safe-code constructible, preventing a caller from pairing an arbitrary data pointer with a mismatched or null drop function. String append entry points reject null sources before `strlen`/`memcpy`, while zero-length appends remain no-ops. Added a zero-sized Box runtime test, a `DynBox` field-visibility negative test, and a null-append runtime-panic test. Full audit matrix and remaining modules: `lang/docs/safety/ffi-wrapper-audit.md`. Main TCC/LLVM `2433`/`2431`; `@test` `57`; negative `776`; safety `75`; async `77`; libs `734`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth after a reviewed `panic_calls 113 -> 116` test/validation baseline update.
 *Revision note v4.90 (2026-11-03): semantic FFI wrapper audit, tranche 3 (collections and reference counts). `vector<T>` constructors now fail closed for zero-sized element types instead of creating a vector whose indexing/pointer arithmetic would be invalid. `Rc`/`Weak` and `Arc`/`ArcWeak` check count overflow before increments so a wrapped count can never free storage while a handle remains. `u16_strlen` is now an unsafe raw-pointer utility; its internal caller uses an explicit unsafe boundary. Added a zero-sized-vector runtime-panic test and a `u16_strlen` unsafe-call negative test. Full audit matrix and remaining modules: `lang/docs/safety/ffi-wrapper-audit.md`. Main TCC/LLVM `2433`/`2431`; `@test` `57`; negative `777`; safety `76`; async `77`; libs `734`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth after a reviewed `panic_calls 116 -> 124`, `unsafe_func_decls 40 -> 41`, and `unsafe_values 4921 -> 4922` baseline update.
 *Revision note v4.91 (2026-11-03): semantic FFI wrapper audit, tranche 4 (thread-pool Future ownership). `concurrent.Future<T>` now keeps its promise pointer private, makes the raw-pointer constructor `unsafe`, and panics on `get` after the future was emptied instead of dereferencing null. `concurrent.Promise<T>` fields and constructor are internal to `std`, so safe callers cannot manufacture or mutate an unsynchronized promise. Added a negative test for the unsafe Future constructor. Main TCC/LLVM `2433`/`2431`; `@test` `57`; negative `778`; safety `76`; async `77`; libs `734`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
+*Revision note v4.92 (2026-11-03): semantic FFI wrapper audit, tranche 5 (vector replacement and filesystem buffers). `vector::set` now destroys the old element before storing the replacement, so destructor-bearing elements are not leaked. `fs::temp_dir` rejects null/undersized output buffers, `fs::copy_directory` bounds child path construction, and Windows `read_dir` bounds its search pattern. Added a destructor-counter vector replacement test and a temp-dir capacity/null test. Main TCC/LLVM `2434`/`2432`; `@test` `57`; negative `778`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth after a reviewed `destruct_stmts 23 -> 27` and `raw_pointer_addrs 10035 -> 10036` baseline update.

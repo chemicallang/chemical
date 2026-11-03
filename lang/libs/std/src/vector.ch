@@ -159,7 +159,11 @@ public struct vector<T> {
 
     func set(&mut self, index : size_t, value : T) {
         __vector_bounds_check(index, data_size)
-        unsafe { data_ptr[index] = value; }
+        unsafe {
+            // Replace, don't overwrite: the old element owns its resources.
+            destruct get_ptr(index);
+            data_ptr[index] = value;
+        }
     }
 
     func size(&self) : size_t {

@@ -91,6 +91,16 @@ func test_vectors() {
             *v.get_mut(0) = 99;
             return v.get(0) == 99 && v.get(1) == 20;
         })
+        vec_destruct_called = 0;
+        test("vector set destroys the replaced destructible element", () => {
+            var v = vector<VecDestructibleChild>();
+            v.push(VecDestructibleChild { i : 99 })
+            v.set(0, VecDestructibleChild { i : 29 })
+            if(vec_destruct_called != 1) { return false }
+            if(v.size() != 1 || v.get_ptr(0).i != 29) { return false }
+            return true
+        })
+
         test("struct types can be stored in vector", () => {
             var v = vector<VecConcreteChild>();
             v.push(VecConcreteChild { a : 40, b : 50 })

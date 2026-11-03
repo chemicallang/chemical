@@ -1447,10 +1447,9 @@ new number as the honest baseline, not a compiler regression.
    temp/copy path buffer bounds. See
    `lang/docs/safety/ffi-wrapper-audit.md`. Remaining: actual zero-sized vector
    support, string_view/u16string raw constructors, remaining
-   Rc/Arc/RefCell invariants, thread-pool worker cancellation/teardown and
-   promise result-slot initialization, safe containerized string splitting,
-   directory/metadata/UTF-16, Windows IPC, TLS/HTTP, and the target-specific
-   audit list.
+   Rc/Arc/RefCell invariants, thread-pool worker cancellation/teardown,
+   fs directory/metadata/UTF-16, Windows IPC, TLS/HTTP, and the
+   target-specific audit list.
 3. **`@scoped_callback` is body-checked, including custom sinks.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter to an unknown callee. Known join-before-return APIs

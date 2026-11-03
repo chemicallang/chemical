@@ -1,4 +1,21 @@
 //// Utility thread-entry functions and small arg structs for spawn
+
+// A result type with a destructor. The promise slot must never contain an
+// uninitialized value of this type, or filling it would run `@delete` on
+// garbage bytes.
+var pool_result_drops = 0
+
+struct PoolDropResult {
+    var value : int
+
+    @delete
+    func delete(&mut self) {
+        unsafe {
+            pool_result_drops = pool_result_drops + 1
+        }
+    }
+}
+
 public struct WaitArg {
     var m:*mut std.mutex;
     var cv:*mut std.condvar;
@@ -411,6 +428,25 @@ func test_pool_future_moves_across_threads() : bool {
     return t.join() == 42
 }
 
+// The promise result slot starts empty. A destructor-bearing result must be
+// dropped exactly once, by the value returned from `get`, not by assigning
+// over uninitialized promise storage.
+func test_pool_future_drops_result_once() : bool {
+    unsafe { pool_result_drops = 0 }
+    var correct = false
+    var x = 41
+    {
+        var pool = std::concurrent::create_pool(2u)
+        var f = std::concurrent.submit_closure(|x|() => {
+            return PoolDropResult { value : x + 1 }
+        }, &pool)
+        var r = f.get()
+        correct = r.value == 42
+        // `r` is destroyed at the end of this block.
+    }
+    return correct && unsafe(pool_result_drops) == 1
+}
+
 // 16) Heterogeneous scoped scope: two workers capture different stack values
 func test_scoped_run_closure_heterogeneous() : bool {
     var a = 1
@@ -545,6 +581,7 @@ func test_thread_pool() {
         test("test_scoped_spawn_closure_borrow", test_scoped_spawn_closure_borrow);
         test("test_pool_submit_closure_owned_capture", test_pool_submit_closure_owned_capture);
         test("test_pool_future_moves_across_threads", test_pool_future_moves_across_threads);
+        test("test_pool_future_drops_result_once", test_pool_future_drops_result_once);
         test("test_scoped_run_closure_heterogeneous", test_scoped_run_closure_heterogeneous);
         test("test_scoped_spawn_closure_value", test_scoped_spawn_closure_value);
         test("test_scoped_run_closure_value", test_scoped_run_closure_value);

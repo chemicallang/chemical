@@ -129,18 +129,19 @@ public namespace std {
 
         public struct Promise<T> {
             internal var ready:bool;
-            internal var val:T;
+            // The result slot is initialized to `None` and only ever filled by
+            // the worker. Storing an uninitialized `T` here would let the
+            // assignment in `submit` run a destructor on garbage bytes.
+            internal var val:std::Option<T>;
             internal var m:std.mutex;
             internal var cv:std.condvar;
             internal var future_dropped: bool;
 
             @constructor internal func constructor(){
-                var xx : T
                 return Promise<T> {
                     ready=false;
                     future_dropped = false
-                    // TODO: poor way to initialize
-                    val : xx
+                    val : std::Option.None<T>()
                     m=std.mutex()
                     cv=std.CondVar()
                 }
@@ -148,7 +149,7 @@ public namespace std {
 
             func set(&mut self,x:T){
                 m.lock();
-                val=x;
+                val=std::Option.Some<T>(x);
                 ready=true;
                 cv.notify_all();
                 m.unlock()
@@ -166,19 +167,19 @@ public namespace std {
                 if(p == null) {
                     panic("Future is empty")
                 }
-                var thing : T
                 unsafe {
                     p.m.lock();
                     while(!p.ready){ p.cv.wait(&mut p.m) }
                     // mark that consumer will free (so worker won't free)
                     p.future_dropped = true;
                     p.m.unlock();
-                    // TODO: create a copy here
                     var pp = p
-                    var r = std::replace(&mut pp.val, thing);
+                    // `ready` guarantees the slot is `Some`; `take` moves the
+                    // result out and leaves `None` for the promise destructor.
+                    var value = pp.val.take()
                     delete p;
                     p=null;
-                    return r
+                    return value
                 }
             }
             @delete
@@ -266,7 +267,7 @@ public namespace std {
                             var r=f();
                             // set value under the Promise's synchronization
                             prom.m.lock();
-                            prom.val = r;
+                            prom.val = std::Option.Some<T>(r);
                             prom.ready = true;
                             prom.cv.notify_all();
                             var should_free = prom.future_dropped; // check under lock

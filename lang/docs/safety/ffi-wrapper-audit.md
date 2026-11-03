@@ -117,6 +117,21 @@ Regression coverage: `lang/tests/src/stdlib/datatype/conversions.ch` checks
 both limits and one-past-limit inputs for i8/i16/i32/i64/u8/u16/u32/u64,
 including `i64::MIN` and `u64::MAX`.
 
+## Tranche 7 — thread-pool promise result slot (2026-11-03)
+
+| Wrapper | Invariant | Enforcement |
+|---|---|---|
+| `concurrent.Promise<T>` | the result slot never contains an uninitialized `T` | `val` is an `Option<T>` initialized to `None`; the worker stores `Some(result)` |
+| `concurrent.Future<T>::get` | moving the result out leaves the promise slot empty | `Option::take` moves the value out before `Promise` is deleted |
+| `concurrent.Future<T>::delete` | dropping a ready future destroys a completed result exactly once | the promise destructor drops the `Option` payload; an unfinished future marks `future_dropped` and lets the worker perform the single free |
+
+Previously `Promise<T>` copied an uninitialized `var xx : T` into `val`, so the
+worker's `val = result` assignment and the promise destructor ran `T`'s
+destructor on garbage bytes (a double-free for `string`-like results).
+
+Regression coverage: `test_pool_future_drops_result_once` submits a
+destructor-bearing result and asserts it is dropped exactly once.
+
 Still remaining in this group: actual zero-sized vector support,
 `string_view`/`u16string` raw constructors, remaining `Rc`/`Arc` weak-handle
 invariants, `RefCell` guard escape, and thread-pool worker

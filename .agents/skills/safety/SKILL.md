@@ -35,7 +35,7 @@ Latest measured baseline:
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `796/796` |
 | TCC/LLVM safety | `76/76` |
-| TCC/LLVM async | `81/81` |
+| TCC/LLVM async | `82/82` |
 | TCC libs | `735/735` |
 | TCC plugins | `1305/1305` |
 | TCC interpret | `1931/1931` |
@@ -436,8 +436,9 @@ memory safety.
     template whose leaves carry frame flag blocks. Any unsupported move shape
     (user destructor, global, temporary/expression, reference/pointer) is
     rejected with `SAFE-MOVE-004` instead of double-dropping. Remaining: inner
-    arrays above 1024, generated-glue large array fields inside a frame
-    aggregate, and unsized arrays fall back to a whole-field flag.
+    arrays above 1024 and unsized arrays fall back to a whole-field flag;
+    whole-field construction/destruction of a generated-glue large array field
+    inside a frame aggregate uses the same template.
 
 11. **Interpreter boundaries.** MIR interpreter bounds/provenance/tombstone
     checks are implemented. Async/coroutine opcodes, inline asm, dynamic

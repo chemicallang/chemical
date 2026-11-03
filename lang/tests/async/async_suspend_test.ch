@@ -271,6 +271,18 @@ async func suspend_large_array_field() : int {
     return h.inner[0].value + n
 }
 
+
+struct LargeFramePairHolder {
+    var inner : [65]FramePair
+}
+
+async func suspend_large_template_field() : int {
+    var h : LargeFramePairHolder
+    h.inner = [FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }, FramePair { a : DropCounter { value : 1 }, b : DropCounter { value : 2 } }]
+    var n = await make_countdown(1, 5)
+    return h.inner[64].a.value + h.inner[64].b.value + n
+}
+
 async func suspend_large_template_array() : int {
     var pairs : [100]FramePair
     pairs[0] = FramePair {
@@ -343,6 +355,20 @@ func test_async_suspend_large_template_array(env : &mut TestEnv) {
         }
         if(suspend_drops != before + 2) {
             env.error("a large generated-glue frame array must drop exactly its initialized leaves")
+        }
+    }
+}
+
+
+@test
+func test_async_suspend_large_template_field(env : &mut TestEnv) {
+    unsafe {
+        var before = suspend_drops
+        if(async::block_on<int>(suspend_large_template_field()) != 8) {
+            env.error("a large generated-glue array field across a suspension should be 8")
+        }
+        if(suspend_drops != before + 130) {
+            env.error("a large generated-glue frame field must drop exactly its initialized leaves")
         }
     }
 }

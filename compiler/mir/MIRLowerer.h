@@ -763,14 +763,32 @@ private:
         // the expanded form because each frame flag is a named scalar field.
         PlaceId flag_array = MIR_INVALID_ID;
         uint64_t flag_count = 0;
+        // A large array of generated-glue aggregates stores one bool-array
+        // flag per leaf field in `children`; those children describe one
+        // element, not one child per element.
+        bool element_template = false;
+        uint64_t array_count = 0;
         // Nested owned fields/elements (generated-glue structs and arrays).
         std::vector<MIRDropField> children;
     };
     /** A drop flag that is either a scalar place or an indexed bool-array slot. */
     struct MIRDropFlagRef {
         PlaceId place = MIR_INVALID_ID;
-        ValueId address = MIR_NULL;
-        bool valid() const { return place != MIR_INVALID_ID || address != MIR_NULL; }
+        ValueId address = MIR_INVALID_ID;
+        bool valid() const {
+            return place != MIR_INVALID_ID || address != MIR_INVALID_ID;
+        }
+    };
+    /** One element of a large array whose per-leaf flags live in a template. */
+    struct MIRDropElementRef {
+        MIRDropFlagRef flag;
+        MIRDropField* template_node = nullptr;
+        uint64_t template_index = 0;
+        // The owning place/index let a caller re-resolve the template after
+        // lowering the RHS may have grown/reallocated `destructibles_`.
+        PlaceId place = MIR_INVALID_ID;
+        uint64_t index = 0;
+        bool valid() const { return flag.valid() || template_node != nullptr; }
     };
     struct MIRDestructible {
         PlaceId place;
@@ -795,17 +813,18 @@ private:
     /** Destroy one member only when its per-field drop flag is true. */
     void emit_member_dtor_cond(ValueId self_ptr, const chem::string_view& member,
                                BaseType* mt, PlaceId flag);
-    /** Per-element drop flag for `place[index]`, or an invalid ref. */
-    MIRDropFlagRef drop_flag_for_element(PlaceId place, uint64_t index);
-    /** Per-element flag under a struct-field path (`left.right[index]`). */
-    MIRDropFlagRef drop_flag_for_path_index(PlaceId place,
-                                            const std::vector<std::string>& path,
-                                            uint64_t index);
+    /** Per-element drop flags for `place[index]`, or an invalid ref. */
+    MIRDropElementRef drop_flag_for_element(PlaceId place, uint64_t index);
+    /** Per-element flags under a struct-field path (`left.right[index]`). */
+    MIRDropElementRef drop_flag_for_path_index(
+            PlaceId place, const std::vector<std::string>& path,
+            uint64_t index);
     /** Build the drop node for one owned field (recursing structs/arrays). */
     MIRDropField build_drop_field(const chem::string_view& name, BaseType* type,
                                   int depth, bool frame_flags = false,
                                   unsigned slot = MIR_INVALID_ID,
-                                  unsigned* flag_seq = nullptr);
+                                  unsigned* flag_seq = nullptr,
+                                  uint64_t array_flags = 0);
     /** Materialize async frame flag names as places in the current builder. */
     void materialize_drop_fields(std::vector<MIRDropField>& fields,
                                      bool initialize = true);
@@ -823,6 +842,19 @@ private:
     /** Destroy every initialized element of a large leaf array. */
     void destroy_flag_array(ValueId array_ptr, BaseType* element_type,
                             PlaceId flags, uint64_t count);
+    /** Whether a generated-glue element can use a per-leaf flag template. */
+    bool can_build_element_template(BaseType* type, int depth = 0);
+    /** Destroy the live leaves of one template element. */
+    void destroy_drop_fields_at(ValueId self_ptr,
+                                std::vector<MIRDropField>& fields,
+                                ValueId elem_index);
+    /** Set/clear every template leaf flag for one element. */
+    void set_drop_fields_at(std::vector<MIRDropField>& fields,
+                            ValueId elem_index, bool value);
+    /** Destroy every element of a template-flag large array. */
+    void destroy_array_template(ValueId array_ptr, BaseType* element_type,
+                                std::vector<MIRDropField>& fields,
+                                uint64_t count);
     /** Set every slot of a large-array flag block. */
     void set_flag_array(PlaceId flags, uint64_t count, bool value);
     /** Address of one slot in a large-array flag block. */

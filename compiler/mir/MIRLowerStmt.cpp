@@ -492,7 +492,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 // A bare local array of destructible elements has a drop flag
                 // per element. For a compile-time index the old element is
                 // destroyed only when that flag is live, then the flag is armed.
-                MIRDropFlagRef eflag;
+                MIRDropElementRef eflag;
                 if (io->idx && io->idx->val_kind() == ValueKind::IntN) {
                     const uint64_t element_index =
                         io->idx->as_int_num_value_unsafe()->get_num_value();
@@ -535,19 +535,42 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 };
                 auto destroy_old_element = [&]() {
                     if (!eflag.valid()) return;
+                    if (eflag.template_node != nullptr) {
+                        // Re-resolve: lowering the RHS may have reallocated the
+                        // destructibles vector that owns the template node.
+                        MIRDropElementRef fresh = drop_flag_for_element(
+                            eflag.place, eflag.index
+                        );
+                        if (fresh.template_node == nullptr) return;
+                        destroy_drop_fields_at(
+                            element_address(),
+                            fresh.template_node->children,
+                            static_cast<ValueId>(idx.id)
+                        );
+                        return;
+                    }
                     const SymbolId edtor = destructor_symbol(io->getType());
                     if (edtor == MIR_INVALID_ID) return;
-                    emit_dtor_ptr_cond(element_address(), io->getType(), eflag);
+                    emit_dtor_ptr_cond(element_address(), io->getType(), eflag.flag);
                 };
                 auto mark_element_initialized = [&]() {
-                    if (eflag.place != MIR_INVALID_ID) {
-                        builder_->set_drop(eflag.place, true);
-                    } else if (eflag.address != MIR_NULL) {
+                    if (eflag.template_node != nullptr) {
+                        MIRDropElementRef fresh = drop_flag_for_element(
+                            eflag.place, eflag.index
+                        );
+                        if (fresh.template_node == nullptr) return;
+                        set_drop_fields_at(
+                            fresh.template_node->children,
+                            static_cast<ValueId>(idx.id), true
+                        );
+                    } else if (eflag.flag.place != MIR_INVALID_ID) {
+                        builder_->set_drop(eflag.flag.place, true);
+                    } else if (eflag.flag.address != MIR_INVALID_ID) {
                         const TypeId bool_t = types_.bool_type();
                         const ValueId true_value = builder_->const_bool(
                             bool_t, module_.constants.add_bool(bool_t, true)
                         );
-                        builder_->store_indirect(eflag.address, true_value);
+                        builder_->store_indirect(eflag.flag.address, true_value);
                     }
                 };
                 const TypeId bt = (base.kind == MIRExprKind::Place)

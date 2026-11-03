@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.96)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.97)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1541,19 +1541,21 @@ new number as the honest baseline, not a compiler regression.
     by-value-parameter, and async-frame aggregates with generated drop glue carry
     one drop flag per destructible field/element. Nested structs and fixed arrays
     are tracked recursively. Fixed arrays with at most 64 destructible elements
-    get one scalar flag per element; larger fixed arrays of **directly**
-    destructible elements (a user destructor on the element type, such as
-    `string`, a vector, or a custom `@delete`) use a runtime bool-flag array,
-    so constant-index partial initialization and replacement keep working past
-    the old 64-element limit. Whole-array field moves are covered. Moving a
-    field clears its flag, so the parent destructor cannot double-drop it. Async
-    frame flags are frame-resident and are used by normal completion,
-    cancellation, and resume cleanup; a moved frame field no longer rejects
-    with `SAFE-MOVE-004`. Moves from a user-destructor aggregate, a global, a
-    temporary/expression, or a reference/pointer remain rejected with
-    `SAFE-MOVE-004` instead of being unsound. Remaining: larger arrays whose
-    element type has generated drop glue (rather than a user destructor), async
-    frame slots, and unsized arrays fall back to a whole-field flag.
+    get one scalar flag per element. Larger fixed arrays of **directly**
+    destructible elements use one runtime bool-flag array per element, and
+    larger arrays of generated-glue aggregates use one bool-flag array per
+    leaf field with an element template, so constant-index whole-element and
+    per-field initialization/replacement keep working past the old 64-element
+    limit. Only initialized leaves are dropped; a partially initialized sibling
+    field is never passed to its destructor. Nested arrays inside an element,
+    async frame slots, and unsized arrays still fall back to a whole-field
+    flag. Whole-array field moves are covered. Moving a field clears its flag,
+    so the parent destructor cannot double-drop it. Async frame flags are
+    frame-resident and are used by normal completion, cancellation, and resume
+    cleanup; a moved frame field no longer rejects with `SAFE-MOVE-004`. Moves
+    from a user-destructor aggregate, a global, a temporary/expression, or a
+    reference/pointer remain rejected with `SAFE-MOVE-004` instead of being
+    unsound.
 11. **Interpreter** reports async/coroutine opcodes, inline asm, dynamic
     call/vtables and `Unreachable`/`Throw` as explicit hard errors; it does not
     silently execute them. Bounds/provenance/tombstones are implemented.
@@ -3095,3 +3097,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.94 (2026-11-03): HRTB large reference arrays. A top-level fixed array of direct references with more than 64 elements now uses one wildcard element step in the MIR region signature instead of one path per element. The borrow checker seeds a single element-loan region for the array, so a callback returning an element keeps the caller source live and a later mutable borrow of any element still conflicts. Struct-nested large arrays, arrays of aggregates, and unsized arrays remain explicit `SAFE-BORROW-099` rejections. Added positive and alias-conflict tests for `[65]&'a int`. Main TCC/LLVM `2435`/`2433`; `@test` `57`; negative `782`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v4.95 (2026-11-03): custom `@scoped_callback` sinks. `SAFE-SCOPED-001` now verifies an unannotated custom sink by body-checking it with the same forwarding contract instead of requiring every sink to be on the fixed library list. A custom sink may discard the callback or forward it to a known/checked sink; a body that stores, returns, captures, passes it elsewhere, has no body, or forms a recursive cycle is rejected. Added positive custom-sink and nested-known-sink tests plus a negative storing-custom-sink test. Main TCC/LLVM `2435`/`2433`; `@test` `57`; negative `783`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v4.96 (2026-11-03): conditional auto-trait bounds through generic parameters. `generic_negative_impl_applies` now treats a generic-parameter argument as satisfying a conditional impl's bound when the parameter's own declared/where-clause bits imply it, and `type_satisfies_unpin` honors `T: Unpin` for a bare generic parameter. This lets a generic body with `T: Unpin` use a `Wrapper<T>` whose positive `Unpin` impl is conditional on `T: Unpin`, while the same body without the bound remains rejected. Added positive and negative compile tests. Main TCC/LLVM `2435`/`2433`; `@test` `57`; negative `785`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
+*Revision note v4.97 (2026-11-03): large generated-glue array drops. Large fixed arrays whose element type has generated drop glue now use a `MIRDropField` element template with one runtime bool-flag array per leaf field instead of falling back to a whole-array flag. Whole-element and per-field constant-index initialization/replacement drop only the initialized leaves; the uninitialized sibling field is never destroyed. Nested arrays inside an element, async frame slots, and unsized arrays remain on the whole-field fallback. Added 100-element whole-element and partial-field drop-counter tests plus a partial-field compile test. Main TCC/LLVM `2437`/`2435`; `@test` `57`; negative `785`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.

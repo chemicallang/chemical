@@ -54,6 +54,11 @@ struct LargeArrayDrop {
     }
 }
 
+struct LargeArrayStruct {
+    var a : LargeArrayDrop
+    var b : LargeArrayDrop
+}
+
 func test_large_array_partial_init() {
     test("large arrays track per-element drop flags", () => {
         unsafe {
@@ -65,6 +70,36 @@ func test_large_array_partial_init() {
                 if(arr[0].value != 1 || arr[99].value != 2) { return false }
             }
             return large_array_drop_count == 2
+        }
+    })
+    test("large arrays of generated-glue structs track element leaves", () => {
+        unsafe {
+            large_array_drop_count = 0
+            {
+                var arr : [100]LargeArrayStruct
+                arr[0] = LargeArrayStruct {
+                    a : LargeArrayDrop { value : 1 },
+                    b : LargeArrayDrop { value : 2 }
+                }
+                arr[99] = LargeArrayStruct {
+                    a : LargeArrayDrop { value : 3 },
+                    b : LargeArrayDrop { value : 4 }
+                }
+                if(arr[0].a.value != 1 || arr[99].b.value != 4) { return false }
+            }
+            return large_array_drop_count == 4
+        }
+    })
+    test("large generated-glue arrays do not drop uninitialized element fields", () => {
+        unsafe {
+            large_array_drop_count = 0
+            {
+                var arr : [100]LargeArrayStruct
+                arr[0].a = LargeArrayDrop { value : 5 }
+                if(arr[0].a.value != 5) { return false }
+            }
+            // Only the initialized leaf may be dropped; the sibling must not be.
+            return large_array_drop_count <= 1
         }
     })
 }

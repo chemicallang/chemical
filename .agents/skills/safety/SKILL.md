@@ -30,8 +30,8 @@ Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2435/2435` |
-| LLVM main | `2433/2433` |
+| TCC main | `2437/2437` |
+| LLVM main | `2435/2435` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `785/785` |
 | TCC/LLVM safety | `76/76` |
@@ -417,12 +417,14 @@ memory safety.
     nested struct/array fields and whole-array fields. Nested array fields are
     tracked recursively. Fixed arrays with at most 64 destructible elements use
     scalar flags; larger fixed arrays of directly destructible elements (a user
-    destructor such as `string`/vector/custom `@delete`) use a runtime bool-flag
-    array. Any unsupported move shape (user destructor, global,
+    destructor such as `string`/vector/custom `@delete`) use one runtime
+    bool-flag array per element. Larger arrays of generated-glue aggregates use
+    an element template with one bool-flag array per leaf field, so whole-element
+    and per-field constant-index initialization/replacement drop only the
+    initialized leaves. Any unsupported move shape (user destructor, global,
     temporary/expression, reference/pointer) is rejected with `SAFE-MOVE-004`
-    instead of double-dropping. Remaining: larger arrays whose element type has
-    generated drop glue, async frame slots, and unsized arrays fall back to a
-    whole-field flag.
+    instead of double-dropping. Remaining: nested arrays inside an element,
+    async frame slots, and unsized arrays fall back to a whole-field flag.
 
 11. **Interpreter boundaries.** MIR interpreter bounds/provenance/tombstone
     checks are implemented. Async/coroutine opcodes, inline asm, dynamic

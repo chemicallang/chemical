@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.95)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.96)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -2699,8 +2699,11 @@ the audit found and fixed a `&T` Send rule that missed a nested `!Sync`
 `RefMut` now carry explicit negative impls; public async value types
 (`Poll`, `Waker`, `Context`, `SendFutureHandle`) are covered and the erased
 `FutureHandle` stays conservatively `!Send`/`!Sync`. Nested conditional
-`Unpin` positive/negative impls now use the explicit-impl context; only the
-generic-impl bound path remains conservative. `dyn` without explicit bounds is
+`Unpin` positive/negative impls now use the explicit-impl context. A
+conditional impl also applies when its concrete argument is still a generic
+parameter whose own declared/where-clause bounds imply the requirement, so a
+generic body with `T: Unpin` can use a type whose `Unpin` impl depends on `T`.
+Remaining: executor/iterator raw state structures. `dyn` without explicit bounds is
 conservatively `!Send`/`!Sync` (explicit `+ Send`/`+ Sync` are checked at
 construction); channel handles are audited. Thread-pool `Future<T>` is `Send`
 for `T: Send`, and `ThreadPool` is `Send + Sync` behind its locked `PoolData`.
@@ -3091,3 +3094,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.93 (2026-11-03): large-array drop elaboration. Fixed arrays of directly destructible elements larger than 64 now use one runtime bool flag per element instead of falling back to a whole-array flag, so constant-index partial initialization, replacement, and scope cleanup work for `[100]string`, `[100]custom_dtor`, and similar arrays. Smaller arrays keep the existing scalar-flag form; arrays whose element type has generated drop glue, async frame slots, and unsized arrays remain unchanged. Added a 100-element destructor-counter regression test and a positive `[100]DT` partial-initialization negative test. Main TCC/LLVM `2435`/`2433`; `@test` `57`; negative `779`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v4.94 (2026-11-03): HRTB large reference arrays. A top-level fixed array of direct references with more than 64 elements now uses one wildcard element step in the MIR region signature instead of one path per element. The borrow checker seeds a single element-loan region for the array, so a callback returning an element keeps the caller source live and a later mutable borrow of any element still conflicts. Struct-nested large arrays, arrays of aggregates, and unsized arrays remain explicit `SAFE-BORROW-099` rejections. Added positive and alias-conflict tests for `[65]&'a int`. Main TCC/LLVM `2435`/`2433`; `@test` `57`; negative `782`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v4.95 (2026-11-03): custom `@scoped_callback` sinks. `SAFE-SCOPED-001` now verifies an unannotated custom sink by body-checking it with the same forwarding contract instead of requiring every sink to be on the fixed library list. A custom sink may discard the callback or forward it to a known/checked sink; a body that stores, returns, captures, passes it elsewhere, has no body, or forms a recursive cycle is rejected. Added positive custom-sink and nested-known-sink tests plus a negative storing-custom-sink test. Main TCC/LLVM `2435`/`2433`; `@test` `57`; negative `783`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
+*Revision note v4.96 (2026-11-03): conditional auto-trait bounds through generic parameters. `generic_negative_impl_applies` now treats a generic-parameter argument as satisfying a conditional impl's bound when the parameter's own declared/where-clause bits imply it, and `type_satisfies_unpin` honors `T: Unpin` for a bare generic parameter. This lets a generic body with `T: Unpin` use a `Wrapper<T>` whose positive `Unpin` impl is conditional on `T: Unpin`, while the same body without the bound remains rejected. Added positive and negative compile tests. Main TCC/LLVM `2435`/`2433`; `@test` `57`; negative `785`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.

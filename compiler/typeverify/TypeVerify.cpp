@@ -1778,14 +1778,36 @@ static bool generic_negative_impl_applies(TypeVerifier& verifier,
         auto* node = t ? t->get_direct_linked_node() : nullptr;
         return node != nullptr && node->kind() == ASTNodeKind::GenericTypeParam;
     };
+    // A conditional impl also applies when the concrete argument is still a
+    // generic parameter whose own bounds imply the impl's requirement. Without
+    // this, `impl<T> Unpin for Wrapper<T> where T: Unpin` never applies while
+    // checking a generic body, even though the enclosing `T: Unpin` proves it.
+    auto generic_param_satisfies_trait = [](BaseType* arg, BaseType* trait_type) {
+        auto* node = arg ? arg->get_direct_linked_node() : nullptr;
+        if (node == nullptr || node->kind() != ASTNodeKind::GenericTypeParam) {
+            return false;
+        }
+        auto* gp = node->as_generic_type_param_unsafe();
+        auto* trait_node = trait_type ? trait_type->get_direct_linked_node() : nullptr;
+        if (trait_node == nullptr || trait_node->kind() != ASTNodeKind::InterfaceDecl) {
+            return false;
+        }
+        const auto bits = trait_node->as_interface_def_unsafe()->interface_bits.raw();
+        // Only bit-backed built-in traits (Copy/Clone/Send/Sync/Unpin/Zeroable)
+        // can be proven from the generic parameter's current bits.
+        return bits != 0 && gp->current_bits.has(bits);
+    };
 
     for (auto* param : impl->generic_params) {
         if (param == nullptr || param->traits.empty()) continue;
         BaseType* arg = arg_for(param);
-        if (arg == nullptr || is_generic_param(arg)) return false;
+        if (arg == nullptr) return false;
+        const bool arg_is_param = is_generic_param(arg);
         for (auto& trait : param->traits) {
-            if (!trait_constraint_satisfied(verifier, arg,
-                                            const_cast<BaseType*>(trait.getType()), context)) {
+            BaseType* trait_type = const_cast<BaseType*>(trait.getType());
+            if (arg_is_param) {
+                if (!generic_param_satisfies_trait(arg, trait_type)) return false;
+            } else if (!trait_constraint_satisfied(verifier, arg, trait_type, context)) {
                 return false;
             }
         }
@@ -1794,10 +1816,13 @@ static bool generic_negative_impl_applies(TypeVerifier& verifier,
         for (auto& constraint : impl->where_clause->constraints) {
             if (constraint.param == nullptr || constraint.constraints.empty()) continue;
             BaseType* arg = arg_for(constraint.param);
-            if (arg == nullptr || is_generic_param(arg)) return false;
+            if (arg == nullptr) return false;
+            const bool arg_is_param = is_generic_param(arg);
             for (auto& trait : constraint.constraints) {
-                if (!trait_constraint_satisfied(verifier, arg,
-                                                const_cast<BaseType*>(trait.getType()), context)) {
+                BaseType* trait_type = const_cast<BaseType*>(trait.getType());
+                if (arg_is_param) {
+                    if (!generic_param_satisfies_trait(arg, trait_type)) return false;
+                } else if (!trait_constraint_satisfied(verifier, arg, trait_type, context)) {
                     return false;
                 }
             }

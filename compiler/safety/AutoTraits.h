@@ -407,7 +407,11 @@ inline bool type_satisfies_unpin(
     }
     auto* linked = type->get_direct_linked_node();
     if(linked != nullptr && linked->kind() == ASTNodeKind::GenericTypeParam) {
-        return false;
+        // A generic parameter is Unpin when its own declared/where-clause
+        // bounds include Unpin. Without this, a generic body such as
+        // `where T: Unpin` cannot use a type whose Unpin impl depends on T.
+        auto* gp = linked->as_generic_type_param_unsafe();
+        return gp->current_bits.has(InterfaceBits::UNPIN_BIT);
     }
     auto* container = type->get_members_container();
     if(container == nullptr) return true;

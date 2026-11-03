@@ -382,6 +382,23 @@ func nested_conditional_positive_unpin_allowed(env : &mut TestEnv) {
 }
 
 @test
+func nested_conditional_positive_unpin_generic_param_allowed(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The enclosing `T: Unpin` bound satisfies the generic Unpin impl while a
+    // generic body is checked, even though the concrete argument is still T.
+    var ch = "interface I { func get(&self) : int }\nstruct Wrapper<T> {\n    var marker : core::PhantomPinned\n    var value : T\n}\nimpl<T> core::Unpin for Wrapper<T> where T : core::Unpin { }\nstruct Outer<T> {\n    var w : Wrapper<T>\n}\nimpl<T> I for Outer<T> {\n    func get(&self) : int { return 0 }\n}\nfunc <T> make(v : Outer<T>) : int where T : core::Unpin {\n    var d : dyn I + Unpin = dyn<I + Unpin>(v)\n    return 0\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_success_with_mod(env, "nested_positive_unpin_generic_param", ch, NEG_MOD_CORE)
+}
+
+@test
+func neg_nested_conditional_positive_unpin_generic_param_bounds(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Without the enclosing `T: Unpin` bound the same body must stay rejected.
+    var ch = "interface I { func get(&self) : int }\nstruct Wrapper<T> {\n    var marker : core::PhantomPinned\n    var value : T\n}\nimpl<T> core::Unpin for Wrapper<T> where T : core::Unpin { }\nstruct Outer<T> {\n    var w : Wrapper<T>\n}\nimpl<T> I for Outer<T> {\n    func get(&self) : int { return 0 }\n}\nfunc <T> make(v : Outer<T>) : int {\n    var d : dyn I + Unpin = dyn<I + Unpin>(v)\n    return 0\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "nested_positive_unpin_generic_param_missing", ch, "SAFE-SEND-003", NEG_MOD_CORE)
+}
+
+@test
 func neg_nested_conditional_positive_unpin_bounds(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Wrapper<T> {\n    var marker : core::PhantomPinned\n    var value : T\n}\nimpl<T> core::Unpin for Wrapper<T> where T : core::Unpin { }\nstruct Outer {\n    var w : Wrapper<core::PhantomPinned>\n}\nfunc <T> needs_unpin(v : T) : int where T : core::Unpin { return 0 }\npublic func main() : int {\n    var w = Wrapper<core::PhantomPinned> { marker : core::PhantomPinned {}, value : core::PhantomPinned {} }\n    var o = Outer { w : w }\n    return needs_unpin(o)\n}\n"

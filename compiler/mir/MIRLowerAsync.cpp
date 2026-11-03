@@ -309,6 +309,37 @@ void MIRLowerer::append_c_drop_fields_at(
             }
             continue;
         }
+        if (f.inner_count > 0 && f.frame_flag_array != MIR_INVALID_ID) {
+            BaseType* array_type = f.type;
+            BaseType* array_canon =
+                array_type != nullptr ? array_type->canonical() : nullptr;
+            if (array_canon == nullptr ||
+                array_canon->kind() != BaseTypeKind::Array) {
+                continue;
+            }
+            BaseType* elem = const_cast<BaseType*>(
+                array_canon->as_array_type_unsafe()->elem_type.getType());
+            const SymbolId dtor = destructor_symbol(elem);
+            if (dtor == MIR_INVALID_ID) continue;
+            const MIRSymbolRecord& dr = module_.symbols.get(dtor);
+            const std::string dname(module_.symbols.name_data(dr), dr.name_length);
+            if (dname.empty()) continue;
+            const MIRConstant& fc = module_.constants.get(f.frame_flag_array);
+            const std::string flag(module_.constants.data.data_at(fc.data_offset),
+                                   fc.data_count);
+            const std::string flag_index =
+                "(" + element_index + ")*" + std::to_string(f.inner_count) +
+                "+__chx_ij";
+            out += pad + "{\n";
+            out += pad + "  for (unsigned long __chx_ij = " +
+                   std::to_string(f.inner_count) + "; __chx_ij-- > 0;) {\n";
+            out += pad + "    if(__chx__af->" + flag + "[" + flag_index +
+                   "]) { " + dname + "(&" + member + "[__chx_ij]); " +
+                   "__chx__af->" + flag + "[" + flag_index + "] = 0; }\n";
+            out += pad + "  }\n";
+            out += pad + "}\n";
+            continue;
+        }
         if (f.frame_flag_array != MIR_INVALID_ID) {
             const SymbolId dtor = destructor_symbol(f.type);
             if (dtor == MIR_INVALID_ID) continue;

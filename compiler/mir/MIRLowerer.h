@@ -772,6 +772,10 @@ private:
         // element, not one child per element.
         bool element_template = false;
         uint64_t array_count = 0;
+        // A flat inner array inside a template element: `flag_array` has
+        // `outer_count * inner_count` slots and `inner_count` elements per
+        // outer element.
+        uint64_t inner_count = 0;
         // Nested owned fields/elements (generated-glue structs and arrays).
         std::vector<MIRDropField> children;
     };
@@ -856,6 +860,10 @@ private:
     /** Destroy every initialized element of a large leaf array. */
     void destroy_flag_array(ValueId array_ptr, BaseType* element_type,
                             PlaceId flags, uint64_t count);
+    /** Same, with the flag block starting at `base_index` (flat inner array). */
+    void destroy_flag_array_from(ValueId array_ptr, BaseType* element_type,
+                                 PlaceId flags, ValueId base_index,
+                                 uint64_t count);
     /** Whether a generated-glue element can use a per-leaf flag template. */
     bool can_build_element_template(BaseType* type, int depth = 0);
     /** Destroy the live leaves of one template element. */

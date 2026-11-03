@@ -625,18 +625,32 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_path_index(
         PlaceId place, const std::vector<std::string>& path, uint64_t index) {
     MIRDropField* node = drop_field_for_path(place, path);
     if (node == nullptr) return {};
+    auto with_path = [&](MIRDropElementRef ref) {
+        ref.path = path;
+        return ref;
+    };
     if (node->element_template) {
-        return MIRDropElementRef{{}, node, index, place, index};
+        return with_path(MIRDropElementRef{{}, node, index, place, index});
     }
     if (node->flag_array != MIR_INVALID_ID) {
-        return MIRDropElementRef{flag_array_ref(node->flag_array, index),
-                                 nullptr, 0, place, index};
+        return with_path(MIRDropElementRef{
+            flag_array_ref(node->flag_array, index), nullptr, 0, place, index});
     }
     for (auto& f : node->children) {
-        if (f.array_index == static_cast<uint32_t>(index)) {
-            return MIRDropElementRef{
-                MIRDropFlagRef{f.flag, MIR_INVALID_ID}, nullptr, 0, place, index};
+        if (f.array_index != static_cast<uint32_t>(index)) continue;
+        if (f.flag_array != MIR_INVALID_ID) {
+            MIRDropElementRef ref{{}, nullptr, 0, place, index};
+            ref.flag_array = f.flag_array;
+            ref.flag_count = f.flag_count;
+            return with_path(ref);
         }
+        if (!f.children.empty()) {
+            MIRDropElementRef ref{{}, &f, index, place, index};
+            ref.whole_children = true;
+            return with_path(ref);
+        }
+        return with_path(MIRDropElementRef{
+            MIRDropFlagRef{f.flag, MIR_INVALID_ID}, nullptr, 0, place, index});
     }
     return {};
 }
@@ -745,8 +759,7 @@ MIRLowerer::MIRDropField MIRLowerer::build_drop_field(const chem::string_view& n
                         return f;
                     }
                 }
-            } else if ((frame_flags || name.size() == 0) &&
-                       can_build_element_template(elem)) {
+            } else if (can_build_element_template(elem)) {
                 // Generated-glue element: one bool-array flag per leaf field.
                 MIRDropField tpl = build_drop_field(
                     chem::string_view{}, elem, depth + 1, frame_flags, slot,

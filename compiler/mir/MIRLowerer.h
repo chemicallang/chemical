@@ -803,6 +803,9 @@ private:
         // A small outer array element with generated field children: arm or
         // destroy the whole child tree rather than one outer-index slot.
         bool whole_children = false;
+        // Field path for a path-indexed element (`holder.items[i]`), used to
+        // re-resolve after lowering the RHS may reallocate `destructibles_`.
+        std::vector<std::string> path;
         bool valid() const {
             return flag.valid() || template_node != nullptr ||
                    flag_array != MIR_INVALID_ID;

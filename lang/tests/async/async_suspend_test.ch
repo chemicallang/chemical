@@ -283,6 +283,16 @@ async func suspend_large_template_field() : int {
     return h.inner[64].a.value + h.inner[64].b.value + n
 }
 
+async func suspend_large_template_field_element() : int {
+    var h : LargeFramePairHolder
+    h.inner[0] = FramePair {
+        a : DropCounter { value : 1 },
+        b : DropCounter { value : 2 }
+    }
+    var n = await make_countdown(1, 5)
+    return h.inner[0].a.value + h.inner[0].b.value + n
+}
+
 async func suspend_large_template_array() : int {
     var pairs : [100]FramePair
     pairs[0] = FramePair {
@@ -342,6 +352,19 @@ func test_async_suspend_large_array_field(env : &mut TestEnv) {
         }
         if(suspend_drops != before + 1) {
             env.error("a large array field must drop exactly its initialized element")
+        }
+    }
+}
+
+@test
+func test_async_suspend_large_template_field_element(env : &mut TestEnv) {
+    unsafe {
+        var before = suspend_drops
+        if(async::block_on<int>(suspend_large_template_field_element()) != 8) {
+            env.error("a large generated-glue array field element across a suspension should be 8")
+        }
+        if(suspend_drops != before + 2) {
+            env.error("a large generated-glue frame field element must drop exactly its leaves")
         }
     }
 }

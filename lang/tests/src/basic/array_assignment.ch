@@ -211,3 +211,46 @@ func test_large_array_flat_inner() {
         }
     })
 }
+
+struct LargeArrayFieldHolder {
+    var items : [100]LargeArrayStruct
+}
+
+struct SmallArrayFieldHolder {
+    var items : [2]LargeArrayStruct
+}
+
+func test_array_field_element_assignment() {
+    test("large generated-glue array fields track element assignment", () => {
+        unsafe {
+            large_array_drop_count = 0
+            {
+                var h : LargeArrayFieldHolder
+                h.items[0] = LargeArrayStruct {
+                    a : LargeArrayDrop { value : 1 },
+                    b : LargeArrayDrop { value : 2 }
+                }
+                h.items[99] = LargeArrayStruct {
+                    a : LargeArrayDrop { value : 3 },
+                    b : LargeArrayDrop { value : 4 }
+                }
+                if(h.items[0].b.value != 2 || h.items[99].a.value != 3) { return false }
+            }
+            return large_array_drop_count == 4
+        }
+    })
+    test("small array fields track element assignment", () => {
+        unsafe {
+            large_array_drop_count = 0
+            {
+                var h : SmallArrayFieldHolder
+                h.items[0] = LargeArrayStruct {
+                    a : LargeArrayDrop { value : 5 },
+                    b : LargeArrayDrop { value : 6 }
+                }
+                if(h.items[0].a.value != 5) { return false }
+            }
+            return large_array_drop_count == 2
+        }
+    })
+}

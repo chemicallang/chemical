@@ -517,6 +517,23 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         }
                     }
                 }
+                const TypeId base_tid =
+                    base.kind == MIRExprKind::Place
+                        ? builder_->function().places[base.id].type
+                        : base.type;
+                const bool base_is_array =
+                    base_tid < module_.types.types.size() &&
+                    module_.types.types[base_tid].kind == MIRTypeKind::Array;
+                if (!eflag.valid() &&
+                    destructor_symbol(io->getType()) != MIR_INVALID_ID &&
+                    base_is_array) {
+                    // A nested/dynamic fixed-array element with no resolvable
+                    // element flag would leak or mis-drop the written value.
+                    error = "SAFE-INIT-001: cannot assign a destructible element "
+                            "through an array whose element drop flags are not "
+                            "tracked";
+                    return false;
+                }
                 auto element_address = [&]() -> ValueId {
                     const TypeId et = types_.map(io->getType());
                     if (base.kind == MIRExprKind::Place) {
@@ -533,12 +550,17 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         bv, static_cast<ValueId>(idx.id), et
                     );
                 };
+                auto fresh_element_ref = [&]() {
+                    return !eflag.path.empty()
+                               ? drop_flag_for_path_index(
+                                     eflag.place, eflag.path, eflag.index)
+                               : drop_flag_for_element(
+                                     eflag.place, eflag.index);
+                };
                 auto destroy_old_element = [&]() {
                     if (!eflag.valid()) return;
                     if (eflag.whole_children) {
-                        MIRDropElementRef fresh = drop_flag_for_element(
-                            eflag.place, eflag.index
-                        );
+                        MIRDropElementRef fresh = fresh_element_ref();
                         if (fresh.template_node == nullptr) return;
                         destroy_drop_fields(
                             element_address(), fresh.template_node->children
@@ -548,9 +570,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     if (eflag.template_node != nullptr) {
                         // Re-resolve: lowering the RHS may have reallocated the
                         // destructibles vector that owns the template node.
-                        MIRDropElementRef fresh = drop_flag_for_element(
-                            eflag.place, eflag.index
-                        );
+                        MIRDropElementRef fresh = fresh_element_ref();
                         if (fresh.template_node == nullptr) return;
                         destroy_drop_fields_at(
                             element_address(),
@@ -579,15 +599,11 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 };
                 auto mark_element_initialized = [&]() {
                     if (eflag.whole_children) {
-                        MIRDropElementRef fresh = drop_flag_for_element(
-                            eflag.place, eflag.index
-                        );
+                        MIRDropElementRef fresh = fresh_element_ref();
                         if (fresh.template_node == nullptr) return;
                         set_drop_fields(fresh.template_node->children, true);
                     } else if (eflag.template_node != nullptr) {
-                        MIRDropElementRef fresh = drop_flag_for_element(
-                            eflag.place, eflag.index
-                        );
+                        MIRDropElementRef fresh = fresh_element_ref();
                         if (fresh.template_node == nullptr) return;
                         set_drop_fields_at(
                             fresh.template_node->children,

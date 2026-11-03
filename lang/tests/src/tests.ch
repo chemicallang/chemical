@@ -78,6 +78,7 @@ func run_executable_tests() {
     test_large_array_nested_templates();
     test_large_array_nested_above_64();
     test_large_array_flat_inner();
+    test_array_field_element_assignment();
     test_pointer_to_array();
     test_optional_type();
     test_result_type();

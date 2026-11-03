@@ -30,12 +30,12 @@ Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2443/2443` |
-| LLVM main | `2441/2441` |
+| TCC main | `2445/2445` |
+| LLVM main | `2443/2443` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `796/796` |
+| TCC/LLVM negative | `797/797` |
 | TCC/LLVM safety | `76/76` |
-| TCC/LLVM async | `82/82` |
+| TCC/LLVM async | `83/83` |
 | TCC libs | `735/735` |
 | TCC plugins | `1305/1305` |
 | TCC interpret | `1931/1931` |
@@ -439,7 +439,9 @@ memory safety.
     arrays use a flat flag block above 1024 and a runtime inner loop; unsized
     arrays still fall back to a whole-field flag. Whole-field
     construction/destruction of a generated-glue large array field inside a
-    frame aggregate uses the same template.
+    frame aggregate uses the same template. Constant-index writes into a
+    tracked array field initialize that element and its leaves; a direct nested
+    fixed-array element write remains `SAFE-INIT-001`.
 
 11. **Interpreter boundaries.** MIR interpreter bounds/provenance/tombstone
     checks are implemented. Async/coroutine opcodes, inline asm, dynamic

@@ -528,6 +528,27 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
             set_subtree(fn, states, path, MIRMoveState::Destroyed);
             break;
         }
+        case MIROpcode::Cast: {
+            // A cast preserves the address path of its operand; array indexing
+            // commonly casts the field address before IndexAddr.
+            if (ops == nullptr || inst.operand_count == 0 ||
+                inst.result_or_place == MIR_INVALID_ID) {
+                break;
+            }
+            if (ops[0].kind() == MIROperandKind::Value) {
+                const auto it = address_paths.find(ops[0].id);
+                if (it != address_paths.end()) {
+                    address_paths[inst.result_or_place] = it->second;
+                }
+            } else if (ops[0].kind() == MIROperandKind::Place &&
+                       ops[0].id < fn.places.size()) {
+                const uint32_t path = fn.places[ops[0].id].move_path_id;
+                if (path != MIR_INVALID_ID) {
+                    address_paths[inst.result_or_place] = path;
+                }
+            }
+            break;
+        }
         case MIROpcode::FieldAddr:
         case MIROpcode::IndexAddr: {
             // operands: base, field/index, type. Remember the projected move
@@ -700,6 +721,15 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
             if (inst.operand_count == 2) {
                 if (root != MIR_INVALID_ID) {
                     set_subtree(fn, states, root, MIRMoveState::Initialized);
+                } else if (ops[0].kind() == MIROperandKind::Value) {
+                    // A whole aggregate stored through a derived address
+                    // (`h.items[0] = Pair { ... }`) initializes that element.
+                    const auto it = address_paths.find(ops[0].id);
+                    if (it != address_paths.end()) {
+                        set_subtree(fn, states, it->second,
+                                    MIRMoveState::Initialized);
+                        refresh_ancestors(fn, states, it->second);
+                    }
                 }
                 // A place source is a move. The destination may be a raw sret
                 // pointer (an aggregate return), so the source is checked even

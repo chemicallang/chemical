@@ -7,14 +7,14 @@
 @extern public func _close(fd : int) : int
 @extern public func _get_osfhandle(fd : int) : intptr_t
 
-public func read(fd : int, buf : *mut void, count : ulong) : long {
-    return _read(fd, buf, count as uint) as long
+public unsafe func read(fd : int, buf : *mut void, count : ulong) : long {
+    return unsafe(_read(fd, buf, count as uint)) as long
 }
 
-public func write(fd : int, buf : *void, count : ulong) : long {
-    return _write(fd, buf, count as uint) as long
+public unsafe func write(fd : int, buf : *void, count : ulong) : long {
+    return unsafe(_write(fd, buf, count as uint)) as long
 }
 
 public func close(fd : int) : int {
-    return _close(fd)
+    return unsafe(_close(fd))
 }

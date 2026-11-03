@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2431/2431` |
 | LLVM main | `2429/2429` |
 | `@test` runner | `56/56` |
-| TCC/LLVM negative | `773/773` |
+| TCC/LLVM negative | `774/774` |
 | TCC/LLVM safety | `74/74` |
 | TCC/LLVM async | `70/70` |
 | TCC libs | `732/732` |
@@ -70,8 +70,8 @@ closure fixtures add a few audited raw C future-ABI sites.
   call; pass a pointer or scalar instead (C default promotions cover scalars,
   not a guessed aggregate layout).
 - `SAFE-FFI-005` — an `@extern` signature contains a callback with a by-value
-  struct/union parameter or return, a capturing function, or (on 32-bit
-  Windows) a callback whose stdcall/cdecl convention is not represented.
+  struct/union parameter or return, a capturing function, or a 32-bit Windows
+  stdcall callback (default cdecl scalar/pointer callbacks are accepted).
 - `SAFE-FFI-006` — a 32-bit `@stdcall` symbol is variadic or targets a
   non-x86 convention. Direct x86 32-bit stdcall is supported; use the C backend
   or remove the annotation for unsupported shapes.
@@ -307,8 +307,11 @@ memory safety.
    stdcall/cdecl metadata is represented. `SAFE-FFI-006` now only rejects
    variadic `@stdcall` and non-x86 32-bit targets: LLVM emits `x86_stdcallcc`
    for i386 Linux/Windows and derives the Windows COFF `_name@N` decoration
-   from the function type. Remaining: 32-bit Windows callback convention
-   metadata and full FFI wrapper auditing.
+   from the function type. On 32-bit Windows, default cdecl callbacks are
+   accepted for scalar/pointer signatures; stdcall callback conversion is still
+   rejected. The `cstd/windows` wrappers were audited and migrated (thread-local
+   stdio caches, unsafe raw-pointer APIs, checked target build). Remaining:
+   stdcall callback conversion and the rest of the FFI wrapper audit.
 3. **`@scoped_callback` is body-checked, with a fixed sink list.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter anywhere except a known join-before-return API (resolved by exact library
@@ -545,7 +548,7 @@ Coded output renders `error[SAFE-*]:` / `warn[SAFE-*]:`; uncoded output keeps
 | `SAFE-FFI-002` | by-value Chemical variant across `@extern` ABI |
 | `SAFE-FFI-003` | LLVM by-value extern aggregate on a target without a C ABI classifier (RISC-V/WASM/unknown) |
 | `SAFE-FFI-004` | by-value aggregate passed through a variadic `@extern` call |
-| `SAFE-FFI-005` | extern callback ABI/convention cannot be audited or differs from C |
+| `SAFE-FFI-005` | extern callback ABI/convention cannot be audited or differs from C (including 32-bit Windows stdcall callbacks) |
 | `SAFE-FFI-006` | variadic `@stdcall` or non-x86 32-bit `@stdcall` |
 | `SAFE-GLOBAL-001` | mutable/extern global access in safe context |
 | `SAFE-GLOBAL-002` | immutable global whose type is not `Sync` |

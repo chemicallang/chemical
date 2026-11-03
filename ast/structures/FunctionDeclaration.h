@@ -359,6 +359,7 @@ public:
 
     inline void set_std_call(bool value) {
         attrs.std_call = value;
+        data.is_std_call = value;
     }
 
     inline bool is_dll_import() {

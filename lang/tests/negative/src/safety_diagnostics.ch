@@ -1715,11 +1715,24 @@ func extern_pointer_aggregate_callback_compiles(env : &mut TestEnv) {
 }
 
 @test
-func neg_extern_callback_on_i386_windows_rejected(env : &mut TestEnv) {
+func extern_callback_conventions_on_i386_windows(env : &mut TestEnv) {
     if(intrinsics::get_backend_name() != "LLVM") { return }
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "@extern func register_cb(cb : (x : int) => int) : int\npublic func main() : int { return 0 }\n"
-    expect_compile_error_with_target(env, "extern_callback_i386_windows", ch, "SAFE-FFI-005", NEG_MOD, "i386-pc-windows-msvc")
+    // The default C callback convention on 32-bit Windows is cdecl, which
+    // matches the internal function ABI for scalar/pointer signatures.
+    var cdecl = "@extern func register_cb(cb : (x : int) => int) : int\npublic func main() : int { return 0 }\n"
+    expect_compile_target_no_diagnostic(env, "extern_cdecl_callback_i386_windows", cdecl, "SAFE-FFI-005", NEG_MOD, "i386-pc-windows-msvc")
+    // A stdcall function declaration is not a cdecl callback value.
+    var stdcall = "@stdcall\n@extern\nfunc std_cb(x : int) : int\n@extern func register_cb(cb : (x : int) => int) : int\npublic func main() : int {\n    unsafe { register_cb(std_cb) }\n    return 0\n}\n"
+    expect_compile_error_with_target(env, "extern_stdcall_callback_i386_windows", stdcall, "does not satisfy", NEG_MOD, "i386-pc-windows-msvc")
+}
+
+@test
+func windows_i386_cstd_has_no_safety_diagnostics(env : &mut TestEnv) {
+    if(intrinsics::get_backend_name() != "LLVM") { return }
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int { return 0 }\n"
+    expect_compile_target_no_diagnostic(env, "windows_i386_cstd_safety", ch, "SAFE-", NEG_MOD_CSTD, "i386-pc-windows-msvc")
 }
 
 @test

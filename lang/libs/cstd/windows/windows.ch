@@ -913,8 +913,8 @@ public func _mkdir(path : LPCSTR) : int
  * @param mode POSIX permission bits, ignored on Windows.
  * @return 0 on success, -1 on failure (sets errno).
  */
-public func mkdir(pathname : *char, mode : uint) : int {
-    return _mkdir(pathname)
+public unsafe func mkdir(pathname : *char, mode : uint) : int {
+    return unsafe(_mkdir(pathname))
 }
 
 /** @brief Removes a directory (CRT).

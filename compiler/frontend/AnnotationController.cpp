@@ -145,9 +145,9 @@ void annot_handler_stdcall(Parser* parser, ASTNode* node, std::vector<Value*>& a
     const auto func = node->as_function();
     if(func) {
         func->set_std_call(true);
-    } else {
-        parser->error("couldn't make the function stdcall");
+        return;
     }
+    parser->error("couldn't make the function stdcall");
 }
 
 void annot_handler_dllimport(Parser* parser, ASTNode* node, std::vector<Value*>& args) {

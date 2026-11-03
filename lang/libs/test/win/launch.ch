@@ -31,9 +31,11 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
 
     var si : STARTUPINFOA
     var pi : PROCESS_INFORMATION;
-    ZeroMemory(&raw mut si, sizeof(si));
+    unsafe {
+        ZeroMemory(&raw mut si, sizeof(si));
+        ZeroMemory(&raw mut pi, sizeof(pi));
+    }
     si.cb = sizeof(si);
-    ZeroMemory(&raw mut pi, sizeof(pi));
 
     var cmd = std::string()
     cmd.append_char_ptr(exe_path)

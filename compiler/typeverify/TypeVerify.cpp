@@ -888,6 +888,7 @@ struct CCallbackAudit {
     bool has_callback = false;
     bool bad_aggregate = false;
     bool capturing = false;
+    bool stdcall = false;
 };
 
 static bool is_c_by_value_aggregate_type(BaseType* type) {
@@ -917,6 +918,7 @@ static void audit_ccallback_type(BaseType* type, CCallbackAudit& out, unsigned d
             out.has_callback = true;
             auto* ft = canonical->as_function_type_unsafe();
             if (ft == nullptr) break;
+            if (ft->isStdCall()) out.stdcall = true;
             if (is_c_by_value_aggregate_type(const_cast<BaseType*>(ft->returnType.getType()))) {
                 out.bad_aggregate = true;
             }
@@ -5990,13 +5992,16 @@ void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {
                 << "' has a callback with a by-value struct/union parameter or "
                    "return; the internal callback ABI differs from the C ABI "
                    "(use a pointer/scalar callback signature)";
-        } else if(callback_audit.has_callback && target_data.windows &&
+        } else if(callback_audit.stdcall && target_data.windows &&
                   !target_data.is64Bit) {
+            // The C default callback convention on 32-bit Windows is cdecl,
+            // which matches the internal function ABI for the scalar/pointer
+            // signatures accepted above. A stdcall callback would need a
+            // converted function pointer and is still rejected.
             diagnoser.error(decl).with_code("SAFE-FFI-005")
                 << "extern function '" << decl->name_view()
-                << "' has a callback on 32-bit Windows; stdcall/cdecl callback "
-                   "metadata is not represented yet, so the callback convention "
-                   "cannot be audited";
+                << "' has a stdcall callback on 32-bit Windows; stdcall "
+                   "callback conversion is not represented yet";
         }
     }
     if(decl->attrs.is_delete_fn && !decl->is_generated_fn() &&

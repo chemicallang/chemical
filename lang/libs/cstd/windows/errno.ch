@@ -2,11 +2,11 @@
 public func _errno() : *mut int;
 
 public func get_errno() : int {
-    return *_errno();
+    return unsafe(*_errno());
 }
 
 public func set_errno(value : int) {
-    *_errno() = value;
+    unsafe { *_errno() = value; }
 }
 
 public comptime const EPERM =           1

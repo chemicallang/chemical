@@ -52,6 +52,12 @@ struct FunctionTypeData {
      * silently coerced to a safe function pointer.
      */
     bool requires_unsafe = false;
+    /**
+     * the function/type uses the Windows `stdcall` calling convention. This is
+     * part of type identity: a stdcall function pointer must not be accepted
+     * where the C default (cdecl) callback type is expected on 32-bit Windows.
+     */
+    bool is_std_call = false;
 };
 
 static_assert(sizeof(FunctionTypeData) <= 8);
@@ -156,6 +162,15 @@ public:
 
     inline void setRequiresUnsafe(bool value) {
         data.requires_unsafe = value;
+    }
+
+    [[nodiscard]]
+    inline bool isStdCall() const {
+        return data.is_std_call;
+    }
+
+    inline void setStdCall(bool value) {
+        data.is_std_call = value;
     }
 
     unsigned int getStructReturnArgIndex() {

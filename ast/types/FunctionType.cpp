@@ -338,6 +338,9 @@ bool FunctionType::equal(FunctionType *other) const {
     if (requiresUnsafe() != other->requiresUnsafe()) {
         return false;
     }
+    if (isStdCall() != other->isStdCall()) {
+        return false;
+    }
     // return type can be nullptr
     // because sometimes user doesn't give return type for lambda
     // we can't set it to void (because we have to determine it by traversing ast)

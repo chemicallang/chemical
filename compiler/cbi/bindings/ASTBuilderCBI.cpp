@@ -1082,6 +1082,7 @@ void FunctionDeclarationsetAttributes(FunctionDeclaration* decl, FuncDeclAttribu
     attrs.no_mangle = out->no_mangle;
     attrs.is_generated = out->is_generated;
     attrs.std_call = out->std_call;
+    decl->data.is_std_call = out->std_call;
     attrs.dll_import = out->dll_import;
     attrs.dll_export = out->dll_export;
 }

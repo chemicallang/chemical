@@ -1,26 +1,4 @@
-@dllimport
-@stdcall
-@extern
-public func InitializeSRWLock(srw : *mut u8) : void
-
-@dllimport
-@stdcall
-@extern
-public func AcquireSRWLockExclusive(srw : *mut u8) : void
-
-@dllimport
-@stdcall
-@extern
-public func TryAcquireSRWLockExclusive(srw : *mut u8) : u8
-
-@dllimport
-@stdcall
-@extern
-public func ReleaseSRWLockExclusive(srw : *mut u8) : void
-
 public namespace std {
-
-    comptime const SRWLOCK_SIZE = 8
 
     @maxalign
     public struct mutex {

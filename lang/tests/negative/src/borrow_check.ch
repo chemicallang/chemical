@@ -614,9 +614,36 @@ func neg_hrtb_nonlocal_retaining_slot_distinct(env : &mut TestEnv) {
     // regions, so the callback could store a shorter borrow into it.
     var ch = "func <'a> stash(slot : &mut &'a int, x : &'a int) : int {\n    *slot = x\n    return 0\n}\nfunc <'a, 'b, 'd> apply(f : for<'c> (slot : &mut &'c int, x : &'c int) => int, slot : &'a mut &'b int, x : &'d int) : int {\n    return f(slot, x)\n}\npublic func main() : int {\n    var a = 1\n    var r : &int = &a\n    var x = 2\n    return apply(stash, &mut r, &x)\n}\n"
     expect_compile_error(env, "hrtb_nonlocal_retaining_slot_distinct", ch, "SAFE-BORROW-099")
-    // Two different binders in a retaining pointee are not provable.
-    var pointee = "func apply(f : for<'a, 'b> (slot : &'a mut &'b int) => int) : int { return 0 }\npublic func main() : int { return 0 }\n"
-    expect_compile_error(env, "hrtb_pointee_other_binder", pointee, "SAFE-BORROW-099")
+    // A pointee reference must use one of the callback's binders; a `'static`
+    // pointee has no source edge the call site can prove.
+    var pointee = "func apply(f : for<'a> (slot : &'a mut &'static int) => int) : int { return 0 }\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "hrtb_pointee_static", pointee, "SAFE-BORROW-099")
+}
+
+@test
+func hrtb_pointee_mismatched_binders_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The outer slot binder and the stored reference binder are distinct.
+    // The callback body is checked for both binders and the call-site rule
+    // proves every source outlives the stored region.
+    var ch = "func <'a, 'b> read_slot(slot : &'a mut &'b int) : int {\n    return **slot\n}\nfunc apply(f : for<'a, 'b> (slot : &'a mut &'b int) => int) : int {\n    var x = 1\n    var r : &int = &x\n    return f(&mut r)\n}\npublic func main() : int {\n    return apply(read_slot) - 1\n}\n"
+    expect_compile_success(env, "hrtb_pointee_mismatched_binders", ch)
+}
+
+@test
+func hrtb_pointee_mismatched_binders_caller_slot_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <'a, 'b> stash(slot : &'a mut &'b int, x : &'b int) : int {\n    *slot = x\n    return 0\n}\nfunc <'o, 'i> apply(f : for<'a, 'b> (slot : &'a mut &'b int, x : &'b int) => int, slot : &'o mut &'i int, x : &'i int) : int {\n    return f(slot, x)\n}\npublic func main() : int {\n    var a = 1\n    var r : &int = &a\n    return apply(stash, &mut r, &a) - 0\n}\n"
+    expect_compile_success(env, "hrtb_pointee_mismatched_binders_caller_slot", ch)
+}
+
+@test
+func neg_hrtb_pointee_mismatched_binders_distinct_source(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Distinct source/stored regions without an outlives edge stay rejected
+    // even when the pointee binders differ from the slot's outer binder.
+    var ch = "func <'a, 'b> stash(slot : &'a mut &'b int, x : &'b int) : int {\n    *slot = x\n    return 0\n}\nfunc <'o, 'i, 'd> apply(f : for<'a, 'b> (slot : &'a mut &'b int, x : &'b int) => int, slot : &'o mut &'i int, x : &'d int) : int {\n    return f(slot, x)\n}\npublic func main() : int {\n    var a = 1\n    var r : &int = &a\n    var x = 2\n    return apply(stash, &mut r, &x)\n}\n"
+    expect_compile_error(env, "hrtb_pointee_mismatched_binders_distinct_source", ch, "SAFE-BORROW-099")
 }
 
 @test

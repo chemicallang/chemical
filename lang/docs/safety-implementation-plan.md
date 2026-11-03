@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.98)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.99)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1056,8 +1056,10 @@
 > slots when the caller's `where` edges prove every source outlives the stored
 > region; the slot's outer borrow only has to cover the call, so an unrelated
 > outer region is no longer rejected when the pointee and source already share
-> their declared region. Unproven caller-owned slots and mismatched-binder
-> pointees remain conservative. HRTB parameters support nested struct
+> their declared region. Pointees using different higher-ranked binders are
+> accepted because the call site checks every source against every stored
+> region; free/`'static` pointee lifetimes and unproven caller-owned slots
+> remain conservative. HRTB parameters support nested struct
 > aggregates, variant payloads, and array elements, borrowed nested results
 > through path-aware MIR field-source mapping, and per-leaf multi-lifetime
 > precision. Multi-borrow HRTB calls accept equal-region parameter/global
@@ -1485,10 +1487,12 @@ new number as the honest baseline, not a compiler regression.
    The slot's outer borrow (`'o`) only has to cover the call, so an unrelated
    outer region is accepted when the pointee and source already share their
    declared region; without a source-to-stored edge it still requires one
-   shared region. A retaining pointee is accepted when every
-   reference inside it uses the same binder (`&'a mut &'a T`); a pointee with a
-   different binder or a free/`'static` lifetime remains rejected.
-   Nested struct aggregate
+   shared region. A retaining pointee is accepted when every reference inside
+   it uses one of the callback's binders (`&'a mut &'a T` or
+   `&'a mut &'b T`); the call-site rule checks every source against every
+   stored region, so distinct binders do not weaken the proof. A free or
+   `'static` pointee lifetime remains rejected because it has no binder to map
+   to the call contract. Nested struct aggregate
    parameters whose leaves are direct reference fields are accepted
    recursively, and a borrowed nested-field result keeps the aggregate's
    source loans alive through the MIR field-source chain. Nested fields now
@@ -1503,7 +1507,7 @@ new number as the honest baseline, not a compiler regression.
    conservatively aliased). Larger arrays nested in a struct, arrays of
    aggregates, and unsized arrays keep an explicit `SAFE-BORROW-099` rejection. Caller-owned retaining
    storage without a provable outlives edge, opaque retaining storage with no
-   named region, and retaining pointees with mismatched binders are the
+   named region, and retaining pointees with free/`'static` lifetimes are the
    remaining HRTB precision edge cases.
 6. **`dyn` object model is implemented for the safe surface.** `dyn I` is a
    target-aware two-word borrowed fat pointer (`{ data, vtable }`); `&dyn I`
@@ -1927,8 +1931,9 @@ passes.
   chain/field.
 - `SAFE-BORROW-099`: an unsupported or unproven borrow/lifetime pattern. The
   current HRTB implementation uses it for retaining storage in a caller-owned
-  reference parameter without a provable outlives edge, a retaining pointee
-  with mismatched binders, opaque retaining storage, and other unproven shapes.
+  reference parameter without a provable source-to-stored edge, a retaining
+  pointee with a free/`'static` lifetime, opaque retaining storage, and other
+  unproven shapes.
 - IDs: `SAFE-OWN-*`, `SAFE-BORROW-*`, `SAFE-LIFE-*`, `SAFE-INIT-*`,
   `SAFE-VALID-*`, `SAFE-BOUNDS-*`, `SAFE-OVERFLOW-*`, `SAFE-SEND-*`,
   `SAFE-UNSAFE-*`, `SAFE-FFI-*`, `SAFE-ASYNC-*`, `SAFE-SCOPED-*`,
@@ -2666,11 +2671,12 @@ are path-mapped too, so their borrowed results are accepted; same-lifetime
 array elements remain conservatively aliased. Read-only mixed/distinct
 multi-borrow calls are accepted. Retaining parameters backed by local or
 by-value storage also accept mixed/distinct sources, and a retaining pointee
-may contain references with the same binder (`&'a mut &'a T`). A caller-owned
+may contain references with different binders (`&'a mut &'b T`) because the
+call site checks every source against every stored region. A caller-owned
 reference slot is accepted when every source outlives the stored region; its
 outer borrow only needs to cover the call. Without that source edge, or for a
-pointee with a different binder or an opaque retaining type, the call remains
-an explicit `SAFE-BORROW-099` edge case.
+pointee with a free/`'static` lifetime or an opaque retaining type, the call
+remains an explicit `SAFE-BORROW-099` edge case.
 
 ### M5 — Validity/runtime (2 months)
 
@@ -3102,3 +3108,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.95 (2026-11-03): custom `@scoped_callback` sinks. `SAFE-SCOPED-001` now verifies an unannotated custom sink by body-checking it with the same forwarding contract instead of requiring every sink to be on the fixed library list. A custom sink may discard the callback or forward it to a known/checked sink; a body that stores, returns, captures, passes it elsewhere, has no body, or forms a recursive cycle is rejected. Added positive custom-sink and nested-known-sink tests plus a negative storing-custom-sink test. Main TCC/LLVM `2435`/`2433`; `@test` `57`; negative `783`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v4.96 (2026-11-03): conditional auto-trait bounds through generic parameters. `generic_negative_impl_applies` now treats a generic-parameter argument as satisfying a conditional impl's bound when the parameter's own declared/where-clause bits imply it, and `type_satisfies_unpin` honors `T: Unpin` for a bare generic parameter. This lets a generic body with `T: Unpin` use a `Wrapper<T>` whose positive `Unpin` impl is conditional on `T: Unpin`, while the same body without the bound remains rejected. Added positive and negative compile tests. Main TCC/LLVM `2435`/`2433`; `@test` `57`; negative `785`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v4.97 (2026-11-03): large generated-glue array drops. Large fixed arrays whose element type has generated drop glue now use a `MIRDropField` element template with one runtime bool-flag array per leaf field instead of falling back to a whole-array flag. Whole-element and per-field constant-index initialization/replacement drop only the initialized leaves; the uninitialized sibling field is never destroyed. Nested arrays inside an element, async frame slots, and unsized arrays remain on the whole-field fallback. Added 100-element whole-element and partial-field drop-counter tests plus a partial-field compile test. Main TCC/LLVM `2437`/`2435`; `@test` `57`; negative `785`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
+*Revision note v4.98 (2026-11-03): caller-owned retaining slots. A retaining reference slot reached through a caller-owned reference parameter no longer requires its outer borrow region to outlive the stored region. The slot's outer borrow only has to cover the call; the stored reference's own declared region must be outlived by every source. This accepts `slot: &'o mut &'i T, x: &'i T` without a `where 'o: 'i` edge while still rejecting distinct source/stored regions and local sources. Added a positive type-proved retaining-slot test. Main TCC `2437`; negative `786`; safety `76`; async `77`; audit no change.
+*Revision note v4.99 (2026-11-03): mismatched retaining-pointee binders. A retaining pointee may now use different binders from the callback (`&'a mut &'b T`), not only the same binder (`&'a mut &'a T`). Every nested reference must still use a binder of that function type, and the call-site retaining rule checks every source against every stored region, so a shorter source cannot be stored into a longer caller slot without the caller's outlives edge. A free or `'static` pointee lifetime remains `SAFE-BORROW-099`. Added positive local-slot and caller-slot tests plus a distinct-source negative. Main TCC `2437`; negative `789`; safety `76`; async `77`; audit no change.

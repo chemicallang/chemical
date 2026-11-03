@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2437/2437` |
 | LLVM main | `2435/2435` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `786/786` |
+| TCC/LLVM negative | `789/789` |
 | TCC/LLVM safety | `76/76` |
 | TCC/LLVM async | `77/77` |
 | TCC libs | `735/735` |
@@ -127,8 +127,8 @@ MIR is the sole producer of init/move/drop state:
 - `SAFE-BORROW-002` — move/drop of a place while a borrow of it is live.
 - `SAFE-BORROW-099` — a borrow/lifetime pattern the checker cannot prove safe
   (e.g. retaining storage in a caller-owned reference parameter without a
-  source-to-stored outlives edge, a retaining pointee with mismatched binders,
-  or opaque retaining storage). Nested struct aggregate parameters,
+  source-to-stored outlives edge, a retaining pointee with a free/`'static`
+  lifetime, or opaque retaining storage). Nested struct aggregate parameters,
   variant payloads, array elements, and borrowed nested results are supported,
   including per-leaf multi-lifetime precision. Read-only mixed
   local/parameter/global and distinct-region multi-borrow calls are accepted;
@@ -373,9 +373,10 @@ memory safety.
    the call, so an unrelated `'o` is accepted when the pointee and source share
    their declared region. Without the source edge it remains an explicit
    `SAFE-BORROW-099` rejection. A retaining pointee is accepted when every
-   nested reference uses the same binder (`&'a mut &'a T`); a different binder
-   or a free/`'static` lifetime is rejected. This is a false-negative/rewrite
-   requirement, not a guessed-safe acceptance.
+   nested reference uses one of the callback's binders (`&'a mut &'a T` or
+   `&'a mut &'b T`); the call site checks every source against every stored
+   region. A free/`'static` lifetime is rejected. This is a
+   false-negative/rewrite requirement, not a guessed-safe acceptance.
 
 6. **`dyn` is a borrowed fat pointer; `DynBox` owns.**
    `dyn I` is a target-aware two-word `{ data, vtable }` value, and `&dyn I`

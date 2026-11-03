@@ -275,12 +275,4 @@ func scalar_field_init_of_owned_free_local_is_allowed(env : &mut TestEnv) {
     expect_compile_success(env, "scalar_field_init_ok", ch)
 }
 
-@test
-func neg_nested_array_element_assignment_untracked(env : &mut TestEnv) {
-    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // A partial write through a nested fixed-array element has no resolvable
-    // per-element flag in the current lowering; keep it fail-closed rather
-    // than silently leaking or mis-dropping the value.
-    var ch = "struct T {\n    var id : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2][2]T\n        arr[0][0] = T { id : 1 }\n        return arr[0][0].id\n    }\n}\n"
-    expect_compile_error(env, "nested_array_element_assignment", ch, "SAFE-INIT-001")
-}
+

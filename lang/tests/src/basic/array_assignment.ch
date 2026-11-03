@@ -254,3 +254,30 @@ func test_array_field_element_assignment() {
         }
     })
 }
+
+func test_nested_array_element_assignment() {
+    test("nested fixed arrays track inner element assignment", () => {
+        unsafe {
+            large_array_drop_count = 0
+            {
+                var arr : [2][2]LargeArrayDrop
+                arr[0][0] = LargeArrayDrop { value : 1 }
+                arr[1][1] = LargeArrayDrop { value : 2 }
+                if(arr[0][0].value != 1 || arr[1][1].value != 2) { return false }
+            }
+            return large_array_drop_count == 2
+        }
+    })
+    test("nested large fixed arrays track inner element assignment", () => {
+        unsafe {
+            large_array_drop_count = 0
+            {
+                var arr : [2][65]LargeArrayDrop
+                arr[0][0] = LargeArrayDrop { value : 3 }
+                arr[1][64] = LargeArrayDrop { value : 4 }
+                if(arr[0][0].value != 3 || arr[1][64].value != 4) { return false }
+            }
+            return large_array_drop_count == 2
+        }
+    })
+}

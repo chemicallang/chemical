@@ -655,6 +655,56 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_path_index(
     return {};
 }
 
+MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_nested_index(
+        PlaceId place, const std::vector<std::string>& path,
+        uint64_t outer, uint64_t inner) {
+    auto make_nested = [&](MIRDropElementRef ref) {
+        ref.path = path;
+        ref.nested = true;
+        ref.nested_outer = outer;
+        ref.nested_inner = inner;
+        return ref;
+    };
+    auto from_outer = [&](MIRDropField& f) -> MIRDropElementRef {
+        if (f.flag_array != MIR_INVALID_ID) {
+            return make_nested(MIRDropElementRef{
+                flag_array_ref(f.flag_array, inner), nullptr, 0, place, inner});
+        }
+        for (auto& child : f.children) {
+            if (child.array_index != static_cast<uint32_t>(inner)) continue;
+            if (child.flag != MIR_INVALID_ID) {
+                return make_nested(MIRDropElementRef{
+                    MIRDropFlagRef{child.flag, MIR_INVALID_ID}, nullptr, 0,
+                    place, inner});
+            }
+            if (!child.children.empty()) {
+                MIRDropElementRef ref{{}, &child, inner, place, inner};
+                ref.whole_children = true;
+                return make_nested(ref);
+            }
+        }
+        return {};
+    };
+    if (!path.empty()) {
+        MIRDropField* node = drop_field_for_path(place, path);
+        if (node == nullptr) return {};
+        for (auto& f : node->children) {
+            if (f.array_index != static_cast<uint32_t>(outer)) continue;
+            return from_outer(f);
+        }
+        return {};
+    }
+    for (auto& d : destructibles_) {
+        if (d.place != place) continue;
+        for (auto& f : d.fields) {
+            if (f.array_index != static_cast<uint32_t>(outer)) continue;
+            return from_outer(f);
+        }
+        return {};
+    }
+    return {};
+}
+
 void MIRLowerer::materialize_drop_fields(std::vector<MIRDropField>& fields,
                                          bool initialize) {
     for (auto& f : fields) {
@@ -1199,7 +1249,15 @@ void MIRLowerer::destroy_array_drop_fields(ValueId array_ptr,
         );
         const ValueId addr = builder_->index_addr_ptr(base, idx, et);
         if (!f.children.empty()) {
-            destroy_drop_fields(addr, f.children);
+            BaseType* field_canon = f.type ? f.type->canonical() : nullptr;
+            if (field_canon != nullptr &&
+                field_canon->kind() == BaseTypeKind::Array) {
+                destroy_array_drop_fields(
+                    addr, f.children,
+                    field_canon->as_array_type_unsafe()->elem_type);
+            } else {
+                destroy_drop_fields(addr, f.children);
+            }
         } else if (f.flag_array != MIR_INVALID_ID) {
             BaseType* canon = f.type ? f.type->canonical() : nullptr;
             if (canon != nullptr && canon->kind() == BaseTypeKind::Array) {

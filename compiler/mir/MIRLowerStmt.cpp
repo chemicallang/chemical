@@ -515,6 +515,42 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                                 path_base, path, element_index
                             );
                         }
+                        if (!eflag.valid() && io->parent_val != nullptr &&
+                            io->parent_val->val_kind() ==
+                                ValueKind::IndexOperator) {
+                            // `arr[outer][inner] = ...`: resolve the outer
+                            // fixed-array element's inner flag block.
+                            auto* outer =
+                                io->parent_val->as_index_op_unsafe();
+                            if (outer->idx != nullptr &&
+                                outer->idx->val_kind() == ValueKind::IntN) {
+                                const uint64_t outer_index =
+                                    outer->idx->as_int_num_value_unsafe()
+                                        ->get_num_value();
+                                PlaceId nested_base = MIR_INVALID_ID;
+                                std::vector<std::string> nested_path;
+                                BaseType* nested_type = nullptr;
+                                std::string nested_error;
+                                Value* op = outer->parent_val;
+                                if (op != nullptr &&
+                                    op->val_kind() == ValueKind::Identifier) {
+                                    auto* oid = op->as_identifier_unsafe();
+                                    nested_base = place_for_linked(oid->linked);
+                                    if (nested_base == MIR_INVALID_ID)
+                                        nested_base =
+                                            place_for_name(oid->value);
+                                } else if (op != nullptr) {
+                                    field_move_target(
+                                        op, nested_base, nested_path,
+                                        nested_type, nested_error);
+                                }
+                                if (nested_base != MIR_INVALID_ID) {
+                                    eflag = drop_flag_for_nested_index(
+                                        nested_base, nested_path, outer_index,
+                                        element_index);
+                                }
+                            }
+                        }
                     }
                 }
                 const TypeId base_tid =
@@ -551,6 +587,11 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     );
                 };
                 auto fresh_element_ref = [&]() {
+                    if (eflag.nested) {
+                        return drop_flag_for_nested_index(
+                            eflag.place, eflag.path, eflag.nested_outer,
+                            eflag.nested_inner);
+                    }
                     return !eflag.path.empty()
                                ? drop_flag_for_path_index(
                                      eflag.place, eflag.path, eflag.index)

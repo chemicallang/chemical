@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.78)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.79)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1429,7 +1429,9 @@ new number as the honest baseline, not a compiler regression.
    rewrite required). `SAFE-FFI-005` audits callback signatures: by-value
    aggregate callback parameters/returns and capturing callbacks are rejected,
    and 32-bit Windows callbacks are rejected until stdcall/cdecl metadata is
-   represented. Remaining: explicit stdcall callback types and full FFI wrapper auditing.
+   represented; `SAFE-FFI-006` additionally rejects 32-bit `@stdcall` symbols
+   in the LLVM backend. Remaining: actual 32-bit stdcall support/callback
+   metadata and full FFI wrapper auditing.
 3. **`@scoped_callback` has a fixed, checked sink list.** `SAFE-SCOPED-001`
    rejects returning, storing, capturing, or passing the scoped parameter to an
    unknown callee; only known join-before-return APIs (resolved by exact library
@@ -1882,6 +1884,8 @@ passes.
 - `SAFE-FFI-005`: an `@extern` callback has a by-value aggregate parameter or
   return, is a capturing function, or uses an unaudited 32-bit Windows calling
   convention.
+- `SAFE-FFI-006`: the LLVM backend cannot emit a 32-bit `@stdcall` symbol/call;
+  use the C backend or remove the annotation.
 - `SAFE-MOVE-003`: a `FnOnce` callback is called through a reference, or a
   `FnMut` callback is called through a `const` local or an immutable receiver
   chain/field.
@@ -2158,8 +2162,9 @@ threads, channels/executor.
   aggregate arguments reject with `SAFE-FFI-004`. Extern callbacks with
   by-value aggregate parameters/returns or capturing functions reject with
   `SAFE-FFI-005`; 32-bit Windows callbacks reject until stdcall/cdecl metadata
-  exists. Remaining here: bitfields (if supported), explicit stdcall callback types, and
-  FFI wrapper auditing.
+  exists. `SAFE-FFI-006` rejects 32-bit `@stdcall` in the LLVM backend.
+  Remaining here: bitfields (if supported), actual 32-bit stdcall
+  support/callback metadata, and FFI wrapper auditing.
 - `repr` layout static assertions.
 - Variadic default promotions (`char`→`int`, `float`→`double`); char signedness;
   bool representation; reject unsupported long double/128-bit.
@@ -3029,3 +3034,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.77 (2026-11-03): Microsoft ARM64 C ABI. Added `MIRABIKind::WindowsARM64` and a classifier matching Clang: HFAs use FP parts; non-HFA composites up to 8 bytes travel in x0, 9-16 bytes in x0/x1, and larger composites use caller-owned memory. Returns use the exact integer width for <=8 bytes, x0/x1 for 9-16 bytes, and sret above 16. LLVM uses plain pointers (no `byval`) for Windows ARM64 memory parameters, as Clang does. Target selection now maps `aarch64-*-windows-*` to the new kind; `SAFE-FFI-003` remains fail-closed for RISC-V/WASM/unknown targets. MIRTests covers parameter/return, HFA, 12/16-byte split, and memory-class cases; the negative target gate now uses RISC-V as the unsupported target and adds a positive Windows ARM64 target check. Remaining from the P0 item: variadic scalar default-promotion coverage, explicit stdcall callback types, and full FFI wrapper auditing. Main TCC/LLVM `2430`/`2428`; negative `772`; safety `74`; async `70`; libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
 
 *Revision note v4.78 (2026-11-03): variadic scalar promotions audited. The existing LLVM call lowering already applies C default argument promotions (float -> double, bool/i8/u8/i16/u16 -> i32 with source signedness), but this slice pins the behavior with a linked C fixture. The C function reads `double`, `int`, `int`, `int` through `va_arg`, and the Chemical caller passes `2.5f`, `(-7) as i8`, `true`, and `200 as u8`; both TCC (host C promotions) and LLVM (MIR `coerce_args`) return the expected encoding. Added `lang/tests/src/basic/varargs_promotions.ch` and the C fixture. Remaining from the C ABI P0 item: explicit stdcall callback types and full FFI wrapper auditing. Main TCC/LLVM `2431`/`2429`; negative `772`; safety `74`; async `70`; libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
+
+*Revision note v4.79 (2026-11-03): 32-bit stdcall fail-closed. `MIRSymbolRecord` now carries the source `@stdcall` fact, populated by the declaration pass and both function-interning paths. The LLVM emitter rejects any 32-bit `@stdcall` symbol with `SAFE-FFI-006` instead of silently emitting a cdecl declaration/call; the C backend keeps its `__chem_stdcall` spelling. Added an i386-Windows negative test. Remaining from the C ABI P0 item: actual 32-bit stdcall support/callback metadata and full FFI wrapper auditing. Main TCC/LLVM `2431`/`2429`; negative `773`; safety `74`; async `70`; libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.

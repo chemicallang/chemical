@@ -41,7 +41,8 @@ latter are rejected with `SAFE-MOVE-004`); other blockers are the full target-aw
 ABI (LLVM covers x86-64 SysV, Windows x64/ARM64, i386 SysV/Windows, ARM32
 AAPCS soft/hard-float and AAPCS64; `SAFE-FFI-003` rejects unknown targets,
 `SAFE-FFI-004` rejects variadic by-value aggregate arguments, `SAFE-FFI-005`
-rejects un-auditable extern callback ABIs), `dyn` being conservatively
+rejects un-auditable extern callback ABIs, `SAFE-FFI-006` rejects 32-bit
+LLVM `@stdcall`), `dyn` being conservatively
 `!Send`/`!Sync` when no
 explicit `+ Send`/`+ Sync` bound is written (`+ Unpin` is construction-checked),
 basic tuples and `[T]`/`&[T]`/`&mut [T]`/`Box<[T]>` slices plus `&str` views

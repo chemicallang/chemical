@@ -81,6 +81,21 @@ static void mir_emit_llvm_module(Codegen& gen, LabModule* module,
             return;
         }
     }
+    // The LLVM emitter has no 32-bit stdcall calling-convention lowering (the
+    // C backend spells it through `__chem_stdcall`). Reject instead of silently
+    // emitting a cdecl declaration/call on i386/ARM32 targets.
+    if (!m.layout.is64Bit) {
+        for (uint32_t i = 0; i < m.symbols.symbols.size(); ++i) {
+            const mir::MIRSymbolRecord& rec = m.symbols.symbols[i];
+            if (!rec.stdcall) continue;
+            gen.error(ZERO_LOC).with_code("SAFE-FFI-006")
+                << "32-bit @stdcall symbols are not supported by the LLVM "
+                   "backend for target '"
+                << gen.target_triple
+                << "'; use the C backend or remove @stdcall";
+            return;
+        }
+    }
     if (getenv("MIR_LLVM_TRACE"))
         std::cerr << "[MIR-LLVM] emitting module " << module->format()
                   << " functions=" << m.functions.size() << "\n";

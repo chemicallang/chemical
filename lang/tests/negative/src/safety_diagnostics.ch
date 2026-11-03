@@ -1721,6 +1721,14 @@ func neg_extern_callback_on_i386_windows_rejected(env : &mut TestEnv) {
 }
 
 @test
+func neg_stdcall_on_i386_windows_rejected(env : &mut TestEnv) {
+    if(intrinsics::get_backend_name() != "LLVM") { return }
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@extern @stdcall public func std_call_fn(x : int) : int\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_target(env, "stdcall_i386_windows", ch, "SAFE-FFI-006", NEG_MOD, "i386-pc-windows-msvc")
+}
+
+@test
 func neg_variadic_extern_aggregate_argument_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "@extern struct Pair { var a : int; var b : int }\n@extern func take_ints(n : int, _ : any...) : int\npublic func main() : int {\n    var p = Pair { a : 1, b : 2 }\n    return unsafe(take_ints(1, p))\n}\n"

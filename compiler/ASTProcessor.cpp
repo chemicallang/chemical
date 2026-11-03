@@ -2337,6 +2337,7 @@ bool mir_translate_after_declaration(
         rec.linkage = decl->is_linkage_public() ? mir::MIRLinkage::External
                                                 : mir::MIRLinkage::Internal;
         rec.has_body = !decl->is_extern();
+        rec.stdcall = decl->is_std_call();
         rec.type = mir::mir_function_signature(types, module, decl);
         mir::SymbolId sym = module.symbols.add(
             rec, name.data(), static_cast<uint32_t>(name.size()),

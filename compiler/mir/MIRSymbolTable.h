@@ -41,6 +41,8 @@ struct MIRSymbolRecord {
     MIRLinkage linkage = MIRLinkage::Internal;
     /** A definition (body) exists; false for `@extern`/bodyless declarations. */
     bool has_body = false;
+    /** The source declaration is `@stdcall`; codegen must honor it. */
+    bool stdcall = false;
     TypeId type = MIR_INVALID_ID;
     // For an `@extern` function whose C ABI differs from the internal prototype
     // ABI (aggregate parameters/returns), the by-value C signature. Call

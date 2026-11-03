@@ -307,6 +307,7 @@ SymbolId MIRLowerer::intern_method_function(FunctionDeclaration* decl, BaseType*
     rec.linkage = (decl->is_extern() || decl->is_linkage_public()) ? MIRLinkage::External
                                                                   : MIRLinkage::Internal;
     rec.has_body = !decl->is_extern();
+    rec.stdcall = decl->is_std_call();
     rec.type = ftype;
     SymbolId s = module_.symbols.add(rec, name.data(), static_cast<uint32_t>(name.size()),
                                      name.data(), static_cast<uint32_t>(name.size()));

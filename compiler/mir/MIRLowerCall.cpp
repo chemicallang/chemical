@@ -2440,6 +2440,7 @@ SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
     rec.linkage = (decl->is_extern() || decl->is_linkage_public()) ? MIRLinkage::External
                                                                   : MIRLinkage::Internal;
     rec.has_body = !decl->is_extern();
+    rec.stdcall = decl->is_std_call();
     rec.type = ftype;
     if (mir_needs_c_abi(decl)) {
         rec.c_abi_type = mir_c_function_signature(types_, module_, decl);

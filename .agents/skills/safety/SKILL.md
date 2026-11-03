@@ -17,7 +17,7 @@ for the safe API surface we currently expose**, not full language parity.
 | Area | Status |
 |---|---|
 | Diagnostics/audit suites | Implemented: coded errors, negative/safety suites, whole-tree audit gate |
-| Init / moves / drops | Implemented in MIR (`MIRMoveCheck`); local/parameter struct fields and whole-array fields are field-tracked; unsupported move shapes reject with `SAFE-MOVE-004` |
+| Init / moves / drops | Implemented in MIR (`MIRMoveCheck`); local/parameter/async-frame struct fields and fixed array fields are field/element-tracked; unsupported move shapes reject with `SAFE-MOVE-004` |
 | Borrows / lifetimes | Implemented for the enforceable surface (regions, NLL loans, storage lifetimes, return regions, variance, temporary extension, provenance, HRTB call regions) |
 | `Send` / `Sync` | Auto traits + explicit/negative impls + nested conditional generic impls; data-race primitives. Stdlib explicit impls audited (2026-11-02); the shared-reference Send rule now checks nested `!Sync` correctly (`lang/docs/safety/auto-traits-audit.md`). |
 | Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; target-aware by-value C ABI on x86-64 SysV, Windows x64, i386 SysV/Windows, ARM32 AAPCS (soft/hard-float), AArch64 AAPCS64 and Microsoft ARM64; unknown targets, variadic aggregate arguments, and un-auditable extern callback ABIs reject instead of guessing. i386 Windows safety check is clean for `cstd`/`std`/`fs`/`net`/`test`/`async`/`tls`/`window`/`webview` |
@@ -35,13 +35,13 @@ Latest measured baseline:
 | `@test` runner | `56/56` |
 | TCC/LLVM negative | `774/774` |
 | TCC/LLVM safety | `74/74` |
-| TCC/LLVM async | `70/70` |
+| TCC/LLVM async | `76/76` |
 | TCC libs | `732/732` |
 | TCC plugins | `1305/1305` |
 | TCC interpret | `1931/1931` |
 | `MIRTests` | `4749 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
-| Whole-tree audit | `unsafe_blocks 3780`, `unsafe_values 4921`, `raw_pointer_types 9371`, `raw_pointer_derefs 1073`, `panic_calls 113` |
+| Whole-tree audit | `unsafe_blocks 3790`, `unsafe_values 4921`, `raw_pointer_types 9373`, `raw_pointer_derefs 1073`, `panic_calls 113` |
 | Audit result | `no growth` against `lang/docs/safety/audit-baseline.json` |
 
 The audit totals increased from the historical `3661/4890` in the 2026-10-31
@@ -49,8 +49,9 @@ audit because `SafetyReportVisitor` previously skipped **every**
 `ImplDefinition` body. It now walks impl bodies, so the larger number is the
 first honest whole-tree count, not a new unsafe-code regression. The async
 closure fixtures add a few audited raw C future-ABI sites. The latest
-`+5 unsafe_blocks / +6 unsafe_values` bump is the reviewed Windows platform
-migration (`net` Windows branches, `osrand` BCrypt, and the new target test).
+`+5 unsafe_blocks / +6 unsafe_values` bump was the reviewed Windows platform
+migration; the current `unsafe_blocks 3790` / `raw_pointer_types 9373` baseline
+also includes the new async drop-elaboration regression tests.
 
 ## What is enforced (by domain)
 
@@ -397,13 +398,13 @@ memory safety.
    precise source-line count. The module list is still host-platform-oriented.
 
 10. **Partial-array and non-`Copy` struct-field drop elaboration.** Local and
-    by-value-parameter aggregates with generated drop glue carry per-field and
-    per-element flags; moving a field clears its flag, including nested fields
-    and whole-array fields. Any unsupported move shape (user destructor, async
-    frame, global, temporary/expression, reference/pointer) is rejected with
-    `SAFE-MOVE-004` instead of double-dropping. Remaining: per-field flags inside
-    async frames (moves rejected), and nested array fields beyond the top-level
-    element tracker may leak rather than double-drop.
+    by-value-parameter and async-frame aggregates with generated drop glue carry
+    per-field and per-element flags; moving a field clears its flag, including
+    nested struct/array fields and whole-array fields. Nested array fields are
+    tracked recursively (fixed arrays up to 64 elements). Any unsupported move
+    shape (user destructor, global, temporary/expression, reference/pointer) is
+    rejected with `SAFE-MOVE-004` instead of double-dropping. Remaining: arrays
+    larger than 64 elements or unsized arrays fall back to a whole-field flag.
 
 11. **Interpreter boundaries.** MIR interpreter bounds/provenance/tombstone
     checks are implemented. Async/coroutine opcodes, inline asm, dynamic

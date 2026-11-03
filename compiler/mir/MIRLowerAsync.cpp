@@ -132,6 +132,93 @@ MIRNumberedName MIRLowerer::async_child_field(unsigned id) const {
 MIRNumberedName MIRLowerer::async_drop_flag_field(unsigned id) const {
     return MIRNumberedName("__chx_drop_", id);
 }
+
+unsigned MIRLowerer::async_slot_id_for(PlaceId place) const {
+    if (!builder_ || place >= builder_->function().places.size()) return MIR_INVALID_ID;
+    const MIRPlaceDef& pd = builder_->function().places[place];
+    if (pd.storage_class != static_cast<uint8_t>(MIRStorageClass::FrameField) ||
+        pd.frame_field >= module_.constants.size()) {
+        return MIR_INVALID_ID;
+    }
+    const MIRConstant& c = module_.constants.get(pd.frame_field);
+    const std::string_view name(module_.constants.data.data_at(c.data_offset),
+                                c.data_count);
+    static constexpr std::string_view prefix = "__chx_slot_";
+    if (name.rfind(prefix, 0) != 0 || name.size() == prefix.size()) {
+        return MIR_INVALID_ID;
+    }
+    unsigned id = 0;
+    for (size_t i = prefix.size(); i < name.size(); ++i) {
+        const char ch = name[i];
+        if (ch < '0' || ch > '9') return MIR_INVALID_ID;
+        id = id * 10 + static_cast<unsigned>(ch - '0');
+    }
+    return id;
+}
+
+void MIRLowerer::collect_drop_flag_fields(const std::vector<MIRDropField>& fields,
+                                          std::vector<ConstantId>& out) const {
+    for (const auto& f : fields) {
+        if (f.frame_flag != MIR_INVALID_ID) out.push_back(f.frame_flag);
+        collect_drop_flag_fields(f.children, out);
+    }
+}
+
+void MIRLowerer::append_c_drop_fields(std::string& out, const std::string& base,
+                                      const std::vector<MIRDropField>& fields,
+                                      unsigned indent) {
+    const std::string pad(indent, ' ');
+    for (size_t i = fields.size(); i-- > 0;) {
+        const MIRDropField& f = fields[i];
+        if (!f.children.empty()) {
+            BaseType* canon = f.type ? f.type->canonical() : nullptr;
+            if (canon != nullptr && canon->kind() == BaseTypeKind::Array) {
+                std::string array_base = base;
+                if (!f.name.empty()) {
+                    array_base += '.';
+                    array_base.append(f.name.data(), f.name.size());
+                }
+                for (size_t j = f.children.size(); j-- > 0;) {
+                    const MIRDropField& e = f.children[j];
+                    const uint32_t index = e.array_index != MIR_INVALID_ID
+                                               ? e.array_index
+                                               : static_cast<uint32_t>(j);
+                    append_c_drop_fields(out,
+                                         array_base + "[" + std::to_string(index) + "]",
+                                         std::vector<MIRDropField>{e}, indent);
+                }
+            } else {
+                std::string member = base;
+                if (!f.name.empty()) {
+                    member += '.';
+                    member.append(f.name.data(), f.name.size());
+                }
+                append_c_drop_fields(out, member, f.children, indent);
+            }
+            continue;
+        }
+        if (f.frame_flag == MIR_INVALID_ID) continue;
+        BaseType* dt = f.type;
+        if (dt != nullptr) {
+            BaseType* canon = dt->canonical();
+            if (canon != nullptr && canon->kind() == BaseTypeKind::CapturingFunction) {
+                dt = const_cast<BaseType*>(
+                    canon->as_capturing_func_type_unsafe()->instance_type.getType()
+                );
+            }
+        }
+        const SymbolId dtor = destructor_symbol(dt);
+        if (dtor == MIR_INVALID_ID) continue;
+        const MIRSymbolRecord& dr = module_.symbols.get(dtor);
+        const std::string dname(module_.symbols.name_data(dr), dr.name_length);
+        if (dname.empty()) continue;
+        const MIRConstant& fc = module_.constants.get(f.frame_flag);
+        const std::string flag(module_.constants.data.data_at(fc.data_offset),
+                               fc.data_count);
+        out += pad + "if(__chx__af->" + flag + ") { " + dname + "(&" + base +
+               "); __chx__af->" + flag + " = 0; }\n";
+    }
+}
 MIRNumberedName MIRLowerer::async_resident_field(ASTNode* node) const {
     auto it = async_resident_.find(node);
     if (it == async_resident_.end()) return MIRNumberedName();
@@ -207,6 +294,8 @@ bool MIRLowerer::lower_async_function(FunctionDeclaration* decl, MIRArena& arena
     async_post_decls_.clear();
     async_resident_.clear();
     async_drop_flag_slots_.clear();
+    async_slot_fields_.clear();
+    async_field_flag_fields_.clear();
     async_site_index_.clear();
     // hoist nested awaits into VarInitStatements before planning the frame
     if (async_normalize_) async_normalize_(decl);
@@ -292,6 +381,24 @@ bool MIRLowerer::lower_async_function(FunctionDeclaration* decl, MIRArena& arena
         }
     }
 
+    // Precompute per-slot field trees before the frame type is emitted: the
+    // frame needs one bool field per tracked leaf. The trees carry frame-flag
+    // names only; each poll/drop/ramp function materializes its own places.
+    for (auto id : async_drop_flag_slots_) {
+        if (id == async_capture_slot_ || id >= async_plan_.slots.size()) continue;
+        BaseType* st = async_plan_.slots[id].type;
+        if (st == nullptr) continue;
+        BaseType* canon = st->canonical();
+        if (canon != nullptr && canon->has_user_destructor()) continue;
+        unsigned seq = 0;
+        MIRDropField root = build_drop_field(
+            chem::string_view{}, st, 0, true, id, &seq
+        );
+        if (root.children.empty()) continue;
+        collect_drop_flag_fields(root.children, async_field_flag_fields_);
+        async_slot_fields_[id] = std::move(root.children);
+    }
+
     async_emit_frame_helpers(decl);
     if (!async_lower_poll_body(decl, error)) { async_ = false; return false; }
     if (!async_lower_drop_body(decl, error)) { async_ = false; return false; }
@@ -353,6 +460,13 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
             async_pre_decls_ += ';';
         }
     }
+    for (ConstantId flag : async_field_flag_fields_) {
+        const MIRConstant& c = module_.constants.get(flag);
+        async_pre_decls_ += " uint8_t ";
+        async_pre_decls_.append(module_.constants.data.data_at(c.data_offset),
+                                c.data_count);
+        async_pre_decls_ += ';';
+    }
     async_pre_decls_ += " };\n";
 
     // The frame's *runtime* fields must also live in the MIR type table: the C
@@ -403,6 +517,17 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
             r.int_kind = IK_U8;
             push(async_drop_flag_field(static_cast<unsigned>(id)).view(), module_.types.intern(r));
         }
+        for (ConstantId flag : async_field_flag_fields_) {
+            const MIRConstant& c = module_.constants.get(flag);
+            MIRTypeRecord r;
+            r.kind = MIRTypeKind::Int;
+            r.size = 1;
+            r.alignment = 1;
+            r.int_kind = IK_U8;
+            push(chem::string_view(module_.constants.data.data_at(c.data_offset),
+                                   c.data_count),
+                 module_.types.intern(r));
+        }
         const uint32_t fidx = module_.types.append_fields(fs);
         module_.types.update(async_frame_type_, [&](MIRTypeRecord& fr) {
             fr.data_count = static_cast<uint32_t>(fs.size());
@@ -436,6 +561,11 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
             const MIRNumberedName slot_field = async_slot_field(id);
             std::string field = "__chx__af->";
             field.append(slot_field.data(), slot_field.size());
+            auto field_tree = async_slot_fields_.find(id);
+            if (field_tree != async_slot_fields_.end()) {
+                append_c_drop_fields(async_post_decls_, field, field_tree->second, 12);
+                continue;
+            }
             // an array slot destroys each element, last to first
             BaseType* canon = slot.type->canonical();
             std::string call;
@@ -673,6 +803,13 @@ bool MIRLowerer::async_lower_poll_body(FunctionDeclaration* decl, std::string& e
             PlaceId place = b.alloca_frame(pt, fc);
             bind(p, place);
             bind_name(p->name, place);
+            if (p->type) {
+                const TypeId ptt = types_.map(p->type);
+                const MIRTypeRecord& prr = module_.types.get(ptt);
+                if (!(prr.flags & TF_TYPEDEF) && abi::is_aggregate(module_, ptt)) {
+                    register_destructible(place, p->type);
+                }
+            }
         } else {
             PlaceId place = b.alloca(pt, MIRStorageClass::Parameter);
             // load the spilled value from the frame slot
@@ -863,7 +1000,20 @@ bool MIRLowerer::async_lower_drop_body(FunctionDeclaration* decl, std::string& e
             const ConstantId fc = module_.constants.add_string(
                 MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
             const PlaceId place = b.alloca_frame(slot_ty, fc);
-            if (async_drop_flag_slots_.count(id) != 0) {
+            auto field_tree = async_slot_fields_.find(id);
+            if (field_tree != async_slot_fields_.end()) {
+                auto fields = field_tree->second;
+                materialize_drop_fields(fields, false);
+                const TypeId ptrt = types_.pointer_type(slot_ty, true);
+                const ValueId addr = b.address_of(place, ptrt);
+                if (canon && canon->kind() == BaseTypeKind::Array) {
+                    destroy_array_drop_fields(
+                        addr, fields, canon->as_array_type_unsafe()->elem_type
+                    );
+                } else {
+                    destroy_drop_fields(addr, fields);
+                }
+            } else if (async_drop_flag_slots_.count(id) != 0) {
                 const MIRNumberedName df = async_drop_flag_field(id);
                 const ConstantId dfc = module_.constants.add_string(
                     MIR_INVALID_ID, df.data(), static_cast<uint32_t>(df.size()));
@@ -1095,6 +1245,13 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
         b.store(place, pv);
         bind(p, place);
         bind_name(p->name, place);
+        if (p->type) {
+            const TypeId ptt = types_.map(p->type);
+            const MIRTypeRecord& prr = module_.types.get(ptt);
+            if (!(prr.flags & TF_TYPEDEF) && abi::is_aggregate(module_, ptt)) {
+                register_destructible(place, p->type);
+            }
+        }
         // store the parameter into its frame slot
         auto it = std::find_if(async_plan_.slots.begin(), async_plan_.slots.end(),
                                [&](const AsyncFrameSlot& s) { return s.node == p; });
@@ -1122,6 +1279,12 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
                 ValueId one = b.const_int(types_.u32_type(),
                                           module_.constants.add_int(types_.u32_type(), 1));
                 b.field_store_ptr(af, dfc, one);
+            }
+            auto field_tree = async_slot_fields_.find(sid);
+            if (field_tree != async_slot_fields_.end()) {
+                auto fields = field_tree->second;
+                materialize_drop_fields(fields);
+                set_drop_fields(fields, true);
             }
         }
     }

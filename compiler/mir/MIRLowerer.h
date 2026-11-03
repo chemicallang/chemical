@@ -752,9 +752,12 @@ private:
         chem::string_view name;
         BaseType* type = nullptr;
         PlaceId flag = MIR_INVALID_ID;
+        // Async frame flag field name (a bool stored in the coroutine frame).
+        // `flag` is the per-function place materialized from this name.
+        ConstantId frame_flag = MIR_INVALID_ID;
         // `MIR_INVALID_ID` for a struct field; the element index otherwise.
         uint32_t array_index = MIR_INVALID_ID;
-        // Nested owned fields of a generated-glue struct (one extra level).
+        // Nested owned fields/elements (generated-glue structs and arrays).
         std::vector<MIRDropField> children;
     };
     struct MIRDestructible {
@@ -768,6 +771,9 @@ private:
         // A mutable raw pointer to the value (or a subobject) escaped: writes
         // may bypass the per-field flags, so fall back to the whole-value drop.
         bool raw_escaped = false;
+        // A field (or the whole value) was moved before a raw pointer escaped.
+        // Whole-value drop would double-drop it, so keep field-wise flags.
+        bool field_moved = false;
     };
     void register_destructible(PlaceId place, BaseType* type,
                                bool whole_value_initialized = true);
@@ -779,11 +785,26 @@ private:
                                BaseType* mt, PlaceId flag);
     /** Per-element drop flag for `place[index]`, or MIR_INVALID_ID. */
     PlaceId drop_flag_for_element(PlaceId place, uint64_t index);
-    /** Build the drop node for one owned field (recursing one level). */
+    /** Per-element flag under a struct-field path (`left.right[index]`). */
+    PlaceId drop_flag_for_path_index(PlaceId place,
+                                     const std::vector<std::string>& path,
+                                     uint64_t index);
+    /** Build the drop node for one owned field (recursing structs/arrays). */
     MIRDropField build_drop_field(const chem::string_view& name, BaseType* type,
-                                  int depth);
+                                  int depth, bool frame_flags = false,
+                                  unsigned slot = MIR_INVALID_ID,
+                                  unsigned* flag_seq = nullptr);
+    /** Materialize async frame flag names as places in the current builder. */
+    void materialize_drop_fields(std::vector<MIRDropField>& fields,
+                                     bool initialize = true);
     /** Destroy every initialized field in a drop-node list. */
     void destroy_drop_fields(ValueId self_ptr, std::vector<MIRDropField>& fields);
+    /** Destroy the initialized elements of an array drop-node list. */
+    void destroy_array_drop_fields(ValueId array_ptr,
+                                   std::vector<MIRDropField>& elements,
+                                   BaseType* element_type);
+    /** Destroy one value through an address, gated by an optional flag. */
+    void emit_dtor_ptr_cond(ValueId address, BaseType* type, PlaceId flag);
     /** Arm/clear every flag in a drop-node list. */
     void set_drop_fields(std::vector<MIRDropField>& fields, bool value);
     /** Find the drop node for a field path (`inner.x`), or nullptr. */
@@ -1360,6 +1381,20 @@ private:
     ValueId async_ramp_af_val_ = MIR_NULL;    // the ramp frame pointer value
     std::unordered_map<ASTNode*, unsigned> async_resident_;
     std::unordered_set<unsigned> async_drop_flag_slots_;
+    // Slots whose generated drop glue is tracked per field/element. The tree
+    // carries frame flag names; each poll/drop/ramp function materializes the
+    // corresponding places from the same names.
+    std::unordered_map<unsigned, std::vector<MIRDropField>> async_slot_fields_;
+    std::vector<ConstantId> async_field_flag_fields_;
+    /** Parse the slot id out of a `__chx_slot_<id>` frame field. */
+    unsigned async_slot_id_for(PlaceId place) const;
+    /** Collect every frame flag name in a drop tree. */
+    void collect_drop_flag_fields(const std::vector<MIRDropField>& fields,
+                                  std::vector<ConstantId>& out) const;
+    /** Append C drop code for one frame slot tree. */
+    void append_c_drop_fields(std::string& out, const std::string& base,
+                              const std::vector<MIRDropField>& fields,
+                              unsigned indent);
     std::vector<TypeId> async_site_poll_;
     std::vector<BlockId> async_resume_blocks_;
     // ramp lowering state

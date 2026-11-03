@@ -603,10 +603,10 @@ func neg_move_field_from_temporary_rejected(env : &mut TestEnv) {
 }
 
 @test
-func neg_move_field_from_async_frame_rejected(env : &mut TestEnv) {
+func async_frame_field_move_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "@thread_local var drops : int = 0\nstruct R {\n    var id : int\n    @delete func del(&self) { drops = drops + 1 }\n}\nstruct W { var r : R }\nasync func f() : int {\n    var w = W { r : R { id : 1 } }\n    var r = w.r\n    return r.id\n}\npublic func main() : int { return 0 }\n"
-    expect_compile_error_with_mod(env, "move_field_async_frame", ch, "SAFE-MOVE-001", NEG_MOD_ASYNC_STD)
+    expect_compile_success_with_mod(env, "move_field_async_frame", ch, NEG_MOD_ASYNC_STD)
 }
 
 @test

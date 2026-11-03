@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.83)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.87)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1519,16 +1519,17 @@ new number as the honest baseline, not a compiler regression.
    impls can still double-count syntax, and the module list remains
    host-platform-oriented; non-Windows OS-gated sources still need
    target-specific audit entries.
-10. **Partial-array and non-`Copy` struct-field drop elaboration.** Local and
-    by-value-parameter aggregates with generated drop glue now carry one drop
-    flag per destructible field/element (nested structs are tracked, whole
-    arrays are tracked element-wise up to the existing 64-element limit). Moving
-    a field clears its flag, so the parent destructor cannot double-drop it;
-    whole-array field moves are covered. Moves from a user-destructor aggregate,
-    an async frame, a global, a temporary/expression, or a reference/pointer are
-    rejected with `SAFE-MOVE-004` instead of being unsound. Remaining: per-field
-    flags inside async frames (currently rejected), and fields of arrays nested
-    deeper than the top-level array tracker may leak rather than double-drop.
+10. **Partial-array and non-`Copy` struct-field drop elaboration.** Local,
+    by-value-parameter, and async-frame aggregates with generated drop glue carry
+    one drop flag per destructible field/element. Nested structs and fixed arrays
+    are tracked recursively (up to 64 elements per array), and whole-array field
+    moves are covered. Moving a field clears its flag, so the parent destructor
+    cannot double-drop it. Async frame flags are frame-resident and are used by
+    normal completion, cancellation, and resume cleanup; a moved frame field no
+    longer rejects with `SAFE-MOVE-004`. Moves from a user-destructor aggregate,
+    a global, a temporary/expression, or a reference/pointer remain rejected with
+    `SAFE-MOVE-004` instead of being unsound. Remaining: arrays larger than 64
+    elements or unsized arrays fall back to a whole-field flag.
 11. **Interpreter** reports async/coroutine opcodes, inline asm, dynamic
     call/vtables and `Unreachable`/`Throw` as explicit hard errors; it does not
     silently execute them. Bounds/provenance/tombstones are implemented.
@@ -3054,3 +3055,7 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.84 (2026-11-03): reviewed audit baseline update. The Windows platform migration adds `unsafe_blocks 3775 -> 3780` and `unsafe_values 4915 -> 4921`: `net` Windows error branches, `osrand`'s `BCryptGenRandom` call, and the new i386-Windows target regression test. All are intentional audited boundaries; `scripts/safety-audit.sh --update` was run and the baseline diff was reviewed. Main TCC/LLVM `2431`/`2429`; negative `774`; safety `74`; async `70`; libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth against the new baseline.
 
 *Revision note v4.85 (2026-11-03): stdcall callback types. `FunctionTypeData` now records stdcall for both declarations and `@stdcall type` aliases; the parser applies the annotation after the right-hand side and MIR interns the flag on function types. LLVM emits `x86_stdcallcc` for indirect calls through a stdcall function pointer and keeps the direct-call/declaration convention; `SAFE-FFI-005` now accepts scalar/pointer stdcall callbacks on 32-bit x86. The C emitter prefixes function-pointer types, indirect calls, and definitions with `__chem_stdcall` (verified with `-m32 -fsyntax-only`), so prototypes and definitions agree. `SAFE-FFI-006` remains fail-closed for variadic stdcall and non-x86 32-bit targets. Added positive i386-Windows stdcall-callback coverage, a cdecl/stdcall type-mismatch negative, and IR/C checks. Main TCC/LLVM `2431`/`2429`; negative `774`; safety `74`; async `70`; libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
+
+*Revision note v4.86 (2026-11-03): drop elaboration. Local/parameter/async-frame aggregates with generated glue now carry per-field/per-element drop trees; async frame flags are precomputed into the frame type and materialized in poll/drop/ramp functions, so normal completion, cancellation, and resume cleanup agree. Async destructible parameters are registered for normal completion, and a moved frame field is accepted (the old `SAFE-MOVE-004` rejection is now a positive test). Fixed array fields are tracked recursively per element, including partial element initialization and reassignment; async C drop text and LLVM MIR both emit the same field tree. Added runtime coverage for live/moved frame fields, live struct parameters, nested array whole/partial/reassignment, and cancellation. Main TCC/LLVM `2431`/`2429`; negative `774`; safety `74`; async `75`; libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth after a reviewed `+8 unsafe_blocks`/`+4 raw_pointer_addrs` test-only baseline bump (`unsafe_blocks 3788`, `unsafe_values 4921`).
+
+*Revision note v4.87 (2026-11-03): raw escape after a field move. `MIRDestructible` now records `field_moved`; `mark_raw_escaped` keeps field-wise drop flags when a field (or the whole value) was already moved, instead of switching to a whole-value drop that would double-drop the moved field. Raw writes into a moved-from field can still leak, but cannot double-drop. Added a runtime regression for `&raw mut` after a field move. Final drop-elaboration gates: main TCC/LLVM `2431`/`2429`; negative `774`; safety `74`; async `76`; libs `732`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth against the reviewed test-only baseline (`unsafe_blocks 3790`, `unsafe_values 4921`).

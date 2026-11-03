@@ -473,6 +473,220 @@ func test_async_suspend_moved_param(env : &mut TestEnv) {
         }
     }
 
+// ---- per-field drop flags in a coroutine frame ----
+
+struct FrameFields {
+    var first : DropCounter
+    var second : DropCounter
+}
+
+async func moved_frame_field() : int {
+    var h = FrameFields {
+        first : DropCounter { value : 1 },
+        second : DropCounter { value : 2 }
+    }
+    var n = await make_countdown(2, 1)
+    var moved = h.first
+    return moved.value + h.second.value + n
+}
+
+async func live_frame_param(d : FrameFields) : int {
+    var n = await make_countdown(2, 1)
+    return d.first.value + n
+}
+
+@test
+func test_async_frame_param_live(env : &mut TestEnv) {
+        unsafe {
+        var before = suspend_drops
+        var r = async::block_on<int>(live_frame_param(FrameFields {
+            first : DropCounter { value : 1 },
+            second : DropCounter { value : 2 }
+        }))
+        if(r != 2) { env.error("a live frame parameter should yield 2") }
+        if(suspend_drops != before + 2) {
+            env.error("a live frame parameter must drop each field once on completion")
+        }
+
+        before = suspend_drops
+        {
+            var h = live_frame_param(FrameFields {
+                first : DropCounter { value : 1 },
+                second : DropCounter { value : 2 }
+            })
+            var cx = core::async::Context {
+                waker : core::async::Waker.empty()
+            }
+            var p = h.vtbl_ptr().poll(h.frame_ptr(), &raw mut cx)
+            if(p is core::async::Poll.Pending) { }
+        }
+        if(suspend_drops != before + 2) {
+            env.error("a live frame parameter must drop each field once on cancellation")
+        }
+        }
+    }
+
+@test
+func test_async_frame_field_move(env : &mut TestEnv) {
+        unsafe {
+        var before = suspend_drops
+        var r = async::block_on<int>(moved_frame_field())
+        if(r != 4) {
+            env.error("moving a frame field should yield 4")
+        }
+        if(suspend_drops != before + 2) {
+            env.error("a moved frame field and the remaining field must each drop once")
+        }
+
+        before = suspend_drops
+        {
+            var h = moved_frame_field()
+            var cx = core::async::Context {
+                waker : core::async::Waker.empty()
+            }
+            var p = h.vtbl_ptr().poll(h.frame_ptr(), &raw mut cx)
+            if(p is core::async::Poll.Pending) { }
+        }
+        if(suspend_drops != before + 2) {
+            env.error("cancelling a frame with two live fields must drop each once")
+        }
+
+        }
+    }
+
+func raw_escape_after_field_move() : int {
+    var h = FrameFields {
+        first : DropCounter { value : 1 },
+        second : DropCounter { value : 2 }
+    }
+    var moved = h.first
+    unsafe {
+        var p = &raw mut h
+    }
+    return moved.value
+}
+
+@test
+func test_raw_escape_after_field_move(env : &mut TestEnv) {
+        unsafe {
+        var before = suspend_drops
+        var r = raw_escape_after_field_move()
+        if(r != 1) { env.error("raw escape helper should return 1") }
+        if(suspend_drops != before + 2) {
+            env.error("a raw escape after a field move must not double-drop the moved field")
+        }
+        }
+    }
+
+// ---- nested array fields and partial element initialization ----
+
+struct FrameArrayField {
+    var arr : [2]DropCounter
+}
+
+func local_nested_array_partial() : int {
+    var h : FrameArrayField
+    unsafe {
+        h.arr[0] = DropCounter { value : 7 }
+    }
+    return 0
+}
+
+func local_nested_array_reassign() : int {
+    var h : FrameArrayField
+    unsafe {
+        h.arr[0] = DropCounter { value : 7 }
+        h.arr[0] = DropCounter { value : 8 }
+    }
+    return 0
+}
+
+async func nested_array_field_whole() : int {
+    var h = FrameArrayField {
+        arr : [DropCounter { value : 1 }, DropCounter { value : 2 }]
+    }
+    var n = await make_countdown(2, 1)
+    return h.arr[0].value + n
+}
+
+async func nested_array_field_partial() : int {
+    var h : FrameArrayField
+    unsafe {
+        h.arr[0] = DropCounter { value : 3 }
+    }
+    var n = await make_countdown(2, 1)
+    return n
+}
+
+@test
+func test_nested_array_field_partial_local(env : &mut TestEnv) {
+        unsafe {
+        var before = suspend_drops
+        var r = local_nested_array_partial()
+        if(r != 0) { env.error("local nested-array helper should return 0") }
+        if(suspend_drops != before + 1) {
+            env.error("a partially initialized nested array field must drop only its live element")
+        }
+
+        before = suspend_drops
+        r = local_nested_array_reassign()
+        if(r != 0) { env.error("local nested-array reassign helper should return 0") }
+        if(suspend_drops != before + 2) {
+            env.error("reassigning a nested array element must drop the old and new values once")
+        }
+        }
+    }
+
+@test
+func test_async_nested_array_field_whole(env : &mut TestEnv) {
+        unsafe {
+        var before = suspend_drops
+        var r = async::block_on<int>(nested_array_field_whole())
+        if(r != 2) { env.error("nested array field should yield 2") }
+        if(suspend_drops != before + 2) {
+            env.error("a whole nested array field must drop each element once")
+        }
+
+        before = suspend_drops
+        {
+            var h = nested_array_field_whole()
+            var cx = core::async::Context {
+                waker : core::async::Waker.empty()
+            }
+            var p = h.vtbl_ptr().poll(h.frame_ptr(), &raw mut cx)
+            if(p is core::async::Poll.Pending) { }
+        }
+        if(suspend_drops != before + 2) {
+            env.error("cancelling a nested array field must drop each live element once")
+        }
+        }
+    }
+
+@test
+func test_async_nested_array_field_partial(env : &mut TestEnv) {
+        unsafe {
+        var before = suspend_drops
+        var r = async::block_on<int>(nested_array_field_partial())
+        if(r != 1) { env.error("partial nested array field should yield 1") }
+        if(suspend_drops != before + 1) {
+            env.error("a partially initialized async array field must drop only its live element")
+        }
+
+        before = suspend_drops
+        {
+            var h = nested_array_field_partial()
+            var cx = core::async::Context {
+                waker : core::async::Waker.empty()
+            }
+            var p = h.vtbl_ptr().poll(h.frame_ptr(), &raw mut cx)
+            if(p is core::async::Poll.Pending) { }
+        }
+        if(suspend_drops != before + 1) {
+            env.error("cancelling a partial async array field must drop only its live element")
+        }
+        }
+    }
+
 // ---- arrays of destructor-bearing elements across a suspension ----
 
 async func cancel_array() : int {

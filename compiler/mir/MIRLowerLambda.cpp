@@ -611,6 +611,8 @@ bool MIRLowerer::materialize_async_capturing_lambda(
     const ValueId saved_ramp_af = async_ramp_af_val_;
     auto saved_resident = std::move(async_resident_);
     auto saved_drop_flags = std::move(async_drop_flag_slots_);
+    auto saved_slot_fields = std::move(async_slot_fields_);
+    auto saved_field_flags = std::move(async_field_flag_fields_);
     auto saved_site_poll = std::move(async_site_poll_);
     auto saved_resume_blocks = std::move(async_resume_blocks_);
     const PlaceId saved_ramp_af_place = async_ramp_af_;
@@ -740,6 +742,8 @@ bool MIRLowerer::materialize_async_capturing_lambda(
     async_ramp_af_val_ = saved_ramp_af;
     async_resident_ = std::move(saved_resident);
     async_drop_flag_slots_ = std::move(saved_drop_flags);
+    async_slot_fields_ = std::move(saved_slot_fields);
+    async_field_flag_fields_ = std::move(saved_field_flags);
     async_site_poll_ = std::move(saved_site_poll);
     async_resume_blocks_ = std::move(saved_resume_blocks);
     async_ramp_af_ = saved_ramp_af_place;

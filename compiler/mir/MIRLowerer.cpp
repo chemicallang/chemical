@@ -550,6 +550,7 @@ void MIRLowerer::set_impls(ImplementationsIndex* idx, CoreNodes* core) {
 void MIRLowerer::mark_moved(PlaceId place) {
     for (auto& d : destructibles_) {
         if (d.place == place) {
+            d.field_moved = true;
             builder_->set_drop(d.flag, false);
             set_drop_fields(d.fields, false);
             return;

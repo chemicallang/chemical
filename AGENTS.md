@@ -36,8 +36,8 @@ pointer containers, references/callback captures, body-checked custom consumers
 function-type lifetimes and higher-ranked `FutureHandle` callback returns are
 inferred; nested future aggregates resolve their call-site lifetime, while
 safe calls returning type-erased generic containers are rejected
-(`SAFE-LIFE-005`). Unsupported async/temporary field-move shapes remain (the
-latter are rejected with `SAFE-MOVE-004`); other blockers are the full target-aware C
+(`SAFE-LIFE-005`). Unsupported temporary/global/reference field-move shapes remain
+(rejected with `SAFE-MOVE-004`); other blockers are the full target-aware C
 ABI (LLVM covers x86-64 SysV, Windows x64/ARM64, i386 SysV/Windows, ARM32
 AAPCS soft/hard-float and AAPCS64; `SAFE-FFI-003` rejects unknown targets,
 `SAFE-FFI-004` rejects variadic by-value aggregate arguments, `SAFE-FFI-005`

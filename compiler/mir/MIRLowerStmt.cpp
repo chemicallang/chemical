@@ -493,33 +493,51 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 // per element. For a compile-time index the old element is
                 // destroyed only when that flag is live, then the flag is armed.
                 PlaceId eflag = MIR_INVALID_ID;
-                if (base.kind == MIRExprKind::Place && io->idx &&
-                    io->idx->val_kind() == ValueKind::IntN) {
-                    eflag = drop_flag_for_element(
-                        static_cast<PlaceId>(base.id),
-                        io->idx->as_int_num_value_unsafe()->get_num_value()
-                    );
+                if (io->idx && io->idx->val_kind() == ValueKind::IntN) {
+                    const uint64_t element_index =
+                        io->idx->as_int_num_value_unsafe()->get_num_value();
+                    if (base.kind == MIRExprKind::Place) {
+                        eflag = drop_flag_for_element(
+                            static_cast<PlaceId>(base.id), element_index
+                        );
+                    } else if (base.kind == MIRExprKind::Address && io->parent_val) {
+                        // `holder.array[i] = ...`: the array is a field of a
+                        // struct/tuple, so its element flags hang off that
+                        // field's drop node.
+                        PlaceId path_base = MIR_INVALID_ID;
+                        std::vector<std::string> path;
+                        BaseType* path_type = nullptr;
+                        std::string path_error;
+                        if (field_move_target(io->parent_val, path_base, path,
+                                              path_type, path_error) &&
+                            path_base != MIR_INVALID_ID) {
+                            eflag = drop_flag_for_path_index(
+                                path_base, path, element_index
+                            );
+                        }
+                    }
                 }
+                auto element_address = [&]() -> ValueId {
+                    const TypeId et = types_.map(io->getType());
+                    if (base.kind == MIRExprKind::Place) {
+                        return builder_->index_addr(
+                            static_cast<PlaceId>(base.id),
+                            static_cast<ValueId>(idx.id), et
+                        );
+                    }
+                    const TypeId eptr = types_.pointer_type(et, true);
+                    const ValueId bv = builder_->cast(
+                        static_cast<ValueId>(base.id), eptr
+                    );
+                    return builder_->index_addr_ptr(
+                        bv, static_cast<ValueId>(idx.id), et
+                    );
+                };
                 auto destroy_old_element = [&]() {
                     if (eflag == MIR_INVALID_ID) return;
                     const SymbolId edtor = destructor_symbol(io->getType());
-                    const TypeId et = types_.map(io->getType());
-                    if (edtor == MIR_INVALID_ID || et == MIR_INVALID_ID) return;
-                    const ValueId fv = builder_->load(eflag, types_.bool_type());
-                    const BlockId do_b = builder_->create_block();
-                    const BlockId end_b = builder_->create_block();
-                    builder_->cond_br(fv, do_b, end_b);
-                    builder_->set_block(do_b);
-                    const ValueId addr = builder_->index_addr(
-                        static_cast<PlaceId>(base.id),
-                        static_cast<ValueId>(idx.id), et
-                    );
-                    MIROperand arg = MIROperand::value(
-                        addr, types_.pointer_type(et, true)
-                    );
-                    builder_->call_scalar(edtor, types_.void_type(), &arg, 1);
-                    builder_->br(end_b);
-                    builder_->set_block(end_b);
+                    if (edtor == MIR_INVALID_ID) return;
+                    emit_dtor_ptr_cond(element_address(), io->getType(), eflag);
                 };
                 auto mark_element_initialized = [&]() {
                     if (eflag != MIR_INVALID_ID) builder_->set_drop(eflag, true);
@@ -588,9 +606,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                                                       static_cast<PlaceId>(r.id));
                         mark_element_initialized();
                     } else {
-                        const ValueId eaddr = builder_->index_addr_ptr(
-                            static_cast<ValueId>(base.id),
-                            static_cast<ValueId>(idx.id), et);
+                        destroy_old_element();
+                        const ValueId eaddr = element_address();
                         // The element now owns the source value, so its scope
                         // destructor must not run at exit (same as the place
                         // branch above).
@@ -598,6 +615,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         builder_->emit(MIROpcode::Store, MIR_NULL,
                                        {MIROperand::value(eaddr, et),
                                         MIROperand::place(static_cast<PlaceId>(r.id), et)});
+                        mark_element_initialized();
                     }
                     return true;
                 }
@@ -611,8 +629,10 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                                                 static_cast<ValueId>(idx.id), loaded);
                         mark_element_initialized();
                     } else {
+                        destroy_old_element();
                         builder_->index_store(static_cast<ValueId>(base.id),
                                               static_cast<ValueId>(idx.id), loaded);
+                        mark_element_initialized();
                     }
                     return true;
                 }
@@ -662,8 +682,11 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         const ValueId nv = builder_->binary(cur, r.id, opc, et);
                         emit_overflow_check(bop, cur, static_cast<ValueId>(r.id), nv, et);
                         val = nv;
+                    } else {
+                        destroy_old_element();
                     }
                     builder_->index_store(bv, static_cast<ValueId>(idx.id), val);
+                    mark_element_initialized();
                 }
                 return true;
             }

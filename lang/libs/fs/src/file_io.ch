@@ -5,6 +5,7 @@ using std::Result;
 // read_exact: read until buf_len bytes filled or error
 func file_read_exact(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<UnitTy, FsError> {
         unsafe {
+        if(f == null || (buf == null && buf_len != 0)) { return Result.Err(FsError.InvalidInput()); }
         var pos : size_t = 0;
         while(pos < buf_len) {
             var r = file_read(f, buf + pos, buf_len - pos);
@@ -24,6 +25,7 @@ func file_read_exact(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<Un
 // write_all: loop till all bytes written
 func file_write_all(f : *mut File, buf : *u8, buf_len : size_t) : Result<UnitTy, FsError> {
         unsafe {
+        if(f == null || (buf == null && buf_len != 0)) { return Result.Err(FsError.InvalidInput()); }
         var pos : size_t = 0;
         while(pos < buf_len) {
             var r = file_write(f, buf + pos, buf_len - pos);
@@ -68,6 +70,9 @@ func int_to_str(v : int, out : *mut char, out_len : size_t) : size_t {
 
 public func atomic_write(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
         unsafe {
+        if(path == null || (data == null && data_len != 0)) {
+            return Result.Err(FsError.InvalidInput());
+        }
         // write to temp in same dir then rename
         // compose tmp path: path + ".tmpXXXX"
         var dir_buf : [PATH_MAX_BUF]char;
@@ -82,13 +87,22 @@ public func atomic_write(path : *char, data : *u8, data_len : size_t) : Result<U
         // append prefix + pid + random (we'll do pid)
         var pref : *char = ".tmpfs.";
         var pi : size_t = 0;
-        while(pref[pi] != 0) { tmpbuf[p + pi] = pref[pi]; pi++ }
-        p += pi;
+        while(pref[pi] != 0) { pi++ }
         // naive PID -> decimal (user can replace with syscall)
         var PID : int = 12345; // user should replace with getpid()
         var tlen : size_t = int_to_str(PID, &raw mut tmpname[0], 64);
         if(tlen == 0) { return Result.Err(FsError.Other("pid conversion failed\0")); }
+        // Reserve the prefix, the decimal suffix, and a terminating NUL before
+        // writing any of them; a path near PATH_MAX_BUF must fail, not overflow
+        // the stack buffer.
+        const cap = PATH_MAX_BUF as size_t;
+        if(p > cap || pi > cap - p || tlen >= cap - p - pi) {
+            return Result.Err(FsError.PathTooLong());
+        }
         var q : size_t = 0;
+        while(q < pi) { tmpbuf[p + q] = pref[q]; q++ }
+        p += pi;
+        q = 0;
         while(q <= tlen) { tmpbuf[p + q] = tmpname[q]; q++ }
         // ensure null
         tmpbuf[p + tlen] = 0;
@@ -105,6 +119,7 @@ public func atomic_write(path : *char, data : *u8, data_len : size_t) : Result<U
 
 public func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
         unsafe {
+        if(path == null) { return Result.Err(FsError.InvalidInput()); }
         // open file for reading
         var opts : OpenOptions;
         opts.read = true;
@@ -178,6 +193,9 @@ public func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
 
 public func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
         unsafe {
+        if(path == null || (buf == null && buf_len != 0)) {
+            return Result.Err(FsError.InvalidInput());
+        }
         var opts : OpenOptions; 
         opts.read = true; opts.write = false; opts.append = false; opts.create = false; opts.create_new = false; opts.truncate = false; opts.binary = true;
         var fo = file_open(path, opts);
@@ -203,6 +221,9 @@ public func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t) : Resu
 
 public func write_text_file(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
         unsafe {
+        if(path == null || (data == null && data_len != 0)) {
+            return Result.Err(FsError.InvalidInput());
+        }
         var opts : OpenOptions; 
         opts.read = false; opts.write = true; opts.append = false; opts.create = true; opts.create_new = false; opts.truncate = true; opts.binary = true;
         var fo = file_open(path, opts);
@@ -220,6 +241,7 @@ public func write_text_file(path : *char, data : *u8, data_len : size_t) : Resul
 
 public func move_path(src : *char, dst : *char) : Result<UnitTy, FsError> {
         unsafe {
+        if(src == null || dst == null) { return Result.Err(FsError.InvalidInput()); }
         var r = unsafe(rename(src, dst));
         if(r == 0) { return Result.Ok(UnitTy{}); }
         // if rename fails (e.g. cross-device) fallback to copy+remove

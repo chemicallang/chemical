@@ -1997,6 +1997,13 @@ func neg_linear_safe_impl_rejected(env : &mut TestEnv) {
 }
 
 @test
+func neg_dealloc_bytes_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    std::alloc::dealloc_bytes(null)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "dealloc_bytes_requires_unsafe", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_global_allocator_debug_private(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var a = std::alloc::GlobalAllocator.make()\n    a._debug = null\n    return 0\n}\n"

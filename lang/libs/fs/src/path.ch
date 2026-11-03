@@ -8,6 +8,7 @@ public type mut_path_ptr = if(def.windows) *mut u16 else *mut char
 
 public func basename(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
         unsafe {
+        if(path == null || out == null) { return Result.Err(FsError.InvalidInput()); }
         var len : size_t = 0;
         while(path[len] != 0) { len++ }
         if(len == 0) {
@@ -23,7 +24,7 @@ public func basename(path : *char, out : *mut char, out_len : size_t) : Result<s
         var j : size_t = i;
         while(j > 0 && path[j-1] != '/' && path[j-1] != '\\') { j-- }
         var comp_len = i - j;
-        if(comp_len + 1 > out_len) { return Result.Err(FsError.PathTooLong()); }
+        if(comp_len >= out_len) { return Result.Err(FsError.PathTooLong()); }
         var k : size_t = 0;
         while(k < comp_len) { out[k] = path[j + k]; k++ }
         out[k] = 0;
@@ -34,6 +35,7 @@ public func basename(path : *char, out : *mut char, out_len : size_t) : Result<s
 
 public func dirname(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
         unsafe {
+        if(path == null || out == null) { return Result.Err(FsError.InvalidInput()); }
         var len : size_t = 0;
         while(path[len] != 0) { len++ }
         if(len == 0) {
@@ -49,7 +51,7 @@ public func dirname(path : *char, out : *mut char, out_len : size_t) : Result<si
         var end = j;
         while(end > 0 && (path[end-1] == '/' || path[end-1] == '\\')) { end-- }
         if(end == 0) { if(out_len < 2) { return Result.Err(FsError.PathTooLong()); } out[0] = '/'; out[1] = 0; return Result.Ok(1); }
-        if(end + 1 > out_len) { return Result.Err(FsError.PathTooLong()); }
+        if(end >= out_len) { return Result.Err(FsError.PathTooLong()); }
         var k : size_t = 0;
         while(k < end) { out[k] = path[k]; k++ }
         out[k] = 0;
@@ -61,6 +63,7 @@ public func dirname(path : *char, out : *mut char, out_len : size_t) : Result<si
 // extension (returns extension starting at '.' or empty)
 public func extension(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
         unsafe {
+        if(path == null || out == null) { return Result.Err(FsError.InvalidInput()); }
         var base_buf : [PATH_MAX_BUF]char;
         var r = basename(path, &raw mut base_buf[0], PATH_MAX_BUF as size_t);
         if(r is Result.Err) { var Err(e) = r else unreachable; return Result.Err<size_t, FsError>(e); }
@@ -72,7 +75,7 @@ public func extension(path : *char, out : *mut char, out_len : size_t) : Result<
             out[0] = 0; return Result.Ok<size_t, FsError>(0);
         }
         var ext_len = base_len - i;
-        if(ext_len + 1 > out_len) { return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
+        if(ext_len >= out_len) { return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
         var k : size_t = 0;
         while(k < ext_len) { out[k] = base_buf[i + k]; k++ }
         out[k] = 0;
@@ -84,16 +87,23 @@ public func extension(path : *char, out : *mut char, out_len : size_t) : Result<
 // join path a + b -> out (normalizes separators). Caller must provide out buffer.
 public func join_path(a : *char, b : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
         unsafe {
+        if(a == null || b == null || out == null) { return Result.Err(FsError.InvalidInput()); }
+        const max_size = (0 as size_t) - 1;
         var a_len : size_t = 0; while(a[a_len] != 0) { a_len++ }
         var b_len : size_t = 0; while(b[b_len] != 0) { b_len++ }
         if(a_len == 0) {
-            if(b_len + 1 > out_len) { return Result.Err(FsError.PathTooLong()); }
+            if(b_len >= out_len) { return Result.Err(FsError.PathTooLong()); }
             var i : size_t = 0; while(i <= b_len) { out[i] = b[i]; i++ }
             return Result.Ok(b_len);
         }
         var need_sep : bool = false; if(a[a_len-1] != '/' && a[a_len-1] != '\\') { need_sep = true }
-        var total = a_len + (if(need_sep) 1u else 0u) + b_len;
-        if(total + 1 > out_len) { return Result.Err(FsError.PathTooLong()); }
+        if(a_len > max_size - b_len) { return Result.Err(FsError.PathTooLong()); }
+        var total = a_len + b_len;
+        if(need_sep) {
+            if(total == max_size) { return Result.Err(FsError.PathTooLong()); }
+            total += 1;
+        }
+        if(total == max_size || total + 1 > out_len) { return Result.Err(FsError.PathTooLong()); }
         var pos : size_t = 0; var i : size_t = 0;
         while(i < a_len) { out[pos++] = a[i++]; }
         if(need_sep) { out[pos++] = '/'; }
@@ -107,6 +117,7 @@ public func join_path(a : *char, b : *char, out : *mut char, out_len : size_t) :
 // normalize path removing "." and resolving ".." relative components (no symlink resolution)
 public func normalize_path(path_in : *char, out_buf : *mut char, out_len : size_t) : Result<size_t, FsError> {
         unsafe {
+        if(path_in == null || out_buf == null) { return Result.Err(FsError.InvalidInput()); }
         var len : size_t = 0; while(path_in[len] != 0) { len++ }
         // Preserve an absolute root so absolute paths stay absolute (critical for
         // create_dir_all: dropping "/" would turn "/tmp/x" into a relative

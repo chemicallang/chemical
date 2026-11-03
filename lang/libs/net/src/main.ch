@@ -141,12 +141,19 @@ public namespace net {
     }
 
     public func recv_all(s: Socket, buf: *mut u8, cap: usize) : int {
+        // A null buffer is only valid for a zero-length read; the C socket
+        // length is signed, so reject lengths that would wrap to negative.
+        if(cap > 0 && buf == null) { return -1 }
+        if(cap > 2147483647 as usize) { return -1 }
+        if(cap == 0) { return 0 }
         // helper to read up to cap bytes (single syscall)
         return sock_recv(s, buf as *mut char, cap as int)
     }
 
     public func send_all(s: Socket, p:*char, len:int) : int {
         unsafe {
+            if(len < 0) { return -1 }
+            if(len > 0 && p == null) { return -1 }
             var off = 0;
             while(off < len) {
                 var n = sock_send(s, &raw p[off], len - off);
@@ -161,11 +168,12 @@ public namespace net {
     public func close_socket(s: Socket) { sock_close(s) }
 
     public func dial(addr_str:*char, port: uint) : Socket {
-        
+        if(addr_str == null || port > 65535u) { return 0 as Socket; }
         startup();
         
         var addrinfo: *mut char = null;
-        var port_str : [8]char;
+        // 5 decimal digits for a validated TCP/UDP port plus a NUL.
+        var port_str : [16]char;
         // manually convert port to string
         var p = port; var i = 0;
         if (p == 0) { port_str[0] = '0'; port_str[1] = '\0'; }

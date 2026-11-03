@@ -23,6 +23,18 @@ async func net_echo_once(listener_fd : int, expect : int) : int {
 }
 
 @test
+func test_net_rejects_invalid_buffer_and_port(env : &mut TestEnv) {
+    var s = net::dial("127.0.0.1", 65536u);
+    if(s != 0 as net::Socket) { env.error("dial must reject a port above 65535") }
+    if(net::send_all(0 as net::Socket, null, 1) != -1) {
+        env.error("send_all must reject a null buffer with a positive length")
+    }
+    if(net::recv_all(0 as net::Socket, null, 1) != -1) {
+        env.error("recv_all must reject a null buffer with a positive length")
+    }
+}
+
+@test
 func test_net_async_loopback(env : &mut TestEnv) {
     var port = 45933u
     var listener = net::async_listener("127.0.0.1", port)

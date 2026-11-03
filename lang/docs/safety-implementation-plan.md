@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.87)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.88)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1434,7 +1434,12 @@ new number as the honest baseline, not a compiler regression.
    targets fail-closed; LLVM now emits `x86_stdcallcc` for direct i386
    Linux/Windows symbols and derives the Windows COFF `_name@N` decoration
    from the function type. `cstd/windows` is safety-clean on an i386 Windows
-   target. Remaining: the full semantic FFI wrapper audit.
+   target. The first semantic wrapper audit tranche (allocator ownership and
+   zero-size behavior, filesystem path/file null and capacity checks, socket
+   buffer/length/port validation) is complete; see
+   `lang/docs/safety/ffi-wrapper-audit.md`. Remaining: the rest of the safe
+   wrapper surface (collections/strings, directory/metadata/UTF-16, Windows
+   IPC, TLS/HTTP) and the target-specific audit list.
 3. **`@scoped_callback` has a fixed, checked sink list.** `SAFE-SCOPED-001`
    rejects returning, storing, capturing, or passing the scoped parameter to an
    unknown callee; only known join-before-return APIs (resolved by exact library
@@ -2170,8 +2175,8 @@ threads, channels/executor.
   `SAFE-FFI-005`; scalar/pointer cdecl and explicit `@stdcall` callbacks are
   accepted. `SAFE-FFI-006` rejects variadic and non-x86 32-bit `@stdcall`; LLVM
   emits `x86_stdcallcc` (and COFF `_name@N` decoration) for supported i386
-  symbols. Remaining here: bitfields (if supported) and the full semantic FFI
-  wrapper audit.
+  symbols. Remaining here: bitfields (if supported) and the rest of the semantic
+  FFI wrapper audit (`lang/docs/safety/ffi-wrapper-audit.md`).
 - `repr` layout static assertions.
 - Variadic default promotions (`char`→`int`, `float`→`double`); char signedness;
   bool representation; reject unsupported long double/128-bit.
@@ -3059,3 +3064,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.86 (2026-11-03): drop elaboration. Local/parameter/async-frame aggregates with generated glue now carry per-field/per-element drop trees; async frame flags are precomputed into the frame type and materialized in poll/drop/ramp functions, so normal completion, cancellation, and resume cleanup agree. Async destructible parameters are registered for normal completion, and a moved frame field is accepted (the old `SAFE-MOVE-004` rejection is now a positive test). Fixed array fields are tracked recursively per element, including partial element initialization and reassignment; async C drop text and LLVM MIR both emit the same field tree. Added runtime coverage for live/moved frame fields, live struct parameters, nested array whole/partial/reassignment, and cancellation. Main TCC/LLVM `2431`/`2429`; negative `774`; safety `74`; async `75`; libs `732`; plugins `1305`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth after a reviewed `+8 unsafe_blocks`/`+4 raw_pointer_addrs` test-only baseline bump (`unsafe_blocks 3788`, `unsafe_values 4921`).
 
 *Revision note v4.87 (2026-11-03): raw escape after a field move. `MIRDestructible` now records `field_moved`; `mark_raw_escaped` keeps field-wise drop flags when a field (or the whole value) was already moved, instead of switching to a whole-value drop that would double-drop the moved field. Raw writes into a moved-from field can still leak, but cannot double-drop. Added a runtime regression for `&raw mut` after a field move. Final drop-elaboration gates: main TCC/LLVM `2431`/`2429`; negative `774`; safety `74`; async `76`; libs `732`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth against the reviewed test-only baseline (`unsafe_blocks 3790`, `unsafe_values 4921`).
+*Revision note v4.88 (2026-11-03): semantic FFI wrapper audit, tranche 1. Allocator ownership is now an explicit unsafe boundary: `GlobalAllocator.dealloc/grow/shrink` and `dealloc_bytes` require `unsafe`; zero-sized allocations are freeable; grow/shrink to zero returns `AllocError.InvalidLayout` instead of `realloc(ptr, 0)`, which can free while returning an error; debug tracking no longer dereferences a null allocation. Filesystem wrappers validate null paths/handles/buffers, use checked path-length arithmetic, and reject `atomic_write` temp paths that would overflow the fixed stack buffer; POSIX temp-file creation bounds both the template and the caller output. Socket wrappers reject null buffers with positive lengths, negative send lengths, lengths outside signed `int`, null addresses, and ports above 65535; the port conversion buffer is bounded. Added allocator zero-size/grow-to-zero, null filesystem input, near-`PATH_MAX` atomic-write, and invalid socket port/buffer tests. Full audit matrix and remaining modules: `lang/docs/safety/ffi-wrapper-audit.md`. Main TCC/LLVM `2433`/`2431`; negative `775`; safety `74`; async `77`; libs `734`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth after a reviewed `unsafe_func_decls 36 -> 40` and test-only raw-pointer baseline update.

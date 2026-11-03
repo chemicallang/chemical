@@ -136,6 +136,33 @@ func test_allocator() {
             return val == 0
         })
 
+        test("alloc_bytes zero size is freeable", () => {
+            var result = std::alloc::alloc_bytes(0)
+            if(result is Result.Err) {
+                return false
+            }
+            var Ok(ptr) = result else unreachable
+            if(ptr == null) { return false }
+            std::alloc::dealloc_bytes(ptr)
+            return true
+        })
+
+        test("GlobalAllocator grow to zero rejects and keeps the old allocation", () => {
+            var a = std::alloc::GlobalAllocator.make()
+            var layout = std::alloc::Layout.of<int>()
+            var result = a.alloc(layout)
+            if(result is Result.Err) { return false }
+            var Ok(ptr) = result else unreachable
+            var grown = a.grow(ptr, layout, 0)
+            if(!(grown is Result.Err)) {
+                a.dealloc(ptr, layout)
+                return false
+            }
+            // grow(p, 0) must not free p; dealloc must still be valid.
+            a.dealloc(ptr, layout)
+            return true
+        })
+
 
         }
     }

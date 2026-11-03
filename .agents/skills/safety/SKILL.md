@@ -30,18 +30,18 @@ Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2431/2431` |
-| LLVM main | `2429/2429` |
+| TCC main | `2433/2433` |
+| LLVM main | `2431/2431` |
 | `@test` runner | `56/56` |
-| TCC/LLVM negative | `774/774` |
+| TCC/LLVM negative | `775/775` |
 | TCC/LLVM safety | `74/74` |
-| TCC/LLVM async | `76/76` |
-| TCC libs | `732/732` |
+| TCC/LLVM async | `77/77` |
+| TCC libs | `734/734` |
 | TCC plugins | `1305/1305` |
 | TCC interpret | `1931/1931` |
 | `MIRTests` | `4749 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
-| Whole-tree audit | `unsafe_blocks 3790`, `unsafe_values 4921`, `raw_pointer_types 9373`, `raw_pointer_derefs 1073`, `panic_calls 113` |
+| Whole-tree audit | `unsafe_blocks 3790`, `unsafe_values 4921`, `raw_pointer_addrs 10035`, `raw_pointer_casts 2876`, `raw_pointer_types 9375`, `raw_pointer_derefs 1073`, `unsafe_func_decls 40`, `panic_calls 113` |
 | Audit result | `no growth` against `lang/docs/safety/audit-baseline.json` |
 
 The audit totals increased from the historical `3661/4890` in the 2026-10-31
@@ -50,8 +50,9 @@ audit because `SafetyReportVisitor` previously skipped **every**
 first honest whole-tree count, not a new unsafe-code regression. The async
 closure fixtures add a few audited raw C future-ABI sites. The latest
 `+5 unsafe_blocks / +6 unsafe_values` bump was the reviewed Windows platform
-migration; the current `unsafe_blocks 3790` / `raw_pointer_types 9373` baseline
-also includes the new async drop-elaboration regression tests.
+migration; the current `unsafe_blocks 3790` / `raw_pointer_types 9375` baseline
+also includes the async drop-elaboration regression tests and the semantic
+wrapper tranche (`unsafe_func_decls 36 -> 40` plus test-only raw-pointer sites).
 
 ## What is enforced (by domain)
 
@@ -314,9 +315,13 @@ memory safety.
    from the function type. `@stdcall` type aliases carry the convention through
    function-type identity, MIR, LLVM indirect calls, and C function-pointer
    spelling; scalar/pointer cdecl and stdcall callbacks are accepted. The C
-   backend emits the convention on both the prototype and definition. Remaining
-   FFI work is the full semantic wrapper audit; the i386 Windows libraries are
-   syntax/safety-clean.
+   backend emits the convention on both the prototype and definition. FFI work:
+   tranche 1 of the semantic wrapper audit is complete
+   (`lang/docs/safety/ffi-wrapper-audit.md`: allocator ownership/zero-size,
+   filesystem path/file handles and capacity, socket buffer/length/port
+   validation). The rest of the safe wrapper surface (collections/strings,
+   directory/metadata/UTF-16, Windows IPC, TLS/HTTP) and the target-specific
+   audit list remain. The i386 Windows libraries are syntax/safety-clean.
 3. **`@scoped_callback` is body-checked, with a fixed sink list.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter anywhere except a known join-before-return API (resolved by exact library

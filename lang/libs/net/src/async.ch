@@ -100,6 +100,8 @@ public async func accept_async(listener : int) : int {
 // ---- recv / send -----------------------------------------------------------
 
 public async func recv_async(fd : int, buf : *mut u8, cap : usize) : int {
+    if(cap > 0 && buf == null) { return -1 }
+    if(cap > 2147483647 as usize) { return -1 }
     comptime if(def.windows) {
         var n = await net::iocp::async_iocp_recv(fd as Socket, buf, cap)
         return n
@@ -114,6 +116,8 @@ public async func recv_async(fd : int, buf : *mut u8, cap : usize) : int {
 }
 
 public async func send_async(fd : int, data : *char, len : int) : int {
+    if(len < 0) { return -1 }
+    if(len > 0 && data == null) { return -1 }
     comptime if(def.windows) {
         var off = 0
         while(off < len) {

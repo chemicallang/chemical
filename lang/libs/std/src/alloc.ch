@@ -54,6 +54,10 @@ public struct Layout {
 
 public variant AllocError {
     OutOfMemory()
+    // A grow/shrink to zero is a deallocation, not a reallocation; the caller
+    // must call `dealloc` instead. Keeping this distinct avoids `realloc(p, 0)`
+    // freeing the allocation while returning an error the caller might retry.
+    InvalidLayout()
 }
 
 public unsafe interface Allocator {
@@ -85,6 +89,7 @@ struct DebugTracker {
 func debug_tracker_create() : *mut DebugTracker {
         unsafe {
         var tracker = unsafe(malloc(sizeof(DebugTracker))) as *mut DebugTracker
+        if(tracker == null) { return null }
         tracker.head = null
         tracker.count = 0
         tracker.total_bytes = 0
@@ -95,7 +100,9 @@ func debug_tracker_create() : *mut DebugTracker {
 
 func debug_tracker_record_alloc(tracker : *mut DebugTracker, ptr : *mut void, size : size_t) {
         unsafe {
+        if(tracker == null) { return }
         var record = unsafe(malloc(sizeof(AllocRecord))) as *mut AllocRecord
+        if(record == null) { return }
         record.ptr = ptr
         record.size = size
         record.next = tracker.head
@@ -108,6 +115,7 @@ func debug_tracker_record_alloc(tracker : *mut DebugTracker, ptr : *mut void, si
 
 func debug_tracker_record_dealloc(tracker : *mut DebugTracker, ptr : *mut void) {
         unsafe {
+        if(tracker == null) { return }
         var prev : *mut AllocRecord = null
         var curr = tracker.head
         while(curr != null) {
@@ -131,6 +139,7 @@ func debug_tracker_record_dealloc(tracker : *mut DebugTracker, ptr : *mut void) 
 
 func debug_tracker_destroy(tracker : *mut DebugTracker) {
         unsafe {
+        if(tracker == null) { return }
         var curr = tracker.head
         while(curr != null) {
             var next_node = curr.next
@@ -144,6 +153,7 @@ func debug_tracker_destroy(tracker : *mut DebugTracker) {
 
 func debug_tracker_print_leaks(tracker : *mut DebugTracker) {
         unsafe {
+        if(tracker == null) { return }
         if(tracker.count > 0) {
             unsafe { printf("[Allocator] %zu leaks detected (%zu bytes unfreed)\n", tracker.count, tracker.total_bytes) }
         } else {
@@ -169,7 +179,10 @@ public struct GlobalAllocator {
 
     func alloc(&self, layout : Layout) : Result<*mut void, AllocError> {
         layout.validate()
-        var ptr = unsafe(malloc(layout.size()))
+        // malloc(0) may return null; use a one-byte allocation so the returned
+        // pointer is always safe to pass back to dealloc/free.
+        const bytes = if(layout.size() == 0) 1 as size_t else layout.size()
+        var ptr = unsafe(malloc(bytes))
         if(ptr == null) {
             return Result.Err(AllocError.OutOfMemory())
         }
@@ -179,7 +192,9 @@ public struct GlobalAllocator {
         return Result.Ok(ptr)
     }
 
-    func dealloc(&self, ptr : *mut void, layout : Layout) {
+    // The pointer must come from this allocator with the same layout. C free
+    // cannot validate ownership or provenance, so this is an unsafe boundary.
+    unsafe func dealloc(&self, ptr : *mut void, layout : Layout) {
         layout.validate()
         comptime if(def.debug) {
             debug_tracker_record_dealloc(self._debug as *mut DebugTracker, ptr)
@@ -187,8 +202,14 @@ public struct GlobalAllocator {
         unsafe { free(ptr) }
     }
 
-    func grow(&self, old : *mut void, old_layout : Layout, new_size : size_t) : Result<*mut void, AllocError> {
+    // `old` must be a live allocation from this allocator. `new_size == 0`
+    // is rejected: realloc(p, 0) may free `p`, and returning an error would
+    // leave the caller with a dangling pointer.
+    unsafe func grow(&self, old : *mut void, old_layout : Layout, new_size : size_t) : Result<*mut void, AllocError> {
         old_layout.validate()
+        if(new_size == 0) {
+            return Result.Err(AllocError.InvalidLayout())
+        }
         var ptr = unsafe(realloc(old, new_size))
         if(ptr == null) {
             return Result.Err(AllocError.OutOfMemory())
@@ -201,8 +222,13 @@ public struct GlobalAllocator {
         return Result.Ok(ptr)
     }
 
-    func shrink(&self, old : *mut void, old_layout : Layout, new_size : size_t) : Result<*mut void, AllocError> {
+    // See `grow`: the old pointer is caller-owned, and a zero-sized shrink is
+    // a deallocation rather than a reallocation.
+    unsafe func shrink(&self, old : *mut void, old_layout : Layout, new_size : size_t) : Result<*mut void, AllocError> {
         old_layout.validate()
+        if(new_size == 0) {
+            return Result.Err(AllocError.InvalidLayout())
+        }
         var ptr = unsafe(realloc(old, new_size))
         if(ptr == null) {
             return Result.Err(AllocError.OutOfMemory())
@@ -221,7 +247,9 @@ public struct GlobalAllocator {
             return result
         }
         var Ok(ptr) = result else unreachable
-        unsafe { memset(ptr, 0, layout.size()) }
+        if(layout.size() != 0) {
+            unsafe { memset(ptr, 0, layout.size()) }
+        }
         return result
     }
 
@@ -242,14 +270,19 @@ public struct GlobalAllocator {
 // Convenience free functions (bypass GlobalAllocator)
 
 public func alloc_bytes(size : size_t) : Result<*mut void, AllocError> {
-    var ptr = unsafe(malloc(size))
+    // Keep zero-sized allocations freeable: malloc(0) may return null.
+    const bytes = if(size == 0) 1 as size_t else size
+    var ptr = unsafe(malloc(bytes))
     if(ptr == null) {
         return Result.Err(AllocError.OutOfMemory())
     }
     return Result.Ok(ptr)
 }
 
-public func dealloc_bytes(ptr : *mut void) {
+// The pointer must have come from `alloc_bytes`/`alloc_zeroed_bytes` (or a
+// compatible allocator) and must not have been freed already. `free` cannot
+// validate provenance, so this remains an unsafe boundary.
+public unsafe func dealloc_bytes(ptr : *mut void) {
     unsafe { free(ptr) }
 }
 
@@ -259,7 +292,9 @@ public func alloc_zeroed_bytes(size : size_t) : Result<*mut void, AllocError> {
         return result
     }
     var Ok(ptr) = result else unreachable
-    unsafe { memset(ptr, 0, size) }
+    if(size != 0) {
+        unsafe { memset(ptr, 0, size) }
+    }
     return result
 }
 

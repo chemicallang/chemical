@@ -102,6 +102,33 @@ func test_fs_path_join(env : &mut TestEnv) {
 }
 
 @test
+func test_fs_atomic_write_rejects_overflowing_temp_path(env : &mut TestEnv) {
+    var path_buf : [PATH_MAX_BUF]char;
+    var i : size_t = 0;
+    while(i < 4088) { path_buf[i] = 'a'; i++ }
+    // Keep a directory separator before the final component so dirname returns
+    // a near-PATH_MAX parent; the temp-file suffix must then be rejected.
+    path_buf[4080] = '/';
+    path_buf[4088] = '/';
+    path_buf[4089] = 'x';
+    path_buf[4090] = 0;
+    var data : *u8 = "x" as *u8;
+    var r = fs::atomic_write(&raw mut path_buf[0], data, 1);
+    expect_true(env, r is Result.Err, "atomic_write must reject an overflowing temp path");
+}
+
+@test
+func test_fs_path_null_inputs_rejected(env : &mut TestEnv) {
+    var buf : [PATH_MAX_BUF]char;
+    var r1 = fs::basename(null, &raw mut buf[0], PATH_MAX_BUF as size_t);
+    expect_true(env, r1 is Result.Err, "basename must reject a null path");
+    var r2 = fs::join_path("a", null, &raw mut buf[0], PATH_MAX_BUF as size_t);
+    expect_true(env, r2 is Result.Err, "join_path must reject a null component");
+    var r3 = fs::read_to_buffer("x", null, 1 as size_t);
+    expect_true(env, r3 is Result.Err, "read_to_buffer must reject a null buffer");
+}
+
+@test
 func test_fs_path_normalize(env : &mut TestEnv) {
     var buf : [PATH_MAX_BUF]char;
     

@@ -38,6 +38,7 @@ func file_open_native(path : path_ptr, opts : OpenOptions) : Result<File, FsErro
 
 public func file_close(f : *mut File) : Result<UnitTy, FsError> {
         unsafe {
+    if(f == null) { return Result.Err(FsError.InvalidInput()); }
     if(!f.valid) { return Result.Ok(UnitTy{}); }
     var ok = CloseHandle(f.win.handle);
     if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
@@ -48,6 +49,8 @@ public func file_close(f : *mut File) : Result<UnitTy, FsError> {
 
 public func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
         unsafe {
+    if(f == null || (buf == null && buf_len != 0)) { return Result.Err(FsError.InvalidInput()); }
+    if(buf_len == 0) { return Result.Ok(0 as size_t); }
     var read_out : u32 = 0;
     var ok = ReadFile(f.win.handle, buf as *mut void, buf_len as u32, (&mut read_out) as *mut DWORD, null);
     if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
@@ -57,6 +60,8 @@ public func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<s
 
 public func file_write(f : *mut File, buf : *u8, buf_len : size_t) : Result<size_t, FsError> {
         unsafe {
+    if(f == null || (buf == null && buf_len != 0)) { return Result.Err(FsError.InvalidInput()); }
+    if(buf_len == 0) { return Result.Ok(0 as size_t); }
     var written : u32 = 0;
     var ok = WriteFile(f.win.handle, buf as *void, buf_len as u32, (&mut written) as *mut DWORD, null);
     if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
@@ -66,6 +71,7 @@ public func file_write(f : *mut File, buf : *u8, buf_len : size_t) : Result<size
 
 public func file_flush(f : *mut File) : Result<UnitTy, FsError> {
         unsafe {
+    if(f == null) { return Result.Err(FsError.InvalidInput()); }
     var ok = FlushFileBuffers(f.win.handle);
     if(ok == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
     return Result.Ok(UnitTy{});
@@ -122,6 +128,7 @@ func create_temp_file_in_native(dir : path_ptr, prefix : path_ptr, out_path : mu
 
 public func remove_file(path : *char) : Result<UnitTy, FsError> {
         unsafe {
+    if(path == null) { return Result.Err(FsError.InvalidInput()); }
     var w : [WIN_MAX_PATH]u16;
     var conv = utf8_to_utf16_inplace(path, &raw mut w[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) { var Err(e) = conv else unreachable; return Result.Err(e); }
@@ -131,6 +138,7 @@ public func remove_file(path : *char) : Result<UnitTy, FsError> {
 
 public func copy_file(src : *char, dst : *char) : Result<UnitTy, FsError> {
         unsafe {
+    if(src == null || dst == null) { return Result.Err(FsError.InvalidInput()); }
     var wsrc : [WIN_MAX_PATH]u16; var wdst : [WIN_MAX_PATH]u16;
     var r1 = utf8_to_utf16(src, &raw mut wsrc[0], WIN_MAX_PATH as size_t);
     if(r1 is Result.Err) {
@@ -175,6 +183,7 @@ func create_temp_file_in(dir : *char, prefix : *char, out_path : *mut char, out_
 
 public func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
         unsafe {
+    if(path == null) { return Result.Err(FsError.InvalidInput()); }
     // Convert path to UTF-16 and call CreateFileW
     var wbuf : [WIN_MAX_PATH]u16;
     var r = utf8_to_utf16(path, &raw mut wbuf[0], WIN_MAX_PATH as size_t);
@@ -188,6 +197,7 @@ public func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> 
 
 public func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
         unsafe {
+    if(path == null) { return Result.Err(FsError.InvalidInput()); }
     var wbuf : [WIN_MAX_PATH]u16;
     var conv = utf8_to_utf16(path, &raw mut wbuf[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) {

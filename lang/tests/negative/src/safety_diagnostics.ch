@@ -454,10 +454,23 @@ func neg_scoped_callback_cannot_return_parameter(env : &mut TestEnv) {
 }
 
 @test
-func neg_scoped_callback_cannot_forward_to_unannotated(env : &mut TestEnv) {
+func scoped_callback_unannotated_forwarding_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A custom sink is body-checked instead of requiring an annotation: this
+    // one discards the callback and never stores or returns it.
     var ch = "func sink(f : std::scoped_send_function<() => void>) { }\n@scoped_callback\nfunc run(f : std::scoped_send_function<() => void>) {\n    sink(f)\n}\npublic func main() : int { return 0 }\n"
-    expect_compile_error_with_mod(env, "scoped_callback_unannotated", ch, "SAFE-SCOPED-001", NEG_MOD_STD_CORE)
+    expect_compile_success_with_mod(env, "scoped_callback_unannotated", ch, NEG_MOD_STD_CORE)
+    // A custom sink may forward to a known join-before-return API.
+    var nested = "func sink(f : std::scoped_send_function<() => void>) {\n    std::thread.scoped_spawn_closure_erased(f)\n}\n@scoped_callback\nfunc run(f : std::scoped_send_function<() => void>) {\n    sink(f)\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_success_with_mod(env, "scoped_callback_unannotated_nested", nested, NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_scoped_callback_unannotated_sink_cannot_store(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The custom sink body is the proof; storing the callback there must fail.
+    var ch = "func sink(f : std::scoped_send_function<() => void>) {\n    var kept = f\n}\n@scoped_callback\nfunc run(f : std::scoped_send_function<() => void>) {\n    sink(f)\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "scoped_callback_unannotated_store", ch, "SAFE-SCOPED-001", NEG_MOD_STD_CORE)
 }
 
 @test

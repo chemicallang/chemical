@@ -5877,9 +5877,15 @@ public:
     FunctionParam* target;
     std::unordered_set<Value*> allowed_arguments;
     bool reported = false;
+    // Probe mode checks a candidate custom sink without emitting diagnostics
+    // at the sink body; the caller reports one SAFE-SCOPED-001 at the call site.
+    bool quiet = false;
+    std::unordered_set<FunctionDeclaration*>* active = nullptr;
 
-    ScopedCallbackContract(TypeVerifier& verifier, FunctionParam* target)
-        : verifier(verifier), target(target) {}
+    ScopedCallbackContract(TypeVerifier& verifier, FunctionParam* target,
+                           bool quiet = false,
+                           std::unordered_set<FunctionDeclaration*>* active = nullptr)
+        : verifier(verifier), target(target), quiet(quiet), active(active) {}
 
     static bool is_scoped_sink(FunctionDeclaration* callee) {
         if (callee == nullptr) return false;
@@ -5901,12 +5907,37 @@ public:
                name == chem::string_view("scoped_run_closure");
     }
 
+    bool is_sink_for_arg(FunctionDeclaration* callee, size_t arg_index) {
+        if (callee == nullptr) return false;
+        if (is_scoped_sink(callee)) return true;
+        if (!callee->body.has_value()) return false;
+        if (arg_index >= callee->params.size()) return false;
+        FunctionParam* param = callee->params[arg_index];
+        if (param == nullptr || param->type == nullptr) return false;
+        if (!is_scoped_send_capture_marker(
+                const_cast<BaseType*>(param->type.getType()))) {
+            return false;
+        }
+        if (active == nullptr || active->find(callee) != active->end()) {
+            // A cycle cannot be proven to join before returning.
+            return false;
+        }
+        active->insert(callee);
+        ScopedCallbackContract nested(verifier, param, true, active);
+        nested.VisitScope(&*callee->body);
+        active->erase(callee);
+        return !nested.reported;
+    }
+
     void VisitFunctionCall(FunctionCall* call) {
-        if (call != nullptr && is_scoped_sink(call->safe_linked_func())) {
-            for (Value* arg : call->values) {
-                Value* unwrapped = unwrap_scoped_callback_argument(arg);
-                if (unwrapped != nullptr && unwrapped->val_kind() == ValueKind::Identifier &&
-                    unwrapped->as_identifier_unsafe()->linked == target) {
+        if (call != nullptr) {
+            FunctionDeclaration* callee = call->safe_linked_func();
+            for (size_t i = 0; i < call->values.size(); ++i) {
+                Value* unwrapped = unwrap_scoped_callback_argument(call->values[i]);
+                if (unwrapped != nullptr &&
+                    unwrapped->val_kind() == ValueKind::Identifier &&
+                    unwrapped->as_identifier_unsafe()->linked == target &&
+                    is_sink_for_arg(callee, i)) {
                     allowed_arguments.insert(unwrapped);
                 }
             }
@@ -5918,10 +5949,12 @@ public:
         if (id != nullptr && id->linked == target &&
             allowed_arguments.find(id) == allowed_arguments.end() && !reported) {
             reported = true;
-            verifier.diagnoser.error(id).with_code("SAFE-SCOPED-001")
-                << "a @scoped_callback parameter may only be forwarded to a "
-                   "join-before-return scoped API; it cannot be returned, stored, "
-                   "captured, or passed to another function";
+            if (!quiet) {
+                verifier.diagnoser.error(id).with_code("SAFE-SCOPED-001")
+                    << "a @scoped_callback parameter may only be forwarded to a "
+                       "join-before-return scoped API; it cannot be returned, "
+                       "stored, captured, or passed to another function";
+            }
         }
     }
 };
@@ -5942,7 +5975,8 @@ static void verify_scoped_callback_contract(TypeVerifier& verifier,
         BaseType* type = const_cast<BaseType*>(param->type.getType());
         if (!is_scoped_send_capture_marker(type)) continue;
         found = true;
-        ScopedCallbackContract contract(verifier, param);
+        std::unordered_set<FunctionDeclaration*> active;
+        ScopedCallbackContract contract(verifier, param, false, &active);
         contract.VisitScope(&*decl->body);
     }
     if (!found) {

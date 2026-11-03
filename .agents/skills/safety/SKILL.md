@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2435/2435` |
 | LLVM main | `2433/2433` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `782/782` |
+| TCC/LLVM negative | `783/783` |
 | TCC/LLVM safety | `76/76` |
 | TCC/LLVM async | `77/77` |
 | TCC libs | `735/735` |
@@ -328,11 +328,12 @@ memory safety.
    string_view/u16string parsers, Rc/Arc/RefCell/thread-pool worker invariants,
    directory/metadata/UTF-16, Windows IPC, TLS/HTTP) and the target-specific
    audit list remain. The i386 Windows libraries are syntax/safety-clean.
-3. **`@scoped_callback` is body-checked, with a fixed sink list.**
+3. **`@scoped_callback` is body-checked, including custom sinks.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
-   scoped parameter anywhere except a known join-before-return API (resolved by exact library
-   namespace) or another annotated function. New scoped sink APIs must be added to that list; an
-   arbitrary user-defined sink is intentionally not trusted.
+   scoped parameter anywhere except a known join-before-return API (resolved by
+   exact library namespace), another annotated function, or a custom sink whose
+   body recursively proves the same forwarding property. A custom sink with no
+   body, a cycle, or a storing/returning/capturing body is rejected.
 4. **`Fn`/`FnMut`/`FnOnce` callable kinds are implemented for fixed and variadic
    function signatures.** `std::Fn<T>` is the reusable callable type;
    `std::FnMut<T>` requires a mutable local/field receiver; `std::FnOnce<T>`

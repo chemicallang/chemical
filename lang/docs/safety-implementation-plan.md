@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.94)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.95)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1446,10 +1446,15 @@ new number as the honest baseline, not a compiler regression.
    Rc/Arc/RefCell invariants, thread-pool worker cancellation/teardown,
    directory/metadata/UTF-16, Windows IPC, TLS/HTTP, and the target-specific
    audit list.
-3. **`@scoped_callback` has a fixed, checked sink list.** `SAFE-SCOPED-001`
-   rejects returning, storing, capturing, or passing the scoped parameter to an
-   unknown callee; only known join-before-return APIs (resolved by exact library
-   namespace) and other annotated functions are accepted. New scoped APIs need an explicit sink entry.
+3. **`@scoped_callback` is body-checked, including custom sinks.**
+   `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
+   scoped parameter to an unknown callee. Known join-before-return APIs
+   (resolved by exact library namespace) and other annotated functions are
+   accepted directly. A custom sink is accepted only when its body is visible
+   and the same forwarding proof succeeds recursively: it may discard the
+   callback or forward it only to another checked sink. A sink with no body,
+   a recursive cycle, or a body that stores/returns/captures the callback is
+   rejected.
 4. **`Fn`/`FnMut`/`FnOnce` callable kinds are implemented for fixed and variadic
    function signatures.** `std::Fn<T>` is the reusable callable type;
    `std::FnMut<T>` requires a mutable local/field receiver; `std::FnOnce<T>`
@@ -3085,3 +3090,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.92 (2026-11-03): semantic FFI wrapper audit, tranche 5 (vector replacement and filesystem buffers). `vector::set` now destroys the old element before storing the replacement, so destructor-bearing elements are not leaked. `fs::temp_dir` rejects null/undersized output buffers, `fs::copy_directory` bounds child path construction, and Windows `read_dir` bounds its search pattern. Added a destructor-counter vector replacement test and a temp-dir capacity/null test. Main TCC/LLVM `2434`/`2432`; `@test` `57`; negative `778`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth after a reviewed `destruct_stmts 23 -> 27` and `raw_pointer_addrs 10035 -> 10036` baseline update.
 *Revision note v4.93 (2026-11-03): large-array drop elaboration. Fixed arrays of directly destructible elements larger than 64 now use one runtime bool flag per element instead of falling back to a whole-array flag, so constant-index partial initialization, replacement, and scope cleanup work for `[100]string`, `[100]custom_dtor`, and similar arrays. Smaller arrays keep the existing scalar-flag form; arrays whose element type has generated drop glue, async frame slots, and unsized arrays remain unchanged. Added a 100-element destructor-counter regression test and a positive `[100]DT` partial-initialization negative test. Main TCC/LLVM `2435`/`2433`; `@test` `57`; negative `779`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v4.94 (2026-11-03): HRTB large reference arrays. A top-level fixed array of direct references with more than 64 elements now uses one wildcard element step in the MIR region signature instead of one path per element. The borrow checker seeds a single element-loan region for the array, so a callback returning an element keeps the caller source live and a later mutable borrow of any element still conflicts. Struct-nested large arrays, arrays of aggregates, and unsized arrays remain explicit `SAFE-BORROW-099` rejections. Added positive and alias-conflict tests for `[65]&'a int`. Main TCC/LLVM `2435`/`2433`; `@test` `57`; negative `782`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
+*Revision note v4.95 (2026-11-03): custom `@scoped_callback` sinks. `SAFE-SCOPED-001` now verifies an unannotated custom sink by body-checking it with the same forwarding contract instead of requiring every sink to be on the fixed library list. A custom sink may discard the callback or forward it to a known/checked sink; a body that stores, returns, captures, passes it elsewhere, has no body, or forms a recursive cycle is rejected. Added positive custom-sink and nested-known-sink tests plus a negative storing-custom-sink test. Main TCC/LLVM `2435`/`2433`; `@test` `57`; negative `783`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.

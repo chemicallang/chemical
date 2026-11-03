@@ -421,6 +421,10 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
     // A reference stored in a fixed-array element: key = (place << 32) | index.
     std::unordered_map<uint64_t, uint32_t> element_loans;
     std::unordered_map<uint64_t, uint32_t> element_params;
+    // A top-level large array of direct references: one loan covers every
+    // element, so the region signature records a wildcard element step.
+    std::unordered_map<PlaceId, uint32_t> element_all_loans;
+    std::unordered_map<PlaceId, uint32_t> element_all_params;
     // A by-value aggregate copied into an array element: the element's source
     // place owns the nested reference-field loans.
     std::unordered_map<uint64_t, PlaceId> element_place_sources;
@@ -456,27 +460,36 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                  param_sig.param_field_regions[pd.param_index]) {
                 ConstantId leaf_field = fr.field_name;
                 uint32_t leaf_index = MIR_INVALID_ID;
+                bool wildcard_element = false;
                 if (!fr.path.empty()) {
                     const MIRParamPathStep& leaf = fr.path.back();
                     if (leaf.is_index) {
                         leaf_field = MIR_INVALID_ID;
                         leaf_index = leaf.index;
+                        wildcard_element = leaf_index == MIR_INVALID_ID;
                     } else {
                         leaf_field = leaf.field;
                     }
                 }
                 if (leaf_field == MIR_INVALID_ID &&
-                    leaf_index == MIR_INVALID_ID) {
+                    leaf_index == MIR_INVALID_ID && !wildcard_element) {
                     continue;
                 }
-                const uint64_t key = leaf_field != MIR_INVALID_ID
-                                          ? field_key(p, leaf_field)
-                                          : element_key(p, leaf_index);
-                if ((leaf_field != MIR_INVALID_ID &&
-                     field_loans.find(key) != field_loans.end()) ||
-                    (leaf_field == MIR_INVALID_ID &&
-                     element_loans.find(key) != element_loans.end())) {
-                    continue;
+                uint64_t key = 0;
+                if (wildcard_element) {
+                    if (element_all_loans.find(p) != element_all_loans.end()) {
+                        continue;
+                    }
+                } else {
+                    key = leaf_field != MIR_INVALID_ID
+                              ? field_key(p, leaf_field)
+                              : element_key(p, leaf_index);
+                    if ((leaf_field != MIR_INVALID_ID &&
+                         field_loans.find(key) != field_loans.end()) ||
+                        (leaf_field == MIR_INVALID_ID &&
+                         element_loans.find(key) != element_loans.end())) {
+                        continue;
+                    }
                 }
                 Loan loan;
                 loan.target.root = p;
@@ -489,7 +502,10 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 loan.region = fr.region;
                 const uint32_t idx = static_cast<uint32_t>(loans.size());
                 loans.push_back(std::move(loan));
-                if (leaf_field != MIR_INVALID_ID) {
+                if (wildcard_element) {
+                    element_all_loans[p] = idx;
+                    element_all_params[p] = pd.param_index;
+                } else if (leaf_field != MIR_INVALID_ID) {
                     field_loans[key] = idx;
                     field_params[key] = pd.param_index;
                 } else {
@@ -1139,13 +1155,23 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                             const uint64_t key =
                                 element_key(base, static_cast<uint32_t>(index));
                             const auto lit = element_loans.find(key);
-                            if (lit != element_loans.end()) {
-                                value_loans[inst.result_or_place] = lit->second;
-                                loans[lit->second].end = lin;
+                            const auto all = element_all_loans.find(base);
+                            const uint32_t loan_id =
+                                lit != element_loans.end()
+                                    ? lit->second
+                                    : (all != element_all_loans.end()
+                                           ? all->second
+                                           : MIR_INVALID_ID);
+                            if (loan_id != MIR_INVALID_ID) {
+                                value_loans[inst.result_or_place] = loan_id;
+                                loans[loan_id].end = lin;
                             }
                             const auto lpi = element_params.find(key);
+                            const auto lpa = element_all_params.find(base);
                             if (lpi != element_params.end()) {
                                 value_params[inst.result_or_place] = lpi->second;
+                            } else if (lpa != element_all_params.end()) {
+                                value_params[inst.result_or_place] = lpa->second;
                             }
                         }
                     }
@@ -2080,11 +2106,18 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                             PlaceId current = field_base;
                             bool resolved = true;
                             bool leaf_is_index = false;
+                            bool wildcard_element = false;
                             uint64_t leaf_key = 0;
                             for (size_t i = 0; i < path.size(); ++i) {
                                 const MIRParamPathStep& step = path[i];
                                 leaf_is_index = step.is_index;
                                 if (step.is_index) {
+                                    if (step.index == MIR_INVALID_ID) {
+                                        wildcard_element = true;
+                                        if (i + 1 == path.size()) break;
+                                        resolved = false;
+                                        break;
+                                    }
                                     leaf_key = element_key(current, step.index);
                                 } else {
                                     leaf_key = field_key(current, step.field);
@@ -2111,7 +2144,12 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                             if (!resolved) continue;
                             uint32_t loan = MIR_INVALID_ID;
                             uint32_t param = MIR_INVALID_ID;
-                            if (leaf_is_index) {
+                            if (wildcard_element) {
+                                const auto lit = element_all_loans.find(current);
+                                if (lit != element_all_loans.end()) loan = lit->second;
+                                const auto lpi = element_all_params.find(current);
+                                if (lpi != element_all_params.end()) param = lpi->second;
+                            } else if (leaf_is_index) {
                                 const auto lit = element_loans.find(leaf_key);
                                 if (lit != element_loans.end()) loan = lit->second;
                                 const auto lpi = element_params.find(leaf_key);

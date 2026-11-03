@@ -3744,10 +3744,22 @@ uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
                 auto* arr = ac->as_array_type_unsafe();
                 BaseType* elem = const_cast<BaseType*>(arr->elem_type.getType());
                 const uint64_t count = arr->get_array_size();
-                // Keep the signature bounded. Larger arrays keep the explicit
-                // SAFE-BORROW-099 rejection instead of recording thousands of
-                // element leaves.
-                if (elem == nullptr || count == 0 || count > 64) return;
+                if (elem == nullptr || count == 0) return;
+                if (count > 64) {
+                    // A top-level large array of direct references is described
+                    // by one wildcard element step; the borrow checker keeps a
+                    // single element-loan region for the whole array. Nested
+                    // large arrays and aggregate elements keep the conservative
+                    // SAFE-BORROW-099 rejection.
+                    if (path.empty() && elem->canonical() != nullptr &&
+                        elem->canonical()->kind() == BaseTypeKind::Reference) {
+                        path.push_back(MIRParamPathStep{
+                            MIR_INVALID_ID, MIR_INVALID_ID, true});
+                        self(self, elem, parent_decl, parent_actual, path);
+                        path.pop_back();
+                    }
+                    return;
+                }
                 for (uint64_t i = 0; i < count; ++i) {
                     path.push_back(MIRParamPathStep{
                         MIR_INVALID_ID, static_cast<uint32_t>(i), true});

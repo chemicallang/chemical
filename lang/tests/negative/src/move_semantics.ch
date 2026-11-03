@@ -201,6 +201,16 @@ func partial_large_array_element_init_is_allowed(env : &mut TestEnv) {
 }
 
 @test
+func neg_partial_large_array_nested_field_write(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A large generated-glue array uses one flag per whole element. Field-wise
+    // initialization inside a single element is not tracked, so it stays
+    // rejected rather than dropping uninitialized sibling fields.
+    var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\nstruct S {\n    var a : DT\n    var b : DT\n}\npublic func main() : int {\n    unsafe {\n        var arr : [100]S\n        arr[0].a = DT { x : 1 }\n    }\n    return 0\n}\n"
+    expect_compile_error(env, "partial_large_array_nested_field", ch, "SAFE-INIT-001")
+}
+
+@test
 func neg_partial_array_dynamic_index(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // A dynamic index cannot update a per-element drop flag, so it may only

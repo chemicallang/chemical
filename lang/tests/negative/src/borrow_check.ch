@@ -480,6 +480,24 @@ func hrtb_array_element_borrowed_result_ok(env : &mut TestEnv) {
 }
 
 @test
+func hrtb_large_array_element_borrowed_result_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A top-level large array of direct references uses one wildcard element
+    // loan, so the returned element keeps the caller's source live.
+    var ch = "func <'a> read_refs(items : [65]&'a int) : &'a int {\n    return items[0]\n}\nfunc <'a> apply(f : for<'b> (items : [65]&'b int) => &'b int, x : &'a int, y : &'a int) : &'a int {\n    var items : [65]&'a int = [x, y, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x]\n    return f(items)\n}\npublic func main() : int {\n    var x = 41\n    var y = 7\n    var r = apply(read_refs, &x, &y)\n    return *r - 41\n}\n"
+    expect_compile_success(env, "hrtb_large_array_element_borrowed_result", ch)
+}
+
+@test
+func neg_hrtb_large_array_element_result_aliases(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Elements of the same large array share one region, so a later mutable
+    // borrow of any source element must still conflict with the result.
+    var ch = "func <'a> read_refs(items : [65]&'a int) : &'a int {\n    return items[0]\n}\nfunc <'a> apply(f : for<'b> (items : [65]&'b int) => &'b int, x : &'a int, y : &'a int) : &'a int {\n    var items : [65]&'a int = [x, y, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x]\n    return f(items)\n}\npublic func main() : int {\n    var x = 41\n    var y = 7\n    var r = apply(read_refs, &x, &y)\n    var q = &mut y\n    *q = 9\n    return *r - 41\n}\n"
+    expect_compile_error(env, "hrtb_large_array_result_alias", ch, "SAFE-BORROW-001")
+}
+
+@test
 func hrtb_generic_struct_borrowed_result_ok(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // A type-parameterised wrapper is substituted from the concrete type

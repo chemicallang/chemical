@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v4.93)
+# Chemical Full Safety Parity Plan (plan v4.1; status v4.94)
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
 > currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
@@ -1487,10 +1487,12 @@ new number as the honest baseline, not a compiler regression.
    multi-lifetime aggregates (`Pair<'a, 'b>`) keep precise per-leaf loans.
    Variant payloads and constant array elements are part of the same
    root-to-leaf path, so a borrowed payload/element result keeps its source
-   loan live. Fixed arrays up to 64 elements are path-mapped; larger or
-   unsized arrays keep an explicit `SAFE-BORROW-099` rejection. Elements of one
-   array share the element lifetime and are therefore conservatively aliased;
-   the result cannot be used to mutate a sibling. Caller-owned retaining
+   loan live. Fixed arrays up to 64 elements are path-mapped per element; a
+   **top-level** larger array of direct references is described by one
+   wildcard element step and one element-loan region, so the result keeps its
+   source loan live (its elements still share the element lifetime and remain
+   conservatively aliased). Larger arrays nested in a struct, arrays of
+   aggregates, and unsized arrays keep an explicit `SAFE-BORROW-099` rejection. Caller-owned retaining
    storage without a provable outlives edge, opaque retaining storage with no
    named region, and retaining pointees with mismatched binders are the
    remaining HRTB precision edge cases.
@@ -3082,3 +3084,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v4.91 (2026-11-03): semantic FFI wrapper audit, tranche 4 (thread-pool Future ownership). `concurrent.Future<T>` now keeps its promise pointer private, makes the raw-pointer constructor `unsafe`, and panics on `get` after the future was emptied instead of dereferencing null. `concurrent.Promise<T>` fields and constructor are internal to `std`, so safe callers cannot manufacture or mutate an unsynchronized promise. Added a negative test for the unsafe Future constructor. Main TCC/LLVM `2433`/`2431`; `@test` `57`; negative `778`; safety `76`; async `77`; libs `734`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v4.92 (2026-11-03): semantic FFI wrapper audit, tranche 5 (vector replacement and filesystem buffers). `vector::set` now destroys the old element before storing the replacement, so destructor-bearing elements are not leaked. `fs::temp_dir` rejects null/undersized output buffers, `fs::copy_directory` bounds child path construction, and Windows `read_dir` bounds its search pattern. Added a destructor-counter vector replacement test and a temp-dir capacity/null test. Main TCC/LLVM `2434`/`2432`; `@test` `57`; negative `778`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth after a reviewed `destruct_stmts 23 -> 27` and `raw_pointer_addrs 10035 -> 10036` baseline update.
 *Revision note v4.93 (2026-11-03): large-array drop elaboration. Fixed arrays of directly destructible elements larger than 64 now use one runtime bool flag per element instead of falling back to a whole-array flag, so constant-index partial initialization, replacement, and scope cleanup work for `[100]string`, `[100]custom_dtor`, and similar arrays. Smaller arrays keep the existing scalar-flag form; arrays whose element type has generated drop glue, async frame slots, and unsized arrays remain unchanged. Added a 100-element destructor-counter regression test and a positive `[100]DT` partial-initialization negative test. Main TCC/LLVM `2435`/`2433`; `@test` `57`; negative `779`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.
+*Revision note v4.94 (2026-11-03): HRTB large reference arrays. A top-level fixed array of direct references with more than 64 elements now uses one wildcard element step in the MIR region signature instead of one path per element. The borrow checker seeds a single element-loan region for the array, so a callback returning an element keeps the caller source live and a later mutable borrow of any element still conflicts. Struct-nested large arrays, arrays of aggregates, and unsized arrays remain explicit `SAFE-BORROW-099` rejections. Added positive and alias-conflict tests for `[65]&'a int`. Main TCC/LLVM `2435`/`2433`; `@test` `57`; negative `782`; safety `76`; async `77`; TCC libs `735`; interpret `1931`; `MIRTests` `4749`; TSAN pass; audit no growth.

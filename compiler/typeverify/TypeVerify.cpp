@@ -5225,6 +5225,7 @@ static bool hrtb_aggregate_param_ok_impl(
         const std::vector<chem::string_view>& binders,
         std::vector<chem::string_view>* field_lifetimes,
         bool allow_nested,
+        bool allow_wide_array,
         bool collect_lifetimes,
         std::unordered_set<BaseType*>& visiting,
         const std::vector<chem::string_view>& parent_decl_lifetimes = {},
@@ -5259,12 +5260,21 @@ static bool hrtb_aggregate_param_ok_impl(
         // source, so keep the conservative HRTB rejection.
         const uint64_t count = array->get_array_size();
         if (elem == nullptr) return false;
+        if (count > 64 && allow_wide_array && elem->canonical() != nullptr &&
+            elem->canonical()->kind() == BaseTypeKind::Reference) {
+            // A top-level large array of direct references is tracked with one
+            // element-loan region instead of one path per element. The MIR call
+            // contract records a wildcard element step for it.
+            return hrtb_aggregate_param_ok_impl(
+                elem, binders, field_lifetimes, false, false, collect_lifetimes,
+                visiting, parent_decl_lifetimes, parent_actual_lifetimes);
+        }
         if (count == 0 || count > 64) {
             return !hrtb_type_mentions_mapped_binder(
                 elem, parent_decl_lifetimes, parent_actual_lifetimes, binders);
         }
         return hrtb_aggregate_param_ok_impl(
-            elem, binders, field_lifetimes, true, collect_lifetimes, visiting,
+            elem, binders, field_lifetimes, true, false, collect_lifetimes, visiting,
             parent_decl_lifetimes, parent_actual_lifetimes);
     }
     ASTNode* canonical_node = canonical->get_direct_linked_canonical_node();
@@ -5333,8 +5343,9 @@ static bool hrtb_aggregate_param_ok_impl(
                         ft, decl_lifetimes, actual_lifetimes, binders)) {
                     if (!allow_nested ||
                         !hrtb_aggregate_param_ok_impl(
-                            ft, binders, field_lifetimes, true, collect_lifetimes,
-                            visiting, decl_lifetimes, actual_lifetimes)) {
+                            ft, binders, field_lifetimes, true, false,
+                            collect_lifetimes, visiting, decl_lifetimes,
+                            actual_lifetimes)) {
                         return false;
                     }
                 }
@@ -5412,7 +5423,7 @@ static bool hrtb_aggregate_param_ok_impl(
             // field-source chain to keep those loans alive.
             if (!allow_nested ||
                 !hrtb_aggregate_param_ok_impl(ft, binders, field_lifetimes, true,
-                                             collect_lifetimes, visiting,
+                                             false, collect_lifetimes, visiting,
                                              decl_lifetimes, actual_lifetimes)) {
                 return false;
             }
@@ -5427,8 +5438,12 @@ static bool hrtb_aggregate_param_ok(
         std::vector<chem::string_view>* field_lifetimes = nullptr,
         bool allow_nested = false) {
     std::unordered_set<BaseType*> visiting;
+    BaseType* canonical = type ? type->canonical() : nullptr;
+    const bool top_level_array = canonical != nullptr &&
+                                 canonical->kind() == BaseTypeKind::Array;
     return hrtb_aggregate_param_ok_impl(type, binders, field_lifetimes,
-                                        allow_nested, true, visiting);
+                                        allow_nested, top_level_array, true,
+                                        visiting);
 }
 /** Collect the single lifetime carried by a nested FutureHandle result. */
 static void collect_future_lifetimes_ast(

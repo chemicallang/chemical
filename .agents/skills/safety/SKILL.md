@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2435/2435` |
 | LLVM main | `2433/2433` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `779/779` |
+| TCC/LLVM negative | `782/782` |
 | TCC/LLVM safety | `76/76` |
 | TCC/LLVM async | `77/77` |
 | TCC libs | `735/735` |
@@ -357,8 +357,10 @@ memory safety.
    through the path-aware MIR field-source chain, and each leaf uses its own
    declared lifetime. Variant payloads and constant array elements are also
    path-mapped, so their borrowed results keep the source loan live;
-   same-lifetime array elements remain conservatively aliased, and fixed
-   arrays larger than 64 elements (or unsized arrays) keep the explicit
+   same-lifetime array elements remain conservatively aliased. A top-level
+   fixed array of direct references larger than 64 elements uses one wildcard
+   element step and one shared element-loan region; larger arrays nested in a
+   struct, arrays of aggregates, and unsized arrays keep the explicit
    `SAFE-BORROW-099` rejection. A retaining parameter whose loan target is a
    local/temporary or a by-value parameter copy may hold any argument borrow,
    so mixed/distinct sources are accepted and pinned to function exit.

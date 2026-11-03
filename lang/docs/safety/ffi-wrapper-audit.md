@@ -149,6 +149,18 @@ Regression coverage: `string split returns owned pieces`,
 `string_view split returns owned pieces`, `split pieces outlive the source`,
 and `neg_split_views_requires_unsafe`.
 
+## Tranche 9 — u16string append aliasing and null sources (2026-11-03)
+
+| Wrapper | Invariant | Enforcement |
+|---|---|---|
+| `u16string.append_with_len` | a null source is only valid for a zero-length append | zero length returns; null with a positive length panics |
+| `u16string.append_with_len` | a source aliasing the string's own storage survives the storage move | source byte offset is recomputed after `ensure_mut`/`move_data_to_heap` |
+| `u16string.append_utf8_view` | source pointer is non-null before decoding | null with a positive length panics |
+
+Regression coverage: `u16 string self append survives storage move` forces an
+SSO -> heap move while appending the string to itself; the safety suite adds
+`u16_string_append_null_panics` and `u16_string_append_utf8_null_panics`.
+
 Still remaining in this group: actual zero-sized vector support,
 `string_view`/`u16string` raw constructors, remaining `Rc`/`Arc` weak-handle
 invariants, `RefCell` guard escape, and thread-pool worker

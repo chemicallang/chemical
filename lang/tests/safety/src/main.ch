@@ -789,6 +789,20 @@ func string_append_null_panics(env : &mut TestEnv) {
 }
 
 @test
+func u16_string_append_null_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var a : [1]u16 = [65u16]\n    var s = unsafe(std::u16string(&raw mut a[0], 1))\n    s.append_with_len(null, 1)\n    return 0\n}\n"
+    expect_runtime_panic(env, "u16_string_append_null_panics", ch)
+}
+
+@test
+func u16_string_append_utf8_null_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var a : [1]u16 = [65u16]\n    var s = unsafe(std::u16string(&raw mut a[0], 1))\n    s.append_utf8_view(null, 1)\n    return 0\n}\n"
+    expect_runtime_panic(env, "u16_string_append_utf8_null_panics", ch)
+}
+
+@test
 func panic_reports_message(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "public func main() : int {\n    panic(\"safety panic message\")\n    return 0\n}\n"

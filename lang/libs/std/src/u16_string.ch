@@ -280,6 +280,8 @@ public struct u16string {
 
     func append_with_len(&mut self, value : *u16, len : size_t) {
         unsafe {
+            if(len == 0) { return }
+            if(value == null) { panic("u16_string append from a null pointer") }
             // offset, where we start writing
             const offset = size()
             // `ensure_mut` rejects lengths above this limit; checking here keeps
@@ -290,17 +292,34 @@ public struct u16string {
             }
             // the size of the string, after we've written
             const new_size = offset + len
+            // If the source aliases this string's own storage, growing may move
+            // that storage. Remember the source byte offset and recompute it
+            // after `ensure_mut`.
+            const old_data = data()
+            const old_begin = old_data as ubigint
+            const old_end = old_begin + (offset * 2)
+            const src_addr = value as ubigint
+            var src_offset : size_t = 0
+            var self_source = false
+            if(src_addr >= old_begin && src_addr < old_end) {
+                self_source = true
+                src_offset = (src_addr - old_begin) as size_t
+            }
             // +1 for null terminator
             ensure_mut(new_size + 1);
+            var source = value
+            if(self_source) {
+                source = (data() as *uchar + src_offset) as *u16
+            }
             if(state == '1') {
                 // len * 2 (because len is of 2 byte characters, memcpy works for single byte pointers)
-                unsafe { memcpy(&raw mut storage.sso.buffer[offset], value, len * 2) }
+                unsafe { memcpy(&raw mut storage.sso.buffer[offset], source, len * 2) }
                 storage.sso.buffer[new_size] = 0u16
                 storage.sso.length = new_size
             } else {
                 // state is '2', it cannot be '0'
                 // len * 2 (because len is of 2 byte characters, memcpy works for single byte pointers)
-                unsafe { memcpy(&raw mut storage.heap.data[offset], value, len * 2) }
+                unsafe { memcpy(&raw mut storage.heap.data[offset], source, len * 2) }
                 storage.heap.data[new_size] = 0u16
                 storage.heap.length = new_size
             }
@@ -374,6 +393,7 @@ public struct u16string {
     func append_utf8_view(&mut self, ptr : *char, len : size_t) {
         unsafe {
             if(len == 0) { return; }
+            if(ptr == null) { panic("u16_string append from a null pointer") }
             // worst-case u16 units needed: len (each byte -> at most 1 u16 unit for ASCII,
             // multi-byte sequences produce <=1 or 2 units; allocating len is safe)
             if(len > (((0 as size_t) - 1) - 2) / 2 - 1) {

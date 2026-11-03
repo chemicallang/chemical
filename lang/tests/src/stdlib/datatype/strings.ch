@@ -160,6 +160,19 @@ func test_strings() {
             p[0] = 90u16
             return s.size() == 11 && s.get(0) == 90u16
         })
+        test("u16 string self append survives storage move", () => {
+            var a : [7]u16 = [65u16, 66u16, 67u16, 68u16, 69u16, 70u16, 71u16]
+            var s = unsafe(std::u16string(&raw mut a[0], 7, false))
+            // Move the constant view into SSO storage first, then append the
+            // SSO units to themselves; this forces the SSO -> heap move.
+            s.set(0, 65u16)
+            s.append_with_len(s.data(), s.size())
+            if(s.size() != 14) { return false }
+            for(var i : size_t = 0; i < 7; i++) {
+                if(s.get(i) != s.get(i + 7)) { return false }
+            }
+            return true
+        })
         test("u16 string pop_back copies a long constant view to heap storage", () => {
             var a : [12]u16 = [65u16, 66u16, 67u16, 68u16, 69u16, 70u16, 71u16, 72u16, 73u16, 74u16, 75u16, 0u16]
             var s = unsafe(std::u16string(&raw mut a[0], 11, false))

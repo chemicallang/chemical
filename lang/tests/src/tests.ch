@@ -88,6 +88,7 @@ func run_executable_tests() {
     test_mem();
     test_deque();
     test_conversions();
+    test_conversion_overflow();
     test_thread_pool()
     test_time_types();
     test_allocator();

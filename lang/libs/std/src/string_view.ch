@@ -121,75 +121,108 @@ public namespace std {
 
         func to_i8(&self) : std::Result<i8, std::string_view> {
             switch(to_i64()) {
-                Ok(v) => return std::Result.Ok(v as i8)
+                Ok(v) => {
+                    if(v < -128i64 || v > 127i64) return std::Result.Err(std::string_view("out of range"))
+                    return std::Result.Ok(v as i8)
+                }
                 Err(e) => return std::Result.Err(e)
             }
         }
         func to_i16(&self) : std::Result<i16, std::string_view> {
             switch(to_i64()) {
-                Ok(v) => return std::Result.Ok(v as i16)
+                Ok(v) => {
+                    if(v < -32768i64 || v > 32767i64) return std::Result.Err(std::string_view("out of range"))
+                    return std::Result.Ok(v as i16)
+                }
                 Err(e) => return std::Result.Err(e)
             }
         }
         func to_i32(&self) : std::Result<i32, std::string_view> {
             switch(to_i64()) {
-                Ok(v) => return std::Result.Ok(v as i32)
+                Ok(v) => {
+                    if(v < -2147483648i64 || v > 2147483647i64) return std::Result.Err(std::string_view("out of range"))
+                    return std::Result.Ok(v as i32)
+                }
                 Err(e) => return std::Result.Err(e)
             }
         }
         func to_i64(&self) : std::Result<i64, std::string_view> {
         unsafe {
-                var res : i64 = 0
-                var sign : i64 = 1
                 var i : size_t = 0
                 while (i < _size && unsafe(isspace(_data[i]))) i++
                 if (i == _size) return std::Result.Err(std::string_view("empty string"))
+                var negative = false
                 if (_data[i] == '-') {
-                    sign = -1
+                    negative = true
                     i++
                 } else if (_data[i] == '+') {
                     i++
                 }
                 if (i == _size || !unsafe(isdigit(_data[i]))) return std::Result.Err(std::string_view("invalid format"))
+                var mag : u64 = 0
+                var limit : u64 = 9223372036854775807u64
+                if(negative) limit = 9223372036854775808u64
                 while (i < _size && unsafe(isdigit(_data[i]))) {
-                    res = res * 10 + (_data[i] - '0') as i64
+                    var digit = (_data[i] - '0') as u64
+                    if(mag > (limit - digit) / 10u64) {
+                        return std::Result.Err(std::string_view("integer overflow"))
+                    }
+                    mag = mag * 10u64 + digit
                     i++
                 }
                 while (i < _size && unsafe(isspace(_data[i]))) i++
                 if (i < _size) return std::Result.Err(std::string_view("trailing characters"))
-                return std::Result.Ok(res * sign)
+                if(!negative) return std::Result.Ok(mag as i64)
+                if(mag == 9223372036854775808u64) {
+                    return std::Result.Ok(-9223372036854775807i64 - 1i64)
+                }
+                return std::Result.Ok(0i64 - (mag as i64))
         
         }
     }
 
         func to_u8(&self) : std::Result<u8, std::string_view> {
             switch(to_u64()) {
-                Ok(v) => return std::Result.Ok(v as u8)
+                Ok(v) => {
+                    if(v > 255u64) return std::Result.Err(std::string_view("out of range"))
+                    return std::Result.Ok(v as u8)
+                }
                 Err(e) => return std::Result.Err(e)
             }
         }
         func to_u16(&self) : std::Result<u16, std::string_view> {
             switch(to_u64()) {
-                Ok(v) => return std::Result.Ok(v as u16)
+                Ok(v) => {
+                    if(v > 65535u64) return std::Result.Err(std::string_view("out of range"))
+                    return std::Result.Ok(v as u16)
+                }
                 Err(e) => return std::Result.Err(e)
             }
         }
         func to_u32(&self) : std::Result<u32, std::string_view> {
             switch(to_u64()) {
-                Ok(v) => return std::Result.Ok(v as u32)
+                Ok(v) => {
+                    if(v > 4294967295u64) return std::Result.Err(std::string_view("out of range"))
+                    return std::Result.Ok(v as u32)
+                }
                 Err(e) => return std::Result.Err(e)
             }
         }
         func to_u64(&self) : std::Result<u64, std::string_view> {
         unsafe {
-                var res : u64 = 0
                 var i : size_t = 0
                 while (i < _size && unsafe(isspace(_data[i]))) i++
                 if (i == _size) return std::Result.Err(std::string_view("empty string"))
                 if (_data[i] == '+') i++
                 if (i == _size || !unsafe(isdigit(_data[i]))) return std::Result.Err(std::string_view("invalid format"))
+                var res : u64 = 0
+                var limit : u64 = 18446744073709551615u64
                 while (i < _size && unsafe(isdigit(_data[i]))) {
-                    res = res * 10 + (_data[i] - '0') as u64
+                    var digit = (_data[i] - '0') as u64
+                    if(res > (limit - digit) / 10u64) {
+                        return std::Result.Err(std::string_view("integer overflow"))
+                    }
+                    res = res * 10u64 + digit
                     i++
                 }
                 while (i < _size && unsafe(isspace(_data[i]))) i++

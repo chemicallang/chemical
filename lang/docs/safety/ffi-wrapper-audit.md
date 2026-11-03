@@ -105,10 +105,22 @@ Regression coverage: `neg_threadpool_future_constructor_requires_unsafe`
 Regression coverage: the vector destructor-counter replacement test and
 `test_fs_temp_dir_rejects_small_or_null_output`.
 
+## Tranche 6 — string_view numeric parsers (2026-11-03)
+
+| Wrapper | Invariant | Enforcement |
+|---|---|---|
+| `string_view::to_i8/i16/i32/i64` | parsed value fits the target width | magnitude accumulation with per-type limits; signed min handled without overflowing negation |
+| `string_view::to_u8/u16/u32/u64` | parsed value fits the unsigned width | magnitude accumulation with `u64` max and per-type range checks |
+| `string_view::to_int/to_uint/to_i32/to_u32` | narrow conversions do not truncate | underlying parser returns `Err("out of range")` before the cast |
+
+Regression coverage: `lang/tests/src/stdlib/datatype/conversions.ch` checks
+both limits and one-past-limit inputs for i8/i16/i32/i64/u8/u16/u32/u64,
+including `i64::MIN` and `u64::MAX`.
+
 Still remaining in this group: actual zero-sized vector support,
-`string_view`/`u16string` raw constructors and numeric parsers, remaining
-`Rc`/`Arc` weak-handle invariants, `RefCell` guard escape, and thread-pool
-worker cancellation/teardown invariants.
+`string_view`/`u16string` raw constructors, remaining `Rc`/`Arc` weak-handle
+invariants, `RefCell` guard escape, and thread-pool worker
+cancellation/teardown invariants.
 
 ## Coverage
 

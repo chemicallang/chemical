@@ -254,6 +254,7 @@ public func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError
 // read_dir: callback style to avoid allocations. Callback signature: fn(name : *char, name_len : size_t, is_dir : bool) -> bool
 public func read_dir(path : *char, callback : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool>) : Result<UnitTy, FsError> {
         unsafe {
+        if(path == null) { return Result.Err(FsError.InvalidInput()); }
         var d = unsafe(opendir(path));
         if(d == null) { return Result.Err(posix_errno_to_fs(get_errno())); }
         while(true) {
@@ -266,11 +267,27 @@ public func read_dir(path : *char, callback : std::function<(name : *char, name_
             // if(def.HAVE_DIRENT_D_TYPE)
             // isdir = (ent.d_type == DT_DIR);
             // else {
-            // fallback: stat child
+            // fallback: stat child. The child path is assembled into a fixed
+            // stack buffer, so every component must be bounded before writing.
             var child : [PATH_MAX_BUF]char;
-            var p : size_t = 0; while(path[p] != 0) { child[p] = path[p]; p++ }
-            if(p > 0 && child[p-1] != '/') { child[p++] = '/'; }
-            var q : size_t = 0; while(q <= nl) { child[p + q] = name_ptr[q]; q++ }
+            var p : size_t = 0;
+            while(path[p] != 0) {
+                if(p + 1 >= PATH_MAX_BUF as size_t) {
+                    unsafe { closedir(d) };
+                    return Result.Err(FsError.PathTooLong());
+                }
+                child[p] = path[p];
+                p++;
+            }
+            var separator : size_t = 0;
+            if(p > 0 && child[p-1] != '/') { separator = 1; }
+            if(p + separator + nl + 1 > PATH_MAX_BUF as size_t) {
+                unsafe { closedir(d) };
+                return Result.Err(FsError.PathTooLong());
+            }
+            if(separator != 0) { child[p++] = '/'; }
+            var q : size_t = 0;
+            while(q <= nl) { child[p + q] = name_ptr[q]; q++ }
             var st : Stat;
             var r = unsafe(lstat(&raw child[0], unsafe(&raw mut st)));
             if(r == 0) { isdir = ((st.st_mode & 0xF000) == 0x4000); }

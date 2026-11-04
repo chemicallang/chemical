@@ -3,6 +3,7 @@ public namespace fs {
 using std::Result;
 
 public func metadata(path : *char) : Result<Metadata, FsError> {
+    if(path == null) { return Result.Err(FsError.InvalidInput()); }
     var st : Stat;
     var r = unsafe(lstat(path, unsafe(&raw mut st)));
     if(r != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }

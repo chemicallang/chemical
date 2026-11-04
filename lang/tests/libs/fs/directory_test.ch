@@ -79,6 +79,15 @@ func test_fs_temp_dir(env : &mut TestEnv) {
 }
 
 @test
+func test_fs_directory_rejects_null_inputs(env : &mut TestEnv) {
+    var meta = fs::metadata(null);
+    expect_true(env, meta is Result.Err, "metadata(null) should fail closed");
+
+    var rd = fs::read_dir(null, ||(name : *char, len : size_t, is_dir : bool) => true);
+    expect_true(env, rd is Result.Err, "read_dir(null) should fail closed");
+}
+
+@test
 func test_fs_copy_directory_recursive(env : &mut TestEnv) {
     var base = make_test_base_dir(env);
     fs::remove_dir_all_recursive(base.data());

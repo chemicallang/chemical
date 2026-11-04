@@ -55,7 +55,7 @@ Latest measured baseline:
 | TCC/LLVM negative | `818/818` |
 | TCC/LLVM safety | `78/78` |
 | TCC/LLVM async | `83/83` |
-| TCC libs | `735/735` |
+| TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
 | TCC interpret | `1938/1938` |
 | `MIRTests` | `4749 checks` |
@@ -350,7 +350,7 @@ memory safety.
    vector replacement drops, filesystem temp/copy path buffer bounds, and
    non-`Copy` map `find` rejection). The rest of the safe wrapper surface
    (actual zero-sized vector support, string_view/u16string parsers,
-   Rc/Arc/RefCell invariants, directory/metadata/UTF-16, Windows IPC,
+   Rc/Arc/RefCell invariants, Windows UTF-16/tree removal, Windows IPC,
    TLS/HTTP) and the target-specific audit list remain. The i386 Windows
    libraries are syntax/safety-clean.
 3. **`@scoped_callback` is body-checked, including custom sinks.**

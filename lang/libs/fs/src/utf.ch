@@ -4,6 +4,7 @@ using std::Result;
 
 func utf8_to_utf16(in_utf8 : *char, out_w : *mut u16, out_w_len : size_t) : Result<size_t, FsError> {
         unsafe {
+        if(in_utf8 == null || out_w == null) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
         // Safe UTF-8 -> UTF-16 converter: validates continuation bytes and avoids out-of-bounds reads.
         var i : size_t = 0;
         var wpos : size_t = 0;
@@ -96,6 +97,7 @@ func utf8_to_utf16(in_utf8 : *char, out_w : *mut u16, out_w_len : size_t) : Resu
 
 func utf16_to_utf8(in_w : *u16, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
         unsafe {
+        if(in_w == null || out == null) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
         var i : size_t = 0;
         var pos : size_t = 0;
         while(true) {
@@ -109,8 +111,9 @@ func utf16_to_utf8(in_w : *u16, out : *mut char, out_len : size_t) : Result<size
                 out[pos++] = (0xC0 | ((w >> 6) & 0x1F)) as char;
                 out[pos++] = (0x80 | (w & 0x3F)) as char;
             } else if(w >= 0xD800 && w <= 0xDBFF) {
-                // surrogate pair
+                // surrogate pair; an unpaired high surrogate is invalid UTF-16
                 var w2 = in_w[i+1];
+                if(w2 < 0xDC00 || w2 > 0xDFFF) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
                 var code = 0x10000 + ((((w & 0x3FF) as u32) << 10) | ((w2 & 0x3FF) as u32));
                 if(pos + 4 >= out_len) { return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
                 out[pos++] = (0xF0 | ((code >> 18) & 0x07)) as char;
@@ -118,6 +121,9 @@ func utf16_to_utf8(in_w : *u16, out : *mut char, out_len : size_t) : Result<size
                 out[pos++] = (0x80 | ((code >> 6) & 0x3F)) as char;
                 out[pos++] = (0x80 | (code & 0x3F)) as char;
                 i += 1; // consumed extra
+            } else if(w >= 0xDC00 && w <= 0xDFFF) {
+                // unpaired low surrogate
+                return Result.Err<size_t, FsError>(FsError.InvalidInput());
             } else {
                 if(pos + 3 >= out_len) { return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
                 out[pos++] = (0xE0 | ((w >> 12) & 0x0F)) as char;

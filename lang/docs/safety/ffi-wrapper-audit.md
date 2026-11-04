@@ -195,9 +195,25 @@ a glibc heap corruption/abort.
 
 Regression coverage: `test_pool_last_owner_dropped_on_worker`.
 
+## Tranche 12 — POSIX filesystem bounds/null and UTF-16 (2026-11-04)
+
+| Wrapper | Invariant | Enforcement |
+|---|---|---|
+| `fs::read_dir` | `path + separator + entry + NUL` fits `PATH_MAX_BUF` | null rejection and checked arithmetic before every stack-buffer write |
+| `fs::metadata` | a null path is not passed to `lstat` | `InvalidInput` |
+| `utf8_to_utf16` | null input/output is rejected | `InvalidInput` |
+| `utf16_to_utf8` | null input/output and unpaired surrogates are rejected | `InvalidInput`; high surrogates require a low-surrogate follower |
+
+`read_dir` previously copied `path` and the `dirent` name into a fixed
+`PATH_MAX_BUF` stack buffer without checking either length; a long-but-valid
+directory path plus a long entry name could overwrite the stack. The path is
+now bounded before the slash and name/NUL are appended.
+
+Regression coverage: `test_fs_directory_rejects_null_inputs`.
+
 Still remaining in this group: actual zero-sized vector support,
 `string_view`/`u16string` raw constructors, remaining `Rc`/`Arc` weak-handle
-invariants, and `RefCell` guard escape.
+invariants, `RefCell` guard escape, and Windows UTF-16/tree removal.
 
 ## Coverage
 

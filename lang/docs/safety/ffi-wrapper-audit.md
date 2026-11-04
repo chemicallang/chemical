@@ -242,9 +242,33 @@ and closes the find handle on every exit.
 Regression coverage: `test_fs_directory_rejects_null_inputs` (runs on POSIX;
 the same public APIs are compiled for the i386 Windows target check).
 
+## Tranche 15 — HTTP body ownership and raw wrappers (2026-11-04)
+
+| Wrapper | Invariant | Enforcement |
+|---|---|---|
+| `http::Body.make_body` | the Body must not retain a pointer to caller stack storage | **`unsafe func`**; when `owns=false`, the already-read bytes are copied into a Body-owned `net::Buffer` |
+| `http::Body.read` | null destination only valid for zero-length reads | `-1` for null with positive capacity; capacity above `INT_MAX` also rejected |
+| `net::Buffer.as_ptr` | never index the backing vector at `read_pos == size` | returns null once all bytes are consumed |
+| `http::ResponseWriter.send_file` | `open`/`CreateFileA` receive a NUL-terminated path | copies the view into a temporary `std::string`; rejects empty/null views |
+| `http::strcasecmp` | raw C-string arguments cannot be length-validated | **`unsafe func`**; null/null and null/non-null return deterministic |
+| `http::parse_request_from_bytes` | caller supplies the raw pointer/length | **`unsafe func`**; safe callers use the incremental reader |
+| `http::read_response_incremental` | TLS context is a raw pointer and the caller controls the body limit | **`unsafe func`**; Body no longer borrows the parser scratch buffer |
+
+The Body copy closes a safe-API lifetime hole: `read_request_incremental` and the
+server pass a stack `net::Buffer`, while the resulting `Request` can outlive the
+handler call. `make_body` now either takes ownership (`owns=true`) or copies the
+already-read bytes into its own buffer. The client frees its parser scratch
+buffer once the response Body has copied it. `Buffer.as_ptr` previously indexed
+one past the vector after the header bytes were fully consumed (`size != 0`,
+`read_pos == size`), which the new copy path exposed.
+
+Regression coverage (LLVM TLS filter): `http_body_read_rejects_null_buffer`,
+`http_body_copies_initial_buffer`, and `http_strcasecmp_handles_null`; the
+existing invalid-URL/connection-refused checks also pass.
+
 Still remaining in this group: actual zero-sized vector support (the current
 fail-closed rejection is safe but ergonomically incomplete), Windows IPC,
-TLS/HTTP, and the target-specific audit list.
+TLS transport/handshake ownership, and the target-specific audit list.
 
 ## Coverage
 
@@ -265,8 +289,9 @@ TLS/HTTP, and the target-specific audit list.
   POSIX/Windows file APIs (directory traversal/removal bounds are now audited).
 - `net` Windows IOCP, async socket lifetime/close rules, and address/socket
   error-code normalization.
-- `tls`/`http`/`server` transport wrappers: buffer ownership and handshake
-  lifetime rules.
+- `tls`/`http`/`server` transport wrappers: TLS handshake/transport ownership
+  and the remaining server paths (HTTP body construction and client scratch
+  buffer ownership are now audited).
 - `cstd` remains the raw C surface; its functions stay `@extern`/unsafe and are
   not safe wrappers. New safe wrappers must not expose `*char`/`*mut` without a
   documented and enforced contract.

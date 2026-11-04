@@ -95,10 +95,13 @@ public namespace http {
         }
 
         func send_file(&mut self, path_view : &std::string_view, content_type : &std::string_view) : bool {
+            if(path_view.data() == null || path_view.size() == 0u) { return false }
             set_header_view(std::string_view("Content-Type"), content_type);
-            const path = path_view.data()
+            // `open`/`CreateFileA` require a NUL-terminated path; a view over a
+            // substring need not be terminated.
+            var path = unsafe(std::string(path_view.data(), path_view.size()))
             comptime if(def.windows) {
-                var fh = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, null, OPEN_EXISTING, 0u, 0 as HANDLE);
+                var fh = CreateFileA(path.data(), GENERIC_READ, FILE_SHARE_READ, null, OPEN_EXISTING, 0u, 0 as HANDLE);
                 if (fh == 0u || fh == -1 as uintptr_t) { return false; }
                 var filesize: longlong = 0
                 if (GetFileSizeEx(fh, (&mut filesize) as *mut LARGE_INTEGER) == 0) {
@@ -109,7 +112,7 @@ public namespace http {
                 CloseHandle(fh);
                 return ok != 0;
             } else {
-                var fd = unsafe(open(path, O_RDONLY, 0));
+                var fd = unsafe(open(path.data(), O_RDONLY, 0));
                 if (fd < 0) { return false; }
                 var size_ll = unsafe(net::lseek(fd, 0 as longlong, SEEK_END));
                 if (size_ll < 0) { unsafe { close(fd) }; return false; }

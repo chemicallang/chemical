@@ -102,8 +102,9 @@ public namespace http {
     }
 }
 
-    // Parse request from raw bytes
-    public func parse_request_from_bytes(buf:*u8, n: usize, s: net::Socket) : std::Option<Request> {
+    // Parse request from raw bytes. The caller supplies the pointer/length, so
+    // safe parsing must go through the buffer-owning incremental reader.
+    public unsafe func parse_request_from_bytes(buf:*u8, n: usize, s: net::Socket) : std::Option<Request> {
         unsafe {
 
         var crlf_pos = -1;
@@ -196,9 +197,10 @@ public namespace http {
 
     // Incremental response reader (with optional TLS support)
     // Reads response headers, then wraps the remaining stream in a streaming
-    // Body. `max_body_len` caps how much total body data Body::read will
-    // deliver; pass 0 for an unlimited stream (e.g. file downloads).
-    public func read_response_incremental(
+    // Body. The Body owns a copy of the already-read bytes, so `buf` may be
+    // released after this returns. `max_body_len` caps how much total body data
+    // Body::read will deliver; pass 0 for an unlimited stream (e.g. downloads).
+    public unsafe func read_response_incremental(
         s: net::Socket,
         buf: &mut net::Buffer,
         timeout_secs: long,

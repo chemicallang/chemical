@@ -4535,3 +4535,50 @@ public func tls_init_is_idempotent(env : &mut TestEnv) {
     if(unsafe(ctx.conf) != null) { env.error("fresh context should have no config yet") }
 }
 
+
+// ═══════════════════════════════════════════════════════════════
+// HTTP wrapper safety: raw-pointer and null handling
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func http_body_read_rejects_null_buffer(env : &mut TestEnv) {
+    unsafe {
+        var body = http::Body.make_body(0 as net::Socket, null as *mut net::Buffer, 0, false, 0, 0, false)
+        if(body.read(null, 1) != -1) {
+            env.error("Body.read(null, 1) must fail closed")
+        }
+        if(body.read(null, 0) != 0) {
+            env.error("Body.read(null, 0) must be a no-op")
+        }
+    }
+}
+
+@test
+public func http_body_copies_initial_buffer(env : &mut TestEnv) {
+    unsafe {
+        var src = net::Buffer()
+        var bytes : [3]u8 = [65u8, 66u8, 67u8]
+        src.append_bytes(&raw mut bytes[0], 3)
+        var body = http::Body.make_body(0 as net::Socket, &mut src as *mut net::Buffer, 3, false, 0, 0, false)
+        // Drop/replace the source buffer: Body must have copied the bytes.
+        src = net::Buffer()
+        var out : [3]u8
+        var n = body.read(&raw mut out[0], 3)
+        if(n != 3) { env.error("Body must read the copied initial bytes"); return }
+        if(out[0] != 65u8 || out[1] != 66u8 || out[2] != 67u8) {
+            env.error("Body copied the wrong initial bytes")
+        }
+    }
+}
+
+@test
+public func http_strcasecmp_handles_null(env : &mut TestEnv) {
+    unsafe {
+        if(http::strcasecmp(null as *char, null as *char) != 0) {
+            env.error("strcasecmp(null, null) must be equal")
+        }
+        if(http::strcasecmp(null as *char, "x") == 0) {
+            env.error("strcasecmp(null, non-null) must not be equal")
+        }
+    }
+}

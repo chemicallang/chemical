@@ -501,9 +501,10 @@ public namespace http {
 
             var res = res_opt.take()
 
-            // For HTTPS: Body.tls_ctx is set, and Body destructor will free the TLS context
-            // For plain HTTP: mark buf as owned by Body so it gets freed
-            res.body.owns_buf = true
+            // The Body copies already-read bytes into its own buffer, so the
+            // parser scratch buffer is no longer referenced.
+            delete buf_ptr
+            // For HTTPS: Body.tls_ctx is set, and Body destructor will free the TLS context.
             return std::Result.Ok<Response, std::string>(res)
          }}
 

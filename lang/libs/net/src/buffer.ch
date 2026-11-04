@@ -42,7 +42,7 @@ public struct Buffer {
 
     func as_ptr(&self) : *u8 {
         unsafe {
-            if(v.size() == 0) { return null }
+            if(read_pos >= v.size()) { return null }
             return &raw v.get_ptr(read_pos)[0]
     
         }

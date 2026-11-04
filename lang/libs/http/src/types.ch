@@ -100,9 +100,12 @@ public namespace http {
 }
     }
 
-    // helper: simple ASCII case-insensitive strcmp
-    public func strcasecmp(a:*char, b:*char) : int {
+    // helper: simple ASCII case-insensitive strcmp. Raw C-string arguments
+    // cannot be length-validated here, so the operation is an unsafe boundary.
+    public unsafe func strcasecmp(a:*char, b:*char) : int {
         unsafe {
+        if(a == null && b == null) { return 0 }
+        if(a == null || b == null) { return 1 }
 
         var i = 0;
         loop {
@@ -170,7 +173,10 @@ public namespace http {
 }
 
         // construct body from request metadata
-        public func make_body(
+        // The caller supplies a raw buffer pointer and its ownership flag. Safe
+        // callers cannot prove the pointer/lifetime, so construction is unsafe;
+        // use the parser/server wrappers or own the buffer explicitly.
+        public unsafe func make_body(
             sock: net::Socket,
             buf_ptr: *mut net::Buffer,
             content_len: isize,
@@ -179,7 +185,12 @@ public namespace http {
             max_body: usize,
             owns: bool = false
         ) : Body {
-            return Body{
+            unsafe {
+            // A Body is a value that may outlive the call site. When the caller
+            // does not transfer ownership, copy the already-read bytes into a
+            // Body-owned buffer instead of retaining a pointer to caller storage
+            // (which may be a stack buffer).
+            var body = Body{
                 sock: sock,
                 buf: buf_ptr,
                 remaining: content_len,
@@ -191,7 +202,16 @@ public namespace http {
                 seen_total: 0u,
                 owns_buf: owns,
                 tls_ctx: null
-            };
+            }
+            if(!owns) {
+                body.buf = new net::Buffer()
+                if(buf_ptr != null && buf_ptr.len() > 0u) {
+                    body.buf.append_bytes(buf_ptr.as_ptr(), buf_ptr.len())
+                }
+                body.owns_buf = true
+            }
+            return body;
+            }
         }
     }
 
@@ -235,6 +255,9 @@ public namespace http {
     public func (b: &mut Body) read(dst:*mut u8, cap: usize) : int {
         unsafe {
 
+        if(cap > 2147483647 as usize) { return -1 }
+        if(cap > 0u && dst == null) { return -1 }
+        if(cap == 0u) { return 0 }
         if(b.closed) { return 0 }
         if(b.max_body > 0u && b.seen_total >= b.max_body) { return -1 }
 

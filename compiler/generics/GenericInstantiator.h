@@ -190,6 +190,9 @@ public:
 
     void make_gen_type_concrete(BaseType*& type);
 
+    /** Resolve `T::Item` through T's active concrete type and its interface bound. */
+    BaseType* resolve_associated_projection(BaseType* type);
+
     bool relink_identifier(VariableIdentifier* identifier);
 
     /**

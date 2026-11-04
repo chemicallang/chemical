@@ -1131,6 +1131,9 @@ void TopLevelLinkSignature::VisitGenericFuncDecl(GenericFuncDecl* node) {
     for(const auto param : generic_params) {
         link_param(param);
     }
+    // Link where-clause bounds before the signature. Signature types such as
+    // `T::Item` consult those bounds while `T` is still the generic parameter.
+    link_where_clause(*this, node->master_impl);
     // we don't put the master implementation (into extendable container)
     // because the receiver could be generic
     visit(node->master_impl);

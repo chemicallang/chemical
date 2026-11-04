@@ -24,16 +24,16 @@ for the safe API surface we currently expose**, not full language parity.
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
 | Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
-| Type-system / stdlib parity | M1 partial: basic tuples/tuple structs, fixed-array patterns, exact `[T]`/`&[T]` condition patterns, `&mut [T]`, `Box<[T]>`, `&str` views, explicit slice/string lifetimes, generic delimiter/predicate slice splitting, and associated-type declarations/bindings plus return-position `Self::Item` projection implemented; parameter/generic projections, GATs, const generics, `impl Trait`, derive, and slice rest/`&mut`/`Box<[T]>` patterns remain. M7/M2/M8 remain. |
+| Type-system / stdlib parity | M1 partial: basic tuples/tuple structs, fixed-array patterns, exact `[T]`/`&[T]` condition patterns, `&mut [T]`, `Box<[T]>`, `&str` views, explicit slice/string lifetimes, generic delimiter/predicate slice splitting, and associated-type declarations/bindings plus return-position `Self::Item` projection and `T::Item` projections through inline/`where`/inherited bounds implemented; default-method parameter projections, associated-type bounds/equality, GATs, const generics, `impl Trait`, derive, and slice rest/`&mut`/`Box<[T]>` patterns remain. M7/M2/M8 remain. |
 
 Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2478/2478` |
-| LLVM main | `2476/2476` |
+| TCC main | `2479/2479` |
+| LLVM main | `2477/2477` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `804/804` |
+| TCC/LLVM negative | `806/806` |
 | TCC/LLVM safety | `78/78` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `735/735` |
@@ -472,14 +472,15 @@ memory safety.
     (`lang/docs/tuples.md`). Nested/wildcard destructuring and tuple
     methods/inherent impls remain M1 work.
 
-15. **Associated types are a declaration/binding/return-projection slice.**
+15. **Associated types are a declaration/binding/projection slice.**
     Interface `type Item` declarations, impl `type Item = T` bindings, and
-    completeness checking are implemented. Return-position `Self::Item` works
-    for static dispatch; parameter-position projections are rejected because
-    the interface prototype cannot spell the placeholder, and interfaces with
-    associated types are marked non-object-safe (`lang/docs/associated-types.md`).
-    `T::Item`, associated bounds/equality constraints, dyn projections, and GAT
-    parameters remain M1.
+    completeness checking are implemented. Return-position `Self::Item`,
+    abstract-method parameter-position `Self::Item`, and `T::Item` through
+    inline, `where`, and inherited interface bounds work for static dispatch.
+    Generic struct fields, nested generic containers, and generic impl bindings
+    that project a type parameter are covered. Default-method parameter
+    projections, associated bounds/equality constraints, dyn projections, and
+    GAT parameters remain M1 (`lang/docs/associated-types.md`).
 
 16. **Stdlib auto-trait audit (2026-11-02).** Every explicit stdlib
     `Send`/`Sync` impl was reviewed in `lang/docs/safety/auto-traits-audit.md`.

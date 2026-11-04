@@ -4,6 +4,13 @@
 #include "GenInstantiatorAPI.h"
 #include "ast/base/ChildResolution.h"
 #include "ast/base/TypeBuilder.h"
+#include "ast/types/LinkedValueType.h"
+#include "ast/values/AccessChain.h"
+#include "ast/values/VariableIdentifier.h"
+#include "ast/statements/Typealias.h"
+#include "ast/structures/ImplDefinition.h"
+#include "ast/structures/InterfaceDefinition.h"
+#include "ast/structures/WhereClause.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/GenericStructDecl.h"
 #include "ast/values/TypeInsideValue.h"
@@ -18,8 +25,197 @@
 #include <cstdio>
 #include <cstdlib>
 
+static BaseType* resolve_active_type(
+    const std::unordered_map<GenericTypeParameter*, BaseType*>& active_type_map,
+    BaseType* type
+) {
+    unsigned guard = 0;
+    while (type != nullptr && type->kind() == BaseTypeKind::Linked && guard++ < 16) {
+        auto* linked = type->as_linked_type_unsafe()->linked;
+        if (linked == nullptr || linked->kind() != ASTNodeKind::GenericTypeParam) break;
+        auto found = active_type_map.find(linked->as_generic_type_param_unsafe());
+        if (found == active_type_map.end() || found->second == nullptr) break;
+        type = found->second;
+    }
+    return type;
+}
+
+static WhereClause* where_clause_for_parameter(GenericTypeParameter* param) {
+    if (param == nullptr) return nullptr;
+    auto* parent = param->parent();
+    if (parent == nullptr) return nullptr;
+    switch (parent->kind()) {
+        case ASTNodeKind::GenericFuncDecl:
+            return parent->as_gen_func_decl_unsafe()->master_impl->where_clause;
+        case ASTNodeKind::FunctionDecl:
+            return parent->as_function_unsafe()->where_clause;
+        case ASTNodeKind::GenericImplDecl:
+            return parent->as_gen_impl_decl_unsafe()->where_clause;
+        default:
+            return nullptr;
+    }
+}
+
+static ASTNode* associated_interface_in(
+    ChildResolver& child_resolver,
+    ASTNode* iface,
+    const chem::string_view& name,
+    unsigned depth
+) {
+    if (iface == nullptr || depth > 16) return nullptr;
+    if (iface->kind() == ASTNodeKind::GenericInterfaceDecl) {
+        return associated_interface_in(
+            child_resolver, iface->as_gen_interface_decl_unsafe()->master_impl,
+            name, depth + 1);
+    }
+    if (iface->kind() != ASTNodeKind::InterfaceDecl) return nullptr;
+    auto* interface = iface->as_interface_def_unsafe();
+    auto* found = iface->child(&child_resolver, name);
+    if (found != nullptr && found->kind() == ASTNodeKind::TypealiasStmt &&
+        found->as_typealias_unsafe()->is_associated()) {
+        // Interface indexes may expose an inherited associated declaration.
+        // The implementation key must be the interface that declares it.
+        auto* declaring = found->parent();
+        if (declaring != nullptr &&
+            (declaring->kind() == ASTNodeKind::InterfaceDecl ||
+             declaring->kind() == ASTNodeKind::GenericInterfaceDecl)) {
+            return declaring;
+        }
+        return iface;
+    }
+    for (auto& inherited : interface->inherited) {
+        auto* parent = const_cast<BaseType*>(inherited.type.getType())
+                           ->get_direct_linked_canonical_node();
+        if (auto* declaring = associated_interface_in(
+                child_resolver, parent, name, depth + 1)) {
+            return declaring;
+        }
+    }
+    return nullptr;
+}
+
+static ASTNode* associated_type_for_parameter(
+    ChildResolver& child_resolver,
+    GenericTypeParameter* param,
+    const chem::string_view& name
+) {
+    if (param == nullptr) return nullptr;
+    auto consider_bound = [&](const TypeLoc& trait) -> ASTNode* {
+        auto* iface = const_cast<BaseType*>(trait.getType())->get_direct_linked_canonical_node();
+        return associated_interface_in(child_resolver, iface, name, 0);
+    };
+    for (auto& trait : param->traits) {
+        if (auto* iface = consider_bound(trait)) return iface;
+    }
+    if (auto* where = where_clause_for_parameter(param)) {
+        for (auto& constraint : where->constraints) {
+            if (constraint.param != param && constraint.param_name != param->identifier) continue;
+            for (auto& trait : constraint.constraints) {
+                if (auto* iface = consider_bound(trait)) return iface;
+            }
+        }
+    }
+    return nullptr;
+}
+
+BaseType* GenericInstantiator::resolve_associated_projection(BaseType* type) {
+    if (type == nullptr || type->kind() != BaseTypeKind::Linked) return nullptr;
+    auto* linked = type->as_linked_type_unsafe();
+    if (!linked->is_value()) return nullptr;
+    auto* projection = static_cast<LinkedValueType*>(linked);
+    auto* chain = projection->value != nullptr ? projection->value->as_access_chain() : nullptr;
+    if (chain == nullptr || chain->values.size() < 2) return nullptr;
+    auto* first = chain->values.front()->as_identifier();
+    auto* member = chain->values.back()->as_identifier();
+    if (first == nullptr || member == nullptr || first->linked == nullptr ||
+        first->linked->kind() != ASTNodeKind::GenericTypeParam) {
+        return nullptr;
+    }
+    auto* param = first->linked->as_generic_type_param_unsafe();
+    auto found = active_type_map.find(param);
+    if (found == active_type_map.end() || found->second == nullptr) return nullptr;
+    auto* concrete = resolve_active_type(active_type_map, found->second);
+    if (concrete == nullptr) return nullptr;
+    // Concrete type parameters can remain generic inside another generic body;
+    // leave the projection for that outer instantiation to resolve.
+    if (concrete->kind() == BaseTypeKind::Linked &&
+        concrete->as_linked_type_unsafe()->linked != nullptr &&
+        concrete->as_linked_type_unsafe()->linked->kind() == ASTNodeKind::GenericTypeParam) {
+        return nullptr;
+    }
+
+    const auto& name = member->value;
+    auto* iface = associated_type_for_parameter(child_resolver, param, name);
+    if (iface == nullptr) return nullptr;
+
+    auto* canonical = concrete->canonical();
+    if (canonical == nullptr) canonical = concrete;
+    ASTNode* target = canonical->get_direct_linked_canonical_node();
+    // A concrete instantiation of a generic container may have a dormant
+    // generic impl (`impl<T: HasItem> HasItem for Wrapper<T>`). Demand it
+    // before asking the index for the associated binding.
+    if (target != nullptr) {
+        MembersContainer* generic_target = nullptr;
+        switch (target->kind()) {
+            case ASTNodeKind::StructDecl:
+            case ASTNodeKind::VariantDecl:
+            case ASTNodeKind::UnionDecl: {
+                auto* container = target->as_members_container_unsafe();
+                if (container->generic_parent != nullptr) generic_target = container;
+                break;
+            }
+            default:
+                break;
+        }
+        if (generic_target != nullptr) {
+            GenericInstantiatorAPI api(this);
+            instantiate_generic_impls_for(api, generic_target, iface, chem::string_view(), 0);
+        }
+    }
+    ImplDefinition* impl = nullptr;
+    if (target != nullptr) {
+        switch (target->kind()) {
+            case ASTNodeKind::StructDecl:
+            case ASTNodeKind::VariantDecl:
+            case ASTNodeKind::UnionDecl:
+                impl = implsIndex.get_impl(iface, (ASTAny*) target->as_members_container_unsafe());
+                break;
+            case ASTNodeKind::GenericStructDecl:
+            case ASTNodeKind::GenericVariantDecl:
+            case ASTNodeKind::GenericUnionDecl:
+                impl = implsIndex.get_impl(iface, (ASTAny*) target);
+                break;
+            default:
+                break;
+        }
+    }
+    if (impl == nullptr) {
+        impl = implsIndex.get_impl(iface, (ASTAny*) canonical);
+    }
+    if (impl == nullptr) {
+        impl = implsIndex.get_impl(iface, (ASTAny*) concrete);
+    }
+    if (impl == nullptr) return nullptr;
+
+    for (ASTNode* node : impl->evaluated_nodes()) {
+        if (node == nullptr || node->kind() != ASTNodeKind::TypealiasStmt) continue;
+        auto* binding = node->as_typealias_unsafe();
+        if (binding->is_associated() || binding->name_view() != name) continue;
+        auto* resolved = binding->known_type();
+        if (resolved != nullptr) return resolved;
+    }
+    return nullptr;
+}
+
 void GenericInstantiator::make_gen_type_concrete(BaseType*& type) {
     if(type->kind() == BaseTypeKind::Linked){
+        auto* linked_type = type->as_linked_type_unsafe();
+        if (linked_type->is_value()) {
+            if (auto* resolved = resolve_associated_projection(type)) {
+                type = resolved;
+                return;
+            }
+        }
         const auto linked = type->as_linked_type_unsafe()->linked;
         switch(linked->kind()) {
             case ASTNodeKind::GenericTypeParam: {

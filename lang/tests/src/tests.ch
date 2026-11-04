@@ -49,6 +49,7 @@ func run_executable_tests() {
     test_modules_import();
     test_external_interfaces();
     test_associated_projection_parameter();
+    test_associated_projection_generic_bounds();
     test_capturing_lambda();
 
     // --------------------------------------

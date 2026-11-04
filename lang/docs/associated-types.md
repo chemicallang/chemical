@@ -1,11 +1,13 @@
 # Associated types (first slice)
 
 Status: interface associated-type **declarations**, impl **bindings**, and
-completeness checking are implemented. Return-position `Self::Item` and
-abstract-method parameter-position `Self::Item` are projected for static
-dispatch through an interface implementation. `T::Item` generic projections,
-associated-type bounds/equality constraints, default-method parameter
-projections, and generic associated types (GATs) are not implemented yet.
+completeness checking are implemented. Return-position `Self::Item`,
+abstract-method parameter-position `Self::Item`, and `T::Item` projections
+through generic bounds are projected for static dispatch. `T::Item` works with
+inline bounds, `where` clauses, inherited interface bounds, generic struct
+fields, nested generic containers, and generic impl bindings. Associated-type
+bounds/equality constraints, default-method parameter projections, and generic
+associated types (GATs) are not implemented yet.
 
 ## Syntax
 
@@ -47,10 +49,16 @@ impl HasItem for Counter {
 - An interface declaring an associated type, or inheriting an interface that
   declares one, is not object safe and cannot be used through `dyn` (for
   example `dyn HasItem` and `dyn Child` are rejected).
-- `T::Item` projections through a generic bound (`T: HasItem`) are not
-  implemented. Generic interface calls that pass the associated value through
-  (for example `t.set(t.get())`) work after monomorphization, but the projection
-  cannot be spelled directly.
+- `T::Item` projections through a generic bound (`T: HasItem`) are implemented
+  for inline bounds and `where T: HasItem` clauses. The bound may inherit the
+  declaring interface (`T: Child` where `Child : HasItem`), and projections are
+  resolved per concrete instantiation, including generic struct fields
+  (`struct Holder<T: HasItem> { var value : T::Item }`), nested generic
+  containers (`vector<T::Item>`), and a generic impl binding that projects a
+  type parameter (`impl<T: HasItem> ... { type Item = T::Item }`).
+  The bound must be satisfiable and the concrete type must have an
+  implementation providing the associated binding; otherwise resolution fails
+  closed.
 - Associated-type bounds (`type Item: Copy`) and equality constraints
   (`T: Iterator<Item = int>`) are not parsed.
 - Generic associated types (`type Cursor<'a>`) are not supported beyond the
@@ -58,6 +66,5 @@ impl HasItem for Counter {
 - Inherited interfaces must be implemented separately; their associated types
   are checked by their own implementation.
 
-`T::Item` projection through generic bounds, default-method parameter
-projection, associated-type bounds/equality constraints, and GATs are the next
-associated-type milestones.
+Default-method parameter projection, associated-type bounds/equality
+constraints, and GATs are the next associated-type milestones.

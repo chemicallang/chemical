@@ -260,12 +260,17 @@ void verify_container_composition(TypeVerifier& verifier, MembersContainer* cont
     }
 }
 
+static bool contains_associated_projection(BaseType* type, unsigned depth = 0);
+
 void verify_container_field_types(TypeVerifier& verifier, MembersContainer* container) {
     for(const auto var : container->variables()) {
         if(var == nullptr) continue;
         const auto type = var->known_type();
         if(type == nullptr) continue;
         if(type->canonical()->kind() == BaseTypeKind::Void) {
+            // A generic master may store `T::Item`; the projection resolves to
+            // the concrete implementation binding during instantiation.
+            if (contains_associated_projection(type)) continue;
             verifier.diagnoser.error(var) << "a container member cannot have type void";
         }
     }
@@ -337,7 +342,7 @@ void TypeVerifier::VisitVariantDecl(VariantDefinition* def) {
     verify_container_field_types(*this, def);
 }
 
-static bool contains_associated_projection(BaseType* type, unsigned depth = 0) {
+static bool contains_associated_projection(BaseType* type, unsigned depth) {
     if (type == nullptr || depth > 12) return false;
     if (type->kind() == BaseTypeKind::Linked) {
         auto* linked = type->as_linked_type_unsafe();

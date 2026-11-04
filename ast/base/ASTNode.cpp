@@ -23,6 +23,7 @@
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/GenericImplDecl.h"
+#include "ast/structures/WhereClause.h"
 #include "ast/structures/CapturedVariable.h"
 #include "ast/statements/EmbeddedNode.h"
 #include "ast/statements/ChildrenMapNode.h"
@@ -902,6 +903,35 @@ inline ASTNode* container_child(const ChildResolver* resolver, MembersContainer*
      // return nullptr;
 }
 
+// Associated-type projections through an inherited interface bound (`T: Child`
+// where `Child` inherits `HasItem`) need the declaring interface, not just the
+// direct bound's own members. This walk is deliberately depth-limited: an
+// invalid inheritance cycle is rejected elsewhere.
+static ASTNode* inherited_interface_child(
+    const ChildResolver* resolver,
+    ASTNode* iface,
+    const chem::string_view& name,
+    unsigned depth
+) {
+    if (iface == nullptr || depth > 16) return nullptr;
+    if (iface->kind() == ASTNodeKind::GenericInterfaceDecl) {
+        return inherited_interface_child(
+            resolver, iface->as_gen_interface_decl_unsafe()->master_impl, name, depth + 1);
+    }
+    if (iface->kind() != ASTNodeKind::InterfaceDecl) return nullptr;
+    auto* interface = iface->as_interface_def_unsafe();
+    if (auto* direct = container_child(resolver, interface, name)) return direct;
+    for (auto& inherited : interface->inherited) {
+        auto* parent = const_cast<BaseType*>(inherited.type.getType())
+                           ->get_direct_linked_canonical_node();
+        if (auto* found = inherited_interface_child(
+                resolver, parent, name, depth + 1)) {
+            return found;
+        }
+    }
+    return nullptr;
+}
+
 ASTNode* ASTNode::child(const ChildResolver* resolver, const chem::string_view &name) noexcept {
     switch(kind()) {
         case ASTNodeKind::ChildrenMapNode: {
@@ -932,10 +962,38 @@ ASTNode* ASTNode::child(const ChildResolver* resolver, const chem::string_view &
             if(linked) {
                 return linked->child(name);
             }
-            if(param->traits.empty()) return nullptr;
-            for(auto& t : param->traits) {
+            auto find_in_bound = [&](const TypeLoc& t) -> ASTNode* {
                 const auto c = provide_child(resolver, t, name, this);
+                if (c) return c;
+                auto* bound = const_cast<BaseType*>(t.getType())
+                                  ->get_direct_linked_canonical_node();
+                return inherited_interface_child(resolver, bound, name, 0);
+            };
+            for(auto& t : param->traits) {
+                const auto c = find_in_bound(t);
                 if(c) return c;
+            }
+            // Where-clause bounds are not stored in `traits`; consult them so
+            // `T::Item` resolves when the bound is written as `where T: HasItem`.
+            auto* parent = param->parent();
+            WhereClause* where = nullptr;
+            if (parent != nullptr) {
+                if (parent->kind() == ASTNodeKind::GenericFuncDecl) {
+                    where = parent->as_gen_func_decl_unsafe()->master_impl->where_clause;
+                } else if (parent->kind() == ASTNodeKind::FunctionDecl) {
+                    where = parent->as_function_unsafe()->where_clause;
+                } else if (parent->kind() == ASTNodeKind::GenericImplDecl) {
+                    where = parent->as_gen_impl_decl_unsafe()->where_clause;
+                }
+            }
+            if (where != nullptr) {
+                for (auto& constraint : where->constraints) {
+                    if (constraint.param != param && constraint.param_name != param->identifier) continue;
+                    for (auto& t : constraint.constraints) {
+                        const auto c = find_in_bound(t);
+                        if (c) return c;
+                    }
+                }
             }
             return nullptr;
         }

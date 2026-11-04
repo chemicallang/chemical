@@ -748,6 +748,22 @@ func associated_type_projection_parameter_compiles(env : &mut TestEnv) {
 }
 
 @test
+func neg_associated_projection_without_bound(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <T> bad(t : &T) : T::Item { return t.n }\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "associated_projection_without_bound", ch,
+                         "unresolved identifier, 'Item' not found")
+}
+
+@test
+func neg_associated_projection_unknown_member(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface HasItem {\n    type Item\n    func get(&self) : Self::Item\n}\nfunc <T : HasItem> bad(t : &T) : T::Nope { return t.get() }\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "associated_projection_unknown_member", ch,
+                         "unresolved identifier, 'Nope' not found")
+}
+
+@test
 func neg_associated_type_projection_default_parameter(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "interface HasItem {\n    type Item\n    func set(&mut self, value : Self::Item) { }\n}\nstruct Counter { var n : int }\nimpl HasItem for Counter {\n    type Item = int\n    func set(&mut self, value : int) { self.n = value }\n}\npublic func main() : int { return 0 }\n"

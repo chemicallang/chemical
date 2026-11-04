@@ -7,8 +7,11 @@ through generic bounds are projected for static dispatch. `T::Item` works with
 inline bounds, `where` clauses, inherited interface bounds, generic struct
 fields, nested generic containers, and generic impl bindings. Associated-type
 bounds (`type Item: Copy`) are parsed and checked against each implementation
-binding. Associated-type equality constraints, default-method parameter
-projections, and generic associated types (GATs) are not implemented yet.
+binding. Associated-type equality constraints in trait bounds
+(`T: Iterator<Item = int>`) are parsed, validated against the concrete
+implementation binding, and checked for both inline bounds and `where`
+clauses. Default-method parameter projections and generic associated types
+(GATs) are not implemented yet.
 
 ## Syntax
 
@@ -63,12 +66,23 @@ impl HasItem for Counter {
 - Associated-type bounds (`type Item: Copy + Display`) are parsed on interface
   declarations and checked against every implementation binding. A non-`Copy`
   binding for `type Item: Copy` is rejected.
-- Associated-type equality constraints (`T: Iterator<Item = int>`) are not
-  parsed.
+- Associated-type equality constraints are enforced when a generic
+  function, struct, impl, interface, variant, union, or type alias is
+  instantiated with a concrete type. The concrete implementation's binding
+  must be exactly the bound's target type. An equality whose target is still
+  another generic parameter is deferred to the outer instantiation.
+- The bound's associated type must actually be declared by the named
+  interface (directly or through an inherited interface), and equality
+  bindings on non-interface generic types are rejected.
 - Generic associated types (`type Cursor<'a>`) are not supported beyond the
   declaration being rejected/ignored by the projection layer.
 - Inherited interfaces must be implemented separately; their associated types
   are checked by their own implementation.
 
-Default-method parameter projection, associated-type equality constraints,
-and GATs are the next associated-type milestones.
+```chemical
+func <T : Iterator<Item = int>> sum_all(iter : T) : int { ... }
+func <T> sum_where(iter : T) : int where T : Iterator<Item = int> { ... }
+```
+
+Default-method parameter projection and GATs are the next associated-type
+milestones.

@@ -193,6 +193,17 @@ public:
     /** Resolve `T::Item` through T's active concrete type and its interface bound. */
     BaseType* resolve_associated_projection(BaseType* type);
 
+    /** Find the concrete impl binding for an associated type, demanding a generic impl if needed. */
+    TypealiasStatement* find_associated_binding(
+        BaseType* concrete, ASTNode* iface, const chem::string_view& name);
+
+    /** Check associated-type equality bindings on a bound against the concrete impl. */
+    void check_associated_equalities(GenericTypeParameter* param, BaseType* concrete,
+                                     const TypeLoc& trait_type);
+
+    /** Check every inline/where bound on the instantiation currently activated. */
+    void check_active_associated_equalities(BaseGenericDecl* decl);
+
     bool relink_identifier(VariableIdentifier* identifier);
 
     /**

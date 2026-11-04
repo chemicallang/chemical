@@ -120,6 +120,28 @@ struct AssocWrapper<T> {
     var inner : T
 }
 
+struct AssocEqualityHolder<T : AssocGenericProbe<Item = int>> {
+    var inner : T
+}
+
+func <T : AssocGenericProbe<Item = int>> assoc_equality_roundtrip(t : &mut T, value : T::Item) : T::Item {
+    t.assign(value)
+    return t.read()
+}
+
+func <T> assoc_equality_where(t : &mut T, value : T::Item) : T::Item where T : AssocGenericProbe<Item = int> {
+    t.assign(value)
+    return t.read()
+}
+
+func <T : AssocGenericProbe<Item = int>> assoc_equality_holder(value : T) : AssocEqualityHolder<T> {
+    return AssocEqualityHolder<T> { inner : value }
+}
+
+func <T : AssocGenericChild<Item = int>> assoc_equality_inherited(t : &T) : T::Item {
+    return t.read()
+}
+
 impl<T : AssocReadOnly> AssocReadOnly for AssocWrapper<T> {
     type Item = T::Item
     func read(&self) : T::Item { return self.inner.read() }
@@ -141,6 +163,13 @@ public func test_associated_projection_generic_bounds() {
         var c = AssocChildProbe { value : 23 }
         if(assoc_inherited_read(&c) != 23) return false
         var wrap = AssocWrapper<AssocIntProbe> { inner : AssocIntProbe { value : 29 } }
-        return wrap.read() == 29
+        if(wrap.read() != 29) return false
+        var eq = AssocIntProbe { value : 0 }
+        if(assoc_equality_roundtrip(&mut eq, 31) != 31) return false
+        if(assoc_equality_where(&mut eq, 37) != 37) return false
+        var holder = assoc_equality_holder(AssocIntProbe { value : 41 })
+        if(holder.inner.read() != 41) return false
+        var child = AssocChildProbe { value : 43 }
+        return assoc_equality_inherited(&child) == 43
     })
 }

@@ -24,7 +24,7 @@ for the safe API surface we currently expose**, not full language parity.
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
 | Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
-| Type-system / stdlib parity | M1 partial: basic tuples/tuple structs, fixed-array patterns, exact `[T]`/`&[T]` condition patterns, `&mut [T]`, `Box<[T]>`, `&str` views, explicit slice/string lifetimes, generic delimiter/predicate slice splitting, and associated-type declarations/bindings plus return-position `Self::Item` projection, `T::Item` projections through inline/`where`/inherited bounds, and `type Item: Bound` checks implemented; default-method parameter projections, associated-type equality constraints, GATs, const generics, `impl Trait`, derive, and slice rest/`&mut`/`Box<[T]>` patterns remain. M7/M2/M8 remain. |
+| Type-system / stdlib parity | M1 partial: basic tuples/tuple structs, fixed-array patterns, exact `[T]`/`&[T]` condition patterns, `&mut [T]`, `Box<[T]>`, `&str` views, explicit slice/string lifetimes, generic delimiter/predicate slice splitting, and associated-type declarations/bindings plus return-position `Self::Item` projection, `T::Item` projections through inline/`where`/inherited bounds, `type Item: Bound` checks, and `Interface<Item = T>` equality constraints implemented; default-method parameter projections, GATs, const generics, `impl Trait`, derive, and slice rest/`&mut`/`Box<[T]>` patterns remain. M7/M2/M8 remain. |
 
 Latest measured baseline:
 
@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2486/2486` |
 | LLVM main | `2484/2484` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `812/812` |
+| TCC/LLVM negative | `816/816` |
 | TCC/LLVM safety | `78/78` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `735/735` |
@@ -483,8 +483,10 @@ memory safety.
     Generic struct fields, nested generic containers, and generic impl bindings
     that project a type parameter are covered. Associated-type bounds
     (`type Item: Copy`) are checked against implementation bindings.
-    Default-method parameter projections, associated equality constraints, dyn
-    projections, and GAT parameters remain M1 (`lang/docs/associated-types.md`).
+    Equality bounds (`T: Iterator<Item = int>`) are checked against the
+    concrete implementation binding at instantiation. Default-method parameter
+    projections, dyn projections, and GAT parameters remain M1
+    (`lang/docs/associated-types.md`).
 
 16. **Stdlib auto-trait audit (2026-11-02).** Every explicit stdlib
     `Send`/`Sync` impl was reviewed in `lang/docs/safety/auto-traits-audit.md`.

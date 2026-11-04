@@ -3078,6 +3078,9 @@ void SymResLinkBody::VisitGenericType(GenericType* gen_type) {
     for(auto& type : gen_type->types) {
         visit(type);
     }
+    for(auto& binding : gen_type->associated_bindings) {
+        visit(binding.type);
+    }
     if(generic_context) {
         // Type aliases can be expanded inline (their `instantiate_inline` does so).
         if(!gen_type->instantiate_inline(generic_instantiator, type_location)) {

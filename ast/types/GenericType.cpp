@@ -161,6 +161,10 @@ GenericType* GenericType::copy(ASTAllocator& allocator) {
         gen->types.emplace_back(type.copy(allocator));
     }
     gen->lifetime_args = lifetime_args;
+    for(auto& binding : associated_bindings) {
+        gen->associated_bindings.emplace_back(
+            binding.name, binding.type.copy(allocator), binding.location);
+    }
     return gen;
 }
 

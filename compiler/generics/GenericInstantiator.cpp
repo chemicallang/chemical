@@ -119,36 +119,12 @@ static ASTNode* associated_type_for_parameter(
     return nullptr;
 }
 
-BaseType* GenericInstantiator::resolve_associated_projection(BaseType* type) {
-    if (type == nullptr || type->kind() != BaseTypeKind::Linked) return nullptr;
-    auto* linked = type->as_linked_type_unsafe();
-    if (!linked->is_value()) return nullptr;
-    auto* projection = static_cast<LinkedValueType*>(linked);
-    auto* chain = projection->value != nullptr ? projection->value->as_access_chain() : nullptr;
-    if (chain == nullptr || chain->values.size() < 2) return nullptr;
-    auto* first = chain->values.front()->as_identifier();
-    auto* member = chain->values.back()->as_identifier();
-    if (first == nullptr || member == nullptr || first->linked == nullptr ||
-        first->linked->kind() != ASTNodeKind::GenericTypeParam) {
-        return nullptr;
-    }
-    auto* param = first->linked->as_generic_type_param_unsafe();
-    auto found = active_type_map.find(param);
-    if (found == active_type_map.end() || found->second == nullptr) return nullptr;
-    auto* concrete = resolve_active_type(active_type_map, found->second);
-    if (concrete == nullptr) return nullptr;
-    // Concrete type parameters can remain generic inside another generic body;
-    // leave the projection for that outer instantiation to resolve.
-    if (concrete->kind() == BaseTypeKind::Linked &&
-        concrete->as_linked_type_unsafe()->linked != nullptr &&
-        concrete->as_linked_type_unsafe()->linked->kind() == ASTNodeKind::GenericTypeParam) {
-        return nullptr;
-    }
-
-    const auto& name = member->value;
-    auto* iface = associated_type_for_parameter(child_resolver, param, name);
-    if (iface == nullptr) return nullptr;
-
+TypealiasStatement* GenericInstantiator::find_associated_binding(
+    BaseType* concrete,
+    ASTNode* iface,
+    const chem::string_view& name
+) {
+    if (concrete == nullptr || iface == nullptr) return nullptr;
     auto* canonical = concrete->canonical();
     if (canonical == nullptr) canonical = concrete;
     ASTNode* target = canonical->get_direct_linked_canonical_node();
@@ -202,10 +178,177 @@ BaseType* GenericInstantiator::resolve_associated_projection(BaseType* type) {
         if (node == nullptr || node->kind() != ASTNodeKind::TypealiasStmt) continue;
         auto* binding = node->as_typealias_unsafe();
         if (binding->is_associated() || binding->name_view() != name) continue;
-        auto* resolved = binding->known_type();
-        if (resolved != nullptr) return resolved;
+        return binding;
     }
     return nullptr;
+}
+
+BaseType* GenericInstantiator::resolve_associated_projection(BaseType* type) {
+    if (type == nullptr || type->kind() != BaseTypeKind::Linked) return nullptr;
+    auto* linked = type->as_linked_type_unsafe();
+    if (!linked->is_value()) return nullptr;
+    auto* projection = static_cast<LinkedValueType*>(linked);
+    auto* chain = projection->value != nullptr ? projection->value->as_access_chain() : nullptr;
+    if (chain == nullptr || chain->values.size() < 2) return nullptr;
+    auto* first = chain->values.front()->as_identifier();
+    auto* member = chain->values.back()->as_identifier();
+    if (first == nullptr || member == nullptr || first->linked == nullptr ||
+        first->linked->kind() != ASTNodeKind::GenericTypeParam) {
+        return nullptr;
+    }
+    auto* param = first->linked->as_generic_type_param_unsafe();
+    auto found = active_type_map.find(param);
+    if (found == active_type_map.end() || found->second == nullptr) return nullptr;
+    auto* concrete = resolve_active_type(active_type_map, found->second);
+    if (concrete == nullptr) return nullptr;
+    // Concrete type parameters can remain generic inside another generic body;
+    // leave the projection for that outer instantiation to resolve.
+    if (concrete->kind() == BaseTypeKind::Linked &&
+        concrete->as_linked_type_unsafe()->linked != nullptr &&
+        concrete->as_linked_type_unsafe()->linked->kind() == ASTNodeKind::GenericTypeParam) {
+        return nullptr;
+    }
+
+    const auto& name = member->value;
+    auto* iface = associated_type_for_parameter(child_resolver, param, name);
+    if (iface == nullptr) return nullptr;
+    auto* binding = find_associated_binding(concrete, iface, name);
+    if (binding == nullptr) return nullptr;
+    auto* resolved = binding->known_type();
+    if (resolved != nullptr) return resolved;
+    return nullptr;
+}
+
+static bool type_mentions_generic_param(BaseType* type, unsigned depth = 0) {
+    if (type == nullptr || depth > 16) return false;
+    auto* canonical = type->canonical();
+    if (canonical == nullptr) canonical = type;
+    auto* linked = canonical->get_direct_linked_node();
+    if (linked != nullptr && linked->kind() == ASTNodeKind::GenericTypeParam) return true;
+    if (canonical->kind() == BaseTypeKind::Generic) {
+        auto* generic = canonical->as_generic_type_unsafe();
+        for (auto& arg : generic->types) {
+            if (type_mentions_generic_param(const_cast<BaseType*>(arg.getType()), depth + 1)) return true;
+        }
+        for (auto& binding : generic->associated_bindings) {
+            if (type_mentions_generic_param(const_cast<BaseType*>(binding.type.getType()), depth + 1)) return true;
+        }
+        return false;
+    }
+    if (canonical->kind() == BaseTypeKind::Pointer) {
+        return type_mentions_generic_param(
+            canonical->as_pointer_type_unsafe()->type, depth + 1);
+    }
+    if (canonical->kind() == BaseTypeKind::Reference) {
+        return type_mentions_generic_param(
+            canonical->as_reference_type_unsafe()->type, depth + 1);
+    }
+    if (canonical->kind() == BaseTypeKind::Array) {
+        return type_mentions_generic_param(
+            const_cast<BaseType*>(canonical->as_array_type_unsafe()->elem_type.getType()),
+            depth + 1);
+    }
+    return false;
+}
+
+void GenericInstantiator::check_associated_equalities(
+    GenericTypeParameter* param,
+    BaseType* concrete,
+    const TypeLoc& trait_type
+) {
+    if (param == nullptr || concrete == nullptr || trait_type == nullptr) return;
+    auto* generic = trait_type->kind() == BaseTypeKind::Generic
+                        ? trait_type->as_generic_type_unsafe() : nullptr;
+    if (generic == nullptr || generic->associated_bindings.empty()) return;
+    if (concrete->kind() == BaseTypeKind::Linked &&
+        concrete->as_linked_type_unsafe()->linked != nullptr &&
+        concrete->as_linked_type_unsafe()->linked->kind() == ASTNodeKind::GenericTypeParam) {
+        return;
+    }
+    ASTNode* iface = generic->referenced != nullptr
+                         ? generic->referenced->linked : nullptr;
+    if (iface == nullptr) return;
+    for (auto& equality : generic->associated_bindings) {
+        auto* declaring = associated_interface_in(child_resolver, iface, equality.name, 0);
+        if (declaring == nullptr) {
+            diagnoser.error(equality.location)
+                << "interface '" << iface->get_node_identifier()
+                << "' has no associated type '" << equality.name << "'";
+            continue;
+        }
+        auto* expected = const_cast<BaseType*>(equality.type.getType());
+        if (expected == nullptr || type_mentions_generic_param(expected)) {
+            // The equality target is still generic; the enclosing instantiation
+            // cannot prove it yet. A concrete use is checked by that outer
+            // instantiation.
+            continue;
+        }
+        auto* binding = find_associated_binding(concrete, declaring, equality.name);
+        if (binding == nullptr) {
+            // The trait-implementation check reports the missing impl; an
+            // equality check on a type that does not implement the interface
+            // would only duplicate that diagnostic.
+            continue;
+        }
+        auto* actual = binding->known_type();
+        auto* actual_canonical = actual != nullptr ? actual->canonical() : nullptr;
+        auto* expected_canonical = expected->canonical();
+        if (actual_canonical != nullptr && expected_canonical != nullptr &&
+            actual_canonical->is_same(expected_canonical)) {
+            continue;
+        }
+        const std::string actual_repr = actual != nullptr
+                                            ? actual->representation()
+                                            : std::string("<unresolved>");
+        diagnoser.error(equality.location)
+            << "associated type '" << equality.name << "' of '"
+            << concrete->representation() << "' is '" << actual_repr
+            << "', but the bound requires '" << expected->representation() << "'";
+    }
+}
+
+void GenericInstantiator::check_active_associated_equalities(BaseGenericDecl* decl) {
+    if (decl == nullptr) return;
+    for (auto* param : decl->generic_params) {
+        if (param == nullptr) continue;
+        auto found = active_type_map.find(param);
+        if (found == active_type_map.end() || found->second == nullptr) continue;
+        auto* concrete = resolve_active_type(active_type_map, found->second);
+        if (concrete == nullptr) continue;
+        for (auto& trait : param->traits) {
+            check_associated_equalities(param, concrete, trait);
+        }
+    }
+    if (decl->generic_params.empty()) return;
+    // Where clauses belong to the declaration's master function/impl/type.
+    WhereClause* where_clause = nullptr;
+    switch (decl->kind()) {
+        case ASTNodeKind::GenericFuncDecl:
+            where_clause = decl->as_gen_func_decl_unsafe()->master_impl->where_clause;
+            break;
+        case ASTNodeKind::GenericImplDecl:
+            where_clause = decl->as_gen_impl_decl_unsafe()->where_clause;
+            break;
+        case ASTNodeKind::GenericStructDecl:
+        case ASTNodeKind::GenericUnionDecl:
+        case ASTNodeKind::GenericVariantDecl:
+        case ASTNodeKind::GenericInterfaceDecl:
+        case ASTNodeKind::GenericTypeDecl:
+            break;
+        default:
+            break;
+    }
+    if (where_clause == nullptr) return;
+    for (auto& constraint : where_clause->constraints) {
+        if (constraint.param == nullptr) continue;
+        auto found = active_type_map.find(constraint.param);
+        if (found == active_type_map.end() || found->second == nullptr) continue;
+        auto* concrete = resolve_active_type(active_type_map, found->second);
+        if (concrete == nullptr) continue;
+        for (auto& trait : constraint.constraints) {
+            check_associated_equalities(constraint.param, concrete, trait);
+        }
+    }
 }
 
 void GenericInstantiator::make_gen_type_concrete(BaseType*& type) {
@@ -869,6 +1012,9 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
     for(auto& t : type->types) {
         visit(t);
     }
+    for(auto& binding : type->associated_bindings) {
+        visit(binding.type);
+    }
 
     // NOTE: visiting the referenced type in this case would lead to a problem
     // the problem is that LinkedType visiting method, currently checks for linkage with a generic decl
@@ -1250,6 +1396,7 @@ void GenericInstantiator::FinalizeSignature(GenericTypeDecl* decl, TypealiasStat
 
     // activating iteration in params
     activateIteration(decl, itr);
+    check_active_associated_equalities(decl);
 
     // finalize the signature of typealias instantiation
     FinalizeSignature(impl);
@@ -1287,6 +1434,7 @@ void GenericInstantiator::FinalizeSignature(GenericFuncDecl* decl, FunctionDecla
 
     // activating iteration in params
     activateIteration(decl, itr);
+    check_active_associated_equalities(decl);
 
     // finalize signature of the function
     FinalizeSignature(impl);
@@ -1369,6 +1517,7 @@ void GenericInstantiator::FinalizeSignature(GenericStructDecl* decl, StructDefin
 
     // activating iteration in params
     activateIteration(decl, itr);
+    check_active_associated_equalities(decl);
 
     // visiting inherited types
     for(auto& inh : impl->inherited) {
@@ -1553,6 +1702,7 @@ void GenericInstantiator::FinalizeSignature(GenericUnionDecl* decl, UnionDef* im
 
     // activating iteration in params
     activateIteration(decl, itr);
+    check_active_associated_equalities(decl);
 
     // visiting inherited types
     for(auto& inh : impl->inherited) {
@@ -1667,6 +1817,7 @@ void GenericInstantiator::FinalizeSignature(GenericInterfaceDecl* decl, Interfac
 
     // activating iteration in params
     activateIteration(decl, itr);
+    check_active_associated_equalities(decl);
 
     // visiting inherited types
     for(auto& inh : impl->inherited) {
@@ -1762,6 +1913,7 @@ void GenericInstantiator::FinalizeSignature(GenericVariantDecl* decl, VariantDef
 
     // activating iteration in params
     activateIteration(decl, itr);
+    check_active_associated_equalities(decl);
 
     // visiting inherited types
     for(auto& inh : impl->inherited) {
@@ -1940,6 +2092,7 @@ void GenericInstantiator::FinalizeSignature(GenericImplDecl* decl, ImplDefinitio
 
     // activating iteration in params
     activateIteration(decl, itr);
+    check_active_associated_equalities(decl);
 
     // visit the interface and target types, so the concrete implementation says
     // `impl Serializer<...> for vector<int>` instead of keeping the master's `T`

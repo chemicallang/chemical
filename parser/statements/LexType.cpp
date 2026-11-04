@@ -114,15 +114,35 @@ BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idT
         }
         std::vector<TypeLoc> types;
         std::vector<chem::string_view> lifetime_args;
+        std::vector<GenericTypeAssocBinding> assoc_bindings;
         do {
             if(token->type == TokenType::Lifetime) {
                 lifetime_args.emplace_back(allocate_view(allocator, token->value));
                 token++;
                 continue;
             }
+            auto arg_start = token;
             auto type = parseTypeLoc(allocator);
             if(type) {
-                types.emplace_back(type);
+                // A pending `>` from a nested `>>` means the `=` that follows
+                // belongs to the enclosing expression (e.g. the assignment in
+                // `var f : Fn<(x) => R<int>> = ...`), not to this argument list.
+                if(pending_greater_count == 0 && consumeToken(TokenType::EqualSym)) {
+                    auto name = linked_type_leaf_name(type);
+                    if(name.empty()) {
+                        error("expected an associated type name before '=' in generic argument list");
+                    } else {
+                        auto bound = parseTypeLoc(allocator);
+                        if(!bound) {
+                            error("expected a type after '=' in associated-type equality constraint");
+                        } else {
+                            assoc_bindings.emplace_back(
+                                name, bound, loc_single(arg_start));
+                        }
+                    }
+                } else {
+                    types.emplace_back(type);
+                }
             } else {
                 break;
             }
@@ -130,7 +150,9 @@ BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idT
         if(!consumeGenericClose()) {
             unexpected_error("expected '>' for generic type");
         }
-        return new (allocator.allocate<GenericType>()) GenericType((LinkedType*) idType, std::move(types), std::move(lifetime_args));
+        auto generic = new (allocator.allocate<GenericType>()) GenericType((LinkedType*) idType, std::move(types), std::move(lifetime_args));
+        generic->associated_bindings = std::move(assoc_bindings);
+        return generic;
     } else {
         return idType;
     }

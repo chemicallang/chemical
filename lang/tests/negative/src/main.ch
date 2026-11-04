@@ -796,6 +796,38 @@ func neg_associated_type_bound_rejects_noncopy(env : &mut TestEnv) {
 }
 
 @test
+func neg_associated_equality_inline_mismatch(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface HasItem {\n    type Item\n    func get(&self) : Self::Item\n}\nstruct Counter { var n : int }\nimpl HasItem for Counter {\n    type Item = int\n    func get(&self) : int { return self.n }\n}\nfunc <T : HasItem<Item = long>> read_item(t : &T) : T::Item { return t.get() }\npublic func main() : int {\n    var c = Counter { n : 7 }\n    return read_item(&c) as int\n}\n"
+    expect_compile_error(env, "associated_equality_inline_mismatch", ch,
+                         "associated type 'Item' of 'Counter' is 'int', but the bound requires 'long'")
+}
+
+@test
+func neg_associated_equality_where_mismatch(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface HasItem {\n    type Item\n    func get(&self) : Self::Item\n}\nstruct Counter { var n : int }\nimpl HasItem for Counter {\n    type Item = int\n    func get(&self) : int { return self.n }\n}\nfunc <T> read_item(t : &T) : T::Item where T : HasItem<Item = long> { return t.get() }\npublic func main() : int {\n    var c = Counter { n : 7 }\n    return read_item(&c) as int\n}\n"
+    expect_compile_error(env, "associated_equality_where_mismatch", ch,
+                         "associated type 'Item' of 'Counter' is 'int', but the bound requires 'long'")
+}
+
+@test
+func neg_associated_equality_unknown_name(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface HasItem {\n    type Item\n    func get(&self) : Self::Item\n}\nfunc <T : HasItem<Nope = int>> bad(t : &T) { }\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "associated_equality_unknown_name", ch,
+                         "interface 'HasItem' has no associated type 'Nope'")
+}
+
+@test
+func neg_associated_equality_requires_interface(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct Box<T> { var value : T }\nfunc <T : Box<Item = int>> bad(t : &T) { }\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "associated_equality_requires_interface", ch,
+                         "associated-type equality constraints are only valid on interface bounds")
+}
+
+@test
 func neg_associated_projection_without_bound(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "func <T> bad(t : &T) : T::Item { return t.n }\npublic func main() : int { return 0 }\n"

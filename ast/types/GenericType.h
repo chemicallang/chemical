@@ -12,11 +12,30 @@ class GenericInstantiatorAPI;
 
 #include "ast/structures/BaseGenericDecl.h"
 
+/**
+ * An associated-type equality binding written in a trait bound, e.g.
+ * `Iterator<Item = int>` or `HasItem<Item = T>`.
+ */
+struct GenericTypeAssocBinding {
+    chem::string_view name;
+    TypeLoc type;
+    SourceLocation location;
+
+    GenericTypeAssocBinding(chem::string_view name, TypeLoc type, SourceLocation location)
+        : name(name), type(type), location(location) {}
+};
+
 class GenericType : public BaseType {
 public:
 
     LinkedType* referenced;
     std::vector<TypeLoc> types;
+
+    /**
+     * Associated-type equality constraints carried by a trait bound.
+     * They only apply when this generic type names an interface.
+     */
+    std::vector<GenericTypeAssocBinding> associated_bindings;
 
     /**
      * Lifetime arguments in the same list, e.g. `'a` in `View<'a, T>`.

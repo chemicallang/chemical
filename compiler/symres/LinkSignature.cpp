@@ -620,11 +620,58 @@ static bool register_inline_instantiation(TopLevelLinkSignature& visitor, Generi
     return true;
 }
 
+static bool interface_has_associated_type(
+    ASTNode* iface,
+    const ChildResolver* resolver,
+    const chem::string_view& name,
+    unsigned depth = 0
+) {
+    if(iface == nullptr || resolver == nullptr || depth > 16) return false;
+    if(iface->kind() == ASTNodeKind::GenericInterfaceDecl) {
+        return interface_has_associated_type(
+            iface->as_gen_interface_decl_unsafe()->master_impl, resolver, name, depth + 1);
+    }
+    if(iface->kind() != ASTNodeKind::InterfaceDecl) return false;
+    auto* found = iface->child(resolver, name);
+    if(found != nullptr && found->kind() == ASTNodeKind::TypealiasStmt &&
+       found->as_typealias_unsafe()->is_associated()) {
+        return true;
+    }
+    auto* interface = iface->as_interface_def_unsafe();
+    for(auto& inherited : interface->inherited) {
+        auto* parent = const_cast<BaseType*>(inherited.type.getType())
+                           ->get_direct_linked_canonical_node();
+        if(interface_has_associated_type(parent, resolver, name, depth + 1)) return true;
+    }
+    return false;
+}
+
 void TopLevelLinkSignature::VisitGenericType(GenericType* type) {
     // save the type into a temporary before visiting children
     auto loc = type_location;
     // must be visited first, so child generic types are instantiated and ready
     RecursiveVisitor<TopLevelLinkSignature>::VisitGenericType(type);
+    if(!type->associated_bindings.empty()) {
+        ASTNode* linked = type->referenced != nullptr ? type->referenced->linked : nullptr;
+        InterfaceDefinition* iface = nullptr;
+        if(linked != nullptr && linked->kind() == ASTNodeKind::InterfaceDecl) {
+            iface = linked->as_interface_def_unsafe();
+        } else if(linked != nullptr && linked->kind() == ASTNodeKind::GenericInterfaceDecl) {
+            iface = linked->as_gen_interface_decl_unsafe()->master_impl;
+        }
+        if(iface == nullptr) {
+            diagnoser.error(loc)
+                << "associated-type equality constraints are only valid on interface bounds";
+        } else {
+            for(auto& binding : type->associated_bindings) {
+                if(!interface_has_associated_type((ASTNode*) iface, getChildResolver(), binding.name)) {
+                    diagnoser.error(binding.location)
+                        << "interface '" << iface->name_view()
+                        << "' has no associated type '" << binding.name << "'";
+                }
+            }
+        }
+    }
     // we must instantiate generic declarations and link with those
     // only if we are not present in generic context
     register_inline_instantiation(*this, type, loc);

@@ -349,12 +349,15 @@ memory safety.
    checks, unsafe-gated u16_strlen, thread-pool Future ownership/null safety,
    vector replacement drops, filesystem temp/copy path buffer bounds, and
    non-`Copy` map `find` rejection). The rest of the safe wrapper surface
-   (actual zero-sized vector support, string_view/u16string parsers,
-   target-specific non-Windows OS-gated wrappers) remain; the string-view/UTF-16
+   (actual zero-sized vector support, string_view/u16string parsers, and
+   target-source coverage for platforms without a complete cstd mapping)
+   remain; the string-view/UTF-16
    raw constructors, Rc/Arc weak handles, RefCell guard escape, Windows
    directory traversal/removal bounds, HTTP body/scratch-buffer ownership, TLS
    hostname/socket/config ownership, TLS CA/key/ALPN caller lists, and Windows
-   test IPC bounds were reviewed or fixed. The i386 Windows libraries are syntax/safety-clean.
+   test IPC bounds, macOS cstd wrappers, and POSIX reactor bounds were reviewed
+   or fixed. The i386 Windows and macOS target checks are clean for the audited
+   roots; FreeBSD still lacks a complete cstd source mapping.
 3. **`@scoped_callback` is body-checked, including custom sinks.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter anywhere except a known join-before-return API (resolved by

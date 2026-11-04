@@ -9,5 +9,5 @@ public func _NSGetEnviron() : ***mut char
  * cross platform helper function returning the process environment
  */
 public func get_environ() : **mut char {
-    return *_NSGetEnviron()
+    return unsafe(*_NSGetEnviron())
 }

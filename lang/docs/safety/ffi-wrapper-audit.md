@@ -310,8 +310,32 @@ fails.
 Regression coverage: the existing ALPN/CA/key setter tests and the i386 Windows
 target safety check (`windows_i386_libs_safety`); LLVM TLS filtered tests `7/7`.
 
+## Tranche 18 — macOS cstd and POSIX reactor (2026-11-04)
+
+| Surface | Invariant | Enforcement |
+|---|---|---|
+| macOS `get_errno`/`set_errno` | `__error()` and the returned int are raw | unsafe-gated access |
+| macOS `get_stdin`/`get_stdout`/`get_stderr` | `__stdinp`/`__stdoutp`/`__stderrp` are extern globals | unsafe-gated reads |
+| macOS `get_environ` | `_NSGetEnviron()` and its result are raw | unsafe-gated call/dereference |
+| `FdSet` helpers | fd must map inside the 1024-bit fd_set | bounds-check `0 <= fd < 1024` |
+| select fallback | an out-of-range fd must not be silently probed | returns `POLLERR` for the entry instead of indexing |
+| epoll/kqueue poll buffers | allocation failure/overflow cannot reach a null kernel buffer | checked size arithmetic and select fallback |
+| epoll registration/probe | null scratch buffers are not written | null checks before event construction |
+
+The macOS `cstd` sources were still safe wrappers over raw Darwin globals/functions
+and failed the macOS target safety check. The POSIX reactor's fallback `fd_set`
+helpers also indexed `fd / 64` without the 1024-bit bound, and the epoll/kqueue
+poll/register paths used unchecked scratch allocations. Both are now fail-closed.
+
+Target checks: `async`, `std`, `fs`, `net`, `tls`, `http`, `server`, and `test`
+compile cleanly for `x86_64-apple-darwin` (and `arm64-apple-darwin` for the
+async/std roots). Linux async suite `83/83`. FreeBSD still lacks a complete
+`cstd` source mapping, which is a target-support gap rather than a wrapper
+memory-safety gap.
+
 Still remaining in this group: actual zero-sized vector support (safe but
-ergonomically incomplete) and target-specific non-Windows OS-gated wrappers.
+ergonomically incomplete) and target-source coverage for platforms without a
+complete cstd mapping.
 
 ## Coverage
 

@@ -6,9 +6,9 @@
 public func __error() : *mut int
 
 public func get_errno() : int {
-    return *__error();
+    return unsafe(*__error());
 }
 
 public func set_errno(value : int) {
-    *__error() = value;
+    unsafe { *__error() = value; }
 }

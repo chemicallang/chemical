@@ -84,6 +84,7 @@ public namespace posix {
 
     func fdset_set(set : *mut FdSet, fd : int) {
         unsafe {
+            if(set == null || fd < 0 || fd >= 1024) { return }
             var slot = fd / 64
             var bit = fd % 64
             set.bits[slot] = set.bits[slot] | ((1 as ulong) << (bit as ulong))
@@ -93,6 +94,7 @@ public namespace posix {
 
     func fdset_isset(set : *mut FdSet, fd : int) : bool {
         unsafe {
+            if(set == null || fd < 0 || fd >= 1024) { return false }
             var slot = fd / 64
             var bit = fd % 64
             return (set.bits[slot] & ((1 as ulong) << (bit as ulong))) != 0u
@@ -184,6 +186,7 @@ public namespace posix {
 
     func write_epoll_event(base : *mut u8, ev : u32, fd : int) {
         unsafe {
+            if(base == null) { return }
             unsafe { memset(base as *mut void, 0, epoll_event_size()) }
             put_u32(base, 0u, ev)
             put_u32(base, epoll_data_off(), fd as u32)
@@ -269,6 +272,7 @@ public namespace posix {
                 var epfd = main_epoll_fd()
                 if(epfd >= 0) {
                     var buf = unsafe(malloc(16)) as *mut u8
+                    if(buf == null) { return }
                     write_epoll_event(buf, events_to_epoll(events), fd)
                     var op = EPOLL_CTL_MOD
                     if(is_new) {
@@ -329,6 +333,10 @@ public namespace posix {
                     return select_is_ready(fd, events)
                 }
                 var buf = unsafe(malloc(16)) as *mut u8
+                if(buf == null) {
+                    unsafe { close(epfd) }
+                    return select_is_ready(fd, events)
+                }
                 write_epoll_event(buf, events_to_epoll(events), fd)
                 if(unsafe(epoll_ctl(epfd, EPOLL_CTL_ADD, fd, buf as *mut void)) != 0) {
                     unsafe {
@@ -338,6 +346,11 @@ public namespace posix {
                     return select_is_ready(fd, events)
                 }
                 var out = unsafe(malloc(16)) as *mut u8
+                if(out == null) {
+                    unsafe { dealloc buf }
+                    unsafe { close(epfd) }
+                    return select_is_ready(fd, events)
+                }
                 var rc = unsafe(epoll_wait(epfd, out as *mut void, 1, 0))
                 unsafe { close(epfd) }
                 var ready = false
@@ -434,6 +447,11 @@ public namespace posix {
             while(i < n) {
                 var fd = fds[i].fd
                 fds[i].revents = 0
+                if(fd < 0 || fd >= 1024) {
+                    fds[i].revents = POLLERR
+                    i = i + 1u
+                    continue
+                }
                 if((fds[i].events & POLLIN) != 0) {
                     fdset_set(&raw mut rfds, fd)
                 }
@@ -480,7 +498,13 @@ public namespace posix {
                     return 0
                 }
                 var esz = epoll_event_size()
+                if(esz == 0u || n > 2147483647u || n > (0xFFFFFFFFFFFFFFFFu / esz)) {
+                    return select_reactor_poll(fds, n, timeout_ms)
+                }
                 var buf = unsafe(malloc(n * esz)) as *mut u8
+                if(buf == null) {
+                    return select_reactor_poll(fds, n, timeout_ms)
+                }
                 var rc = unsafe(epoll_wait(epfd, buf as *mut void, n as int, timeout_ms))
                 if(rc > 0) {
                     var i = 0u
@@ -519,7 +543,13 @@ public namespace posix {
                 if(n == 0u) {
                     return 0
                 }
+                if(n > 2147483647u || n > (0xFFFFFFFFFFFFFFFFu / sizeof(KEvent))) {
+                    return select_reactor_poll(fds, n, timeout_ms)
+                }
                 var events = malloc(n * sizeof(KEvent)) as *mut KEvent
+                if(events == null) {
+                    return select_reactor_poll(fds, n, timeout_ms)
+                }
                 var ts = zeroed<KTimeSpec>()
                 ts.tv_sec = (timeout_ms / 1000) as long
                 ts.tv_nsec = ((timeout_ms % 1000) * 1000000) as long

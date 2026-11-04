@@ -687,14 +687,6 @@ func neg_nested_tuple_pattern_requires_tuple(env : &mut TestEnv) {
 }
 
 @test
-func neg_generic_inherent_impl_unsupported(env : &mut TestEnv) {
-    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "struct Pair<T>(T, T)\nimpl<T> Pair<T> {\n    func count(&self) : int { return 2 }\n}\npublic func main() : int {\n    var p = Pair<int>(1, 2)\n    return p.count()\n}\n"
-    expect_compile_error(env, "generic_inherent_impl_unsupported", ch,
-                         "generic implementation target is not an interface")
-}
-
-@test
 func neg_tuple_pattern_requires_tuple(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var (a, b) = 1\n    return a + b\n}\n"

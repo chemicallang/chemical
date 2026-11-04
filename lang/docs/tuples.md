@@ -5,7 +5,7 @@ nested tuples, element assignment, `Copy`, auto traits, drop-once semantics,
 flat and nested tuple destructuring (`var ((a, b), c) = value`), wildcard
 elements, tuple patterns in `if` conditions, named tuple structs
 (`struct Point(int, int)`), inline and external inherent methods on tuple
-structs, fixed-array patterns (`var [a, b] = arr`), and the unit tuple `()`.
+structs (including generic tuple structs), fixed-array patterns (`var [a, b] = arr`), and the unit tuple `()`.
 
 ## Syntax
 
@@ -133,8 +133,7 @@ yet.
 - Tuple patterns in match/switch position, and nested array patterns (tuple
   nesting and `if` condition patterns are implemented; fixed-array patterns
   remain flat).
-- Tuple-struct field visibility (fields are always public) and **generic**
-  external inherent impls.
+- Tuple-struct field visibility (fields are always public).
 - `impl Trait for (T1, T2)` / methods on structural tuples.
 - Slice rest patterns, `&mut [T]`/`Box<[T]>` patterns, statement forms with an
   `else` path, and non-Copy array destructuring. Exact `[T]`/`&[T]` condition

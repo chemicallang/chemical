@@ -27,6 +27,11 @@ impl TupleStructExternalMethods {
         return self._0 * self._1
     }
 }
+struct TupleStructGenericExternal<T>(T, T)
+impl<T> TupleStructGenericExternal<T> {
+    func count(&self) : int { return 2 }
+    func first(&self) : T where T: Copy { return self._0 }
+}
 struct TupleStructPointMethods(int, int) {
     func sum(&self) : int {
         return self._0 + self._1
@@ -153,6 +158,10 @@ func test_tuples() {
     test("tuple struct external inherent methods", () => {
         var point = TupleStructExternalMethods(3, 4)
         return point.product() == 12
+    })
+    test("generic tuple struct external inherent methods", () => {
+        var pair = TupleStructGenericExternal<int>(5, 6)
+        return pair.count() == 2 && pair.first() == 5
     })
     test("tuple struct destructible elements drop exactly once", () => {
         var first = 0

@@ -90,9 +90,12 @@ static void adopt_concrete_generic_impl(
     if(impl == nullptr || target == nullptr) return;
     auto* iface = impl->interface_type ? impl->interface_type->get_direct_linked_interface() : nullptr;
     if(iface == nullptr) {
-        instantiator.getDiagnoser().error(
-            "generic implementation target is not an interface", demand_loc
-        );
+        // Generic inherent implementation: index its methods on the concrete
+        // target. There is no interface/vtable registration to perform.
+        auto& index = instantiator.getImplsIndex();
+        std::lock_guard<std::recursive_mutex> adopt_lock(index.getGenericImplAdoptMutex());
+        std::unique_lock<std::shared_mutex> lookup_lock(index.getGenericImplLookupMutex());
+        target->adopt(impl);
         return;
     }
 

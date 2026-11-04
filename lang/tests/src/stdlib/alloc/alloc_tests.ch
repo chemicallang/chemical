@@ -25,7 +25,7 @@ func test_allocator() {
             if(result is Result.Err) {
                 return false
             }
-            var Ok(ptr) = result else unreachable
+            var Ok(ptr) = result else unsafe { unreachable }
             a.dealloc(ptr, layout)
             return true
         })
@@ -37,7 +37,7 @@ func test_allocator() {
             if(result is Result.Err) {
                 return false
             }
-            var Ok(ptr) = result else unreachable
+            var Ok(ptr) = result else unsafe { unreachable }
             a.dealloc(ptr, layout)
             return ptr != null
         })
@@ -49,7 +49,7 @@ func test_allocator() {
             if(result is Result.Err) {
                 return false
             }
-            var Ok(ptr) = result else unreachable
+            var Ok(ptr) = result else unsafe { unreachable }
             var typed = ptr as *mut long
             var val = typed[0]
             a.dealloc(ptr, layout)
@@ -63,7 +63,7 @@ func test_allocator() {
             if(result is Result.Err) {
                 return false
             }
-            var Ok(old_ptr) = result else unreachable
+            var Ok(old_ptr) = result else unsafe { unreachable }
             var typed = old_ptr as *mut int
             typed[0] = 42
 
@@ -73,7 +73,7 @@ func test_allocator() {
                 a.dealloc(old_ptr, small_layout)
                 return false
             }
-            var Ok(new_ptr) = grow_result else unreachable
+            var Ok(new_ptr) = grow_result else unsafe { unreachable }
             var new_typed = new_ptr as *mut int
             var old_val = new_typed[0]
             a.dealloc(new_ptr, big_layout)
@@ -87,7 +87,7 @@ func test_allocator() {
             if(result is Result.Err) {
                 return false
             }
-            var Ok(old_ptr) = result else unreachable
+            var Ok(old_ptr) = result else unsafe { unreachable }
             var typed = old_ptr as *mut int
             typed[0] = 99
 
@@ -97,7 +97,7 @@ func test_allocator() {
                 a.dealloc(old_ptr, big_layout)
                 return false
             }
-            var Ok(new_ptr) = shrink_result else unreachable
+            var Ok(new_ptr) = shrink_result else unsafe { unreachable }
             var new_typed = new_ptr as *mut int
             var val = new_typed[0]
             a.dealloc(new_ptr, small_layout)
@@ -108,7 +108,7 @@ func test_allocator() {
             var a = std::alloc::GlobalAllocator.make()
             var layout = std::alloc::Layout.of<int>()
             var result = a.alloc(layout)
-            var Ok(ptr) = result else unreachable
+            var Ok(ptr) = result else unsafe { unreachable }
             a.dealloc(ptr, layout)
             a.check_leaks()
             return true
@@ -119,7 +119,7 @@ func test_allocator() {
             if(result is Result.Err) {
                 return false
             }
-            var Ok(ptr) = result else unreachable
+            var Ok(ptr) = result else unsafe { unreachable }
             std::alloc::dealloc_bytes(ptr)
             return ptr != null
         })
@@ -129,7 +129,7 @@ func test_allocator() {
             if(result is Result.Err) {
                 return false
             }
-            var Ok(ptr) = result else unreachable
+            var Ok(ptr) = result else unsafe { unreachable }
             var typed = ptr as *mut long
             var val = typed[0]
             std::alloc::dealloc_bytes(ptr)
@@ -141,7 +141,7 @@ func test_allocator() {
             if(result is Result.Err) {
                 return false
             }
-            var Ok(ptr) = result else unreachable
+            var Ok(ptr) = result else unsafe { unreachable }
             if(ptr == null) { return false }
             std::alloc::dealloc_bytes(ptr)
             return true
@@ -152,7 +152,7 @@ func test_allocator() {
             var layout = std::alloc::Layout.of<int>()
             var result = a.alloc(layout)
             if(result is Result.Err) { return false }
-            var Ok(ptr) = result else unreachable
+            var Ok(ptr) = result else unsafe { unreachable }
             var grown = a.grow(ptr, layout, 0)
             if(!(grown is Result.Err)) {
                 a.dealloc(ptr, layout)

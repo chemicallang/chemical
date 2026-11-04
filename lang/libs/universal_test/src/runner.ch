@@ -135,21 +135,21 @@ func ut_parse_result(args : string_view, out : *mut UTResult) { unsafe {
     var ph = ASTJsonHandler.make()
     parser.parse(args.data(), args.size(), &mut ph)
     if(ph.root is JsonValue.Array) {
-        var Array(arr) = ph.root else unreachable
+        var Array(arr) = ph.root else unsafe { unreachable }
         if(arr.size() >= 3) {
             var e0 = arr.get_ptr(0)
             if(e0 is JsonValue.String) {
-                var String(s) = *e0 else unreachable
+                var String(s) = *e0 else unsafe { unreachable }
                 out.name = s.copy()
             }
             var e1 = arr.get_ptr(1)
             if(e1 is JsonValue.Bool) {
-                var Bool(b) = *e1 else unreachable
+                var Bool(b) = *e1 else unsafe { unreachable }
                 out.ok = b
             }
             var e2 = arr.get_ptr(2)
             if(e2 is JsonValue.String) {
-                var String(s2) = *e2 else unreachable
+                var String(s2) = *e2 else unsafe { unreachable }
                 out.msg = s2.copy()
             }
         }
@@ -248,7 +248,7 @@ func ut_execute(tests : *mut *mut UTFunction, count : size_t, headed : bool) {
         unsafe { printf("universal_test: failed to create webview (is a display available?)\n") }
         return
     }
-    var Ok(wv) = wv_res else unreachable
+    var Ok(wv) = wv_res else unsafe { unreachable }
     g_wv = &raw mut wv
 
     webview::webview_bind(&raw mut wv, (method, args) => {

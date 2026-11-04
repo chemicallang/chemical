@@ -88,7 +88,7 @@ func is_valid_utf8(bytes : &vector<u8>) : bool {
 
 public func as_u64(v : &CborValue) : Option<u64> {
     if(v is CborValue.Unsigned) {
-        var Unsigned(n) = v else unreachable
+        var Unsigned(n) = v else unsafe { unreachable }
         return Option.Some<u64>(n)
     }
     return Option.None<u64>()
@@ -98,12 +98,12 @@ public func as_u64(v : &CborValue) : Option<u64> {
 // not an integer, or does not fit.
 public func as_i64(v : &CborValue) : Option<i64> {
     if(v is CborValue.Unsigned) {
-        var Unsigned(n) = v else unreachable
+        var Unsigned(n) = v else unsafe { unreachable }
         if(n > 9223372036854775807u64) { return Option.None<i64>() }
         return Option.Some<i64>(n as i64)
     }
     if(v is CborValue.Negative) {
-        var Negative(n) = v else unreachable
+        var Negative(n) = v else unsafe { unreachable }
         return Option.Some<i64>(n)
     }
     return Option.None<i64>()
@@ -111,7 +111,7 @@ public func as_i64(v : &CborValue) : Option<i64> {
 
 public func as_bool(v : &CborValue) : Option<bool> {
     if(v is CborValue.Bool) {
-        var Bool(b) = v else unreachable
+        var Bool(b) = v else unsafe { unreachable }
         return Option.Some<bool>(b)
     }
     return Option.None<bool>()
@@ -148,7 +148,7 @@ public func is_number(v : &CborValue) : bool {
 // The tag number of a tagged value, if it is tagged.
 public func tag_number(v : &CborValue) : Option<u64> {
     if(v is CborValue.Tag) {
-        var Tag(n, boxed) = v else unreachable
+        var Tag(n, boxed) = v else unsafe { unreachable }
         return Option.Some<u64>(n)
     }
     return Option.None<u64>()
@@ -162,7 +162,7 @@ public func tag_number(v : &CborValue) : Option<u64> {
 // matters for WebAuthn, where a missing `x5c` and an empty one differ.
 public func bytes_copy(v : &CborValue) : vector<u8> {
     if(v is CborValue.Bytes) {
-        var Bytes(b) = v else unreachable
+        var Bytes(b) = v else unsafe { unreachable }
         var out = vector<u8>()
         for(var i = 0u; i < b.size(); i++) {
             out.push_back(b.get(i))
@@ -176,7 +176,7 @@ public func bytes_copy(v : &CborValue) : vector<u8> {
 // real copy rather than a move.
 public func text_copy(v : &CborValue) : string {
     if(v is CborValue.Text) {
-        var Text(t) = v else unreachable
+        var Text(t) = v else unsafe { unreachable }
         return t.copy()
     }
     return string("")
@@ -192,7 +192,7 @@ public func text_copy(v : &CborValue) : string {
 // The number of PAIRS in a map (the entry vector holds two values per pair).
 public func map_len(v : &CborValue) : size_t {
     if(v is CborValue.Map) {
-        var Map(m) = v else unreachable
+        var Map(m) = v else unsafe { unreachable }
         return m.size() / 2u
     }
     return 0u
@@ -200,7 +200,7 @@ public func map_len(v : &CborValue) : size_t {
 
 public func array_len(v : &CborValue) : size_t {
     if(v is CborValue.Array) {
-        var Array(a) = v else unreachable
+        var Array(a) = v else unsafe { unreachable }
         return a.size()
     }
     return 0u
@@ -210,7 +210,7 @@ public func array_len(v : &CborValue) : size_t {
 // can read it without moving the payload out of the variant.
 func map_value_at(v : &CborValue, index : size_t) : *mut CborValue {
     if(!(v is CborValue.Map)) { return null }
-    var Map(m) = v else unreachable
+    var Map(m) = v else unsafe { unreachable }
     if((index + 1u) * 2u > m.size()) { return null }
     return m.get_ptr(index * 2u + 1u)
 }
@@ -220,12 +220,12 @@ func map_find_int(v : &CborValue, key : i64) : int {
     unsafe {
 
     if(!(v is CborValue.Map)) { return -1 }
-    var Map(m) = v else unreachable
+    var Map(m) = v else unsafe { unreachable }
     var pairs = m.size() / 2u
     for(var i = 0u; i < pairs; i++) {
         var got = as_i64(&mut *m.get_ptr(i * 2u))
         if(got is Option.None) { continue }
-        var Some(kv) = got else unreachable
+        var Some(kv) = got else unsafe { unreachable }
         if(kv == key) { return i as int }
     }
     return -1
@@ -236,7 +236,7 @@ func map_find_int(v : &CborValue, key : i64) : int {
 // `string_view` has no `==`, so a text key is matched on length then position.
 func text_equals(t : &CborValue, key : string_view) : bool {
     if(!(t is CborValue.Text)) { return false }
-    var Text(s) = t else unreachable
+    var Text(s) = t else unsafe { unreachable }
     var tv = s.to_view()
     return tv.size() == key.size() && tv.find(&key) == 0u
 }
@@ -246,7 +246,7 @@ func map_find_text(v : &CborValue, key : string_view) : int {
     unsafe {
 
     if(!(v is CborValue.Map)) { return -1 }
-    var Map(m) = v else unreachable
+    var Map(m) = v else unsafe { unreachable }
     var pairs = m.size() / 2u
     for(var i = 0u; i < pairs; i++) {
         if(text_equals(&mut *m.get_ptr(i * 2u), key)) { return i as int }
@@ -289,7 +289,7 @@ public func map_int_by_int(v : &CborValue, key : i64, fallback : i64) : i64 {
     if(i < 0) { return fallback }
     var got = as_i64(&mut *map_value_at(v, i as size_t))
     if(got is Option.None) { return fallback }
-    var Some(n) = got else unreachable
+    var Some(n) = got else unsafe { unreachable }
     return n
 
 }
@@ -362,7 +362,7 @@ public func map_value_by_int(v : &CborValue, key : i64) : *mut CborValue {
 // can be walked. Null when out of range.
 public func array_value_at(v : &CborValue, index : size_t) : *mut CborValue {
     if(!(v is CborValue.Array)) { return null }
-    var Array(a) = v else unreachable
+    var Array(a) = v else unsafe { unreachable }
     if(index >= a.size()) { return null }
     return a.get_ptr(index)
 }
@@ -374,7 +374,7 @@ public func array_bytes_at(v : &CborValue, index : size_t) : vector<u8> {
     unsafe {
 
     if(!(v is CborValue.Array)) { return vector<u8>() }
-    var Array(a) = v else unreachable
+    var Array(a) = v else unsafe { unreachable }
     if(index >= a.size()) { return vector<u8>() }
     return bytes_copy(&mut *a.get_ptr(index))
 
@@ -387,11 +387,11 @@ public func array_int_at(v : &CborValue, index : size_t, fallback : i64) : i64 {
     unsafe {
 
     if(!(v is CborValue.Array)) { return fallback }
-    var Array(a) = v else unreachable
+    var Array(a) = v else unsafe { unreachable }
     if(index >= a.size()) { return fallback }
     var got = as_i64(&mut *a.get_ptr(index))
     if(got is Option.None) { return fallback }
-    var Some(n) = got else unreachable
+    var Some(n) = got else unsafe { unreachable }
     return n
 
 }
@@ -408,20 +408,20 @@ public func describe(v : &CborValue) : string {
     unsafe {
 
     if(v is CborValue.Unsigned) {
-        var Unsigned(n) = v else unreachable
+        var Unsigned(n) = v else unsafe { unreachable }
         var s = string("u:")
         s.append_integer(n as int)
         return s
     }
     if(v is CborValue.Negative) {
-        var Negative(n) = v else unreachable
+        var Negative(n) = v else unsafe { unreachable }
         var s = string("i:")
         s.append_integer(n as int)
         return s
     }
     if(v is CborValue.Bytes) {
         var s = string("h:")
-        var Bytes(b) = v else unreachable
+        var Bytes(b) = v else unsafe { unreachable }
         for(var i = 0u; i < b.size(); i++) {
             var one = b.get(i)
             var pair = string("")
@@ -433,33 +433,33 @@ public func describe(v : &CborValue) : string {
     }
     if(v is CborValue.Text) {
         var s = string("\"")
-        var Text(t) = v else unreachable
+        var Text(t) = v else unsafe { unreachable }
         s.append_string(&t)
         s.append_string(string("\""))
         return s
     }
     if(v is CborValue.Bool) {
-        var Bool(b) = v else unreachable
+        var Bool(b) = v else unsafe { unreachable }
         if(b) { return string("true") }
         return string("false")
     }
     if(v is CborValue.Null) { return string("null") }
     if(v is CborValue.Undefined) { return string("undefined") }
     if(v is CborValue.Simple) {
-        var Simple(n) = v else unreachable
+        var Simple(n) = v else unsafe { unreachable }
         var s = string("simple:")
         s.append_integer(n as int)
         return s
     }
     if(v is CborValue.Float) {
-        var Float(f) = v else unreachable
+        var Float(f) = v else unsafe { unreachable }
         var s = string("f:")
         s.append_double(f, 8)
         return s
     }
     if(v is CborValue.Array) {
         var s = string("[")
-        var Array(a) = v else unreachable
+        var Array(a) = v else unsafe { unreachable }
         for(var i = 0u; i < a.size(); i++) {
             if(i > 0u) { s.append_string(string(",")) }
             s.append_string(describe(&mut *a.get_ptr(i)))
@@ -469,7 +469,7 @@ public func describe(v : &CborValue) : string {
     }
     if(v is CborValue.Map) {
         var s = string("{")
-        var Map(m) = v else unreachable
+        var Map(m) = v else unsafe { unreachable }
         var pairs = m.size() / 2u
         for(var i = 0u; i < pairs; i++) {
             if(i > 0u) { s.append_string(string(",")) }
@@ -481,7 +481,7 @@ public func describe(v : &CborValue) : string {
         return s
     }
     if(v is CborValue.Tag) {
-        var Tag(n, boxed) = v else unreachable
+        var Tag(n, boxed) = v else unsafe { unreachable }
         var s = string("tag:")
         s.append_integer(n as int)
         s.append_string(string("("))

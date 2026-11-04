@@ -33,7 +33,7 @@ public func test_router_match_params(env : &mut TestEnv) { unsafe {
     if(!m.id.equals(std::string_view("projects"))) { env.error("wrong id"); return }
     if(m.params.size() != 1) { env.error("expected one param"); return }
     const p = m.params.get_ptr(0)
-    var Param(name, value) = *p else unreachable
+    var Param(name, value) = *p else unsafe { unreachable }
     if(!name.equals(std::string_view("id"))) { env.error("param name") }
     if(!value.equals(std::string_view("42"))) { env.error("param value") }
  }}

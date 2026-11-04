@@ -64,7 +64,7 @@ variant CloneBox<T> {
 impl<T> Clone for CloneBox<T> where T: Clone {
     func clone(&self) : CloneBox<T> {
         if(self is CloneBox.Val) {
-            var Val(value) = self else unreachable
+            var Val(value) = self else unsafe { unreachable }
             return CloneBox.Val<T>(value.clone())
         }
         return CloneBox.Empty<T>()
@@ -115,7 +115,7 @@ func test_clone_impls() {
         var b = CloneBox.Val<CloneRow>(CloneRow { x : 41 })
         var c = b.clone()
         if(c is CloneBox.Val) {
-            var Val(v) = c else unreachable
+            var Val(v) = c else unsafe { unreachable }
             return v.x == 41
         }
         return false

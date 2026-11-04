@@ -63,7 +63,7 @@ public func image_set_get_rgba_works(env : &mut TestEnv) {
     if(set_result is Result.Err) { env.error("set should succeed"); return }
     var get_result = image::image_get_rgba(&raw mut img, 5, 5)
     if(get_result is Result.Err) { env.error("get should succeed"); return }
-    var Ok(px) = get_result else unreachable
+    var Ok(px) = get_result else unsafe { unreachable }
     if(px.r != 255) { env.error("red channel") }
     if(px.g != 0) { env.error("green channel") }
     if(px.b != 0) { env.error("blue channel") }
@@ -107,7 +107,7 @@ public func image_fill_works(env : &mut TestEnv) {
     image::image_fill(&raw mut img, white)
     var px = image::image_get_rgba(&raw mut img, 0, 0)
     if(px is Result.Err) { env.error("get should succeed"); return }
-    var Ok(c) = px else unreachable
+    var Ok(c) = px else unsafe { unreachable }
     if(c.r != 255) { env.error("filled red") }
     if(c.g != 255) { env.error("filled green") }
 }
@@ -147,7 +147,7 @@ public func image_copy_works(env : &mut TestEnv) {
     if(image::image_width(&raw mut copy) != 10) { env.error("copy width") }
     var px = image::image_get_rgba(&raw mut copy, 3, 3)
     if(px is Result.Err) { env.error("copied pixel should match"); return }
-    var Ok(c) = px else unreachable
+    var Ok(c) = px else unsafe { unreachable }
     if(c.r != 255) { env.error("copied pixel should match") }
 }
 
@@ -163,7 +163,7 @@ public func image_copy_independent(env : &mut TestEnv) {
     // Copy should still have red
     var px = image::image_get_rgba(&raw mut copy, 0, 0)
     if(px is Result.Ok) {
-        var Ok(c) = px else unreachable
+        var Ok(c) = px else unsafe { unreachable }
         if(c.r != 255) { env.error("copy should be independent") }
     }
 }
@@ -173,7 +173,7 @@ public func image_crop_works(env : &mut TestEnv) {
     var img = image::image_create_rgba(20, 20)
     var cropped_result = image::image_crop(&raw mut img, 2, 2, 10, 10)
     if(cropped_result is Result.Err) { env.error("crop should succeed"); return }
-    var Ok(cropped) = cropped_result else unreachable
+    var Ok(cropped) = cropped_result else unsafe { unreachable }
     if(image::image_width(&raw mut cropped) != 10) { env.error("cropped width") }
     if(image::image_height(&raw mut cropped) != 10) { env.error("cropped height") }
 }
@@ -200,7 +200,7 @@ public func image_flip_h_works(env : &mut TestEnv) {
     image::image_flip_h(&raw mut img)
     var px = image::image_get_rgba(&raw mut img, 9, 5)
     if(px is Result.Err) { env.error("flipped horizontally"); return }
-    var Ok(c) = px else unreachable
+    var Ok(c) = px else unsafe { unreachable }
     if(c.r != 255) { env.error("flipped horizontally") }
 }
 
@@ -212,7 +212,7 @@ public func image_flip_v_works(env : &mut TestEnv) {
     image::image_flip_v(&raw mut img)
     var px = image::image_get_rgba(&raw mut img, 0, 3)
     if(px is Result.Ok) {
-        var Ok(color) = px else unreachable
+        var Ok(color) = px else unsafe { unreachable }
         if(color.r != 255 as u8) { env.error("flipped pixel should be red") }
     }
 }
@@ -234,7 +234,7 @@ public func image_rotate90_preserves_pixel(env : &mut TestEnv) {
     // Pixel at (0,0) should move to (0,4) after 90° rotation
     var px = image::image_get_rgba(&raw mut rotated, 0, 4)
     if(px is Result.Ok) {
-        var Ok(c) = px else unreachable
+        var Ok(c) = px else unsafe { unreachable }
         if(c.r != 255) { env.error("rotated pixel") }
     }
 }
@@ -246,7 +246,7 @@ public func image_line_draws(env : &mut TestEnv) {
     image::image_line(&raw mut img, 0, 0, 99, 99, red)
     var px = image::image_get_rgba(&raw mut img, 50, 50)
     if(px is Result.Err) { env.error("line should pass through center"); return }
-    var Ok(c) = px else unreachable
+    var Ok(c) = px else unsafe { unreachable }
     if(c.r != 255) { env.error("line should pass through center") }
 }
 
@@ -257,7 +257,7 @@ public func image_line_horizontal(env : &mut TestEnv) {
     image::image_line(&raw mut img, 0, 0, 49, 0, red)
     var px = image::image_get_rgba(&raw mut img, 25, 0)
     if(px is Result.Err) { env.error("hline middle"); return }
-    var Ok(c) = px else unreachable
+    var Ok(c) = px else unsafe { unreachable }
     if(c.r != 255) { env.error("hline should be red") }
 }
 
@@ -268,7 +268,7 @@ public func image_line_vertical(env : &mut TestEnv) {
     image::image_line(&raw mut img, 0, 0, 0, 49, blue)
     var px = image::image_get_rgba(&raw mut img, 0, 25)
     if(px is Result.Err) { env.error("vline middle"); return }
-    var Ok(c) = px else unreachable
+    var Ok(c) = px else unsafe { unreachable }
     if(c.b != 255) { env.error("vline should be blue") }
 }
 
@@ -279,11 +279,11 @@ public func image_fill_rect_works(env : &mut TestEnv) {
     image::image_fill_rect(&raw mut img, 10, 10, 20, 20, blue)
     var px = image::image_get_rgba(&raw mut img, 15, 15)
     if(px is Result.Err) { env.error("filled rect should have blue"); return }
-    var Ok(c) = px else unreachable
+    var Ok(c) = px else unsafe { unreachable }
     if(c.b != 255) { env.error("filled rect should have blue") }
     var outside = image::image_get_rgba(&raw mut img, 5, 5)
     if(outside is Result.Err) { env.error("outside should be empty"); return }
-    var Ok(o) = outside else unreachable
+    var Ok(o) = outside else unsafe { unreachable }
     if(o.b != 0) { env.error("outside should be empty") }
 }
 
@@ -295,13 +295,13 @@ public func image_rectangle_outline_works(env : &mut TestEnv) {
     // Top edge should be green
     var px = image::image_get_rgba(&raw mut img, 5, 2)
     if(px is Result.Ok) {
-        var Ok(c) = px else unreachable
+        var Ok(c) = px else unsafe { unreachable }
         if(c.g != 255) { env.error("rectangle top edge") }
     }
     // Inside should NOT be green
     var inside = image::image_get_rgba(&raw mut img, 5, 5)
     if(inside is Result.Ok) {
-        var Ok(c2) = inside else unreachable
+        var Ok(c2) = inside else unsafe { unreachable }
         if(c2.g == 255) { env.error("rectangle inside should be empty") }
     }
 }
@@ -313,7 +313,7 @@ public func image_circle_draws(env : &mut TestEnv) {
     image::image_circle(&raw mut img, 50, 50, 20, red)
     var px = image::image_get_rgba(&raw mut img, 50, 30)
     if(px is Result.Err) { env.error("circle top should have pixel"); return }
-    var Ok(c) = px else unreachable
+    var Ok(c) = px else unsafe { unreachable }
     if(c.r != 255) { env.error("circle top should have pixel") }
 }
 
@@ -324,12 +324,12 @@ public func image_fill_circle_works(env : &mut TestEnv) {
     image::image_fill_circle(&raw mut img, 16, 16, 10, white)
     var px = image::image_get_rgba(&raw mut img, 16, 16)
     if(px is Result.Ok) {
-        var Ok(color) = px else unreachable
+        var Ok(color) = px else unsafe { unreachable }
         if(color.r != 255 as u8) { env.error("circle center should be filled") }
     }
     var px2 = image::image_get_rgba(&raw mut img, 0, 0)
     if(px2 is Result.Ok) {
-        var Ok(c2) = px2 else unreachable
+        var Ok(c2) = px2 else unsafe { unreachable }
         if(c2.r == 255 as u8 && c2.g == 255 as u8 && c2.b == 255 as u8) {
             env.error("corner should not be filled")
         }
@@ -346,7 +346,7 @@ public func image_blit_works(env : &mut TestEnv) {
     if(result is Result.Err) { env.error("blit should succeed"); return }
     var px = image::image_get_rgba(&raw mut dst, 5, 5)
     if(px is Result.Err) { env.error("blitted pixel"); return }
-    var Ok(c) = px else unreachable
+    var Ok(c) = px else unsafe { unreachable }
     if(c.r != 255) { env.error("blitted pixel") }
 }
 
@@ -599,7 +599,7 @@ public func image_parse_tiny_png_rgb(env : &mut TestEnv) {
     var png_data = build_tiny_uncompressed_png(4, 4, 3, 2u8)
     var result = image::parse_png(png_data.data(), png_data.size())
     if(result is Result.Err) { env.error("parse_png should succeed for RGB"); return }
-    var Ok(img) = result else unreachable
+    var Ok(img) = result else unsafe { unreachable }
     if(image::image_width(&raw mut img) != 4) { env.error("width should be 4") }
     if(image::image_height(&raw mut img) != 4) { env.error("height should be 4") }
     if(image::image_channels(&raw mut img) != 3) { env.error("channels should be 3") }
@@ -610,7 +610,7 @@ public func image_parse_tiny_png_rgba(env : &mut TestEnv) {
     var png_data = build_tiny_uncompressed_png(3, 3, 4, 6u8)
     var result = image::parse_png(png_data.data(), png_data.size())
     if(result is Result.Err) { env.error("parse_png should succeed for RGBA"); return }
-    var Ok(img) = result else unreachable
+    var Ok(img) = result else unsafe { unreachable }
     if(image::image_width(&raw mut img) != 3) { env.error("width should be 3") }
     if(image::image_height(&raw mut img) != 3) { env.error("height should be 3") }
     if(image::image_channels(&raw mut img) != 4) { env.error("channels should be 4") }
@@ -621,7 +621,7 @@ public func image_parse_tiny_png_grayscale(env : &mut TestEnv) {
     var png_data = build_tiny_uncompressed_png(5, 2, 1, 0u8)
     var result = image::parse_png(png_data.data(), png_data.size())
     if(result is Result.Err) { env.error("parse_png should succeed for grayscale"); return }
-    var Ok(img) = result else unreachable
+    var Ok(img) = result else unsafe { unreachable }
     if(image::image_width(&raw mut img) != 5) { env.error("width should be 5") }
     if(image::image_height(&raw mut img) != 2) { env.error("height should be 2") }
     if(image::image_channels(&raw mut img) != 1) { env.error("channels should be 1") }
@@ -633,7 +633,7 @@ public func image_parse_tiny_png_grayscale_alpha(env : &mut TestEnv) {
     var png_data = build_tiny_uncompressed_png(4, 3, 2, 4u8)
     var result = image::parse_png(png_data.data(), png_data.size())
     if(result is Result.Err) { env.error("parse_png should succeed for gray+alpha"); return }
-    var Ok(img) = result else unreachable
+    var Ok(img) = result else unsafe { unreachable }
     if(image::image_width(&raw mut img) != 4) { env.error("width should be 4") }
     if(image::image_height(&raw mut img) != 3) { env.error("height should be 3") }
     if(image::image_channels(&raw mut img) != 2) { env.error("channels should be 2") }
@@ -656,7 +656,7 @@ public func image_parse_png_pixel_values(env : &mut TestEnv) {
         var png = build_tiny_png_generic(width, height, channels, 2u8, raw_buf.data(), raw_size as size_t, true)
         var result = image::parse_png(png.data(), png.size())
         if(result is Result.Err) { env.error("parse should succeed"); return }
-        var Ok(img) = result else unreachable
+        var Ok(img) = result else unsafe { unreachable }
         var pix = image::image_pixels(&raw mut img)
         if(pix[0] != 10) { env.error("pixel 0 R should be 10") }
         if(pix[1] != 20) { env.error("pixel 0 G should be 20") }
@@ -707,13 +707,13 @@ public func image_png_save_load_roundtrip(env : &mut TestEnv) {
 
     var load_result = image::load_png(png_path.data())
     if(load_result is Result.Err) { env.error("PNG load failed"); return }
-    var Ok(loaded) = load_result else unreachable
+    var Ok(loaded) = load_result else unsafe { unreachable }
     if(image::image_width(&raw mut loaded) != 32) { env.error("width should be 32") }
     if(image::image_height(&raw mut loaded) != 32) { env.error("height should be 32") }
 
     var px = image::image_get_rgba(&raw mut loaded, 10, 10)
     if(px is Result.Ok) {
-        var Ok(color) = px else unreachable
+        var Ok(color) = px else unsafe { unreachable }
         if(color.r != 255 as u8) { env.error("red channel should be 255") }
     }
 }
@@ -741,7 +741,7 @@ public func image_encode_png_roundtrip(env : &mut TestEnv) {
     // Encode to in-memory bytes
     var encode_result = image::encode_png(&raw mut img)
     if(encode_result is Result.Err) { env.error("encode_png should succeed"); return }
-    var Ok(bytes) = encode_result else unreachable
+    var Ok(bytes) = encode_result else unsafe { unreachable }
 
     // Verify PNG signature
     if(bytes.size() < 8) { env.error("encoded PNG too small") }
@@ -751,7 +751,7 @@ public func image_encode_png_roundtrip(env : &mut TestEnv) {
     // Parse back
     var parse_result = image::parse_png(bytes.data(), bytes.size())
     if(parse_result is Result.Err) { env.error("parse encoded PNG should succeed"); return }
-    var Ok(parsed) = parse_result else unreachable
+    var Ok(parsed) = parse_result else unsafe { unreachable }
 
     if(image::image_width(&raw mut parsed) != 4) { env.error("roundtrip width") }
     if(image::image_height(&raw mut parsed) != 4) { env.error("roundtrip height") }
@@ -760,7 +760,7 @@ public func image_encode_png_roundtrip(env : &mut TestEnv) {
     // Verify pixel at (2,2) is red
     var px = image::image_get_rgba(&raw mut parsed, 2, 2)
     if(px is Result.Err) { env.error("get pixel after roundtrip"); return }
-    var Ok(color) = px else unreachable
+    var Ok(color) = px else unsafe { unreachable }
     if(color.r != 255) { env.error("roundtrip red channel") }
     if(color.g != 0) { env.error("roundtrip green channel") }
     if(color.b != 0) { env.error("roundtrip blue channel") }
@@ -775,11 +775,11 @@ public func image_encode_png_rgb_roundtrip(env : &mut TestEnv) {
 
         var encode_result = image::encode_png(&raw mut img)
         if(encode_result is Result.Err) { env.error("encode_png RGB should succeed"); return }
-        var Ok(bytes) = encode_result else unreachable
+        var Ok(bytes) = encode_result else unsafe { unreachable }
 
         var parse_result = image::parse_png(bytes.data(), bytes.size())
         if(parse_result is Result.Err) { env.error("parse encoded RGB PNG should succeed"); return }
-        var Ok(parsed) = parse_result else unreachable
+        var Ok(parsed) = parse_result else unsafe { unreachable }
 
         if(image::image_channels(&raw mut parsed) != 3) { env.error("RGB roundtrip channels") }
         var pix = image::image_pixels(&raw mut parsed)
@@ -798,7 +798,7 @@ public func image_encode_bmp_roundtrip(env : &mut TestEnv) {
 
     var encode_result = image::encode_bmp(&raw mut img)
     if(encode_result is Result.Err) { env.error("encode_bmp should succeed"); return }
-    var Ok(bytes) = encode_result else unreachable
+    var Ok(bytes) = encode_result else unsafe { unreachable }
 
     // Verify BMP signature
     if(bytes.size() < 2) { env.error("encoded BMP too small") }
@@ -807,7 +807,7 @@ public func image_encode_bmp_roundtrip(env : &mut TestEnv) {
     // Parse back
     var parse_result = image::parse_bmp(bytes.data(), bytes.size())
     if(parse_result is Result.Err) { env.error("parse encoded BMP should succeed"); return }
-    var Ok(parsed) = parse_result else unreachable
+    var Ok(parsed) = parse_result else unsafe { unreachable }
 
     if(image::image_width(&raw mut parsed) != 8) { env.error("BMP roundtrip width") }
     if(image::image_height(&raw mut parsed) != 8) { env.error("BMP roundtrip height") }
@@ -815,7 +815,7 @@ public func image_encode_bmp_roundtrip(env : &mut TestEnv) {
     // Verify pixel at center is blue
     var px = image::image_get_rgba(&raw mut parsed, 4, 4)
     if(px is Result.Err) { env.error("get pixel after BMP roundtrip"); return }
-    var Ok(color) = px else unreachable
+    var Ok(color) = px else unsafe { unreachable }
     if(color.b != 255) { env.error("BMP roundtrip blue channel") }
 }
 
@@ -828,7 +828,7 @@ public func image_encode_ppm_roundtrip(env : &mut TestEnv) {
 
         var encode_result = image::encode_ppm(&raw mut img)
         if(encode_result is Result.Err) { env.error("encode_ppm should succeed"); return }
-        var Ok(bytes) = encode_result else unreachable
+        var Ok(bytes) = encode_result else unsafe { unreachable }
 
         // Verify P6 magic
         if(bytes.size() < 2) { env.error("encoded PPM too small") }
@@ -837,7 +837,7 @@ public func image_encode_ppm_roundtrip(env : &mut TestEnv) {
         // Parse back
         var parse_result = image::parse_ppm(bytes.data(), bytes.size())
         if(parse_result is Result.Err) { env.error("parse encoded PPM should succeed"); return }
-        var Ok(parsed) = parse_result else unreachable
+        var Ok(parsed) = parse_result else unsafe { unreachable }
 
         if(image::image_width(&raw mut parsed) != 4) { env.error("PPM roundtrip width") }
         if(image::image_height(&raw mut parsed) != 4) { env.error("PPM roundtrip height") }
@@ -898,7 +898,7 @@ public func image_bmp_save_load_roundtrip(env : &mut TestEnv) {
 
     var load_result = image::load_bmp(bmp_path.data())
     if(load_result is Result.Err) { env.error("BMP load failed"); return }
-    var Ok(loaded) = load_result else unreachable
+    var Ok(loaded) = load_result else unsafe { unreachable }
     if(image::image_width(&raw mut loaded) != 16) { env.error("width should be 16") }
     if(image::image_height(&raw mut loaded) != 16) { env.error("height should be 16") }
 }
@@ -917,7 +917,7 @@ public func image_bmp_parse_32bit_rgba(env : &mut TestEnv) {
     var bmp = build_minimal_bmp(4, 4, 32)
     var result = image::parse_bmp(bmp.data(), bmp.size())
     if(result is Result.Err) { env.error("32-bit BMP should succeed"); return }
-    var Ok(img) = result else unreachable
+    var Ok(img) = result else unsafe { unreachable }
     if(image::image_channels(&raw mut img) != 4) { env.error("channels should be 4") }
 }
 
@@ -926,7 +926,7 @@ public func image_bmp_parse_8bit_gray(env : &mut TestEnv) {
     var bmp = build_minimal_bmp(4, 4, 8)
     var result = image::parse_bmp(bmp.data(), bmp.size())
     if(result is Result.Err) { env.error("8-bit BMP should succeed"); return }
-    var Ok(img) = result else unreachable
+    var Ok(img) = result else unsafe { unreachable }
     if(image::image_channels(&raw mut img) != 1) { env.error("channels should be 1") }
 }
 
@@ -982,7 +982,7 @@ public func image_ppm_save_load_p6_roundtrip(env : &mut TestEnv) {
 
         var load_result = image::load_ppm(ppm_path.data())
         if(load_result is Result.Err) { env.error("PPM load failed"); return }
-        var Ok(loaded) = load_result else unreachable
+        var Ok(loaded) = load_result else unsafe { unreachable }
         if(image::image_width(&raw mut loaded) != 8) { env.error("width should be 8") }
         if(image::image_channels(&raw mut loaded) != 3) { env.error("should be 3 channels") }
 
@@ -1018,7 +1018,7 @@ public func image_ppm_parse_p3_ascii(env : &mut TestEnv) {
 
     var result = image::parse_ppm(vec.data(), vec.size())
     if(result is Result.Err) { env.error("P3 ASCII PPM should succeed"); return }
-    var Ok(img) = result else unreachable
+    var Ok(img) = result else unsafe { unreachable }
     if(image::image_width(&raw mut img) != 2) { env.error("P3 width") }
     if(image::image_height(&raw mut img) != 2) { env.error("P3 height") }
 }

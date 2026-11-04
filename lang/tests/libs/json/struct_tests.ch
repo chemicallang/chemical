@@ -24,47 +24,47 @@ impl std::Serializer<JsonValue, JsonEncoder> for JStructScalar {
         var o = encoder.object()
         var f1 = o.field<int>(std::string_view("i"), &i)
         if(f1 is std::Result.Err) {
-            var Err(error) = f1 else unreachable
+            var Err(error) = f1 else unsafe { unreachable }
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
         var f2 = o.field<uint>(std::string_view("u"), &u)
         if(f2 is std::Result.Err) {
-            var Err(error) = f2 else unreachable
+            var Err(error) = f2 else unsafe { unreachable }
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
         var f3 = o.field<long>(std::string_view("lg"), &lg)
         if(f3 is std::Result.Err) {
-            var Err(error) = f3 else unreachable
+            var Err(error) = f3 else unsafe { unreachable }
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
         var f4 = o.field<ulong>(std::string_view("ulg"), &ulg)
         if(f4 is std::Result.Err) {
-            var Err(error) = f4 else unreachable
+            var Err(error) = f4 else unsafe { unreachable }
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
         var f5 = o.field<bool>(std::string_view("b"), &b)
         if(f5 is std::Result.Err) {
-            var Err(error) = f5 else unreachable
+            var Err(error) = f5 else unsafe { unreachable }
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
         var f6 = o.field<char>(std::string_view("c"), &c)
         if(f6 is std::Result.Err) {
-            var Err(error) = f6 else unreachable
+            var Err(error) = f6 else unsafe { unreachable }
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
         var f7 = o.field<float>(std::string_view("f"), &f)
         if(f7 is std::Result.Err) {
-            var Err(error) = f7 else unreachable
+            var Err(error) = f7 else unsafe { unreachable }
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
         var f8 = o.field<double>(std::string_view("d"), &d)
         if(f8 is std::Result.Err) {
-            var Err(error) = f8 else unreachable
+            var Err(error) = f8 else unsafe { unreachable }
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
         var f9 = o.field<std::string>(std::string_view("s"), &s)
         if(f9 is std::Result.Err) {
-            var Err(error) = f9 else unreachable
+            var Err(error) = f9 else unsafe { unreachable }
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
         return std::Result.Ok<std::Unit, std::SerializationError>(std::Unit {})
@@ -75,127 +75,127 @@ impl std::Deserializer<JStructScalar> for TypeDecoder<JStructScalar> {
     func deserialize(&self) : std::Result<JStructScalar, std::SerializationError> {
         var dr = self.decoder.object()
         if(dr is std::Result.Err) {
-            var Err(error) = dr else unreachable
+            var Err(error) = dr else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(obj) = dr else unreachable
+        var Ok(obj) = dr else unsafe { unreachable }
 
         var q1 = obj.item_decoder()
         if(q1 is std::Result.Err) {
-            var Err(error) = q1 else unreachable
+            var Err(error) = q1 else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(p1) = q1 else unreachable
+        var Ok(p1) = q1 else unsafe { unreachable }
         var v1 = p1.second.decode_i64()
         if(v1 is std::Result.Err) {
-            var Err(error) = v1 else unreachable
+            var Err(error) = v1 else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(r1) = v1 else unreachable
+        var Ok(r1) = v1 else unsafe { unreachable }
 
         var q2 = obj.item_decoder()
         if(q2 is std::Result.Err) {
-            var Err(error) = q2 else unreachable
+            var Err(error) = q2 else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(p2) = q2 else unreachable
+        var Ok(p2) = q2 else unsafe { unreachable }
         var v2 = p2.second.decode_u64()
         if(v2 is std::Result.Err) {
-            var Err(error) = v2 else unreachable
+            var Err(error) = v2 else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(r2) = v2 else unreachable
+        var Ok(r2) = v2 else unsafe { unreachable }
 
         var q3 = obj.item_decoder()
         if(q3 is std::Result.Err) {
-            var Err(error) = q3 else unreachable
+            var Err(error) = q3 else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(p3) = q3 else unreachable
+        var Ok(p3) = q3 else unsafe { unreachable }
         var v3 = p3.second.decode_i64()
         if(v3 is std::Result.Err) {
-            var Err(error) = v3 else unreachable
+            var Err(error) = v3 else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(r3) = v3 else unreachable
+        var Ok(r3) = v3 else unsafe { unreachable }
 
         var q4 = obj.item_decoder()
         if(q4 is std::Result.Err) {
-            var Err(error) = q4 else unreachable
+            var Err(error) = q4 else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(p4) = q4 else unreachable
+        var Ok(p4) = q4 else unsafe { unreachable }
         var v4 = p4.second.decode_u64()
         if(v4 is std::Result.Err) {
-            var Err(error) = v4 else unreachable
+            var Err(error) = v4 else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(r4) = v4 else unreachable
+        var Ok(r4) = v4 else unsafe { unreachable }
 
         var q5 = obj.item_decoder()
         if(q5 is std::Result.Err) {
-            var Err(error) = q5 else unreachable
+            var Err(error) = q5 else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(p5) = q5 else unreachable
+        var Ok(p5) = q5 else unsafe { unreachable }
         var v5 = p5.second.decode_bool()
         if(v5 is std::Result.Err) {
-            var Err(error) = v5 else unreachable
+            var Err(error) = v5 else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(r5) = v5 else unreachable
+        var Ok(r5) = v5 else unsafe { unreachable }
 
         var q6 = obj.item_decoder()
         if(q6 is std::Result.Err) {
-            var Err(error) = q6 else unreachable
+            var Err(error) = q6 else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(p6) = q6 else unreachable
+        var Ok(p6) = q6 else unsafe { unreachable }
         var v6 = p6.second.decode_char()
         if(v6 is std::Result.Err) {
-            var Err(error) = v6 else unreachable
+            var Err(error) = v6 else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(r6) = v6 else unreachable
+        var Ok(r6) = v6 else unsafe { unreachable }
 
         var q7 = obj.item_decoder()
         if(q7 is std::Result.Err) {
-            var Err(error) = q7 else unreachable
+            var Err(error) = q7 else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(p7) = q7 else unreachable
+        var Ok(p7) = q7 else unsafe { unreachable }
         var v7 = p7.second.decode_float()
         if(v7 is std::Result.Err) {
-            var Err(error) = v7 else unreachable
+            var Err(error) = v7 else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(r7) = v7 else unreachable
+        var Ok(r7) = v7 else unsafe { unreachable }
 
         var q8 = obj.item_decoder()
         if(q8 is std::Result.Err) {
-            var Err(error) = q8 else unreachable
+            var Err(error) = q8 else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(p8) = q8 else unreachable
+        var Ok(p8) = q8 else unsafe { unreachable }
         var v8 = p8.second.decode_double()
         if(v8 is std::Result.Err) {
-            var Err(error) = v8 else unreachable
+            var Err(error) = v8 else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(r8) = v8 else unreachable
+        var Ok(r8) = v8 else unsafe { unreachable }
 
         var q9 = obj.item_decoder()
         if(q9 is std::Result.Err) {
-            var Err(error) = q9 else unreachable
+            var Err(error) = q9 else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(p9) = q9 else unreachable
+        var Ok(p9) = q9 else unsafe { unreachable }
         var v9 = p9.second.decode_str()
         if(v9 is std::Result.Err) {
-            var Err(error) = v9 else unreachable
+            var Err(error) = v9 else unsafe { unreachable }
             return std::Result.Err<JStructScalar, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(r9) = v9 else unreachable
+        var Ok(r9) = v9 else unsafe { unreachable }
 
         return std::Result.Ok<JStructScalar, std::SerializationError>(JStructScalar { i : r1 as int, u : r2 as uint, lg : r3 as long, ulg : r4 as ulong, b : r5, c : r6, f : r7, d : r8, s : std::string(r9) })
     }
@@ -217,12 +217,12 @@ impl std::Serializer<JsonValue, JsonEncoder> for JChild {
         var o = encoder.object()
         var f1 = o.field<int>(std::string_view("num"), &num)
         if(f1 is std::Result.Err) {
-            var Err(error) = f1 else unreachable
+            var Err(error) = f1 else unsafe { unreachable }
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
         var f2 = o.field<std::string>(std::string_view("tag"), &tag)
         if(f2 is std::Result.Err) {
-            var Err(error) = f2 else unreachable
+            var Err(error) = f2 else unsafe { unreachable }
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
         return std::Result.Ok<std::Unit, std::SerializationError>(std::Unit {})
@@ -233,36 +233,36 @@ impl std::Deserializer<JChild> for TypeDecoder<JChild> {
     func deserialize(&self) : std::Result<JChild, std::SerializationError> {
         var dr = self.decoder.object()
         if(dr is std::Result.Err) {
-            var Err(error) = dr else unreachable
+            var Err(error) = dr else unsafe { unreachable }
             return std::Result.Err<JChild, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(obj) = dr else unreachable
+        var Ok(obj) = dr else unsafe { unreachable }
 
         var q1 = obj.item_decoder()
         if(q1 is std::Result.Err) {
-            var Err(error) = q1 else unreachable
+            var Err(error) = q1 else unsafe { unreachable }
             return std::Result.Err<JChild, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(p1) = q1 else unreachable
+        var Ok(p1) = q1 else unsafe { unreachable }
         var v1 = p1.second.decode_i64()
         if(v1 is std::Result.Err) {
-            var Err(error) = v1 else unreachable
+            var Err(error) = v1 else unsafe { unreachable }
             return std::Result.Err<JChild, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(r1) = v1 else unreachable
+        var Ok(r1) = v1 else unsafe { unreachable }
 
         var q2 = obj.item_decoder()
         if(q2 is std::Result.Err) {
-            var Err(error) = q2 else unreachable
+            var Err(error) = q2 else unsafe { unreachable }
             return std::Result.Err<JChild, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(p2) = q2 else unreachable
+        var Ok(p2) = q2 else unsafe { unreachable }
         var v2 = p2.second.decode_str()
         if(v2 is std::Result.Err) {
-            var Err(error) = v2 else unreachable
+            var Err(error) = v2 else unsafe { unreachable }
             return std::Result.Err<JChild, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(r2) = v2 else unreachable
+        var Ok(r2) = v2 else unsafe { unreachable }
 
         return std::Result.Ok<JChild, std::SerializationError>(JChild { num : r1 as int, tag : std::string(r2) })
     }
@@ -279,17 +279,17 @@ impl std::Serializer<JsonValue, JsonEncoder> for JParent {
         var o = encoder.object()
         var f1 = o.field<long>(std::string_view("id"), &id)
         if(f1 is std::Result.Err) {
-            var Err(error) = f1 else unreachable
+            var Err(error) = f1 else unsafe { unreachable }
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
         var f2 = o.field<JChild>(std::string_view("child"), &child)
         if(f2 is std::Result.Err) {
-            var Err(error) = f2 else unreachable
+            var Err(error) = f2 else unsafe { unreachable }
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
         var f3 = o.field<bool>(std::string_view("active"), &active)
         if(f3 is std::Result.Err) {
-            var Err(error) = f3 else unreachable
+            var Err(error) = f3 else unsafe { unreachable }
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
         return std::Result.Ok<std::Unit, std::SerializationError>(std::Unit {})
@@ -300,49 +300,49 @@ impl std::Deserializer<JParent> for TypeDecoder<JParent> {
     func deserialize(&self) : std::Result<JParent, std::SerializationError> {
         var dr = self.decoder.object()
         if(dr is std::Result.Err) {
-            var Err(error) = dr else unreachable
+            var Err(error) = dr else unsafe { unreachable }
             return std::Result.Err<JParent, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(obj) = dr else unreachable
+        var Ok(obj) = dr else unsafe { unreachable }
 
         var q1 = obj.item_decoder()
         if(q1 is std::Result.Err) {
-            var Err(error) = q1 else unreachable
+            var Err(error) = q1 else unsafe { unreachable }
             return std::Result.Err<JParent, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(p1) = q1 else unreachable
+        var Ok(p1) = q1 else unsafe { unreachable }
         var v1 = p1.second.decode_i64()
         if(v1 is std::Result.Err) {
-            var Err(error) = v1 else unreachable
+            var Err(error) = v1 else unsafe { unreachable }
             return std::Result.Err<JParent, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(r1) = v1 else unreachable
+        var Ok(r1) = v1 else unsafe { unreachable }
 
         var q2 = obj.item_decoder()
         if(q2 is std::Result.Err) {
-            var Err(error) = q2 else unreachable
+            var Err(error) = q2 else unsafe { unreachable }
             return std::Result.Err<JParent, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(p2) = q2 else unreachable
+        var Ok(p2) = q2 else unsafe { unreachable }
         var v2 = p2.second.decode<JChild>()
         if(v2 is std::Result.Err) {
-            var Err(error) = v2 else unreachable
+            var Err(error) = v2 else unsafe { unreachable }
             return std::Result.Err<JParent, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(r2) = v2 else unreachable
+        var Ok(r2) = v2 else unsafe { unreachable }
 
         var q3 = obj.item_decoder()
         if(q3 is std::Result.Err) {
-            var Err(error) = q3 else unreachable
+            var Err(error) = q3 else unsafe { unreachable }
             return std::Result.Err<JParent, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(p3) = q3 else unreachable
+        var Ok(p3) = q3 else unsafe { unreachable }
         var v3 = p3.second.decode_bool()
         if(v3 is std::Result.Err) {
-            var Err(error) = v3 else unreachable
+            var Err(error) = v3 else unsafe { unreachable }
             return std::Result.Err<JParent, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(r3) = v3 else unreachable
+        var Ok(r3) = v3 else unsafe { unreachable }
 
         return std::Result.Ok<JParent, std::SerializationError>(JParent { id : r1 as long, child : r2.copy(), active : r3 })
     }
@@ -360,12 +360,12 @@ impl std::Serializer<JsonValue, JsonEncoder> for JTwoInt {
         var o = encoder.object()
         var f1 = o.field<int>(std::string_view("a"), &a)
         if(f1 is std::Result.Err) {
-            var Err(error) = f1 else unreachable
+            var Err(error) = f1 else unsafe { unreachable }
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
         var f2 = o.field<int>(std::string_view("b"), &b)
         if(f2 is std::Result.Err) {
-            var Err(error) = f2 else unreachable
+            var Err(error) = f2 else unsafe { unreachable }
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
         return std::Result.Ok<std::Unit, std::SerializationError>(std::Unit {})
@@ -376,36 +376,36 @@ impl std::Deserializer<JTwoInt> for TypeDecoder<JTwoInt> {
     func deserialize(&self) : std::Result<JTwoInt, std::SerializationError> {
         var dr = self.decoder.object()
         if(dr is std::Result.Err) {
-            var Err(error) = dr else unreachable
+            var Err(error) = dr else unsafe { unreachable }
             return std::Result.Err<JTwoInt, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(obj) = dr else unreachable
+        var Ok(obj) = dr else unsafe { unreachable }
 
         var q1 = obj.item_decoder()
         if(q1 is std::Result.Err) {
-            var Err(error) = q1 else unreachable
+            var Err(error) = q1 else unsafe { unreachable }
             return std::Result.Err<JTwoInt, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(p1) = q1 else unreachable
+        var Ok(p1) = q1 else unsafe { unreachable }
         var v1 = p1.second.decode_i64()
         if(v1 is std::Result.Err) {
-            var Err(error) = v1 else unreachable
+            var Err(error) = v1 else unsafe { unreachable }
             return std::Result.Err<JTwoInt, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(r1) = v1 else unreachable
+        var Ok(r1) = v1 else unsafe { unreachable }
 
         var q2 = obj.item_decoder()
         if(q2 is std::Result.Err) {
-            var Err(error) = q2 else unreachable
+            var Err(error) = q2 else unsafe { unreachable }
             return std::Result.Err<JTwoInt, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(p2) = q2 else unreachable
+        var Ok(p2) = q2 else unsafe { unreachable }
         var v2 = p2.second.decode_i64()
         if(v2 is std::Result.Err) {
-            var Err(error) = v2 else unreachable
+            var Err(error) = v2 else unsafe { unreachable }
             return std::Result.Err<JTwoInt, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var Ok(r2) = v2 else unreachable
+        var Ok(r2) = v2 else unsafe { unreachable }
 
         return std::Result.Ok<JTwoInt, std::SerializationError>(JTwoInt { a : r1 as int, b : r2 as int })
     }
@@ -458,7 +458,7 @@ func test_manual_json_impl_scalar_struct_roundtrip(env : &mut TestEnv) {
     var dec = JsonDecoder { value : &ph.root }
     var res = dec.decode<JStructScalar>()
     if(res is std::Result.Err) { env.error("scalar decode returned Err"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v.i != -42) { env.error("scalar i roundtrip failed"); return }
     if(v.u != 4000000000u) { env.error("scalar u roundtrip failed"); return }
     if(v.lg != -7) { env.error("scalar lg roundtrip failed"); return }
@@ -507,7 +507,7 @@ func test_manual_json_impl_nested_struct_roundtrip(env : &mut TestEnv) {
     var dec = JsonDecoder { value : &ph.root }
     var res = dec.decode<JParent>()
     if(res is std::Result.Err) { env.error("nested decode returned Err"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v.id != 7) { env.error("nested id roundtrip failed"); return }
     if(v.child.num != 3) { env.error("nested child.num roundtrip failed"); return }
     if(!v.child.tag.to_view().equals(std::string_view("x"))) { env.error("nested child.tag roundtrip failed"); return }
@@ -537,7 +537,7 @@ func test_manual_json_impl_string_escapes_roundtrip(env : &mut TestEnv) {
     var dec = JsonDecoder { value : &ph.root }
     var res = dec.decode<JChild>()
     if(res is std::Result.Err) { env.error("escape decode returned Err"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v.num != 1) { env.error("escape num roundtrip failed"); return }
     if(!v.tag.to_view().equals(tag_val.to_view())) {
         env.error("escape string roundtrip equality failed")
@@ -566,7 +566,7 @@ func test_manual_json_impl_generic_string_encode_decode(env : &mut TestEnv) {
     var dec = JsonDecoder { value : &ph.root }
     var res = dec.decode<std::string>()
     if(res is std::Result.Err) { env.error("decode<std::string> returned Err"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(!v.to_view().equals(std::string_view("hello"))) {
         env.error("decode string value mismatch")
     }
@@ -632,7 +632,7 @@ func test_manual_json_impl_decode_extra_fields_ignored(env : &mut TestEnv) {
     var dec = JsonDecoder { value : &ph.root }
     var res = dec.decode<JTwoInt>()
     if(res is std::Result.Err) { env.error("extra fields decode should be Ok"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v.a != 11 || v.b != 22) {
         env.error("extra fields positional decode mismatch")
     }
@@ -647,7 +647,7 @@ func test_high_level_typed_encode_decode(env : &mut TestEnv) {
     var val = JChild { num : 5, tag : std::string("hi") }
     var er = json::encode<JChild>(&val)
     if(er is std::Result.Err) { env.error("json::encode<JChild> failed"); return }
-    var Ok(enc) = er else unreachable
+    var Ok(enc) = er else unsafe { unreachable }
     if(!enc.to_view().equals(std::string_view("{\"num\":5,\"tag\":\"hi\"}"))) {
         env.error("json::encode<JChild> text mismatch")
         return
@@ -655,10 +655,10 @@ func test_high_level_typed_encode_decode(env : &mut TestEnv) {
 
     var pr = json::parse(enc.to_view())
     if(pr is std::Result.Err) { env.error("json::parse re-parse failed"); return }
-    var Ok(pv) = pr else unreachable
+    var Ok(pv) = pr else unsafe { unreachable }
     var dr = json::decode<JChild>(&pv)
     if(dr is std::Result.Err) { env.error("json::decode<JChild> failed"); return }
-    var Ok(dec) = dr else unreachable
+    var Ok(dec) = dr else unsafe { unreachable }
     if(dec.num != 5 || !dec.tag.to_view().equals(std::string_view("hi"))) {
         env.error("JChild typed roundtrip mismatch")
     }
@@ -670,7 +670,7 @@ func test_decode_str_parse_and_decode(env : &mut TestEnv) {
     var text = std::string_view("{\"num\":5,\"tag\":\"hi\"}")
     var dr = json::decode_str<JChild>(text)
     if(dr is std::Result.Err) { env.error("json::decode_str<JChild> failed"); return }
-    var Ok(dec) = dr else unreachable
+    var Ok(dec) = dr else unsafe { unreachable }
     if(dec.num != 5 || !dec.tag.to_view().equals(std::string_view("hi"))) {
         env.error("JChild decode_str roundtrip mismatch")
     }

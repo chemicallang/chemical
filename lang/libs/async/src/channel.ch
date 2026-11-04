@@ -46,7 +46,7 @@ public func <T> option_take(o : *mut std::Option<T>) : T {
         unsafe {
         var temp : T
         unsafe {
-            var Some(value) = *o else unreachable
+            var Some(value) = *o else unsafe { unreachable }
             memcpy(&raw mut temp, &raw value, sizeof(T))
             new(o) std::Option.None<T>()
             return temp;

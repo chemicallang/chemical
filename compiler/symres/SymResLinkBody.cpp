@@ -4214,6 +4214,11 @@ void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {
     // linking pattern match expression
     const auto expression = expr->expression;
     auto& elseExpression = expr->elseExpression;
+    if (elseExpression.kind == PatternElseExprKind::Unreachable &&
+        safe_context && !elseExpression.is_unsafe) {
+        diagnoser.error(expr).with_code("SAFE-UNSAFE-002")
+            << "unreachable in a pattern else requires 'unsafe'";
+    }
     auto& param_names = expr->param_names;
     // we use a reference to void type here, because user can dereference a pointer in the expression
     // we shouldn't error out when de-referencing a destructible struct (which we do)

@@ -49,7 +49,7 @@ public func test_router_write_site_routes(env : &mut TestEnv) {
         env.error("routes.json should be written")
         return
     }
-    var Ok(bytes) = rr else unreachable
+    var Ok(bytes) = rr else unsafe { unreachable }
     var content = unsafe(std::string(bytes.data() as *char, bytes.size()))
     const idx = std::string_view("{\"name\":\"index\"")
     if(content.find(&idx) == std::NPOS) {

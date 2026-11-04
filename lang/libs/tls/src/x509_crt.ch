@@ -954,7 +954,7 @@ public namespace tls {
             return ERR_X509_INVALID_FORMAT
         }
 
-        var Ok(decoded_len) = result else unreachable
+        var Ok(decoded_len) = result else unsafe { unreachable }
 
         // Parse the DER certificate
         return parse_cert_der(crt, &raw der_buf[0], decoded_len)

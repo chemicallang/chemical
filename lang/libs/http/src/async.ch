@@ -57,11 +57,11 @@ func http_box(client : *mut Client, r : std::Result<Response, std::string>) : *m
 
     var box = unsafe(malloc(sizeof(HttpResult))) as *mut HttpResult
     if(r is std::Result.Ok) {
-        var Ok(resp) = r else unreachable
+        var Ok(resp) = r else unsafe { unreachable }
         var body = std::string()
         var bopt = resp.body.read_to_string()
         if(bopt is std::Option.Some) {
-            var Some(s) = bopt else unreachable
+            var Some(s) = bopt else unsafe { unreachable }
             body = std::replace(&mut s, std::string())
         }
         new(box) HttpResult {
@@ -73,7 +73,7 @@ func http_box(client : *mut Client, r : std::Result<Response, std::string>) : *m
             error : std::string()
         }
     } else {
-        var Err(e) = r else unreachable
+        var Err(e) = r else unsafe { unreachable }
         new(box) HttpResult {
             ok : false,
             status : 0u,

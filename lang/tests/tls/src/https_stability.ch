@@ -69,7 +69,7 @@ public func https_tls13_server_handshake_is_not_implemented(env : &mut TestEnv) 
     var res = client.get(string_view("https://127.0.0.1:18443/"));
     // Intended: once TLS 1.3 works, this returns Ok(200). Today it must fail.
     if(res is Result.Ok) {
-        var Ok(r) = res else unreachable;
+        var Ok(r) = res else unsafe { unreachable };
         env.error("TLS 1.3 connection unexpectedly succeeded (status=");
         env.error("TLS 1.3 client handshake is a stub and must not complete");
         th.join();
@@ -160,7 +160,7 @@ public func https_hostname_verification_rejects_wrong_host_ip(env : &mut TestEnv
 public func https_url_parsing_uppercase_scheme_works(env : &mut TestEnv) {
     var u = URL::parse(string_view("HTTPS://example.com/path"));
     if(u is std::Option.None) { env.error("uppercase https URL should parse"); return }
-    var Some(url) = u else unreachable;
+    var Some(url) = u else unsafe { unreachable };
     if(!url.scheme.equals_with_len("https", 5)) { env.error("scheme should normalize to https"); return }
     if(url.port != 443u) { env.error("default port should be 443"); return }
 }
@@ -169,7 +169,7 @@ public func https_url_parsing_uppercase_scheme_works(env : &mut TestEnv) {
 public func https_url_parsing_ipv4_host_works(env : &mut TestEnv) {
     var u = URL::parse(string_view("https://192.168.1.1:8443/secure"));
     if(u is std::Option.None) { env.error("https IPv4 URL should parse"); return }
-    var Some(url) = u else unreachable;
+    var Some(url) = u else unsafe { unreachable };
     if(!url.scheme.equals_with_len("https", 5)) { env.error("scheme should be https"); return }
     if(url.port != 8443u) { env.error("port should be 8443"); return }
     if(!url.host.equals_view("192.168.1.1")) { env.error("host should be 192.168.1.1"); return }
@@ -179,7 +179,7 @@ public func https_url_parsing_ipv4_host_works(env : &mut TestEnv) {
 public func https_url_parsing_with_fragment_works(env : &mut TestEnv) {
     var u = URL::parse(string_view("https://example.com/a#section"));
     if(u is std::Option.None) { env.error("https URL with fragment should parse"); return }
-    var Some(url) = u else unreachable;
+    var Some(url) = u else unsafe { unreachable };
     if(url.port != 443u) { env.error("default port should be 443"); return }
     if(!url.path.equals_view("/a")) { env.error("path should be /a"); return }
 }

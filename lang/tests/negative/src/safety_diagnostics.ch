@@ -410,14 +410,14 @@ func neg_nested_conditional_positive_unpin_bounds(env : &mut TestEnv) {
 @test
 func neg_future_handle_in_struct_cannot_escape_to_retaining_api(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "using std::Option\nstruct W { var h : core::async::FutureHandle<int> }\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc stash_w(w : W, slot : &mut Option<W>) {\n    *slot = Option.Some<W>(w)\n}\npublic func main() : int {\n    var slot = Option.None<W>()\n    {\n        var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n        var w = W { h : work(&s) }\n        stash_w(w, &mut slot)\n    }\n    var Some(w) = slot else unreachable\n    var r = async::block_on<int>(w.h)\n    return 0\n}\n"
+    var ch = "using std::Option\nstruct W { var h : core::async::FutureHandle<int> }\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc stash_w(w : W, slot : &mut Option<W>) {\n    *slot = Option.Some<W>(w)\n}\npublic func main() : int {\n    var slot = Option.None<W>()\n    {\n        var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n        var w = W { h : work(&s) }\n        stash_w(w, &mut slot)\n    }\n    var Some(w) = slot else unsafe { unreachable }\n    var r = async::block_on<int>(w.h)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "future_struct_escape_retaining_api", ch, "SAFE-LIFE-005", NEG_MOD_ASYNC_STD)
 }
 
 @test
 func neg_future_handle_consumer_namespace_spoof_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "using std::Option\npublic namespace concurrent {\n    func spawn(f : core::async::FutureHandle<int>, slot : &mut Option<core::async::FutureHandle<int>>) {\n        *slot = Option.Some<core::async::FutureHandle<int>>(f)\n    }\n}\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\npublic func main() : int {\n    var slot = Option.None<core::async::FutureHandle<int>>()\n    {\n        var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n        var h = work(&s)\n        concurrent::spawn(h, &mut slot)\n    }\n    var Some(h) = slot else unreachable\n    var r = async::block_on<int>(h)\n    return 0\n}\n"
+    var ch = "using std::Option\npublic namespace concurrent {\n    func spawn(f : core::async::FutureHandle<int>, slot : &mut Option<core::async::FutureHandle<int>>) {\n        *slot = Option.Some<core::async::FutureHandle<int>>(f)\n    }\n}\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\npublic func main() : int {\n    var slot = Option.None<core::async::FutureHandle<int>>()\n    {\n        var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n        var h = work(&s)\n        concurrent::spawn(h, &mut slot)\n    }\n    var Some(h) = slot else unsafe { unreachable }\n    var r = async::block_on<int>(h)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "future_consumer_namespace_spoof", ch, "SAFE-LIFE-005", NEG_MOD_ASYNC_STD)
 }
 
@@ -452,7 +452,7 @@ func neg_future_handle_assigned_callback_capture_cannot_escape(env : &mut TestEn
 @test
 func neg_future_handle_cannot_escape_to_retaining_api(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "using std::Option\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc stash(f : core::async::FutureHandle<int>, slot : &mut Option<core::async::FutureHandle<int>>) {\n    *slot = Option.Some<core::async::FutureHandle<int>>(f)\n}\npublic func main() : int {\n    var slot = Option.None<core::async::FutureHandle<int>>()\n    {\n        var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n        var h = work(&s)\n        stash(h, &mut slot)\n    }\n    var Some(h) = slot else unreachable\n    var r = async::block_on<int>(h)\n    return 0\n}\n"
+    var ch = "using std::Option\nasync func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc stash(f : core::async::FutureHandle<int>, slot : &mut Option<core::async::FutureHandle<int>>) {\n    *slot = Option.Some<core::async::FutureHandle<int>>(f)\n}\npublic func main() : int {\n    var slot = Option.None<core::async::FutureHandle<int>>()\n    {\n        var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n        var h = work(&s)\n        stash(h, &mut slot)\n    }\n    var Some(h) = slot else unsafe { unreachable }\n    var r = async::block_on<int>(h)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "future_escape_retaining_api", ch, "SAFE-LIFE-005", NEG_MOD_ASYNC_STD)
 }
 
@@ -2053,6 +2053,21 @@ func unreachable_in_unsafe_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    unsafe {\n        unreachable\n    }\n}\n"
     expect_compile_success_with_mod(env, "unreachable_in_unsafe", ch, NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_pattern_else_unreachable_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "using std::Option;\npublic func main() : int {\n    var o = Option.Some<int>(1)\n    var Some(x) = o else unreachable\n    return x\n}\n"
+    expect_compile_error_with_mod(env, "pattern_else_unreachable_requires_unsafe", ch,
+                                  "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func pattern_else_unreachable_in_unsafe_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "using std::Option;\npublic func main() : int {\n    var o = Option.Some<int>(1)\n    var Some(x) = o else unsafe { unreachable }\n    return x\n}\n"
+    expect_compile_success_with_mod(env, "pattern_else_unreachable_in_unsafe", ch, NEG_MOD_STD_CORE)
 }
 
 @test

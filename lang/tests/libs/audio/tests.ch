@@ -151,7 +151,7 @@ public func audio_append_works(env : &mut TestEnv) {
 
     var result = audio::audio_append(&raw mut a, &raw mut b)
     if(result is Result.Err) { env.error("append should succeed"); return }
-    var Ok(r) = result else unreachable
+    var Ok(r) = result else unsafe { unreachable }
     if(r.num_samples != 8) { env.error("appended should have 8 samples") }
 }
 
@@ -349,7 +349,7 @@ public func audio_mix_works(env : &mut TestEnv) {
 
         var result = audio::audio_mix(&raw mut a, &raw mut b)
         if(result is Result.Err) { env.error("mix should succeed"); return }
-        var Ok(r) = result else unreachable
+        var Ok(r) = result else unsafe { unreachable }
         if(r.samples.get(0) != 8000i16) { env.error("mix average") }
 
         }
@@ -376,7 +376,7 @@ public func audio_mix_silence(env : &mut TestEnv) {
 
         var result = audio::audio_mix(&raw mut a, &raw mut b)
         if(result is Result.Err) { env.error("mix with silence should succeed"); return }
-        var Ok(r) = result else unreachable
+        var Ok(r) = result else unsafe { unreachable }
         if(r.samples.get(0) != 4000i16) { env.error("mix silence + signal") }
         if(r.num_samples != 10) { env.error("mix should use max samples") }
 
@@ -518,7 +518,7 @@ public func audio_wav_parse_16bit_mono(env : &mut TestEnv) {
         var wav = build_test_wav(&raw mut samples, 1, 44100)
         var result = audio::parse_wav(wav.data(), wav.size())
         if(result is Result.Err) { env.error("parse 16-bit mono WAV"); return }
-        var Ok(a) = result else unreachable
+        var Ok(a) = result else unsafe { unreachable }
         if(a.sample_rate != 44100) { env.error("sample rate") }
         if(a.channels != 1) { env.error("channels") }
         if(a.bits_per_sample != 16) { env.error("bits per sample") }
@@ -540,7 +540,7 @@ public func audio_wav_parse_16bit_stereo(env : &mut TestEnv) {
         var wav = build_test_wav(&raw mut samples, 2, 44100)
         var result = audio::parse_wav(wav.data(), wav.size())
         if(result is Result.Err) { env.error("parse 16-bit stereo WAV"); return }
-        var Ok(a) = result else unreachable
+        var Ok(a) = result else unsafe { unreachable }
         if(a.channels != 2) { env.error("stereo channels") }
         if(a.num_samples != 100) { env.error("stereo num_samples") }
         if(a.samples.get(0) != 100i16) { env.error("stereo left") }
@@ -569,7 +569,7 @@ public func audio_wav_save_roundtrip(env : &mut TestEnv) {
 
         var load_result = audio::load_wav(wav_path.data())
         if(load_result is Result.Err) { env.error("load WAV failed"); return }
-        var Ok(loaded) = load_result else unreachable
+        var Ok(loaded) = load_result else unsafe { unreachable }
         if(loaded.sample_rate != 22050) { env.error("roundtrip sample rate") }
         if(loaded.channels != 2) { env.error("roundtrip channels") }
         if(loaded.num_samples != 50) { env.error("roundtrip num samples") }
@@ -621,7 +621,7 @@ public func audio_wav_parse_8bit(env : &mut TestEnv) {
 
         var result = audio::parse_wav(file_data.data(), file_data.size())
         if(result is Result.Err) { env.error("parse 8-bit WAV should succeed"); return }
-        var Ok(a) = result else unreachable
+        var Ok(a) = result else unsafe { unreachable }
         if(a.bits_per_sample != 8) { env.error("bits per sample") }
         // For 8-bit: sample = ((unsigned byte) - 128) << 8
         if(a.samples.get(0) != (200i16 - 128) << 8) { env.error("8-bit first sample") }
@@ -747,7 +747,7 @@ public func audio_encode_wav_roundtrip(env : &mut TestEnv) {
         // Encode to in-memory bytes
         var encode_result = audio::encode_wav(&raw mut a)
         if(encode_result is Result.Err) { env.error("encode_wav should succeed"); return }
-        var Ok(bytes) = encode_result else unreachable
+        var Ok(bytes) = encode_result else unsafe { unreachable }
 
         // Verify RIFF signature
         if(bytes.size() < 12) { env.error("encoded WAV too small") }
@@ -758,7 +758,7 @@ public func audio_encode_wav_roundtrip(env : &mut TestEnv) {
         // Parse back
         var parse_result = audio::parse_wav(bytes.data(), bytes.size())
         if(parse_result is Result.Err) { env.error("parse encoded WAV should succeed"); return }
-        var Ok(parsed) = parse_result else unreachable
+        var Ok(parsed) = parse_result else unsafe { unreachable }
 
         if(parsed.sample_rate != 22050) { env.error("roundtrip sample rate") }
         if(parsed.channels != 1) { env.error("roundtrip channels") }
@@ -788,11 +788,11 @@ public func audio_encode_wav_stereo_roundtrip(env : &mut TestEnv) {
 
         var encode_result = audio::encode_wav(&raw mut a)
         if(encode_result is Result.Err) { env.error("encode_wav stereo should succeed"); return }
-        var Ok(bytes) = encode_result else unreachable
+        var Ok(bytes) = encode_result else unsafe { unreachable }
 
         var parse_result = audio::parse_wav(bytes.data(), bytes.size())
         if(parse_result is Result.Err) { env.error("parse encoded stereo WAV should succeed"); return }
-        var Ok(parsed) = parse_result else unreachable
+        var Ok(parsed) = parse_result else unsafe { unreachable }
 
         if(parsed.channels != 2) { env.error("roundtrip stereo channels") }
         if(parsed.num_samples != 10) { env.error("roundtrip stereo num_samples") }

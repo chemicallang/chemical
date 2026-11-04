@@ -137,7 +137,7 @@ func test_high_level_parse_stringify(env : &mut TestEnv) {
     var text = std::string_view(" {\"a\": 1, \"b\": [true, null]} ")
     var r = json::parse(text)
     if(r is std::Result.Err) { env.error("json::parse failed"); return }
-    var Ok(v) = r else unreachable
+    var Ok(v) = r else unsafe { unreachable }
     var compact = json::stringify(&v)
     if(!compact.to_view().equals(std::string_view("{\"a\":1,\"b\":[true,null]}"))) {
         env.error("json::stringify mismatch")
@@ -155,7 +155,7 @@ func test_high_level_parse_error(env : &mut TestEnv) {
     var text = std::string_view("{\"a\":}")
     var r = json::parse(text)
     if(r is std::Result.Ok) { env.error("json::parse should fail on invalid json"); return }
-    var Err(e) = r else unreachable
+    var Err(e) = r else unsafe { unreachable }
     if(e.pos == 0) { env.error("json::parse error should carry a position"); return }
     if(e.message.size() == 0) { env.error("json::parse error should carry a message") }
 }
@@ -463,7 +463,7 @@ func test_encoder_encode_generic_float(env : &mut TestEnv) {
     var dec = JsonDecoder { value : &ph.root }
     var res = dec.decode<float>()
     if(res is std::Result.Err) { env.error("float re-decode failed"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v != 3.14f) {
         env.error("float 3.14f did not round-trip exactly")
     }
@@ -489,7 +489,7 @@ func test_encoder_encode_generic_double(env : &mut TestEnv) {
     var dec = JsonDecoder { value : &ph.root }
     var res = dec.decode<double>()
     if(res is std::Result.Err) { env.error("double re-decode failed"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v != 0.30000000000000004) {
         env.error("double 0.1+0.2 did not round-trip exactly")
     }
@@ -519,7 +519,7 @@ func test_decoder_decode_bool(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var val = d.decode_bool()
     if(!(val is std::Result.Ok)) { env.error("decode_bool error"); return }
-    var Ok(v) = val else unreachable
+    var Ok(v) = val else unsafe { unreachable }
     if(!v) { env.error("expected true") }
 }
 
@@ -533,7 +533,7 @@ func test_decoder_decode_i64(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var val = d.decode_i64()
     if(!(val is std::Result.Ok)) { env.error("decode_i64 error"); return }
-    var Ok(v) = val else unreachable
+    var Ok(v) = val else unsafe { unreachable }
     if(v != 42i64) { env.error("expected 42") }
 }
 
@@ -547,7 +547,7 @@ func test_decoder_decode_i64_negative(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var val = d.decode_i64()
     if(!(val is std::Result.Ok)) { env.error("decode_i64 error"); return }
-    var Ok(v) = val else unreachable
+    var Ok(v) = val else unsafe { unreachable }
     if(v != -7i64) { env.error("expected -7") }
 }
 
@@ -561,7 +561,7 @@ func test_decoder_decode_u64(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var val = d.decode_u64()
     if(!(val is std::Result.Ok)) { env.error("decode_u64 error"); return }
-    var Ok(v) = val else unreachable
+    var Ok(v) = val else unsafe { unreachable }
     if(v != 99u64) { env.error("expected 99") }
 }
 
@@ -575,7 +575,7 @@ func test_decoder_decode_double(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var val = d.decode_double()
     if(!(val is std::Result.Ok)) { env.error("decode_double error"); return }
-    var Ok(v) = val else unreachable
+    var Ok(v) = val else unsafe { unreachable }
     if(v < 3.13 || v > 3.15) { env.error("expected ~3.14") }
 }
 
@@ -589,7 +589,7 @@ func test_decoder_decode_float(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var val = d.decode_float()
     if(!(val is std::Result.Ok)) { env.error("decode_float error"); return }
-    var Ok(v) = val else unreachable
+    var Ok(v) = val else unsafe { unreachable }
     if(v < 2.49f || v > 2.51f) { env.error("expected ~2.5") }
 }
 
@@ -603,7 +603,7 @@ func test_decoder_decode_char(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var val = d.decode_char()
     if(!(val is std::Result.Ok)) { env.error("decode_char error"); return }
-    var Ok(v) = val else unreachable
+    var Ok(v) = val else unsafe { unreachable }
     if(v != 'A') { env.error("expected 'A'") }
 }
 
@@ -617,7 +617,7 @@ func test_decoder_decode_str(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var val = d.decode_str()
     if(!(val is std::Result.Ok)) { env.error("decode_str error"); return }
-    var Ok(v) = val else unreachable
+    var Ok(v) = val else unsafe { unreachable }
     if(!v.equals(std::string_view("hello"))) { env.error("expected hello") }
 }
 
@@ -654,7 +654,7 @@ func test_decoder_decode_generic_bool(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<bool>()
     if(!(res is std::Result.Ok)) { env.error("encoder.decode returned error"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(!v) {
         env.error("encoder.decode<bool>() failed")
     }
@@ -670,7 +670,7 @@ func test_decoder_decode_generic_uint(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<uint>()
     if(!(res is std::Result.Ok)) { env.error("encoder.encode returned error"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v != 42) {
         env.error("encoder.decode<uint>() failed")
     }
@@ -686,7 +686,7 @@ func test_decoder_decode_generic_float(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<float>()
     if(!(res is std::Result.Ok)) { env.error("encoder.encode returned error"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v < 3.13f || v > 3.15f) {
         env.error("encoder.decode<float>() failed")
     }
@@ -702,7 +702,7 @@ func test_decoder_decode_generic_double(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<double>()
     if(!(res is std::Result.Ok)) { env.error("encoder.encode returned error"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v != 3.14) {
         env.error("encoder.decode<double>() failed")
     }
@@ -718,7 +718,7 @@ func test_decoder_decode_generic_string_view(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<std::string_view>()
     if(!(res is std::Result.Ok)) { env.error("encoder.encode returned error"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(!v.equals(std::string_view("hello world"))) {
         env.error("encoder.decode<std::string_view>() failed")
     }
@@ -798,11 +798,11 @@ func test_long_string_over_old_4096_limit(env : &mut TestEnv) { unsafe {
     var r = parser.parse(doc.data(), doc.size(), &mut ph)
     if (!r.ok) { env.error(r.msg); return }
     if (!(ph.root is JsonValue.Object)) { env.error("expected object"); return }
-    var Object(map) = ph.root else unreachable
+    var Object(map) = ph.root else unsafe { unreachable }
     var vp = map.get_ptr(std::string("url"))
     if (vp == null) { env.error("missing url field"); return }
     if (!(vp is JsonValue.String)) { env.error("expected string value"); return }
-    var String(s) = *vp else unreachable
+    var String(s) = *vp else unsafe { unreachable }
     if (s.size() != 5000u) { env.error("long string length mismatch"); return }
  }}
 
@@ -820,11 +820,11 @@ func test_long_escaped_string_over_old_4096_limit(env : &mut TestEnv) { unsafe {
     var r = parser.parse(doc.data(), doc.size(), &mut ph)
     if (!r.ok) { env.error(r.msg); return }
     if (!(ph.root is JsonValue.Object)) { env.error("expected object"); return }
-    var Object(map) = ph.root else unreachable
+    var Object(map) = ph.root else unsafe { unreachable }
     var vp = map.get_ptr(std::string("k"))
     if (vp == null) { env.error("missing k field"); return }
     if (!(vp is JsonValue.String)) { env.error("expected string value"); return }
-    var String(s) = *vp else unreachable
+    var String(s) = *vp else unsafe { unreachable }
     if (s.size() != 5000u) { env.error("decoded long escaped string length mismatch"); return }
  }}
 
@@ -875,11 +875,11 @@ func test_string_that_outgrows_the_heap_buffer_stays_intact(env : &mut TestEnv) 
     var r = parser.parse(doc.data(), doc.size(), &mut ph)
     if (!r.ok) { env.error(r.msg); return }
     if (!(ph.root is JsonValue.Object)) { env.error("expected object"); return }
-    var Object(map) = ph.root else unreachable
+    var Object(map) = ph.root else unsafe { unreachable }
     var vp = map.get_ptr(std::string("k"))
     if (vp == null) { env.error("missing k field"); return }
     if (!(vp is JsonValue.String)) { env.error("expected string value"); return }
-    var String(s) = *vp else unreachable
+    var String(s) = *vp else unsafe { unreachable }
     if (s.size() != BIG) { env.error("length mismatch after the buffer grew"); return }
     // Content, not just length: sample every realloc boundary and both ends.
     var i = 0u

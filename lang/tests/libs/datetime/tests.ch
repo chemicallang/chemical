@@ -383,7 +383,7 @@ public func datetime_to_iso8601_zero_padded(env : &mut TestEnv) {
 public func datetime_parse_basic(env : &mut TestEnv) {
     var result = datetime::DateTime::parse(std::string_view("%Y-%m-%d %H:%M:%S"), std::string_view("2024-03-05 14:30:00"))
     if(result is std::Result.Err) { env.error("parse should succeed"); return }
-    var Ok(dt) = result else unreachable
+    var Ok(dt) = result else unsafe { unreachable }
     if(dt.year_val() != 2024) { env.error("parsed year should be 2024") }
     if(dt.month_val() != 3) { env.error("parsed month should be 3") }
     if(dt.day_val() != 5) { env.error("parsed day should be 5") }
@@ -396,7 +396,7 @@ public func datetime_parse_basic(env : &mut TestEnv) {
 public func datetime_parse_iso8601_like(env : &mut TestEnv) {
     var result = datetime::DateTime::parse(std::string_view("%Y-%m-%dT%H:%M:%S"), std::string_view("2024-12-25T10:05:09"))
     if(result is std::Result.Err) { env.error("parse iso8601-like should succeed"); return }
-    var Ok(dt) = result else unreachable
+    var Ok(dt) = result else unsafe { unreachable }
     if(dt.year_val() != 2024) { env.error("parsed year 2024") }
     if(dt.month_val() != 12) { env.error("parsed month 12") }
     if(dt.day_val() != 25) { env.error("parsed day 25") }
@@ -421,7 +421,7 @@ public func datetime_parse_too_short(env : &mut TestEnv) {
 public func datetime_parse_year_only(env : &mut TestEnv) {
     var result = datetime::DateTime::parse(std::string_view("%Y"), std::string_view("2024"))
     if(result is std::Result.Err) { env.error("parse year-only should succeed"); return }
-    var Ok(dt) = result else unreachable
+    var Ok(dt) = result else unsafe { unreachable }
     if(dt.year_val() != 2024) { env.error("parsed year should be 2024") }
 }
 

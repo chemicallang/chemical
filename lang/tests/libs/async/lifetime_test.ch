@@ -78,7 +78,7 @@ func test_channel_send_after_close(env : &mut TestEnv) {
         env.error("a value queued before close must still be received")
         return
     }
-    var Some(v) = a else unreachable
+    var Some(v) = a else unsafe { unreachable }
     if(v != 1) {
         env.error("queued value mismatch after close")
     }

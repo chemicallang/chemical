@@ -500,7 +500,7 @@ public struct Generator {
     public func generate(&mut self, module : *TransformerModule) {
         var res = fs::create_dir_all(self.output_dir.data());
         if (res is std::Result.Err) {
-            var Err(e) = res else unreachable;
+            var Err(e) = res else unsafe { unreachable };
             printf("Error creating output directory %s: %s\n", self.output_dir.data(), e.message().data());
             return;
         }
@@ -512,7 +512,7 @@ public struct Generator {
         
         res = fs::create_dir_all(mod_dir.data());
         if (res is std::Result.Err) {
-            var Err(e) = res else unreachable;
+            var Err(e) = res else unsafe { unreachable };
             printf("Error creating module directory %s: %s\n", mod_dir.data(), e.message().data());
             return;
         }

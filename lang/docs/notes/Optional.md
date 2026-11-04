@@ -56,7 +56,7 @@ func check_return_on_no_value(opt: Optional<int>) {
 }
 
 func check_unreachable_path_in_optional(opt: Optional<int>) {
-    var Some(value) = opt else unreachable;
+    var Some(value) = opt else unsafe { unreachable };
     printf("value has been given, %d\n", value);
 }
 ```

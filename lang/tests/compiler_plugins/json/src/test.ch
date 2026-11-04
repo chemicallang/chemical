@@ -140,7 +140,7 @@ public func json_macro_scalar_struct_roundtrip(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMPoint>()
     if(res is std::Result.Err) { env.error("decode<JMPoint> returned Err"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v.x != 10 || v.y != -20) {
         env.error("JMPoint roundtrip mismatch")
     }
@@ -166,7 +166,7 @@ public func json_macro_nested_struct_roundtrip(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMParent>()
     if(res is std::Result.Err) { env.error("decode<JMParent> returned Err"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v.x != 1 || v.c.a != 3 || v.c.b != 4 || !v.ok) {
         env.error("JMParent nested roundtrip mismatch")
     }
@@ -192,7 +192,7 @@ public func json_macro_wide_scalar_struct_roundtrip(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMWide>()
     if(res is std::Result.Err) { env.error("decode<JMWide> returned Err"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v.i != -42 || v.lg != -7 || v.u != 4000000000u || !v.b || v.f != 1.5f || v.d != -2.25) {
         env.error("JMWide roundtrip mismatch")
     }
@@ -220,7 +220,7 @@ public func json_macro_namespaced_struct_roundtrip(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<jmns::JMNs>()
     if(res is std::Result.Err) { env.error("decode<jmns::JMNs> returned Err"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v.x != 7 || !v.tag.to_view().equals(std::string_view("ns"))) {
         env.error("jmns::JMNs roundtrip mismatch")
     }
@@ -248,7 +248,7 @@ public func json_macro_char_struct_roundtrip(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMChar>()
     if(res is std::Result.Err) { env.error("decode<JMChar> returned Err"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v.a != '"' || v.b != 'z' as uchar) {
         env.error("JMChar roundtrip mismatch")
     }
@@ -382,7 +382,7 @@ func run_dtor_scalar_roundtrip() : int {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMDPoint>()
     if(res is std::Result.Err) { return 4 }
-    var Ok(out) = res else unreachable
+    var Ok(out) = res else unsafe { unreachable }
     if(out.x != 10 || out.y != -20) { return 5 }
     return 0
 }
@@ -419,7 +419,7 @@ func run_dtor_owning_roundtrip() : int {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMDChild>()
     if(res is std::Result.Err) { return 4 }
-    var Ok(out) = res else unreachable
+    var Ok(out) = res else unsafe { unreachable }
     if(out.num != 5) { return 5 }
     if(!out.tag.to_view().equals(std::string_view("world"))) { return 6 }
     return 0
@@ -457,7 +457,7 @@ func run_dtor_nested_roundtrip() : int {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMDHolder>()
     if(res is std::Result.Err) { return 4 }
-    var Ok(out) = res else unreachable
+    var Ok(out) = res else unsafe { unreachable }
     if(out.id != 7 || out.child.num != 3 || !out.active) { return 5 }
     if(!out.child.tag.to_view().equals(std::string_view("hello"))) { return 6 }
     return 0
@@ -500,7 +500,7 @@ public func json_macro_enum_struct_roundtrip(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMEnumPoint>()
     if(res is std::Result.Err) { env.error("decode<JMEnumPoint> returned Err"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v.x != 3 || v.y != -4) { env.error("JMEnumPoint coords mismatch"); return }
     if(!(v.color == JMColor.Blue)) { env.error("JMEnumPoint color mismatch (expected Blue)"); return }
     if(!v.name.to_view().equals(std::string_view("pt"))) { env.error("JMEnumPoint name mismatch") }
@@ -564,7 +564,7 @@ public func json_macro_vector_int_roundtrip(env : &mut TestEnv) { unsafe {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMVectorInt>()
     if(res is std::Result.Err) { env.error("decode<JMVectorInt> returned Err"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v.values.size() != 3u) { env.error("vector<int> decoded size mismatch"); return }
     if(*(v.values.get_ptr(0)) != 1 || *(v.values.get_ptr(2)) != 3) {
         env.error("vector<int> decoded values mismatch")
@@ -592,7 +592,7 @@ public func json_macro_vector_empty_roundtrip(env : &mut TestEnv) {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMVectorInt>()
     if(res is std::Result.Err) { env.error("decode<empty vector> returned Err"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v.values.size() != 0u) { env.error("empty vector decoded size mismatch") }
 }
 
@@ -620,7 +620,7 @@ public func json_macro_vector_string_roundtrip(env : &mut TestEnv) {
         var d = JsonDecoder { value : &ph.root }
         var res = d.decode<JMVectorStrings>()
         if(res is std::Result.Err) { env.error("decode<vector<string>> returned Err"); return }
-        var Ok(v) = res else unreachable
+        var Ok(v) = res else unsafe { unreachable }
         if(v.values.size() != 2u) { env.error("vector<string> decoded size mismatch"); return }
         var first = v.values.get_ptr(0)
         if(!first.to_view().equals(std::string_view("a\"b"))) {
@@ -658,7 +658,7 @@ public func json_macro_nested_vector_roundtrip(env : &mut TestEnv) { unsafe {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMNestedVector>()
     if(res is std::Result.Err) { env.error("decode<nested vector> returned Err"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v.rows.size() != 2u) { env.error("nested vector outer size mismatch"); return }
     var row0 = v.rows.get_ptr(0)
     if(row0.size() != 2u || *(row0.get_ptr(1)) != 2) {
@@ -690,7 +690,7 @@ public func json_macro_vector_struct_roundtrip(env : &mut TestEnv) {
         var d = JsonDecoder { value : &ph.root }
         var res = d.decode<JMVectorChild>()
         if(res is std::Result.Err) { env.error("decode<vector<JMChild>> returned Err"); return }
-        var Ok(v) = res else unreachable
+        var Ok(v) = res else unsafe { unreachable }
         if(v.children.size() != 2u) { env.error("vector<JMChild> decoded size mismatch"); return }
         var child = v.children.get_ptr(1)
         if(child.a != 5 || child.b != 6) { env.error("vector<JMChild> decoded values mismatch") }
@@ -721,7 +721,7 @@ public func json_macro_ordered_map_roundtrip(env : &mut TestEnv) { unsafe {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMOrderedMap>()
     if(res is std::Result.Err) { env.error("decode<ordered_map> returned Err"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v.m.size() != 2u) { env.error("ordered_map decoded size mismatch"); return }
     var av = v.m.get_ptr(std::string("a"))
     if(av == null || *av != 1) { env.error("ordered_map decoded value mismatch") }
@@ -746,7 +746,7 @@ public func json_macro_unordered_map_roundtrip(env : &mut TestEnv) { unsafe {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMUnorderedMap>()
     if(res is std::Result.Err) { env.error("decode<unordered_map> returned Err"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v.m.size() != 2u) { env.error("unordered_map decoded size mismatch"); return }
     var bv = v.m.get_ptr(std::string("b"))
     if(bv == null || *bv != 2) { env.error("unordered_map decoded value mismatch") }
@@ -774,7 +774,7 @@ public func json_macro_large_vector_roundtrip(env : &mut TestEnv) { unsafe {
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMLargeVector>()
     if(res is std::Result.Err) { env.error("decode<large vector> returned Err"); return }
-    var Ok(v) = res else unreachable
+    var Ok(v) = res else unsafe { unreachable }
     if(v.values.size() != 512u) { env.error("large vector decoded size mismatch"); return }
     if(*(v.values.get_ptr(0)) != 0 || *(v.values.get_ptr(511)) != 511) {
         env.error("large vector decoded values mismatch")

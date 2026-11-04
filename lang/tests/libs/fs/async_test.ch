@@ -25,7 +25,7 @@ func test_fs_read_entire_file_async(env : &mut TestEnv) {
     if(r is Result.Err) {
         env.error("read_entire_file_async failed");
     } else {
-        var Ok(data) = r else unreachable
+        var Ok(data) = r else unsafe { unreachable }
         expect_eq_usize(env, data.size(), len, "async read size mismatch");
     }
 
@@ -53,7 +53,7 @@ func test_fs_write_text_file_async(env : &mut TestEnv) {
     if(rr is Result.Err) {
         env.error("sync read-back failed");
     } else {
-        var Ok(data) = rr else unreachable
+        var Ok(data) = rr else unsafe { unreachable }
         expect_eq_usize(env, data.size(), len, "async write size mismatch");
     }
 

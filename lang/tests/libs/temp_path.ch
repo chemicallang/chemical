@@ -12,7 +12,7 @@ func make_temp_test_path(name : *char) : std::string {
     var buf : [4096]char
     var r = fs::temp_dir(&raw mut buf[0], 4096 as size_t)
     if(r is std::Result.Ok) {
-        var Ok(len) = r else unreachable
+        var Ok(len) = r else unsafe { unreachable }
         var i : size_t = 0
         while(i < len) {
             out.append(buf[i])

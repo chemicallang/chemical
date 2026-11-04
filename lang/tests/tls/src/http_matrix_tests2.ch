@@ -44,15 +44,15 @@ public func MATRIX_redirect_location_header_flow(env : &mut TestEnv) {
     var u1 = mtx2_url(PORT, "/r1")
     var r1 = client.get(u1.to_view())
     if(r1 is Result.Err) { env.error("redirect source request failed"); test_kill_port(PORT as int); return }
-    var Ok(x1) = r1 else unreachable;
+    var Ok(x1) = r1 else unsafe { unreachable };
     if(x1.status != 301u) { env.error("expected status 301") }
     var loc = x1.headers.get("Location")
     if(loc is std.Option.None) { env.error("Location header missing on 301"); test_kill_port(PORT as int); return }
-    var Some(lv) = loc else unreachable;
+    var Some(lv) = loc else unsafe { unreachable };
     if(!lv.equals_view("/r2")) { env.error("Location value mismatch") }
     var b1 = x1.body.read_to_string()
     if(b1 is std.Option.None) { env.error("301 body read failed") } else {
-        var Some(v1) = b1 else unreachable;
+        var Some(v1) = b1 else unsafe { unreachable };
         if(v1.size() != 0u) { env.error("301 body should be empty (CL:0)") }
     }
 
@@ -60,11 +60,11 @@ public func MATRIX_redirect_location_header_flow(env : &mut TestEnv) {
     var u2 = mtx2_url(PORT, "/r2")
     var r2 = client.get(u2.to_view())
     if(r2 is Result.Err) { env.error("redirect target request failed"); test_kill_port(PORT as int); return }
-    var Ok(x2) = r2 else unreachable;
+    var Ok(x2) = r2 else unsafe { unreachable };
     if(x2.status != 200u) { env.error("target expected 200") }
     var b2 = x2.body.read_to_string()
     if(b2 is std.Option.None) { env.error("target body read failed"); test_kill_port(PORT as int); return }
-    var Some(v2) = b2 else unreachable;
+    var Some(v2) = b2 else unsafe { unreachable };
     if(!v2.equals_view("final-target")) { env.error("target body mismatch") }
 
     test_kill_port(PORT as int)
@@ -91,18 +91,18 @@ public func MATRIX_options_method_and_fragment_stripping(env : &mut TestEnv) {
     var base1 = string("https://127.0.0.1:20436/opts")
     var uo = URL::parse(base1.to_view())
     if(uo is std::Option.None) { env.error("options url parse failed"); test_kill_port(PORT as int); return }
-    var Some(u1) = uo else unreachable;
+    var Some(u1) = uo else unsafe { unreachable };
     var rb = RequestBuilder("OPTIONS", std::replace(&mut u1, URL()))
     var r1 = client.request(&rb)
     if(r1 is Result.Err) { env.error("OPTIONS request failed"); test_kill_port(PORT as int); return }
-    var Ok(x1) = r1 else unreachable;
+    var Ok(x1) = r1 else unsafe { unreachable };
     var b1 = x1.body.read_to_string()
     if(b1 is std.Option.None) { env.error("OPTIONS body read failed"); test_kill_port(PORT as int); return }
-    var Some(v1) = b1 else unreachable;
+    var Some(v1) = b1 else unsafe { unreachable };
     if(!v1.equals_view("OPTIONS /opts")) { env.error("OPTIONS echo mismatch") }
     var xm = x1.headers.get("X-Echo-Method")
     if(xm is std.Option.None) { env.error("X-Echo-Method missing") } else {
-        var Some(mv) = xm else unreachable;
+        var Some(mv) = xm else unsafe { unreachable };
         if(!mv.equals_view("OPTIONS")) { env.error("X-Echo-Method value mismatch") }
     }
 
@@ -110,10 +110,10 @@ public func MATRIX_options_method_and_fragment_stripping(env : &mut TestEnv) {
     var frag_url = string("https://127.0.0.1:20436/p#section-anchor")
     var r2 = client.get(frag_url.to_view())
     if(r2 is Result.Err) { env.error("fragment request failed"); test_kill_port(PORT as int); return }
-    var Ok(x2) = r2 else unreachable;
+    var Ok(x2) = r2 else unsafe { unreachable };
     var b2 = x2.body.read_to_string()
     if(b2 is std.Option.None) { env.error("fragment body read failed"); test_kill_port(PORT as int); return }
-    var Some(v2) = b2 else unreachable;
+    var Some(v2) = b2 else unsafe { unreachable };
     if(!v2.equals_view("GET /p")) { env.error("fragment reached the server or path corrupted") }
 
     test_kill_port(PORT as int)
@@ -205,7 +205,7 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
         for(var i=0u; i<5u; i++) {
             var res = client.get(u.to_view())
             if(res is Result.Ok) {
-                var Ok(rr) = res else unreachable;
+                var Ok(rr) = res else unsafe { unreachable };
                 if(rr.status == 200u) {
                     c.lock.lock()
                     c.ok_plain = c.ok_plain + 1u
@@ -223,7 +223,7 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
         for(var i=0u; i<5u; i++) {
             var res = client.get(u.to_view())
             if(res is Result.Ok) {
-                var Ok(rr) = res else unreachable;
+                var Ok(rr) = res else unsafe { unreachable };
                 if(rr.status == 200u) {
                     c.lock.lock()
                     c.ok_plain = c.ok_plain + 1u
@@ -243,7 +243,7 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
         for(var i=0u; i<5u; i++) {
             var res = client.get(u.to_view())
             if(res is Result.Ok) {
-                var Ok(rr) = res else unreachable;
+                var Ok(rr) = res else unsafe { unreachable };
                 if(rr.status == 200u) {
                     c.lock.lock()
                     c.ok_tls = c.ok_tls + 1u
@@ -262,7 +262,7 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
         for(var i=0u; i<5u; i++) {
             var res = client.get(u.to_view())
             if(res is Result.Ok) {
-                var Ok(rr) = res else unreachable;
+                var Ok(rr) = res else unsafe { unreachable };
                 if(rr.status == 200u) {
                     c.lock.lock()
                     c.ok_tls = c.ok_tls + 1u
@@ -324,13 +324,13 @@ public func MATRIX_parallel_upload_download_streams(env : &mut TestEnv) {
                 s.lock.lock(); s.fails = s.fails + 1u; s.lock.unlock()
                 continue
             }
-            var Ok(r) = res else unreachable;
+            var Ok(r) = res else unsafe { unreachable };
             var b = r.body.read_to_string()
             if(b is std.Option.None) {
                 s.lock.lock(); s.fails = s.fails + 1u; s.lock.unlock()
                 continue
             }
-            var Some(v) = b else unreachable;
+            var Some(v) = b else unsafe { unreachable };
             if(!v.equals_view(payload.to_view())) {
                 s.lock.lock(); s.fails = s.fails + 1u; s.lock.unlock()
             }
@@ -350,13 +350,13 @@ public func MATRIX_parallel_upload_download_streams(env : &mut TestEnv) {
                 s.lock.lock(); s.fails = s.fails + 1u; s.lock.unlock()
                 continue
             }
-            var Ok(r) = res else unreachable;
+            var Ok(r) = res else unsafe { unreachable };
             var b = r.body.read_to_string()
             if(b is std.Option.None) {
                 s.lock.lock(); s.fails = s.fails + 1u; s.lock.unlock()
                 continue
             }
-            var Some(v) = b else unreachable;
+            var Some(v) = b else unsafe { unreachable };
             if(v.size() != 65536u) {
                 s.lock.lock(); s.fails = s.fails + 1u; s.lock.unlock()
                 continue

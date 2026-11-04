@@ -10,15 +10,15 @@ public func exists(path : *char) : bool {
 
 public func is_file(path : *char) : Result<bool, FsError> {
     var r = metadata(path);
-    if(r is Result.Err) { var Err(e) = r else unreachable; return Result.Err(e); }
-    var Ok(m) = r else unreachable;
+    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(e); }
+    var Ok(m) = r else unsafe { unreachable };
     return Result.Ok(m.is_file);
 }
 
 public func is_dir(path : *char) : Result<bool, FsError> {
     var r = metadata(path);
-    if(r is Result.Err) { var Err(e) = r else unreachable; return Result.Err(e); }
-    var Ok(m) = r else unreachable;
+    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(e); }
+    var Ok(m) = r else unsafe { unreachable };
     return Result.Ok(m.is_dir);
 }
 

@@ -82,7 +82,7 @@ public func test_webview_bind_roundtrip(env : &mut TestEnv) {
         env.error("webview::create failed (is a display available?)")
         return
     }
-    var Ok(wv) = wv_result else unreachable
+    var Ok(wv) = wv_result else unsafe { unreachable }
     g_wv = &raw mut wv
 
     var bind_result = webview::webview_bind(&raw mut wv, (method, args) => {
@@ -135,7 +135,7 @@ public func test_webview_bind_result_delivery(env : &mut TestEnv) {
         env.error("webview::create failed (is a display available?)")
         return
     }
-    var Ok(wv) = wv_result else unreachable
+    var Ok(wv) = wv_result else unsafe { unreachable }
     g_wv = &raw mut wv
 
     var bind_result = webview::webview_bind(&raw mut wv, (method, args) => {
@@ -184,7 +184,7 @@ public func test_webview_bind_method_routing(env : &mut TestEnv) {
         env.error("webview::create failed (is a display available?)")
         return
     }
-    var Ok(wv) = wv_result else unreachable
+    var Ok(wv) = wv_result else unsafe { unreachable }
     g_wv = &raw mut wv
 
     var bind_result = webview::webview_bind(&raw mut wv, (method, args) => {
@@ -235,7 +235,7 @@ public func test_webview_evaluate_js_result(env : &mut TestEnv) {
         env.error("webview::create failed (is a display available?)")
         return
     }
-    var Ok(wv) = wv_result else unreachable
+    var Ok(wv) = wv_result else unsafe { unreachable }
     g_wv = &raw mut wv
 
     var bind_result = webview::webview_bind(&raw mut wv, (method, args) => {
@@ -276,7 +276,7 @@ public func test_webview_set_title_size_live(env : &mut TestEnv) {
         env.error("webview::create failed (is a display available?)")
         return
     }
-    var Ok(wv) = wv_result else unreachable
+    var Ok(wv) = wv_result else unsafe { unreachable }
 
     webview::webview_set_title(&raw mut wv, "LiveTitle\0" as *char)
     webview::webview_set_size(&raw mut wv, 1234, 567)

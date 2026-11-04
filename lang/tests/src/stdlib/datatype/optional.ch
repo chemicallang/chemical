@@ -57,7 +57,7 @@ func test_optional_type() { unsafe {
         var counter = 0
         var s = Option.Some<Deletable>(Deletable { counter : &raw mut counter })
         if(counter == 0) {
-            var Some(value) = s else unreachable
+            var Some(value) = s else unsafe { unreachable }
             if(*value.counter != 0) return false;
         }
         if(counter != 0) return false;

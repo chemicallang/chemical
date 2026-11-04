@@ -63,6 +63,37 @@ bool Parser::parsePatternElse(ASTAllocator& allocator, PatternMatchExpr* pattern
         error("expected else keyword for else branch");
         return false;
     }
+    // `else unreachable` is a trap, so it is an unsafe boundary. The explicit
+    // form is `else unsafe { unreachable }` (a bare `else unsafe unreachable`
+    // is accepted too). This keeps the binding in the enclosing scope while
+    // making the trap auditable.
+    if(token->type == TokenType::UnsafeKw) {
+        token++;
+        patternMatch->elseExpression.is_unsafe = true;
+        if(token->type == TokenType::LBrace) {
+            token++;
+            consumeNewLines();
+            if(token->type != TokenType::UnreachableKw) {
+                error("expected 'unreachable' inside 'else unsafe'");
+                return false;
+            }
+            token++;
+            consumeToken(TokenType::SemiColonSym);
+            consumeNewLines();
+            if(token->type != TokenType::RBrace) {
+                error("expected '}' after 'else unsafe { unreachable }'");
+                return false;
+            }
+            token++;
+        } else if(token->type == TokenType::UnreachableKw) {
+            token++;
+        } else {
+            error("expected 'unreachable' after 'else unsafe'");
+            return false;
+        }
+        patternMatch->elseExpression.kind = PatternElseExprKind::Unreachable;
+        return true;
+    }
     switch(token->type) {
         case TokenType::UnreachableKw:
             token++;
@@ -157,51 +188,11 @@ void Parser::parsePatternMatchExprAfterId(
 
     if(parseElse) {
         if(token->type == TokenType::ElseKw) {
-            token++;
+            parsePatternElse(allocator, patternMatch);
         } else {
             error("expected else keyword for else branch");
         }
-        switch(token->type) {
-            case TokenType::UnreachableKw:
-                token++;
-                patternMatch->elseExpression.kind = PatternElseExprKind::Unreachable;
-                break;
-            case TokenType::ReturnKw:{
-                token++;
-                patternMatch->elseExpression.kind = PatternElseExprKind::Return;
-                const auto elseExpr = parseExpression(allocator, true, true);
-                if(elseExpr) {
-                    patternMatch->elseExpression.value = elseExpr;
-                }
-                break;
-            }
-            case TokenType::BreakKw: {
-                token++;
-                patternMatch->elseExpression.kind = PatternElseExprKind::Break;
-                const auto elseExpr = parseExpression(allocator, true, true);
-                if (elseExpr) {
-                    patternMatch->elseExpression.value = elseExpr;
-                }
-                break;
-            }
-            case TokenType::ContinueKw: {
-                token++;
-                patternMatch->elseExpression.kind = PatternElseExprKind::Continue;
-                break;
-            }
-            default:{
-                const auto elseExpr = parseExpression(allocator, true, true);
-                if(elseExpr) {
-                    patternMatch->elseExpression.kind = PatternElseExprKind::DefValue;
-                    patternMatch->elseExpression.value = elseExpr;
-                } else {
-                    error("expected an expression for default value after else in pattern match");
-                }
-                break;
-            }
-        }
     }
-
 }
 
 ASTNode* Parser::parseVarInitializationTokens(

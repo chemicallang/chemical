@@ -21,7 +21,7 @@ func rwlock_readers_share(env : &mut TestEnv) {
         env.error("RwLock::try_write failed after the readers left scope")
         return
     }
-    var Some(guard) = write else unreachable
+    var Some(guard) = write else unsafe { unreachable }
     unsafe { *guard.get() = 2 }
 }
 

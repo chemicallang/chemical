@@ -87,7 +87,7 @@ func test_async_block_on_timeout_completes(env : &mut TestEnv) {
         env.error("block_on_timeout should have completed")
         return
     }
-    var Some(v) = d else unreachable
+    var Some(v) = d else unsafe { unreachable }
     if(v != 8) {
         env.error("block_on_timeout value mismatch")
     }

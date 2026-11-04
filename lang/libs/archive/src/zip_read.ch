@@ -24,7 +24,7 @@ public func open_zip(path : *char, output : *mut ZipArchive) : std::Result<std::
         if(read_result is Result.Err) {
             return std.Result.Err(ArchiveError.FileNotFound())
         }
-        var Ok(fd) = read_result else unreachable
+        var Ok(fd) = read_result else unsafe { unreachable }
         unsafe { memcpy(&raw mut output.data, &raw fd, sizeof(vector<u8>)) }
         new(&raw fd) vector<u8>()
 
@@ -242,7 +242,7 @@ public func zip_read_entry(archive : *mut ZipArchive, entry : *mut ArchiveEntry,
                 return std.Result.Err(ArchiveError.DecompressionFailed(string("deflate decompression failed")))
             }
 
-            var Ok(bytes_written) = def_result else unreachable
+            var Ok(bytes_written) = def_result else unsafe { unreachable }
             var computed_crc = crc32_compute(output.data(), bytes_written)
             if(computed_crc != entry.crc32) {
                 return std.Result.Err(ArchiveError.CrcMismatch())

@@ -17,7 +17,7 @@ func test_fs_create_dir_all_and_remove_recursive(env : &mut TestEnv) {
 
     var r = fs::create_dir_all(nested3.data());
     if(r is Result.Err) {
-        var Err(e) = r else unreachable;
+        var Err(e) = r else unsafe { unreachable };
         var m = e.message();
         env.error(m.data());
         env.error("create_dir_all failed");
@@ -27,7 +27,7 @@ func test_fs_create_dir_all_and_remove_recursive(env : &mut TestEnv) {
     // remove the whole tree
     var rem = fs::remove_dir_all_recursive(base.data());
     if(rem is Result.Err) {
-        var Err(e) = rem else unreachable;
+        var Err(e) = rem else unsafe { unreachable };
         var m = e.message();
         env.error(m.data());
         env.error("remove_dir_all_recursive failed");
@@ -42,7 +42,7 @@ func test_fs_write_and_read_to_buffer_roundtrip(env : &mut TestEnv) {
 
     var rdir = fs::create_dir_all(base.data());
     if(rdir is Result.Err) {
-        var Err(e) = rdir else unreachable;
+        var Err(e) = rdir else unsafe { unreachable };
         var m = e.message();
         env.error(m.data());
         env.error("create_dir_all failed");
@@ -55,7 +55,7 @@ func test_fs_write_and_read_to_buffer_roundtrip(env : &mut TestEnv) {
 
     var wr = fs::write_text_file(file_path.data(), content as *u8, len);
     if(wr is Result.Err) {
-        var Err(e) = wr else unreachable;
+        var Err(e) = wr else unsafe { unreachable };
         var m = e.message();
         env.error(m.data());
         env.error("write_text_file failed");
@@ -66,7 +66,7 @@ func test_fs_write_and_read_to_buffer_roundtrip(env : &mut TestEnv) {
     var buf : [256]u8;
     var rd = fs::read_to_buffer(file_path.data(), &raw mut buf[0], sizeof(buf));
     if(rd is Result.Err) {
-        var Err(e) = rd else unreachable;
+        var Err(e) = rd else unsafe { unreachable };
         var m = e.message();
         env.error(m.data());
         env.error("read_to_buffer failed");
@@ -74,7 +74,7 @@ func test_fs_write_and_read_to_buffer_roundtrip(env : &mut TestEnv) {
         return;
     }
 
-    var Ok(n) = rd else unreachable;
+    var Ok(n) = rd else unsafe { unreachable };
     bytes_equal(&raw mut buf[0], n, content, "read_to_buffer bytes mismatch", env);
 
     fs::remove_dir_all_recursive(base.data());
@@ -87,7 +87,7 @@ func test_fs_write_and_read_entire_file_roundtrip(env : &mut TestEnv) {
 
     var rdir = fs::create_dir_all(base.data());
     if(rdir is Result.Err) {
-        var Err(e) = rdir else unreachable;
+        var Err(e) = rdir else unsafe { unreachable };
         var m = e.message();
         env.error(m.data());
         env.error("create_dir_all failed");
@@ -100,7 +100,7 @@ func test_fs_write_and_read_entire_file_roundtrip(env : &mut TestEnv) {
 
     var wr = fs::write_text_file(file_path.data(), content as *u8, len);
     if(wr is Result.Err) {
-        var Err(e) = wr else unreachable;
+        var Err(e) = wr else unsafe { unreachable };
         var m = e.message();
         env.error(m.data());
         env.error("write_text_file failed");
@@ -110,7 +110,7 @@ func test_fs_write_and_read_entire_file_roundtrip(env : &mut TestEnv) {
 
     var rd = fs::read_entire_file(file_path.data());
     if(rd is Result.Err) {
-        var Err(e) = rd else unreachable;
+        var Err(e) = rd else unsafe { unreachable };
         var m = e.message();
         env.error(m.data());
         env.error("read_entire_file failed");
@@ -118,7 +118,7 @@ func test_fs_write_and_read_entire_file_roundtrip(env : &mut TestEnv) {
         return;
     }
 
-    var Ok(vec) = rd else unreachable;
+    var Ok(vec) = rd else unsafe { unreachable };
     if(!bytes_equal(vec.data(), vec.size(), content, "read_entire_file bytes mismatch", env)) {
         fs::remove_dir_all_recursive(base.data());
         return;
@@ -140,7 +140,7 @@ func test_fs_copy_file_copies_contents(env : &mut TestEnv) {
     var len = unsafe(strlen(content)) as size_t;
     var wr = fs::write_text_file(src.data(), content as *u8, len);
     if(wr is Result.Err) {
-        var Err(e) = wr else unreachable;
+        var Err(e) = wr else unsafe { unreachable };
         var m = e.message();
         env.error(m.data());
         env.error("write_text_file(src) failed");
@@ -150,7 +150,7 @@ func test_fs_copy_file_copies_contents(env : &mut TestEnv) {
 
     var cp = fs::copy_file(src.data(), dst.data());
     if(cp is Result.Err) {
-        var Err(e) = cp else unreachable;
+        var Err(e) = cp else unsafe { unreachable };
         var m = e.message();
         env.error(m.data());
         env.error("copy_file failed");
@@ -160,14 +160,14 @@ func test_fs_copy_file_copies_contents(env : &mut TestEnv) {
 
     var rd = fs::read_entire_file(dst.data());
     if(rd is Result.Err) {
-        var Err(e) = rd else unreachable;
+        var Err(e) = rd else unsafe { unreachable };
         var m = e.message();
         env.error(m.data());
         env.error("read_entire_file(dst) failed");
         fs::remove_dir_all_recursive(base.data());
         return;
     }
-    var Ok(vec) = rd else unreachable;
+    var Ok(vec) = rd else unsafe { unreachable };
     bytes_equal(vec.data(), vec.size(), content, "copy_file contents mismatch", env);
 
     fs::remove_dir_all_recursive(base.data());
@@ -183,7 +183,7 @@ func test_fs_remove_file_makes_file_unreadable(env : &mut TestEnv) {
     var content : *char = "bye";
     var wr = fs::write_text_file(p.data(), content as *u8, unsafe(strlen(content)) as size_t);
     if(wr is Result.Err) {
-        var Err(e) = wr else unreachable;
+        var Err(e) = wr else unsafe { unreachable };
         var m = e.message();
         env.error(m.data());
         env.error("write_text_file failed");
@@ -193,7 +193,7 @@ func test_fs_remove_file_makes_file_unreadable(env : &mut TestEnv) {
 
     var rm = fs::remove_file(p.data());
     if(rm is Result.Err) {
-        var Err(e) = rm else unreachable;
+        var Err(e) = rm else unsafe { unreachable };
         var m = e.message();
         env.error(m.data());
         env.error("remove_file failed");
@@ -222,7 +222,7 @@ func test_fs_remove_dir_recursive_removes_nested_files(env : &mut TestEnv) {
     var d3 = make_child_path(&d2, "dir3");
     var mk = fs::create_dir_all(d3.data());
     if(mk is Result.Err) {
-        var Err(e) = mk else unreachable;
+        var Err(e) = mk else unsafe { unreachable };
         var m = e.message();
         env.error(m.data());
         env.error("create_dir_all failed");
@@ -243,7 +243,7 @@ func test_fs_remove_dir_recursive_removes_nested_files(env : &mut TestEnv) {
 
     var rm = fs::remove_dir_all_recursive(base.data());
     if(rm is Result.Err) {
-        var Err(e) = rm else unreachable;
+        var Err(e) = rm else unsafe { unreachable };
         var m = e.message();
         env.error(m.data());
         env.error("remove_dir_all_recursive failed");
@@ -253,7 +253,7 @@ func test_fs_remove_dir_recursive_removes_nested_files(env : &mut TestEnv) {
     // directory should be gone -> recreate should succeed
     var mk2 = fs::create_dir_all(base.data());
     if(mk2 is Result.Err) {
-        var Err(e) = mk2 else unreachable;
+        var Err(e) = mk2 else unsafe { unreachable };
         var m = e.message();
         env.error(m.data());
         env.error("expected create_dir_all to work after removing tree");
@@ -274,7 +274,7 @@ func test_fs_set_permissions_on_existing_file(env : &mut TestEnv) {
     var content : *char = "perm";
     var wr = fs::write_text_file(p.data(), content as *u8, unsafe(strlen(content)) as size_t);
     if(wr is Result.Err) {
-        var Err(e) = wr else unreachable;
+        var Err(e) = wr else unsafe { unreachable };
         var m = e.message();
         env.error(m.data());
         env.error("write_text_file failed");
@@ -285,7 +285,7 @@ func test_fs_set_permissions_on_existing_file(env : &mut TestEnv) {
     // POSIX-like perms (rw-r--r--). Windows mapping is coarse but should not crash.
     var sp = fs::set_permissions(p.data(), 0o644 as u32);
     if(sp is Result.Err) {
-        var Err(e) = sp else unreachable;
+        var Err(e) = sp else unsafe { unreachable };
         var m = e.message();
         env.error(m.data());
         env.error("set_permissions failed");

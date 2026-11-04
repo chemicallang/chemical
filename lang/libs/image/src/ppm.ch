@@ -9,7 +9,7 @@ public func load_ppm(path : *char) : std::Result<Image, ImageError> {
     if(read_result is Result.Err) {
         return std.Result.Err(ImageError.FileNotFound())
     }
-    var Ok(data) = read_result else unreachable
+    var Ok(data) = read_result else unsafe { unreachable }
     return parse_ppm(data.data(), data.size())
 }
 
@@ -69,8 +69,8 @@ public func parse_ppm(data : *u8, data_len : size_t) : std::Result<Image, ImageE
             return std.Result.Err(ImageError.InvalidFormat(string("invalid max_val in PPM")))
         }
 
-        var Ok(w) = width else unreachable
-        var Ok(h) = height else unreachable
+        var Ok(w) = width else unsafe { unreachable }
+        var Ok(h) = height else unsafe { unreachable }
 
         if(format == '6' as u8) {
             pos += 1
@@ -87,7 +87,7 @@ public func parse_ppm(data : *u8, data_len : size_t) : std::Result<Image, ImageE
             var img = image_create(w, h, 3)
             var pixel_count = (w as size_t) * (h as size_t)
             var ptr = img.pixels.data() as *mut u8
-            var Ok(mv) = max_val else unreachable
+            var Ok(mv) = max_val else unsafe { unreachable }
             var i : size_t = 0
             while(i < pixel_count) {
                 var r = parse_ppm_number(data, &raw mut pos, data_len)
@@ -96,9 +96,9 @@ public func parse_ppm(data : *u8, data_len : size_t) : std::Result<Image, ImageE
                 if(r is Result.Err || g is Result.Err || b is Result.Err) {
                     return std.Result.Err(ImageError.InvalidFormat(string("truncated PPM data")))
                 }
-                var Ok(rv) = r else unreachable
-                var Ok(gv) = g else unreachable
-                var Ok(bv) = b else unreachable
+                var Ok(rv) = r else unsafe { unreachable }
+                var Ok(gv) = g else unsafe { unreachable }
+                var Ok(bv) = b else unsafe { unreachable }
                 if(mv > 255) {
                     rv = (rv * 255) / mv
                     gv = (gv * 255) / mv

@@ -76,15 +76,15 @@ public struct ASTJsonHandler {
         if (!stack.empty()) {
             var top = stack.last_ptr();
             if (top is JsonValue.Array) {
-                var Array(values) = *top else unreachable
+                var Array(values) = *top else unsafe { unreachable }
                 values.push(v);
             } else if (top is JsonValue.Object) {
                 if (key_stack.empty()) {
                     var key = std::string();
-                    var Object(values) = *top else unreachable
+                    var Object(values) = *top else unsafe { unreachable }
                     values.insert(key, v);
                 } else {
-                    var Object(values) = *top else unreachable
+                    var Object(values) = *top else unsafe { unreachable }
                     values.insert(key_stack.take_last(), v);
                 }
             } else {

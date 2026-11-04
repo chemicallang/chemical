@@ -15,7 +15,7 @@ using std::Option;
 public func test_environment_home_dir(env : &mut TestEnv) {
     var home = environment::home_dir()
     if(home is Option.None) { env.error("home_dir() should return Some"); return }
-    var Some(h) = home else unreachable
+    var Some(h) = home else unsafe { unreachable }
     if(h.size() == 0) { env.error("home_dir() path should not be empty"); return }
 }
 
@@ -23,7 +23,7 @@ public func test_environment_home_dir(env : &mut TestEnv) {
 public func test_environment_user_name(env : &mut TestEnv) {
     var name = environment::user_name()
     if(name is Option.None) { env.error("user_name() should return Some"); return }
-    var Some(n) = name else unreachable
+    var Some(n) = name else unsafe { unreachable }
     if(n.size() == 0) { env.error("user_name() should not be empty"); return }
 }
 
@@ -31,7 +31,7 @@ public func test_environment_user_name(env : &mut TestEnv) {
 public func test_environment_temp_dir(env : &mut TestEnv) {
     var tmp = environment::temp_dir()
     if(tmp is Option.None) { env.error("temp_dir() should return Some"); return }
-    var Some(t) = tmp else unreachable
+    var Some(t) = tmp else unsafe { unreachable }
     if(t.size() == 0) { env.error("temp_dir() should not be empty"); return }
 }
 
@@ -39,7 +39,7 @@ public func test_environment_temp_dir(env : &mut TestEnv) {
 public func test_environment_shell(env : &mut TestEnv) {
     var sh = environment::shell()
     if(sh is Option.None) { env.error("shell() should return Some"); return }
-    var Some(s) = sh else unreachable
+    var Some(s) = sh else unsafe { unreachable }
     if(s.size() == 0) { env.error("shell() should not be empty"); return }
 }
 
@@ -53,7 +53,7 @@ public func test_environment_set_get_unset_roundtrip(env : &mut TestEnv) {
     if(set_res is Result.Err) { env.error("set failed"); return }
     var got = environment::get("CHEMICAL_ROUNDTRIP_XYZ")
     if(got is Option.None) { env.error("get should return Some after set"); return }
-    var Some(v) = got else unreachable
+    var Some(v) = got else unsafe { unreachable }
     if(!string_eq(&raw v, string_view("value_abc"))) { env.error("get returned wrong value"); return }
     var unset_res = environment::unset("CHEMICAL_ROUNDTRIP_XYZ")
     if(unset_res is Result.Err) { env.error("unset failed"); return }
@@ -93,7 +93,7 @@ public func test_process_stdin_data_echo(env : &mut TestEnv) {
     }
     var res = process::execute(cfg)
     if(res is Result.Err) { env.error("execute failed"); return }
-    var Ok(r) = res else unreachable
+    var Ok(r) = res else unsafe { unreachable }
     if(!r.success) { env.error("should succeed"); return }
     if(!bc(&raw r.output.stdout_data, "hello_stdin" as *char, 11)) {
         env.error("stdout should contain stdin data")
@@ -109,7 +109,7 @@ public func test_process_empty_stdin_data(env : &mut TestEnv) {
     // stdin_data is empty by default — should work fine
     var res = process::execute(cfg)
     if(res is Result.Err) { env.error("execute failed"); return }
-    var Ok(r) = res else unreachable
+    var Ok(r) = res else unsafe { unreachable }
     if(!r.success) { env.error("should succeed"); return }
 }
 
@@ -132,7 +132,7 @@ public func test_process_working_directory(env : &mut TestEnv) {
     }
     var res = process::execute(cfg)
     if(res is Result.Err) { env.error("execute failed"); return }
-    var Ok(r) = res else unreachable
+    var Ok(r) = res else unsafe { unreachable }
     if(!r.success) { env.error("pwd should succeed"); return }
     comptime if(def.windows) {
         if(!bc(&raw r.output.stdout_data, "/c" as *char, 2)) {
@@ -160,14 +160,14 @@ public func test_process_spawn_kill_wait_lifecycle(env : &mut TestEnv) {
     cfg.args.push(string("127.0.0.1"))
     var spawn_res = process::spawn(cfg)
     if(spawn_res is Result.Err) { env.error("spawn failed"); return }
-    var Ok(child) = spawn_res else unreachable
+    var Ok(child) = spawn_res else unsafe { unreachable }
     if(!child.is_running) { env.error("should be running after spawn"); return }
     var kr = process::kill_process(&raw mut child, 9)
     if(kr is Result.Err) { env.error("kill should succeed"); return }
     if(child.is_running) { env.error("should not be running after kill"); return }
     var w = process::wait(&raw mut child)
     if(w is Result.Err) { env.error("wait should succeed"); return }
-    var Ok(wr) = w else unreachable
+    var Ok(wr) = w else unsafe { unreachable }
     if(wr.success) { env.error("killed process should not succeed"); return }
 }
 
@@ -184,7 +184,7 @@ public func test_process_no_stderr_capture(env : &mut TestEnv) {
     cfg.capture_stderr = false
     var res = process::execute(cfg)
     if(res is Result.Err) { env.error("execute failed"); return }
-    var Ok(r) = res else unreachable
+    var Ok(r) = res else unsafe { unreachable }
     if(r.output.stderr_data.size() != 0) { env.error("stderr should be empty when capture is off"); return }
 }
 
@@ -278,10 +278,10 @@ public func test_process_merge_stderr_stdout_spawn(env : &mut TestEnv) {
     cfg.capture_stderr = false
     var spawn_res = process::spawn(cfg)
     if(spawn_res is Result.Err) { env.error("spawn failed"); return }
-    var Ok(child) = spawn_res else unreachable
+    var Ok(child) = spawn_res else unsafe { unreachable }
     var w = process::wait(&raw mut child)
     if(w is Result.Err) { env.error("wait failed"); return }
-    var Ok(wr) = w else unreachable
+    var Ok(wr) = w else unsafe { unreachable }
     if(!wr.success) { env.error("should succeed"); return }
     // Both should be in stdout_data since they're merged
     if(!bc(&raw wr.output.stdout_data, "out" as *char, 3)) {

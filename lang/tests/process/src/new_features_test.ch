@@ -29,7 +29,7 @@ public func test_process_env_passthrough(env : &mut TestEnv) {
     cfg.env.push(string("CHEM_TEST_ENV=env_passthrough_ok"))
     var res = process::execute(cfg)
     if(res is Result.Err) { env.error("execute failed"); return }
-    var Ok(r) = res else unreachable
+    var Ok(r) = res else unsafe { unreachable }
     if(!r.success) { env.error("should succeed"); return }
     if(!bytes_contains(&raw r.output.stdout_data, "env_passthrough_ok" as *char, 18)) {
         env.error("stdout should contain env var value from cfg.env")
@@ -56,7 +56,7 @@ public func test_process_stdin_data(env : &mut TestEnv) {
     }
     var res = process::execute(cfg)
     if(res is Result.Err) { env.error("execute failed"); return }
-    var Ok(r) = res else unreachable
+    var Ok(r) = res else unsafe { unreachable }
     if(!r.success) { env.error("should succeed"); return }
     if(!bytes_contains(&raw r.output.stdout_data, "piped_data_test" as *char, 15)) {
         env.error("stdout should contain piped data")
@@ -79,7 +79,7 @@ public func test_process_timeout(env : &mut TestEnv) {
     var res = process::execute(cfg)
     // Should not hang — returns after timeout
     if(res is Result.Err) { env.error("execute should not return Err on timeout"); return }
-    var Ok(r) = res else unreachable
+    var Ok(r) = res else unsafe { unreachable }
     // Process was killed, so it should not be "success"
     if(r.success) { env.error("timed-out process should not be success"); return }
 }
@@ -122,7 +122,7 @@ public func test_environment_all(env : &mut TestEnv) {
 public func test_environment_current_dir(env : &mut TestEnv) {
     var dir = environment::current_dir()
     if(dir is Option.None) { env.error("current_dir() should return Some"); return }
-    var Some(d) = dir else unreachable
+    var Some(d) = dir else unsafe { unreachable }
     // Should have a non-empty path
     if(d.size() == 0) { env.error("current_dir() path should not be empty"); return }
 }
@@ -138,7 +138,7 @@ public func test_window_clipboard_roundtrip(env : &mut TestEnv) {
     if(!ok) { env.error("window_set_clipboard failed"); return }
     var got = window::window_get_clipboard()
     if(got is Option.None) { env.error("window_get_clipboard returned None"); return }
-    var Some(v) = got else unreachable
+    var Some(v) = got else unsafe { unreachable }
     if(!string_eq(&raw v, text)) {
         env.error("clipboard roundtrip failed")
         return

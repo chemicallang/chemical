@@ -41,7 +41,7 @@ func option_clone_roundtrip(env : &mut TestEnv) {
         var some = Option.Some<int>(7)
         var some_copy = some.clone()
         if(some_copy is Option.Some) {
-            var Some(value) = some_copy else unreachable
+            var Some(value) = some_copy else unsafe { unreachable }
             if(value != 7) {
                 env.error("Option<int>::clone copied the wrong value")
             }
@@ -66,7 +66,7 @@ func option_clone_user_type_drops_once(env : &mut TestEnv) {
             var original = Option.Some<ContainerCloneCounter>(ContainerCloneCounter { value : 9 })
             var copy = original.clone()
             if(copy is Option.Some) {
-                var Some(value) = copy else unreachable
+                var Some(value) = copy else unsafe { unreachable }
                 if(value.value != 9) {
                     env.error("Option<Clone>::clone copied the wrong value")
                 }

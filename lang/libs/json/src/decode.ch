@@ -35,7 +35,7 @@ public func <T> take_ok(t : &mut std::Result<T, std::SerializationError>) : T {
     if(t is std::Result.Err) {
         panic("take_ok: result is in error state")
     }
-    var Ok(value) = t else unreachable
+    var Ok(value) = t else unsafe { unreachable }
     var temp : T
     var err_val = std::Result.Err<T, std::SerializationError>(std::SerializationError {
         kind : std::SerializationErrorKind.Generic,
@@ -71,7 +71,7 @@ impl std::Decoder for JsonDecoder {
 
     func decode_bool(&self) : std::Result<bool, std::SerializationError> {
         if(self.value is JsonValue.Bool) {
-            var Bool(v) = self.value else unreachable
+            var Bool(v) = self.value else unsafe { unreachable }
             return std::Result.Ok(v)
         }
         return std::Result.Err(se_err("expected bool"))
@@ -79,7 +79,7 @@ impl std::Decoder for JsonDecoder {
 
     func decode_char(&self) : std::Result<char, std::SerializationError> {
         if(self.value is JsonValue.String) {
-            var String(s) = self.value else unreachable
+            var String(s) = self.value else unsafe { unreachable }
             if(s.size() == 1) {
                 return std::Result.Ok(s.get(0))
             }
@@ -90,7 +90,7 @@ impl std::Decoder for JsonDecoder {
 
     func decode_u64(&self) : std::Result<u64, std::SerializationError> {
         if(self.value is JsonValue.Number) {
-            var Number(s) = self.value else unreachable
+            var Number(s) = self.value else unsafe { unreachable }
             return std::Result.Ok(parse_u64(s.data()))
         }
         return std::Result.Err(se_err("expected number"))
@@ -98,11 +98,11 @@ impl std::Decoder for JsonDecoder {
 
     func decode_i64(&self) : std::Result<i64, std::SerializationError> {
         if(self.value is JsonValue.Number) {
-            var Number(s) = self.value else unreachable
+            var Number(s) = self.value else unsafe { unreachable }
             return std::Result.Ok(parse_i64(s.data()))
         }
         if(self.value is JsonValue.Bool) {
-            var Bool(v) = self.value else unreachable
+            var Bool(v) = self.value else unsafe { unreachable }
             return std::Result.Ok(if(v) 1i64 else 0i64)
         }
         return std::Result.Err(se_err("expected number"))
@@ -110,7 +110,7 @@ impl std::Decoder for JsonDecoder {
 
     func decode_double(&self) : std::Result<double, std::SerializationError> {
         if(self.value is JsonValue.Number) {
-            var Number(s) = self.value else unreachable
+            var Number(s) = self.value else unsafe { unreachable }
             return std::Result.Ok(parse_double(s.data()))
         }
         return std::Result.Err(se_err("expected number"))
@@ -118,7 +118,7 @@ impl std::Decoder for JsonDecoder {
 
     func decode_float(&self) : std::Result<float, std::SerializationError> {
         if(self.value is JsonValue.Number) {
-            var Number(s) = self.value else unreachable
+            var Number(s) = self.value else unsafe { unreachable }
             return std::Result.Ok(parse_double(s.data()) as float)
         }
         return std::Result.Err(se_err("expected number"))
@@ -126,7 +126,7 @@ impl std::Decoder for JsonDecoder {
 
     func decode_str(&self) : std::Result<std::string_view, std::SerializationError> {
         if(self.value is JsonValue.String) {
-            var String(s) = self.value else unreachable
+            var String(s) = self.value else unsafe { unreachable }
             return std::Result.Ok(s.to_view())
         }
         return std::Result.Err(se_err("expected string"))
@@ -138,7 +138,7 @@ impl std::Decoder for JsonDecoder {
 
     func array(&self) : std::Result<JsonArrayDecoder, std::SerializationError> {
         if(self.value is JsonValue.Array) {
-            var Array(v) = self.value else unreachable
+            var Array(v) = self.value else unsafe { unreachable }
             return std::Result.Ok(JsonArrayDecoder { elements : unsafe(std::span<JsonValue>(v.data(), v.size())), index : 0u64 })
         }
         return std::Result.Err(se_err("expected array"))
@@ -146,7 +146,7 @@ impl std::Decoder for JsonDecoder {
 
     func object(&self) : std::Result<JsonObjectDecoder, std::SerializationError> {
         if(self.value is JsonValue.Object) {
-            var Object(m) = self.value else unreachable
+            var Object(m) = self.value else unsafe { unreachable }
             return std::Result.Ok(JsonObjectDecoder { iterator : m.iterator(), _total : m.size() })
         }
         return std::Result.Err(se_err("expected object"))
@@ -154,7 +154,7 @@ impl std::Decoder for JsonDecoder {
 
     func map(&self) : std::Result<JsonMapDecoder, std::SerializationError> {
         if(self.value is JsonValue.Object) {
-            var Object(m) = self.value else unreachable
+            var Object(m) = self.value else unsafe { unreachable }
             return std::Result.Ok(JsonMapDecoder { iterator : m.iterator(), _total : m.size() })
         }
         return std::Result.Err(se_err("expected object"))

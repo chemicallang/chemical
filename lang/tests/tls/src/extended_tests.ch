@@ -1433,10 +1433,10 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var data : [48]u8; test_random_bytes(&raw mut data[0], 48)
     var enc : [72]char; var enc_r = base64_encode(&raw data[0], 48, &raw mut enc[0], 72)
     if(enc_r is Result.Err){env.error("b64 enc");return}else{}
-    var Ok(enc_len) = enc_r else unreachable
+    var Ok(enc_len) = enc_r else unsafe { unreachable }
     var dec : [48]u8; var dec_r = base64_decode(&raw enc[0], enc_len, &raw mut dec[0], 48)
     if(dec_r is Result.Err){env.error("b64 dec");return}else{}
-    var Ok(dec_len) = dec_r else unreachable
+    var Ok(dec_len) = dec_r else unsafe { unreachable }
     if(dec_len != 48 || !test_bytes_eq(&raw data[0], &raw dec[0], 48)){env.error("b64 roundtrip");return}else{}
 }
 
@@ -1447,7 +1447,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var d_hex : [97]char; test_bytes_to_hex(&raw data[0], 48, &raw mut d_hex[0])
     var enc : [72]char; var enc_r = base64_encode(&raw data[0], 48, &raw mut enc[0], 72)
     if(enc_r is Result.Err){env.error("b64 enc");return}else{}
-    var Ok(enc_len) = enc_r else unreachable
+    var Ok(enc_len) = enc_r else unsafe { unreachable }
     var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "import base64\nd=bytes.fromhex('" as *char; si=0; while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     si=0; while(d_hex[si]!=0){script[sp]=d_hex[si] as u8; sp+=1; si+=1}

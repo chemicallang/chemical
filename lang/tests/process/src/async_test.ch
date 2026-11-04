@@ -21,7 +21,7 @@ public func test_process_execute_async(env : &mut TestEnv) {
         env.error("process::execute_async returned Err")
         return
     }
-    var Ok(r) = res else unreachable
+    var Ok(r) = res else unsafe { unreachable }
     if(!r.success) {
         env.error("process::execute_async did not succeed")
         return
@@ -42,13 +42,13 @@ public func test_process_spawn_wait_async(env : &mut TestEnv) {
         env.error("spawn failed")
         return
     }
-    var Ok(child) = sp else unreachable
+    var Ok(child) = sp else unsafe { unreachable }
     var wr = async::block_on(process::wait_async(&raw mut child))
     if(wr is Result.Err) {
         env.error("wait_async returned Err")
         return
     }
-    var Ok(r) = wr else unreachable
+    var Ok(r) = wr else unsafe { unreachable }
     if(!r.success) {
         env.error("wait_async child did not succeed")
         return
@@ -71,7 +71,7 @@ public func test_process_wait_async_after_kill(env : &mut TestEnv) {
         env.error("spawn failed")
         return
     }
-    var Ok(child) = sp else unreachable
+    var Ok(child) = sp else unsafe { unreachable }
     var kr = process::kill_process(&raw mut child, 9)
     if(kr is Result.Err) {
         env.error("kill_process failed")
@@ -117,7 +117,7 @@ public func test_process_is_running_async(env : &mut TestEnv) {
         env.error("spawn failed")
         return
     }
-    var Ok(child) = sp else unreachable
+    var Ok(child) = sp else unsafe { unreachable }
     var running = async::block_on(process::is_running_async(&raw mut child))
     if(!running) {
         env.error("is_running_async should report true right after spawn")
@@ -138,13 +138,13 @@ public func test_process_spawn_async_then_wait_async(env : &mut TestEnv) {
         env.error("process::spawn_async returned Err")
         return
     }
-    var Ok(child) = sp else unreachable
+    var Ok(child) = sp else unsafe { unreachable }
     var wr = async::block_on(process::wait_async(&raw mut child))
     if(wr is Result.Err) {
         env.error("wait_async after spawn_async returned Err")
         return
     }
-    var Ok(r) = wr else unreachable
+    var Ok(r) = wr else unsafe { unreachable }
     if(!r.success) {
         env.error("spawn_async child did not succeed")
         return

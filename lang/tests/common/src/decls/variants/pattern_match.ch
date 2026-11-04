@@ -50,7 +50,7 @@ func <T> get_pm_opt1_gen_val_with_if(opt : PMOptGen1<T>) : int {
 func test_variant_pattern_matching() {
     test("variant pattern matching with unreachable works", () => {
         var opt = PMOpt1.Some(10)
-        var Some(value) = opt else unreachable;
+        var Some(value) = opt else unsafe { unreachable };
         return value == 10
     })
     test("variant pattern matching with default value works - 1", () => {
@@ -129,7 +129,7 @@ func test_variant_pattern_matching() {
     })
     test("variant pattern matching with multiple values work - 1", () => {
         var opt = PMMultiOpt.Some(10, 20)
-        var Some(value1, value2) = opt else unreachable
+        var Some(value1, value2) = opt else unsafe { unreachable }
         return value1 == 10 && value2 == 20
     })
     test("variant pattern matching with multiple values work - 2", () => {
@@ -144,7 +144,7 @@ func test_variant_pattern_matching() {
     })
     test("variant pattern matching with multiple values work - 4", () => {
         var opt = PMMultiOpt.Some(10, 20)
-        var Some{value2} = opt else unreachable
+        var Some{value2} = opt else unsafe { unreachable }
         return value2 == 20
     })
     test("variant pattern matching with multiple values work - 5", () => {
@@ -154,7 +154,7 @@ func test_variant_pattern_matching() {
     })
     test("variant pattern matching with multiple values work - 6", () => {
         var opt = PMMultiOpt.Some(10, 20)
-        var Some(value) = opt else unreachable
+        var Some(value) = opt else unsafe { unreachable }
         return value == 10
     })
     test("variant pattern matching with multiple values work - 7", () => {
@@ -193,7 +193,7 @@ func test_variant_pattern_matching() {
     test("pointer to variant dereferenced works in pattern match expression - 3", () => {
         var o = PMOpt1.Some(23)
         var ptr = &mut o
-        var Some(value) = *ptr else unreachable
+        var Some(value) = *ptr else unsafe { unreachable }
         return value == 23
     })
 }
@@ -211,13 +211,13 @@ struct PMRefHolder {
 }
 
 func get_pm_via_ref_member(h : &PMRefHolder) : int {
-    var Some(value) = h.value else unreachable
+    var Some(value) = h.value else unsafe { unreachable }
     return value
 }
 
 func get_pm_via_ref_member_if(h : &PMRefHolder) : int {
     if(h.value is PMOpt1.Some) {
-        var Some(value) = h.value else unreachable
+        var Some(value) = h.value else unsafe { unreachable }
         return value
     }
     return -1
@@ -263,7 +263,7 @@ func test_pattern_match_reference_member() {
     test("pattern match in if body directly through reference member works", () => {
         var o = PMOpt1.Some(77)
         var h = PMRefHolder { value : &o }
-        var Some(value) = h.value else unreachable
+        var Some(value) = h.value else unsafe { unreachable }
         return value == 77
     })
 }
@@ -273,7 +273,7 @@ struct PMRefHolder2 {
 }
 
 func get_pm_via_ref_member_chain(h : &PMRefHolder2) : int {
-    var Some(value) = h.holder.value else unreachable
+    var Some(value) = h.holder.value else unsafe { unreachable }
     return value
 }
 

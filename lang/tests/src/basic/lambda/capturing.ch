@@ -197,7 +197,7 @@ func test_capturing_lambda() {
         test("capturing lambda can be stored and called from variant", () => {
             var temp = 873
             var s = OptCapLamb.Some(|temp|() => { return temp; })
-            var Some(lamb) = s else unreachable
+            var Some(lamb) = s else unsafe { unreachable }
             return lamb() == temp;
         })
         test("capturing lambda works with assignment - 1", () => {

@@ -106,7 +106,7 @@ func test_indefinite_and_definite_forms_agree(env : &mut TestEnv) {
             env.error("one of the equivalent encodings did not decode")
             continue
         }
-        var Ok(v) = d else unreachable
+        var Ok(v) = d else unsafe { unreachable }
         if(!cbor::is_array(&mut v)) {
             env.error("one of the equivalent encodings is not an array")
             continue
@@ -129,13 +129,13 @@ func test_a_tag_wraps_its_item(env : &mut TestEnv) {
         env.error("the tag vector did not decode")
         return
     }
-    var Ok(v) = d else unreachable
+    var Ok(v) = d else unsafe { unreachable }
     var t = cbor::tag_number(&mut v)
     if(t is Option.None) {
         env.error("expected a tagged value")
         return
     }
-    var Some(n) = t else unreachable
+    var Some(n) = t else unsafe { unreachable }
     if(n != 2u64) { env.error("expected tag 2") }
 }
 
@@ -188,7 +188,7 @@ func test_a_cose_shaped_map_with_negative_integer_keys(env : &mut TestEnv) {
         env.error("the COSE-shaped map did not decode")
         return
     }
-    var Ok(v) = d else unreachable
+    var Ok(v) = d else unsafe { unreachable }
     if(!cbor::is_map(&mut v)) {
         env.error("expected a map")
         return
@@ -230,7 +230,7 @@ func test_a_webauthn_attestation_object_decodes(env : &mut TestEnv) {
         fail(env, "a363666d74646e6f6e656761747453746d74a0686175746844617461590010000102030405060708090a0b0c0d0e0f", "a WebAuthn attestation object was rejected")
         return
     }
-    var Ok(v) = d else unreachable
+    var Ok(v) = d else unsafe { unreachable }
     if(!cbor::is_map(&mut v)) {
         env.error("the attestation object is not a map")
         return
@@ -266,7 +266,7 @@ func test_a_webauthn_attestation_object_decodes(env : &mut TestEnv) {
         env.error("the 1-byte-length authData form was rejected")
         return
     }
-    var Ok(sv) = narrow else unreachable
+    var Ok(sv) = narrow else unsafe { unreachable }
     var sad = cbor::map_bytes_by_text(&mut sv, string_view("authData"))
     if(sad.size() != 32u) { env.error("the 1-byte-length authData is not 32 bytes") }
 
@@ -286,7 +286,7 @@ func test_a_full_size_attestation_object_decodes(env : &mut TestEnv) {
         fail(env, "a363666d74646e6f6e656761747453746d74a068617574684461746159009449960de5880e8c687434170f6476605b8fe4aeb9a28632c7995cf3ba831d97634100000000a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1001042434445464748494a4b4c4d4e4f5051a501020326200121582060fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb62258207903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299", "a full-size attestation object was rejected")
         return
     }
-    var Ok(v) = d else unreachable
+    var Ok(v) = d else unsafe { unreachable }
     if(cbor::map_len(&mut v) as u64 != 3u64) { env.error("wrong pair count") }
     var fmt = cbor::map_text_by_text(&mut v, string_view("fmt"))
     if(fmt.to_view().find(&string_view("none")) != 0u) { env.error("fmt is not none") }
@@ -405,9 +405,9 @@ func expect_u64(env : &mut TestEnv, hex : string_view, want : u64) {
         fail(env, hex, "did not decode")
         return
     }
-    var Ok(v) = d else unreachable
+    var Ok(v) = d else unsafe { unreachable }
     if(v is cbor::CborValue.Unsigned) {
-        var Unsigned(n) = v else unreachable
+        var Unsigned(n) = v else unsafe { unreachable }
         if(n != want) { fail(env, hex, "is not the expected unsigned") }
         return
     }
@@ -420,14 +420,14 @@ func expect_i64(env : &mut TestEnv, hex : string_view, want : i64) {
         fail(env, hex, "did not decode")
         return
     }
-    var Ok(v) = d else unreachable
+    var Ok(v) = d else unsafe { unreachable }
     // `Option` has no comparison operator, so unwrap and compare.
     var got = cbor::as_i64(&mut v)
     if(got is Option.None) {
         fail(env, hex, "is not an integer")
         return
     }
-    var Some(n) = got else unreachable
+    var Some(n) = got else unsafe { unreachable }
     if(n != want) { fail(env, hex, "is the wrong integer") }
 }
 
@@ -437,7 +437,7 @@ func expect_bytes(env : &mut TestEnv, hex : string_view, want : string_view) {
         fail(env, hex, "did not decode")
         return
     }
-    var Ok(v) = d else unreachable
+    var Ok(v) = d else unsafe { unreachable }
     if(!cbor::is_bytes(&mut v)) {
         fail(env, hex, "is not a byte string")
         return
@@ -451,7 +451,7 @@ func expect_bytes_len(env : &mut TestEnv, hex : string_view, want : u64) {
         fail(env, hex, "did not decode")
         return
     }
-    var Ok(v) = d else unreachable
+    var Ok(v) = d else unsafe { unreachable }
     if(!cbor::is_bytes(&mut v)) {
         fail(env, hex, "is not a byte string")
         return
@@ -468,7 +468,7 @@ func expect_text(env : &mut TestEnv, hex : string_view, want : string_view) {
         fail(env, hex, "did not decode")
         return
     }
-    var Ok(v) = d else unreachable
+    var Ok(v) = d else unsafe { unreachable }
     if(!cbor::is_text(&mut v)) {
         fail(env, hex, "is not a text string")
         return
@@ -488,13 +488,13 @@ func expect_bool(env : &mut TestEnv, hex : string_view, want : bool) {
         fail(env, hex, "did not decode")
         return
     }
-    var Ok(v) = d else unreachable
+    var Ok(v) = d else unsafe { unreachable }
     var got = cbor::as_bool(&mut v)
     if(got is Option.None) {
         fail(env, hex, "is not a bool")
         return
     }
-    var Some(b) = got else unreachable
+    var Some(b) = got else unsafe { unreachable }
     if(b != want) { fail(env, hex, "is the wrong bool") }
 }
 
@@ -504,7 +504,7 @@ func expect_is_null(env : &mut TestEnv, hex : string_view) {
         fail(env, hex, "did not decode")
         return
     }
-    var Ok(v) = d else unreachable
+    var Ok(v) = d else unsafe { unreachable }
     if(!cbor::is_null(&mut v)) { fail(env, hex, "is not null") }
 }
 
@@ -514,7 +514,7 @@ func expect_is_undefined(env : &mut TestEnv, hex : string_view) {
         fail(env, hex, "did not decode")
         return
     }
-    var Ok(v) = d else unreachable
+    var Ok(v) = d else unsafe { unreachable }
     if(!cbor::is_undefined(&mut v)) { fail(env, hex, "is not undefined") }
 }
 
@@ -524,9 +524,9 @@ func expect_simple(env : &mut TestEnv, hex : string_view, want : u8) {
         fail(env, hex, "did not decode")
         return
     }
-    var Ok(v) = d else unreachable
+    var Ok(v) = d else unsafe { unreachable }
     if(v is cbor::CborValue.Simple) {
-        var Simple(n) = v else unreachable
+        var Simple(n) = v else unsafe { unreachable }
         if(n != want) { fail(env, hex, "is the wrong simple value") }
         return
     }
@@ -539,9 +539,9 @@ func expect_double(env : &mut TestEnv, hex : string_view, want : double) {
         fail(env, hex, "did not decode")
         return
     }
-    var Ok(v) = d else unreachable
+    var Ok(v) = d else unsafe { unreachable }
     if(v is cbor::CborValue.Float) {
-        var Float(f) = v else unreachable
+        var Float(f) = v else unsafe { unreachable }
         if(f != want) { fail(env, hex, "is the wrong float") }
         return
     }
@@ -554,7 +554,7 @@ func expect_array_len(env : &mut TestEnv, hex : string_view, want : u64) {
         fail(env, hex, "did not decode")
         return
     }
-    var Ok(v) = d else unreachable
+    var Ok(v) = d else unsafe { unreachable }
     if(!cbor::is_array(&mut v)) {
         fail(env, hex, "is not an array")
         return
@@ -570,7 +570,7 @@ func expect_map_len(env : &mut TestEnv, hex : string_view, want : u64) {
         fail(env, hex, "did not decode")
         return
     }
-    var Ok(v) = d else unreachable
+    var Ok(v) = d else unsafe { unreachable }
     if(!cbor::is_map(&mut v)) {
         fail(env, hex, "is not a map")
         return

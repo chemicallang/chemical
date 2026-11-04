@@ -230,7 +230,7 @@ func test_ref_of_deref_pattern() { unsafe {
             var opt = OptDestruct.Some(create_destructible(&raw mut count, 140))
             var ptr = &raw mut opt
             // deref pointer and pattern match
-            var Some(d) = *ptr else unreachable
+            var Some(d) = *ptr else unsafe { unreachable }
         }
         return count == 1
     })

@@ -98,7 +98,7 @@ public func apply_route_url(page : &mut HtmlPage, router : std::string_view, spe
         page.add_parameter(router, m.id)
         for(var k : size_t = 0; k < m.params.size(); k++) {
             const p = m.params.get_ptr(k)
-            var Param(name, value) = *p else unreachable
+            var Param(name, value) = *p else unsafe { unreachable }
             // Decoded bytes are not page-lifetime: store them in page-owned
             // storage so the route's SSR parameter reads stay valid.
             var decoded = router_decode_segment(value)

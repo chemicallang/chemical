@@ -240,9 +240,9 @@ Implementation notes / compiler quirks:
 ```chemical
 // beginner path (new)
 var e = json::encode<Point>(&point)          // Result<string, SerializationError>
-var Ok(text) = e else unreachable
+var Ok(text) = e else unsafe { unreachable }
 var r = json::parse(text.to_view())          // Result<JsonValue, JsonParseError>
-var Ok(value) = r else unreachable
+var Ok(value) = r else unsafe { unreachable }
 var d = json::decode<Point>(&value)          // Result<Point, SerializationError>
 
 // low-level path (advanced / manual)
@@ -258,7 +258,7 @@ var r = parser.parse(output.data(), output.size(), &mut ph)   // r.ok
 
 var d = JsonDecoder { value : &ph.root }
 var res = d.decode<Point>()                                   // Result<Point, SerializationError>
-var Ok(v) = res else unreachable
+var Ok(v) = res else unsafe { unreachable }
 ```
 
 ## 3. `#json(Struct)` macro — `lang/libs/json_cbi/`
@@ -335,14 +335,14 @@ impl std::Deserializer<Point> for TypeDecoder<Point> {
     func deserialize(&self) : std::Result<Point, std::SerializationError> {
         var __dr = self.decoder.object()                          // Result<JsonObjectDecoder, SE>
         if(__dr is std::Result.Err) { ...Err-return... }
-        var Ok(__obj) = __dr else unreachable
+        var Ok(__obj) = __dr else unsafe { unreachable }
         // per field, in struct order:
         var __q0 = __obj.item_decoder()                           // consume one key/value pair
         if(__q0 is std::Result.Err) { ...Err-return... }
-        var Ok(__p0) = __q0 else unreachable                      // pair<string_view, JsonDecoder>
+        var Ok(__p0) = __q0 else unsafe { unreachable }                      // pair<string_view, JsonDecoder>
         var __v0 = __p0.second.decode_i64()                       // scalar → decode_XXX
         if(__v0 is std::Result.Err) { ...Err-return... }
-        var Ok(__f0) = __v0 else unreachable
+        var Ok(__f0) = __v0 else unsafe { unreachable }
         // composite fields (nested structs + std::string/string_view) instead:
         var __v1 = __p1.second.decode<T>()                        // decode<T> → Result<T, SE>
         if(__v1 is std::Result.Err) { ...Err-return... }
@@ -355,7 +355,7 @@ impl std::Deserializer<Point> for TypeDecoder<Point> {
 
 - `self` is `&TypeDecoder<Point>`; `self.decoder` is the member `&JsonDecoder`.
 - **Flat, negative-check-first structure** (early returns), exactly like the handwritten reference — there is no `if Ok { nest next field }` nesting.
-- `append_err_check(...)` is a shared helper that emits the `if(<var> is std::Result.Err) { var Err(__e) = <var> else unreachable; return std::Result.Err<T, SE>(__non_gen_se_repl(&mut __e, SerializationError())) }` block.
+- `append_err_check(...)` is a shared helper that emits the `if(<var> is std::Result.Err) { var Err(__e) = <var> else unsafe { unreachable }; return std::Result.Err<T, SE>(__non_gen_se_repl(&mut __e, SerializationError())) }` block.
 - Scalar fields: `find_decoder_method` maps the field's `BaseType` to a `JsonDecoder.decode_*` method node (ints/longs → `decode_i64` + a cast in the struct init; uints → `decode_u64`; **`char`/`uchar` → `decode_char`** (chars encode as single-char JSON strings, not numbers — routing them to `decode_u64` would reject the encoded form); float/double/bool → their methods; note **`std::string`/`string_view` are NOT routed to `decode_str`** — they return null here so they decode through the generic path below).
 - Composite fields (nested structs + strings): no scalar method → build the chain `__p<i>.second.decode<T>()` with an explicit generic arg = the field type, then **`take_ok(&mut __v<i>)`** moves the Ok payload out (the `Result` is left in an `Err` state and its destructor won't touch the payload). A pattern-bound Ok payload cannot be moved onward into an aggregate literal; the taken owned local can. See pitfalls for the **explicit result var type** requirement.
 - Struct construction: `make_struct_value(struct_node)` + `add_value(field_name, ...)` where scalar fields are wrapped in `casted_value(pattern-var-id, field_type)` but **composite fields are added as plain identifiers** — a `CastedValue` around a destructible value makes codegen bitwise-copy it into the member and then still destroy the local at scope end (double free).
@@ -423,19 +423,19 @@ impl std::Serializer<JsonValue, JsonEncoder> for Person {
 impl std::Deserializer<Person> for TypeDecoder<Person> {
     func deserialize(&self) : std::Result<Person, std::SerializationError> {
         var __dr = self.decoder.object()
-        // ... err-check + `var Ok(__obj) = __dr else unreachable`
+        // ... err-check + `var Ok(__obj) = __dr else unsafe { unreachable }`
         // name : std::string  -> composite path
         var __v0 = __p0.second.decode<std::string>()
         var __f0 : std::string = take_ok<std::string>(&mut __v0)
         // age : int -> decode_i64 + cast
         var __v1 = __p1.second.decode_i64()
-        var Ok(__f1) = __v1 else unreachable
+        var Ok(__f1) = __v1 else unsafe { unreachable }
         // home : Address -> composite path
         var __v4 = __p4.second.decode<Address>()
         var __f4 : Address = take_ok<Address>(&mut __v4)
         // status : Status -> decode_str + fnv1 hash dispatch
         var __v5 = __p5.second.decode_str()
-        var Ok(__s5) = __v5 else unreachable
+        var Ok(__s5) = __v5 else unsafe { unreachable }
         const __h5 = fnv1_hash_view(&__s5)
         var __f5 : Status
         if(__h5 == <hash("Active")>) { __f5 = 0 as Status }
@@ -444,7 +444,7 @@ impl std::Deserializer<Person> for TypeDecoder<Person> {
         else { return std::Result.Err<Person, std::SerializationError>(se_err("unknown enum member name")) }
         // initial : char -> decode_char, Ok-bind
         var __v6 = __p6.second.decode_char()
-        var Ok(__f6) = __v6 else unreachable
+        var Ok(__f6) = __v6 else unsafe { unreachable }
         return std::Result.Ok<Person, std::SerializationError>(Person {
             name : __f0, age : __f1 as int, score : __f2 as float, active : __f3,
             home : __f4, status : __f5, initial : __f6
@@ -503,7 +503,7 @@ The plugin needed several new compiler-CBI bindings. All live in `compiler/cbi/b
 |---|---|---|
 | `ASTBuildermake_generic_type_with_args` | ASTBuilderCBI.cpp:228 | `GenericType` from a linked decl + `(type, loc)` argument spans |
 | `ASTBuildermake_reference_of_value` | ASTBuilderCBI.cpp:294 | `&mut`-style reference value (mirrors parser `&mut`) |
-| `ASTBuildermake_pattern_match_expr` / `make_pattern_match_node` / `PatternMatchExprset_expression` / `set_else_unreachable` / `add_param_name` | ASTBuilderCBI.cpp:718 | build `var Ok(x) = expr else unreachable` statements |
+| `ASTBuildermake_pattern_match_expr` / `make_pattern_match_node` / `PatternMatchExprset_expression` / `set_else_unreachable` / `add_param_name` | ASTBuilderCBI.cpp:718 | build `var Ok(x) = expr else unsafe { unreachable }` statements |
 | `FunctionCalladd_generic_arg` / `FunctionCallNodeadd_generic_arg` | ASTBuilderCBI.cpp:714, 764 | explicit generic args on calls / call statements |
 | `ASTBuildermake_identifier` (null-safe) | ASTBuilderCBI.cpp | tolerate `null` links; skip `known_type()` for `PatternMatchId` |
 | `ASTBuildermake_function` (sets `signature_resolved`) | ASTBuilderCBI.cpp | auto-created fn decls count as signature-resolved |

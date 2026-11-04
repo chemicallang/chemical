@@ -160,7 +160,7 @@ func test_dereferences() {
         var d = DerefCopyablePoint { a : 30 }
         var j = &d
         var d2 = DerefStoredPointVariant.Some(*j)
-        var Some(dx) = d2 else unreachable
+        var Some(dx) = d2 else unsafe { unreachable }
         return dx.a == 30
     })
 
@@ -168,7 +168,7 @@ func test_dereferences() {
         var d = DerefCopyablePoint { a : 30 }
         const j = &d
         var d2 = DerefStoredPointVariant.Some(*j)
-        var Some(dx) = d2 else unreachable
+        var Some(dx) = d2 else unsafe { unreachable }
         return dx.a == 30
     })
 
@@ -176,7 +176,7 @@ func test_dereferences() {
         var d = DerefCopyablePoint { a : 30 }
         var j = &d
         var d2 = DerefStoredPointVariant.Some(*j)
-        var Some(dx) = d2 else unreachable
+        var Some(dx) = d2 else unsafe { unreachable }
         dx.a = 90;
         return dx.a == 90 && d.a == 30
     })

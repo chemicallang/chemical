@@ -137,7 +137,7 @@ func test_rle_invalid_decompress(env : &mut TestEnv) {
     var r = compression::decompress(&raw corrupted[0], 4, &raw mut decompressed[0], &raw mut dec_len, 64);
     // A zero-count run signals end, so should return len=5 with just AAA
     if(r is Result.Err) { env.error("decompress with end marker should succeed"); return; }
-    var Ok(len) = r else unreachable;
+    var Ok(len) = r else unsafe { unreachable };
     if(len != 5) {
         env.error("decompress with count=0 should return len=5 (5 A's)");
     }

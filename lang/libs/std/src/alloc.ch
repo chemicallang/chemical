@@ -246,7 +246,7 @@ public struct GlobalAllocator {
         if(result is Result.Err) {
             return result
         }
-        var Ok(ptr) = result else unreachable
+        var Ok(ptr) = result else unsafe { unreachable }
         if(layout.size() != 0) {
             unsafe { memset(ptr, 0, layout.size()) }
         }
@@ -291,7 +291,7 @@ public func alloc_zeroed_bytes(size : size_t) : Result<*mut void, AllocError> {
     if(result is Result.Err) {
         return result
     }
-    var Ok(ptr) = result else unreachable
+    var Ok(ptr) = result else unsafe { unreachable }
     if(size != 0) {
         unsafe { memset(ptr, 0, size) }
     }

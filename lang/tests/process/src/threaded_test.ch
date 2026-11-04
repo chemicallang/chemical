@@ -29,7 +29,7 @@ public func process_execute_thread_entry(arg : *void) : *void {
         if(res is Result.Err) {
             return null
         }
-        var Ok(r) = res else unreachable
+        var Ok(r) = res else unsafe { unreachable }
         g_thread_exec_code = r.status.code
         g_thread_exec_ok = r.success
         return null
@@ -77,12 +77,12 @@ public func process_spawn_thread_entry(arg : *void) : *void {
         if(res is Result.Err) {
             return null
         }
-        var Ok(child) = res else unreachable
+        var Ok(child) = res else unsafe { unreachable }
         var waited = process::wait(&raw mut child)
         if(waited is Result.Err) {
             return null
         }
-        var Ok(r) = waited else unreachable
+        var Ok(r) = waited else unsafe { unreachable }
         g_thread_spawn_ok = r.success && r.status.code == 0
         return null
 

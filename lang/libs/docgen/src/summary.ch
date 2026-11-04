@@ -130,7 +130,7 @@ public func parse_summary(path : std::string_view) : *mut Summary {
     var result = fs::read_entire_file(path.data());
     if(result is std.Result.Err) return null;
     
-    var Ok(content) = result else unreachable;
+    var Ok(content) = result else unsafe { unreachable };
     var view = std::string_view(content.data() as *char, content.size());
     
     var arena = md::Arena();

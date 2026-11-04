@@ -66,8 +66,8 @@ public func extension(path : *char, out : *mut char, out_len : size_t) : Result<
         if(path == null || out == null) { return Result.Err(FsError.InvalidInput()); }
         var base_buf : [PATH_MAX_BUF]char;
         var r = basename(path, &raw mut base_buf[0], PATH_MAX_BUF as size_t);
-        if(r is Result.Err) { var Err(e) = r else unreachable; return Result.Err<size_t, FsError>(e); }
-        var Ok(base_len) = r else unreachable;
+        if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err<size_t, FsError>(e); }
+        var Ok(base_len) = r else unsafe { unreachable };
         var i : size_t = base_len;
         while(i > 0 && base_buf[i-1] != '.') { i-- }
         if(i == 0) {

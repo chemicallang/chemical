@@ -476,7 +476,7 @@ Library tests in `lang/tests/libs/` use this pattern. The `TestEnv` provides `en
 public func my_lib_test(env : &mut TestEnv) {
     var result = my_lib_func()
     if(result is Result.Err) { env.error("should succeed"); return }
-    var Ok(value) = result else unreachable
+    var Ok(value) = result else unsafe { unreachable }
     if(value != 42) { env.error("expected 42") }
 }
 ```
@@ -499,7 +499,7 @@ For testing HTTP-TLS integration (`http::Client` with `https://` URLs), follow t
 public func https_url_parsing_works(env : &mut TestEnv) {
     var u = http::URL::parse(string_view("https://example.com"))
     if(u is std::Option.None) { env.error("should parse"); return }
-    var Some(url) = u else unreachable
+    var Some(url) = u else unsafe { unreachable }
     if(!url.scheme.equals_with_len("https", 5)) { env.error("scheme should be https") }
     if(url.port != 443u) { env.error("default https port should be 443") }
 }
@@ -792,7 +792,7 @@ line. It is **omitted** unless specified (so default runs are unaffected):
 
 ### Move-semantics note for test helpers
 
-`PatternMatchId` values (`var Some(v) = result else unreachable`) and struct-member accesses are
+`PatternMatchId` values (`var Some(v) = result else unsafe { unreachable }`) and struct-member accesses are
 **non-movable**. When writing helper functions, pass them by pointer with `&raw` rather than by
 value, otherwise you'll hit:
 `[SymRes:link] error: cannot move this value without re-initializing memory`.

@@ -42,7 +42,7 @@ public func load_wav(path : *char) : std::Result<Audio, AudioError> {
     if(read_result is Result.Err) {
         return std.Result.Err(AudioError.FileNotFound())
     }
-    var Ok(data) = read_result else unreachable
+    var Ok(data) = read_result else unsafe { unreachable }
     return parse_wav(data.data(), data.size())
 }
 

@@ -12,7 +12,7 @@ func server_test_root() : string {
     comptime if(def.windows) {
         var t = environment::get(string_view("TEMP"))
         if(t is std::Option.Some) {
-            var Some(s) = t else unreachable
+            var Some(s) = t else unsafe { unreachable }
             return s.copy()
         }
         return string(".")

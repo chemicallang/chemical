@@ -15,7 +15,7 @@ public func test_environment_set_get(env : &mut TestEnv) {
         env.error("environment::get returned None after set")
         return
     }
-    var Some(v) = got else unreachable
+    var Some(v) = got else unsafe { unreachable }
     if(!string_eq(&raw v, string_view("test_value"))) {
         env.error("environment::get returned wrong value")
         return

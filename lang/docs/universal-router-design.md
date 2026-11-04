@@ -480,7 +480,7 @@ public func get_parameter(&self, key : std::string_view) : std::string_view {
     const p = parameters.get_ptr(key)
     if(p == null) { return std::string_view() }
     if(p is PageParameter.Text) {
-        var Text(view) = *p else unreachable
+        var Text(view) = *p else unsafe { unreachable }
         return view
     }
     return std::string_view()
@@ -953,7 +953,7 @@ var m = match_route(compiled_patterns, page.get_parameter("__route_url"),
 if(m.matched) {
     page.add_parameter("main-router", m.id)               // §3.4 selection
     for(var i : uint = 0; i < m.params.size(); i++) {
-        var Param(name, value) = m.params.get(i) else unreachable
+        var Param(name, value) = m.params.get(i) else unsafe { unreachable }
         page.add_parameter(name, value)
     }
 } else if(!m.is_fallback) {

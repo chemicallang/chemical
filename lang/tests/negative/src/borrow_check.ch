@@ -467,7 +467,7 @@ func hrtb_variant_payload_borrowed_result_ok(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // A lifetime-parameterised variant payload participates in the same
     // field-source chain as a struct field.
-    var ch = "struct View<'a> {\n    var p : &'a int\n}\nvariant Maybe<'a> {\n    Some(value : View<'a>)\n    None()\n}\nfunc <'a> read_maybe(m : Maybe<'a>) : &'a int {\n    var Some(value) = m else unreachable\n    return value.p\n}\nfunc <'a> apply(f : for<'b> (m : Maybe<'b>) => &'b int, x : &'a int) : &'a int {\n    return f(Maybe.Some(View<'a> { p : x }))\n}\npublic func main() : int {\n    var x = 41\n    var r = apply(read_maybe, &x)\n    return *r - 41\n}\n"
+    var ch = "struct View<'a> {\n    var p : &'a int\n}\nvariant Maybe<'a> {\n    Some(value : View<'a>)\n    None()\n}\nfunc <'a> read_maybe(m : Maybe<'a>) : &'a int {\n    var Some(value) = m else unsafe { unreachable }\n    return value.p\n}\nfunc <'a> apply(f : for<'b> (m : Maybe<'b>) => &'b int, x : &'a int) : &'a int {\n    return f(Maybe.Some(View<'a> { p : x }))\n}\npublic func main() : int {\n    var x = 41\n    var r = apply(read_maybe, &x)\n    return *r - 41\n}\n"
     expect_compile_success(env, "hrtb_variant_payload_borrowed_result", ch)
 }
 
@@ -542,7 +542,7 @@ func neg_hrtb_variant_array_result_aliases(env : &mut TestEnv) {
     // Payload/element result loans must stay live. Same-region array elements
     // remain conservatively aliased because the region type does not carry an
     // index.
-    var variant = "struct View<'a> {\n    var p : &'a int\n}\nvariant Maybe<'a> {\n    Some(value : View<'a>)\n    None()\n}\nfunc <'a> read_maybe(m : Maybe<'a>) : &'a int {\n    var Some(value) = m else unreachable\n    return value.p\n}\nfunc <'a> apply(f : for<'b> (m : Maybe<'b>) => &'b int, x : &'a int) : &'a int {\n    return f(Maybe.Some(View<'a> { p : x }))\n}\npublic func main() : int {\n    var x = 41\n    var r = apply(read_maybe, &x)\n    var q = &mut x\n    *q = 9\n    return *r\n}\n"
+    var variant = "struct View<'a> {\n    var p : &'a int\n}\nvariant Maybe<'a> {\n    Some(value : View<'a>)\n    None()\n}\nfunc <'a> read_maybe(m : Maybe<'a>) : &'a int {\n    var Some(value) = m else unsafe { unreachable }\n    return value.p\n}\nfunc <'a> apply(f : for<'b> (m : Maybe<'b>) => &'b int, x : &'a int) : &'a int {\n    return f(Maybe.Some(View<'a> { p : x }))\n}\npublic func main() : int {\n    var x = 41\n    var r = apply(read_maybe, &x)\n    var q = &mut x\n    *q = 9\n    return *r\n}\n"
     expect_compile_error(env, "hrtb_variant_result_alias", variant, "SAFE-BORROW-001")
     var array = "struct Refs<'a> {\n    var items : [2]&'a int\n}\nfunc <'a> read_refs(r : Refs<'a>) : &'a int {\n    return r.items[0]\n}\nfunc <'a> apply(f : for<'b> (r : Refs<'b>) => &'b int, x : &'a int, y : &'a int) : &'a int {\n    return f(Refs<'a> { items : [x, y] })\n}\npublic func main() : int {\n    var x = 41\n    var y = 7\n    var r = apply(read_refs, &x, &y)\n    var q = &mut y\n    *q = 9\n    return *r\n}\n"
     expect_compile_error(env, "hrtb_array_result_alias", array, "SAFE-BORROW-001")

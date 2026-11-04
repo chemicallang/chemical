@@ -73,7 +73,7 @@ func test_fs_temp_dir(env : &mut TestEnv) {
     var buf : [PATH_MAX_BUF]char;
     var r = fs::temp_dir(&raw mut buf[0], PATH_MAX_BUF as size_t);
     expect_true(env, !(r is Result.Err), "temp_dir failed");
-    var Ok(len) = r else unreachable;
+    var Ok(len) = r else unsafe { unreachable };
     expect_true(env, len > 0, "temp_dir path should not be empty");
     expect_true(env, fs::exists(&raw mut buf[0]), "temp_dir should exist");
 }
@@ -99,7 +99,7 @@ func test_fs_copy_directory_recursive(env : &mut TestEnv) {
 
     var rd = fs::read_entire_file(file_dst.data());
     expect_true(env, !(rd is Result.Err), "reading copied file failed");
-    var Ok(vec) = rd else unreachable;
+    var Ok(vec) = rd else unsafe { unreachable };
     expect_true(env, vec.size() == 5, "copied file size mismatch");
 
     fs::remove_dir_all_recursive(base.data());

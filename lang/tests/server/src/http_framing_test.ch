@@ -54,7 +54,7 @@ func framing_handler(req : http.Request, res : http::ResponseWriter) {
         res.write_string(&m)
         return
     }
-    var Some(s) = b else unreachable
+    var Some(s) = b else unsafe { unreachable }
     var out = string("OBSERVED:")
     out.append_uinteger(s.size() as ubigint)
     out.append(':')

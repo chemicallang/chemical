@@ -745,6 +745,9 @@ void PatternMatchExprset_expression(PatternMatchExpr* expr, Value* value) {
 
 void PatternMatchExprset_else_unreachable(PatternMatchExpr* expr) {
     expr->elseExpression.kind = PatternElseExprKind::Unreachable;
+    // A compiler plugin cannot spell an unsafe block in the generated AST; the
+    // explicit API call is the plugin's auditable unsafe boundary.
+    expr->elseExpression.is_unsafe = true;
 }
 
 PatternMatchIdentifier* PatternMatchExpradd_param_name(PatternMatchExpr* expr, ASTBuilder* builder, chem::string_view* name, uint64_t location) {

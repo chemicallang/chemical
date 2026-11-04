@@ -174,7 +174,7 @@ public namespace http {
 
         var cl_opt = req.headers.get("Content-Length");
         if(cl_opt is std::Option.Some) {
-            var Some(v) = cl_opt else unreachable;
+            var Some(v) = cl_opt else unsafe { unreachable };
             var val = 0u; var ii = 0u;
             while(ii < v.size()) { var c = v.get(ii); if(c >= '0' && c <= '9') { val = val * 10u + (c as usize - '0' as usize) } ii = ii + 1u }
             req.body_len = val;
@@ -232,7 +232,7 @@ public namespace http {
                 var ptr = buf.as_ptr();
                 var res_opt = parse_response_from_bytes(ptr, crlfpos, s);
                 if(res_opt is std::Option.Some) {
-                    var Some(res) = res_opt else unreachable;
+                    var Some(res) = res_opt else unsafe { unreachable };
                     buf.consume(crlfpos);
 
                     // RFC 9110 §6.2.1: a client MUST be able to skip any
@@ -257,7 +257,7 @@ public namespace http {
                         if(res.body_len > 0u) { body_len = res.body_len as isize; }
                         var te_opt = res.headers.get("Transfer-Encoding");
                         if(te_opt is std::Option.Some) {
-                            var Some(te) = te_opt else unreachable;
+                            var Some(te) = te_opt else unsafe { unreachable };
                             if(te.equals_with_len("chunked", 7)) { chunked = true; body_len = -1; }
                         }
                     }
@@ -339,7 +339,7 @@ public namespace http {
 
         var cl_opt = res.headers.get("Content-Length");
         if(cl_opt is std::Option.Some) {
-            var Some(v) = cl_opt else unreachable;
+            var Some(v) = cl_opt else unsafe { unreachable };
             var val = 0u; var ii = 0u;
             while(ii < v.size()) { var c = v.get(ii); if(c >= '0' && c <= '9') { val = val * 10u + (c as usize - '0' as usize) } ii = ii + 1u }
             res.body_len = val;

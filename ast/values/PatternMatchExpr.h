@@ -23,6 +23,8 @@ public:
      * else expression kind
      */
     PatternElseExprKind kind = PatternElseExprKind::None;
+    /** `else unsafe { unreachable }`: the trap is an explicit unsafe boundary. */
+    bool is_unsafe = false;
     /**
      * if this is set, if kind is return, user aims to return it
      * if this is set, if kind is defValue, user aims to have it as a default value
@@ -195,6 +197,7 @@ public:
         copied->expression = expression->copy(allocator);
         auto& elseExpr = copied->elseExpression;
         elseExpr.kind = elseExpression.kind;
+        elseExpr.is_unsafe = elseExpression.is_unsafe;
         if(elseExpression.value) {
             elseExpr.value = elseExpression.value->copy(allocator);
         }

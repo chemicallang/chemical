@@ -117,6 +117,6 @@ public func __try_parse(text : std::string_view) : std::Option<JsonValue> {
     if(pr is std::Result.Err) {
         return std::Option.None<JsonValue>()
     }
-    var Ok(v) = pr else unreachable
+    var Ok(v) = pr else unsafe { unreachable }
     return std::Option.Some<JsonValue>(std::replace(&mut v, JsonValue.Null()))
 }

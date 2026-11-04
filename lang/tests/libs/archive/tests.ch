@@ -164,7 +164,7 @@ public func zip_roundtrip_works(env : &mut TestEnv) {
 
     var content = archive::zip_read_file(&raw mut a, "hello.txt\0" as *char)
     if(content is Result.Err) { env.error("should read file"); return }
-    var Ok(data) = content else unreachable
+    var Ok(data) = content else unsafe { unreachable }
     if(data.size() != 13) { env.error("file should be 13 bytes") }
 
     var match = true
@@ -342,7 +342,7 @@ public func deflate_empty_input(env : &mut TestEnv) {
     var out_buf : [64]u8
     var result = archive::deflate_decompress(null, 0, &raw mut out_buf[0], 64)
     if(result is Result.Ok) {
-        var Ok(len) = result else unreachable
+        var Ok(len) = result else unsafe { unreachable }
         if(len != 0) { env.error("empty input should produce 0 bytes") }
     }
 }
@@ -370,7 +370,7 @@ public func deflate_stored_block(env : &mut TestEnv) {
     var out_buf : [64]u8
     var result = archive::deflate_decompress(&raw input[0], 11, &raw mut out_buf[0], 64)
     if(result is Result.Err) { env.error("stored block should decompress"); return }
-    var Ok(len) = result else unreachable
+    var Ok(len) = result else unsafe { unreachable }
     if(len != 5) { env.error("should produce 5 bytes") }
     if(out_buf[0] != 'H' as u8 || out_buf[4] != 'o' as u8) { env.error("stored block content") }
 }
@@ -390,7 +390,7 @@ public func deflate_decompress_stored_from_zip(env : &mut TestEnv) {
 
     var result = archive::zip_read_file(&raw mut a, "data.bin\0" as *char)
     if(result is Result.Err) { env.error("should read file"); return }
-    var Ok(data) = result else unreachable
+    var Ok(data) = result else unsafe { unreachable }
     if(data.size() != 7) { env.error("file should be 7 bytes") }
 }
 
@@ -483,7 +483,7 @@ public func tar_parse_single_file(env : &mut TestEnv) {
 
     var read_result = archive::tar_read_file(&raw mut a, "test.txt\0" as *char)
     if(read_result is Result.Err) { env.error("should read file from TAR"); return }
-    var Ok(content) = read_result else unreachable
+    var Ok(content) = read_result else unsafe { unreachable }
     if(content.size() != 4) { env.error("file should be 4 bytes") }
     if(content.get(0) != 0x54) { env.error("file content T") }
     if(content.get(3) != 0x54) { env.error("file content T at end") }
@@ -545,13 +545,13 @@ public func archive_open_zip(env : &mut TestEnv) {
     var  arc_result = archive::open(zip_path.data())
     if( arc_result is Result.Err) { env.error("open unified archive"); return }
 
-    var Ok(arc) =  arc_result else unreachable
+    var Ok(arc) =  arc_result else unsafe { unreachable }
     if(archive::entry_count(&raw mut arc) != 1) { env.error("unified entry count") }
     if(!archive::contains(&raw mut arc, "hello.txt\0" as *char)) { env.error("unified contains") }
 
     var read_result = archive::read(&raw mut arc, "hello.txt\0" as *char)
     if(read_result is Result.Err) { env.error("unified read"); return }
-    var Ok(rd) = read_result else unreachable
+    var Ok(rd) = read_result else unsafe { unreachable }
     if(rd.size() != 3) { env.error("unified read size") }
 }
 
@@ -567,13 +567,13 @@ public func archive_open_tar_via_unified(env : &mut TestEnv) {
     var archive_result = archive::open(tar_path.data())
     if(archive_result is Result.Err) { env.error("open unified tar"); return }
 
-    var Ok(arc) = archive_result else unreachable
+    var Ok(arc) = archive_result else unsafe { unreachable }
     if(archive::entry_count(&raw mut arc) != 1) { env.error("unified tar entry count") }
     if(!archive::contains(&raw mut arc, "info.txt\0" as *char)) { env.error("unified tar contains") }
 
     var read_result = archive::read(&raw mut arc, "info.txt\0" as *char)
     if(read_result is Result.Err) { env.error("unified tar read"); return }
-    var Ok(rd) = read_result else unreachable
+    var Ok(rd) = read_result else unsafe { unreachable }
     if(rd.size() != 4) { env.error("unified tar read size") }
 }
 

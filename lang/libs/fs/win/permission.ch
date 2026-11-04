@@ -19,7 +19,7 @@ public func set_permissions(path : *char, perms : u32) : Result<UnitTy, FsError>
     var wbuf : [WIN_MAX_PATH]u16;
     var conv = utf8_to_utf16(path, &raw mut wbuf[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) {
-        var Err(e) = conv else unreachable
+        var Err(e) = conv else unsafe { unreachable }
         return Result.Err(e)
     }
     return set_permissions_native(&raw mut wbuf[0], perms)

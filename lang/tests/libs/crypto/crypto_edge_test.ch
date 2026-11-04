@@ -90,7 +90,7 @@ func test_base64_encode_single_byte(env : &mut TestEnv) {
     var data : [1]u8 = [ 0x61 ];
     var r = crypto::base64_encode(&raw data[0], 1, &raw mut buf[0], 128);
     if(r is Result.Err) { env.error("base64_encode failed"); return; }
-    var Ok(len) = r else unreachable;
+    var Ok(len) = r else unsafe { unreachable };
     if(!(len == 4 && buf[0] == 'Y' && buf[1] == 'Q' && buf[2] == '=' && buf[3] == '=' && buf[4] == '\0')) {
         env.error("base64_encode single byte 'a' should return YQ==");
     }
@@ -103,7 +103,7 @@ func test_base64_encode_two_bytes(env : &mut TestEnv) {
     var data : [2]u8 = [ 0x61, 0x62 ];
     var r = crypto::base64_encode(&raw data[0], 2, &raw mut buf[0], 128);
     if(r is Result.Err) { env.error("base64_encode failed"); return; }
-    var Ok(len) = r else unreachable;
+    var Ok(len) = r else unsafe { unreachable };
     if(!(len == 4 && buf[0] == 'Y' && buf[1] == 'W' && buf[2] == 'I' && buf[3] == '=' && buf[4] == '\0')) {
         env.error("base64_encode two bytes 'ab' should return YWI=");
     }
@@ -124,7 +124,7 @@ func test_base64_decode_single_byte(env : &mut TestEnv) {
     var buf : [64]u8;
     var r = crypto::base64_decode("YQ==", 4, &raw mut buf[0], 64);
     if(r is Result.Err) { env.error("base64_decode failed"); return; }
-    var Ok(len) = r else unreachable;
+    var Ok(len) = r else unsafe { unreachable };
     if(!(len == 1 && buf[0] == 0x61)) {
         env.error("base64_decode YQ== should return 0x61");
     }
@@ -179,7 +179,7 @@ func test_base64_encode_empty(env : &mut TestEnv) {
     var buf : [128]char;
     var r = crypto::base64_encode(&raw buf[0] as *u8, 0, &raw mut buf[0], 128);
     if(r is Result.Err) { env.error("base64_encode empty failed"); return; }
-    var Ok(len) = r else unreachable;
+    var Ok(len) = r else unsafe { unreachable };
     if(!(len == 0 && buf[0] == '\0')) {
         env.error("base64_encode of empty should return empty string");
     }
@@ -230,10 +230,10 @@ func test_base64_roundtrip_all_values(env : &mut TestEnv) {
     var decoded : [256]u8;
     var r = crypto::base64_encode(&raw original[0], 256, &raw mut encoded[0], 512);
     if(r is Result.Err) { env.error("base64_encode failed"); return; }
-    var Ok(enc_len) = r else unreachable;
+    var Ok(enc_len) = r else unsafe { unreachable };
     var r2 = crypto::base64_decode(encoded, enc_len, &raw mut decoded[0], 256);
     if(r2 is Result.Err) { env.error("base64_decode failed"); return; }
-    var Ok(dec_len) = r2 else unreachable;
+    var Ok(dec_len) = r2 else unsafe { unreachable };
     if(dec_len != 256) { env.error("length mismatch"); return; }
     var j : size_t = 0;
     while(j < 256) {

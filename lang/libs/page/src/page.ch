@@ -451,7 +451,7 @@ public struct HtmlPage {
         const p = parameters.get_ptr(&key)
         if(p == null) { return std::string_view() }
         if(p is PageParameter.Text) {
-            var Text(view) = *p else unreachable
+            var Text(view) = *p else unsafe { unreachable }
             return view
         }
         return std::string_view()
@@ -3336,7 +3336,7 @@ public func write_site_routes(dir : std::string_view, page_names : &std::vector<
             if(!fs::exists(manifestPath.data())) { continue }
             var read_result = fs::read_entire_file(manifestPath.data())
             if(read_result is Result.Err) { continue }
-            var Ok(bytes) = read_result else unreachable
+            var Ok(bytes) = read_result else unsafe { unreachable }
             owned.push(unsafe(std::string(bytes.data() as *char, bytes.size())))
         }
         var docs = std::vector<std::string_view>()

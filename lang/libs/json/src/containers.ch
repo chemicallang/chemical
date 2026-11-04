@@ -42,7 +42,7 @@ impl<T> std::Deserializer<std::vector<T>> for TypeDecoder<std::vector<T>> {
             return std::Result.Err<std::vector<T>, std::SerializationError>(se_err("expected array"))
         }
         // positional destructuring (the payload parameter is named `value`)
-        var Ok(arr) = arr_r else unreachable
+        var Ok(arr) = arr_r else unsafe { unreachable }
         var out = std::vector<T>()
         var total = arr.total()
         var i = 0u
@@ -51,7 +51,7 @@ impl<T> std::Deserializer<std::vector<T>> for TypeDecoder<std::vector<T>> {
             if(item_r is std::Result.Err) {
                 return std::Result.Err<std::vector<T>, std::SerializationError>(se_err("expected array item"))
             }
-            var Ok(dec) = item_r else unreachable
+            var Ok(dec) = item_r else unsafe { unreachable }
             var val_r = dec.decode<T>()
             if(val_r is std::Result.Err) {
                 return std::Result.Err<std::vector<T>, std::SerializationError>(se_err("invalid array element"))
@@ -121,7 +121,7 @@ impl<V> std::Deserializer<std::ordered_map<std::string, V>> for TypeDecoder<std:
         if(map_r is std::Result.Err) {
             return std::Result.Err<std::ordered_map<std::string, V>, std::SerializationError>(se_err("expected object"))
         }
-        var Ok(mapdec) = map_r else unreachable
+        var Ok(mapdec) = map_r else unsafe { unreachable }
         var out = std::ordered_map<std::string, V>()
         var total = mapdec.total()
         var i = 0u
@@ -130,12 +130,12 @@ impl<V> std::Deserializer<std::ordered_map<std::string, V>> for TypeDecoder<std:
             if(pair_r is std::Result.Err) {
                 return std::Result.Err<std::ordered_map<std::string, V>, std::SerializationError>(se_err("expected object item"))
             }
-            var Ok(pair) = pair_r else unreachable
+            var Ok(pair) = pair_r else unsafe { unreachable }
             var key_r = pair.first.decode_str()
             if(key_r is std::Result.Err) {
                 return std::Result.Err<std::ordered_map<std::string, V>, std::SerializationError>(se_err("expected object key"))
             }
-            var Ok(key_view) = key_r else unreachable
+            var Ok(key_view) = key_r else unsafe { unreachable }
             var val_r = pair.second.decode<V>()
             if(val_r is std::Result.Err) {
                 return std::Result.Err<std::ordered_map<std::string, V>, std::SerializationError>(se_err("invalid object value"))
@@ -178,7 +178,7 @@ impl<V> std::Deserializer<std::unordered_map<std::string, V>> for TypeDecoder<st
         if(map_r is std::Result.Err) {
             return std::Result.Err<std::unordered_map<std::string, V>, std::SerializationError>(se_err("expected object"))
         }
-        var Ok(mapdec) = map_r else unreachable
+        var Ok(mapdec) = map_r else unsafe { unreachable }
         var out = std::unordered_map<std::string, V>()
         var total = mapdec.total()
         var i = 0u
@@ -187,12 +187,12 @@ impl<V> std::Deserializer<std::unordered_map<std::string, V>> for TypeDecoder<st
             if(pair_r is std::Result.Err) {
                 return std::Result.Err<std::unordered_map<std::string, V>, std::SerializationError>(se_err("expected object item"))
             }
-            var Ok(pair) = pair_r else unreachable
+            var Ok(pair) = pair_r else unsafe { unreachable }
             var key_r = pair.first.decode_str()
             if(key_r is std::Result.Err) {
                 return std::Result.Err<std::unordered_map<std::string, V>, std::SerializationError>(se_err("expected object key"))
             }
-            var Ok(key_view) = key_r else unreachable
+            var Ok(key_view) = key_r else unsafe { unreachable }
             var val_r = pair.second.decode<V>()
             if(val_r is std::Result.Err) {
                 return std::Result.Err<std::unordered_map<std::string, V>, std::SerializationError>(se_err("invalid object value"))

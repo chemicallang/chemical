@@ -113,7 +113,7 @@ func rc_try_unwrap_only_when_unique(env : &mut TestEnv) {
                 env.error("Rc::try_unwrap failed for the sole owner")
                 return
             }
-            var Some(out) = unique else unreachable
+            var Some(out) = unique else unsafe { unreachable }
             if(out.value != 21) {
                 env.error("Rc::try_unwrap returned the wrong value")
             }
@@ -143,7 +143,7 @@ func rc_get_mut_requires_unique_owner(env : &mut TestEnv) {
                 env.error("Rc::get_mut failed for the sole owner")
                 return
             }
-            var Some(value) = allowed else unreachable
+            var Some(value) = allowed else unsafe { unreachable }
             value.value = 32
             if(a.get().value != 32) {
                 env.error("Rc::get_mut did not mutate the shared value")
@@ -190,7 +190,7 @@ func rc_weak_upgrades_while_alive(env : &mut TestEnv) {
                 env.error("Weak::upgrade failed while a strong owner was alive")
                 return
             }
-            var Some(b) = up else unreachable
+            var Some(b) = up else unsafe { unreachable }
             if(b.get().value != 41) {
                 env.error("Weak::upgrade returned the wrong value")
             }
@@ -243,7 +243,7 @@ func rc_weak_keeps_allocation_for_try_unwrap(env : &mut TestEnv) {
                 env.error("Rc::try_unwrap failed for the sole strong owner with a weak handle")
                 return
             }
-            var Some(out) = u else unreachable
+            var Some(out) = u else unsafe { unreachable }
             if(out.value != 43) {
                 env.error("Rc::try_unwrap returned the wrong value with a weak handle")
             }

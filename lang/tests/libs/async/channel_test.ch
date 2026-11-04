@@ -60,7 +60,7 @@ func test_async_channel_try_recv(env : &mut TestEnv) {
         env.error("try_recv should have returned a value")
         return
     }
-    var Some(v) = a else unreachable
+    var Some(v) = a else unsafe { unreachable }
     if(v != 9) {
         env.error("try_recv value mismatch")
     }

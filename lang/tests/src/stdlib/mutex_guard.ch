@@ -18,7 +18,7 @@ func mutex_lock_is_exclusive(env : &mut TestEnv) {
         env.error("Mutex::try_lock failed after the guard left scope")
         return
     }
-    var Some(guard) = next else unreachable
+    var Some(guard) = next else unsafe { unreachable }
     if(unsafe(*guard.get()) != 5) {
         env.error("Mutex value did not survive the first lock")
     }

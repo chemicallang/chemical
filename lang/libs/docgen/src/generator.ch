@@ -395,7 +395,7 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
         var favicon_name_buf : [fs::PATH_MAX_BUF]char;
         var r = fs::basename(gen.config.favicon_path.data(), &raw mut favicon_name_buf[0], fs::PATH_MAX_BUF as size_t);
         if(r is std::Result.Ok) {
-            var Ok(len) = r else unreachable;
+            var Ok(len) = r else unsafe { unreachable };
             html.append_view("\n\t<link rel=\"icon\" type=\"image/png\" href=\"");
             var rel_path = get_relative_path_to_root(relative_depth)
             html.append_view(rel_path.to_view());
@@ -437,7 +437,7 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
         var logo_name_buf : [fs::PATH_MAX_BUF]char;
         var r = fs::basename(gen.config.logo_path.data(), &raw mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
         if(r is std::Result.Ok) {
-            var Ok(len) = r else unreachable;
+            var Ok(len) = r else unsafe { unreachable };
             html.append_view("\n\t<meta property=\"og:image\" content=\"");
             var rel_path = get_relative_path_to_root(relative_depth)
             html.append_view(rel_path.to_view());
@@ -461,7 +461,7 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
         var logo_name_buf : [fs::PATH_MAX_BUF]char;
         var r = fs::basename(gen.config.logo_path.data(), &raw mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
         if(r is std::Result.Ok) {
-            var Ok(len) = r else unreachable;
+            var Ok(len) = r else unsafe { unreachable };
             html.append_view("\n\t<meta name=\"twitter:image\" content=\"");
             var rel_path = get_relative_path_to_root(relative_depth)
             html.append_view(rel_path.to_view());
@@ -519,7 +519,7 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
         var logo_name_buf : [fs::PATH_MAX_BUF]char;
         var r = fs::basename(gen.config.logo_path.data(), &raw mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
         if(r is std::Result.Ok) {
-            var Ok(len) = r else unreachable;
+            var Ok(len) = r else unsafe { unreachable };
             html.append_view("<img src=\"");
             html.append_view(rel_path.to_view());
             html.append_view(std::string_view(&raw logo_name_buf[0], len));
@@ -655,7 +655,7 @@ func (gen : &mut HtmlGenerator) process_item(item : *SummaryItem) {
 
         if(content_html is std::Result.Ok) {
             printf("Generating: %s -> %s (depth=%d)\n", item.link.c_str(), out_path.c_str(), depth);
-            var Ok(html) = content_html else unreachable;
+            var Ok(html) = content_html else unsafe { unreachable };
             
             // Generate Page
             gen.generate_page(item.title.to_view(), html.to_view(), out_path, depth, item.link.to_view(), item);
@@ -788,7 +788,7 @@ public func generate(config : DocConfig, summary : *Summary) {
         var favicon_name_buf : [fs::PATH_MAX_BUF]char;
         var r = fs::basename(config.favicon_path.data(), &raw mut favicon_name_buf[0], fs::PATH_MAX_BUF as size_t);
         if(r is std::Result.Ok) {
-            var Ok(len) = r else unreachable;
+            var Ok(len) = r else unsafe { unreachable };
             var favicon_dest = config.build_dir.copy();
             favicon_dest.append('/');
             favicon_dest.append_view(std::string_view(&raw favicon_name_buf[0], len));
@@ -809,7 +809,7 @@ public func generate(config : DocConfig, summary : *Summary) {
         var logo_name_buf : [fs::PATH_MAX_BUF]char;
         var r = fs::basename(config.logo_path.data(), &raw mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
         if(r is std::Result.Ok) {
-            var Ok(len) = r else unreachable;
+            var Ok(len) = r else unsafe { unreachable };
             var logo_dest = config.build_dir.copy();
             logo_dest.append('/');
             logo_dest.append_view(std::string_view(&raw logo_name_buf[0], len));

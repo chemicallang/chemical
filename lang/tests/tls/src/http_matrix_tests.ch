@@ -70,7 +70,7 @@ public func MATRIX_download_size_boundaries(env : &mut TestEnv) {
             test_kill_port(PORT as int)
             return
         }
-        var Ok(r) = res else unreachable;
+        var Ok(r) = res else unsafe { unreachable };
         if(r.status != 200u) { env.error("download expected 200") }
         var b = r.body.read_to_string()
         if(b is std.Option.None) {
@@ -81,7 +81,7 @@ public func MATRIX_download_size_boundaries(env : &mut TestEnv) {
             test_kill_port(PORT as int)
             return
         }
-        var Some(v) = b else unreachable;
+        var Some(v) = b else unsafe { unreachable };
         if(v.size() != (n as usize)) {
             env.error("download length mismatch")
             var m3 = string("size=")
@@ -118,10 +118,10 @@ public func MATRIX_upload_size_boundaries(env : &mut TestEnv) {
     var u0 = mtx_url(PORT, "/echo")
     var r0 = client.post(u0.to_view(), string_view(""), "text/plain")
     if(r0 is Result.Err) { env.error("empty POST failed"); test_kill_port(PORT as int); return }
-    var Ok(x0) = r0 else unreachable;
+    var Ok(x0) = r0 else unsafe { unreachable };
     var b0 = x0.body.read_to_string()
     if(b0 is std.Option.None) { env.error("empty POST body read failed"); test_kill_port(PORT as int); return }
-    var Some(v0) = b0 else unreachable;
+    var Some(v0) = b0 else unsafe { unreachable };
     if(v0.size() != 0u) { env.error("empty POST should echo empty") }
 
     var sizes = vector<usize>()
@@ -146,7 +146,7 @@ public func MATRIX_upload_size_boundaries(env : &mut TestEnv) {
             test_kill_port(PORT as int)
             return
         }
-        var Ok(r) = res else unreachable;
+        var Ok(r) = res else unsafe { unreachable };
         var b = r.body.read_to_string()
         if(b is std.Option.None) {
             env.error("upload echo read failed")
@@ -156,7 +156,7 @@ public func MATRIX_upload_size_boundaries(env : &mut TestEnv) {
             test_kill_port(PORT as int)
             return
         }
-        var Some(v) = b else unreachable;
+        var Some(v) = b else unsafe { unreachable };
         if(!v.equals_view(payload.to_view())) {
             env.error("upload echo mismatch")
             var m3 = string("size=")
@@ -187,10 +187,10 @@ public func MATRIX_full_byte_cycle_roundtrip(env : &mut TestEnv) {
     var u = mtx_url(PORT, "/echo")
     var res = client.post(u.to_view(), payload.to_view(), "application/octet-stream")
     if(res is Result.Err) { env.error("byte-cycle POST failed"); test_kill_port(PORT as int); return }
-    var Ok(r) = res else unreachable;
+    var Ok(r) = res else unsafe { unreachable };
     var b = r.body.read_to_string()
     if(b is std.Option.None) { env.error("byte-cycle echo read failed"); test_kill_port(PORT as int); return }
-    var Some(v) = b else unreachable;
+    var Some(v) = b else unsafe { unreachable };
     if(v.size() != 65536u) { env.error("byte-cycle length mismatch") }
     var i : size_t = 0
     while(i < v.size()) {
@@ -231,7 +231,7 @@ public func MATRIX_many_response_headers_lookup(env : &mut TestEnv) {
         res = client.get(u.to_view())
     }
     if(res is Result.Err) { env.error("many-headers request failed"); test_kill_port(PORT as int); return }
-    var Ok(r) = res else unreachable;
+    var Ok(r) = res else unsafe { unreachable };
 
     // Exact-name lookups at both ends plus the middle.
     var checks = vector<uint>()
@@ -244,7 +244,7 @@ public func MATRIX_many_response_headers_lookup(env : &mut TestEnv) {
         nm.append_uinteger(checks.get(ci) as ubigint)
         var opt = r.headers.get(nm.data())
         if(opt is std.Option.None) { env.error("header missing from response") } else {
-            var Some(hv) = opt else unreachable;
+            var Some(hv) = opt else unsafe { unreachable };
             if(!hv.equals_view("vvvvvvvv")) { env.error("header value mismatch") }
         }
         ci += 1
@@ -275,14 +275,14 @@ public func MATRIX_large_query_string_roundtrip(env : &mut TestEnv) {
     var base = string("https://127.0.0.1:20434/query")
     var u_opt = URL::parse(base.to_view())
     if(u_opt is std::Option.None) { env.error("url parse failed"); test_kill_port(PORT as int); return }
-    var Some(u) = u_opt else unreachable;
+    var Some(u) = u_opt else unsafe { unreachable };
     var rb = RequestBuilder("GET", std::replace(&mut u, URL()))
     rb.query("q", big.to_view())
     rb.query("tail", "end")
 
     var res = client.request(&rb)
     if(res is Result.Err) { env.error("large query request failed"); test_kill_port(PORT as int); return }
-    var Ok(r) = res else unreachable;
+    var Ok(r) = res else unsafe { unreachable };
 
     var expected = string("q=")
     expected.append_string(&big)
@@ -290,7 +290,7 @@ public func MATRIX_large_query_string_roundtrip(env : &mut TestEnv) {
 
     var b = r.body.read_to_string()
     if(b is std.Option.None) { env.error("large query body read failed"); test_kill_port(PORT as int); return }
-    var Some(v) = b else unreachable;
+    var Some(v) = b else unsafe { unreachable };
     if(!v.equals_view(expected.to_view())) {
         env.error("large query echo mismatch")
         var m = string("got len ")

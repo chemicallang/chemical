@@ -50,32 +50,32 @@ func resolve_and_extract_field(args : string_view, key : string_view) : string {
     parser.parse(args.data(), args.size(), &mut ph)
     // If already a JSON object, search directly.
     if(ph.root is JsonValue.Object) {
-        var Object(map) = ph.root else unreachable
+        var Object(map) = ph.root else unsafe { unreachable }
         var k = string(key.data(), key.size())
         var vp = map.get_ptr(&k)
         if(vp != null && vp is JsonValue.String) {
-            var String(v) = *vp else unreachable
+            var String(v) = *vp else unsafe { unreachable }
             return v.copy()
         }
         return string()
     }
     // If an array, extract element 0 (the stringified body).
     if(ph.root is JsonValue.Array) {
-        var Array(arr) = ph.root else unreachable
+        var Array(arr) = ph.root else unsafe { unreachable }
         if(arr.size() > 0) {
             var elem = arr.get_ptr(0)
             if(elem is JsonValue.String) {
-                var String(s) = *elem else unreachable
+                var String(s) = *elem else unsafe { unreachable }
                 // Re-parse the inner string as JSON.
                 var inner = JsonParser(128, 4096)
                 var inner_ph = ASTJsonHandler.make()
                 inner.parse(s.data(), s.size(), &mut inner_ph)
                 if(inner_ph.root is JsonValue.Object) {
-                    var Object(inner_map) = inner_ph.root else unreachable
+                    var Object(inner_map) = inner_ph.root else unsafe { unreachable }
                     var ik = string(key.data(), key.size())
                     var ivp = inner_map.get_ptr(&ik)
                     if(ivp != null && ivp is JsonValue.String) {
-                        var String(iv) = *ivp else unreachable
+                        var String(iv) = *ivp else unsafe { unreachable }
                         return iv.copy()
                     }
                 }

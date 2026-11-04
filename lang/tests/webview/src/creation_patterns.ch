@@ -148,7 +148,7 @@ public func test_create_pattern_b_bridge(env : &mut TestEnv) {
         env.error("webview::create failed (Pattern B)")
         return
     }
-    var Ok(wv) = wv_result else unreachable
+    var Ok(wv) = wv_result else unsafe { unreachable }
     g_create_pat_wv = &raw mut wv
 
     var bind_result = webview::webview_bind(&raw mut wv, (method, args) => {
@@ -191,7 +191,7 @@ public func test_create_pattern_b_evaluate_js(env : &mut TestEnv) {
         env.error("webview::create failed (Pattern B eval)")
         return
     }
-    var Ok(wv) = wv_result else unreachable
+    var Ok(wv) = wv_result else unsafe { unreachable }
     g_create_pat_wv = &raw mut wv
 
     var bind_result = webview::webview_bind(&raw mut wv, (method, args) => {
@@ -229,7 +229,7 @@ public func test_create_pattern_b_set_size_live(env : &mut TestEnv) {
         env.error("webview::create failed (Pattern B size)")
         return
     }
-    var Ok(wv) = wv_result else unreachable
+    var Ok(wv) = wv_result else unsafe { unreachable }
 
     // set_size on a by-value webview — triggers MoveWindow → WM_SIZE →
     // resize callback reads user data. webview_rebind corrects it.
@@ -258,7 +258,7 @@ public func test_create_pattern_b_title_size_fields(env : &mut TestEnv) {
         env.error("webview::create failed (Pattern B fields)")
         return
     }
-    var Ok(wv) = wv_result else unreachable
+    var Ok(wv) = wv_result else unsafe { unreachable }
 
     webview::webview_set_title(&raw mut wv, "NewTitle\0" as *char)
     webview::webview_set_size(&raw mut wv, 800, 600)

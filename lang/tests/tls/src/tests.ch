@@ -2133,7 +2133,7 @@ public func https_url_parsing_scheme_detection_works(env : &mut TestEnv) {
     // Verify https:// URLs are detected with correct scheme and default port 443
     var u1 = URL::parse(string_view("https://example.com"))
     if(u1 is std::Option.None) { env.error("https URL should parse"); return }
-    var Some(url1) = u1 else unreachable
+    var Some(url1) = u1 else unsafe { unreachable }
     if(!url1.scheme.equals_with_len("https", 5)) {
         env.error("scheme should be https")
     }
@@ -2150,7 +2150,7 @@ public func https_url_parsing_with_port_path_query_works(env : &mut TestEnv) {
     // Verify https URL with explicit port, path, and query
     var u2 = URL::parse(string_view("https://api.example.com:8443/v1/data?key=val"))
     if(u2 is std::Option.None) { env.error("https URL with port should parse"); return }
-    var Some(url2) = u2 else unreachable
+    var Some(url2) = u2 else unsafe { unreachable }
     if(!url2.scheme.equals_with_len("https", 5)) {
         env.error("scheme should be https")
     }
@@ -2173,7 +2173,7 @@ public func https_url_parsing_default_path_without_slash_works(env : &mut TestEn
     // Verify https URL without path defaults to /
     var u = URL::parse(string_view("https://localhost:443"))
     if(u is std::Option.None) { env.error("https URL without path should parse"); return }
-    var Some(url) = u else unreachable
+    var Some(url) = u else unsafe { unreachable }
     if(!url.path.equals_view("/")) {
         env.error("default path should be /")
     }
@@ -2290,7 +2290,7 @@ public func https_mixed_http_and_https_requests_work(env : &mut TestEnv) {
     var client = http::Client()
     var r1 = client.get(string_view("http://127.0.0.1:49994/hello"))
     if(r1 is Result.Ok) {
-        var Ok(ok_resp) = r1 else unreachable
+        var Ok(ok_resp) = r1 else unsafe { unreachable }
         if(ok_resp.status != 200u) {
             env.error("HTTP status should be 200")
         }
@@ -2307,7 +2307,7 @@ public func https_mixed_http_and_https_requests_work(env : &mut TestEnv) {
     // HTTP request after failed HTTPS should still work
     var r3 = client.get(string_view("http://127.0.0.1:49994/hello"))
     if(r3 is Result.Ok) {
-        var Ok(resp3) = r3 else unreachable
+        var Ok(resp3) = r3 else unsafe { unreachable }
         if(resp3.status != 200u) {
             env.error("HTTP after failed HTTPS should still work")
         }

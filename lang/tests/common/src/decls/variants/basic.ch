@@ -459,7 +459,7 @@ func test_variants() {
         })
         test("storing in variants via pattern matched unreachable works", () => {
             var x = OptVariant.Some(0)
-            var Some(a) = x else unreachable
+            var Some(a) = x else unsafe { unreachable }
             a = 87
             switch(x) {
                 Some(a) => return a == 87;
@@ -493,7 +493,7 @@ func test_variants() {
         })
         test("inherited struct in variant is default initialized properly - 2", () => {
             var i = InheriterOfPoint.First(48, 58)
-            var First(x, y) = i else unreachable
+            var First(x, y) = i else unsafe { unreachable }
             return x == 48 && y == 58 && i.a == 10 && i.b == 20
         })
         test("inherited struct in variant is default initialized properly - 3", () => {
@@ -502,7 +502,7 @@ func test_variants() {
         })
         test("inherited struct in variant is default initialized properly - 4", () => {
             var i = InheriterOfPoint.Second(65, 87, 45)
-            var Second(x, y, z) = i else unreachable
+            var Second(x, y, z) = i else unsafe { unreachable }
             return x == 65 && y == 87 && z == 45 && i.a == 10 && i.b == 20
         })
         test("inherited struct in variant is default initialized with constructor - 1", () => {
@@ -511,7 +511,7 @@ func test_variants() {
         })
         test("inherited struct in variant is default initialized with constructor - 2", () => {
             var x = VertexInheriter.First(92)
-            var First(i) = x else unreachable
+            var First(i) = x else unsafe { unreachable }
             return i == 92 && x.x == 98 && x.y == 97 && x.z == 96
         })
         test("inherited struct in variant is default initialized with constructor - 3", () => {
@@ -520,7 +520,7 @@ func test_variants() {
         })
         test("inherited struct in variant is default initialized with constructor - 4", () => {
             var i = VertexInheriter.Second(83)
-            var Second(j) = i else unreachable
+            var Second(j) = i else unsafe { unreachable }
             return j == 83 && i.x == 98 && i.y == 97 && i.z == 96
         })
         test("inherited struct in variant can be passed to functions as pointers - 1", () => {

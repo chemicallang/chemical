@@ -11,7 +11,7 @@ public func load_bmp(path : *char) : std::Result<Image, ImageError> {
     if(read_result is Result.Err) {
         return std.Result.Err(ImageError.FileNotFound())
     }
-    var Ok(data) = read_result else unreachable
+    var Ok(data) = read_result else unsafe { unreachable }
     return parse_bmp(data.data(), data.size())
 }
 

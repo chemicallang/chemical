@@ -217,7 +217,7 @@ backend:
    type-erased pointer, `@delete`), `Context`, and the generic variant
    `Poll<T> { Ready(value: T) Pending() }`.
 2. **Generic variant construction** `Poll.Ready<T>(v)` and pattern matching
-   (`r is Poll.Ready`, `var Ready(value) = r else unreachable`).
+   (`r is Poll.Ready`, `var Ready(value) = r else unsafe { unreachable }`).
 3. **Moving a result out of `&mut self`** via
    `std::replace(&mut self.value, zeroed<T>())`.
 4. **The runtime handle + vtable exactly as proposed** — a generic
@@ -3819,7 +3819,7 @@ async func fetch_data(url: *char) : std::Result<Response, string> {
     if(response is std::Result.Err) {
         return std::Result.Err(response.error)
     }
-    var Ok(res) = response else unreachable
+    var Ok(res) = response else unsafe { unreachable }
     return std::Result.Ok(res.body.read_all())
 }
 ```
@@ -4051,7 +4051,7 @@ func rt_await_int(fut : FutureHandle<int>, cx : *mut Context) : int {
     var out : int = loop {
         var r = fut.vtbl.poll(fut.frame, cx)
         if(r is Poll.Ready) {
-            var Ready(value) = r else unreachable
+            var Ready(value) = r else unsafe { unreachable }
             break value
         } else {
             continue
@@ -4089,7 +4089,7 @@ func rt_await_string(fut : FutureHandle<std::string>, cx : *mut Context) : std::
     var out : std::string = loop {
         var r = fut.vtbl.poll(fut.frame, cx)
         if(r is Poll.Ready) {
-            var Ready(value) = r else unreachable
+            var Ready(value) = r else unsafe { unreachable }
             break value
         } else {
             continue

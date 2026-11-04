@@ -12,7 +12,7 @@ internal func neg_init_work_dir() {
         var r = fs::temp_dir(unsafe(&raw mut g_neg_work_dir_buf[0]), 512 as size_t)
         var i : size_t = 0
         if(r is std::Result.Ok) {
-            var Ok(len) = r else unreachable
+            var Ok(len) = r else unsafe { unreachable }
             i = len
         } else {
             // fallback: relative to the current working directory
@@ -339,7 +339,7 @@ internal func read_file_contains(path : *char, needle : *char) : bool {
     if(r is std::Result.Err) {
         return false
     }
-    var Ok(n) = r else unreachable
+    var Ok(n) = r else unsafe { unreachable }
     buf[n] = 0
     return string_contains(unsafe(&raw buf[0]) as *char, needle)
 }

@@ -7,15 +7,15 @@ public func copy_directory(src : *char, dst : *char, preserve_metadata : bool) :
         // recursive copy: create dest dir then iterate src and copy files/dirs
         var st_res = metadata(src);
         if(st_res is Result.Err) {
-            var Err(e) = st_res else unreachable
+            var Err(e) = st_res else unsafe { unreachable }
             return Result.Err(e)
         }
-        var Ok(st) = st_res else unreachable;
+        var Ok(st) = st_res else unsafe { unreachable };
         if(!st.is_dir) { return Result.Err(FsError.NotADirectory()); }
         // create dst
         var cd = create_dir_all(dst);
         if(cd is Result.Err) {
-            var Err(e) = cd else unreachable
+            var Err(e) = cd else unsafe { unreachable }
             return Result.Err(e)
         }
         // iterate src
@@ -43,32 +43,32 @@ public func copy_directory(src : *char, dst : *char, preserve_metadata : bool) :
             q = 0; while(q <= name_len) { dstchild[r + q] = name[q]; q++ }
             if(is_dir) {
                 var c = copy_directory(&raw mut srcchild[0], &raw mut dstchild[0], preserve_metadata);
-                if(c is Result.Err) { var Err(e) = c else unreachable; return false; }
+                if(c is Result.Err) { var Err(e) = c else unsafe { unreachable }; return false; }
             } else {
                 var c = copy_file(&raw mut srcchild[0], &raw mut dstchild[0]);
-                if(c is Result.Err) { var Err(e) = c else unreachable; return false; }
+                if(c is Result.Err) { var Err(e) = c else unsafe { unreachable }; return false; }
                 if(preserve_metadata) {
                     var meta = metadata(&raw mut srcchild[0]);
                     if(meta is Result.Err) {
-                        var Err(e) = meta else unreachable
+                        var Err(e) = meta else unsafe { unreachable }
                         // TODO: cannot return the result
                         // return Result.Err<UnitTy, FsError>(e)
                         return false;
                     }
-                    var Ok(m) = meta else unreachable;
+                    var Ok(m) = meta else unsafe { unreachable };
                     var setp = set_permissions(&raw mut dstchild[0], m.perms);
-                    if(setp is Result.Err) { var Err(e) = setp else unreachable; /* non-fatal? */ }
+                    if(setp is Result.Err) { var Err(e) = setp else unsafe { unreachable }; /* non-fatal? */ }
                     var stimes = set_times(&raw mut dstchild[0], m.accessed, m.modified);
-                    if(stimes is Result.Err) { var Err(e) = stimes else unreachable; }
+                    if(stimes is Result.Err) { var Err(e) = stimes else unsafe { unreachable }; }
                 }
             }
             return true;
         });
         if(res is Result.Err) {
-            var Err(e) = res else unreachable
+            var Err(e) = res else unsafe { unreachable }
             return Result.Err(e)
         }
-        var Ok(_) = res else unreachable;
+        var Ok(_) = res else unsafe { unreachable };
         return Result.Ok(UnitTy{});
 
         }

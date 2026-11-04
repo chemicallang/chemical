@@ -576,7 +576,7 @@ func get_value_or_return(opt : Option<int>) : int {
 ##### Pattern Matching with Unreachable
 ```chemical
 func unwrap(opt : Option<int>) : int {
-    var Some(value) = opt else unreachable
+    var Some(value) = opt else unsafe { unreachable }
     return value
 }
 ```
@@ -1489,7 +1489,7 @@ func zip_find_entry(output : *mut ArchiveEntry, ...) {
 public func my_test(env : &mut TestEnv) {
     var result = some_func()
     if(result is Result.Err) { env.error("should succeed"); return }
-    var Ok(value) = result else unreachable
+    var Ok(value) = result else unsafe { unreachable }
     // Now use value safely
 }
 ```

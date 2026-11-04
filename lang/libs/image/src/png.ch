@@ -623,7 +623,7 @@ public func parse_png(data : *u8, data_len : size_t) : std::Result<Image, ImageE
             raw_buf.data() as *mut u8, raw_size as size_t
         )
         if(zlib_result is Result.Err) {
-            var Err(e) = zlib_result else unreachable
+            var Err(e) = zlib_result else unsafe { unreachable }
             return std.Result.Err(ImageError.InvalidFormat(string("PNG decompression failed")))
         }
 
@@ -709,7 +709,7 @@ public func load_png(path : *char) : std::Result<Image, ImageError> {
     if(read_result is Result.Err) {
         return std.Result.Err(ImageError.FileNotFound())
     }
-    var Ok(data) = read_result else unreachable
+    var Ok(data) = read_result else unsafe { unreachable }
     return parse_png(data.data(), data.size())
 }
 
@@ -829,7 +829,7 @@ public func encode_png(img : *mut Image) : std::Result<vector<u8>, ImageError> {
         if(def_result is Result.Err) {
             return std.Result.Err(ImageError.InvalidFormat(string("PNG deflate failed")))
         }
-        var Ok(def_len) = def_result else unreachable
+        var Ok(def_len) = def_result else unsafe { unreachable }
 
         // calculate total file size
         // 8 (signature) + 25 (IHDR chunk) + 12 (IEND chunk)
@@ -908,7 +908,7 @@ public func save_png(img : *mut Image, path : *char) : std::Result<std::Unit, Im
         if(def_result is Result.Err) {
             return std.Result.Err(ImageError.InvalidFormat(string("PNG deflate failed")))
         }
-        var Ok(def_len) = def_result else unreachable
+        var Ok(def_len) = def_result else unsafe { unreachable }
 
         // calculate total file size
         // 8 (signature) + 25 (IHDR chunk) + 12 (IEND chunk)

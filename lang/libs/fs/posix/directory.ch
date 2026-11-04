@@ -24,10 +24,10 @@ public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
         var buf : [PATH_MAX_BUF]char;
         var r = normalize_path(path, &raw mut buf[0], PATH_MAX_BUF as size_t);
         if(r is Result.Err) {
-            var Err(e) = r else unreachable
+            var Err(e) = r else unsafe { unreachable }
             return Result.Err(e)
         }
-        var Ok(len) = r else unreachable;
+        var Ok(len) = r else unsafe { unreachable };
         // iterate components
         var i : size_t = 1; // if path is absolute, start at 1 to include leading '/'
         if(buf[0] != '/') { i = 0; } // relative
@@ -42,10 +42,10 @@ public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
                 if(k == 0) { i++; continue; }
                 var stat_res = metadata(&raw mut prefix[0]);
                 if(stat_res is Result.Err) {
-                    var Err(e) = stat_res else unreachable;
+                    var Err(e) = stat_res else unsafe { unreachable };
                     if(e is FsError.NotFound) {
                         var c = create_dir(&raw mut prefix[0]);
-                        if(c is Result.Err) { var Err(e2) = c else unreachable; return Result.Err(e2); }
+                        if(c is Result.Err) { var Err(e2) = c else unsafe { unreachable }; return Result.Err(e2); }
                     } else {
                         // if exists fine, otherwise return
                         // continue if AlreadyExists
@@ -156,7 +156,7 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
                 // Always close the child fd we opened
                 unsafe { close(childfd) };
 
-                if(rem is Result.Err) { var Err(e) = rem else unreachable; unsafe { closedir(dir) }; return Result.Err(e); }
+                if(rem is Result.Err) { var Err(e) = rem else unsafe { unreachable }; unsafe { closedir(dir) }; return Result.Err(e); }
 
                 // Remove the directory entry itself using unlinkat(AT_REMOVEDIR)
                 set_errno(0);
@@ -219,7 +219,7 @@ public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, Fs
         // close dirfd regardless
         var c = unsafe(close(dirfd));
 
-        if(rem is Result.Err) { var Err(e) = rem else unreachable; return Result.Err(e); }
+        if(rem is Result.Err) { var Err(e) = rem else unsafe { unreachable }; return Result.Err(e); }
 
         // remove the directory itself (rmdir)
         set_errno(0);

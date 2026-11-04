@@ -10,10 +10,10 @@ func file_read_exact(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<Un
         while(pos < buf_len) {
             var r = file_read(f, buf + pos, buf_len - pos);
             if(r is Result.Err) {
-                var Err(e) = r else unreachable
+                var Err(e) = r else unsafe { unreachable }
                 return Result.Err(e)
             }
-            var Ok(n) = r else unreachable
+            var Ok(n) = r else unsafe { unreachable }
             if(n == 0) { return Result.Err(FsError.Io(0, "unexpected EOF\0")); }
             pos += n;
         }
@@ -30,10 +30,10 @@ func file_write_all(f : *mut File, buf : *u8, buf_len : size_t) : Result<UnitTy,
         while(pos < buf_len) {
             var r = file_write(f, buf + pos, buf_len - pos);
             if(r is Result.Err) {
-                var Err(e) = r else unreachable
+                var Err(e) = r else unsafe { unreachable }
                 return Result.Err(e)
             }
-            var Ok(n) = r else unreachable
+            var Ok(n) = r else unsafe { unreachable }
             if(n == 0) { return Result.Err(FsError.Io(0, "write returned 0\0")); }
             pos += n;
         }
@@ -77,8 +77,8 @@ public func atomic_write(path : *char, data : *u8, data_len : size_t) : Result<U
         // compose tmp path: path + ".tmpXXXX"
         var dir_buf : [PATH_MAX_BUF]char;
         var r = dirname(path, &raw mut dir_buf[0], PATH_MAX_BUF as size_t);
-        if(r is Result.Err) { var Err(e) = r else unreachable; return Result.Err(e); }
-        var Ok(dir_len) = r else unreachable;
+        if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(e); }
+        var Ok(dir_len) = r else unsafe { unreachable };
         var tmpbuf : [PATH_MAX_BUF]char;
         var tmpname : [64]char;
         var p : size_t = 0;
@@ -108,10 +108,10 @@ public func atomic_write(path : *char, data : *u8, data_len : size_t) : Result<U
         tmpbuf[p + tlen] = 0;
         // write file
         var wr = write_text_file(&raw mut tmpbuf[0], data, data_len);
-        if(wr is Result.Err) { var Err(e) = wr else unreachable; return Result.Err(e); }
+        if(wr is Result.Err) { var Err(e) = wr else unsafe { unreachable }; return Result.Err(e); }
         // rename temp to final
         var rnm = move_path(&raw mut tmpbuf[0], path);
-        if(rnm is Result.Err) { var Err(e) = rnm else unreachable; return Result.Err(e); }
+        if(rnm is Result.Err) { var Err(e) = rnm else unsafe { unreachable }; return Result.Err(e); }
         return Result.Ok(UnitTy{});
 
         }
@@ -132,10 +132,10 @@ public func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
 
         var fo = file_open(path, opts);
         if(fo is Result.Err) {
-            var Err(e) = fo else unreachable;
+            var Err(e) = fo else unsafe { unreachable };
             return Result.Err(e);
         }
-        var Ok(f) = fo else unreachable;
+        var Ok(f) = fo else unsafe { unreachable };
 
         // a vector
         var vec = std::vector<u8>()
@@ -165,11 +165,11 @@ public func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
             var want = cap - pos;
             var r = file_read(&raw mut f, ptr as *mut u8, want);
             if(r is Result.Err) {
-                var Err(e) = r else unreachable;
+                var Err(e) = r else unsafe { unreachable };
                 file_close(&raw mut f);
                 return Result.Err(e);
             }
-            var Ok(n) = r else unreachable;
+            var Ok(n) = r else unsafe { unreachable };
 
             if(n == 0) {
                 // EOF
@@ -200,15 +200,15 @@ public func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t) : Resu
         opts.read = true; opts.write = false; opts.append = false; opts.create = false; opts.create_new = false; opts.truncate = false; opts.binary = true;
         var fo = file_open(path, opts);
         if(fo is Result.Err) {
-            var Err(e) = fo else unreachable;
+            var Err(e) = fo else unsafe { unreachable };
             return Result.Err<size_t, FsError>(e);
         }
-        var Ok(f) = fo else unreachable
+        var Ok(f) = fo else unsafe { unreachable }
         var pos : size_t = 0;
         while(true) {
             var r = file_read(&raw mut f, buf + pos, buf_len - pos);
-            if(r is Result.Err) { var Err(e) = r else unreachable; file_close(&raw mut f); return Result.Err<size_t, FsError>(e); }
-            var Ok(n) = r else unreachable;
+            if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; file_close(&raw mut f); return Result.Err<size_t, FsError>(e); }
+            var Ok(n) = r else unsafe { unreachable };
             if(n == 0) { break; } // EOF
             pos += n;
             if(pos >= buf_len) { file_close(&raw mut f); return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
@@ -228,11 +228,11 @@ public func write_text_file(path : *char, data : *u8, data_len : size_t) : Resul
         opts.read = false; opts.write = true; opts.append = false; opts.create = true; opts.create_new = false; opts.truncate = true; opts.binary = true;
         var fo = file_open(path, opts);
         if(fo is Result.Err) {
-            var Err(e) = fo else unreachable; return Result.Err(e);
+            var Err(e) = fo else unsafe { unreachable }; return Result.Err(e);
         }
-        var Ok(f) = fo else unreachable;
+        var Ok(f) = fo else unsafe { unreachable };
         var r = file_write_all(&raw mut f, data, data_len);
-        if(r is Result.Err) { var Err(e) = r else unreachable; file_close(&raw mut f); return Result.Err(e); }
+        if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; file_close(&raw mut f); return Result.Err(e); }
         file_close(&raw mut f);
         return Result.Ok(UnitTy{});
 
@@ -247,31 +247,31 @@ public func move_path(src : *char, dst : *char) : Result<UnitTy, FsError> {
         // if rename fails (e.g. cross-device) fallback to copy+remove
         var src_meta = metadata(src);
         if(src_meta is Result.Err) {
-            var Err(e) = src_meta else unreachable
+            var Err(e) = src_meta else unsafe { unreachable }
             return Result.Err(e)
         }
-        var Ok(m) = src_meta else unreachable
+        var Ok(m) = src_meta else unsafe { unreachable }
         if(m.is_dir) {
             var c = copy_directory(src, dst, true);
             if(c is Result.Err) {
-                var Err(e) = c else unreachable
+                var Err(e) = c else unsafe { unreachable }
                 return Result.Err(e)
             }
             var rem = remove_dir_all_recursive(src);
             if(rem is Result.Err) {
-                var Err(e) = rem else unreachable
+                var Err(e) = rem else unsafe { unreachable }
                 return Result.Err(e)
             }
             return Result.Ok(UnitTy{});
         } else {
             var c = copy_file(src, dst);
             if(c is Result.Err) {
-                var Err(e) = c else unreachable
+                var Err(e) = c else unsafe { unreachable }
                 return Result.Err(e)
             }
             var rem = remove_file(src);
             if(rem is Result.Err) {
-                var Err(e) = rem else unreachable
+                var Err(e) = rem else unsafe { unreachable }
                 return Result.Err(e)
             }
             return Result.Ok(UnitTy{});

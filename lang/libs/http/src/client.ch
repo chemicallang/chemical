@@ -512,7 +512,7 @@ public namespace http {
 
             var u_opt = URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<Response, std::string>(std::string::make_no_len("invalid URL"));
-            var Some(u) = u_opt else unreachable;
+            var Some(u) = u_opt else unsafe { unreachable };
             var rb = RequestBuilder("GET", std::replace(&mut u, URL()));
             rb.timeout(self.default_timeout_secs);
             return self.request(&rb);
@@ -525,7 +525,7 @@ public namespace http {
 
             var u_opt = URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<Response, std::string>(std::string::make_no_len("invalid URL"));
-            var Some(u) = u_opt else unreachable;
+            var Some(u) = u_opt else unsafe { unreachable };
             var rb = RequestBuilder("POST", std::replace(&mut u, URL()));
             rb.set_body(body, content_type);
             rb.timeout(self.default_timeout_secs);
@@ -539,7 +539,7 @@ public namespace http {
 
             var u_opt = URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<Response, std::string>(std::string::make_no_len("invalid URL"));
-            var Some(u) = u_opt else unreachable;
+            var Some(u) = u_opt else unsafe { unreachable };
             var rb = RequestBuilder("PUT", std::replace(&mut u, URL()));
             rb.set_body(body, content_type);
             rb.timeout(self.default_timeout_secs);
@@ -553,7 +553,7 @@ public namespace http {
 
             var u_opt = URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<Response, std::string>(std::string::make_no_len("invalid URL"));
-            var Some(u) = u_opt else unreachable;
+            var Some(u) = u_opt else unsafe { unreachable };
             var rb = RequestBuilder("PATCH", std::replace(&mut u, URL()));
             rb.set_body(body, content_type);
             rb.timeout(self.default_timeout_secs);
@@ -567,7 +567,7 @@ public namespace http {
 
             var u_opt = URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<Response, std::string>(std::string::make_no_len("invalid URL"));
-            var Some(u) = u_opt else unreachable;
+            var Some(u) = u_opt else unsafe { unreachable };
             var rb = RequestBuilder("DELETE", std::replace(&mut u, URL()));
             rb.timeout(self.default_timeout_secs);
             return self.request(&rb);
@@ -580,7 +580,7 @@ public namespace http {
 
             var u_opt = URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<Response, std::string>(std::string::make_no_len("invalid URL"));
-            var Some(u) = u_opt else unreachable;
+            var Some(u) = u_opt else unsafe { unreachable };
             var rb = RequestBuilder("HEAD", std::replace(&mut u, URL()));
             rb.timeout(self.default_timeout_secs);
             return self.request(&rb);

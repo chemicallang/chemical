@@ -15,11 +15,11 @@ func test_fs_metadata_exists_and_types(env : &mut TestEnv) {
     expect_true(env, fs::exists(dir_path.data()), "dir should exist");
     var r_dir = fs::is_dir(dir_path.data());
     expect_true(env, !(r_dir is Result.Err), "is_dir failed");
-    var Ok(is_d) = r_dir else unreachable;
+    var Ok(is_d) = r_dir else unsafe { unreachable };
     expect_true(env, is_d, "should be a directory");
     
     var r_not_f = fs::is_file(dir_path.data());
-    var Ok(is_f1) = r_not_f else unreachable;
+    var Ok(is_f1) = r_not_f else unsafe { unreachable };
     expect_true(env, !is_f1, "dir should not be a file");
 
     // Test file
@@ -29,11 +29,11 @@ func test_fs_metadata_exists_and_types(env : &mut TestEnv) {
     
     var r_file = fs::is_file(file_path.data());
     expect_true(env, !(r_file is Result.Err), "is_file failed");
-    var Ok(is_f2) = r_file else unreachable;
+    var Ok(is_f2) = r_file else unsafe { unreachable };
     expect_true(env, is_f2, "should be a file");
     
     var r_not_d = fs::is_dir(file_path.data());
-    var Ok(is_d2) = r_not_d else unreachable;
+    var Ok(is_d2) = r_not_d else unsafe { unreachable };
     expect_true(env, !is_d2, "file should not be a dir");
 
     // Non-existent
@@ -56,7 +56,7 @@ func test_fs_metadata_properties(env : &mut TestEnv) {
 
     var r = fs::metadata(p.data());
     expect_true(env, !(r is Result.Err), "metadata failed");
-    var Ok(m) = r else unreachable;
+    var Ok(m) = r else unsafe { unreachable };
     
     expect_true(env, m.is_file, "metadata: should be file");
     expect_true(env, !m.is_dir, "metadata: should not be dir");
@@ -88,7 +88,7 @@ func test_fs_set_permissions_and_times(env : &mut TestEnv) {
     // Verify times
     var rm = fs::metadata(p.data());
     expect_true(env, !(rm is Result.Err), "metadata after set_times failed");
-    var Ok(m) = rm else unreachable;
+    var Ok(m) = rm else unsafe { unreachable };
     // Note: Some filesystems might have precision issues, but exact match for seconds is usually fine.
     // However, on Windows, precision can be an issue. We just check they are updated.
     expect_true(env, m.modified == mtime, "modified time mismatch");

@@ -16,7 +16,7 @@ internal func safety_init_work_dir() {
         var r = fs::temp_dir(unsafe(&raw mut safety_work_dir_buf[0]), 512 as size_t)
         var i : size_t = 0
         if(r is Result.Ok) {
-            var Ok(len) = r else unreachable
+            var Ok(len) = r else unsafe { unreachable }
             i = len
         } else {
             var fallback = "chemical_safety_tests\0"
@@ -64,7 +64,7 @@ internal func safety_run_command(args : vector<string>) : int {
     if(r is Result.Err) {
         return -1
     }
-    var Ok(result) = r else unreachable
+    var Ok(result) = r else unsafe { unreachable }
     if(result.status.signaled) {
         return 128 + result.status.signal
     }
@@ -81,7 +81,7 @@ internal func safety_run_command_capture(args : vector<string>, out : &mut strin
     if(r is Result.Err) {
         return -1
     }
-    var Ok(result) = r else unreachable
+    var Ok(result) = r else unsafe { unreachable }
     var view = result.stdout_str()
     out.append_view(&view)
     if(result.status.signaled) {

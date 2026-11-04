@@ -77,7 +77,7 @@ async func b26_forward() : B26Result {
 
 func b26_check(env : &mut TestEnv, r : B26Result, status : int, body : int, text : int) {
     if(r is B26Result.Ok) {
-        var Ok(resp) = r else unreachable
+        var Ok(resp) = r else unsafe { unreachable }
         if(resp.status != status || resp.body.data.size() as int != body || resp.status_text.size() as int != text) {
             env.error("large-variant payload mismatch")
         }

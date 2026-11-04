@@ -39,7 +39,7 @@ func non_null_try_accepts_non_null(env : &mut TestEnv) {
         env.error("non_null_try rejected a non-null pointer")
         return
     }
-    var Some(nn) = maybe else unreachable
+    var Some(nn) = maybe else unsafe { unreachable }
     if(nn.as_ptr() != p) {
         env.error("non_null_try changed the pointer")
     }

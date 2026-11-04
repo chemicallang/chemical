@@ -50,7 +50,7 @@ func check_less_optimized_early_return(result: Result<int>) : Result<int> {
         return result
     }
     // extract success or abort
-    var Success(value) = result else unreachable
+    var Success(value) = result else unsafe { unreachable }
     printf("I got the result %d\n", value)
     return result
 }
@@ -60,7 +60,7 @@ func check_early_return_with_is(result: Result<int>) : Result<int> {
     if result is Result.Failure {
         return result
     }
-    var Success(value) = result else unreachable
+    var Success(value) = result else unsafe { unreachable }
     printf("I got the result %d\n", value)
     return result
 }

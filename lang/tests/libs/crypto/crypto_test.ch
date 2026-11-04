@@ -66,7 +66,7 @@ func test_base64_encode(env : &mut TestEnv) {
     var data : [3]u8 = [ 0x48, 0x65, 0x6C ];
     var r = crypto::base64_encode(&raw data[0], 3, &raw mut buf[0], 128);
     if(r is Result.Err) { env.error("base64_encode failed"); return; }
-    var Ok(len) = r else unreachable;
+    var Ok(len) = r else unsafe { unreachable };
     if(!(len == 4 && buf[0] == 'S' && buf[1] == 'G' && buf[2] == 'V' && buf[3] == 's' && buf[4] == '\0')) {
         env.error("base64_encode of Hel should return SGV s");
     }
@@ -78,7 +78,7 @@ func test_base64_encode_padded(env : &mut TestEnv) {
     var data : [4]u8 = [ 0x48, 0x65, 0x6C, 0x6C ];
     var r = crypto::base64_encode(&raw data[0], 4, &raw mut buf[0], 128);
     if(r is Result.Err) { env.error("base64_encode failed"); return; }
-    var Ok(len) = r else unreachable;
+    var Ok(len) = r else unsafe { unreachable };
     if(!(len == 8 && buf[0] == 'S' && buf[1] == 'G' && buf[2] == 'V' && buf[3] == 's' &&
          buf[4] == 'b' && buf[5] == 'A' && buf[6] == '=' && buf[7] == '=' && buf[8] == '\0')) {
         env.error("base64_encode of Hell should return SGVsbA==");
@@ -90,7 +90,7 @@ func test_base64_decode(env : &mut TestEnv) {
     var buf : [64]u8;
     var r = crypto::base64_decode("SGVsbG8=", 8, &raw mut buf[0], 64);
     if(r is Result.Err) { env.error("base64_decode failed"); return; }
-    var Ok(len) = r else unreachable;
+    var Ok(len) = r else unsafe { unreachable };
     if(!(len == 5 && buf[0] == 0x48 && buf[1] == 0x65 && buf[2] == 0x6C && buf[3] == 0x6C && buf[4] == 0x6F)) {
         env.error("base64_decode of Hello b64 should return Hello");
     }
@@ -103,10 +103,10 @@ func test_base64_roundtrip(env : &mut TestEnv) {
     var decoded : [6]u8;
     var r = crypto::base64_encode(&raw original[0], 6, &raw mut encoded[0], 16);
     if(r is Result.Err) { env.error("base64_encode failed"); return; }
-    var Ok(enc_len) = r else unreachable;
+    var Ok(enc_len) = r else unsafe { unreachable };
     var r2 = crypto::base64_decode(encoded, enc_len, &raw mut decoded[0], 6);
     if(r2 is Result.Err) { env.error("base64_decode failed"); return; }
-    var Ok(dec_len) = r2 else unreachable;
+    var Ok(dec_len) = r2 else unsafe { unreachable };
     if(!(dec_len == 6 && decoded[0] == 0xDE && decoded[1] == 0xAD && decoded[2] == 0xBE &&
          decoded[3] == 0xEF && decoded[4] == 0x00 && decoded[5] == 0xFF)) {
         env.error("base64 roundtrip should preserve data");

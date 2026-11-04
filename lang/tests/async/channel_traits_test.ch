@@ -21,7 +21,7 @@ func channel_handles_are_send_and_sync(env : &mut TestEnv) {
         env.error("channel lost the sent value")
         return
     }
-    var Some(value) = got else unreachable
+    var Some(value) = got else unsafe { unreachable }
     if(value != 7) {
         env.error("channel delivered the wrong value")
     }

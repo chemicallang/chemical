@@ -237,7 +237,7 @@ public namespace std {
                     }
                     P.m.unlock();
                     if(opt is std.Option.Some){
-                        var Some(tt)=opt else unreachable;
+                        var Some(tt)=opt else unsafe { unreachable };
                         tt.f()
                     }
                 }

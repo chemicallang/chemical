@@ -79,7 +79,7 @@ func test_slices() {
     test("try_from_utf8 accepts valid bytes", () => {
         var result = std::try_from_utf8(std::string_view("héllo"))
         if(result is Result.Ok) {
-            var Ok(value) = result else unreachable
+            var Ok(value) = result else unsafe { unreachable }
             return value.size() == 6
         }
         return false

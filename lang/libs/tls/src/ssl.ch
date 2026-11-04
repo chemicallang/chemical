@@ -4694,7 +4694,7 @@ public namespace tls {
         var der_buf : [4096]u8
         var result = crypto::base64_decode(b64_buf as *char, buf_pos, &raw mut der_buf[0], 4096)
         if(result is std::Result.Err) { return null }
-        var Ok(decoded_len) = result else unreachable
+        var Ok(decoded_len) = result else unsafe { unreachable }
 
         // Parse PKCS#1 RSAPrivateKey DER structure
         // SEQUENCE { version INTEGER, n INTEGER, e INTEGER, d INTEGER, p INTEGER, q INTEGER, ... }

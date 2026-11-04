@@ -1136,7 +1136,7 @@ Root cause found by emitting the 2c translation of an async function returning a
 ```chemical
 var r = handle.vtbl.poll(handle.frame, &raw mut cx)
 if(r is core::async::Poll.Ready) {
-    var Ready(value) = r else unreachable
+    var Ready(value) = r else unsafe { unreachable }
     break value
 }
 ```

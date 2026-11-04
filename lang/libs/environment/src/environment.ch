@@ -51,7 +51,7 @@ public func get(name : string_view) : Option<string> {
 public func get_or(name : string_view, default_val : string_view) : string {
     var opt = get(name);
     if(opt is Option.Some) {
-        var Some(v) = opt else unreachable;
+        var Some(v) = opt else unsafe { unreachable };
         return v.copy();
     }
     return string(default_val);

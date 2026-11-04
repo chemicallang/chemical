@@ -19,7 +19,7 @@ public func test_environment_async_set_get_unset(env : &mut TestEnv) {
     if(got is Option.None) {
         env.error("environment::get_async returned None")
     } else {
-        var Some(v) = got else unreachable
+        var Some(v) = got else unsafe { unreachable }
         if(v.size() != 5u) {
             env.error("environment::get_async value size mismatch")
         }

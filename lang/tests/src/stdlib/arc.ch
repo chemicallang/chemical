@@ -60,7 +60,7 @@ func arc_weak_upgrades_while_alive(env : &mut TestEnv) {
                 env.error("ArcWeak::upgrade failed while a strong owner was alive")
                 return
             }
-            var Some(b) = up else unreachable
+            var Some(b) = up else unsafe { unreachable }
             if(b.get().value != 12) {
                 env.error("ArcWeak::upgrade returned the wrong value")
             }
@@ -116,7 +116,7 @@ func arc_get_mut_requires_unique_owner(env : &mut TestEnv) {
                 env.error("Arc::get_mut failed for the sole owner")
                 return
             }
-            var Some(value) = allowed else unreachable
+            var Some(value) = allowed else unsafe { unreachable }
             value.value = 32
             if(a.get().value != 32) {
                 env.error("Arc::get_mut did not mutate the shared value")
@@ -160,7 +160,7 @@ func arc_try_unwrap_with_weak_handle(env : &mut TestEnv) {
                 env.error("Arc::try_unwrap failed for the sole strong owner")
                 return
             }
-            var Some(out) = u else unreachable
+            var Some(out) = u else unsafe { unreachable }
             if(out.value != 33) {
                 env.error("Arc::try_unwrap returned the wrong value")
             }
@@ -211,7 +211,7 @@ func arc_weak_upgrade_races_last_strong_drop(env : &mut TestEnv) {
         var t = std::thread.spawn<std::Arc<int>, int>(arc_worker_drop_after_delay, a)
         var up = w.upgrade()
         if(up is Option.Some) {
-            var Some(b) = up else unreachable
+            var Some(b) = up else unsafe { unreachable }
             if(*b.get() != 42) {
                 env.error("ArcWeak::upgrade returned a destroyed value")
                 return

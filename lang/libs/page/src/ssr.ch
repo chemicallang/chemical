@@ -87,7 +87,7 @@ public func getSsrAttributeValue(list : SsrAttributeList, name : SsrText) : SsrA
                 // gets copied
                 return d.value;
             } else if(d.value is SsrAttributeValue.Spread) {
-                var Spread(value) = d.value else unreachable;
+                var Spread(value) = d.value else unsafe { unreachable };
                 const found = getSsrAttributeValue(value, name)
                 if(found !is SsrAttributeValue.None) {
                     return found;
@@ -540,7 +540,7 @@ func accumulateAttrs(list : &SsrAttributeList, special : &mut SpecialAttrs) {
                         special.styles.push(&raw d.value)
                     } else {
                         if(d.value is SsrAttributeValue.Boolean) {
-                            var Boolean(value) = d.value else unreachable
+                            var Boolean(value) = d.value else unsafe { unreachable }
                             if(!value) {
                                 d++
                                 continue

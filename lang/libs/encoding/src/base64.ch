@@ -15,7 +15,7 @@ public func base64_encode(data : *u8, data_len : size_t, out : *mut char, out_le
     if(r is Result.Err) {
         return Result.Err(EncodingError.InvalidInput())
     }
-    var Ok(n) = r else unreachable
+    var Ok(n) = r else unsafe { unreachable }
     return Result.Ok(n)
 }
 
@@ -26,7 +26,7 @@ public func base64_decode(b64 : *char, b64_len : size_t, out : *mut u8, out_len 
     if(r is Result.Err) {
         return Result.Err(EncodingError.InvalidInput())
     }
-    var Ok(n) = r else unreachable
+    var Ok(n) = r else unsafe { unreachable }
     return Result.Ok(n)
 }
 
@@ -41,7 +41,7 @@ public func base64_encode_to_string(data : *u8, data_len : size_t) : Result<stri
         unsafe { free(buf) }
         return Result.Err(EncodingError.InvalidInput())
     }
-    var Ok(n) = r else unreachable
+    var Ok(n) = r else unsafe { unreachable }
     var s = unsafe(string.constructor(buf as *char, n))
     unsafe { free(buf) }
     return Result.Ok(s)
@@ -65,7 +65,7 @@ public func base64_decode_to_vec(b64 : string_view) : Result<vector<u8>, Encodin
     if(r is Result.Err) {
         return Result.Err(EncodingError.InvalidInput())
     }
-    var Ok(n) = r else unreachable
+    var Ok(n) = r else unsafe { unreachable }
     if(n < decoded_len) { out.resize(n) }
     return Result.Ok(out)
 }

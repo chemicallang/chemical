@@ -11,7 +11,7 @@ func ref_cell_allows_multiple_shared_borrows(env : &mut TestEnv) {
             env.error("RefCell::try_borrow failed on an unborrowed cell")
             return
         }
-        var Some(a) = first else unreachable
+        var Some(a) = first else unsafe { unreachable }
         if(*a.get() != 1) {
             env.error("RefCell shared borrow returned the wrong value")
         }
@@ -41,7 +41,7 @@ func ref_cell_mutable_borrow_is_exclusive(env : &mut TestEnv) {
             env.error("RefCell::try_borrow_mut failed on an unborrowed cell")
             return
         }
-        var Some(m) = borrowed else unreachable
+        var Some(m) = borrowed else unsafe { unreachable }
         *m.get_mut() = 7
         var blocked = cell.try_borrow()
         if(blocked is Option.Some) {
@@ -56,7 +56,7 @@ func ref_cell_mutable_borrow_is_exclusive(env : &mut TestEnv) {
         env.error("RefCell remained borrowed after the mutable guard left scope")
         return
     }
-    var Some(v) = view else unreachable
+    var Some(v) = view else unsafe { unreachable }
     if(*v.get() != 7) {
         env.error("RefCell mutation through RefMut was not visible")
     }

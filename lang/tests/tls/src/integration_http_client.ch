@@ -62,16 +62,16 @@ public func INT_https_get_200_body_headers(env : &mut TestEnv) {
         env.error("GET /hello over TLS failed")
         return
     }
-    var Ok(r) = res else unreachable;
+    var Ok(r) = res else unsafe { unreachable };
     if(r.status != 200u) { env.error("expected 200") }
     var body_opt = r.body.read_to_string()
     if(body_opt is std.Option.None) { env.error("body read failed"); return }
-    var Some(body) = body_opt else unreachable;
+    var Some(body) = body_opt else unsafe { unreachable };
     if(!body.equals_view("world")) { env.error("body mismatch") }
 
     var cust = r.headers.get("X-Custom")
     if(cust is std.Option.None) { env.error("X-Custom header missing") } else {
-        var Some(cv) = cust else unreachable;
+        var Some(cv) = cust else unsafe { unreachable };
         if(!cv.equals_view("chemical-test")) { env.error("X-Custom value mismatch") }
     }
 
@@ -101,18 +101,18 @@ public func INT_https_post_echo_roundtrip(env : &mut TestEnv) {
     var url = int_url(20201u, "/echo")
     var res = client.post(url.to_view(), payload.to_view(), "application/octet-stream")
     if(res is Result.Err) { env.error("POST /echo over TLS failed"); return }
-    var Ok(r) = res else unreachable;
+    var Ok(r) = res else unsafe { unreachable };
     if(r.status != 200u) { env.error("expected 200") }
 
     var body_opt = r.body.read_to_string()
     if(body_opt is std.Option.None) { env.error("body read failed"); return }
-    var Some(body) = body_opt else unreachable;
+    var Some(body) = body_opt else unsafe { unreachable };
     if(body.size() != 8192u) { env.error("echo length mismatch") }
     if(!body.equals_view(payload.to_view())) { env.error("echo bytes mismatch") }
 
     var ct = r.headers.get("X-Content-Type")
     if(ct is std.Option.None) { env.error("X-Content-Type missing") } else {
-        var Some(ctv) = ct else unreachable;
+        var Some(ctv) = ct else unsafe { unreachable };
         if(!ctv.equals_view("application/octet-stream")) { env.error("content type not propagated") }
     }
 
@@ -131,12 +131,12 @@ public func INT_https_large_download_200k(env : &mut TestEnv) {
     var url = int_url(20202u, "/size/200000")
     var res = client.get(url.to_view())
     if(res is Result.Err) { env.error("large download failed"); return }
-    var Ok(r) = res else unreachable;
+    var Ok(r) = res else unsafe { unreachable };
     if(r.status != 200u) { env.error("expected 200") }
 
     var body_opt = r.body.read_to_string()
     if(body_opt is std.Option.None) { env.error("body read failed"); return }
-    var Some(body) = body_opt else unreachable;
+    var Some(body) = body_opt else unsafe { unreachable };
     if(body.size() != 200000u) { env.error("download truncated or oversized") }
 
     // Spot-check the i%251 pattern at several offsets.
@@ -163,17 +163,17 @@ public func INT_https_status_codes_propagate(env : &mut TestEnv) {
 
     var r1 = client.get(u201.to_view())
     if(r1 is Result.Err) { env.error("status/201 request failed") } else {
-        var Ok(x1) = r1 else unreachable;
+        var Ok(x1) = r1 else unsafe { unreachable };
         if(x1.status != 201u) { env.error("expected 201") }
     }
     var r2 = client.get(u404.to_view())
     if(r2 is Result.Err) { env.error("status/404 request failed") } else {
-        var Ok(x2) = r2 else unreachable;
+        var Ok(x2) = r2 else unsafe { unreachable };
         if(x2.status != 404u) { env.error("expected 404") }
     }
     var r3 = client.get(u500.to_view())
     if(r3 is Result.Err) { env.error("status/500 request failed") } else {
-        var Ok(x3) = r3 else unreachable;
+        var Ok(x3) = r3 else unsafe { unreachable };
         if(x3.status != 500u) { env.error("expected 500") }
     }
 
@@ -192,17 +192,17 @@ public func INT_https_query_params_reach_server(env : &mut TestEnv) {
     var base = string("https://127.0.0.1:20204/query")
     var u_opt = URL::parse(base.to_view())
     if(u_opt is std::Option.None) { env.error("url parse failed"); return }
-    var Some(u) = u_opt else unreachable;
+    var Some(u) = u_opt else unsafe { unreachable };
     var rb = RequestBuilder("GET", std::replace(&mut u, URL()))
     rb.query("q", "hello-world")
     rb.query("n", "42")
     var res = client.request(&rb)
     if(res is Result.Err) { env.error("query request failed"); return }
-    var Ok(r) = res else unreachable;
+    var Ok(r) = res else unsafe { unreachable };
 
     var body_opt = r.body.read_to_string()
     if(body_opt is std::Option.None) { env.error("body read failed"); return }
-    var Some(body) = body_opt else unreachable;
+    var Some(body) = body_opt else unsafe { unreachable };
     // The python server echoes the raw query string it received.
     if(!body.equals_view("q=hello-world&n=42")) { env.error("query mismatch") }
 
@@ -221,16 +221,16 @@ public func INT_https_custom_request_headers(env : &mut TestEnv) {
     var base = string("https://127.0.0.1:20205/hdrs")
     var u_opt = URL::parse(base.to_view())
     if(u_opt is std::Option.None) { env.error("url parse failed"); return }
-    var Some(u) = u_opt else unreachable;
+    var Some(u) = u_opt else unsafe { unreachable };
     var rb = RequestBuilder("GET", std::replace(&mut u, URL()))
     rb.header("X-Test", "chemical-rocks")
     var res = client.request(&rb)
     if(res is Result.Err) { env.error("headers request failed"); return }
-    var Ok(r) = res else unreachable;
+    var Ok(r) = res else unsafe { unreachable };
 
     var body_opt = r.body.read_to_string()
     if(body_opt is std::Option.None) { env.error("body read failed"); return }
-    var Some(body) = body_opt else unreachable;
+    var Some(body) = body_opt else unsafe { unreachable };
     // Server echoes "X-Test|User-Agent".
     if(!body.contains("chemical-rocks")) { env.error("custom header did not arrive") }
     if(!body.contains("chemical-client")) { env.error("default User-Agent not sent") }
@@ -250,7 +250,7 @@ public func INT_https_head_request_empty_body(env : &mut TestEnv) {
     var url = int_url(20206u, "/hello")
     var res = client.head(url.to_view())
     if(res is Result.Err) { env.error("HEAD over TLS failed"); return }
-    var Ok(r) = res else unreachable;
+    var Ok(r) = res else unsafe { unreachable };
     if(r.status != 200u) { env.error("HEAD expected 200") }
 
     var cust = r.headers.get("X-Custom")
@@ -271,10 +271,10 @@ public func INT_https_put_patch_delete_work(env : &mut TestEnv) {
     var uput = int_url(20207u, "/put")
     var r1 = client.put(uput.to_view(), string_view("data1"), "text/plain")
     if(r1 is Result.Err) { env.error("PUT failed") } else {
-        var Ok(x) = r1 else unreachable;
+        var Ok(x) = r1 else unsafe { unreachable };
         var b1 = x.body.read_to_string()
         if(b1 is std.Option.None) { env.error("PUT body missing") } else {
-            var Some(bb) = b1 else unreachable;
+            var Some(bb) = b1 else unsafe { unreachable };
             if(!bb.equals_view("put:data1")) { env.error("PUT echo mismatch") }
         }
     }
@@ -282,17 +282,17 @@ public func INT_https_put_patch_delete_work(env : &mut TestEnv) {
     var upatch = int_url(20207u, "/patch")
     var r2 = client.patch(upatch.to_view(), string_view("{}"), "application/json")
     if(r2 is Result.Err) { env.error("PATCH failed") } else {
-        var Ok(x2) = r2 else unreachable;
+        var Ok(x2) = r2 else unsafe { unreachable };
         if(x2.status != 200u) { env.error("PATCH expected 200") }
     }
 
     var udel = int_url(20207u, "/del")
     var r3 = client.delete(udel.to_view())
     if(r3 is Result.Err) { env.error("DELETE failed") } else {
-        var Ok(x3) = r3 else unreachable;
+        var Ok(x3) = r3 else unsafe { unreachable };
         var b3 = x3.body.read_to_string()
         if(b3 is std.Option.None) { env.error("DELETE body missing") } else {
-            var Some(bb3) = b3 else unreachable;
+            var Some(bb3) = b3 else unsafe { unreachable };
             if(!bb3.equals_view("deleted")) { env.error("DELETE body mismatch") }
         }
     }
@@ -312,13 +312,13 @@ public func INT_https_chunked_response_parsed(env : &mut TestEnv) {
     var url = int_url(20208u, "/chunked")
     var res = client.get(url.to_view())
     if(res is Result.Err) { env.error("chunked request failed"); return }
-    var Ok(r) = res else unreachable;
+    var Ok(r) = res else unsafe { unreachable };
     if(r.status != 200u) { env.error("chunked expected 200") }
     if(!r.body.is_chunked()) { env.error("response should be flagged chunked") }
 
     var body_opt = r.body.read_to_string()
     if(body_opt is std::Option.None) { env.error("chunked body read failed"); return }
-    var Some(body) = body_opt else unreachable;
+    var Some(body) = body_opt else unsafe { unreachable };
     // The python server splits 'chunked-body-data' into two chunks.
     if(!body.equals_view("chunked-body-data")) { env.error("chunk reassembly mismatch") }
 
@@ -351,12 +351,12 @@ public func INT_https_verified_with_custom_ca(env : &mut TestEnv) {
         test_kill_port(20209u)
         return
     }
-    var Ok(r) = res else unreachable;
+    var Ok(r) = res else unsafe { unreachable };
     if(r.status != 200u) { env.error("expected 200") }
 
     var body_opt = r.body.read_to_string()
     if(body_opt is std.Option.None) { env.error("body read failed"); cert_chain_free(root); return }
-    var Some(body) = body_opt else unreachable;
+    var Some(body) = body_opt else unsafe { unreachable };
     if(!body.equals_view("world")) { env.error("body mismatch on verified connection") }
 
     cert_chain_free(root)
@@ -466,17 +466,17 @@ public func INT_http_plain_and_https_same_client(env : &mut TestEnv) {
 
     var r_plain = client.get(string_view("http://127.0.0.1:20212/"))
     if(r_plain is Result.Err) { env.error("plain http request through shared client failed") } else {
-        var Ok(p1) = r_plain else unreachable;
+        var Ok(p1) = r_plain else unsafe { unreachable };
         if(p1.status != 200u) { env.error("plain http expected 200") }
     }
 
     var r_tls = client.get(string_view("https://127.0.0.1:20213/hello"))
     if(r_tls is Result.Err) { env.error("https request through shared client failed") } else {
-        var Ok(t1) = r_tls else unreachable;
+        var Ok(t1) = r_tls else unsafe { unreachable };
         if(t1.status != 200u) { env.error("https expected 200") }
         var b_opt = t1.body.read_to_string()
         if(b_opt is std::Option.None) { env.error("https body read failed") } else {
-            var Some(bd) = b_opt else unreachable;
+            var Some(bd) = b_opt else unsafe { unreachable };
             if(!bd.equals_view("world")) { env.error("https body mismatch") }
         }
     }

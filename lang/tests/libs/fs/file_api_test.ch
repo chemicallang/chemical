@@ -19,13 +19,13 @@ func test_fs_file_low_level_api(env : &mut TestEnv) {
 
     var r_open = fs::file_open(p.data(), opts);
     expect_true(env, !(r_open is Result.Err), "file_open (create) failed");
-    var Ok(f) = r_open else unreachable;
+    var Ok(f) = r_open else unsafe { unreachable };
     
     var data : *char = "chemical low level";
     var len = unsafe(strlen(data)) as size_t;
     var r_write = fs::file_write(&raw mut f, data as *u8, len);
     expect_true(env, !(r_write is Result.Err), "file_write failed");
-    var Ok(n_written) = r_write else unreachable;
+    var Ok(n_written) = r_write else unsafe { unreachable };
     expect_eq_usize(env, n_written, len, "written size mismatch");
 
     fs::file_close(&raw mut f);
@@ -35,12 +35,12 @@ func test_fs_file_low_level_api(env : &mut TestEnv) {
     opts.truncate = false;
     var r_open2 = fs::file_open(p.data(), opts);
     expect_true(env, !(r_open2 is Result.Err), "file_open (read) failed");
-    var Ok(f2) = r_open2 else unreachable;
+    var Ok(f2) = r_open2 else unsafe { unreachable };
 
     var buf : [64]u8;
     var r_read = fs::file_read(&raw mut f2, &raw mut buf[0], 64);
     expect_true(env, !(r_read is Result.Err), "file_read failed");
-    var Ok(n_read) = r_read else unreachable;
+    var Ok(n_read) = r_read else unsafe { unreachable };
     expect_eq_usize(env, n_read, len, "read size mismatch");
     expect_true(env, bytes_equal(&raw mut buf[0], n_read, data, "content mismatch", env), "content mismatch");
 
@@ -64,7 +64,7 @@ func test_fs_atomic_write(env : &mut TestEnv) {
 
     var rd = fs::read_entire_file(p.data());
     expect_true(env, !(rd is Result.Err), "read_entire_file failed");
-    var Ok(vec) = rd else unreachable;
+    var Ok(vec) = rd else unsafe { unreachable };
     expect_true(env, vec.size() == len, "size mismatch");
 
     fs::remove_dir_all_recursive(base.data());
@@ -88,7 +88,7 @@ func test_fs_move_path(env : &mut TestEnv) {
     expect_true(env, fs::exists(dst.data()), "destination should exist after move");
 
     var rd = fs::read_entire_file(dst.data());
-    var Ok(vec) = rd else unreachable;
+    var Ok(vec) = rd else unsafe { unreachable };
     expect_true(env, vec.size() == unsafe(strlen(data)) as size_t, "content size mismatch");
 
     fs::remove_dir_all_recursive(base.data());

@@ -73,7 +73,7 @@ func reg_run_bridge(title : *char) : bool {
         g_reg_wv = null
         return false
     }
-    var Ok(wv) = wv_result else unreachable
+    var Ok(wv) = wv_result else unsafe { unreachable }
     g_reg_wv = &raw mut wv
 
     webview::webview_bind(&raw mut wv, (method, args) => {
@@ -120,7 +120,7 @@ public func test_webview_load_html_large_page(env : &mut TestEnv) {
         env.error("webview::create failed (is a display available?)")
         return
     }
-    var Ok(wv) = wv_result else unreachable
+    var Ok(wv) = wv_result else unsafe { unreachable }
     g_reg_wv = &raw mut wv
 
     webview::webview_bind(&raw mut wv, (method, args) => {
@@ -162,7 +162,7 @@ public func test_webview_evaluate_js_large_script(env : &mut TestEnv) {
         env.error("webview::create failed (is a display available?)")
         return
     }
-    var Ok(wv) = wv_result else unreachable
+    var Ok(wv) = wv_result else unsafe { unreachable }
     g_reg_wv = &raw mut wv
 
     webview::webview_bind(&raw mut wv, (method, args) => {
@@ -211,7 +211,7 @@ public func test_webview_init_large_script(env : &mut TestEnv) {
         env.error("webview::create failed (is a display available?)")
         return
     }
-    var Ok(wv) = wv_result else unreachable
+    var Ok(wv) = wv_result else unsafe { unreachable }
     g_reg_wv = &raw mut wv
 
     webview::webview_bind(&raw mut wv, (method, args) => {

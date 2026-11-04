@@ -276,7 +276,7 @@ func test_block_on_timeout_ready(env : &mut TestEnv) {
         env.error("block_on_timeout on an already-ready handle should complete")
         return
     }
-    var Some(v) = d else unreachable
+    var Some(v) = d else unsafe { unreachable }
     if(v != 9) {
         env.error("block_on_timeout already-ready value mismatch")
     }
@@ -326,7 +326,7 @@ func test_spawn_variant_payload(env : &mut TestEnv) {
         env.error("spawned Option payload should be Some")
         return
     }
-    var Some(v) = d else unreachable
+    var Some(v) = d else unsafe { unreachable }
     if(v != 5) {
         env.error("spawned Option payload value mismatch")
     }

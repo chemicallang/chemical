@@ -301,7 +301,7 @@ func test_generic_instantiation() {
     test("generic variant containing generic struct Ok works", () => {
         var result = GenericResult.Ok<int>(GenericBox<int> { item : 42 })
         if(result is GenericResult.Ok) {
-            var Ok(val) = result else unreachable
+            var Ok(val) = result else unsafe { unreachable }
             return val.item == 42
         }
         return false
@@ -309,7 +309,7 @@ func test_generic_instantiation() {
     test("generic variant containing generic struct Err works", () => {
         var result = GenericResult.Err<int>(404)
         if(result is GenericResult.Err) {
-            var Err(code) = result else unreachable
+            var Err(code) = result else unsafe { unreachable }
             return code == 404
         }
         return false

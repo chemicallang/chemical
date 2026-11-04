@@ -418,7 +418,7 @@ public func INT_base64_decode_vs_python(env : &mut TestEnv) {
 
     var enc : [72]char; var enc_r = base64_encode(&raw data[0], 48, &raw mut enc[0], 72)
     if(enc_r is Result.Err) { env.error("b64 enc failed"); return }
-    var Ok(enc_len) = enc_r else unreachable
+    var Ok(enc_len) = enc_r else unsafe { unreachable }
 
     var script : [256]u8; var sp : size_t = 0
     var hdr = "import base64;d=bytes.fromhex('" as *char; var si : size_t = 0
@@ -434,7 +434,7 @@ public func INT_base64_decode_vs_python(env : &mut TestEnv) {
     // Now decode back
     var dec_r = base64_decode(&raw enc[0], enc_len, &raw mut data[0], 48)
     if(dec_r is Result.Err) { env.error("b64 dec failed"); return }
-    var Ok(dec_len) = dec_r else unreachable
+    var Ok(dec_len) = dec_r else unsafe { unreachable }
     if(dec_len != 48) { env.error("b64 dec length mismatch"); return }
     // Already verified via encode roundtrip in existing tests
 

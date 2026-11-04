@@ -89,7 +89,7 @@ public namespace server {
             if(req.body_len > 0u) { body_len = req.body_len as isize; }
             var te_opt = req.headers.get("Transfer-Encoding");
             if(te_opt is std::Option.Some) {
-                var Some(te) = te_opt else unreachable;
+                var Some(te) = te_opt else unsafe { unreachable };
                 if(te.equals_with_len("chunked", 7)) { chunked = true; body_len = -1; }
             }
 
@@ -291,7 +291,7 @@ public namespace server {
                              if(req.body_len > 0u) { body_len = req.body_len as isize; }
                              var te_opt = req.headers.get("Transfer-Encoding");
                              if(te_opt is std::Option.Some) {
-                                var Some(te) = te_opt else unreachable;
+                                var Some(te) = te_opt else unsafe { unreachable };
                                 if(te.equals_with_len("chunked", 7)) { chunked = true; body_len = -1; }
                              }
                              var leftovers_sz = abuf.size() - crlfpos;
@@ -315,7 +315,7 @@ public namespace server {
                              var ka = true;
                              var c_opt = req.headers.get("Connection");
                              if(c_opt is std::Option.Some) {
-                                 var Some(cv) = c_opt else unreachable;
+                                 var Some(cv) = c_opt else unsafe { unreachable };
                                  if(cv.equals_with_len("close", 5)) { ka = false; }
                              }
                              if(ka) {

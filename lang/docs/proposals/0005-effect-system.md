@@ -117,7 +117,7 @@ no_panic = true
 - A current-module forward call without a declaration errors (no fixpoint
   inference happens).
 - `unreachable` is reported as `unsafe`, not `panic`; thus `[no_panic, no_unsafe]`
-  rejects `else unreachable`.
+  rejects an unmarked `else unreachable` (it may still write `else unsafe { unreachable }`).
 - No measurable compile-time or memory regression (bitset checks).
 - Tests run on interpreter, TCC and LLVM.
 

@@ -40,7 +40,7 @@ public func LIMIT_max_body_len_enforced(env : &mut TestEnv) {
 
     var r1 = capped.get(u.to_view())
     if(r1 is Result.Err) { env.error("capped request should still receive headers"); test_kill_port(PORT as int); return }
-    var Ok(x1) = r1 else unreachable;
+    var Ok(x1) = r1 else unsafe { unreachable };
     var b1 = x1.body.read_to_string()
     if(b1 is std.Option.Some) {
         env.error("body read must fail once max_body_len is exceeded")
@@ -51,10 +51,10 @@ public func LIMIT_max_body_len_enforced(env : &mut TestEnv) {
     full.insecure_skip_verify()
     var r2 = full.get(u.to_view())
     if(r2 is Result.Err) { env.error("control download failed"); test_kill_port(PORT as int); return }
-    var Ok(x2) = r2 else unreachable;
+    var Ok(x2) = r2 else unsafe { unreachable };
     var b2 = x2.body.read_to_string()
     if(b2 is std.Option.None) { env.error("control body read failed"); test_kill_port(PORT as int); return }
-    var Some(v2) = b2 else unreachable;
+    var Some(v2) = b2 else unsafe { unreachable };
     if(v2.size() != 65536u) {
         env.error("control download length mismatch")
         var msg = string("got ")
@@ -110,11 +110,11 @@ public func LIMIT_max_response_header_bytes_enforced(env : &mut TestEnv) {
         r2 = client.get(uo.to_view())
     }
     if(r2 is Result.Err) { env.error("normal-size response failed"); test_kill_port(OK_PORT as int); test_kill_port(BIG_PORT as int); return }
-    var Ok(x2) = r2 else unreachable;
+    var Ok(x2) = r2 else unsafe { unreachable };
     if(x2.status != 200u) { env.error("control expected 200") }
     var h = x2.headers.get("X-H-3")
     if(h is std.Option.None) { env.error("control header missing") } else {
-        var Some(hv) = h else unreachable;
+        var Some(hv) = h else unsafe { unreachable };
         if(!hv.equals_view("vvvvvvvv")) { env.error("control header value mismatch") }
     }
 
@@ -145,7 +145,7 @@ public func LIMIT_request_timeout_short_fails_long_succeeds(env : &mut TestEnv) 
     // Impatient request â€” must time out.
     var u_opt1 = URL::parse(base.to_view())
     if(u_opt1 is std::Option.None) { env.error("url parse failed"); test_kill_port(PORT as int); return }
-    var Some(u1) = u_opt1 else unreachable;
+    var Some(u1) = u_opt1 else unsafe { unreachable };
     var rb1 = RequestBuilder("GET", std::replace(&mut u1, URL()))
     rb1.timeout(1)
     var r1 = client.request(&rb1)
@@ -156,16 +156,16 @@ public func LIMIT_request_timeout_short_fails_long_succeeds(env : &mut TestEnv) 
     // Patient request â€” must succeed.
     var u_opt2 = URL::parse(base.to_view())
     if(u_opt2 is std::Option.None) { env.error("url parse failed"); test_kill_port(PORT as int); return }
-    var Some(u2) = u_opt2 else unreachable;
+    var Some(u2) = u_opt2 else unsafe { unreachable };
     var rb2 = RequestBuilder("GET", std::replace(&mut u2, URL()))
     rb2.timeout(10)
     var r2 = client.request(&rb2)
     if(r2 is Result.Err) { env.error("10s timeout should tolerate the 3s delay"); test_kill_port(PORT as int); return }
-    var Ok(x2) = r2 else unreachable;
+    var Ok(x2) = r2 else unsafe { unreachable };
     if(x2.status != 200u) { env.error("slow request expected 200") }
     var b = x2.body.read_to_string()
     if(b is std.Option.None) { env.error("slow request body read failed"); test_kill_port(PORT as int); return }
-    var Some(v) = b else unreachable;
+    var Some(v) = b else unsafe { unreachable };
     if(!v.equals_view("late-ok")) { env.error("slow request body mismatch") }
 
     test_kill_port(PORT as int)
@@ -192,12 +192,12 @@ public func LIMIT_truncated_body_detected(env : &mut TestEnv) {
     var u = lim_url(PORT, "/truncated")
     var res = client.post(u.to_view(), string_view("0123456789ABCDEF"), "text/plain")
     if(res is Result.Err) { env.error("truncated request should parse headers"); test_kill_port(PORT as int); return }
-    var Ok(r) = res else unreachable;
+    var Ok(r) = res else unsafe { unreachable };
     if(r.status != 200u) { env.error("expected 200 status despite later truncation") }
 
     var b = r.body.read_to_string()
     if(b is std.Option.Some) {
-        var Some(v) = b else unreachable;
+        var Some(v) = b else unsafe { unreachable };
         if(v.size() >= 1000u) {
             env.error("server only sent 400 bytes; full 1000 cannot have arrived")
         } else {

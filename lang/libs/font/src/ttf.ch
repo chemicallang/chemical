@@ -77,7 +77,7 @@ public func font_load(path : *char) : std::Result<Font, FontError> {
         }
 
         var font = Font.make()
-        var Ok(data) = read_result else unreachable
+        var Ok(data) = read_result else unsafe { unreachable }
         unsafe { memcpy(&raw mut font.data, &raw data, sizeof(vector<u8>)) }
         new(&raw data) vector<u8>()
 
@@ -130,7 +130,7 @@ func parse_font_header(font : *mut Font) : std::Result<std::Unit, FontError> {
         // Read head table for units_per_em
         var head_result = find_table(font, 0x68656164u32) // 'head'
         if(head_result is Result.Ok) {
-            var Ok(head) = head_result else unreachable
+            var Ok(head) = head_result else unsafe { unreachable }
             if((head.offset as size_t) + 54 <= font.data.size()) {
                 font.units_per_em = read_u16_be(font.data.data(), (head.offset as size_t) + 18)
             }
@@ -139,7 +139,7 @@ func parse_font_header(font : *mut Font) : std::Result<std::Unit, FontError> {
         // Read hhea table for ascent/descent
         var hhea_result = find_table(font, 0x68686561u32) // 'hhea'
         if(hhea_result is Result.Ok) {
-            var Ok(hhea) = hhea_result else unreachable
+            var Ok(hhea) = hhea_result else unsafe { unreachable }
             if((hhea.offset as size_t) + 36 <= font.data.size()) {
                 font.ascent = read_i16_be(font.data.data(), (hhea.offset as size_t) + 4)
                 font.descent = read_i16_be(font.data.data(), (hhea.offset as size_t) + 6)
@@ -149,7 +149,7 @@ func parse_font_header(font : *mut Font) : std::Result<std::Unit, FontError> {
         // Read maxp table for num_glyphs
         var maxp_result = find_table(font, 0x6D617870u32) // 'maxp'
         if(maxp_result is Result.Ok) {
-            var Ok(maxp) = maxp_result else unreachable
+            var Ok(maxp) = maxp_result else unsafe { unreachable }
             if((maxp.offset as size_t) + 32 <= font.data.size()) {
                 font.num_glyphs = read_u16_be(font.data.data(), (maxp.offset as size_t) + 4)
             }
@@ -218,7 +218,7 @@ func cmap_lookup(font : *mut Font, codepoint : u32) : u16 {
         unsafe {
         var cmap_result = find_table(font, 0x636D6170u32) // 'cmap'
         if(cmap_result is Result.Err) { return 0 }
-        var Ok(cmap) = cmap_result else unreachable
+        var Ok(cmap) = cmap_result else unsafe { unreachable }
         var base = cmap.offset as size_t
 
         if(base + 4 > font.data.size()) { return 0 }
@@ -335,13 +335,13 @@ public func font_get_glyph_metrics(font : *mut Font, glyph_id : u16) : std::Resu
         if(hmtx_result is Result.Err) {
             return std.Result.Err(FontError.InvalidFormat(string("hmtx table not found")))
         }
-        var Ok(hmtx) = hmtx_result else unreachable
+        var Ok(hmtx) = hmtx_result else unsafe { unreachable }
         var base = hmtx.offset as size_t
 
         var num_lsb : u16 = 0
         var hhea_result = find_table(font, 0x68686561u32)
         if(hhea_result is Result.Ok) {
-            var Ok(hhea) = hhea_result else unreachable
+            var Ok(hhea) = hhea_result else unsafe { unreachable }
             if((hhea.offset as size_t) + 34 <= font.data.size()) {
                 num_lsb = read_u16_be(font.data.data(), (hhea.offset as size_t) + 34)
             }
@@ -384,7 +384,7 @@ public func font_get_glyph_outline(font : *mut Font, glyph_id : u16) : std::Resu
         if(glyf_result is Result.Err) {
             return std.Result.Err(FontError.UnsupportedFeature(string("glyf table not found")))
         }
-        var Ok(glyf) = glyf_result else unreachable
+        var Ok(glyf) = glyf_result else unsafe { unreachable }
         var base = glyf.offset as size_t
 
         // Get location offset from 'loca' table
@@ -392,14 +392,14 @@ public func font_get_glyph_outline(font : *mut Font, glyph_id : u16) : std::Resu
         if(loca_result is Result.Err) {
             return std.Result.Err(FontError.InvalidFormat(string("loca table not found")))
         }
-        var Ok(loca) = loca_result else unreachable
+        var Ok(loca) = loca_result else unsafe { unreachable }
         var loca_base = loca.offset as size_t
 
         // Determine if short or long format from head table
         var is_short = true
         var head_result = find_table(font, 0x68656164u32)
         if(head_result is Result.Ok) {
-            var Ok(head) = head_result else unreachable
+            var Ok(head) = head_result else unsafe { unreachable }
             if((head.offset as size_t) + 50 <= font.data.size()) {
                 var index_to_loc_format = read_i32_be(font.data.data(), (head.offset as size_t) + 50)
                 is_short = (index_to_loc_format == 0)
@@ -555,10 +555,10 @@ public func font_measure_text(font : *mut Font, text : *char, text_len : size_t,
             var cp = text[i] as u32
             var glyph_result = font_get_glyph(font, cp)
             if(glyph_result is Result.Ok) {
-                var Ok(glyph_id) = glyph_result else unreachable
+                var Ok(glyph_id) = glyph_result else unsafe { unreachable }
                 var metrics_result = font_get_glyph_metrics(font, glyph_id)
                 if(metrics_result is Result.Ok) {
-                    var Ok(metrics) = metrics_result else unreachable
+                    var Ok(metrics) = metrics_result else unsafe { unreachable }
                     total_width += (metrics.advance_width as float * scale) as i32
                     var glyph_height = (metrics.ymax - metrics.ymin)
                     if(glyph_height > max_height) { max_height = glyph_height }

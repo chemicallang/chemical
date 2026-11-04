@@ -13,7 +13,7 @@ public func test_process_execute(env : &mut TestEnv) {
         env.error("process::execute returned Err")
         return
     }
-    var Ok(r) = res else unreachable
+    var Ok(r) = res else unsafe { unreachable }
     if(!r.success) {
         env.error("process::execute did not succeed")
         return

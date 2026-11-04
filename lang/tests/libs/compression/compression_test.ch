@@ -84,7 +84,7 @@ func test_rle_decompress_empty(env : &mut TestEnv) {
     var dec_len : size_t = 0;
     var r = compression::decompress(&raw compressed[0], 1, &raw mut decompressed[0], &raw mut dec_len, 8);
     if(r is Result.Err) { env.error("decompress failed"); return; }
-    var Ok(len) = r else unreachable;
+    var Ok(len) = r else unsafe { unreachable };
     if(len != 0) {
         env.error("RLE decompress of empty should return len 0");
     }

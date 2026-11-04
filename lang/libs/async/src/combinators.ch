@@ -20,7 +20,7 @@ public func <T> poll_take_ready(p : *mut core::async::Poll<T>) : T {
         unsafe {
         var temp : T
         unsafe {
-            var Ready(value) = *p else unreachable
+            var Ready(value) = *p else unsafe { unreachable }
             memcpy(&raw mut temp, &raw value, sizeof(T))
             new(p) core::async::Poll.Pending<T>()
             return temp;

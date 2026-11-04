@@ -18,7 +18,7 @@ func test_sha256_then_hex_hello(env : &mut TestEnv) {
     var hex_buf : [128]char;
     var r = encoding::hex_encode(&raw digest[0], 32, &raw mut hex_buf[0], 128);
     if(r is Result.Err) { env.error("hex_encode failed"); return; }
-    var Ok(len) = r else unreachable;
+    var Ok(len) = r else unsafe { unreachable };
     // SHA-256("Hello") hex-encoded
     if(!(len == 64 && hex_buf[0] == '1' && hex_buf[1] == '8' && hex_buf[62] == '6' && hex_buf[63] == '9')) {
         env.error("SHA-256(Hello) hex mismatch");
@@ -32,7 +32,7 @@ func test_md5_then_hex_empty(env : &mut TestEnv) {
     var hex_buf : [128]char;
     var r = encoding::hex_encode(&raw digest[0], 16, &raw mut hex_buf[0], 128);
     if(r is Result.Err) { env.error("hex_encode failed"); return; }
-    var Ok(len) = r else unreachable;
+    var Ok(len) = r else unsafe { unreachable };
     // MD5("") = d41d8cd98f00b204e9800998ecf8427e
     if(!(len == 32 && hex_buf[0] == 'd' && hex_buf[1] == '4' && hex_buf[30] == '7' && hex_buf[31] == 'e')) {
         env.error("MD5(empty) hex mismatch");
@@ -47,7 +47,7 @@ func test_sha256_then_hex_upper(env : &mut TestEnv) {
     var hex_buf : [128]char;
     var r = encoding::hex_encode_upper(&raw digest[0], 32, &raw mut hex_buf[0], 128);
     if(r is Result.Err) { env.error("hex_encode_upper failed"); return; }
-    var Ok(len) = r else unreachable;
+    var Ok(len) = r else unsafe { unreachable };
     // SHA-256("abc") = BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD
     if(!(len == 64 && hex_buf[0] == 'B' && hex_buf[1] == 'A' && hex_buf[62] == 'A' && hex_buf[63] == 'D')) {
         env.error("SHA-256(abc) upper hex mismatch");
@@ -73,13 +73,13 @@ func test_compress_then_b64_roundtrip(env : &mut TestEnv) {
     var b64_buf : [512]char;
     var rb = crypto::base64_encode(&raw compressed[0], comp_len, &raw mut b64_buf[0], 512);
     if(rb is Result.Err) { env.error("base64_encode of compressed data failed"); return; }
-    var Ok(b64_len) = rb else unreachable;
+    var Ok(b64_len) = rb else unsafe { unreachable };
     if(b64_len < 1) { env.error("b64 encoded length should be > 0"); return; }
     // Base64 decode back
     var decoded_comp : [256]u8;
     var rd = crypto::base64_decode(b64_buf, b64_len, &raw mut decoded_comp[0], 256);
     if(rd is Result.Err) { env.error("base64_decode failed"); return; }
-    var Ok(dec_comp_len) = rd else unreachable;
+    var Ok(dec_comp_len) = rd else unsafe { unreachable };
     // Decompress
     var decompressed : [256]u8;
     var dec_len : size_t = 0;
@@ -112,12 +112,12 @@ func test_compress_then_hex_roundtrip(env : &mut TestEnv) {
     var hex_buf : [512]char;
     var rh = encoding::hex_encode(&raw compressed[0], comp_len, &raw mut hex_buf[0], 512);
     if(rh is Result.Err) { env.error("hex_encode of compressed data failed"); return; }
-    var Ok(hex_len) = rh else unreachable;
+    var Ok(hex_len) = rh else unsafe { unreachable };
     // Hex-decode back
     var decoded_comp : [128]u8;
     var rhd = encoding::hex_decode(hex_buf, &raw mut decoded_comp[0], 128);
     if(rhd is Result.Err) { env.error("hex_decode failed"); return; }
-    var Ok(dec_comp_len) = rhd else unreachable;
+    var Ok(dec_comp_len) = rhd else unsafe { unreachable };
     // Decompress
     var decompressed : [128]u8;
     var dec_len : size_t = 0;
@@ -142,7 +142,7 @@ func test_path_basename_then_hash(env : &mut TestEnv) {
     var buf : [4096]char;
     var r = path::basename("/usr/bin/gcc", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("basename failed"); return; }
-    var Ok(len) = r else unreachable;
+    var Ok(len) = r else unsafe { unreachable };
     // Hash the basename "gcc" as data
     var digest : [32]u8;
     crypto::sha256_hash(&raw buf[0] as *u8, len, &raw mut digest[0]);
@@ -157,7 +157,7 @@ func test_path_normalize_then_hex_hash(env : &mut TestEnv) {
     var buf : [4096]char;
     var r = path::normalize("/usr/bin/../lib/./file.txt", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("normalize failed"); return; }
-    var Ok(len) = r else unreachable;
+    var Ok(len) = r else unsafe { unreachable };
     // Hash the normalized path
     var digest : [32]u8;
     crypto::sha256_hash(&raw buf[0] as *u8, len, &raw mut digest[0]);
@@ -165,7 +165,7 @@ func test_path_normalize_then_hex_hash(env : &mut TestEnv) {
     var hex_buf : [128]char;
     var rh = encoding::hex_encode(&raw digest[0], 32, &raw mut hex_buf[0], 128);
     if(rh is Result.Err) { env.error("hex_encode failed"); return; }
-    var Ok(hex_len) = rh else unreachable;
+    var Ok(hex_len) = rh else unsafe { unreachable };
     if(hex_len != 64) { env.error("hash hex output should be 64 chars"); return; }
     // Verify the hex string is all hex digits (0-9, a-f)
     var valid = true;
@@ -190,13 +190,13 @@ func test_hex_decode_then_b64_encode(env : &mut TestEnv) {
     var bytes : [16]u8;
     var rd = encoding::hex_decode(hex, &raw mut bytes[0], 16);
     if(rd is Result.Err) { env.error("hex_decode failed"); return; }
-    var Ok(byte_len) = rd else unreachable;
+    var Ok(byte_len) = rd else unsafe { unreachable };
     if(byte_len != 5) { env.error("expected 5 bytes from hex"); return; }
     // Base64 encode the decoded bytes
     var b64_buf : [32]char;
     var rb = crypto::base64_encode(&raw bytes[0], byte_len, &raw mut b64_buf[0], 32);
     if(rb is Result.Err) { env.error("base64_encode failed"); return; }
-    var Ok(b64_len) = rb else unreachable;
+    var Ok(b64_len) = rb else unsafe { unreachable };
     if(!(b64_len == 8 && b64_buf[0] == 'S' && b64_buf[1] == 'G' && b64_buf[2] == 'V' && b64_buf[3] == 's' &&
          b64_buf[4] == 'b' && b64_buf[5] == 'G' && b64_buf[6] == '8' && b64_buf[7] == '=')) {
         env.error("hex -> b64: expected SGVsbG8=");
@@ -209,13 +209,13 @@ func test_b64_decode_then_hex_encode(env : &mut TestEnv) {
     var bytes : [16]u8;
     var rd = crypto::base64_decode(b64, 8, &raw mut bytes[0], 16);
     if(rd is Result.Err) { env.error("base64_decode failed"); return; }
-    var Ok(byte_len) = rd else unreachable;
+    var Ok(byte_len) = rd else unsafe { unreachable };
     if(byte_len != 5) { env.error("expected 5 bytes from b64"); return; }
     // Hex-encode the decoded bytes
     var hex_buf : [32]char;
     var rh = encoding::hex_encode(&raw bytes[0], byte_len, &raw mut hex_buf[0], 32);
     if(rh is Result.Err) { env.error("hex_encode failed"); return; }
-    var Ok(hex_len) = rh else unreachable;
+    var Ok(hex_len) = rh else unsafe { unreachable };
     if(!(hex_len == 10 && hex_buf[0] == '4' && hex_buf[1] == '8' && hex_buf[2] == '6' && hex_buf[3] == '5' &&
          hex_buf[4] == '6' && hex_buf[5] == 'c' && hex_buf[6] == '6' && hex_buf[7] == 'c' && hex_buf[8] == '6' && hex_buf[9] == 'f')) {
         env.error("b64 -> hex: expected 48656c6c6f");
@@ -232,7 +232,7 @@ func test_url_encode_then_verify_with_hex(env : &mut TestEnv) {
     var url_buf : [32]char;
     var ru = encoding::url_encode(&raw data[0] as *char, 3, &raw mut url_buf[0], 32);
     if(ru is Result.Err) { env.error("url_encode failed"); return; }
-    var Ok(url_len) = ru else unreachable;
+    var Ok(url_len) = ru else unsafe { unreachable };
     // Verify the URL-encoded output contains valid percent-encoded bytes
     // %00%80%FF
     if(!(url_len == 9 && url_buf[0] == '%' && url_buf[1] == '0' && url_buf[2] == '0' &&
@@ -252,7 +252,7 @@ func test_path_hash_hex_b64_roundtrip(env : &mut TestEnv) {
     var path_buf : [4096]char;
     var rn = path::normalize("/a/./b/../c/", &raw mut path_buf[0], 4096);
     if(rn is Result.Err) { env.error("normalize failed"); return; }
-    var Ok(path_len) = rn else unreachable;
+    var Ok(path_len) = rn else unsafe { unreachable };
     // Hash the normalized path
     var digest : [32]u8;
     crypto::sha256_hash(&raw path_buf[0] as *u8, path_len, &raw mut digest[0]);
@@ -260,12 +260,12 @@ func test_path_hash_hex_b64_roundtrip(env : &mut TestEnv) {
     var hex_buf : [128]char;
     var rh = encoding::hex_encode(&raw digest[0], 32, &raw mut hex_buf[0], 128);
     if(rh is Result.Err) { env.error("hex_encode failed"); return; }
-    var Ok(hex_len) = rh else unreachable;
+    var Ok(hex_len) = rh else unsafe { unreachable };
     // Base64-encode the hex string (double encoding just for pipeline test)
     var b64_buf : [256]char;
     var rb = crypto::base64_encode(&raw hex_buf[0] as *u8, hex_len, &raw mut b64_buf[0], 256);
     if(rb is Result.Err) { env.error("base64_encode of hex failed"); return; }
-    var Ok(b64_len) = rb else unreachable;
+    var Ok(b64_len) = rb else unsafe { unreachable };
     // Verify b64 output is non-empty and valid base64
     if(b64_len < 4) { env.error("b64 output too short"); return; }
     var valid_b64 = true;
@@ -296,7 +296,7 @@ func test_hmac_then_hex(env : &mut TestEnv) {
     var hex_buf : [128]char;
     var rh = encoding::hex_encode(&raw digest[0], 32, &raw mut hex_buf[0], 128);
     if(rh is Result.Err) { env.error("hex_encode failed"); return; }
-    var Ok(hex_len) = rh else unreachable;
+    var Ok(hex_len) = rh else unsafe { unreachable };
     // Expected: 5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843
     if(!(hex_len == 64 && hex_buf[0] == '5' && hex_buf[1] == 'b' && hex_buf[62] == '4' && hex_buf[63] == '3')) {
         env.error("HMAC-SHA256 RFC 4231 case 2 hex mismatch");
@@ -319,12 +319,12 @@ func test_url_encode_utf8_then_decode(env : &mut TestEnv) {
     var url_buf : [64]char;
     var ru = encoding::url_encode(&raw utf8_data[0] as *char, 12, &raw mut url_buf[0], 64);
     if(ru is Result.Err) { env.error("url_encode of UTF-8 failed"); return; }
-    var Ok(url_len) = ru else unreachable;
+    var Ok(url_len) = ru else unsafe { unreachable };
     // URL-decode back
     var decoded_buf : [64]char;
     var rdu = encoding::url_decode(url_buf, url_len, &raw mut decoded_buf[0], 64);
     if(rdu is Result.Err) { env.error("url_decode failed"); return; }
-    var Ok(dec_len) = rdu else unreachable;
+    var Ok(dec_len) = rdu else unsafe { unreachable };
     if(dec_len != 12) { env.error("URL roundtrip length mismatch"); return; }
     var ok = true;
     var i : size_t = 0;
@@ -344,12 +344,12 @@ func test_path_extension_then_hex(env : &mut TestEnv) {
     var ext_buf : [256]char;
     var re = path::extension("document.txt", &raw mut ext_buf[0], 256);
     if(re is Result.Err) { env.error("extension failed"); return; }
-    var Ok(ext_len) = re else unreachable;
+    var Ok(ext_len) = re else unsafe { unreachable };
     // Hex-encode the extension bytes (including the dot)
     var hex_buf : [64]char;
     var rh = encoding::hex_encode(&raw ext_buf[0] as *u8, ext_len, &raw mut hex_buf[0], 64);
     if(rh is Result.Err) { env.error("hex_encode of extension failed"); return; }
-    var Ok(hex_len) = rh else unreachable;
+    var Ok(hex_len) = rh else unsafe { unreachable };
     // ".txt" = 0x2E 0x74 0x78 0x74 -> "2e747874"
     if(!(hex_len == 8 && hex_buf[0] == '2' && hex_buf[1] == 'e' &&
          hex_buf[6] == '7' && hex_buf[7] == '4')) {
@@ -402,17 +402,17 @@ func test_hex_b64_compress_inverse(env : &mut TestEnv) {
     var bytes : [64]u8;
     var rh = encoding::hex_decode(hex, &raw mut bytes[0], 64);
     if(rh is Result.Err) { env.error("hex_decode failed"); return; }
-    var Ok(byte_len) = rh else unreachable;
+    var Ok(byte_len) = rh else unsafe { unreachable };
     // Base64 encode those bytes
     var b64_buf : [128]char;
     var rb = crypto::base64_encode(&raw bytes[0], byte_len, &raw mut b64_buf[0], 128);
     if(rb is Result.Err) { env.error("base64_encode failed"); return; }
-    var Ok(b64_len) = rb else unreachable;
+    var Ok(b64_len) = rb else unsafe { unreachable };
     // Base64 decode back
     var decoded_bytes : [64]u8;
     var rbd = crypto::base64_decode(b64_buf, b64_len, &raw mut decoded_bytes[0], 64);
     if(rbd is Result.Err) { env.error("base64_decode failed"); return; }
-    var Ok(dec_byte_len) = rbd else unreachable;
+    var Ok(dec_byte_len) = rbd else unsafe { unreachable };
     // Compress decoded bytes
     var compressed : [128]u8;
     var comp_len : size_t = 0;
@@ -443,22 +443,22 @@ func test_path_join_hash_verify(env : &mut TestEnv) {
     var buf : [4096]char;
     var rj = path::join("/home", "user/docs/file.txt", &raw mut buf[0], 4096);
     if(rj is Result.Err) { env.error("join failed"); return; }
-    var Ok(join_len) = rj else unreachable;
+    var Ok(join_len) = rj else unsafe { unreachable };
     // Get the basename
     var base_buf : [256]char;
     var rb = path::basename(buf, &raw mut base_buf[0], 256);
     if(rb is Result.Err) { env.error("basename failed"); return; }
-    var Ok(base_len) = rb else unreachable;
+    var Ok(base_len) = rb else unsafe { unreachable };
     // Get the extension from basename
     var ext_buf : [256]char;
     var re = path::extension(base_buf, &raw mut ext_buf[0], 256);
     if(re is Result.Err) { env.error("extension failed"); return; }
-    var Ok(ext_len) = re else unreachable;
+    var Ok(ext_len) = re else unsafe { unreachable };
     // Verify extension is .txt via hex
     var hex_buf : [32]char;
     var rh = encoding::hex_encode(&raw ext_buf[0] as *u8, ext_len, &raw mut hex_buf[0], 32);
     if(rh is Result.Err) { env.error("hex_encode failed"); return; }
-    var Ok(hex_len) = rh else unreachable;
+    var Ok(hex_len) = rh else unsafe { unreachable };
     if(!(hex_len == 8 && hex_buf[0] == '2' && hex_buf[1] == 'e')) {
         env.error("extension .txt hex should be 2e747874");
     }

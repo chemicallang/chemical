@@ -19,7 +19,7 @@ public func test_practical_window_create_and_destroy(env : &mut TestEnv) {
     var res = window::window_create(&raw mut w)
     if(res is Result.Err) {
         // Headless CI — creation may fail, that's OK
-        var Err(e) = res else unreachable
+        var Err(e) = res else unsafe { unreachable }
         env.error(e.message().data())
         return
     }

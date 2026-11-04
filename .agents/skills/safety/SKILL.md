@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2478/2478` |
 | LLVM main | `2476/2476` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `802/802` |
+| TCC/LLVM negative | `804/804` |
 | TCC/LLVM safety | `78/78` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `735/735` |
@@ -62,7 +62,10 @@ wrapper tranches (`unsafe_func_decls 36 -> 41`, `panic_calls 113 -> 124`,
 - `SAFE-UNSAFE-001` — raw-pointer dereference/projection/index/arithmetic/
   delete/dealloc in safe context. Dereferencing a reference is safe.
 - `SAFE-UNSAFE-002` — call to `unsafe func`/`@extern`/unsafe function pointer,
-  unsafe-to-safe function-pointer coercion, and unsafe generic calls.
+  unsafe-to-safe function-pointer coercion, unsafe generic calls, a bare
+  `unreachable` statement, and a pattern `else unreachable` branch. Use
+  `else unsafe { unreachable }` (or `else unsafe unreachable`) to make the
+  pattern trap explicit; compiler-generated loop placeholders are exempt.
 - `SAFE-UNSAFE-003` — inline assembly outside `unsafe`.
 - `SAFE-PROV-001` — raw pointer/integer/null converted to a reference.
 - `SAFE-FFI-001` — `@extern` call from safe context.
@@ -618,7 +621,7 @@ Coded output renders `error[SAFE-*]:` / `warn[SAFE-*]:`; uncoded output keeps
 | `SAFE-SEND-003` | dynamic object's concrete value does not satisfy `+ Send`/`+ Sync`/`+ Unpin` |
 | `SAFE-TRAIT-001` | `unsafe interface` implemented without `unsafe impl` |
 | `SAFE-UNSAFE-001` | raw-pointer operation in safe context |
-| `SAFE-UNSAFE-002` | unsafe/extern call or unsafe-to-safe coercion |
+| `SAFE-UNSAFE-002` | unsafe/extern call, unsafe-to-safe coercion, or an unmarked trap |
 | `SAFE-UNSAFE-003` | inline assembly outside `unsafe` |
 | `SAFE-VALID-001` | zeroing would create a null reference |
 | `SAFE-VALID-002` | non-bool to `bool` cast in safe code |

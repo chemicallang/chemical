@@ -195,10 +195,12 @@ func <'a, 'b> shorten(values : &'a [int]) : &'b [int] where 'a : 'b {
 - `Box<[T]>` is a vector-backed owning wrapper, not a raw boxed allocation.
 - Fixed-size arrays support flat patterns (`var [a, b] = arr`,
   `[first, .., last]`, `_`). `[T]`/`&[T]`, `&mut [T]`, and `Box<[T]>` support
-  exact and rest refutable condition patterns (`if(var [a, b] = view)`,
-  `if(var [first, .., last] = view)`); trailing rest bindings use the runtime
-  slice length (`size - offset`). Statement forms with an `else` path are not
-  implemented yet.
+  exact and rest condition patterns (`if(var [a, b] = view)`,
+  `if(var [first, .., last] = view)`) and statement forms
+  (`var [first, .., last] = view`); trailing rest bindings use the runtime
+  slice length (`size - offset`). A statement pattern with the wrong runtime
+  length aborts through the bounds-check runtime. Statement forms with an
+  `else` path are not implemented yet.
 - `windows`/`chunks` cursors are not `for`-iterable yet (use `.get(i)`).
 - Explicit `&'a [T]`, `&'a mut [T]`, and `&'a str` forms are supported; the
   elided forms rely on MIR view analysis to keep the source loan alive and

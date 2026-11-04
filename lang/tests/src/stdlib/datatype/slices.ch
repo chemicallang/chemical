@@ -262,6 +262,26 @@ func test_slices() {
         }
         return !matched
     })
+    test("statement slice rest pattern binds the first and last elements", () => {
+        var arr : [5]int = [1, 2, 3, 4, 5]
+        var view : [int] = arr
+        var [first, .., last] = view
+        return first == 1 && last == 5
+    })
+    test("statement mutable slice rest pattern binds", () => {
+        var arr : [4]int = [10, 20, 30, 40]
+        var view : &mut [int] = &mut arr
+        var [first, .., last] = view
+        return first == 10 && last == 40
+    })
+    test("statement Box<[T]> exact pattern binds", () => {
+        var values = std::vector<int>()
+        values.push(10)
+        values.push(20)
+        var owned : Box<[int]> = values
+        var [a, b] = owned
+        return a == 10 && b == 20
+    })
     test("mutable slice rest pattern reads through the view", () => {
         var arr : [4]int = [10, 20, 30, 40]
         var view : &mut [int] = &mut arr

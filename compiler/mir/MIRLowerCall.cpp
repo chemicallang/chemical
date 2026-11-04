@@ -2518,12 +2518,19 @@ bool MIRLowerer::lower_array_pattern_node(PatternMatchExpr* pm,
     }
     BaseType* value_type = pm->expression->getType();
     if (value_type != nullptr) value_type = value_type->canonical();
-    if (value_type == nullptr || value_type->kind() != BaseTypeKind::Array) {
-        error = "array pattern value is not a fixed-size array";
+    const bool slice_view = is_slice_view_type(value_type);
+    const bool boxed_slice = is_boxed_slice_type(value_type);
+    BaseType* element_type = nullptr;
+    if (value_type != nullptr && value_type->kind() == BaseTypeKind::Array) {
+        element_type = value_type->as_array_type_unsafe()->elem_type;
+    } else if (slice_view || boxed_slice) {
+        if (!pm->param_names.empty() && pm->param_names[0] != nullptr) {
+            element_type = pm->param_names[0]->known_type();
+        }
+    } else {
+        error = "array pattern value is not a fixed-size array, slice view, or boxed slice";
         return false;
     }
-    auto* array_type = value_type->as_array_type_unsafe();
-    BaseType* element_type = array_type->elem_type;
     if (element_type == nullptr) {
         error = "array pattern has no element type";
         return false;
@@ -2536,6 +2543,11 @@ bool MIRLowerer::lower_array_pattern_node(PatternMatchExpr* pm,
     }
     MIRExprResult base = lower_pattern_base(pm, error);
     if (!base.ok()) return false;
+    if (slice_view || boxed_slice) {
+        MIRExprResult cond = lower_pattern_cond(pm, error);
+        if (!cond.ok()) return false;
+        emit_abort_unless(cond.id, "__chc_bounds_fail");
+    }
     for (PatternMatchIdentifier* id : pm->param_names) {
         if (id == nullptr) {
             error = "invalid array pattern identifier";

@@ -211,9 +211,21 @@ now bounded before the slash and name/NUL are appended.
 
 Regression coverage: `test_fs_directory_rejects_null_inputs`.
 
-Still remaining in this group: actual zero-sized vector support,
-`string_view`/`u16string` raw constructors, remaining `Rc`/`Arc` weak-handle
-invariants, `RefCell` guard escape, and Windows UTF-16/tree removal.
+## Tranche 13 — review-only ownership/guard items (2026-11-04)
+
+| Surface | Review result |
+|---|---|
+| `string_view` raw constructors | `constructor`, `ref_make`, and `make_no_len` are already `unsafe`; safe `make_view`/`to_view` return `'self` views and the dangling-local/return cases are rejected by `SAFE-LIFE-001`/`SAFE-LIFE-002`. |
+| `u16string` raw constructors | `constructor`, `constructor2`, and `make_no_len` are `unsafe`; `u16_strlen` is `unsafe`; safe append paths validate null and self-aliasing. |
+| `Rc`/`Weak` and `Arc`/`ArcWeak` | counts cannot wrap; `upgrade` checks a live strong owner; `get_mut` requires zero weak handles; `try_unwrap` transfers the value once and leaves weak handles able to keep/free only the allocation. Runtime coverage already exercises weak + try-unwrap and upgrade/drop races. |
+| `RefCell` guard escape | Guards are lifetime-bound to the cell, private-state, and `!Send`/`!Sync`. Leaking a guard leaves the cell permanently borrowed (subsequent `try_borrow` returns `None`, mutable borrows fail, the cell cannot be moved while borrowed); that is a safe leak/DoS, not UB. No language-level guard escape found. |
+
+No code change was required for these items. `RefCell`/`Rc`/`Arc` remain covered
+by the existing stdlib and auto-trait tests.
+
+Still remaining in this group: actual zero-sized vector support (the current
+fail-closed rejection is safe but ergonomically incomplete), Windows
+UTF-16/tree removal, Windows IPC, TLS/HTTP, and the target-specific audit list.
 
 ## Coverage
 

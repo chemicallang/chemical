@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.30)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.31)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1463,9 +1463,10 @@ new number as the honest baseline, not a compiler regression.
    temp/copy path buffer bounds, non-`Copy` map `find` rejection, and
    worker-owned thread-pool teardown. See
    `lang/docs/safety/ffi-wrapper-audit.md`. Remaining: actual zero-sized vector
-   support, string_view/u16string raw constructors, remaining
-   Rc/Arc/RefCell invariants, Windows UTF-16/tree removal, Windows IPC,
-   TLS/HTTP, and the target-specific audit list.
+   support, Windows UTF-16/tree removal, Windows IPC, TLS/HTTP, and the
+   target-specific audit list. `string_view`/`u16string` raw constructors,
+   `Rc`/`Arc` weak handles, and `RefCell` guard escape were reviewed as
+   review-only items; no memory-safety gap was found.
 3. **`@scoped_callback` is body-checked, including custom sinks.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter to an unknown callee. Known join-before-return APIs
@@ -3177,3 +3178,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.28 (2026-11-04): safety-parity priority and map `find` ownership. The roadmap now explicitly freezes feature-parity work: remaining language-surface items are not release blockers unless a concrete safe API needs them. Essential work is the stdlib/FFI wrapper audit, move/borrow/init closure, async/concurrency, no-panic effects, and cross-target safety. In the wrapper audit, `unordered_map::find` and `ordered_map::find` copied a stored value into the caller slot without requiring `Value: Copy`; a `D` value with a destructor was duplicated bitwise and double-freed (verified with a heap pointer). Both now require `Value: Copy` and reject owning values with the standard where-clause diagnostic; callers that need a borrowed view use `get_ptr`, and mutation remains explicit/unsafe. Added unordered/ordered-map negative coverage. Main TCC/LLVM `2486`/`2484`; `@test` `57`; negative `818`; safety `78`; async `83`; plugins `1305`; TCC libs `735`; interpret `1938`; `MIRTests` `4749`; audit no growth.*
 *Revision note v5.29 (2026-11-04): worker-owned thread-pool teardown. A safe task could capture the last `Arc<ThreadPool>`; dropping it on a pool worker made the destructor join itself and free `PoolData` while the worker still used it (reproduced as heap corruption). `PoolData` now stores each worker's OS thread id and the destructor distinguishes an owner teardown from a worker teardown. Owners join all workers then free; a worker sets shutdown and defers, and the last worker drains the queue, joins the remaining handles, and frees the block exactly once. `ThreadPool::delete` now takes `&mut self` and the worker path no longer self-joins. Added a runtime regression where the last `Arc<ThreadPool>` is dropped inside a submitted task. Main TCC/LLVM `2487`/`2485`; `@test` `57`; negative `818`; safety `78`; async `83`; plugins `1305`; TCC libs `735`; interpret `1938`; `MIRTests` `4749`; audit no growth.*
 *Revision note v5.30 (2026-11-04): POSIX filesystem bounds/null and UTF-16 validation. `fs::read_dir` assembled `path/name` into a fixed `PATH_MAX_BUF` stack buffer without checking either component, so a long path plus entry name could overflow the stack; it now rejects null paths and checks the separator/name/NUL arithmetic before every write. `fs::metadata(null)` now returns `InvalidInput` instead of passing null to `lstat`. The UTF converters reject null inputs and `utf16_to_utf8` rejects unpaired high/low surrogates instead of emitting invalid UTF-8 (or reading an unpaired trailing unit as data). Added a filesystem null-input regression. Main TCC/LLVM `2487`/`2485`; `@test` `57`; negative `818`; safety `78`; async `83`; plugins `1305`; TCC libs `736`; interpret `1938`; `MIRTests` `4749`; audit no growth.*
+*Revision note v5.31 (2026-11-04): review-only M7 items. Audited the remaining string-view/u16string raw constructors, Rc/Arc weak-handle paths, and RefCell guard lifetime/escape behavior against their safe contracts. Raw constructors are already unsafe; safe views are lifetime-bound; count/upgrade/try-unwrap paths are covered by runtime and race tests; guard leakage leaves the cell borrowed (safe leak/DoS) rather than creating dangling access. No code change was required. The only remaining wrapper work is Windows UTF-16/tree removal, Windows IPC, TLS/HTTP, and the target-specific audit list; actual zero-sized vector support remains an ergonomic/fail-closed item, not a safety hole. Main TCC/LLVM `2487`/`2485`; `@test` `57`; negative `818`; safety `78`; async `83`; plugins `1305`; TCC libs `736`; interpret `1938`; `MIRTests` `4749`; audit no growth.*

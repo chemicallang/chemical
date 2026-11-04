@@ -6,8 +6,9 @@ abstract-method parameter-position `Self::Item`, and `T::Item` projections
 through generic bounds are projected for static dispatch. `T::Item` works with
 inline bounds, `where` clauses, inherited interface bounds, generic struct
 fields, nested generic containers, and generic impl bindings. Associated-type
-bounds/equality constraints, default-method parameter projections, and generic
-associated types (GATs) are not implemented yet.
+bounds (`type Item: Copy`) are parsed and checked against each implementation
+binding. Associated-type equality constraints, default-method parameter
+projections, and generic associated types (GATs) are not implemented yet.
 
 ## Syntax
 
@@ -59,12 +60,15 @@ impl HasItem for Counter {
   The bound must be satisfiable and the concrete type must have an
   implementation providing the associated binding; otherwise resolution fails
   closed.
-- Associated-type bounds (`type Item: Copy`) and equality constraints
-  (`T: Iterator<Item = int>`) are not parsed.
+- Associated-type bounds (`type Item: Copy + Display`) are parsed on interface
+  declarations and checked against every implementation binding. A non-`Copy`
+  binding for `type Item: Copy` is rejected.
+- Associated-type equality constraints (`T: Iterator<Item = int>`) are not
+  parsed.
 - Generic associated types (`type Cursor<'a>`) are not supported beyond the
   declaration being rejected/ignored by the projection layer.
 - Inherited interfaces must be implemented separately; their associated types
   are checked by their own implementation.
 
-Default-method parameter projection, associated-type bounds/equality
-constraints, and GATs are the next associated-type milestones.
+Default-method parameter projection, associated-type equality constraints,
+and GATs are the next associated-type milestones.

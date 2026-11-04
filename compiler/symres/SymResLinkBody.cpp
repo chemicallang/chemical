@@ -1155,6 +1155,9 @@ void SymResLinkBody::VisitSwitchStmt(SwitchStatement *stmt) {
 }
 
 void SymResLinkBody::VisitTypealiasStmt(TypealiasStatement* node) {
+    for(auto& bound : node->associated_bounds) {
+        visit(bound);
+    }
     if(!node->is_top_level()) {
         table.declare(node->name_view(), node);
         visit(node->actual_type);

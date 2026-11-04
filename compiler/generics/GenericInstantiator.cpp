@@ -1169,6 +1169,9 @@ void GenericInstantiator::FinalizeSignature(TypealiasStatement* impl) {
     const auto prev_impl = current_impl_ptr;
     // set implementation pointer
     current_impl_ptr = impl;
+    for(auto& bound : impl->associated_bounds) {
+        visit(bound);
+    }
     // replace the return type
     visit(impl->actual_type);
     // reset the pointers

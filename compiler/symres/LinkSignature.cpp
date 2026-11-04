@@ -733,6 +733,9 @@ void TopLevelLinkSignature::VisitVarInitStmt(VarInitStatement* node) {
 }
 
 void TopLevelLinkSignature::VisitTypealiasStmt(TypealiasStatement* stmt) {
+    for(auto& bound : stmt->associated_bounds) {
+        visit(bound);
+    }
     if(comptime_context) {
         RecursiveVisitor<TopLevelLinkSignature>::VisitTypealiasStmt(stmt);
     } else {

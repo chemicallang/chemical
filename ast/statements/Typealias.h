@@ -57,6 +57,8 @@ public:
     chem::string_view located_id;
     // after equal
     TypeLoc actual_type;
+    /** `type Item: Copy + Display` bounds carried by an associated declaration. */
+    std::vector<TypeLoc> associated_bounds;
     /**
      * the generic type decl that is the generic parent of the typealias statement
      */
@@ -93,6 +95,7 @@ public:
                 specifier()
         );
         stmt->attrs = attrs;
+        stmt->associated_bounds = associated_bounds;
         return stmt;
     }
 
@@ -105,6 +108,9 @@ public:
             specifier()
         );
         stmt->attrs = attrs;
+        for (const auto& bound : associated_bounds) {
+            stmt->associated_bounds.emplace_back(bound.copy(allocator));
+        }
         return stmt;
     }
 

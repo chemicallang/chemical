@@ -3825,7 +3825,7 @@ static bool interface_member_signature_matches(FunctionDeclaration* impl, Functi
     return true;
 }
 
-void verify_interface_implementation(ImplementationsIndex& index, ASTDiagnoser& diagnoser, ImplDefinition* implementor, InterfaceDefinition* interface_non_master) {
+void verify_interface_implementation(TypeVerifier& verifier, ImplementationsIndex& index, ASTDiagnoser& diagnoser, ImplDefinition* implementor, InterfaceDefinition* interface_non_master) {
 
     // an implementation may have been constructed without a target type (through the
     // compiler API), in that case there is nothing to verify against
@@ -3872,10 +3872,27 @@ void verify_interface_implementation(ImplementationsIndex& index, ASTDiagnoser& 
         if (node->kind() == ASTNodeKind::TypealiasStmt &&
             node->as_typealias_unsafe()->is_associated()) {
             auto* associated = node->as_typealias_unsafe();
-            if (find_associated_binding(associated->name_view()) == nullptr) {
+            auto* binding = find_associated_binding(associated->name_view());
+            if (binding == nullptr) {
                 diagnoser.error(implementor)
                     << "type does not implement associated type '"
                     << associated->name_view() << "'";
+            } else if (binding->known_type() != nullptr) {
+                auto* bound_type = binding->known_type();
+                // A generic impl may bind through a projection (`T::Item`);
+                // its concrete instantiation is checked where the projection
+                // resolves.
+                if (!contains_associated_projection(bound_type)) {
+                    for (auto& bound : associated->associated_bounds) {
+                        auto* trait_type = const_cast<BaseType*>(bound.getType());
+                        if (!trait_constraint_satisfied(verifier, bound_type, trait_type)) {
+                            diagnoser.error(binding)
+                                << "associated type '" << associated->name_view()
+                                << "' binding does not satisfy bound '"
+                                << trait_type->representation() << "'";
+                        }
+                    }
+                }
             }
             continue;
         }
@@ -4468,7 +4485,7 @@ void TypeVerifier::VisitImplDecl(ImplDefinition* implDecl) {
                 }
                 return;
             }
-            verify_interface_implementation(index, diagnoser, implDecl, interface);
+            verify_interface_implementation(*this, index, diagnoser, implDecl, interface);
             if ((interface->interface_bits.has(InterfaceBits::SEND_BIT) ||
                  interface->interface_bits.has(InterfaceBits::SYNC_BIT)) &&
                 !implDecl->attrs.is_unsafe) {

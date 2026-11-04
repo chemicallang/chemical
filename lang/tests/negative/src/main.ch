@@ -748,6 +748,22 @@ func associated_type_projection_parameter_compiles(env : &mut TestEnv) {
 }
 
 @test
+func associated_type_bound_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface HasCopyItem {\n    type Item: Copy\n    func get(&self) : Self::Item\n}\nstruct Good { var n : int }\nimpl HasCopyItem for Good {\n    type Item = int\n    func get(&self) : int { return self.n }\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_success_with_mod(env, "associated_type_bound_compiles", ch, NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_associated_type_bound_rejects_noncopy(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface HasCopyItem {\n    type Item: Copy\n    func get(&self) : Self::Item\n}\nstruct Bad { var s : std::string }\nimpl HasCopyItem for Bad {\n    type Item = std::string\n    func get(&self) : std::string { return self.s }\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "associated_type_bound_rejects_noncopy", ch,
+                                  "associated type 'Item' binding does not satisfy bound 'Copy'",
+                                  NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_associated_projection_without_bound(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "func <T> bad(t : &T) : T::Item { return t.n }\npublic func main() : int { return 0 }\n"

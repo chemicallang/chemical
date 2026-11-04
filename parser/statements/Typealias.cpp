@@ -139,12 +139,26 @@ ASTNode* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifie
         // annotating takes place after generic parent is known
         annotate(alias);
 
+        const auto parent_kind = prev_parent_node != nullptr
+                                     ? prev_parent_node->kind()
+                                     : ASTNodeKind::FileScope;
+        const bool parent_is_interface = parent_kind == ASTNodeKind::InterfaceDecl ||
+                                         parent_kind == ASTNodeKind::GenericInterfaceDecl;
+
+        if(parent_is_interface && token->type == TokenType::ColonSym) {
+            token++;
+            do {
+                const auto bound = parseTypeLoc(allocator);
+                if(!bound) {
+                    error("expected an associated-type bound after ':'");
+                    break;
+                }
+                alias->associated_bounds.emplace_back(bound);
+            } while(consumeToken(TokenType::PlusSym));
+        }
+
         if(!consumeToken(TokenType::EqualSym)) {
-            const auto parent_kind = prev_parent_node != nullptr
-                                         ? prev_parent_node->kind()
-                                         : ASTNodeKind::FileScope;
-            if(parent_kind == ASTNodeKind::InterfaceDecl ||
-               parent_kind == ASTNodeKind::GenericInterfaceDecl) {
+            if(parent_is_interface) {
                 // `type Item` inside an interface is an associated-type
                 // declaration; the implementation supplies the concrete type.
                 alias->set_associated(true);

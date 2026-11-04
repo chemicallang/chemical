@@ -2123,6 +2123,39 @@ bool is_slice_view_type(BaseType* type) {
     const auto name = linked->as_struct_def_unsafe()->name_view();
     return name == chem::string_view("span") || name == chem::string_view("mut_span");
 }
+
+bool is_boxed_slice_type(BaseType* type) {
+    if (type == nullptr) return false;
+    BaseType* canonical = type->canonical();
+    ASTNode* linked = canonical != nullptr
+                          ? canonical->get_direct_linked_canonical_node()
+                          : nullptr;
+    if (linked == nullptr || linked->kind() != ASTNodeKind::StructDecl) return false;
+    return linked->as_struct_def_unsafe()->name_view() ==
+           chem::string_view("boxed_slice");
+}
+
+// A Box<[T]> stores its elements in the `_values` vector. Return a pointer to
+// that vector so callers can read its `data_ptr` / `data_size` fields without
+// copying the owning vector.
+ValueId boxed_slice_values_addr(MIRBuilder& builder, MIRModule& module,
+                                TypeId vector_type,
+                                const MIRExprResult& base,
+                                std::string& error) {
+    const ConstantId values_fc = module.constants.add_string(
+        MIR_INVALID_ID, "_values", 7);
+    if (base.kind == MIRExprKind::Place) {
+        return builder.field_addr(static_cast<PlaceId>(base.id), values_fc,
+                                  vector_type);
+    }
+    if (base.kind == MIRExprKind::Address ||
+        base.kind == MIRExprKind::Value) {
+        return builder.field_addr_ptr(static_cast<ValueId>(base.id), values_fc,
+                                      vector_type);
+    }
+    error = "boxed slice pattern expression is not an lvalue";
+    return MIR_INVALID_ID;
+}
 } // namespace
 
 MIRExprResult MIRLowerer::lower_pattern_element(PatternMatchExpr* pm,
@@ -2180,22 +2213,52 @@ MIRExprResult MIRLowerer::lower_array_pattern_element(PatternMatchExpr* pm,
     if (!base.ok()) return base;
     const TypeId et = types_.map(element_type);
     const TypeId idx_t = types_.u32_type();
-    const bool slice_view = is_slice_view_type(pm->expression->getType());
+    const bool boxed_slice = is_boxed_slice_type(pm->expression->getType());
+    const bool slice_view = is_slice_view_type(pm->expression->getType()) ||
+                            boxed_slice;
+    TypeId vector_type = MIR_INVALID_ID;
+    if (boxed_slice) {
+        BaseType* canonical = pm->expression->getType()->canonical();
+        ASTNode* linked = canonical != nullptr
+                              ? canonical->get_direct_linked_canonical_node()
+                              : nullptr;
+        if (linked == nullptr || linked->kind() != ASTNodeKind::StructDecl) {
+            error = "boxed slice pattern has no backing vector type";
+            return MIRExprResult::error();
+        }
+        BaseDefMember* values = linked->as_struct_def_unsafe()->direct_variable(
+            chem::string_view("_values"));
+        BaseType* values_type = values != nullptr ? values->known_type() : nullptr;
+        if (values_type == nullptr) {
+            error = "boxed slice pattern has no backing vector field";
+            return MIRExprResult::error();
+        }
+        vector_type = types_.map(values_type);
+    }
     ValueId idx = builder_->const_int(
         idx_t, module_.constants.add_int(idx_t, id->array_index));
     if (slice_view && id->array_index_from_end) {
-        const ConstantId size_fc = module_.constants.add_string(
-            MIR_INVALID_ID, "_size", 5);
         const TypeId st = types_.u64_type();
         ValueId size = MIR_NULL;
-        if (base.kind == MIRExprKind::Place) {
-            size = builder_->field_load(static_cast<PlaceId>(base.id), size_fc, st);
-        } else if (base.kind == MIRExprKind::Address ||
-                   base.kind == MIRExprKind::Value) {
-            size = builder_->field_load_ptr(static_cast<ValueId>(base.id), size_fc, st);
+        if (boxed_slice) {
+            ValueId values = boxed_slice_values_addr(
+                *builder_, module_, vector_type, base, error);
+            if (values == MIR_INVALID_ID) return MIRExprResult::error();
+            const ConstantId size_fc = module_.constants.add_string(
+                MIR_INVALID_ID, "data_size", 9);
+            size = builder_->field_load_ptr(values, size_fc, st);
         } else {
-            error = "slice pattern expression is not a slice lvalue";
-            return MIRExprResult::error();
+            const ConstantId size_fc = module_.constants.add_string(
+                MIR_INVALID_ID, "_size", 5);
+            if (base.kind == MIRExprKind::Place) {
+                size = builder_->field_load(static_cast<PlaceId>(base.id), size_fc, st);
+            } else if (base.kind == MIRExprKind::Address ||
+                       base.kind == MIRExprKind::Value) {
+                size = builder_->field_load_ptr(static_cast<ValueId>(base.id), size_fc, st);
+            } else {
+                error = "slice pattern expression is not a slice lvalue";
+                return MIRExprResult::error();
+            }
         }
         const ValueId offset = builder_->const_int(
             st, module_.constants.add_int(st, id->array_index));
@@ -2208,7 +2271,14 @@ MIRExprResult MIRLowerer::lower_array_pattern_element(PatternMatchExpr* pm,
             MIR_INVALID_ID, "_data", 5);
         const TypeId ptr_t = types_.pointer_type(et, true);
         ValueId data = MIR_NULL;
-        if (base.kind == MIRExprKind::Place) {
+        if (boxed_slice) {
+            ValueId values = boxed_slice_values_addr(
+                *builder_, module_, vector_type, base, error);
+            if (values == MIR_INVALID_ID) return MIRExprResult::error();
+            const ConstantId data_field = module_.constants.add_string(
+                MIR_INVALID_ID, "data_ptr", 8);
+            data = builder_->field_load_ptr(values, data_field, ptr_t);
+        } else if (base.kind == MIRExprKind::Place) {
             data = builder_->field_load(static_cast<PlaceId>(base.id), data_fc, ptr_t);
         } else if (base.kind == MIRExprKind::Address ||
                    base.kind == MIRExprKind::Value) {
@@ -2259,24 +2329,48 @@ MIRExprResult MIRLowerer::lower_pattern_cond(PatternMatchExpr* pm, std::string& 
                 bool_t, module_.constants.add_int(bool_t, 1));
             return MIRExprResult::value(yes, bool_t);
         }
-        if (!is_slice_view_type(value_type)) {
+        const bool boxed_slice = is_boxed_slice_type(value_type);
+        if (!is_slice_view_type(value_type) && !boxed_slice) {
             error = "array pattern value is not a fixed-size array or slice view";
             return MIRExprResult::error();
         }
         MIRExprResult base = lower_pattern_base(pm, error);
         if (!base.ok()) return base;
-        const ConstantId size_fc = module_.constants.add_string(
-            MIR_INVALID_ID, "_size", 5);
         const TypeId st = types_.u64_type();
         ValueId size = MIR_NULL;
-        if (base.kind == MIRExprKind::Place) {
-            size = builder_->field_load(static_cast<PlaceId>(base.id), size_fc, st);
-        } else if (base.kind == MIRExprKind::Address ||
-                   base.kind == MIRExprKind::Value) {
-            size = builder_->field_load_ptr(static_cast<ValueId>(base.id), size_fc, st);
+        if (boxed_slice) {
+            ASTNode* linked = value_type != nullptr
+                                  ? value_type->get_direct_linked_canonical_node()
+                                  : nullptr;
+            if (linked == nullptr || linked->kind() != ASTNodeKind::StructDecl) {
+                error = "boxed slice pattern has no backing vector type";
+                return MIRExprResult::error();
+            }
+            BaseDefMember* values = linked->as_struct_def_unsafe()->direct_variable(
+                chem::string_view("_values"));
+            BaseType* values_type = values != nullptr ? values->known_type() : nullptr;
+            if (values_type == nullptr) {
+                error = "boxed slice pattern has no backing vector field";
+                return MIRExprResult::error();
+            }
+            ValueId values_ptr = boxed_slice_values_addr(
+                *builder_, module_, types_.map(values_type), base, error);
+            if (values_ptr == MIR_INVALID_ID) return MIRExprResult::error();
+            const ConstantId size_field = module_.constants.add_string(
+                MIR_INVALID_ID, "data_size", 9);
+            size = builder_->field_load_ptr(values_ptr, size_field, st);
         } else {
-            error = "slice pattern expression is not a slice lvalue";
-            return MIRExprResult::error();
+            const ConstantId size_fc = module_.constants.add_string(
+                MIR_INVALID_ID, "_size", 5);
+            if (base.kind == MIRExprKind::Place) {
+                size = builder_->field_load(static_cast<PlaceId>(base.id), size_fc, st);
+            } else if (base.kind == MIRExprKind::Address ||
+                       base.kind == MIRExprKind::Value) {
+                size = builder_->field_load_ptr(static_cast<ValueId>(base.id), size_fc, st);
+            } else {
+                error = "slice pattern expression is not a slice lvalue";
+                return MIRExprResult::error();
+            }
         }
         const ValueId count = builder_->const_int(
             st, module_.constants.add_int(st, pm->param_names.size()));

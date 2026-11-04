@@ -4293,7 +4293,8 @@ void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {
                 auto* view = linked->as_struct_def_unsafe();
                 const auto name = view->name_view();
                 if(name == chem::string_view("span") ||
-                   name == chem::string_view("mut_span")) {
+                   name == chem::string_view("mut_span") ||
+                   name == chem::string_view("boxed_slice")) {
                     slice_view = true;
                     if(value_type->kind() == BaseTypeKind::Generic) {
                         auto* generic = value_type->as_generic_type_unsafe();

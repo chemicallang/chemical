@@ -262,6 +262,37 @@ func test_slices() {
         }
         return !matched
     })
+    test("mutable slice rest pattern reads through the view", () => {
+        var arr : [4]int = [10, 20, 30, 40]
+        var view : &mut [int] = &mut arr
+        var first_ok = false
+        if(var [first, .., last] = view) {
+            first_ok = first == 10 && last == 40
+        }
+        return first_ok
+    })
+    test("Box<[T]> condition pattern reads exact elements", () => {
+        var values = std::vector<int>()
+        values.push(1)
+        values.push(2)
+        values.push(3)
+        var owned : Box<[int]> = values
+        if(var [a, b, c] = owned) {
+            return a == 1 && b == 2 && c == 3
+        }
+        return false
+    })
+    test("Box<[T]> rest pattern uses the runtime length", () => {
+        var values = std::vector<int>()
+        values.push(10)
+        values.push(20)
+        values.push(30)
+        var owned : Box<[int]> = values
+        if(var [first, .., last] = owned) {
+            return first == 10 && last == 30
+        }
+        return false
+    })
     test("split partitions on a delimiter", () => {
         var arr : [7]int = [1, 0, 2, 3, 0, 0, 4]
         var view : [int] = arr

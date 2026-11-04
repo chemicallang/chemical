@@ -92,7 +92,12 @@ public:
      * `impl<T: Show>`'s T). Method lookup on a field of type T can then see the
      * bounds promised by the impl header. Null outside such a body.
      */
-    std::unordered_map<GenericTypeParameter*, GenericTypeParameter*>* active_param_aliases = nullptr;
+    // Thread-local because generic instantiation resolves bodies concurrently
+    // through one shared ChildResolver. A plain member pointer let one thread's
+    // alias map leak into another thread's lookup (and made generic-impl method
+    // resolution nondeterministic). The save/restore discipline is unchanged.
+    inline static thread_local std::unordered_map<GenericTypeParameter*, GenericTypeParameter*>*
+        active_param_aliases = nullptr;
 
     // constructor
     ChildResolver() {}

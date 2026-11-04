@@ -20,6 +20,7 @@
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/structures/GenericTypeDecl.h"
 #include "ast/structures/GenericImplDecl.h"
+#include "compiler/symres/ChildResolver.h"
 #include "compiler/symres/ImplementationsIndex.h"
 #include "ast/utils/GenericUtils.h"
 #include <cstdio>
@@ -500,16 +501,54 @@ void GenericInstantiator::VisitPatternMatchExpr(PatternMatchExpr* value) {
             }
         }
         if(tuple_container == nullptr) return;
-        auto& elements = tuple_container->variables();
-        if(elements.size() != value->param_names.size()) return;
-        for(size_t i = 0; i < value->param_names.size(); ++i) {
-            const auto nameId = value->param_names[i];
-            auto* member = elements[i] != nullptr
-                               ? elements[i]->as_struct_member_unsafe()
-                               : nullptr;
-            if(member == nullptr) continue;
-            nameId->bound_type = const_cast<BaseType*>(member->type.getType());
-            nameId->tuple_index = static_cast<uint32_t>(i);
+        auto tuple_container_of_type = [](BaseType* type) -> VariablesContainerBase* {
+            if(type == nullptr) return nullptr;
+            type = type->canonical();
+            if(type != nullptr && type->kind() == BaseTypeKind::Struct) {
+                auto* tuple_type = type->as_struct_type_unsafe();
+                return tuple_type->is_tuple ? (VariablesContainerBase*) tuple_type : nullptr;
+            }
+            ASTNode* linked = type != nullptr ? type->get_direct_linked_canonical_node() : nullptr;
+            if(linked != nullptr && linked->kind() == ASTNodeKind::StructDecl) {
+                auto* tuple_struct = linked->as_struct_def_unsafe();
+                if(tuple_struct->is_tuple_struct()) return tuple_struct;
+            }
+            return nullptr;
+        };
+        for(const auto nameId : value->param_names) {
+            std::vector<uint32_t> path = nameId->tuple_path;
+            if(path.empty()) path.push_back(nameId->tuple_index);
+            nameId->tuple_path = path;
+            nameId->tuple_path_types.clear();
+            VariablesContainerBase* container = tuple_container;
+            BaseType* leaf_type = nullptr;
+            bool resolved = true;
+            for(size_t depth = 0; depth < path.size(); ++depth) {
+                const uint32_t index = path[depth];
+                auto& elements = container->variables();
+                if(index >= elements.size() || elements[index] == nullptr) {
+                    resolved = false;
+                    break;
+                }
+                auto* member = elements[index]->as_struct_member_unsafe();
+                if(member == nullptr) {
+                    resolved = false;
+                    break;
+                }
+                leaf_type = const_cast<BaseType*>(member->type.getType());
+                nameId->tuple_path_types.push_back(leaf_type);
+                if(depth + 1 < path.size()) {
+                    auto* nested = tuple_container_of_type(leaf_type);
+                    if(nested == nullptr) {
+                        resolved = false;
+                        break;
+                    }
+                    container = nested;
+                }
+            }
+            if(!resolved) continue;
+            nameId->bound_type = leaf_type;
+            nameId->tuple_index = path.back();
             if(!nameId->is_wildcard) {
                 table.declare(nameId->identifier, nameId);
             }
@@ -1946,6 +1985,47 @@ void GenericInstantiator::FinalizeBody(GenericImplDecl* decl, ImplDefinition* im
     // activating iteration in params
     activateIteration(decl, itr);
 
+    // The concrete impl's target type may still expose the generic struct's own
+    // parameters while a method body is being finalized. Map them to the impl's
+    // parameters for the duration of body linking, exactly like SymResLinkBody.
+    std::unordered_map<GenericTypeParameter*, GenericTypeParameter*> aliases;
+    if(decl->master_impl != nullptr && decl->master_impl->struct_type) {
+        auto* target_type = const_cast<BaseType*>(decl->master_impl->struct_type.getType());
+        if(target_type != nullptr && target_type->kind() == BaseTypeKind::Generic) {
+            auto* target_gen = target_type->as_generic_type_unsafe();
+            auto* target_decl = target_gen->referenced->linked;
+            std::vector<GenericTypeParameter*>* target_params = nullptr;
+            if(target_decl != nullptr) {
+                switch(target_decl->kind()) {
+                    case ASTNodeKind::GenericStructDecl:
+                        target_params = &target_decl->as_gen_struct_def_unsafe()->generic_params;
+                        break;
+                    case ASTNodeKind::GenericUnionDecl:
+                        target_params = &target_decl->as_gen_union_decl_unsafe()->generic_params;
+                        break;
+                    case ASTNodeKind::GenericVariantDecl:
+                        target_params = &target_decl->as_gen_variant_decl_unsafe()->generic_params;
+                        break;
+                    default:
+                        break;
+                }
+            }
+            if(target_params != nullptr) {
+                const auto count = target_gen->types.size() < target_params->size()
+                    ? target_gen->types.size() : target_params->size();
+                for(size_t i = 0; i < count; i++) {
+                    auto* arg_type = const_cast<BaseType*>(target_gen->types[i].getType());
+                    auto* arg_linked = arg_type ? arg_type->get_direct_linked_node() : nullptr;
+                    if(arg_linked != nullptr && arg_linked->kind() == ASTNodeKind::GenericTypeParam) {
+                        aliases[(*target_params)[i]] = arg_linked->as_generic_type_param_unsafe();
+                    }
+                }
+            }
+        }
+    }
+    auto* prev_aliases = child_resolver.active_param_aliases;
+    child_resolver.active_param_aliases = aliases.empty() ? nullptr : &aliases;
+
     // create a symbol scope
     table.scope_start();
 
@@ -1985,6 +2065,7 @@ void GenericInstantiator::FinalizeBody(GenericImplDecl* decl, ImplDefinition* im
 
     // end the symbol scope
     table.scope_end();
+    child_resolver.active_param_aliases = prev_aliases;
 
     // deactivating iteration in parameters
     // activating iteration in params

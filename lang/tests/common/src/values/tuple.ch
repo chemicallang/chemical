@@ -94,6 +94,29 @@ func test_tuples() {
         }
         return first == 1 && second == 1
     })
+    test("nested tuple destructuring", () => {
+        var value = ((1, 2), 3)
+        var ((a, b), c) = value
+        var (_, (d, e)) = ((9, 10), (11, 12))
+        return a == 1 && b == 2 && c == 3 && d == 11 && e == 12
+    })
+    test("nested tuple destructuring moves destructible elements exactly once", () => {
+        var first = 0
+        var second = 0
+        var third = 0
+        var fourth = 0
+        {
+            var value = ((TupleDropProbe { n : 1, counter : &mut first },
+                          TupleDropProbe { n : 2, counter : &mut second }),
+                         (TupleDropProbe { n : 3, counter : &mut third },
+                          TupleDropProbe { n : 4, counter : &mut fourth }))
+            var ((a, b), (c, d)) = value
+            if(a.n != 1 || b.n != 2 || c.n != 3 || d.n != 4) {
+                return false
+            }
+        }
+        return first == 1 && second == 1 && third == 1 && fourth == 1
+    })
     test("tuple struct construction and field access", () => {
         var point = TupleStructPoint(3, 4)
         var explicit : TupleStructPoint = TupleStructPoint(5, 6)

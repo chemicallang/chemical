@@ -74,6 +74,8 @@
 #include <iostream>
 #include <vector>
 #include <unordered_map>
+#include <map>
+#include <set>
 #include <unordered_set>
 
 #include "SymResLinkBodyAPI.h"
@@ -4254,28 +4256,85 @@ void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {
                                   << "'";
             return;
         }
-        auto& elements = tuple_container->variables();
-        if(elements.size() != param_names.size()) {
-            diagnoser.error(expr) << "tuple pattern has "
-                                  << std::to_string(param_names.size())
-                                  << " names but the value has "
-                                  << std::to_string(elements.size()) << " elements";
-            return;
-        }
-        for(size_t i = 0; i < param_names.size(); ++i) {
-            const auto nameId = param_names[i];
-            auto* member = elements[i] != nullptr
-                               ? elements[i]->as_struct_member_unsafe()
-                               : nullptr;
-            if(member == nullptr) {
-                diagnoser.error(nameId) << "tuple element " << std::to_string(i)
-                                        << " is not a struct-like member";
-                continue;
+        auto tuple_container_of_type = [](BaseType* type) -> VariablesContainerBase* {
+            if(type == nullptr) return nullptr;
+            type = type->canonical();
+            if(type != nullptr && type->kind() == BaseTypeKind::Struct) {
+                auto* tuple_type = type->as_struct_type_unsafe();
+                return tuple_type->is_tuple ? (VariablesContainerBase*) tuple_type : nullptr;
             }
-            nameId->bound_type = const_cast<BaseType*>(member->type.getType());
-            nameId->tuple_index = static_cast<uint32_t>(i);
+            ASTNode* linked = type != nullptr ? type->get_direct_linked_canonical_node() : nullptr;
+            if(linked != nullptr && linked->kind() == ASTNodeKind::StructDecl) {
+                auto* tuple_struct = linked->as_struct_def_unsafe();
+                if(tuple_struct->is_tuple_struct()) return tuple_struct;
+            }
+            return nullptr;
+        };
+        std::map<std::vector<uint32_t>, VariablesContainerBase*> tuple_levels;
+        std::map<std::vector<uint32_t>, std::set<uint32_t>> tuple_level_indices;
+        tuple_levels[{}] = tuple_container;
+        bool all_flat = true;
+        for(const auto nameId : param_names) {
+            std::vector<uint32_t> path = nameId->tuple_path;
+            if(path.empty()) path.push_back(nameId->tuple_index);
+            if(path.size() != 1) all_flat = false;
+            nameId->tuple_path = path;
+            nameId->tuple_path_types.clear();
+            VariablesContainerBase* container = tuple_container;
+            std::vector<uint32_t> prefix;
+            BaseType* leaf_type = nullptr;
+            bool resolved = true;
+            for(size_t depth = 0; depth < path.size(); ++depth) {
+                const uint32_t index = path[depth];
+                auto& elements = container->variables();
+                if(index >= elements.size() || elements[index] == nullptr) {
+                    diagnoser.error(nameId) << "tuple pattern has no element at index "
+                                            << std::to_string(index);
+                    resolved = false;
+                    break;
+                }
+                auto* member = elements[index]->as_struct_member_unsafe();
+                if(member == nullptr) {
+                    diagnoser.error(nameId) << "tuple element " << std::to_string(index)
+                                            << " is not a struct-like member";
+                    resolved = false;
+                    break;
+                }
+                leaf_type = const_cast<BaseType*>(member->type.getType());
+                nameId->tuple_path_types.push_back(leaf_type);
+                tuple_level_indices[prefix].insert(index);
+                if(depth + 1 < path.size()) {
+                    auto* nested = tuple_container_of_type(leaf_type);
+                    if(nested == nullptr) {
+                        diagnoser.error(nameId)
+                            << "nested tuple pattern element is not a tuple";
+                        resolved = false;
+                        break;
+                    }
+                    prefix.push_back(index);
+                    tuple_levels[prefix] = nested;
+                    container = nested;
+                }
+            }
+            if(!resolved) continue;
+            nameId->bound_type = leaf_type;
+            nameId->tuple_index = path.back();
             if(!nameId->is_wildcard) {
                 declare_no_shadow(nameId->identifier, nameId);
+            }
+        }
+        for(auto& [prefix, indices] : tuple_level_indices) {
+            auto found = tuple_levels.find(prefix);
+            if(found == tuple_levels.end()) continue;
+            const auto expected = found->second->variables().size();
+            if(indices.size() == expected) continue;
+            if(prefix.empty() && all_flat) {
+                diagnoser.error(expr) << "tuple pattern has "
+                                      << std::to_string(indices.size())
+                                      << " names but the value has "
+                                      << std::to_string(expected) << " elements";
+            } else {
+                diagnoser.error(expr) << "tuple pattern arity does not match at a nested level";
             }
         }
         return;

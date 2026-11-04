@@ -2,9 +2,10 @@
 
 Status: implemented for construction, field access, parameters/returns,
 nested tuples, element assignment, `Copy`, auto traits, drop-once semantics,
-flat tuple destructuring (`var (a, b) = value`), named tuple structs
-(`struct Point(int, int)`), inline methods on tuple structs, fixed-array
-patterns (`var [a, b] = arr`), and the unit tuple `()`.
+flat and nested tuple destructuring (`var ((a, b), c) = value`), wildcard
+elements, named tuple structs (`struct Point(int, int)`), inline methods on
+tuple structs, fixed-array patterns (`var [a, b] = arr`), and the unit tuple
+`()`.
 
 ## Syntax
 
@@ -16,6 +17,8 @@ var second = pair._1
 pair._0 = 9                          // element assignment
 
 var (a, b) = pair                    // flat destructuring
+var ((left, right), tail) = value    // nested destructuring
+var (_, (b, c)) = value              // wildcard + nested group
 var (only,) = (1,)                   // one-element tuple pattern
 const (x, y) = pair                  // const bindings
 
@@ -84,10 +87,10 @@ drop flags cleared, so each owned element is dropped exactly once. A bare
 one-element tuple uses a trailing comma: `var (only,) = value`.
 
 Tuple patterns are irrefutable: they do not take an `else` branch. They work
-for structural tuples and named tuple structs. The current slice supports flat
-identifier elements only; nested patterns (`var ((a, b), c)`) and wildcard
-elements (`var (_, b)`) are not implemented yet. `if(var (a, b) = value)` is
-also not part of this slice.
+for structural tuples and named tuple structs. Elements may be identifiers,
+wildcards (`_`), or nested tuple patterns (`var ((a, b), c)`). Every tuple
+level must have matching arity; a nested position whose value is not a tuple
+is rejected. `if(var (a, b) = value)` is not part of this slice.
 
 ## Fixed-array patterns
 
@@ -121,8 +124,8 @@ yet.
 
 ## Not implemented
 
-- Nested tuple/array patterns and patterns in `if`/match position. Flat tuple
-  and fixed-array patterns support `_`, but nested patterns do not.
+- Patterns in `if`/match position and nested array patterns (tuple nesting is
+  implemented; fixed-array patterns remain flat).
 - Tuple-struct field visibility (fields are always public) and external
   inherent impls on tuple structs.
 - `impl Trait for (T1, T2)` / methods on structural tuples.

@@ -57,6 +57,10 @@ public:
      */
     BaseType* bound_type = nullptr;
     uint32_t tuple_index = 0xFFFFFFFFu;
+    /** Full field path for a nested tuple pattern (`((a, b), c)` -> [0,1]). */
+    std::vector<uint32_t> tuple_path;
+    /** Concrete type at every step of `tuple_path` (including intermediates). */
+    std::vector<BaseType*> tuple_path_types;
     /** Source index for a fixed-array destructuring pattern. For a slice rest
      * pattern's trailing names this is the offset from the end. */
     uint32_t array_index = 0xFFFFFFFFu;
@@ -88,6 +92,8 @@ public:
         copied->member_param = member_param;
         copied->bound_type = bound_type;
         copied->tuple_index = tuple_index;
+        copied->tuple_path = tuple_path;
+        copied->tuple_path_types = tuple_path_types;
         copied->array_index = array_index;
         copied->array_index_from_end = array_index_from_end;
         copied->is_wildcard = is_wildcard;

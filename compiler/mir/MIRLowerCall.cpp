@@ -2162,36 +2162,52 @@ MIRExprResult MIRLowerer::lower_pattern_element(PatternMatchExpr* pm,
                                                 PatternMatchIdentifier* id,
                                                 bool as_address,
                                                 std::string& error) {
-    if (!pm || !pm->is_tuple || !id || id->tuple_index == 0xFFFFFFFFu) {
+    if (!pm || !pm->is_tuple || !id ||
+        (id->tuple_path.empty() && id->tuple_index == 0xFFFFFFFFu)) {
         error = "invalid tuple pattern element";
         return MIRExprResult::error();
     }
-    BaseType* element_type = id->known_type();
-    if (element_type == nullptr) {
-        error = "tuple pattern element has no resolved type";
-        return MIRExprResult::error();
-    }
+    std::vector<uint32_t> path = id->tuple_path;
+    if (path.empty()) path.push_back(id->tuple_index);
     MIRExprResult base = lower_pattern_base(pm, error);
     if (!base.ok()) return base;
-    std::string fname = "_" + std::to_string(id->tuple_index);
-    const ConstantId fc = module_.constants.add_string(
-        MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
-    const TypeId ft = types_.map(element_type);
-    if (base.kind == MIRExprKind::Place) {
-        const PlaceId bp = static_cast<PlaceId>(base.id);
-        if (as_address || abi::is_aggregate(module_, ft)) {
-            return MIRExprResult::address(builder_->field_addr(bp, fc, ft), ft);
+    for (size_t i = 0; i < path.size(); ++i) {
+        BaseType* element_type = i < id->tuple_path_types.size()
+                                     ? id->tuple_path_types[i]
+                                     : (i + 1 == path.size() ? id->known_type() : nullptr);
+        if (element_type == nullptr) {
+            error = "tuple pattern element has no resolved type";
+            return MIRExprResult::error();
         }
-        return MIRExprResult::value(builder_->field_load(bp, fc, ft), ft);
-    }
-    if (base.kind == MIRExprKind::Address || base.kind == MIRExprKind::Value) {
-        const ValueId bv = static_cast<ValueId>(base.id);
-        if (as_address || abi::is_aggregate(module_, ft)) {
-            return MIRExprResult::address(builder_->field_addr_ptr(bv, fc, ft), ft);
+        std::string fname = "_" + std::to_string(path[i]);
+        const ConstantId fc = module_.constants.add_string(
+            MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
+        const TypeId ft = types_.map(element_type);
+        const bool final = i + 1 == path.size();
+        if (base.kind == MIRExprKind::Place) {
+            const PlaceId bp = static_cast<PlaceId>(base.id);
+            if (final) {
+                if (as_address || abi::is_aggregate(module_, ft)) {
+                    return MIRExprResult::address(builder_->field_addr(bp, fc, ft), ft);
+                }
+                return MIRExprResult::value(builder_->field_load(bp, fc, ft), ft);
+            }
+            base = MIRExprResult::address(builder_->field_addr(bp, fc, ft), ft);
+        } else if (base.kind == MIRExprKind::Address || base.kind == MIRExprKind::Value) {
+            const ValueId bv = static_cast<ValueId>(base.id);
+            if (final) {
+                if (as_address || abi::is_aggregate(module_, ft)) {
+                    return MIRExprResult::address(builder_->field_addr_ptr(bv, fc, ft), ft);
+                }
+                return MIRExprResult::value(builder_->field_load_ptr(bv, fc, ft), ft);
+            }
+            base = MIRExprResult::address(builder_->field_addr_ptr(bv, fc, ft), ft);
+        } else {
+            error = "tuple pattern expression is not an aggregate lvalue";
+            return MIRExprResult::error();
         }
-        return MIRExprResult::value(builder_->field_load_ptr(bv, fc, ft), ft);
     }
-    error = "tuple pattern expression is not an aggregate lvalue";
+    error = "tuple pattern element has no path";
     return MIRExprResult::error();
 }
 
@@ -2775,10 +2791,13 @@ bool MIRLowerer::lower_pattern_match_node(PatternMatchExprNode* node, std::strin
             const bool needs_drop =
                 destructor_symbol(element_type) != MIR_INVALID_ID;
             if (!copying && needs_drop) {
-                const std::string field_name =
-                    "_" + std::to_string(id->tuple_index);
-                MIRDropField* node =
-                    drop_field_for_path(tuple_place, {field_name});
+                std::vector<std::string> field_path;
+                std::vector<uint32_t> tuple_path = id->tuple_path;
+                if (tuple_path.empty()) tuple_path.push_back(id->tuple_index);
+                for (const uint32_t index : tuple_path) {
+                    field_path.push_back("_" + std::to_string(index));
+                }
+                MIRDropField* node = drop_field_for_path(tuple_place, field_path);
                 if (node == nullptr) {
                     error = "SAFE-MOVE-004: cannot move a destructible tuple "
                             "element through a value whose field drops are not "

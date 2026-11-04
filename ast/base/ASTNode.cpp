@@ -712,6 +712,41 @@ ASTNode* child(VariablesContainer* container, const chem::string_view& name) {
 
 ASTNode* provide_child(const ChildResolver* resolver, BaseType* type, const chem::string_view& name, ASTNode* type_parent);
 
+static ASTNode* inherited_interface_child(
+    const ChildResolver* resolver,
+    ASTNode* iface,
+    const chem::string_view& name,
+    unsigned depth
+);
+
+static WhereClause* generic_param_where_clause(GenericTypeParameter* param) {
+    if (param == nullptr) return nullptr;
+    auto* parent = param->parent();
+    if (parent == nullptr) return nullptr;
+    switch (parent->kind()) {
+        case ASTNodeKind::GenericFuncDecl:
+            return parent->as_gen_func_decl_unsafe()->master_impl->where_clause;
+        case ASTNodeKind::FunctionDecl:
+            return parent->as_function_unsafe()->where_clause;
+        case ASTNodeKind::GenericImplDecl:
+            return parent->as_gen_impl_decl_unsafe()->where_clause;
+        default:
+            return nullptr;
+    }
+}
+
+static ASTNode* generic_param_bound_child(
+    const ChildResolver* resolver,
+    const TypeLoc& bound,
+    const chem::string_view& name,
+    ASTNode* type_parent
+) {
+    if (auto* child = provide_child(resolver, bound, name, type_parent)) return child;
+    auto* iface = const_cast<BaseType*>(bound.getType())
+                      ->get_direct_linked_canonical_node();
+    return inherited_interface_child(resolver, iface, name, 0);
+}
+
 static bool is_concrete_generic_container(ASTNode* node) {
     if(node == nullptr) return false;
     switch(node->kind()) {
@@ -750,14 +785,17 @@ ASTNode* child_provider_linked_type(const ChildResolver* resolver, LinkedType* t
             }
         }
         for(auto& trait : param->traits) {
-            auto* iface_node = trait->get_direct_linked_canonical_node();
-            if(iface_node != nullptr) {
-                if(iface_node->kind() == ASTNodeKind::InterfaceDecl) {
-                    auto* found = iface_node->as_interface_def_unsafe()->child(name);
-                    if(found != nullptr) return found;
-                } else if(iface_node->kind() == ASTNodeKind::GenericInterfaceDecl) {
-                    auto* found = iface_node->as_gen_interface_decl_unsafe()->master_impl->child(name);
-                    if(found != nullptr) return found;
+            if(auto* found = generic_param_bound_child(resolver, trait, name, type_parent)) {
+                return found;
+            }
+        }
+        if(auto* where = generic_param_where_clause(param)) {
+            for(auto& constraint : where->constraints) {
+                if(constraint.param != param && constraint.param_name != param->identifier) continue;
+                for(auto& bound : constraint.constraints) {
+                    if(auto* found = generic_param_bound_child(resolver, bound, name, type_parent)) {
+                        return found;
+                    }
                 }
             }
         }
@@ -962,36 +1000,20 @@ ASTNode* ASTNode::child(const ChildResolver* resolver, const chem::string_view &
             if(linked) {
                 return linked->child(name);
             }
-            auto find_in_bound = [&](const TypeLoc& t) -> ASTNode* {
-                const auto c = provide_child(resolver, t, name, this);
-                if (c) return c;
-                auto* bound = const_cast<BaseType*>(t.getType())
-                                  ->get_direct_linked_canonical_node();
-                return inherited_interface_child(resolver, bound, name, 0);
-            };
             for(auto& t : param->traits) {
-                const auto c = find_in_bound(t);
-                if(c) return c;
+                if(auto* found = generic_param_bound_child(resolver, t, name, this)) {
+                    return found;
+                }
             }
             // Where-clause bounds are not stored in `traits`; consult them so
             // `T::Item` resolves when the bound is written as `where T: HasItem`.
-            auto* parent = param->parent();
-            WhereClause* where = nullptr;
-            if (parent != nullptr) {
-                if (parent->kind() == ASTNodeKind::GenericFuncDecl) {
-                    where = parent->as_gen_func_decl_unsafe()->master_impl->where_clause;
-                } else if (parent->kind() == ASTNodeKind::FunctionDecl) {
-                    where = parent->as_function_unsafe()->where_clause;
-                } else if (parent->kind() == ASTNodeKind::GenericImplDecl) {
-                    where = parent->as_gen_impl_decl_unsafe()->where_clause;
-                }
-            }
-            if (where != nullptr) {
-                for (auto& constraint : where->constraints) {
-                    if (constraint.param != param && constraint.param_name != param->identifier) continue;
-                    for (auto& t : constraint.constraints) {
-                        const auto c = find_in_bound(t);
-                        if (c) return c;
+            if(auto* where = generic_param_where_clause(param)) {
+                for(auto& constraint : where->constraints) {
+                    if(constraint.param != param && constraint.param_name != param->identifier) continue;
+                    for(auto& t : constraint.constraints) {
+                        if(auto* found = generic_param_bound_child(resolver, t, name, this)) {
+                            return found;
+                        }
                     }
                 }
             }

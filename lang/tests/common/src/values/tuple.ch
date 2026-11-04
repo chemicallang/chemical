@@ -21,6 +21,12 @@ struct TupleDropProbe {
 }
 
 struct TupleStructPoint(int, int)
+struct TupleStructExternalMethods(int, int)
+impl TupleStructExternalMethods {
+    func product(&self) : int {
+        return self._0 * self._1
+    }
+}
 struct TupleStructPointMethods(int, int) {
     func sum(&self) : int {
         return self._0 + self._1
@@ -143,6 +149,10 @@ func test_tuples() {
         var point = TupleStructPointMethods(3, 4)
         var pair = TupleStructGenericMethods<int>(5, 6)
         return point.sum() == 7 && pair.count() == 2 && pair.first() == 5
+    })
+    test("tuple struct external inherent methods", () => {
+        var point = TupleStructExternalMethods(3, 4)
+        return point.product() == 12
     })
     test("tuple struct destructible elements drop exactly once", () => {
         var first = 0

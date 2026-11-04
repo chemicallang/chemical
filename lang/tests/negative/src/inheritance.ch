@@ -125,11 +125,11 @@ func inherit_distinct_field_allowed(env : &mut TestEnv) {
 @test
 func neg_impl_missing_for(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // an implementation must name the type it is implemented for. Without the 'for'
-    // keyword the declaration has no target type at all, which used to be accepted
-    // silently and crashed the compiler in a later pass
+    // `impl I { ... }` is an inherent implementation; an interface cannot be an
+    // inherent target.
     var ch = "interface I {\n    func f(&self) : int\n}\nimpl I {\n}\nfunc main() {}\n"
-    expect_compile_error(env, "impl_missing_for", ch, "expected 'for'")
+    expect_compile_error(env, "impl_missing_for", ch,
+                         "inherent implementation target cannot be an interface")
 }
 
 @test

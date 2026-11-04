@@ -120,9 +120,9 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, ASTAllocator& body_all
                 impl->struct_type = getErroredType(allocator);
             }
         } else {
-            // every implementation must name the type it is implemented for
-            error("expected 'for' after the interface name in an implementation");
-            impl->struct_type = getErroredType(allocator);
+            // `impl Type { ... }` is an inherent implementation.
+            impl->struct_type = impl->interface_type;
+            impl->interface_type = { nullptr, ZERO_LOC };
         }
         if(token->type == TokenType::WhereKw) {
             token++;

@@ -4,8 +4,8 @@ Status: implemented for construction, field access, parameters/returns,
 nested tuples, element assignment, `Copy`, auto traits, drop-once semantics,
 flat and nested tuple destructuring (`var ((a, b), c) = value`), wildcard
 elements, tuple patterns in `if` conditions, named tuple structs
-(`struct Point(int, int)`), inline methods on tuple structs, fixed-array
-patterns (`var [a, b] = arr`), and the unit tuple `()`.
+(`struct Point(int, int)`), inline and external inherent methods on tuple
+structs, fixed-array patterns (`var [a, b] = arr`), and the unit tuple `()`.
 
 ## Syntax
 
@@ -36,6 +36,11 @@ struct Unit()                        // zero-field tuple struct
 
 struct PointMethods(int, int) {      // inline methods on a tuple struct
     func sum(&self) : int { return self._0 + self._1 }
+}
+
+struct PointExternal(int, int)
+impl PointExternal {                 // external inherent implementation
+    func product(&self) : int { return self._0 * self._1 }
 }
 
 var point = Point(3, 4)              // positional constructor
@@ -128,8 +133,8 @@ yet.
 - Tuple patterns in match/switch position, and nested array patterns (tuple
   nesting and `if` condition patterns are implemented; fixed-array patterns
   remain flat).
-- Tuple-struct field visibility (fields are always public) and external
-  inherent impls on tuple structs.
+- Tuple-struct field visibility (fields are always public) and **generic**
+  external inherent impls.
 - `impl Trait for (T1, T2)` / methods on structural tuples.
 - Slice rest patterns, `&mut [T]`/`Box<[T]>` patterns, statement forms with an
   `else` path, and non-Copy array destructuring. Exact `[T]`/`&[T]` condition

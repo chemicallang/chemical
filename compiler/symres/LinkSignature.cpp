@@ -1467,8 +1467,8 @@ void TopLevelLinkSignature::VisitIfStmt(IfStatement* node) {
 
 void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
     table.scope_start();
-    // linking interface and struct type
-    visit(node->interface_type);
+    // linking interface and struct type (inherent impls have no interface)
+    if(node->interface_type) visit(node->interface_type);
     if (node->struct_type) {
         visit(node->struct_type);
     }
@@ -1849,6 +1849,24 @@ void buildInterfaceIndexes(InterfaceDefinition* container) {
 
 
 void index_implementation(SymbolResolver& linker, ImplDefinition* node) {
+    if(node->interface_type == nullptr) {
+        auto* target = node->struct_type
+            ? node->struct_type->get_direct_linked_canonical_node() : nullptr;
+        if(target != nullptr &&
+           (target->kind() == ASTNodeKind::InterfaceDecl ||
+            target->kind() == ASTNodeKind::GenericInterfaceDecl)) {
+            linker.error(node) << "inherent implementation target cannot be an interface";
+        } else if(target == nullptr ||
+                  (target->kind() != ASTNodeKind::StructDecl &&
+                   target->kind() != ASTNodeKind::UnionDecl &&
+                   target->kind() != ASTNodeKind::VariantDecl &&
+                   target->kind() != ASTNodeKind::GenericStructDecl &&
+                   target->kind() != ASTNodeKind::GenericUnionDecl &&
+                   target->kind() != ASTNodeKind::GenericVariantDecl)) {
+            linker.error(node) << "inherent implementation target must be a struct, union, or variant";
+        }
+        return;
+    }
     // this code should be moved to type checking pass
     const auto linked_node = node->interface_type->get_direct_linked_node();
     if (linked_node == nullptr) {
@@ -2052,6 +2070,7 @@ void index_implementation(SymbolResolver& linker, ImplDefinition* node) {
 }
 
 void build_indexes_of_impl(SymbolResolver& linker, ImplDefinition* decl) {
+    if(decl->interface_type == nullptr) return;
     const auto interfaceNode = decl->interface_type->get_direct_linked_canonical_node();
     if (interfaceNode && interfaceNode->kind() == ASTNodeKind::InterfaceDecl) {
         const auto interface = interfaceNode->as_interface_def_unsafe();

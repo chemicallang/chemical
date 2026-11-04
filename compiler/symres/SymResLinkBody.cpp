@@ -2117,7 +2117,8 @@ void SymResLinkBody::VisitIfStmt(IfStatement* node) {
 }
 
 void SymResLinkBody::VisitImplDecl(ImplDefinition* node) {
-    const auto linked_node = node->interface_type->get_direct_linked_canonical_node();
+    const auto linked_node = node->interface_type
+        ? node->interface_type->get_direct_linked_canonical_node() : nullptr;
     const auto linked = linked_node ? linked_node->as_interface_def() : nullptr;
     table.scope_start();
     const auto struct_linked = node->struct_type ? node->struct_type->get_direct_linked_struct() : nullptr;
@@ -2143,6 +2144,7 @@ void SymResLinkBody::VisitImplDecl(ImplDefinition* node) {
         // this should be done when the struct has been linked
         // if its body is being linked, we don't want to call the methods in interface
         if (linked) struct_linked->adopt(linked);
+        else if (node->interface_type == nullptr) struct_linked->adopt(node);
     }
     // Inside `impl<T: Show> Show for Wrapper<T>`, a field of type Wrapper's T
     // must be able to call Show methods. Map the target struct's parameters to

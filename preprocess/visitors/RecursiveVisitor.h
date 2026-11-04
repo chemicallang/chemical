@@ -325,7 +325,10 @@ public:
     }
 
     void VisitImplDecl(ImplDefinition* def) {
-        visit_it(def->interface_type);
+        // inherent implementations have no interface type
+        if(def->interface_type != nullptr) {
+            visit_it(def->interface_type);
+        }
         // an implementation may have been constructed without a target type
         // (through the compiler API), so it must not be visited when absent
         if(def->struct_type != nullptr) {

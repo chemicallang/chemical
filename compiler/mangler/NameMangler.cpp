@@ -317,6 +317,11 @@ void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration
         case ASTNodeKind::ImplDecl: {
             const auto def = parent->as_impl_def_unsafe();
             if(def->struct_type) {
+                if(def->interface_type == nullptr) {
+                    mangle_impl_type(*this, stream, def->struct_type);
+                    stream << '_';
+                    break;
+                }
                 const auto interface = def->interface_type->get_direct_linked_interface();
                 if(interface->is_static()) {
                     mangle_non_func(stream, interface);

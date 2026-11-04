@@ -30,15 +30,15 @@ Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2482/2482` |
-| LLVM main | `2480/2480` |
+| TCC main | `2483/2483` |
+| LLVM main | `2481/2481` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `810/810` |
 | TCC/LLVM safety | `78/78` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `735/735` |
 | TCC plugins | `1305/1305` |
-| TCC interpret | `1934/1934` |
+| TCC interpret | `1935/1935` |
 | `MIRTests` | `4749 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
 | Whole-tree audit | `unsafe_blocks 3790`, `unsafe_values 4922`, `raw_pointer_addrs 10036`, `raw_pointer_casts 2876`, `raw_pointer_types 9375`, `raw_pointer_derefs 1073`, `unsafe_func_decls 41`, `panic_calls 124` |
@@ -470,9 +470,9 @@ memory safety.
     (`var (a, b) = value`), named/generic tuple structs
     (`struct Point(int, int)`), and unit tuple `()` are implemented
     (`lang/docs/tuples.md`). Nested tuple destructuring, wildcard elements,
-    and inline methods on tuple structs are implemented; patterns in
-    `if`/match position, external inherent impls on tuple structs, and
-    `impl Trait for (T1, T2)` remain M1 work.
+    tuple patterns in `if` conditions, and inline methods on tuple structs are
+    implemented; match/switch patterns, external inherent impls on tuple
+    structs, and `impl Trait for (T1, T2)` remain M1 work.
 
 15. **Associated types are a declaration/binding/projection slice.**
     Interface `type Item` declarations, impl `type Item = T` bindings, and

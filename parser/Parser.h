@@ -621,6 +621,8 @@ public:
      */
     bool parseArrayPatternElements(ASTAllocator& allocator, PatternMatchExpr* into);
 
+    bool parseTuplePatternElements(ASTAllocator& allocator, PatternMatchExpr* into, std::vector<uint32_t>& prefix);
+
     /**
      * parse allowDeclarations or initialization tokens
      * like var x : int; or var x : int = 5;

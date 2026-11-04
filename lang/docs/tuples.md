@@ -3,9 +3,9 @@
 Status: implemented for construction, field access, parameters/returns,
 nested tuples, element assignment, `Copy`, auto traits, drop-once semantics,
 flat and nested tuple destructuring (`var ((a, b), c) = value`), wildcard
-elements, named tuple structs (`struct Point(int, int)`), inline methods on
-tuple structs, fixed-array patterns (`var [a, b] = arr`), and the unit tuple
-`()`.
+elements, tuple patterns in `if` conditions, named tuple structs
+(`struct Point(int, int)`), inline methods on tuple structs, fixed-array
+patterns (`var [a, b] = arr`), and the unit tuple `()`.
 
 ## Syntax
 
@@ -90,7 +90,8 @@ Tuple patterns are irrefutable: they do not take an `else` branch. They work
 for structural tuples and named tuple structs. Elements may be identifiers,
 wildcards (`_`), or nested tuple patterns (`var ((a, b), c)`). Every tuple
 level must have matching arity; a nested position whose value is not a tuple
-is rejected. `if(var (a, b) = value)` is not part of this slice.
+is rejected. `if(var (a, b) = value)` is supported for structural tuples and named tuple
+structs, including nested groups.
 
 ## Fixed-array patterns
 
@@ -124,8 +125,9 @@ yet.
 
 ## Not implemented
 
-- Patterns in `if`/match position and nested array patterns (tuple nesting is
-  implemented; fixed-array patterns remain flat).
+- Tuple patterns in match/switch position, and nested array patterns (tuple
+  nesting and `if` condition patterns are implemented; fixed-array patterns
+  remain flat).
 - Tuple-struct field visibility (fields are always public) and external
   inherent impls on tuple structs.
 - `impl Trait for (T1, T2)` / methods on structural tuples.

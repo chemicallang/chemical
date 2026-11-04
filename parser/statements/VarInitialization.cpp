@@ -133,6 +133,48 @@ bool Parser::parsePatternElse(ASTAllocator& allocator, PatternMatchExpr* pattern
     return true;
 }
 
+bool Parser::parseTuplePatternElements(
+        ASTAllocator& allocator,
+        PatternMatchExpr* into,
+        std::vector<uint32_t>& prefix
+) {
+    uint32_t tuple_index = 0;
+    while(true) {
+        consumeNewLines();
+        if(token->type == TokenType::RParen) break;
+        if(token->type == TokenType::LParen) {
+            token++;
+            prefix.push_back(tuple_index++);
+            const bool ok = parseTuplePatternElements(allocator, into, prefix);
+            prefix.pop_back();
+            if(!ok) return false;
+        } else {
+            const auto tuple_id = consumeIdentifierOrKeyword();
+            if(!tuple_id) {
+                error("expected an identifier or nested tuple in tuple pattern");
+                return false;
+            }
+            const auto pmId = new (allocator.allocate<PatternMatchIdentifier>())
+                PatternMatchIdentifier(into,
+                                       allocate_view(allocator, tuple_id->value),
+                                       parent_node, loc_single(tuple_id));
+            pmId->tuple_index = tuple_index;
+            pmId->is_wildcard = tuple_id->value == "_";
+            pmId->tuple_path = prefix;
+            pmId->tuple_path.push_back(tuple_index);
+            tuple_index++;
+            into->param_names.emplace_back(pmId);
+        }
+        if(consumeToken(TokenType::CommaSym)) continue;
+        break;
+    }
+    if(!consumeToken(TokenType::RParen)) {
+        error("expected ')' after tuple pattern");
+        return false;
+    }
+    return true;
+}
+
 void Parser::parsePatternMatchExprAfterId(
         ASTAllocator& allocator,
         PatternMatchExpr* patternMatch,
@@ -255,45 +297,8 @@ ASTNode* Parser::parseVarInitializationTokens(
                                  loc_single(start_tok), parent_node);
         patternMatchExpr->value.is_tuple = true;
         token++; // '('
-        auto parse_tuple_elements = [&](auto&& self, std::vector<uint32_t>& prefix) -> bool {
-            uint32_t tuple_index = 0;
-            while(true) {
-                consumeNewLines();
-                if(token->type == TokenType::RParen) break;
-                if(token->type == TokenType::LParen) {
-                    token++;
-                    prefix.push_back(tuple_index++);
-                    const bool ok = self(self, prefix);
-                    prefix.pop_back();
-                    if(!ok) return false;
-                } else {
-                    const auto tuple_id = consumeIdentifierOrKeyword();
-                    if(!tuple_id) {
-                        error("expected an identifier or nested tuple in tuple pattern");
-                        return false;
-                    }
-                    const auto pmId = new (allocator.allocate<PatternMatchIdentifier>())
-                        PatternMatchIdentifier(&patternMatchExpr->value,
-                                               allocate_view(allocator, tuple_id->value),
-                                               parent_node, loc_single(tuple_id));
-                    pmId->tuple_index = tuple_index;
-                    pmId->is_wildcard = tuple_id->value == "_";
-                    pmId->tuple_path = prefix;
-                    pmId->tuple_path.push_back(tuple_index);
-                    tuple_index++;
-                    patternMatchExpr->value.param_names.emplace_back(pmId);
-                }
-                if(consumeToken(TokenType::CommaSym)) continue;
-                break;
-            }
-            if(!consumeToken(TokenType::RParen)) {
-                error("expected ')' after tuple pattern");
-                return false;
-            }
-            return true;
-        };
         std::vector<uint32_t> tuple_prefix;
-        parse_tuple_elements(parse_tuple_elements, tuple_prefix);
+        parseTuplePatternElements(allocator, &patternMatchExpr->value, tuple_prefix);
         if(!consumeToken(TokenType::EqualSym)) {
             error("expected '=' after tuple pattern");
             patternMatchExpr->value.expression = getErroredValue(allocator);

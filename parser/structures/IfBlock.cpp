@@ -39,6 +39,21 @@ std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator
                                            ? valueExpr
                                            : getErroredValue(allocator);
             expr = (Value*) patternMatch;
+        } else if(token->type == TokenType::LParen) {
+            const auto patternMatch = new (allocator.allocate<PatternMatchExpr>())
+                PatternMatchExpr(!isVar, false, chem::string_view(""), loc_single(t));
+            patternMatch->is_tuple = true;
+            token++; // '('
+            std::vector<uint32_t> prefix;
+            parseTuplePatternElements(allocator, patternMatch, prefix);
+            if(!consumeToken(TokenType::EqualSym)) {
+                error("expected '=' after tuple pattern");
+            }
+            const auto valueExpr = parseExpression(allocator, false, false);
+            patternMatch->expression = valueExpr != nullptr
+                                           ? valueExpr
+                                           : getErroredValue(allocator);
+            expr = (Value*) patternMatch;
         } else {
             const auto id = consumeIdentifierOrKeyword();
             if(id == nullptr) {

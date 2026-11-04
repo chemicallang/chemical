@@ -100,6 +100,13 @@ func test_tuples() {
         var (_, (d, e)) = ((9, 10), (11, 12))
         return a == 1 && b == 2 && c == 3 && d == 11 && e == 12
     })
+    test("tuple pattern in if condition", () => {
+        var value = (1, (2, 3))
+        if(var (a, (b, c)) = value) {
+            return a + b + c == 6
+        }
+        return false
+    })
     test("nested tuple destructuring moves destructible elements exactly once", () => {
         var first = 0
         var second = 0

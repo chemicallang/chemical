@@ -477,6 +477,19 @@ ASTNode* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpeci
             decl->set_tuple_struct(true);
             decl->set_direct_init(true);
             decl->create_tuple_struct_constructor(allocator, specifier);
+            if(consumeToken(TokenType::LBrace)) {
+                bool use_allocator = decl->is_body_retained();
+                if(!use_allocator && final_decl->kind() == ASTNodeKind::GenericStructDecl) {
+                    use_allocator = true;
+                    decl->set_is_body_retained(true);
+                }
+                auto& body_allocator = use_allocator ? allocator : mod_allocator;
+                parseContainerMembersInto(decl, allocator, body_allocator,
+                                          AccessSpecifier::Public, false, true);
+                if(!consumeToken(TokenType::RBrace)) {
+                    error("expected a closing bracket '}' for tuple struct block");
+                }
+            }
             parent_node = prev_parent_node;
             return final_decl;
         }

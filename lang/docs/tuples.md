@@ -3,8 +3,8 @@
 Status: implemented for construction, field access, parameters/returns,
 nested tuples, element assignment, `Copy`, auto traits, drop-once semantics,
 flat tuple destructuring (`var (a, b) = value`), named tuple structs
-(`struct Point(int, int)`), fixed-array patterns (`var [a, b] = arr`), and the
-unit tuple `()`.
+(`struct Point(int, int)`), inline methods on tuple structs, fixed-array
+patterns (`var [a, b] = arr`), and the unit tuple `()`.
 
 ## Syntax
 
@@ -30,6 +30,10 @@ func consume(pair : (int, int)) : int {
 struct Point(int, int)               // named tuple struct
 struct Pair<T>(T, T)                 // generic tuple struct
 struct Unit()                        // zero-field tuple struct
+
+struct PointMethods(int, int) {      // inline methods on a tuple struct
+    func sum(&self) : int { return self._0 + self._1 }
+}
 
 var point = Point(3, 4)              // positional constructor
 var generic = Pair<int>(5, 6)
@@ -119,8 +123,8 @@ yet.
 
 - Nested tuple/array patterns and patterns in `if`/match position. Flat tuple
   and fixed-array patterns support `_`, but nested patterns do not.
-- Tuple-struct field visibility and methods/inherent impls written inline after
-  the field list.
+- Tuple-struct field visibility (fields are always public) and external
+  inherent impls on tuple structs.
 - `impl Trait for (T1, T2)` / methods on structural tuples.
 - Slice rest patterns, `&mut [T]`/`Box<[T]>` patterns, statement forms with an
   `else` path, and non-Copy array destructuring. Exact `[T]`/`&[T]` condition

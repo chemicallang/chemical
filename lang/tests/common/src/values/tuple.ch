@@ -21,7 +21,16 @@ struct TupleDropProbe {
 }
 
 struct TupleStructPoint(int, int)
+struct TupleStructPointMethods(int, int) {
+    func sum(&self) : int {
+        return self._0 + self._1
+    }
+}
 struct TupleStructGeneric<T>(T, T)
+struct TupleStructGenericMethods<T>(T, T) {
+    func count(&self) : int { return 2 }
+    func first(&self) : T where T: Copy { return self._0 }
+}
 struct TupleStructDrops(TupleDropProbe, TupleDropProbe)
 
 func test_tuples() {
@@ -99,6 +108,11 @@ func test_tuples() {
         var pair = TupleStructGeneric<int>(9, 10)
         var (a, b) = pair
         return a == 9 && b == 10
+    })
+    test("tuple struct inline methods", () => {
+        var point = TupleStructPointMethods(3, 4)
+        var pair = TupleStructGenericMethods<int>(5, 6)
+        return point.sum() == 7 && pair.count() == 2 && pair.first() == 5
     })
     test("tuple struct destructible elements drop exactly once", () => {
         var first = 0

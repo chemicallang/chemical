@@ -292,6 +292,7 @@ client failure tests in the LLVM TLS filter.
 | `ssl_set_own_rsa_key` | private key is caller-owned and must outlive the handshake | **`unsafe func`**; null config no-op |
 | `ssl_set_alpn_protocols` | protocol list and every string are caller-owned | **`unsafe func`**; null/zero list clears; null entries clear the list |
 | `ssl_get_alpn_negotiated` | returned buffer is owned by the context | **`unsafe func`**; null context returns null |
+| `ssl_set_config` | caller config may be a stack value or temporary | copies the config into SSLContext-owned storage; `ssl_free` releases one copy |
 | Windows `send_message` | null handle/buffer and oversized lengths are rejected | returns without calling `WriteFile` |
 | Windows test launch | pipe reads never index past the buffer | clamp `DWORD` counts before NUL append |
 | Windows test launch | failed connect does not leak child handles | terminates the child and closes process/thread/pipe handles |
@@ -300,6 +301,8 @@ The TLS setters previously accepted raw caller storage through safe signatures.
 They are now explicit unsafe boundaries; callers must keep the CA chain, private
 key, and ALPN string array alive for the handshake. ALPN additionally rejects
 null list entries instead of dereferencing them during ClientHello construction.
+`ssl_set_config` now copies the config, so its pointer lifetime is owned by the
+context (the raw CA/key/ALPN pointers inside it remain caller-owned).
 The Windows test IPC path now fails closed on null/invalid handles and bounds
 message sizes before `WriteFile`, and cleans up child handles when pipe connect
 fails.
@@ -308,8 +311,7 @@ Regression coverage: the existing ALPN/CA/key setter tests and the i386 Windows
 target safety check (`windows_i386_libs_safety`); LLVM TLS filtered tests `7/7`.
 
 Still remaining in this group: actual zero-sized vector support (safe but
-ergonomically incomplete), `ssl_set_config` caller-owned config lifetime, and
-target-specific non-Windows OS-gated wrappers.
+ergonomically incomplete) and target-specific non-Windows OS-gated wrappers.
 
 ## Coverage
 

@@ -4402,15 +4402,7 @@ public namespace tls {
         cfg.ciphersuite_list[0] = cs(cipher_suite)
         cfg.ciphersuite_count = 1
 
-        var cfg_mem = unsafe(malloc(sizeof(SSLConfig))) as *mut SSLConfig
-        if(cfg_mem == null) {
-            ssl_free(ssl_mem)
-            unsafe { dealloc ssl_mem }
-            return null
-        }
-        unsafe { *cfg_mem = cfg }
-        ssl_set_config(ssl_mem, cfg_mem)
-        ssl_mem.conf_owned = true
+        ssl_set_config(ssl_mem, &raw mut cfg)
 
         // Perform server handshake
         var ret = await do_tls12_server_handshake(ssl_mem)
@@ -4974,11 +4966,20 @@ public namespace tls {
     }
 }
 
-    // Configure the SSL context
+    // Configure the SSL context. The config is copied into context-owned
+    // storage, so callers may use a stack config or a temporary expression.
     public func ssl_set_config(ssl : *mut SSLContext, conf : *mut SSLConfig) {
         unsafe {
 
-        ssl.conf = conf
+        if(ssl == null || conf == null) { return }
+        var copy = unsafe(malloc(sizeof(SSLConfig))) as *mut SSLConfig
+        if(copy == null) { return }
+        unsafe { *copy = *conf }
+        if(ssl.conf_owned && ssl.conf != null) {
+            unsafe { dealloc ssl.conf }
+        }
+        ssl.conf = copy
+        ssl.conf_owned = true
         ssl.major_ver = 3
         if(conf.max_tls_version >= SSL_VERSION_TLS1_3) {
             ssl.minor_ver = 4 as u8

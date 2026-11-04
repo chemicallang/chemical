@@ -337,9 +337,9 @@ public namespace http {
                     tls::ssl_init(ssl_ptr)
 
                     // Create config with auto-loaded CA (or the caller's custom
-                    // chain). The config is heap-allocated so it outlives this
-                    // function (the Body's TLS context keeps pointing at it);
-                    // ssl_free releases it via conf_owned.
+                    // chain). The context copies the config, so a stack
+                    // value is sufficient; caller-owned CA/key pointers still
+                    // have to outlive the handshake.
                     var config = tls::ssl_config_init(tls::SSL_IS_CLIENT)
                     var custom_ca = ca_chain != null
                     var ca: *mut tls::X509Cert = null
@@ -354,16 +354,7 @@ public namespace http {
                     if(tls_skip_verify) {
                         config.authmode = tls::SSL_VERIFY_NONE
                     }
-                    var config_mem = malloc(sizeof(tls::SSLConfig)) as *mut tls::SSLConfig
-                    if(config_mem == null) {
-                        if(ca != null) { tls::cert_chain_free(ca) }
-                        tls::ssl_free(ssl_ptr)
-                        unsafe { dealloc ssl_ptr }
-                        return std::Result.Err<Response, std::string>(std::string::make_no_len("TLS config alloc failed"))
-                    }
-                    *config_mem = config
-                    tls::ssl_set_config(ssl_ptr, config_mem)
-                    ssl_ptr.conf_owned = true
+                    tls::ssl_set_config(ssl_ptr, &raw mut config)
 
                     // Set hostname for SNI extension and certificate verification
                     tls::ssl_set_hostname(ssl_ptr, req_builder.url.host.data())
@@ -404,9 +395,9 @@ public namespace http {
                 tls::ssl_init(ssl_ptr)
 
                 // Create config with auto-loaded CA (or the caller's custom
-                // chain). The config is heap-allocated so it outlives this
-                // function (the Body's TLS context keeps pointing at it);
-                // ssl_free releases it via conf_owned.
+                // chain). The context copies the config, so a stack
+                // value is sufficient; caller-owned CA/key pointers still have
+                // to outlive the handshake.
                 var config = tls::ssl_config_init(tls::SSL_IS_CLIENT)
                 var custom_ca = ca_chain != null
                 var ca: *mut tls::X509Cert = null
@@ -421,16 +412,7 @@ public namespace http {
                 if(tls_skip_verify) {
                     config.authmode = tls::SSL_VERIFY_NONE
                 }
-                var config_mem = malloc(sizeof(tls::SSLConfig)) as *mut tls::SSLConfig
-                if(config_mem == null) {
-                    if(ca != null) { tls::cert_chain_free(ca) }
-                    tls::ssl_free(ssl_ptr)
-                    unsafe { dealloc ssl_ptr }
-                    return std::Result.Err<Response, std::string>(std::string::make_no_len("TLS config alloc failed"))
-                }
-                *config_mem = config
-                tls::ssl_set_config(ssl_ptr, config_mem)
-                ssl_ptr.conf_owned = true
+                tls::ssl_set_config(ssl_ptr, &raw mut config)
 
                 // Set hostname for SNI extension and certificate verification
                 tls::ssl_set_hostname(ssl_ptr, req_builder.url.host.data())

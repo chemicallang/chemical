@@ -2070,7 +2070,7 @@ public func tls_ssl_set_ca_chain_setter_works(env : &mut TestEnv) {
     var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
-    tls::ssl_set_ca_chain(&raw mut config, unsafe(&raw mut cert))
+    unsafe(tls::ssl_set_ca_chain(&raw mut config, unsafe(&raw mut cert)))
     if(config.ca_chain == null) {
         env.error("ca_chain should be set after ssl_set_ca_chain")
     }
@@ -2641,7 +2641,7 @@ public func tls_ssl_config_set_own_key_works(env : &mut TestEnv) {
     var e_buf : [1]u8 = [0x03]
     tls::rsa_import_pubkey(unsafe(&raw mut rsa), &raw n_buf[0], 1, &raw e_buf[0], 1)
 
-    tls::ssl_set_own_rsa_key(&raw mut config, unsafe(&raw mut rsa))
+    unsafe(tls::ssl_set_own_rsa_key(&raw mut config, unsafe(&raw mut rsa)))
     if(config.own_key == null) {
         env.error("own_key should be set after ssl_set_own_rsa_key")
     }
@@ -2716,7 +2716,7 @@ public func tls_alpn_config_setter_works(env : &mut TestEnv) {
     }
 
     var protocols : [2]*char = ["h2\0" as *char, "http/1.1\0" as *char]
-    tls::ssl_set_alpn_protocols(&raw mut config, &raw protocols[0] as *mut *char, 2)
+    unsafe(tls::ssl_set_alpn_protocols(&raw mut config, &raw protocols[0] as *mut *char, 2))
     if(config.alpn_count != 2) {
         env.error("alpn_count should be 2 after set")
     }
@@ -2729,7 +2729,7 @@ public func tls_alpn_config_setter_works(env : &mut TestEnv) {
 public func tls_alpn_getter_returns_null_initially(env : &mut TestEnv) {
     var ssl : tls::SSLContext = unsafe(std::mem.zeroed_unchecked<tls::SSLContext>())
     tls::ssl_init(unsafe(&raw mut ssl))
-    var alpn = tls::ssl_get_alpn_negotiated(unsafe(&raw mut ssl))
+    var alpn = unsafe(tls::ssl_get_alpn_negotiated(unsafe(&raw mut ssl)))
     if(alpn != null) {
         env.error("alpn_negotiated should be null before handshake")
     }

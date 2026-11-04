@@ -267,7 +267,7 @@ public func ALPN_set_works(env : &mut TestEnv) {
     var protocols : [2]*char = [h2, http11]
 
     var config = ssl_config_init(SSL_IS_CLIENT)
-    ssl_set_alpn_protocols(&raw mut config, &raw mut protocols[0], 2)
+    unsafe(ssl_set_alpn_protocols(&raw mut config, &raw mut protocols[0], 2))
 
     if(config.alpn_count != 2) {
         env.error("alpn_count should be 2")
@@ -279,7 +279,7 @@ public func ALPN_negotiated_default_null(env : &mut TestEnv) {
     var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>())
     ssl_init(unsafe(&raw mut ctx))
 
-    var negotiated = ssl_get_alpn_negotiated(unsafe(&raw mut ctx))
+    var negotiated = unsafe(ssl_get_alpn_negotiated(unsafe(&raw mut ctx)))
     if(negotiated != null) {
         env.error("alpn_negotiated should be null before handshake")
     }
@@ -299,7 +299,7 @@ public func SERVER_CONFIG_set_own_rsa_key_works(env : &mut TestEnv) {
     if(ret < 0) { env.error("rsa_gen_key failed"); return }
 
     var config = ssl_config_init(SSL_IS_SERVER)
-    ssl_set_own_rsa_key(&raw mut config, &raw mut rsa_ctx)
+    unsafe(ssl_set_own_rsa_key(&raw mut config, &raw mut rsa_ctx))
 
     if(unsafe(config.own_key) == null) {
         env.error("own_key should be set after ssl_set_own_rsa_key")

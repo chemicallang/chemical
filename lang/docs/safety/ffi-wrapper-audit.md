@@ -284,10 +284,32 @@ server closed it again, allowing a double-close (and fd-reuse race).
 Regression coverage: `tls_hostname_is_copied_and_owned`, plus the HTTP body and
 client failure tests in the LLVM TLS filter.
 
-Still remaining in this group: actual zero-sized vector support (the current
-fail-closed rejection is safe but ergonomically incomplete), Windows IPC,
-remaining TLS config/ALPN caller-pointer lifetimes, and the target-specific audit
-list.
+## Tranche 17 — TLS caller-owned config lists and Windows IPC (2026-11-04)
+
+| Surface | Invariant | Enforcement |
+|---|---|---|
+| `ssl_set_ca_chain` | CA chain is caller-owned and must outlive the handshake | **`unsafe func`**; null config no-op |
+| `ssl_set_own_rsa_key` | private key is caller-owned and must outlive the handshake | **`unsafe func`**; null config no-op |
+| `ssl_set_alpn_protocols` | protocol list and every string are caller-owned | **`unsafe func`**; null/zero list clears; null entries clear the list |
+| `ssl_get_alpn_negotiated` | returned buffer is owned by the context | **`unsafe func`**; null context returns null |
+| Windows `send_message` | null handle/buffer and oversized lengths are rejected | returns without calling `WriteFile` |
+| Windows test launch | pipe reads never index past the buffer | clamp `DWORD` counts before NUL append |
+| Windows test launch | failed connect does not leak child handles | terminates the child and closes process/thread/pipe handles |
+
+The TLS setters previously accepted raw caller storage through safe signatures.
+They are now explicit unsafe boundaries; callers must keep the CA chain, private
+key, and ALPN string array alive for the handshake. ALPN additionally rejects
+null list entries instead of dereferencing them during ClientHello construction.
+The Windows test IPC path now fails closed on null/invalid handles and bounds
+message sizes before `WriteFile`, and cleans up child handles when pipe connect
+fails.
+
+Regression coverage: the existing ALPN/CA/key setter tests and the i386 Windows
+target safety check (`windows_i386_libs_safety`); LLVM TLS filtered tests `7/7`.
+
+Still remaining in this group: actual zero-sized vector support (safe but
+ergonomically incomplete), `ssl_set_config` caller-owned config lifetime, and
+target-specific non-Windows OS-gated wrappers.
 
 ## Coverage
 

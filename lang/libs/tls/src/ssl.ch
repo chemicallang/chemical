@@ -4613,10 +4613,12 @@ public namespace tls {
     }
 }
 
-    // Set the trusted CA chain for certificate verification
-    public func ssl_set_ca_chain(conf : *mut SSLConfig, ca : *mut X509Cert) {
+    // Set the trusted CA chain for certificate verification. The chain remains
+    // caller-owned and must outlive the handshake that uses this config.
+    public unsafe func ssl_set_ca_chain(conf : *mut SSLConfig, ca : *mut X509Cert) {
         unsafe {
 
+        if(conf == null) { return }
         conf.ca_chain = ca
 
     }
@@ -4821,29 +4823,49 @@ public namespace tls {
         return cert_mem
     }
 
-    // Set the server's own RSA private key for decrypting the pre-master secret
-    public func ssl_set_own_rsa_key(conf : *mut SSLConfig, rsa_key : *mut RSAContext) {
+    // Set the server's own RSA private key for decrypting the pre-master secret.
+    // The key remains caller-owned and must outlive the handshake.
+    public unsafe func ssl_set_own_rsa_key(conf : *mut SSLConfig, rsa_key : *mut RSAContext) {
         unsafe {
 
+        if(conf == null) { return }
         conf.own_key = rsa_key as *mut void
 
     }
 }
 
-    // Set ALPN protocols for negotiation
-    public func ssl_set_alpn_protocols(conf : *mut SSLConfig, protocols : *mut *char, count : u8) {
+    // Set ALPN protocols for negotiation. The protocol list and every string
+    // remain caller-owned and must outlive the handshake.
+    public unsafe func ssl_set_alpn_protocols(conf : *mut SSLConfig, protocols : *mut *char, count : u8) {
         unsafe {
 
+        if(conf == null) { return }
+        if(protocols == null || count == 0) {
+            conf.alpn_list = null
+            conf.alpn_count = 0
+            return
+        }
+        var i : u8 = 0
+        while(i < count) {
+            if(protocols[i] == null) {
+                conf.alpn_list = null
+                conf.alpn_count = 0
+                return
+            }
+            i += 1
+        }
         conf.alpn_list = protocols
         conf.alpn_count = count
 
     }
 }
 
-    // Get the negotiated ALPN protocol after handshake
-    public func ssl_get_alpn_negotiated(ssl : *mut SSLContext) : *char {
+    // Get the negotiated ALPN protocol after handshake. The returned pointer is
+    // owned by the context and becomes invalid at ssl_free.
+    public unsafe func ssl_get_alpn_negotiated(ssl : *mut SSLContext) : *char {
         unsafe {
 
+        if(ssl == null) { return null }
         return ssl.alpn_negotiated
 
     }

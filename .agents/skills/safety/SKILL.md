@@ -350,11 +350,11 @@ memory safety.
    vector replacement drops, filesystem temp/copy path buffer bounds, and
    non-`Copy` map `find` rejection). The rest of the safe wrapper surface
    (actual zero-sized vector support, string_view/u16string parsers,
-   Windows IPC, remaining TLS config/ALPN lifetimes) and the target-specific
-   audit list remain; the string-view/UTF-16 raw constructors, Rc/Arc weak
-   handles, RefCell guard escape, Windows directory traversal/removal bounds,
-   HTTP body/scratch-buffer ownership, and TLS hostname/socket ownership were
-   reviewed or fixed. The i386 Windows libraries are syntax/safety-clean.
+   `ssl_set_config` caller-owned config lifetime) and the target-specific audit
+   list remain; the string-view/UTF-16 raw constructors, Rc/Arc weak handles,
+   RefCell guard escape, Windows directory traversal/removal bounds, HTTP
+   body/scratch-buffer ownership, TLS hostname/socket ownership, TLS
+   CA/key/ALPN caller lists, and Windows test IPC bounds were reviewed or fixed. The i386 Windows libraries are syntax/safety-clean.
 3. **`@scoped_callback` is body-checked, including custom sinks.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter anywhere except a known join-before-return API (resolved by

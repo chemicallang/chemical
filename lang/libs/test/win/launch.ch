@@ -21,6 +21,7 @@ func drain_pipe_messages(state : &mut TestFunctionState, hPipe : HANDLE) : int {
         var n : DWORD = 0
         if(!ReadFile(hPipe, &raw mut buf[0], sizeof(buf)-1, &raw mut n, null)) { return drained }
         if(n == 0) { return drained }
+        if(n >= sizeof(buf) as DWORD) { n = (sizeof(buf) - 1) as DWORD }
         buf[n] = '\0'
         process_message(state, &raw mut buf[0])
         drained += 1
@@ -97,6 +98,9 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
     if (!ConnectNamedPipe(hPipe, null)) {
         if (GetLastError() != ERROR_PIPE_CONNECTED) {
             fprintf(get_stderr(), "error: during connect named pipe");
+            TerminateProcess(pi.hProcess, 1)
+            CloseHandle(pi.hProcess)
+            CloseHandle(pi.hThread)
             CloseHandle(hPipe);
             return 1;
         }
@@ -150,6 +154,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
 
         if (ReadFile(hPipe, &raw mut buffer[0], sizeof(buffer)-1, &raw mut bytesRead, null)) {
             if(bytesRead > 0) {
+                if(bytesRead >= sizeof(buffer) as DWORD) { bytesRead = (sizeof(buffer) - 1) as DWORD }
                 buffer[bytesRead] = '\0'; // null terminate
                 process_message(state, &raw mut buffer[0]);
             } else {

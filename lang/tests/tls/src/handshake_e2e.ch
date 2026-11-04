@@ -293,7 +293,7 @@ public func E2E_alpn_negotiation_h2(env : &mut TestEnv) {
         "http/1.1\0" as *char,
         "h2\0" as *char
     ]
-    ssl_set_alpn_protocols(&raw mut config, &raw mut protos[0], 2)
+    unsafe(ssl_set_alpn_protocols(&raw mut config, &raw mut protos[0], 2))
     ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
     var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 20105u)
@@ -304,7 +304,7 @@ public func E2E_alpn_negotiation_h2(env : &mut TestEnv) {
         return
     }
 
-    var alpn = ssl_get_alpn_negotiated(unsafe(&raw mut ctx))
+    var alpn = unsafe(ssl_get_alpn_negotiated(unsafe(&raw mut ctx)))
     if(alpn == null) {
         env.error("ALPN: no protocol was negotiated")
         ssl_free(unsafe(&raw mut ctx))

@@ -674,7 +674,7 @@ public func tls_ssl_set_ca_chain_null_works(env : &mut TestEnv) {
         return
     }
     // ssl_set_ca_chain with null should be a no-op
-    ssl_set_ca_chain(&raw mut cfg, null)
+    unsafe(ssl_set_ca_chain(&raw mut cfg, null))
     if(cfg.ca_chain != null) {
         env.error("ca_chain should remain null after setting to null")
     }

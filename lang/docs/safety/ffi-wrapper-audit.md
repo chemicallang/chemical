@@ -266,9 +266,28 @@ Regression coverage (LLVM TLS filter): `http_body_read_rejects_null_buffer`,
 `http_body_copies_initial_buffer`, and `http_strcasecmp_handles_null`; the
 existing invalid-URL/connection-refused checks also pass.
 
+## Tranche 16 — TLS hostname/accept ownership (2026-11-04)
+
+| Wrapper | Invariant | Enforcement |
+|---|---|---|
+| `ssl_set_hostname` | the SNI name must outlive the caller's string | copies up to 255 bytes into an SSLContext-owned buffer; `hostname_owned` controls `ssl_free` |
+| `SSLContext` hostname ownership | replacing/freeing a context must not leak or double-free the copied name | init clears the flag; setter frees a previous owned copy; `ssl_free` frees the copy once |
+| `tls_accept` | the accepted socket has one owner on success and failure | success transfers it to the SSLContext; every failure path closes or frees the context that owns it |
+| HTTP `handle_conn` | the TLS context must not close the socket twice | `close_connection` suppresses `ssl_free`'s close and performs the single close itself |
+
+`ssl_set_hostname` previously stored the caller's raw pointer. A caller could
+pass a temporary `std::string` and start the handshake after it was destroyed;
+SNI construction and certificate verification then read freed memory.
+`tls_accept` also closed the accepted socket on handshake failure while the HTTP
+server closed it again, allowing a double-close (and fd-reuse race).
+
+Regression coverage: `tls_hostname_is_copied_and_owned`, plus the HTTP body and
+client failure tests in the LLVM TLS filter.
+
 Still remaining in this group: actual zero-sized vector support (the current
 fail-closed rejection is safe but ergonomically incomplete), Windows IPC,
-TLS transport/handshake ownership, and the target-specific audit list.
+remaining TLS config/ALPN caller-pointer lifetimes, and the target-specific audit
+list.
 
 ## Coverage
 

@@ -538,9 +538,11 @@ public namespace tls {
         // Peer certificate
         var peer_cert : *mut X509Cert
 
-        // Hostname for SNI
+        // Hostname for SNI. `ssl_set_hostname` owns a copy; `hostname_owned`
+        // distinguishes it from a directly assigned borrowed pointer.
         var hostname : *char
         var hostname_len : size_t
+        var hostname_owned : bool
 
         // ALPN negotiated
         var alpn_negotiated : *char
@@ -619,6 +621,7 @@ public namespace tls {
             ssl.peer_cert = null
             ssl.hostname = null
             ssl.hostname_len = 0
+            ssl.hostname_owned = false
             ssl.alpn_negotiated = null
             ssl.alpn_negotiated_len = 0
             ssl.transform_in = null
@@ -694,6 +697,7 @@ public namespace tls {
         ssl.peer_cert = null
         ssl.hostname = null
         ssl.hostname_len = 0
+        ssl.hostname_owned = false
         ssl.alpn_negotiated = null
         ssl.alpn_negotiated_len = 0
         ssl.transform_in = null

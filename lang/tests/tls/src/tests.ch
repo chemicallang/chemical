@@ -4582,3 +4582,38 @@ public func http_strcasecmp_handles_null(env : &mut TestEnv) {
         }
     }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// TLS hostname ownership
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func tls_hostname_is_copied_and_owned(env : &mut TestEnv) {
+    unsafe {
+        var ctx : tls::SSLContext = std::mem.zeroed_unchecked<tls::SSLContext>()
+        tls::ssl_init(&raw mut ctx)
+        var source_ptr : *char = null
+        {
+            var host = std::string("example.com")
+            source_ptr = host.data()
+            tls::ssl_set_hostname(&raw mut ctx, host.data())
+        }
+        if(ctx.hostname == source_ptr) {
+            env.error("ssl_set_hostname must copy the caller's string")
+        }
+        if(ctx.hostname == null || ctx.hostname_len != 11u) {
+            env.error("ssl_set_hostname did not retain the expected name")
+        } else {
+            var expected = "example.com\0" as *char
+            var i : size_t = 0
+            while(i < 11u) {
+                if(ctx.hostname[i] != expected[i]) {
+                    env.error("ssl_set_hostname copy does not match")
+                    break
+                }
+                i += 1u
+            }
+        }
+        tls::ssl_free(&raw mut ctx)
+    }
+}

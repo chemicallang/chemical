@@ -49,6 +49,22 @@ public namespace server {
             }
         }
 
+        func close_connection(s : net::Socket, tls_ctx : *mut tls::SSLContext) {
+            unsafe {
+
+            if(tls_ctx != null) {
+                tls::ssl_close_notify(tls_ctx)
+                // The helper below performs the one and only close; suppress
+                // ssl_free's socket close to avoid closing the same fd twice.
+                tls_ctx.transport_connected = false
+                tls::ssl_free(tls_ctx)
+                unsafe { dealloc tls_ctx }
+            }
+            net::close_socket(s)
+
+            }
+        }
+
         func handle_conn(&self, s: net::Socket) {
             unsafe {
 
@@ -62,8 +78,8 @@ public namespace server {
             if(self.tls_cert != null && self.tls_rsa_key != null) {
                 tls_ctx = tls::tls_accept(s, self.tls_cert, self.tls_rsa_key)
                 if(tls_ctx == null) {
+                    // tls_accept consumes the socket on failure as well.
                     unsafe { printf("TLS handshake failed\n") }
-                    net::close_socket(s)
                     return
                 }
             }
@@ -71,7 +87,8 @@ public namespace server {
             var buf = net::Buffer();
             var req_opt = http::read_request_incremental(s, &mut buf, self.cfg.header_timeout_secs, self.cfg.max_header_bytes, self.cfg.max_headers, tls_ctx);
             if (req_opt is std::Option.None) {
-                net::close_socket(s); return;
+                close_connection(s, tls_ctx);
+                return;
             }
             // RFC 9112 §6.3: a request's body length comes from
             // Transfer-Encoding, else Content-Length, and if NEITHER is present
@@ -110,13 +127,7 @@ public namespace server {
                 resw.write_string(std::string::make_no_len("Not Found\n"));
             }
 
-            // Free TLS context if allocated
-            if(tls_ctx != null) {
-                tls::ssl_close_notify(tls_ctx)
-                tls::ssl_free(tls_ctx)
-                unsafe { dealloc tls_ctx }
-            }
-            net::close_socket(s);
+            close_connection(s, tls_ctx);
 
         }
 }

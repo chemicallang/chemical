@@ -4359,7 +4359,9 @@ public namespace tls {
     // ============================================================================
     // ─── Secure Connection Helper ──────────────────────────────────────────
     // Accept a TLS connection on an already-accepted socket.
-    // Performs the server-side TLS handshake.
+    // Performs the server-side TLS handshake. The call consumes `sock` on both
+    // success and failure (the returned SSLContext owns it on success; the
+    // failure paths close it before returning null).
     // Returns a heap-allocated SSLContext on success, null on failure.
     // priv_key must be a pointer to the matching private key context
     // (*mut RSAContext for RSA certs, *mut ECDSAContext for EC certs).
@@ -4377,7 +4379,10 @@ public namespace tls {
                                unsafe {
 
         var ssl_mem = unsafe(malloc(sizeof(SSLContext))) as *mut SSLContext
-        if(ssl_mem == null) { return null }
+        if(ssl_mem == null) {
+            net::close_socket(sock)
+            return null
+        }
 
         ssl_init(ssl_mem)
         ssl_mem.transport_async = transport_async
@@ -4399,6 +4404,7 @@ public namespace tls {
 
         var cfg_mem = unsafe(malloc(sizeof(SSLConfig))) as *mut SSLConfig
         if(cfg_mem == null) {
+            ssl_free(ssl_mem)
             unsafe { dealloc ssl_mem }
             return null
         }
@@ -4923,11 +4929,25 @@ public namespace tls {
     public func ssl_set_hostname(ssl : *mut SSLContext, hostname : *char) {
         unsafe {
 
+        if(ssl == null || hostname == null) { return }
+        // SNI names are at most 255 bytes; copy so the caller's string may be
+        // temporary. Keep the ownership bit so ssl_free only frees this copy.
         var len : size_t = 0
-        while(hostname[len] != 0) { len += 1 }
-        if(len > 255) { len = 255 }
-        ssl.hostname = hostname
+        while(len < 255 && hostname[len] != 0) { len += 1 }
+        var copy = unsafe(malloc(len + 1)) as *mut char
+        if(copy == null) { return }
+        var i : size_t = 0
+        while(i < len) {
+            copy[i] = hostname[i]
+            i += 1
+        }
+        copy[len] = 0
+        if(ssl.hostname_owned && ssl.hostname != null) {
+            unsafe { dealloc ssl.hostname }
+        }
+        ssl.hostname = copy
         ssl.hostname_len = len
+        ssl.hostname_owned = true
 
     }
 }
@@ -6096,6 +6116,12 @@ public namespace tls {
             unsafe { dealloc ssl.alpn_negotiated }
             ssl.alpn_negotiated = null
         }
+        if(ssl.hostname_owned && ssl.hostname != null) {
+            unsafe { dealloc ssl.hostname }
+        }
+        ssl.hostname = null
+        ssl.hostname_len = 0
+        ssl.hostname_owned = false
         if(ssl.peer_cert != null) {
             // Peer cert chain is heap-allocated and owned by the library
             cert_chain_free(ssl.peer_cert)

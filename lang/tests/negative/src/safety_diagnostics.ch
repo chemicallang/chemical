@@ -1985,6 +1985,24 @@ func neg_map_internal_size_rejected(env : &mut TestEnv) {
 }
 
 @test
+func neg_unordered_map_find_non_copy_value(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var map = std::unordered_map<int, std::string>()\n    var out = std::string(\"x\")\n    map.find(1, &mut out)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "unordered_map_find_non_copy_value", ch,
+                                  "does not satisfy where clause constraint 'Value : Copy'",
+                                  NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_ordered_map_find_non_copy_value(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var map = std::ordered_map<int, std::string>()\n    var out = std::string(\"x\")\n    map.find(1, &mut out)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "ordered_map_find_non_copy_value", ch,
+                                  "does not satisfy where clause constraint 'Value : Copy'",
+                                  NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_string_private_storage_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var s = std::string()\n    s.storage.sso.length = 0\n    return 0\n}\n"

@@ -42,6 +42,10 @@ public struct MdReference {
     var title : std::string_view
 }
 
+// Both fields are Copy views; the parser's map `find` copies the reference
+// into a caller slot, which is only sound for Copy values.
+impl Copy for MdReference {}
+
 public struct MdRoot {
     var base : MdNode
     var parent : *mut ASTNode

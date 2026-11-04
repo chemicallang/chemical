@@ -161,6 +161,24 @@ Regression coverage: `u16 string self append survives storage move` forces an
 SSO -> heap move while appending the string to itself; the safety suite adds
 `u16_string_append_null_panics` and `u16_string_append_utf8_null_panics`.
 
+## Tranche 10 — map `find` ownership (2026-11-04)
+
+| Wrapper | Invariant | Enforcement |
+|---|---|---|
+| `unordered_map::find` | the output copy must not duplicate ownership of a stored value | **`where Value : Copy`**; owning/destructor values are rejected at the call site |
+| `ordered_map::find` | same | **`where Value : Copy`** |
+
+`find` writes `*value = *ptr` through a raw pointer. Before this tranche the
+generic method accepted any `Value`, so a map value with a destructor (for
+example a heap-backed `string` or a custom resource) was bitwise duplicated:
+the map and the caller slot both owned the same pointer and both destructors
+freed it. A small destructor-bearing test reproduced a glibc double-free.
+`Copy` values keep the existing API; callers that need a borrowed view use
+`get_ptr` (raw dereference remains `unsafe`).
+
+Regression coverage: `neg_unordered_map_find_non_copy_value` and
+`neg_ordered_map_find_non_copy_value`.
+
 Still remaining in this group: actual zero-sized vector support,
 `string_view`/`u16string` raw constructors, remaining `Rc`/`Arc` weak-handle
 invariants, `RefCell` guard escape, and thread-pool worker

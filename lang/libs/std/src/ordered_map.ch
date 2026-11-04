@@ -153,7 +153,9 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
         }
     }
 
-    func find(&self, key : &Key, value : &mut Value) : bool {
+    // `find` copies the stored value into the caller slot. Restrict it to
+    // Copy values: a bitwise copy of an owning value would be destroyed twice.
+    func find(&self, key : &Key, value : &mut Value) : bool where Value : Copy {
         const ptr = get_ptr(key)
         if(ptr != null) {
             unsafe { *value = *ptr; }

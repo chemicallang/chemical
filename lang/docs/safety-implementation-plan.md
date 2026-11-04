@@ -1,8 +1,20 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.27)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.28)
+
+> **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
+> adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
+> feature is release-blocking only when it is required to express safe code, to
+> keep a safe API sound, or to meet a stated performance target. GATs, const
+> generics, built-in derive, `impl Trait`/RPITIT, default-method parameter
+> projections, match/switch-position patterns, `impl Trait for (T1, T2)`, raw
+> unsized `[T]`, and full UTF-8 API parity are **deferred** unless a concrete
+> safe stdlib API cannot be expressed without them. The critical path is now:
+> stdlib/FFI wrapper soundness, move/borrow/init closure, async/concurrency,
+> no-panic effects, and cross-target safety — not more syntax.
 
 > **Status (2026-11-01):** M0 and M3 complete; M4/M5/M6 are complete for the
-> currently enforceable safe surface, with the documented gaps in §4.5. M1/M2/M7
-> remain in progress; M8/M9 are pending. Direct async `FutureHandle` borrow
+> currently enforceable safe surface, with the documented gaps in §4.5. M1
+> feature expansion is frozen under the priority policy above; M2/M7 remain in
+> progress; M8/M9 are pending. Direct async `FutureHandle` borrow
 > escapes are checked in MIR, `SAFE-LIFE-005` rejects safe retaining APIs, the
 > LLVM C ABI is target-aware for x86-64 System V, Windows x64/ARM64, i386
 > SysV/Windows, ARM32 AAPCS (soft/hard-float) and AAPCS64 (unknown targets
@@ -1193,12 +1205,16 @@ For full safe-program parity:
    positive is closed; every false negative is a release blocker.
 4. **No opt-out.** No module/CLI/dependency escape; report-only is absent from
    release builds.
-5. **Parity.** All language features in §5.0 are implemented and tested on TCC
-   and LLVM; the interpreter runs every feature it supports, and unsupported
-   coroutine/interface opcodes are hard diagnostics. Interpreter coverage gaps
-   are release blockers for the interpreter corpus (M5.7/M8.1), not silent
-   skips. All shipped-library APIs in the parity backlog are release-blocking;
-   an unimplemented shipped API is a gate failure, not a backlog note.
+5. **Safety-relevant parity.** Every feature and shipped safe API needed to
+   express sound code is implemented and tested on TCC and LLVM; the interpreter
+   runs every feature it supports, and unsupported coroutine/interface opcodes
+   are hard diagnostics. Interpreter coverage gaps are release blockers for the
+   interpreter corpus (M5.7/M8.1), not silent skips. Feature-parity-only items
+   (GATs, const generics, built-in derive, `impl Trait`/RPITIT, default-method
+   parameter projections, match/switch-position patterns, tuple trait impls,
+   raw unsized `[T]`, full UTF-8 surface) are not release blockers unless a
+   concrete safe API requires them; missing safe wrappers and unaudited
+   `unsafe` are still release blockers.
 6. **Performance.** Compile-time/RSS/runtime targets in §13 are met; size is
    tracked and handed to the post-feature shrink milestone.
 7. **Portability.** TCC, LLVM, and the interpreter share the same MIR checks.
@@ -1444,7 +1460,7 @@ new number as the honest baseline, not a compiler regression.
    visibility, string append null validation, fail-closed zero-sized vectors,
    `Rc`/`Arc` count-overflow checks, unsafe-gated `u16_strlen`, thread-pool
    `Future` ownership/null safety, vector replacement drops, and filesystem
-   temp/copy path buffer bounds. See
+   temp/copy path buffer bounds, and non-`Copy` map `find` rejection. See
    `lang/docs/safety/ffi-wrapper-audit.md`. Remaining: actual zero-sized vector
    support, string_view/u16string raw constructors, remaining
    Rc/Arc/RefCell invariants, thread-pool worker cancellation/teardown,
@@ -3158,3 +3174,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.25 (2026-11-03): generic inherent implementations. `impl<T> Pair<T> { ... }` now indexes its methods on the concrete target when instantiated, the same way a concrete inherent impl does; no interface/vtable registration is involved. Generic inherent methods can use `T` and method-level `where` bounds. Added runtime coverage for a generic tuple struct with external inherent methods. Main TCC/LLVM `2485`/`2483`; `@test` `57`; negative `810`; safety `78`; async `83`; plugins `1305`; TCC libs `735`; interpret `1937`; `MIRTests` `4749`; audit no growth.*
 *Revision note v5.26 (2026-11-03): nested fixed-array patterns. `var [[a, b], [c, d]] = matrix` and mixed forms such as `var [_, [b, c], _] = matrix` now work for fixed arrays; each level is arity-checked and nested positions must themselves be fixed-size arrays. MIR reads nested leaves through their full array-index path. Nested groups are exact; `..` inside a nested group is rejected with an explicit diagnostic, while the existing top-level rest forms remain. Added runtime coverage (statement and `if` condition) plus nested-arity and nested-non-array negative tests. Main TCC/LLVM `2486`/`2484`; `@test` `57`; negative `812`; safety `78`; async `83`; plugins `1305`; TCC libs `735`; interpret `1938`; `MIRTests` `4749`; audit no growth.*
 *Revision note v5.27 (2026-11-03): associated-type equality constraints. Trait bounds now parse `Interface<Item = T>` (including lifetime arguments and nested generic RHS types) and carry the bindings on `GenericType`. Equality is enforced during concrete instantiation of generic functions, structs, unions, variants, interfaces, impls, and type aliases: the concrete impl's associated binding must exactly match the bound target. Equality targets that are still generic parameters are deferred to the outer instantiation. The declaring interface may be inherited, and an unknown associated name or an equality binding on a non-interface type is rejected at link-signature time. Added positive coverage for inline, `where`, generic-struct, and inherited-interface equality, plus mismatch, unknown-name, and non-interface negatives. The parser treats `=` as an equality only outside a pending nested `>>`, preserving `var f : Fn<(x) => R<int>> = ...`. Main TCC/LLVM `2486`/`2484`; `@test` `57`; negative `816`; safety `78`; async `83`; plugins `1305`; TCC libs `735`; interpret `1938`; `MIRTests` `4749`; audit no growth.*
+*Revision note v5.28 (2026-11-04): safety-parity priority and map `find` ownership. The roadmap now explicitly freezes feature-parity work: remaining language-surface items are not release blockers unless a concrete safe API needs them. Essential work is the stdlib/FFI wrapper audit, move/borrow/init closure, async/concurrency, no-panic effects, and cross-target safety. In the wrapper audit, `unordered_map::find` and `ordered_map::find` copied a stored value into the caller slot without requiring `Value: Copy`; a `D` value with a destructor was duplicated bitwise and double-freed (verified with a heap pointer). Both now require `Value: Copy` and reject owning values with the standard where-clause diagnostic; callers that need a borrowed view use `get_ptr`, and mutation remains explicit/unsafe. Added unordered/ordered-map negative coverage. Main TCC/LLVM `2486`/`2484`; `@test` `57`; negative `818`; safety `78`; async `83`; plugins `1305`; TCC libs `735`; interpret `1938`; `MIRTests` `4749`; audit no growth.*

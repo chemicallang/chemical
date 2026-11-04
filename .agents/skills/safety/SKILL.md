@@ -9,6 +9,25 @@ This skill is the working guide for the safety program. The canonical long-form
 plan is [`lang/docs/safety-implementation-plan.md`](../../../lang/docs/safety-implementation-plan.md).
 The source tree wins over any status note here.
 
+## Priority: safety parity, not feature parity (2026-11-04)
+
+Chemical adopts Rust-like **safety semantics**, not Rust's feature surface.
+Remaining work is ordered by soundness value:
+
+1. stdlib/FFI safe-wrapper audit (no safe API may leak ownership, aliasing,
+   lifetime, initialization, bounds, validity, or thread-safety invariants);
+2. move/borrow/init/validity closure (reject every shape the compiler cannot
+   prove);
+3. async/concurrency/`Pin`/`Send`/`Sync` and data-race safety;
+4. enforceable no-panic effects and fallible APIs;
+5. cross-target/FFI safety where those targets are claimed.
+
+Feature-parity-only work is frozen: GATs, const generics, built-in derive,
+`impl Trait`/RPITIT, default-method parameter projections, match/switch-position
+patterns, `impl Trait for (T1, T2)`, raw unsized `[T]`, and full UTF-8 API parity
+are **not** release blockers unless a concrete safe API cannot be expressed
+without them. Do not add syntax merely to match Rust.
+
 ## Current status (2026-11-01)
 
 The enforceable core is implemented and green. “Complete” below means **complete
@@ -24,7 +43,7 @@ for the safe API surface we currently expose**, not full language parity.
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
 | Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
-| Type-system / stdlib parity | M1 partial: basic tuples/tuple structs, fixed-array patterns, exact `[T]`/`&[T]` condition patterns, `&mut [T]`, `Box<[T]>`, `&str` views, explicit slice/string lifetimes, generic delimiter/predicate slice splitting, and associated-type declarations/bindings plus return-position `Self::Item` projection, `T::Item` projections through inline/`where`/inherited bounds, `type Item: Bound` checks, and `Interface<Item = T>` equality constraints implemented; default-method parameter projections, GATs, const generics, `impl Trait`, derive, and slice rest/`&mut`/`Box<[T]>` patterns remain. M7/M2/M8 remain. |
+| Type-system / stdlib parity | M1 feature work is frozen under the safety-parity policy. Existing safe-surface support includes tuples/tuple structs, fixed-array/slice patterns, `&str` views, associated types/projections/bounds/equality, and inherent impls. GATs, const generics, `impl Trait`, default-method projections, derive, match-position patterns, tuple trait impls, and raw unsized `[T]` are deferred, not release blockers. M7/M2/M8 remain. |
 
 Latest measured baseline:
 
@@ -33,7 +52,7 @@ Latest measured baseline:
 | TCC main | `2486/2486` |
 | LLVM main | `2484/2484` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `816/816` |
+| TCC/LLVM negative | `818/818` |
 | TCC/LLVM safety | `78/78` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `735/735` |
@@ -328,11 +347,12 @@ memory safety.
    validation, zero-sized Box allocation, DynBox field visibility, string
    append null validation, fail-closed zero-sized vectors, Rc/Arc count-overflow
    checks, unsafe-gated u16_strlen, thread-pool Future ownership/null safety,
-   vector replacement drops, and filesystem temp/copy path buffer bounds). The
-   rest of the safe wrapper surface (actual zero-sized vector support,
-   string_view/u16string parsers, Rc/Arc/RefCell/thread-pool worker invariants,
-   directory/metadata/UTF-16, Windows IPC, TLS/HTTP) and the target-specific
-   audit list remain. The i386 Windows libraries are syntax/safety-clean.
+   vector replacement drops, filesystem temp/copy path buffer bounds, and
+   non-`Copy` map `find` rejection). The rest of the safe wrapper surface
+   (actual zero-sized vector support, string_view/u16string parsers,
+   Rc/Arc/RefCell/thread-pool worker invariants, directory/metadata/UTF-16,
+   Windows IPC, TLS/HTTP) and the target-specific audit list remain. The i386
+   Windows libraries are syntax/safety-clean.
 3. **`@scoped_callback` is body-checked, including custom sinks.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter anywhere except a known join-before-return API (resolved by

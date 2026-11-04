@@ -49,8 +49,8 @@ Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2486/2486` |
-| LLVM main | `2484/2484` |
+| TCC main | `2487/2487` |
+| LLVM main | `2485/2485` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `818/818` |
 | TCC/LLVM safety | `78/78` |
@@ -350,9 +350,9 @@ memory safety.
    vector replacement drops, filesystem temp/copy path buffer bounds, and
    non-`Copy` map `find` rejection). The rest of the safe wrapper surface
    (actual zero-sized vector support, string_view/u16string parsers,
-   Rc/Arc/RefCell/thread-pool worker invariants, directory/metadata/UTF-16,
-   Windows IPC, TLS/HTTP) and the target-specific audit list remain. The i386
-   Windows libraries are syntax/safety-clean.
+   Rc/Arc/RefCell invariants, directory/metadata/UTF-16, Windows IPC,
+   TLS/HTTP) and the target-specific audit list remain. The i386 Windows
+   libraries are syntax/safety-clean.
 3. **`@scoped_callback` is body-checked, including custom sinks.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter anywhere except a known join-before-return API (resolved by

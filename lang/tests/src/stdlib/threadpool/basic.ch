@@ -447,6 +447,28 @@ func test_pool_future_drops_result_once() : bool {
     return correct && unsafe(pool_result_drops) == 1
 }
 
+// 15c) The last ThreadPool owner may be one of the pool's own workers (for
+// example a task captured the last Arc<ThreadPool>). The destructor must not
+// join itself or free the pool data while the worker is still running.
+func submit_self_destruct(pool : &std::concurrent.ThreadPool, hold : std::Arc<std::concurrent.ThreadPool>) : std::concurrent.Future<int> {
+    return std::concurrent.submit_closure(|hold|() => {
+        std::concurrent.sleep_ms(20u)
+        return hold.strong_count() as int
+    }, pool)
+}
+
+func test_pool_last_owner_dropped_on_worker() : bool {
+    var pool = std::concurrent::create_pool(1u)
+    var f : std::concurrent.Future<int>
+    {
+        var a = std::arc(pool)
+        var b = a.clone()
+        var c = a.clone()
+        f = submit_self_destruct(c.get(), b)
+    }
+    return f.get() == 1
+}
+
 // 16) Heterogeneous scoped scope: two workers capture different stack values
 func test_scoped_run_closure_heterogeneous() : bool {
     var a = 1
@@ -582,6 +604,7 @@ func test_thread_pool() {
         test("test_pool_submit_closure_owned_capture", test_pool_submit_closure_owned_capture);
         test("test_pool_future_moves_across_threads", test_pool_future_moves_across_threads);
         test("test_pool_future_drops_result_once", test_pool_future_drops_result_once);
+        test("test_pool_last_owner_dropped_on_worker", test_pool_last_owner_dropped_on_worker);
         test("test_scoped_run_closure_heterogeneous", test_scoped_run_closure_heterogeneous);
         test("test_scoped_spawn_closure_value", test_scoped_spawn_closure_value);
         test("test_scoped_run_closure_value", test_scoped_run_closure_value);

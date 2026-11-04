@@ -179,10 +179,25 @@ freed it. A small destructor-bearing test reproduced a glibc double-free.
 Regression coverage: `neg_unordered_map_find_non_copy_value` and
 `neg_ordered_map_find_non_copy_value`.
 
+## Tranche 11 — worker-owned thread-pool teardown (2026-11-04)
+
+| Wrapper | Invariant | Enforcement |
+|---|---|---|
+| `ThreadPool::delete` | an owner joins workers before freeing; a worker never joins itself | `PoolData` records each worker's OS thread id; an owner performs the join/free path, a worker defers shutdown |
+| `PoolData` teardown | exactly one party frees the shared block | the last worker drains the queue, joins the other handles, and frees; owner teardown sets `owner_frees` so workers do not free |
+| `ThreadPool::delete` receiver | destruction needs unique ownership | changed from `&self` to `&mut self` |
+
+A safe task can capture the last `Arc<ThreadPool>` (the capture witness accepts
+it because `ThreadPool` is audited `Send + Sync`). When the task finished, the
+Arc destructor ran on a pool worker, the old destructor called `pthread_join` on
+itself, then freed `PoolData` while the worker loop still used it. Reproduced as
+a glibc heap corruption/abort.
+
+Regression coverage: `test_pool_last_owner_dropped_on_worker`.
+
 Still remaining in this group: actual zero-sized vector support,
 `string_view`/`u16string` raw constructors, remaining `Rc`/`Arc` weak-handle
-invariants, `RefCell` guard escape, and thread-pool worker
-cancellation/teardown invariants.
+invariants, and `RefCell` guard escape.
 
 ## Coverage
 

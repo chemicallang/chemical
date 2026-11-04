@@ -18,6 +18,7 @@ public struct SYSTEM_INFO {
 }
 
 @dllimport @stdcall @extern public func GetSystemInfo(lpSystemInfo: *SYSTEM_INFO): void
+@dllimport @stdcall @extern public func GetCurrentThreadId() : u32
 
 
 } else {
@@ -27,6 +28,7 @@ public struct SYSTEM_INFO {
 @extern public func pthread_attr_setstacksize(attr:*mut u8,size:size_t):int;
 @extern public func pthread_attr_destroy(attr:*mut u8):int;
 @extern public func pthread_join(thread:usize,retval:*mut*void):int;
+@extern public func pthread_self() : usize;
 @extern public func usleep(usec:int):int
 
 @extern public func sysconf(name: int): long
@@ -215,9 +217,32 @@ public namespace std {
             var f:std.function<() => void>
         }
 
+        public struct WorkerArg {
+            var pool : *mut PoolData
+            var index : size_t
+        }
+
+        func current_thread_id() : usize {
+            comptime if(def.windows) {
+                return unsafe(GetCurrentThreadId()) as usize
+            } else {
+                return unsafe(pthread_self())
+            }
+        }
+
         func worker_main(arg:*void) : *void {
         unsafe {
-                var P=arg as *mut PoolData;
+                var worker_arg = arg as *mut WorkerArg
+                var P = worker_arg.pool
+                var worker_index = worker_arg.index
+                delete worker_arg
+                // Record this OS thread so a destructor can tell whether it
+                // was invoked from one of this pool's workers. A shared
+                // thread-local is not enough: TinyCC may not give every
+                // backend true per-thread storage.
+                P.m.lock()
+                *P.worker_ids.get_ptr(worker_index) = current_thread_id()
+                P.m.unlock()
                 while(true){
                     var opt:std.Option<Task> = std.Option.None<Task>();
                     P.m.lock();
@@ -241,6 +266,25 @@ public namespace std {
                         tt.f()
                     }
                 }
+                // The owner either joins every worker (and frees the pool after
+                // join) or was itself a worker and deferred cleanup. Only the
+                // last worker in the deferred case may free the shared block.
+                P.m.lock();
+                P.active_workers = P.active_workers - 1
+                var last_worker = P.delete_requested && P.active_workers == 0 && !P.owner_frees
+                P.m.unlock()
+                if(last_worker) {
+                    var i : size_t = 0
+                    while(i < P.workers.size()) {
+                        if(i != worker_index) {
+                            join_native(*P.workers.get_ptr(i))
+                        }
+                        i = i + 1
+                    }
+                    P.workers.clear()
+                    P.q.clear()
+                    delete P
+                }
                 return null
 
         }
@@ -254,6 +298,10 @@ public namespace std {
             var q:std.vector<Task>;
             var workers:std.vector<usize>;
             var run:bool
+            var active_workers : size_t
+            var delete_requested : bool
+            var owner_frees : bool
+            var worker_ids : std.vector<usize>
 
             public unsafe func <T> submit(&mut self, f:std.function<() => T>):Future<T>{
         unsafe {
@@ -292,10 +340,31 @@ public namespace std {
                 m.unlock()
             }
 
-            @delete
-            func delete(&mut self) { unsafe {
+            func is_current_worker(&mut self) : bool {
+                var id = current_thread_id()
+                var result = false
+                unsafe {
+                    m.lock()
+                    var i : size_t = 0
+                    while(i < worker_ids.size()) {
+                        if(*worker_ids.get_ptr(i) == id) {
+                            result = true
+                            break
+                        }
+                        i = i + 1
+                    }
+                    m.unlock()
+                }
+                return result
+            }
+
+            // Called from an owner thread. Stop accepting work, wake and join
+            // every worker, then let the caller free this block.
+            func request_owner_cleanup(&mut self) { unsafe {
                 m.lock();
                 run=false;
+                delete_requested=true;
+                owner_frees=true;
                 cv.notify_all();
                 m.unlock();
                 var i=0u;
@@ -305,7 +374,28 @@ public namespace std {
                 }
                 workers.clear();
                 q.clear()
-             }}
+            }}
+
+            // Called when the last ThreadPool owner is one of this pool's own
+            // workers. Do not join self; the last worker drains the queue and
+            // frees the block after all workers have exited.
+            func request_worker_cleanup(&mut self) { unsafe {
+                m.lock();
+                run=false;
+                delete_requested=true;
+                owner_frees=false;
+                cv.notify_all();
+                m.unlock()
+            }}
+
+            @delete
+            func delete(&mut self) { unsafe {
+                // Workers are already joined (owner path) or this is the last
+                // deferred worker with an empty queue. Dropping the fields here
+                // must not join or wait again.
+                workers.clear();
+                q.clear()
+            }}
 
         }
 
@@ -332,8 +422,18 @@ public namespace std {
             }
 
             @delete
-            func delete(&self) {
-                unsafe { delete data; }
+            func delete(&mut self) {
+                unsafe {
+                    if(data == null) {
+                        return
+                    }
+                    if(data.is_current_worker()) {
+                        data.request_worker_cleanup()
+                        return
+                    }
+                    data.request_owner_cleanup()
+                    delete data
+                }
             }
 
             // The pool owns the raw allocation; construction is unchecked.
@@ -373,11 +473,24 @@ public namespace std {
                     cv:std.CondVar(),
                     q:std.vector<Task>(),
                     workers:std.vector<usize>(),
-                    run:true
+                    run:true,
+                    active_workers:n as size_t,
+                    delete_requested:false,
+                    owner_frees:false,
+                    worker_ids:std.vector<usize>()
                 };
+                var id_slot:uint=0u;
+                while(id_slot<n){
+                    p.worker_ids.push_back(0 as usize);
+                    id_slot=id_slot+1u
+                }
                 var i:uint=0u;
                 while(i<n){
-                    var h=unsafe(spawn_native(worker_main, p as *void));
+                    var worker_arg = new WorkerArg {
+                        pool : p,
+                        index : i as size_t
+                    };
+                    var h=unsafe(spawn_native(worker_main, worker_arg as *void));
                     p.workers.push_back(h);
                     i=i+1u
                 }

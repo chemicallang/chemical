@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.28)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.29)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1460,12 +1460,12 @@ new number as the honest baseline, not a compiler regression.
    visibility, string append null validation, fail-closed zero-sized vectors,
    `Rc`/`Arc` count-overflow checks, unsafe-gated `u16_strlen`, thread-pool
    `Future` ownership/null safety, vector replacement drops, and filesystem
-   temp/copy path buffer bounds, and non-`Copy` map `find` rejection. See
+   temp/copy path buffer bounds, non-`Copy` map `find` rejection, and
+   worker-owned thread-pool teardown. See
    `lang/docs/safety/ffi-wrapper-audit.md`. Remaining: actual zero-sized vector
    support, string_view/u16string raw constructors, remaining
-   Rc/Arc/RefCell invariants, thread-pool worker cancellation/teardown,
-   fs directory/metadata/UTF-16, Windows IPC, TLS/HTTP, and the
-   target-specific audit list.
+   Rc/Arc/RefCell invariants, fs directory/metadata/UTF-16, Windows IPC,
+   TLS/HTTP, and the target-specific audit list.
 3. **`@scoped_callback` is body-checked, including custom sinks.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter to an unknown callee. Known join-before-return APIs
@@ -3175,3 +3175,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.26 (2026-11-03): nested fixed-array patterns. `var [[a, b], [c, d]] = matrix` and mixed forms such as `var [_, [b, c], _] = matrix` now work for fixed arrays; each level is arity-checked and nested positions must themselves be fixed-size arrays. MIR reads nested leaves through their full array-index path. Nested groups are exact; `..` inside a nested group is rejected with an explicit diagnostic, while the existing top-level rest forms remain. Added runtime coverage (statement and `if` condition) plus nested-arity and nested-non-array negative tests. Main TCC/LLVM `2486`/`2484`; `@test` `57`; negative `812`; safety `78`; async `83`; plugins `1305`; TCC libs `735`; interpret `1938`; `MIRTests` `4749`; audit no growth.*
 *Revision note v5.27 (2026-11-03): associated-type equality constraints. Trait bounds now parse `Interface<Item = T>` (including lifetime arguments and nested generic RHS types) and carry the bindings on `GenericType`. Equality is enforced during concrete instantiation of generic functions, structs, unions, variants, interfaces, impls, and type aliases: the concrete impl's associated binding must exactly match the bound target. Equality targets that are still generic parameters are deferred to the outer instantiation. The declaring interface may be inherited, and an unknown associated name or an equality binding on a non-interface type is rejected at link-signature time. Added positive coverage for inline, `where`, generic-struct, and inherited-interface equality, plus mismatch, unknown-name, and non-interface negatives. The parser treats `=` as an equality only outside a pending nested `>>`, preserving `var f : Fn<(x) => R<int>> = ...`. Main TCC/LLVM `2486`/`2484`; `@test` `57`; negative `816`; safety `78`; async `83`; plugins `1305`; TCC libs `735`; interpret `1938`; `MIRTests` `4749`; audit no growth.*
 *Revision note v5.28 (2026-11-04): safety-parity priority and map `find` ownership. The roadmap now explicitly freezes feature-parity work: remaining language-surface items are not release blockers unless a concrete safe API needs them. Essential work is the stdlib/FFI wrapper audit, move/borrow/init closure, async/concurrency, no-panic effects, and cross-target safety. In the wrapper audit, `unordered_map::find` and `ordered_map::find` copied a stored value into the caller slot without requiring `Value: Copy`; a `D` value with a destructor was duplicated bitwise and double-freed (verified with a heap pointer). Both now require `Value: Copy` and reject owning values with the standard where-clause diagnostic; callers that need a borrowed view use `get_ptr`, and mutation remains explicit/unsafe. Added unordered/ordered-map negative coverage. Main TCC/LLVM `2486`/`2484`; `@test` `57`; negative `818`; safety `78`; async `83`; plugins `1305`; TCC libs `735`; interpret `1938`; `MIRTests` `4749`; audit no growth.*
+*Revision note v5.29 (2026-11-04): worker-owned thread-pool teardown. A safe task could capture the last `Arc<ThreadPool>`; dropping it on a pool worker made the destructor join itself and free `PoolData` while the worker still used it (reproduced as heap corruption). `PoolData` now stores each worker's OS thread id and the destructor distinguishes an owner teardown from a worker teardown. Owners join all workers then free; a worker sets shutdown and defers, and the last worker drains the queue, joins the remaining handles, and frees the block exactly once. `ThreadPool::delete` now takes `&mut self` and the worker path no longer self-joins. Added a runtime regression where the last `Arc<ThreadPool>` is dropped inside a submitted task. Main TCC/LLVM `2487`/`2485`; `@test` `57`; negative `818`; safety `78`; async `83`; plugins `1305`; TCC libs `735`; interpret `1938`; `MIRTests` `4749`; audit no growth.*

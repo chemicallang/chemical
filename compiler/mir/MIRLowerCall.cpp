@@ -2216,8 +2216,51 @@ MIRExprResult MIRLowerer::lower_array_pattern_element(PatternMatchExpr* pm,
                                                       bool as_address,
                                                       std::string& error) {
     if (!pm || !pm->is_array_pattern || !id ||
-        id->array_index == 0xFFFFFFFFu) {
+        (id->array_path.empty() && id->array_index == 0xFFFFFFFFu)) {
         error = "invalid array pattern element";
+        return MIRExprResult::error();
+    }
+    if (id->array_path.size() > 1) {
+        MIRExprResult base = lower_pattern_base(pm, error);
+        if (!base.ok()) return base;
+        const TypeId idx_t = types_.u32_type();
+        for (size_t i = 0; i < id->array_path.size(); ++i) {
+            BaseType* step_type = i < id->array_path_types.size()
+                                      ? id->array_path_types[i]
+                                      : (i + 1 == id->array_path.size() ? id->known_type() : nullptr);
+            if (step_type == nullptr) {
+                error = "nested array pattern element has no resolved type";
+                return MIRExprResult::error();
+            }
+            const TypeId et = types_.map(step_type);
+            const ValueId idx = builder_->const_int(
+                idx_t, module_.constants.add_int(idx_t, id->array_path[i]));
+            const bool final = i + 1 == id->array_path.size();
+            if (base.kind == MIRExprKind::Place) {
+                const PlaceId bp = static_cast<PlaceId>(base.id);
+                if (final) {
+                    if (as_address || abi::is_aggregate(module_, et)) {
+                        return MIRExprResult::address(builder_->index_addr(bp, idx, et), et);
+                    }
+                    return MIRExprResult::value(builder_->element_load(bp, idx, et), et);
+                }
+                base = MIRExprResult::address(builder_->index_addr(bp, idx, et), et);
+            } else if (base.kind == MIRExprKind::Address ||
+                       base.kind == MIRExprKind::Value) {
+                const ValueId bv = static_cast<ValueId>(base.id);
+                if (final) {
+                    if (as_address || abi::is_aggregate(module_, et)) {
+                        return MIRExprResult::address(builder_->index_addr_ptr(bv, idx, et), et);
+                    }
+                    return MIRExprResult::value(builder_->index_load(bv, idx, et), et);
+                }
+                base = MIRExprResult::address(builder_->index_addr_ptr(bv, idx, et), et);
+            } else {
+                error = "nested array pattern expression is not an array lvalue";
+                return MIRExprResult::error();
+            }
+        }
+        error = "nested array pattern element has no path";
         return MIRExprResult::error();
     }
     BaseType* element_type = id->known_type();

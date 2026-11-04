@@ -61,6 +61,10 @@ public:
     std::vector<uint32_t> tuple_path;
     /** Concrete type at every step of `tuple_path` (including intermediates). */
     std::vector<BaseType*> tuple_path_types;
+    /** Full index path for a nested fixed-array pattern (`[[a, b], c]`). */
+    std::vector<uint32_t> array_path;
+    /** Concrete type at every step of `array_path` (including intermediates). */
+    std::vector<BaseType*> array_path_types;
     /** Source index for a fixed-array destructuring pattern. For a slice rest
      * pattern's trailing names this is the offset from the end. */
     uint32_t array_index = 0xFFFFFFFFu;
@@ -94,6 +98,8 @@ public:
         copied->tuple_index = tuple_index;
         copied->tuple_path = tuple_path;
         copied->tuple_path_types = tuple_path_types;
+        copied->array_path = array_path;
+        copied->array_path_types = array_path_types;
         copied->array_index = array_index;
         copied->array_index_from_end = array_index_from_end;
         copied->is_wildcard = is_wildcard;

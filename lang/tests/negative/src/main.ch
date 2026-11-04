@@ -671,6 +671,22 @@ func neg_tuple_pattern_arity_mismatch(env : &mut TestEnv) {
 }
 
 @test
+func neg_nested_array_pattern_arity(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var values : [2][2]int = []\n    var [[a, b], [c]] = values\n    return 0\n}\n"
+    expect_compile_error(env, "nested_array_pattern_arity", ch,
+                         "array pattern arity does not match at a nested level")
+}
+
+@test
+func neg_nested_array_pattern_requires_array(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var values : [2]int = []\n    var [[a, b], c] = values\n    return 0\n}\n"
+    expect_compile_error(env, "nested_array_pattern_requires_array", ch,
+                         "nested array pattern element is not a fixed-size array")
+}
+
+@test
 func neg_nested_tuple_pattern_arity(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var ((a, b), c) = ((1, 2, 3), 4)\n    return 0\n}\n"

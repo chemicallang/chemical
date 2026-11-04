@@ -4398,6 +4398,80 @@ void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {
         }
         const size_t name_count = param_names.size();
         const int32_t rest = expr->array_rest_index;
+        bool has_nested = false;
+        for(const auto nameId : param_names) {
+            if(nameId->array_path.size() > 1) has_nested = true;
+        }
+        if(has_nested) {
+            if(slice_view) {
+                diagnoser.error(expr) << "nested array patterns require a fixed-size array";
+                return;
+            }
+            if(rest >= 0) {
+                diagnoser.error(expr) << "rest patterns in nested array patterns are not supported yet";
+                return;
+            }
+            if(value_type->kind() != BaseTypeKind::Array) {
+                diagnoser.error(expr) << "nested array patterns require a fixed-size array";
+                return;
+            }
+            auto* root_array = value_type->as_array_type_unsafe();
+            std::map<std::vector<uint32_t>, ArrayType*> array_levels;
+            std::map<std::vector<uint32_t>, std::set<uint32_t>> array_level_indices;
+            array_levels[{}] = root_array;
+            for(const auto nameId : param_names) {
+                std::vector<uint32_t> path = nameId->array_path;
+                if(path.empty()) path.push_back(nameId->array_index);
+                nameId->array_path = path;
+                nameId->array_path_types.clear();
+                auto* current = root_array;
+                std::vector<uint32_t> prefix;
+                BaseType* leaf_type = nullptr;
+                bool resolved = true;
+                for(size_t depth = 0; depth < path.size(); ++depth) {
+                    const uint32_t index = path[depth];
+                    if(!current->has_array_size() || index >= current->get_array_size()) {
+                        diagnoser.error(nameId) << "array pattern has no element at index "
+                                                << std::to_string(index);
+                        resolved = false;
+                        break;
+                    }
+                    BaseType* element = current->elem_type;
+                    nameId->array_path_types.push_back(element);
+                    array_level_indices[prefix].insert(index);
+                    if(depth + 1 < path.size()) {
+                        BaseType* canonical = element != nullptr ? element->canonical() : nullptr;
+                        if(canonical == nullptr || canonical->kind() != BaseTypeKind::Array ||
+                           !canonical->as_array_type_unsafe()->has_array_size()) {
+                            diagnoser.error(nameId)
+                                << "nested array pattern element is not a fixed-size array";
+                            resolved = false;
+                            break;
+                        }
+                        prefix.push_back(index);
+                        current = canonical->as_array_type_unsafe();
+                        array_levels[prefix] = current;
+                    } else {
+                        leaf_type = element;
+                    }
+                }
+                if(!resolved) continue;
+                nameId->bound_type = leaf_type;
+                nameId->array_index = path.back();
+                nameId->array_index_from_end = false;
+                if(!nameId->is_wildcard) {
+                    declare_no_shadow(nameId->identifier, nameId);
+                }
+            }
+            for(auto& [prefix, indices] : array_level_indices) {
+                auto found = array_levels.find(prefix);
+                if(found == array_levels.end() || !found->second->has_array_size()) continue;
+                const auto expected = found->second->get_array_size();
+                if(indices.size() == expected) continue;
+                diagnoser.error(expr) << "array pattern arity does not match at a nested level";
+            }
+            return;
+        }
         if(slice_view) {
             if(rest >= 0 && static_cast<size_t>(rest) > name_count) {
                 diagnoser.error("array pattern has an invalid '..' position", expr);

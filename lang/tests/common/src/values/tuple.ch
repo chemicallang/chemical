@@ -201,4 +201,16 @@ func test_tuples() {
         return left._0 == 1 && left._1 == 2 &&
                right._0 == 3 && right._1 == 4
     })
+    test("nested array patterns", () => {
+        var values : [2][2]int = []
+        values[0][0] = 1
+        values[0][1] = 2
+        values[1][0] = 3
+        values[1][1] = 4
+        var [[a, b], [c, d]] = values
+        if(var [[e, f], [g, h]] = values) {
+            return a + b + c + d == 10 && e + f + g + h == 10
+        }
+        return false
+    })
 }

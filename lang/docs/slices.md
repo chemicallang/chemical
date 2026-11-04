@@ -193,8 +193,9 @@ func <'a, 'b> shorten(values : &'a [int]) : &'b [int] where 'a : 'b {
 
 - `[T]`/`&[T]` are view aliases, not a first-class unsized `[T]` type.
 - `Box<[T]>` is a vector-backed owning wrapper, not a raw boxed allocation.
-- Fixed-size arrays support flat patterns (`var [a, b] = arr`,
-  `[first, .., last]`, `_`). `[T]`/`&[T]`, `&mut [T]`, and `Box<[T]>` support
+- Fixed-size arrays support flat and nested patterns (`var [a, b] = arr`,
+  `var [[a, b], [c, d]] = matrix`, `[first, .., last]`, `_`). Nested groups
+  are exact and do not accept their own `..` yet. `[T]`/`&[T]`, `&mut [T]`, and `Box<[T]>` support
   exact and rest condition patterns (`if(var [a, b] = view)`,
   `if(var [first, .., last] = view)`) and statement forms
   (`var [first, .., last] = view`); trailing rest bindings use the runtime

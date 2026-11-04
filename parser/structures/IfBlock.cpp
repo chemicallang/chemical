@@ -30,7 +30,8 @@ std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator
             const auto patternMatch = new (allocator.allocate<PatternMatchExpr>())
                 PatternMatchExpr(!isVar, false, chem::string_view(""), loc_single(t));
             token++; // '['
-            parseArrayPatternElements(allocator, patternMatch);
+            std::vector<uint32_t> array_prefix;
+            parseArrayPatternElements(allocator, patternMatch, array_prefix);
             if(!consumeToken(TokenType::EqualSym)) {
                 error("expected '=' after array pattern");
             }

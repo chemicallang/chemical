@@ -20,32 +20,45 @@ VarInitStatement* fix_stmt(VarInitStatement* stmt, TypeBuilder& builder) {
     return stmt;
 }
 
-bool Parser::parseArrayPatternElements(ASTAllocator& allocator, PatternMatchExpr* into) {
+bool Parser::parseArrayPatternElements(
+        ASTAllocator& allocator,
+        PatternMatchExpr* into,
+        std::vector<uint32_t>& prefix
+) {
     into->is_array_pattern = true;
     int32_t pattern_index = 0;
     while(true) {
         consumeNewLines();
         if(token->type == TokenType::RBracket) break;
         if(token->type == TokenType::DotDotSym) {
-            if(into->array_rest_index >= 0) {
+            if(!prefix.empty()) {
+                error("rest patterns in nested array patterns are not supported yet");
+            } else if(into->array_rest_index >= 0) {
                 error("an array pattern can contain only one '..'");
             } else {
                 into->array_rest_index = pattern_index;
             }
             token++;
+        } else if(token->type == TokenType::LBracket) {
+            token++;
+            prefix.push_back(pattern_index++);
+            const bool ok = parseArrayPatternElements(allocator, into, prefix);
+            prefix.pop_back();
+            if(!ok) return false;
         } else {
             const auto element_id = consumeIdentifierOrKeyword();
             if(!element_id) {
-                error("expected an identifier or '..' in array pattern");
+                error("expected an identifier, nested array, or '..' in array pattern");
                 return false;
             }
             const auto pmId = new (allocator.allocate<PatternMatchIdentifier>())
                 PatternMatchIdentifier(into, allocate_view(allocator, element_id->value),
                                        parent_node, loc_single(element_id));
             pmId->is_wildcard = element_id->value == "_";
+            pmId->array_path = prefix;
+            pmId->array_path.push_back(pattern_index++);
             into->param_names.emplace_back(pmId);
         }
-        pattern_index++;
         if(consumeToken(TokenType::CommaSym)) continue;
         break;
     }
@@ -270,7 +283,8 @@ ASTNode* Parser::parseVarInitializationTokens(
             PatternMatchExprNode(is_const, false, chem::string_view(""),
                                  loc_single(start_tok), parent_node);
         token++; // '['
-        parseArrayPatternElements(allocator, &patternMatchExpr->value);
+        std::vector<uint32_t> array_prefix;
+        parseArrayPatternElements(allocator, &patternMatchExpr->value, array_prefix);
         if(!consumeToken(TokenType::EqualSym)) {
             error("expected '=' after array pattern");
             patternMatchExpr->value.expression = getErroredValue(allocator);

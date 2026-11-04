@@ -11,6 +11,7 @@ using std::Result;
 
 public func create_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
         unsafe {
+        if(path == null) { return Result.Err(FsError.InvalidInput()); }
         var r = posix_mkdir(path, 0o777);
         if(r != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
         return Result.Ok(UnitTy{});
@@ -63,6 +64,7 @@ public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
 // remove_dir (non-recursive) and remove_dir_all (recursive)
 public func remove_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
         unsafe {
+        if(path == null) { return Result.Err(FsError.InvalidInput()); }
         var r = unsafe(rmdir(path));
         if(r != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
         return Result.Ok(UnitTy{});
@@ -205,6 +207,7 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
 // -----------------------------
 public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, FsError> {
         unsafe {
+        if(path == null) { return Result.Err(FsError.InvalidInput()); }
         // POSIX
         // printf("remove_dir_all_recursive: opening '%s'\n", path);
         var dirfd = unsafe(open(path, O_RDONLY | O_DIRECTORY, 0));

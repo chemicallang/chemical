@@ -80,6 +80,7 @@ public func file_flush(f : *mut File) : Result<UnitTy, FsError> {
 
 public func remove_file_native(path : path_ptr) : Result<UnitTy, FsError> {
         unsafe {
+    if(path == null) { return Result.Err(FsError.InvalidInput()); }
     var deleted = DeleteFileW(path as LPCWSTR);
     if(deleted == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
     return Result.Ok(UnitTy{});

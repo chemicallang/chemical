@@ -68,6 +68,7 @@ public func file_flush(f : *mut File) : Result<UnitTy, FsError> {
 
 public func remove_file_native(path : path_ptr) : Result<UnitTy, FsError> {
         unsafe {
+        if(path == null) { return Result.Err(FsError.InvalidInput()); }
         if(unsafe(unlink(path)) != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
         return Result.Ok(UnitTy{});
 

@@ -4,6 +4,7 @@ using std::Result;
 
 func metadata_native(path : path_ptr) : Result<Metadata, FsError> {
         unsafe {
+    if(path == null) { return Result.Err(FsError.InvalidInput()); }
     var fi : WIN32_FILE_ATTRIBUTE_DATA;
     var ok = GetFileAttributesExW(path as LPCWSTR, GET_FILEEX_INFO_LEVELS.GetFileExInfoStandard, &raw mut fi);
     if(ok == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }

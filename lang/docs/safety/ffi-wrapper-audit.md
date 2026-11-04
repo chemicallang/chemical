@@ -223,9 +223,28 @@ Regression coverage: `test_fs_directory_rejects_null_inputs`.
 No code change was required for these items. `RefCell`/`Rc`/`Arc` remain covered
 by the existing stdlib and auto-trait tests.
 
+## Tranche 14 — Windows recursive tree removal and directory nulls (2026-11-04)
+
+| Surface | Invariant | Enforcement |
+|---|---|---|
+| Windows `remove_dir_all_recursive_native` | `path + separator + entry + NUL` fits `WIN_MAX_PATH` | bounded path/name copies and checked suffix arithmetic before every write |
+| Windows `remove_dir_all_recursive_native` | child buffer and find handle are released on every path | a `CustomDeletor<u16>` owns the child buffer; `FindClose` runs before each error return |
+| Windows `utf8_to_utf16_inplace` | null input/output and zero capacity are rejected | `InvalidInput` before `MultiByteToWideChar` |
+| POSIX/Windows native directory entry points | null paths never reach `open`/`mkdir`/`rmdir`/`RemoveDirectoryW`/`DeleteFileW` | `InvalidInput` |
+| POSIX `remove_dir_all_recursive_native` | null path is rejected | `InvalidInput` |
+
+The Windows recursive remover copied the original path and each `WIN32_FIND_DATAW`
+name into a fixed `WIN_MAX_PATH` heap buffer without bounds checks, leaked the
+child buffer on every call, and leaked the find handle if the child allocation
+failed. It now fails with `PathTooLong` before overflow, owns the child buffer,
+and closes the find handle on every exit.
+
+Regression coverage: `test_fs_directory_rejects_null_inputs` (runs on POSIX;
+the same public APIs are compiled for the i386 Windows target check).
+
 Still remaining in this group: actual zero-sized vector support (the current
-fail-closed rejection is safe but ergonomically incomplete), Windows
-UTF-16/tree removal, Windows IPC, TLS/HTTP, and the target-specific audit list.
+fail-closed rejection is safe but ergonomically incomplete), Windows IPC,
+TLS/HTTP, and the target-specific audit list.
 
 ## Coverage
 
@@ -242,8 +261,8 @@ UTF-16/tree removal, Windows IPC, TLS/HTTP, and the target-specific audit list.
 - `std::vector`, `std::string`, `std::string_view`, `Box`, `Rc`/`Arc`,
   `Cell`/`RefCell`, and thread-pool wrappers: audit length/capacity, aliasing,
   zero-sized types, and ownership handoff.
-- `fs::directory`, `fs::metadata`, `fs::utf`, Windows UTF-16 conversions, and
-  remaining POSIX/Windows file APIs.
+- `fs::metadata`, `fs::utf`, Windows UTF-8/UTF-16 conversions, and remaining
+  POSIX/Windows file APIs (directory traversal/removal bounds are now audited).
 - `net` Windows IOCP, async socket lifetime/close rules, and address/socket
   error-code normalization.
 - `tls`/`http`/`server` transport wrappers: buffer ownership and handshake

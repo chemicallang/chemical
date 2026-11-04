@@ -4,6 +4,7 @@ using std::Result;
 
 public func create_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
         unsafe {
+    if(path == null) { return Result.Err(FsError.InvalidInput()); }
     var ok = CreateDirectoryW(path as LPCWSTR, null);
     if(ok == 0) {
         var e = GetLastError();
@@ -57,6 +58,7 @@ public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
 // remove_dir (non-recursive) and remove_dir_all (recursive)
 public func remove_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
         unsafe {
+    if(path == null) { return Result.Err(FsError.InvalidInput()); }
     var ok = RemoveDirectoryW(path as LPCWSTR);
     if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
     return Result.Ok(UnitTy{});
@@ -87,6 +89,7 @@ struct CustomDeletor<T> {
 // -----------------------------
 public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, FsError> {
         unsafe {
+    if(path == null) { return Result.Err(FsError.InvalidInput()); }
     // Build pattern path\* for enumeration
     var search_ptr = malloc(sizeof(u16) * WIN_MAX_PATH) as *mut u16
     if (search_ptr == null) {
@@ -95,13 +98,21 @@ public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, Fs
     var deletor = CustomDeletor<u16>(search_ptr)
 
     var p : size_t = 0;
-    while(path[p] != 0) {
+    while(p < WIN_MAX_PATH as size_t && path[p] != 0) {
         search_ptr[p] = path[p]; p += 1;
     }
+    if(p == WIN_MAX_PATH as size_t) {
+        return Result.Err(FsError.PathTooLong());
+    }
+    var search_sep : size_t = 0;
     if(p > 0) {
         var last = search_ptr[p - 1];
-        if(last != '\\' as u16 && last != '/' as u16) { search_ptr[p] = '\\' as u16; p += 1; }
+        if(last != '\\' as u16 && last != '/' as u16) { search_sep = 1; }
     }
+    if(p + search_sep + 2 > WIN_MAX_PATH as size_t) {
+        return Result.Err(FsError.PathTooLong());
+    }
+    if(search_sep != 0) { search_ptr[p] = '\\' as u16; p += 1; }
     search_ptr[p] = '*' as u16; p += 1;
     search_ptr[p] = 0;
 
@@ -121,8 +132,10 @@ public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, Fs
     // allocate child buffer on heap (was previously on stack)
     var child_ptr = malloc(sizeof(u16) * WIN_MAX_PATH) as *mut u16;
     if (child_ptr == null) {
+        FindClose(h);
         return Result.Err(winerr_to_fs(8 as int));
     }
+    var child_owner = CustomDeletor<u16>(child_ptr)
 
     loop {
         // skip "." and ".."
@@ -130,17 +143,35 @@ public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, Fs
         if(!(name_w[0] == '.' as u16 && name_w[1] == 0) &&
            !(name_w[0] == '.' as u16 && name_w[1] == '.' as u16 && name_w[2] == 0)) {
 
-            var q : size_t = 0;
-            // copy original wide path
+            // copy original wide path, leaving room for the separator, name,
+            // and NUL terminator
             var i : size_t = 0;
-            while(path[i] != 0) { child_ptr[i] = path[i]; i += 1; }
+            while(i < WIN_MAX_PATH as size_t && path[i] != 0) {
+                child_ptr[i] = path[i]; i += 1;
+            }
+            if(i == WIN_MAX_PATH as size_t) {
+                FindClose(h);
+                return Result.Err(FsError.PathTooLong());
+            }
+            var child_sep : size_t = 0;
             if(i > 0) {
                 var last = child_ptr[i - 1];
-                if(last != '\\' as u16 && last != '/' as u16) { child_ptr[i] = '\\' as u16; i += 1; }
+                if(last != '\\' as u16 && last != '/' as u16) { child_sep = 1; }
             }
+            if(i + child_sep + 2 > WIN_MAX_PATH as size_t) {
+                FindClose(h);
+                return Result.Err(FsError.PathTooLong());
+            }
+            if(child_sep != 0) { child_ptr[i] = '\\' as u16; i += 1; }
             // append name_w
             var j : size_t = 0;
-            while(name_w[j] != 0) { child_ptr[i + j] = name_w[j]; j += 1; }
+            while(name_w[j] != 0) {
+                if(i + j + 2 > WIN_MAX_PATH as size_t) {
+                    FindClose(h);
+                    return Result.Err(FsError.PathTooLong());
+                }
+                child_ptr[i + j] = name_w[j]; j += 1;
+            }
             child_ptr[i + j] = 0;
 
             var is_dir2 = (finddata_ptr.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;

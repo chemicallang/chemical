@@ -85,6 +85,15 @@ func test_fs_directory_rejects_null_inputs(env : &mut TestEnv) {
 
     var rd = fs::read_dir(null, ||(name : *char, len : size_t, is_dir : bool) => true);
     expect_true(env, rd is Result.Err, "read_dir(null) should fail closed");
+
+    var tree = fs::remove_dir_all_recursive(null);
+    expect_true(env, tree is Result.Err, "remove_dir_all_recursive(null) should fail closed");
+    var cd = fs::create_dir(null);
+    expect_true(env, cd is Result.Err, "create_dir(null) should fail closed");
+    var rd2 = fs::remove_dir(null);
+    expect_true(env, rd2 is Result.Err, "remove_dir(null) should fail closed");
+    var rf = fs::remove_file(null);
+    expect_true(env, rf is Result.Err, "remove_file(null) should fail closed");
 }
 
 @test

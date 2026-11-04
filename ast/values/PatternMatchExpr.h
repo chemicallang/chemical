@@ -55,8 +55,12 @@ public:
      */
     BaseType* bound_type = nullptr;
     uint32_t tuple_index = 0xFFFFFFFFu;
-    /** Source index for a fixed-array destructuring pattern. */
+    /** Source index for a fixed-array destructuring pattern. For a slice rest
+     * pattern's trailing names this is the offset from the end. */
     uint32_t array_index = 0xFFFFFFFFu;
+    /** A slice only has a runtime length, so trailing rest-pattern names are
+     * resolved as `size - array_index` instead of a constant index. */
+    bool array_index_from_end = false;
     /** `_` discards this element; no local is declared or bound. */
     bool is_wildcard = false;
 
@@ -83,6 +87,7 @@ public:
         copied->bound_type = bound_type;
         copied->tuple_index = tuple_index;
         copied->array_index = array_index;
+        copied->array_index_from_end = array_index_from_end;
         copied->is_wildcard = is_wildcard;
         return copied;
     }

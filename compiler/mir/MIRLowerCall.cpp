@@ -2180,9 +2180,30 @@ MIRExprResult MIRLowerer::lower_array_pattern_element(PatternMatchExpr* pm,
     if (!base.ok()) return base;
     const TypeId et = types_.map(element_type);
     const TypeId idx_t = types_.u32_type();
-    const ValueId idx = builder_->const_int(
+    const bool slice_view = is_slice_view_type(pm->expression->getType());
+    ValueId idx = builder_->const_int(
         idx_t, module_.constants.add_int(idx_t, id->array_index));
-    if (is_slice_view_type(pm->expression->getType())) {
+    if (slice_view && id->array_index_from_end) {
+        const ConstantId size_fc = module_.constants.add_string(
+            MIR_INVALID_ID, "_size", 5);
+        const TypeId st = types_.u64_type();
+        ValueId size = MIR_NULL;
+        if (base.kind == MIRExprKind::Place) {
+            size = builder_->field_load(static_cast<PlaceId>(base.id), size_fc, st);
+        } else if (base.kind == MIRExprKind::Address ||
+                   base.kind == MIRExprKind::Value) {
+            size = builder_->field_load_ptr(static_cast<ValueId>(base.id), size_fc, st);
+        } else {
+            error = "slice pattern expression is not a slice lvalue";
+            return MIRExprResult::error();
+        }
+        const ValueId offset = builder_->const_int(
+            st, module_.constants.add_int(st, id->array_index));
+        const ConstantId sub_op = module_.constants.add_int(
+            MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Sub));
+        idx = builder_->binary(size, offset, sub_op, st);
+    }
+    if (slice_view) {
         const ConstantId data_fc = module_.constants.add_string(
             MIR_INVALID_ID, "_data", 5);
         const TypeId ptr_t = types_.pointer_type(et, true);

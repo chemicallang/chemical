@@ -712,12 +712,10 @@ func neg_array_pattern_non_copy(env : &mut TestEnv) {
 }
 
 @test
-func neg_slice_rest_pattern_not_implemented(env : &mut TestEnv) {
+func slice_rest_pattern_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var values : [3]int = [1, 2, 3]\n    var view : [int] = values\n    if(var [a, .., z] = view) { return a + z }\n    return 1\n}\n"
-    expect_compile_error_with_mod(env, "slice_rest_pattern_not_implemented", ch,
-                                  "slice rest patterns are not implemented yet",
-                                  NEG_MOD_STD_CORE)
+    expect_compile_success_with_mod(env, "slice_rest_pattern_compiles", ch, NEG_MOD_STD_CORE)
 }
 
 @test

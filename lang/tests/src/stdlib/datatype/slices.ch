@@ -232,6 +232,36 @@ func test_slices() {
         var again = explicit_str_identity(text)
         return again.size() == 5 && again.get(0) == 'h'
     })
+    test("slice rest pattern binds the first and last elements", () => {
+        var arr : [5]int = [1, 2, 3, 4, 5]
+        var view : [int] = arr
+        if(var [first, .., last] = view) {
+            return first == 1 && last == 5
+        }
+        return false
+    })
+    test("slice rest pattern at either end", () => {
+        var arr : [4]int = [10, 20, 30, 40]
+        var view : [int] = arr
+        var last_ok = false
+        if(var [.., last] = view) {
+            last_ok = last == 40
+        }
+        if(!last_ok) { return false }
+        if(var [first, ..] = view) {
+            return first == 10
+        }
+        return false
+    })
+    test("slice rest pattern requires enough elements", () => {
+        var arr : [1]int = [7]
+        var view : [int] = arr
+        var matched = false
+        if(var [a, b, ..] = view) {
+            matched = true
+        }
+        return !matched
+    })
     test("split partitions on a delimiter", () => {
         var arr : [7]int = [1, 0, 2, 3, 0, 0, 4]
         var view : [int] = arr

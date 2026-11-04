@@ -4321,15 +4321,23 @@ void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {
         const size_t name_count = param_names.size();
         const int32_t rest = expr->array_rest_index;
         if(slice_view) {
-            if(rest >= 0) {
-                diagnoser.error(expr) << "slice rest patterns are not implemented yet; "
-                                         "use an exact [a, b] pattern";
+            if(rest >= 0 && static_cast<size_t>(rest) > name_count) {
+                diagnoser.error("array pattern has an invalid '..' position", expr);
                 return;
             }
             for(size_t i = 0; i < name_count; ++i) {
                 const auto nameId = param_names[i];
                 nameId->bound_type = element_type;
-                nameId->array_index = static_cast<uint32_t>(i);
+                if(rest >= 0 && i >= static_cast<size_t>(rest)) {
+                    // A slice length is only known at runtime. The pattern
+                    // condition checks `size >= name_count`, so the trailing
+                    // names can be addressed as `size - offset`.
+                    nameId->array_index = static_cast<uint32_t>(name_count - i);
+                    nameId->array_index_from_end = true;
+                } else {
+                    nameId->array_index = static_cast<uint32_t>(i);
+                    nameId->array_index_from_end = false;
+                }
                 if(!nameId->is_wildcard) {
                     declare_no_shadow(nameId->identifier, nameId);
                 }

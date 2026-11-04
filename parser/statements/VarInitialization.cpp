@@ -56,6 +56,52 @@ bool Parser::parseArrayPatternElements(ASTAllocator& allocator, PatternMatchExpr
     return true;
 }
 
+bool Parser::parsePatternElse(ASTAllocator& allocator, PatternMatchExpr* patternMatch) {
+    if(token->type == TokenType::ElseKw) {
+        token++;
+    } else {
+        error("expected else keyword for else branch");
+        return false;
+    }
+    switch(token->type) {
+        case TokenType::UnreachableKw:
+            token++;
+            patternMatch->elseExpression.kind = PatternElseExprKind::Unreachable;
+            break;
+        case TokenType::ReturnKw: {
+            token++;
+            patternMatch->elseExpression.kind = PatternElseExprKind::Return;
+            const auto elseExpr = parseExpression(allocator, true, true);
+            if(elseExpr) patternMatch->elseExpression.value = elseExpr;
+            break;
+        }
+        case TokenType::BreakKw: {
+            token++;
+            patternMatch->elseExpression.kind = PatternElseExprKind::Break;
+            const auto elseExpr = parseExpression(allocator, true, true);
+            if(elseExpr) patternMatch->elseExpression.value = elseExpr;
+            break;
+        }
+        case TokenType::ContinueKw: {
+            token++;
+            patternMatch->elseExpression.kind = PatternElseExprKind::Continue;
+            break;
+        }
+        default: {
+            const auto elseExpr = parseExpression(allocator, true, true);
+            if(elseExpr) {
+                patternMatch->elseExpression.kind = PatternElseExprKind::DefValue;
+                patternMatch->elseExpression.value = elseExpr;
+            } else {
+                error("expected an expression for default value after else in pattern match");
+                return false;
+            }
+            break;
+        }
+    }
+    return true;
+}
+
 void Parser::parsePatternMatchExprAfterId(
         ASTAllocator& allocator,
         PatternMatchExpr* patternMatch,
@@ -205,7 +251,7 @@ ASTNode* Parser::parseVarInitializationTokens(
             }
         }
         if(token->type == TokenType::ElseKw) {
-            error("fixed-array patterns are irrefutable and do not take an else branch");
+            parsePatternElse(allocator, &patternMatchExpr->value);
         }
         return patternMatchExpr;
     }

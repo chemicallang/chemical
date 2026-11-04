@@ -199,8 +199,8 @@ func <'a, 'b> shorten(values : &'a [int]) : &'b [int] where 'a : 'b {
   `if(var [first, .., last] = view)`) and statement forms
   (`var [first, .., last] = view`); trailing rest bindings use the runtime
   slice length (`size - offset`). A statement pattern with the wrong runtime
-  length aborts through the bounds-check runtime. Statement forms with an
-  `else` path are not implemented yet.
+  length aborts through the bounds-check runtime unless a divergent `else`
+  branch (`return`, `break`, `continue`, or `unreachable`) is supplied.
 - `windows`/`chunks` cursors are not `for`-iterable yet (use `.get(i)`).
 - Explicit `&'a [T]`, `&'a mut [T]`, and `&'a str` forms are supported; the
   elided forms rely on MIR view analysis to keep the source loan alive and

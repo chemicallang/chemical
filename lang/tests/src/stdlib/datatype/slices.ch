@@ -274,6 +274,18 @@ func test_slices() {
         var [first, .., last] = view
         return first == 10 && last == 40
     })
+    test("statement slice pattern else binds on match", () => {
+        var arr : [2]int = [10, 20]
+        var view : [int] = arr
+        var [a, b] = view else return false
+        return a == 10 && b == 20
+    })
+    test("statement slice pattern else runs on mismatch", () => {
+        var arr : [1]int = [7]
+        var view : [int] = arr
+        var [a, b] = view else return true
+        return false
+    })
     test("statement Box<[T]> exact pattern binds", () => {
         var values = std::vector<int>()
         values.push(10)

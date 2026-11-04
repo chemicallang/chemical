@@ -2546,7 +2546,52 @@ bool MIRLowerer::lower_array_pattern_node(PatternMatchExpr* pm,
     if (slice_view || boxed_slice) {
         MIRExprResult cond = lower_pattern_cond(pm, error);
         if (!cond.ok()) return false;
-        emit_abort_unless(cond.id, "__chc_bounds_fail");
+        if (pm->elseExpression.kind == PatternElseExprKind::None) {
+            emit_abort_unless(cond.id, "__chc_bounds_fail");
+        } else {
+            const BlockId then_b = builder_->create_block();
+            const BlockId else_b = builder_->create_block();
+            builder_->cond_br(cond.id, then_b, else_b);
+            builder_->set_block(else_b);
+            switch (pm->elseExpression.kind) {
+                case PatternElseExprKind::Return: {
+                    ReturnStatement rs(pm->elseExpression.value, nullptr,
+                                       pm->encoded_location());
+                    if (!lower_stmt(&rs, error)) return false;
+                    break;
+                }
+                case PatternElseExprKind::Break: {
+                    if (break_targets_.empty()) {
+                        error = "array pattern break outside a loop";
+                        return false;
+                    }
+                    if (!loop_destructible_marks_.empty()) {
+                        emit_drops_from(loop_destructible_marks_.back());
+                    }
+                    builder_->br(break_targets_.back());
+                    break;
+                }
+                case PatternElseExprKind::Continue: {
+                    if (continue_targets_.empty()) {
+                        error = "array pattern continue outside a loop";
+                        return false;
+                    }
+                    if (!loop_destructible_marks_.empty()) {
+                        emit_drops_from(loop_destructible_marks_.back());
+                    }
+                    builder_->br(continue_targets_.back());
+                    break;
+                }
+                case PatternElseExprKind::Unreachable:
+                    builder_->unreachable();
+                    break;
+                default:
+                    error = "array pattern else branch must return, break, "
+                            "continue, or be unreachable";
+                    return false;
+            }
+            builder_->set_block(then_b);
+        }
     }
     for (PatternMatchIdentifier* id : pm->param_names) {
         if (id == nullptr) {

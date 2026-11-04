@@ -613,6 +613,8 @@ public:
             bool parseElse
     );
 
+    bool parsePatternElse(ASTAllocator& allocator, PatternMatchExpr* patternMatch);
+
     /**
      * Parses the element list of an array pattern after its '[', through ']'.
      * Sets is_array_pattern, array_rest_index and the bound identifiers.

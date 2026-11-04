@@ -30,8 +30,8 @@ Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2476/2476` |
-| LLVM main | `2474/2474` |
+| TCC main | `2478/2478` |
+| LLVM main | `2476/2476` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `800/800` |
 | TCC/LLVM safety | `78/78` |

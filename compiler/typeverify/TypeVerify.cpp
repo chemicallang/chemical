@@ -394,25 +394,22 @@ void TypeVerifier::VisitInterfaceDecl(InterfaceDefinition* interface) {
             diagnoser.error(inherits.type.encoded_location()) << "interfaces can only inherit interfaces";
         }
     }
-    for (auto* node : interface->evaluated_nodes()) {
-        if (node == nullptr) continue;
-        if (node->kind() == ASTNodeKind::TypealiasStmt &&
-            node->as_typealias_unsafe()->is_associated()) {
-            // The current projection slice is static-dispatch only: the
-            // interface method signature still carries the placeholder type,
-            // so an unbound dynamic vtable would be unsound.
-            interface->set_object_safe(false);
-        }
-    }
     auto check_params = [&](FunctionDeclaration* func) {
         if (func == nullptr) return;
+        // An abstract interface method has no body to lower, so the
+        // projection only appears in the declaration. Static dispatch through
+        // the concrete implementation supplies the real parameter type.
+        // A default method body is lowered against the interface prototype,
+        // where the associated declaration is still a placeholder; keep that
+        // case fail-closed until default methods are specialized per impl.
+        if (!func->body.has_value()) return;
         for (auto* param : func->params) {
             if (param == nullptr) continue;
             if (contains_associated_projection(const_cast<BaseType*>(param->type.getType()))) {
                 diagnoser.error(param->type.encoded_location())
                     << "associated type projections in parameter position are "
-                       "not implemented yet; use the concrete type in the "
-                       "interface method signature";
+                       "not implemented yet in default interface methods; use "
+                       "the concrete type in the default method signature";
             }
         }
     };

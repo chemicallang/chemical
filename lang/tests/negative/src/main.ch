@@ -743,9 +743,32 @@ func associated_type_projection_return_compiles(env : &mut TestEnv) {
 }
 
 @test
-func neg_associated_type_projection_parameter(env : &mut TestEnv) {
+func associated_type_projection_parameter_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "interface HasItem {\n    type Item\n    func set(&mut self, value : Self::Item)\n}\nstruct Counter { var n : int }\nimpl HasItem for Counter {\n    type Item = int\n    func set(&mut self, value : int) { self.n = value }\n}\npublic func main() : int { return 0 }\n"
-    expect_compile_error(env, "associated_type_projection_parameter", ch,
-                         "associated type projections in parameter position are not implemented yet")
+    expect_compile_success(env, "associated_type_projection_parameter_compiles", ch)
+}
+
+@test
+func neg_associated_type_projection_default_parameter(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface HasItem {\n    type Item\n    func set(&mut self, value : Self::Item) { }\n}\nstruct Counter { var n : int }\nimpl HasItem for Counter {\n    type Item = int\n    func set(&mut self, value : int) { self.n = value }\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "associated_type_projection_default_parameter", ch,
+                         "associated type projections in parameter position are not implemented yet in default interface methods")
+}
+
+@test
+func neg_dyn_associated_type_interface_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface HasItem {\n    type Item\n    func get(&self) : Self::Item\n}\nstruct Counter { var n : int }\nimpl HasItem for Counter {\n    type Item = int\n    func get(&self) : int { return self.n }\n}\npublic func main() : int {\n    var c = Counter { n : 7 }\n    var d : dyn HasItem = dyn<HasItem>(c)\n    return 0\n}\n"
+    expect_compile_error(env, "dyn_associated_type_interface", ch,
+                         "is not object safe")
+}
+
+@test
+func neg_dyn_inherited_associated_type_interface_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "interface HasItem {\n    type Item\n    func get(&self) : Self::Item\n}\ninterface Child : HasItem {\n    func tag(&self) : int\n}\nstruct Counter { var n : int }\nimpl HasItem for Counter {\n    type Item = int\n    func get(&self) : int { return self.n }\n}\nimpl Child for Counter {\n    func tag(&self) : int { return 1 }\n}\npublic func main() : int {\n    var c = Counter { n : 7 }\n    var d : dyn Child = dyn<Child>(c)\n    return 0\n}\n"
+    expect_compile_error(env, "dyn_inherited_associated_type_interface", ch,
+                         "is not object safe")
 }

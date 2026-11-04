@@ -1,10 +1,11 @@
 # Associated types (first slice)
 
 Status: interface associated-type **declarations**, impl **bindings**, and
-completeness checking are implemented. Return-position `Self::Item` is
-projected for static dispatch through an interface implementation. Parameter
-projections, `T::Item` generic projections, associated-type bounds/equality
-constraints, and generic associated types (GATs) are not implemented yet.
+completeness checking are implemented. Return-position `Self::Item` and
+abstract-method parameter-position `Self::Item` are projected for static
+dispatch through an interface implementation. `T::Item` generic projections,
+associated-type bounds/equality constraints, default-method parameter
+projections, and generic associated types (GATs) are not implemented yet.
 
 ## Syntax
 
@@ -37,12 +38,19 @@ impl HasItem for Counter {
   call through a concrete implementation uses that implementation's concrete
   method, so static dispatch works. The interface method signature itself still
   carries a placeholder type.
-- `Self::Item` in a parameter position is rejected: a placeholder parameter
-  would be emitted as `void` in the interface prototype. Use the concrete type
-  in the interface signature for now.
+- `Self::Item` in an **abstract** interface method parameter is accepted. The
+  abstract declaration has no body to lower; a concrete implementation supplies
+  the real parameter type, and static dispatch reaches that implementation.
+- `Self::Item` in a **default** interface method parameter is still rejected:
+  the default body is lowered against the interface prototype, where the
+  associated declaration is only a placeholder.
+- An interface declaring an associated type, or inheriting an interface that
+  declares one, is not object safe and cannot be used through `dyn` (for
+  example `dyn HasItem` and `dyn Child` are rejected).
 - `T::Item` projections through a generic bound (`T: HasItem`) are not
-  implemented. Generic/interface dispatch and `dyn HasItem` are limited;
-  interfaces declaring associated types are marked non-object-safe.
+  implemented. Generic interface calls that pass the associated value through
+  (for example `t.set(t.get())`) work after monomorphization, but the projection
+  cannot be spelled directly.
 - Associated-type bounds (`type Item: Copy`) and equality constraints
   (`T: Iterator<Item = int>`) are not parsed.
 - Generic associated types (`type Cursor<'a>`) are not supported beyond the
@@ -50,5 +58,6 @@ impl HasItem for Counter {
 - Inherited interfaces must be implemented separately; their associated types
   are checked by their own implementation.
 
-Projection through generic bounds and parameter-position associated types are
-the next associated-type milestones.
+`T::Item` projection through generic bounds, default-method parameter
+projection, associated-type bounds/equality constraints, and GATs are the next
+associated-type milestones.

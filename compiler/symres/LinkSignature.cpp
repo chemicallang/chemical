@@ -1524,7 +1524,34 @@ static bool type_mentions_interface(BaseType* type, InterfaceDefinition* node,
     }
 }
 
+static bool interface_tree_has_associated_type(
+        InterfaceDefinition* node,
+        std::unordered_set<InterfaceDefinition*>& seen) {
+    if (node == nullptr || !seen.insert(node).second) return false;
+    for (const auto member : node->evaluated_nodes()) {
+        if (member != nullptr && member->kind() == ASTNodeKind::TypealiasStmt &&
+            member->as_typealias_unsafe()->is_associated()) {
+            return true;
+        }
+    }
+    for (auto& inherits : node->inherited) {
+        auto* base = inherits.type->get_direct_linked_canonical_node();
+        if (base != nullptr && base->kind() == ASTNodeKind::InterfaceDecl &&
+            interface_tree_has_associated_type(
+                base->as_interface_def_unsafe(), seen)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool is_object_safe(InterfaceDefinition* node) {
+    // Associated types do not yet carry a real vtable type. An interface that
+    // declares one, or inherits one, cannot be used as a dynamic object.
+    std::unordered_set<InterfaceDefinition*> associated_seen;
+    if (interface_tree_has_associated_type(node, associated_seen)) {
+        return false;
+    }
     // Object safety: every dynamic method needs a self receiver (static
     // methods have no vtable slot); Self may not appear directly or nested in a
     // parameter/return type; generic methods are not object safe.

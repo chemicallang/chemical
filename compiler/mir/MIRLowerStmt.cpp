@@ -1,4 +1,5 @@
 // Copyright (c) Chemical Language Foundation 2025.
+#include "ast/statements/Unreachable.h"
 //
 // MIR lowering: statement and control-flow lowering.
 // Split out of MIRLowerer.cpp (action D4, mir-migration-evaluation.md).
@@ -1465,6 +1466,14 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 emit_drops_from(loop_destructible_marks_.back());
             }
             builder_->br(continue_targets_.back());
+            return true;
+        }
+        case ASTNodeKind::UnreachableStmt: {
+            auto* us = static_cast<UnreachableStmt*>(node);
+            // Bytecode placeholders for an omitted for-loop initializer or
+            // incrementer are no-ops, not user traps.
+            if (us->is_generated) return true;
+            builder_->unreachable();
             return true;
         }
         case ASTNodeKind::IncDecNode: {

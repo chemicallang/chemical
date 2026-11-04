@@ -33,7 +33,7 @@ Latest measured baseline:
 | TCC main | `2478/2478` |
 | LLVM main | `2476/2476` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `800/800` |
+| TCC/LLVM negative | `802/802` |
 | TCC/LLVM safety | `78/78` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `735/735` |

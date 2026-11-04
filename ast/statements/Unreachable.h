@@ -12,6 +12,10 @@
 class UnreachableStmt : public ASTNode {
 public:
 
+    /** Compiler-generated loop placeholders are not user traps and do not
+     * require an unsafe boundary. */
+    bool is_generated = false;
+
     /**
      * constructor
      */
@@ -23,10 +27,12 @@ public:
     }
 
     UnreachableStmt* copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UnreachableStmt>()) UnreachableStmt(
+        auto* copied = new (allocator.allocate<UnreachableStmt>()) UnreachableStmt(
             parent(),
             encoded_location()
         );
+        copied->is_generated = is_generated;
+        return copied;
     }
 
 

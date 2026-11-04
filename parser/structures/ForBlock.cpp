@@ -56,6 +56,7 @@ UnreachableStmt* Parser::parseUnreachableStatement(ASTAllocator& allocator) {
 
 static ForLoop* fix_loop(Parser* parser, ForLoop* loop, ASTAllocator& allocator) {
     const auto unreachableStmt = new (allocator.allocate<UnreachableStmt>()) UnreachableStmt(loop, ZERO_LOC);
+    unreachableStmt->is_generated = true;
     if(!loop->initializer) {
         loop->initializer = unreachableStmt;
     }

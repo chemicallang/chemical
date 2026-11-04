@@ -12,6 +12,7 @@
 #include "ast/statements/DeallocStmt.h"
 #include "ast/statements/ProvideStmt.h"
 #include "ast/statements/AccessChainNode.h"
+#include "ast/statements/Unreachable.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/statements/UnresolvedDecl.h"
@@ -2223,6 +2224,13 @@ void SymResLinkBody::VisitLoopBlock(LoopBlock* node) {
 
 void SymResLinkBody::VisitUnionDecl(UnionDef* node) {
     LinkMembersContainer(node);
+}
+
+void SymResLinkBody::VisitUnreachableStmt(UnreachableStmt* node) {
+    if (safe_context && !node->is_generated) {
+        diagnoser.error(node).with_code("SAFE-UNSAFE-002")
+            << "unreachable requires an unsafe block";
+    }
 }
 
 void SymResLinkBody::VisitUnsafeBlock(UnsafeBlock* node) {

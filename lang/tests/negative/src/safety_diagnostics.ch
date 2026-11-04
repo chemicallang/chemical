@@ -2041,6 +2041,21 @@ func neg_u16_strlen_requires_unsafe(env : &mut TestEnv) {
 }
 
 @test
+func neg_unreachable_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    unreachable\n}\n"
+    expect_compile_error_with_mod(env, "unreachable_requires_unsafe", ch,
+                                  "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func unreachable_in_unsafe_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    unsafe {\n        unreachable\n    }\n}\n"
+    expect_compile_success_with_mod(env, "unreachable_in_unsafe", ch, NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_split_views_requires_unsafe(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var s = std::string(\"a,b\")\n    var parts = s.split_views(',')\n    return 0\n}\n"

@@ -321,6 +321,8 @@ public:
 
     void VisitUnsafeBlock(UnsafeBlock* node);
 
+    void VisitUnreachableStmt(UnreachableStmt* node);
+
     void VisitVariantCaseVariable(VariantCaseVariable* node);
 
     void VisitWhileLoopStmt(WhileLoop* node);

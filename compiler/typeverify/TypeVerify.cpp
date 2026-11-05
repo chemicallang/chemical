@@ -338,13 +338,12 @@ static bool owned_array_element_move(Value* index_value) {
         return false;
     }
     if (root->val_kind() != ValueKind::Identifier) {
-        // A temporary/aggregate-literal root is currently accepted only through
-        // a field path (`make().items[CONST]`, `S{...}.items[CONST]`). A direct
-        // temporary array value (`make()[CONST]`) stays rejected until array
-        // value returns have a working backend path.
-        return base->val_kind() == ValueKind::AccessChain &&
-               (root->val_kind() == ValueKind::FunctionCall ||
-                root->val_kind() == ValueKind::StructValue);
+        // Temporary expression roots are materialized by the MIR lowerer and
+        // registered as block-scope destructibles so their element/field flags
+        // can be cleared. Pointer/reference roots were rejected above.
+        return root->val_kind() == ValueKind::FunctionCall ||
+               root->val_kind() == ValueKind::StructValue ||
+               root->val_kind() == ValueKind::ArrayValue;
     }
     auto* id = root->as_identifier_unsafe();
     ASTNode* linked = id->linked;

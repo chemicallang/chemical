@@ -53,7 +53,7 @@ Latest measured baseline:
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `832/832` |
-| TCC/LLVM safety | `86/86` |
+| TCC/LLVM safety | `87/87` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -470,11 +470,12 @@ memory safety.
     owned local array uses those moves. Field moves from a materialized
     temporary/expression are accepted by extending that temporary to block
     scope with field flags. Array fields of mutable locals/async frames use
-    field-path element flags; temporary aggregate field arrays use the same
-    block-scope tracking. Remaining: user-destructor temporaries,
-    pointer/dereference bases, direct temporary arrays, array fields through
-    references/pointers, inner arrays using a flat flag block above 1024 with a
-    runtime inner loop, and unsized
+    field-path element flags; temporary aggregate field arrays and direct
+    temporary arrays use the same block-scope tracking. C array-valued sret
+    returns use `memcpy`. Remaining: user-destructor temporaries,
+    pointer/dereference bases, array fields through references/pointers, inner
+    arrays using a flat flag block above 1024 with a runtime inner loop, and
+    unsized
     arrays still fall back to a whole-field flag. Whole-field
     construction/destruction of a generated-glue large array field inside a
     frame aggregate uses the same template. Constant-index writes into a

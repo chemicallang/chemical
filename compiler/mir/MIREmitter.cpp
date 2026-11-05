@@ -1913,21 +1913,45 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                             out += ";\n";
                         }
                     } else {
-                        out += "*";
-                        append_operand_expr(function, module, *p, out);
-                        out += " = ";
-                        if (a->kind() == MIROperandKind::Place) {
-                            const MIRTypeRecord& atr =
-                                module.types.get(function.places[a->id].type);
-                            if (atr.kind == MIRTypeKind::Pointer ||
-                                atr.kind == MIRTypeKind::Reference) {
-                                out += "*";
-                            }
+                        const MIRTypeRecord& pr = module.types.get(p->type());
+                        const bool ptr_to_array =
+                            pr.kind == MIRTypeKind::Pointer &&
+                            pr.element != MIR_INVALID_ID &&
+                            pr.element < module.types.size() &&
+                            module.types.get(pr.element).kind == MIRTypeKind::Array;
+                        const bool source_array =
+                            a->kind() == MIROperandKind::Place &&
+                            a->id < function.places.size() &&
+                            function.places[a->id].type < module.types.size() &&
+                            module.types.get(function.places[a->id].type).kind ==
+                                MIRTypeKind::Array;
+                        if (ptr_to_array && source_array) {
+                            // An sret pointer to an array cannot be assigned as
+                            // an array lvalue in C; copy the source bytes.
+                            out += "memcpy(";
+                            append_operand_expr(function, module, *p, out);
+                            out += ", &";
                             append_place_name(module, function, a->id, out);
+                            out += ", sizeof(";
+                            append_place_name(module, function, a->id, out);
+                            out += "));\n";
                         } else {
-                            append_operand_expr(function, module, *a, out);
+                            out += "*";
+                            append_operand_expr(function, module, *p, out);
+                            out += " = ";
+                            if (a->kind() == MIROperandKind::Place) {
+                                const MIRTypeRecord& atr =
+                                    module.types.get(function.places[a->id].type);
+                                if (atr.kind == MIRTypeKind::Pointer ||
+                                    atr.kind == MIRTypeKind::Reference) {
+                                    out += "*";
+                                }
+                                append_place_name(module, function, a->id, out);
+                            } else {
+                                append_operand_expr(function, module, *a, out);
+                            }
+                            out += ";\n";
                         }
-                        out += ";\n";
                     }
                 } else if (a->kind() == MIROperandKind::Value && b) {
                     if (b->kind() == MIROperandKind::Place) {

@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.43)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.44)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1614,9 +1614,10 @@ new number as the honest baseline, not a compiler regression.
     nested non-Copy patterns remain rejected with `SAFE-MOVE-004` rather than
     being guessed safe. A temporary aggregate field array
     (`make().items[CONST]`) is materialized as a block-scope destructible like a
-    temporary field move. A direct temporary array value (`make()[CONST]`)
-    remains rejected because array-value returns do not yet have a working
-    backend path. A field move from a materialized temporary/expression
+    temporary field move. A direct temporary array value (`make()[CONST]`) is
+    also accepted now that the C backend copies array-valued sret returns with
+    `memcpy` instead of emitting an illegal array assignment. A field move from
+    a materialized temporary/expression
     (`make().field`) is supported when the lowered field address has a
     temporary root with generated field drops: the temporary is registered as
     a block-scope destructible, the moved field flag is cleared, and the
@@ -3213,3 +3214,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.41 (2026-11-05): temporary/expression field moves. `make().field` and nested `make().inner.field` now recover the materialized temporary from the lowered `FieldAddr` root, register it as a block-scope destructible with its generated field flags, clear the moved field’s flag, and drop the remainder at the enclosing block end. The old `SAFE-MOVE-004` rejection for this safe shape is now a positive runtime test; user-destructor temporaries and pointer/dereference bases still reject. This deliberately extends a moved temporary’s drop point from statement end to block end (no leak/double-drop; destructor timing is later). TCC/LLVM negative `829/829`; TCC/LLVM safety `84/84`.
 *Revision note v5.42 (2026-11-05): array-field element moves. A constant-index move from a fixed-array field of a mutable local/async-frame aggregate (`s.items[0]`, including nested fields) now resolves the owning field path, clears the element’s flag under the struct drop tree, and emits the MIR move marker. The front end accepts the shape only when the root is a mutable local (not a const binding, parameter, reference/pointer, or temporary); other array-field shapes remain `SAFE-MOVE-001`/`SAFE-MOVE-004`. Added TCC/LLVM runtime coverage for nested array-field moves and negatives for const and reference-root fields. TCC/LLVM negative `831/831`; TCC/LLVM safety `85/85`.
 *Revision note v5.43 (2026-11-05): temporary aggregate field-array elements. `make().items[CONST]` can now move an element out of a temporary aggregate’s fixed-array field: the lowered element address recovers the temporary root, the temporary is registered as a block-scope destructible with its field path, and the element flag is cleared. Direct temporary arrays (`make()[CONST]`) remain rejected because array-value returns still have an unrelated backend limitation. Added TCC/LLVM runtime coverage for the temporary field-array shape while retaining the direct-temporary-array rejection. TCC/LLVM negative `832/832`; TCC/LLVM safety `86/86`.
+*Revision note v5.44 (2026-11-05): direct temporary array elements. The C emitter now copies an array-valued sret return into its destination with `memcpy` instead of `*(sret) = array`, which C rejects; array-returning functions and `make()[CONST]` work on TCC. The move front end accepts direct temporary-array roots, and the lowering registers the temporary array as a block-scope destructible so the moved element flag is cleared and the remainder drops once. Added TCC/LLVM runtime coverage for `make()[0]` and flipped the old temporary-array negative to positive. TCC/LLVM negative `832/832`; TCC/LLVM safety `87/87`.

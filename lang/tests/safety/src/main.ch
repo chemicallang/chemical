@@ -614,6 +614,17 @@ func partial_array_init_destroys_only_initialized_elements(env : &mut TestEnv) {
 }
 
 @test
+func moved_temporary_array_element_is_not_destroyed(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nfunc make() : [2]Tracker { return [Tracker { id : 1 }, Tracker { id : 2 }] }\npublic func main() : int {\n    {\n        var moved = make()[0]\n        if(moved.id != 1) { return 10 }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "moved_temporary_array_element", ch, &mut out)
+    if(rc != 2) {
+        env.error("a moved element of a temporary array was destroyed by its temporary")
+    }
+}
+
+@test
 func moved_temporary_array_field_element_is_not_destroyed(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S { var arr : [2]Tracker; var tag : int }\nfunc make() : S { return S { arr : [Tracker { id : 1 }, Tracker { id : 2 }], tag : 9 } }\npublic func main() : int {\n    {\n        var moved = make().arr[0]\n        if(moved.id != 1) { return 10 }\n    }\n    return drops\n}\n"

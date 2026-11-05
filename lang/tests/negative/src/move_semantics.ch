@@ -141,10 +141,10 @@ func move_out_of_temporary_array_field_compiles(env : &mut TestEnv) {
 }
 
 @test
-func neg_move_out_of_temporary_array_rejected(env : &mut TestEnv) {
+func move_out_of_temporary_array_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nfunc make() : [2]DT { return [DT { x : 1 }, DT { x : 2 }] }\npublic func main() : int {\n    var moved = make()[0]\n    return moved.x\n}\n"
-    expect_compile_error(env, "move_out_of_temporary_array", ch, "SAFE-MOVE-001")
+    expect_compile_success(env, "move_out_of_temporary_array", ch)
 }
 
 @test

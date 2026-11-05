@@ -53,7 +53,7 @@ Latest measured baseline:
 | TCC main | `2489/2489` |
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `848/848` |
+| TCC/LLVM negative | `850/850` |
 | TCC/LLVM safety | `88/88` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
@@ -292,9 +292,11 @@ accept a declared-`!Send`/`!Sync` member (unsound) or reject a valid positive
 impl (false negative).
 
 `Unpin` is a safe auto trait. Nested conditional `!Unpin` is treated
-conservatively as negative because the `Unpin` path has no TypeVerifier context;
-conditional positive `Unpin` impls are not evaluated (false rejection, not
-unsoundness). `PhantomPinned` uses `impl !Unpin`.
+conservatively as negative where no TypeVerifier context is available;
+conditional positive `Unpin` impls are evaluated in the TypeVerifier and the
+generic-impl bound path now materializes concrete nested candidates (for example
+`[1]Wrapper<int>`) before rejecting. Arguments that remain generic parameters
+stay conservative. `PhantomPinned` uses `impl !Unpin`.
 
 The `GenericImplDecl` instantiation path also treats any registered generic
 negative auto-trait impl as negative without evaluating its bounds. That can

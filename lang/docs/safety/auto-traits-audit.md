@@ -112,8 +112,11 @@ struct Outer { var w : Wrapper<int> }
 `Outer` is `Unpin` for `Wrapper<int>` (the positive impl applies), and remains
 `!Unpin` for `Wrapper<PhantomPinned>` (the bound fails). A conditional
 `!Unpin` impl is still checked first and wins. The generic-impl bound path in
-`GenericImplDecl.cpp` remains conservative because it has no type-checker
-context; that is a false-rejection path, not an unsound acceptance.
+`GenericImplDecl.cpp` now retries after materializing concrete conditional
+positive `Unpin` impls found in nested array/generic/field types; arguments that
+remain generic parameters stay conservative. This is a false-rejection fix, not
+an unsound acceptance: `Wrapper<PhantomPinned>` still fails its `T: Unpin`
+bound.
 
 ## Deliberately conservative (false negatives, not unsoundness)
 
@@ -137,7 +140,7 @@ The audit is covered by the negative safety suite and the existing
 `arc`/`box`/`mutex`/`rwlock`/`thread`/`channel` tests, plus:
 
 - TCC main `2489/2489`, LLVM main `2487/2487`
-- TCC/LLVM negative `848/848`
+- TCC/LLVM negative `850/850`
 - TCC/LLVM safety `88/88`, async `83/83`
 - TCC libs `736/736`, plugins `1305/1305`
 - TCC interpret `1938/1938`

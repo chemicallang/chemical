@@ -675,6 +675,76 @@ struct GimplDemandDepthGuard {
     ~GimplDemandDepthGuard() { --gimpl_demand_depth; }
 };
 
+/**
+ * Materialize conditional positive `Unpin` impls found inside a bound
+ * argument. A nested generic type (for example `[1]Wrapper<int>`) is not
+ * otherwise demanded as a value, so its concrete `Unpin` impl may not be in
+ * the index when a generic-impl bound is checked. Ask the normal generic-impl
+ * machinery to instantiate it, then let `type_satisfies_unpin` see the
+ * concrete positive impl. This keeps the bound path sound: instantiation still
+ * runs the candidate's own bound checks.
+ */
+static void materialize_unpin_impls(
+    GenericInstantiatorAPI& instantiator,
+    BaseType* type,
+    ASTNode* unpin_interface,
+    SourceLocation demand_loc,
+    std::unordered_set<const BaseType*>& visiting
+) {
+    if(type == nullptr) return;
+    auto* canonical = type->canonical();
+    if(canonical == nullptr) canonical = type;
+    if(!visiting.insert(canonical).second) return;
+    auto* container = canonical->get_members_container();
+    if(container != nullptr && container->generic_parent != nullptr) {
+        instantiate_generic_impls_for(
+            instantiator, (ASTAny*) container, unpin_interface,
+            chem::string_view(), demand_loc
+        );
+    }
+    switch(canonical->kind()) {
+        case BaseTypeKind::Array: {
+            auto* elem = const_cast<BaseType*>(
+                canonical->as_array_type_unsafe()->elem_type.getType());
+            materialize_unpin_impls(instantiator, elem, unpin_interface,
+                                    demand_loc, visiting);
+            break;
+        }
+        case BaseTypeKind::Generic: {
+            auto* gen = canonical->as_generic_type_unsafe();
+            for(auto& arg : gen->types) {
+                materialize_unpin_impls(instantiator,
+                                        const_cast<BaseType*>(arg.getType()),
+                                        unpin_interface, demand_loc, visiting);
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    if(container != nullptr) {
+        for(BaseDefMember* member : container->variables()) {
+            if(member == nullptr) continue;
+            if(member->kind() == ASTNodeKind::StructMember) {
+                auto* field = member->as_struct_member_unsafe();
+                materialize_unpin_impls(
+                    instantiator, const_cast<BaseType*>(field->type.getType()),
+                    unpin_interface, demand_loc, visiting);
+            } else if(member->kind() == ASTNodeKind::VariantMember) {
+                auto* variant = member->as_variant_member_unsafe();
+                for(auto& entry : variant->values) {
+                    auto* param = entry.second;
+                    if(param == nullptr) continue;
+                    materialize_unpin_impls(
+                        instantiator, const_cast<BaseType*>(param->type.getType()),
+                        unpin_interface, demand_loc, visiting);
+                }
+            }
+        }
+    }
+    visiting.erase(canonical);
+}
+
 static bool check_generic_impl_bounds(
     GenericInstantiatorAPI& instantiator,
     GenericImplDecl* candidate,
@@ -753,6 +823,17 @@ static bool check_generic_impl_bounds(
             }
             if(iface->interface_bits.has(InterfaceBits::UNPIN_BIT)) {
                 std::unordered_set<MembersContainer*> visiting;
+                if(type_satisfies_unpin(concrete, visiting, &index,
+                                        (ASTNode*) interface_key)) {
+                    return true;
+                }
+                // A nested generic argument may not have been demanded as a
+                // value, so its conditional positive Unpin impl is absent from
+                // the index. Materialize it and retry once.
+                std::unordered_set<const BaseType*> materialized;
+                materialize_unpin_impls(instantiator, concrete, interface_key,
+                                        demand_loc, materialized);
+                visiting.clear();
                 if(type_satisfies_unpin(concrete, visiting, &index,
                                         (ASTNode*) interface_key)) {
                     return true;

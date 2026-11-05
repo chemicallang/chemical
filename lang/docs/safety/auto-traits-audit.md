@@ -142,5 +142,5 @@ The audit is covered by the negative safety suite and the existing
 - TCC libs `736/736`, plugins `1305/1305`
 - TCC interpret `1938/1938`
 - `MIRTests` `4749 checks`
-- `--llvm --thread-tsan` pass (`Mutex`, `RwLock`, `channel`, and thread-pool`)
+- `--llvm --thread-tsan` pass (`Mutex`, `RwLock`, `channel`, thread pool, executor spawn/yield`)
 - whole-tree safety audit: no growth

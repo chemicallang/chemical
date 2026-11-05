@@ -436,8 +436,8 @@ the backend verifier:
   `spawn_send`/scoped calls.
 - **Coverage:** negative tests for executor state `!Send` and the unsafe
   enqueue/poll entry points; TSAN smoke extended with concurrent `RwLock`
-  writers, a cross-thread channel handoff, and thread-pool task submission alongside
-  the existing `Mutex` scenario.
+  writers, a cross-thread channel handoff, thread-pool task submission, and an
+  executor `spawn_send`/`yield` handoff alongside the existing `Mutex` scenario.
 
 ---
 

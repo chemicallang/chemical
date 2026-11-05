@@ -2901,13 +2901,6 @@ bool MIRLowerer::lower_array_pattern_node(PatternMatchExpr* pm,
     const bool copying_elements = mir_type_is_copy(module_.types, et);
     bool move_owned_elements = false;
     if (!copying_elements) {
-        BaseType* element_canonical = element_type->canonical();
-        if (element_canonical != nullptr &&
-            element_canonical->kind() == BaseTypeKind::Array) {
-            error = "SAFE-MOVE-004: nested non-Copy array destructuring is not "
-                    "supported; bind each inner array to a local first";
-            return false;
-        }
         if (slice_view || boxed_slice) {
             error = "SAFE-MOVE-004: array destructuring of a borrowed slice or "
                     "boxed slice requires Copy elements";
@@ -2963,9 +2956,9 @@ bool MIRLowerer::lower_array_pattern_node(PatternMatchExpr* pm,
             return false;
         }
         for (PatternMatchIdentifier* id : pm->param_names) {
-            if (id != nullptr && !id->is_wildcard && id->array_path.size() > 1) {
-                error = "SAFE-MOVE-004: nested non-Copy array destructuring is "
-                        "not supported; bind the inner array first";
+            if (id != nullptr && !id->is_wildcard && id->array_path.size() > 2) {
+                error = "SAFE-MOVE-004: non-Copy array destructuring deeper than "
+                        "two fixed-array levels is not supported";
                 return false;
             }
         }
@@ -3061,17 +3054,23 @@ bool MIRLowerer::lower_array_pattern_node(PatternMatchExpr* pm,
         MIRExprResult element = lower_array_pattern_element(pm, id, false, error);
         if (!element.ok()) return false;
         if (element.kind == MIRExprKind::Address && move_owned_elements) {
-            const uint64_t element_index =
-                id->array_path.empty() ? id->array_index : id->array_path[0];
-            if (element_index == 0xFFFFFFFFu) {
-                error = "SAFE-MOVE-004: array pattern element has no constant index";
-                return false;
-            }
             const bool needs_drop =
                 destructor_symbol(id->known_type()) != MIR_INVALID_ID;
             if (needs_drop) {
-                MIRDropElementRef ref =
-                    drop_flag_for_element(move_base, element_index);
+                MIRDropElementRef ref;
+                if (id->array_path.size() == 2) {
+                    ref = drop_flag_for_nested_index(
+                        move_base, {}, id->array_path[0], id->array_path[1]);
+                } else {
+                    const uint64_t element_index = id->array_path.empty()
+                                                       ? id->array_index
+                                                       : id->array_path[0];
+                    if (element_index == 0xFFFFFFFFu) {
+                        error = "SAFE-MOVE-004: array pattern element has no constant index";
+                        return false;
+                    }
+                    ref = drop_flag_for_element(move_base, element_index);
+                }
                 if (!ref.valid()) {
                     error = "SAFE-MOVE-004: cannot move a destructible array "
                             "element whose element drop flag is not tracked";

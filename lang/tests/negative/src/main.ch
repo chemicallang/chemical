@@ -782,10 +782,10 @@ func neg_array_pattern_non_copy_parameter(env : &mut TestEnv) {
 }
 
 @test
-func neg_array_pattern_non_copy_nested(env : &mut TestEnv) {
+func array_pattern_non_copy_nested_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    var values : [2][2]DT = []\n    values[0][0] = DT { x : 1 }\n    values[0][1] = DT { x : 2 }\n    values[1][0] = DT { x : 3 }\n    values[1][1] = DT { x : 4 }\n    var [[a, b], [c, d]] = values\n    return a.x + b.x + c.x + d.x\n}\n"
-    expect_compile_error(env, "array_pattern_non_copy_nested", ch, "SAFE-MOVE-004")
+    var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    var values : [2][2]DT\n    values[0][0] = DT { x : 1 }\n    values[0][1] = DT { x : 2 }\n    values[1][0] = DT { x : 3 }\n    values[1][1] = DT { x : 4 }\n    var [[a, b], [c, d]] = values\n    return a.x + b.x + c.x + d.x\n}\n"
+    expect_compile_success(env, "array_pattern_non_copy_nested", ch)
 }
 
 @test

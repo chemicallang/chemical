@@ -53,7 +53,7 @@ Latest measured baseline:
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `832/832` |
-| TCC/LLVM safety | `87/87` |
+| TCC/LLVM safety | `88/88` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -467,7 +467,8 @@ memory safety.
     reference/pointer) is rejected with `SAFE-MOVE-004` instead of
     double-dropping. Constant-index
     element moves now clear the owning flag; non-Copy destructuring of an
-    owned local array uses those moves. Field moves from a materialized
+    owned local array uses those moves, including two fixed-array levels
+    (deeper nesting rejects). Field moves from a materialized
     temporary/expression are accepted by extending that temporary to block
     scope with field flags. Array fields of mutable locals/async frames use
     field-path element flags; temporary aggregate field arrays and direct

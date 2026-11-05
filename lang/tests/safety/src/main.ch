@@ -735,6 +735,17 @@ func returned_array_element_is_moved_once(env : &mut TestEnv) {
 }
 
 @test
+func non_copy_nested_array_pattern_moves_elements(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var values : [2][2]Tracker\n        values[0][0] = Tracker { id : 1 }\n        values[0][1] = Tracker { id : 2 }\n        values[1][0] = Tracker { id : 3 }\n        values[1][1] = Tracker { id : 4 }\n        {\n            var [[a, b], [c, d]] = values\n            if(a.id != 1 || b.id != 2 || c.id != 3 || d.id != 4) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "array_pattern_non_copy_nested_move", ch, &mut out)
+    if(rc != 4) {
+        env.error("nested non-Copy array destructuring did not move each element exactly once")
+    }
+}
+
+@test
 func non_copy_array_pattern_rest_keeps_source_owned(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var values : [4]Tracker = [Tracker { id : 1 }, Tracker { id : 2 }, Tracker { id : 3 }, Tracker { id : 4 }]\n        {\n            var [first, .., last] = values\n            if(first.id != 1 || last.id != 4) { return 10 }\n        }\n    }\n    return drops\n}\n"

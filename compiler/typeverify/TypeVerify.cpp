@@ -306,14 +306,38 @@ static bool owned_array_element_move(Value* index_value) {
         }
         break;
     }
-    if (base == nullptr || base->val_kind() != ValueKind::Identifier) return false;
+    if (base == nullptr) return false;
     BaseType* base_type = base->getType();
     BaseType* canonical = base_type ? base_type->canonical() : nullptr;
     if (canonical == nullptr || canonical->kind() != BaseTypeKind::Array ||
         !canonical->as_array_type_unsafe()->has_array_size()) {
         return false;
     }
-    auto* id = base->as_identifier_unsafe();
+    Value* root = base;
+    if (root->val_kind() == ValueKind::AccessChain) {
+        root = root->as_access_chain_unsafe()->values[0];
+        for (int guard = 0; guard < 4 && root; ++guard) {
+            if (root->val_kind() == ValueKind::UnsafeValue) {
+                root = static_cast<UnsafeValue*>(root)->getValue();
+                continue;
+            }
+            if (root->val_kind() == ValueKind::AccessChain &&
+                root->as_access_chain_unsafe()->values.size() == 1) {
+                root = root->as_access_chain_unsafe()->values[0];
+                continue;
+            }
+            break;
+        }
+    }
+    if (root == nullptr || root->val_kind() != ValueKind::Identifier) return false;
+    BaseType* root_type = root->getType();
+    BaseType* root_canonical = root_type ? root_type->canonical() : nullptr;
+    if (root_canonical == nullptr ||
+        root_canonical->kind() == BaseTypeKind::Reference ||
+        root_canonical->kind() == BaseTypeKind::Pointer) {
+        return false;
+    }
+    auto* id = root->as_identifier_unsafe();
     ASTNode* linked = id->linked;
     if (linked == nullptr) return false;
     // Array parameters are passed as a pointer to the caller's storage, so a

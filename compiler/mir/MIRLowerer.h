@@ -938,7 +938,9 @@ private:
                            BaseType** base_type_out = nullptr);
     /** Resolve `arr[CONST]` to an owned fixed-array element move target. */
     bool array_element_move_target(Value* value, PlaceId& base, uint64_t& index,
-                                   BaseType*& element_type);
+                                   BaseType*& element_type,
+                                   std::vector<std::string>& path,
+                                   std::string& error);
     /** Clear every drop flag that owns one moved array element. */
     void clear_element_drop_flag(const MIRDropElementRef& ref);
     void emit_drops();

@@ -52,8 +52,8 @@ Latest measured baseline:
 | TCC main | `2489/2489` |
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `829/829` |
-| TCC/LLVM safety | `84/84` |
+| TCC/LLVM negative | `831/831` |
+| TCC/LLVM safety | `85/85` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -131,7 +131,7 @@ MIR is the sole producer of init/move/drop state:
 - `SAFE-MOVE-004` — moving a non-`Copy`/destructor-bearing field/subobject out
   of a shape whose drops cannot be updated (user destructor, global,
   unsupported temporary/expression, reference/pointer, or an unsupported array
-  index/view).
+  index/view, including an array field through a non-owned root).
 - `SAFE-DROP-001` — invalid `@delete` signature (value self, missing self,
   non-void return, async, etc.).
 - Partial struct/array initialization and per-path drop flags are modeled.
@@ -469,9 +469,11 @@ memory safety.
     element moves now clear the owning flag; non-Copy destructuring of an
     owned local array uses those moves. Field moves from a materialized
     temporary/expression are accepted by extending that temporary to block
-    scope with field flags. Remaining: user-destructor temporaries,
-    pointer/dereference bases, inner arrays using a flat flag block above 1024
-    with a runtime inner loop, and unsized
+    scope with field flags. Array fields of mutable locals/async frames use
+    field-path element flags. Remaining: user-destructor temporaries,
+    pointer/dereference bases, array fields through references/temporaries,
+    inner arrays using a flat flag block above 1024 with a runtime inner loop,
+    and unsized
     arrays still fall back to a whole-field flag. Whole-field
     construction/destruction of a generated-glue large array field inside a
     frame aggregate uses the same template. Constant-index writes into a

@@ -680,6 +680,17 @@ func moved_array_element_is_not_destroyed(env : &mut TestEnv) {
 }
 
 @test
+func moved_array_field_element_is_not_destroyed(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Inner { var arr : [2]Tracker; var tag : int }\nstruct S { var inner : Inner; var other : int }\npublic func main() : int {\n    {\n        var s = S { inner : Inner { arr : [Tracker { id : 1 }, Tracker { id : 2 }], tag : 7 }, other : 9 }\n        {\n            var moved = s.inner.arr[0]\n            if(moved.id != 1 || s.inner.arr[1].id != 2) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "moved_array_field_element", ch, &mut out)
+    if(rc != 2) {
+        env.error("a moved array-field element was destroyed by its parent array")
+    }
+}
+
+@test
 func moved_array_element_struct_field_is_not_destroyed(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Item {\n    var tracker : Tracker\n    var id : int\n}\npublic func main() : int {\n    {\n        var arr : [2]Item = [Item { tracker : Tracker { id : 1 }, id : 11 }, Item { tracker : Tracker { id : 2 }, id : 22 }]\n        {\n            var moved = arr[0]\n            if(moved.id != 11 || moved.tracker.id != 1) { return 10 }\n        }\n    }\n    return drops\n}\n"

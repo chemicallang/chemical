@@ -106,10 +106,24 @@ func neg_move_out_of_global_array_rejected(env : &mut TestEnv) {
 }
 
 @test
-func neg_move_out_of_array_field_rejected(env : &mut TestEnv) {
+func move_out_of_array_field_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nstruct S { var arr : [2]DT }\npublic func main() : int {\n    var s = S { arr : [DT { x : 1 }, DT { x : 2 }] }\n    var moved = s.arr[0]\n    return moved.x\n}\n"
-    expect_compile_error(env, "move_out_of_array_field", ch, "SAFE-MOVE-001")
+    expect_compile_success(env, "move_out_of_array_field", ch)
+}
+
+@test
+func neg_move_out_of_const_array_field_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nstruct S { var arr : [2]DT }\npublic func main() : int {\n    const s = S { arr : [DT { x : 1 }, DT { x : 2 }] }\n    var moved = s.arr[0]\n    return moved.x\n}\n"
+    expect_compile_error(env, "move_out_of_const_array_field", ch, "SAFE-MOVE-001")
+}
+
+@test
+func neg_move_out_of_array_field_through_reference_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nstruct S { var arr : [2]DT }\nfunc steal(s : &S) : DT {\n    return s.arr[0]\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "move_out_of_array_field_ref", ch, "SAFE-MOVE-001")
 }
 
 @test

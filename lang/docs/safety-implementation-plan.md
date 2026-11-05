@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.41)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.42)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1606,10 +1606,14 @@ new number as the honest baseline, not a compiler regression.
     `return arr[0]`, a by-value argument, or an aggregate initializer) now
     clears that element/leaf flag and emits the MIR move marker. Non-Copy
     fixed-array destructuring uses the same element moves for owned locals.
+    A fixed-array field of a mutable local/async-frame aggregate
+    (`s.items[0]`, `s.inner.items[0]`) uses the same element move with its field
+    path, so its per-element flag under the struct drop tree is cleared.
     Dynamic indices, `const` bindings, array parameters (passed as pointers),
-    temporaries/expressions, array fields, borrowed/slice views, and nested
-    non-Copy patterns remain rejected with `SAFE-MOVE-004` rather than being
-    guessed safe. A field move from a materialized temporary/expression
+    array fields reached through references/pointers or temporaries,
+    borrowed/slice views, and nested non-Copy patterns remain rejected with
+    `SAFE-MOVE-004` rather than being guessed safe. A field move from a
+    materialized temporary/expression
     (`make().field`) is supported when the lowered field address has a
     temporary root with generated field drops: the temporary is registered as
     a block-scope destructible, the moved field flag is cleared, and the
@@ -3204,3 +3208,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.39 (2026-11-05): item-1 closure for claimed targets. Added `cstd/posix_bsd` (FreeBSD `__error`, `__stdinp`/`__stdoutp`/`__stderrp`, `environ`) and mapped it from `chemical.mod`; `link "c"` now covers FreeBSD. Removed the duplicate `GetCurrentThreadId` declaration from `std` (cstd owns the Win32 binding). Hardened Windows IOCP: allocation failures panic instead of null-dereferencing, recv/send validate null/length before posting, registration failure completes the future as an error, and `async_iocp_recv`/`async_iocp_send` are explicit unsafe boundaries. Wrapped the Windows-only HTTP `send_file`/static-path/IOCP server branches in audited unsafe blocks and made IOCP context-buffer allocation fail closed by closing the accepted socket. Target regressions now use strict `--target ... --check` and include `http`/`server`; Windows i386/x64, macOS x64/arm64, and FreeBSD x64/arm64/armv7 roots are clean. TCC/LLVM negative `820/820`; audit baseline reviewed at `unsafe_blocks 3824`, `unsafe_values 4966`, `extern_decls 874`, `panic_calls 142`. Item 1 is complete for the claimed roots; remaining target work is non-claimed OS mappings and the Linux/Windows-only window/webview backends.
 *Revision note v5.40 (2026-11-05): item-2 first closure slice — non-Copy fixed-array element moves. `var e = arr[0]`, `return arr[0]`, a by-value aggregate argument, and aggregate field/array-literal initialization now move a destructor-bearing element out of an owned local fixed array: the lowering clears the element’s scalar flag, indexed flag slot, or generated field/leaf flags and emits `MoveOut` so the MIR dataflow marks the source element moved. Non-Copy fixed-array destructuring of an owned local now moves each bound element the same way, while wildcard/rest elements remain owned by the source. The front end accepts only a constant index into a mutable local/async-frame fixed array; dynamic indices, `const` bindings, array parameters (passed as a pointer to caller storage), temporaries, array fields, borrowed/slice views, and nested non-Copy patterns stay `SAFE-MOVE-001`/`SAFE-MOVE-004`. Added TCC/LLVM runtime drop-count tests for direct element moves, generated-glue element fields, returned elements, and non-Copy destructuring, plus negative coverage for const/parameter/temporary/field/dynamic/nested shapes. TCC/LLVM negative `828/828`; TCC/LLVM safety `83/83`.
 *Revision note v5.41 (2026-11-05): temporary/expression field moves. `make().field` and nested `make().inner.field` now recover the materialized temporary from the lowered `FieldAddr` root, register it as a block-scope destructible with its generated field flags, clear the moved field’s flag, and drop the remainder at the enclosing block end. The old `SAFE-MOVE-004` rejection for this safe shape is now a positive runtime test; user-destructor temporaries and pointer/dereference bases still reject. This deliberately extends a moved temporary’s drop point from statement end to block end (no leak/double-drop; destructor timing is later). TCC/LLVM negative `829/829`; TCC/LLVM safety `84/84`.
+*Revision note v5.42 (2026-11-05): array-field element moves. A constant-index move from a fixed-array field of a mutable local/async-frame aggregate (`s.items[0]`, including nested fields) now resolves the owning field path, clears the element’s flag under the struct drop tree, and emits the MIR move marker. The front end accepts the shape only when the root is a mutable local (not a const binding, parameter, reference/pointer, or temporary); other array-field shapes remain `SAFE-MOVE-001`/`SAFE-MOVE-004`. Added TCC/LLVM runtime coverage for nested array-field moves and negatives for const and reference-root fields. TCC/LLVM negative `831/831`; TCC/LLVM safety `85/85`.

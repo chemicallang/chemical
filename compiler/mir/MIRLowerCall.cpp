@@ -1459,7 +1459,10 @@ bool MIRLowerer::field_move_target(Value* value, PlaceId& base,
 
 bool MIRLowerer::array_element_move_target(Value* value, PlaceId& base,
                                            uint64_t& index,
-                                           BaseType*& element_type) {
+                                           BaseType*& element_type,
+                                           std::vector<std::string>& path,
+                                           std::string& error) {
+    path.clear();
     Value* t = value;
     for (int guard = 0; guard < 4 && t; ++guard) {
         if (t->val_kind() == ValueKind::AccessChain) {
@@ -1491,17 +1494,31 @@ bool MIRLowerer::array_element_move_target(Value* value, PlaceId& base,
         }
         break;
     }
-    if (!b || b->val_kind() != ValueKind::Identifier) return false;
-    BaseType* base_type = b->getType();
-    BaseType* base_canonical = base_type ? base_type->canonical() : nullptr;
-    if (base_canonical == nullptr ||
-        base_canonical->kind() != BaseTypeKind::Array ||
-        !base_canonical->as_array_type_unsafe()->has_array_size()) {
-        return false;
+    if (!b) return false;
+    BaseType* array_type = b->getType();
+    if (b->val_kind() == ValueKind::Identifier) {
+        BaseType* base_canonical = array_type ? array_type->canonical() : nullptr;
+        if (base_canonical == nullptr ||
+            base_canonical->kind() != BaseTypeKind::Array ||
+            !base_canonical->as_array_type_unsafe()->has_array_size()) {
+            return false;
+        }
+        auto* bid = b->as_identifier_unsafe();
+        base = place_for_linked(bid->linked);
+        if (base == MIR_INVALID_ID) base = place_for_name(bid->value);
+    } else {
+        // A fixed-array field (`s.items[CONST]`): reuse the field resolver for
+        // the array and keep its field path so the element flag can be found.
+        BaseType* field_type = nullptr;
+        if (!field_move_target(b, base, path, field_type, error)) return false;
+        array_type = field_type;
+        BaseType* base_canonical = array_type ? array_type->canonical() : nullptr;
+        if (base_canonical == nullptr ||
+            base_canonical->kind() != BaseTypeKind::Array ||
+            !base_canonical->as_array_type_unsafe()->has_array_size()) {
+            return false;
+        }
     }
-    auto* bid = b->as_identifier_unsafe();
-    base = place_for_linked(bid->linked);
-    if (base == MIR_INVALID_ID) base = place_for_name(bid->value);
     if (base == MIR_INVALID_ID) return false;
     if (base < builder_->function().places.size()) {
         const auto storage = static_cast<MIRStorageClass>(
@@ -1568,8 +1585,9 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
             PlaceId element_base = MIR_INVALID_ID;
             uint64_t element_index = 0;
             BaseType* element_type = nullptr;
+            std::vector<std::string> element_path;
             if (array_element_move_target(value, element_base, element_index,
-                                          element_type)) {
+                                          element_type, element_path, error)) {
                 if (result.kind != MIRExprKind::Address) return true;
                 const TypeId et = element_type ? types_.map(element_type)
                                                : MIR_INVALID_ID;
@@ -1579,8 +1597,10 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
                     element_type != nullptr &&
                     destructor_symbol(element_type) != MIR_INVALID_ID;
                 if (!copying && needs_drop) {
-                    MIRDropElementRef ref =
-                        drop_flag_for_element(element_base, element_index);
+                    MIRDropElementRef ref = element_path.empty()
+                        ? drop_flag_for_element(element_base, element_index)
+                        : drop_flag_for_path_index(element_base, element_path,
+                                                   element_index);
                     if (!ref.valid()) {
                         error = "SAFE-MOVE-004: cannot move a destructible array "
                                 "element whose element drop flag is not tracked; "

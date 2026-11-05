@@ -730,6 +730,116 @@ void MIRLowerer::materialize_drop_fields(std::vector<MIRDropField>& fields,
     }
 }
 
+MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_indices(
+        PlaceId place, const std::vector<std::string>& path,
+        const std::vector<uint64_t>& indices) {
+    if (indices.empty()) return {};
+    std::vector<MIRDropField>* list = nullptr;
+    if (path.empty()) {
+        for (auto& d : destructibles_) {
+            if (d.place == place) {
+                list = &d.fields;
+                break;
+            }
+        }
+    } else {
+        MIRDropField* node = drop_field_for_path(place, path);
+        if (node != nullptr) {
+            // A large array field carries one flat flag block or element
+            // template on the field node itself, not one child per element.
+            if (indices.size() == 1) {
+                MIRDropElementRef ref;
+                ref.place = place;
+                ref.path = path;
+                ref.index = indices[0];
+                ref.indices = indices;
+                if (node->element_template) {
+                    ref.template_node = node;
+                    ref.template_index = indices[0];
+                    return ref;
+                }
+                if (node->flag_array != MIR_INVALID_ID) {
+                    ref.flag = flag_array_ref(node->flag_array, indices[0]);
+                    return ref;
+                }
+            }
+            list = &node->children;
+        }
+    }
+    if (list == nullptr) return {};
+    // Descend through every index except the final one. Each level is keyed by
+    // the `array_index` of a generated drop-flag child.
+    for (size_t i = 0; i + 1 < indices.size(); ++i) {
+        MIRDropField* next = nullptr;
+        for (auto& f : *list) {
+            if (f.array_index == static_cast<uint32_t>(indices[i])) {
+                next = &f;
+                break;
+            }
+        }
+        if (next == nullptr) return {};
+        // The next level may itself be a large array represented by one flat
+        // flag block or an element template, rather than expanded children.
+        if (i + 2 == indices.size()) {
+            MIRDropElementRef ref;
+            ref.place = place;
+            ref.index = indices[i + 1];
+            ref.indices = indices;
+            if (!path.empty()) ref.path = path;
+            if (next->element_template) {
+                ref.template_node = next;
+                ref.template_index = indices[i + 1];
+                return ref;
+            }
+            if (next->flag_array != MIR_INVALID_ID) {
+                uint64_t flat_index = indices[i + 1];
+                if (next->inner_count > 0) {
+                    flat_index = indices[i] * next->inner_count + indices[i + 1];
+                }
+                ref.flag = flag_array_ref(next->flag_array, flat_index);
+                return ref;
+            }
+        }
+        list = &next->children;
+    }
+    const uint64_t last = indices.back();
+    for (auto& f : *list) {
+        MIRDropElementRef ref;
+        ref.place = place;
+        ref.index = last;
+        if (!path.empty()) ref.path = path;
+        ref.indices = indices;
+        if (f.array_index == static_cast<uint32_t>(last)) {
+            if (f.flag_array != MIR_INVALID_ID) {
+                ref.flag_array = f.flag_array;
+                ref.flag_count = f.flag_count;
+                return ref;
+            }
+            if (!f.children.empty()) {
+                ref.template_node = &f;
+                ref.whole_children = true;
+                return ref;
+            }
+            ref.flag = MIRDropFlagRef{f.flag, MIR_INVALID_ID};
+            return ref;
+        }
+        // A large array of directly destructible elements or generated-glue
+        // elements stores one flat flag block/template for the whole array,
+        // not one child field per element.
+        if (f.array_index != MIR_INVALID_ID) continue;
+        if (f.flag_array != MIR_INVALID_ID) {
+            ref.flag = flag_array_ref(f.flag_array, last);
+            return ref;
+        }
+        if (f.element_template) {
+            ref.template_node = &f;
+            ref.template_index = last;
+            return ref;
+        }
+    }
+    return {};
+}
+
 MIRLowerer::MIRDropField MIRLowerer::build_drop_field(const chem::string_view& name,
                                                       BaseType* type, int depth,
                                                       bool frame_flags,
@@ -2955,13 +3065,6 @@ bool MIRLowerer::lower_array_pattern_node(PatternMatchExpr* pm,
                     "owned local array";
             return false;
         }
-        for (PatternMatchIdentifier* id : pm->param_names) {
-            if (id != nullptr && !id->is_wildcard && id->array_path.size() > 2) {
-                error = "SAFE-MOVE-004: non-Copy array destructuring deeper than "
-                        "two fixed-array levels is not supported";
-                return false;
-            }
-        }
     }
     if (slice_view || boxed_slice) {
         MIRExprResult cond = lower_pattern_cond(pm, error);
@@ -3057,20 +3160,18 @@ bool MIRLowerer::lower_array_pattern_node(PatternMatchExpr* pm,
             const bool needs_drop =
                 destructor_symbol(id->known_type()) != MIR_INVALID_ID;
             if (needs_drop) {
-                MIRDropElementRef ref;
-                if (id->array_path.size() == 2) {
-                    ref = drop_flag_for_nested_index(
-                        move_base, {}, id->array_path[0], id->array_path[1]);
-                } else {
-                    const uint64_t element_index = id->array_path.empty()
-                                                       ? id->array_index
-                                                       : id->array_path[0];
-                    if (element_index == 0xFFFFFFFFu) {
+                std::vector<uint64_t> indices;
+                if (id->array_path.empty()) {
+                    if (id->array_index == 0xFFFFFFFFu) {
                         error = "SAFE-MOVE-004: array pattern element has no constant index";
                         return false;
                     }
-                    ref = drop_flag_for_element(move_base, element_index);
+                    indices.push_back(id->array_index);
+                } else {
+                    indices.assign(id->array_path.begin(), id->array_path.end());
                 }
+                MIRDropElementRef ref =
+                    drop_flag_for_indices(move_base, {}, indices);
                 if (!ref.valid()) {
                     error = "SAFE-MOVE-004: cannot move a destructible array "
                             "element whose element drop flag is not tracked";

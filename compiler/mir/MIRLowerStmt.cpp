@@ -497,60 +497,61 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 if (io->idx && io->idx->val_kind() == ValueKind::IntN) {
                     const uint64_t element_index =
                         io->idx->as_int_num_value_unsafe()->get_num_value();
-                    if (base.kind == MIRExprKind::Place) {
-                        eflag = drop_flag_for_element(
-                            static_cast<PlaceId>(base.id), element_index
-                        );
-                    } else if (base.kind == MIRExprKind::Address && io->parent_val) {
-                        // `holder.array[i] = ...`: the array is a field of a
-                        // struct/tuple, so its element flags hang off that
-                        // field's drop node.
-                        PlaceId path_base = MIR_INVALID_ID;
-                        std::vector<std::string> path;
-                        BaseType* path_type = nullptr;
-                        std::string path_error;
-                        if (field_move_target(io->parent_val, path_base, path,
-                                              path_type, path_error) &&
-                            path_base != MIR_INVALID_ID) {
-                            eflag = drop_flag_for_path_index(
-                                path_base, path, element_index
-                            );
-                        }
-                        if (!eflag.valid() && io->parent_val != nullptr &&
-                            io->parent_val->val_kind() ==
-                                ValueKind::IndexOperator) {
-                            // `arr[outer][inner] = ...`: resolve the outer
-                            // fixed-array element's inner flag block.
-                            auto* outer =
-                                io->parent_val->as_index_op_unsafe();
-                            if (outer->idx != nullptr &&
-                                outer->idx->val_kind() == ValueKind::IntN) {
-                                const uint64_t outer_index =
-                                    outer->idx->as_int_num_value_unsafe()
-                                        ->get_num_value();
-                                PlaceId nested_base = MIR_INVALID_ID;
-                                std::vector<std::string> nested_path;
-                                BaseType* nested_type = nullptr;
-                                std::string nested_error;
-                                Value* op = outer->parent_val;
-                                if (op != nullptr &&
-                                    op->val_kind() == ValueKind::Identifier) {
-                                    auto* oid = op->as_identifier_unsafe();
-                                    nested_base = place_for_linked(oid->linked);
-                                    if (nested_base == MIR_INVALID_ID)
-                                        nested_base =
-                                            place_for_name(oid->value);
-                                } else if (op != nullptr) {
-                                    field_move_target(
-                                        op, nested_base, nested_path,
-                                        nested_type, nested_error);
-                                }
-                                if (nested_base != MIR_INVALID_ID) {
-                                    eflag = drop_flag_for_nested_index(
-                                        nested_base, nested_path, outer_index,
-                                        element_index);
-                                }
+                    std::vector<uint64_t> indices;
+                    indices.push_back(element_index);
+                    Value* root = io->parent_val;
+                    bool constant_chain = true;
+                    for (int guard = 0; guard < 8 && root; ++guard) {
+                        if (root->val_kind() == ValueKind::AccessChain) {
+                            auto* chain = root->as_access_chain_unsafe();
+                            if (chain->values.size() == 1) {
+                                root = chain->values[0];
+                                continue;
                             }
+                        }
+                        if (root->val_kind() == ValueKind::UnsafeValue) {
+                            auto* unsafe = static_cast<UnsafeValue*>(root);
+                            if (unsafe->getValue()) {
+                                root = unsafe->getValue();
+                                continue;
+                            }
+                        }
+                        break;
+                    }
+                    while (root != nullptr &&
+                           root->val_kind() == ValueKind::IndexOperator) {
+                        auto* parent_io = root->as_index_op_unsafe();
+                        if (parent_io->idx == nullptr ||
+                            parent_io->idx->val_kind() != ValueKind::IntN) {
+                            constant_chain = false;
+                            break;
+                        }
+                        indices.push_back(
+                            parent_io->idx->as_int_num_value_unsafe()
+                                ->get_num_value());
+                        root = parent_io->parent_val;
+                    }
+                    if (constant_chain && root != nullptr && indices.size() > 1) {
+                        std::reverse(indices.begin(), indices.end());
+                    }
+                    if (constant_chain && root != nullptr) {
+                        PlaceId root_base = MIR_INVALID_ID;
+                        std::vector<std::string> root_path;
+                        BaseType* root_type = nullptr;
+                        if (root->val_kind() == ValueKind::Identifier) {
+                            auto* root_id = root->as_identifier_unsafe();
+                            root_base = place_for_linked(root_id->linked);
+                            if (root_base == MIR_INVALID_ID) {
+                                root_base = place_for_name(root_id->value);
+                            }
+                        } else {
+                            std::string root_error;
+                            field_move_target(root, root_base, root_path,
+                                              root_type, root_error);
+                        }
+                        if (root_base != MIR_INVALID_ID) {
+                            eflag = drop_flag_for_indices(
+                                root_base, root_path, indices);
                         }
                     }
                 }
@@ -588,6 +589,10 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     );
                 };
                 auto fresh_element_ref = [&]() {
+                    if (!eflag.indices.empty()) {
+                        return drop_flag_for_indices(
+                            eflag.place, eflag.path, eflag.indices);
+                    }
                     if (eflag.nested) {
                         return drop_flag_for_nested_index(
                             eflag.place, eflag.path, eflag.nested_outer,

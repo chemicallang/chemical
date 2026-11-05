@@ -810,6 +810,10 @@ private:
         bool nested = false;
         uint64_t nested_outer = 0;
         uint64_t nested_inner = 0;
+        // Full constant-index path for an expanded nested array. Stored so the
+        // reference can be re-resolved after lowering the RHS reallocates the
+        // owning destructibles vector.
+        std::vector<uint64_t> indices;
         bool valid() const {
             return flag.valid() || template_node != nullptr ||
                    flag_array != MIR_INVALID_ID;
@@ -848,6 +852,10 @@ private:
     MIRDropElementRef drop_flag_for_nested_index(
             PlaceId place, const std::vector<std::string>& path,
             uint64_t outer, uint64_t inner);
+    /** Per-element flags for an arbitrary-depth constant index path. */
+    MIRDropElementRef drop_flag_for_indices(
+            PlaceId place, const std::vector<std::string>& path,
+            const std::vector<uint64_t>& indices);
     /** Build the drop node for one owned field (recursing structs/arrays). */
     MIRDropField build_drop_field(const chem::string_view& name, BaseType* type,
                                   int depth, bool frame_flags = false,

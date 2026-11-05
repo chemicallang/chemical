@@ -1425,8 +1425,176 @@ bool MIRLowerer::field_move_target(Value* value, PlaceId& base,
     return !path.empty();
 }
 
+bool MIRLowerer::array_element_move_target(Value* value, PlaceId& base,
+                                           uint64_t& index,
+                                           BaseType*& element_type) {
+    Value* t = value;
+    for (int guard = 0; guard < 4 && t; ++guard) {
+        if (t->val_kind() == ValueKind::AccessChain) {
+            auto* c = t->as_access_chain_unsafe();
+            if (c->values.size() == 1) { t = c->values[0]; continue; }
+            break;
+        }
+        if (t->val_kind() == ValueKind::UnsafeValue) {
+            auto* u = static_cast<UnsafeValue*>(t);
+            if (u->getValue()) { t = u->getValue(); continue; }
+            break;
+        }
+        break;
+    }
+    if (!t || t->val_kind() != ValueKind::IndexOperator) return false;
+    auto* io = t->as_index_op_unsafe();
+    if (!io->idx || io->idx->val_kind() != ValueKind::IntN) return false;
+    Value* b = io->parent_val;
+    for (int guard = 0; guard < 4 && b; ++guard) {
+        if (b->val_kind() == ValueKind::AccessChain) {
+            auto* c = b->as_access_chain_unsafe();
+            if (c->values.size() == 1) { b = c->values[0]; continue; }
+            break;
+        }
+        if (b->val_kind() == ValueKind::UnsafeValue) {
+            auto* u = static_cast<UnsafeValue*>(b);
+            if (u->getValue()) { b = u->getValue(); continue; }
+            break;
+        }
+        break;
+    }
+    if (!b || b->val_kind() != ValueKind::Identifier) return false;
+    BaseType* base_type = b->getType();
+    BaseType* base_canonical = base_type ? base_type->canonical() : nullptr;
+    if (base_canonical == nullptr ||
+        base_canonical->kind() != BaseTypeKind::Array ||
+        !base_canonical->as_array_type_unsafe()->has_array_size()) {
+        return false;
+    }
+    auto* bid = b->as_identifier_unsafe();
+    base = place_for_linked(bid->linked);
+    if (base == MIR_INVALID_ID) base = place_for_name(bid->value);
+    if (base == MIR_INVALID_ID) return false;
+    if (base < builder_->function().places.size()) {
+        const auto storage = static_cast<MIRStorageClass>(
+            builder_->function().places[base].storage_class
+        );
+        if (storage != MIRStorageClass::Local &&
+            storage != MIRStorageClass::FrameField &&
+            storage != MIRStorageClass::FramePtr) {
+            return false;
+        }
+    }
+    index = io->idx->as_int_num_value_unsafe()->get_num_value();
+    element_type = io->getType();
+    return element_type != nullptr;
+}
+
+void MIRLowerer::clear_element_drop_flag(const MIRDropElementRef& ref) {
+    if (ref.flag.place != MIR_INVALID_ID) {
+        builder_->set_drop(ref.flag.place, false);
+    } else if (ref.flag.address != MIR_INVALID_ID) {
+        const TypeId bool_t = types_.bool_type();
+        const ValueId flag = builder_->const_bool(
+            bool_t, module_.constants.add_bool(bool_t, false)
+        );
+        builder_->store_indirect(ref.flag.address, flag);
+    }
+    if (ref.template_node != nullptr) {
+        if (ref.whole_children) {
+            set_drop_fields(ref.template_node->children, false);
+        } else {
+            const TypeId u32 = types_.u32_type();
+            const ValueId index = builder_->const_int(
+                u32, module_.constants.add_int(u32, ref.template_index)
+            );
+            set_drop_fields_at(ref.template_node->children, index, false);
+        }
+    }
+    if (ref.flag_array != MIR_INVALID_ID) {
+        set_flag_array(ref.flag_array, ref.flag_count, false);
+    }
+}
+
 bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
                                   std::string& error) {
+    // A fixed-array element move (`arr[0]`) is safe only when the array is an
+    // owned local/async-frame value and the index is constant: clear that
+    // element's drop flag and emit the move marker the MIR dataflow checks.
+    {
+        Value* probe = value;
+        for (int guard = 0; guard < 4 && probe; ++guard) {
+            if (probe->val_kind() == ValueKind::AccessChain) {
+                auto* c = probe->as_access_chain_unsafe();
+                if (c->values.size() == 1) { probe = c->values[0]; continue; }
+                break;
+            }
+            if (probe->val_kind() == ValueKind::UnsafeValue) {
+                auto* u = static_cast<UnsafeValue*>(probe);
+                if (u->getValue()) { probe = u->getValue(); continue; }
+                break;
+            }
+            break;
+        }
+        if (probe && probe->val_kind() == ValueKind::IndexOperator) {
+            PlaceId element_base = MIR_INVALID_ID;
+            uint64_t element_index = 0;
+            BaseType* element_type = nullptr;
+            if (array_element_move_target(value, element_base, element_index,
+                                          element_type)) {
+                if (result.kind != MIRExprKind::Address) return true;
+                const TypeId et = element_type ? types_.map(element_type)
+                                               : MIR_INVALID_ID;
+                const bool copying = et != MIR_INVALID_ID &&
+                                     mir_type_is_copy(module_.types, et);
+                const bool needs_drop =
+                    element_type != nullptr &&
+                    destructor_symbol(element_type) != MIR_INVALID_ID;
+                if (!copying && needs_drop) {
+                    MIRDropElementRef ref =
+                        drop_flag_for_element(element_base, element_index);
+                    if (!ref.valid()) {
+                        error = "SAFE-MOVE-004: cannot move a destructible array "
+                                "element whose element drop flag is not tracked; "
+                                "move the array into a local and index it there";
+                        return false;
+                    }
+                    clear_element_drop_flag(ref);
+                    builder_->emit(MIROpcode::MoveOut, MIR_NULL,
+                                   {MIROperand::value(result.id, result.type)});
+                }
+                return true;
+            }
+            auto* io = probe->as_index_op_unsafe();
+            Value* base = io->parent_val;
+            for (int guard = 0; guard < 4 && base; ++guard) {
+                if (base->val_kind() == ValueKind::AccessChain) {
+                    auto* chain = base->as_access_chain_unsafe();
+                    if (chain->values.size() == 1) { base = chain->values[0]; continue; }
+                    break;
+                }
+                if (base->val_kind() == ValueKind::UnsafeValue) {
+                    auto* unsafe = static_cast<UnsafeValue*>(base);
+                    if (unsafe->getValue()) { base = unsafe->getValue(); continue; }
+                    break;
+                }
+                break;
+            }
+            BaseType* base_type = base ? base->getType() : nullptr;
+            BaseType* base_canonical = base_type ? base_type->canonical() : nullptr;
+            const bool fixed_array =
+                base_canonical != nullptr &&
+                base_canonical->kind() == BaseTypeKind::Array &&
+                base_canonical->as_array_type_unsafe()->has_array_size();
+            BaseType* et = probe->getType();
+            BaseType* canonical = et ? et->canonical() : nullptr;
+            if (fixed_array && canonical != nullptr &&
+                canonical->requires_destructor()) {
+                error = "SAFE-MOVE-004: cannot move a destructible array element "
+                        "through a dynamic index, borrowed array, or an array "
+                        "field; only a constant index into an owned fixed-size "
+                        "array is supported";
+                return false;
+            }
+            return true;
+        }
+    }
     // A field selected from a temporary/expression has no named place whose
     // drop flags survive long enough to clear. Reject a destructor-bearing
     // move instead of letting the temporary and the destination both drop it.
@@ -2595,13 +2763,78 @@ bool MIRLowerer::lower_array_pattern_node(PatternMatchExpr* pm,
         return false;
     }
     const TypeId et = types_.map(element_type);
-    if (!mir_type_is_copy(module_.types, et)) {
-        error = "SAFE-MOVE-004: array destructuring currently requires Copy "
-                "elements; move the array into a local and index it explicitly";
-        return false;
+    const bool copying_elements = mir_type_is_copy(module_.types, et);
+    bool move_owned_elements = false;
+    if (!copying_elements) {
+        BaseType* element_canonical = element_type->canonical();
+        if (element_canonical != nullptr &&
+            element_canonical->kind() == BaseTypeKind::Array) {
+            error = "SAFE-MOVE-004: nested non-Copy array destructuring is not "
+                    "supported; bind each inner array to a local first";
+            return false;
+        }
+        if (slice_view || boxed_slice) {
+            error = "SAFE-MOVE-004: array destructuring of a borrowed slice or "
+                    "boxed slice requires Copy elements";
+            return false;
+        }
+        Value* source = pm->expression;
+        for (int guard = 0; guard < 4 && source; ++guard) {
+            if (source->val_kind() == ValueKind::AccessChain) {
+                auto* c = source->as_access_chain_unsafe();
+                if (c->values.size() == 1) { source = c->values[0]; continue; }
+                break;
+            }
+            if (source->val_kind() == ValueKind::UnsafeValue) {
+                auto* u = static_cast<UnsafeValue*>(source);
+                if (u->getValue()) { source = u->getValue(); continue; }
+                break;
+            }
+            break;
+        }
+        if (source == nullptr || source->val_kind() != ValueKind::Identifier) {
+            error = "SAFE-MOVE-004: non-Copy array destructuring requires an "
+                    "owned local array; bind the array to a local first";
+            return false;
+        }
+        auto* sid = source->as_identifier_unsafe();
+        if (sid->linked == nullptr ||
+            sid->linked->kind() != ASTNodeKind::VarInitStmt ||
+            sid->linked->as_var_init_unsafe()->is_const()) {
+            error = "SAFE-MOVE-004: non-Copy array destructuring requires a "
+                    "mutable local array (not a const, parameter, or borrowed "
+                    "array)";
+            return false;
+        }
+        move_owned_elements = true;
     }
     MIRExprResult base = lower_pattern_base(pm, error);
     if (!base.ok()) return false;
+    PlaceId move_base = MIR_INVALID_ID;
+    if (move_owned_elements) {
+        if (base.kind != MIRExprKind::Place) {
+            error = "SAFE-MOVE-004: non-Copy array destructuring requires an "
+                    "owned local array";
+            return false;
+        }
+        move_base = static_cast<PlaceId>(base.id);
+        const auto storage = static_cast<MIRStorageClass>(
+            builder_->function().places[move_base].storage_class);
+        if (storage != MIRStorageClass::Local &&
+            storage != MIRStorageClass::FrameField &&
+            storage != MIRStorageClass::FramePtr) {
+            error = "SAFE-MOVE-004: non-Copy array destructuring requires an "
+                    "owned local array";
+            return false;
+        }
+        for (PatternMatchIdentifier* id : pm->param_names) {
+            if (id != nullptr && !id->is_wildcard && id->array_path.size() > 1) {
+                error = "SAFE-MOVE-004: nested non-Copy array destructuring is "
+                        "not supported; bind the inner array first";
+                return false;
+            }
+        }
+    }
     if (slice_view || boxed_slice) {
         MIRExprResult cond = lower_pattern_cond(pm, error);
         if (!cond.ok()) return false;
@@ -2687,9 +2920,34 @@ bool MIRLowerer::lower_array_pattern_node(PatternMatchExpr* pm,
         }
         bind(id, place);
         bind_name(id->identifier, place);
+        if (abi::is_aggregate(module_, vt)) {
+            register_destructible(place, id->known_type(), true);
+        }
         MIRExprResult element = lower_array_pattern_element(pm, id, false, error);
         if (!element.ok()) return false;
-        if (element.kind == MIRExprKind::Address) {
+        if (element.kind == MIRExprKind::Address && move_owned_elements) {
+            const uint64_t element_index =
+                id->array_path.empty() ? id->array_index : id->array_path[0];
+            if (element_index == 0xFFFFFFFFu) {
+                error = "SAFE-MOVE-004: array pattern element has no constant index";
+                return false;
+            }
+            const bool needs_drop =
+                destructor_symbol(id->known_type()) != MIR_INVALID_ID;
+            if (needs_drop) {
+                MIRDropElementRef ref =
+                    drop_flag_for_element(move_base, element_index);
+                if (!ref.valid()) {
+                    error = "SAFE-MOVE-004: cannot move a destructible array "
+                            "element whose element drop flag is not tracked";
+                    return false;
+                }
+                clear_element_drop_flag(ref);
+            }
+            builder_->copy_ptr_to_place(place, static_cast<ValueId>(element.id));
+            builder_->emit(MIROpcode::MoveOut, MIR_NULL,
+                           {MIROperand::value(element.id, element.type)});
+        } else if (element.kind == MIRExprKind::Address) {
             builder_->copy_ptr_to_place(place, static_cast<ValueId>(element.id));
         } else if (element.kind == MIRExprKind::Value) {
             ValueId value = static_cast<ValueId>(element.id);

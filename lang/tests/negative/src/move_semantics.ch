@@ -85,10 +85,45 @@ func neg_move_out_of_array_dynamic_index(env : &mut TestEnv) {
 }
 
 @test
-func neg_move_out_of_array_constant_index(env : &mut TestEnv) {
+func move_out_of_array_constant_index_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    var arr : [2]DT = [DT { x : 1 }, DT { x : 2 }]\n    var moved = arr[0]\n    return moved.x\n}\n"
-    expect_compile_error(env, "move_out_of_array_constant", ch, "SAFE-MOVE-001")
+    expect_compile_success(env, "move_out_of_array_constant", ch)
+}
+
+@test
+func neg_move_out_of_const_array_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    const arr : [2]DT = [DT { x : 1 }, DT { x : 2 }]\n    var moved = arr[0]\n    return moved.x\n}\n"
+    expect_compile_error(env, "move_out_of_const_array", ch, "SAFE-MOVE-001")
+}
+
+@test
+func neg_move_out_of_global_array_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\n@thread_local var arr : [2]DT = [DT { x : 1 }, DT { x : 2 }]\npublic func main() : int {\n    var moved = arr[0]\n    return moved.x\n}\n"
+    expect_compile_error(env, "move_out_of_global_array", ch, "SAFE-MOVE-001")
+}
+
+@test
+func neg_move_out_of_array_field_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nstruct S { var arr : [2]DT }\npublic func main() : int {\n    var s = S { arr : [DT { x : 1 }, DT { x : 2 }] }\n    var moved = s.arr[0]\n    return moved.x\n}\n"
+    expect_compile_error(env, "move_out_of_array_field", ch, "SAFE-MOVE-001")
+}
+
+@test
+func neg_move_out_of_array_parameter_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nfunc take(arr : [2]DT) : DT {\n    return arr[0]\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "move_out_of_array_parameter", ch, "SAFE-MOVE-001")
+}
+
+@test
+func neg_move_out_of_temporary_array_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nfunc make() : [2]DT { return [DT { x : 1 }, DT { x : 2 }] }\npublic func main() : int {\n    var moved = make()[0]\n    return moved.x\n}\n"
+    expect_compile_error(env, "move_out_of_temporary_array", ch, "SAFE-MOVE-001")
 }
 
 @test

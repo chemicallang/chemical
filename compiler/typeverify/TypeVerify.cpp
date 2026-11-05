@@ -276,6 +276,56 @@ void verify_container_field_types(TypeVerifier& verifier, MembersContainer* cont
     }
 }
 
+/**
+ * A fixed-array element may be moved by index only when the array is a mutable
+ * owned local (including an async-frame local) and the index is a compile-time
+ * literal. The MIR lowerer clears that element's drop flag; every other shape
+ * (dynamic index, borrowed/slice view, global, const binding, parameter) remains
+ * a hard rejection because it cannot update the owning drop metadata.
+ */
+static bool owned_array_element_move(Value* index_value) {
+    auto* index = index_value != nullptr &&
+                          index_value->val_kind() == ValueKind::IndexOperator
+                      ? index_value->as_index_op_unsafe()
+                      : nullptr;
+    if (index == nullptr || index->idx == nullptr ||
+        index->idx->val_kind() != ValueKind::IntN ||
+        index->parent_val == nullptr) {
+        return false;
+    }
+    Value* base = index->parent_val;
+    for (int guard = 0; guard < 4 && base; ++guard) {
+        if (base->val_kind() == ValueKind::UnsafeValue) {
+            base = static_cast<UnsafeValue*>(base)->getValue();
+            continue;
+        }
+        if (base->val_kind() == ValueKind::AccessChain &&
+            base->as_access_chain_unsafe()->values.size() == 1) {
+            base = base->as_access_chain_unsafe()->values[0];
+            continue;
+        }
+        break;
+    }
+    if (base == nullptr || base->val_kind() != ValueKind::Identifier) return false;
+    BaseType* base_type = base->getType();
+    BaseType* canonical = base_type ? base_type->canonical() : nullptr;
+    if (canonical == nullptr || canonical->kind() != BaseTypeKind::Array ||
+        !canonical->as_array_type_unsafe()->has_array_size()) {
+        return false;
+    }
+    auto* id = base->as_identifier_unsafe();
+    ASTNode* linked = id->linked;
+    if (linked == nullptr) return false;
+    // Array parameters are passed as a pointer to the caller's storage, so a
+    // move would leave the caller's drop metadata armed. Only an owned local
+    // (including an async-frame local) can transfer an element.
+    if (linked->kind() == ASTNodeKind::VarInitStmt) {
+        auto* init = linked->as_var_init_unsafe();
+        return !init->is_const() && !init->is_top_level();
+    }
+    return false;
+}
+
 void TypeVerifier::check_index_move(Value* value) {
     if (!value) return;
     Value* t = value;
@@ -304,8 +354,11 @@ void TypeVerifier::check_index_move(Value* value) {
     BaseType* et = index->getType();
     BaseType* c = et ? et->canonical() : nullptr;
     if (!c || !c->requires_destructor()) return;
+    if (owned_array_element_move(index)) return;
     diagnoser.error(value).with_code("SAFE-MOVE-001")
-        << "cannot move an element out of an array by index; use a Copy/Clone value or std::mem::replace";
+        << "cannot move an element out of an array by index; only a constant "
+           "index into an owned fixed-size array can be moved (use a Copy/Clone "
+           "value or std::mem::replace otherwise)";
 }
 
 void TypeVerifier::VisitStructDecl(StructDefinition* def) {

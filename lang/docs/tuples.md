@@ -106,9 +106,12 @@ length. One `..` may appear anywhere to ignore a middle or tail run:
 element without binding a local. The source is evaluated once; Copy elements
 are copied into the bindings before later mutation of the source.
 
-This first slice requires `Copy` element types. Destructuring a non-Copy array
-(`[std::string; N]`) is rejected with `SAFE-MOVE-004`; move the array into a
-local and index it explicitly.
+Copy elements are copied into the bindings. A fixed-size array held in a
+mutable local (including an async-frame local) may also be destructured by
+moving each bound element: each binding clears the source element’s drop flag,
+and any wildcard/rest elements remain owned by the source. Non-Copy
+destructuring of a `const`, parameter, temporary, array field, borrowed/slice
+view, or nested array pattern remains rejected with `SAFE-MOVE-004`.
 
 Slice views (`[T]`, `&[T]`) support exact refutable patterns in condition
 position: `if(var [a, b] = view) { ... }` binds only when `view.size()` equals
@@ -136,6 +139,7 @@ yet.
 - Tuple-struct field visibility (fields are always public).
 - `impl Trait for (T1, T2)` / methods on structural tuples.
 - Slice rest patterns, `&mut [T]`/`Box<[T]>` patterns, statement forms with an
-  `else` path, and non-Copy array destructuring. Exact `[T]`/`&[T]` condition
-  patterns are supported.
+  `else` path, and nested non-Copy array destructuring. Exact `[T]`/`&[T]`
+  condition patterns and flat non-Copy destructuring of an owned local array
+  are supported.
 - Slices, `&str`, const generics, GATs, and `impl Trait` are separate M1 work.

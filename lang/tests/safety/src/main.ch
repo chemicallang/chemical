@@ -658,6 +658,61 @@ func moved_array_field_is_not_destroyed(env : &mut TestEnv) {
 }
 
 @test
+func moved_array_element_is_not_destroyed(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var arr : [2]Tracker = [Tracker { id : 1 }, Tracker { id : 2 }]\n        {\n            var moved = arr[0]\n            if(moved.id != 1) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "moved_array_element", ch, &mut out)
+    if(rc != 2) {
+        env.error("a moved array element was destroyed by its parent array")
+    }
+}
+
+@test
+func moved_array_element_struct_field_is_not_destroyed(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Item {\n    var tracker : Tracker\n    var id : int\n}\npublic func main() : int {\n    {\n        var arr : [2]Item = [Item { tracker : Tracker { id : 1 }, id : 11 }, Item { tracker : Tracker { id : 2 }, id : 22 }]\n        {\n            var moved = arr[0]\n            if(moved.id != 11 || moved.tracker.id != 1) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "moved_array_element_fields", ch, &mut out)
+    if(rc != 2) {
+        env.error("moving an array element did not clear its generated field drop flags")
+    }
+}
+
+@test
+func returned_array_element_is_moved_once(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nfunc take() : Tracker {\n    var arr : [2]Tracker = [Tracker { id : 1 }, Tracker { id : 2 }]\n    return arr[0]\n}\npublic func main() : int {\n    {\n        var moved = take()\n        if(moved.id != 1) { return 10 }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "returned_array_element", ch, &mut out)
+    if(rc != 2) {
+        env.error("a returned array element was not moved exactly once")
+    }
+}
+
+@test
+func non_copy_array_pattern_rest_keeps_source_owned(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var values : [4]Tracker = [Tracker { id : 1 }, Tracker { id : 2 }, Tracker { id : 3 }, Tracker { id : 4 }]\n        {\n            var [first, .., last] = values\n            if(first.id != 1 || last.id != 4) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "array_pattern_non_copy_rest", ch, &mut out)
+    if(rc != 4) {
+        env.error("non-Copy array rest pattern dropped a moved or wildcard element incorrectly")
+    }
+}
+
+@test
+func non_copy_array_pattern_moves_elements(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var values : [2]Tracker = [Tracker { id : 1 }, Tracker { id : 2 }]\n        {\n            var [a, b] = values\n            if(a.id != 1 || b.id != 2) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "array_pattern_non_copy_move", ch, &mut out)
+    if(rc != 2) {
+        env.error("non-Copy array destructuring did not move each element exactly once")
+    }
+}
+
+@test
 func moved_nested_field_is_not_destroyed(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Inner {\n    var x : Tracker\n    var y : Tracker\n}\nstruct Outer {\n    var inner : Inner\n    var z : Tracker\n}\npublic func main() : int {\n    {\n        var o = Outer { inner : Inner { x : Tracker { id : 1 }, y : Tracker { id : 2 } }, z : Tracker { id : 3 } }\n        {\n            var moved = o.inner.y\n            if(moved.id != 2) { return 10 }\n        }\n    }\n    return drops\n}\n"

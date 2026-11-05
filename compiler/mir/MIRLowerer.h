@@ -934,6 +934,11 @@ private:
     bool field_move_target(Value* value, PlaceId& base,
                            std::vector<std::string>& path, BaseType*& field_type,
                            std::string& error);
+    /** Resolve `arr[CONST]` to an owned fixed-array element move target. */
+    bool array_element_move_target(Value* value, PlaceId& base, uint64_t& index,
+                                   BaseType*& element_type);
+    /** Clear every drop flag that owns one moved array element. */
+    void clear_element_drop_flag(const MIRDropElementRef& ref);
     void emit_drops();
     /** Drop destructibles registered at/after `mark`, innermost first. */
     void emit_drops_from(size_t mark);

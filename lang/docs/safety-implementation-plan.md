@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.39)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.40)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1601,10 +1601,16 @@ new number as the honest baseline, not a compiler regression.
     Whole-array field moves are covered. Moving a field clears its flag,
     so the parent destructor cannot double-drop it. Async frame flags are
     frame-resident and are used by normal completion, cancellation, and resume
-    cleanup; a moved frame field no longer rejects with `SAFE-MOVE-004`. Moves
-    from a user-destructor aggregate, a global, a temporary/expression, or a
-    reference/pointer remain rejected with `SAFE-MOVE-004` instead of being
-    unsound.
+    cleanup; a moved frame field no longer rejects with `SAFE-MOVE-004`.
+    A constant-index move out of an owned local fixed array (`var e = arr[0]`,
+    `return arr[0]`, a by-value argument, or an aggregate initializer) now
+    clears that element/leaf flag and emits the MIR move marker. Non-Copy
+    fixed-array destructuring uses the same element moves for owned locals.
+    Dynamic indices, `const` bindings, array parameters (passed as pointers),
+    temporaries/expressions, array fields, borrowed/slice views, and nested
+    non-Copy patterns remain rejected with `SAFE-MOVE-004` rather than being
+    guessed safe. Moves from a user-destructor aggregate, a global, or a
+    reference/pointer remain rejected.
 11. **Interpreter** reports async/coroutine opcodes, inline asm, dynamic
     call/vtables and `Unreachable`/`Throw` as explicit hard errors; it does not
     silently execute them. Bounds/provenance/tombstones are implemented.
@@ -3191,3 +3197,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.37 (2026-11-04): macOS cstd and POSIX reactor. Unsafe-gated the Darwin `__error`/stdio-global/`_NSGetEnviron` wrappers, added fd_set bounds checks, made the select fallback report `POLLERR` for fds ≥1024, and checked epoll/kqueue scratch allocation sizes/nulls with select fallback. Target checks for `x86_64-apple-darwin` (and arm64 roots) are clean for async/std/fs/net/tls/http/server/test; Linux async `83/83`. Item 1 now leaves only actual zero-sized vector support (safe but ergonomic) and platforms that still lack a complete cstd source mapping (FreeBSD). Main TCC/LLVM `2487`/`2485`; `@test` `57`; negative `818`; safety `78`; async `83`; plugins `1305`; TCC libs `736`; interpret `1938`; `MIRTests` `4749`; audit no growth.
 *Revision note v5.38 (2026-11-05): zero-sized vectors and UTF-8 lookahead. `vector<T>` now supports `sizeof(T) == 0` with a one-byte non-null sentinel, no `realloc` on capacity growth, and per-element destructor execution; the former fail-closed panic test is now a positive runtime test with a destructible zero-sized element. `fs::utf8_to_utf16` measures the NUL-terminated input once and bounds every 2/3/4-byte continuation lookahead by `in_len - i` instead of relying on short-circuit NUL checks. `u16string.append_u16_unit`/`append_codepoint`/`to_utf8` reject length arithmetic that would wrap before `ensure_mut`/`reserve`. TCC main `2489`, LLVM main `2487`, safety `78/78`, TCC libs `736/736`, negative `818/818`; UTF converter covered by a temporary public harness on both backends. Audit baseline was reviewed and updated for the ZST generic instantiations plus the previously landed TLS/HTTP unsafe setter boundaries: `unsafe_blocks 3821`, `unsafe_values 4961`, `unsafe_func_decls 52`, `panic_calls 142`, `raw_pointer_types 9416`. Item 1 now leaves only `string_view`/`u16string` parser coverage and target-source coverage without a complete cstd mapping, plus the final audit-backlog sign-off.
 *Revision note v5.39 (2026-11-05): item-1 closure for claimed targets. Added `cstd/posix_bsd` (FreeBSD `__error`, `__stdinp`/`__stdoutp`/`__stderrp`, `environ`) and mapped it from `chemical.mod`; `link "c"` now covers FreeBSD. Removed the duplicate `GetCurrentThreadId` declaration from `std` (cstd owns the Win32 binding). Hardened Windows IOCP: allocation failures panic instead of null-dereferencing, recv/send validate null/length before posting, registration failure completes the future as an error, and `async_iocp_recv`/`async_iocp_send` are explicit unsafe boundaries. Wrapped the Windows-only HTTP `send_file`/static-path/IOCP server branches in audited unsafe blocks and made IOCP context-buffer allocation fail closed by closing the accepted socket. Target regressions now use strict `--target ... --check` and include `http`/`server`; Windows i386/x64, macOS x64/arm64, and FreeBSD x64/arm64/armv7 roots are clean. TCC/LLVM negative `820/820`; audit baseline reviewed at `unsafe_blocks 3824`, `unsafe_values 4966`, `extern_decls 874`, `panic_calls 142`. Item 1 is complete for the claimed roots; remaining target work is non-claimed OS mappings and the Linux/Windows-only window/webview backends.
+*Revision note v5.40 (2026-11-05): item-2 first closure slice — non-Copy fixed-array element moves. `var e = arr[0]`, `return arr[0]`, a by-value aggregate argument, and aggregate field/array-literal initialization now move a destructor-bearing element out of an owned local fixed array: the lowering clears the element’s scalar flag, indexed flag slot, or generated field/leaf flags and emits `MoveOut` so the MIR dataflow marks the source element moved. Non-Copy fixed-array destructuring of an owned local now moves each bound element the same way, while wildcard/rest elements remain owned by the source. The front end accepts only a constant index into a mutable local/async-frame fixed array; dynamic indices, `const` bindings, array parameters (passed as a pointer to caller storage), temporaries, array fields, borrowed/slice views, and nested non-Copy patterns stay `SAFE-MOVE-001`/`SAFE-MOVE-004`. Added TCC/LLVM runtime drop-count tests for direct element moves, generated-glue element fields, returned elements, and non-Copy destructuring, plus negative coverage for const/parameter/temporary/field/dynamic/nested shapes. TCC/LLVM negative `828/828`; TCC/LLVM safety `83/83`.

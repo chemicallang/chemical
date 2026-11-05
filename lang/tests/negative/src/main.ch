@@ -761,12 +761,31 @@ func neg_array_pattern_arity_mismatch(env : &mut TestEnv) {
 }
 
 @test
-func neg_array_pattern_non_copy(env : &mut TestEnv) {
+func array_pattern_non_copy_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var values : [2]std::string = [std::string(\"a\"), std::string(\"b\")]\n    var [a, b] = values\n    return (a.size() + b.size()) as int\n}\n"
-    expect_compile_error_with_mod(env, "array_pattern_non_copy", ch,
-                                  "array destructuring currently requires Copy elements",
-                                  NEG_MOD_STD_CORE)
+    expect_compile_success_with_mod(env, "array_pattern_non_copy", ch, NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_array_pattern_non_copy_const(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    const values : [2]DT = [DT { x : 1 }, DT { x : 2 }]\n    var [a, b] = values\n    return a.x + b.x\n}\n"
+    expect_compile_error(env, "array_pattern_non_copy_const", ch, "SAFE-MOVE-004")
+}
+
+@test
+func neg_array_pattern_non_copy_parameter(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nfunc take(values : [2]DT) : int {\n    var [a, b] = values\n    return a.x + b.x\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "array_pattern_non_copy_parameter", ch, "SAFE-MOVE-004")
+}
+
+@test
+func neg_array_pattern_non_copy_nested(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    var values : [2][2]DT = []\n    values[0][0] = DT { x : 1 }\n    values[0][1] = DT { x : 2 }\n    values[1][0] = DT { x : 3 }\n    values[1][1] = DT { x : 4 }\n    var [[a, b], [c, d]] = values\n    return a.x + b.x + c.x + d.x\n}\n"
+    expect_compile_error(env, "array_pattern_non_copy_nested", ch, "SAFE-MOVE-004")
 }
 
 @test

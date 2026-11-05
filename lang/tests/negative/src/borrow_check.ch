@@ -515,16 +515,46 @@ func neg_hrtb_struct_large_array_element_result_aliases(env : &mut TestEnv) {
 }
 
 @test
-func neg_hrtb_large_array_nested_struct_rejected(env : &mut TestEnv) {
+func hrtb_large_array_nested_struct_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // Two aggregate levels remain rejected: only a direct struct field has a
-    // wildcard key the MIR call contract can map.
-    var ch = "struct Inner<'a> {\n    var items : [65]&'a int\n}\nstruct Outer<'a> {\n    var inner : Inner<'a>\n}\nfunc apply(f : for<'b> (o : Outer<'b>) => int) : int { return 0 }\npublic func main() : int { return 0 }\n"
-    expect_compile_error(env, "hrtb_large_array_nested_struct", ch, "SAFE-BORROW-099")
-    // An array of structs is also not a direct field: its MIR path has an
-    // element step before the field, so keep it fail-closed too.
-    var array_of_structs = "struct Inner<'a> {\n    var items : [65]&'a int\n}\nfunc apply(f : for<'b> (o : [2]Inner<'b>) => int) : int { return 0 }\npublic func main() : int { return 0 }\n"
-    expect_compile_error(env, "hrtb_large_array_array_of_structs", array_of_structs, "SAFE-BORROW-099")
+    // A large reference array nested through a struct field and through an
+    // array-of-structs element keeps the same wildcard leaf contract.
+    var ch = "struct Inner<'a> {\n    var items : [65]&'a int\n}\nstruct Outer<'a> {\n    var inner : Inner<'a>\n}\nfunc apply_nested(f : for<'b> (o : Outer<'b>) => int) : int { return 0 }\nfunc apply_array(f : for<'b> (o : [2]Inner<'b>) => int) : int { return 0 }\npublic func main() : int { return 0 }\n"
+    expect_compile_success(env, "hrtb_large_array_nested_struct", ch)
+}
+
+@test
+func hrtb_large_array_nested_borrowed_result_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The wildcard leaf keeps both the nested field path and the caller's
+    // source loan, so a borrowed element result is path-mapped.
+    var ch = "struct Inner<'a> {\n    var items : [65]&'a int\n}\nstruct Outer<'a> {\n    var inner : Inner<'a>\n}\nfunc <'a> read_outer(o : Outer<'a>) : &'a int { return o.inner.items[1] }\nfunc <'a> apply(f : for<'b> (o : Outer<'b>) => &'b int, x : &'a int, y : &'a int) : &'a int {\n    return f(Outer<'a> { inner : Inner<'a> { items : [x, y, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x] } })\n}\npublic func main() : int {\n    var x = 41\n    var y = 7\n    var r = apply(read_outer, &x, &y)\n    return *r - 7\n}\n"
+    expect_compile_success(env, "hrtb_large_array_nested_result", ch)
+}
+
+@test
+func hrtb_large_array_array_of_structs_borrowed_result_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The MIR path is element -> field -> wildcard; the wildcard leaf remains
+    // keyed by the owning root and leaf field.
+    var ch = "struct Inner<'a> {\n    var items : [65]&'a int\n}\nfunc <'a> read_array(ms : [2]Inner<'a>) : &'a int { return ms[1].items[1] }\nfunc <'a> apply(f : for<'b> (ms : [2]Inner<'b>) => &'b int, x : &'a int, y : &'a int) : &'a int {\n    var ms : [2]Inner<'a>\n    ms[0] = Inner<'a> { items : [x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x] }\n    ms[1] = Inner<'a> { items : [x, y, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x] }\n    return f(ms)\n}\npublic func main() : int {\n    var x = 41\n    var y = 7\n    var r = apply(read_array, &x, &y)\n    return *r - 7\n}\n"
+    expect_compile_success(env, "hrtb_large_array_array_of_structs_result", ch)
+}
+
+@test
+func neg_hrtb_large_array_nested_result_aliases(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The returned nested array element is y, so mutating y while the result
+    // is live must conflict.
+    var ch = "struct Inner<'a> {\n    var items : [65]&'a int\n}\nstruct Outer<'a> {\n    var inner : Inner<'a>\n}\nfunc <'a> read_outer(o : Outer<'a>) : &'a int { return o.inner.items[1] }\nfunc <'a> apply(f : for<'b> (o : Outer<'b>) => &'b int, x : &'a int, y : &'a int) : &'a int {\n    return f(Outer<'a> { inner : Inner<'a> { items : [x, y, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x] } })\n}\npublic func main() : int {\n    var x = 41\n    var y = 7\n    var r = apply(read_outer, &x, &y)\n    var q = &mut y\n    *q = 9\n    return *r\n}\n"
+    expect_compile_error(env, "hrtb_large_array_nested_alias", ch, "SAFE-BORROW-001")
+}
+
+@test
+func neg_hrtb_large_array_array_of_structs_result_aliases(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct Inner<'a> {\n    var items : [65]&'a int\n}\nfunc <'a> read_array(ms : [2]Inner<'a>) : &'a int { return ms[1].items[1] }\nfunc <'a> apply(f : for<'b> (ms : [2]Inner<'b>) => &'b int, x : &'a int, y : &'a int) : &'a int {\n    var ms : [2]Inner<'a>\n    ms[0] = Inner<'a> { items : [x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x] }\n    ms[1] = Inner<'a> { items : [x, y, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x] }\n    return f(ms)\n}\npublic func main() : int {\n    var x = 41\n    var y = 7\n    var r = apply(read_array, &x, &y)\n    var q = &mut y\n    *q = 9\n    return *r\n}\n"
+    expect_compile_error(env, "hrtb_large_array_array_of_structs_alias", ch, "SAFE-BORROW-001")
 }
 
 @test

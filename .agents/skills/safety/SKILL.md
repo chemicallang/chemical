@@ -52,7 +52,7 @@ Latest measured baseline:
 | TCC main | `2489/2489` |
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `832/832` |
+| TCC/LLVM negative | `836/836` |
 | TCC/LLVM safety | `88/88` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
@@ -391,10 +391,12 @@ memory safety.
    path-mapped, so their borrowed results keep the source loan live;
    same-lifetime array elements remain conservatively aliased. A fixed array
    of direct references larger than 64 elements uses one wildcard element step
-   and one shared element-loan region; this works at the top level and for one
-   direct struct field (keyed by root and field). Arrays nested more than one
-   aggregate level, arrays of aggregates, and unsized arrays keep the explicit
-   `SAFE-BORROW-099` rejection. A retaining parameter whose loan target is a
+   and one shared element-loan region at any aggregate depth, including nested
+   struct fields and array-of-structs elements. The MIR signature records the
+   full root-to-leaf path and keys the wildcard loan by the owning root and
+   leaf field index; same-index wildcard leaves under one root conservatively
+   share one loan. Unsized arrays keep the explicit `SAFE-BORROW-099`
+   rejection. A retaining parameter whose loan target is a
    local/temporary or a by-value parameter copy may hold any argument borrow,
    so mixed/distinct sources are accepted and pinned to function exit.
    Retaining storage reached through a reference parameter is caller-owned. It

@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.45)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.46)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1524,12 +1524,17 @@ new number as the honest baseline, not a compiler regression.
    **top-level** larger array of direct references is described by one
    wildcard element step and one element-loan region, so the result keeps its
    source loan live (its elements still share the element lifetime and remain
-   conservatively aliased). A large direct-reference array in one struct field
-   is keyed by `(root, field)` and uses the same wildcard element loan; arrays
-   nested more than one aggregate level, arrays of aggregates, and unsized
-   arrays keep an explicit `SAFE-BORROW-099` rejection. Caller-owned retaining
-   storage without a provable source-to-stored edge and opaque retaining
-   storage with no named region remain the HRTB precision limit.
+   conservatively aliased). A large direct-reference array now uses the same
+   wildcard leaf at any aggregate depth, including a struct field, a nested
+   struct field, and an array-of-structs element; the MIR signature records the
+   full root-to-leaf path and the borrow checker keys the wildcard loan by the
+   owning root and leaf field index. Each element/leaf still shares its
+   element lifetime and remains conservatively aliased, and two same-index
+   wildcard leaves under one root share one loan rather than guessing distinct
+   regions. Unsized arrays keep an explicit `SAFE-BORROW-099` rejection.
+   Caller-owned retaining storage without a provable source-to-stored edge and
+   opaque retaining storage with no named region remain the HRTB precision
+   limit.
 6. **`dyn` object model is implemented for the safe surface.** `dyn I` is a
    target-aware two-word borrowed fat pointer (`{ data, vtable }`); `&dyn I`
    dispatches through the same vtable, including through `Box::get`. `Box<dyn I>`
@@ -3217,3 +3222,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.43 (2026-11-05): temporary aggregate field-array elements. `make().items[CONST]` can now move an element out of a temporary aggregate’s fixed-array field: the lowered element address recovers the temporary root, the temporary is registered as a block-scope destructible with its field path, and the element flag is cleared. Direct temporary arrays (`make()[CONST]`) remain rejected because array-value returns still have an unrelated backend limitation. Added TCC/LLVM runtime coverage for the temporary field-array shape while retaining the direct-temporary-array rejection. TCC/LLVM negative `832/832`; TCC/LLVM safety `86/86`.
 *Revision note v5.44 (2026-11-05): direct temporary array elements. The C emitter now copies an array-valued sret return into its destination with `memcpy` instead of `*(sret) = array`, which C rejects; array-returning functions and `make()[CONST]` work on TCC. The move front end accepts direct temporary-array roots, and the lowering registers the temporary array as a block-scope destructible so the moved element flag is cleared and the remainder drops once. Added TCC/LLVM runtime coverage for `make()[0]` and flipped the old temporary-array negative to positive. TCC/LLVM negative `832/832`; TCC/LLVM safety `87/87`.
 *Revision note v5.45 (2026-11-05): nested non-Copy array destructuring. `var [[a, b], [c, d]] = matrix` on an owned mutable local now moves each leaf element, clears its inner-array drop flag through `drop_flag_for_nested_index`, registers each binding for destruction, and leaves wildcard/rest elements owned by the source. Nesting deeper than two fixed-array levels and borrowed/slice views remain `SAFE-MOVE-004`. Added TCC/LLVM runtime drop-count coverage for the nested move and flipped the old nested-non-Copy negative to positive. TCC/LLVM negative `832/832`; TCC/LLVM safety `88/88`.
+*Revision note v5.46 (2026-11-05): nested large reference arrays in HRTB. A fixed array of more than 64 direct references now gets a wildcard leaf at any aggregate depth, not only at the top level or one direct struct field. The MIR function-type signature records the full `element -> field -> wildcard` path (including arrays of generic structs), keys the wildcard element loan by the owning root and leaf field index, and the call-site path walk resolves nested field/element chains to the same loan. Type verification propagates the wide-array allowance through array element recursion. Array-of-structs results now keep the caller source loan live; a later mutable borrow of the source rejects with `SAFE-BORROW-001`. Unsized arrays still reject with `SAFE-BORROW-099`, and same-index wildcard leaves under one root conservatively share one loan. Added TCC/LLVM positive compile tests plus alias-conflict negatives for nested structs and arrays of structs. TCC/LLVM negative `836/836`; TCC/LLVM safety `88/88`; main TCC/LLVM `2489/2489`, `2487/2487`; interpret `1938/1938`; async `83/83`; TCC libs `736/736`; `MIRTests` `4749`; audit no growth.

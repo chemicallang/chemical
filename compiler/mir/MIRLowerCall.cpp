@@ -4805,6 +4805,7 @@ uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
         auto add_leaves = [&](auto&& self, BaseType* aggregate,
                               const std::vector<chem::string_view>& parent_decl,
                               const std::vector<chem::string_view>& parent_actual,
+                              uint32_t last_field_index,
                               std::vector<MIRParamPathStep>& path) -> void {
             BaseType* ac = aggregate ? aggregate->canonical() : nullptr;
             if (ac == nullptr) return;
@@ -4814,24 +4815,47 @@ uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
                 const uint64_t count = arr->get_array_size();
                 if (elem == nullptr || count == 0) return;
                 if (count > 64) {
-                    // A top-level large array of direct references is described
-                    // by one wildcard element step; the borrow checker keeps a
-                    // single element-loan region for the whole array. Nested
-                    // large arrays and aggregate elements keep the conservative
-                    // SAFE-BORROW-099 rejection.
-                    if (path.empty() && elem->canonical() != nullptr &&
-                        elem->canonical()->kind() == BaseTypeKind::Reference) {
-                        path.push_back(MIRParamPathStep{
-                            MIR_INVALID_ID, MIR_INVALID_ID, true});
-                        self(self, elem, parent_decl, parent_actual, path);
-                        path.pop_back();
+                    // A large array of direct references is described by one
+                    // wildcard element step; the borrow checker keeps a single
+                    // element-loan region for the whole array. This works at
+                    // any aggregate depth: the leaf keeps the full field/index
+                    // path and the MIR load keys the wildcard by its owning
+                    // root and leaf field index.
+                    BaseType* elem_canonical = elem->canonical();
+                    if (elem_canonical == nullptr ||
+                        elem_canonical->kind() != BaseTypeKind::Reference) {
+                        return;
                     }
+                    auto* ref = elem_canonical->as_reference_type_unsafe();
+                    const chem::string_view actual = map_field_lifetime(
+                        ref->lifetime, parent_decl, parent_actual);
+                    const MIRRegionId region = region_id_for_lifetime(
+                        lifetimes, std::string_view(actual.data(), actual.size()));
+                    if (region == MIR_INVALID_ID) return;
+                    ConstantId leaf_field_name = MIR_INVALID_ID;
+                    for (auto it = path.rbegin(); it != path.rend(); ++it) {
+                        if (!it->is_index) {
+                            leaf_field_name = it->field;
+                            break;
+                        }
+                    }
+                    path.push_back(MIRParamPathStep{
+                        MIR_INVALID_ID, MIR_INVALID_ID, true});
+                    MIRParamFieldRegion fr;
+                    fr.field_index = last_field_index;
+                    fr.field_name = leaf_field_name;
+                    fr.path = path;
+                    fr.region = region;
+                    fr.variance = MIRVariance::Covariant;
+                    sig.param_field_regions[pi].push_back(fr);
+                    path.pop_back();
                     return;
                 }
                 for (uint64_t i = 0; i < count; ++i) {
                     path.push_back(MIRParamPathStep{
                         MIR_INVALID_ID, static_cast<uint32_t>(i), true});
-                    self(self, elem, parent_decl, parent_actual, path);
+                    self(self, elem, parent_decl, parent_actual,
+                         last_field_index, path);
                     path.pop_back();
                 }
                 return;
@@ -4887,6 +4911,8 @@ uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
                     const ConstantId fc = module_.constants.add_string(
                         MIR_INVALID_ID, field_name.data(),
                         static_cast<uint32_t>(field_name.size()));
+                    const uint32_t field_index = find_field_index(
+                        tid, std::string_view(field_name.data(), field_name.size()));
                     if (ftc->kind() == BaseTypeKind::Reference) {
                         auto* ref = ftc->as_reference_type_unsafe();
                         const chem::string_view actual = map_field_lifetime(
@@ -4896,8 +4922,7 @@ uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
                         if (region == MIR_INVALID_ID) continue;
                         path.push_back(MIRParamPathStep{fc, MIR_INVALID_ID, false});
                         MIRParamFieldRegion fr;
-                        fr.field_index = find_field_index(
-                            tid, std::string_view(field_name.data(), field_name.size()));
+                        fr.field_index = field_index;
                         fr.field_name = fc;
                         fr.path = path;
                         fr.region = region;
@@ -4905,42 +4930,6 @@ uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
                         sig.param_field_regions[pi].push_back(fr);
                         path.pop_back();
                         continue;
-                    }
-                    if (ftc->kind() == BaseTypeKind::Array && path.empty()) {
-                        auto* array = ftc->as_array_type_unsafe();
-                        BaseType* elem = const_cast<BaseType*>(
-                            array->elem_type.getType());
-                        BaseType* elem_canonical =
-                            elem != nullptr ? elem->canonical() : nullptr;
-                        if (array->get_array_size() > 64 &&
-                            elem_canonical != nullptr &&
-                            elem_canonical->kind() == BaseTypeKind::Reference) {
-                            auto* ref = elem_canonical->as_reference_type_unsafe();
-                            const chem::string_view actual = map_field_lifetime(
-                                ref->lifetime, decl_lifetimes, actual_lifetimes);
-                            const MIRRegionId region = region_id_for_lifetime(
-                                lifetimes,
-                                std::string_view(actual.data(), actual.size()));
-                            if (region != MIR_INVALID_ID) {
-                                path.push_back(MIRParamPathStep{
-                                    fc, MIR_INVALID_ID, false});
-                                path.push_back(MIRParamPathStep{
-                                    MIR_INVALID_ID, MIR_INVALID_ID, true});
-                                MIRParamFieldRegion fr;
-                                fr.field_index = find_field_index(
-                                    tid,
-                                    std::string_view(field_name.data(),
-                                                     field_name.size()));
-                                fr.field_name = fc;
-                                fr.path = path;
-                                fr.region = region;
-                                fr.variance = MIRVariance::Covariant;
-                                sig.param_field_regions[pi].push_back(fr);
-                                path.pop_back();
-                                path.pop_back();
-                                continue;
-                            }
-                        }
                     }
                     const TypeId field_tid = types_.map(ftc);
                     if (field_tid == MIR_INVALID_ID ||
@@ -4954,7 +4943,8 @@ uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
                         continue;
                     }
                     path.push_back(MIRParamPathStep{fc, MIR_INVALID_ID, false});
-                    self(self, ftc, decl_lifetimes, actual_lifetimes, path);
+                    self(self, ftc, decl_lifetimes, actual_lifetimes,
+                         field_index, path);
                     path.pop_back();
                 }
                 return;
@@ -5004,6 +4994,7 @@ uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
                     const ConstantId fc = module_.constants.add_string(
                         MIR_INVALID_ID, fname.data(),
                         static_cast<uint32_t>(fname.size()));
+                    const uint32_t field_index = find_field_index(tid, fname);
                     if (ftc->kind() == BaseTypeKind::Reference) {
                         auto* ref = ftc->as_reference_type_unsafe();
                         const chem::string_view actual = map_field_lifetime(
@@ -5013,7 +5004,7 @@ uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
                         if (region == MIR_INVALID_ID) continue;
                         path.push_back(MIRParamPathStep{fc, MIR_INVALID_ID, false});
                         MIRParamFieldRegion fr;
-                        fr.field_index = find_field_index(tid, fname);
+                        fr.field_index = field_index;
                         fr.field_name = fc;
                         fr.path = path;
                         fr.region = region;
@@ -5034,13 +5025,14 @@ uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
                         continue;
                     }
                     path.push_back(MIRParamPathStep{fc, MIR_INVALID_ID, false});
-                    self(self, ftc, decl_lifetimes, actual_lifetimes, path);
+                    self(self, ftc, decl_lifetimes, actual_lifetimes,
+                         field_index, path);
                     path.pop_back();
                 }
             }
         };
         std::vector<MIRParamPathStep> path;
-        add_leaves(add_leaves, canonical, {}, {}, path);
+        add_leaves(add_leaves, canonical, {}, {}, MIR_INVALID_ID, path);
     }
     return module_.add_region_signature(std::move(sig));
 }

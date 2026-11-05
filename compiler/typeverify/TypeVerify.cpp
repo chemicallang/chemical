@@ -5408,18 +5408,19 @@ static bool hrtb_aggregate_param_ok_impl(
     if (canonical->kind() == BaseTypeKind::Array) {
         auto* array = canonical->as_array_type_unsafe();
         BaseType* elem = const_cast<BaseType*>(array->elem_type.getType());
-        // MIR records one leaf path per constant element, bounded to 64. An
-        // unsized or larger array cannot be mapped without an element loan
-        // source, so keep the conservative HRTB rejection.
+        // MIR records one leaf path per constant element, bounded to 64. A
+        // larger array of direct references uses one wildcard leaf at any
+        // aggregate depth; an unsized array still has no mappable element
+        // source and keeps the conservative HRTB rejection.
         const uint64_t count = array->get_array_size();
         if (elem == nullptr) return false;
-        if (count > 64 && allow_wide_array && aggregate_depth <= 1 &&
+        if (count > 64 && allow_wide_array &&
             elem->canonical() != nullptr &&
             elem->canonical()->kind() == BaseTypeKind::Reference) {
             // A large array of direct references is tracked with one
-            // element-loan region instead of one path per element. This is
-            // allowed at the top level and for one direct struct field; a
-            // deeper aggregate still needs full element-path inference.
+            // element-loan region instead of one path per element. The MIR
+            // call contract records the leaf field path, so this works at any
+            // aggregate depth.
             return hrtb_aggregate_param_ok_impl(
                 elem, binders, field_lifetimes, false, false, aggregate_depth,
                 collect_lifetimes, visiting, parent_decl_lifetimes,
@@ -5429,13 +5430,13 @@ static bool hrtb_aggregate_param_ok_impl(
             return !hrtb_type_mentions_mapped_binder(
                 elem, parent_decl_lifetimes, parent_actual_lifetimes, binders);
         }
-        // An array element is not a direct struct field: a large reference
-        // array nested inside an array-of-structs has no wildcard path in MIR,
-        // so jump past the single-field allowance.
+        // Propagate the wide-array allowance through array elements so a
+        // large reference array nested inside an array-of-structs keeps the
+        // same wildcard leaf contract as a direct field.
         return hrtb_aggregate_param_ok_impl(
-            elem, binders, field_lifetimes, true, false, aggregate_depth + 2,
-            collect_lifetimes, visiting, parent_decl_lifetimes,
-            parent_actual_lifetimes);
+            elem, binders, field_lifetimes, true, allow_wide_array,
+            aggregate_depth + 2, collect_lifetimes, visiting,
+            parent_decl_lifetimes, parent_actual_lifetimes);
     }
     ASTNode* canonical_node = canonical->get_direct_linked_canonical_node();
     if (canonical_node != nullptr &&

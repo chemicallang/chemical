@@ -6,6 +6,15 @@ struct VecConcreteChild {
     var b : int
 }
 
+struct VecEmpty {}
+
+struct VecEmptyDestructible {
+    @delete
+    func delete(&self) {
+        unsafe { vec_destruct_called++ }
+    }
+}
+
 var vec_destruct_called = 0;
 
 struct VecDestructibleChild {
@@ -38,6 +47,32 @@ func test_vectors() {
             v.push(10);
             v.push(20);
             return v.size() == 2 && v.get(0) == 10 && v.get(1) == 20
+        })
+        test("zero-sized vector elements work", () => {
+            var v = vector<VecEmpty>();
+            v.push(VecEmpty {});
+            v.push(VecEmpty {});
+            if(v.size() != 2) { return false }
+            v.remove(0);
+            if(v.size() != 1) { return false }
+            v.clear();
+            if(!v.empty()) { return false }
+            v.resize(4);
+            if(v.size() != 4) { return false }
+            v.resize(1);
+            return v.size() == 1;
+        })
+        vec_destruct_called = 0;
+        test("zero-sized vector destructors run per element", () => {
+            var v = vector<VecEmptyDestructible>();
+            v.push(VecEmptyDestructible {});
+            v.push(VecEmptyDestructible {});
+            v.clear();
+            if(vec_destruct_called != 2) { return false }
+            v.push(VecEmptyDestructible {});
+            v.push(VecEmptyDestructible {});
+            v.remove(0);
+            return vec_destruct_called == 3 && v.size() == 1;
         })
         test("can remove last element from vector", () => {
             var v = vector<int>();

@@ -331,6 +331,8 @@ public struct u16string {
     func append_u16_unit(&mut self, u : u16) {
         unsafe {
             const offset = size();
+            const max_units = (((0 as size_t) - 1) - 2) / 2
+            if(offset >= max_units) { panic("u16_string length overflow") }
             const new_size = offset + 1;
             ensure_mut(new_size + 1);
             if(state == '1') {
@@ -368,6 +370,8 @@ public struct u16string {
                 var high = (0xD800u32 + (v >> 10)) as u16;
                 var low  = (0xDC00u32 + (v & 0x3FFu32)) as u16;
                 const offset = size();
+                const max_units = (((0 as size_t) - 1) - 2) / 2
+                if(offset >= max_units - 1) { panic("u16_string length overflow") }
                 const new_size = offset + 2;
                 ensure_mut(new_size + 1);
                 if(state == '1') {
@@ -538,6 +542,9 @@ public struct u16string {
             if(n == 0) {
                 // returning empty string
                 return std::string()
+            }
+            if(n > (((0 as size_t) - 1) - 2) / 3) {
+                panic("u16_string utf8 length overflow")
             }
             // safe upper-bound: each u16 unit -> up to 3 bytes in UTF-8 (BMP),
             // surrogate pairs (2 units) -> 4 bytes, so n*3 + 1 is safe.

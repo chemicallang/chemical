@@ -24,11 +24,17 @@ public struct vector<T> {
 
     @constructor
     func make() {
+        var ptr : *mut T = null
         if(sizeof(T) == 0) {
-            panic("vector does not support zero-sized element types")
+            // Zero-sized elements still need a non-null, aligned sentinel so
+            // pointer arithmetic and the empty-element destructor are valid.
+            ptr = unsafe(malloc(1)) as *mut T
+            if(ptr == null) {
+                panic("vector allocation failed")
+            }
         }
         return vector<T> {
-            data_ptr : null,
+            data_ptr : ptr,
             data_size : 0,
             data_cap : 0
         }
@@ -38,9 +44,17 @@ public struct vector<T> {
     func make_with_capacity(init_cap : size_t) {
         const elem_size = sizeof(T)
         if(elem_size == 0) {
-            panic("vector does not support zero-sized element types")
+            var zptr = unsafe(malloc(1)) as *mut T
+            if(zptr == null) {
+                panic("vector allocation failed")
+            }
+            return vector<T> {
+                data_ptr : zptr,
+                data_size : 0,
+                data_cap : init_cap
+            }
         }
-        if(elem_size != 0 && init_cap > ((0 as size_t) - 1) / elem_size) {
+        if(init_cap > ((0 as size_t) - 1) / elem_size) {
             panic("vector capacity overflow")
         }
         var ptr = unsafe(malloc(sizeof(T) * init_cap)) as *mut T
@@ -81,6 +95,13 @@ public struct vector<T> {
             reserve(new_cap);
         }
 
+        // A zero-sized vector has no bytes to initialize; growing only updates
+        // the logical length.
+        if(sizeof(T) == 0) {
+            data_size = new_size;
+            return;
+        }
+
         // TODO: using zeroed, the type may not be trivially copyable or zero initializable
         // constraints should be used to verify the type
         var i = data_size;
@@ -95,11 +116,19 @@ public struct vector<T> {
     func reserve(&mut self, new_cap : size_t) {
         if(new_cap <= data_cap) return;
         const elem_size = sizeof(T)
-        if(elem_size != 0) {
-            const max_elems = ((0 as size_t) - 1) / elem_size
-            if(new_cap > max_elems) {
-                panic("vector capacity overflow")
+        if(elem_size == 0) {
+            if(data_ptr == null) {
+                data_ptr = unsafe(malloc(1)) as *mut T
+                if(data_ptr == null) {
+                    panic("vector allocation failed")
+                }
             }
+            data_cap = new_cap
+            return
+        }
+        const max_elems = ((0 as size_t) - 1) / elem_size
+        if(new_cap > max_elems) {
+            panic("vector capacity overflow")
         }
         var new_data = unsafe(realloc(data_ptr, (sizeof(T) * new_cap))) as *mut T;
         unsafe {

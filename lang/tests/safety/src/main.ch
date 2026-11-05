@@ -354,10 +354,15 @@ func box_use_after_into_inner_panics(env : &mut TestEnv) {
 }
 
 @test
-func vector_zero_sized_element_panics(env : &mut TestEnv) {
+func vector_zero_sized_element_works(env : &mut TestEnv) {
     safety_init_work_dir()
-    var ch = "struct Empty {}\npublic func main() : int {\n    var v = std::vector<Empty>()\n    return 0\n}\n"
-    expect_runtime_panic(env, "vector_zero_sized_element_panics", ch)
+    var ch = "struct Empty {}\nvar z_destroyed : int = 0\nstruct EmptyDrop {\n    @delete\n    func delete(&mut self) { unsafe { z_destroyed += 1 } }\n}\npublic func main() : int {\n    var v = std::vector<Empty>()\n    v.push(Empty {})\n    v.push(Empty {})\n    if(v.size() != 2) { return 1 }\n    v.remove(0)\n    if(v.size() != 1) { return 2 }\n    v.clear()\n    if(!v.empty()) { return 3 }\n    unsafe { z_destroyed = 0 }\n    var d = std::vector<EmptyDrop>()\n    d.push(EmptyDrop {})\n    d.push(EmptyDrop {})\n    d.clear()\n    if(unsafe(z_destroyed) != 2) { return 4 }\n    d.push(EmptyDrop {})\n    d.push(EmptyDrop {})\n    d.remove(0)\n    if(unsafe(z_destroyed) != 3) { return 5 }\n    return 0\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "vector_zero_sized_element_works", ch, &mut out)
+    if(rc != 0) {
+        env.error("zero-sized vector should compile and run")
+        if(out.size() > 0) { env.error(out.data()) }
+    }
 }
 
 @test

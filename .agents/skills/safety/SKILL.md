@@ -49,8 +49,8 @@ Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2487/2487` |
-| LLVM main | `2485/2485` |
+| TCC main | `2489/2489` |
+| LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `818/818` |
 | TCC/LLVM safety | `78/78` |
@@ -60,19 +60,18 @@ Latest measured baseline:
 | TCC interpret | `1938/1938` |
 | `MIRTests` | `4749 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
-| Whole-tree audit | `unsafe_blocks 3790`, `unsafe_values 4922`, `raw_pointer_addrs 10036`, `raw_pointer_casts 2876`, `raw_pointer_types 9375`, `raw_pointer_derefs 1073`, `unsafe_func_decls 41`, `panic_calls 124` |
+| Whole-tree audit | `unsafe_blocks 3821`, `unsafe_values 4961`, `raw_pointer_addrs 10050`, `raw_pointer_casts 2900`, `raw_pointer_types 9416`, `raw_pointer_derefs 1076`, `unsafe_func_decls 52`, `panic_calls 142` |
 | Audit result | `no growth` against `lang/docs/safety/audit-baseline.json` |
 
 The audit totals increased from the historical `3661/4890` in the 2026-10-31
 audit because `SafetyReportVisitor` previously skipped **every**
 `ImplDefinition` body. It now walks impl bodies, so the larger number is the
 first honest whole-tree count, not a new unsafe-code regression. The async
-closure fixtures add a few audited raw C future-ABI sites. The latest
-`+5 unsafe_blocks / +6 unsafe_values` bump was the reviewed Windows platform
-migration; the current `unsafe_blocks 3790` / `raw_pointer_types 9375` baseline
-also includes the async drop-elaboration regression tests and the semantic
-wrapper tranches (`unsafe_func_decls 36 -> 41`, `panic_calls 113 -> 124`,
-`unsafe_values 4921 -> 4922`, plus test-only raw-pointer sites).
+closure fixtures add a few audited raw C future-ABI sites. The latest reviewed
+baseline includes the TLS/HTTP unsafe setter boundaries, the Windows/macOS
+platform migrations, and the zero-sized-vector generic instantiations:
+`unsafe_blocks 3790 -> 3821`, `unsafe_values 4922 -> 4961`,
+`unsafe_func_decls 41 -> 52`, and `panic_calls 124 -> 142`.
 
 ## What is enforced (by domain)
 
@@ -345,19 +344,20 @@ memory safety.
    (`lang/docs/safety/ffi-wrapper-audit.md`: allocator ownership/zero-size,
    filesystem path/file handles and capacity, socket buffer/length/port
    validation, zero-sized Box allocation, DynBox field visibility, string
-   append null validation, fail-closed zero-sized vectors, Rc/Arc count-overflow
+   append null validation, zero-sized vector support, Rc/Arc count-overflow
    checks, unsafe-gated u16_strlen, thread-pool Future ownership/null safety,
    vector replacement drops, filesystem temp/copy path buffer bounds, and
    non-`Copy` map `find` rejection). The rest of the safe wrapper surface
-   (actual zero-sized vector support, string_view/u16string parsers, and
-   target-source coverage for platforms without a complete cstd mapping)
-   remain; the string-view/UTF-16
-   raw constructors, Rc/Arc weak handles, RefCell guard escape, Windows
+   (`string_view`/`u16string` parser paths and target-source coverage for
+   platforms without a complete cstd mapping) remains; zero-sized vectors now
+   use a non-null sentinel and run per-element destructors. The string-view/
+   UTF-16 raw constructors, Rc/Arc weak handles, RefCell guard escape, Windows
    directory traversal/removal bounds, HTTP body/scratch-buffer ownership, TLS
-   hostname/socket/config ownership, TLS CA/key/ALPN caller lists, and Windows
-   test IPC bounds, macOS cstd wrappers, and POSIX reactor bounds were reviewed
-   or fixed. The i386 Windows and macOS target checks are clean for the audited
-   roots; FreeBSD still lacks a complete cstd source mapping.
+   hostname/socket/config ownership, TLS CA/key/ALPN caller lists, Windows test
+   IPC bounds, macOS cstd wrappers, POSIX reactor bounds, and UTF-8 lookahead
+   bounds were reviewed or fixed. The i386 Windows and macOS target checks are
+   clean for the audited roots; FreeBSD still lacks a complete cstd source
+   mapping.
 3. **`@scoped_callback` is body-checked, including custom sinks.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter anywhere except a known join-before-return API (resolved by

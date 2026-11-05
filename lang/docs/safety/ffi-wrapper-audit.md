@@ -75,12 +75,13 @@ Regression coverage:
 
 | Wrapper | Invariant | Enforcement |
 |---|---|---|
-| `vector<T>` constructors | zero-sized elements would make pointer arithmetic/indexing invalid | fail closed with a runtime panic instead of creating a malformed vector |
+| `vector<T>` constructors | zero-sized elements still need a non-null, aligned sentinel | allocate one byte for `sizeof(T) == 0`; reserve grows capacity without `realloc` |
 | `Rc::clone/downgrade`, `Weak::upgrade` | strong/weak counts cannot wrap to zero while handles remain | count-overflow panic before increment |
 | `Arc::clone/downgrade`, `ArcWeak::upgrade` | same, under the count lock | count-overflow panic before increment |
 | `u16_strlen` | dereferences a caller-provided UTF-16 pointer | now `unsafe func`; internal caller uses an explicit unsafe boundary |
 
-Regression coverage: `vector_zero_sized_element_panics` and
+Regression coverage: `vector_zero_sized_element_works`,
+`vector_zero_sized_element_destructors_run`, and
 `neg_u16_strlen_requires_unsafe`.
 
 ## Tranche 4 — thread-pool Future ownership (2026-11-03)
@@ -333,9 +334,33 @@ async/std roots). Linux async suite `83/83`. FreeBSD still lacks a complete
 `cstd` source mapping, which is a target-support gap rather than a wrapper
 memory-safety gap.
 
-Still remaining in this group: actual zero-sized vector support (safe but
-ergonomically incomplete) and target-source coverage for platforms without a
-complete cstd mapping.
+## Tranche 19 — zero-sized vectors and UTF-8 bounds (2026-11-05)
+
+| Surface | Invariant | Enforcement |
+|---|---|---|
+| `vector<T>` with `sizeof(T) == 0` | pointer arithmetic and element destructors still need a valid address | one-byte aligned sentinel per vector; zero-size capacity growth does not call `realloc` |
+| zero-sized vector lifetime | destructors run once per logical element on clear/remove/delete | same destruction paths as non-zero-sized vectors; `remove`/`clear`/drop coverage |
+| `fs::utf8_to_utf16` | continuation lookahead must not extend past the NUL terminator | measure `strlen` once and reject each sequence with `in_len - i` shorter than 2/3/4 before reading |
+| `fs::utf16_to_utf8` | output capacity is checked before every 1–4 byte write | existing `pos + n >= out_len` checks remain |
+| `u16string.append_u16_unit` / `append_codepoint` | the length arithmetic cannot wrap before `ensure_mut` | reject `offset` at/above the maximum unit count |
+| `u16string.to_utf8` | the `n * 3 + 1` upper bound cannot wrap | reject `n > (SIZE_MAX - 2) / 3` |
+
+Zero-sized vectors previously failed closed at construction. They now use a
+one-byte sentinel (never a null pointer), skip `realloc` on capacity growth, and
+still run per-element destructors. The UTF-8 path converter now bounds every
+multi-byte lookahead by the measured input length instead of relying on NUL
+short-circuit behavior. The UTF-16 append/to-UTF-8 entry points now reject
+length arithmetic that would wrap before `ensure_mut`/allocation.
+
+Regression coverage: TCC main `2489`, LLVM main `2487` (inline zero-sized
+vector and destructor tests), safety suite `78/78` (zero-sized vector runtime),
+TCC libs `736/736`, negative `818/818`. The UTF converter was also exercised by
+a temporary public harness on both backends with ASCII, 2/3/4-byte, surrogate,
+and truncated inputs.
+
+Remaining in this group: `string_view`/`u16string` parser paths and target-source
+coverage for platforms without a complete cstd mapping. The audit backlog below
+still needs a final sign-off pass for the listed modules.
 
 ## Coverage
 
@@ -350,10 +375,11 @@ complete cstd mapping.
 ## Remaining audit backlog
 
 - `std::vector`, `std::string`, `std::string_view`, `Box`, `Rc`/`Arc`,
-  `Cell`/`RefCell`, and thread-pool wrappers: audit length/capacity, aliasing,
-  zero-sized types, and ownership handoff.
-- `fs::metadata`, `fs::utf`, Windows UTF-8/UTF-16 conversions, and remaining
-  POSIX/Windows file APIs (directory traversal/removal bounds are now audited).
+  `Cell`/`RefCell`, and thread-pool wrappers: audit remaining parser/capacity
+  handoff paths (zero-sized vectors are now supported).
+- `fs::metadata`, Windows UTF-8/UTF-16 conversions, and remaining
+  POSIX/Windows file APIs (directory traversal/removal and `fs::utf` lookahead
+  bounds are now audited).
 - `net` Windows IOCP, async socket lifetime/close rules, and address/socket
   error-code normalization.
 - `tls`/`http`/`server` transport wrappers: TLS handshake/transport ownership

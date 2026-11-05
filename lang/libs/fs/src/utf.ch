@@ -5,11 +5,13 @@ using std::Result;
 func utf8_to_utf16(in_utf8 : *char, out_w : *mut u16, out_w_len : size_t) : Result<size_t, FsError> {
         unsafe {
         if(in_utf8 == null || out_w == null) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
-        // Safe UTF-8 -> UTF-16 converter: validates continuation bytes and avoids out-of-bounds reads.
+        // Safe UTF-8 -> UTF-16 converter: validates continuation bytes and
+        // bounds every lookahead by the measured NUL-terminated length.
+        const in_len = unsafe(strlen(in_utf8))
         var i : size_t = 0;
         var wpos : size_t = 0;
 
-        while (in_utf8[i] != 0) {
+        while (i < in_len) {
             var c = in_utf8[i] as u8;
 
             // ASCII
@@ -23,7 +25,7 @@ func utf8_to_utf16(in_utf8 : *char, out_w : *mut u16, out_w_len : size_t) : Resu
             // 2-byte sequence: 110xxxxx 10xxxxxx
             if ((c & 0xE0) == 0xC0) {
                 // need one continuation byte
-                if (in_utf8[i+1] == 0) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
+                if (in_len - i < 2) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
                 var c2 = in_utf8[i+1] as u8;
                 if ((c2 & 0xC0) != 0x80) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
 
@@ -40,7 +42,7 @@ func utf8_to_utf16(in_utf8 : *char, out_w : *mut u16, out_w_len : size_t) : Resu
             // 3-byte sequence: 1110xxxx 10xxxxxx 10xxxxxx
             if ((c & 0xF0) == 0xE0) {
                 // need two continuation bytes
-                if (in_utf8[i+1] == 0 || in_utf8[i+2] == 0) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
+                if (in_len - i < 3) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
                 var c2 = in_utf8[i+1] as u8;
                 var c3 = in_utf8[i+2] as u8;
                 if ((c2 & 0xC0) != 0x80 || (c3 & 0xC0) != 0x80) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
@@ -60,7 +62,7 @@ func utf8_to_utf16(in_utf8 : *char, out_w : *mut u16, out_w_len : size_t) : Resu
             // 4-byte sequence: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx -> surrogate pair in UTF-16
             if ((c & 0xF8) == 0xF0) {
                 // need three continuation bytes
-                if (in_utf8[i+1] == 0 || in_utf8[i+2] == 0 || in_utf8[i+3] == 0) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
+                if (in_len - i < 4) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
                 var c2 = in_utf8[i+1] as u8;
                 var c3 = in_utf8[i+2] as u8;
                 var c4 = in_utf8[i+3] as u8;

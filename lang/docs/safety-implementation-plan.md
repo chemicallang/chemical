@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.37)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.38)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1457,14 +1457,14 @@ new number as the honest baseline, not a compiler regression.
    target. Tranches 1-3 of the semantic wrapper audit are complete: allocator
    ownership/zero-size, filesystem path/file null and capacity checks, socket
    buffer/length/port validation, zero-sized `Box` allocation, `DynBox` field
-   visibility, string append null validation, fail-closed zero-sized vectors,
+   visibility, string append null validation, zero-sized vector support,
    `Rc`/`Arc` count-overflow checks, unsafe-gated `u16_strlen`, thread-pool
    `Future` ownership/null safety, vector replacement drops, and filesystem
    temp/copy path buffer bounds, non-`Copy` map `find` rejection, and
    worker-owned thread-pool teardown. See
-   `lang/docs/safety/ffi-wrapper-audit.md`. Remaining: actual zero-sized vector
-   support (safe but ergonomic) and target-source coverage for platforms without
-   a complete cstd mapping. `string_view`/`u16string` raw constructors,
+   `lang/docs/safety/ffi-wrapper-audit.md`. Remaining: target-source coverage
+   for platforms without a complete cstd mapping and the final parser/audit
+   backlog sign-off. `string_view`/`u16string` raw constructors,
    `Rc`/`Arc` weak handles, and `RefCell` guard escape were reviewed as
    review-only items; no memory-safety gap was found.
 3. **`@scoped_callback` is body-checked, including custom sinks.**
@@ -3185,3 +3185,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.35 (2026-11-04): TLS caller-owned lists and Windows IPC. Marked `ssl_set_ca_chain`, `ssl_set_own_rsa_key`, `ssl_set_alpn_protocols`, and `ssl_get_alpn_negotiated` unsafe because their safe signatures could not enforce caller lifetime/ownership; added null/list-entry validation. Hardened the Windows test IPC path: null/invalid pipe handles and null buffers with positive lengths are rejected, oversized writes are refused, read counts are clamped before NUL termination, and a failed `ConnectNamedPipe` closes the child process/thread and pipe handles. LLVM TLS filtered tests `7/7`; i386 Windows target safety check `818/818`; TLS/HTTP checks clean. Remaining in item 1: `ssl_set_config` caller-owned config lifetime, actual zero-sized vector support (safe but ergonomic), and target-specific non-Windows OS-gated wrappers. Main TCC/LLVM `2487`/`2485`; `@test` `57`; negative `818`; safety `78`; async `83`; plugins `1305`; TCC libs `736`; interpret `1938`; `MIRTests` `4749`; audit no growth.
 *Revision note v5.36 (2026-11-04): config ownership and TLS/Windows closure. `ssl_set_config` now copies the caller's `SSLConfig` into SSLContext-owned storage, so stack configs and temporary `ssl_config_init(...)` expressions are safe; the internal tls_accept/HTTP client heap-config allocations were removed. The raw CA/private-key/ALPN pointers inside a config are still caller-owned and their setters are unsafe boundaries. With Windows IPC bounds/cleanup in v5.35, item 1 now leaves only actual zero-sized vector support (safe but ergonomic) and target-specific non-Windows OS-gated wrapper coverage. LLVM TLS filtered tests `11/11` plus TLS 1.3 RSA E2E pass; i386 Windows target safety `818/818`; TLS/HTTP checks clean. Main TCC/LLVM `2487`/`2485`; `@test` `57`; negative `818`; safety `78`; async `83`; plugins `1305`; TCC libs `736`; interpret `1938`; `MIRTests` `4749`; audit no growth.
 *Revision note v5.37 (2026-11-04): macOS cstd and POSIX reactor. Unsafe-gated the Darwin `__error`/stdio-global/`_NSGetEnviron` wrappers, added fd_set bounds checks, made the select fallback report `POLLERR` for fds ≥1024, and checked epoll/kqueue scratch allocation sizes/nulls with select fallback. Target checks for `x86_64-apple-darwin` (and arm64 roots) are clean for async/std/fs/net/tls/http/server/test; Linux async `83/83`. Item 1 now leaves only actual zero-sized vector support (safe but ergonomic) and platforms that still lack a complete cstd source mapping (FreeBSD). Main TCC/LLVM `2487`/`2485`; `@test` `57`; negative `818`; safety `78`; async `83`; plugins `1305`; TCC libs `736`; interpret `1938`; `MIRTests` `4749`; audit no growth.
+*Revision note v5.38 (2026-11-05): zero-sized vectors and UTF-8 lookahead. `vector<T>` now supports `sizeof(T) == 0` with a one-byte non-null sentinel, no `realloc` on capacity growth, and per-element destructor execution; the former fail-closed panic test is now a positive runtime test with a destructible zero-sized element. `fs::utf8_to_utf16` measures the NUL-terminated input once and bounds every 2/3/4-byte continuation lookahead by `in_len - i` instead of relying on short-circuit NUL checks. `u16string.append_u16_unit`/`append_codepoint`/`to_utf8` reject length arithmetic that would wrap before `ensure_mut`/`reserve`. TCC main `2489`, LLVM main `2487`, safety `78/78`, TCC libs `736/736`, negative `818/818`; UTF converter covered by a temporary public harness on both backends. Audit baseline was reviewed and updated for the ZST generic instantiations plus the previously landed TLS/HTTP unsafe setter boundaries: `unsafe_blocks 3821`, `unsafe_values 4961`, `unsafe_func_decls 52`, `panic_calls 142`, `raw_pointer_types 9416`. Item 1 now leaves only `string_view`/`u16string` parser coverage and target-source coverage without a complete cstd mapping, plus the final audit-backlog sign-off.

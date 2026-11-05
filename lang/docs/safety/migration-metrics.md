@@ -39,27 +39,27 @@ extra operations.
 
 | Metric | Count |
 |---|---:|
-| `unsafe_blocks` | 3775 |
-| `unsafe_values` | 4915 |
-| `raw_pointer_types` | 9371 |
-| `raw_pointer_derefs` | 1073 |
-| `raw_pointer_addrs` | 10027 |
-| `raw_pointer_casts` | 2875 |
-| `extern_decls` | 873 |
-| `unsafe_func_decls` | 36 |
-| `unsafe_impl_decls` | 15 |
-| `extern_calls` | 1298 |
-| `variadic_calls` | 295 |
+| `unsafe_blocks` | 3821 |
+| `unsafe_values` | 4961 |
+| `raw_pointer_types` | 9416 |
+| `raw_pointer_derefs` | 1076 |
+| `raw_pointer_addrs` | 10050 |
+| `raw_pointer_casts` | 2900 |
+| `extern_decls` | 875 |
+| `unsafe_func_decls` | 52 |
+| `unsafe_impl_decls` | 18 |
+| `extern_calls` | 1322 |
+| `variadic_calls` | 296 |
 | `inline_asm` | 57 |
 | `mutable_globals` | 142 |
 | `extern_globals` | 7 |
-| `panic_calls` | 113 |
-| `allocator_calls` | 175 |
-| `dealloc_stmts` | 179 |
-| `delete_stmts` | 22 |
-| `destruct_stmts` | 23 |
-| `memory_calls` | 84 |
-| `new_values` | 7 |
+| `panic_calls` | 142 |
+| `allocator_calls` | 191 |
+| `dealloc_stmts` | 181 |
+| `delete_stmts` | 25 |
+| `destruct_stmts` | 33 |
+| `memory_calls` | 86 |
+| `new_values` | 9 |
 | `abort_calls` | 0 |
 | `unreachable_stmts` | 0 |
 | `union_field_accesses` | 0 |
@@ -69,15 +69,15 @@ extra operations.
 | Module | `unsafe_blocks` | `unsafe_values` | Raw pointer types | Extern calls |
 |---|---:|---:|---:|---:|
 | `::css_parser` | 462 | 57 | 672 | 18 |
-| `::tls_integration_tests` | 453 | 2823 | 857 | 157 |
-| `::tls` | 373 | 1007 | 738 | 164 |
-| `::common_tests` | 322 | 4 | 242 | 17 |
+| `::tls_integration_tests` | 457 | 2833 | 864 | 157 |
+| `::tls` | 375 | 1008 | 739 | 165 |
+| `::common_tests` | 322 | 4 | 245 | 17 |
 | `::universal_cbi` | 228 | 15 | 850 | 3 |
-| `::std` | 165 | 115 | 271 | 137 |
+| `::std` | 183 | 157 | 311 | 157 |
 | `::window` | 123 | 24 | 315 | 88 |
 | `::process` | 104 | 78 | 54 | 110 |
 | `::html_cbi` | 91 | 14 | 376 | 2 |
-| `::lib_tests` | 87 | 131 | 211 | 47 |
+| `::lib_tests` | 87 | 131 | 213 | 47 |
 | `::webview` | 82 | 25 | 224 | 70 |
 | `::page` | 77 | 46 | 85 | 38 |
 | `::async` | 73 | 26 | 94 | 25 |

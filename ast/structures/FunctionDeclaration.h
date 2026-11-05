@@ -215,6 +215,19 @@ struct FuncDeclAttributes {
      */
     bool is_async = false;
 
+    /**
+     * `[no_panic]` effect restriction: this function and every callee it
+     * reaches must be explicitly panic-free. Appended at the end so the
+     * positional aggregate initialization above stays valid.
+     */
+    bool forbids_panic = false;
+    /**
+     * `[panic]`: an explicit declaration that a bodyless/forward callee may
+     * panic. A function with this flag cannot be called from `[no_panic]` code
+     * unless it is also annotated `[no_panic]`.
+     */
+    bool declares_panic = false;
+
 };
 
 class FunctionDeclaration : public ASTNode, public FunctionTypeBody {

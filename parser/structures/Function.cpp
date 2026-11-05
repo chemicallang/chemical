@@ -684,6 +684,42 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& allocator, ASTAlloca
         decl->where_clause = new (allocator.allocate<WhereClause>()) WhereClause(std::move(constraints), std::move(lifetime_bounds));
     }
 
+    // Effect restrictions/declarations. v1 currently implements the panic
+    // effect; unknown effect names are rejected rather than silently ignored.
+    if (token->type == TokenType::LBracket) {
+        token++;
+        bool first_effect = true;
+        while (true) {
+            consumeNewLines();
+            if (!first_effect && token->type == TokenType::RBracket) break;
+            auto effect = consumeIdentifierOrKeyword();
+            if (effect == nullptr) {
+                error("expected an effect name inside '[...]'");
+                break;
+            }
+            if (effect->value == chem::string_view("no_panic")) {
+                decl->attrs.forbids_panic = true;
+            } else if (effect->value == chem::string_view("panic")) {
+                decl->attrs.declares_panic = true;
+            } else {
+                std::string message("unsupported function effect '");
+                message.append(effect->value.data(), effect->value.size());
+                message += "' (only panic and no_panic are implemented)";
+                error(chem::string_view(message.data(), message.size()));
+            }
+            if (decl->attrs.forbids_panic && decl->attrs.declares_panic) {
+                error("a function cannot declare both [panic] and [no_panic]");
+            }
+            first_effect = false;
+            consumeNewLines();
+            if (consumeToken(TokenType::CommaSym)) continue;
+            break;
+        }
+        if (!consumeToken(TokenType::RBracket)) {
+            error("expected ']' after function effects");
+        }
+    }
+
     // HARD_RULE:
     // the body of a comptime function and generic function is allocated on the job allocator
     // other than that every other function allocates their bodies on the module allocator

@@ -36,6 +36,7 @@ for the safe API surface we currently expose**, not full language parity.
 | Area | Status |
 |---|---|
 | Diagnostics/audit suites | Implemented: coded errors, negative/safety suites, whole-tree audit gate |
+| No-panic effects | First slice: `[no_panic]` parses after a function signature, is carried on MIR symbols, and rejects unannotated/direct-runtime panics, indirect calls, dynamic dispatch, and throws; other proposal-0005 effects, module defaults, and async/generic propagation remain pending |
 | Init / moves / drops | Implemented in MIR (`MIRMoveCheck`); local/parameter/async-frame struct fields and fixed array fields are field/element-tracked; constant-index element moves and non-Copy owned-local array destructuring are supported; unsupported shapes reject with `SAFE-MOVE-004` |
 | Borrows / lifetimes | Implemented for the enforceable surface (regions, NLL loans, storage lifetimes, return regions, variance, temporary extension, provenance, HRTB call regions) |
 | `Send` / `Sync` | Auto traits + explicit/negative impls + nested conditional generic impls; data-race primitives. Stdlib explicit impls audited (2026-11-02); the shared-reference Send rule now checks nested `!Sync` correctly (`lang/docs/safety/auto-traits-audit.md`). |
@@ -52,7 +53,7 @@ Latest measured baseline:
 | TCC main | `2489/2489` |
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `836/836` |
+| TCC/LLVM negative | `845/845` |
 | TCC/LLVM safety | `88/88` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
@@ -74,6 +75,31 @@ platform migrations, and the zero-sized-vector generic instantiations:
 `unsafe_func_decls 41 -> 52`, and `panic_calls 124 -> 142`.
 
 ## What is enforced (by domain)
+
+### No-panic effects (first slice)
+
+Proposal 0005 is approved. The implemented v1 slice covers the **panic**
+effect only:
+
+```chemical
+func parse(x : &int) : int [no_panic] { return *x }
+```
+
+- The effect list is parsed after the return type/where clause. The deprecated
+  postfix-array parser leaves an effect-only `[...]` list for the function
+  signature parser.
+- A `[no_panic]` body is rejected if its lowered MIR calls a callee that is not
+  explicitly `[no_panic]`, calls through a function pointer or dynamic dispatch,
+  throws, or reaches a generated runtime panic (`__chc_bounds_fail`,
+  overflow/division/shift failures, allocation failure, etc.).
+- `unreachable` is an unsafe trap, not a panic; `[no_panic]` does not reject it
+  (it still needs an `unsafe` boundary in safe context).
+- `[panic]` is parsed as an explicit may-panic declaration; a `[no_panic]`
+  caller still rejects it.
+- Not implemented yet: `[no_alloc]`, `[no_unsafe]`, `[no_blocking]`, `[pure]`,
+  module-default policy, and effect propagation through generic/async bodies.
+  `[no_panic]` on an async function is rejected for now.
+- Tests: `lang/tests/negative/src/effects.ch`.
 
 ### Unsafe boundaries
 

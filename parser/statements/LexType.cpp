@@ -172,7 +172,44 @@ BaseType* Parser::parseLinkedOrGenericType(ASTAllocator& allocator) {
 }
 
 BaseType* Parser::parseArrayAndPointerTypesAfterTypeId(ASTAllocator& allocator, BaseType* typeId, SourceLocation location) {
+    // A function effect list (`[no_panic]`, `[panic]`, ...) follows a return
+    // type. The deprecated postfix array syntax also starts with `[`, so look
+    // ahead for an effect-only bracket list and leave it for the function
+    // signature parser rather than treating it as an array length.
+    auto effect_list_ahead = [&]() {
+        if (token->type != TokenType::LBracket) return false;
+        const Token* p = token + 1;
+        while (p->type == TokenType::NewLine) p++;
+        bool saw_effect = false;
+        while (true) {
+            if (!Token::isKeywordOrId(p->type)) return false;
+            const chem::string_view name = p->value;
+            if (name != chem::string_view("no_panic") &&
+                name != chem::string_view("panic") &&
+                name != chem::string_view("no_alloc") &&
+                name != chem::string_view("no_unsafe") &&
+                name != chem::string_view("no_blocking") &&
+                name != chem::string_view("pure") &&
+                name != chem::string_view("alloc") &&
+                name != chem::string_view("unsafe") &&
+                name != chem::string_view("blocking") &&
+                name != chem::string_view("noreturn")) {
+                return false;
+            }
+            saw_effect = true;
+            p++;
+            while (p->type == TokenType::NewLine) p++;
+            if (p->type == TokenType::CommaSym) {
+                p++;
+                while (p->type == TokenType::NewLine) p++;
+                continue;
+            }
+            break;
+        }
+        return saw_effect && p->type == TokenType::RBracket;
+    };
     while(true) {
+        if (token->type == TokenType::LBracket && effect_list_ahead()) break;
         if(consumeToken(TokenType::LBracket)) {
             warning("deprecated syntax, brackets should be before type");
             // optional array size

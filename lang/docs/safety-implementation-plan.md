@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.46)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.47)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1291,7 +1291,15 @@ required language feature (§5.3).
 - Bounds, debug overflow, division by zero, invalid shifts, failed
   `RefCell`/`Mutex` borrows panic.
 - Panicking in `Drop` aborts immediately; there is no unwinding state.
-- No-panic effects (proposal 0005) are a separate milestone.
+- The panic effect (proposal 0005) is implemented as a first slice: a function
+  may declare `[no_panic]` after its signature. Its lowered MIR is rejected if
+  it calls a callee that is not explicitly `[no_panic]`, calls through a
+  function pointer/dynamic dispatch, throws, or emits a runtime panic call
+  (bounds/overflow/division/allocation failure). `unreachable` is an unsafe
+  trap, not a panic, so `[no_panic]` does not reject it. Only the `panic` effect
+  is parsed today; `[no_alloc]`, `[no_unsafe]`, `[no_blocking]`, `[pure]`,
+  module defaults, and effect propagation through generic/async bodies remain
+  future proposal-0005 work.
 
 ### 3.5 GC boundary
 
@@ -2963,8 +2971,10 @@ otherwise:
    only if a backend makes unwinding practical.
 7. **Derive mechanism:** CBI plugin vs built-in; either is acceptable if
    diagnostics are good and compile time stays low.
-8. **No-panic effects:** separate approved proposal; schedule after full memory
-   safety unless the release train includes it.
+8. **No-panic effects:** approved proposal 0005. The first `[no_panic]` slice
+   is implemented (explicit panic-free callees, runtime panic calls, indirect
+   calls, throws); the remaining effects, module default policy, and generic/
+   async effect propagation are future work.
 9. **GC:** later mode; owned semantics first.
 10. **Remote deps:** later compatibility pass.
 11. **Size:** 5 MB target after feature completion; no safety dropped.
@@ -3223,3 +3233,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.44 (2026-11-05): direct temporary array elements. The C emitter now copies an array-valued sret return into its destination with `memcpy` instead of `*(sret) = array`, which C rejects; array-returning functions and `make()[CONST]` work on TCC. The move front end accepts direct temporary-array roots, and the lowering registers the temporary array as a block-scope destructible so the moved element flag is cleared and the remainder drops once. Added TCC/LLVM runtime coverage for `make()[0]` and flipped the old temporary-array negative to positive. TCC/LLVM negative `832/832`; TCC/LLVM safety `87/87`.
 *Revision note v5.45 (2026-11-05): nested non-Copy array destructuring. `var [[a, b], [c, d]] = matrix` on an owned mutable local now moves each leaf element, clears its inner-array drop flag through `drop_flag_for_nested_index`, registers each binding for destruction, and leaves wildcard/rest elements owned by the source. Nesting deeper than two fixed-array levels and borrowed/slice views remain `SAFE-MOVE-004`. Added TCC/LLVM runtime drop-count coverage for the nested move and flipped the old nested-non-Copy negative to positive. TCC/LLVM negative `832/832`; TCC/LLVM safety `88/88`.
 *Revision note v5.46 (2026-11-05): nested large reference arrays in HRTB. A fixed array of more than 64 direct references now gets a wildcard leaf at any aggregate depth, not only at the top level or one direct struct field. The MIR function-type signature records the full `element -> field -> wildcard` path (including arrays of generic structs), keys the wildcard element loan by the owning root and leaf field index, and the call-site path walk resolves nested field/element chains to the same loan. Type verification propagates the wide-array allowance through array element recursion. Array-of-structs results now keep the caller source loan live; a later mutable borrow of the source rejects with `SAFE-BORROW-001`. Unsized arrays still reject with `SAFE-BORROW-099`, and same-index wildcard leaves under one root conservatively share one loan. Added TCC/LLVM positive compile tests plus alias-conflict negatives for nested structs and arrays of structs. TCC/LLVM negative `836/836`; TCC/LLVM safety `88/88`; main TCC/LLVM `2489/2489`, `2487/2487`; interpret `1938/1938`; async `83/83`; TCC libs `736/736`; `MIRTests` `4749`; audit no growth.
+*Revision note v5.47 (2026-11-05): first no-panic effect slice. `func ... : T [no_panic]` is parsed after the return type/where clause; the deprecated postfix array parser looks ahead and leaves an effect-only bracket list for the function signature. The flag is carried into MIR symbol records, and a post-lowering scan rejects a `[no_panic]` body that calls an unannotated callee, calls through a function pointer or dynamic dispatch, throws, or reaches a generated panic call (`__chc_bounds_fail`, overflow/division/shift failures, allocation failure, etc.). Calls to `[no_panic]` callees are accepted; `unreachable` is still an unsafe trap, not a panic. Only the panic effect is implemented; other proposal-0005 effects, module defaults, and async/generic effect propagation remain pending. Added positive/negative `[no_panic]` tests. TCC/LLVM negative `845/845`; TCC/LLVM safety `88/88`; main TCC/LLVM `2489/2489`, `2487/2487`; interpret `1938/1938`; async `83/83`; TCC libs `736/736`; `MIRTests` `4749`; audit no growth.

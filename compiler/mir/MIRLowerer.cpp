@@ -307,6 +307,7 @@ SymbolId MIRLowerer::intern_method_function(FunctionDeclaration* decl, BaseType*
     rec.linkage = (decl->is_extern() || decl->is_linkage_public()) ? MIRLinkage::External
                                                                   : MIRLinkage::Internal;
     rec.has_body = !decl->is_extern();
+    rec.panic_free = decl->attrs.forbids_panic;
     rec.stdcall = decl->is_std_call();
     rec.type = ftype;
     SymbolId s = module_.symbols.add(rec, name.data(), static_cast<uint32_t>(name.size()),
@@ -771,6 +772,77 @@ bool MIRLowerer::lower_static_interface_stub(FunctionDeclaration* decl, MIRArena
     return true;
 }
 
+static const MIROperand* no_panic_operand(const MIRFunction& fn,
+                                           const MIRInstruction& inst,
+                                           uint16_t index) {
+    if (index >= inst.operand_count) return nullptr;
+    return &fn.operands[inst.operand_offset + index];
+}
+
+/**
+ * Reject a `[no_panic]` function whose lowered body can abort. Calls to a
+ * callee are accepted only when the callee carries the same explicit effect;
+ * indirect/dynamic calls and throws have no provable contract and are rejected.
+ * `unreachable` is a trap/unsafe effect, not a panic, so it is intentionally
+ * allowed here (and separately requires `unsafe` in safe context).
+ */
+static bool check_no_panic_effect(const MIRModule& module,
+                                  const MIRFunction& fn,
+                                  FunctionDeclaration* decl,
+                                  std::string& error) {
+    auto reject_symbol = [&](const MIROperand* operand, const char* what) -> bool {
+        if (operand == nullptr || operand->kind() != MIROperandKind::Symbol) {
+            return false;
+        }
+        const MIRSymbolRecord& rec = module.symbols.get(operand->id);
+        if (rec.panic_free) return false;
+        const std::string_view callee = module.symbols.mangled_view(rec);
+        std::string message("SAFE-PANIC-001: [no_panic] function '");
+        message.append(decl->name_view().data(), decl->name_view().size());
+        message += "' ";
+        message += what;
+        message += " '";
+        message.append(callee.data(), callee.size());
+        message += "', whose panic effect is not explicitly [no_panic]";
+        error = std::move(message);
+        return true;
+    };
+    for (const MIRInstruction& inst : fn.instructions) {
+        switch (inst.opcode()) {
+            case MIROpcode::Call:
+                if (reject_symbol(no_panic_operand(fn, inst, 0), "calls")) {
+                    return false;
+                }
+                break;
+            case MIROpcode::Init:
+            case MIROpcode::Drop:
+            case MIROpcode::Destroy:
+                if (reject_symbol(no_panic_operand(fn, inst, 1), "runs")) {
+                    return false;
+                }
+                break;
+            case MIROpcode::CallIndirect:
+                error = "SAFE-PANIC-001: [no_panic] function '";
+                error.append(decl->name_view().data(), decl->name_view().size());
+                error += "' calls through a function pointer; the panic effect cannot be proven";
+                return false;
+            case MIROpcode::DynamicCall:
+                error = "SAFE-PANIC-001: [no_panic] function '";
+                error.append(decl->name_view().data(), decl->name_view().size());
+                error += "' uses dynamic dispatch; the panic effect cannot be proven";
+                return false;
+            case MIROpcode::Throw:
+                error = "SAFE-PANIC-001: [no_panic] function '";
+                error.append(decl->name_view().data(), decl->name_view().size());
+                error += "' can throw";
+                return false;
+            default:
+                break;
+        }
+    }
+    return true;
+}
+
 bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
                                 MIRFunction& func, std::string& error) {
     MIR_OP(functions);
@@ -785,6 +857,10 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     } lower_timer;
 #endif
     if (decl->is_async()) {
+        if (decl->attrs.forbids_panic) {
+            error = "SAFE-PANIC-001: [no_panic] async functions are not supported yet";
+            return false;
+        }
         return lower_async_function(decl, arena, func, error);
     }
     // Cache the "constructor writes the whole result" proof now, while this
@@ -1056,6 +1132,10 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     builder_ = nullptr;
     if (!b.ok()) {
         error = b.error() ? b.error() : "MIR builder failure";
+        return false;
+    }
+    if (decl->attrs.forbids_panic &&
+        !check_no_panic_effect(module_, func, decl, error)) {
         return false;
     }
     return true;

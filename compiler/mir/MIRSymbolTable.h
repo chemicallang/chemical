@@ -41,6 +41,8 @@ struct MIRSymbolRecord {
     MIRLinkage linkage = MIRLinkage::Internal;
     /** A definition (body) exists; false for `@extern`/bodyless declarations. */
     bool has_body = false;
+    /** The declaration carries `[no_panic]`; callers may trust its effect set. */
+    bool panic_free = false;
     /** The source declaration is `@stdcall`; codegen must honor it. */
     bool stdcall = false;
     TypeId type = MIR_INVALID_ID;

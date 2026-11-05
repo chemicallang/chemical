@@ -1461,8 +1461,11 @@ bool MIRLowerer::array_element_move_target(Value* value, PlaceId& base,
                                            uint64_t& index,
                                            BaseType*& element_type,
                                            std::vector<std::string>& path,
+                                           BaseType*& aggregate_type,
+                                           MIRExprResult address,
                                            std::string& error) {
     path.clear();
+    aggregate_type = nullptr;
     Value* t = value;
     for (int guard = 0; guard < 4 && t; ++guard) {
         if (t->val_kind() == ValueKind::AccessChain) {
@@ -1496,6 +1499,18 @@ bool MIRLowerer::array_element_move_target(Value* value, PlaceId& base,
     }
     if (!b) return false;
     BaseType* array_type = b->getType();
+    Value* root = b;
+    for (int guard = 0; guard < 4 && root; ++guard) {
+        if (root->val_kind() == ValueKind::AccessChain) {
+            root = root->as_access_chain_unsafe()->values[0];
+            continue;
+        }
+        if (root->val_kind() == ValueKind::UnsafeValue) {
+            root = static_cast<UnsafeValue*>(root)->getValue();
+            continue;
+        }
+        break;
+    }
     if (b->val_kind() == ValueKind::Identifier) {
         BaseType* base_canonical = array_type ? array_type->canonical() : nullptr;
         if (base_canonical == nullptr ||
@@ -1506,12 +1521,23 @@ bool MIRLowerer::array_element_move_target(Value* value, PlaceId& base,
         auto* bid = b->as_identifier_unsafe();
         base = place_for_linked(bid->linked);
         if (base == MIR_INVALID_ID) base = place_for_name(bid->value);
+        aggregate_type = root ? root->getType() : nullptr;
     } else {
-        // A fixed-array field (`s.items[CONST]`): reuse the field resolver for
-        // the array and keep its field path so the element flag can be found.
-        BaseType* field_type = nullptr;
-        if (!field_move_target(b, base, path, field_type, error)) return false;
-        array_type = field_type;
+        if (address.kind != MIRExprKind::Address) return false;
+        if (b->val_kind() == ValueKind::AccessChain) {
+            // A fixed-array field (`s.items[CONST]` or `make().items[CONST]`):
+            // reuse the field resolver for the array and keep its field path.
+            BaseType* field_type = nullptr;
+            if (!field_move_target(b, base, path, field_type, error, address,
+                                   &aggregate_type)) {
+                return false;
+            }
+            array_type = field_type;
+        } else {
+            base = address_root_place(builder_->function(),
+                                      static_cast<ValueId>(address.id));
+            aggregate_type = root ? root->getType() : nullptr;
+        }
         BaseType* base_canonical = array_type ? array_type->canonical() : nullptr;
         if (base_canonical == nullptr ||
             base_canonical->kind() != BaseTypeKind::Array ||
@@ -1526,7 +1552,8 @@ bool MIRLowerer::array_element_move_target(Value* value, PlaceId& base,
         );
         if (storage != MIRStorageClass::Local &&
             storage != MIRStorageClass::FrameField &&
-            storage != MIRStorageClass::FramePtr) {
+            storage != MIRStorageClass::FramePtr &&
+            storage != MIRStorageClass::Temporary) {
             return false;
         }
     }
@@ -1585,9 +1612,11 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
             PlaceId element_base = MIR_INVALID_ID;
             uint64_t element_index = 0;
             BaseType* element_type = nullptr;
+            BaseType* aggregate_type = nullptr;
             std::vector<std::string> element_path;
             if (array_element_move_target(value, element_base, element_index,
-                                          element_type, element_path, error)) {
+                                          element_type, element_path,
+                                          aggregate_type, result, error)) {
                 if (result.kind != MIRExprKind::Address) return true;
                 const TypeId et = element_type ? types_.map(element_type)
                                                : MIR_INVALID_ID;
@@ -1597,6 +1626,24 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
                     element_type != nullptr &&
                     destructor_symbol(element_type) != MIR_INVALID_ID;
                 if (!copying && needs_drop) {
+                    MIRDestructible* owner = nullptr;
+                    for (auto& d : destructibles_) {
+                        if (d.place == element_base) { owner = &d; break; }
+                    }
+                    if (owner == nullptr && aggregate_type != nullptr &&
+                        element_base < builder_->function().places.size() &&
+                        builder_->function().places[element_base].storage_class ==
+                            static_cast<uint8_t>(MIRStorageClass::Temporary)) {
+                        register_destructible(element_base, aggregate_type, true);
+                        cancel_stmt_temp(element_base);
+                        for (size_t i = 0; i < call_temps_.size(); ++i) {
+                            if (call_temps_[i].first == element_base) {
+                                call_temps_.erase(call_temps_.begin() +
+                                                  static_cast<long>(i));
+                                break;
+                            }
+                        }
+                    }
                     MIRDropElementRef ref = element_path.empty()
                         ? drop_flag_for_element(element_base, element_index)
                         : drop_flag_for_path_index(element_base, element_path,

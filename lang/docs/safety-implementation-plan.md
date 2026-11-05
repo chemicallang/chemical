@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.42)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.43)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1610,10 +1610,13 @@ new number as the honest baseline, not a compiler regression.
     (`s.items[0]`, `s.inner.items[0]`) uses the same element move with its field
     path, so its per-element flag under the struct drop tree is cleared.
     Dynamic indices, `const` bindings, array parameters (passed as pointers),
-    array fields reached through references/pointers or temporaries,
-    borrowed/slice views, and nested non-Copy patterns remain rejected with
-    `SAFE-MOVE-004` rather than being guessed safe. A field move from a
-    materialized temporary/expression
+    array fields reached through references/pointers, borrowed/slice views, and
+    nested non-Copy patterns remain rejected with `SAFE-MOVE-004` rather than
+    being guessed safe. A temporary aggregate field array
+    (`make().items[CONST]`) is materialized as a block-scope destructible like a
+    temporary field move. A direct temporary array value (`make()[CONST]`)
+    remains rejected because array-value returns do not yet have a working
+    backend path. A field move from a materialized temporary/expression
     (`make().field`) is supported when the lowered field address has a
     temporary root with generated field drops: the temporary is registered as
     a block-scope destructible, the moved field flag is cleared, and the
@@ -3209,3 +3212,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.40 (2026-11-05): item-2 first closure slice — non-Copy fixed-array element moves. `var e = arr[0]`, `return arr[0]`, a by-value aggregate argument, and aggregate field/array-literal initialization now move a destructor-bearing element out of an owned local fixed array: the lowering clears the element’s scalar flag, indexed flag slot, or generated field/leaf flags and emits `MoveOut` so the MIR dataflow marks the source element moved. Non-Copy fixed-array destructuring of an owned local now moves each bound element the same way, while wildcard/rest elements remain owned by the source. The front end accepts only a constant index into a mutable local/async-frame fixed array; dynamic indices, `const` bindings, array parameters (passed as a pointer to caller storage), temporaries, array fields, borrowed/slice views, and nested non-Copy patterns stay `SAFE-MOVE-001`/`SAFE-MOVE-004`. Added TCC/LLVM runtime drop-count tests for direct element moves, generated-glue element fields, returned elements, and non-Copy destructuring, plus negative coverage for const/parameter/temporary/field/dynamic/nested shapes. TCC/LLVM negative `828/828`; TCC/LLVM safety `83/83`.
 *Revision note v5.41 (2026-11-05): temporary/expression field moves. `make().field` and nested `make().inner.field` now recover the materialized temporary from the lowered `FieldAddr` root, register it as a block-scope destructible with its generated field flags, clear the moved field’s flag, and drop the remainder at the enclosing block end. The old `SAFE-MOVE-004` rejection for this safe shape is now a positive runtime test; user-destructor temporaries and pointer/dereference bases still reject. This deliberately extends a moved temporary’s drop point from statement end to block end (no leak/double-drop; destructor timing is later). TCC/LLVM negative `829/829`; TCC/LLVM safety `84/84`.
 *Revision note v5.42 (2026-11-05): array-field element moves. A constant-index move from a fixed-array field of a mutable local/async-frame aggregate (`s.items[0]`, including nested fields) now resolves the owning field path, clears the element’s flag under the struct drop tree, and emits the MIR move marker. The front end accepts the shape only when the root is a mutable local (not a const binding, parameter, reference/pointer, or temporary); other array-field shapes remain `SAFE-MOVE-001`/`SAFE-MOVE-004`. Added TCC/LLVM runtime coverage for nested array-field moves and negatives for const and reference-root fields. TCC/LLVM negative `831/831`; TCC/LLVM safety `85/85`.
+*Revision note v5.43 (2026-11-05): temporary aggregate field-array elements. `make().items[CONST]` can now move an element out of a temporary aggregate’s fixed-array field: the lowered element address recovers the temporary root, the temporary is registered as a block-scope destructible with its field path, and the element flag is cleared. Direct temporary arrays (`make()[CONST]`) remain rejected because array-value returns still have an unrelated backend limitation. Added TCC/LLVM runtime coverage for the temporary field-array shape while retaining the direct-temporary-array rejection. TCC/LLVM negative `832/832`; TCC/LLVM safety `86/86`.

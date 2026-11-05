@@ -329,13 +329,22 @@ static bool owned_array_element_move(Value* index_value) {
             break;
         }
     }
-    if (root == nullptr || root->val_kind() != ValueKind::Identifier) return false;
+    if (root == nullptr) return false;
     BaseType* root_type = root->getType();
     BaseType* root_canonical = root_type ? root_type->canonical() : nullptr;
     if (root_canonical == nullptr ||
         root_canonical->kind() == BaseTypeKind::Reference ||
         root_canonical->kind() == BaseTypeKind::Pointer) {
         return false;
+    }
+    if (root->val_kind() != ValueKind::Identifier) {
+        // A temporary/aggregate-literal root is currently accepted only through
+        // a field path (`make().items[CONST]`, `S{...}.items[CONST]`). A direct
+        // temporary array value (`make()[CONST]`) stays rejected until array
+        // value returns have a working backend path.
+        return base->val_kind() == ValueKind::AccessChain &&
+               (root->val_kind() == ValueKind::FunctionCall ||
+                root->val_kind() == ValueKind::StructValue);
     }
     auto* id = root->as_identifier_unsafe();
     ASTNode* linked = id->linked;

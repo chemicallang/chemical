@@ -940,6 +940,8 @@ private:
     bool array_element_move_target(Value* value, PlaceId& base, uint64_t& index,
                                    BaseType*& element_type,
                                    std::vector<std::string>& path,
+                                   BaseType*& aggregate_type,
+                                   MIRExprResult address,
                                    std::string& error);
     /** Clear every drop flag that owns one moved array element. */
     void clear_element_drop_flag(const MIRDropElementRef& ref);

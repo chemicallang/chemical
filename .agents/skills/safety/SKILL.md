@@ -28,7 +28,7 @@ patterns, `impl Trait for (T1, T2)`, raw unsized `[T]`, and full UTF-8 API parit
 are **not** release blockers unless a concrete safe API cannot be expressed
 without them. Do not add syntax merely to match Rust.
 
-## Current status (2026-11-01)
+## Current status (2026-11-05)
 
 The enforceable core is implemented and green. “Complete” below means **complete
 for the safe API surface we currently expose**, not full language parity.

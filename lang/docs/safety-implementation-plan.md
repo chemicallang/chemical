@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.38)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.39)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1462,9 +1462,10 @@ new number as the honest baseline, not a compiler regression.
    `Future` ownership/null safety, vector replacement drops, and filesystem
    temp/copy path buffer bounds, non-`Copy` map `find` rejection, and
    worker-owned thread-pool teardown. See
-   `lang/docs/safety/ffi-wrapper-audit.md`. Remaining: target-source coverage
-   for platforms without a complete cstd mapping and the final parser/audit
-   backlog sign-off. `string_view`/`u16string` raw constructors,
+   `lang/docs/safety/ffi-wrapper-audit.md`. Item 1's wrapper audit now covers
+   the claimed Linux, Windows, macOS and FreeBSD roots; remaining target-source
+   work is limited to non-claimed OS mappings and the Linux/Windows-only
+   `window`/`webview` backends. `string_view`/`u16string` raw constructors,
    `Rc`/`Arc` weak handles, and `RefCell` guard escape were reviewed as
    review-only items; no memory-safety gap was found.
 3. **`@scoped_callback` is body-checked, including custom sinks.**
@@ -1556,9 +1557,12 @@ new number as the honest baseline, not a compiler regression.
 8. **The audit gate is CI-wired; platform breadth is not complete.**
    `.github/workflows/safety-audit.yml` runs `scripts/safety-audit.sh` on PRs
    and `main`. The 94-entry list is host-platform-oriented. The i386 Windows
-   target is now safety-clean for `cstd`, `std`, `fs`, `net`, `test`, `async`,
-   `tls`, `window`, and `webview`; remaining platform work is non-Windows
-   OS-gated sources, and `--update` is reviewed manually.
+   target is safety-clean for `cstd`, `std`, `fs`, `net`, `test`, `async`,
+   `tls`, `http`, `server`, `window`, and `webview`; the macOS and FreeBSD
+   roots (including `http`/`server`) are now checked by strict `--target
+   --check` regressions. Remaining platform work is non-claimed OS mappings
+   (`NetBSD`/`OpenBSD`) and the Linux/Windows-only windowing/webview backends;
+   `--update` is reviewed manually.
 9. **Audit reporting precision.** Impl bodies are now counted, and
    `unsafe func` / `unsafe impl` declarations are tracked as separate
    `unsafe_func_decls` / `unsafe_impl_decls` metrics. Generic master/concrete
@@ -3186,3 +3190,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.36 (2026-11-04): config ownership and TLS/Windows closure. `ssl_set_config` now copies the caller's `SSLConfig` into SSLContext-owned storage, so stack configs and temporary `ssl_config_init(...)` expressions are safe; the internal tls_accept/HTTP client heap-config allocations were removed. The raw CA/private-key/ALPN pointers inside a config are still caller-owned and their setters are unsafe boundaries. With Windows IPC bounds/cleanup in v5.35, item 1 now leaves only actual zero-sized vector support (safe but ergonomic) and target-specific non-Windows OS-gated wrapper coverage. LLVM TLS filtered tests `11/11` plus TLS 1.3 RSA E2E pass; i386 Windows target safety `818/818`; TLS/HTTP checks clean. Main TCC/LLVM `2487`/`2485`; `@test` `57`; negative `818`; safety `78`; async `83`; plugins `1305`; TCC libs `736`; interpret `1938`; `MIRTests` `4749`; audit no growth.
 *Revision note v5.37 (2026-11-04): macOS cstd and POSIX reactor. Unsafe-gated the Darwin `__error`/stdio-global/`_NSGetEnviron` wrappers, added fd_set bounds checks, made the select fallback report `POLLERR` for fds ≥1024, and checked epoll/kqueue scratch allocation sizes/nulls with select fallback. Target checks for `x86_64-apple-darwin` (and arm64 roots) are clean for async/std/fs/net/tls/http/server/test; Linux async `83/83`. Item 1 now leaves only actual zero-sized vector support (safe but ergonomic) and platforms that still lack a complete cstd source mapping (FreeBSD). Main TCC/LLVM `2487`/`2485`; `@test` `57`; negative `818`; safety `78`; async `83`; plugins `1305`; TCC libs `736`; interpret `1938`; `MIRTests` `4749`; audit no growth.
 *Revision note v5.38 (2026-11-05): zero-sized vectors and UTF-8 lookahead. `vector<T>` now supports `sizeof(T) == 0` with a one-byte non-null sentinel, no `realloc` on capacity growth, and per-element destructor execution; the former fail-closed panic test is now a positive runtime test with a destructible zero-sized element. `fs::utf8_to_utf16` measures the NUL-terminated input once and bounds every 2/3/4-byte continuation lookahead by `in_len - i` instead of relying on short-circuit NUL checks. `u16string.append_u16_unit`/`append_codepoint`/`to_utf8` reject length arithmetic that would wrap before `ensure_mut`/`reserve`. TCC main `2489`, LLVM main `2487`, safety `78/78`, TCC libs `736/736`, negative `818/818`; UTF converter covered by a temporary public harness on both backends. Audit baseline was reviewed and updated for the ZST generic instantiations plus the previously landed TLS/HTTP unsafe setter boundaries: `unsafe_blocks 3821`, `unsafe_values 4961`, `unsafe_func_decls 52`, `panic_calls 142`, `raw_pointer_types 9416`. Item 1 now leaves only `string_view`/`u16string` parser coverage and target-source coverage without a complete cstd mapping, plus the final audit-backlog sign-off.
+*Revision note v5.39 (2026-11-05): item-1 closure for claimed targets. Added `cstd/posix_bsd` (FreeBSD `__error`, `__stdinp`/`__stdoutp`/`__stderrp`, `environ`) and mapped it from `chemical.mod`; `link "c"` now covers FreeBSD. Removed the duplicate `GetCurrentThreadId` declaration from `std` (cstd owns the Win32 binding). Hardened Windows IOCP: allocation failures panic instead of null-dereferencing, recv/send validate null/length before posting, registration failure completes the future as an error, and `async_iocp_recv`/`async_iocp_send` are explicit unsafe boundaries. Wrapped the Windows-only HTTP `send_file`/static-path/IOCP server branches in audited unsafe blocks and made IOCP context-buffer allocation fail closed by closing the accepted socket. Target regressions now use strict `--target ... --check` and include `http`/`server`; Windows i386/x64, macOS x64/arm64, and FreeBSD x64/arm64/armv7 roots are clean. TCC/LLVM negative `820/820`; audit baseline reviewed at `unsafe_blocks 3824`, `unsafe_values 4966`, `extern_decls 874`, `panic_calls 142`. Item 1 is complete for the claimed roots; remaining target work is non-claimed OS mappings and the Linux/Windows-only window/webview backends.

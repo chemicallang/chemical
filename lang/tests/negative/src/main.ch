@@ -190,7 +190,9 @@ internal const NEG_MOD_CSTD = "module neg_test\nsource \".\"\nimport cstd\n"
 // variant that imports core so the `Copy` marker interface is in scope
 internal const NEG_MOD_CORE = "module neg_test\nsource \".\"\nimport core\n"
 // Windows-target platform audit: these modules contain OS-gated FFI wrappers.
-internal const NEG_MOD_WIN_LIBS = "application neg_test\nsource \".\"\nimport cstd\nimport std\nimport fs\nimport net\nimport test\nimport async\nimport tls\nimport window\nimport webview\n"
+internal const NEG_MOD_WIN_LIBS = "application neg_test\nsource \".\"\nimport cstd\nimport std\nimport fs\nimport net\nimport test\nimport async\nimport tls\nimport http\nimport server\nimport window\nimport webview\n"
+
+internal const NEG_MOD_POSIX_LIBS = "application neg_test\nsource \".\"\nimport cstd\nimport std\nimport fs\nimport net\nimport test\nimport async\nimport tls\nimport http\nimport server\n"
 internal const NEG_MOD_STD_CORE = "module neg_test\nsource \".\"\nimport std\nimport core\n"
 
 // an application importing the async protocol, so `async func main` gets its
@@ -450,6 +452,30 @@ internal func expect_compile_target_no_diagnostic(env : &mut TestEnv, name : *ch
             neg_debug_print(name, unsafe(&raw output_buf[0]))
         } else {
             env.success("target ABI was accepted")
+        }
+        cleanup_test_dir(NEG_WORK_DIR, name)
+    }
+}
+
+internal func expect_check_target_no_diagnostic(env : &mut TestEnv, name : *char, ch_content : *char, unexpected_sub : *char, mod_content : *char, target : *char) {
+    unsafe {
+        setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
+        var mod_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name) }
+        var out_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name) }
+        var extra : char[256]
+        unsafe { sprintf(unsafe(&raw mut extra[0]), " --target %s --check", target) }
+        var output_buf : char[65536]
+        var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536, "", unsafe(&raw extra[0]))
+        if(rc != 0) {
+            env.error("target safety check failed to compile")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        } else if(string_contains(unsafe(&raw output_buf[0]), unexpected_sub)) {
+            env.error("compiler rejected a supported target ABI")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        } else {
+            env.success("target safety check was accepted")
         }
         cleanup_test_dir(NEG_WORK_DIR, name)
     }

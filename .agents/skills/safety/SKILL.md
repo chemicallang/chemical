@@ -52,7 +52,7 @@ Latest measured baseline:
 | TCC main | `2489/2489` |
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `818/818` |
+| TCC/LLVM negative | `820/820` |
 | TCC/LLVM safety | `78/78` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
@@ -60,7 +60,7 @@ Latest measured baseline:
 | TCC interpret | `1938/1938` |
 | `MIRTests` | `4749 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
-| Whole-tree audit | `unsafe_blocks 3821`, `unsafe_values 4961`, `raw_pointer_addrs 10050`, `raw_pointer_casts 2900`, `raw_pointer_types 9416`, `raw_pointer_derefs 1076`, `unsafe_func_decls 52`, `panic_calls 142` |
+| Whole-tree audit | `unsafe_blocks 3824`, `unsafe_values 4966`, `raw_pointer_addrs 10050`, `raw_pointer_casts 2900`, `raw_pointer_types 9416`, `raw_pointer_derefs 1076`, `unsafe_func_decls 52`, `panic_calls 142` |
 | Audit result | `no growth` against `lang/docs/safety/audit-baseline.json` |
 
 The audit totals increased from the historical `3661/4890` in the 2026-10-31
@@ -70,7 +70,7 @@ first honest whole-tree count, not a new unsafe-code regression. The async
 closure fixtures add a few audited raw C future-ABI sites. The latest reviewed
 baseline includes the TLS/HTTP unsafe setter boundaries, the Windows/macOS
 platform migrations, and the zero-sized-vector generic instantiations:
-`unsafe_blocks 3790 -> 3821`, `unsafe_values 4922 -> 4961`,
+`unsafe_blocks 3790 -> 3824`, `unsafe_values 4922 -> 4966`,
 `unsafe_func_decls 41 -> 52`, and `panic_calls 124 -> 142`.
 
 ## What is enforced (by domain)
@@ -347,17 +347,17 @@ memory safety.
    append null validation, zero-sized vector support, Rc/Arc count-overflow
    checks, unsafe-gated u16_strlen, thread-pool Future ownership/null safety,
    vector replacement drops, filesystem temp/copy path buffer bounds, and
-   non-`Copy` map `find` rejection). The rest of the safe wrapper surface
-   (`string_view`/`u16string` parser paths and target-source coverage for
-   platforms without a complete cstd mapping) remains; zero-sized vectors now
-   use a non-null sentinel and run per-element destructors. The string-view/
-   UTF-16 raw constructors, Rc/Arc weak handles, RefCell guard escape, Windows
-   directory traversal/removal bounds, HTTP body/scratch-buffer ownership, TLS
-   hostname/socket/config ownership, TLS CA/key/ALPN caller lists, Windows test
-   IPC bounds, macOS cstd wrappers, POSIX reactor bounds, and UTF-8 lookahead
-   bounds were reviewed or fixed. The i386 Windows and macOS target checks are
-   clean for the audited roots; FreeBSD still lacks a complete cstd source
-   mapping.
+   non-`Copy` map `find` rejection). The parser paths and claimed-target
+   wrapper audit are signed off; zero-sized vectors use a non-null sentinel and
+   run per-element destructors. The string-view/UTF-16 raw constructors, Rc/Arc
+   weak handles, RefCell guard escape, Windows directory traversal/removal
+   bounds, HTTP body/scratch-buffer ownership, TLS hostname/socket/config
+   ownership, TLS CA/key/ALPN caller lists, Windows test IPC bounds, macOS cstd
+   wrappers, POSIX reactor bounds, UTF-8 lookahead bounds, FreeBSD cstd
+   wrappers, and Windows IOCP/HTTP boundaries were reviewed or fixed. Strict
+   target checks are clean for Windows i386/x64, macOS x64/arm64, and FreeBSD
+   x64/arm64/armv7; remaining target work is non-claimed OS mappings and the
+   Linux/Windows-only window/webview backends.
 3. **`@scoped_callback` is body-checked, including custom sinks.**
    `SAFE-SCOPED-001` rejects returning, storing, capturing, or passing the
    scoped parameter anywhere except a known join-before-return API (resolved by

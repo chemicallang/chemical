@@ -101,16 +101,18 @@ public namespace http {
             // substring need not be terminated.
             var path = unsafe(std::string(path_view.data(), path_view.size()))
             comptime if(def.windows) {
-                var fh = CreateFileA(path.data(), GENERIC_READ, FILE_SHARE_READ, null, OPEN_EXISTING, 0u, 0 as HANDLE);
-                if (fh == 0u || fh == -1 as uintptr_t) { return false; }
-                var filesize: longlong = 0
-                if (GetFileSizeEx(fh, (&mut filesize) as *mut LARGE_INTEGER) == 0) {
-                    CloseHandle(fh); return false;
+                unsafe {
+                    var fh = CreateFileA(path.data(), GENERIC_READ, FILE_SHARE_READ, null, OPEN_EXISTING, 0u, 0 as HANDLE);
+                    if (fh == 0u || fh == -1 as uintptr_t) { return false; }
+                    var filesize: longlong = 0
+                    if (GetFileSizeEx(fh, (&mut filesize) as *mut LARGE_INTEGER) == 0) {
+                        CloseHandle(fh); return false;
+                    }
+                    self.send_headers(filesize as usize);
+                    var ok = net::TransmitFile(self.sock as uintptr_t, fh as uintptr_t, 0u, 0u, null, null, 0u);
+                    CloseHandle(fh);
+                    return ok != 0;
                 }
-                self.send_headers(filesize as usize);
-                var ok = net::TransmitFile(self.sock as uintptr_t, fh as uintptr_t, 0u, 0u, null, null, 0u);
-                CloseHandle(fh);
-                return ok != 0;
             } else {
                 var fd = unsafe(open(path.data(), O_RDONLY, 0));
                 if (fd < 0) { return false; }

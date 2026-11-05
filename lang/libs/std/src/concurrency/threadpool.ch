@@ -18,8 +18,6 @@ public struct SYSTEM_INFO {
 }
 
 @dllimport @stdcall @extern public func GetSystemInfo(lpSystemInfo: *SYSTEM_INFO): void
-@dllimport @stdcall @extern public func GetCurrentThreadId() : u32
-
 
 } else {
 

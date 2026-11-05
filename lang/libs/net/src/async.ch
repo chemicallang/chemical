@@ -83,7 +83,7 @@ public func dial_async(addr_str : *char, port : uint) : core::async::FutureHandl
 // Resolves with the accepted fd (>0), or 0 on failure.
 public async func accept_async(listener : int) : int {
     comptime if(def.windows) {
-        var accepted = await net::iocp::async_iocp_accept(listener as Socket)
+        var accepted = await unsafe(net::iocp::async_iocp_accept(listener as Socket))
         return accepted
     } else {
         set_nonblocking(listener as Socket)
@@ -103,7 +103,7 @@ public async func recv_async(fd : int, buf : *mut u8, cap : usize) : int {
     if(cap > 0 && buf == null) { return -1 }
     if(cap > 2147483647 as usize) { return -1 }
     comptime if(def.windows) {
-        var n = await net::iocp::async_iocp_recv(fd as Socket, buf, cap)
+        var n = await unsafe(net::iocp::async_iocp_recv(fd as Socket, buf, cap))
         return n
     } else {
         var n = recv_all(fd as Socket, buf, cap)
@@ -121,7 +121,7 @@ public async func send_async(fd : int, data : *char, len : int) : int {
     comptime if(def.windows) {
         var off = 0
         while(off < len) {
-            var n = await net::iocp::async_iocp_send(fd as Socket, unsafe(&raw data[off]), len - off)
+            var n = await unsafe(net::iocp::async_iocp_send(fd as Socket, unsafe(&raw data[off]), len - off))
             if(n <= 0) {
                 return -1
             }

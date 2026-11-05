@@ -39,13 +39,13 @@ extra operations.
 
 | Metric | Count |
 |---|---:|
-| `unsafe_blocks` | 3821 |
-| `unsafe_values` | 4961 |
+| `unsafe_blocks` | 3824 |
+| `unsafe_values` | 4966 |
 | `raw_pointer_types` | 9416 |
 | `raw_pointer_derefs` | 1076 |
 | `raw_pointer_addrs` | 10050 |
 | `raw_pointer_casts` | 2900 |
-| `extern_decls` | 875 |
+| `extern_decls` | 874 |
 | `unsafe_func_decls` | 52 |
 | `unsafe_impl_decls` | 18 |
 | `extern_calls` | 1322 |

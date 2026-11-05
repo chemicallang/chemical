@@ -1765,8 +1765,24 @@ func windows_i386_cstd_has_no_safety_diagnostics(env : &mut TestEnv) {
     if(intrinsics::get_backend_name() != "LLVM") { return }
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int { return 0 }\n"
-    expect_compile_target_no_diagnostic(env, "windows_i386_cstd_safety", ch, "SAFE-", NEG_MOD_CSTD, "i386-pc-windows-msvc")
-    expect_compile_target_no_diagnostic(env, "windows_i386_libs_safety", ch, "SAFE-", NEG_MOD_WIN_LIBS, "i386-pc-windows-msvc")
+    expect_check_target_no_diagnostic(env, "windows_i386_cstd_safety", ch, "SAFE-", NEG_MOD_CSTD, "i386-pc-windows-msvc")
+    expect_check_target_no_diagnostic(env, "windows_i386_libs_safety", ch, "SAFE-", NEG_MOD_WIN_LIBS, "i386-pc-windows-msvc")
+}
+
+@test
+func macos_target_libs_safety(env : &mut TestEnv) {
+    unsafe {
+        var ch = "public func main() : int { return 0 }\n"
+        expect_check_target_no_diagnostic(env, "macos_libs_safety", ch, "SAFE-", NEG_MOD_POSIX_LIBS, "x86_64-apple-darwin")
+    }
+}
+
+@test
+func freebsd_target_libs_safety(env : &mut TestEnv) {
+    unsafe {
+        var ch = "public func main() : int { return 0 }\n"
+        expect_check_target_no_diagnostic(env, "freebsd_libs_safety", ch, "SAFE-", NEG_MOD_POSIX_LIBS, "x86_64-unknown-freebsd")
+    }
 }
 
 @test

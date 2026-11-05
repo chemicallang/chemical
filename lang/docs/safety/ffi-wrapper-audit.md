@@ -330,9 +330,8 @@ poll/register paths used unchecked scratch allocations. Both are now fail-closed
 
 Target checks: `async`, `std`, `fs`, `net`, `tls`, `http`, `server`, and `test`
 compile cleanly for `x86_64-apple-darwin` (and `arm64-apple-darwin` for the
-async/std roots). Linux async suite `83/83`. FreeBSD still lacks a complete
-`cstd` source mapping, which is a target-support gap rather than a wrapper
-memory-safety gap.
+async/std roots). Linux async suite `83/83`. FreeBSD's `cstd` source mapping was
+added in Tranche 20.
 
 ## Tranche 19 — zero-sized vectors and UTF-8 bounds (2026-11-05)
 
@@ -358,9 +357,26 @@ TCC libs `736/736`, negative `818/818`. The UTF converter was also exercised by
 a temporary public harness on both backends with ASCII, 2/3/4-byte, surrogate,
 and truncated inputs.
 
-Remaining in this group: `string_view`/`u16string` parser paths and target-source
-coverage for platforms without a complete cstd mapping. The audit backlog below
-still needs a final sign-off pass for the listed modules.
+## Tranche 20 — FreeBSD cstd, Windows IOCP, and target regressions (2026-11-05)
+
+| Surface | Invariant | Enforcement |
+|---|---|---|
+| FreeBSD cstd | `__error`, standard streams, and `environ` are raw libc symbols | new `cstd/posix_bsd` wrappers; `link "c"` covers FreeBSD |
+| Windows `CompletionPort` | a failed port/socket registration cannot post an orphaned operation | constructor/`register` fail closed; recv/send/accept complete with `-1` |
+| Windows IOCP allocations | null operation/table/buffer allocations are not dereferenced | allocation checks; accept closes its socket on buffer failure |
+| Windows IOCP lengths | raw buffer lengths fit `WSABUF.len` and null+positive-length is rejected | recv/send preflight checks |
+| Windows IOCP entry points | raw buffer APIs are explicit unsafe boundaries | `async_iocp_recv`/`async_iocp_send` are `unsafe func` |
+| Windows HTTP branches | Win32 extern calls/placement-new are audited; IOCP context buffers fail closed | `send_file`, static attributes, and the IOCP server branch use explicit unsafe blocks; null buffer/context allocations close the socket |
+| Windows `std` | Win32 declarations have one owner | duplicate `GetCurrentThreadId` removed from the thread pool (cstd owns it) |
+| Target regressions | a target check must compile, not merely avoid `SAFE-*` text | `--target ... --check` regression helper; modules include `http`/`server` |
+
+The remaining parser audit is a sign-off item, not a code gap: `u16string`
+append/to-UTF-8 length arithmetic is guarded and the `string_view` numeric
+parsers already use bounded slices and explicit overflow checks.
+
+Remaining target-source coverage: non-claimed OS mappings (`NetBSD`/`OpenBSD`)
+and the Linux/Windows-only `window`/`webview` backends. The audit backlog below
+is otherwise signed off for the claimed roots.
 
 ## Coverage
 
@@ -375,18 +391,20 @@ still needs a final sign-off pass for the listed modules.
 ## Remaining audit backlog
 
 - `std::vector`, `std::string`, `std::string_view`, `Box`, `Rc`/`Arc`,
-  `Cell`/`RefCell`, and thread-pool wrappers: audit remaining parser/capacity
-  handoff paths (zero-sized vectors are now supported).
-- `fs::metadata`, Windows UTF-8/UTF-16 conversions, and remaining
-  POSIX/Windows file APIs (directory traversal/removal and `fs::utf` lookahead
-  bounds are now audited).
-- `net` Windows IOCP, async socket lifetime/close rules, and address/socket
-  error-code normalization.
-- `tls`/`http`/`server` transport wrappers: TLS handshake/transport ownership
-  and the remaining server paths (HTTP body construction and client scratch
-  buffer ownership are now audited).
+  `Cell`/`RefCell`, and thread-pool wrappers: parser/capacity handoff paths
+  signed off for the claimed surface; keep new constructors on the same
+  checked pattern.
+- `fs::metadata` and remaining POSIX/Windows file APIs: reviewed; `fs::utf`
+  lookahead and directory traversal/removal bounds are length/ownership-bounded.
+- `net` Windows IOCP/async socket lifetime: allocation, length, registration,
+  and HTTP Windows transport boundaries are now wrapped; address/error-code
+  normalization remains a diagnostics item, not a safe-wrapper hole.
+- `tls`/`http`/`server` transport wrappers: ownership, TLS caller lists, HTTP
+  body/scratch buffers, and Windows IOCP/HTTP branches are audited.
 - `cstd` remains the raw C surface; its functions stay `@extern`/unsafe and are
   not safe wrappers. New safe wrappers must not expose `*char`/`*mut` without a
   documented and enforced contract.
-- Target-specific audit entries for non-Windows OS-gated sources; the current
-  94-module list is host-oriented.
+- Target-specific audit entries: Windows, macOS, and FreeBSD claimed roots are
+  checked by strict target regressions; non-claimed OS mappings and
+  Linux/Windows-only windowing/webview backends remain. The 94-module baseline
+  remains host-oriented.

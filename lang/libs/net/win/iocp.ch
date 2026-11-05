@@ -57,14 +57,17 @@ public namespace net {
             func constructor(threads: u32) {
         unsafe {
                 // INVALID_HANDLE_VALUE is -1
+                var h = CreateIoCompletionPort(-1 as uintptr_t, 0 as uintptr_t, 0, threads);
+                if(h == 0) { panic("net iocp: failed to create completion port") }
                 return CompletionPort {
-                    handle : CreateIoCompletionPort(-1 as uintptr_t, 0 as uintptr_t, 0, threads);
+                    handle : h
                 }
 
         }}
 
             func register(&self, s: Socket, key: usize) : bool {
         unsafe {
+                if(handle == 0) { return false }
                 var res = CreateIoCompletionPort(s as uintptr_t, handle, key, 0);
                 return res == handle;
 
@@ -313,7 +316,12 @@ public namespace net {
         func iocp_op_make(s : Socket, kind : int) : *mut IocpOp {
         unsafe {
             var op = malloc(sizeof(IocpOp)) as *mut IocpOp
+            if(op == null) { panic("net iocp: failed to allocate operation") }
             var vtbl = malloc(sizeof(core::async::FutureTable<int>)) as *mut core::async::FutureTable<int>
+            if(vtbl == null) {
+                dealloc op
+                panic("net iocp: failed to allocate future table")
+            }
             vtbl.poll = iocp_op_poll
             vtbl.drop = iocp_op_drop
             new(op) IocpOp {
@@ -363,13 +371,22 @@ public namespace net {
 
         // Post one overlapped WSARecv. Resolves with the bytes read (0 = EOF,
         // -1 = error).
-        public func async_iocp_recv(s : Socket, buf : *mut u8, cap : usize) : core::async::FutureHandle<int> {
+        public unsafe func async_iocp_recv(s : Socket, buf : *mut u8, cap : usize) : core::async::FutureHandle<int> {
         unsafe {
+            if(cap > 0 && buf == null) { return iocp_op_handle(iocp_op_failed(s, IOCP_OP_RECV)) }
+            if(cap > 0xFFFFFFFF as usize) { return iocp_op_handle(iocp_op_failed(s, IOCP_OP_RECV)) }
             var op = iocp_op_make(s, IOCP_OP_RECV)
             op.buffer.len = cap as u32
             op.buffer.buf = buf as *mut char
             var cp = async_iocp_port()
-            cp.register(s, 0 as usize)
+            if(!cp.register(s, 0 as usize)) {
+                op.m.lock()
+                op.done = true
+                op.ok = false
+                op.bytes = -1
+                op.m.unlock()
+                return iocp_op_handle(op)
+            }
             var bytes : u32 = 0
             var flags : u32 = 0
             var rc = WSARecv(s as uintptr_t, &raw mut op.buffer, 1u, &raw mut bytes, &raw mut flags, &raw mut op.overlapped, null)
@@ -386,13 +403,21 @@ public namespace net {
 
         // Post one overlapped WSASend. Resolves with the bytes written (may be
         // fewer than `len`) or -1 on error; the caller loops to send it all.
-        public func async_iocp_send(s : Socket, data : *char, len : int) : core::async::FutureHandle<int> {
+        public unsafe func async_iocp_send(s : Socket, data : *char, len : int) : core::async::FutureHandle<int> {
         unsafe {
+            if(len < 0 || (len > 0 && data == null)) { return iocp_op_handle(iocp_op_failed(s, IOCP_OP_SEND)) }
             var op = iocp_op_make(s, IOCP_OP_SEND)
             op.buffer.len = len as u32
             op.buffer.buf = data as *mut char
             var cp = async_iocp_port()
-            cp.register(s, 0 as usize)
+            if(!cp.register(s, 0 as usize)) {
+                op.m.lock()
+                op.done = true
+                op.ok = false
+                op.bytes = -1
+                op.m.unlock()
+                return iocp_op_handle(op)
+            }
             var bytes : u32 = 0
             var rc = WSASend(s as uintptr_t, &raw mut op.buffer, 1u, &raw mut bytes, 0u, &raw mut op.overlapped, null)
             if(rc != 0 && WSAGetLastError() != WSA_IO_PENDING) {
@@ -414,11 +439,23 @@ public namespace net {
                 return iocp_op_handle(iocp_op_failed(0 as Socket, IOCP_OP_ACCEPT))
             }
             var abuf = malloc(ACCEPT_BUF_LEN) as *mut char
+            if(abuf == null) {
+                sock_close(accept_sock)
+                return iocp_op_handle(iocp_op_failed(0 as Socket, IOCP_OP_ACCEPT))
+            }
             var op = iocp_op_make(accept_sock, IOCP_OP_ACCEPT)
             op.listen_socket = listen_s
             op.accept_buffer = abuf
             var cp = async_iocp_port()
-            cp.register(listen_s, 0 as usize)
+            if(!cp.register(listen_s, 0 as usize)) {
+                sock_close(accept_sock)
+                op.m.lock()
+                op.done = true
+                op.ok = false
+                op.bytes = -1
+                op.m.unlock()
+                return iocp_op_handle(op)
+            }
             var bytes : u32 = 0
             var rc = AcceptEx(
                 listen_s as uintptr_t,

@@ -45,7 +45,7 @@ public namespace http {
 
             var is_dir = false;
             comptime if (def.windows) {
-                var attrs = GetFileAttributesA(full_path.c_str());
+                var attrs = unsafe(GetFileAttributesA(full_path.c_str()));
                 if (attrs != 0xFFFFFFFFu && (attrs & 0x10u) != 0u) { is_dir = true; }
             } else {
                 var d = unsafe(opendir(full_path.c_str()));

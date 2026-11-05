@@ -5,7 +5,8 @@ source "windows" if windows
 source "posix" if !windows
 source "posix_linux" if linux
 source "posix_macos" if macos
+source "posix_bsd" if freebsd
 
 link "libcmt" if windows && !tcc && !mingw32 && !mingw64
 link "legacy_stdio_definitions" if windows && !tcc && !mingw32 && !mingw64
-link "c" if linux
+link "c" if linux or freebsd

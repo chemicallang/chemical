@@ -222,9 +222,14 @@ public namespace server {
 
         func serve(&mut self, port : uint = 8080u) {
             comptime if(def.windows) {
+                // The IOCP server path owns raw buffers, completion contexts,
+                // and Win32 handles; keep the whole branch behind one explicit
+                // audited boundary.
+                unsafe {
                 start(port);
-                var cp = malloc(sizeof(net::iocp::CompletionPort)) as *mut net::iocp::CompletionPort;
-                new (cp) net::iocp::CompletionPort(self.cfg.worker_count);
+                var cp = unsafe(malloc(sizeof(net::iocp::CompletionPort))) as *mut net::iocp::CompletionPort;
+                if(cp == null) { panic("http server: failed to allocate completion port") }
+                unsafe { new (cp) net::iocp::CompletionPort(self.cfg.worker_count) };
                 var i = 0u;
                 while(i < self.cfg.worker_count) {
                     unsafe(self.pool.submit_void(|cp|() => {
@@ -244,6 +249,12 @@ public namespace server {
                          var buf_sz = 4096u;
                          var buf = malloc(buf_sz) as *mut char;
                          var ctx = malloc(sizeof(net::iocp::AsyncContext)) as *mut net::iocp::AsyncContext;
+                         if(buf == null || ctx == null) {
+                             if(buf != null) { free(buf) }
+                             if(ctx != null) { free(ctx) }
+                             net::close_socket(s);
+                             continue;
+                         }
                          new (ctx) net::iocp::AsyncContext(buf, buf_sz);
                          ctx.callback = |s, self, buf_sz|(ctx, bytes, ok) => {
                              if(!ok || bytes == 0) {
@@ -349,6 +360,7 @@ public namespace server {
                     } else {
                         net::close_socket(s);
                     }
+                }
                 }
             } else {
                 serve_non_iocp(port);

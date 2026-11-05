@@ -7,6 +7,7 @@
 #include "ast/base/BaseType.h"
 #include "ast/base/BaseTypeKind.h"
 #include "ast/structures/MembersContainer.h"
+#include "ast/structures/StructDefinition.h"
 #include "ast/structures/StructMember.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/VariantMemberParam.h"
@@ -92,6 +93,61 @@ inline bool type_satisfies_auto_trait(
     AutoTraitContext* context = nullptr
 );
 
+inline bool auto_trait_lifetime_is_static(chem::string_view lifetime) {
+    return lifetime == "static" || lifetime == "'static";
+}
+
+/**
+ * The std borrowed views store raw pointer/length pairs. Their source lifetime
+ * is carried as a generic lifetime argument by the parser (`&'static [T]` ->
+ * `span<'static, T>`); only that explicit `'static` form may cross threads.
+ * An empty lifetime list is the elided form and stays `!Send`/`!Sync`.
+ *
+ * `is_view` distinguishes "not a view" from "a view that is not static" so
+ * callers can fall through to the normal structural walk for everything else.
+ */
+inline bool auto_trait_std_view_decision(
+    BaseType* type,
+    AutoTraitKind kind,
+    std::unordered_set<MembersContainer*>& visiting,
+    ImplementationsIndex* index,
+    ASTNode* send_interface,
+    ASTNode* sync_interface,
+    AutoTraitContext* context,
+    bool& is_view
+) {
+    is_view = false;
+    if(type == nullptr) return false;
+    BaseType* canonical = type->canonical();
+    if(canonical == nullptr) canonical = type;
+    ASTNode* linked = canonical->get_direct_linked_canonical_node();
+    if(linked == nullptr || linked->kind() != ASTNodeKind::StructDecl) return false;
+    const chem::string_view name = linked->as_struct_def_unsafe()->name_view();
+    const bool shared_slice = name == chem::string_view("span");
+    const bool mutable_slice = name == chem::string_view("mut_span");
+    const bool text = name == chem::string_view("str") ||
+                      name == chem::string_view("string_view");
+    if(!shared_slice && !mutable_slice && !text) return false;
+    is_view = true;
+    auto* gen = canonical->kind() == BaseTypeKind::Generic
+                    ? canonical->as_generic_type_unsafe()
+                    : nullptr;
+    if(gen == nullptr || gen->lifetime_args.empty()) return false;
+    for(chem::string_view lifetime : gen->lifetime_args) {
+        if(!auto_trait_lifetime_is_static(lifetime)) return false;
+    }
+    if(text) return true;
+    if(gen->types.empty()) return false;
+    BaseType* element = const_cast<BaseType*>(gen->types[0].getType());
+    if(element == nullptr) return false;
+    // `span<T>`/`&[T]` is Send/Sync when T is Sync. `mut_span<T>` follows
+    // `&mut [T]`: Send when T is Send, Sync when T is Sync.
+    const AutoTraitKind element_kind =
+        shared_slice ? AutoTraitKind::Sync : kind;
+    return type_satisfies_auto_trait(element, element_kind, visiting, index,
+                                     send_interface, sync_interface, context);
+}
+
 inline bool auto_trait_members(
     MembersContainer* container,
     AutoTraitKind kind,
@@ -164,6 +220,13 @@ inline bool type_satisfies_auto_trait(
     AutoTraitContext* context
 ) {
     if(type == nullptr) return true;
+    {
+        bool is_view = false;
+        const bool view_decision = auto_trait_std_view_decision(
+            type, kind, visiting, index, send_interface, sync_interface,
+            context, is_view);
+        if(is_view) return view_decision;
+    }
     if(context != nullptr) {
         switch(context->decide(type, kind, send_interface, sync_interface)) {
             case AutoTraitContext::Decision::Negative:

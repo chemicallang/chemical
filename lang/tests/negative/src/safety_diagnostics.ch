@@ -2469,3 +2469,33 @@ func neg_async_executor_poll_requires_unsafe(env : &mut TestEnv) {
     expect_compile_error_with_mod(env, "async_executor_poll_unsafe", ch,
                                   "SAFE-UNSAFE-002", NEG_MOD_ASYNC_STD)
 }
+
+@test
+func static_view_send_sync(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A view whose source lifetime is explicitly `'static` is the only
+    // transferable form: it is Send/Sync when its element type permits it.
+    var ch = "func <T> need_static(value : T) where T : 'static { }\nfunc <T> need_send(value : T) where T : Send { }\nfunc <T> need_sync(value : T) where T : Sync { }\nfunc accept_text(text : &'static str) {\n    need_static(text)\n    need_send(text)\n    need_sync(text)\n}\nfunc accept_span(view : std::span<'static, int>) {\n    need_static(view)\n    need_send(view)\n    need_sync(view)\n}\nfunc accept_mut_span(view : std::mut_span<'static, int>) {\n    need_static(view)\n    need_send(view)\n    need_sync(view)\n}\nfunc accept_string_view(view : std::string_view<'static>) {\n    need_static(view)\n    need_send(view)\n    need_sync(view)\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_success_with_mod(env, "static_view_send_sync", ch, NEG_MOD_STD_CORE)
+}
+
+@test
+func bare_view_is_not_send(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Elided views have no lifetime argument. They may be used locally, but
+    // must not satisfy Send/Sync or a `'static` slot.
+    var ch = "func <T> need_send(value : T) where T : Send { }\nfunc bad_span(view : std::span<int>) {\n    need_send(view)\n}\nfunc bad_str(text : std::str) {\n    need_send(text)\n}\nfunc bad_view(text : std::string_view) {\n    need_send(text)\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "bare_view_not_send", ch,
+                                  "does not satisfy where clause constraint 'T : Send'",
+                                  NEG_MOD_STD_CORE)
+}
+
+@test
+func static_span_element_borrow_not_static(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A static view lifetime does not launder a non-static element type.
+    var ch = "struct Borrowed { var value : &int }\nfunc <T> need_static(value : T) where T : 'static { }\nfunc reject(view : std::span<'static, Borrowed>) {\n    need_static(view)\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "static_span_element_borrow", ch,
+                                  "does not satisfy where clause constraint 'T : 'static'",
+                                  NEG_MOD_STD_CORE)
+}

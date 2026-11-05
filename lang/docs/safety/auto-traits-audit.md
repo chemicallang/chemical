@@ -120,19 +120,21 @@ bound.
 
 ## Deliberately conservative (false negatives, not unsoundness)
 
-These are **not** made `Send`/`Sync` because their type does not carry the
-lifetime witness that would make the transfer sound:
+These remain conservative false negatives because the compiler cannot prove
+the transfer sound:
 
-- `span<T>`, `mut_span<T>`, `str`, `string_view` store raw pointer/length
-  pairs. A shared view should eventually be `Send`/`Sync` under `T: Sync`, but
-  only after the view carries the borrow lifetime in the type; otherwise a
-  view of a local could pass a `Send + 'static` boundary.
+- Elided or named-lifetime `span`/`mut_span`/`str`/`string_view` are
+  `!Send`/`!Sync`; only the explicit `'static` form is transferable. The
+  static form follows the reference rules: `span<T>` requires `T: Sync`,
+  `mut_span<T>` follows `T: Send`/`T: Sync`, and the immutable `str`/
+  `string_view` forms are unconditional. Bare views still cannot pass a
+  `Send` or `'static` slot.
 - `std::function<F>` with an erased capture witness is conservatively
   `!Send`/`!Sync`; use `send_function`, `scoped_send_function`, or
   `typed_function` when a witness must be exposed.
-- Conditional positive `Unpin` impls are evaluated in the type-checker and
-  dynamic-object paths; the generic-impl bound path still conservatively
-  rejects them because it has no type-checker context.
+- Conditional positive `Unpin` impls are evaluated in the type-checker,
+  dynamic-object paths, and the generic-impl bound path for concrete nested
+  arguments; only targets that remain generic parameters stay conservative.
 
 ## Gates
 
@@ -140,8 +142,8 @@ The audit is covered by the negative safety suite and the existing
 `arc`/`box`/`mutex`/`rwlock`/`thread`/`channel` tests, plus:
 
 - TCC main `2489/2489`, LLVM main `2487/2487`
-- TCC/LLVM negative `850/850`
-- TCC/LLVM safety `88/88`, async `83/83`
+- TCC/LLVM negative `853/853`
+- TCC/LLVM safety `89/89`, async `83/83`
 - TCC libs `736/736`, plugins `1305/1305`
 - TCC interpret `1938/1938`
 - `MIRTests` `4749 checks`

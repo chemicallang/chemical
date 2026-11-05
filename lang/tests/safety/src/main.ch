@@ -195,6 +195,21 @@ internal func safety_compile_and_run(env : &mut TestEnv, name : *char, ch_conten
     return safety_run_command_capture(run_args, out)
 }
 
+func safety_static_text_worker(text : &'static str) : int {
+    return text.size() as int
+}
+
+@test
+func static_str_view_is_send(env : &mut TestEnv) {
+    var text : &'static str = "static text"
+    var worker = std::thread.spawn<std::str<'static>, int>(
+        safety_static_text_worker, text)
+    var length = worker.join()
+    if(length != 11) {
+        env.error("a static string view should transfer and retain its length")
+    }
+}
+
 @test
 func safety_suite_smoke(env : &mut TestEnv) {
     if(1 + 1 != 2) {

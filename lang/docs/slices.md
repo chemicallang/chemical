@@ -181,7 +181,9 @@ func <'a, 'b> shorten(values : &'a [int]) : &'b [int] where 'a : 'b {
 
 - The lifetime is carried on the `std::span` / `std::mut_span` / `std::str`
   generic type and is erased before MIR; MIR region signatures are built from
-  the declaration before erasure.
+  the declaration before erasure. An explicit `'static` view is `Send`/`Sync`
+  under the reference rules; an elided or named-lifetime view remains
+  `!Send`/`!Sync`.
 - Returning `&'a [int]` as `&'b [int]` without a `where 'a : 'b` bound is
   rejected with `SAFE-LIFE-003`.
 - Returning a shorter-lived slice or `&str` as `&'static` is rejected with

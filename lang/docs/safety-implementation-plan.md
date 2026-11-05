@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.50)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.51)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1576,9 +1576,11 @@ new number as the honest baseline, not a compiler regression.
    transferable. `window` wraps the raw executor calls in audited unsafe blocks.
    TSAN coverage now includes `Mutex`, `RwLock`, a cross-thread channel handoff,
    thread-pool task submission, and an executor `spawn_send`/`yield` handoff.
-   Remaining async coverage is the conservative
-   raw-pointer view/executor-state false negatives and the type-level
-   `FutureHandle` erasure boundary.
+   Elided/named-lifetime `span`/`mut_span`/`str`/`string_view` remain
+   conservatively non-transferable; their explicit `'static` forms are now
+   `Send`/`Sync` (element rules apply). Remaining async coverage is the
+   executor-state false negatives and the type-level `FutureHandle` erasure
+   boundary.
 8. **The audit gate is CI-wired; platform breadth is not complete.**
    `.github/workflows/safety-audit.yml` runs `scripts/safety-audit.sh` on PRs
    and `main`. The 94-entry list is host-platform-oriented. The i386 Windows
@@ -2811,9 +2813,13 @@ conservative. `dyn` without explicit bounds is conservatively `!Send`/`!Sync`
 audited. Thread-pool `Future<T>` is `Send`
 for `T: Send`, and `ThreadPool` is `Send + Sync` behind its locked `PoolData`.
 Remaining: executor/iterator state-structure coverage (currently conservative
-raw-pointer state) and the deliberately conservative raw-pointer views
-(`span`/`str`/`string_view`). The remaining async gap is the type-level
-`FutureHandle` lifetime/frame witness in §4.5, not the direct borrow escape.
+raw-pointer state) and elided/named-lifetime raw-pointer views
+(`span`/`mut_span`/`str`/`string_view`). Explicit `'static` views are now
+`Send`/`Sync` under the reference rules; an elided view cannot pass a `'static`
+or `Send` boundary. `span<T>` requires `T: Sync`; `mut_span<T>` follows
+`T: Send`/`T: Sync`; `str`/`string_view` are immutable and unconditional.
+The remaining async gap is the type-level `FutureHandle`
+lifetime/frame witness in §4.5, not the direct borrow escape.
 
 ### M7 — Stdlib full surface (3–4 months)
 
@@ -3254,3 +3260,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.48 (2026-11-05): async executor raw-state boundary. The public executor entry points `exec_make_waker`, `executor_set_wake_hook`, `exec_enqueue_task`, `executor_poll_tasks`, and `executor_wait` accepted raw `*mut Executor`/`*mut TaskVTable`/frame pointers through safe signatures; safe code could pass forged or null state and make the runtime dereference it. They are now `unsafe func`s with null rejection, and queued entries with a null frame/vtable are skipped. `TaskVTable`, `RawTask`, `Executor`, `JoinState`, `SpawnTask`, `SelectState`, `TimeoutOrState`, and `BlockingState` now carry explicit `!Send`/`!Sync` impls so a representation change cannot silently make runtime-owned state transferable. The `window` bridge wraps the raw executor calls in explicit unsafe blocks, and the reactor tests acknowledge the waker boundary. Extended the TSAN smoke to race `RwLock` writers alongside the existing `Mutex` scenario. Negative `848/848`; safety `88/88`; TCC/LLVM main `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; TSAN pass; `MIRTests` `4749`; audit baseline reviewed at `unsafe_blocks 3828`, `unsafe_values 4971`, `unsafe_func_decls 57`, `raw_pointer_types 9416`, `panic_calls 142`.
 *Revision note v5.49 (2026-11-05): TSAN breadth for async/concurrency. The `thread_tsan` smoke now also exercises a cross-thread `async::channel` producer/consumer handoff, 200 thread-pool increments through `std::concurrent.create_pool`/`submit_void`, and an executor `spawn_send` future that suspends through `async::yield_now`, alongside the existing `Mutex` and `RwLock` writer races. The executor raw-state hardening from v5.48 remains; `window` and reactor call sites stay explicit unsafe boundaries. No compiler or safe-API change in this slice. TSAN pass; negative `848/848`; safety `88/88`; TCC/LLVM main `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; audit baseline reviewed at `unsafe_blocks 3828`, `unsafe_values 4971`, `unsafe_func_decls 57`, `raw_pointer_derefs 1085`, `raw_pointer_types 9416`, `panic_calls 142`.
 *Revision note v5.50 (2026-11-05): nested conditional `Unpin` in generic-impl bounds. `check_generic_impl_bounds` rejected a concrete nested argument such as `Holder<[1]Wrapper<int>>` even when `impl<T> Unpin for Wrapper<T> where T: Unpin` applies: the bound path checked the array element's raw field shape (which contains `PhantomPinned`) and never materialized the conditional positive impl. The `Unpin` branch now retries after recursively asking the normal generic-impl machinery to instantiate conditional positive impls in array elements, generic arguments, and aggregate fields; only concrete candidates are instantiated, so a `Wrapper<PhantomPinned>` argument still rejects with the bound diagnostic. Added positive and negative compile tests for the nested-array case. Negative `850/850`; safety `88/88`; TCC/LLVM main `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
+*Revision note v5.51 (2026-11-05): `'static` borrowed views are transferable. Borrowed `span`/`mut_span`/`str`/`string_view` values still store raw pointer/length pairs, but the parser already puts the source lifetime on the generic type (`&'static [T]` -> `span<'static, T>`, `&'static str` -> `str<'static>`). The auto-trait walk now treats those views as a lifetime-aware structural rule instead of a blanket raw-pointer rejection: only an explicit `'static` lifetime argument makes them `Send`/`Sync` (for `span<T>`, `T: Sync`; for `mut_span<T>`, `T: Send`/`T: Sync`; `str`/`string_view` are immutable and unconditional). `type_satisfies_static_bound` and lambda capture-borrow detection use the same rule, so an elided or named view is still `!Send`/`!Sync` and cannot cross a `'static` boundary. Added positive compile coverage for static `str`/`span`/`mut_span`/`string_view`, negative coverage for bare views satisfying `Send`, and a runtime thread test sending a `&'static str`. Negative `853/853`; safety `89/89`; TCC/LLVM main `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.

@@ -2035,6 +2035,35 @@ static bool is_static_lifetime(chem::string_view lifetime) {
 }
 
 /**
+ * Borrowed std view types carry their source lifetime as a generic lifetime
+ * argument (`&'a [T]` -> `span<'a, T>`, `&'a str` -> `str<'a>`). The view
+ * structs themselves store raw pointer/length pairs, so their declared fields
+ * cannot witness that lifetime. For auto-trait/'static purposes an empty
+ * lifetime list means the elided form and is conservatively non-static; an
+ * explicit `'static` argument is the only transferable form.
+ */
+static bool is_std_borrowed_view_type(BaseType* type) {
+    if (type == nullptr) return false;
+    auto* canonical = type->canonical();
+    if (canonical == nullptr) canonical = type;
+    ASTNode* linked = canonical->get_direct_linked_canonical_node();
+    if (linked == nullptr || linked->kind() != ASTNodeKind::StructDecl) return false;
+    const chem::string_view name = linked->as_struct_def_unsafe()->name_view();
+    return name == chem::string_view("span") ||
+           name == chem::string_view("mut_span") ||
+           name == chem::string_view("str") ||
+           name == chem::string_view("string_view");
+}
+
+static GenericType* std_borrowed_view_generic(BaseType* type) {
+    if (type == nullptr) return nullptr;
+    auto* canonical = type->canonical();
+    if (canonical == nullptr) canonical = type;
+    if (canonical->kind() != BaseTypeKind::Generic) return nullptr;
+    return canonical->as_generic_type_unsafe();
+}
+
+/**
  * A `T: 'static` bound requires every reference reachable from T to be
  * explicitly `'static` (an elided or named lifetime is not enough for storage
  * that outlives the current stack frame). Generic instantiations also carry
@@ -2045,6 +2074,19 @@ static bool type_satisfies_static_bound(
         std::unordered_set<MembersContainer*>& visiting) {
     if (type == nullptr) return true;
     auto* mutable_type = const_cast<BaseType*>(type);
+    if (is_std_borrowed_view_type(mutable_type)) {
+        auto* view = std_borrowed_view_generic(mutable_type);
+        if (view == nullptr || view->lifetime_args.empty()) return false;
+        for (auto& lifetime : view->lifetime_args) {
+            if (!is_static_lifetime(lifetime)) return false;
+        }
+        for (auto& argument : view->types) {
+            if (!type_satisfies_static_bound(argument.getType(), visiting)) {
+                return false;
+            }
+        }
+        return true;
+    }
     switch (mutable_type->kind()) {
         case BaseTypeKind::Reference:
             return is_static_lifetime(mutable_type->as_reference_type_unsafe()->lifetime);
@@ -4129,12 +4171,24 @@ static bool capture_type_borrows(
             if (capture_type_borrows(const_cast<BaseType*>(arg.getType()), visiting)) return true;
         }
     }
+    if (is_std_borrowed_view_type(canonical)) {
+        auto* view = std_borrowed_view_generic(canonical);
+        if (view == nullptr || view->lifetime_args.empty()) return true;
+        for (auto& lifetime : view->lifetime_args) {
+            if (!is_static_lifetime(lifetime)) return true;
+        }
+        for (auto& argument : view->types) {
+            if (capture_type_borrows(
+                    const_cast<BaseType*>(argument.getType()), visiting)) {
+                return true;
+            }
+        }
+        return false;
+    }
     auto* container = canonical->get_members_container();
     if (container == nullptr) return false;
     const std::string name = canonical->representation();
-    if (name.find("string_view") != std::string::npos ||
-        name.find("span") != std::string::npos ||
-        name.find("Chunk") != std::string::npos) {
+    if (name.find("Chunk") != std::string::npos) {
         return true;
     }
     if (!visiting.insert(container).second) return false;

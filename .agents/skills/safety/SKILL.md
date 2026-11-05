@@ -53,8 +53,8 @@ Latest measured baseline:
 | TCC main | `2489/2489` |
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `850/850` |
-| TCC/LLVM safety | `88/88` |
+| TCC/LLVM negative | `853/853` |
+| TCC/LLVM safety | `89/89` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -570,9 +570,10 @@ memory safety.
     bounds imply the requirement (for example `T: Unpin`), and a bare generic
     parameter with `Unpin` in `current_bits` is Unpin. Thread-pool `Future<T>`
     is `Send` for `T: Send`, and `ThreadPool` is audited `Send + Sync`.
-    Raw-pointer views (`span`/`str`/`string_view`) remain conservatively
-    `!Send`/`!Sync` until their borrow lifetime is in the type. Remaining:
-    executor/iterator raw state structures.
+    Borrowed views (`span`/`mut_span`/`str`/`string_view`) are `Send`/`Sync`
+    only in their explicit `'static` form; elided/named-lifetime views remain
+    conservatively `!Send`/`!Sync`. Remaining: executor/iterator raw state
+    structures.
 
 ## Callback and `Fn` model
 

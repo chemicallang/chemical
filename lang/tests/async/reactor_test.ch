@@ -50,7 +50,7 @@ public func test_posix_reactor_high_fd(env : &mut TestEnv) {
 
     // The executor's blocking path registers the fd and waits in the reactor.
     var e = async::executor()
-    var wk = async::exec_make_waker(e)
+    var wk = unsafe(async::exec_make_waker(e))
     async::reactor_register(r, async::posix::POLLIN, wk)
     if(async::reactor_poll(0) <= 0) {
         env.error("reactor_poll did not report a ready fd above FD_SETSIZE")
@@ -75,9 +75,9 @@ public func test_posix_reactor_mod_preserves_events(env : &mut TestEnv) {
     var r = fds[0]
     var w = fds[1]
     var e = async::executor()
-    async::reactor_register(r, async::posix::POLLIN, async::exec_make_waker(e))
+    async::reactor_register(r, async::posix::POLLIN, unsafe(async::exec_make_waker(e)))
     // The node already exists, so this is a modification (POLLIN | POLLOUT).
-    async::reactor_register(r, async::posix::POLLOUT, async::exec_make_waker(e))
+    async::reactor_register(r, async::posix::POLLOUT, unsafe(async::exec_make_waker(e)))
 
     var ch : char = 'x'
     if(unsafe(write(w, &raw mut ch as *void, 1u as ulong)) != 1) {
@@ -106,7 +106,7 @@ public func test_posix_reactor_hup_wakes_reader(env : &mut TestEnv) {
     unsafe { close(w) }
 
     var e = async::executor()
-    var wk = async::exec_make_waker(e)
+    var wk = unsafe(async::exec_make_waker(e))
     async::reactor_register(r, async::posix::POLLIN, wk)
     if(async::reactor_poll(0) <= 0) {
         env.error("a closed peer must wake the reader (HUP)")

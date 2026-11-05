@@ -419,6 +419,27 @@ the backend verifier:
 
 ---
 
+## EXEC-RAW — public executor raw-state entry points were safe — ✅ FIXED
+
+- **Was:** `exec_make_waker`, `executor_set_wake_hook`, `exec_enqueue_task`,
+  `executor_poll_tasks`, and `executor_wait` were safe `public func`s taking
+  `*mut Executor`, `*mut TaskVTable`, or frame pointers. Safe code could pass
+  forged or null state, enqueue a task with a null vtable, and make the
+  executor dereference it; a local `Executor` could also be constructed through
+  its public fields.
+- **Fix:** all five entry points are `unsafe func`s with null rejection; queued
+  entries with a null frame/vtable are skipped. `TaskVTable`, `RawTask`,
+  `Executor`, `JoinState<T>`, `SpawnTask<T>`, `SelectState<T>`,
+  `TimeoutOrState<T>`, and `BlockingState<T>` carry explicit `!Send`/`!Sync`
+  impls. The `window` bridge and reactor tests now use explicit unsafe
+  boundaries; the safe cross-thread API remains `spawn`/`spawn_closure`/
+  `spawn_send`/scoped calls.
+- **Coverage:** negative tests for executor state `!Send` and the unsafe
+  enqueue/poll entry points; TSAN smoke extended with concurrent `RwLock`
+  writers alongside the existing `Mutex` scenario.
+
+---
+
 ## Already decided (do **not** "fix")
 
 - **B13** retention friction: calling a non-`public` function from a `public`

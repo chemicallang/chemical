@@ -42,8 +42,8 @@ for the safe API surface we currently expose**, not full language parity.
 | `Send` / `Sync` | Auto traits + explicit/negative impls + nested conditional generic impls; data-race primitives. Stdlib explicit impls audited (2026-11-02); the shared-reference Send rule now checks nested `!Sync` correctly (`lang/docs/safety/auto-traits-audit.md`). |
 | Unsafe / FFI | Enforced raw-pointer/reference/asm/extern boundaries; target-aware by-value C ABI on x86-64 SysV, Windows x64, i386 SysV/Windows, ARM32 AAPCS (soft/hard-float), AArch64 AAPCS64 and Microsoft ARM64; unknown targets, variadic aggregate arguments, and un-auditable extern callback ABIs reject instead of guessing. i386 Windows safety check is clean for `cstd`/`std`/`fs`/`net`/`test`/`async`/`tls`/`window`/`webview` |
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
-| Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check |
-| Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke |
+| Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check. Public executor raw-state entry points are explicit `unsafe func`s; runtime state structs are explicitly `!Send`/`!Sync`; TSAN covers `Mutex` + `RwLock` |
+| Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke (`Mutex` + `RwLock`) |
 | Type-system / stdlib parity | M1 feature work is frozen under the safety-parity policy. Existing safe-surface support includes tuples/tuple structs, fixed-array/slice patterns, `&str` views, associated types/projections/bounds/equality, and inherent impls. GATs, const generics, `impl Trait`, default-method projections, derive, match-position patterns, tuple trait impls, and raw unsized `[T]` are deferred, not release blockers. M7/M2/M8 remain. |
 
 Latest measured baseline:
@@ -53,7 +53,7 @@ Latest measured baseline:
 | TCC main | `2489/2489` |
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `845/845` |
+| TCC/LLVM negative | `848/848` |
 | TCC/LLVM safety | `88/88` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
@@ -61,7 +61,7 @@ Latest measured baseline:
 | TCC interpret | `1938/1938` |
 | `MIRTests` | `4749 checks` |
 | TSAN smoke | pass (`--llvm --thread-tsan`) |
-| Whole-tree audit | `unsafe_blocks 3824`, `unsafe_values 4966`, `raw_pointer_addrs 10050`, `raw_pointer_casts 2900`, `raw_pointer_types 9416`, `raw_pointer_derefs 1076`, `unsafe_func_decls 52`, `panic_calls 142` |
+| Whole-tree audit | `unsafe_blocks 3828`, `unsafe_values 4970`, `raw_pointer_addrs 10050`, `raw_pointer_casts 2900`, `raw_pointer_types 9416`, `raw_pointer_derefs 1079`, `unsafe_func_decls 57`, `panic_calls 142` |
 | Audit result | `no growth` against `lang/docs/safety/audit-baseline.json` |
 
 The audit totals increased from the historical `3661/4890` in the 2026-10-31
@@ -71,8 +71,8 @@ first honest whole-tree count, not a new unsafe-code regression. The async
 closure fixtures add a few audited raw C future-ABI sites. The latest reviewed
 baseline includes the TLS/HTTP unsafe setter boundaries, the Windows/macOS
 platform migrations, and the zero-sized-vector generic instantiations:
-`unsafe_blocks 3790 -> 3824`, `unsafe_values 4922 -> 4966`,
-`unsafe_func_decls 41 -> 52`, and `panic_calls 124 -> 142`.
+`unsafe_blocks 3790 -> 3828`, `unsafe_values 4922 -> 4970`,
+`unsafe_func_decls 41 -> 57`, and `panic_calls 124 -> 142`.
 
 ## What is enforced (by domain)
 

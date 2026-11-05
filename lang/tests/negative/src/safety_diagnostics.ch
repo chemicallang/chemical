@@ -2425,3 +2425,30 @@ func neg_mutable_slice_array_view_cannot_escape(env : &mut TestEnv) {
     var ch = "func bad() : &mut [int] {\n    var a : [3]int = [1, 2, 3]\n    var s : &mut [int] = &mut a\n    return s\n}\npublic func main() : int {\n    var v = bad()\n    return v.size() as int\n}\n"
     expect_compile_error_with_mod(env, "mutable_slice_array_escape", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
 }
+
+// Async runtime raw state is internal: it must not become transferable just
+// because a field representation changes, and raw-state entry points require
+// an explicit unsafe boundary.
+@test
+func neg_async_executor_state_not_send(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func <T> needs_send_type() : int where T : Send { return 0 }\npublic func main() : int {\n    return needs_send_type<async::Executor>()\n}\n"
+    expect_compile_error_with_mod(env, "async_executor_not_send", ch,
+                                  "is declared !Send", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_async_executor_enqueue_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var e = async::executor()\n    async::exec_enqueue_task(e, null, null)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "async_executor_enqueue_unsafe", ch,
+                                  "SAFE-UNSAFE-002", NEG_MOD_ASYNC_STD)
+}
+
+@test
+func neg_async_executor_poll_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    async::executor_poll_tasks(async::executor(), 1u)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "async_executor_poll_unsafe", ch,
+                                  "SAFE-UNSAFE-002", NEG_MOD_ASYNC_STD)
+}

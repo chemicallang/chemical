@@ -81,12 +81,17 @@ Public async value types are checked directly:
 | `FutureHandle<'a,T>` | conservatively `!Send`/`!Sync` | The erased frame may borrow the caller; crossing threads uses `SendFutureHandle`. |
 
 Executor/future state structures (`Executor`, `RawTask`, `TaskVTable`,
-`JoinState<T>`, `SpawnTask<T>`, `SelectState<T>`, `TimeoutOrState<T>`,
-`BlockingState<T>`, and the iterator `Chunk<T>`) hold raw pointers or erased
-callbacks and are conservatively `!Send`/`!Sync`. They are internal runtime
-state, not values exchanged through the safe cross-thread API; turning any of
-them into a safe transferable value requires a dedicated witness/API, not a
-blanket auto-trait impl.
+`JoinState<T>`, `SpawnTask<T>`, `SelectState<T>`, `TimeoutOrState<T>`, and
+`BlockingState<T>`) hold raw pointers or erased callbacks and carry explicit
+`!Send`/`!Sync` impls, so a representation refactor cannot silently make them
+transferable. The iterator `Chunk<T>` remains structurally `!Send`/`!Sync` via
+its raw pointer/length fields. These are internal runtime state, not values
+exchanged through the safe cross-thread API; turning any of them into a safe
+transferable value requires a dedicated witness/API, not a blanket auto-trait
+impl. The executor's public raw-state entry points
+(`exec_make_waker`, `executor_set_wake_hook`, `exec_enqueue_task`,
+`executor_poll_tasks`, `executor_wait`) are explicit `unsafe func`s and reject
+null state; queued entries with a null frame/vtable are skipped.
 
 ## Nested `Unpin`
 
@@ -131,11 +136,11 @@ lifetime witness that would make the transfer sound:
 The audit is covered by the negative safety suite and the existing
 `arc`/`box`/`mutex`/`rwlock`/`thread`/`channel` tests, plus:
 
-- TCC main `2431/2431`, LLVM main `2429/2429`
-- TCC/LLVM negative `774/774`
-- TCC/LLVM safety `74/74`, async `70/70`
-- TCC libs `732/732`, plugins `1305/1305`
-- TCC interpret `1931/1931`
+- TCC main `2489/2489`, LLVM main `2487/2487`
+- TCC/LLVM negative `848/848`
+- TCC/LLVM safety `88/88`, async `83/83`
+- TCC libs `736/736`, plugins `1305/1305`
+- TCC interpret `1938/1938`
 - `MIRTests` `4749 checks`
-- `--llvm --thread-tsan` pass
+- `--llvm --thread-tsan` pass (`Mutex` + `RwLock`)
 - whole-tree safety audit: no growth

@@ -28,19 +28,25 @@ public namespace window {
 // Poll the async executor and drain pending native events once. Call this from
 // a custom event loop, or repeatedly from a test, to drive UI-spawned tasks.
 public func window_pump() {
-    async::executor_poll_tasks(async::executor(), 4096u)
-    window_async_platform_pump()
-    async::executor_poll_tasks(async::executor(), 4096u)
+    unsafe {
+        async::executor_poll_tasks(async::executor(), 4096u)
+        window_async_platform_pump()
+        async::executor_poll_tasks(async::executor(), 4096u)
+    }
 }
 
 // Like `window_run`, but drives the async executor from the event loop. Use
 // this instead of `window_run` when the app uses `async::spawn_local`.
 public func window_run_async() {
     var e = async::executor()
-    async::executor_set_wake_hook(e, window_async_platform_wake, null)
+    unsafe {
+        async::executor_set_wake_hook(e, window_async_platform_wake, null)
+    }
     window_async_platform_install_pump()
     window_run()
-    async::executor_set_wake_hook(e, null, null)
+    unsafe {
+        async::executor_set_wake_hook(e, null, null)
+    }
 }
 
 } // end namespace window

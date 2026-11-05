@@ -51,6 +51,16 @@ public struct Executor {
     var wake_hook_arg : *mut void
 }
 
+// Runtime-owned state. These values are not exchanged through the safe
+// cross-thread API; keep them !Send/!Sync even if their representation later
+// stops containing a raw pointer.
+impl !Send for TaskVTable { }
+impl !Sync for TaskVTable { }
+impl !Send for RawTask { }
+impl !Sync for RawTask { }
+impl !Send for Executor { }
+impl !Sync for Executor { }
+
 @never_destructed
 var g_exec : Executor
 var g_exec_ready : bool = false
@@ -127,7 +137,10 @@ public func executor() : *mut Executor {
         }
     }
 
-public func exec_make_waker(e : *mut Executor) : core::async::Waker {
+public unsafe func exec_make_waker(e : *mut Executor) : core::async::Waker {
+        if(e == null) {
+            return core::async::Waker.empty()
+        }
         unsafe {
         ensure_exec_waker_vtbl()
         return unsafe(core::async::Waker.from_raw(e as *mut void, &raw mut g_exec_waker_vtbl))
@@ -138,7 +151,10 @@ public func exec_make_waker(e : *mut Executor) : core::async::Waker {
 // Install a hook that runs whenever the executor is woken. Used by native event
 // loops (see `window_run_async`) to post a wake to their own queue so a task
 // completing on a worker thread is re-polled promptly. Pass `null` to clear.
-public func executor_set_wake_hook(e : *mut Executor, hook : ExecWakeHook, arg : *mut void) {
+public unsafe func executor_set_wake_hook(e : *mut Executor, hook : ExecWakeHook, arg : *mut void) {
+        if(e == null) {
+            return
+        }
         unsafe {
         e.m.lock()
         e.wake_hook = hook
@@ -148,7 +164,10 @@ public func executor_set_wake_hook(e : *mut Executor, hook : ExecWakeHook, arg :
         }
     }
 
-public func exec_enqueue_task(e : *mut Executor, frame : *mut void, vtbl : *mut TaskVTable) {
+public unsafe func exec_enqueue_task(e : *mut Executor, frame : *mut void, vtbl : *mut TaskVTable) {
+        if(e == null || frame == null || vtbl == null) {
+            return
+        }
         unsafe {
         e.m.lock()
         e.queue.push_back(RawTask { frame : frame, vtbl : vtbl })
@@ -161,7 +180,10 @@ public func exec_enqueue_task(e : *mut Executor, frame : *mut void, vtbl : *mut 
 // Poll up to `max` queued tasks once each. Tasks that stay `Pending` are moved
 // to the back of the queue so that a single never-ready task cannot starve the
 // others. Returns the number of tasks that completed.
-public func executor_poll_tasks(e : *mut Executor, max : uint) : uint {
+public unsafe func executor_poll_tasks(e : *mut Executor, max : uint) : uint {
+        if(e == null) {
+            return 0u
+        }
         unsafe {
         var done : uint = 0u
         var i : uint = 0u
@@ -175,6 +197,10 @@ public func executor_poll_tasks(e : *mut Executor, max : uint) : uint {
             var t = std::replace(unsafe(&mut *pe), RawTask { frame : null, vtbl : null })
             e.queue.remove(0)
             e.m.unlock()
+            if(t.frame == null || t.vtbl == null) {
+                i = i + 1u
+                continue
+            }
             var cx = core::async::Context { waker : exec_make_waker(e) }
             var r = t.vtbl.poll(t.frame, &raw mut cx)
             if(r is core::async::Poll.Ready) {
@@ -195,7 +221,10 @@ public func executor_poll_tasks(e : *mut Executor, max : uint) : uint {
 // Park the executor thread until a waker fires or `millis` elapse. The timeout
 // is what keeps futures that do not use their waker (timers, `spawn_blocking`)
 // making progress.
-public func executor_wait(e : *mut Executor, millis : ulong) {
+public unsafe func executor_wait(e : *mut Executor, millis : ulong) {
+        if(e == null) {
+            return
+        }
         unsafe {
         var wait_ms = millis
         if(reactor_has_fds()) {
@@ -233,6 +262,11 @@ public struct SpawnTask<T> {
     var inner : core::async::FutureHandle<T>
     var vtbl : *mut TaskVTable
 }
+
+impl<T> !Send for JoinState<T> { }
+impl<T> !Sync for JoinState<T> { }
+impl<T> !Send for SpawnTask<T> { }
+impl<T> !Sync for SpawnTask<T> { }
 
 @retained
 public func <T> spawn_join_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {

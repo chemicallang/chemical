@@ -37,6 +37,9 @@ public struct SelectState<T> {
     var vtbl : *mut core::async::FutureTable<T>
 }
 
+impl<T> !Send for SelectState<T> { }
+impl<T> !Sync for SelectState<T> { }
+
 @retained
 public func <T> select_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
         unsafe {
@@ -107,6 +110,9 @@ public struct TimeoutOrState<T> {
     var millis : i64
     var vtbl : *mut core::async::FutureTable<T>
 }
+
+impl<T> !Send for TimeoutOrState<T> { }
+impl<T> !Sync for TimeoutOrState<T> { }
 
 @retained
 public func <T> timeout_or_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {

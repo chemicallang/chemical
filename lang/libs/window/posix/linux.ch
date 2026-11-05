@@ -1348,7 +1348,9 @@ public func window_cancel_timer(timer_id : int) {
 // Poll the executor once per tick; returns 1 so the GLib timeout stays
 // installed for the lifetime of the loop.
 func linux_async_pump_tick(data : *mut void) : int {
-    async::executor_poll_tasks(async::executor(), 4096u)
+    unsafe {
+        async::executor_poll_tasks(async::executor(), 4096u)
+    }
     return 1
 }
 

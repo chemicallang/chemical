@@ -27,6 +27,9 @@ public struct BlockingState<T> {
     var vtbl : *mut core::async::FutureTable<T>
 }
 
+impl<T> !Send for BlockingState<T> { }
+impl<T> !Sync for BlockingState<T> { }
+
 @retained
 public func <T> blocking_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
         unsafe {

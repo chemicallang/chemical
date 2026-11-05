@@ -706,6 +706,89 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_nested_index(
     return {};
 }
 
+MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_indices_dynamic(
+        PlaceId place, const std::vector<std::string>& path,
+        const std::vector<uint64_t>& prefix, ValueId dynamic_index) {
+    if (dynamic_index == MIR_INVALID_ID) return {};
+    auto finish = [&](MIRDropElementRef ref) {
+        ref.place = place;
+        ref.path = path;
+        ref.indices = prefix;
+        ref.dynamic_index = dynamic_index;
+        return ref;
+    };
+    std::vector<MIRDropField>* list = nullptr;
+    if (path.empty()) {
+        for (auto& d : destructibles_) {
+            if (d.place == place) {
+                list = &d.fields;
+                break;
+            }
+        }
+    } else {
+        MIRDropField* node = drop_field_for_path(place, path);
+        if (node != nullptr) {
+            if (prefix.empty()) {
+                MIRDropElementRef ref;
+                if (node->element_template) {
+                    ref.template_node = node;
+                    return finish(ref);
+                }
+                if (node->flag_array != MIR_INVALID_ID) {
+                    ref.flag = flag_array_ref_value(node->flag_array, dynamic_index);
+                    return finish(ref);
+                }
+            }
+            list = &node->children;
+        }
+    }
+    if (list == nullptr) return {};
+    if (prefix.empty()) {
+        for (auto& f : *list) {
+            MIRDropElementRef ref;
+            if (f.element_template) {
+                ref.template_node = &f;
+                return finish(ref);
+            }
+            if (f.flag_array != MIR_INVALID_ID) {
+                ref.flag = flag_array_ref_value(f.flag_array, dynamic_index);
+                return finish(ref);
+            }
+        }
+        return {};
+    }
+    // The constant prefix must end at a large array level; a small array has
+    // one scalar flag per element and cannot be selected at runtime.
+    for (size_t i = 0; i < prefix.size(); ++i) {
+        MIRDropField* next = nullptr;
+        for (auto& f : *list) {
+            if (f.array_index == static_cast<uint32_t>(prefix[i])) {
+                next = &f;
+                break;
+            }
+        }
+        if (next == nullptr) return {};
+        const bool last = i + 1 == prefix.size();
+        if (last) {
+            MIRDropElementRef ref;
+            if (next->element_template) {
+                ref.template_node = next;
+                return finish(ref);
+            }
+            if (next->flag_array != MIR_INVALID_ID) {
+                ref.flag = flag_array_ref_value(next->flag_array, dynamic_index);
+                return finish(ref);
+            }
+            return {};
+        }
+        if (next->element_template || next->flag_array != MIR_INVALID_ID) {
+            return {};
+        }
+        list = &next->children;
+    }
+    return {};
+}
+
 void MIRLowerer::materialize_drop_fields(std::vector<MIRDropField>& fields,
                                          bool initialize) {
     for (auto& f : fields) {
@@ -1685,6 +1768,8 @@ void MIRLowerer::clear_element_drop_flag(const MIRDropElementRef& ref) {
     if (ref.template_node != nullptr) {
         if (ref.whole_children) {
             set_drop_fields(ref.template_node->children, false);
+        } else if (ref.dynamic_index != MIR_INVALID_ID) {
+            set_drop_fields_at(ref.template_node->children, ref.dynamic_index, false);
         } else {
             const TypeId u32 = types_.u32_type();
             const ValueId index = builder_->const_int(

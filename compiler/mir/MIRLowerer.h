@@ -814,6 +814,9 @@ private:
         // reference can be re-resolved after lowering the RHS reallocates the
         // owning destructibles vector.
         std::vector<uint64_t> indices;
+        // Dynamic final index for a large flat flag block/template. `indices`
+        // holds the constant prefix before it.
+        ValueId dynamic_index = MIR_INVALID_ID;
         bool valid() const {
             return flag.valid() || template_node != nullptr ||
                    flag_array != MIR_INVALID_ID;
@@ -856,6 +859,10 @@ private:
     MIRDropElementRef drop_flag_for_indices(
             PlaceId place, const std::vector<std::string>& path,
             const std::vector<uint64_t>& indices);
+    /** Per-element flags for a constant prefix plus a runtime final index. */
+    MIRDropElementRef drop_flag_for_indices_dynamic(
+            PlaceId place, const std::vector<std::string>& path,
+            const std::vector<uint64_t>& prefix, ValueId dynamic_index);
     /** Build the drop node for one owned field (recursing structs/arrays). */
     MIRDropField build_drop_field(const chem::string_view& name, BaseType* type,
                                   int depth, bool frame_flags = false,

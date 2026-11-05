@@ -53,8 +53,8 @@ Latest measured baseline:
 | TCC main | `2489/2489` |
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `853/853` |
-| TCC/LLVM safety | `90/90` |
+| TCC/LLVM negative | `854/854` |
+| TCC/LLVM safety | `91/91` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -512,8 +512,10 @@ memory safety.
     construction/destruction of a generated-glue large array field inside a
     frame aggregate uses the same template. Constant-index writes into a
     tracked array field initialize that element and its leaves, including
-    nested constant-index element writes (`cube[o][i][j] = ...`), including
-    large inner flag blocks and element templates.
+    nested constant-index element writes (`cube[o][i][j] = ...`) and dynamic
+    final-index writes into a fully initialized large array (`arr[i] = ...`),
+    including large inner flag blocks and element templates. Partial dynamic
+    writes into an uninitialized array remain `SAFE-INIT-001`.
 
 11. **Interpreter boundaries.** MIR interpreter bounds/provenance/tombstone
     checks are implemented. Async/coroutine opcodes, inline asm, dynamic

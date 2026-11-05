@@ -494,11 +494,10 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 // per element. For a compile-time index the old element is
                 // destroyed only when that flag is live, then the flag is armed.
                 MIRDropElementRef eflag;
-                if (io->idx && io->idx->val_kind() == ValueKind::IntN) {
-                    const uint64_t element_index =
-                        io->idx->as_int_num_value_unsafe()->get_num_value();
-                    std::vector<uint64_t> indices;
-                    indices.push_back(element_index);
+                if (io->idx) {
+                    const bool final_constant =
+                        io->idx->val_kind() == ValueKind::IntN;
+                    std::vector<uint64_t> prefix;
                     Value* root = io->parent_val;
                     bool constant_chain = true;
                     for (int guard = 0; guard < 8 && root; ++guard) {
@@ -526,15 +525,13 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                             constant_chain = false;
                             break;
                         }
-                        indices.push_back(
+                        prefix.push_back(
                             parent_io->idx->as_int_num_value_unsafe()
                                 ->get_num_value());
                         root = parent_io->parent_val;
                     }
-                    if (constant_chain && root != nullptr && indices.size() > 1) {
-                        std::reverse(indices.begin(), indices.end());
-                    }
                     if (constant_chain && root != nullptr) {
+                        std::reverse(prefix.begin(), prefix.end());
                         PlaceId root_base = MIR_INVALID_ID;
                         std::vector<std::string> root_path;
                         BaseType* root_type = nullptr;
@@ -550,8 +547,18 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                                               root_type, root_error);
                         }
                         if (root_base != MIR_INVALID_ID) {
-                            eflag = drop_flag_for_indices(
-                                root_base, root_path, indices);
+                            if (final_constant) {
+                                std::vector<uint64_t> indices = prefix;
+                                indices.push_back(
+                                    io->idx->as_int_num_value_unsafe()
+                                        ->get_num_value());
+                                eflag = drop_flag_for_indices(
+                                    root_base, root_path, indices);
+                            } else {
+                                eflag = drop_flag_for_indices_dynamic(
+                                    root_base, root_path, prefix,
+                                    static_cast<ValueId>(idx.id));
+                            }
                         }
                     }
                 }
@@ -589,6 +596,11 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     );
                 };
                 auto fresh_element_ref = [&]() {
+                    if (eflag.dynamic_index != MIR_INVALID_ID) {
+                        return drop_flag_for_indices_dynamic(
+                            eflag.place, eflag.path, eflag.indices,
+                            eflag.dynamic_index);
+                    }
                     if (!eflag.indices.empty()) {
                         return drop_flag_for_indices(
                             eflag.place, eflag.path, eflag.indices);

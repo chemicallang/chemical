@@ -3,3 +3,4 @@ source "."
 import cstd
 import std
 import core
+import async

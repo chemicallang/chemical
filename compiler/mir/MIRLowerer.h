@@ -933,7 +933,9 @@ private:
     /** Resolve an AST member chain to (base place, field path, field type). */
     bool field_move_target(Value* value, PlaceId& base,
                            std::vector<std::string>& path, BaseType*& field_type,
-                           std::string& error);
+                           std::string& error,
+                           MIRExprResult address = MIRExprResult(),
+                           BaseType** base_type_out = nullptr);
     /** Resolve `arr[CONST]` to an owned fixed-array element move target. */
     bool array_element_move_target(Value* value, PlaceId& base, uint64_t& index,
                                    BaseType*& element_type);

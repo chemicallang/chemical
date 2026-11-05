@@ -467,7 +467,8 @@ void MIRLowerer::register_destructible(PlaceId place, BaseType* type,
             builder_->function().places[place].storage_class
         );
         field_wise_storage = storage == MIRStorageClass::Local ||
-                             storage == MIRStorageClass::Parameter;
+                             storage == MIRStorageClass::Parameter ||
+                             storage == MIRStorageClass::Temporary;
     }
     bool tuple_field_wise = false;
     if (field_wise_storage) {
@@ -1359,10 +1360,34 @@ MIRLowerer::MIRDropField* MIRLowerer::drop_field_for_path(
     return nullptr;
 }
 
+static PlaceId address_root_place(const MIRFunction& fn, ValueId value) {
+    for (int guard = 0; guard < 8; ++guard) {
+        if (value == MIR_INVALID_ID || value >= fn.values.size()) return MIR_INVALID_ID;
+        const MIRValueDef& def = fn.values[value];
+        if (def.def_inst == MIR_INVALID_ID || def.def_inst >= fn.instructions.size()) {
+            return MIR_INVALID_ID;
+        }
+        const MIRInstruction& inst = fn.instructions[def.def_inst];
+        if (inst.opcode() != MIROpcode::FieldAddr &&
+            inst.opcode() != MIROpcode::IndexAddr &&
+            inst.opcode() != MIROpcode::Cast) {
+            return MIR_INVALID_ID;
+        }
+        if (inst.operand_count == 0) return MIR_INVALID_ID;
+        const MIROperand& base = fn.operands[inst.operand_offset];
+        if (base.kind() == MIROperandKind::Place) return base.id;
+        if (base.kind() != MIROperandKind::Value) return MIR_INVALID_ID;
+        value = base.id;
+    }
+    return MIR_INVALID_ID;
+}
+
 bool MIRLowerer::field_move_target(Value* value, PlaceId& base,
                                     std::vector<std::string>& path,
                                     BaseType*& field_type,
-                                    std::string& error) {
+                                    std::string& error,
+                                    MIRExprResult address,
+                                    BaseType** base_type_out) {
     Value* t = value;
     for (int guard = 0; guard < 4 && t; ++guard) {
         if (t->val_kind() == ValueKind::AccessChain) {
@@ -1394,10 +1419,17 @@ bool MIRLowerer::field_move_target(Value* value, PlaceId& base,
         }
         break;
     }
-    if (!b || b->val_kind() != ValueKind::Identifier) return false;
-    auto* bid = b->as_identifier_unsafe();
-    base = place_for_linked(bid->linked);
-    if (base == MIR_INVALID_ID) base = place_for_name(bid->value);
+    if (!b) return false;
+    if (base_type_out != nullptr) *base_type_out = b->getType();
+    if (b->val_kind() == ValueKind::Identifier) {
+        auto* bid = b->as_identifier_unsafe();
+        base = place_for_linked(bid->linked);
+        if (base == MIR_INVALID_ID) base = place_for_name(bid->value);
+    } else if (address.kind == MIRExprKind::Address) {
+        // A temporary/expression base (`make().field`) has no identifier place.
+        // Recover the materialized temporary from the lowered field address.
+        base = address_root_place(builder_->function(), static_cast<ValueId>(address.id));
+    }
     if (base == MIR_INVALID_ID) return false;
     path.clear();
     for (size_t i = 1; i < chain->values.size(); ++i) {
@@ -1615,8 +1647,19 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
                         break;
                     }
                     if (b != nullptr && b->val_kind() != ValueKind::Identifier) {
+                        bool temporary_base = false;
+                        if (result.kind == MIRExprKind::Address) {
+                            const PlaceId root = address_root_place(
+                                builder_->function(), static_cast<ValueId>(result.id));
+                            if (root != MIR_INVALID_ID &&
+                                root < builder_->function().places.size() &&
+                                builder_->function().places[root].storage_class ==
+                                    static_cast<uint8_t>(MIRStorageClass::Temporary)) {
+                                temporary_base = true;
+                            }
+                        }
                         BaseType* ft = c->values.back()->getType();
-                        if (ft != nullptr &&
+                        if (!temporary_base && ft != nullptr &&
                             destructor_symbol(ft) != MIR_INVALID_ID) {
                             error = "SAFE-MOVE-004: cannot move a field with a "
                                     "destructor out of a temporary/expression; "
@@ -1633,7 +1676,9 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
     PlaceId base = MIR_INVALID_ID;
     std::vector<std::string> path;
     BaseType* field_type = nullptr;
-    if (!field_move_target(value, base, path, field_type, error)) {
+    BaseType* base_type = nullptr;
+    if (!field_move_target(value, base, path, field_type, error, result,
+                           &base_type)) {
         return true; // not a field lvalue: `*ptr`, `&value`, a call, ...
     }
     if (result.kind != MIRExprKind::Address) return true; // not a field move
@@ -1658,6 +1703,29 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
     MIRDestructible* dest = nullptr;
     for (auto& d : destructibles_) {
         if (d.place == base) { dest = &d; break; }
+    }
+    if (dest == nullptr && needs_drop && !copying && base_type != nullptr &&
+        base < builder_->function().places.size()) {
+        const auto storage = static_cast<MIRStorageClass>(
+            builder_->function().places[base].storage_class);
+        if (storage == MIRStorageClass::Temporary) {
+            // The temporary has no statement-end owner we can safely update
+            // field-by-field. Register it as a block-scope destructible and
+            // let the normal drop tree skip the moved field. This extends the
+            // temporary's drop point to the enclosing block, but never moves
+            // the field without clearing its flag.
+            register_destructible(base, base_type, true);
+            cancel_stmt_temp(base);
+            for (size_t i = 0; i < call_temps_.size(); ++i) {
+                if (call_temps_[i].first == base) {
+                    call_temps_.erase(call_temps_.begin() + static_cast<long>(i));
+                    break;
+                }
+            }
+            for (auto& d : destructibles_) {
+                if (d.place == base) { dest = &d; break; }
+            }
+        }
     }
     if (dest == nullptr) {
         if (needs_drop && !copying) {

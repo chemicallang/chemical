@@ -626,10 +626,17 @@ func neg_move_field_out_of_user_destructor_rejected(env : &mut TestEnv) {
 }
 
 @test
-func neg_move_field_from_temporary_rejected(env : &mut TestEnv) {
+func move_field_from_temporary_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "@thread_local var drops : int = 0\nstruct R {\n    var id : int\n    @delete func del(&self) { drops = drops + 1 }\n}\nstruct W { var r : R }\nfunc make() : W { return W { r : R { id : 1 } } }\npublic func main() : int {\n    var r = make().r\n    return r.id\n}\n"
-    expect_compile_error_with_mod(env, "move_field_temporary", ch, "SAFE-MOVE-004", NEG_MOD)
+    expect_compile_success_with_mod(env, "move_field_temporary", ch, NEG_MOD)
+}
+
+@test
+func neg_move_field_from_user_destructor_temporary_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "@thread_local var drops : int = 0\nstruct R {\n    var id : int\n    @delete func del(&self) { drops = drops + 1 }\n}\nstruct W {\n    var r : R\n    @delete func del(&self) { drops = drops + 1 }\n}\nfunc make() : W { return W { r : R { id : 1 } } }\npublic func main() : int {\n    var r = make().r\n    return r.id\n}\n"
+    expect_compile_error_with_mod(env, "move_field_user_dtor_temporary", ch, "SAFE-MOVE-004", NEG_MOD)
 }
 
 @test

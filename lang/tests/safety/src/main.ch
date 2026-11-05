@@ -614,6 +614,17 @@ func partial_array_init_destroys_only_initialized_elements(env : &mut TestEnv) {
 }
 
 @test
+func moved_temporary_field_is_not_destroyed_by_temporary(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct W {\n    var a : Tracker\n    var b : Tracker\n}\nfunc make() : W { return W { a : Tracker { id : 1 }, b : Tracker { id : 2 } } }\npublic func main() : int {\n    {\n        var moved = make().a\n        if(moved.id != 1) { return 10 }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "moved_temporary_field", ch, &mut out)
+    if(rc != 2) {
+        env.error("a moved field was destroyed by its temporary owner")
+    }
+}
+
+@test
 func moved_struct_field_is_not_destroyed_by_parent(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Tracker\n    var b : Tracker\n}\npublic func main() : int {\n    {\n        var s = S { a : Tracker { id : 1 }, b : Tracker { id : 2 } }\n        {\n            var moved = s.b\n            if(moved.id != 2) { return 10 }\n        }\n    }\n    return drops\n}\n"

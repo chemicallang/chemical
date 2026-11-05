@@ -52,8 +52,8 @@ Latest measured baseline:
 | TCC main | `2489/2489` |
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `828/828` |
-| TCC/LLVM safety | `83/83` |
+| TCC/LLVM negative | `829/829` |
+| TCC/LLVM safety | `84/84` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -130,15 +130,16 @@ MIR is the sole producer of init/move/drop state:
   reusable callback (return/var init/assignment/by-value argument).
 - `SAFE-MOVE-004` — moving a non-`Copy`/destructor-bearing field/subobject out
   of a shape whose drops cannot be updated (user destructor, global,
-  temporary/expression, reference/pointer, or an unsupported array index/view).
+  unsupported temporary/expression, reference/pointer, or an unsupported array
+  index/view).
 - `SAFE-DROP-001` — invalid `@delete` signature (value self, missing self,
   non-void return, async, etc.).
 - Partial struct/array initialization and per-path drop flags are modeled.
   Local and by-value-parameter aggregates with generated drop glue have one
   flag per destructible field/element; moving a field clears its flag so the
-  parent cannot double-drop it. Unsupported move shapes (user destructor, async
-  frame, global, temporary/expression, reference/pointer) reject with
-  `SAFE-MOVE-004` (see plan item 10).
+  parent cannot double-drop it. Unsupported move shapes (user destructor,
+  global, unsupported temporary/expression, pointer/dereference bases) reject
+  with `SAFE-MOVE-004` (see plan item 10).
 
 ### Borrows / lifetimes
 
@@ -462,11 +463,15 @@ memory safety.
     per-element flag block. Large arrays in async frame slots use a
     frame-resident bool-flag block, with generated-glue slots using an element
     template whose leaves carry frame flag blocks. Any unsupported move shape
-    (user destructor, global, temporary/expression, reference/pointer) is
-    rejected with `SAFE-MOVE-004` instead of double-dropping. Constant-index
+    (user destructor, global, unsupported temporary/expression,
+    reference/pointer) is rejected with `SAFE-MOVE-004` instead of
+    double-dropping. Constant-index
     element moves now clear the owning flag; non-Copy destructuring of an
-    owned local array uses those moves. Remaining: inner arrays use a flat flag
-    block above 1024 and a runtime inner loop; unsized
+    owned local array uses those moves. Field moves from a materialized
+    temporary/expression are accepted by extending that temporary to block
+    scope with field flags. Remaining: user-destructor temporaries,
+    pointer/dereference bases, inner arrays using a flat flag block above 1024
+    with a runtime inner loop, and unsized
     arrays still fall back to a whole-field flag. Whole-field
     construction/destruction of a generated-glue large array field inside a
     frame aggregate uses the same template. Constant-index writes into a

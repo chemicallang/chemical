@@ -277,11 +277,12 @@ void verify_container_field_types(TypeVerifier& verifier, MembersContainer* cont
 }
 
 /**
- * A fixed-array element may be moved by index only when the array is a mutable
- * owned local (including an async-frame local) and the index is a compile-time
- * literal. The MIR lowerer clears that element's drop flag; every other shape
- * (dynamic index, borrowed/slice view, global, const binding, parameter) remains
- * a hard rejection because it cannot update the owning drop metadata.
+ * A fixed-array element may be moved by index when the array is a mutable
+ * owned local (including an async-frame local). A constant index clears a
+ * scalar/element flag; a dynamic index reaches the MIR lowerer, which accepts
+ * it only where the owning element flag block/template can be selected at
+ * runtime. Borrowed/slice views, globals, const bindings, and parameters remain
+ * hard rejections because they cannot update the owning drop metadata.
  */
 static bool owned_array_element_move(Value* index_value) {
     auto* index = index_value != nullptr &&
@@ -289,7 +290,6 @@ static bool owned_array_element_move(Value* index_value) {
                       ? index_value->as_index_op_unsafe()
                       : nullptr;
     if (index == nullptr || index->idx == nullptr ||
-        index->idx->val_kind() != ValueKind::IntN ||
         index->parent_val == nullptr) {
         return false;
     }

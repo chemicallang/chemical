@@ -78,6 +78,9 @@ struct MIRExprResult {
     uint32_t id = MIR_NULL;
     TypeId type = MIR_INVALID_ID;
     MIRExprKind kind = MIRExprKind::Error;
+    // For an indexed aggregate lvalue, the lowered index value. Dynamic moves
+    // use it to clear the exact runtime element's drop flag.
+    ValueId index_value = MIR_INVALID_ID;
 
     static MIRExprResult value(ValueId v, TypeId t) { return MIRExprResult{v, t, MIRExprKind::Value}; }
     static MIRExprResult place(PlaceId p, TypeId t) { return MIRExprResult{p, t, MIRExprKind::Place}; }
@@ -957,7 +960,8 @@ private:
                                    std::vector<std::string>& path,
                                    BaseType*& aggregate_type,
                                    MIRExprResult address,
-                                   std::string& error);
+                                   std::string& error,
+                                   ValueId& dynamic_index);
     /** Clear every drop flag that owns one moved array element. */
     void clear_element_drop_flag(const MIRDropElementRef& ref);
     void emit_drops();

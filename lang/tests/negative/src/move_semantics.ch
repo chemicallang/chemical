@@ -81,7 +81,16 @@ func array_of_destructible_elements_allowed(env : &mut TestEnv) {
 func neg_move_out_of_array_dynamic_index(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    var arr : [2]DT = [DT { x : 1 }, DT { x : 2 }]\n    var idx = 0\n    var moved = arr[idx]\n    return moved.x\n}\n"
-    expect_compile_error(env, "move_out_of_array_dynamic", ch, "SAFE-MOVE-001")
+    expect_compile_error(env, "move_out_of_array_dynamic", ch, "SAFE-MOVE-004")
+}
+
+@test
+func neg_uninitialized_large_array_dynamic_move(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A dynamic move requires a fully initialized large array; the move
+    // checker cannot prove individual runtime elements live.
+    var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [100]DT\n        var i = 0\n        var moved = arr[i]\n    }\n    return 0\n}\n"
+    expect_compile_error(env, "uninit_large_array_dynamic_move", ch, "SAFE-INIT-001")
 }
 
 @test

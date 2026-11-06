@@ -1656,9 +1656,11 @@ bool MIRLowerer::array_element_move_target(Value* value, PlaceId& base,
                                            std::vector<std::string>& path,
                                            BaseType*& aggregate_type,
                                            MIRExprResult address,
-                                           std::string& error) {
+                                           std::string& error,
+                                           ValueId& dynamic_index) {
     path.clear();
     aggregate_type = nullptr;
+    dynamic_index = MIR_INVALID_ID;
     Value* t = value;
     for (int guard = 0; guard < 4 && t; ++guard) {
         if (t->val_kind() == ValueKind::AccessChain) {
@@ -1675,7 +1677,7 @@ bool MIRLowerer::array_element_move_target(Value* value, PlaceId& base,
     }
     if (!t || t->val_kind() != ValueKind::IndexOperator) return false;
     auto* io = t->as_index_op_unsafe();
-    if (!io->idx || io->idx->val_kind() != ValueKind::IntN) return false;
+    if (!io->idx) return false;
     Value* b = io->parent_val;
     for (int guard = 0; guard < 4 && b; ++guard) {
         if (b->val_kind() == ValueKind::AccessChain) {
@@ -1750,7 +1752,12 @@ bool MIRLowerer::array_element_move_target(Value* value, PlaceId& base,
             return false;
         }
     }
-    index = io->idx->as_int_num_value_unsafe()->get_num_value();
+    if (io->idx->val_kind() == ValueKind::IntN) {
+        index = io->idx->as_int_num_value_unsafe()->get_num_value();
+    } else {
+        dynamic_index = address.index_value;
+        if (dynamic_index == MIR_INVALID_ID) return false;
+    }
     element_type = io->getType();
     return element_type != nullptr;
 }
@@ -1809,9 +1816,11 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
             BaseType* element_type = nullptr;
             BaseType* aggregate_type = nullptr;
             std::vector<std::string> element_path;
+            ValueId element_dynamic_index = MIR_INVALID_ID;
             if (array_element_move_target(value, element_base, element_index,
                                           element_type, element_path,
-                                          aggregate_type, result, error)) {
+                                          aggregate_type, result, error,
+                                          element_dynamic_index)) {
                 if (result.kind != MIRExprKind::Address) return true;
                 const TypeId et = element_type ? types_.map(element_type)
                                                : MIR_INVALID_ID;
@@ -1839,10 +1848,40 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
                             }
                         }
                     }
-                    MIRDropElementRef ref = element_path.empty()
-                        ? drop_flag_for_element(element_base, element_index)
-                        : drop_flag_for_path_index(element_base, element_path,
-                                                   element_index);
+                    MIRDropElementRef ref;
+                    if (element_dynamic_index != MIR_INVALID_ID) {
+                        auto* io = probe->as_index_op_unsafe();
+                        std::vector<uint64_t> prefix;
+                        Value* parent = io->parent_val;
+                        bool constant_prefix = true;
+                        while (parent != nullptr &&
+                               parent->val_kind() == ValueKind::IndexOperator) {
+                            auto* pio = parent->as_index_op_unsafe();
+                            if (pio->idx == nullptr ||
+                                pio->idx->val_kind() != ValueKind::IntN) {
+                                constant_prefix = false;
+                                break;
+                            }
+                            prefix.push_back(
+                                pio->idx->as_int_num_value_unsafe()
+                                    ->get_num_value());
+                            parent = pio->parent_val;
+                        }
+                        if (!constant_prefix) {
+                            error = "SAFE-MOVE-004: a dynamic array move requires "
+                                    "constant indices before the final index";
+                            return false;
+                        }
+                        std::reverse(prefix.begin(), prefix.end());
+                        ref = drop_flag_for_indices_dynamic(
+                            element_base, element_path, prefix,
+                            element_dynamic_index);
+                    } else {
+                        ref = element_path.empty()
+                            ? drop_flag_for_element(element_base, element_index)
+                            : drop_flag_for_path_index(element_base, element_path,
+                                                       element_index);
+                    }
                     if (!ref.valid()) {
                         error = "SAFE-MOVE-004: cannot move a destructible array "
                                 "element whose element drop flag is not tracked; "

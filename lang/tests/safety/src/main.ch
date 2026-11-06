@@ -761,6 +761,17 @@ func non_copy_nested_array_pattern_moves_elements(env : &mut TestEnv) {
 }
 
 @test
+func dynamic_index_large_array_move_tracks_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var arr = zeroed:unsafe<[100]Tracker>()\n        var i = 3\n        var moved = arr[i]\n        if(moved.id != 0) { return 10 }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_large_array_move", ch, &mut out)
+    if(rc != 100) {
+        env.error("dynamic large-array move did not clear exactly one element flag")
+    }
+}
+
+@test
 func dynamic_index_large_array_write_tracks_element(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var arr = zeroed:unsafe<[100]Tracker>()\n        var i = 3\n        arr[i] = Tracker { id : 7 }\n        if(arr[i].id != 7) { return 10 }\n    }\n    return drops\n}\n"

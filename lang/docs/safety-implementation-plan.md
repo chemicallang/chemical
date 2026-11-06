@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.52)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.53)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1637,9 +1637,14 @@ new number as the honest baseline, not a compiler regression.
     A fixed-array field of a mutable local/async-frame aggregate
     (`s.items[0]`, `s.inner.items[0]`) uses the same element move with its field
     path, so its per-element flag under the struct drop tree is cleared.
-    Dynamic indices, `const` bindings, array parameters (passed as pointers),
-    array fields reached through references/pointers, and borrowed/slice views
-    remain rejected with `SAFE-MOVE-004` rather than being guessed safe.
+    A dynamic final index move (`var x = arr[i]`) from a fully initialized
+    large array clears the runtime element flag and emits `MoveOut`; the move
+    checker conservatively treats the index as the owning root path, so the
+    root must be fully initialized. Small scalar-flag arrays reject with
+    `SAFE-MOVE-004`, and uninitialized arrays reject with `SAFE-INIT-001`.
+    `const` bindings, array parameters (passed as pointers), array fields
+    reached through references/pointers, and borrowed/slice views remain
+    rejected with `SAFE-MOVE-004` rather than being guessed safe.
     Non-Copy destructuring of owned local arrays follows the full
     constant-index path for expanded small arrays, while unsupported
     large/template or borrowed shapes remain `SAFE-MOVE-004`.
@@ -2126,7 +2131,7 @@ Async is in scope:
 - `MIRMoveCheck` produces the init/drop plan; elaboration inserts drop flags
   from it, per path, field-wise, variant-aware. No AST heuristic produces a
   flag.
-- No partial moves out of `Drop`; no dynamic-index moves.
+- No partial moves out of `Drop`; dynamic-index moves are limited to a fully initialized root with a runtime-selectable element flag/template.
 - Variants track active case; unions are always-initialized storage (unsafe
   access); union fields `ManuallyDrop` or C interop.
 - **Init enforcement lands before move enforcement and before borrow
@@ -3269,3 +3274,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.50 (2026-11-05): nested conditional `Unpin` in generic-impl bounds. `check_generic_impl_bounds` rejected a concrete nested argument such as `Holder<[1]Wrapper<int>>` even when `impl<T> Unpin for Wrapper<T> where T: Unpin` applies: the bound path checked the array element's raw field shape (which contains `PhantomPinned`) and never materialized the conditional positive impl. The `Unpin` branch now retries after recursively asking the normal generic-impl machinery to instantiate conditional positive impls in array elements, generic arguments, and aggregate fields; only concrete candidates are instantiated, so a `Wrapper<PhantomPinned>` argument still rejects with the bound diagnostic. Added positive and negative compile tests for the nested-array case. Negative `850/850`; safety `88/88`; TCC/LLVM main `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v5.51 (2026-11-05): `'static` borrowed views are transferable. Borrowed `span`/`mut_span`/`str`/`string_view` values still store raw pointer/length pairs, but the parser already puts the source lifetime on the generic type (`&'static [T]` -> `span<'static, T>`, `&'static str` -> `str<'static>`). The auto-trait walk now treats those views as a lifetime-aware structural rule instead of a blanket raw-pointer rejection: only an explicit `'static` lifetime argument makes them `Send`/`Sync` (for `span<T>`, `T: Sync`; for `mut_span<T>`, `T: Send`/`T: Sync`; `str`/`string_view` are immutable and unconditional). `type_satisfies_static_bound` and lambda capture-borrow detection use the same rule, so an elided or named view is still `!Send`/`!Sync` and cannot cross a `'static` boundary. Added positive compile coverage for static `str`/`span`/`mut_span`/`string_view`, negative coverage for bare views satisfying `Send`, and a runtime thread test sending a `&'static str`. Negative `853/853`; safety `89/89`; TCC/LLVM main `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v5.52 (2026-11-05): arbitrary-depth non-Copy fixed-array destructuring. The array-pattern lowering no longer stops at two fixed-array levels. A new `drop_flag_for_indices` walks the generated drop-field tree through the full constant index path and returns the leaf/element drop reference, so `var [[[a, b], [c, d]], [[e, f], [g, h]]] = cube` moves each leaf and clears only its owning flag. The same resolution now drives nested constant-index assignment (`cube[a][b][c] = ...`), including large inner flag blocks and element templates, and a dynamic final-index write into a fully initialized large array (`arr[i] = value`). Partial dynamic writes into an uninitialized array still reject with `SAFE-INIT-001`. Large/template or borrowed shapes whose flag tree cannot be resolved still reject with `SAFE-MOVE-004` rather than guessing. Added a TCC/LLVM runtime drop-count test for a three-level array of destructor-bearing elements. Safety `91/91`; negative `854/854`; TCC/LLVM main `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
+*Revision note v5.53 (2026-11-05): dynamic-index large-array element moves. `var x = arr[i]` now resolves the runtime element flag (or generated-glue element template) for a fully initialized large array, clears exactly that element's flag, and emits `MoveOut`; the move checker deliberately treats a dynamic index path as the owning root so the root must be fully initialized. Small scalar-flag arrays reject with `SAFE-MOVE-004`, and uninitialized arrays reject with `SAFE-INIT-001`. Added a TCC/LLVM runtime drop-count test (100 zeroed elements, one dynamic move) and a negative uninitialized-root test; the pre-existing small-array dynamic-move negative now carries `SAFE-MOVE-004`. Safety `92/92`; negative `855/855`; TCC/LLVM main `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.

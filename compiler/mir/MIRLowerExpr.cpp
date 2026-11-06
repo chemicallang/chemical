@@ -1695,18 +1695,22 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             if (abi::is_aggregate(module_, type)) {
                 // aggregate element: return its address (an lvalue), not a load
                 const TypeId ptrt = types_.pointer_type(type, true);
+                MIRExprResult out;
                 if (base.kind == MIRExprKind::Place) {
-                    return MIRExprResult::address(
+                    out = MIRExprResult::address(
                         builder_->index_addr(static_cast<PlaceId>(base.id),
                                              static_cast<ValueId>(idx.id), type), type);
-                }
-                if (base.kind == MIRExprKind::Value || base.kind == MIRExprKind::Address) {
-                    return MIRExprResult::address(
+                } else if (base.kind == MIRExprKind::Value ||
+                           base.kind == MIRExprKind::Address) {
+                    out = MIRExprResult::address(
                         builder_->index_addr_ptr(static_cast<ValueId>(base.id),
                                                  static_cast<ValueId>(idx.id), type), type);
+                } else {
+                    error = "index base is not a place or pointer value";
+                    return MIRExprResult::error();
                 }
-                error = "index base is not a place or pointer value";
-                return MIRExprResult::error();
+                out.index_value = static_cast<ValueId>(idx.id);
+                return out;
             }
             if (base.kind == MIRExprKind::Place) {
                 return MIRExprResult::value(

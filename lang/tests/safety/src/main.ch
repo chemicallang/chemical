@@ -783,6 +783,28 @@ func dynamic_index_large_array_write_tracks_element(env : &mut TestEnv) {
 }
 
 @test
+func partial_dynamic_index_large_array_write_tracks_elements(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [100]Tracker\n        var i = 3\n        var j = 5\n        arr[i] = Tracker { id : 7 }\n        arr[j] = Tracker { id : 8 }\n        arr[0] = Tracker { id : 9 }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "partial_dynamic_large_array_write", ch, &mut out)
+    if(rc != 3) {
+        env.error("partial dynamic large-array writes did not drop each initialized element exactly once")
+    }
+}
+
+@test
+func partial_dynamic_index_field_array_write_tracks_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Holder {\n    var items : [100]Tracker\n}\npublic func main() : int {\n    unsafe {\n        var h : Holder\n        var i = 3\n        h.items[i] = Tracker { id : 7 }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "partial_dynamic_field_array_write", ch, &mut out)
+    if(rc != 1) {
+        env.error("partial dynamic field-array write did not drop exactly the initialized element")
+    }
+}
+
+@test
 func non_copy_three_level_array_pattern_moves_elements(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var values : [2][2][2]Tracker\n        values[0][0][0] = Tracker { id : 1 }\n        values[0][0][1] = Tracker { id : 2 }\n        values[0][1][0] = Tracker { id : 3 }\n        values[0][1][1] = Tracker { id : 4 }\n        values[1][0][0] = Tracker { id : 5 }\n        values[1][0][1] = Tracker { id : 6 }\n        values[1][1][0] = Tracker { id : 7 }\n        values[1][1][1] = Tracker { id : 8 }\n        {\n            var [[[a, b], [c, d]], [[e, f], [g, h]]] = values\n            if(a.id != 1 || b.id != 2 || c.id != 3 || d.id != 4) { return 10 }\n            if(e.id != 5 || f.id != 6 || g.id != 7 || h.id != 8) { return 11 }\n        }\n    }\n    return drops\n}\n"

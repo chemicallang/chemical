@@ -53,8 +53,8 @@ Latest measured baseline:
 | TCC main | `2489/2489` |
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `855/855` |
-| TCC/LLVM safety | `92/92` |
+| TCC/LLVM negative | `857/857` |
+| TCC/LLVM safety | `94/94` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -505,19 +505,19 @@ memory safety.
     field-path element flags; temporary aggregate field arrays and direct
     temporary arrays use the same block-scope tracking. C array-valued sret
     returns use `memcpy`. Remaining: user-destructor temporaries,
-    pointer/dereference bases, array fields through references/pointers, inner
-    arrays using a flat flag block above 1024 with a runtime inner loop, and
-    unsized
-    arrays still fall back to a whole-field flag. Whole-field
+    pointer/dereference bases, array fields through references/pointers, and
+    unsized arrays, which still fall back to a whole-field flag. Whole-field
     construction/destruction of a generated-glue large array field inside a
     frame aggregate uses the same template. Constant-index writes into a
     tracked array field initialize that element and its leaves, including
     nested constant-index element writes (`cube[o][i][j] = ...`) and dynamic
     final-index writes/moves into a fully initialized large array
     (`arr[i] = ...` / `var x = arr[i]`), including large inner flag blocks and
-    element templates. Dynamic moves are root-initialized checked; small
-    scalar-flag arrays stay `SAFE-MOVE-004`, and uninitialized roots stay
-    `SAFE-INIT-001`.
+    element templates. Dynamic writes may also initialize a partially or
+    wholly uninitialized large array (including a large array field), leaving
+    the array partially initialized through its runtime flags; dynamic moves
+    still require a fully initialized root (`SAFE-INIT-001`), and small
+    scalar-flag arrays stay `SAFE-MOVE-004`.
 
 11. **Interpreter boundaries.** MIR interpreter bounds/provenance/tombstone
     checks are implemented. Async/coroutine opcodes, inline asm, dynamic

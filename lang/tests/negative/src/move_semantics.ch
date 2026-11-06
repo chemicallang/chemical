@@ -266,12 +266,31 @@ func partial_large_array_element_init_is_allowed(env : &mut TestEnv) {
 }
 
 @test
-func neg_uninitialized_large_array_dynamic_index(env : &mut TestEnv) {
+func partial_large_array_dynamic_index_is_allowed(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // A dynamic index cannot prove the rest of an uninitialized array is
-    // live; only a fully initialized large array may be updated dynamically.
+    // A large array has per-element runtime flags, so a dynamic write may
+    // initialize one element of an otherwise uninitialized array. The array
+    // remains partially initialized for whole-array reads/moves.
     var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [100]DT\n        var i = 0\n        arr[i] = DT { x : 1 }\n    }\n    return 0\n}\n"
-    expect_compile_error(env, "uninit_large_array_dynamic_index", ch, "SAFE-INIT-001")
+    expect_compile_success(env, "partial_large_array_dynamic_index", ch)
+}
+
+@test
+func neg_read_partially_initialized_large_array_dynamic(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A runtime write records one live element, but a later dynamic read
+    // cannot prove which element is live; the array is partially initialized.
+    var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [100]DT\n        var i = 0\n        arr[i] = DT { x : 1 }\n        var moved = arr[i]\n        return moved.x\n    }\n}\n"
+    expect_compile_error(env, "read_partial_large_array_dynamic", ch, "SAFE-MOVE-001")
+}
+
+@test
+func neg_move_partially_initialized_large_array_whole(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A partially initialized array cannot be moved as a whole; the runtime
+    // flags only describe individual elements.
+    var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [100]DT\n        var i = 0\n        arr[i] = DT { x : 1 }\n        var whole = arr\n    }\n    return 0\n}\n"
+    expect_compile_error(env, "move_partial_large_array_whole", ch, "SAFE-MOVE-001")
 }
 
 @test

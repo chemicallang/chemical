@@ -346,6 +346,57 @@ void apply_projection_store(const MIRModule& module, const MIRFunction& fn,
                             TypeId aggregate, const MIROperand& projection,
                             std::vector<MIRMoveState>& states,
                             std::vector<MIRMoveDiagnostic>& out) {
+    // A dynamic index into an array is a runtime-selected element. The lowering
+    // has already proved that the element's drop flag/flag-array is resolvable
+    // (otherwise it rejects the assignment), so a write into a partially
+    // initialized array is safe: the runtime flag records exactly which
+    // elements are live. Keep the array path "partially moved" so a whole-array
+    // read/move still requires full static initialization.
+    const bool dynamic_array_index =
+        aggregate != MIR_INVALID_ID && aggregate < module.types.types.size() &&
+        module.types.types[aggregate].kind == MIRTypeKind::Array &&
+        projection.kind() == MIROperandKind::Value;
+    uint64_t constant_element = 0;
+    if (dynamic_array_index &&
+        constant_index(module, projection.id, fn, constant_element)) {
+        // A constant index has an owned child path and follows the normal path
+        // below; only a genuinely runtime index uses the partial-array rule.
+    } else if (dynamic_array_index) {
+        const uint32_t top_root = root_of_path(fn, base_path);
+        if (top_root == MIR_INVALID_ID) return;
+        const PlaceId root_place = fn.move_paths[top_root].root_place;
+        MIRStorageClass storage = MIRStorageClass::Local;
+        if (root_place < fn.places.size()) {
+            storage = static_cast<MIRStorageClass>(
+                fn.places[root_place].storage_class
+            );
+        }
+        const MIRMoveState array_state = state_of(states, base_path);
+        if (array_state == MIRMoveState::Moved ||
+            array_state == MIRMoveState::Destroyed) {
+            report(out, fn, function_index, block, inst_index, base_path,
+                   array_state, "write to a field of");
+            return;
+        }
+        const bool runtime_flags =
+            root_place < fn.places.size() &&
+            fn.places[root_place].field_wise_drop;
+        if (!runtime_flags ||
+            (storage != MIRStorageClass::Local &&
+             storage != MIRStorageClass::Temporary &&
+             storage != MIRStorageClass::Parameter)) {
+            require_initialized(out, fn, function_index, block, inst_index,
+                                base_path, states, "write to a field of");
+            return;
+        }
+        if (array_state != MIRMoveState::Initialized) {
+            // Some element is live, but which one is only known at runtime.
+            // The array can still be dropped element-wise through its flags.
+            states[base_path] = MIRMoveState::PartiallyMoved;
+            refresh_ancestors(fn, states, base_path);
+        }
+        return;
+    }
     const uint32_t target = project_path(
         module, fn, base_path, aggregate, &projection, 1
     );

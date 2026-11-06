@@ -1544,6 +1544,274 @@ void MIRLowerer::destroy_dynamic_constant_dynamic_element(
     builder_->set_block(end_b);
 }
 
+MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_three_dynamic_indices(
+        PlaceId place, const std::vector<std::string>& path,
+        const std::vector<uint64_t>& prefix, ValueId outer, ValueId middle,
+        ValueId inner) {
+    if (outer == MIR_INVALID_ID || middle == MIR_INVALID_ID ||
+        inner == MIR_INVALID_ID) {
+        return {};
+    }
+    std::vector<MIRDropField>* list = nullptr;
+    if (path.empty()) {
+        for (auto& d : destructibles_) {
+            if (d.place == place) { list = &d.fields; break; }
+        }
+    } else {
+        MIRDropField* node = drop_field_for_path(place, path);
+        if (node == nullptr || node->element_template ||
+            node->flag_array != MIR_INVALID_ID) {
+            return {};
+        }
+        list = &node->children;
+    }
+    if (list == nullptr) return {};
+    for (uint64_t step : prefix) {
+        MIRDropField* next = nullptr;
+        for (auto& f : *list) {
+            if (f.array_index == static_cast<uint32_t>(step)) {
+                next = &f;
+                break;
+            }
+        }
+        if (next == nullptr || next->element_template ||
+            next->flag_array != MIR_INVALID_ID) {
+            return {};
+        }
+        list = &next->children;
+    }
+    const size_t n = list->size();
+    if (n == 0 || n > 64) return {};
+    std::vector<MIRDropField*> rows(n, nullptr);
+    uint64_t middle_count = 0;
+    uint64_t inner_count = 0;
+    for (auto& row : *list) {
+        if (row.array_index == MIR_INVALID_ID || row.array_index >= n ||
+            rows[row.array_index] != nullptr || row.element_template ||
+            row.flag_array != MIR_INVALID_ID || row.children.empty()) {
+            return {};
+        }
+        rows[row.array_index] = &row;
+        if (middle_count == 0) middle_count = row.children.size();
+        if (row.children.size() != middle_count || middle_count > 64) {
+            return {};
+        }
+        for (auto& middle_row : row.children) {
+            if (middle_row.array_index == MIR_INVALID_ID ||
+                middle_row.array_index >= middle_count ||
+                middle_row.element_template ||
+                middle_row.flag_array != MIR_INVALID_ID ||
+                middle_row.children.empty()) {
+                return {};
+            }
+            if (inner_count == 0) inner_count = middle_row.children.size();
+            if (middle_row.children.size() != inner_count ||
+                inner_count > 64 || n * middle_count * inner_count > 1024) {
+                return {};
+            }
+            for (auto& inner_row : middle_row.children) {
+                if (inner_row.array_index == MIR_INVALID_ID ||
+                    inner_row.array_index >= inner_count ||
+                    inner_row.flag == MIR_INVALID_ID ||
+                    !inner_row.children.empty() ||
+                    inner_row.element_template ||
+                    inner_row.flag_array != MIR_INVALID_ID) {
+                    return {};
+                }
+            }
+        }
+    }
+    for (MIRDropField* row : rows) {
+        if (row == nullptr) return {};
+    }
+    MIRDropElementRef ref;
+    ref.runtime_rows = list;
+    ref.dynamic_three_indices = true;
+    ref.place = place;
+    ref.path = path;
+    ref.indices = prefix;
+    ref.dynamic_outer = outer;
+    ref.dynamic_middle_value = middle;
+    ref.dynamic_index = inner;
+    return ref;
+}
+
+void MIRLowerer::set_three_dynamic_element(
+        std::vector<MIRDropField>& rows, ValueId outer, ValueId middle,
+        ValueId inner, bool value) {
+    if (rows.empty() || outer == MIR_INVALID_ID ||
+        middle == MIR_INVALID_ID || inner == MIR_INVALID_ID) {
+        return;
+    }
+    const TypeId bool_t = types_.bool_type();
+    const TypeId u32 = types_.u32_type();
+    const TypeId u64 = types_.u64_type();
+    const ValueId outer_u64 = builder_->cast(outer, u64);
+    const ValueId outer32 = builder_->cast(outer, u32);
+    const ValueId middle_u64 = builder_->cast(middle, u64);
+    const ValueId middle32 = builder_->cast(middle, u32);
+    const ConstantId lt = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt)
+    );
+    const ConstantId eq = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq)
+    );
+    const ValueId outer_len = builder_->const_int(
+        u64, module_.constants.add_int(u64, rows.size())
+    );
+    emit_abort_unless(builder_->compare(outer_u64, outer_len, lt, bool_t),
+                      "__chc_bounds_fail");
+    const BlockId end_b = builder_->create_block();
+    for (MIRDropField& row : rows) {
+        if (row.array_index == MIR_INVALID_ID) continue;
+        const BlockId match_b = builder_->create_block();
+        const BlockId next_b = builder_->create_block();
+        const ValueId row_index = builder_->const_int(
+            u32, module_.constants.add_int(u32, row.array_index)
+        );
+        builder_->cond_br(
+            builder_->compare(outer32, row_index, eq, bool_t), match_b, next_b
+        );
+        builder_->set_block(match_b);
+        const ValueId middle_len = builder_->const_int(
+            u64, module_.constants.add_int(u64, row.children.size())
+        );
+        emit_abort_unless(
+            builder_->compare(middle_u64, middle_len, lt, bool_t),
+            "__chc_bounds_fail"
+        );
+        const BlockId middle_end = builder_->create_block();
+        for (MIRDropField& middle_row : row.children) {
+            if (middle_row.array_index == MIR_INVALID_ID) continue;
+            const BlockId middle_b = builder_->create_block();
+            const BlockId middle_next = builder_->create_block();
+            const ValueId middle_index = builder_->const_int(
+                u32, module_.constants.add_int(u32, middle_row.array_index)
+            );
+            builder_->cond_br(
+                builder_->compare(middle32, middle_index, eq, bool_t),
+                middle_b, middle_next
+            );
+            builder_->set_block(middle_b);
+            std::vector<MIRDropField*> inner_flags;
+            for (auto& inner_row : middle_row.children) {
+                inner_flags.push_back(&inner_row);
+            }
+            MIRDropFlagRef flag = dynamic_scalar_flag(inner_flags, inner);
+            if (flag.valid()) {
+                if (flag.place != MIR_INVALID_ID) {
+                    builder_->set_drop(flag.place, value);
+                } else {
+                    builder_->store_indirect(
+                        flag.address,
+                        builder_->const_bool(
+                            bool_t, module_.constants.add_bool(bool_t, value)
+                        )
+                    );
+                }
+            }
+            if (!builder_->current_block_terminated()) {
+                builder_->br(middle_end);
+            }
+            builder_->set_block(middle_next);
+        }
+        if (!builder_->current_block_terminated()) builder_->br(middle_end);
+        builder_->set_block(middle_end);
+        if (!builder_->current_block_terminated()) builder_->br(end_b);
+        builder_->set_block(next_b);
+    }
+    if (!builder_->current_block_terminated()) builder_->br(end_b);
+    builder_->set_block(end_b);
+}
+
+void MIRLowerer::destroy_three_dynamic_element(
+        ValueId address, std::vector<MIRDropField>& rows, ValueId outer,
+        ValueId middle, ValueId inner, BaseType* element_type) {
+    if (address == MIR_NULL || rows.empty() || outer == MIR_INVALID_ID ||
+        middle == MIR_INVALID_ID || inner == MIR_INVALID_ID ||
+        element_type == nullptr) {
+        return;
+    }
+    const TypeId bool_t = types_.bool_type();
+    const TypeId u32 = types_.u32_type();
+    const TypeId u64 = types_.u64_type();
+    const ValueId outer_u64 = builder_->cast(outer, u64);
+    const ValueId outer32 = builder_->cast(outer, u32);
+    const ValueId middle_u64 = builder_->cast(middle, u64);
+    const ValueId middle32 = builder_->cast(middle, u32);
+    const ConstantId lt = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt)
+    );
+    const ConstantId eq = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq)
+    );
+    const ValueId false_value = builder_->const_bool(
+        bool_t, module_.constants.add_bool(bool_t, false)
+    );
+    const ValueId outer_len = builder_->const_int(
+        u64, module_.constants.add_int(u64, rows.size())
+    );
+    emit_abort_unless(builder_->compare(outer_u64, outer_len, lt, bool_t),
+                      "__chc_bounds_fail");
+    const BlockId end_b = builder_->create_block();
+    for (MIRDropField& row : rows) {
+        if (row.array_index == MIR_INVALID_ID) continue;
+        const BlockId match_b = builder_->create_block();
+        const BlockId next_b = builder_->create_block();
+        const ValueId row_index = builder_->const_int(
+            u32, module_.constants.add_int(u32, row.array_index)
+        );
+        builder_->cond_br(
+            builder_->compare(outer32, row_index, eq, bool_t), match_b, next_b
+        );
+        builder_->set_block(match_b);
+        const ValueId middle_len = builder_->const_int(
+            u64, module_.constants.add_int(u64, row.children.size())
+        );
+        emit_abort_unless(
+            builder_->compare(middle_u64, middle_len, lt, bool_t),
+            "__chc_bounds_fail"
+        );
+        const BlockId middle_end = builder_->create_block();
+        for (MIRDropField& middle_row : row.children) {
+            if (middle_row.array_index == MIR_INVALID_ID) continue;
+            const BlockId middle_b = builder_->create_block();
+            const BlockId middle_next = builder_->create_block();
+            const ValueId middle_index = builder_->const_int(
+                u32, module_.constants.add_int(u32, middle_row.array_index)
+            );
+            builder_->cond_br(
+                builder_->compare(middle32, middle_index, eq, bool_t),
+                middle_b, middle_next
+            );
+            builder_->set_block(middle_b);
+            std::vector<MIRDropField*> inner_flags;
+            for (auto& inner_row : middle_row.children) {
+                inner_flags.push_back(&inner_row);
+            }
+            MIRDropFlagRef flag = dynamic_scalar_flag(inner_flags, inner);
+            if (flag.valid()) {
+                emit_dtor_ptr_cond(address, element_type, flag);
+                if (flag.place != MIR_INVALID_ID) {
+                    builder_->set_drop(flag.place, false);
+                } else {
+                    builder_->store_indirect(flag.address, false_value);
+                }
+            }
+            if (!builder_->current_block_terminated()) {
+                builder_->br(middle_end);
+            }
+            builder_->set_block(middle_next);
+        }
+        if (!builder_->current_block_terminated()) builder_->br(middle_end);
+        builder_->set_block(middle_end);
+        if (!builder_->current_block_terminated()) builder_->br(end_b);
+        builder_->set_block(next_b);
+    }
+    if (!builder_->current_block_terminated()) builder_->br(end_b);
+    builder_->set_block(end_b);
+}
+
 void MIRLowerer::materialize_drop_fields(std::vector<MIRDropField>& fields,
                                          bool initialize) {
     for (auto& f : fields) {
@@ -3065,6 +3333,12 @@ bool MIRLowerer::array_element_move_target(Value* value, PlaceId& base,
 }
 
 void MIRLowerer::clear_element_drop_flag(const MIRDropElementRef& ref) {
+    if (ref.dynamic_three_indices && ref.runtime_rows != nullptr) {
+        set_three_dynamic_element(
+            *ref.runtime_rows, ref.dynamic_outer, ref.dynamic_middle_value,
+            ref.dynamic_index, false
+        );
+    }
     if (ref.dynamic_constant_dynamic && ref.runtime_rows != nullptr) {
         set_dynamic_constant_dynamic_element(
             *ref.runtime_rows, ref.dynamic_middle, ref.dynamic_outer,
@@ -3223,6 +3497,44 @@ bool MIRLowerer::emit_dynamic_element_read_check(
         if (parent_io->idx != nullptr &&
             parent_io->idx->val_kind() != ValueKind::IntN &&
             address.base_index_value != MIR_INVALID_ID) {
+            Value* grand = unwrap_index_value(parent_io->parent_val);
+            if (grand != nullptr &&
+                grand->val_kind() == ValueKind::IndexOperator &&
+                grand->as_index_op_unsafe()->idx != nullptr &&
+                grand->as_index_op_unsafe()->idx->val_kind() !=
+                    ValueKind::IntN &&
+                address.base_outer_index_value != MIR_INVALID_ID) {
+                auto* grand_io = grand->as_index_op_unsafe();
+                std::vector<uint64_t> three_prefix;
+                Value* before = unwrap_index_value(grand_io->parent_val);
+                bool constant_prefix = true;
+                while (before != nullptr &&
+                       before->val_kind() == ValueKind::IndexOperator) {
+                    auto* prefix_io = before->as_index_op_unsafe();
+                    if (prefix_io->idx == nullptr ||
+                        prefix_io->idx->val_kind() != ValueKind::IntN) {
+                        constant_prefix = false;
+                        break;
+                    }
+                    three_prefix.push_back(
+                        prefix_io->idx->as_int_num_value_unsafe()
+                            ->get_num_value()
+                    );
+                    before = unwrap_index_value(prefix_io->parent_val);
+                }
+                if (constant_prefix) {
+                    std::reverse(three_prefix.begin(), three_prefix.end());
+                    ref = drop_flag_for_three_dynamic_indices(
+                        base, path, three_prefix,
+                        address.base_outer_index_value,
+                        address.base_index_value, dynamic_index
+                    );
+                    dynamic_ref = ref.valid();
+                }
+            }
+            if (ref.valid()) {
+                // resolved the three-runtime-index form
+            } else {
             std::vector<uint64_t> prefix;
             Value* before = unwrap_index_value(parent_io->parent_val);
             bool constant_prefix = true;
@@ -3257,6 +3569,7 @@ bool MIRLowerer::emit_dynamic_element_read_check(
                 base, path, prefix, address.base_index_value, inner_index
             );
             dynamic_ref = ref.valid();
+            }
         }
     }
     if (!ref.valid() && dynamic_index != MIR_INVALID_ID) {
@@ -3779,6 +4092,90 @@ bool MIRLowerer::emit_dynamic_element_read_check(
         builder_->set_block(end_b);
         return true;
     };
+    auto check_three_dynamic_rows = [&](std::vector<MIRDropField>& rows,
+                                           ValueId outer, ValueId middle,
+                                           ValueId inner) -> bool {
+        if (rows.empty() || outer == MIR_INVALID_ID ||
+            middle == MIR_INVALID_ID || inner == MIR_INVALID_ID) {
+            return false;
+        }
+        const ValueId outer_u64 = builder_->cast(outer, u64);
+        const ValueId outer32 = builder_->cast(outer, u32);
+        const ValueId middle_u64 = builder_->cast(middle, u64);
+        const ValueId middle32 = builder_->cast(middle, u32);
+        const ConstantId lt = module_.constants.add_int(
+            MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt)
+        );
+        const ConstantId eq = module_.constants.add_int(
+            MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq)
+        );
+        const ValueId outer_len = builder_->const_int(
+            u64, module_.constants.add_int(u64, rows.size())
+        );
+        emit_abort_unless(builder_->compare(outer_u64, outer_len, lt, bool_t),
+                          "__chc_bounds_fail");
+        const BlockId end_b = builder_->create_block();
+        for (MIRDropField& row : rows) {
+            if (row.array_index == MIR_INVALID_ID) continue;
+            const BlockId match_b = builder_->create_block();
+            const BlockId next_b = builder_->create_block();
+            const ValueId row_index = builder_->const_int(
+                u32, module_.constants.add_int(u32, row.array_index)
+            );
+            builder_->cond_br(
+                builder_->compare(outer32, row_index, eq, bool_t),
+                match_b, next_b
+            );
+            builder_->set_block(match_b);
+            const ValueId middle_len = builder_->const_int(
+                u64, module_.constants.add_int(u64, row.children.size())
+            );
+            emit_abort_unless(
+                builder_->compare(middle_u64, middle_len, lt, bool_t),
+                "__chc_bounds_fail"
+            );
+            const BlockId middle_end = builder_->create_block();
+            for (MIRDropField& middle_row : row.children) {
+                if (middle_row.array_index == MIR_INVALID_ID) continue;
+                const BlockId middle_b = builder_->create_block();
+                const BlockId middle_next = builder_->create_block();
+                const ValueId middle_index = builder_->const_int(
+                    u32, module_.constants.add_int(
+                        u32, middle_row.array_index
+                    )
+                );
+                builder_->cond_br(
+                    builder_->compare(middle32, middle_index, eq, bool_t),
+                    middle_b, middle_next
+                );
+                builder_->set_block(middle_b);
+                std::vector<MIRDropField*> inner_flags;
+                for (auto& inner_row : middle_row.children) {
+                    inner_flags.push_back(&inner_row);
+                }
+                MIRDropFlagRef flag = dynamic_scalar_flag(inner_flags, inner);
+                if (!flag.valid()) return false;
+                const ValueId initialized =
+                    flag.place != MIR_INVALID_ID
+                        ? builder_->load(flag.place, bool_t)
+                        : builder_->load_indirect(flag.address, bool_t);
+                emit_abort_unless(initialized, "__chc_uninit_fail");
+                if (!builder_->current_block_terminated()) {
+                    builder_->br(middle_end);
+                }
+                builder_->set_block(middle_next);
+            }
+            if (!builder_->current_block_terminated()) {
+                builder_->br(middle_end);
+            }
+            builder_->set_block(middle_end);
+            if (!builder_->current_block_terminated()) builder_->br(end_b);
+            builder_->set_block(next_b);
+        }
+        if (!builder_->current_block_terminated()) builder_->br(end_b);
+        builder_->set_block(end_b);
+        return true;
+    };
     auto mark_checked = [&]() {
         if (address.id != MIR_INVALID_ID &&
             address.id < builder_->function().values.size()) {
@@ -3786,6 +4183,18 @@ bool MIRLowerer::emit_dynamic_element_read_check(
         }
         checked = true;
     };
+    if (dynamic_ref && ref.dynamic_three_indices &&
+        ref.runtime_rows != nullptr) {
+        if (!check_three_dynamic_rows(
+                *ref.runtime_rows, ref.dynamic_outer,
+                ref.dynamic_middle_value, dynamic_index)) {
+            error = "SAFE-INIT-001: cannot check a runtime-selected "
+                    "three-index element";
+            return false;
+        }
+        mark_checked();
+        return true;
+    }
     if (dynamic_ref && ref.dynamic_constant_dynamic &&
         ref.runtime_rows != nullptr) {
         if (!check_dynamic_constant_dynamic_rows(
@@ -3998,6 +4407,61 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
                                             "array index was not lowered";
                                     return false;
                                 }
+                                Value* grand = unwrap_index_value(
+                                    parent_io->parent_val
+                                );
+                                if (grand != nullptr &&
+                                    grand->val_kind() ==
+                                        ValueKind::IndexOperator &&
+                                    grand->as_index_op_unsafe()->idx != nullptr &&
+                                    grand->as_index_op_unsafe()->idx->val_kind() !=
+                                        ValueKind::IntN &&
+                                    result.base_outer_index_value !=
+                                        MIR_INVALID_ID) {
+                                    auto* grand_io =
+                                        grand->as_index_op_unsafe();
+                                    std::vector<uint64_t> three_prefix;
+                                    Value* before = unwrap_index_value(
+                                        grand_io->parent_val
+                                    );
+                                    bool constant_prefix = true;
+                                    while (before != nullptr &&
+                                           before->val_kind() ==
+                                               ValueKind::IndexOperator) {
+                                        auto* prefix_io =
+                                            before->as_index_op_unsafe();
+                                        if (prefix_io->idx == nullptr ||
+                                            prefix_io->idx->val_kind() !=
+                                                ValueKind::IntN) {
+                                            constant_prefix = false;
+                                            break;
+                                        }
+                                        three_prefix.push_back(
+                                            prefix_io->idx
+                                                ->as_int_num_value_unsafe()
+                                                ->get_num_value()
+                                        );
+                                        before = unwrap_index_value(
+                                            prefix_io->parent_val
+                                        );
+                                    }
+                                    if (constant_prefix) {
+                                        std::reverse(
+                                            three_prefix.begin(),
+                                            three_prefix.end()
+                                        );
+                                        ref = drop_flag_for_three_dynamic_indices(
+                                            element_base, element_path,
+                                            three_prefix,
+                                            result.base_outer_index_value,
+                                            result.base_index_value,
+                                            element_dynamic_index
+                                        );
+                                    }
+                                }
+                                if (ref.valid()) {
+                                    // resolved the three-runtime-index form
+                                } else {
                                 std::vector<uint64_t> two_prefix;
                                 Value* before = unwrap_index_value(
                                     parent_io->parent_val
@@ -4035,6 +4499,7 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
                                     result.base_index_value,
                                     element_dynamic_index
                                 );
+                                }
                             }
                         }
                         if (!ref.valid()) {

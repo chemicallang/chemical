@@ -825,6 +825,9 @@ private:
         // Dynamic / constant / dynamic index (`arr[i][CONST][j]`).
         bool dynamic_constant_dynamic = false;
         uint64_t dynamic_middle = MIR_INVALID_ID;
+        // Three runtime indices (`arr[i][j][k]`).
+        bool dynamic_three_indices = false;
+        ValueId dynamic_middle_value = MIR_INVALID_ID;
         // Field path for a path-indexed element (`holder.items[i]`), used to
         // re-resolve after lowering the RHS may reallocate `destructibles_`.
         std::vector<std::string> path;
@@ -961,6 +964,20 @@ private:
     void destroy_dynamic_constant_dynamic_element(
             ValueId address, std::vector<MIRDropField>& rows, uint64_t middle,
             ValueId outer, ValueId inner, BaseType* element_type);
+    /** Select `arr[outer][middle][inner]` for small direct arrays. */
+    MIRDropElementRef drop_flag_for_three_dynamic_indices(
+            PlaceId place, const std::vector<std::string>& path,
+            const std::vector<uint64_t>& prefix, ValueId outer,
+            ValueId middle, ValueId inner);
+    /** Arm/clear a three-runtime-index element. */
+    void set_three_dynamic_element(std::vector<MIRDropField>& rows,
+                                   ValueId outer, ValueId middle,
+                                   ValueId inner, bool value);
+    /** Destroy a three-runtime-index element. */
+    void destroy_three_dynamic_element(ValueId address,
+                                       std::vector<MIRDropField>& rows,
+                                       ValueId outer, ValueId middle,
+                                       ValueId inner, BaseType* element_type);
     /** Destroy one value through an address, gated by an optional flag. */
     void emit_dtor_ptr_cond(ValueId address, BaseType* type,
                             MIRDropFlagRef flag);

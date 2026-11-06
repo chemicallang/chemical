@@ -84,6 +84,8 @@ struct MIRExprResult {
     // For a nested indexed lvalue, the lowered index of the base element
     // (`arr[i]` in `arr[i][j]`), used by the two-dimensional flag selector.
     ValueId base_index_value = MIR_INVALID_ID;
+    // The index one level above `base_index_value` (`i` in `arr[i][0][j]`).
+    ValueId base_outer_index_value = MIR_INVALID_ID;
 
     static MIRExprResult value(ValueId v, TypeId t) { return MIRExprResult{v, t, MIRExprKind::Value}; }
     static MIRExprResult place(PlaceId p, TypeId t) { return MIRExprResult{p, t, MIRExprKind::Place}; }
@@ -820,6 +822,9 @@ private:
         // `outer * flat_inner_count + inner`.
         bool flat_template = false;
         uint64_t flat_inner_count = 0;
+        // Dynamic / constant / dynamic index (`arr[i][CONST][j]`).
+        bool dynamic_constant_dynamic = false;
+        uint64_t dynamic_middle = MIR_INVALID_ID;
         // Field path for a path-indexed element (`holder.items[i]`), used to
         // re-resolve after lowering the RHS may reallocate `destructibles_`.
         std::vector<std::string> path;
@@ -943,6 +948,19 @@ private:
                                        std::vector<MIRDropField>& fields,
                                        ValueId outer, ValueId inner,
                                        uint64_t inner_count);
+    /** Select `arr[outer][CONST][inner]` for a small directly destructible array. */
+    MIRDropElementRef drop_flag_for_dynamic_constant_dynamic(
+            PlaceId place, const std::vector<std::string>& path,
+            const std::vector<uint64_t>& prefix, ValueId outer,
+            uint64_t middle, ValueId inner);
+    /** Arm/clear a dynamic/constant/dynamic element. */
+    void set_dynamic_constant_dynamic_element(
+            std::vector<MIRDropField>& rows, uint64_t middle,
+            ValueId outer, ValueId inner, bool value);
+    /** Destroy a dynamic/constant/dynamic element. */
+    void destroy_dynamic_constant_dynamic_element(
+            ValueId address, std::vector<MIRDropField>& rows, uint64_t middle,
+            ValueId outer, ValueId inner, BaseType* element_type);
     /** Destroy one value through an address, gated by an optional flag. */
     void emit_dtor_ptr_cond(ValueId address, BaseType* type,
                             MIRDropFlagRef flag);

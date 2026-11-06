@@ -584,6 +584,73 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                             }
                         }
                     }
+                    // Dynamic / constant / dynamic (`arr[i][CONST][j]`).
+                    if (!eflag.valid() && immediate != nullptr &&
+                        immediate->val_kind() == ValueKind::IndexOperator &&
+                        base.base_index_value != MIR_INVALID_ID) {
+                        auto* middle_io = immediate->as_index_op_unsafe();
+                        if (middle_io->idx != nullptr &&
+                            middle_io->idx->val_kind() == ValueKind::IntN) {
+                            Value* outer = unwrap_index_value(
+                                middle_io->parent_val
+                            );
+                            if (outer != nullptr &&
+                                outer->val_kind() == ValueKind::IndexOperator) {
+                                auto* outer_io = outer->as_index_op_unsafe();
+                                if (outer_io->idx != nullptr &&
+                                    outer_io->idx->val_kind() !=
+                                        ValueKind::IntN) {
+                                    std::vector<uint64_t> three_prefix;
+                                    Value* before = unwrap_index_value(
+                                        outer_io->parent_val
+                                    );
+                                    bool constant_prefix = true;
+                                    while (before != nullptr &&
+                                           before->val_kind() ==
+                                               ValueKind::IndexOperator) {
+                                        auto* prefix_io =
+                                            before->as_index_op_unsafe();
+                                        if (prefix_io->idx == nullptr ||
+                                            prefix_io->idx->val_kind() !=
+                                                ValueKind::IntN) {
+                                            constant_prefix = false;
+                                            break;
+                                        }
+                                        three_prefix.push_back(
+                                            prefix_io->idx
+                                                ->as_int_num_value_unsafe()
+                                                ->get_num_value()
+                                        );
+                                        before = unwrap_index_value(
+                                            prefix_io->parent_val
+                                        );
+                                    }
+                                    if (constant_prefix && before != nullptr) {
+                                        std::reverse(three_prefix.begin(),
+                                                     three_prefix.end());
+                                        PlaceId three_base = MIR_INVALID_ID;
+                                        std::vector<std::string> three_path;
+                                        BaseType* three_type = nullptr;
+                                        resolve_index_root(
+                                            before, three_base, three_path,
+                                            three_type
+                                        );
+                                        if (three_base != MIR_INVALID_ID) {
+                                            eflag = drop_flag_for_dynamic_constant_dynamic(
+                                                three_base, three_path,
+                                                three_prefix,
+                                                base.base_index_value,
+                                                middle_io->idx
+                                                    ->as_int_num_value_unsafe()
+                                                    ->get_num_value(),
+                                                static_cast<ValueId>(idx.id)
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                     std::vector<uint64_t> prefix;
                     Value* root = io->parent_val;
                     bool constant_chain = true;
@@ -683,6 +750,12 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     );
                 };
                 auto fresh_element_ref = [&]() {
+                    if (eflag.dynamic_constant_dynamic) {
+                        return drop_flag_for_dynamic_constant_dynamic(
+                            eflag.place, eflag.path, eflag.indices,
+                            eflag.dynamic_outer, eflag.dynamic_middle,
+                            eflag.dynamic_index);
+                    }
                     if (eflag.dynamic_outer != MIR_INVALID_ID) {
                         return drop_flag_for_two_dynamic_indices(
                             eflag.place, eflag.path, eflag.indices,
@@ -710,6 +783,17 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 };
                 auto destroy_old_element = [&]() {
                     if (!eflag.valid()) return;
+                    if (eflag.dynamic_constant_dynamic) {
+                        MIRDropElementRef fresh = fresh_element_ref();
+                        if (!fresh.dynamic_constant_dynamic ||
+                            fresh.runtime_rows == nullptr) return;
+                        destroy_dynamic_constant_dynamic_element(
+                            element_address(), *fresh.runtime_rows,
+                            eflag.dynamic_middle, eflag.dynamic_outer,
+                            eflag.dynamic_index, io->getType()
+                        );
+                        return;
+                    }
                     if (eflag.flat_template) {
                         MIRDropElementRef fresh = fresh_element_ref();
                         if (!fresh.flat_template || fresh.template_node == nullptr) return;
@@ -805,6 +889,16 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     emit_dtor_ptr_cond(element_address(), io->getType(), eflag.flag);
                 };
                 auto mark_element_initialized = [&]() {
+                    if (eflag.dynamic_constant_dynamic) {
+                        MIRDropElementRef fresh = fresh_element_ref();
+                        if (!fresh.dynamic_constant_dynamic ||
+                            fresh.runtime_rows == nullptr) return;
+                        set_dynamic_constant_dynamic_element(
+                            *fresh.runtime_rows, eflag.dynamic_middle,
+                            eflag.dynamic_outer, eflag.dynamic_index, true
+                        );
+                        return;
+                    }
                     if (eflag.flat_template) {
                         MIRDropElementRef fresh = fresh_element_ref();
                         if (!fresh.flat_template || fresh.template_node == nullptr) return;

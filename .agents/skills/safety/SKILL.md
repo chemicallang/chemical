@@ -54,7 +54,7 @@ Latest measured baseline:
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `865/865` |
-| TCC/LLVM safety | `140/140` |
+| TCC/LLVM safety | `143/143` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -531,7 +531,8 @@ memory safety.
     destructible elements supports two runtime indices (`arr[i][j]`, optionally
     after a constant prefix) and a runtime outer with a constant inner
     (`arr[i][0]`) through a flat pointer table capped at 1024 flags;
-    `arr[i][0][j]` remains rejected. Generated-glue 2D arrays support
+    `arr[i][0][j]` is supported for small directly destructible arrays.
+    Generated-glue 2D arrays support
     small/small, outer-small/inner-large, outer-large/inner-small, and
     both-large layouts (the largest inner dimension uses a flat block), with
     constant writes/moves using the full index chain. Mixed and both-large

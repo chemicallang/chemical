@@ -710,6 +710,32 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 };
                 auto destroy_old_element = [&]() {
                     if (!eflag.valid()) return;
+                    if (eflag.flat_template) {
+                        MIRDropElementRef fresh = fresh_element_ref();
+                        if (!fresh.flat_template || fresh.template_node == nullptr) return;
+                        const TypeId u32 = types_.u32_type();
+                        ValueId flat_outer = eflag.dynamic_outer;
+                        ValueId flat_inner = eflag.dynamic_index;
+                        if (flat_outer == MIR_INVALID_ID) {
+                            flat_outer = builder_->const_int(
+                                u32, module_.constants.add_int(
+                                    u32, fresh.template_flag_index_const
+                                )
+                            );
+                        }
+                        if (flat_inner == MIR_INVALID_ID) {
+                            flat_inner = builder_->const_int(
+                                u32, module_.constants.add_int(
+                                    u32, fresh.index
+                                )
+                            );
+                        }
+                        destroy_flat_template_element(
+                            element_address(), fresh.template_node->children,
+                            flat_outer, flat_inner, fresh.flat_inner_count
+                        );
+                        return;
+                    }
                     if (eflag.runtime_rows != nullptr) {
                         MIRDropElementRef fresh = fresh_element_ref();
                         if (fresh.runtime_rows == nullptr) return;
@@ -779,6 +805,32 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     emit_dtor_ptr_cond(element_address(), io->getType(), eflag.flag);
                 };
                 auto mark_element_initialized = [&]() {
+                    if (eflag.flat_template) {
+                        MIRDropElementRef fresh = fresh_element_ref();
+                        if (!fresh.flat_template || fresh.template_node == nullptr) return;
+                        const TypeId u32 = types_.u32_type();
+                        ValueId flat_outer = eflag.dynamic_outer;
+                        ValueId flat_inner = eflag.dynamic_index;
+                        if (flat_outer == MIR_INVALID_ID) {
+                            flat_outer = builder_->const_int(
+                                u32, module_.constants.add_int(
+                                    u32, fresh.template_flag_index_const
+                                )
+                            );
+                        }
+                        if (flat_inner == MIR_INVALID_ID) {
+                            flat_inner = builder_->const_int(
+                                u32, module_.constants.add_int(
+                                    u32, fresh.index
+                                )
+                            );
+                        }
+                        set_flat_template_element(
+                            fresh.template_node->children, flat_outer,
+                            flat_inner, fresh.flat_inner_count, true
+                        );
+                        return;
+                    }
                     if (eflag.runtime_rows != nullptr) {
                         MIRDropElementRef fresh = fresh_element_ref();
                         if (fresh.runtime_rows != nullptr) {

@@ -1026,8 +1026,34 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_two_dynamic_indices(
     // rows whose leaf flag arrays are indexed by the outer element.
     if (list->size() == 1 && (*list)[0].element_template) {
         MIRDropField& tpl = (*list)[0];
+        uint64_t flat_inner = 0;
+        bool flat_template = !tpl.children.empty();
+        for (auto& child : tpl.children) {
+            if (child.flag_array == MIR_INVALID_ID ||
+                child.inner_count == 0 ||
+                child.array_index != MIR_INVALID_ID ||
+                (flat_inner != 0 && child.inner_count != flat_inner)) {
+                flat_template = false;
+                break;
+            }
+            flat_inner = child.inner_count;
+        }
+        if (flat_template && flat_inner > 0 && tpl.array_count > 0) {
+            bounded(outer, tpl.array_count);
+            bounded(inner, flat_inner);
+            MIRDropElementRef ref;
+            ref.template_node = &tpl;
+            ref.flat_template = true;
+            ref.flat_inner_count = flat_inner;
+            ref.place = place;
+            ref.path = path;
+            ref.indices = prefix;
+            ref.dynamic_outer = outer;
+            ref.dynamic_index = inner;
+            return ref;
+        }
         const size_t n = tpl.children.size();
-        if (n > 0 && n <= 64 && tpl.array_count > 0) {
+        if (n > 0 && n <= 1024 && tpl.array_count > 0) {
             std::vector<MIRDropField*> inners(n, nullptr);
             bool usable = true;
             for (auto& child : tpl.children) {
@@ -1384,6 +1410,31 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_indices(
             );
             return ref;
         }
+        uint64_t flat_inner = 0;
+        bool flat_template = !tpl.children.empty();
+        for (auto& child : tpl.children) {
+            if (child.flag_array == MIR_INVALID_ID ||
+                child.inner_count == 0 ||
+                child.array_index != MIR_INVALID_ID ||
+                (flat_inner != 0 && child.inner_count != flat_inner)) {
+                flat_template = false;
+                break;
+            }
+            flat_inner = child.inner_count;
+        }
+        if (flat_template && flat_inner > 0 &&
+            outer < tpl.array_count && inner < flat_inner) {
+            MIRDropElementRef ref;
+            ref.place = place;
+            ref.path = path;
+            ref.indices = indices;
+            ref.index = inner;
+            ref.template_node = &tpl;
+            ref.template_flag_index_const = outer;
+            ref.flat_template = true;
+            ref.flat_inner_count = flat_inner;
+            return ref;
+        }
         for (auto& child : tpl.children) {
             if (child.array_index != static_cast<uint32_t>(inner)) continue;
             MIRDropElementRef ref;
@@ -1559,9 +1610,13 @@ MIRLowerer::MIRDropField MIRLowerer::build_drop_field(const chem::string_view& n
                 }
             } else if (can_build_element_template(elem)) {
                 // Generated-glue element: one bool-array flag per leaf field.
+                // Inside an outer-large template, flatten the inner dimension:
+                // each leaf gets `outer * inner` flags with `inner_count = n`.
+                const bool nested_outer = array_flags > 0;
+                const uint64_t leaf_flags = nested_outer ? array_flags * n : n;
                 MIRDropField tpl = build_drop_field(
                     chem::string_view{}, elem, depth + 1, frame_flags, slot,
-                    flag_seq, n
+                    flag_seq, leaf_flags
                 );
                 if (tpl.children.empty()) {
                     f.children.push_back(std::move(tpl));
@@ -1570,6 +1625,18 @@ MIRLowerer::MIRDropField MIRLowerer::build_drop_field(const chem::string_view& n
                 }
                 f.element_template = true;
                 f.array_count = n;
+                if (nested_outer) {
+                    std::function<void(std::vector<MIRDropField>&)> mark_inner =
+                        [&](std::vector<MIRDropField>& fields) {
+                            for (auto& child : fields) {
+                                if (child.flag_array != MIR_INVALID_ID) {
+                                    child.inner_count = n;
+                                }
+                                mark_inner(child.children);
+                            }
+                        };
+                    mark_inner(f.children);
+                }
                 return f;
             }
         }
@@ -2374,6 +2441,111 @@ void MIRLowerer::destroy_runtime_outer_template_element(
     builder_->set_block(end_b);
 }
 
+void MIRLowerer::set_flat_template_element(
+        std::vector<MIRDropField>& fields, ValueId outer, ValueId inner,
+        uint64_t inner_count, bool value) {
+    if (fields.empty() || outer == MIR_INVALID_ID ||
+        inner == MIR_INVALID_ID || inner_count == 0) {
+        return;
+    }
+    const TypeId bool_t = types_.bool_type();
+    const TypeId u32 = types_.u32_type();
+    const ValueId outer32 = builder_->cast(outer, u32);
+    const ValueId inner32 = builder_->cast(inner, u32);
+    const ConstantId mul_op = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Mul)
+    );
+    const ConstantId add_op = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Add)
+    );
+    const ValueId stride = builder_->const_int(
+        u32, module_.constants.add_int(u32, inner_count)
+    );
+    const ValueId base = builder_->binary(outer32, stride, mul_op, u32);
+    const ValueId flat = builder_->binary(base, inner32, add_op, u32);
+    std::function<void(std::vector<MIRDropField>&)> set_fields =
+        [&](std::vector<MIRDropField>& group) {
+            for (auto& field : group) {
+                if (field.flag_array != MIR_INVALID_ID) {
+                    MIRDropFlagRef ref =
+                        flag_array_ref_value(field.flag_array, flat);
+                    if (ref.valid()) {
+                        builder_->store_indirect(
+                            ref.address,
+                            builder_->const_bool(
+                                bool_t, module_.constants.add_bool(
+                                    bool_t, value
+                                )
+                            )
+                        );
+                    }
+                } else if (field.flag != MIR_INVALID_ID) {
+                    builder_->set_drop(field.flag, value);
+                }
+                set_fields(field.children);
+            }
+        };
+    set_fields(fields);
+}
+
+void MIRLowerer::destroy_flat_template_element(
+        ValueId address, std::vector<MIRDropField>& fields, ValueId outer,
+        ValueId inner, uint64_t inner_count) {
+    if (address == MIR_NULL || fields.empty() || outer == MIR_INVALID_ID ||
+        inner == MIR_INVALID_ID || inner_count == 0) {
+        return;
+    }
+    const TypeId bool_t = types_.bool_type();
+    const TypeId u32 = types_.u32_type();
+    const ValueId outer32 = builder_->cast(outer, u32);
+    const ValueId inner32 = builder_->cast(inner, u32);
+    const ConstantId mul_op = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Mul)
+    );
+    const ConstantId add_op = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Add)
+    );
+    const ValueId stride = builder_->const_int(
+        u32, module_.constants.add_int(u32, inner_count)
+    );
+    const ValueId base = builder_->binary(outer32, stride, mul_op, u32);
+    const ValueId flat = builder_->binary(base, inner32, add_op, u32);
+    const ValueId false_value = builder_->const_bool(
+        bool_t, module_.constants.add_bool(bool_t, false)
+    );
+    std::function<void(ValueId, std::vector<MIRDropField>&)> destroy_fields =
+        [&](ValueId self_ptr, std::vector<MIRDropField>& group) {
+            for (auto& field : group) {
+                ValueId addr = self_ptr;
+                if (!field.name.empty()) {
+                    const TypeId ft = types_.map(field.type);
+                    const ConstantId fc = module_.constants.add_string(
+                        MIR_INVALID_ID, field.name.data(),
+                        static_cast<uint32_t>(field.name.size())
+                    );
+                    addr = builder_->field_addr_ptr(self_ptr, fc, ft);
+                }
+                if (field.flag_array != MIR_INVALID_ID) {
+                    MIRDropFlagRef ref =
+                        flag_array_ref_value(field.flag_array, flat);
+                    emit_dtor_ptr_cond(addr, field.type, ref);
+                    if (ref.valid()) {
+                        builder_->store_indirect(ref.address, false_value);
+                    }
+                } else if (!field.children.empty()) {
+                    destroy_fields(addr, field.children);
+                } else if (field.flag != MIR_INVALID_ID) {
+                    emit_dtor_ptr_cond(
+                        addr, field.type,
+                        MIRDropFlagRef{field.flag, MIR_INVALID_ID}
+                    );
+                    builder_->set_drop(field.flag, false);
+                }
+            }
+        };
+    destroy_fields(address, fields);
+}
+
 void MIRLowerer::destroy_drop_fields(ValueId self_ptr,
                                      std::vector<MIRDropField>& fields) {
     for (auto& f : fields) {
@@ -2675,6 +2847,29 @@ bool MIRLowerer::array_element_move_target(Value* value, PlaceId& base,
 }
 
 void MIRLowerer::clear_element_drop_flag(const MIRDropElementRef& ref) {
+    if (ref.flat_template) {
+        const TypeId u32 = types_.u32_type();
+        ValueId outer = ref.dynamic_outer;
+        ValueId inner = ref.dynamic_index;
+        if (outer == MIR_INVALID_ID && ref.template_flag_index_const != MIR_INVALID_ID) {
+            outer = builder_->const_int(
+                u32, module_.constants.add_int(
+                    u32, ref.template_flag_index_const
+                )
+            );
+        }
+        if (inner == MIR_INVALID_ID) {
+            inner = builder_->const_int(
+                u32, module_.constants.add_int(u32, ref.index)
+            );
+        }
+        if (ref.template_node != nullptr) {
+            set_flat_template_element(
+                ref.template_node->children, outer, inner,
+                ref.flat_inner_count, false
+            );
+        }
+    }
     if (ref.runtime_rows != nullptr) {
         if (ref.outer_indexed) {
             set_runtime_outer_template_element(
@@ -3206,6 +3401,44 @@ bool MIRLowerer::emit_dynamic_element_read_check(
         builder_->set_block(end_b);
         return true;
     };
+    auto fields_flat_live = [&](std::vector<MIRDropField>& fields,
+                                ValueId outer, ValueId inner,
+                                uint64_t inner_count) -> ValueId {
+        if (fields.empty() || outer == MIR_INVALID_ID ||
+            inner == MIR_INVALID_ID || inner_count == 0) {
+            return MIR_INVALID_ID;
+        }
+        const ValueId outer32 = builder_->cast(outer, u32);
+        const ValueId inner32 = builder_->cast(inner, u32);
+        const ValueId stride = builder_->const_int(
+            u32, module_.constants.add_int(u32, inner_count)
+        );
+        const ValueId base =
+            builder_->binary(outer32, stride, mul_op, u32);
+        const ValueId flat =
+            builder_->binary(base, inner32, add_op, u32);
+        std::function<ValueId(std::vector<MIRDropField>&)> live_fields =
+            [&](std::vector<MIRDropField>& group) -> ValueId {
+                ValueId live = MIR_INVALID_ID;
+                for (auto& field : group) {
+                    if (field.flag_array != MIR_INVALID_ID) {
+                        live = and_live(
+                            live,
+                            load_flag(flag_array_ref_value(
+                                field.flag_array, flat
+                            ))
+                        );
+                    } else if (field.flag != MIR_INVALID_ID) {
+                        live = and_live(
+                            live, builder_->load(field.flag, bool_t)
+                        );
+                    }
+                    live = and_live(live, live_fields(field.children));
+                }
+                return live;
+            };
+        return live_fields(fields);
+    };
     auto mark_checked = [&]() {
         if (address.id != MIR_INVALID_ID &&
             address.id < builder_->function().values.size()) {
@@ -3213,6 +3446,20 @@ bool MIRLowerer::emit_dynamic_element_read_check(
         }
         checked = true;
     };
+    if (dynamic_ref && ref.flat_template && ref.template_node != nullptr) {
+        ValueId live = fields_flat_live(
+            ref.template_node->children, ref.dynamic_outer, dynamic_index,
+            ref.flat_inner_count
+        );
+        if (live == MIR_INVALID_ID) {
+            error = "SAFE-INIT-001: selected flat template element has no "
+                    "tracked drop leaves";
+            return false;
+        }
+        emit_abort_unless(live, "__chc_uninit_fail");
+        mark_checked();
+        return true;
+    }
     if (dynamic_ref && ref.runtime_rows != nullptr) {
         if (ref.outer_indexed) {
             if (!check_runtime_outer_template_rows(
@@ -3271,6 +3518,22 @@ bool MIRLowerer::emit_dynamic_element_read_check(
             for (const auto& child : ref.template_node->children) {
                 live = and_live(live, field_live(child, false, 0));
             }
+        } else if (ref.flat_template) {
+            const ValueId outer = builder_->const_int(
+                u32, module_.constants.add_int(
+                    u32, ref.template_flag_index_const
+                )
+            );
+            const ValueId inner = builder_->const_int(
+                u32, module_.constants.add_int(u32, ref.index)
+            );
+            live = and_live(
+                live,
+                fields_flat_live(
+                    ref.template_node->children, outer, inner,
+                    ref.flat_inner_count
+                )
+            );
         } else {
             const uint64_t flag_index =
                 ref.template_flag_index_const != MIR_INVALID_ID
@@ -3568,13 +3831,14 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
                                 "move the array into a local and index it there";
                         return false;
                     }
-                    if (ref.runtime_rows != nullptr) {
+                    if (ref.flat_template || ref.runtime_rows != nullptr) {
                         // Generated-glue elements own several leaf flags. The
                         // runtime row/template check proves every leaf live
                         // before the move clears them.
                         bool checked = false;
                         if (!emit_dynamic_element_read_check(
-                                value, result, false, checked, error)) {
+                                value, result, ref.flat_template, checked,
+                                error)) {
                             return false;
                         }
                         if (!checked) {

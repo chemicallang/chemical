@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.66)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.67)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1654,11 +1654,12 @@ new number as the honest baseline, not a compiler regression.
     pointer table capped at 1024 element flags. The same selector serves writes
     and moves, including a runtime outer index with a constant inner index
     (`arr[i][0]`); partial moves use the runtime flag check. A runtime index
-    before a constant middle index (`arr[i][0][j]`) and both-large
-    generated-glue 2D arrays remain rejected. Small/small, outer-small/
-    inner-large, and outer-large/inner-small generated-glue 2D arrays are
-    supported through runtime row or template selection; constant writes and
-    moves use the full index chain. Mixed dimensions are supported: an
+    before a constant middle index (`arr[i][0][j]`) remains rejected.
+    Generated-glue 2D arrays now support small/small, outer-small/inner-large,
+    outer-large/inner-small, and both-large layouts; both-large leaf flags are
+    outer-indexed per inner row up to 1024, and a larger inner dimension uses a
+    flat `outer * inner + inner` block. Constant writes and moves use the full
+    index chain. Mixed dimensions are supported: an
     outer-small/inner-large array selects the outer row's flat flag block,
     while an outer-large/inner-small array selects the inner element's
     outer-indexed flag array. Both dimensions large use the outer element
@@ -3330,3 +3331,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.64 (2026-11-06): small/small generated-glue two-index arrays. `arr[i][j]` on a small 2D generated-glue array now branches the outer and inner element rows for writes, moves, partial moves, and reads; destructive writes arm the selected element's leaves, while moves and reads prove every leaf live first. Outer-small/inner-large generated glue stays rejected because its drop stream falls back to a whole-array flag, and outer-large or both-large generated glue is not represented by the selector yet. Added TCC/LLVM runtime tests for write/read, move, and uninitialized-move abort. Safety `128/128`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v5.65 (2026-11-06): template-row drop fix and inner-large generated glue. `destroy_drop_fields` now offsets indexed array rows before drilling into their templates, and `destroy_array_drop_fields` dispatches element-template rows through `destroy_array_template`; this fixes dropped elements in outer-small/inner-large nested arrays. With the drop stream correct, small/small and outer-small/inner-large generated-glue 2D arrays support dynamic writes, reads, moves, and partial moves; a move checks every selected leaf first. Outer-large/both-large generated glue remains rejected because its drop tree is not represented. Added TCC/LLVM runtime tests for inner-large write/read, move, and uninitialized-move abort. Safety `131/131`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v5.66 (2026-11-06): outer-large generated glue and constant two-index paths. Constant `arr[outer][inner]` writes and moves now resolve the full index chain instead of only the final index, including outer-large direct and generated-glue templates. `MIRDropElementRef.template_flag_index_const` carries the outer element index for templates whose leaf flag arrays are indexed by the outer element. Outer-large/inner-small generated glue now supports dynamic writes, reads, moves, and partial moves through an inner-row branch; uninitialized moves check every leaf first. Both-large generated glue remains rejected. Added TCC/LLVM runtime tests for constant move, dynamic write/read, dynamic move, and uninitialized-move abort. Safety `135/135`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
+*Revision note v5.67 (2026-11-06): both-large generated glue. The nested generated-array drop tree now carries `inner_count` for outer-large templates, and a both-large template with inner > 1024 stores leaf flag arrays as one flat `outer * inner_count + inner` block. Two-index selection, constant writes/moves, dynamic writes/reads/moves, and uninitialized move checks now cover `[100][100]S` and `[100][2000]S`. Added TCC/LLVM runtime tests for constant move, dynamic write/read, dynamic move, flat-inner access, and uninitialized-move abort. Safety `140/140`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.

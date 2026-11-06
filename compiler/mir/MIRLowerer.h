@@ -816,6 +816,10 @@ private:
         // `runtime_rows` are inner-element rows of an outer-large template;
         // their leaf flag arrays are indexed by the outer element.
         bool outer_indexed = false;
+        // Both dimensions large: leaf flag arrays are flattened and indexed by
+        // `outer * flat_inner_count + inner`.
+        bool flat_template = false;
+        uint64_t flat_inner_count = 0;
         // Field path for a path-indexed element (`holder.items[i]`), used to
         // re-resolve after lowering the RHS may reallocate `destructibles_`.
         std::vector<std::string> path;
@@ -930,6 +934,15 @@ private:
     void destroy_runtime_outer_template_element(
             ValueId address, std::vector<MIRDropField>& rows,
             ValueId outer, ValueId inner);
+    /** Arm/clear a flat both-large template element. */
+    void set_flat_template_element(std::vector<MIRDropField>& fields,
+                                   ValueId outer, ValueId inner,
+                                   uint64_t inner_count, bool value);
+    /** Destroy a flat both-large template element. */
+    void destroy_flat_template_element(ValueId address,
+                                       std::vector<MIRDropField>& fields,
+                                       ValueId outer, ValueId inner,
+                                       uint64_t inner_count);
     /** Destroy one value through an address, gated by an optional flag. */
     void emit_dtor_ptr_cond(ValueId address, BaseType* type,
                             MIRDropFlagRef flag);

@@ -1017,6 +1017,39 @@ func dynamic_read_uninitialized_element_aborts(env : &mut TestEnv) {
 }
 
 @test
+func dynamic_two_indices_outer_small_inner_large(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [4][100]Tracker\n            var i = 3\n            var j = 77\n            arr[i][j] = Tracker { id : 7 }\n            if(arr[i][j].id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_outer_small_inner_large", ch, &mut out)
+    if(rc != 1) {
+        env.error("outer-small/inner-large dynamic two-index access failed")
+    }
+}
+
+@test
+func dynamic_two_indices_outer_large_inner_small(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [100][4]Tracker\n            var i = 77\n            var j = 3\n            arr[i][j] = Tracker { id : 7 }\n            if(arr[i][j].id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_outer_large_inner_small", ch, &mut out)
+    if(rc != 1) {
+        env.error("outer-large/inner-small dynamic two-index access failed")
+    }
+}
+
+@test
+func dynamic_two_indices_mixed_partial_move(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [4][100]Tracker\n            var i = 3\n            var j = 77\n            arr[i][j] = Tracker { id : 7 }\n            var moved = arr[i][j]\n            if(moved.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_mixed_partial_move", ch, &mut out)
+    if(rc != 1) {
+        env.error("mixed-dimension partial dynamic move failed")
+    }
+}
+
+@test
 func dynamic_generated_glue_read_uninitialized_aborts(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]S\n        arr[0] = S { a : string(\"a\"), b : string(\"b\") }\n        var k = 1\n        return arr[k].a.size() as int\n    }\n}\n"

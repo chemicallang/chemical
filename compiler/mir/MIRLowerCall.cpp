@@ -930,6 +930,163 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_two_dynamic_indices(
         }
         list = &next->children;
     }
+    const TypeId bool_t = types_.bool_type();
+    const TypeId u64 = types_.u64_type();
+    const TypeId ptr_t = types_.pointer_type(bool_t, true);
+    const ConstantId lt = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt)
+    );
+    const ConstantId mul = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Mul)
+    );
+    const ConstantId add = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Add)
+    );
+    auto finish = [&](MIRDropFlagRef flag) {
+        MIRDropElementRef ref;
+        ref.flag = flag;
+        ref.place = place;
+        ref.path = path;
+        ref.indices = prefix;
+        ref.dynamic_outer = outer;
+        ref.dynamic_index = inner;
+        return ref;
+    };
+    auto bounded = [&](ValueId index, uint64_t count) {
+        const ValueId value = builder_->cast(index, u64);
+        const ValueId limit = builder_->const_int(
+            u64, module_.constants.add_int(u64, count)
+        );
+        emit_abort_unless(
+            builder_->compare(value, limit, lt, bool_t), "__chc_bounds_fail"
+        );
+    };
+
+    // Mixed dimensions, outer small / inner large: each outer row owns a flat
+    // bool array for its inner elements. Select the row first, then the inner
+    // slot.
+    if (list->size() <= 64) {
+        const size_t n = list->size();
+        std::vector<MIRDropField*> rows(n, nullptr);
+        uint64_t m = 0;
+        bool usable = n > 0;
+        for (auto& row : *list) {
+            if (row.array_index == MIR_INVALID_ID || row.array_index >= n ||
+                rows[row.array_index] != nullptr || row.element_template ||
+                row.flag_array == MIR_INVALID_ID || !row.children.empty() ||
+                row.flag_count == 0) {
+                usable = false;
+                break;
+            }
+            if (m == 0) m = row.flag_count;
+            if (row.flag_count != m) {
+                usable = false;
+                break;
+            }
+            rows[row.array_index] = &row;
+        }
+        if (usable) {
+            for (MIRDropField* row : rows) {
+                if (row == nullptr) { usable = false; break; }
+            }
+        }
+        if (usable) {
+            bounded(outer, n);
+            bounded(inner, m);
+            const TypeId table_t = types_.sized_array_type(
+                ptr_t, static_cast<uint32_t>(n)
+            );
+            const PlaceId table = builder_->alloca(
+                table_t, MIRStorageClass::Local
+            );
+            if (table == MIR_INVALID_ID) return {};
+            for (size_t i = 0; i < n; ++i) {
+                const ValueId slot_index = builder_->const_int(
+                    u64, module_.constants.add_int(u64, i)
+                );
+                const ValueId slot = builder_->index_addr(
+                    table, slot_index, ptr_t
+                );
+                builder_->store_indirect(
+                    slot, builder_->address_of(rows[i]->flag_array, ptr_t)
+                );
+            }
+            const ValueId row_base = builder_->load_indirect(
+                builder_->index_addr(table, builder_->cast(outer, u64), ptr_t),
+                ptr_t
+            );
+            return finish(MIRDropFlagRef{
+                MIR_INVALID_ID,
+                builder_->index_addr_ptr(row_base, inner, bool_t)
+            });
+        }
+    }
+
+    // Mixed dimensions, outer large / inner small: the outer element template
+    // has one flag array per inner element, indexed by the outer element.
+    if (list->size() == 1 && (*list)[0].element_template) {
+        MIRDropField& tpl = (*list)[0];
+        const size_t n = tpl.children.size();
+        const uint64_t outer_count = tpl.array_count;
+        if (n > 0 && n <= 64 && outer_count > 0) {
+            std::vector<MIRDropField*> inners(n, nullptr);
+            bool usable = true;
+            for (auto& child : tpl.children) {
+                if (child.array_index == MIR_INVALID_ID ||
+                    child.array_index >= n ||
+                    inners[child.array_index] != nullptr ||
+                    child.element_template ||
+                    child.flag_array == MIR_INVALID_ID ||
+                    child.flag_count != outer_count ||
+                    !child.children.empty()) {
+                    usable = false;
+                    break;
+                }
+                inners[child.array_index] = &child;
+            }
+            if (usable) {
+                for (MIRDropField* inner_row : inners) {
+                    if (inner_row == nullptr) { usable = false; break; }
+                }
+            }
+            if (usable) {
+                bounded(outer, outer_count);
+                bounded(inner, n);
+                const TypeId table_t = types_.sized_array_type(
+                    ptr_t, static_cast<uint32_t>(n)
+                );
+                const PlaceId table = builder_->alloca(
+                    table_t, MIRStorageClass::Local
+                );
+                if (table == MIR_INVALID_ID) return {};
+                for (size_t i = 0; i < n; ++i) {
+                    const ValueId slot_index = builder_->const_int(
+                        u64, module_.constants.add_int(u64, i)
+                    );
+                    const ValueId slot = builder_->index_addr(
+                        table, slot_index, ptr_t
+                    );
+                    builder_->store_indirect(
+                        slot,
+                        builder_->address_of(inners[i]->flag_array, ptr_t)
+                    );
+                }
+                const ValueId inner_base = builder_->load_indirect(
+                    builder_->index_addr(
+                        table, builder_->cast(inner, u64), ptr_t
+                    ),
+                    ptr_t
+                );
+                return finish(MIRDropFlagRef{
+                    MIR_INVALID_ID,
+                    builder_->index_addr_ptr(inner_base, outer, bool_t)
+                });
+            }
+        }
+    }
+
+    // Directly destructible small rows: one scalar flag per (outer, inner)
+    // element, selected through a flat pointer table.
     const size_t n = list->size();
     if (n == 0) return {};
     std::vector<MIRDropField*> rows(n, nullptr);
@@ -964,18 +1121,6 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_two_dynamic_indices(
     for (MIRDropField* flag : flags) {
         if (flag == nullptr) return {};
     }
-    const TypeId bool_t = types_.bool_type();
-    const TypeId u64 = types_.u64_type();
-    const TypeId ptr_t = types_.pointer_type(bool_t, true);
-    const ConstantId lt = module_.constants.add_int(
-        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt)
-    );
-    const ConstantId mul = module_.constants.add_int(
-        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Mul)
-    );
-    const ConstantId add = module_.constants.add_int(
-        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Add)
-    );
     const ValueId outer_u64 = builder_->cast(outer, u64);
     const ValueId inner_u64 = builder_->cast(inner, u64);
     const ValueId n_const = builder_->const_int(
@@ -1007,14 +1152,9 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_two_dynamic_indices(
     );
     const ValueId flat = builder_->binary(row_offset, inner_u64, add, u64);
     const ValueId selected_slot = builder_->index_addr(table, flat, ptr_t);
-    MIRDropElementRef ref;
-    ref.flag.address = builder_->load_indirect(selected_slot, ptr_t);
-    ref.place = place;
-    ref.path = path;
-    ref.indices = prefix;
-    ref.dynamic_outer = outer;
-    ref.dynamic_index = inner;
-    return ref;
+    return finish(MIRDropFlagRef{
+        MIR_INVALID_ID, builder_->load_indirect(selected_slot, ptr_t)
+    });
 }
 
 void MIRLowerer::materialize_drop_fields(std::vector<MIRDropField>& fields,

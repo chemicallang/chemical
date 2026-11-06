@@ -54,7 +54,7 @@ Latest measured baseline:
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `865/865` |
-| TCC/LLVM safety | `153/153` |
+| TCC/LLVM safety | `159/159` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -534,8 +534,11 @@ memory safety.
     (4096 flags at 64 x 64); `arr[i][0][j]` and `arr[i][j][k]` are supported
     for small directly destructible arrays. Expanded small-array rows support
     arbitrary runtime depth (4D/5D) and mixed constant/runtime indices; generated
-    glue 3D elements use the same runtime tree. A generated 3D array with a large
-    middle or inner dimension still rejects. Generated-glue 2D arrays support
+    glue 3D elements use the same runtime tree. Compressed generated 3D levels
+    support inner-large, middle-large, and outer-large templates, including
+    flat inner blocks and mixed constant/runtime chains; a generated inner array
+    above 1024 nested under a large outer/middle template remains reject-only.
+    Generated-glue 2D arrays support
     small/small, outer-small/inner-large, outer-large/inner-small, and
     both-large layouts (the largest inner dimension uses a flat block), with
     constant writes/moves using the full index chain. Mixed and both-large

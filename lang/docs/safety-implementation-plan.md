@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.70)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.71)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1669,11 +1669,15 @@ new number as the honest baseline, not a compiler regression.
     while an outer-large/inner-small array selects the inner element's
     outer-indexed flag array. Both dimensions large use the outer element
     template's per-inner flag arrays, or one flat inner block when the inner
-    dimension exceeds 1024. A generated-glue 3D array whose dimensions are all
-    expanded (each at most 64) uses the same runtime tree, including mixed
-    constant/runtime index chains. A 3D generated-glue array with a large
-    middle or inner dimension remains rejected by the runtime-tree selector
-    because that level is compressed into a template/flag block. A scalar read
+    dimension exceeds 1024. Generated-glue 3D arrays use the same runtime tree
+    for expanded dimensions and the compressed selectors when a dimension is
+    large: inner-large (`[a][b][>64]`), middle-large (`[a][>64][b]`), and
+    outer-large (`[>64][b][c]`) templates are selected by runtime index, with
+    mixed constant/runtime chains. Middle-large and outer-large rows support
+    both expanded inner rows and flat inner blocks up to 1024 inner elements;
+    inner-large templates support generated leaf flag arrays. A generated
+    inner array above 1024 under a large outer/middle template still uses the
+    older one-flag-per-element flat block and remains reject-only. A scalar read
     through a
     runtime-selected direct element (`arr[i].field`, `arr[i][j].field`, or a
     field array) checks the element flag first and marks the derived field
@@ -3344,3 +3348,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.68 (2026-11-06): dynamic/constant/dynamic three-index access. `arr[i][CONST][j]` now works for small directly destructible 3D arrays: writes, reads, moves, and partial moves select the middle row at compile time, branch the runtime outer row, and select the runtime inner flag. The lowering records the outer index of a nested aggregate (`MIRExprResult.base_outer_index_value`) and adds `drop_flag_for_dynamic_constant_dynamic`. Moves/reads prove the selected flag live first. Added TCC/LLVM runtime tests for write/read, move, and uninitialized-move abort. Safety `143/143`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v5.69 (2026-11-06): three runtime indices. `arr[i][j][k]` now works for small directly destructible 3D arrays: writes, reads, moves, and partial moves branch the runtime outer and middle rows, then select the runtime inner scalar flag. The lowering detects the three-runtime form from the grandparent index, and moves/reads prove the selected flag live first. Added TCC/LLVM runtime tests for write/read, move, and uninitialized-move abort. Safety `146/146`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v5.70 (2026-11-06): runtime-tree move/drop closure. Three gaps are closed. (1) Small/small direct 2D arrays now select every shape up to the 64 x 64 scalar-flag maximum (4096 flags); the old 1024-flag cap is gone. (2) Generated-glue 3D arrays with expanded dimensions now support runtime writes, reads, moves, partial moves, and uninitialized-move aborts, including mixed constant/runtime chains such as `arr[i][0][j]` and `arr[0][i][j]`. (3) Expanded small arrays support arbitrary runtime depth: 4D/5D (`arr[i][j][k][l]`) writes, reads, moves, and uninitialized-move aborts work through the same recursive runtime-tree selector. The selector collects the full `IndexAddr` chain from MIR rather than relying on two fixed base indices. Added TCC/LLVM runtime tests for 4D read/write/move and abort, generated 3D read/write/move and abort, generated 3D mixed constants, 64 x 64 direct and generated 2D arrays. Residual 3D gap: a generated-glue array with a large middle or inner dimension still rejects because that level is compressed. Safety `153/153`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
+*Revision note v5.71 (2026-11-06/07): compressed 3D generated-glue levels. Generated-glue 3D arrays now select a runtime element when the inner, middle, or outer dimension is large. The new selectors cover inner-large templates, middle-large templates with expanded inner rows or a flat inner block, and outer-large templates with expanded/flat inner rows. Writes, reads, moves, partial moves, mixed constant/runtime chains, and uninitialized-move aborts work for `[1][2][100]S`, `[1][100][2]S`, `[1][100][100]S`, `[65][2][2]S`, `[65][2][100]S`, `[65][100][2]S`, and `[1][2][2000]S`. The pre-existing one-flag-per-element flat representation for a generated inner array above 1024 nested under a large outer/middle template remains reject-only. Added TCC/LLVM runtime tests for inner/middle/both-large/outer-large/flat-inner writes, reads, and moves, plus a compressed uninitialized-move abort. Safety `159/159`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.

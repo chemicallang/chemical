@@ -2046,6 +2046,769 @@ void MIRLowerer::destroy_runtime_tree_element(
     destroy_level(rows, 0);
 }
 
+MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_three_inner_template(
+        PlaceId place, const std::vector<std::string>& path,
+        const std::vector<uint64_t>& prefix, ValueId outer, ValueId middle,
+        ValueId inner) {
+    if (outer == MIR_INVALID_ID || middle == MIR_INVALID_ID ||
+        inner == MIR_INVALID_ID) {
+        return {};
+    }
+    std::vector<MIRDropField>* list = nullptr;
+    if (path.empty()) {
+        for (auto& d : destructibles_) {
+            if (d.place == place) { list = &d.fields; break; }
+        }
+    } else {
+        MIRDropField* node = drop_field_for_path(place, path);
+        if (node == nullptr || node->element_template ||
+            node->flag_array != MIR_INVALID_ID) {
+            return {};
+        }
+        list = &node->children;
+    }
+    if (list == nullptr) return {};
+    for (uint64_t step : prefix) {
+        MIRDropField* next = nullptr;
+        for (auto& f : *list) {
+            if (f.array_index == static_cast<uint32_t>(step)) {
+                next = &f;
+                break;
+            }
+        }
+        if (next == nullptr || next->element_template ||
+            next->flag_array != MIR_INVALID_ID) {
+            return {};
+        }
+        list = &next->children;
+    }
+    const size_t n = list->size();
+    if (n == 0 || n > 64) return {};
+    std::vector<bool> seen_rows(n, false);
+    uint64_t middle_count = 0;
+    for (auto& row : *list) {
+        if (row.array_index == MIR_INVALID_ID || row.array_index >= n ||
+            seen_rows[row.array_index] || row.element_template ||
+            row.flag_array != MIR_INVALID_ID || row.children.empty()) {
+            return {};
+        }
+        seen_rows[row.array_index] = true;
+        if (middle_count == 0) middle_count = row.children.size();
+        if (row.children.size() != middle_count || middle_count > 64) {
+            return {};
+        }
+        std::vector<bool> seen_middle(middle_count, false);
+        for (auto& child : row.children) {
+            if (child.array_index == MIR_INVALID_ID ||
+                child.array_index >= middle_count ||
+                seen_middle[child.array_index]) {
+                return {};
+            }
+            seen_middle[child.array_index] = true;
+            const bool final_template =
+                child.element_template && child.array_count > 0 &&
+                !child.children.empty();
+            const bool final_direct =
+                child.flag_array != MIR_INVALID_ID &&
+                child.children.empty();
+            if (!final_template && !final_direct) return {};
+        }
+        for (bool seen : seen_middle) {
+            if (!seen) return {};
+        }
+    }
+    for (bool seen : seen_rows) {
+        if (!seen) return {};
+    }
+    MIRDropElementRef ref;
+    ref.runtime_rows = list;
+    ref.runtime_three_inner_template = true;
+    ref.runtime_indices = {outer, middle, inner};
+    ref.place = place;
+    ref.path = path;
+    ref.indices = prefix;
+    return ref;
+}
+
+MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_three_middle_template(
+        PlaceId place, const std::vector<std::string>& path,
+        const std::vector<uint64_t>& prefix, ValueId outer, ValueId middle,
+        ValueId inner) {
+    if (outer == MIR_INVALID_ID || middle == MIR_INVALID_ID ||
+        inner == MIR_INVALID_ID) {
+        return {};
+    }
+    std::vector<MIRDropField>* list = nullptr;
+    if (path.empty()) {
+        for (auto& d : destructibles_) {
+            if (d.place == place) { list = &d.fields; break; }
+        }
+    } else {
+        MIRDropField* node = drop_field_for_path(place, path);
+        if (node == nullptr || node->element_template ||
+            node->flag_array != MIR_INVALID_ID) {
+            return {};
+        }
+        list = &node->children;
+    }
+    if (list == nullptr) return {};
+    for (uint64_t step : prefix) {
+        MIRDropField* next = nullptr;
+        for (auto& f : *list) {
+            if (f.array_index == static_cast<uint32_t>(step)) {
+                next = &f;
+                break;
+            }
+        }
+        if (next == nullptr || next->element_template ||
+            next->flag_array != MIR_INVALID_ID) {
+            return {};
+        }
+        list = &next->children;
+    }
+    const size_t n = list->size();
+    if (n == 0 || n > 64) return {};
+    std::vector<bool> seen_rows(n, false);
+    uint64_t inner_count = 0;
+    int mode = -1; // 1 = expanded inner rows, 2 = flat inner block
+    for (auto& row : *list) {
+        if (row.array_index == MIR_INVALID_ID || row.array_index >= n ||
+            seen_rows[row.array_index] || !row.element_template ||
+            row.array_count == 0 || row.children.empty()) {
+            return {};
+        }
+        seen_rows[row.array_index] = true;
+        const bool rows_mode =
+            row.children[0].array_index != MIR_INVALID_ID;
+        const bool flat_mode =
+            !rows_mode && row.children[0].flag_array != MIR_INVALID_ID &&
+            row.children[0].inner_count > 0;
+        if (!rows_mode && !flat_mode) return {};
+        const int this_mode = rows_mode ? 1 : 2;
+        if (mode == -1) mode = this_mode;
+        if (mode != this_mode) return {};
+        if (rows_mode) {
+            if (row.children.size() > 1024) return {};
+            if (inner_count == 0) inner_count = row.children.size();
+            if (row.children.size() != inner_count) return {};
+            std::vector<bool> seen_inner(inner_count, false);
+            for (auto& inner_row : row.children) {
+                if (inner_row.array_index == MIR_INVALID_ID ||
+                    inner_row.array_index >= inner_count ||
+                    seen_inner[inner_row.array_index] ||
+                    inner_row.element_template ||
+                    inner_row.flag_array != MIR_INVALID_ID ||
+                    inner_row.children.empty()) {
+                    return {};
+                }
+                seen_inner[inner_row.array_index] = true;
+            }
+            for (bool seen : seen_inner) {
+                if (!seen) return {};
+            }
+        } else {
+            uint64_t flat_inner = 0;
+            for (auto& leaf : row.children) {
+                if (leaf.array_index != MIR_INVALID_ID ||
+                    leaf.flag_array == MIR_INVALID_ID ||
+                    leaf.inner_count == 0 ||
+                    (flat_inner != 0 && leaf.inner_count != flat_inner)) {
+                    return {};
+                }
+                flat_inner = leaf.inner_count;
+            }
+            if (flat_inner == 0) return {};
+            // A single flat block that stores one flag per element (rather
+            // than one per generated leaf) cannot represent the element's
+            // fields; leave direct-element flat blocks on the reject path.
+            if (row.children.size() == 1 &&
+                row.children[0].children.empty() &&
+                row.children[0].flag_count ==
+                    row.array_count * flat_inner) {
+                return {};
+            }
+            if (inner_count == 0) inner_count = flat_inner;
+            if (inner_count != flat_inner) return {};
+        }
+    }
+    for (bool seen : seen_rows) {
+        if (!seen) return {};
+    }
+    MIRDropElementRef ref;
+    ref.runtime_rows = list;
+    ref.runtime_three_middle_template = true;
+    ref.runtime_three_middle_flat = mode == 2;
+    ref.runtime_indices = {outer, middle, inner};
+    ref.place = place;
+    ref.path = path;
+    ref.indices = prefix;
+    return ref;
+}
+
+MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_three_outer_template(
+        PlaceId place, const std::vector<std::string>& path,
+        const std::vector<uint64_t>& prefix, ValueId outer, ValueId middle,
+        ValueId inner) {
+    if (outer == MIR_INVALID_ID || middle == MIR_INVALID_ID ||
+        inner == MIR_INVALID_ID) {
+        return {};
+    }
+    std::vector<MIRDropField>* list = nullptr;
+    if (path.empty()) {
+        for (auto& d : destructibles_) {
+            if (d.place == place) { list = &d.fields; break; }
+        }
+    } else {
+        MIRDropField* node = drop_field_for_path(place, path);
+        if (node == nullptr || node->element_template ||
+            node->flag_array != MIR_INVALID_ID) {
+            return {};
+        }
+        list = &node->children;
+    }
+    if (list == nullptr) return {};
+    for (uint64_t step : prefix) {
+        MIRDropField* next = nullptr;
+        for (auto& f : *list) {
+            if (f.array_index == static_cast<uint32_t>(step)) {
+                next = &f;
+                break;
+            }
+        }
+        if (next == nullptr || next->element_template ||
+            next->flag_array != MIR_INVALID_ID) {
+            return {};
+        }
+        list = &next->children;
+    }
+    if (list->size() != 1 || !(*list)[0].element_template ||
+        (*list)[0].array_count == 0 || (*list)[0].children.empty()) {
+        return {};
+    }
+    MIRDropField& tpl = (*list)[0];
+    const size_t middle_count = tpl.children.size();
+    if (middle_count == 0 || middle_count > 1024) return {};
+    std::vector<bool> seen_middle(middle_count, false);
+    uint64_t inner_count = 0;
+    int mode = -1; // 1 = expanded inner rows, 2 = flat inner block
+    for (auto& row : tpl.children) {
+        if (row.array_index == MIR_INVALID_ID ||
+            row.array_index >= middle_count ||
+            seen_middle[row.array_index] ||
+            row.flag_array != MIR_INVALID_ID || row.children.empty()) {
+            return {};
+        }
+        seen_middle[row.array_index] = true;
+        const bool rows_mode =
+            row.children[0].array_index != MIR_INVALID_ID;
+        const bool flat_mode =
+            !rows_mode && row.children[0].flag_array != MIR_INVALID_ID &&
+            row.children[0].inner_count > 0;
+        if (!rows_mode && !flat_mode) return {};
+        const int this_mode = rows_mode ? 1 : 2;
+        if (mode == -1) mode = this_mode;
+        if (mode != this_mode) return {};
+        if (rows_mode) {
+            if (row.children.size() > 1024) return {};
+            if (inner_count == 0) inner_count = row.children.size();
+            if (row.children.size() != inner_count) return {};
+            std::vector<bool> seen_inner(inner_count, false);
+            for (auto& inner_row : row.children) {
+                if (inner_row.array_index == MIR_INVALID_ID ||
+                    inner_row.array_index >= inner_count ||
+                    seen_inner[inner_row.array_index] ||
+                    inner_row.element_template ||
+                    inner_row.flag_array != MIR_INVALID_ID ||
+                    inner_row.children.empty()) {
+                    return {};
+                }
+                seen_inner[inner_row.array_index] = true;
+            }
+            for (bool seen : seen_inner) {
+                if (!seen) return {};
+            }
+        } else {
+            uint64_t flat_inner = 0;
+            for (auto& leaf : row.children) {
+                if (leaf.array_index != MIR_INVALID_ID ||
+                    leaf.flag_array == MIR_INVALID_ID ||
+                    leaf.inner_count == 0 ||
+                    (flat_inner != 0 && leaf.inner_count != flat_inner)) {
+                    return {};
+                }
+                flat_inner = leaf.inner_count;
+            }
+            if (flat_inner == 0) return {};
+            if (inner_count == 0) inner_count = flat_inner;
+            if (inner_count != flat_inner) return {};
+        }
+    }
+    for (bool seen : seen_middle) {
+        if (!seen) return {};
+    }
+    MIRDropElementRef ref;
+    ref.runtime_rows = &tpl.children;
+    ref.runtime_three_outer_template = true;
+    ref.runtime_three_outer_flat = mode == 2;
+    ref.runtime_indices = {outer, middle, inner};
+    ref.place = place;
+    ref.path = path;
+    ref.indices = prefix;
+    return ref;
+}
+
+MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_three_compressed_indices(
+        PlaceId place, const std::vector<std::string>& path,
+        const std::vector<ValueId>& indices) {
+    if (indices.size() != 3) return {};
+    MIRDropElementRef ref = drop_flag_for_three_inner_template(
+        place, path, {}, indices[0], indices[1], indices[2]);
+    if (ref.valid()) return ref;
+    ref = drop_flag_for_three_middle_template(
+        place, path, {}, indices[0], indices[1], indices[2]);
+    if (ref.valid()) return ref;
+    return drop_flag_for_three_outer_template(
+        place, path, {}, indices[0], indices[1], indices[2]);
+}
+
+void MIRLowerer::set_three_outer_template_element(
+        std::vector<MIRDropField>& rows, ValueId outer, ValueId middle,
+        ValueId inner, bool value) {
+    if (rows.empty() || outer == MIR_INVALID_ID ||
+        middle == MIR_INVALID_ID || inner == MIR_INVALID_ID) {
+        return;
+    }
+    const TypeId bool_t = types_.bool_type();
+    const TypeId u32 = types_.u32_type();
+    const TypeId u64 = types_.u64_type();
+    const ConstantId lt = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt)
+    );
+    const ConstantId eq = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq)
+    );
+    const ValueId middle_u64 = builder_->cast(middle, u64);
+    const ValueId middle32 = builder_->cast(middle, u32);
+    const ValueId len = builder_->const_int(
+        u64, module_.constants.add_int(u64, rows.size())
+    );
+    emit_abort_unless(builder_->compare(middle_u64, len, lt, bool_t),
+                      "__chc_bounds_fail");
+    const BlockId end_b = builder_->create_block();
+    for (MIRDropField& row : rows) {
+        if (row.array_index == MIR_INVALID_ID) continue;
+        const BlockId match_b = builder_->create_block();
+        const BlockId next_b = builder_->create_block();
+        const ValueId row_index = builder_->const_int(
+            u32, module_.constants.add_int(u32, row.array_index)
+        );
+        builder_->cond_br(
+            builder_->compare(middle32, row_index, eq, bool_t),
+            match_b, next_b
+        );
+        builder_->set_block(match_b);
+        if (row.children.empty()) {
+            if (!builder_->current_block_terminated()) {
+                builder_->br(end_b);
+            }
+            builder_->set_block(next_b);
+            continue;
+        }
+        const bool flat = row.children[0].array_index == MIR_INVALID_ID;
+        if (flat) {
+            const uint64_t stride = row.children[0].inner_count > 0
+                                        ? row.children[0].inner_count
+                                        : row.array_count;
+            set_flat_template_element(
+                row.children, outer, inner, stride, value
+            );
+        } else {
+            set_runtime_outer_template_element(
+                row.children, outer, inner, value
+            );
+        }
+        if (!builder_->current_block_terminated()) builder_->br(end_b);
+        builder_->set_block(next_b);
+    }
+    if (!builder_->current_block_terminated()) builder_->br(end_b);
+    builder_->set_block(end_b);
+}
+
+void MIRLowerer::destroy_three_outer_template_element(
+        ValueId address, std::vector<MIRDropField>& rows, ValueId outer,
+        ValueId middle, ValueId inner, BaseType* element_type) {
+    if (address == MIR_NULL || rows.empty() || outer == MIR_INVALID_ID ||
+        middle == MIR_INVALID_ID || inner == MIR_INVALID_ID ||
+        element_type == nullptr) {
+        return;
+    }
+    const TypeId bool_t = types_.bool_type();
+    const TypeId u32 = types_.u32_type();
+    const TypeId u64 = types_.u64_type();
+    const ConstantId lt = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt)
+    );
+    const ConstantId eq = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq)
+    );
+    const ValueId middle_u64 = builder_->cast(middle, u64);
+    const ValueId middle32 = builder_->cast(middle, u32);
+    const ValueId len = builder_->const_int(
+        u64, module_.constants.add_int(u64, rows.size())
+    );
+    emit_abort_unless(builder_->compare(middle_u64, len, lt, bool_t),
+                      "__chc_bounds_fail");
+    const BlockId end_b = builder_->create_block();
+    for (MIRDropField& row : rows) {
+        if (row.array_index == MIR_INVALID_ID) continue;
+        const BlockId match_b = builder_->create_block();
+        const BlockId next_b = builder_->create_block();
+        const ValueId row_index = builder_->const_int(
+            u32, module_.constants.add_int(u32, row.array_index)
+        );
+        builder_->cond_br(
+            builder_->compare(middle32, row_index, eq, bool_t),
+            match_b, next_b
+        );
+        builder_->set_block(match_b);
+        if (row.children.empty()) {
+            if (!builder_->current_block_terminated()) {
+                builder_->br(end_b);
+            }
+            builder_->set_block(next_b);
+            continue;
+        }
+        const bool flat = row.children[0].array_index == MIR_INVALID_ID;
+        if (flat) {
+            const uint64_t stride = row.children[0].inner_count > 0
+                                        ? row.children[0].inner_count
+                                        : row.array_count;
+            destroy_flat_template_element(
+                address, row.children, outer, inner, stride
+            );
+        } else {
+            destroy_runtime_outer_template_element(
+                address, row.children, outer, inner
+            );
+        }
+        if (!builder_->current_block_terminated()) builder_->br(end_b);
+        builder_->set_block(next_b);
+    }
+    if (!builder_->current_block_terminated()) builder_->br(end_b);
+    builder_->set_block(end_b);
+}
+
+void MIRLowerer::set_three_inner_template_element(
+        std::vector<MIRDropField>& rows, ValueId outer, ValueId middle,
+        ValueId inner, bool value) {
+    if (rows.empty() || outer == MIR_INVALID_ID ||
+        middle == MIR_INVALID_ID || inner == MIR_INVALID_ID) {
+        return;
+    }
+    const TypeId bool_t = types_.bool_type();
+    const TypeId u32 = types_.u32_type();
+    const TypeId u64 = types_.u64_type();
+    const ConstantId lt = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt)
+    );
+    const ConstantId eq = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq)
+    );
+    const ValueId zero = builder_->const_int(
+        u32, module_.constants.add_int(u32, 0)
+    );
+    const ValueId outer_u64 = builder_->cast(outer, u64);
+    const ValueId outer32 = builder_->cast(outer, u32);
+    const ValueId middle_u64 = builder_->cast(middle, u64);
+    const ValueId middle32 = builder_->cast(middle, u32);
+    const ValueId outer_len = builder_->const_int(
+        u64, module_.constants.add_int(u64, rows.size())
+    );
+    emit_abort_unless(builder_->compare(outer_u64, outer_len, lt, bool_t),
+                      "__chc_bounds_fail");
+    const BlockId end_b = builder_->create_block();
+    for (MIRDropField& row : rows) {
+        if (row.array_index == MIR_INVALID_ID) continue;
+        const BlockId match_b = builder_->create_block();
+        const BlockId next_b = builder_->create_block();
+        const ValueId row_index = builder_->const_int(
+            u32, module_.constants.add_int(u32, row.array_index)
+        );
+        builder_->cond_br(
+            builder_->compare(outer32, row_index, eq, bool_t), match_b, next_b
+        );
+        builder_->set_block(match_b);
+        const ValueId middle_len = builder_->const_int(
+            u64, module_.constants.add_int(u64, row.children.size())
+        );
+        emit_abort_unless(
+            builder_->compare(middle_u64, middle_len, lt, bool_t),
+            "__chc_bounds_fail"
+        );
+        const BlockId middle_end = builder_->create_block();
+        for (MIRDropField& child : row.children) {
+            if (child.array_index == MIR_INVALID_ID) continue;
+            const BlockId child_b = builder_->create_block();
+            const BlockId child_next = builder_->create_block();
+            const ValueId child_index = builder_->const_int(
+                u32, module_.constants.add_int(u32, child.array_index)
+            );
+            builder_->cond_br(
+                builder_->compare(middle32, child_index, eq, bool_t),
+                child_b, child_next
+            );
+            builder_->set_block(child_b);
+            if (child.element_template) {
+                set_flat_template_element(
+                    child.children, zero, inner, child.array_count, value
+                );
+            } else if (child.flag_array != MIR_INVALID_ID) {
+                MIRDropFlagRef flag =
+                    flag_array_ref_value(child.flag_array, inner);
+                if (flag.valid()) {
+                    if (flag.place != MIR_INVALID_ID) {
+                        builder_->set_drop(flag.place, value);
+                    } else {
+                        builder_->store_indirect(
+                            flag.address,
+                            builder_->const_bool(
+                                bool_t,
+                                module_.constants.add_bool(bool_t, value)
+                            )
+                        );
+                    }
+                }
+            }
+            if (!builder_->current_block_terminated()) {
+                builder_->br(middle_end);
+            }
+            builder_->set_block(child_next);
+        }
+        if (!builder_->current_block_terminated()) builder_->br(middle_end);
+        builder_->set_block(middle_end);
+        if (!builder_->current_block_terminated()) builder_->br(end_b);
+        builder_->set_block(next_b);
+    }
+    if (!builder_->current_block_terminated()) builder_->br(end_b);
+    builder_->set_block(end_b);
+}
+
+void MIRLowerer::destroy_three_inner_template_element(
+        ValueId address, std::vector<MIRDropField>& rows, ValueId outer,
+        ValueId middle, ValueId inner, BaseType* element_type) {
+    if (address == MIR_NULL || rows.empty() || outer == MIR_INVALID_ID ||
+        middle == MIR_INVALID_ID || inner == MIR_INVALID_ID ||
+        element_type == nullptr) {
+        return;
+    }
+    const TypeId bool_t = types_.bool_type();
+    const TypeId u32 = types_.u32_type();
+    const TypeId u64 = types_.u64_type();
+    const ConstantId lt = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt)
+    );
+    const ConstantId eq = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq)
+    );
+    const ValueId zero = builder_->const_int(
+        u32, module_.constants.add_int(u32, 0)
+    );
+    const ValueId outer_u64 = builder_->cast(outer, u64);
+    const ValueId outer32 = builder_->cast(outer, u32);
+    const ValueId middle_u64 = builder_->cast(middle, u64);
+    const ValueId middle32 = builder_->cast(middle, u32);
+    const ValueId false_value = builder_->const_bool(
+        bool_t, module_.constants.add_bool(bool_t, false)
+    );
+    const ValueId outer_len = builder_->const_int(
+        u64, module_.constants.add_int(u64, rows.size())
+    );
+    emit_abort_unless(builder_->compare(outer_u64, outer_len, lt, bool_t),
+                      "__chc_bounds_fail");
+    const BlockId end_b = builder_->create_block();
+    for (MIRDropField& row : rows) {
+        if (row.array_index == MIR_INVALID_ID) continue;
+        const BlockId match_b = builder_->create_block();
+        const BlockId next_b = builder_->create_block();
+        const ValueId row_index = builder_->const_int(
+            u32, module_.constants.add_int(u32, row.array_index)
+        );
+        builder_->cond_br(
+            builder_->compare(outer32, row_index, eq, bool_t), match_b, next_b
+        );
+        builder_->set_block(match_b);
+        const ValueId middle_len = builder_->const_int(
+            u64, module_.constants.add_int(u64, row.children.size())
+        );
+        emit_abort_unless(
+            builder_->compare(middle_u64, middle_len, lt, bool_t),
+            "__chc_bounds_fail"
+        );
+        const BlockId middle_end = builder_->create_block();
+        for (MIRDropField& child : row.children) {
+            if (child.array_index == MIR_INVALID_ID) continue;
+            const BlockId child_b = builder_->create_block();
+            const BlockId child_next = builder_->create_block();
+            const ValueId child_index = builder_->const_int(
+                u32, module_.constants.add_int(u32, child.array_index)
+            );
+            builder_->cond_br(
+                builder_->compare(middle32, child_index, eq, bool_t),
+                child_b, child_next
+            );
+            builder_->set_block(child_b);
+            if (child.element_template) {
+                destroy_flat_template_element(
+                    address, child.children, zero, inner,
+                    child.array_count
+                );
+            } else if (child.flag_array != MIR_INVALID_ID) {
+                MIRDropFlagRef flag =
+                    flag_array_ref_value(child.flag_array, inner);
+                emit_dtor_ptr_cond(address, element_type, flag);
+                if (flag.address != MIR_INVALID_ID) {
+                    builder_->store_indirect(flag.address, false_value);
+                }
+            }
+            if (!builder_->current_block_terminated()) {
+                builder_->br(middle_end);
+            }
+            builder_->set_block(child_next);
+        }
+        if (!builder_->current_block_terminated()) builder_->br(middle_end);
+        builder_->set_block(middle_end);
+        if (!builder_->current_block_terminated()) builder_->br(end_b);
+        builder_->set_block(next_b);
+    }
+    if (!builder_->current_block_terminated()) builder_->br(end_b);
+    builder_->set_block(end_b);
+}
+
+void MIRLowerer::set_three_middle_template_element(
+        std::vector<MIRDropField>& rows, ValueId outer, ValueId middle,
+        ValueId inner, bool value) {
+    if (rows.empty() || outer == MIR_INVALID_ID ||
+        middle == MIR_INVALID_ID || inner == MIR_INVALID_ID) {
+        return;
+    }
+    const TypeId bool_t = types_.bool_type();
+    const TypeId u32 = types_.u32_type();
+    const TypeId u64 = types_.u64_type();
+    const ConstantId lt = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt)
+    );
+    const ConstantId eq = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq)
+    );
+    const ValueId outer_u64 = builder_->cast(outer, u64);
+    const ValueId outer32 = builder_->cast(outer, u32);
+    const ValueId outer_len = builder_->const_int(
+        u64, module_.constants.add_int(u64, rows.size())
+    );
+    emit_abort_unless(builder_->compare(outer_u64, outer_len, lt, bool_t),
+                      "__chc_bounds_fail");
+    const BlockId end_b = builder_->create_block();
+    for (MIRDropField& row : rows) {
+        if (row.array_index == MIR_INVALID_ID) continue;
+        const BlockId match_b = builder_->create_block();
+        const BlockId next_b = builder_->create_block();
+        const ValueId row_index = builder_->const_int(
+            u32, module_.constants.add_int(u32, row.array_index)
+        );
+        builder_->cond_br(
+            builder_->compare(outer32, row_index, eq, bool_t), match_b, next_b
+        );
+        builder_->set_block(match_b);
+        if (row.children.empty()) {
+            if (!builder_->current_block_terminated()) {
+                builder_->br(end_b);
+            }
+            builder_->set_block(next_b);
+            continue;
+        }
+        const bool flat = row.children[0].array_index == MIR_INVALID_ID;
+        if (flat) {
+            const uint64_t stride = row.children[0].inner_count > 0
+                                        ? row.children[0].inner_count
+                                        : row.array_count;
+            set_flat_template_element(
+                row.children, middle, inner, stride, value
+            );
+        } else {
+            set_runtime_outer_template_element(
+                row.children, middle, inner, value
+            );
+        }
+        if (!builder_->current_block_terminated()) builder_->br(end_b);
+        builder_->set_block(next_b);
+    }
+    if (!builder_->current_block_terminated()) builder_->br(end_b);
+    builder_->set_block(end_b);
+}
+
+void MIRLowerer::destroy_three_middle_template_element(
+        ValueId address, std::vector<MIRDropField>& rows, ValueId outer,
+        ValueId middle, ValueId inner, BaseType* element_type) {
+    if (address == MIR_NULL || rows.empty() || outer == MIR_INVALID_ID ||
+        middle == MIR_INVALID_ID || inner == MIR_INVALID_ID ||
+        element_type == nullptr) {
+        return;
+    }
+    const TypeId bool_t = types_.bool_type();
+    const TypeId u32 = types_.u32_type();
+    const TypeId u64 = types_.u64_type();
+    const ConstantId lt = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt)
+    );
+    const ConstantId eq = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq)
+    );
+    const ValueId outer_u64 = builder_->cast(outer, u64);
+    const ValueId outer32 = builder_->cast(outer, u32);
+    const ValueId outer_len = builder_->const_int(
+        u64, module_.constants.add_int(u64, rows.size())
+    );
+    emit_abort_unless(builder_->compare(outer_u64, outer_len, lt, bool_t),
+                      "__chc_bounds_fail");
+    const BlockId end_b = builder_->create_block();
+    for (MIRDropField& row : rows) {
+        if (row.array_index == MIR_INVALID_ID) continue;
+        const BlockId match_b = builder_->create_block();
+        const BlockId next_b = builder_->create_block();
+        const ValueId row_index = builder_->const_int(
+            u32, module_.constants.add_int(u32, row.array_index)
+        );
+        builder_->cond_br(
+            builder_->compare(outer32, row_index, eq, bool_t), match_b, next_b
+        );
+        builder_->set_block(match_b);
+        if (row.children.empty()) {
+            if (!builder_->current_block_terminated()) {
+                builder_->br(end_b);
+            }
+            builder_->set_block(next_b);
+            continue;
+        }
+        const bool flat = row.children[0].array_index == MIR_INVALID_ID;
+        if (flat) {
+            const uint64_t stride = row.children[0].inner_count > 0
+                                        ? row.children[0].inner_count
+                                        : row.array_count;
+            destroy_flat_template_element(
+                address, row.children, middle, inner, stride
+            );
+        } else {
+            destroy_runtime_outer_template_element(
+                address, row.children, middle, inner
+            );
+        }
+        if (!builder_->current_block_terminated()) builder_->br(end_b);
+        builder_->set_block(next_b);
+    }
+    if (!builder_->current_block_terminated()) builder_->br(end_b);
+    builder_->set_block(end_b);
+}
+
 void MIRLowerer::materialize_drop_fields(std::vector<MIRDropField>& fields,
                                          bool initialize) {
     for (auto& f : fields) {
@@ -3567,6 +4330,27 @@ bool MIRLowerer::array_element_move_target(Value* value, PlaceId& base,
 }
 
 void MIRLowerer::clear_element_drop_flag(const MIRDropElementRef& ref) {
+    if (ref.runtime_three_inner_template && ref.runtime_rows != nullptr &&
+        ref.runtime_indices.size() == 3) {
+        set_three_inner_template_element(
+            *ref.runtime_rows, ref.runtime_indices[0],
+            ref.runtime_indices[1], ref.runtime_indices[2], false
+        );
+    }
+    if (ref.runtime_three_middle_template && ref.runtime_rows != nullptr &&
+        ref.runtime_indices.size() == 3) {
+        set_three_middle_template_element(
+            *ref.runtime_rows, ref.runtime_indices[0],
+            ref.runtime_indices[1], ref.runtime_indices[2], false
+        );
+    }
+    if (ref.runtime_three_outer_template && ref.runtime_rows != nullptr &&
+        ref.runtime_indices.size() == 3) {
+        set_three_outer_template_element(
+            *ref.runtime_rows, ref.runtime_indices[0],
+            ref.runtime_indices[1], ref.runtime_indices[2], false
+        );
+    }
     if (ref.runtime_tree && ref.runtime_rows != nullptr) {
         set_runtime_tree_element(
             *ref.runtime_rows, ref.runtime_indices, false
@@ -3891,7 +4675,11 @@ bool MIRLowerer::emit_dynamic_element_read_check(
     if (!ref.valid() && dynamic_index != MIR_INVALID_ID) {
         const std::vector<ValueId> chain =
             collect_index_addr_chain(address.id);
-        if (!chain.empty()) {
+        if (chain.size() == 3) {
+            ref = drop_flag_for_three_compressed_indices(base, path, chain);
+            dynamic_ref = ref.valid();
+        }
+        if (!ref.valid() && !chain.empty()) {
             ref = drop_flag_for_runtime_tree(base, path, chain);
             dynamic_ref = ref.valid();
         }
@@ -4478,6 +5266,220 @@ bool MIRLowerer::emit_dynamic_element_read_check(
             };
         return check_level(rows, 0);
     };
+    auto check_three_inner_template_rows =
+        [&](std::vector<MIRDropField>& rows, ValueId outer, ValueId middle,
+            ValueId inner) -> bool {
+        if (rows.empty() || outer == MIR_INVALID_ID ||
+            middle == MIR_INVALID_ID || inner == MIR_INVALID_ID) {
+            return false;
+        }
+        const ValueId outer_u64 = builder_->cast(outer, u64);
+        const ValueId outer32 = builder_->cast(outer, u32);
+        const ValueId middle_u64 = builder_->cast(middle, u64);
+        const ValueId middle32 = builder_->cast(middle, u32);
+        const ConstantId lt = module_.constants.add_int(
+            MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt)
+        );
+        const ConstantId eq = module_.constants.add_int(
+            MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq)
+        );
+        const ValueId zero = builder_->const_int(
+            u32, module_.constants.add_int(u32, 0)
+        );
+        const ValueId outer_len = builder_->const_int(
+            u64, module_.constants.add_int(u64, rows.size())
+        );
+        emit_abort_unless(
+            builder_->compare(outer_u64, outer_len, lt, bool_t),
+            "__chc_bounds_fail"
+        );
+        const BlockId end_b = builder_->create_block();
+        for (MIRDropField& row : rows) {
+            if (row.array_index == MIR_INVALID_ID) continue;
+            const BlockId match_b = builder_->create_block();
+            const BlockId next_b = builder_->create_block();
+            const ValueId row_index = builder_->const_int(
+                u32, module_.constants.add_int(u32, row.array_index)
+            );
+            builder_->cond_br(
+                builder_->compare(outer32, row_index, eq, bool_t),
+                match_b, next_b
+            );
+            builder_->set_block(match_b);
+            const ValueId middle_len = builder_->const_int(
+                u64, module_.constants.add_int(u64, row.children.size())
+            );
+            emit_abort_unless(
+                builder_->compare(middle_u64, middle_len, lt, bool_t),
+                "__chc_bounds_fail"
+            );
+            const BlockId middle_end = builder_->create_block();
+            for (MIRDropField& child : row.children) {
+                if (child.array_index == MIR_INVALID_ID) continue;
+                const BlockId child_b = builder_->create_block();
+                const BlockId child_next = builder_->create_block();
+                const ValueId child_index = builder_->const_int(
+                    u32, module_.constants.add_int(u32, child.array_index)
+                );
+                builder_->cond_br(
+                    builder_->compare(middle32, child_index, eq, bool_t),
+                    child_b, child_next
+                );
+                builder_->set_block(child_b);
+                ValueId live = MIR_INVALID_ID;
+                if (child.element_template) {
+                    live = fields_flat_live(
+                        child.children, zero, inner, child.array_count
+                    );
+                } else if (child.flag_array != MIR_INVALID_ID) {
+                    live = load_flag(
+                        flag_array_ref_value(child.flag_array, inner)
+                    );
+                }
+                if (live == MIR_INVALID_ID) return false;
+                emit_abort_unless(live, "__chc_uninit_fail");
+                if (!builder_->current_block_terminated()) {
+                    builder_->br(middle_end);
+                }
+                builder_->set_block(child_next);
+            }
+            if (!builder_->current_block_terminated()) {
+                builder_->br(middle_end);
+            }
+            builder_->set_block(middle_end);
+            if (!builder_->current_block_terminated()) builder_->br(end_b);
+            builder_->set_block(next_b);
+        }
+        if (!builder_->current_block_terminated()) builder_->br(end_b);
+        builder_->set_block(end_b);
+        return true;
+    };
+    auto check_three_middle_template_rows =
+        [&](std::vector<MIRDropField>& rows, ValueId outer, ValueId middle,
+            ValueId inner) -> bool {
+        if (rows.empty() || outer == MIR_INVALID_ID ||
+            middle == MIR_INVALID_ID || inner == MIR_INVALID_ID) {
+            return false;
+        }
+        const ValueId outer_u64 = builder_->cast(outer, u64);
+        const ValueId outer32 = builder_->cast(outer, u32);
+        const ConstantId lt = module_.constants.add_int(
+            MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt)
+        );
+        const ConstantId eq = module_.constants.add_int(
+            MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq)
+        );
+        const ValueId outer_len = builder_->const_int(
+            u64, module_.constants.add_int(u64, rows.size())
+        );
+        emit_abort_unless(
+            builder_->compare(outer_u64, outer_len, lt, bool_t),
+            "__chc_bounds_fail"
+        );
+        const BlockId end_b = builder_->create_block();
+        for (MIRDropField& row : rows) {
+            if (row.array_index == MIR_INVALID_ID) continue;
+            const BlockId match_b = builder_->create_block();
+            const BlockId next_b = builder_->create_block();
+            const ValueId row_index = builder_->const_int(
+                u32, module_.constants.add_int(u32, row.array_index)
+            );
+            builder_->cond_br(
+                builder_->compare(outer32, row_index, eq, bool_t),
+                match_b, next_b
+            );
+            builder_->set_block(match_b);
+            if (row.children.empty()) {
+                if (!builder_->current_block_terminated()) {
+                    builder_->br(end_b);
+                }
+                builder_->set_block(next_b);
+                continue;
+            }
+            const bool flat = row.children[0].array_index == MIR_INVALID_ID;
+            if (flat) {
+                const uint64_t stride = row.children[0].inner_count > 0
+                                            ? row.children[0].inner_count
+                                            : row.array_count;
+                const ValueId live = fields_flat_live(
+                    row.children, middle, inner, stride
+                );
+                if (live == MIR_INVALID_ID) return false;
+                emit_abort_unless(live, "__chc_uninit_fail");
+            } else if (!check_runtime_outer_template_rows(
+                           row.children, middle, inner)) {
+                return false;
+            }
+            if (!builder_->current_block_terminated()) builder_->br(end_b);
+            builder_->set_block(next_b);
+        }
+        if (!builder_->current_block_terminated()) builder_->br(end_b);
+        builder_->set_block(end_b);
+        return true;
+    };
+    auto check_three_outer_template_rows =
+        [&](std::vector<MIRDropField>& rows, ValueId outer, ValueId middle,
+            ValueId inner) -> bool {
+        if (rows.empty() || outer == MIR_INVALID_ID ||
+            middle == MIR_INVALID_ID || inner == MIR_INVALID_ID) {
+            return false;
+        }
+        const ValueId middle_u64 = builder_->cast(middle, u64);
+        const ValueId middle32 = builder_->cast(middle, u32);
+        const ConstantId lt = module_.constants.add_int(
+            MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt)
+        );
+        const ConstantId eq = module_.constants.add_int(
+            MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq)
+        );
+        const ValueId len = builder_->const_int(
+            u64, module_.constants.add_int(u64, rows.size())
+        );
+        emit_abort_unless(
+            builder_->compare(middle_u64, len, lt, bool_t),
+            "__chc_bounds_fail"
+        );
+        const BlockId end_b = builder_->create_block();
+        for (MIRDropField& row : rows) {
+            if (row.array_index == MIR_INVALID_ID) continue;
+            const BlockId match_b = builder_->create_block();
+            const BlockId next_b = builder_->create_block();
+            const ValueId row_index = builder_->const_int(
+                u32, module_.constants.add_int(u32, row.array_index)
+            );
+            builder_->cond_br(
+                builder_->compare(middle32, row_index, eq, bool_t),
+                match_b, next_b
+            );
+            builder_->set_block(match_b);
+            if (row.children.empty()) {
+                if (!builder_->current_block_terminated()) {
+                    builder_->br(end_b);
+                }
+                builder_->set_block(next_b);
+                continue;
+            }
+            const bool flat = row.children[0].array_index == MIR_INVALID_ID;
+            if (flat) {
+                const uint64_t stride = row.children[0].inner_count > 0
+                                            ? row.children[0].inner_count
+                                            : row.array_count;
+                const ValueId live = fields_flat_live(
+                    row.children, outer, inner, stride
+                );
+                if (live == MIR_INVALID_ID) return false;
+                emit_abort_unless(live, "__chc_uninit_fail");
+            } else if (!check_runtime_outer_template_rows(
+                           row.children, outer, inner)) {
+                return false;
+            }
+            if (!builder_->current_block_terminated()) builder_->br(end_b);
+            builder_->set_block(next_b);
+        }
+        if (!builder_->current_block_terminated()) builder_->br(end_b);
+        builder_->set_block(end_b);
+        return true;
+    };
     auto mark_checked = [&]() {
         if (address.id != MIR_INVALID_ID &&
             address.id < builder_->function().values.size()) {
@@ -4485,6 +5487,42 @@ bool MIRLowerer::emit_dynamic_element_read_check(
         }
         checked = true;
     };
+    if (dynamic_ref && ref.runtime_three_outer_template &&
+        ref.runtime_rows != nullptr && ref.runtime_indices.size() == 3) {
+        if (!check_three_outer_template_rows(
+                *ref.runtime_rows, ref.runtime_indices[0],
+                ref.runtime_indices[1], ref.runtime_indices[2])) {
+            error = "SAFE-INIT-001: cannot check a runtime-selected "
+                    "outer-large 3D element";
+            return false;
+        }
+        mark_checked();
+        return true;
+    }
+    if (dynamic_ref && ref.runtime_three_inner_template &&
+        ref.runtime_rows != nullptr && ref.runtime_indices.size() == 3) {
+        if (!check_three_inner_template_rows(
+                *ref.runtime_rows, ref.runtime_indices[0],
+                ref.runtime_indices[1], ref.runtime_indices[2])) {
+            error = "SAFE-INIT-001: cannot check a runtime-selected "
+                    "inner-large 3D element";
+            return false;
+        }
+        mark_checked();
+        return true;
+    }
+    if (dynamic_ref && ref.runtime_three_middle_template &&
+        ref.runtime_rows != nullptr && ref.runtime_indices.size() == 3) {
+        if (!check_three_middle_template_rows(
+                *ref.runtime_rows, ref.runtime_indices[0],
+                ref.runtime_indices[1], ref.runtime_indices[2])) {
+            error = "SAFE-INIT-001: cannot check a runtime-selected "
+                    "middle-large 3D element";
+            return false;
+        }
+        mark_checked();
+        return true;
+    }
     if (dynamic_ref && ref.runtime_tree && ref.runtime_rows != nullptr) {
         if (!check_runtime_tree_rows(
                 *ref.runtime_rows, ref.runtime_indices)) {
@@ -5020,7 +6058,11 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
                         element_dynamic_index != MIR_INVALID_ID) {
                         const std::vector<ValueId> chain =
                             collect_index_addr_chain(result.id);
-                        if (!chain.empty()) {
+                        if (chain.size() == 3) {
+                            ref = drop_flag_for_three_compressed_indices(
+                                element_base, element_path, chain);
+                        }
+                        if (!ref.valid() && !chain.empty()) {
                             ref = drop_flag_for_runtime_tree(
                                 element_base, element_path, chain);
                         }

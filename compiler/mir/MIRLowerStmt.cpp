@@ -823,8 +823,15 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                                     tree_type
                                 );
                                 if (tree_base != MIR_INVALID_ID) {
-                                    eflag = drop_flag_for_runtime_tree(
-                                        tree_base, tree_path, chain);
+                                    if (chain.size() == 3) {
+                                        eflag =
+                                            drop_flag_for_three_compressed_indices(
+                                                tree_base, tree_path, chain);
+                                    }
+                                    if (!eflag.valid()) {
+                                        eflag = drop_flag_for_runtime_tree(
+                                            tree_base, tree_path, chain);
+                                    }
                                 }
                             }
                         }
@@ -864,6 +871,12 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     );
                 };
                 auto fresh_element_ref = [&]() {
+                    if (eflag.runtime_three_inner_template ||
+                        eflag.runtime_three_middle_template ||
+                        eflag.runtime_three_outer_template) {
+                        return drop_flag_for_three_compressed_indices(
+                            eflag.place, eflag.path, eflag.runtime_indices);
+                    }
                     if (eflag.runtime_tree) {
                         return drop_flag_for_runtime_tree(
                             eflag.place, eflag.path, eflag.runtime_indices);
@@ -907,6 +920,45 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 };
                 auto destroy_old_element = [&]() {
                     if (!eflag.valid()) return;
+                    if (eflag.runtime_three_inner_template) {
+                        MIRDropElementRef fresh = fresh_element_ref();
+                        if (!fresh.runtime_three_inner_template ||
+                            fresh.runtime_rows == nullptr ||
+                            fresh.runtime_indices.size() != 3) return;
+                        destroy_three_inner_template_element(
+                            element_address(), *fresh.runtime_rows,
+                            fresh.runtime_indices[0],
+                            fresh.runtime_indices[1],
+                            fresh.runtime_indices[2], io->getType()
+                        );
+                        return;
+                    }
+                    if (eflag.runtime_three_middle_template) {
+                        MIRDropElementRef fresh = fresh_element_ref();
+                        if (!fresh.runtime_three_middle_template ||
+                            fresh.runtime_rows == nullptr ||
+                            fresh.runtime_indices.size() != 3) return;
+                        destroy_three_middle_template_element(
+                            element_address(), *fresh.runtime_rows,
+                            fresh.runtime_indices[0],
+                            fresh.runtime_indices[1],
+                            fresh.runtime_indices[2], io->getType()
+                        );
+                        return;
+                    }
+                    if (eflag.runtime_three_outer_template) {
+                        MIRDropElementRef fresh = fresh_element_ref();
+                        if (!fresh.runtime_three_outer_template ||
+                            fresh.runtime_rows == nullptr ||
+                            fresh.runtime_indices.size() != 3) return;
+                        destroy_three_outer_template_element(
+                            element_address(), *fresh.runtime_rows,
+                            fresh.runtime_indices[0],
+                            fresh.runtime_indices[1],
+                            fresh.runtime_indices[2], io->getType()
+                        );
+                        return;
+                    }
                     if (eflag.runtime_tree) {
                         MIRDropElementRef fresh = fresh_element_ref();
                         if (!fresh.runtime_tree ||
@@ -1034,6 +1086,42 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     emit_dtor_ptr_cond(element_address(), io->getType(), eflag.flag);
                 };
                 auto mark_element_initialized = [&]() {
+                    if (eflag.runtime_three_inner_template) {
+                        MIRDropElementRef fresh = fresh_element_ref();
+                        if (!fresh.runtime_three_inner_template ||
+                            fresh.runtime_rows == nullptr ||
+                            fresh.runtime_indices.size() != 3) return;
+                        set_three_inner_template_element(
+                            *fresh.runtime_rows, fresh.runtime_indices[0],
+                            fresh.runtime_indices[1],
+                            fresh.runtime_indices[2], true
+                        );
+                        return;
+                    }
+                    if (eflag.runtime_three_middle_template) {
+                        MIRDropElementRef fresh = fresh_element_ref();
+                        if (!fresh.runtime_three_middle_template ||
+                            fresh.runtime_rows == nullptr ||
+                            fresh.runtime_indices.size() != 3) return;
+                        set_three_middle_template_element(
+                            *fresh.runtime_rows, fresh.runtime_indices[0],
+                            fresh.runtime_indices[1],
+                            fresh.runtime_indices[2], true
+                        );
+                        return;
+                    }
+                    if (eflag.runtime_three_outer_template) {
+                        MIRDropElementRef fresh = fresh_element_ref();
+                        if (!fresh.runtime_three_outer_template ||
+                            fresh.runtime_rows == nullptr ||
+                            fresh.runtime_indices.size() != 3) return;
+                        set_three_outer_template_element(
+                            *fresh.runtime_rows, fresh.runtime_indices[0],
+                            fresh.runtime_indices[1],
+                            fresh.runtime_indices[2], true
+                        );
+                        return;
+                    }
                     if (eflag.runtime_tree) {
                         MIRDropElementRef fresh = fresh_element_ref();
                         if (!fresh.runtime_tree ||

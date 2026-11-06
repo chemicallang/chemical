@@ -1862,3 +1862,65 @@ func small_generated_two_dimensional_large_tree(env : &mut TestEnv) {
         env.error("64x64 generated-glue small-array tree failed")
     }
 }
+
+@test
+func generated_inner_large_three_dimensional(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [1][2][100]S\n            var j = 1\n            var k = 99\n            arr[0][j][k] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n            if(arr[0][j][k].a.id != 7) { return 10 }\n            var moved = arr[0][j][k]\n            if(moved.a.id != 7) { return 11 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "generated_inner_large_three_dimensional", ch, &mut out)
+    if(rc != 1) {
+        env.error("generated 3D inner-large write/read/move failed")
+    }
+}
+
+@test
+func generated_middle_large_three_dimensional(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [1][100][2]S\n            var j = 99\n            var k = 1\n            arr[0][j][k] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n            if(arr[0][j][k].a.id != 7) { return 10 }\n            var moved = arr[0][j][k]\n            if(moved.a.id != 7) { return 11 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "generated_middle_large_three_dimensional", ch, &mut out)
+    if(rc != 1) {
+        env.error("generated 3D middle-large write/read/move failed")
+    }
+}
+
+@test
+func generated_middle_and_inner_large_three_dimensional(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [1][100][100]S\n            var j = 99\n            var k = 99\n            arr[0][j][k] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n            if(arr[0][j][k].a.id != 7) { return 10 }\n            var moved = arr[0][j][k]\n            if(moved.a.id != 7) { return 11 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "generated_middle_and_inner_large_three_dimensional", ch, &mut out)
+    if(rc != 1) {
+        env.error("generated 3D middle+inner-large write/read/move failed")
+    }
+}
+
+@test
+func generated_outer_large_three_dimensional(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [65][2][2]S\n            var i = 64\n            var j = 1\n            var k = 1\n            arr[i][j][k] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n            if(arr[i][j][k].a.id != 7) { return 10 }\n            var moved = arr[i][j][k]\n            if(moved.a.id != 7) { return 11 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "generated_outer_large_three_dimensional", ch, &mut out)
+    if(rc != 1) {
+        env.error("generated 3D outer-large write/read/move failed")
+    }
+}
+
+@test
+func generated_flat_inner_large_three_dimensional(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [1][2][2000]S\n            var j = 1\n            var k = 1999\n            arr[0][j][k] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n            if(arr[0][j][k].a.id != 7) { return 10 }\n            var moved = arr[0][j][k]\n            if(moved.a.id != 7) { return 11 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "generated_flat_inner_large_three_dimensional", ch, &mut out)
+    if(rc != 1) {
+        env.error("generated 3D flat-inner write/read/move failed")
+    }
+}
+
+@test
+func generated_compressed_three_dimensional_uninitialized_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [1][100][2]S\n        var i = 0\n        var j0 = 0\n        var k0 = 0\n        arr[i][j0][k0] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n        var j = 99\n        var k = 1\n        var moved = arr[i][j][k]\n        return moved.a.id\n    }\n}\n"
+    expect_runtime_panic(env, "generated_compressed_three_dimensional_uninit", ch)
+}

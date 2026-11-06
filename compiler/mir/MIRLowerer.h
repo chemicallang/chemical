@@ -834,6 +834,13 @@ private:
         bool runtime_tree = false;
         bool runtime_tree_generated = false;
         std::vector<ValueId> runtime_indices;
+        // 3D compressed generated-glue layouts: inner large (`[a][b][>64]`)
+        // or middle large (`[a][>64][b]`).
+        bool runtime_three_inner_template = false;
+        bool runtime_three_middle_template = false;
+        bool runtime_three_middle_flat = false;
+        bool runtime_three_outer_template = false;
+        bool runtime_three_outer_flat = false;
         // Field path for a path-indexed element (`holder.items[i]`), used to
         // re-resolve after lowering the RHS may reallocate `destructibles_`.
         std::vector<std::string> path;
@@ -1001,6 +1008,65 @@ private:
                                       std::vector<MIRDropField>& rows,
                                       const std::vector<ValueId>& indices,
                                       BaseType* element_type);
+    /**
+     * Select `arr[outer][middle][inner]` when the inner dimension is large and
+     * compressed to a generated element template or a direct flag block.
+     */
+    MIRDropElementRef drop_flag_for_three_inner_template(
+            PlaceId place, const std::vector<std::string>& path,
+            const std::vector<uint64_t>& prefix, ValueId outer,
+            ValueId middle, ValueId inner);
+    /**
+     * Select `arr[outer][middle][inner]` when the middle dimension is large and
+     * compressed. The inner dimension may be expanded rows or one flat block.
+     */
+    MIRDropElementRef drop_flag_for_three_middle_template(
+            PlaceId place, const std::vector<std::string>& path,
+            const std::vector<uint64_t>& prefix, ValueId outer,
+            ValueId middle, ValueId inner);
+    /**
+     * Select `arr[outer][middle][inner]` when the outer dimension is large;
+     * `outer` indexes the leaf flags and middle/inner are expanded rows or one
+     * flat inner block.
+     */
+    MIRDropElementRef drop_flag_for_three_outer_template(
+            PlaceId place, const std::vector<std::string>& path,
+            const std::vector<uint64_t>& prefix, ValueId outer,
+            ValueId middle, ValueId inner);
+    /** Try the compressed 3D layouts for a three-index chain. */
+    MIRDropElementRef drop_flag_for_three_compressed_indices(
+            PlaceId place, const std::vector<std::string>& path,
+            const std::vector<ValueId>& indices);
+    /** Arm/clear an inner-large compressed 3D element. */
+    void set_three_inner_template_element(std::vector<MIRDropField>& rows,
+                                          ValueId outer, ValueId middle,
+                                          ValueId inner, bool value);
+    /** Destroy an inner-large compressed 3D element. */
+    void destroy_three_inner_template_element(ValueId address,
+                                              std::vector<MIRDropField>& rows,
+                                              ValueId outer, ValueId middle,
+                                              ValueId inner,
+                                              BaseType* element_type);
+    /** Arm/clear a middle-large compressed 3D element. */
+    void set_three_middle_template_element(std::vector<MIRDropField>& rows,
+                                           ValueId outer, ValueId middle,
+                                           ValueId inner, bool value);
+    /** Destroy a middle-large compressed 3D element. */
+    void destroy_three_middle_template_element(ValueId address,
+                                               std::vector<MIRDropField>& rows,
+                                               ValueId outer, ValueId middle,
+                                               ValueId inner,
+                                               BaseType* element_type);
+    /** Arm/clear an outer-large compressed 3D element. */
+    void set_three_outer_template_element(std::vector<MIRDropField>& rows,
+                                          ValueId outer, ValueId middle,
+                                          ValueId inner, bool value);
+    /** Destroy an outer-large compressed 3D element. */
+    void destroy_three_outer_template_element(ValueId address,
+                                              std::vector<MIRDropField>& rows,
+                                              ValueId outer, ValueId middle,
+                                              ValueId inner,
+                                              BaseType* element_type);
     /** Recover the outer-to-inner index operands of an IndexAddr chain. */
     std::vector<ValueId> collect_index_addr_chain(ValueId address) const;
     /** Destroy one value through an address, gated by an optional flag. */

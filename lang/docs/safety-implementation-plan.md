@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.62)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.63)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1654,11 +1654,14 @@ new number as the honest baseline, not a compiler regression.
     pointer table capped at 1024 element flags. The same selector serves writes
     and moves, including a runtime outer index with a constant inner index
     (`arr[i][0]`); partial moves use the runtime flag check. A runtime index
-    before a constant middle index (`arr[i][0][j]`), generated-glue 2D arrays,
-    and both-large 2D arrays remain rejected. Mixed dimensions are supported:
-    an outer-small/inner-large array selects the outer row's flat flag block,
+    before a constant middle index (`arr[i][0][j]`) and generated-glue 2D
+    arrays remain rejected. Mixed dimensions are supported: an
+    outer-small/inner-large array selects the outer row's flat flag block,
     while an outer-large/inner-small array selects the inner element's
-    outer-indexed flag array. A scalar read through a
+    outer-indexed flag array. Both dimensions large use the outer element
+    template's per-inner flag arrays, or one flat inner block when the inner
+    dimension exceeds 1024. Small/small 2D arrays remain capped at 1024 total
+    element flags. A scalar read through a
     runtime-selected direct element (`arr[i].field`, `arr[i][j].field`, or a
     field array) checks the element flag first and marks the derived field
     address with `VF_INIT_CHECKED`, so the move checker accepts the guarded
@@ -3320,3 +3323,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.60 (2026-11-06): runtime-checked dynamic reads. A scalar field read through a runtime-selected directly destructible array element now checks the selected element flag first (through the 1D/2D/field-array selectors) and marks the derived field address `VF_INIT_CHECKED`; the move checker accepts that guarded load while still rejecting moved/destroyed paths. Dynamic reads of generated-glue elements remain `SAFE-INIT-001` because every leaf would need checking. Non-dynamic field loads keep the original `field_load` provenance, preserving borrow/lifetime checks. Added TCC/LLVM runtime read tests for large, two-index, and field-array partial writes, a runtime-abort test for an uninitialized element, and a generated-glue dynamic-read negative. Safety `114/114`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v5.61 (2026-11-06): aggregate and generated-glue read guards. Constant-index aggregate/method reads (`arr[1].field.method()`) now resolve every constant index and require all tracked leaves of the selected element to be live, closing the path that bypassed the MIR `Load` check. Dynamic reads of generated-glue elements now check every leaf of the runtime-selected element: small arrays branch over the selected element row, large templates index the leaf flag arrays. The same helper also covers a runtime outer with a constant inner (`arr[i][0].field`). Added TCC/LLVM runtime tests for constant aggregate abort/success, dynamic outer/constant inner abort, and dynamic generated-glue abort/success; the generated-glue dynamic-read negative became a positive compile test. Safety `119/119`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v5.62 (2026-11-06): mixed-dimension two-index selection. `arr[i][j]` now works when exactly one dimension is large: outer-small/inner-large selects the outer row's flat element flag block, and outer-large/inner-small selects the inner element's outer-indexed flag array. Writes, moves, partial moves, and reads share the selector. Both-large 2D arrays, generated-glue 2D arrays, and a runtime index before a constant middle index remain rejected. Added TCC/LLVM runtime/read tests for both mixed layouts and a mixed partial move. Safety `122/122`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
+*Revision note v5.63 (2026-11-06): both-large two-index arrays. `arr[i][j]` now selects from the outer element template when both dimensions are large: per-inner flag arrays are indexed by the outer element, and an inner dimension above 1024 uses one flat `outer * inner_count + inner` block. Writes, moves, partial moves, and reads share the selector. Generated-glue 2D arrays, a runtime index before a constant middle index, and small/small arrays above 1024 total flags remain rejected. Added TCC/LLVM runtime tests for per-inner, flat-inner, and both-large partial moves. Safety `125/125`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.

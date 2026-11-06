@@ -1028,7 +1028,35 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_two_dynamic_indices(
         MIRDropField& tpl = (*list)[0];
         const size_t n = tpl.children.size();
         const uint64_t outer_count = tpl.array_count;
-        if (n > 0 && n <= 64 && outer_count > 0) {
+        if (n == 1 && outer_count > 0 &&
+            tpl.children[0].flag_array != MIR_INVALID_ID &&
+            tpl.children[0].inner_count > 0 &&
+            tpl.children[0].flag_count ==
+                outer_count * tpl.children[0].inner_count) {
+            // Both dimensions large: one flat inner flag block, indexed by
+            // outer * inner_count + inner.
+            const MIRDropField& child = tpl.children[0];
+            bounded(outer, outer_count);
+            bounded(inner, child.inner_count);
+            const ValueId outer_u64 = builder_->cast(outer, u64);
+            const ValueId stride = builder_->const_int(
+                u64, module_.constants.add_int(u64, child.inner_count)
+            );
+            const ValueId base = builder_->binary(
+                outer_u64, stride, mul, u64
+            );
+            const ValueId flat = builder_->binary(
+                base, builder_->cast(inner, u64), add, u64
+            );
+            return finish(MIRDropFlagRef{
+                MIR_INVALID_ID,
+                builder_->index_addr_ptr(
+                    builder_->address_of(child.flag_array, ptr_t),
+                    flat, bool_t
+                )
+            });
+        }
+        if (n > 0 && n <= 1024 && outer_count > 0) {
             std::vector<MIRDropField*> inners(n, nullptr);
             bool usable = true;
             for (auto& child : tpl.children) {

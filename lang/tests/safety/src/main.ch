@@ -1050,6 +1050,39 @@ func dynamic_two_indices_mixed_partial_move(env : &mut TestEnv) {
 }
 
 @test
+func dynamic_two_indices_both_large(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [100][100]Tracker\n            var i = 77\n            var j = 33\n            arr[i][j] = Tracker { id : 7 }\n            if(arr[i][j].id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_both_large", ch, &mut out)
+    if(rc != 1) {
+        env.error("both-large two-index access failed")
+    }
+}
+
+@test
+func dynamic_two_indices_flat_inner(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [100][2000]Tracker\n            var i = 77\n            var j = 1333\n            arr[i][j] = Tracker { id : 7 }\n            if(arr[i][j].id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_flat_inner", ch, &mut out)
+    if(rc != 1) {
+        env.error("flat-inner two-index access failed")
+    }
+}
+
+@test
+func dynamic_two_indices_both_large_partial_move(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [100][100]Tracker\n            var i = 77\n            var j = 33\n            arr[i][j] = Tracker { id : 7 }\n            var moved = arr[i][j]\n            if(moved.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_both_large_partial_move", ch, &mut out)
+    if(rc != 1) {
+        env.error("both-large partial dynamic move failed")
+    }
+}
+
+@test
 func dynamic_generated_glue_read_uninitialized_aborts(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]S\n        arr[0] = S { a : string(\"a\"), b : string(\"b\") }\n        var k = 1\n        return arr[k].a.size() as int\n    }\n}\n"

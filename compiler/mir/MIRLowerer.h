@@ -908,6 +908,14 @@ private:
     /** Set/clear the field flags of the runtime-selected small-array element. */
     void set_runtime_array_element(std::vector<MIRDropField>& rows,
                                    ValueId index, bool value);
+    /** Arm/clear the element selected by two runtime indices. */
+    void set_runtime_two_dimensional_element(std::vector<MIRDropField>& rows,
+                                             ValueId outer, ValueId inner,
+                                             bool value);
+    /** Destroy the element selected by two runtime indices. */
+    void destroy_runtime_two_dimensional_element(
+            ValueId address, std::vector<MIRDropField>& rows,
+            ValueId outer, ValueId inner);
     /** Destroy one value through an address, gated by an optional flag. */
     void emit_dtor_ptr_cond(ValueId address, BaseType* type,
                             MIRDropFlagRef flag);

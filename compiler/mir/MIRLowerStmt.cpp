@@ -713,10 +713,17 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     if (eflag.runtime_rows != nullptr) {
                         MIRDropElementRef fresh = fresh_element_ref();
                         if (fresh.runtime_rows == nullptr) return;
-                        destroy_runtime_array_element(
-                            element_address(), *fresh.runtime_rows,
-                            eflag.dynamic_index
-                        );
+                        if (eflag.dynamic_outer != MIR_INVALID_ID) {
+                            destroy_runtime_two_dimensional_element(
+                                element_address(), *fresh.runtime_rows,
+                                eflag.dynamic_outer, eflag.dynamic_index
+                            );
+                        } else {
+                            destroy_runtime_array_element(
+                                element_address(), *fresh.runtime_rows,
+                                eflag.dynamic_index
+                            );
+                        }
                         return;
                     }
                     if (eflag.whole_children) {
@@ -761,9 +768,17 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     if (eflag.runtime_rows != nullptr) {
                         MIRDropElementRef fresh = fresh_element_ref();
                         if (fresh.runtime_rows != nullptr) {
-                            set_runtime_array_element(
-                                *fresh.runtime_rows, eflag.dynamic_index, true
-                            );
+                            if (eflag.dynamic_outer != MIR_INVALID_ID) {
+                                set_runtime_two_dimensional_element(
+                                    *fresh.runtime_rows, eflag.dynamic_outer,
+                                    eflag.dynamic_index, true
+                                );
+                            } else {
+                                set_runtime_array_element(
+                                    *fresh.runtime_rows, eflag.dynamic_index,
+                                    true
+                                );
+                            }
                         }
                         return;
                     }

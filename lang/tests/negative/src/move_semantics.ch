@@ -303,12 +303,11 @@ func neg_move_partially_initialized_generated_glue_array(env : &mut TestEnv) {
 }
 
 @test
-func neg_two_dynamic_indices_generated_glue(env : &mut TestEnv) {
+func two_dynamic_indices_generated_glue_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // Only directly destructible 2D elements have the flat scalar-flag table;
-    // generated-glue elements need a two-level row+leaf selection.
+    // Small/small generated-glue elements use runtime row+leaf selection.
     var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2][2]S\n        var i = 1\n        var j = 1\n        arr[i][j] = S { a : string(\"a\"), b : string(\"b\") }\n    }\n    return 0\n}\n"
-    expect_compile_error_with_mod(env, "two_dynamic_glue", ch, "SAFE-INIT-001", NEG_MOD_STD_CORE)
+    expect_compile_success_with_mod(env, "two_dynamic_glue", ch, NEG_MOD_STD_CORE)
 }
 
 @test

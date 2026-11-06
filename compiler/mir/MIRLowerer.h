@@ -81,6 +81,9 @@ struct MIRExprResult {
     // For an indexed aggregate lvalue, the lowered index value. Dynamic moves
     // use it to clear the exact runtime element's drop flag.
     ValueId index_value = MIR_INVALID_ID;
+    // For a nested indexed lvalue, the lowered index of the base element
+    // (`arr[i]` in `arr[i][j]`), used by the two-dimensional flag selector.
+    ValueId base_index_value = MIR_INVALID_ID;
 
     static MIRExprResult value(ValueId v, TypeId t) { return MIRExprResult{v, t, MIRExprKind::Value}; }
     static MIRExprResult place(PlaceId p, TypeId t) { return MIRExprResult{p, t, MIRExprKind::Place}; }
@@ -824,6 +827,8 @@ private:
         // Dynamic final index for a large flat flag block/template. `indices`
         // holds the constant prefix before it.
         ValueId dynamic_index = MIR_INVALID_ID;
+        // For a two-dimensional dynamic selector, the dynamic outer index.
+        ValueId dynamic_outer = MIR_INVALID_ID;
         bool valid() const {
             return flag.valid() || template_node != nullptr ||
                    flag_array != MIR_INVALID_ID || runtime_rows != nullptr;
@@ -870,6 +875,10 @@ private:
     MIRDropElementRef drop_flag_for_indices_dynamic(
             PlaceId place, const std::vector<std::string>& path,
             const std::vector<uint64_t>& prefix, ValueId dynamic_index);
+    /** Per-element flags for a small 2D array with two runtime indices. */
+    MIRDropElementRef drop_flag_for_two_dynamic_indices(
+            PlaceId place, const std::vector<std::string>& path,
+            const std::vector<uint64_t>& prefix, ValueId outer, ValueId inner);
     /** Select one scalar drop flag from a small array's element list at runtime. */
     MIRDropFlagRef dynamic_scalar_flag(
             std::vector<MIRDropField*>& elements, ValueId dynamic_index);

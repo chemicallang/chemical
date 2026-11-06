@@ -497,6 +497,93 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 if (io->idx) {
                     const bool final_constant =
                         io->idx->val_kind() == ValueKind::IntN;
+                    auto unwrap_index_value = [](Value* v) {
+                        for (int guard = 0; guard < 8 && v; ++guard) {
+                            if (v->val_kind() == ValueKind::AccessChain &&
+                                v->as_access_chain_unsafe()->values.size() == 1) {
+                                v = v->as_access_chain_unsafe()->values[0];
+                                continue;
+                            }
+                            if (v->val_kind() == ValueKind::UnsafeValue) {
+                                auto* u = static_cast<UnsafeValue*>(v);
+                                if (u->getValue()) { v = u->getValue(); continue; }
+                            }
+                            break;
+                        }
+                        return v;
+                    };
+                    auto resolve_index_root = [&](Value* root, PlaceId& root_base,
+                                                  std::vector<std::string>& root_path,
+                                                  BaseType*& root_type) {
+                        root_base = MIR_INVALID_ID;
+                        root_path.clear();
+                        root_type = nullptr;
+                        if (root == nullptr) return;
+                        if (root->val_kind() == ValueKind::Identifier) {
+                            auto* root_id = root->as_identifier_unsafe();
+                            root_base = place_for_linked(root_id->linked);
+                            if (root_base == MIR_INVALID_ID) {
+                                root_base = place_for_name(root_id->value);
+                            }
+                        } else {
+                            std::string root_error;
+                            field_move_target(root, root_base, root_path,
+                                              root_type, root_error);
+                        }
+                    };
+                    // Two runtime indices (`arr[i][j]`, optionally after a
+                    // constant prefix). The base of the immediate parent is
+                    // the lowered outer index.
+                    Value* immediate = unwrap_index_value(io->parent_val);
+                    if (!final_constant && immediate != nullptr &&
+                        immediate->val_kind() == ValueKind::IndexOperator) {
+                        auto* parent_io = immediate->as_index_op_unsafe();
+                        if (parent_io->idx != nullptr &&
+                            parent_io->idx->val_kind() != ValueKind::IntN &&
+                            base.index_value != MIR_INVALID_ID) {
+                            std::vector<uint64_t> two_prefix;
+                            Value* before = unwrap_index_value(
+                                parent_io->parent_val
+                            );
+                            bool constant_prefix = true;
+                            while (before != nullptr &&
+                                   before->val_kind() ==
+                                       ValueKind::IndexOperator) {
+                                auto* prefix_io =
+                                    before->as_index_op_unsafe();
+                                if (prefix_io->idx == nullptr ||
+                                    prefix_io->idx->val_kind() !=
+                                        ValueKind::IntN) {
+                                    constant_prefix = false;
+                                    break;
+                                }
+                                two_prefix.push_back(
+                                    prefix_io->idx
+                                        ->as_int_num_value_unsafe()
+                                        ->get_num_value()
+                                );
+                                before = unwrap_index_value(
+                                    prefix_io->parent_val
+                                );
+                            }
+                            if (constant_prefix && before != nullptr) {
+                                std::reverse(two_prefix.begin(),
+                                             two_prefix.end());
+                                PlaceId two_base = MIR_INVALID_ID;
+                                std::vector<std::string> two_path;
+                                BaseType* two_type = nullptr;
+                                resolve_index_root(before, two_base, two_path,
+                                                   two_type);
+                                if (two_base != MIR_INVALID_ID) {
+                                    eflag = drop_flag_for_two_dynamic_indices(
+                                        two_base, two_path, two_prefix,
+                                        base.index_value,
+                                        static_cast<ValueId>(idx.id)
+                                    );
+                                }
+                            }
+                        }
+                    }
                     std::vector<uint64_t> prefix;
                     Value* root = io->parent_val;
                     bool constant_chain = true;
@@ -530,7 +617,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                                 ->get_num_value());
                         root = parent_io->parent_val;
                     }
-                    if (constant_chain && root != nullptr) {
+                    if (!eflag.valid() && constant_chain && root != nullptr) {
                         std::reverse(prefix.begin(), prefix.end());
                         PlaceId root_base = MIR_INVALID_ID;
                         std::vector<std::string> root_path;
@@ -596,6 +683,11 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     );
                 };
                 auto fresh_element_ref = [&]() {
+                    if (eflag.dynamic_outer != MIR_INVALID_ID) {
+                        return drop_flag_for_two_dynamic_indices(
+                            eflag.place, eflag.path, eflag.indices,
+                            eflag.dynamic_outer, eflag.dynamic_index);
+                    }
                     if (eflag.dynamic_index != MIR_INVALID_ID) {
                         return drop_flag_for_indices_dynamic(
                             eflag.place, eflag.path, eflag.indices,

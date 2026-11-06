@@ -897,6 +897,125 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_indices_dynamic(
     return {};
 }
 
+MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_two_dynamic_indices(
+        PlaceId place, const std::vector<std::string>& path,
+        const std::vector<uint64_t>& prefix, ValueId outer, ValueId inner) {
+    if (outer == MIR_INVALID_ID || inner == MIR_INVALID_ID) return {};
+    std::vector<MIRDropField>* list = nullptr;
+    if (path.empty()) {
+        for (auto& d : destructibles_) {
+            if (d.place == place) { list = &d.fields; break; }
+        }
+    } else {
+        MIRDropField* node = drop_field_for_path(place, path);
+        if (node == nullptr || node->element_template ||
+            node->flag_array != MIR_INVALID_ID) {
+            return {};
+        }
+        list = &node->children;
+    }
+    if (list == nullptr) return {};
+    for (uint64_t step : prefix) {
+        MIRDropField* next = nullptr;
+        for (auto& f : *list) {
+            if (f.array_index == static_cast<uint32_t>(step)) {
+                next = &f;
+                break;
+            }
+        }
+        if (next == nullptr || next->element_template ||
+            next->flag_array != MIR_INVALID_ID) {
+            return {};
+        }
+        list = &next->children;
+    }
+    const size_t n = list->size();
+    if (n == 0) return {};
+    std::vector<MIRDropField*> rows(n, nullptr);
+    for (auto& row : *list) {
+        if (row.array_index == MIR_INVALID_ID || row.array_index >= n ||
+            rows[row.array_index] != nullptr || row.element_template ||
+            row.flag_array != MIR_INVALID_ID || row.children.empty()) {
+            return {};
+        }
+        rows[row.array_index] = &row;
+    }
+    for (MIRDropField* row : rows) {
+        if (row == nullptr) return {};
+    }
+    const size_t m = rows[0]->children.size();
+    if (m == 0 || n * m > 1024) return {};
+    std::vector<MIRDropField*> flags(n * m, nullptr);
+    for (size_t i = 0; i < n; ++i) {
+        if (rows[i]->children.size() != m) return {};
+        for (auto& child : rows[i]->children) {
+            if (child.array_index == MIR_INVALID_ID ||
+                child.array_index >= m ||
+                flags[i * m + child.array_index] != nullptr ||
+                child.flag == MIR_INVALID_ID || !child.children.empty() ||
+                child.element_template ||
+                child.flag_array != MIR_INVALID_ID) {
+                return {};
+            }
+            flags[i * m + child.array_index] = &child;
+        }
+    }
+    for (MIRDropField* flag : flags) {
+        if (flag == nullptr) return {};
+    }
+    const TypeId bool_t = types_.bool_type();
+    const TypeId u64 = types_.u64_type();
+    const TypeId ptr_t = types_.pointer_type(bool_t, true);
+    const ConstantId lt = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt)
+    );
+    const ConstantId mul = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Mul)
+    );
+    const ConstantId add = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Add)
+    );
+    const ValueId outer_u64 = builder_->cast(outer, u64);
+    const ValueId inner_u64 = builder_->cast(inner, u64);
+    const ValueId n_const = builder_->const_int(
+        u64, module_.constants.add_int(u64, n)
+    );
+    const ValueId m_const = builder_->const_int(
+        u64, module_.constants.add_int(u64, m)
+    );
+    emit_abort_unless(builder_->compare(outer_u64, n_const, lt, bool_t),
+                      "__chc_bounds_fail");
+    emit_abort_unless(builder_->compare(inner_u64, m_const, lt, bool_t),
+                      "__chc_bounds_fail");
+    const TypeId table_t = types_.sized_array_type(
+        ptr_t, static_cast<uint32_t>(n * m)
+    );
+    const PlaceId table = builder_->alloca(table_t, MIRStorageClass::Local);
+    if (table == MIR_INVALID_ID) return {};
+    for (size_t i = 0; i < flags.size(); ++i) {
+        const ValueId slot_index = builder_->const_int(
+            u64, module_.constants.add_int(u64, i)
+        );
+        const ValueId slot = builder_->index_addr(table, slot_index, ptr_t);
+        builder_->store_indirect(
+            slot, builder_->address_of(flags[i]->flag, ptr_t)
+        );
+    }
+    const ValueId row_offset = builder_->binary(
+        outer_u64, m_const, mul, u64
+    );
+    const ValueId flat = builder_->binary(row_offset, inner_u64, add, u64);
+    const ValueId selected_slot = builder_->index_addr(table, flat, ptr_t);
+    MIRDropElementRef ref;
+    ref.flag.address = builder_->load_indirect(selected_slot, ptr_t);
+    ref.place = place;
+    ref.path = path;
+    ref.indices = prefix;
+    ref.dynamic_outer = outer;
+    ref.dynamic_index = inner;
+    return ref;
+}
+
 void MIRLowerer::materialize_drop_fields(std::vector<MIRDropField>& fields,
                                          bool initialize) {
     for (auto& f : fields) {
@@ -2052,31 +2171,102 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
                     MIRDropElementRef ref;
                     if (element_dynamic_index != MIR_INVALID_ID) {
                         auto* io = probe->as_index_op_unsafe();
-                        std::vector<uint64_t> prefix;
-                        Value* parent = io->parent_val;
-                        bool constant_prefix = true;
-                        while (parent != nullptr &&
-                               parent->val_kind() == ValueKind::IndexOperator) {
-                            auto* pio = parent->as_index_op_unsafe();
-                            if (pio->idx == nullptr ||
-                                pio->idx->val_kind() != ValueKind::IntN) {
-                                constant_prefix = false;
+                        auto unwrap_index_value = [](Value* v) {
+                            for (int guard = 0; guard < 8 && v; ++guard) {
+                                if (v->val_kind() == ValueKind::AccessChain &&
+                                    v->as_access_chain_unsafe()->values.size() == 1) {
+                                    v = v->as_access_chain_unsafe()->values[0];
+                                    continue;
+                                }
+                                if (v->val_kind() == ValueKind::UnsafeValue) {
+                                    auto* u = static_cast<UnsafeValue*>(v);
+                                    if (u->getValue()) {
+                                        v = u->getValue();
+                                        continue;
+                                    }
+                                }
                                 break;
                             }
-                            prefix.push_back(
-                                pio->idx->as_int_num_value_unsafe()
-                                    ->get_num_value());
-                            parent = pio->parent_val;
+                            return v;
+                        };
+                        Value* immediate = unwrap_index_value(io->parent_val);
+                        if (immediate != nullptr &&
+                            immediate->val_kind() == ValueKind::IndexOperator) {
+                            auto* parent_io = immediate->as_index_op_unsafe();
+                            if (parent_io->idx != nullptr &&
+                                parent_io->idx->val_kind() != ValueKind::IntN) {
+                                if (result.base_index_value == MIR_INVALID_ID) {
+                                    error = "SAFE-MOVE-004: the runtime outer "
+                                            "array index was not lowered";
+                                    return false;
+                                }
+                                std::vector<uint64_t> two_prefix;
+                                Value* before = unwrap_index_value(
+                                    parent_io->parent_val
+                                );
+                                bool constant_prefix = true;
+                                while (before != nullptr &&
+                                       before->val_kind() ==
+                                           ValueKind::IndexOperator) {
+                                    auto* prefix_io =
+                                        before->as_index_op_unsafe();
+                                    if (prefix_io->idx == nullptr ||
+                                        prefix_io->idx->val_kind() !=
+                                            ValueKind::IntN) {
+                                        constant_prefix = false;
+                                        break;
+                                    }
+                                    two_prefix.push_back(
+                                        prefix_io->idx
+                                            ->as_int_num_value_unsafe()
+                                            ->get_num_value()
+                                    );
+                                    before = unwrap_index_value(
+                                        prefix_io->parent_val
+                                    );
+                                }
+                                if (!constant_prefix) {
+                                    error = "SAFE-MOVE-004: a dynamic array move "
+                                            "supports at most two runtime indices";
+                                    return false;
+                                }
+                                std::reverse(two_prefix.begin(),
+                                             two_prefix.end());
+                                ref = drop_flag_for_two_dynamic_indices(
+                                    element_base, element_path, two_prefix,
+                                    result.base_index_value,
+                                    element_dynamic_index
+                                );
+                            }
                         }
-                        if (!constant_prefix) {
-                            error = "SAFE-MOVE-004: a dynamic array move requires "
-                                    "constant indices before the final index";
-                            return false;
+                        if (!ref.valid()) {
+                            std::vector<uint64_t> prefix;
+                            Value* parent = io->parent_val;
+                            bool constant_prefix = true;
+                            while (parent != nullptr &&
+                                   parent->val_kind() == ValueKind::IndexOperator) {
+                                auto* pio = parent->as_index_op_unsafe();
+                                if (pio->idx == nullptr ||
+                                    pio->idx->val_kind() != ValueKind::IntN) {
+                                    constant_prefix = false;
+                                    break;
+                                }
+                                prefix.push_back(
+                                    pio->idx->as_int_num_value_unsafe()
+                                        ->get_num_value());
+                                parent = pio->parent_val;
+                            }
+                            if (!constant_prefix) {
+                                error = "SAFE-MOVE-004: a dynamic array move "
+                                        "requires constant indices before the "
+                                        "final index";
+                                return false;
+                            }
+                            std::reverse(prefix.begin(), prefix.end());
+                            ref = drop_flag_for_indices_dynamic(
+                                element_base, element_path, prefix,
+                                element_dynamic_index);
                         }
-                        std::reverse(prefix.begin(), prefix.end());
-                        ref = drop_flag_for_indices_dynamic(
-                            element_base, element_path, prefix,
-                            element_dynamic_index);
                     } else {
                         ref = element_path.empty()
                             ? drop_flag_for_element(element_base, element_index)

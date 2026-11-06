@@ -1710,6 +1710,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     return MIRExprResult::error();
                 }
                 out.index_value = static_cast<ValueId>(idx.id);
+                out.base_index_value = base.index_value;
                 return out;
             }
             if (base.kind == MIRExprKind::Place) {

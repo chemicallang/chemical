@@ -344,8 +344,11 @@ static bool owned_array_element_move(Value* index_value) {
         }
         if (root->val_kind() == ValueKind::IndexOperator) {
             auto* prefix = root->as_index_op_unsafe();
-            if (prefix->idx == nullptr ||
-                prefix->idx->val_kind() != ValueKind::IntN) {
+            if (prefix->idx == nullptr) return false;
+            if (prefix->idx->val_kind() != ValueKind::IntN &&
+                index->idx->val_kind() == ValueKind::IntN) {
+                // A constant final element with a runtime outer index is not
+                // represented by the two-dimensional selector yet.
                 return false;
             }
             root = prefix->parent_val;

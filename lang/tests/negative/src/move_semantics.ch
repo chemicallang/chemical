@@ -303,6 +303,24 @@ func neg_move_partially_initialized_generated_glue_array(env : &mut TestEnv) {
 }
 
 @test
+func neg_two_dynamic_indices_generated_glue(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Only directly destructible 2D elements have the flat scalar-flag table;
+    // generated-glue elements need a two-level row+leaf selection.
+    var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2][2]S\n        var i = 1\n        var j = 1\n        arr[i][j] = S { a : string(\"a\"), b : string(\"b\") }\n    }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "two_dynamic_glue", ch, "SAFE-INIT-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_two_dynamic_indices_constant_inner(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A runtime outer index with a constant inner index is not represented by
+    // the two-dimensional selector yet.
+    var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    var arr : [2][2]DT = [\n        [DT { x : 1 }, DT { x : 2 }],\n        [DT { x : 3 }, DT { x : 4 }]\n    ]\n    var i = 1\n    var moved = arr[i][0]\n    return moved.x\n}\n"
+    expect_compile_error(env, "two_dynamic_constant_inner", ch, "SAFE-MOVE-001")
+}
+
+@test
 func neg_read_partially_initialized_large_array_dynamic(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // A runtime write records one live element, but a later dynamic read

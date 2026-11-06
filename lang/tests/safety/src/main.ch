@@ -1050,6 +1050,35 @@ func dynamic_two_indices_mixed_partial_move(env : &mut TestEnv) {
 }
 
 @test
+func dynamic_two_indices_generated_glue_inner_large_write_read(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [2][100]S\n            var i = 1\n            var j = 77\n            arr[i][j] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n            if(arr[i][j].a.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_glue_inner_large_write_read", ch, &mut out)
+    if(rc != 1) {
+        env.error("inner-large generated-glue two-index write/read failed")
+    }
+}
+
+@test
+func dynamic_two_indices_generated_glue_inner_large_move(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [2][100]S\n            var i = 1\n            var j = 77\n            arr[i][j] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n            var moved = arr[i][j]\n            if(moved.a.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_glue_inner_large_move", ch, &mut out)
+    if(rc != 1) {
+        env.error("inner-large generated-glue two-index move failed")
+    }
+}
+
+@test
+func dynamic_two_indices_generated_glue_inner_large_uninit_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2][100]S\n        var i = 0\n        var j = 0\n        arr[i][j] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n        var k = 1\n        var l = 77\n        var moved = arr[k][l]\n        return moved.a.id\n    }\n}\n"
+    expect_runtime_panic(env, "dynamic_glue_inner_large_uninit", ch)
+}
+
+@test
 func dynamic_two_indices_generated_glue_write_read(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [2][2]S\n            var i = 1\n            var j = 1\n            arr[i][j] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n            if(arr[i][j].a.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"

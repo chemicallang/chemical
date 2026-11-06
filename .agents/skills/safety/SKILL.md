@@ -54,7 +54,7 @@ Latest measured baseline:
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `865/865` |
-| TCC/LLVM safety | `128/128` |
+| TCC/LLVM safety | `131/131` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -531,9 +531,10 @@ memory safety.
     destructible elements supports two runtime indices (`arr[i][j]`, optionally
     after a constant prefix) and a runtime outer with a constant inner
     (`arr[i][0]`) through a flat pointer table capped at 1024 flags;
-    `arr[i][0][j]` and generated-glue 2D arrays with a large dimension remain
-    rejected; small/small generated-glue 2D arrays are supported through
-    runtime row selection. Mixed and both-large direct dimensions are supported
+    `arr[i][0][j]` and outer-large/both-large generated-glue 2D arrays remain
+    rejected; small/small and outer-small/inner-large generated-glue 2D arrays
+    are supported through runtime row/template selection. Mixed and both-large
+    direct dimensions are supported
     (the inner dimension above 1024 uses a flat block), while small/small direct
     arrays stay capped at 1024 total flags. Scalar reads through a runtime-selected direct element
     (`arr[i].field`, `arr[i][j].field`, field arrays) check the element flag

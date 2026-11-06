@@ -1133,11 +1133,8 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_two_dynamic_indices(
             }
             rows[row.array_index] = &row;
             if (row.element_template) {
-                // Outer-small / inner-large generated glue currently falls
-                // back to a whole-array flag in the drop stream, so its
-                // per-element flags are not authoritative.
-                usable = false;
-                break;
+                any_generated = true;
+                continue;
             }
             if (row.children.empty()) {
                 usable = false;
@@ -1915,7 +1912,16 @@ void MIRLowerer::destroy_array_drop_fields(ValueId array_ptr,
             ut, module_.constants.add_int(ut, index)
         );
         const ValueId addr = builder_->index_addr_ptr(base, idx, et);
-        if (!f.children.empty()) {
+        if (f.element_template) {
+            BaseType* row_canon = f.type ? f.type->canonical() : nullptr;
+            if (row_canon != nullptr &&
+                row_canon->kind() == BaseTypeKind::Array) {
+                destroy_array_template(
+                    addr, row_canon->as_array_type_unsafe()->elem_type,
+                    f.children, f.array_count
+                );
+            }
+        } else if (!f.children.empty()) {
             BaseType* field_canon = f.type ? f.type->canonical() : nullptr;
             if (field_canon != nullptr &&
                 field_canon->kind() == BaseTypeKind::Array) {
@@ -2199,14 +2205,29 @@ void MIRLowerer::destroy_drop_fields(ValueId self_ptr,
                                      std::vector<MIRDropField>& fields) {
     for (auto& f : fields) {
         if (builder_->current_block_terminated()) break;
+        ValueId faddr = self_ptr;
+        if (!f.name.empty()) {
+            const TypeId ft = types_.map(f.type);
+            const ConstantId fc = module_.constants.add_string(
+                MIR_INVALID_ID, f.name.data(),
+                static_cast<uint32_t>(f.name.size())
+            );
+            faddr = builder_->field_addr_ptr(self_ptr, fc, ft);
+        } else if (f.array_index != MIR_INVALID_ID) {
+            // Expanded array rows carry an index, not a field name. Offset to
+            // the row before destroying its template/children/flags.
+            const TypeId ft = types_.map(f.type);
+            const TypeId eptr = types_.pointer_type(ft, true);
+            const ValueId base = builder_->cast(self_ptr, eptr);
+            const TypeId u32 = types_.u32_type();
+            const ValueId index = builder_->const_int(
+                u32, module_.constants.add_int(u32, f.array_index)
+            );
+            faddr = builder_->index_addr_ptr(base, index, ft);
+        }
         if (f.element_template) {
             BaseType* canon = f.type ? f.type->canonical() : nullptr;
             if (canon != nullptr && canon->kind() == BaseTypeKind::Array) {
-                const TypeId ft = types_.map(f.type);
-                const ConstantId fc = module_.constants.add_string(
-                    MIR_INVALID_ID, f.name.data(), static_cast<uint32_t>(f.name.size())
-                );
-                const ValueId faddr = builder_->field_addr_ptr(self_ptr, fc, ft);
                 destroy_array_template(
                     faddr, canon->as_array_type_unsafe()->elem_type,
                     f.children, f.array_count
@@ -2215,11 +2236,6 @@ void MIRLowerer::destroy_drop_fields(ValueId self_ptr,
         } else if (f.flag_array != MIR_INVALID_ID) {
             BaseType* canon = f.type ? f.type->canonical() : nullptr;
             if (canon != nullptr && canon->kind() == BaseTypeKind::Array) {
-                const TypeId ft = types_.map(f.type);
-                const ConstantId fc = module_.constants.add_string(
-                    MIR_INVALID_ID, f.name.data(), static_cast<uint32_t>(f.name.size())
-                );
-                const ValueId faddr = builder_->field_addr_ptr(self_ptr, fc, ft);
                 destroy_flag_array(
                     faddr, canon->as_array_type_unsafe()->elem_type,
                     f.flag_array, f.flag_count
@@ -2227,11 +2243,6 @@ void MIRLowerer::destroy_drop_fields(ValueId self_ptr,
             }
         } else if (!f.children.empty()) {
             BaseType* canon = f.type ? f.type->canonical() : nullptr;
-            const TypeId ft = types_.map(f.type);
-            const ConstantId fc = module_.constants.add_string(
-                MIR_INVALID_ID, f.name.data(), static_cast<uint32_t>(f.name.size())
-            );
-            const ValueId faddr = builder_->field_addr_ptr(self_ptr, fc, ft);
             if (canon != nullptr && canon->kind() == BaseTypeKind::Array) {
                 destroy_array_drop_fields(
                     faddr, f.children, canon->as_array_type_unsafe()->elem_type
@@ -2240,7 +2251,7 @@ void MIRLowerer::destroy_drop_fields(ValueId self_ptr,
                 destroy_drop_fields(faddr, f.children);
             }
         } else if (f.flag != MIR_INVALID_ID) {
-            emit_member_dtor_cond(self_ptr, f.name, f.type, f.flag);
+            emit_dtor_ptr_cond(faddr, f.type, MIRDropFlagRef{f.flag, MIR_INVALID_ID});
             builder_->set_drop(f.flag, false);
         }
     }

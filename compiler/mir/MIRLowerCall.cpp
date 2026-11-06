@@ -1973,6 +1973,20 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
                                 "move the array into a local and index it there";
                         return false;
                     }
+                    if (element_dynamic_index != MIR_INVALID_ID &&
+                        ref.flag.valid() && ref.template_node == nullptr &&
+                        ref.flag_array == MIR_INVALID_ID &&
+                        !ref.whole_children) {
+                        // The runtime index may name an element that was never
+                        // initialized. Check its flag before moving; a false
+                        // flag aborts instead of reading uninitialized memory.
+                        const TypeId bool_t = types_.bool_type();
+                        const ValueId initialized =
+                            ref.flag.place != MIR_INVALID_ID
+                                ? builder_->load(ref.flag.place, bool_t)
+                                : builder_->load_indirect(ref.flag.address, bool_t);
+                        emit_abort_unless(initialized, "__chc_uninit_fail");
+                    }
                     clear_element_drop_flag(ref);
                     builder_->emit(MIROpcode::MoveOut, MIR_NULL,
                                    {MIROperand::value(result.id, result.type)});

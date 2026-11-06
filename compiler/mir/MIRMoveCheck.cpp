@@ -5,6 +5,7 @@
 #include <deque>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace mir {
 
@@ -21,6 +22,7 @@ const char* state_name(MIRMoveState s) {
         case MIRMoveState::Moved: return "moved";
         case MIRMoveState::Destroyed: return "destroyed";
         case MIRMoveState::PartiallyMoved: return "partially moved";
+        case MIRMoveState::PartiallyInitialized: return "partially initialized";
         case MIRMoveState::Maybe: return "conditionally initialized";
     }
     return "unknown";
@@ -53,6 +55,7 @@ void mark_path_moved(const MIRFunction& fn, std::vector<MIRMoveState>& states,
     uint32_t parent = fn.move_paths[path].parent_path;
     while (parent != MIR_INVALID_ID && parent < states.size()) {
         if (states[parent] == MIRMoveState::Initialized ||
+            states[parent] == MIRMoveState::PartiallyInitialized ||
             states[parent] == MIRMoveState::PartiallyMoved) {
             states[parent] = MIRMoveState::PartiallyMoved;
         }
@@ -73,21 +76,37 @@ void refresh_ancestors(const MIRFunction& fn, std::vector<MIRMoveState>& states,
     uint32_t parent = fn.move_paths[path].parent_path;
     while (parent != MIR_INVALID_ID && parent < fn.move_paths.size()) {
         bool all = true;
+        bool any_initialized = false;
+        bool any_moved = false;
         for (uint32_t child = fn.move_paths[parent].first_child;
              child != MIR_INVALID_ID && child < fn.move_paths.size();
              child = fn.move_paths[child].next_sibling) {
-            if (states[child] != MIRMoveState::Initialized) {
-                all = false;
-                break;
+            if (states[child] == MIRMoveState::Initialized ||
+                states[child] == MIRMoveState::PartiallyInitialized) {
+                any_initialized = true;
             }
+            if (states[child] == MIRMoveState::Moved ||
+                states[child] == MIRMoveState::Destroyed ||
+                states[child] == MIRMoveState::PartiallyMoved) {
+                any_moved = true;
+            }
+            if (states[child] != MIRMoveState::Initialized) all = false;
         }
         if (all) {
             if (states[parent] != MIRMoveState::Moved &&
                 states[parent] != MIRMoveState::Destroyed) {
                 states[parent] = MIRMoveState::Initialized;
             }
-        } else if (states[parent] == MIRMoveState::Initialized) {
-            states[parent] = MIRMoveState::PartiallyMoved;
+        } else if (states[parent] != MIRMoveState::Moved &&
+                   states[parent] != MIRMoveState::Destroyed) {
+            if (states[parent] == MIRMoveState::Initialized ||
+                states[parent] == MIRMoveState::PartiallyMoved) {
+                states[parent] = MIRMoveState::PartiallyMoved;
+            } else if (any_moved) {
+                states[parent] = MIRMoveState::PartiallyMoved;
+            } else if (any_initialized) {
+                states[parent] = MIRMoveState::PartiallyInitialized;
+            }
         }
         parent = fn.move_paths[parent].parent_path;
     }
@@ -223,7 +242,8 @@ void report(std::vector<MIRMoveDiagnostic>& out, const MIRFunction& fn,
     d.block_index = block;
     d.inst_index = inst;
     d.path = path;
-    const bool uninit = state == MIRMoveState::Uninitialized;
+    const bool uninit = state == MIRMoveState::Uninitialized ||
+                        state == MIRMoveState::PartiallyInitialized;
     d.code = uninit ? "SAFE-INIT-001" : "SAFE-MOVE-001";
     d.message = std::string(action) + " a value that is " + state_name(state);
     if (inst < fn.instructions.size()) {
@@ -497,6 +517,7 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
                        uint32_t function_index, uint32_t block, uint32_t inst_index,
                        std::vector<MIRMoveState>& states, MIRAddressPaths& address_paths,
                        MIRAddressPaths& place_address_paths,
+                       std::unordered_set<uint32_t>& dynamic_addresses,
                        std::vector<MIRMoveDiagnostic>& out) {
     const MIRInstruction& inst = fn.instructions[inst_index];
     const MIROperand* ops = inst.operand_count == 0
@@ -545,6 +566,36 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
             } else if (ops[0].kind() == MIROperandKind::Value) {
                 const auto it = address_paths.find(ops[0].id);
                 if (it != address_paths.end()) path = it->second;
+                if (path != MIR_INVALID_ID &&
+                    dynamic_addresses.count(ops[0].id) != 0) {
+                    const MIRMoveState state = state_of(states, path);
+                    const TypeId element_type =
+                        ops[0].id < fn.values.size()
+                            ? fn.values[ops[0].id].type
+                            : MIR_INVALID_ID;
+                    const bool direct =
+                        element_type != MIR_INVALID_ID &&
+                        element_type < module.types.types.size() &&
+                        (module.types.types[element_type].flags &
+                         TF_USER_DESTRUCTOR) != 0;
+                    // A directly destructible element has one runtime flag;
+                    // lowering checks it before the move. Fully initialized
+                    // template/flag-array sources keep their existing static
+                    // proof. A partial generated-glue source stays rejected.
+                    if (state != MIRMoveState::Initialized &&
+                        (!direct ||
+                         (state != MIRMoveState::PartiallyMoved &&
+                          state != MIRMoveState::PartiallyInitialized &&
+                          state != MIRMoveState::Maybe))) {
+                        report(out, fn, function_index, block, inst_index, path,
+                               state, "move from");
+                        break;
+                    }
+                    if (!is_copy_projection(module, fn, ops[0])) {
+                        mark_path_moved(fn, states, path);
+                    }
+                    break;
+                }
             }
             require_initialized(out, fn, function_index, block, inst_index, path,
                                 states, "move from");
@@ -591,6 +642,9 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
                 if (it != address_paths.end()) {
                     address_paths[inst.result_or_place] = it->second;
                 }
+                if (dynamic_addresses.count(ops[0].id) != 0) {
+                    dynamic_addresses.insert(inst.result_or_place);
+                }
             } else if (ops[0].kind() == MIROperandKind::Place &&
                        ops[0].id < fn.places.size()) {
                 const uint32_t path = fn.places[ops[0].id].move_path_id;
@@ -634,6 +688,15 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
             if (projected != MIR_INVALID_ID &&
                 inst.result_or_place != MIR_INVALID_ID) {
                 address_paths[inst.result_or_place] = projected;
+                // A runtime array index has no per-element move path. Its
+                // lowering emits an initialized-flag check before a move, so
+                // the move checker can accept a partially initialized source.
+                uint64_t constant_element = 0;
+                if (inst.opcode() == MIROpcode::IndexAddr &&
+                    ops[1].kind() == MIROperandKind::Value &&
+                    !constant_index(module, ops[1].id, fn, constant_element)) {
+                    dynamic_addresses.insert(inst.result_or_place);
+                }
             }
             break;
         }
@@ -896,6 +959,7 @@ MIRMoveCheckResult check_function_moves(const MIRModule& module,
     std::deque<BlockId> work;
     MIRAddressPaths address_paths;
     MIRAddressPaths place_address_paths;
+    std::unordered_set<uint32_t> dynamic_addresses;
 
     in[function.entry_block] = std::vector<MIRMoveState>(
         path_count, MIRMoveState::Uninitialized
@@ -929,7 +993,7 @@ MIRMoveCheckResult check_function_moves(const MIRModule& module,
             if (inst_index >= function.instructions.size()) break;
             apply_instruction(module, function, function_index, block_id, inst_index,
                               state, address_paths, place_address_paths,
-                              result.diagnostics);
+                              dynamic_addresses, result.diagnostics);
         }
         const uint32_t term_index = block.inst_start + block.inst_count;
         if (term_index >= function.instructions.size()) continue;

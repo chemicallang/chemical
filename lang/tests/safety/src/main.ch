@@ -849,6 +849,35 @@ func dynamic_index_small_nested_array_move_tracks_element(env : &mut TestEnv) {
 }
 
 @test
+func dynamic_move_from_partial_large_array_tracks_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [100]Tracker\n            var i = 3\n            arr[i] = Tracker { id : 7 }\n            var moved = arr[i]\n            if(moved.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_partial_large_array_move", ch, &mut out)
+    if(rc != 1) {
+        env.error("dynamic partial large-array move did not transfer exactly the initialized element")
+    }
+}
+
+@test
+func dynamic_move_from_partial_small_array_tracks_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [2]Tracker\n            arr[0] = Tracker { id : 1 }\n            var i = 0\n            var moved = arr[i]\n            if(moved.id != 1) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_partial_small_array_move", ch, &mut out)
+    if(rc != 1) {
+        env.error("dynamic partial small-array move did not transfer exactly the initialized element")
+    }
+}
+
+@test
+func dynamic_move_from_uninitialized_element_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [100]Tracker\n        arr[0] = Tracker { id : 1 }\n        var i = 1\n        var moved = arr[i]\n        return moved.id\n    }\n}\n"
+    expect_runtime_panic(env, "dynamic_uninitialized_element_move", ch)
+}
+
+@test
 func non_copy_three_level_array_pattern_moves_elements(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var values : [2][2][2]Tracker\n        values[0][0][0] = Tracker { id : 1 }\n        values[0][0][1] = Tracker { id : 2 }\n        values[0][1][0] = Tracker { id : 3 }\n        values[0][1][1] = Tracker { id : 4 }\n        values[1][0][0] = Tracker { id : 5 }\n        values[1][0][1] = Tracker { id : 6 }\n        values[1][1][0] = Tracker { id : 7 }\n        values[1][1][1] = Tracker { id : 8 }\n        {\n            var [[[a, b], [c, d]], [[e, f], [g, h]]] = values\n            if(a.id != 1 || b.id != 2 || c.id != 3 || d.id != 4) { return 10 }\n            if(e.id != 5 || f.id != 6 || g.id != 7 || h.id != 8) { return 11 }\n        }\n    }\n    return drops\n}\n"

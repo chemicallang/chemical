@@ -433,6 +433,7 @@ void Codegen::mir_ensure_panic_runtime() {
         {"__chc_alloc_fail", "allocation failed"},
         {"__chc_call_moved_fail", "callback was already moved"},
         {"__chc_enum_fail", "invalid enum value"},
+        {"__chc_uninit_fail", "move from an uninitialized array element"},
     };
     for (const FailureEntry& entry : failures) {
         if (module->getFunction(entry.name) != nullptr) continue;

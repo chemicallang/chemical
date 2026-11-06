@@ -98,7 +98,7 @@ func neg_move_generated_glue_small_array_dynamic(env : &mut TestEnv) {
 @test
 func neg_read_partially_initialized_small_array_dynamic(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]DT\n        var i = 0\n        arr[i] = DT { x : 1 }\n        var moved = arr[i]\n        return moved.x\n    }\n}\n"
+    var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]DT\n        var i = 0\n        arr[i] = DT { x : 1 }\n        return arr[i].x\n    }\n}\n"
     expect_compile_error(env, "read_partial_small_array_dynamic", ch, "SAFE-MOVE-001")
 }
 
@@ -294,11 +294,20 @@ func partial_large_array_dynamic_index_is_allowed(env : &mut TestEnv) {
 }
 
 @test
+func neg_move_partially_initialized_generated_glue_array(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A generated-glue element owns several leaf flags, so a dynamic move from
+    // a partially initialized array cannot prove the whole element live.
+    var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [100]S\n        var i = 3\n        arr[i] = S { a : string(\"a\"), b : string(\"b\") }\n        var moved = arr[i]\n        return moved.a.size() as int\n    }\n}\n"
+    expect_compile_error_with_mod(env, "move_partial_glue_array_dynamic", ch, "SAFE-MOVE-001", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_read_partially_initialized_large_array_dynamic(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // A runtime write records one live element, but a later dynamic read
     // cannot prove which element is live; the array is partially initialized.
-    var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [100]DT\n        var i = 0\n        arr[i] = DT { x : 1 }\n        var moved = arr[i]\n        return moved.x\n    }\n}\n"
+    var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [100]DT\n        var i = 0\n        arr[i] = DT { x : 1 }\n        return arr[i].x\n    }\n}\n"
     expect_compile_error(env, "read_partial_large_array_dynamic", ch, "SAFE-MOVE-001")
 }
 

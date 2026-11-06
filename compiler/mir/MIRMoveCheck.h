@@ -26,6 +26,7 @@ enum class MIRMoveState : uint8_t {
     Moved,
     Destroyed,
     PartiallyMoved, // some owned children were moved out of the aggregate
+    PartiallyInitialized, // some owned children are initialized, others are not
     Maybe,          // the paths reaching this point disagree
 };
 

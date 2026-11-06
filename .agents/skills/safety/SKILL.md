@@ -54,7 +54,7 @@ Latest measured baseline:
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `861/861` |
-| TCC/LLVM safety | `101/101` |
+| TCC/LLVM safety | `103/103` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -524,8 +524,10 @@ memory safety.
     whole-value uses keep `SAFE-INIT-001`. Small arrays of directly destructible
     elements select their scalar element flag at runtime (a bounds-checked
     pointer table), so dynamic writes and moves work for them, including a
-    constant outer prefix (`arr[0][i]`); generated-glue small elements still
-    need several leaf flags and stay `SAFE-MOVE-004`/`SAFE-INIT-001`.
+    constant outer prefix (`arr[0][i]`); generated-glue small arrays resolve a
+    runtime index by selecting the element row and arming/clearing every leaf
+    flag, so dynamic writes and fully initialized moves work; partial
+    generated-glue moves stay `SAFE-MOVE-001`.
 
 11. **Interpreter boundaries.** MIR interpreter bounds/provenance/tombstone
     checks are implemented. Async/coroutine opcodes, inline asm, dynamic

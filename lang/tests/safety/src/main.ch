@@ -878,6 +878,28 @@ func dynamic_move_from_uninitialized_element_aborts(env : &mut TestEnv) {
 }
 
 @test
+func dynamic_write_generated_glue_small_array_tracks_leaves(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Leaf\n    var b : Leaf\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]S\n        var i = 1\n        arr[i] = S { a : Leaf { id : 1 }, b : Leaf { id : 2 } }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_glue_small_array_write", ch, &mut out)
+    if(rc != 2) {
+        env.error("dynamic generated-glue small-array write did not drop both leaves exactly once")
+    }
+}
+
+@test
+func dynamic_move_generated_glue_small_array_tracks_leaves(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Leaf\n    var b : Leaf\n}\npublic func main() : int {\n    {\n        var arr : [2]S\n        arr[0] = S { a : Leaf { id : 1 }, b : Leaf { id : 2 } }\n        arr[1] = S { a : Leaf { id : 3 }, b : Leaf { id : 4 } }\n        var i = 1\n        var moved = arr[i]\n        if(moved.a.id != 3 || moved.b.id != 4) { return 10 }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_glue_small_array_move", ch, &mut out)
+    if(rc != 4) {
+        env.error("dynamic generated-glue small-array move did not drop every leaf exactly once")
+    }
+}
+
+@test
 func non_copy_three_level_array_pattern_moves_elements(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var values : [2][2][2]Tracker\n        values[0][0][0] = Tracker { id : 1 }\n        values[0][0][1] = Tracker { id : 2 }\n        values[0][1][0] = Tracker { id : 3 }\n        values[0][1][1] = Tracker { id : 4 }\n        values[1][0][0] = Tracker { id : 5 }\n        values[1][0][1] = Tracker { id : 6 }\n        values[1][1][0] = Tracker { id : 7 }\n        values[1][1][1] = Tracker { id : 8 }\n        {\n            var [[[a, b], [c, d]], [[e, f], [g, h]]] = values\n            if(a.id != 1 || b.id != 2 || c.id != 3 || d.id != 4) { return 10 }\n            if(e.id != 5 || f.id != 6 || g.id != 7 || h.id != 8) { return 11 }\n        }\n    }\n    return drops\n}\n"

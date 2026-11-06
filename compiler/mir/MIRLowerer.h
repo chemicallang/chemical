@@ -806,6 +806,10 @@ private:
         // A small outer array element with generated field children: arm or
         // destroy the whole child tree rather than one outer-index slot.
         bool whole_children = false;
+        // A small array of generated-glue elements whose selected element owns
+        // several scalar leaf flags. The rows are the element nodes; the
+        // runtime index selects one row before setting/destroying its leaves.
+        std::vector<MIRDropField>* runtime_rows = nullptr;
         // Field path for a path-indexed element (`holder.items[i]`), used to
         // re-resolve after lowering the RHS may reallocate `destructibles_`.
         std::vector<std::string> path;
@@ -822,7 +826,7 @@ private:
         ValueId dynamic_index = MIR_INVALID_ID;
         bool valid() const {
             return flag.valid() || template_node != nullptr ||
-                   flag_array != MIR_INVALID_ID;
+                   flag_array != MIR_INVALID_ID || runtime_rows != nullptr;
         }
     };
     struct MIRDestructible {
@@ -884,6 +888,13 @@ private:
     void destroy_array_drop_fields(ValueId array_ptr,
                                    std::vector<MIRDropField>& elements,
                                    BaseType* element_type);
+    /** Destroy the field flags of the runtime-selected small-array element. */
+    void destroy_runtime_array_element(ValueId address,
+                                       std::vector<MIRDropField>& rows,
+                                       ValueId index);
+    /** Set/clear the field flags of the runtime-selected small-array element. */
+    void set_runtime_array_element(std::vector<MIRDropField>& rows,
+                                   ValueId index, bool value);
     /** Destroy one value through an address, gated by an optional flag. */
     void emit_dtor_ptr_cond(ValueId address, BaseType* type,
                             MIRDropFlagRef flag);

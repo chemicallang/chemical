@@ -618,6 +618,15 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 };
                 auto destroy_old_element = [&]() {
                     if (!eflag.valid()) return;
+                    if (eflag.runtime_rows != nullptr) {
+                        MIRDropElementRef fresh = fresh_element_ref();
+                        if (fresh.runtime_rows == nullptr) return;
+                        destroy_runtime_array_element(
+                            element_address(), *fresh.runtime_rows,
+                            eflag.dynamic_index
+                        );
+                        return;
+                    }
                     if (eflag.whole_children) {
                         MIRDropElementRef fresh = fresh_element_ref();
                         if (fresh.template_node == nullptr) return;
@@ -657,6 +666,15 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     emit_dtor_ptr_cond(element_address(), io->getType(), eflag.flag);
                 };
                 auto mark_element_initialized = [&]() {
+                    if (eflag.runtime_rows != nullptr) {
+                        MIRDropElementRef fresh = fresh_element_ref();
+                        if (fresh.runtime_rows != nullptr) {
+                            set_runtime_array_element(
+                                *fresh.runtime_rows, eflag.dynamic_index, true
+                            );
+                        }
+                        return;
+                    }
                     if (eflag.whole_children) {
                         MIRDropElementRef fresh = fresh_element_ref();
                         if (fresh.template_node == nullptr) return;

@@ -87,12 +87,12 @@ func move_out_of_array_dynamic_index_compiles(env : &mut TestEnv) {
 }
 
 @test
-func neg_move_generated_glue_small_array_dynamic(env : &mut TestEnv) {
+func move_generated_glue_small_array_dynamic_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // An element with generated drop glue owns several scalar flags; selecting
-    // and clearing all of them at a runtime index is not implemented.
+    // A small array of generated-glue elements selects the element row at
+    // runtime and clears all of its leaf flags.
     var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    var arr : [2]S = [S { a : string(\"a\"), b : string(\"b\") }, S { a : string(\"c\"), b : string(\"d\") }]\n    var i = 0\n    var moved = arr[i]\n    return 0\n}\n"
-    expect_compile_error_with_mod(env, "move_glue_small_array_dynamic", ch, "SAFE-MOVE-004", NEG_MOD_STD_CORE)
+    expect_compile_success_with_mod(env, "move_glue_small_array_dynamic", ch, NEG_MOD_STD_CORE)
 }
 
 @test
@@ -341,12 +341,11 @@ func partial_small_array_dynamic_index_is_allowed(env : &mut TestEnv) {
 }
 
 @test
-func neg_partial_generated_glue_small_array_dynamic(env : &mut TestEnv) {
+func partial_generated_glue_small_array_dynamic_is_allowed(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // A generated-glue element owns several scalar flags; selecting and
-    // arming all of them through a runtime index is not implemented.
+    // The runtime row selector arms every leaf flag of the written element.
     var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]S\n        var i = 0\n        arr[i] = S { a : string(\"a\"), b : string(\"b\") }\n    }\n    return 0\n}\n"
-    expect_compile_error_with_mod(env, "partial_glue_small_array_dynamic", ch, "SAFE-INIT-001", NEG_MOD_STD_CORE)
+    expect_compile_success_with_mod(env, "partial_glue_small_array_dynamic", ch, NEG_MOD_STD_CORE)
 }
 
 @test

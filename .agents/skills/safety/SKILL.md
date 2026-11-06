@@ -53,8 +53,8 @@ Latest measured baseline:
 | TCC main | `2489/2489` |
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `863/863` |
-| TCC/LLVM safety | `107/107` |
+| TCC/LLVM negative | `864/864` |
+| TCC/LLVM safety | `110/110` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -529,8 +529,9 @@ memory safety.
     flag, so dynamic writes and fully initialized moves work; partial
     generated-glue moves stay `SAFE-MOVE-001`. A small 2D array of directly
     destructible elements supports two runtime indices (`arr[i][j]`, optionally
-    after a constant prefix) through a flat pointer table capped at 1024 flags;
-    `arr[i][0]`, generated-glue 2D arrays, and mixed small/large dimensions
+    after a constant prefix) and a runtime outer with a constant inner
+    (`arr[i][0]`) through a flat pointer table capped at 1024 flags;
+    `arr[i][0][j]`, generated-glue 2D arrays, and mixed small/large dimensions
     remain rejected.
 
 11. **Interpreter boundaries.** MIR interpreter bounds/provenance/tombstone

@@ -2268,10 +2268,93 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
                                 element_dynamic_index);
                         }
                     } else {
-                        ref = element_path.empty()
-                            ? drop_flag_for_element(element_base, element_index)
-                            : drop_flag_for_path_index(element_base, element_path,
-                                                       element_index);
+                        bool two_dynamic = false;
+                        Value* immediate =
+                            probe->as_index_op_unsafe()->parent_val;
+                        if (immediate != nullptr &&
+                            immediate->val_kind() == ValueKind::IndexOperator) {
+                            auto* parent_io = immediate->as_index_op_unsafe();
+                            if (parent_io->idx != nullptr &&
+                                parent_io->idx->val_kind() != ValueKind::IntN) {
+                                two_dynamic = true;
+                                if (result.base_index_value == MIR_INVALID_ID) {
+                                    error = "SAFE-MOVE-004: the runtime outer "
+                                            "array index was not lowered";
+                                    return false;
+                                }
+                                std::vector<uint64_t> two_prefix;
+                                Value* before = parent_io->parent_val;
+                                bool constant_prefix = true;
+                                while (before != nullptr &&
+                                       before->val_kind() ==
+                                           ValueKind::IndexOperator) {
+                                    auto* prefix_io =
+                                        before->as_index_op_unsafe();
+                                    if (prefix_io->idx == nullptr ||
+                                        prefix_io->idx->val_kind() !=
+                                            ValueKind::IntN) {
+                                        constant_prefix = false;
+                                        break;
+                                    }
+                                    two_prefix.push_back(
+                                        prefix_io->idx
+                                            ->as_int_num_value_unsafe()
+                                            ->get_num_value()
+                                    );
+                                    before = prefix_io->parent_val;
+                                }
+                                if (!constant_prefix) {
+                                    error = "SAFE-MOVE-004: a dynamic array move "
+                                            "supports at most two runtime indices";
+                                    return false;
+                                }
+                                std::reverse(two_prefix.begin(),
+                                             two_prefix.end());
+                                const TypeId u64 = types_.u64_type();
+                                const ValueId inner_index = builder_->const_int(
+                                    u64, module_.constants.add_int(
+                                        u64, element_index
+                                    )
+                                );
+                                ref = drop_flag_for_two_dynamic_indices(
+                                    element_base, element_path, two_prefix,
+                                    result.base_index_value, inner_index
+                                );
+                                if (!ref.valid()) {
+                                    error = "SAFE-MOVE-004: cannot move a "
+                                            "destructible array element whose "
+                                            "runtime drop flag is not tracked";
+                                    return false;
+                                }
+                            }
+                        }
+                        if (!two_dynamic) {
+                            // A runtime index deeper in the chain (for example
+                            // `arr[i][0][CONST]`) has no static row. Reject it
+                            // instead of clearing an unrelated prefix flag.
+                            Value* scan = immediate;
+                            bool deeper_dynamic = false;
+                            while (scan != nullptr &&
+                                   scan->val_kind() == ValueKind::IndexOperator) {
+                                auto* scan_io = scan->as_index_op_unsafe();
+                                if (scan_io->idx != nullptr &&
+                                    scan_io->idx->val_kind() != ValueKind::IntN) {
+                                    deeper_dynamic = true;
+                                    break;
+                                }
+                                scan = scan_io->parent_val;
+                            }
+                            if (deeper_dynamic) {
+                                error = "SAFE-MOVE-004: a dynamic array move "
+                                        "supports at most two leading runtime "
+                                        "indices";
+                                return false;
+                            }
+                            ref = element_path.empty()
+                                ? drop_flag_for_element(element_base, element_index)
+                                : drop_flag_for_path_index(element_base, element_path,
+                                                           element_index);
+                        }
                     }
                     if (!ref.valid()) {
                         error = "SAFE-MOVE-004: cannot move a destructible array "
@@ -2279,7 +2362,8 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
                                 "move the array into a local and index it there";
                         return false;
                     }
-                    if (element_dynamic_index != MIR_INVALID_ID &&
+                    if ((element_dynamic_index != MIR_INVALID_ID ||
+                         ref.dynamic_outer != MIR_INVALID_ID) &&
                         ref.flag.valid() && ref.template_node == nullptr &&
                         ref.flag_array == MIR_INVALID_ID &&
                         !ref.whole_children) {

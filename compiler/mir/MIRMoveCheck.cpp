@@ -682,9 +682,16 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
                 aggregate = fn.values[ops[0].id].type;
             }
             if (base_path == MIR_INVALID_ID) break;
-            const uint32_t projected = project_path(
-                module, fn, base_path, aggregate, ops + 1, 1
-            );
+            const bool dynamic_base =
+                ops[0].kind() == MIROperandKind::Value &&
+                dynamic_addresses.count(ops[0].id) != 0;
+            // Once an outer index is runtime-selected, a constant inner index
+            // has no static row; keep the owning array path and let the
+            // lowering's runtime flag check handle the element.
+            const uint32_t projected =
+                dynamic_base
+                    ? base_path
+                    : project_path(module, fn, base_path, aggregate, ops + 1, 1);
             if (projected != MIR_INVALID_ID &&
                 inst.result_or_place != MIR_INVALID_ID) {
                 address_paths[inst.result_or_place] = projected;
@@ -692,9 +699,10 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
                 // lowering emits an initialized-flag check before a move, so
                 // the move checker can accept a partially initialized source.
                 uint64_t constant_element = 0;
-                if (inst.opcode() == MIROpcode::IndexAddr &&
-                    ops[1].kind() == MIROperandKind::Value &&
-                    !constant_index(module, ops[1].id, fn, constant_element)) {
+                if (dynamic_base ||
+                    (inst.opcode() == MIROpcode::IndexAddr &&
+                     ops[1].kind() == MIROperandKind::Value &&
+                     !constant_index(module, ops[1].id, fn, constant_element))) {
                     dynamic_addresses.insert(inst.result_or_place);
                 }
             }
@@ -878,12 +886,29 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
                 // lowers to field_addr(s, inner) + store(..., x, v)).
                 const auto it = address_paths.find(ops[0].id);
                 if (it != address_paths.end() && ops[0].id < fn.values.size()) {
-                    // The address names the projected subobject; its MIR type
-                    // is the aggregate that owns the next projection.
-                    const TypeId aggregate = fn.values[ops[0].id].type;
-                    apply_projection_store(module, fn, function_index, block,
-                                           inst_index, it->second, aggregate,
-                                           ops[1], states, out);
+                    if (dynamic_addresses.count(ops[0].id) != 0) {
+                        // A runtime outer index means the concrete row is not
+                        // known. The lowering updates the exact runtime flag;
+                        // keep the owning array partially initialized for any
+                        // later static whole-array use.
+                        const uint32_t path = it->second;
+                        const MIRMoveState state = state_of(states, path);
+                        if (state == MIRMoveState::Moved ||
+                            state == MIRMoveState::Destroyed) {
+                            report(out, fn, function_index, block, inst_index,
+                                   path, state, "write to a field of");
+                        } else if (state != MIRMoveState::Initialized) {
+                            states[path] = MIRMoveState::PartiallyMoved;
+                            refresh_ancestors(fn, states, path);
+                        }
+                    } else {
+                        // The address names the projected subobject; its MIR
+                        // type is the aggregate that owns the next projection.
+                        const TypeId aggregate = fn.values[ops[0].id].type;
+                        apply_projection_store(module, fn, function_index, block,
+                                               inst_index, it->second, aggregate,
+                                               ops[1], states, out);
+                    }
                 }
             }
             // A place source is a move out of that place; a value source is a

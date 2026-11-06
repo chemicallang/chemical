@@ -933,6 +933,39 @@ func dynamic_two_indices_partial_move_tracks_element(env : &mut TestEnv) {
 }
 
 @test
+func dynamic_outer_constant_inner_write_tracks_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2][2]Tracker\n        var i = 1\n        arr[i][0] = Tracker { id : 7 }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_outer_constant_inner_write", ch, &mut out)
+    if(rc != 1) {
+        env.error("dynamic outer/constant inner write did not drop exactly one element")
+    }
+}
+
+@test
+func dynamic_outer_constant_inner_move_tracks_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var arr : [2][2]Tracker\n        arr[0][0] = Tracker { id : 1 }\n        arr[0][1] = Tracker { id : 2 }\n        arr[1][0] = Tracker { id : 3 }\n        arr[1][1] = Tracker { id : 4 }\n        var i = 1\n        var moved = arr[i][0]\n        if(moved.id != 3) { return 10 }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_outer_constant_inner_move", ch, &mut out)
+    if(rc != 4) {
+        env.error("dynamic outer/constant inner move did not transfer exactly one element")
+    }
+}
+
+@test
+func dynamic_outer_constant_inner_partial_move(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [2][2]Tracker\n            var i = 1\n            arr[i][0] = Tracker { id : 7 }\n            var moved = arr[i][0]\n            if(moved.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_outer_constant_inner_partial_move", ch, &mut out)
+    if(rc != 1) {
+        env.error("dynamic outer/constant inner partial move did not transfer exactly one element")
+    }
+}
+
+@test
 func dynamic_two_indices_constant_prefix_move(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var arr : [2][2][2]Tracker\n        arr[0][0][0] = Tracker { id : 1 }\n        arr[0][0][1] = Tracker { id : 2 }\n        arr[0][1][0] = Tracker { id : 3 }\n        arr[0][1][1] = Tracker { id : 4 }\n        arr[1][0][0] = Tracker { id : 5 }\n        arr[1][0][1] = Tracker { id : 6 }\n        arr[1][1][0] = Tracker { id : 7 }\n        arr[1][1][1] = Tracker { id : 8 }\n        var i = 1\n        var j = 1\n        var moved = arr[0][i][j]\n        if(moved.id != 4) { return 10 }\n    }\n    return drops\n}\n"

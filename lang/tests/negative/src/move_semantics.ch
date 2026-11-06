@@ -312,12 +312,19 @@ func neg_two_dynamic_indices_generated_glue(env : &mut TestEnv) {
 }
 
 @test
-func neg_two_dynamic_indices_constant_inner(env : &mut TestEnv) {
+func dynamic_outer_constant_inner_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // A runtime outer index with a constant inner index is not represented by
-    // the two-dimensional selector yet.
-    var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    var arr : [2][2]DT = [\n        [DT { x : 1 }, DT { x : 2 }],\n        [DT { x : 3 }, DT { x : 4 }]\n    ]\n    var i = 1\n    var moved = arr[i][0]\n    return moved.x\n}\n"
-    expect_compile_error(env, "two_dynamic_constant_inner", ch, "SAFE-MOVE-001")
+    var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    var arr : [2][2]DT\n    arr[0][0] = DT { x : 1 }\n    arr[0][1] = DT { x : 2 }\n    arr[1][0] = DT { x : 3 }\n    arr[1][1] = DT { x : 4 }\n    var i = 1\n    var moved = arr[i][0]\n    return moved.x\n}\n"
+    expect_compile_success(env, "two_dynamic_constant_inner", ch)
+}
+
+@test
+func neg_three_dimensional_dynamic_middle(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A runtime index before a constant middle index and a runtime final index
+    // is not represented by the two-dimensional selector.
+    var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    var arr : [2][2][2]DT\n    arr[1][0][1] = DT { x : 1 }\n    var i = 1\n    var moved = arr[i][0][1]\n    return moved.x\n}\n"
+    expect_compile_error(env, "three_dynamic_middle", ch, "SAFE-MOVE-004")
 }
 
 @test

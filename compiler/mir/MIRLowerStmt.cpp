@@ -535,7 +535,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     // constant prefix). The base of the immediate parent is
                     // the lowered outer index.
                     Value* immediate = unwrap_index_value(io->parent_val);
-                    if (!final_constant && immediate != nullptr &&
+                    if (immediate != nullptr &&
                         immediate->val_kind() == ValueKind::IndexOperator) {
                         auto* parent_io = immediate->as_index_op_unsafe();
                         if (parent_io->idx != nullptr &&

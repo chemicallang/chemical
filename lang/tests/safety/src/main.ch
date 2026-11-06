@@ -805,6 +805,50 @@ func partial_dynamic_index_field_array_write_tracks_element(env : &mut TestEnv) 
 }
 
 @test
+func dynamic_index_small_array_move_tracks_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var arr : [2]Tracker = [Tracker { id : 1 }, Tracker { id : 2 }]\n        var i = 1\n        var moved = arr[i]\n        if(moved.id != 2) { return 10 }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_small_array_move", ch, &mut out)
+    if(rc != 2) {
+        env.error("dynamic small-array move did not drop the moved and remaining elements exactly once")
+    }
+}
+
+@test
+func partial_dynamic_index_small_array_write_tracks_elements(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]Tracker\n        var i = 0\n        var j = 1\n        arr[i] = Tracker { id : 7 }\n        arr[j] = Tracker { id : 8 }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "partial_dynamic_small_array_write", ch, &mut out)
+    if(rc != 2) {
+        env.error("partial dynamic small-array writes did not drop each initialized element exactly once")
+    }
+}
+
+@test
+func partial_dynamic_index_small_nested_array_write(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2][2]Tracker\n        var i = 1\n        arr[0][i] = Tracker { id : 7 }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "partial_dynamic_small_nested_array_write", ch, &mut out)
+    if(rc != 1) {
+        env.error("partial dynamic nested small-array write did not drop exactly one element")
+    }
+}
+
+@test
+func dynamic_index_small_nested_array_move_tracks_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var arr : [2][2]Tracker\n        arr[0][0] = Tracker { id : 1 }\n        arr[0][1] = Tracker { id : 2 }\n        arr[1][0] = Tracker { id : 3 }\n        arr[1][1] = Tracker { id : 4 }\n        var i = 1\n        var moved = arr[0][i]\n        if(moved.id != 2) { return 10 }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_small_nested_array_move", ch, &mut out)
+    if(rc != 4) {
+        env.error("dynamic small nested-array move did not drop every element exactly once")
+    }
+}
+
+@test
 func non_copy_three_level_array_pattern_moves_elements(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var values : [2][2][2]Tracker\n        values[0][0][0] = Tracker { id : 1 }\n        values[0][0][1] = Tracker { id : 2 }\n        values[0][1][0] = Tracker { id : 3 }\n        values[0][1][1] = Tracker { id : 4 }\n        values[1][0][0] = Tracker { id : 5 }\n        values[1][0][1] = Tracker { id : 6 }\n        values[1][1][0] = Tracker { id : 7 }\n        values[1][1][1] = Tracker { id : 8 }\n        {\n            var [[[a, b], [c, d]], [[e, f], [g, h]]] = values\n            if(a.id != 1 || b.id != 2 || c.id != 3 || d.id != 4) { return 10 }\n            if(e.id != 5 || f.id != 6 || g.id != 7 || h.id != 8) { return 11 }\n        }\n    }\n    return drops\n}\n"

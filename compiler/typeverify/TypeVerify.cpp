@@ -330,6 +330,30 @@ static bool owned_array_element_move(Value* index_value) {
         }
     }
     if (root == nullptr) return false;
+    // A constant index prefix (`arr[0][i]`) is still rooted in the owned array;
+    // only the final runtime index needs the runtime flag selector.
+    for (int guard = 0; guard < 8 && root; ++guard) {
+        if (root->val_kind() == ValueKind::UnsafeValue) {
+            root = static_cast<UnsafeValue*>(root)->getValue();
+            continue;
+        }
+        if (root->val_kind() == ValueKind::AccessChain &&
+            root->as_access_chain_unsafe()->values.size() == 1) {
+            root = root->as_access_chain_unsafe()->values[0];
+            continue;
+        }
+        if (root->val_kind() == ValueKind::IndexOperator) {
+            auto* prefix = root->as_index_op_unsafe();
+            if (prefix->idx == nullptr ||
+                prefix->idx->val_kind() != ValueKind::IntN) {
+                return false;
+            }
+            root = prefix->parent_val;
+            continue;
+        }
+        break;
+    }
+    if (root == nullptr) return false;
     BaseType* root_type = root->getType();
     BaseType* root_canonical = root_type ? root_type->canonical() : nullptr;
     if (root_canonical == nullptr ||

@@ -142,8 +142,8 @@ The audit is covered by the negative safety suite and the existing
 `arc`/`box`/`mutex`/`rwlock`/`thread`/`channel` tests, plus:
 
 - TCC main `2489/2489`, LLVM main `2487/2487`
-- TCC/LLVM negative `857/857`
-- TCC/LLVM safety `94/94`, async `83/83`
+- TCC/LLVM negative `860/860`
+- TCC/LLVM safety `98/98`, async `83/83`
 - TCC libs `736/736`, plugins `1305/1305`
 - TCC interpret `1938/1938`
 - `MIRTests` `4749 checks`

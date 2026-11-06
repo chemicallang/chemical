@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.54)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.55)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1640,9 +1640,12 @@ new number as the honest baseline, not a compiler regression.
     A dynamic final index move (`var x = arr[i]`) from a fully initialized
     large array clears the runtime element flag and emits `MoveOut`; the move
     checker conservatively treats the index as the owning root path, so the
-    root must be fully initialized. Small scalar-flag arrays reject dynamic
-    moves with `SAFE-MOVE-004`, and uninitialized/partially initialized arrays
-    reject them with `SAFE-INIT-001`/`SAFE-MOVE-001`.
+    root must be fully initialized. Small arrays of directly destructible
+    elements select the runtime scalar flag and are supported once the root is
+    initialized; small arrays whose elements own generated glue (several
+    scalar leaf flags) still reject dynamic moves with `SAFE-MOVE-004`, and
+    uninitialized/partially initialized arrays reject them with
+    `SAFE-INIT-001`/`SAFE-MOVE-001`.
     `const` bindings, array parameters (passed as pointers), array fields
     reached through references/pointers, and borrowed/slice views remain
     rejected with `SAFE-MOVE-004` rather than being guessed safe.
@@ -1654,7 +1657,10 @@ new number as the honest baseline, not a compiler regression.
     when its flag is live, and arms the new element. It is also allowed when
     the array is partially or wholly uninitialized: the runtime flag records
     the live element, the array enters the partially-initialized state, and
-    whole-array reads/moves still require full static initialization. Field
+    whole-array reads/moves still require full static initialization. Small
+    arrays of directly destructible elements select the scalar element flag at
+    runtime; generated-glue small elements still reject with `SAFE-INIT-001`
+    because selecting and arming every leaf flag is not implemented. Field
     array writes through dynamic indices are likewise tracked. Dynamic moves
     from a partially initialized array remain rejected. A temporary aggregate
     field array
@@ -3281,3 +3287,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.52 (2026-11-05): arbitrary-depth non-Copy fixed-array destructuring. The array-pattern lowering no longer stops at two fixed-array levels. A new `drop_flag_for_indices` walks the generated drop-field tree through the full constant index path and returns the leaf/element drop reference, so `var [[[a, b], [c, d]], [[e, f], [g, h]]] = cube` moves each leaf and clears only its owning flag. The same resolution now drives nested constant-index assignment (`cube[a][b][c] = ...`), including large inner flag blocks and element templates, and a dynamic final-index write into a fully initialized large array (`arr[i] = value`). Partial dynamic writes into an uninitialized array still reject with `SAFE-INIT-001`. Large/template or borrowed shapes whose flag tree cannot be resolved still reject with `SAFE-MOVE-004` rather than guessing. Added a TCC/LLVM runtime drop-count test for a three-level array of destructor-bearing elements. Safety `91/91`; negative `854/854`; TCC/LLVM main `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v5.53 (2026-11-05): dynamic-index large-array element moves. `var x = arr[i]` now resolves the runtime element flag (or generated-glue element template) for a fully initialized large array, clears exactly that element's flag, and emits `MoveOut`; the move checker deliberately treats a dynamic index path as the owning root so the root must be fully initialized. Small scalar-flag arrays reject with `SAFE-MOVE-004`, and uninitialized arrays reject with `SAFE-INIT-001`. Added a TCC/LLVM runtime drop-count test (100 zeroed elements, one dynamic move) and a negative uninitialized-root test; the pre-existing small-array dynamic-move negative now carries `SAFE-MOVE-004`. Safety `92/92`; negative `855/855`; TCC/LLVM main `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v5.54 (2026-11-06): partial dynamic large-array writes. A dynamic final-index write (`arr[i] = value`) may now initialize an otherwise uninitialized large array, including a large array field of an uninitialized struct. The runtime element flag records exactly which element is live; the move checker marks the array partially initialized, so a later constant initialization remains legal while a whole-array read/move or dynamic read/move still requires full static initialization. The lowering's existing runtime-flag requirement is unchanged, so small scalar-flag arrays still reject with `SAFE-MOVE-004`; dynamic moves from partial arrays remain `SAFE-MOVE-001`/`SAFE-INIT-001`. Added a positive compile test, runtime drop-count tests for direct and field arrays, and negatives for partial dynamic read and whole-array move. TCC/LLVM safety `94/94`; negative `857/857`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
+*Revision note v5.55 (2026-11-06): runtime scalar-flag selection for small arrays. Fixed arrays of directly destructible elements now select the element's scalar drop flag at runtime (a bounds-checked pointer table) instead of rejecting every dynamic index. Dynamic writes into initialized or uninitialized small arrays and dynamic moves from fully initialized small arrays now work, including a constant outer prefix (`arr[0][i]`); constant index prefixes also resolve back to the owned array root in the front end. Small arrays whose elements own generated glue still reject with `SAFE-MOVE-004`/`SAFE-INIT-001` because one element owns several scalar leaf flags; dynamic prefixes before the final index and partial dynamic moves remain rejected. Added TCC/LLVM runtime drop-count tests for small-array moves, partial small-array writes, and nested small-array writes/moves, plus positive/negative compile coverage. Safety `98/98`; negative `860/860`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.

@@ -706,6 +706,60 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_nested_index(
     return {};
 }
 
+MIRLowerer::MIRDropFlagRef MIRLowerer::dynamic_scalar_flag(
+        std::vector<MIRDropField*>& elements, ValueId dynamic_index) {
+    if (elements.empty() || dynamic_index == MIR_INVALID_ID) return {};
+    const TypeId bool_t = types_.bool_type();
+    const TypeId u64 = types_.u64_type();
+    const TypeId u32 = types_.u32_type();
+    const ValueId index_u64 = builder_->cast(dynamic_index, u64);
+    const ValueId len = builder_->const_int(
+        u64, module_.constants.add_int(u64, elements.size())
+    );
+    const ConstantId lt = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Lt)
+    );
+    const ValueId in_bounds = builder_->compare(index_u64, len, lt, bool_t);
+    emit_abort_unless(in_bounds, "__chc_bounds_fail");
+    if (elements.size() == 1) {
+        return MIRDropFlagRef{elements[0]->flag, MIR_INVALID_ID};
+    }
+    // Fill the selector by the element's own array index; the drop-field
+    // vector is not required to be sorted, and a gap/duplicate would select
+    // the wrong flag.
+    std::vector<bool> seen(elements.size(), false);
+    for (const MIRDropField* element : elements) {
+        if (element->flag == MIR_INVALID_ID ||
+            element->array_index >= elements.size() ||
+            seen[element->array_index]) {
+            return {};
+        }
+        seen[element->array_index] = true;
+    }
+    const TypeId ptr_t = types_.pointer_type(bool_t, true);
+    const TypeId table_t = types_.sized_array_type(
+        ptr_t, static_cast<uint32_t>(elements.size())
+    );
+    const PlaceId table = builder_->alloca(table_t, MIRStorageClass::Local);
+    if (table == MIR_INVALID_ID) return {};
+    for (const MIRDropField* element : elements) {
+        const ValueId slot_index = builder_->const_int(
+            u32, module_.constants.add_int(u32, element->array_index)
+        );
+        const ValueId slot = builder_->index_addr(table, slot_index, ptr_t);
+        const ValueId flag_address = builder_->address_of(
+            element->flag, ptr_t
+        );
+        builder_->store_indirect(slot, flag_address);
+    }
+    const ValueId selected_slot = builder_->index_addr(
+        table, dynamic_index, ptr_t
+    );
+    return MIRDropFlagRef{
+        MIR_INVALID_ID, builder_->load_indirect(selected_slot, ptr_t)
+    };
+}
+
 MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_indices_dynamic(
         PlaceId place, const std::vector<std::string>& path,
         const std::vector<uint64_t>& prefix, ValueId dynamic_index) {
@@ -744,6 +798,7 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_indices_dynamic(
     }
     if (list == nullptr) return {};
     if (prefix.empty()) {
+        std::vector<MIRDropField*> scalar_elements;
         for (auto& f : *list) {
             MIRDropElementRef ref;
             if (f.element_template) {
@@ -754,6 +809,18 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_indices_dynamic(
                 ref.flag = flag_array_ref_value(f.flag_array, dynamic_index);
                 return finish(ref);
             }
+            if (f.array_index != MIR_INVALID_ID &&
+                f.flag != MIR_INVALID_ID && f.children.empty()) {
+                scalar_elements.push_back(&f);
+            }
+        }
+        // A small fixed array has one scalar flag per element. Build a
+        // runtime-selected pointer to the exact element flag.
+        if (!scalar_elements.empty()) {
+            MIRDropElementRef ref;
+            ref.flag = dynamic_scalar_flag(scalar_elements, dynamic_index);
+            if (!ref.flag.valid()) return {};
+            return finish(ref);
         }
         return {};
     }
@@ -777,6 +844,24 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_indices_dynamic(
             }
             if (next->flag_array != MIR_INVALID_ID) {
                 ref.flag = flag_array_ref_value(next->flag_array, dynamic_index);
+                return finish(ref);
+            }
+            // A small inner array has one scalar flag per element. Its
+            // children are array-indexed elements, not struct fields.
+            std::vector<MIRDropField*> scalar_elements;
+            for (auto& child : next->children) {
+                if (child.array_index == MIR_INVALID_ID ||
+                    child.flag == MIR_INVALID_ID || !child.children.empty() ||
+                    child.element_template ||
+                    child.flag_array != MIR_INVALID_ID) {
+                    scalar_elements.clear();
+                    break;
+                }
+                scalar_elements.push_back(&child);
+            }
+            if (!scalar_elements.empty()) {
+                ref.flag = dynamic_scalar_flag(scalar_elements, dynamic_index);
+                if (!ref.flag.valid()) return {};
                 return finish(ref);
             }
             return {};

@@ -866,6 +866,9 @@ private:
     MIRDropElementRef drop_flag_for_indices_dynamic(
             PlaceId place, const std::vector<std::string>& path,
             const std::vector<uint64_t>& prefix, ValueId dynamic_index);
+    /** Select one scalar drop flag from a small array's element list at runtime. */
+    MIRDropFlagRef dynamic_scalar_flag(
+            std::vector<MIRDropField*>& elements, ValueId dynamic_index);
     /** Build the drop node for one owned field (recursing structs/arrays). */
     MIRDropField build_drop_field(const chem::string_view& name, BaseType* type,
                                   int depth, bool frame_flags = false,

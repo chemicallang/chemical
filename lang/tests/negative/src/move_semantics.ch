@@ -78,10 +78,28 @@ func array_of_destructible_elements_allowed(env : &mut TestEnv) {
 }
 
 @test
-func neg_move_out_of_array_dynamic_index(env : &mut TestEnv) {
+func move_out_of_array_dynamic_index_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A small array of directly destructible elements selects the scalar
+    // element flag at runtime; the move is safe once the array is initialized.
     var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    var arr : [2]DT = [DT { x : 1 }, DT { x : 2 }]\n    var idx = 0\n    var moved = arr[idx]\n    return moved.x\n}\n"
-    expect_compile_error(env, "move_out_of_array_dynamic", ch, "SAFE-MOVE-004")
+    expect_compile_success(env, "move_out_of_array_dynamic", ch)
+}
+
+@test
+func neg_move_generated_glue_small_array_dynamic(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // An element with generated drop glue owns several scalar flags; selecting
+    // and clearing all of them at a runtime index is not implemented.
+    var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    var arr : [2]S = [S { a : string(\"a\"), b : string(\"b\") }, S { a : string(\"c\"), b : string(\"d\") }]\n    var i = 0\n    var moved = arr[i]\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "move_glue_small_array_dynamic", ch, "SAFE-MOVE-004", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_read_partially_initialized_small_array_dynamic(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]DT\n        var i = 0\n        arr[i] = DT { x : 1 }\n        var moved = arr[i]\n        return moved.x\n    }\n}\n"
+    expect_compile_error(env, "read_partial_small_array_dynamic", ch, "SAFE-MOVE-001")
 }
 
 @test
@@ -304,12 +322,22 @@ func partial_large_array_nested_field_write_is_allowed(env : &mut TestEnv) {
 }
 
 @test
-func neg_partial_array_dynamic_index(env : &mut TestEnv) {
+func partial_small_array_dynamic_index_is_allowed(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // A dynamic index cannot update a per-element drop flag, so it may only
-    // write into an already fully initialized array.
+    // A small array of directly destructible elements has one scalar flag per
+    // element; the lowering selects the runtime flag, so a dynamic write may
+    // initialize one element of an uninitialized array.
     var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]DT\n        var i = 0\n        arr[i] = DT { x : 1 }\n    }\n    return 0\n}\n"
-    expect_compile_error(env, "partial_array_dynamic_index", ch, "SAFE-INIT-001")
+    expect_compile_success(env, "partial_small_array_dynamic_index", ch)
+}
+
+@test
+func neg_partial_generated_glue_small_array_dynamic(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A generated-glue element owns several scalar flags; selecting and
+    // arming all of them through a runtime index is not implemented.
+    var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]S\n        var i = 0\n        arr[i] = S { a : string(\"a\"), b : string(\"b\") }\n    }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "partial_glue_small_array_dynamic", ch, "SAFE-INIT-001", NEG_MOD_STD_CORE)
 }
 
 @test

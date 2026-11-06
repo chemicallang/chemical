@@ -53,8 +53,8 @@ Latest measured baseline:
 | TCC main | `2489/2489` |
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `857/857` |
-| TCC/LLVM safety | `94/94` |
+| TCC/LLVM negative | `860/860` |
+| TCC/LLVM safety | `98/98` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -516,8 +516,12 @@ memory safety.
     element templates. Dynamic writes may also initialize a partially or
     wholly uninitialized large array (including a large array field), leaving
     the array partially initialized through its runtime flags; dynamic moves
-    still require a fully initialized root (`SAFE-INIT-001`), and small
-    scalar-flag arrays stay `SAFE-MOVE-004`.
+    still require a fully initialized root (`SAFE-INIT-001`). Small arrays of
+    directly destructible elements select their scalar element flag at runtime
+    (a bounds-checked pointer table), so dynamic writes and moves work for
+    them, including a constant outer prefix (`arr[0][i]`); generated-glue
+    small elements still need several leaf flags and stay
+    `SAFE-MOVE-004`/`SAFE-INIT-001`.
 
 11. **Interpreter boundaries.** MIR interpreter bounds/provenance/tombstone
     checks are implemented. Async/coroutine opcodes, inline asm, dynamic

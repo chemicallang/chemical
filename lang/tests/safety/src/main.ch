@@ -1017,6 +1017,49 @@ func dynamic_read_uninitialized_element_aborts(env : &mut TestEnv) {
 }
 
 @test
+func dynamic_generated_glue_read_uninitialized_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]S\n        arr[0] = S { a : string(\"a\"), b : string(\"b\") }\n        var k = 1\n        return arr[k].a.size() as int\n    }\n}\n"
+    expect_runtime_panic(env, "dynamic_glue_uninit_read", ch)
+}
+
+@test
+func dynamic_generated_glue_read_initialized_ok(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]S\n        arr[0] = S { a : string(\"a\"), b : string(\"b\") }\n        arr[1] = S { a : string(\"aa\"), b : string(\"bb\") }\n        var k = 1\n        return arr[k].a.size() as int\n    }\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_glue_read", ch, &mut out)
+    if(rc != 2) {
+        env.error("dynamic generated-glue read of an initialized element failed")
+    }
+}
+
+@test
+func constant_aggregate_read_uninitialized_element_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]S\n        arr[0] = S { a : string(\"a\"), b : string(\"b\") }\n        return arr[1].a.size() as int\n    }\n}\n"
+    expect_runtime_panic(env, "constant_aggregate_uninit_read", ch)
+}
+
+@test
+func constant_aggregate_read_initialized_element_ok(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]S\n        arr[0] = S { a : string(\"a\"), b : string(\"b\") }\n        arr[1] = S { a : string(\"aa\"), b : string(\"bb\") }\n        return arr[1].a.size() as int\n    }\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "constant_aggregate_read", ch, &mut out)
+    if(rc != 2) {
+        env.error("constant aggregate read of an initialized element failed")
+    }
+}
+
+@test
+func dynamic_outer_constant_inner_aggregate_read_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "struct Inner {\n    var id : int\n    func size(&self) : int { return self.id }\n}\nstruct Tracker {\n    var inner : Inner\n    @delete func delete(&self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2][2]Tracker\n        var i = 0\n        arr[i][0] = Tracker { inner : Inner { id : 2 } }\n        var j = 1\n        return arr[j][0].inner.size()\n    }\n}\n"
+    expect_runtime_panic(env, "dynamic_outer_constant_inner_read", ch)
+}
+
+@test
 func non_copy_three_level_array_pattern_moves_elements(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var values : [2][2][2]Tracker\n        values[0][0][0] = Tracker { id : 1 }\n        values[0][0][1] = Tracker { id : 2 }\n        values[0][1][0] = Tracker { id : 3 }\n        values[0][1][1] = Tracker { id : 4 }\n        values[1][0][0] = Tracker { id : 5 }\n        values[1][0][1] = Tracker { id : 6 }\n        values[1][1][0] = Tracker { id : 7 }\n        values[1][1][1] = Tracker { id : 8 }\n        {\n            var [[[a, b], [c, d]], [[e, f], [g, h]]] = values\n            if(a.id != 1 || b.id != 2 || c.id != 3 || d.id != 4) { return 10 }\n            if(e.id != 5 || f.id != 6 || g.id != 7 || h.id != 8) { return 11 }\n        }\n    }\n    return drops\n}\n"

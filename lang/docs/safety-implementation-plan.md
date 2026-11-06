@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.60)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.61)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1659,9 +1659,12 @@ new number as the honest baseline, not a compiler regression.
     runtime-selected direct element (`arr[i].field`, `arr[i][j].field`, or a
     field array) checks the element flag first and marks the derived field
     address with `VF_INIT_CHECKED`, so the move checker accepts the guarded
-    `Load`. Reads of generated-glue elements remain rejected because every leaf
-    would need checking; normal non-dynamic field loads keep their original
-    provenance.
+    `Load`. Reads of generated-glue elements check every leaf of the selected
+    element (a runtime row branch for small arrays, indexed flag arrays for
+    templates). Constant-index aggregate/method reads resolve all constant
+    indices and check every tracked leaf, closing the method-receiver path that
+    never passes through a MIR `Load`. Normal non-dynamic scalar field loads
+    keep their original provenance.
     `const` bindings, array parameters (passed as pointers), array fields
     reached through references/pointers, and borrowed/slice views remain
     rejected with `SAFE-MOVE-004` rather than being guessed safe.
@@ -3312,3 +3315,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.58 (2026-11-06): two-dimensional runtime indices. A small 2D array of directly destructible elements now supports two runtime indices (`arr[i][j]`) and a constant prefix before the pair (`arr[0][i][j]`). Lowering records the immediate parent's lowered index in `MIRExprResult` and builds a bounds-checked flat pointer table over the N*M scalar element flags (capped at 1024); the same selector is used by dynamic writes and moves, and partial moves keep the `__chc_uninit_fail` check. A runtime outer index with a constant inner index (`arr[i][0]`), generated-glue 2D arrays, and mixed small/large dimensions remain explicit rejections. Added TCC/LLVM runtime tests for 2D dynamic write, move, partial move, and constant-prefix move, plus generated-glue and constant-inner negatives. Safety `107/107`; negative `863/863`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v5.59 (2026-11-06): runtime outer with constant inner index. A small 2D array of directly destructible elements now moves and writes `arr[i][0]` (runtime outer, constant inner) through the same flat flag selector; the lowerer creates the inner index constant and move checking keeps the owning array path for a runtime-index base instead of projecting a static row. A runtime index before a constant middle index (`arr[i][0][j]`) now rejects instead of clearing an unrelated prefix flag. Added TCC/LLVM runtime write/move/partial-move tests for `arr[i][0]`, positive `arr[i][0]` compile coverage, and a deeper-dynamic negative. Safety `110/110`; negative `864/864`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v5.60 (2026-11-06): runtime-checked dynamic reads. A scalar field read through a runtime-selected directly destructible array element now checks the selected element flag first (through the 1D/2D/field-array selectors) and marks the derived field address `VF_INIT_CHECKED`; the move checker accepts that guarded load while still rejecting moved/destroyed paths. Dynamic reads of generated-glue elements remain `SAFE-INIT-001` because every leaf would need checking. Non-dynamic field loads keep the original `field_load` provenance, preserving borrow/lifetime checks. Added TCC/LLVM runtime read tests for large, two-index, and field-array partial writes, a runtime-abort test for an uninitialized element, and a generated-glue dynamic-read negative. Safety `114/114`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
+*Revision note v5.61 (2026-11-06): aggregate and generated-glue read guards. Constant-index aggregate/method reads (`arr[1].field.method()`) now resolve every constant index and require all tracked leaves of the selected element to be live, closing the path that bypassed the MIR `Load` check. Dynamic reads of generated-glue elements now check every leaf of the runtime-selected element: small arrays branch over the selected element row, large templates index the leaf flag arrays. The same helper also covers a runtime outer with a constant inner (`arr[i][0].field`). Added TCC/LLVM runtime tests for constant aggregate abort/success, dynamic outer/constant inner abort, and dynamic generated-glue abort/success; the generated-glue dynamic-read negative became a positive compile test. Safety `119/119`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.

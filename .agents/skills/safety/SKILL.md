@@ -54,7 +54,7 @@ Latest measured baseline:
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `865/865` |
-| TCC/LLVM safety | `114/114` |
+| TCC/LLVM safety | `119/119` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -534,8 +534,10 @@ memory safety.
     `arr[i][0][j]`, generated-glue 2D arrays, and mixed small/large dimensions
     remain rejected. Scalar reads through a runtime-selected direct element
     (`arr[i].field`, `arr[i][j].field`, field arrays) check the element flag
-    first and mark the field address `VF_INIT_CHECKED`; generated-glue dynamic
-    reads remain `SAFE-INIT-001`.
+    first and mark the field address `VF_INIT_CHECKED`; generated-glue reads
+    check every leaf of the selected element (runtime row branch or indexed
+    template flags). Constant-index aggregate/method reads resolve all constant
+    indices and check every tracked leaf, closing the method-receiver path.
 
 11. **Interpreter boundaries.** MIR interpreter bounds/provenance/tombstone
     checks are implemented. Async/coroutine opcodes, inline asm, dynamic

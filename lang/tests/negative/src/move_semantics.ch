@@ -328,12 +328,11 @@ func neg_three_dimensional_dynamic_middle(env : &mut TestEnv) {
 }
 
 @test
-func neg_dynamic_read_generated_glue_element(env : &mut TestEnv) {
+func dynamic_read_generated_glue_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // Reading a generated-glue element needs every leaf checked; only direct
-    // single-flag elements have the read guard.
+    // The runtime row/template check covers every leaf at runtime.
     var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]S\n        var i = 0\n        arr[i] = S { a : string(\"a\"), b : string(\"b\") }\n        var k = 1\n        return arr[k].a.size() as int\n    }\n}\n"
-    expect_compile_error_with_mod(env, "dynamic_read_glue", ch, "SAFE-INIT-001", NEG_MOD_STD_CORE)
+    expect_compile_success_with_mod(env, "dynamic_read_glue", ch, NEG_MOD_STD_CORE)
 }
 
 @test

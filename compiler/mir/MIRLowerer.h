@@ -879,6 +879,9 @@ private:
     MIRDropElementRef drop_flag_for_two_dynamic_indices(
             PlaceId place, const std::vector<std::string>& path,
             const std::vector<uint64_t>& prefix, ValueId outer, ValueId inner);
+    /** Emit a runtime liveness check before reading a runtime-selected element. */
+    bool emit_dynamic_element_read_check(Value* value, MIRExprResult address,
+                                         bool& checked, std::string& error);
     /** Select one scalar drop flag from a small array's element list at runtime. */
     MIRDropFlagRef dynamic_scalar_flag(
             std::vector<MIRDropField*>& elements, ValueId dynamic_index);

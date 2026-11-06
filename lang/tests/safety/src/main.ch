@@ -977,6 +977,46 @@ func dynamic_two_indices_constant_prefix_move(env : &mut TestEnv) {
 }
 
 @test
+func dynamic_read_after_partial_large_array_write(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [100]Tracker\n            var i = 3\n            arr[i] = Tracker { id : 7 }\n            if(arr[i].id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_partial_read", ch, &mut out)
+    if(rc != 1) {
+        env.error("dynamic read after a partial write did not observe the initialized element")
+    }
+}
+
+@test
+func dynamic_read_after_partial_two_index_write(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [2][2]Tracker\n            var i = 1\n            var j = 1\n            arr[i][j] = Tracker { id : 7 }\n            if(arr[i][j].id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_two_index_read", ch, &mut out)
+    if(rc != 1) {
+        env.error("two-dimensional dynamic read after a partial write failed")
+    }
+}
+
+@test
+func dynamic_read_after_partial_field_array_write(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Holder {\n    var items : [100]Tracker\n}\npublic func main() : int {\n    {\n        unsafe {\n            var h : Holder\n            var i = 3\n            h.items[i] = Tracker { id : 7 }\n            if(h.items[i].id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "dynamic_field_array_read", ch, &mut out)
+    if(rc != 1) {
+        env.error("dynamic read from a partially initialized array field failed")
+    }
+}
+
+@test
+func dynamic_read_uninitialized_element_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [100]Tracker\n        arr[0] = Tracker { id : 1 }\n        var i = 1\n        return arr[i].id\n    }\n}\n"
+    expect_runtime_panic(env, "dynamic_uninitialized_read", ch)
+}
+
+@test
 func non_copy_three_level_array_pattern_moves_elements(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var values : [2][2][2]Tracker\n        values[0][0][0] = Tracker { id : 1 }\n        values[0][0][1] = Tracker { id : 2 }\n        values[0][1][0] = Tracker { id : 3 }\n        values[0][1][1] = Tracker { id : 4 }\n        values[1][0][0] = Tracker { id : 5 }\n        values[1][0][1] = Tracker { id : 6 }\n        values[1][1][0] = Tracker { id : 7 }\n        values[1][1][1] = Tracker { id : 8 }\n        {\n            var [[[a, b], [c, d]], [[e, f], [g, h]]] = values\n            if(a.id != 1 || b.id != 2 || c.id != 3 || d.id != 4) { return 10 }\n            if(e.id != 5 || f.id != 6 || g.id != 7 || h.id != 8) { return 11 }\n        }\n    }\n    return drops\n}\n"

@@ -280,7 +280,7 @@ void CTranslationContext::prepare_translate() {
           "    __chc_panic(\"invalid enum value\", file, line, column);\n"
           "}\n"
           "static inline void __chc_uninit_fail(const char* file, uint32_t line, uint32_t column) {\n"
-          "    __chc_panic(\"move from an uninitialized array element\", file, line, column);\n"
+          "    __chc_panic(\"use of an uninitialized array element\", file, line, column);\n"
           "}\n");
     // The MIR emitter spells a struct copy and an aggregate zeroing as bare
     // `memcpy`/`memset` (the C compiler lowers them to width-sized stores or a

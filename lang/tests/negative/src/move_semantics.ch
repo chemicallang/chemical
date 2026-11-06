@@ -96,10 +96,10 @@ func move_generated_glue_small_array_dynamic_compiles(env : &mut TestEnv) {
 }
 
 @test
-func neg_read_partially_initialized_small_array_dynamic(env : &mut TestEnv) {
+func partial_small_array_dynamic_read_is_allowed(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]DT\n        var i = 0\n        arr[i] = DT { x : 1 }\n        return arr[i].x\n    }\n}\n"
-    expect_compile_error(env, "read_partial_small_array_dynamic", ch, "SAFE-MOVE-001")
+    expect_compile_success(env, "read_partial_small_array_dynamic", ch)
 }
 
 @test
@@ -328,12 +328,19 @@ func neg_three_dimensional_dynamic_middle(env : &mut TestEnv) {
 }
 
 @test
-func neg_read_partially_initialized_large_array_dynamic(env : &mut TestEnv) {
+func neg_dynamic_read_generated_glue_element(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // A runtime write records one live element, but a later dynamic read
-    // cannot prove which element is live; the array is partially initialized.
+    // Reading a generated-glue element needs every leaf checked; only direct
+    // single-flag elements have the read guard.
+    var ch = "using std::string\nstruct S {\n    var a : string\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2]S\n        var i = 0\n        arr[i] = S { a : string(\"a\"), b : string(\"b\") }\n        var k = 1\n        return arr[k].a.size() as int\n    }\n}\n"
+    expect_compile_error_with_mod(env, "dynamic_read_glue", ch, "SAFE-INIT-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func partial_large_array_dynamic_read_is_allowed(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct DT {\n    var x : int\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [100]DT\n        var i = 0\n        arr[i] = DT { x : 1 }\n        return arr[i].x\n    }\n}\n"
-    expect_compile_error(env, "read_partial_large_array_dynamic", ch, "SAFE-MOVE-001")
+    expect_compile_success(env, "read_partial_large_array_dynamic", ch)
 }
 
 @test

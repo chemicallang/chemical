@@ -714,8 +714,23 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
             if (ops[0].kind() == MIROperandKind::Value) {
                 const auto it = address_paths.find(ops[0].id);
                 if (it == address_paths.end()) break;
-                require_initialized(out, fn, function_index, block, inst_index,
-                                    it->second, states, "read from");
+                const bool checked =
+                    ops[0].id < fn.values.size() &&
+                    (fn.values[ops[0].id].flags & VF_INIT_CHECKED) != 0;
+                if (checked) {
+                    // The lowering emitted a runtime element-liveness check
+                    // before this derived field address was loaded.
+                    const MIRMoveState state = state_of(states, it->second);
+                    if (state == MIRMoveState::Moved ||
+                        state == MIRMoveState::Destroyed) {
+                        report(out, fn, function_index, block, inst_index,
+                               it->second, state, "read from");
+                    }
+                } else {
+                    require_initialized(out, fn, function_index, block,
+                                        inst_index, it->second, states,
+                                        "read from");
+                }
                 break;
             }
             if (ops[0].kind() != MIROperandKind::Place) break;

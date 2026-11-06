@@ -53,8 +53,8 @@ Latest measured baseline:
 | TCC main | `2489/2489` |
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `864/864` |
-| TCC/LLVM safety | `110/110` |
+| TCC/LLVM negative | `865/865` |
+| TCC/LLVM safety | `114/114` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -532,7 +532,10 @@ memory safety.
     after a constant prefix) and a runtime outer with a constant inner
     (`arr[i][0]`) through a flat pointer table capped at 1024 flags;
     `arr[i][0][j]`, generated-glue 2D arrays, and mixed small/large dimensions
-    remain rejected.
+    remain rejected. Scalar reads through a runtime-selected direct element
+    (`arr[i].field`, `arr[i][j].field`, field arrays) check the element flag
+    first and mark the field address `VF_INIT_CHECKED`; generated-glue dynamic
+    reads remain `SAFE-INIT-001`.
 
 11. **Interpreter boundaries.** MIR interpreter bounds/provenance/tombstone
     checks are implemented. Async/coroutine opcodes, inline asm, dynamic

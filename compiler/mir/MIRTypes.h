@@ -97,6 +97,7 @@ enum MIRValueFlags : uint8_t {
     VF_CONSTANT = 0x01,    // value came from a constant
     VF_PURE = 0x02,        // value is a pure scalar result
     VF_ADDRESSABLE = 0x04, // value is (or derives from) a place address
+    VF_INIT_CHECKED = 0x08, // dynamic element address with a runtime init check
 };
 
 /** portability classification of an operation, for future non-native targets */

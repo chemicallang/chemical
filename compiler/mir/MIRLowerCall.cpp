@@ -2110,6 +2110,159 @@ void MIRLowerer::clear_element_drop_flag(const MIRDropElementRef& ref) {
     }
 }
 
+bool MIRLowerer::emit_dynamic_element_read_check(
+        Value* value, MIRExprResult address, bool& checked, std::string& error) {
+    checked = false;
+    Value* t = value;
+    for (int guard = 0; guard < 4 && t; ++guard) {
+        if (t->val_kind() == ValueKind::AccessChain) {
+            auto* c = t->as_access_chain_unsafe();
+            if (c->values.size() == 1) { t = c->values[0]; continue; }
+            break;
+        }
+        if (t->val_kind() == ValueKind::UnsafeValue) {
+            auto* u = static_cast<UnsafeValue*>(t);
+            if (u->getValue()) { t = u->getValue(); continue; }
+            break;
+        }
+        break;
+    }
+    if (t == nullptr || t->val_kind() != ValueKind::IndexOperator) return true;
+    auto* io = t->as_index_op_unsafe();
+    if (io->idx == nullptr || io->parent_val == nullptr) return true;
+    BaseType* parent_type = io->parent_val->getType();
+    BaseType* parent_canonical =
+        parent_type ? parent_type->canonical() : nullptr;
+    BaseType* element_type = io->getType();
+    BaseType* element_canonical =
+        element_type ? element_type->canonical() : nullptr;
+    const bool destructible_element =
+        element_type != nullptr &&
+        (destructor_symbol(element_type) != MIR_INVALID_ID ||
+         (element_canonical != nullptr &&
+          element_canonical->requires_destructor()));
+    const bool destructible_array =
+        parent_canonical != nullptr &&
+        parent_canonical->kind() == BaseTypeKind::Array &&
+        parent_canonical->as_array_type_unsafe()->has_array_size() &&
+        destructible_element;
+    if (!destructible_array) return true;
+
+    PlaceId base = MIR_INVALID_ID;
+    uint64_t index = 0;
+    BaseType* moved_type = nullptr;
+    BaseType* aggregate_type = nullptr;
+    std::vector<std::string> path;
+    ValueId dynamic_index = MIR_INVALID_ID;
+    std::string probe_error;
+    if (!array_element_move_target(value, base, index, moved_type, path,
+                                   aggregate_type, address, probe_error,
+                                   dynamic_index)) {
+        error = "SAFE-INIT-001: cannot read a runtime-selected destructible "
+                "array element whose drop flag is not tracked";
+        return false;
+    }
+    if (dynamic_index == MIR_INVALID_ID) return true;
+
+    auto unwrap_index_value = [](Value* v) {
+        for (int guard = 0; guard < 8 && v; ++guard) {
+            if (v->val_kind() == ValueKind::AccessChain &&
+                v->as_access_chain_unsafe()->values.size() == 1) {
+                v = v->as_access_chain_unsafe()->values[0];
+                continue;
+            }
+            if (v->val_kind() == ValueKind::UnsafeValue) {
+                auto* u = static_cast<UnsafeValue*>(v);
+                if (u->getValue()) { v = u->getValue(); continue; }
+            }
+            break;
+        }
+        return v;
+    };
+    MIRDropElementRef ref;
+    Value* immediate = unwrap_index_value(io->parent_val);
+    if (immediate != nullptr &&
+        immediate->val_kind() == ValueKind::IndexOperator) {
+        auto* parent_io = immediate->as_index_op_unsafe();
+        if (parent_io->idx != nullptr &&
+            parent_io->idx->val_kind() != ValueKind::IntN &&
+            address.base_index_value != MIR_INVALID_ID) {
+            std::vector<uint64_t> prefix;
+            Value* before = unwrap_index_value(parent_io->parent_val);
+            bool constant_prefix = true;
+            while (before != nullptr &&
+                   before->val_kind() == ValueKind::IndexOperator) {
+                auto* prefix_io = before->as_index_op_unsafe();
+                if (prefix_io->idx == nullptr ||
+                    prefix_io->idx->val_kind() != ValueKind::IntN) {
+                    constant_prefix = false;
+                    break;
+                }
+                prefix.push_back(
+                    prefix_io->idx->as_int_num_value_unsafe()
+                        ->get_num_value()
+                );
+                before = unwrap_index_value(prefix_io->parent_val);
+            }
+            if (!constant_prefix) {
+                error = "SAFE-INIT-001: cannot read a dynamic element with more "
+                        "than two runtime indices";
+                return false;
+            }
+            std::reverse(prefix.begin(), prefix.end());
+            ref = drop_flag_for_two_dynamic_indices(
+                base, path, prefix, address.base_index_value, dynamic_index
+            );
+        }
+    }
+    if (!ref.valid()) {
+        std::vector<uint64_t> prefix;
+        Value* before = unwrap_index_value(io->parent_val);
+        bool constant_prefix = true;
+        while (before != nullptr &&
+               before->val_kind() == ValueKind::IndexOperator) {
+            auto* prefix_io = before->as_index_op_unsafe();
+            if (prefix_io->idx == nullptr ||
+                prefix_io->idx->val_kind() != ValueKind::IntN) {
+                constant_prefix = false;
+                break;
+            }
+            prefix.push_back(
+                prefix_io->idx->as_int_num_value_unsafe()->get_num_value()
+            );
+            before = unwrap_index_value(prefix_io->parent_val);
+        }
+        if (!constant_prefix) {
+            error = "SAFE-INIT-001: cannot read a dynamic element with a "
+                    "runtime index before a constant index";
+            return false;
+        }
+        std::reverse(prefix.begin(), prefix.end());
+        ref = drop_flag_for_indices_dynamic(
+            base, path, prefix, dynamic_index
+        );
+    }
+    if (!ref.valid() || !ref.flag.valid() || ref.template_node != nullptr ||
+        ref.flag_array != MIR_INVALID_ID || ref.whole_children ||
+        ref.runtime_rows != nullptr) {
+        error = "SAFE-INIT-001: cannot read a runtime-selected generated-glue "
+                "array element";
+        return false;
+    }
+    const TypeId bool_t = types_.bool_type();
+    const ValueId initialized =
+        ref.flag.place != MIR_INVALID_ID
+            ? builder_->load(ref.flag.place, bool_t)
+            : builder_->load_indirect(ref.flag.address, bool_t);
+    emit_abort_unless(initialized, "__chc_uninit_fail");
+    if (address.id != MIR_INVALID_ID &&
+        address.id < builder_->function().values.size()) {
+        builder_->function().values[address.id].flags |= VF_INIT_CHECKED;
+    }
+    checked = true;
+    return true;
+}
+
 bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
                                   std::string& error) {
     // A fixed-array element move (`arr[0]`) is safe only when the array is an
@@ -3011,6 +3164,44 @@ MIRExprResult MIRLowerer::lower_member_chain(Value* const* values, size_t count,
         error = "member access base is not a place or pointer";
         return MIRExprResult::error();
     }
+    bool base_checked =
+        first.kind == MIRExprKind::Address &&
+        first.id < builder_->function().values.size() &&
+        (builder_->function().values[first.id].flags & VF_INIT_CHECKED) != 0;
+    // A scalar read through a runtime-selected element checks the element's
+    // liveness first. The derived field address carries VF_INIT_CHECKED so the
+    // MIR move checker knows the read is guarded.
+    auto ensure_read_checked = [&]() -> bool {
+        if (base_checked) return true;
+        Value* base_expr = values[0];
+        for (int guard = 0; guard < 4 && base_expr; ++guard) {
+            if (base_expr->val_kind() == ValueKind::AccessChain &&
+                base_expr->as_access_chain_unsafe()->values.size() == 1) {
+                base_expr = base_expr->as_access_chain_unsafe()->values[0];
+                continue;
+            }
+            if (base_expr->val_kind() == ValueKind::UnsafeValue) {
+                auto* u = static_cast<UnsafeValue*>(base_expr);
+                if (u->getValue()) { base_expr = u->getValue(); continue; }
+            }
+            break;
+        }
+        if (base_expr == nullptr ||
+            base_expr->val_kind() != ValueKind::IndexOperator) {
+            return true;
+        }
+        if (first.kind != MIRExprKind::Address) return true;
+        if (first.id < builder_->function().values.size() &&
+            (builder_->function().values[first.id].flags & VF_INIT_CHECKED) != 0) {
+            return true;
+        }
+        bool checked = false;
+        if (!emit_dynamic_element_read_check(base_expr, first, checked, error)) {
+            return false;
+        }
+        if (checked) base_checked = true;
+        return true;
+    };
     for (size_t i = 1; i < count; ++i) {
         std::string fname;
         if (!member_field_path(values[i - 1], values[i], fname, error)) return MIRExprResult::error();
@@ -3021,14 +3212,33 @@ MIRExprResult MIRLowerer::lower_member_chain(Value* const* values, size_t count,
         if (!have_ptr) {
             if (last) {
                 if (abi::is_aggregate(module_, ft)) {
+                    if (!ensure_read_checked()) return MIRExprResult::error();
+                    const ValueId faddr = builder_->field_addr(cur_place, fc, ft);
+                    if (base_checked) {
+                        builder_->function().values[faddr].flags |=
+                            VF_INIT_CHECKED;
+                    }
                     if (base_is_call) maybe_register_call_temp(values[0], first);
-                    return MIRExprResult::address(builder_->field_addr(cur_place, fc, ft), ft);
+                    return MIRExprResult::address(faddr, ft);
+                }
+                if (!ensure_read_checked()) return MIRExprResult::error();
+                if (base_checked) {
+                    const ValueId faddr =
+                        builder_->field_addr(cur_place, fc, ft);
+                    builder_->function().values[faddr].flags |=
+                        VF_INIT_CHECKED;
+                    const ValueId lv = builder_->load_indirect(faddr, ft);
+                    if (base_is_call) destroy_call_temp(values[0], first);
+                    return MIRExprResult::value(lv, ft);
                 }
                 const ValueId lv = builder_->field_load(cur_place, fc, ft);
                 if (base_is_call) destroy_call_temp(values[0], first);
                 return MIRExprResult::value(lv, ft);
             }
             const ValueId faddr = builder_->field_addr(cur_place, fc, ft);
+            if (base_checked) {
+                builder_->function().values[faddr].flags |= VF_INIT_CHECKED;
+            }
             const MIRTypeRecord& ftr = module_.types.get(ft);
             cur_ptr = (ftr.kind == MIRTypeKind::Pointer ||
                        ftr.kind == MIRTypeKind::Reference)
@@ -3038,14 +3248,35 @@ MIRExprResult MIRLowerer::lower_member_chain(Value* const* values, size_t count,
         } else {
             if (last) {
                 if (abi::is_aggregate(module_, ft)) {
+                    if (!ensure_read_checked()) return MIRExprResult::error();
+                    const ValueId faddr =
+                        builder_->field_addr_ptr(cur_ptr, fc, ft);
+                    if (base_checked) {
+                        builder_->function().values[faddr].flags |=
+                            VF_INIT_CHECKED;
+                    }
                     if (base_is_call) maybe_register_call_temp(values[0], first);
-                    return MIRExprResult::address(builder_->field_addr_ptr(cur_ptr, fc, ft), ft);
+                    return MIRExprResult::address(faddr, ft);
                 }
-                const ValueId lv = builder_->field_load_ptr(cur_ptr, fc, ft);
+                if (!ensure_read_checked()) return MIRExprResult::error();
+                if (base_checked) {
+                    const ValueId faddr =
+                        builder_->field_addr_ptr(cur_ptr, fc, ft);
+                    builder_->function().values[faddr].flags |=
+                        VF_INIT_CHECKED;
+                    const ValueId lv = builder_->load_indirect(faddr, ft);
+                    if (base_is_call) destroy_call_temp(values[0], first);
+                    return MIRExprResult::value(lv, ft);
+                }
+                const ValueId lv =
+                    builder_->field_load_ptr(cur_ptr, fc, ft);
                 if (base_is_call) destroy_call_temp(values[0], first);
                 return MIRExprResult::value(lv, ft);
             }
             const ValueId faddr = builder_->field_addr_ptr(cur_ptr, fc, ft);
+            if (base_checked) {
+                builder_->function().values[faddr].flags |= VF_INIT_CHECKED;
+            }
             const MIRTypeRecord& ftr = module_.types.get(ft);
             cur_ptr = (ftr.kind == MIRTypeKind::Pointer ||
                        ftr.kind == MIRTypeKind::Reference)

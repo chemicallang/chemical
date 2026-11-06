@@ -54,7 +54,7 @@ Latest measured baseline:
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `865/865` |
-| TCC/LLVM safety | `146/146` |
+| TCC/LLVM safety | `153/153` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -530,15 +530,18 @@ memory safety.
     generated-glue moves stay `SAFE-MOVE-001`. A small 2D array of directly
     destructible elements supports two runtime indices (`arr[i][j]`, optionally
     after a constant prefix) and a runtime outer with a constant inner
-    (`arr[i][0]`) through a flat pointer table capped at 1024 flags;
-    `arr[i][0][j]` and `arr[i][j][k]` are supported for small directly
-    destructible arrays. Generated-glue 2D arrays support
+    (`arr[i][0]`) through a flat pointer table covering every small/small shape
+    (4096 flags at 64 x 64); `arr[i][0][j]` and `arr[i][j][k]` are supported
+    for small directly destructible arrays. Expanded small-array rows support
+    arbitrary runtime depth (4D/5D) and mixed constant/runtime indices; generated
+    glue 3D elements use the same runtime tree. A generated 3D array with a large
+    middle or inner dimension still rejects. Generated-glue 2D arrays support
     small/small, outer-small/inner-large, outer-large/inner-small, and
     both-large layouts (the largest inner dimension uses a flat block), with
     constant writes/moves using the full index chain. Mixed and both-large
     direct dimensions are supported
     (the inner dimension above 1024 uses a flat block), while small/small direct
-    arrays stay capped at 1024 total flags. Scalar reads through a runtime-selected direct element
+    arrays cover the full 64 x 64 scalar-flag range. Scalar reads through a runtime-selected direct element
     (`arr[i].field`, `arr[i][j].field`, field arrays) check the element flag
     first and mark the field address `VF_INIT_CHECKED`; generated-glue reads
     check every leaf of the selected element (runtime row branch or indexed

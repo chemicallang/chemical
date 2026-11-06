@@ -775,6 +775,60 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                             }
                         }
                     }
+                    if (!eflag.valid()) {
+                        std::vector<ValueId> chain =
+                            collect_index_addr_chain(
+                                static_cast<ValueId>(base.id));
+                        if (!chain.empty()) {
+                            chain.push_back(static_cast<ValueId>(idx.id));
+                            Value* tree_root = io->parent_val;
+                            size_t levels = 0;
+                            for (int guard = 0; guard < 16 &&
+                                                tree_root != nullptr; ++guard) {
+                                if (tree_root->val_kind() ==
+                                    ValueKind::AccessChain) {
+                                    auto* ac =
+                                        tree_root->as_access_chain_unsafe();
+                                    if (ac->values.size() == 1) {
+                                        tree_root = ac->values[0];
+                                        continue;
+                                    }
+                                    break;
+                                }
+                                if (tree_root->val_kind() ==
+                                    ValueKind::UnsafeValue) {
+                                    auto* uv =
+                                        static_cast<UnsafeValue*>(tree_root);
+                                    if (uv->getValue()) {
+                                        tree_root = uv->getValue();
+                                        continue;
+                                    }
+                                    break;
+                                }
+                                if (tree_root->val_kind() !=
+                                    ValueKind::IndexOperator) {
+                                    break;
+                                }
+                                tree_root =
+                                    tree_root->as_index_op_unsafe()->parent_val;
+                                ++levels;
+                            }
+                            if (tree_root != nullptr &&
+                                levels + 1 == chain.size()) {
+                                PlaceId tree_base = MIR_INVALID_ID;
+                                std::vector<std::string> tree_path;
+                                BaseType* tree_type = nullptr;
+                                resolve_index_root(
+                                    tree_root, tree_base, tree_path,
+                                    tree_type
+                                );
+                                if (tree_base != MIR_INVALID_ID) {
+                                    eflag = drop_flag_for_runtime_tree(
+                                        tree_base, tree_path, chain);
+                                }
+                            }
+                        }
+                    }
                 }
                 const TypeId base_tid =
                     base.kind == MIRExprKind::Place
@@ -810,6 +864,10 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     );
                 };
                 auto fresh_element_ref = [&]() {
+                    if (eflag.runtime_tree) {
+                        return drop_flag_for_runtime_tree(
+                            eflag.place, eflag.path, eflag.runtime_indices);
+                    }
                     if (eflag.dynamic_three_indices) {
                         return drop_flag_for_three_dynamic_indices(
                             eflag.place, eflag.path, eflag.indices,
@@ -849,6 +907,16 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 };
                 auto destroy_old_element = [&]() {
                     if (!eflag.valid()) return;
+                    if (eflag.runtime_tree) {
+                        MIRDropElementRef fresh = fresh_element_ref();
+                        if (!fresh.runtime_tree ||
+                            fresh.runtime_rows == nullptr) return;
+                        destroy_runtime_tree_element(
+                            element_address(), *fresh.runtime_rows,
+                            fresh.runtime_indices, io->getType()
+                        );
+                        return;
+                    }
                     if (eflag.dynamic_three_indices) {
                         MIRDropElementRef fresh = fresh_element_ref();
                         if (!fresh.dynamic_three_indices ||
@@ -966,6 +1034,15 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     emit_dtor_ptr_cond(element_address(), io->getType(), eflag.flag);
                 };
                 auto mark_element_initialized = [&]() {
+                    if (eflag.runtime_tree) {
+                        MIRDropElementRef fresh = fresh_element_ref();
+                        if (!fresh.runtime_tree ||
+                            fresh.runtime_rows == nullptr) return;
+                        set_runtime_tree_element(
+                            *fresh.runtime_rows, fresh.runtime_indices, true
+                        );
+                        return;
+                    }
                     if (eflag.dynamic_three_indices) {
                         MIRDropElementRef fresh = fresh_element_ref();
                         if (!fresh.dynamic_three_indices ||

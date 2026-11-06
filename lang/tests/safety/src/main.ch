@@ -1793,3 +1793,72 @@ func packed_layout_is_applied(env : &mut TestEnv) {
         env.error("packed field access returned the wrong value")
     }
 }
+
+@test
+func four_runtime_indices_write_read_move(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [2][2][2][2]Tracker\n            var i = 1\n            var j = 1\n            var k = 1\n            var l = 1\n            arr[i][j][k][l] = Tracker { id : 7 }\n            if(arr[i][j][k][l].id != 7) { return 10 }\n            var moved = arr[i][j][k][l]\n            if(moved.id != 7) { return 11 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "four_runtime_indices_write_read_move", ch, &mut out)
+    if(rc != 1) {
+        env.error("four-runtime-index write/read/move failed")
+    }
+}
+
+@test
+func four_runtime_indices_uninitialized_move_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "struct Tracker {\n    var id : int\n    @delete func delete(&self) { }\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2][2][2][2]Tracker\n        var i = 0\n        var j = 0\n        var k = 0\n        var l = 0\n        arr[i][j][k][l] = Tracker { id : 7 }\n        var a = 1\n        var b = 1\n        var c = 1\n        var d = 1\n        var moved = arr[a][b][c][d]\n        return moved.id\n    }\n}\n"
+    expect_runtime_panic(env, "four_runtime_indices_uninit", ch)
+}
+
+@test
+func generated_three_dimensional_write_read_move(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [2][2][2]S\n            var i = 1\n            var j = 1\n            var k = 1\n            arr[i][j][k] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n            if(arr[i][j][k].a.id != 7) { return 10 }\n            var moved = arr[i][j][k]\n            if(moved.a.id != 7) { return 11 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "generated_three_dimensional_write_read_move", ch, &mut out)
+    if(rc != 1) {
+        env.error("generated-glue 3D write/read/move failed")
+    }
+}
+
+@test
+func generated_three_dimensional_constant_indices(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [2][2][2]S\n            var i = 1\n            var j = 1\n            arr[i][0][j] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n            if(arr[i][0][j].a.id != 7) { return 10 }\n            arr[0][i][j] = S { a : Leaf { id : 8 }, b : string(\"y\") }\n            if(arr[0][i][j].a.id != 8) { return 11 }\n            var moved = arr[0][i][j]\n            if(moved.a.id != 8) { return 12 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "generated_three_dimensional_constant_indices", ch, &mut out)
+    if(rc != 2) {
+        env.error("generated-glue 3D mixed constant/runtime indices failed")
+    }
+}
+
+@test
+func generated_three_dimensional_uninitialized_move_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2][2][2]S\n        var i = 0\n        var j = 0\n        var k = 0\n        arr[i][j][k] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n        var a = 1\n        var b = 1\n        var c = 1\n        var moved = arr[a][b][c]\n        return moved.a.id\n    }\n}\n"
+    expect_runtime_panic(env, "generated_three_dimensional_uninit", ch)
+}
+
+@test
+func small_direct_two_dimensional_full_flag_table(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [64][64]Tracker\n            var i = 63\n            var j = 63\n            arr[i][j] = Tracker { id : 7 }\n            if(arr[i][j].id != 7) { return 10 }\n            var moved = arr[i][j]\n            if(moved.id != 7) { return 11 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "small_direct_two_dimensional_full_flag_table", ch, &mut out)
+    if(rc != 1) {
+        env.error("64x64 direct small-array flag table failed")
+    }
+}
+
+@test
+func small_generated_two_dimensional_large_tree(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [64][64]S\n            var i = 63\n            var j = 63\n            arr[i][j] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n            if(arr[i][j].a.id != 7) { return 10 }\n            var moved = arr[i][j]\n            if(moved.a.id != 7) { return 11 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "small_generated_two_dimensional_large_tree", ch, &mut out)
+    if(rc != 1) {
+        env.error("64x64 generated-glue small-array tree failed")
+    }
+}

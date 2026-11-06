@@ -828,6 +828,12 @@ private:
         // Three runtime indices (`arr[i][j][k]`).
         bool dynamic_three_indices = false;
         ValueId dynamic_middle_value = MIR_INVALID_ID;
+        // Arbitrary-depth runtime index path through expanded small-array rows
+        // (`arr[i][j][k][l]`, generated-glue 3D elements, constants mixed in).
+        // `runtime_indices` is outer-to-inner and includes every array level.
+        bool runtime_tree = false;
+        bool runtime_tree_generated = false;
+        std::vector<ValueId> runtime_indices;
         // Field path for a path-indexed element (`holder.items[i]`), used to
         // re-resolve after lowering the RHS may reallocate `destructibles_`.
         std::vector<std::string> path;
@@ -978,6 +984,25 @@ private:
                                        std::vector<MIRDropField>& rows,
                                        ValueId outer, ValueId middle,
                                        ValueId inner, BaseType* element_type);
+    /**
+     * Select an element through every expanded small-array dimension at
+     * runtime. Covers `arr[i][j][k][l]` and generated-glue 3D elements; a
+     * compressed (large-array) level rejects. `indices` is outer-to-inner.
+     */
+    MIRDropElementRef drop_flag_for_runtime_tree(
+            PlaceId place, const std::vector<std::string>& path,
+            const std::vector<ValueId>& indices);
+    /** Arm/clear an arbitrary-depth runtime-tree element. */
+    void set_runtime_tree_element(std::vector<MIRDropField>& rows,
+                                  const std::vector<ValueId>& indices,
+                                  bool value);
+    /** Destroy an arbitrary-depth runtime-tree element. */
+    void destroy_runtime_tree_element(ValueId address,
+                                      std::vector<MIRDropField>& rows,
+                                      const std::vector<ValueId>& indices,
+                                      BaseType* element_type);
+    /** Recover the outer-to-inner index operands of an IndexAddr chain. */
+    std::vector<ValueId> collect_index_addr_chain(ValueId address) const;
     /** Destroy one value through an address, gated by an optional flag. */
     void emit_dtor_ptr_cond(ValueId address, BaseType* type,
                             MIRDropFlagRef flag);

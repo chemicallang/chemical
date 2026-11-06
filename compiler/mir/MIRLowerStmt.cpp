@@ -713,7 +713,12 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     if (eflag.runtime_rows != nullptr) {
                         MIRDropElementRef fresh = fresh_element_ref();
                         if (fresh.runtime_rows == nullptr) return;
-                        if (eflag.dynamic_outer != MIR_INVALID_ID) {
+                        if (eflag.outer_indexed) {
+                            destroy_runtime_outer_template_element(
+                                element_address(), *fresh.runtime_rows,
+                                eflag.dynamic_outer, eflag.dynamic_index
+                            );
+                        } else if (eflag.dynamic_outer != MIR_INVALID_ID) {
                             destroy_runtime_two_dimensional_element(
                                 element_address(), *fresh.runtime_rows,
                                 eflag.dynamic_outer, eflag.dynamic_index
@@ -739,10 +744,19 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         // destructibles vector that owns the template node.
                         MIRDropElementRef fresh = fresh_element_ref();
                         if (fresh.template_node == nullptr) return;
+                        ValueId flag_index = static_cast<ValueId>(idx.id);
+                        if (fresh.template_flag_index_const != MIR_INVALID_ID) {
+                            const TypeId u32 = types_.u32_type();
+                            flag_index = builder_->const_int(
+                                u32, module_.constants.add_int(
+                                    u32, fresh.template_flag_index_const
+                                )
+                            );
+                        }
                         destroy_drop_fields_at(
                             element_address(),
                             fresh.template_node->children,
-                            static_cast<ValueId>(idx.id)
+                            flag_index
                         );
                         return;
                     }
@@ -768,7 +782,12 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     if (eflag.runtime_rows != nullptr) {
                         MIRDropElementRef fresh = fresh_element_ref();
                         if (fresh.runtime_rows != nullptr) {
-                            if (eflag.dynamic_outer != MIR_INVALID_ID) {
+                            if (eflag.outer_indexed) {
+                                set_runtime_outer_template_element(
+                                    *fresh.runtime_rows, eflag.dynamic_outer,
+                                    eflag.dynamic_index, true
+                                );
+                            } else if (eflag.dynamic_outer != MIR_INVALID_ID) {
                                 set_runtime_two_dimensional_element(
                                     *fresh.runtime_rows, eflag.dynamic_outer,
                                     eflag.dynamic_index, true
@@ -789,9 +808,18 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     } else if (eflag.template_node != nullptr) {
                         MIRDropElementRef fresh = fresh_element_ref();
                         if (fresh.template_node == nullptr) return;
+                        ValueId flag_index = static_cast<ValueId>(idx.id);
+                        if (fresh.template_flag_index_const != MIR_INVALID_ID) {
+                            const TypeId u32 = types_.u32_type();
+                            flag_index = builder_->const_int(
+                                u32, module_.constants.add_int(
+                                    u32, fresh.template_flag_index_const
+                                )
+                            );
+                        }
                         set_drop_fields_at(
                             fresh.template_node->children,
-                            static_cast<ValueId>(idx.id), true
+                            flag_index, true
                         );
                     } else if (eflag.flag_array != MIR_INVALID_ID) {
                         set_flag_array(

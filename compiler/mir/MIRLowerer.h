@@ -813,6 +813,9 @@ private:
         // several scalar leaf flags. The rows are the element nodes; the
         // runtime index selects one row before setting/destroying its leaves.
         std::vector<MIRDropField>* runtime_rows = nullptr;
+        // `runtime_rows` are inner-element rows of an outer-large template;
+        // their leaf flag arrays are indexed by the outer element.
+        bool outer_indexed = false;
         // Field path for a path-indexed element (`holder.items[i]`), used to
         // re-resolve after lowering the RHS may reallocate `destructibles_`.
         std::vector<std::string> path;
@@ -824,6 +827,9 @@ private:
         // reference can be re-resolved after lowering the RHS reallocates the
         // owning destructibles vector.
         std::vector<uint64_t> indices;
+        // Outer element index for an outer-large element template whose leaf
+        // flag arrays are indexed by the outer element (2D constant access).
+        uint64_t template_flag_index_const = MIR_INVALID_ID;
         // Dynamic final index for a large flat flag block/template. `indices`
         // holds the constant prefix before it.
         ValueId dynamic_index = MIR_INVALID_ID;
@@ -914,6 +920,14 @@ private:
                                              bool value);
     /** Destroy the element selected by two runtime indices. */
     void destroy_runtime_two_dimensional_element(
+            ValueId address, std::vector<MIRDropField>& rows,
+            ValueId outer, ValueId inner);
+    /** Arm/clear the inner row of an outer-large template at `outer`. */
+    void set_runtime_outer_template_element(
+            std::vector<MIRDropField>& rows, ValueId outer, ValueId inner,
+            bool value);
+    /** Destroy the inner row of an outer-large template at `outer`. */
+    void destroy_runtime_outer_template_element(
             ValueId address, std::vector<MIRDropField>& rows,
             ValueId outer, ValueId inner);
     /** Destroy one value through an address, gated by an optional flag. */

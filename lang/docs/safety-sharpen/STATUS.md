@@ -14,9 +14,9 @@ Status values: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked.
 | P1.6 | 1 | language | remove Box<[T]> and range slicing | [x] | agent | parser REMOVED-005/006; subview tests pass |
 | P1.7 | 1 | compiler | release-gating size consolidation | [x] | agent | release 4,037,816 bytes; -O2 + sections + gc-sections + strip |
 | P1.8 | 1 | docs | reconcile docs/skills and freeze new syntax | [x] | agent | AGENTS/skill/docs/REMOVED/BREAKING updated |
-| P2.1a | 2 | std | IoError + Read/Write/Seek | [ ] | agent | pending |
-| P2.1 | 2 | std | safe primitives + view lifetimes | [ ] | agent | pending |
-| P2.2 | 2 | fs/process | filesystem/process/env safe APIs | [ ] | agent | pending |
+| P2.1a | 2 | std | IoError + Read/Write/Seek | [x] | agent | std/src/io.ch; fs::File Read/Write impl; libs 736/736 |
+| P2.1 | 2 | std | safe primitives + view lifetimes | [~] | agent | vector try_push/try_reserve, CString, IoError/Read/Write; view lifetimes pending |
+| P2.2 | 2 | fs/process | filesystem/process/env safe APIs | [~] | agent | fs::read_file/write_file/open_file/create_file + File Read/Write; process/env pending |
 | P2.3 | 2 | net/http/tls | safe I/O, HTTP, TLS | [ ] | agent | pending |
 | P2.4 | 2 | data/media | data/media/crypto/parser fuzz | [ ] | agent | pending |
 | P2.5 | 2 | web/ui | window/webview/page/components/router/server | [ ] | agent | pending |

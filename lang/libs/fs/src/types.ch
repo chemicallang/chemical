@@ -68,6 +68,7 @@ public struct File {
         struct { var fd : int; } _unix;
     }
     var valid : bool;
+
 }
 
 }

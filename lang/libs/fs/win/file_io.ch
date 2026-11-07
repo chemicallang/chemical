@@ -36,6 +36,14 @@ func file_open_native(path : path_ptr, opts : OpenOptions) : Result<File, FsErro
 
         }}
 
+public func file_close_ref(f : &mut File) : Result<UnitTy, FsError> {
+        unsafe {
+    if(!f.valid) { return Result.Ok(UnitTy{}); }
+    var ok = CloseHandle(f.win.handle);
+    if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
+    f.valid = false;
+    return Result.Ok(UnitTy{});
+        }}
 public func file_close(f : *mut File) : Result<UnitTy, FsError> {
         unsafe {
     if(f == null) { return Result.Err(FsError.InvalidInput()); }

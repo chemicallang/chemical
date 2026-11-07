@@ -113,53 +113,71 @@ public struct vector<T> {
         data_size = new_size;
     }
 
-    func reserve(&mut self, new_cap : size_t) {
-        if(new_cap <= data_cap) return;
+    func try_reserve(&mut self, new_cap : size_t) : bool {
+        if(new_cap <= data_cap) return true;
         const elem_size = sizeof(T)
         if(elem_size == 0) {
             if(data_ptr == null) {
                 data_ptr = unsafe(malloc(1)) as *mut T
                 if(data_ptr == null) {
-                    panic("vector allocation failed")
+                    return false
                 }
             }
             data_cap = new_cap
-            return
+            return true
         }
         const max_elems = ((0 as size_t) - 1) / elem_size
         if(new_cap > max_elems) {
-            panic("vector capacity overflow")
+            return false
         }
         var new_data = unsafe(realloc(data_ptr, (sizeof(T) * new_cap))) as *mut T;
-        unsafe {
-            if (new_data != null) {
-                data_ptr = new_data;
-                data_cap = new_cap;
-            } else {
-                panic("failed to resize vector");
-            }
+        if(new_data == null) {
+            return false
         }
+        data_ptr = new_data;
+        data_cap = new_cap;
+        return true
+    }
+
+    func reserve(&mut self, new_cap : size_t) {
+        if(!try_reserve(new_cap)) {
+            panic("failed to resize vector")
+        }
+    }
+
+    func try_ensure_capacity_for_one_more(&mut self) : bool {
+        if (data_cap == 0) {
+            return try_reserve(2)
+        }
+        if(data_cap > ((0 as size_t) - 1) / 2) {
+            return false
+        }
+        return try_reserve(data_cap * 2)
     }
 
     func ensure_capacity_for_one_more(&mut self) {
-        if (data_cap == 0) {
-            reserve(2)
-        } else {
-            if(data_cap > ((0 as size_t) - 1) / 2) {
-                panic("vector capacity overflow")
-            }
-            reserve(data_cap * 2)
+        if(!try_ensure_capacity_for_one_more()) {
+            panic("failed to resize vector")
         }
     }
 
-    func push(&mut self, value : T) {
+    func try_push(&mut self, value : T) : bool {
         const s = data_size;
         if (s >= data_cap) {
-            ensure_capacity_for_one_more()
+            if(!try_ensure_capacity_for_one_more()) {
+                return false
+            }
         }
         unsafe { memcpy(&raw mut data_ptr[s], &raw value, sizeof(T)) }
         intrinsics::forget(value)
         data_size = s + 1
+        return true
+    }
+
+    func push(&mut self, value : T) {
+        if(!try_push(value)) {
+            panic("failed to resize vector")
+        }
     }
 
     func push_back(&mut self, value : T) {

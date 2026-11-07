@@ -1764,6 +1764,28 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     }
                     break;
                 }
+                // A pattern-bound payload is an alias into its source variant.
+                // Returning it (directly or as a variant-constructor argument)
+                // moves the payload out, so clear the source's drop flag too.
+                if (rv->val_kind() == ValueKind::FunctionCall) {
+                    auto* fc = rv->as_func_call_unsafe();
+                    ASTNode* leaf = nullptr;
+                    if (fc->parent_val) {
+                        if (fc->parent_val->val_kind() == ValueKind::AccessChain) {
+                            auto* ch = fc->parent_val->as_access_chain_unsafe();
+                            if (!ch->values.empty()) leaf = ch->values.back()->linked_node();
+                        } else {
+                            leaf = fc->parent_val->linked_node();
+                        }
+                    }
+                    if (leaf != nullptr && leaf->kind() == ASTNodeKind::VariantMember) {
+                        for (Value* arg : fc->values) {
+                            clear_moved_ref(arg);
+                        }
+                    }
+                } else {
+                    clear_moved_ref(rv);
+                }
                 if (rv->val_kind() == ValueKind::Identifier) {
                     auto* id = rv->as_identifier_unsafe();
                     PlaceId rp = place_for_linked(id->linked);

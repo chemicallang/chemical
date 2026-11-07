@@ -16,7 +16,7 @@ Status values: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked.
 | P1.8 | 1 | docs | reconcile docs/skills and freeze new syntax | [x] | agent | AGENTS/skill/docs/REMOVED/BREAKING updated |
 | P2.1a | 2 | std | IoError + Read/Write/Seek | [x] | agent | std/src/io.ch; fs::File Read/Write impl; libs 736/736 |
 | P2.1 | 2 | std | safe primitives + view lifetimes | [~] | agent | vector try_push/try_reserve, CString, IoError/Read/Write; view lifetimes pending |
-| P2.2 | 2 | fs/process | filesystem/process/env safe APIs | [~] | agent | fs::read_file/write_file/open_file/create_file + File Read/Write; process/env pending |
+| P2.2 | 2 | fs/process | filesystem/process/env safe APIs | [~] | agent | fs safe read/write/open/create + explicit close; process/env pending |
 | P2.3 | 2 | net/http/tls | safe I/O, HTTP, TLS | [ ] | agent | pending |
 | P2.4 | 2 | data/media | data/media/crypto/parser fuzz | [ ] | agent | pending |
 | P2.5 | 2 | web/ui | window/webview/page/components/router/server | [ ] | agent | pending |
@@ -31,6 +31,7 @@ Status values: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked.
 - Release build repaired: `compiler/generics/GenericInstantiator.h` optional save/restore now guards `DEBUG`.
 - Release flags: `-O2`, `-ffunction-sections`, `-fdata-sections`, `-fno-unwind-tables`, `-fno-asynchronous-unwind-tables`, `-Wl,--gc-sections`, `-s`.
 - Phase 1 gates: TCC main 2478/2478; LLVM main 2476/2476; negative TCC/LLVM 861/861; removed 12/12; safety TCC/LLVM 190/190; async 83/83; libs 734/734; plugins 1305/1305; interpret 1938/1938; regexp 143/143; process 127/127.
+- P2.2 note: `File` uses explicit `fs::close_file` for now; RAII restore is blocked on a real pattern-payload field move (see `BLOCKED.md`).
 - Known baseline issue: TCC `--server` fails in generated C at `http::FileServer::serve_http` cleanup (`&(&(&p->headers)->headers)`), unrelated to Phase 1 removals; recorded in `BLOCKED.md` for Phase 2 codegen work.
 - Current test counts: see `lang/docs/safety-sharpen/metrics.json` after the first metrics run.
 

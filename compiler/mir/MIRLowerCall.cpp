@@ -8777,7 +8777,13 @@ bool MIRLowerer::lower_pattern_match_node(PatternMatchExprNode* node, std::strin
     }
     if (!pm->is_tuple) {
         MIRExprResult r = lower_pattern_match_value(pm, error);
-        return r.ok();
+        if (!r.ok()) return false;
+        // Statement patterns currently keep the payload as an alias into the
+        // source variant; returning it clears the source drop flag in the
+        // return path. Materializing a shallow copy here would double-free
+        // owned containers, so RAII payloads need a real field move first (see
+        // lang/docs/safety-sharpen/BLOCKED.md).
+        return true;
     }
     // Tuple destructuring is irrefutable. Evaluate the value once, then bind
     // each element into its own local so later mutation of the source tuple

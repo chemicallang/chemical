@@ -15,5 +15,5 @@
 
 - Repro: `lang/tests`/temp `helper() -> Result<D,E>` + `wrap()` pattern-destructures `Ok(d)` and returns `d`; the source Result still drops the payload (`drops == 1`).
 - Consequence: a `File` with `@delete` is closed by the moved-from Result, so `fs::create_file(...)` + `File.write_all` fails (`EBADF`). A `File` without `@delete` works, so Phase 2 currently requires explicit `fs::close_file`.
-- Root cause: MIR pattern payload reads are aliases/addresses into the source variant; returning the bound identifier does not clear the source payload drop flag.
-- Action: fix pattern-payload move tracking in MIR (or materialize destructible payloads into owned locals and clear the source field), then restore `File` RAII.
+- Partial fix: returning a pattern-bound payload (directly or as a `Result.Ok(...)` argument) now clears the source variant drop flag (`MIRLowerStmt.cpp`). This fixes move-out through a wrapper.
+- Remaining: materializing a *destructible aggregate* payload into an owned local with a shallow copy double-frees owned containers; it needs a real field move. `File` therefore uses explicit `fs::close_file`; restore `@delete` after the field move lands.

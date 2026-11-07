@@ -431,6 +431,42 @@ public namespace http {
     }
 }
 
+    // Safe body reads for normal callers: no raw pointer on the hot path.
+    public func (b: &mut Body) read_into(buf : &mut [u8]) : std::Result<size_t, std::io::IoError> {
+        if(buf.size() > 2147483647 as usize) {
+            return std::Result.Err(std::io::IoError.Kind(std::io::IoErrorKind.InvalidInput()))
+        }
+        var n = b.read(buf.data(), buf.size())
+        if(n < 0) {
+            return std::Result.Err(std::io::IoError.Kind(std::io::IoErrorKind.Other()))
+        }
+        return std::Result.Ok(n as size_t)
+    }
+
+    // Read the rest of the body into an owned byte vector.
+    public func (b: &mut Body) read_all() : std::Result<std::vector<u8>, std::io::IoError> {
+        var out = std::vector<u8>()
+        var tmp : [8192]u8
+        while(true) {
+            var view = unsafe(std::mut_span<u8>(&raw mut tmp[0], 8192 as size_t))
+            var r = b.read_into(view)
+            if(r is std::Result.Err) {
+                var Err(e) = r else unsafe { unreachable }
+                return std::Result.Err(e)
+            }
+            var Ok(n) = r else unsafe { unreachable }
+            if(n == 0) { return std::Result.Ok(out) }
+            var i : size_t = 0
+            while(i < n) {
+                if(!out.try_push(tmp[i])) {
+                    return std::Result.Err(std::io::IoError.Kind(std::io::IoErrorKind.OutOfMemory()))
+                }
+                i += 1
+            }
+        }
+        return std::Result.Ok(out)
+    }
+
     // read all remaining body into a string
     public func (b: &mut Body) read_to_string() : std::Option<std::string> {
         unsafe {

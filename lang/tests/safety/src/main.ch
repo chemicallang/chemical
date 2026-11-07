@@ -2033,3 +2033,32 @@ func partial_constant_write_dynamic_uninitialized_aborts(env : &mut TestEnv) {
     var ch = "using std::string\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [65][1][1200]S\n        arr[0][0][0] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n        var i = 1\n        var k = 1\n        var moved = arr[i][0][k]\n        return moved.a.id\n    }\n}\n"
     expect_runtime_panic(env, "partial_constant_write_dynamic_uninitialized_aborts", ch)
 }
+
+@test
+func field_move_from_one_dimensional_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Inner {\n    var leaf : Leaf\n    var tag : int\n}\nstruct Elem {\n    var inner : Inner\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [2000]Elem\n            var i = 1999\n            arr[i] = Elem { inner : Inner { leaf : Leaf { id : 7 }, tag : 9 }, b : string(\"x\") }\n            var leaf = arr[i].inner.leaf\n            if(leaf.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "field_move_from_one_dimensional_element", ch, &mut out)
+    if(rc != 1) {
+        env.error("1D runtime-indexed field move failed")
+    }
+}
+
+@test
+func field_move_from_two_dimensional_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Inner {\n    var leaf : Leaf\n    var tag : int\n}\nstruct Elem {\n    var inner : Inner\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [65][1200]Elem\n            var i = 64\n            var j = 1199\n            arr[i][j] = Elem { inner : Inner { leaf : Leaf { id : 7 }, tag : 9 }, b : string(\"x\") }\n            var leaf = arr[i][j].inner.leaf\n            if(leaf.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "field_move_from_two_dimensional_element", ch, &mut out)
+    if(rc != 1) {
+        env.error("2D runtime-indexed field move failed")
+    }
+}
+
+@test
+func field_move_from_uninitialized_element_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { }\n}\nstruct Inner {\n    var leaf : Leaf\n    var tag : int\n}\nstruct Elem {\n    var inner : Inner\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2000]Elem\n        arr[0] = Elem { inner : Inner { leaf : Leaf { id : 7 }, tag : 9 }, b : string(\"x\") }\n        var i = 1\n        var leaf = arr[i].inner.leaf\n        return leaf.id\n    }\n}\n"
+    expect_runtime_panic(env, "field_move_from_uninitialized_element_aborts", ch)
+}

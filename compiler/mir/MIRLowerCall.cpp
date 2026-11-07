@@ -3251,6 +3251,41 @@ MIRLowerer::MIRDropField MIRLowerer::build_drop_field(const chem::string_view& n
                             }
                         };
                     mark_inner(f.children);
+                } else {
+                    // A one-dimensional large generated array indexes every
+                    // leaf flag by the element. Record the element-to-leaf path
+                    // so a field move can identify the exact leaf.
+                    std::function<void(std::vector<MIRDropField>&,
+                                       std::vector<MIRDropPathStep>&)> annotate =
+                        [&](std::vector<MIRDropField>& fields,
+                            std::vector<MIRDropPathStep>& path) {
+                            for (auto& child : fields) {
+                                std::vector<MIRDropPathStep> next = path;
+                                if (child.array_index != MIR_INVALID_ID ||
+                                    !child.name.empty()) {
+                                    MIRDropPathStep step;
+                                    step.type = child.type;
+                                    if (child.array_index != MIR_INVALID_ID) {
+                                        step.array_index = child.array_index;
+                                    } else {
+                                        step.name = child.name;
+                                    }
+                                    next.push_back(step);
+                                }
+                                if (child.flag_array != MIR_INVALID_ID &&
+                                    child.children.empty()) {
+                                    if (child.inner_count == 0 &&
+                                        !next.empty()) {
+                                        child.flat_element_type = elem;
+                                        child.flat_path = next;
+                                    }
+                                } else {
+                                    annotate(child.children, next);
+                                }
+                            }
+                        };
+                    std::vector<MIRDropPathStep> empty_path;
+                    annotate(f.children, empty_path);
                 }
                 return f;
             }
@@ -5914,6 +5949,215 @@ bool MIRLowerer::emit_dynamic_element_read_check(
     return true;
 }
 
+bool MIRLowerer::mark_indexed_field_moved(Value* value, MIRExprResult result,
+                                          std::string& error) {
+    auto unwrap = [](Value* v) {
+        for (int guard = 0; guard < 4 && v; ++guard) {
+            if (v->val_kind() == ValueKind::AccessChain &&
+                v->as_access_chain_unsafe()->values.size() == 1) {
+                v = v->as_access_chain_unsafe()->values[0];
+                continue;
+            }
+            if (v->val_kind() == ValueKind::UnsafeValue) {
+                auto* u = static_cast<UnsafeValue*>(v);
+                if (!u->getValue()) break;
+                v = u->getValue();
+                continue;
+            }
+            break;
+        }
+        return v;
+    };
+    Value* chain_value = unwrap(value);
+    if (chain_value == nullptr ||
+        chain_value->val_kind() != ValueKind::AccessChain) {
+        return false;
+    }
+    auto* chain = chain_value->as_access_chain_unsafe();
+    if (chain->values.size() < 2) return false;
+    Value* element = unwrap(chain->values[0]);
+    if (element == nullptr || element->val_kind() != ValueKind::IndexOperator) {
+        return false;
+    }
+    std::vector<std::string> suffix;
+    for (size_t i = 1; i < chain->values.size(); ++i) {
+        if (chain->values[i]->val_kind() == ValueKind::IndexOperator) {
+            return false; // field path containing another array index
+        }
+        std::string fname;
+        if (!member_field_path(chain->values[i - 1], chain->values[i],
+                               fname, error)) {
+            return false;
+        }
+        size_t start = 0;
+        while (start <= fname.size()) {
+            const size_t dot = fname.find('.', start);
+            const size_t end =
+                dot == std::string::npos ? fname.size() : dot;
+            if (end > start) suffix.emplace_back(fname.substr(start, end - start));
+            if (dot == std::string::npos) break;
+            start = dot + 1;
+        }
+    }
+    if (suffix.empty()) return false;
+
+    PlaceId base = MIR_INVALID_ID;
+    uint64_t index = 0;
+    BaseType* element_type = nullptr;
+    BaseType* aggregate_type = nullptr;
+    std::vector<std::string> element_path;
+    ValueId dynamic_index = MIR_INVALID_ID;
+    if (!array_element_move_target(
+            element, base, index, element_type, element_path, aggregate_type,
+            result, error, dynamic_index)) {
+        return false;
+    }
+    BaseType* element_canon =
+        element_type != nullptr ? element_type->canonical() : nullptr;
+    if (element_canon != nullptr && element_canon->has_user_destructor()) {
+        return false; // moving out of a user Drop is never accepted
+    }
+
+    auto* element_io = element->as_index_op_unsafe();
+    Value* immediate = unwrap(element_io->parent_val);
+    MIRDropElementRef ref;
+    if (immediate != nullptr &&
+        immediate->val_kind() == ValueKind::IndexOperator) {
+        auto* parent_io = immediate->as_index_op_unsafe();
+        std::vector<uint64_t> prefix;
+        Value* before = unwrap(parent_io->parent_val);
+        bool constants = true;
+        while (before != nullptr &&
+               before->val_kind() == ValueKind::IndexOperator) {
+            auto* pio = before->as_index_op_unsafe();
+            if (pio->idx == nullptr ||
+                pio->idx->val_kind() != ValueKind::IntN) {
+                constants = false;
+                break;
+            }
+            prefix.push_back(
+                pio->idx->as_int_num_value_unsafe()->get_num_value()
+            );
+            before = unwrap(pio->parent_val);
+        }
+        if (!constants) return false;
+        std::reverse(prefix.begin(), prefix.end());
+
+        ValueId outer = result.base_index_value;
+        if (outer == MIR_INVALID_ID) return false;
+        ValueId inner = dynamic_index;
+        if (inner == MIR_INVALID_ID) {
+            const TypeId u64 = types_.u64_type();
+            inner = builder_->const_int(
+                u64, module_.constants.add_int(u64, index)
+            );
+        }
+        ref = drop_flag_for_two_dynamic_indices(
+            base, element_path, prefix, outer, inner
+        );
+        if (!ref.valid() || !ref.flat_template ||
+            ref.template_node == nullptr ||
+            ref.dynamic_outer == MIR_INVALID_ID ||
+            ref.dynamic_index == MIR_INVALID_ID) {
+            return false;
+        }
+    } else {
+        if (dynamic_index != MIR_INVALID_ID) {
+            ref = drop_flag_for_indices_dynamic(
+                base, element_path, {}, dynamic_index
+            );
+        } else {
+            ref = drop_flag_for_indices(
+                base, element_path, {index}
+            );
+        }
+        if (!ref.valid() || ref.template_node == nullptr ||
+            ref.runtime_rows != nullptr || ref.whole_children) {
+            return false;
+        }
+    }
+
+    std::function<MIRDropField*(std::vector<MIRDropField>&)> find_leaf =
+        [&](std::vector<MIRDropField>& fields) -> MIRDropField* {
+            for (auto& field : fields) {
+                if (field.flag_array != MIR_INVALID_ID &&
+                    field.flat_path.size() == suffix.size()) {
+                    bool match = true;
+                    for (size_t i = 0; i < suffix.size(); ++i) {
+                        const auto& step = field.flat_path[i];
+                        if (step.array_index != MIR_INVALID_ID ||
+                            std::string(step.name.data(), step.name.size()) !=
+                                suffix[i]) {
+                            match = false;
+                            break;
+                        }
+                    }
+                    if (match) return &field;
+                }
+                if (!field.children.empty()) {
+                    if (MIRDropField* nested = find_leaf(field.children)) {
+                        return nested;
+                    }
+                }
+            }
+            return nullptr;
+        };
+    MIRDropField* leaf = find_leaf(ref.template_node->children);
+    if (leaf == nullptr) return false;
+
+    const TypeId u32 = types_.u32_type();
+    ValueId flat = MIR_INVALID_ID;
+    if (ref.flat_template) {
+        const ConstantId mul_op = module_.constants.add_int(
+            MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Mul)
+        );
+        const ConstantId add_op = module_.constants.add_int(
+            MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Add)
+        );
+        const ValueId stride = builder_->const_int(
+            u32, module_.constants.add_int(u32, ref.flat_inner_count)
+        );
+        const ValueId outer32 = builder_->cast(ref.dynamic_outer, u32);
+        const ValueId inner32 = builder_->cast(ref.dynamic_index, u32);
+        flat = builder_->binary(
+            builder_->binary(outer32, stride, mul_op, u32),
+            inner32, add_op, u32
+        );
+    } else if (ref.dynamic_index != MIR_INVALID_ID) {
+        flat = builder_->cast(ref.dynamic_index, u32);
+    } else if (ref.template_flag_index_const != MIR_INVALID_ID) {
+        flat = builder_->const_int(
+            u32, module_.constants.add_int(
+                u32, ref.template_flag_index_const
+            )
+        );
+    } else {
+        flat = builder_->const_int(
+            u32, module_.constants.add_int(u32, ref.template_index)
+        );
+    }
+    MIRDropFlagRef flag =
+        flag_array_ref_value(leaf->flag_array, flat);
+    if (!flag.valid()) return false;
+    const TypeId bool_t = types_.bool_type();
+    const ValueId live = flag.place != MIR_INVALID_ID
+                             ? builder_->load(flag.place, bool_t)
+                             : builder_->load_indirect(flag.address, bool_t);
+    emit_abort_unless(live, "__chc_uninit_fail");
+    const ValueId false_value = builder_->const_bool(
+        bool_t, module_.constants.add_bool(bool_t, false)
+    );
+    builder_->store_indirect(flag.address, false_value);
+    if (result.kind == MIRExprKind::Address &&
+        result.id != MIR_INVALID_ID &&
+        result.id < builder_->function().values.size()) {
+        builder_->function().values[result.id].flags |= VF_INIT_CHECKED;
+    }
+    builder_->emit(MIROpcode::MoveOut, MIR_NULL,
+                   {MIROperand::value(result.id, result.type)});
+    return true;
+}
+
 bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
                                   std::string& error) {
     // A fixed-array element move (`arr[0]`) is safe only when the array is an
@@ -6392,6 +6636,12 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
                         "array is supported";
                 return false;
             }
+            return true;
+        }
+    }
+    {
+        std::string indexed_error;
+        if (mark_indexed_field_moved(value, result, indexed_error)) {
             return true;
         }
     }
@@ -6993,6 +7243,14 @@ MIRExprResult MIRLowerer::lower_member_chain(Value* const* values, size_t count,
         first.kind == MIRExprKind::Address &&
         first.id < builder_->function().values.size() &&
         (builder_->function().values[first.id].flags & VF_INIT_CHECKED) != 0;
+    // A field selected from a runtime-indexed array element keeps the lowered
+    // element indices so a field move can resolve the element's drop flags.
+    auto carry_indices = [&](MIRExprResult r) {
+        r.index_value = first.index_value;
+        r.base_index_value = first.base_index_value;
+        r.base_outer_index_value = first.base_outer_index_value;
+        return r;
+    };
     // A scalar read through a runtime-selected element checks the element's
     // liveness first. The derived field address carries VF_INIT_CHECKED so the
     // MIR move checker knows the read is guarded.
@@ -7045,7 +7303,7 @@ MIRExprResult MIRLowerer::lower_member_chain(Value* const* values, size_t count,
                             VF_INIT_CHECKED;
                     }
                     if (base_is_call) maybe_register_call_temp(values[0], first);
-                    return MIRExprResult::address(faddr, ft);
+                    return carry_indices(MIRExprResult::address(faddr, ft));
                 }
                 if (!ensure_read_checked(false)) return MIRExprResult::error();
                 if (base_checked) {
@@ -7055,11 +7313,11 @@ MIRExprResult MIRLowerer::lower_member_chain(Value* const* values, size_t count,
                         VF_INIT_CHECKED;
                     const ValueId lv = builder_->load_indirect(faddr, ft);
                     if (base_is_call) destroy_call_temp(values[0], first);
-                    return MIRExprResult::value(lv, ft);
+                    return carry_indices(MIRExprResult::value(lv, ft));
                 }
                 const ValueId lv = builder_->field_load(cur_place, fc, ft);
                 if (base_is_call) destroy_call_temp(values[0], first);
-                return MIRExprResult::value(lv, ft);
+                return carry_indices(MIRExprResult::value(lv, ft));
             }
             const ValueId faddr = builder_->field_addr(cur_place, fc, ft);
             if (base_checked) {
@@ -7082,7 +7340,7 @@ MIRExprResult MIRLowerer::lower_member_chain(Value* const* values, size_t count,
                             VF_INIT_CHECKED;
                     }
                     if (base_is_call) maybe_register_call_temp(values[0], first);
-                    return MIRExprResult::address(faddr, ft);
+                    return carry_indices(MIRExprResult::address(faddr, ft));
                 }
                 if (!ensure_read_checked(false)) return MIRExprResult::error();
                 if (base_checked) {
@@ -7092,12 +7350,12 @@ MIRExprResult MIRLowerer::lower_member_chain(Value* const* values, size_t count,
                         VF_INIT_CHECKED;
                     const ValueId lv = builder_->load_indirect(faddr, ft);
                     if (base_is_call) destroy_call_temp(values[0], first);
-                    return MIRExprResult::value(lv, ft);
+                    return carry_indices(MIRExprResult::value(lv, ft));
                 }
                 const ValueId lv =
                     builder_->field_load_ptr(cur_ptr, fc, ft);
                 if (base_is_call) destroy_call_temp(values[0], first);
-                return MIRExprResult::value(lv, ft);
+                return carry_indices(MIRExprResult::value(lv, ft));
             }
             const ValueId faddr = builder_->field_addr_ptr(cur_ptr, fc, ft);
             if (base_checked) {

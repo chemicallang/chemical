@@ -54,7 +54,7 @@ Latest measured baseline:
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `865/865` |
-| TCC/LLVM safety | `170/170` |
+| TCC/LLVM safety | `173/173` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -541,8 +541,9 @@ memory safety.
     flat inner blocks and mixed constant/runtime chains; a generated inner array
     above 1024 under a large outer/middle template uses one flat flag block per
     destructible leaf with a recorded field/array-element path, so nested
-    structs and expanded array fields are covered; moving a single field out of
-    a runtime-indexed element remains the general `SAFE-MOVE-004` limitation.
+    structs and expanded array fields are covered; field moves out of a
+    1D-large or 2D both-large flat runtime-selected element clear only the
+    selected leaf, while 3D/mixed-template field moves remain `SAFE-MOVE-004`.
     Generated-glue 2D arrays support
     small/small, outer-small/inner-large, outer-large/inner-small, and
     both-large layouts (the largest inner dimension uses a flat block), with

@@ -54,7 +54,7 @@ Latest measured baseline:
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `865/865` |
-| TCC/LLVM safety | `176/176` |
+| TCC/LLVM safety | `185/185` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -542,10 +542,10 @@ memory safety.
     above 1024 under a large outer/middle template uses one flat flag block per
     destructible leaf with a recorded field/array-element path, so nested
     structs and expanded array fields are covered; field moves out of a
-    1D-large, 2D both-large flat, or flat compressed 3D middle/outer-large
-    runtime-selected element clear only the selected leaf. Expanded-row
-    compressed templates, mixed outer/inner templates, and small expanded rows
-    remain `SAFE-MOVE-004` for field moves.
+    runtime-selected element work across 1D arrays, 2D small/mixed/both-large
+    layouts, compressed 3D flat/expanded-row/inner-large templates, and
+    arbitrary expanded runtime trees. User-destructor elements, `const`/
+    borrowed roots, and reference/pointer bases still fail closed.
     Generated-glue 2D arrays support
     small/small, outer-small/inner-large, outer-large/inner-small, and
     both-large layouts (the largest inner dimension uses a flat block), with

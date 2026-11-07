@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.76)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.77)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1683,13 +1683,13 @@ new number as the honest baseline, not a compiler regression.
     structs and expanded fixed-array fields are supported, including the
     single-leaf shape. Whole-element writes, reads, moves, and uninitialized
     checks select these leaves path-aware. Moving a single field out of a
-    runtime-indexed generated-glue element is supported for a 1D large array, a
-    2D both-large flat template, and the flat compressed 3D middle-large and
-    outer-large templates: the lowering checks the selected leaf, clears only
-    that leaf's flag, and emits `MoveOut`. Runtime-indexed layouts whose leaf
-    flags live in an expanded row tree (compressed expanded-row templates,
-    mixed outer/inner templates, small expanded rows) still reject with
-    `SAFE-MOVE-004`. A scalar read
+    runtime-indexed generated-glue element is supported for 1D arrays, 2D
+    small/mixed/both-large layouts, compressed 3D flat and expanded-row
+    templates (middle/outer/inner-large), and arbitrary expanded runtime trees
+    (`[2][2][2]`, 4D): the lowering branches the runtime row/tree, checks the
+    selected leaf, clears only that leaf's flag, and emits `MoveOut`. Field
+    moves from a user-destructor element, a `const`/borrowed root, or a
+    reference/pointer base remain `SAFE-MOVE-004`. A scalar read
     through a
     runtime-selected direct element (`arr[i].field`, `arr[i][j].field`, or a
     field array) checks the element flag first and marks the derived field
@@ -3370,3 +3370,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.74 (2026-11-07): runtime-checked reads/moves from partially initialized arrays. A constant-index write that leaves an array `PartiallyInitialized` no longer forces a later runtime-index read/move to fail statically. The lowering still proves the selected element live (direct element flag, runtime row, or every generated-glue leaf); it marks the derived address `VF_INIT_CHECKED`, and `MIRMoveCheck` accepts a guarded `MoveOut` from `PartiallyInitialized`, `PartiallyMoved`, or `Maybe` while still rejecting `Moved`/`Destroyed`. A runtime-selected element that was never initialized aborts through `__chc_uninit_fail`; whole-array reads/moves still require full static initialization. Added 2D both-large and compressed 3D success tests plus a compressed uninitialized-dynamic-move abort. Safety `170/170`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v5.75 (2026-11-07): field moves from runtime-indexed generated elements. A destructor-bearing field can now move out of a runtime-selected element of a 1D large generated-glue array (`var leaf = arr[i].inner.leaf`) and a 2D both-large flat template (`var leaf = arr[i][j].inner.leaf`). The lowering resolves the element's leaf path, checks that leaf live (`__chc_uninit_fail`), clears exactly that leaf flag, marks the field address `VF_INIT_CHECKED`, and emits `MoveOut`; the array's remaining leaves stay live and are dropped normally. The field lowering carries the element indices into the field result so the selector can re-resolve. Other runtime-indexed layouts (3D compressed, mixed outer/inner templates, small expanded rows) still reject field moves with `SAFE-MOVE-004` rather than guessing. Added 1D and 2D drop-count tests plus a 1D uninitialized-field abort. Safety `173/173`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v5.76 (2026-11-07): compressed 3D field moves. Field moves now work for the flat compressed 3D middle-large (`[1][65][1200]`) and outer-large (`[65][1][1200]`) generated-glue templates. The lowering branches the compressed runtime row, finds the leaf by the recorded field path, checks it live, clears only that leaf, marks the field address `VF_INIT_CHECKED`, and emits `MoveOut`. The middle-large flag block is indexed by the middle index while the row is selected by the outer index; the outer-large block is indexed by the outer index and selected by the middle index. Expanded-row compressed templates, mixed outer/inner templates, and small expanded rows still reject field moves with `SAFE-MOVE-004`. Added middle/outer drop-count tests and a middle-large uninitialized-field abort. Safety `176/176`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
+*Revision note v5.77 (2026-11-07): remaining runtime-indexed field-move layouts. Field moves now cover 2D small dynamic/constant rows, outer-large/inner-small and outer-small/inner-large templates, compressed 3D expanded-row templates for middle/outer/inner-large, the 3D expanded runtime tree (`[2][2][2]`), and 4D expanded trees. The lowering adds a generic row/tree leaf resolver: it branches the relevant runtime index levels, finds the destructible leaf by field path, checks the leaf's scalar or indexed flag live, clears only that flag, marks the field address `VF_INIT_CHECKED`, and emits `MoveOut`. A 2D dynamic fallback uses the runtime-tree selector when the two-index selector cannot represent a small generated row. Field moves from user-destructor elements, `const`/borrowed roots, and reference/pointer bases still fail closed with `SAFE-MOVE-004`. Added five runtime tests (middle/outer/inner-large expanded rows, 2D dynamic small rows, 3D expanded tree) plus the existing row-abort coverage. Safety `185/185`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.

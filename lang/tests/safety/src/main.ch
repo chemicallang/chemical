@@ -1855,7 +1855,7 @@ func small_direct_two_dimensional_full_flag_table(env : &mut TestEnv) {
 @test
 func small_generated_two_dimensional_large_tree(env : &mut TestEnv) {
     safety_init_work_dir()
-    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [64][64]S\n            var i = 63\n            var j = 63\n            arr[i][j] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n            if(arr[i][j].a.id != 7) { return 10 }\n            var moved = arr[i][j]\n            if(moved.a.id != 7) { return 11 }\n        }\n    }\n    return drops\n}\n"
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [32][32]S\n            var i = 31\n            var j = 31\n            arr[i][j] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n            if(arr[i][j].a.id != 7) { return 10 }\n            var moved = arr[i][j]\n            if(moved.a.id != 7) { return 11 }\n        }\n    }\n    return drops\n}\n"
     var out = string()
     var rc = safety_compile_and_run(env, "small_generated_two_dimensional_large_tree", ch, &mut out)
     if(rc != 1) {
@@ -2090,4 +2090,99 @@ func field_move_from_middle_large_uninitialized_aborts(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "using std::string\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { }\n}\nstruct Inner {\n    var leaf : Leaf\n    var tag : int\n}\nstruct Elem {\n    var inner : Inner\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [1][65][1200]Elem\n        arr[0][0][0] = Elem { inner : Inner { leaf : Leaf { id : 7 }, tag : 9 }, b : string(\"x\") }\n        var j = 64\n        var k = 1199\n        var leaf = arr[0][j][k].inner.leaf\n        return leaf.id\n    }\n}\n"
     expect_runtime_panic(env, "field_move_from_middle_large_uninitialized_aborts", ch)
+}
+
+@test
+func field_move_from_outer_large_inner_small_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Inner { var leaf : Leaf; var tag : int }\nstruct Elem { var inner : Inner; var b : string }\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [65][2]Elem\n            var i = 64\n            var j = 1\n            arr[i][j] = Elem { inner : Inner { leaf : Leaf { id : 7 }, tag : 9 }, b : string(\"x\") }\n            var leaf = arr[i][j].inner.leaf\n            if(leaf.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "field_move_from_outer_large_inner_small_element", ch, &mut out)
+    if(rc != 1) {
+        env.error("outer-large/inner-small field move failed")
+    }
+}
+
+@test
+func field_move_from_outer_small_inner_large_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Inner { var leaf : Leaf; var tag : int }\nstruct Elem { var inner : Inner; var b : string }\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [2][1200]Elem\n            var i = 1\n            var j = 1199\n            arr[i][j] = Elem { inner : Inner { leaf : Leaf { id : 7 }, tag : 9 }, b : string(\"x\") }\n            var leaf = arr[i][j].inner.leaf\n            if(leaf.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "field_move_from_outer_small_inner_large_element", ch, &mut out)
+    if(rc != 1) {
+        env.error("outer-small/inner-large field move failed")
+    }
+}
+
+@test
+func field_move_from_small_two_dimensional_constant_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Inner { var leaf : Leaf; var tag : int }\nstruct Elem { var inner : Inner; var b : string }\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [64][64]Elem\n            arr[63][63] = Elem { inner : Inner { leaf : Leaf { id : 7 }, tag : 9 }, b : string(\"x\") }\n            var leaf = arr[63][63].inner.leaf\n            if(leaf.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "field_move_from_small_two_dimensional_constant_element", ch, &mut out)
+    if(rc != 1) {
+        env.error("small 2D constant field move failed")
+    }
+}
+
+@test
+func field_move_from_two_dimensional_uninitialized_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { }\n}\nstruct Inner { var leaf : Leaf; var tag : int }\nstruct Elem { var inner : Inner; var b : string }\npublic func main() : int {\n    unsafe {\n        var arr : [65][2]Elem\n        arr[0][0] = Elem { inner : Inner { leaf : Leaf { id : 7 }, tag : 9 }, b : string(\"x\") }\n        var i = 64\n        var j = 1\n        var leaf = arr[i][j].inner.leaf\n        return leaf.id\n    }\n}\n"
+    expect_runtime_panic(env, "field_move_from_two_dimensional_uninitialized_aborts", ch)
+}
+
+@test
+func field_move_from_middle_large_expanded_rows(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Inner { var leaf : Leaf; var tag : int }\nstruct Elem { var inner : Inner; var b : string }\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [1][100][2]Elem\n            arr[0][99][1] = Elem { inner : Inner { leaf : Leaf { id : 7 }, tag : 9 }, b : string(\"x\") }\n            var leaf = arr[0][99][1].inner.leaf\n            if(leaf.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "field_move_from_middle_large_expanded_rows", ch, &mut out)
+    if(rc != 1) {
+        env.error("middle-large expanded-row field move failed")
+    }
+}
+
+@test
+func field_move_from_outer_large_expanded_rows(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Inner { var leaf : Leaf; var tag : int }\nstruct Elem { var inner : Inner; var b : string }\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [65][2][2]Elem\n            arr[64][1][1] = Elem { inner : Inner { leaf : Leaf { id : 7 }, tag : 9 }, b : string(\"x\") }\n            var leaf = arr[64][1][1].inner.leaf\n            if(leaf.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "field_move_from_outer_large_expanded_rows", ch, &mut out)
+    if(rc != 1) {
+        env.error("outer-large expanded-row field move failed")
+    }
+}
+
+@test
+func field_move_from_inner_large_expanded_rows(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Inner { var leaf : Leaf; var tag : int }\nstruct Elem { var inner : Inner; var b : string }\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [1][2][100]Elem\n            arr[0][1][99] = Elem { inner : Inner { leaf : Leaf { id : 7 }, tag : 9 }, b : string(\"x\") }\n            var leaf = arr[0][1][99].inner.leaf\n            if(leaf.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "field_move_from_inner_large_expanded_rows", ch, &mut out)
+    if(rc != 1) {
+        env.error("inner-large expanded-row field move failed")
+    }
+}
+
+@test
+func field_move_from_two_dimensional_dynamic_small_rows(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Inner { var leaf : Leaf; var tag : int }\nstruct Elem { var inner : Inner; var b : string }\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [64][64]Elem\n            var i = 63\n            var j = 63\n            arr[i][j] = Elem { inner : Inner { leaf : Leaf { id : 7 }, tag : 9 }, b : string(\"x\") }\n            var leaf = arr[i][j].inner.leaf\n            if(leaf.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "field_move_from_two_dimensional_dynamic_small_rows", ch, &mut out)
+    if(rc != 1) {
+        env.error("2D dynamic small-row field move failed")
+    }
+}
+
+@test
+func field_move_from_three_dimensional_expanded_tree(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Inner { var leaf : Leaf; var tag : int }\nstruct Elem { var inner : Inner; var b : string }\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [2][2][2]Elem\n            var i = 1\n            var j = 1\n            var k = 1\n            arr[i][j][k] = Elem { inner : Inner { leaf : Leaf { id : 7 }, tag : 9 }, b : string(\"x\") }\n            var leaf = arr[i][j][k].inner.leaf\n            if(leaf.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "field_move_from_three_dimensional_expanded_tree", ch, &mut out)
+    if(rc != 1) {
+        env.error("3D expanded-tree field move failed")
+    }
 }

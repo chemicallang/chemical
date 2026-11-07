@@ -1162,7 +1162,24 @@ private:
                                   std::string& error);
     MIRDropField* find_flat_leaf(std::vector<MIRDropField>& fields,
                                  const std::vector<std::string>& suffix);
+    MIRDropField* find_tree_leaf(std::vector<MIRDropField>& fields,
+                                 const std::vector<std::string>& suffix);
+    bool clear_tree_leaf(MIRDropField* leaf, ValueId flag_index,
+                         MIRExprResult result);
+    bool clear_rows_leaf(std::vector<MIRDropField>& rows,
+                         ValueId branch_index,
+                         const std::vector<std::string>& suffix,
+                         ValueId flag_index, MIRExprResult result);
+    bool clear_two_rows_leaf(MIRDropElementRef& ref,
+                             const std::vector<std::string>& suffix,
+                             MIRExprResult result);
+    bool clear_runtime_tree_leaf(MIRDropElementRef& ref,
+                                 const std::vector<std::string>& suffix,
+                                 MIRExprResult result);
     bool clear_three_flat_leaf(MIRDropElementRef& ref,
+                               const std::vector<std::string>& suffix,
+                               MIRExprResult result);
+    bool clear_three_rows_leaf(MIRDropElementRef& ref,
                                const std::vector<std::string>& suffix,
                                MIRExprResult result);
     /** Resolve an AST member chain to (base place, field path, field type). */

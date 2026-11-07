@@ -1355,6 +1355,46 @@ func non_copy_array_pattern_rest_keeps_source_owned(env : &mut TestEnv) {
 }
 
 @test
+func non_copy_array_pattern_rest_clears_the_moved_source_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    // A rest pattern's trailing binding uses the resolved source index, not
+    // its syntactic position. Clearing the wrong drop flag leaves the moved
+    // element live (double drop) and leaks the element at that position.
+    var ch = "@thread_local var c1 : int = 0\n@thread_local var c2 : int = 0\n@thread_local var c3 : int = 0\n@thread_local var c4 : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) {\n        if(self.id == 1) { c1 = c1 + 1 }\n        if(self.id == 2) { c2 = c2 + 1 }\n        if(self.id == 3) { c3 = c3 + 1 }\n        if(self.id == 4) { c4 = c4 + 1 }\n    }\n}\npublic func main() : int {\n    {\n        var values : [4]Tracker = [Tracker { id : 1 }, Tracker { id : 2 }, Tracker { id : 3 }, Tracker { id : 4 }]\n        {\n            var [first, .., last] = values\n            if(first.id != 1 || last.id != 4) { return 10 }\n        }\n    }\n    if(c1 != 1 || c2 != 1 || c3 != 1 || c4 != 1) { return 20 }\n    return 0\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "array_pattern_non_copy_rest_exact", ch, &mut out)
+    if(rc != 0) {
+        env.error("array rest pattern cleared the wrong source drop flag")
+    }
+}
+
+@test
+func non_copy_large_array_rest_clears_the_moved_source_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    // A large direct array uses a flat element-flag block. The trailing rest
+    // binding must clear the resolved index, not its syntactic position.
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var values : [65]Tracker\n        values[64] = Tracker { id : 2 }\n        {\n            var [.., last] = values\n            if(last.id != 2) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "array_pattern_non_copy_large_rest", ch, &mut out)
+    if(rc != 1) {
+        env.error("large array rest pattern double-dropped the moved trailing element")
+    }
+}
+
+@test
+func non_copy_large_template_rest_clears_the_moved_source_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    // A large generated-glue array uses an element template; its trailing
+    // rest binding must clear the same resolved source index.
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var t : Tracker\n    var x : int\n}\npublic func main() : int {\n    {\n        var values : [65]S\n        values[64] = S { t : Tracker { id : 2 }, x : 0 }\n        {\n            var [.., last] = values\n            if(last.t.id != 2) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "array_pattern_non_copy_large_template_rest", ch, &mut out)
+    if(rc != 1) {
+        env.error("large template rest pattern double-dropped the moved trailing element")
+    }
+}
+
+@test
 func non_copy_array_pattern_moves_elements(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var values : [2]Tracker = [Tracker { id : 1 }, Tracker { id : 2 }]\n        {\n            var [a, b] = values\n            if(a.id != 1 || b.id != 2) { return 10 }\n        }\n    }\n    return drops\n}\n"

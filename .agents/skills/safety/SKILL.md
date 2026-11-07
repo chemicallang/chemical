@@ -54,7 +54,7 @@ Latest measured baseline:
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `868/868` |
-| TCC/LLVM safety | `185/185` |
+| TCC/LLVM safety | `188/188` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -506,8 +506,11 @@ memory safety.
     double-dropping. Constant-index
     element moves now clear the owning flag; non-Copy destructuring of an
     owned local array uses those moves, including arbitrary-depth constant
-    fixed-array patterns whose generated flag tree is resolvable; unsupported
-    large/template or borrowed shapes still reject. Field moves from a materialized
+    fixed-array patterns whose generated flag tree is resolvable and top-level
+    large/template arrays. A flat rest pattern clears the resolved source
+    index, not the binding's syntactic position, so `[.., last]` cannot leak
+    one element and double-drop the moved one; unsupported nested/borrowed
+    shapes still reject. Field moves from a materialized
     temporary/expression are accepted by extending that temporary to block
     scope with field flags. Array fields of mutable locals/async frames use
     field-path element flags; temporary aggregate field arrays and direct

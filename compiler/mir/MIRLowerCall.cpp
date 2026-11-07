@@ -8659,14 +8659,18 @@ bool MIRLowerer::lower_array_pattern_node(PatternMatchExpr* pm,
                 destructor_symbol(id->known_type()) != MIR_INVALID_ID;
             if (needs_drop) {
                 std::vector<uint64_t> indices;
-                if (id->array_path.empty()) {
+                if (id->array_path.size() > 1) {
+                    // Nested patterns record the full element path. A flat
+                    // pattern's `array_path` is only its syntactic position;
+                    // `array_index` is the resolved source index, which differs
+                    // after a `..` rest (for example `[.., last]`).
+                    indices.assign(id->array_path.begin(), id->array_path.end());
+                } else {
                     if (id->array_index == 0xFFFFFFFFu) {
                         error = "SAFE-MOVE-004: array pattern element has no constant index";
                         return false;
                     }
                     indices.push_back(id->array_index);
-                } else {
-                    indices.assign(id->array_path.begin(), id->array_path.end());
                 }
                 MIRDropElementRef ref =
                     drop_flag_for_indices(move_base, {}, indices);

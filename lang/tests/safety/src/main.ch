@@ -1964,3 +1964,72 @@ func generated_flat_inner_outer_large_uninitialized_aborts(env : &mut TestEnv) {
     var ch = "using std::string\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [65][1][1200]S\n        var i = 0\n        var k = 0\n        arr[i][0][k] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n        var x = 64\n        var y = 1199\n        var moved = arr[x][0][y]\n        return moved.a.id\n    }\n}\n"
     expect_runtime_panic(env, "generated_flat_inner_outer_large_uninit", ch)
 }
+
+@test
+func generated_flat_inner_nested_single_leaf(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Inner {\n    var s : string\n}\nstruct Elem {\n    var inner : Inner\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [65][1200]Elem\n            var i = 64\n            var j = 1199\n            arr[i][j] = Elem { inner : Inner { s : string(\"x\") } }\n            if(arr[i][j].inner.s.to_view().size() != 1) { return 10 }\n            var moved = arr[i][j]\n            if(moved.inner.s.to_view().size() != 1) { return 11 }\n        }\n    }\n    return 0\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "generated_flat_inner_nested_single_leaf", ch, &mut out)
+    if(rc != 0) {
+        env.error("generated 2D flat inner nested single leaf failed")
+    }
+}
+
+@test
+func generated_flat_inner_nested_array_middle_large(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Inner {\n    var items : [2]Leaf\n    var tag : int\n}\nstruct Elem {\n    var inner : Inner\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [1][65][1200]Elem\n            var j = 64\n            var k = 1199\n            arr[0][j][k] = Elem { inner : Inner { items : [Leaf { id : 7 }, Leaf { id : 8 }], tag : 9 }, b : string(\"x\") }\n            if(arr[0][j][k].inner.items[0].id != 7) { return 10 }\n            if(arr[0][j][k].inner.items[1].id != 8) { return 12 }\n            if(arr[0][j][k].inner.tag != 9) { return 13 }\n            var moved = arr[0][j][k]\n            if(moved.inner.items[1].id != 8) { return 11 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "generated_flat_inner_nested_array_middle_large", ch, &mut out)
+    if(rc != 2) {
+        env.error("generated 3D middle-large flat inner nested array failed")
+    }
+}
+
+@test
+func generated_flat_inner_deep_struct_outer_large(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct A { var leaf : Leaf }\nstruct B { var a : A; var tag : int }\nstruct Elem { var b : B; var s : string }\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [65][1][1200]Elem\n            var i = 64\n            var k = 1199\n            arr[i][0][k] = Elem { b : B { a : A { leaf : Leaf { id : 7 } }, tag : 9 }, s : string(\"x\") }\n            if(arr[i][0][k].b.a.leaf.id != 7) { return 10 }\n            if(arr[i][0][k].b.tag != 9) { return 12 }\n            var moved = arr[i][0][k]\n            if(moved.b.a.leaf.id != 7) { return 11 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "generated_flat_inner_deep_struct_outer_large", ch, &mut out)
+    if(rc != 1) {
+        env.error("generated 3D outer-large flat inner deep struct failed")
+    }
+}
+
+@test
+func generated_flat_inner_nested_path_uninitialized_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { }\n}\nstruct Inner {\n    var items : [2]Leaf\n    var tag : int\n}\nstruct Elem {\n    var inner : Inner\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [65][1][1200]Elem\n        var i = 0\n        var k = 0\n        arr[i][0][k] = Elem { inner : Inner { items : [Leaf { id : 7 }, Leaf { id : 8 }], tag : 9 }, b : string(\"x\") }\n        var x = 64\n        var y = 1199\n        var moved = arr[x][0][y]\n        return moved.inner.items[0].id\n    }\n}\n"
+    expect_runtime_panic(env, "generated_flat_inner_nested_path_uninitialized_aborts", ch)
+}
+
+@test
+func partial_constant_write_dynamic_generated_move(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [65][1200]S\n            arr[0][0] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n            var i = 0\n            var j = 0\n            var moved = arr[i][j]\n            if(moved.a.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "partial_constant_write_dynamic_generated_move", ch, &mut out)
+    if(rc != 1) {
+        env.error("constant write then dynamic generated-glue move failed")
+    }
+}
+
+@test
+func partial_constant_write_dynamic_compressed_move(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [65][1][1200]S\n            arr[0][0][0] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n            var i = 0\n            var k = 0\n            var moved = arr[i][0][k]\n            if(moved.a.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "partial_constant_write_dynamic_compressed_move", ch, &mut out)
+    if(rc != 1) {
+        env.error("constant write then compressed dynamic move failed")
+    }
+}
+
+@test
+func partial_constant_write_dynamic_uninitialized_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { }\n}\nstruct S {\n    var a : Leaf\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [65][1][1200]S\n        arr[0][0][0] = S { a : Leaf { id : 7 }, b : string(\"x\") }\n        var i = 1\n        var k = 1\n        var moved = arr[i][0][k]\n        return moved.a.id\n    }\n}\n"
+    expect_runtime_panic(env, "partial_constant_write_dynamic_uninitialized_aborts", ch)
+}

@@ -756,6 +756,13 @@ private:
     void destroy_call_temps(std::string& error);
     void destroy_call_temps_from(size_t mark, std::string& error);
     SymbolId destructor_symbol(BaseType* type);
+    /** One step from a generated element to a destructible leaf. */
+    struct MIRDropPathStep {
+        chem::string_view name;
+        BaseType* type = nullptr;
+        // MIR_INVALID_ID for a struct field; the array element index otherwise.
+        uint32_t array_index = MIR_INVALID_ID;
+    };
     struct MIRDropField {
         chem::string_view name;
         BaseType* type = nullptr;
@@ -784,10 +791,12 @@ private:
         // `outer_count * inner_count` slots and `inner_count` elements per
         // outer element.
         uint64_t inner_count = 0;
-        // For a direct leaf flag array that is flat over a generated element's
-        // inner dimension: the element type. Scope destruction uses it to drop
-        // every inner element's leaf.
+        // For a leaf flag array that is flat over a generated element's inner
+        // dimension: the element type and the field/index path from that
+        // element to the leaf. Scope destruction uses them to drop every inner
+        // element's leaf, including nested structs and expanded array fields.
         BaseType* flat_element_type = nullptr;
+        std::vector<MIRDropPathStep> flat_path;
         // Nested owned fields/elements (generated-glue structs and arrays).
         std::vector<MIRDropField> children;
     };
@@ -1085,12 +1094,14 @@ private:
     void destroy_flag_array_from(ValueId array_ptr, BaseType* element_type,
                                  PlaceId flags, ValueId base_index,
                                  uint64_t count);
-    /** Drop one direct leaf field across `count` flat inner elements. */
-    void destroy_flat_leaf_array_from(ValueId array_ptr,
-                                      BaseType* element_type,
-                                      const chem::string_view& field_name,
-                                      BaseType* leaf_type, PlaceId flags,
-                                      ValueId base_index, uint64_t count);
+    /** Address a leaf through a field/array-element path from `base`. */
+    ValueId flat_path_address(ValueId base,
+                              const std::vector<MIRDropPathStep>& path);
+    /** Drop one leaf path across `count` flat inner elements. */
+    void destroy_flat_leaf_array_from(
+        ValueId array_ptr, BaseType* element_type,
+        const std::vector<MIRDropPathStep>& path, BaseType* leaf_type,
+        PlaceId flags, ValueId base_index, uint64_t count);
     /** Whether a generated-glue element can use a per-leaf flag template. */
     bool can_build_element_template(BaseType* type, int depth = 0);
     /** Destroy the live leaves of one template element. */

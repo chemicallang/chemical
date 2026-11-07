@@ -579,14 +579,23 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
                         (module.types.types[element_type].flags &
                          TF_USER_DESTRUCTOR) != 0;
                     // A directly destructible element has one runtime flag;
-                    // lowering checks it before the move. Fully initialized
-                    // template/flag-array sources keep their existing static
-                    // proof. A partial generated-glue source stays rejected.
+                    // lowering checks it before the move. A generated-glue
+                    // element can carry the same guarantee through a checked
+                    // leaf address (VF_INIT_CHECKED) after
+                    // emit_dynamic_element_read_check proved every leaf live.
+                    // Fully initialized template/flag-array sources keep their
+                    // existing static proof; moved/destroyed sources stay
+                    // rejected.
+                    const bool guarded =
+                        ops[0].id < fn.values.size() &&
+                        (fn.values[ops[0].id].flags & VF_INIT_CHECKED) != 0;
+                    const bool partial_ok =
+                        state == MIRMoveState::PartiallyMoved ||
+                        state == MIRMoveState::PartiallyInitialized ||
+                        state == MIRMoveState::Maybe;
                     if (state != MIRMoveState::Initialized &&
-                        (!direct ||
-                         (state != MIRMoveState::PartiallyMoved &&
-                          state != MIRMoveState::PartiallyInitialized &&
-                          state != MIRMoveState::Maybe))) {
+                        !(guarded && partial_ok) &&
+                        (!direct || !partial_ok)) {
                         report(out, fn, function_index, block, inst_index, path,
                                state, "move from");
                         break;

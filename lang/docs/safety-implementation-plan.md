@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.72)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.74)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1646,9 +1646,10 @@ new number as the honest baseline, not a compiler regression.
     aborts through `__chc_uninit_fail` if it is not live; a wholly uninitialized
     array still rejects with `SAFE-INIT-001`. Small arrays of generated-glue
     elements select the element row at runtime and clear every leaf flag, so a
-    move from a fully initialized small array works. A partially initialized
-    generated-glue array still rejects with `SAFE-MOVE-001` because the runtime
-    check would have to prove every leaf live. A small 2D array of directly
+    move from a fully initialized small array works. A runtime-indexed read or
+    move from a partially initialized generated-glue array is accepted when
+    lowering proves every selected leaf live and marks the address
+    `VF_INIT_CHECKED`; an uninitialized selected element aborts. A small 2D array of directly
     destructible elements supports two runtime indices (`arr[i][j]`), including
     a constant prefix before the pair (`arr[0][i][j]`), through a flat
     pointer table that covers every small/small shape (the 64 x 64 maximum is
@@ -1676,11 +1677,14 @@ new number as the honest baseline, not a compiler regression.
     mixed constant/runtime chains. Middle-large and outer-large rows support
     both expanded inner rows and flat inner blocks; inner-large templates
     support generated leaf flag arrays. A generated inner array above 1024 under
-    a large outer/middle template now uses one flat flag block per **direct
-    leaf field**, with the element type recorded so scope destruction loops the
-    inner elements and drops each leaf. Generated elements whose destructible
-    leaves are nested paths still fall back to the legacy one-flag-per-element
-    block and remain reject-only for per-field selection. A scalar read
+    a large outer/middle template uses one flat flag block per destructible
+    leaf, with the element type and the full field/array-element path recorded
+    so scope destruction loops the inner elements and drops each leaf. Nested
+    structs and expanded fixed-array fields are supported, including the
+    single-leaf shape. Whole-element writes, reads, moves, and uninitialized
+    checks select these leaves path-aware. Moving a single field out of a
+    runtime-indexed element still rejects with `SAFE-MOVE-004` under the general
+    temporary/expression rule. A scalar read
     through a
     runtime-selected direct element (`arr[i].field`, `arr[i][j].field`, or a
     field array) checks the element flag first and marks the derived field
@@ -1710,8 +1714,12 @@ new number as the honest baseline, not a compiler regression.
     tracked. The move
     checker now distinguishes `PartiallyInitialized` from `PartiallyMoved`:
     the former keeps whole-value reads/moves at `SAFE-INIT-001`, while a
-    runtime-indexed move of a directly destructible element can proceed after
-    its flag check. A temporary aggregate field array
+    runtime-indexed read/move can proceed after its runtime check. That covers a
+    constant-index write followed by a runtime-index read/move of a directly
+    destructible element, and a generated-glue element whose lowering proved
+    every selected leaf live and marked the address `VF_INIT_CHECKED`. A
+    runtime-selected element that was not initialized still aborts through
+    `__chc_uninit_fail`. A temporary aggregate field array
     (`make().items[CONST]`) is materialized as a block-scope destructible like a
     temporary field move. A direct temporary array value (`make()[CONST]`) is
     also accepted now that the C backend copies array-valued sret returns with
@@ -2190,7 +2198,7 @@ Async is in scope:
 - `MIRMoveCheck` produces the init/drop plan; elaboration inserts drop flags
   from it, per path, field-wise, variant-aware. No AST heuristic produces a
   flag.
-- No partial moves out of `Drop`; dynamic-index moves are limited to a fully initialized root with a runtime-selectable element flag/template.
+- No partial moves out of `Drop`; dynamic-index reads/moves require a runtime-selectable element flag/template whose lowering proves the selected element live, so the root may be partially initialized or partially moved.
 - Variants track active case; unions are always-initialized storage (unsafe
   access); union fields `ManuallyDrop` or C interop.
 - **Init enforcement lands before move enforcement and before borrow
@@ -3353,3 +3361,5 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.70 (2026-11-06): runtime-tree move/drop closure. Three gaps are closed. (1) Small/small direct 2D arrays now select every shape up to the 64 x 64 scalar-flag maximum (4096 flags); the old 1024-flag cap is gone. (2) Generated-glue 3D arrays with expanded dimensions now support runtime writes, reads, moves, partial moves, and uninitialized-move aborts, including mixed constant/runtime chains such as `arr[i][0][j]` and `arr[0][i][j]`. (3) Expanded small arrays support arbitrary runtime depth: 4D/5D (`arr[i][j][k][l]`) writes, reads, moves, and uninitialized-move aborts work through the same recursive runtime-tree selector. The selector collects the full `IndexAddr` chain from MIR rather than relying on two fixed base indices. Added TCC/LLVM runtime tests for 4D read/write/move and abort, generated 3D read/write/move and abort, generated 3D mixed constants, 64 x 64 direct and generated 2D arrays. Residual 3D gap: a generated-glue array with a large middle or inner dimension still rejects because that level is compressed. Safety `153/153`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v5.71 (2026-11-06/07): compressed 3D generated-glue levels. Generated-glue 3D arrays now select a runtime element when the inner, middle, or outer dimension is large. The new selectors cover inner-large templates, middle-large templates with expanded inner rows or a flat inner block, and outer-large templates with expanded/flat inner rows. Writes, reads, moves, partial moves, mixed constant/runtime chains, and uninitialized-move aborts work for `[1][2][100]S`, `[1][100][2]S`, `[1][100][100]S`, `[65][2][2]S`, `[65][2][100]S`, `[65][100][2]S`, and `[1][2][2000]S`. The pre-existing one-flag-per-element flat representation for a generated inner array above 1024 nested under a large outer/middle template remains reject-only. Added TCC/LLVM runtime tests for inner/middle/both-large/outer-large/flat-inner writes, reads, and moves, plus a compressed uninitialized-move abort. Safety `159/159`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v5.72 (2026-11-07): generated flat inner arrays above 1024. A generated-glue inner array larger than 1024 under a large outer/middle template now builds one flat flag block per direct leaf field instead of one flag per element. Scope destruction loops the flat inner dimension, offsets each element address by the recorded element type, resolves the direct leaf field, and drops exactly the live leaves. The 2D both-large selector recognizes the multi-leaf flat template, so 2D and compressed 3D writes, reads, moves, partial moves, and uninitialized-move aborts work for `[65][1200]S`, `[1][65][1200]S`, and `[65][1][1200]S`. Generated elements with nested destructible leaf paths still use the legacy one-flag-per-element representation and remain reject-only for per-field selection. Added TCC/LLVM runtime tests for both-large 2D, middle-large 3D, outer-large 3D, and an outer-large uninitialized-move abort. Safety `163/163`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
+*Revision note v5.73 (2026-11-07): nested leaf paths for generated flat inner arrays. A generated-glue inner array larger than 1024 under a large outer/middle template now records a `MIRDropPathStep` path from the generated element to every destructible leaf, including nested structs, expanded fixed-array fields, and single-leaf shapes. Scope destruction and element selection navigate that path instead of assuming a direct field, and the 2D/3D compressed selectors distinguish a path step's array index from a top-level template row index. Whole-element writes, reads, moves, partial moves, and uninitialized-move aborts work for nested struct and array shapes under both-large 2D, middle-large 3D, and outer-large 3D layouts. Moving one field out of a runtime-indexed element remains the general `SAFE-MOVE-004` temporary/expression rejection. Added four nested-path runtime tests (single nested leaf, nested array, deep struct, uninitialized abort). Safety `167/167`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
+*Revision note v5.74 (2026-11-07): runtime-checked reads/moves from partially initialized arrays. A constant-index write that leaves an array `PartiallyInitialized` no longer forces a later runtime-index read/move to fail statically. The lowering still proves the selected element live (direct element flag, runtime row, or every generated-glue leaf); it marks the derived address `VF_INIT_CHECKED`, and `MIRMoveCheck` accepts a guarded `MoveOut` from `PartiallyInitialized`, `PartiallyMoved`, or `Maybe` while still rejecting `Moved`/`Destroyed`. A runtime-selected element that was never initialized aborts through `__chc_uninit_fail`; whole-array reads/moves still require full static initialization. Added 2D both-large and compressed 3D success tests plus a compressed uninitialized-dynamic-move abort. Safety `170/170`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.

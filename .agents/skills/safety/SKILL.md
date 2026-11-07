@@ -54,7 +54,7 @@ Latest measured baseline:
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `865/865` |
-| TCC/LLVM safety | `163/163` |
+| TCC/LLVM safety | `170/170` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -515,14 +515,16 @@ memory safety.
     (`arr[i] = ...` / `var x = arr[i]`), including large inner flag blocks and
     element templates. Dynamic writes may also initialize a partially or
     wholly uninitialized large array (including a large array field), leaving
-    the array partially initialized through its runtime flags. A dynamic move
-    of a directly destructible element from a partially initialized array is
-    allowed after lowering checks the selected flag first (`__chc_uninit_fail`);
-    wholly uninitialized roots stay `SAFE-INIT-001`, and partially initialized
-    generated-glue arrays stay `SAFE-MOVE-001` because one element owns several
-    leaf flags. `PartiallyInitialized` is distinct from `PartiallyMoved`, so
-    whole-value uses keep `SAFE-INIT-001`. Small arrays of directly destructible
-    elements select their scalar element flag at runtime (a bounds-checked
+    the array partially initialized through its runtime flags. A dynamic
+    read/move from a partially initialized array is allowed after lowering
+    proves the selected element live: a direct element checks its flag, a
+    generated-glue element checks every leaf, and the address is marked
+    `VF_INIT_CHECKED`; an uninitialized selected element aborts through
+    `__chc_uninit_fail`. Wholly uninitialized roots still reject with
+    `SAFE-INIT-001`, and whole-value uses keep `SAFE-INIT-001`;
+    `PartiallyInitialized` is distinct from `PartiallyMoved`. Small arrays of
+    directly destructible elements select their scalar element flag at runtime
+    (a bounds-checked
     pointer table), so dynamic writes and moves work for them, including a
     constant outer prefix (`arr[0][i]`); generated-glue small arrays resolve a
     runtime index by selecting the element row and arming/clearing every leaf
@@ -538,7 +540,9 @@ memory safety.
     support inner-large, middle-large, and outer-large templates, including
     flat inner blocks and mixed constant/runtime chains; a generated inner array
     above 1024 under a large outer/middle template uses one flat flag block per
-    direct leaf field, while nested destructible field paths remain reject-only.
+    destructible leaf with a recorded field/array-element path, so nested
+    structs and expanded array fields are covered; moving a single field out of
+    a runtime-indexed element remains the general `SAFE-MOVE-004` limitation.
     Generated-glue 2D arrays support
     small/small, outer-small/inner-large, outer-large/inner-small, and
     both-large layouts (the largest inner dimension uses a flat block), with

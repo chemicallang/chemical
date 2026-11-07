@@ -1031,7 +1031,8 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_two_dynamic_indices(
         for (auto& child : tpl.children) {
             if (child.flag_array == MIR_INVALID_ID ||
                 child.inner_count == 0 ||
-                child.array_index != MIR_INVALID_ID ||
+                (child.array_index != MIR_INVALID_ID &&
+                 child.flat_element_type == nullptr) ||
                 (flat_inner != 0 && child.inner_count != flat_inner)) {
                 flat_template = false;
                 break;
@@ -1096,6 +1097,7 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_two_dynamic_indices(
         const size_t n = tpl.children.size();
         const uint64_t outer_count = tpl.array_count;
         if (n == 1 && outer_count > 0 &&
+            tpl.children[0].flat_element_type == nullptr &&
             tpl.children[0].flag_array != MIR_INVALID_ID &&
             tpl.children[0].inner_count > 0 &&
             tpl.children[0].flag_count ==
@@ -1129,7 +1131,8 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_two_dynamic_indices(
             uint64_t flat_inner = 0;
             bool flat = true;
             for (auto& child : tpl.children) {
-                if (child.array_index != MIR_INVALID_ID ||
+                if ((child.array_index != MIR_INVALID_ID &&
+                     child.flat_element_type == nullptr) ||
                     child.flag_array == MIR_INVALID_ID ||
                     child.inner_count == 0 ||
                     child.flat_element_type == nullptr ||
@@ -2210,8 +2213,12 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_three_middle_template(
             return {};
         }
         seen_rows[row.array_index] = true;
+        const bool flat_leaf =
+            row.children[0].flag_array != MIR_INVALID_ID &&
+            row.children[0].inner_count > 0 &&
+            row.children[0].flat_element_type != nullptr;
         const bool rows_mode =
-            row.children[0].array_index != MIR_INVALID_ID;
+            !flat_leaf && row.children[0].array_index != MIR_INVALID_ID;
         const bool flat_mode =
             !rows_mode && row.children[0].flag_array != MIR_INVALID_ID &&
             row.children[0].inner_count > 0;
@@ -2241,7 +2248,8 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_three_middle_template(
         } else {
             uint64_t flat_inner = 0;
             for (auto& leaf : row.children) {
-                if (leaf.array_index != MIR_INVALID_ID ||
+                if ((leaf.array_index != MIR_INVALID_ID &&
+                     leaf.flat_element_type == nullptr) ||
                     leaf.flag_array == MIR_INVALID_ID ||
                     leaf.inner_count == 0 ||
                     (flat_inner != 0 && leaf.inner_count != flat_inner)) {
@@ -2254,6 +2262,7 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_three_middle_template(
             // than one per generated leaf) cannot represent the element's
             // fields; leave direct-element flat blocks on the reject path.
             if (row.children.size() == 1 &&
+                row.children[0].flat_element_type == nullptr &&
                 row.children[0].children.empty() &&
                 row.children[0].flag_count ==
                     row.array_count * flat_inner) {
@@ -2331,8 +2340,12 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_three_outer_template(
             return {};
         }
         seen_middle[row.array_index] = true;
+        const bool flat_leaf =
+            row.children[0].flag_array != MIR_INVALID_ID &&
+            row.children[0].inner_count > 0 &&
+            row.children[0].flat_element_type != nullptr;
         const bool rows_mode =
-            row.children[0].array_index != MIR_INVALID_ID;
+            !flat_leaf && row.children[0].array_index != MIR_INVALID_ID;
         const bool flat_mode =
             !rows_mode && row.children[0].flag_array != MIR_INVALID_ID &&
             row.children[0].inner_count > 0;
@@ -2362,7 +2375,8 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_three_outer_template(
         } else {
             uint64_t flat_inner = 0;
             for (auto& leaf : row.children) {
-                if (leaf.array_index != MIR_INVALID_ID ||
+                if ((leaf.array_index != MIR_INVALID_ID &&
+                     leaf.flat_element_type == nullptr) ||
                     leaf.flag_array == MIR_INVALID_ID ||
                     leaf.inner_count == 0 ||
                     (flat_inner != 0 && leaf.inner_count != flat_inner)) {
@@ -2446,7 +2460,9 @@ void MIRLowerer::set_three_outer_template_element(
             builder_->set_block(next_b);
             continue;
         }
-        const bool flat = row.children[0].array_index == MIR_INVALID_ID;
+        const bool flat =
+            row.children[0].flat_element_type != nullptr ||
+            row.children[0].array_index == MIR_INVALID_ID;
         if (flat) {
             const uint64_t stride = row.children[0].inner_count > 0
                                         ? row.children[0].inner_count
@@ -2510,7 +2526,9 @@ void MIRLowerer::destroy_three_outer_template_element(
             builder_->set_block(next_b);
             continue;
         }
-        const bool flat = row.children[0].array_index == MIR_INVALID_ID;
+        const bool flat =
+            row.children[0].flat_element_type != nullptr ||
+            row.children[0].array_index == MIR_INVALID_ID;
         if (flat) {
             const uint64_t stride = row.children[0].inner_count > 0
                                         ? row.children[0].inner_count
@@ -2758,7 +2776,9 @@ void MIRLowerer::set_three_middle_template_element(
             builder_->set_block(next_b);
             continue;
         }
-        const bool flat = row.children[0].array_index == MIR_INVALID_ID;
+        const bool flat =
+            row.children[0].flat_element_type != nullptr ||
+            row.children[0].array_index == MIR_INVALID_ID;
         if (flat) {
             const uint64_t stride = row.children[0].inner_count > 0
                                         ? row.children[0].inner_count
@@ -2821,7 +2841,9 @@ void MIRLowerer::destroy_three_middle_template_element(
             builder_->set_block(next_b);
             continue;
         }
-        const bool flat = row.children[0].array_index == MIR_INVALID_ID;
+        const bool flat =
+            row.children[0].flat_element_type != nullptr ||
+            row.children[0].array_index == MIR_INVALID_ID;
         if (flat) {
             const uint64_t stride = row.children[0].inner_count > 0
                                         ? row.children[0].inner_count
@@ -2910,6 +2932,7 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_indices(
         const uint64_t outer = indices[0];
         const uint64_t inner = indices[1];
         if (tpl.children.size() == 1 &&
+            tpl.children[0].flat_element_type == nullptr &&
             tpl.children[0].inner_count > 0 &&
             tpl.children[0].flag_array != MIR_INVALID_ID &&
             tpl.children[0].flag_count >=
@@ -2930,7 +2953,8 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_indices(
         for (auto& child : tpl.children) {
             if (child.flag_array == MIR_INVALID_ID ||
                 child.inner_count == 0 ||
-                child.array_index != MIR_INVALID_ID ||
+                (child.array_index != MIR_INVALID_ID &&
+                 child.flat_element_type == nullptr) ||
                 (flat_inner != 0 && child.inner_count != flat_inner)) {
                 flat_template = false;
                 break;
@@ -3081,26 +3105,62 @@ MIRLowerer::MIRDropField MIRLowerer::build_drop_field(const chem::string_view& n
                     chem::string_view{}, elem, depth + 1, frame_flags, slot,
                     flag_seq, total
                 );
-                bool direct_leaves = !tpl.children.empty();
-                for (auto& child : tpl.children) {
-                    if (child.flag_array == MIR_INVALID_ID ||
-                        !child.children.empty()) {
-                        direct_leaves = false;
-                        break;
-                    }
-                }
-                if (direct_leaves) {
-                    f.children = std::move(tpl.children);
+                std::vector<MIRDropField> leaves;
+                bool flat_ok = true;
+                std::function<void(std::vector<MIRDropField>&,
+                                   std::vector<MIRDropPathStep>&)> collect =
+                    [&](std::vector<MIRDropField>& fields,
+                        std::vector<MIRDropPathStep>& path) {
+                        for (auto& child : fields) {
+                            if (!flat_ok) return;
+                            std::vector<MIRDropPathStep> next = path;
+                            const bool has_step =
+                                child.array_index != MIR_INVALID_ID ||
+                                !child.name.empty();
+                            if (has_step) {
+                                MIRDropPathStep step;
+                                step.type = child.type;
+                                if (child.array_index != MIR_INVALID_ID) {
+                                    step.array_index = child.array_index;
+                                } else {
+                                    step.name = child.name;
+                                }
+                                next.push_back(step);
+                            }
+                            if (child.flag_array != MIR_INVALID_ID &&
+                                child.children.empty()) {
+                                if (child.inner_count > 0 ||
+                                    next.empty()) {
+                                    flat_ok = false;
+                                    return;
+                                }
+                                child.inner_count = n;
+                                child.flat_element_type = elem;
+                                child.flat_path = next;
+                                leaves.push_back(std::move(child));
+                            } else if (!child.children.empty() &&
+                                       child.flag_array == MIR_INVALID_ID &&
+                                       has_step) {
+                                collect(child.children, next);
+                            } else {
+                                // A nested flat block, a flag-bearing
+                                // container, or an unnamed node is not
+                                // expressible as one leaf path yet.
+                                flat_ok = false;
+                                return;
+                            }
+                        }
+                    };
+                std::vector<MIRDropPathStep> empty_path;
+                collect(tpl.children, empty_path);
+                if (flat_ok && !leaves.empty()) {
+                    f.children = std::move(leaves);
                     f.element_template = true;
                     f.array_count = n;
                     f.inner_count = n;
-                    for (auto& child : f.children) {
-                        child.inner_count = n;
-                        child.flat_element_type = elem;
-                    }
                     return f;
                 }
-                // Nested leaf paths currently fall back to the one-flag-per-
+                // Unsupported nested shape: fall back to the one-flag-per-
                 // element representation, which selectors reject rather than
                 // risk dropping the wrong subobject.
             }
@@ -3419,9 +3479,34 @@ void MIRLowerer::destroy_flag_array_from(ValueId array_ptr,
     builder_->set_block(end_b);
 }
 
+ValueId MIRLowerer::flat_path_address(
+        ValueId base, const std::vector<MIRDropPathStep>& path) {
+    ValueId addr = base;
+    const TypeId u32 = types_.u32_type();
+    for (const auto& step : path) {
+        if (step.type == nullptr) return MIR_NULL;
+        const TypeId st = types_.map(step.type);
+        if (step.array_index != MIR_INVALID_ID) {
+            const ValueId idx = builder_->const_int(
+                u32, module_.constants.add_int(u32, step.array_index)
+            );
+            addr = builder_->index_addr_ptr(addr, idx, st);
+        } else if (!step.name.empty()) {
+            const ConstantId fc = module_.constants.add_string(
+                MIR_INVALID_ID, step.name.data(),
+                static_cast<uint32_t>(step.name.size())
+            );
+            addr = builder_->field_addr_ptr(addr, fc, st);
+        } else {
+            return MIR_NULL;
+        }
+    }
+    return addr;
+}
+
 void MIRLowerer::destroy_flat_leaf_array_from(
         ValueId array_ptr, BaseType* element_type,
-        const chem::string_view& field_name, BaseType* leaf_type,
+        const std::vector<MIRDropPathStep>& path, BaseType* leaf_type,
         PlaceId flags, ValueId base_index, uint64_t count) {
     if (array_ptr == MIR_NULL || element_type == nullptr ||
         leaf_type == nullptr || flags == MIR_INVALID_ID || count == 0 ||
@@ -3430,7 +3515,6 @@ void MIRLowerer::destroy_flat_leaf_array_from(
     }
     const TypeId et = types_.map(element_type);
     const TypeId eptr = types_.pointer_type(et, true);
-    const TypeId lt = types_.map(leaf_type);
     const ValueId base = builder_->cast(array_ptr, eptr);
     const TypeId u32 = types_.u32_type();
     const TypeId bool_t = types_.bool_type();
@@ -3446,13 +3530,6 @@ void MIRLowerer::destroy_flat_leaf_array_from(
     const ConstantId add_op = module_.constants.add_int(
         MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Add)
     );
-    ConstantId field_const = MIR_INVALID_ID;
-    if (!field_name.empty()) {
-        field_const = module_.constants.add_string(
-            MIR_INVALID_ID, field_name.data(),
-            static_cast<uint32_t>(field_name.size())
-        );
-    }
     const PlaceId index_place = builder_->alloca(u32, MIRStorageClass::Local);
     builder_->store(index_place, builder_->const_int(
         u32, module_.constants.add_int(u32, count)
@@ -3475,10 +3552,9 @@ void MIRLowerer::destroy_flat_leaf_array_from(
     const ValueId next = builder_->binary(cur, one, sub_op, u32);
     builder_->store(index_place, next);
     const ValueId elem_addr = builder_->index_addr_ptr(base, next, et);
-    const ValueId leaf_addr = field_const == MIR_INVALID_ID
+    const ValueId leaf_addr = path.empty()
                                   ? elem_addr
-                                  : builder_->field_addr_ptr(
-                                        elem_addr, field_const, lt);
+                                  : flat_path_address(elem_addr, path);
     const ValueId flag_index =
         base_index == MIR_INVALID_ID
             ? next
@@ -3619,7 +3695,7 @@ void MIRLowerer::destroy_drop_fields_at(ValueId self_ptr,
                 const ValueId base_index =
                     builder_->binary(elem_index, stride, mul_op, u32);
                 destroy_flat_leaf_array_from(
-                    self_ptr, f.flat_element_type, f.name, f.type,
+                    self_ptr, f.flat_element_type, f.flat_path, f.type,
                     f.flag_array, base_index, f.inner_count);
             }
         } else if (f.flag_array != MIR_INVALID_ID) {
@@ -4154,7 +4230,9 @@ void MIRLowerer::destroy_flat_template_element(
         [&](ValueId self_ptr, std::vector<MIRDropField>& group) {
             for (auto& field : group) {
                 ValueId addr = self_ptr;
-                if (!field.name.empty()) {
+                if (field.flat_element_type != nullptr) {
+                    addr = flat_path_address(self_ptr, field.flat_path);
+                } else if (!field.name.empty()) {
                     const TypeId ft = types_.map(field.type);
                     const ConstantId fc = module_.constants.add_string(
                         MIR_INVALID_ID, field.name.data(),
@@ -5561,7 +5639,9 @@ bool MIRLowerer::emit_dynamic_element_read_check(
                 builder_->set_block(next_b);
                 continue;
             }
-            const bool flat = row.children[0].array_index == MIR_INVALID_ID;
+            const bool flat =
+            row.children[0].flat_element_type != nullptr ||
+            row.children[0].array_index == MIR_INVALID_ID;
             if (flat) {
                 const uint64_t stride = row.children[0].inner_count > 0
                                             ? row.children[0].inner_count
@@ -5624,7 +5704,9 @@ bool MIRLowerer::emit_dynamic_element_read_check(
                 builder_->set_block(next_b);
                 continue;
             }
-            const bool flat = row.children[0].array_index == MIR_INVALID_ID;
+            const bool flat =
+            row.children[0].flat_element_type != nullptr ||
+            row.children[0].array_index == MIR_INVALID_ID;
             if (flat) {
                 const uint64_t stride = row.children[0].inner_count > 0
                                             ? row.children[0].inner_count

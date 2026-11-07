@@ -1160,6 +1160,11 @@ private:
     /** Clear one leaf of a runtime-indexed generated-glue element's field. */
     bool mark_indexed_field_moved(Value* value, MIRExprResult result,
                                   std::string& error);
+    MIRDropField* find_flat_leaf(std::vector<MIRDropField>& fields,
+                                 const std::vector<std::string>& suffix);
+    bool clear_three_flat_leaf(MIRDropElementRef& ref,
+                               const std::vector<std::string>& suffix,
+                               MIRExprResult result);
     /** Resolve an AST member chain to (base place, field path, field type). */
     bool field_move_target(Value* value, PlaceId& base,
                            std::vector<std::string>& path, BaseType*& field_type,

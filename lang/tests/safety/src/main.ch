@@ -2062,3 +2062,32 @@ func field_move_from_uninitialized_element_aborts(env : &mut TestEnv) {
     var ch = "using std::string\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { }\n}\nstruct Inner {\n    var leaf : Leaf\n    var tag : int\n}\nstruct Elem {\n    var inner : Inner\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [2000]Elem\n        arr[0] = Elem { inner : Inner { leaf : Leaf { id : 7 }, tag : 9 }, b : string(\"x\") }\n        var i = 1\n        var leaf = arr[i].inner.leaf\n        return leaf.id\n    }\n}\n"
     expect_runtime_panic(env, "field_move_from_uninitialized_element_aborts", ch)
 }
+
+@test
+func field_move_from_middle_large_flat_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Inner {\n    var leaf : Leaf\n    var tag : int\n}\nstruct Elem {\n    var inner : Inner\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [1][65][1200]Elem\n            var j = 64\n            var k = 1199\n            arr[0][j][k] = Elem { inner : Inner { leaf : Leaf { id : 7 }, tag : 9 }, b : string(\"x\") }\n            var leaf = arr[0][j][k].inner.leaf\n            if(leaf.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "field_move_from_middle_large_flat_element", ch, &mut out)
+    if(rc != 1) {
+        env.error("middle-large flat field move failed")
+    }
+}
+
+@test
+func field_move_from_outer_large_flat_element(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\n@thread_local var drops : int = 0\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Inner {\n    var leaf : Leaf\n    var tag : int\n}\nstruct Elem {\n    var inner : Inner\n    var b : string\n}\npublic func main() : int {\n    {\n        unsafe {\n            var arr : [65][1][1200]Elem\n            var i = 64\n            var k = 1199\n            arr[i][0][k] = Elem { inner : Inner { leaf : Leaf { id : 7 }, tag : 9 }, b : string(\"x\") }\n            var leaf = arr[i][0][k].inner.leaf\n            if(leaf.id != 7) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "field_move_from_outer_large_flat_element", ch, &mut out)
+    if(rc != 1) {
+        env.error("outer-large flat field move failed")
+    }
+}
+
+@test
+func field_move_from_middle_large_uninitialized_aborts(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "using std::string\nstruct Leaf {\n    var id : int\n    @delete func delete(&self) { }\n}\nstruct Inner {\n    var leaf : Leaf\n    var tag : int\n}\nstruct Elem {\n    var inner : Inner\n    var b : string\n}\npublic func main() : int {\n    unsafe {\n        var arr : [1][65][1200]Elem\n        arr[0][0][0] = Elem { inner : Inner { leaf : Leaf { id : 7 }, tag : 9 }, b : string(\"x\") }\n        var j = 64\n        var k = 1199\n        var leaf = arr[0][j][k].inner.leaf\n        return leaf.id\n    }\n}\n"
+    expect_runtime_panic(env, "field_move_from_middle_large_uninitialized_aborts", ch)
+}

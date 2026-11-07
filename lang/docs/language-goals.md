@@ -438,68 +438,27 @@ This is **unsolved**. The candidates we must evaluate (none decided):
 > **Target matrix (updated):** native-owned (C + LLVM), **native-GC (C + LLVM)**,
 > **WASM**, **JS/browser**, **JVM bytecode**, **Android**.
 
-### 6.8 Generic implementations are not supported
+### 6.8 Generic implementations
 
-Chemical can implement an interface for a **concrete** type, and it can implement one
-for a **generic type only as a *nested* impl** inside that type's body (which is
-instantiated along with the containing type). It **cannot** declare a *parameterized*
-implementation — one that is general over the impl's own type parameters — anywhere
-else. Today:
+Generic impls (`impl<T> Trait for MyType<T>`) are **supported** and monomorphized
+alongside generic types/functions. They are used by the JSON containers, auto
+traits, and the in-tree libraries. The async `FutureHandle<T>` path no longer
+needs the old structural vtable workaround.
 
-- `impl <T> I for S<T>` is **rejected** (`don't declare generic parameters`); the
-  compiler only uses the parameters of the implemented type.
-- A parameterized impl whose target is a generic instantiation does not resolve its
-  methods in general: `impl Future<T> for FutureHandle<T>` fails with
-  `unresolved child 'poll'` (verified; the async code has to recognise
-  `FutureHandle<T>` **structurally** and build vtables by hand to work around it — see
-  `async-await-design.md`).
-- The only working form is a **nested** impl inside the generic type's body — e.g.
-  `struct S<T> { ..., impl I for S<T> { ... } }` — which is instantiated along with the
-  containing type (positive test `impl_inside_generic_struct_allowed`).
+External/generic **inherent** impls (`impl Type { ... }` outside the type body,
+including `impl<T> Type<T> { ... }`) are **removed** in safety-sharpen Phase 1
+(`REMOVED-002`); declare methods in the type body or implement an interface.
 
-In other words, **there is no way to say "for every `T`, `MyType<T>` satisfies
-`Trait`" outside the type declaration itself.** Each `impl` binds to one concrete
-instantiation, so generic types cannot participate uniformly in protocols.
-
-**Why it matters**
-
-- Most Rust-ecosystem and standard-library patterns are parameterized impls:
-  `impl<T> Iterator for MyIter<T>`, `impl<T> Ord for MyType<T>`,
-  `impl<U> From<U> for MyType<U>`, `impl<T> Serialize for Wrapper<T>`. Without them,
-  generic types cannot be abstracted over, so libraries must duplicate code per
-  instantiation and the "runs everywhere" library ecosystem is much smaller.
-- It blocks trait-based abstractions (iteration, conversion, operators, serialization,
-  formatting) for any type that is itself generic.
-
-**Open questions (unsolved)**
-
-- Whether to support them by **monomorphizing the impl** the same way generic
-  functions/structs are already instantiated (the generic instantiation pass exists),
-  versus dictionary/vtable dispatch.
-- How to handle **bounds / where-clauses** on impl parameters (`impl<T: Ord> ...`) and
-  how they interact with the no-panic/effect policy.
-- How parameterized impls interact with the implementations index, generic method
-  resolution, and the interface vtable scheme (the async code's structural workaround is
-  a symptom of the missing mechanism).
-- Whether the `impl<T>` header should be accepted as sugar when `T` is inferable from
-  the target type, rather than rejected as it is today.
-
-**Direction:** make generic impls monomorphize like generic functions, so the same
-syntax covers concrete and parameterized targets. Until then, the only supported form is
-a nested `impl` inside the generic type, and library authors must instantiate per type.
-
-> **Status (2026-10-13):** the direction is **approved** — proposal
-> [`0003-generic-impls`](proposals/0003-generic-impls.md). It is a prerequisite for
-> proposal [`0014-generic-container-serialization`](proposals/0014-generic-container-serialization.md)
-> (JSON for `vector`/`unordered_map`/`ordered_map`). When implemented, the async
-> `FutureHandle<T>` structural workaround can be retired.
+Associated types were also removed in Phase 1 (`REMOVED-001`) because they had
+no shipped-library users and carried a large generic-instantiation surface; use
+ordinary generic parameters instead.
 
 ### 6.9 Roadmap status (2026-10-13)
 
 Decisions from the proposal reviews (full log in
 [`proposals/DECISIONS.md`](proposals/DECISIONS.md)):
 
-- **Approved, to implement after the MIR consolidation work:** generic impls (`0003`),
+- **Implemented:** generic impls (`0003`); the rest are approved/queued:
   borrow checker / memory-safety closure (`0004`), no-panic effect system (`0005`), native GC
   mode (`0006`), JavaScript backend (`0007`), web/DOM type declarations (`0008`), async
   completion (`0013`), generic container JSON serialization (`0014`).

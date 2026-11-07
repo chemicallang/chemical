@@ -9913,6 +9913,203 @@ static chem::string_view map_field_lifetime(
     return lifetime;
 }
 
+/**
+ * Can a shared reference to this type mutate storage inside it? A shared
+ * reference cannot assign through an ordinary reference or an aggregate field;
+ * only interior-mutability types (and containers built on them) can retain a
+ * borrow through `&T`. Unknown generic/user shapes stay conservative (`true`)
+ * so the checker never guesses that storage is read-only.
+ */
+static bool ast_type_has_interior_mutability_impl(
+        BaseType* type, std::unordered_set<BaseType*>& visiting,
+        unsigned depth = 0) {
+    if (type == nullptr) return false;
+    // Past the traversal budget, assume the type can mutate through a shared
+    // reference; never guess that deeply nested storage is read-only.
+    if (depth > 8) return true;
+    BaseType* canonical = type->canonical();
+    if (canonical == nullptr) canonical = type;
+    if (!visiting.insert(canonical).second) return false;
+    auto* linked = canonical->get_direct_linked_node();
+    if (linked != nullptr && linked->kind() == ASTNodeKind::GenericTypeParam) {
+        // A type parameter may be instantiated with an interior-mutable type.
+        return true;
+    }
+    switch (canonical->kind()) {
+        case BaseTypeKind::Reference:
+            // A shared reference to a reference does not make the inner
+            // reference assignable; only interior mutability of the referent
+            // (for example `&RefCell<&T>`) can retain a borrow.
+            return ast_type_has_interior_mutability_impl(
+                const_cast<BaseType*>(
+                    canonical->as_reference_type_unsafe()->type),
+                visiting, depth + 1);
+        case BaseTypeKind::Array:
+            return ast_type_has_interior_mutability_impl(
+                const_cast<BaseType*>(
+                    canonical->as_array_type_unsafe()->elem_type.getType()),
+                visiting, depth + 1);
+        case BaseTypeKind::Pointer:
+            // A shared reference can still expose a raw pointer to code that
+            // stores through it inside an explicit unsafe boundary.
+            return true;
+        case BaseTypeKind::Any:
+        case BaseTypeKind::Unknown:
+            return true;
+        case BaseTypeKind::Function:
+        case BaseTypeKind::CapturingFunction:
+        case BaseTypeKind::Dynamic:
+            // Capturing callables and trait objects can hide mutable state.
+            return true;
+        case BaseTypeKind::Generic: {
+            auto* gen = canonical->as_generic_type_unsafe();
+            for (auto& arg : gen->types) {
+                if (ast_type_has_interior_mutability_impl(
+                        const_cast<BaseType*>(arg.getType()), visiting,
+                        depth + 1)) {
+                    return true;
+                }
+            }
+            StructDefinition* sd = canonical->get_direct_linked_struct();
+            if (sd == nullptr) {
+                ASTNode* node = canonical->get_direct_linked_canonical_node();
+                if (node != nullptr) {
+                    if (node->kind() == ASTNodeKind::StructDecl) {
+                        sd = node->as_struct_def_unsafe();
+                    } else if (node->kind() == ASTNodeKind::VariantDecl) {
+                        VariantDefinition* vd = node->as_variant_def_unsafe();
+                        if (vd != nullptr) {
+                            VariantDefinition* body = vd;
+                            if (vd->generic_parent != nullptr &&
+                                vd->generic_parent->kind() ==
+                                    ASTNodeKind::GenericVariantDecl) {
+                                VariantDefinition* master =
+                                    vd->generic_parent
+                                        ->as_gen_variant_decl_unsafe()
+                                        ->master_impl;
+                                if (master != nullptr) body = master;
+                            }
+                            for (BaseDefMember* member : body->variables()) {
+                                if (member == nullptr) continue;
+                                if (member->kind() ==
+                                    ASTNodeKind::StructMember) {
+                                    auto* field =
+                                        member->as_struct_member_unsafe();
+                                    if (field != nullptr &&
+                                        ast_type_has_interior_mutability_impl(
+                                            substitute_type_param(
+                                                const_cast<BaseType*>(
+                                                    field->type.getType()),
+                                                gen),
+                                            visiting, depth + 1)) {
+                                        return true;
+                                    }
+                                    continue;
+                                }
+                                auto* vm = member->as_variant_member();
+                                if (vm == nullptr) continue;
+                                for (auto& entry : vm->values) {
+                                    auto* param = entry.second;
+                                    if (param != nullptr &&
+                                        ast_type_has_interior_mutability_impl(
+                                            substitute_type_param(
+                                                const_cast<BaseType*>(
+                                                    param->type.getType()),
+                                                gen),
+                                            visiting, depth + 1)) {
+                                        return true;
+                                    }
+                                }
+                            }
+                            return false;
+                        }
+                    }
+                }
+            }
+            if (sd == nullptr) {
+                // An opaque/unknown generic could hide interior mutability.
+                return true;
+            }
+            const auto name = sd->name_view();
+            if (name == chem::string_view("UnsafeCell") ||
+                name == chem::string_view("Cell") ||
+                name == chem::string_view("RefCell") ||
+                name == chem::string_view("Mutex") ||
+                name == chem::string_view("RwLock")) {
+                return true;
+            }
+            StructDefinition* body = sd;
+            if (sd->generic_parent != nullptr &&
+                sd->generic_parent->kind() ==
+                    ASTNodeKind::GenericStructDecl) {
+                StructDefinition* master =
+                    sd->generic_parent->as_gen_struct_def_unsafe()->master_impl;
+                if (master != nullptr) body = master;
+            }
+            for (BaseDefMember* member : body->variables()) {
+                auto* sm = member ? member->as_struct_member() : nullptr;
+                if (sm == nullptr) continue;
+                if (ast_type_has_interior_mutability_impl(
+                        substitute_type_param(
+                            const_cast<BaseType*>(sm->type.getType()), gen),
+                        visiting, depth + 1)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        default:
+            break;
+    }
+    auto* container = canonical->get_members_container();
+    if (container == nullptr) return false;
+    for (BaseDefMember* member : container->variables()) {
+        if (member == nullptr) continue;
+        if (member->kind() == ASTNodeKind::StructMember) {
+            auto* field = member->as_struct_member_unsafe();
+            if (field != nullptr && ast_type_has_interior_mutability_impl(
+                    const_cast<BaseType*>(field->type.getType()), visiting,
+                    depth + 1)) {
+                return true;
+            }
+        } else if (member->kind() == ASTNodeKind::VariantMember) {
+            auto* variant = member->as_variant_member_unsafe();
+            if (variant == nullptr) continue;
+            for (auto& entry : variant->values) {
+                auto* param = entry.second;
+                if (param != nullptr && ast_type_has_interior_mutability_impl(
+                        const_cast<BaseType*>(param->type.getType()), visiting,
+                        depth + 1)) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+/**
+ * A parameter can retain another borrow when it exposes writable reference
+ * storage. A mutable reference can assign through its pointee; a shared
+ * reference can only do so through interior mutability. A by-value aggregate is
+ * owned by the callee, so the existing retaining-storage analysis applies and
+ * the call site pins the source for the call.
+ */
+static bool ast_param_may_retain(BaseType* canonical) {
+    if (canonical == nullptr) return false;
+    if (canonical->kind() == BaseTypeKind::Reference) {
+        auto* ref = canonical->as_reference_type_unsafe();
+        if (ref->is_mutable) {
+            return ast_type_can_hold_borrow(
+                const_cast<BaseType*>(ref->type));
+        }
+        std::unordered_set<BaseType*> visiting;
+        return ast_type_has_interior_mutability_impl(
+            const_cast<BaseType*>(ref->type), visiting);
+    }
+    return ast_type_has_retaining_storage(canonical);
+}
+
 static void fill_param_retain_regions(
         MIRRegionSignature& sig,
         const std::vector<FunctionParam*>& params,
@@ -9925,16 +10122,11 @@ static void fill_param_retain_regions(
         BaseType* pc = pt ? pt->canonical() : nullptr;
         if (pc == nullptr) continue;
         BaseType* storage = pc;
-        bool may_retain = false;
         if (pc->kind() == BaseTypeKind::Reference) {
-            BaseType* pointee = const_cast<BaseType*>(
+            storage = const_cast<BaseType*>(
                 pc->as_reference_type_unsafe()->type);
-            may_retain = ast_type_can_hold_borrow(pointee);
-            storage = pointee;
-        } else {
-            may_retain = ast_type_has_retaining_storage(pc);
         }
-        if (!may_retain) continue;
+        if (!ast_param_may_retain(pc)) continue;
         sig.param_may_retain[pi] = 1;
         std::vector<chem::string_view> names;
         std::unordered_set<BaseType*> visiting;
@@ -10357,14 +10549,7 @@ uint32_t MIRLowerer::intern_function_type_region_signature(FunctionType* type) {
         BaseType* pt = param ? param->type : nullptr;
         BaseType* pc = pt ? pt->canonical() : nullptr;
         if (pc == nullptr) continue;
-        bool may_retain = false;
-        if (pc->kind() == BaseTypeKind::Reference) {
-            may_retain = ast_type_can_hold_borrow(
-                const_cast<BaseType*>(pc->as_reference_type_unsafe()->type));
-        } else {
-            may_retain = ast_type_has_retaining_storage(pc);
-        }
-        if (may_retain) sig.param_may_retain[pi] = 1;
+        if (ast_param_may_retain(pc)) sig.param_may_retain[pi] = 1;
     }
     fill_param_retain_regions(sig, type->params, lifetimes);
     sig.hrtb_binders.reserve(lifetimes.size());

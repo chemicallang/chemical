@@ -1,4 +1,4 @@
-# Chemical Full Safety Parity Plan (plan v4.1; status v5.77)
+# Chemical Full Safety Parity Plan (plan v4.1; status v5.78)
 
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
@@ -1520,7 +1520,12 @@ new number as the honest baseline, not a compiler regression.
    call-site rule checks every source against every stored region, so distinct
    binders do not weaken the proof. An opaque retaining type with no named
    stored region is rejected for a caller-owned slot instead of being accepted
-   by the equal-region shortcut. Nested struct aggregate
+   by the equal-region shortcut. A shared reference (`&T`) is not retaining
+   storage by itself: it cannot assign through the referent. Only a mutable
+   reference or an interior-mutable pointee (`UnsafeCell`/`Cell`/`RefCell`/
+   `Mutex`/`RwLock`, or a type containing one) can retain through a
+   caller-owned shared slot, so read-only shared references no longer need a
+   source-to-stored edge. Nested struct aggregate
    parameters whose leaves are direct reference fields are accepted
    recursively, and a borrowed nested-field result keeps the aggregate's
    source loans alive through the MIR field-source chain. Nested fields now
@@ -1539,10 +1544,13 @@ new number as the honest baseline, not a compiler regression.
    owning root and leaf field index. Each element/leaf still shares its
    element lifetime and remains conservatively aliased, and two same-index
    wildcard leaves under one root share one loan rather than guessing distinct
-   regions. Unsized arrays keep an explicit `SAFE-BORROW-099` rejection.
-   Caller-owned retaining storage without a provable source-to-stored edge and
-   opaque retaining storage with no named region remain the HRTB precision
-   limit.
+   regions. That aliasing is the function-type contract (the callback may
+   return any element), not an analysis gap; tighter per-element precision
+   would require an index-sensitive return effect. Unsized arrays have no
+   mappable element-source loan and keep an explicit `SAFE-BORROW-099`
+   rejection. Caller-owned **mutable or interior-mutable** retaining storage
+   without a provable source-to-stored edge and opaque retaining storage with
+   no named region remain the HRTB precision limit.
 6. **`dyn` object model is implemented for the safe surface.** `dyn I` is a
    target-aware two-word borrowed fat pointer (`{ data, vtable }`); `&dyn I`
    dispatches through the same vtable, including through `Box::get`. `Box<dyn I>`
@@ -3371,3 +3379,4 @@ enforcement, `SAFE-LIFE-004`, and a TSAN smoke runner; scoped/erased/async `Send
 *Revision note v5.75 (2026-11-07): field moves from runtime-indexed generated elements. A destructor-bearing field can now move out of a runtime-selected element of a 1D large generated-glue array (`var leaf = arr[i].inner.leaf`) and a 2D both-large flat template (`var leaf = arr[i][j].inner.leaf`). The lowering resolves the element's leaf path, checks that leaf live (`__chc_uninit_fail`), clears exactly that leaf flag, marks the field address `VF_INIT_CHECKED`, and emits `MoveOut`; the array's remaining leaves stay live and are dropped normally. The field lowering carries the element indices into the field result so the selector can re-resolve. Other runtime-indexed layouts (3D compressed, mixed outer/inner templates, small expanded rows) still reject field moves with `SAFE-MOVE-004` rather than guessing. Added 1D and 2D drop-count tests plus a 1D uninitialized-field abort. Safety `173/173`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v5.76 (2026-11-07): compressed 3D field moves. Field moves now work for the flat compressed 3D middle-large (`[1][65][1200]`) and outer-large (`[65][1][1200]`) generated-glue templates. The lowering branches the compressed runtime row, finds the leaf by the recorded field path, checks it live, clears only that leaf, marks the field address `VF_INIT_CHECKED`, and emits `MoveOut`. The middle-large flag block is indexed by the middle index while the row is selected by the outer index; the outer-large block is indexed by the outer index and selected by the middle index. Expanded-row compressed templates, mixed outer/inner templates, and small expanded rows still reject field moves with `SAFE-MOVE-004`. Added middle/outer drop-count tests and a middle-large uninitialized-field abort. Safety `176/176`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
 *Revision note v5.77 (2026-11-07): remaining runtime-indexed field-move layouts. Field moves now cover 2D small dynamic/constant rows, outer-large/inner-small and outer-small/inner-large templates, compressed 3D expanded-row templates for middle/outer/inner-large, the 3D expanded runtime tree (`[2][2][2]`), and 4D expanded trees. The lowering adds a generic row/tree leaf resolver: it branches the relevant runtime index levels, finds the destructible leaf by field path, checks the leaf's scalar or indexed flag live, clears only that flag, marks the field address `VF_INIT_CHECKED`, and emits `MoveOut`. A 2D dynamic fallback uses the runtime-tree selector when the two-index selector cannot represent a small generated row. Field moves from user-destructor elements, `const`/borrowed roots, and reference/pointer bases still fail closed with `SAFE-MOVE-004`. Added five runtime tests (middle/outer/inner-large expanded rows, 2D dynamic small rows, 3D expanded tree) plus the existing row-abort coverage. Safety `185/185`; negative `865/865`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth.
+*Revision note v5.78 (2026-11-07): read-only HRTB retaining storage. A shared reference is no longer treated as retaining storage merely because its referent contains a reference: `&&T` and `&StructWithRefFields` cannot assign through the shared referent, so a multi-borrow higher-ranked callback using them no longer needs a source-to-stored region edge. A shared reference to interior-mutable storage (`RefCell`/`Mutex`/`RwLock`/`UnsafeCell`, a type containing one, or an unknown generic) still counts as retaining and remains fail-closed; a mutable reference keeps the existing pointee-retention rule. The call-site classifier now distinguishes `&mut` from `&` and recursively inspects aggregate fields for interior mutability. Added two positive shared-reference tests and a `RefCell` retaining negative. Safety `185/185`; negative `868/868`; main TCC/LLVM `2489/2489`, `2487/2487`; async `83/83`; TCC libs `736/736`; plugins `1305/1305`; interpret `1938/1938`; `MIRTests` `4749`; TSAN pass; audit no growth. Remaining HRTB boundaries: caller-owned mutable/interior-mutable storage without a provable source-to-stored edge, opaque retaining storage with no named region, unsized arrays, and contract-level aliasing for large reference arrays.

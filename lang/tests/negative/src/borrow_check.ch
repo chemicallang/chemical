@@ -626,6 +626,33 @@ func hrtb_distinct_parameter_regions_ok(env : &mut TestEnv) {
 }
 
 @test
+func hrtb_shared_reference_to_reference_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A shared reference to a reference cannot assign the inner reference, so
+    // it exposes no retaining storage even when the caller regions differ.
+    var ch = "func <'a> read_shared(x : &'a &'a int, y : &'a int) : int { return **x + *y }\nfunc apply(f : for<'a> (x : &'a &'a int, y : &'a int) => int, x : & &int, y : &int) : int {\n    return f(x, y)\n}\npublic func main() : int {\n    var a = 1\n    var r = &a\n    return apply(read_shared, &r, &a) - 2\n}\n"
+    expect_compile_success(env, "hrtb_shared_reference_to_reference", ch)
+}
+
+@test
+func hrtb_shared_reference_to_aggregate_ok(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A shared reference to a struct with reference fields cannot mutate the
+    // fields, so it is not retaining storage for the callback.
+    var ch = "@direct_init\nstruct SharedRef<'a> {\n    var r : &'a int\n}\nfunc <'a> read_shared(h : &'a SharedRef<'a>, y : &'a int) : int { return *h.r + *y }\nfunc apply(f : for<'a> (h : &'a SharedRef<'a>, y : &'a int) => int, h : &SharedRef, y : &int) : int {\n    return f(h, y)\n}\npublic func main() : int {\n    var a = 1\n    var y = 2\n    var h = SharedRef<'a> { r : &a }\n    return apply(read_shared, &h, &y) - 3\n}\n"
+    expect_compile_success(env, "hrtb_shared_reference_to_aggregate", ch)
+}
+
+@test
+func neg_hrtb_shared_interior_mutability_retains(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // `RefCell` mutates through a shared reference, so it remains retaining
+    // storage and still needs a source-to-stored region proof.
+    var ch = "using std::RefCell;\nusing std::ref_cell;\nfunc <'a> read_cell(c : &'a RefCell<&'a int>, y : &'a int) : int { return 0 }\nfunc apply(f : for<'a> (c : &'a RefCell<&'a int>, y : &'a int) => int, c : &RefCell<&int>, y : &int) : int {\n    return f(c, y)\n}\npublic func main() : int {\n    var a = 1\n    var r = &a\n    var c = ref_cell(r)\n    return apply(read_cell, &c, &a)\n}\n"
+    expect_compile_error_with_mod(env, "hrtb_shared_interior_mutability", ch, "SAFE-BORROW-099", NEG_MOD_STD_CORE)
+}
+
+@test
 func hrtb_retaining_local_slot_mixed_ok(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // The retaining slot is a local, so a parameter referent can be stored in

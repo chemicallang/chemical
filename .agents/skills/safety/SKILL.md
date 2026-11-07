@@ -53,7 +53,7 @@ Latest measured baseline:
 | TCC main | `2489/2489` |
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `865/865` |
+| TCC/LLVM negative | `868/868` |
 | TCC/LLVM safety | `185/185` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
@@ -174,9 +174,10 @@ MIR is the sole producer of init/move/drop state:
 - `SAFE-BORROW-001` — overlapping live loans with at least one mutable loan.
 - `SAFE-BORROW-002` — move/drop of a place while a borrow of it is live.
 - `SAFE-BORROW-099` — a borrow/lifetime pattern the checker cannot prove safe
-  (e.g. retaining storage in a caller-owned reference parameter without a
-  source-to-stored outlives edge, a free pointee lifetime with no direct
-  reference source, or opaque retaining storage). Nested struct aggregate parameters,
+  (e.g. mutable or interior-mutable retaining storage in a caller-owned
+  reference parameter without a source-to-stored outlives edge, a free pointee
+  lifetime with no direct reference source, or opaque retaining storage).
+  Shared references are not retaining by themselves. Nested struct aggregate parameters,
   variant payloads, array elements, and borrowed nested results are supported,
   including per-leaf multi-lifetime precision. Read-only mixed
   local/parameter/global and distinct-region multi-borrow calls are accepted;
@@ -423,9 +424,12 @@ memory safety.
    struct fields and array-of-structs elements. The MIR signature records the
    full root-to-leaf path and keys the wildcard loan by the owning root and
    leaf field index; same-index wildcard leaves under one root conservatively
-   share one loan. Unsized arrays keep the explicit `SAFE-BORROW-099`
-   rejection. A retaining parameter whose loan target is a
-   local/temporary or a by-value parameter copy may hold any argument borrow,
+   share one loan. This contract-level aliasing is required because the
+   callback may return any element; tighter precision needs an
+   index-sensitive return effect. Unsized arrays have no element-source loan
+   and keep the explicit `SAFE-BORROW-099` rejection. A retaining parameter
+   whose loan target is a local/temporary or a by-value parameter copy may
+   hold any argument borrow,
    so mixed/distinct sources are accepted and pinned to function exit.
    Retaining storage reached through a reference parameter is caller-owned. It
    is accepted when every source outlives the stored region (`where 'i: 's` for
@@ -437,8 +441,12 @@ memory safety.
    `&'a mut &'b T`), `'static`, or a free lifetime carried by a direct
    reference parameter; the call site checks every source against every stored
    region. Opaque retaining storage with no named region is rejected for a
-   caller-owned slot instead of using the equal-region shortcut. This is a
-   false-negative/rewrite boundary, not a guessed-safe acceptance.
+   caller-owned slot instead of using the equal-region shortcut. A shared
+   reference (`&T`) is not retaining storage by itself; only a mutable
+   reference or an interior-mutable pointee (`UnsafeCell`/`Cell`/`RefCell`/
+   `Mutex`/`RwLock`, a type containing one, or an unknown generic) needs the
+   source-to-stored proof. This is a false-negative/rewrite boundary, not a
+   guessed-safe acceptance.
 
 6. **`dyn` is a borrowed fat pointer; `DynBox` owns.**
    `dyn I` is a target-aware two-word `{ data, vtable }` value, and `&dyn I`

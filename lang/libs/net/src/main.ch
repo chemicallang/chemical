@@ -40,8 +40,8 @@ public namespace net {
     }
 
     // listen by address string and port using getaddrinfo -> bind -> listen loop
-    public func listen_addr(addr_str:*char, port: uint) : Socket {
-        
+    public func try_listen_addr(addr_str:*char, port: uint) : Socket {
+
         startup();
         // create socket
         var s = sock_socket(AF_INET as int, SOCK_STREAM as int, IPPROTO_TCP as int);
@@ -50,11 +50,11 @@ public namespace net {
             if (s == 0 as Socket || (s as longlong) < 0) {
                 var e = unsafe(WSAGetLastError());
                 unsafe { printf("socket() failed (WSAGetLastError): %d\n", e as int); }
-                panic("socket() failed");
+                return 0 as Socket;
             }
         } else {
             if (s == 0 as Socket) {
-                panic("socket() failed");
+                return 0 as Socket;
             }
         }
 
@@ -106,28 +106,34 @@ public namespace net {
             comptime if (def.windows) {
                 var e = unsafe(WSAGetLastError());
                 unsafe { printf("bind() failed (WSAGetLastError): %d\n", e as int); }
-                panic("bind() failed (WSAGetLastError)");
             } else {
                 unsafe { perror("bind() failed") };
             }
             sock_close(s);
-            panic("bind failed");
+            return 0 as Socket;
         }
 
         // listen
         if(sock_listen(s, 128) != 0) {
             comptime if(def.windows) {
                 var e = unsafe(WSAGetLastError());
-                panic("listen() failed (WSA error)");
             } else {
                 unsafe { perror("listen() failed") };
             }
             sock_close(s);
-            panic("listen failed");
+            return 0 as Socket;
         }
 
         // success
         return s;
+    }
+
+    public func listen_addr(addr_str : *char, port : uint) : Socket {
+        var s = try_listen_addr(addr_str, port)
+        if(s == 0 as Socket) {
+            panic("listen failed")
+        }
+        return s
     }
 
     public func accept_socket(listen_sock: Socket) : Socket {
@@ -161,7 +167,7 @@ public namespace net {
                 off = off + n;
             }
             return len
-    
+
         }
     }
 
@@ -170,7 +176,7 @@ public namespace net {
     public func dial(addr_str:*char, port: uint) : Socket {
         if(addr_str == null || port > 65535u) { return 0 as Socket; }
         startup();
-        
+
         var addrinfo: *mut char = null;
         // 5 decimal digits for a validated TCP/UDP port plus a NUL.
         var port_str : [16]char;
@@ -183,15 +189,15 @@ public namespace net {
             while(cnt > 0) { port_str[i] = tmp[cnt-1]; i = i + 1; cnt = cnt - 1; }
             port_str[i] = '\0';
         }
-        
+
         var hints : [64]char; // assuming size of addrinfo
         // set ai_family=AF_INET, ai_socktype=SOCK_STREAM
-        // This is fragile as struct definition is opaque. 
+        // This is fragile as struct definition is opaque.
         // Let's pass null hints for now to get any address.
-        
+
         var ret = sock_getaddrinfo(addr_str, &raw port_str[0], null, &raw mut addrinfo);
         if(ret != 0) {
-            
+
             return 0 as Socket;
         }
 
@@ -207,25 +213,25 @@ public namespace net {
             const AI_ADDR_OFFSET = if(def.windows) 32 else 24
             var ai_addr_ptr = unsafe(*(((curr as usize) + AI_ADDR_OFFSET) as *mut *mut char));
             var ai_addrlen = unsafe(*(((curr as usize) + 16u) as *mut usize));
-            
+
             s = sock_socket(AF_INET as int, SOCK_STREAM as int, IPPROTO_TCP as int);
             if(s != 0 as Socket && (s as longlong) >= 0) {
-                
+
                 if(sock_connect(s, ai_addr_ptr, ai_addrlen as int) == 0) {
-                    
+
                     sock_freeaddrinfo(addrinfo);
                     return s;
                 }
-                
+
                 sock_close(s);
             }
-            
+
             // move to next (ai_next is at +40 on both POSIX and Windows x64)
             curr = unsafe(*(((curr as usize) + 40u) as *mut *mut char));
             s = 0 as Socket;
         }
 
-        
+
         sock_freeaddrinfo(addrinfo);
         return 0 as Socket;
     }

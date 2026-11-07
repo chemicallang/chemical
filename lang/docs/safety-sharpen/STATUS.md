@@ -16,8 +16,8 @@ Status values: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked.
 | P1.8 | 1 | docs | reconcile docs/skills and freeze new syntax | [x] | agent | AGENTS/skill/docs/REMOVED/BREAKING updated |
 | P2.1a | 2 | std | IoError + Read/Write/Seek | [x] | agent | std/src/io.ch; fs::File Read/Write impl; libs 736/736 |
 | P2.1 | 2 | std | safe primitives + view lifetimes | [~] | agent | vector try_push/try_reserve, CString, IoError/Read/Write; view lifetimes pending |
-| P2.2 | 2 | fs/process | filesystem/process/env safe APIs | [~] | agent | fs safe read/write/open/create; owning process::Child + &mut operations; environment set/unset/all are unsafe; path pending |
-| P2.3 | 2 | net/http/tls | safe I/O, HTTP, TLS | [ ] | agent | pending |
+| P2.2 | 2 | fs/process | filesystem/process/env safe APIs | [~] | agent | fs safe read/write/open/create; owning process::Child + &mut operations; environment set/unset/all unsafe; path pending |
+| P2.3 | 2 | net/http/tls | safe I/O, HTTP, TLS | [~] | agent | safe net::TcpListener/TcpStream + io traits + loopback test; HTTP/TLS pending |
 | P2.4 | 2 | data/media | data/media/crypto/parser fuzz | [ ] | agent | pending |
 | P2.5 | 2 | web/ui | window/webview/page/components/router/server | [ ] | agent | pending |
 | P2.6 | 2 | concurrency | threads/async safe APIs | [ ] | agent | pending |

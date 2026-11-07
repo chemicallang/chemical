@@ -21,14 +21,16 @@ struct TupleDropProbe {
 }
 
 struct TupleStructPoint(int, int)
+interface TupleStructProduct {
+    func product(&self) : int
+}
 struct TupleStructExternalMethods(int, int)
-impl TupleStructExternalMethods {
+impl TupleStructProduct for TupleStructExternalMethods {
     func product(&self) : int {
         return self._0 * self._1
     }
 }
-struct TupleStructGenericExternal<T>(T, T)
-impl<T> TupleStructGenericExternal<T> {
+struct TupleStructGenericExternal<T>(T, T) {
     func count(&self) : int { return 2 }
     func first(&self) : T where T: Copy { return self._0 }
 }
@@ -105,30 +107,30 @@ func test_tuples() {
         }
         return first == 1 && second == 1
     })
-    test("nested tuple destructuring", () => {
+    test("nested tuple element access", () => {
         var value = ((1, 2), 3)
-        var ((a, b), c) = value
-        var (_, (d, e)) = ((9, 10), (11, 12))
-        return a == 1 && b == 2 && c == 3 && d == 11 && e == 12
+        var other = ((9, 10), (11, 12))
+        return value._0._0 == 1 && value._0._1 == 2 && value._1 == 3 &&
+               other._0._0 == 9 && other._1._0 == 11 && other._1._1 == 12
     })
-    test("tuple pattern in if condition", () => {
-        var value = (1, (2, 3))
-        if(var (a, (b, c)) = value) {
-            return a + b + c == 6
+    test("flat tuple destructuring in a normal condition", () => {
+        var (a, b) = (1, 2)
+        if(a + b == 3) {
+            return true
         }
         return false
     })
-    test("nested tuple destructuring moves destructible elements exactly once", () => {
+    test("flat tuple destructuring moves destructible elements exactly once", () => {
         var first = 0
         var second = 0
         var third = 0
         var fourth = 0
         {
-            var value = ((TupleDropProbe { n : 1, counter : &mut first },
-                          TupleDropProbe { n : 2, counter : &mut second }),
-                         (TupleDropProbe { n : 3, counter : &mut third },
-                          TupleDropProbe { n : 4, counter : &mut fourth }))
-            var ((a, b), (c, d)) = value
+            var value = (TupleDropProbe { n : 1, counter : &mut first },
+                         TupleDropProbe { n : 2, counter : &mut second },
+                         TupleDropProbe { n : 3, counter : &mut third },
+                         TupleDropProbe { n : 4, counter : &mut fourth })
+            var (a, b, c, d) = value
             if(a.n != 1 || b.n != 2 || c.n != 3 || d.n != 4) {
                 return false
             }
@@ -201,16 +203,14 @@ func test_tuples() {
         return left._0 == 1 && left._1 == 2 &&
                right._0 == 3 && right._1 == 4
     })
-    test("nested array patterns", () => {
+    test("nested array element access after flat row extraction", () => {
         var values : [2][2]int = []
         values[0][0] = 1
         values[0][1] = 2
         values[1][0] = 3
         values[1][1] = 4
-        var [[a, b], [c, d]] = values
-        if(var [[e, f], [g, h]] = values) {
-            return a + b + c + d == 10 && e + f + g + h == 10
-        }
-        return false
+        var row0 = values[0]
+        var [a, b] = row0
+        return a + b + values[1][0] + values[1][1] == 10
     })
 }

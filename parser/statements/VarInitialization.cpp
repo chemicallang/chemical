@@ -40,6 +40,8 @@ bool Parser::parseArrayPatternElements(
             }
             token++;
         } else if(token->type == TokenType::LBracket) {
+            error("REMOVED-003: nested array patterns are not supported; bind a row "
+                  "and destructure it separately");
             token++;
             prefix.push_back(pattern_index++);
             const bool ok = parseArrayPatternElements(allocator, into, prefix);
@@ -156,6 +158,8 @@ bool Parser::parseTuplePatternElements(
         consumeNewLines();
         if(token->type == TokenType::RParen) break;
         if(token->type == TokenType::LParen) {
+            error("REMOVED-003: nested tuple patterns are not supported; bind the "
+                  "outer value and destructure it in separate steps");
             token++;
             prefix.push_back(tuple_index++);
             const bool ok = parseTuplePatternElements(allocator, into, prefix);

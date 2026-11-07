@@ -1,88 +1,17 @@
-# Associated types (first slice)
+# Associated types — REMOVED
 
-Status: interface associated-type **declarations**, impl **bindings**, and
-completeness checking are implemented. Return-position `Self::Item`,
-abstract-method parameter-position `Self::Item`, and `T::Item` projections
-through generic bounds are projected for static dispatch. `T::Item` works with
-inline bounds, `where` clauses, inherited interface bounds, generic struct
-fields, nested generic containers, and generic impl bindings. Associated-type
-bounds (`type Item: Copy`) are parsed and checked against each implementation
-binding. Associated-type equality constraints in trait bounds
-(`T: Iterator<Item = int>`) are parsed, validated against the concrete
-implementation binding, and checked for both inline bounds and `where`
-clauses. Default-method parameter projections and generic associated types
-(GATs) are not implemented yet.
+Associated types (declarations, impl bindings, `Self::Item`/`T::Item`
+projections, associated bounds, and equality constraints) were removed in
+safety-sharpen Phase 1. They had no shipped-library users and carried a large
+generic-instantiation surface.
 
-## Syntax
+Use an ordinary generic parameter instead:
 
 ```chemical
-interface HasItem {
-    type Item
-    func value(&self) : Self::Item
-}
-
-struct Counter {
-    var n : int
-}
-
-impl HasItem for Counter {
-    type Item = int
-    func value(&self) : int { return self.n }
+interface HasValue<T> {
+    func value(&self) : T
 }
 ```
 
-- `type Item` is only valid directly inside an interface (or generic
-  interface). It declares a contract.
-- `type Item = T` inside an implementation supplies the concrete type.
-- Every interface associated-type declaration must have a matching binding in
-  each implementation. Missing bindings are a compile error:
-  `type does not implement associated type 'Item'`.
-
-## Limits
-
-- Return-position `Self::Item` is accepted in an interface method. A direct
-  call through a concrete implementation uses that implementation's concrete
-  method, so static dispatch works. The interface method signature itself still
-  carries a placeholder type.
-- `Self::Item` in an **abstract** interface method parameter is accepted. The
-  abstract declaration has no body to lower; a concrete implementation supplies
-  the real parameter type, and static dispatch reaches that implementation.
-- `Self::Item` in a **default** interface method parameter is still rejected:
-  the default body is lowered against the interface prototype, where the
-  associated declaration is only a placeholder.
-- An interface declaring an associated type, or inheriting an interface that
-  declares one, is not object safe and cannot be used through `dyn` (for
-  example `dyn HasItem` and `dyn Child` are rejected).
-- `T::Item` projections through a generic bound (`T: HasItem`) are implemented
-  for inline bounds and `where T: HasItem` clauses. The bound may inherit the
-  declaring interface (`T: Child` where `Child : HasItem`), and projections are
-  resolved per concrete instantiation, including generic struct fields
-  (`struct Holder<T: HasItem> { var value : T::Item }`), nested generic
-  containers (`vector<T::Item>`), and a generic impl binding that projects a
-  type parameter (`impl<T: HasItem> ... { type Item = T::Item }`).
-  The bound must be satisfiable and the concrete type must have an
-  implementation providing the associated binding; otherwise resolution fails
-  closed.
-- Associated-type bounds (`type Item: Copy + Display`) are parsed on interface
-  declarations and checked against every implementation binding. A non-`Copy`
-  binding for `type Item: Copy` is rejected.
-- Associated-type equality constraints are enforced when a generic
-  function, struct, impl, interface, variant, union, or type alias is
-  instantiated with a concrete type. The concrete implementation's binding
-  must be exactly the bound's target type. An equality whose target is still
-  another generic parameter is deferred to the outer instantiation.
-- The bound's associated type must actually be declared by the named
-  interface (directly or through an inherited interface), and equality
-  bindings on non-interface generic types are rejected.
-- Generic associated types (`type Cursor<'a>`) are not supported beyond the
-  declaration being rejected/ignored by the projection layer.
-- Inherited interfaces must be implemented separately; their associated types
-  are checked by their own implementation.
-
-```chemical
-func <T : Iterator<Item = int>> sum_all(iter : T) : int { ... }
-func <T> sum_where(iter : T) : int where T : Iterator<Item = int> { ... }
-```
-
-Default-method parameter projection and GATs are the next associated-type
-milestones.
+The compiler reports `REMOVED-001` for the removed syntax. See
+`lang/docs/safety-sharpen/REMOVED.md`.

@@ -1,5 +1,11 @@
 # Chemical Full Safety Parity Plan (plan v4.1; status v5.80)
 
+> **Phase 1 update (2026-11-07):** the active safety-sharpen execution plan and
+> current job status live in `lang/docs/safety-sharpen-plan.md` and
+> `lang/docs/safety-sharpen/STATUS.md`. This document is the historical/full
+> safety design record. Associated types, external/generic inherent impls,
+> nested/slice patterns, `Box<[T]>`, and range slicing were removed in Phase 1.
+
 > **Priority policy (2026-11-04): safety parity, not feature parity.** Chemical
 > adopts Rust-like *safety semantics*, not Rust's feature surface. A remaining
 > feature is release-blocking only when it is required to express safe code, to

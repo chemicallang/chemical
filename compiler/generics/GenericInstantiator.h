@@ -175,11 +175,22 @@ public:
      * outer body visit sees an empty optional and aborts.
      */
     inline std::optional<InstantiationRequirement> saveRequirement() const {
+#ifdef DEBUG
         return _requirement;
+#else
+        return std::optional<InstantiationRequirement>(_requirement);
+#endif
     }
 
     inline void restoreRequirement(std::optional<InstantiationRequirement> req) {
+#ifdef DEBUG
         _requirement = req;
+#else
+        // Non-DEBUG builds use a non-optional requirement with a valid default.
+        // saveRequirement() always records a value there; keep that value when
+        // a caller passes nullopt instead of requiring an implicit conversion.
+        _requirement = req.value_or(InstantiationRequirement::Registration);
+#endif
     }
 
     inline void debug_unsetRequirement() {
@@ -189,20 +200,6 @@ public:
     }
 
     void make_gen_type_concrete(BaseType*& type);
-
-    /** Resolve `T::Item` through T's active concrete type and its interface bound. */
-    BaseType* resolve_associated_projection(BaseType* type);
-
-    /** Find the concrete impl binding for an associated type, demanding a generic impl if needed. */
-    TypealiasStatement* find_associated_binding(
-        BaseType* concrete, ASTNode* iface, const chem::string_view& name);
-
-    /** Check associated-type equality bindings on a bound against the concrete impl. */
-    void check_associated_equalities(GenericTypeParameter* param, BaseType* concrete,
-                                     const TypeLoc& trait_type);
-
-    /** Check every inline/where bound on the instantiation currently activated. */
-    void check_active_associated_equalities(BaseGenericDecl* decl);
 
     bool relink_identifier(VariableIdentifier* identifier);
 

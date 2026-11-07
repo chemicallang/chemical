@@ -260,17 +260,12 @@ void verify_container_composition(TypeVerifier& verifier, MembersContainer* cont
     }
 }
 
-static bool contains_associated_projection(BaseType* type, unsigned depth = 0);
-
 void verify_container_field_types(TypeVerifier& verifier, MembersContainer* container) {
     for(const auto var : container->variables()) {
         if(var == nullptr) continue;
         const auto type = var->known_type();
         if(type == nullptr) continue;
         if(type->canonical()->kind() == BaseTypeKind::Void) {
-            // A generic master may store `T::Item`; the projection resolves to
-            // the concrete implementation binding during instantiation.
-            if (contains_associated_projection(type)) continue;
             verifier.diagnoser.error(var) << "a container member cannot have type void";
         }
     }
@@ -450,52 +445,6 @@ void TypeVerifier::VisitVariantDecl(VariantDefinition* def) {
     verify_container_field_types(*this, def);
 }
 
-static bool contains_associated_projection(BaseType* type, unsigned depth) {
-    if (type == nullptr || depth > 12) return false;
-    if (type->kind() == BaseTypeKind::Linked) {
-        auto* linked = type->as_linked_type_unsafe();
-        if (linked->is_value()) {
-            ASTNode* node = linked->get_direct_linked_node();
-            if (node != nullptr && node->kind() == ASTNodeKind::TypealiasStmt &&
-                node->as_typealias_unsafe()->is_associated()) {
-                return true;
-            }
-        }
-    }
-    switch (type->kind()) {
-        case BaseTypeKind::Pointer:
-            return contains_associated_projection(
-                const_cast<BaseType*>(type->as_pointer_type_unsafe()->type), depth + 1);
-        case BaseTypeKind::Reference:
-            return contains_associated_projection(
-                const_cast<BaseType*>(type->as_reference_type_unsafe()->type), depth + 1);
-        case BaseTypeKind::Array:
-            return contains_associated_projection(
-                const_cast<BaseType*>(type->as_array_type_unsafe()->elem_type.getType()), depth + 1);
-        case BaseTypeKind::Generic: {
-            for (auto& arg : type->as_generic_type_unsafe()->types) {
-                if (contains_associated_projection(const_cast<BaseType*>(arg.getType()), depth + 1)) return true;
-            }
-            return false;
-        }
-        case BaseTypeKind::Function: {
-            auto* fn = type->as_function_type_unsafe();
-            for (auto* param : fn->params) {
-                if (param != nullptr &&
-                    contains_associated_projection(const_cast<BaseType*>(param->type.getType()), depth + 1)) {
-                    return true;
-                }
-            }
-            return contains_associated_projection(const_cast<BaseType*>(fn->returnType.getType()), depth + 1);
-        }
-        case BaseTypeKind::CapturingFunction:
-            return contains_associated_projection(
-                type->as_capturing_func_type_unsafe()->get_func_type(), depth + 1);
-        default:
-            return false;
-    }
-}
-
 void TypeVerifier::VisitInterfaceDecl(InterfaceDefinition* interface) {
     RecursiveVisitor::VisitInterfaceDecl(interface);
     // ensure that every inherited type after the first inherited type is an interface
@@ -505,33 +454,6 @@ void TypeVerifier::VisitInterfaceDecl(InterfaceDefinition* interface) {
         const auto node = inherits.type->get_direct_linked_canonical_node();
         if (node == nullptr || (node->kind() != ASTNodeKind::InterfaceDecl && node->kind() != ASTNodeKind::GenericInterfaceDecl)) {
             diagnoser.error(inherits.type.encoded_location()) << "interfaces can only inherit interfaces";
-        }
-    }
-    auto check_params = [&](FunctionDeclaration* func) {
-        if (func == nullptr) return;
-        // An abstract interface method has no body to lower, so the
-        // projection only appears in the declaration. Static dispatch through
-        // the concrete implementation supplies the real parameter type.
-        // A default method body is lowered against the interface prototype,
-        // where the associated declaration is still a placeholder; keep that
-        // case fail-closed until default methods are specialized per impl.
-        if (!func->body.has_value()) return;
-        for (auto* param : func->params) {
-            if (param == nullptr) continue;
-            if (contains_associated_projection(const_cast<BaseType*>(param->type.getType()))) {
-                diagnoser.error(param->type.encoded_location())
-                    << "associated type projections in parameter position are "
-                       "not implemented yet in default interface methods; use "
-                       "the concrete type in the default method signature";
-            }
-        }
-    };
-    for (auto* node : interface->evaluated_nodes()) {
-        if (node == nullptr) continue;
-        if (node->kind() == ASTNodeKind::FunctionDecl) {
-            check_params(node->as_function_unsafe());
-        } else if (node->kind() == ASTNodeKind::GenericFuncDecl) {
-            check_params(node->as_gen_func_decl_unsafe()->master_impl);
         }
     }
 }
@@ -4008,44 +3930,7 @@ void verify_interface_implementation(TypeVerifier& verifier, ImplementationsInde
         }
     }
 
-    auto find_associated_binding = [&](const chem::string_view& name) -> TypealiasStatement* {
-        for (auto* node : implementor->evaluated_nodes()) {
-            if (node == nullptr || node->kind() != ASTNodeKind::TypealiasStmt) continue;
-            auto* alias = node->as_typealias_unsafe();
-            if (alias->name_view() == name && !alias->is_associated()) return alias;
-        }
-        return nullptr;
-    };
-
-    // Iterate over all functions and associated types in the interface
     for (auto& node : interface->evaluated_nodes()) {
-        if (node->kind() == ASTNodeKind::TypealiasStmt &&
-            node->as_typealias_unsafe()->is_associated()) {
-            auto* associated = node->as_typealias_unsafe();
-            auto* binding = find_associated_binding(associated->name_view());
-            if (binding == nullptr) {
-                diagnoser.error(implementor)
-                    << "type does not implement associated type '"
-                    << associated->name_view() << "'";
-            } else if (binding->known_type() != nullptr) {
-                auto* bound_type = binding->known_type();
-                // A generic impl may bind through a projection (`T::Item`);
-                // its concrete instantiation is checked where the projection
-                // resolves.
-                if (!contains_associated_projection(bound_type)) {
-                    for (auto& bound : associated->associated_bounds) {
-                        auto* trait_type = const_cast<BaseType*>(bound.getType());
-                        if (!trait_constraint_satisfied(verifier, bound_type, trait_type)) {
-                            diagnoser.error(binding)
-                                << "associated type '" << associated->name_view()
-                                << "' binding does not satisfy bound '"
-                                << trait_type->representation() << "'";
-                        }
-                    }
-                }
-            }
-            continue;
-        }
         if (node->kind() == ASTNodeKind::FunctionDecl) {
             const auto func_node = node->as_function_unsafe();
             if(func_node->body.has_value()) {

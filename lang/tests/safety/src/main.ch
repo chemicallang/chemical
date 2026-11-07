@@ -301,7 +301,7 @@ func span_chunks_zero_width_panics(env : &mut TestEnv) {
 @test
 func span_range_out_of_bounds_panics(env : &mut TestEnv) {
     safety_init_work_dir()
-    var ch = "public func main() : int {\n    var a : [3]int = [1, 2, 3]\n    var s : [int] = a\n    var x = s[0..4]\n    return 0\n}\n"
+    var ch = "public func main() : int {\n    var a : [3]int = [1, 2, 3]\n    var s : [int] = a\n    var x = s.subview(0, 4)\n    return 0\n}\n"
     expect_runtime_panic(env, "span_range_out_of_bounds_panics", ch)
 }
 
@@ -752,11 +752,11 @@ func returned_array_element_is_moved_once(env : &mut TestEnv) {
 @test
 func non_copy_nested_array_pattern_moves_elements(env : &mut TestEnv) {
     safety_init_work_dir()
-    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var values : [2][2]Tracker\n        values[0][0] = Tracker { id : 1 }\n        values[0][1] = Tracker { id : 2 }\n        values[1][0] = Tracker { id : 3 }\n        values[1][1] = Tracker { id : 4 }\n        {\n            var [[a, b], [c, d]] = values\n            if(a.id != 1 || b.id != 2 || c.id != 3 || d.id != 4) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var values : [4]Tracker\n        values[0] = Tracker { id : 1 }\n        values[1] = Tracker { id : 2 }\n        values[2] = Tracker { id : 3 }\n        values[3] = Tracker { id : 4 }\n        {\n            var [a, b, c, d] = values\n            if(a.id != 1 || b.id != 2 || c.id != 3 || d.id != 4) { return 10 }\n        }\n    }\n    return drops\n}\n"
     var out = string()
     var rc = safety_compile_and_run(env, "array_pattern_non_copy_nested_move", ch, &mut out)
     if(rc != 4) {
-        env.error("nested non-Copy array destructuring did not move each element exactly once")
+        env.error("flat non-Copy array destructuring did not move each element exactly once")
     }
 }
 
@@ -1335,11 +1335,11 @@ func dynamic_outer_constant_inner_aggregate_read_aborts(env : &mut TestEnv) {
 @test
 func non_copy_three_level_array_pattern_moves_elements(env : &mut TestEnv) {
     safety_init_work_dir()
-    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var values : [2][2][2]Tracker\n        values[0][0][0] = Tracker { id : 1 }\n        values[0][0][1] = Tracker { id : 2 }\n        values[0][1][0] = Tracker { id : 3 }\n        values[0][1][1] = Tracker { id : 4 }\n        values[1][0][0] = Tracker { id : 5 }\n        values[1][0][1] = Tracker { id : 6 }\n        values[1][1][0] = Tracker { id : 7 }\n        values[1][1][1] = Tracker { id : 8 }\n        {\n            var [[[a, b], [c, d]], [[e, f], [g, h]]] = values\n            if(a.id != 1 || b.id != 2 || c.id != 3 || d.id != 4) { return 10 }\n            if(e.id != 5 || f.id != 6 || g.id != 7 || h.id != 8) { return 11 }\n        }\n    }\n    return drops\n}\n"
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var values : [8]Tracker\n        values[0] = Tracker { id : 1 }\n        values[1] = Tracker { id : 2 }\n        values[2] = Tracker { id : 3 }\n        values[3] = Tracker { id : 4 }\n        values[4] = Tracker { id : 5 }\n        values[5] = Tracker { id : 6 }\n        values[6] = Tracker { id : 7 }\n        values[7] = Tracker { id : 8 }\n        {\n            var [a, b, c, d, e, f, g, h] = values\n            if(a.id != 1 || b.id != 2 || c.id != 3 || d.id != 4) { return 10 }\n            if(e.id != 5 || f.id != 6 || g.id != 7 || h.id != 8) { return 11 }\n        }\n    }\n    return drops\n}\n"
     var out = string()
     var rc = safety_compile_and_run(env, "array_pattern_non_copy_three_level", ch, &mut out)
     if(rc != 8) {
-        env.error("three-level non-Copy array destructuring did not move each element exactly once")
+        env.error("flat non-Copy array destructuring did not move each element exactly once")
     }
 }
 

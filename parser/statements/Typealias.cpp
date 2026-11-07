@@ -146,22 +146,23 @@ ASTNode* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifie
                                          parent_kind == ASTNodeKind::GenericInterfaceDecl;
 
         if(parent_is_interface && token->type == TokenType::ColonSym) {
+            // Associated types were removed from the language. Keep parsing the
+            // bound list for recovery, but report the stable removal code.
+            error("REMOVED-001: associated types are not part of Chemical; "
+                  "add a generic parameter to the interface/function instead");
             token++;
             do {
                 const auto bound = parseTypeLoc(allocator);
-                if(!bound) {
-                    error("expected an associated-type bound after ':'");
-                    break;
-                }
-                alias->associated_bounds.emplace_back(bound);
+                if(!bound) break;
             } while(consumeToken(TokenType::PlusSym));
         }
 
         if(!consumeToken(TokenType::EqualSym)) {
             if(parent_is_interface) {
-                // `type Item` inside an interface is an associated-type
-                // declaration; the implementation supplies the concrete type.
-                alias->set_associated(true);
+                // `type Item` inside an interface was an associated-type
+                // declaration. It is now a removed feature.
+                error("REMOVED-001: associated types are not part of Chemical; "
+                      "add a generic parameter to the interface/function instead");
                 parent_node = prev_parent_node;
                 return final_decl;
             }

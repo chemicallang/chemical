@@ -27,6 +27,8 @@ std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator
         token++;
 
         if(token->type == TokenType::LBracket) {
+            error("REMOVED-004: array/slice patterns in conditions are not "
+                  "supported; use a normal condition and flat bindings");
             const auto patternMatch = new (allocator.allocate<PatternMatchExpr>())
                 PatternMatchExpr(!isVar, false, chem::string_view(""), loc_single(t));
             token++; // '['
@@ -41,6 +43,8 @@ std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator
                                            : getErroredValue(allocator);
             expr = (Value*) patternMatch;
         } else if(token->type == TokenType::LParen) {
+            error("REMOVED-004: tuple patterns in conditions are not supported; "
+                  "use a normal condition and flat bindings");
             const auto patternMatch = new (allocator.allocate<PatternMatchExpr>())
                 PatternMatchExpr(!isVar, false, chem::string_view(""), loc_single(t));
             patternMatch->is_tuple = true;

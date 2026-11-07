@@ -36,12 +36,6 @@ struct TypealiasDeclAttributes {
     bool is_inlined = false;
 
     /**
-     * `type Item` inside an interface: an associated-type declaration whose
-     * concrete definition is supplied by each implementation.
-     */
-    bool is_associated = false;
-
-    /**
      * `@stdcall type Callback = (...) => ...`: applied to the function type
      * after the right-hand side has been parsed.
      */
@@ -57,8 +51,6 @@ public:
     chem::string_view located_id;
     // after equal
     TypeLoc actual_type;
-    /** `type Item: Copy + Display` bounds carried by an associated declaration. */
-    std::vector<TypeLoc> associated_bounds;
     /**
      * the generic type decl that is the generic parent of the typealias statement
      */
@@ -95,7 +87,6 @@ public:
                 specifier()
         );
         stmt->attrs = attrs;
-        stmt->associated_bounds = associated_bounds;
         return stmt;
     }
 
@@ -108,9 +99,6 @@ public:
             specifier()
         );
         stmt->attrs = attrs;
-        for (const auto& bound : associated_bounds) {
-            stmt->associated_bounds.emplace_back(bound.copy(allocator));
-        }
         return stmt;
     }
 
@@ -144,14 +132,6 @@ public:
 
     inline void set_no_mangle(bool mangle) {
         attrs.is_no_mangle = mangle;
-    }
-
-    inline bool is_associated() const {
-        return attrs.is_associated;
-    }
-
-    inline void set_associated(bool value) {
-        attrs.is_associated = value;
     }
 
     inline bool is_std_call() const {

@@ -1157,9 +1157,6 @@ void SymResLinkBody::VisitSwitchStmt(SwitchStatement *stmt) {
 }
 
 void SymResLinkBody::VisitTypealiasStmt(TypealiasStatement* node) {
-    for(auto& bound : node->associated_bounds) {
-        visit(bound);
-    }
     if(!node->is_top_level()) {
         table.declare(node->name_view(), node);
         visit(node->actual_type);
@@ -3078,9 +3075,7 @@ void SymResLinkBody::VisitGenericType(GenericType* gen_type) {
     for(auto& type : gen_type->types) {
         visit(type);
     }
-    for(auto& binding : gen_type->associated_bindings) {
-        visit(binding.type);
-    }
+
     if(generic_context) {
         // Type aliases can be expanded inline (their `instantiate_inline` does so).
         if(!gen_type->instantiate_inline(generic_instantiator, type_location)) {
@@ -4393,9 +4388,13 @@ void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {
                 }
             }
         }
+        if(slice_view) {
+            diagnoser.error(expr) << "REMOVED-004: slice patterns are not supported; "
+                                     "check view.size() and use get(i)/subview";
+            return;
+        }
         if(element_type == nullptr) {
-            diagnoser.error(expr) << "array patterns require a fixed-size array or a "
-                                     "span/mut_span slice view, found '"
+            diagnoser.error(expr) << "array patterns require a fixed-size array, found '"
                                   << value_type->representation() << "'";
             return;
         }

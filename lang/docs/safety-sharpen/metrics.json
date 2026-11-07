@@ -1,0 +1,8 @@
+{
+  "measured_at": "2026-11-07",
+  "release_llvm_compiler_bytes": 0,
+  "release_tcc_compiler_bytes": 4037816,
+  "release_tcc_compiler_stripped_bytes": 4037816,
+  "safety_sample_compile_ms": 239,
+  "size_limit_bytes": 5000000
+}

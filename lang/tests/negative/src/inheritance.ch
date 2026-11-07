@@ -125,11 +125,10 @@ func inherit_distinct_field_allowed(env : &mut TestEnv) {
 @test
 func neg_impl_missing_for(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    // `impl I { ... }` is an inherent implementation; an interface cannot be an
-    // inherent target.
+    // `impl I { ... }` was an external inherent implementation. External
+    // inherent implementations are removed from the language.
     var ch = "interface I {\n    func f(&self) : int\n}\nimpl I {\n}\nfunc main() {}\n"
-    expect_compile_error(env, "impl_missing_for", ch,
-                         "inherent implementation target cannot be an interface")
+    expect_compile_error(env, "impl_missing_for", ch, "REMOVED-002")
 }
 
 @test

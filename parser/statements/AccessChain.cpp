@@ -409,6 +409,8 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, std::vector<Valu
             // containers use the normal index path below.
             Value* index_expr = nullptr;
             if(token->type == TokenType::DotDotSym) {
+                error("REMOVED-006: range slicing syntax is not supported; use "
+                      "view.subview(start, end)");
                 index_expr = new (allocator.allocate<IntNumValue>()) IntNumValue(
                     0, typeBuilder.getUIntType(), location);
             } else {
@@ -419,6 +421,8 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, std::vector<Valu
                 }
             }
             if(token->type == TokenType::DotDotSym) {
+                error("REMOVED-006: range slicing syntax is not supported; use "
+                      "view.subview(start, end)");
                 token++;
                 Value* end_expr = nullptr;
                 if(token->type == TokenType::RBracket) {

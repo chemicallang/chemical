@@ -1,9 +1,9 @@
 # Slices and `&str` (borrowed and owning views)
 
 Status: `[T]`/`&[T]` are borrowed slice views, `&mut [T]` is a mutable borrowed
-view, `Box<[T]>` is the owning slice, and `&str` is a UTF-8-validated string
-view. All four are parser aliases over std types; MIR borrow analysis tracks
-the non-owning forms.
+view, and `&str` is a UTF-8-validated string view. `Box<[T]>` was removed in
+safety-sharpen Phase 1; use `vector<T>` for ownership. MIR borrow analysis
+tracks the non-owning forms.
 
 ## Bare `[T]` and `&[T]`
 
@@ -60,31 +60,6 @@ fill(&mut values)
   and could not be implemented).
 - A view that borrows a local vector cannot be returned (`SAFE-LIFE-001`).
 
-## `Box<[T]>`
-
-```chemical
-var values = std::vector<int>()
-values.push(5)
-values.push(6)
-
-var owned : Box<[int]> = values   // implicit move into the owning slice
-owned.size()
-owned[1]                          // indexed read
-owned[1] = 9                      // indexed write
-owned.set(0, 4)
-owned.as_span()                   // borrowed span view
-```
-
-- `Box<[T]>` is parsed as `std::boxed_slice<T>`.
-- It currently owns a contiguous `std::vector<T>` (the wrapper owns no raw
-  allocation of its own); dropping it drops every element and frees the
-  vector's storage exactly once.
-- Construction is from a `vector<T>` via the implicit constructor. There is no
-  array-to-boxed-slice constructor yet.
-- `Index` and `IndexMut` are implemented; `get_ref`, `get_mut`, `data`,
-  `size`, `empty`, `set`, `as_span`, `subview`, and `subview_mut` are available.
-- It is not `Copy`; moving it transfers ownership.
-
 ## Sub-slicing
 
 ```chemical
@@ -96,17 +71,9 @@ var mutable_view : &mut [int] = &mut arr
 var mutable_middle = mutable_view.subview(1, 4)
 mutable_middle[0] = 9
 
-var owned : Box<[int]> = values
-var shared = owned.subview(1, 3)
-var mutable = owned.subview_mut(1, 3)
-
 var parts = view.split_at(2)
 parts.first[0]
 parts.second[0]
-
-var middle = view[1..4]
-var prefix = view[..2]
-var suffix = view[2..]
 
 var windows = view.windows(3)
 windows.get(0)[0]
@@ -122,11 +89,9 @@ predicate_parts.get(0)[0]
 
 - `subview(start, end)` is bounds checked and panics on an invalid range.
 - Shared subviews are `span<T>`; mutable subviews are `mut_span<T>`.
-- `Box<[T]>` exposes `subview` and `subview_mut`.
 - `split_at(index)` returns `slice_pair<T>` (`mut_slice_pair<T>` for mutable
   views) with `first`/`second` fields.
-- Range syntax is supported: `view[a..b]`, `view[..b]`, `view[a..]`, and
-  `view[..]` lower to `subview(a, b)`.
+- Range-slicing syntax was removed (`REMOVED-006`); use `subview(a, b)`.
 - `windows(width)` and `chunks(width)` return `span_windows<T>` /
   `span_chunks<T>`; use `.size()` and `.get(i)` to read each subview.
 - `split(delim)` returns `span_delim_split<T>` and requires `T: Copy +
@@ -194,21 +159,16 @@ func <'a, 'b> shorten(values : &'a [int]) : &'b [int] where 'a : 'b {
 ## Limits of this slice
 
 - `[T]`/`&[T]` are view aliases, not a first-class unsized `[T]` type.
-- `Box<[T]>` is a vector-backed owning wrapper, not a raw boxed allocation.
-- Fixed-size arrays support flat and nested patterns (`var [a, b] = arr`,
-  `var [[a, b], [c, d]] = matrix`, `[first, .., last]`, `_`). Nested groups
-  are exact and do not accept their own `..` yet. `[T]`/`&[T]`, `&mut [T]`, and `Box<[T]>` support
-  exact and rest condition patterns (`if(var [a, b] = view)`,
-  `if(var [first, .., last] = view)`) and statement forms
-  (`var [first, .., last] = view`); trailing rest bindings use the runtime
-  slice length (`size - offset`). A statement pattern with the wrong runtime
-  length aborts through the bounds-check runtime unless a divergent `else`
-  branch (`return`, `break`, `continue`, or `unreachable`) is supplied.
+- Fixed-size arrays support flat exact/rest patterns
+  (`var [a, b] = arr`, `var [first, .., last] = arr`, `_`). Nested array
+  patterns and slice-view/condition patterns were removed (`REMOVED-003`/
+  `REMOVED-004`); bind a row and destructure it separately, or use
+  `view.size()`/`get(i)`/`subview`.
 - `windows`/`chunks` cursors are not `for`-iterable yet (use `.get(i)`).
 - Explicit `&'a [T]`, `&'a mut [T]`, and `&'a str` forms are supported; the
   elided forms rely on MIR view analysis to keep the source loan alive and
   reject local escapes.
 - The checked `std::try_from_utf8` surface exists; the `str` convenience
   constructors still panic on invalid bytes.
-- `[T]`, `&[T]`, `&mut [T]`, `Box<[T]>`, and `&str` depend on the `std` module
+- `[T]`, `&[T]`, `&mut [T]`, and `&str` depend on the `std` module
   at the type level.

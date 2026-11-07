@@ -795,6 +795,15 @@ endif()
 # TCC Compiler does not use llvm and clang
 target_compile_definitions(TCCCompiler PRIVATE TCC_BUILD)
 
+# Release size/compile-time tradeoff for the non-LLVM compiler: -O2 is
+# materially smaller than -O3 and compiles faster, while keeping the compiler's
+# own hot paths optimized. The Compiler target keeps the default -O3.
+if(NOT MSVC)
+    target_compile_options(TCCCompiler PRIVATE
+            $<$<CONFIG:Release>:-O2>
+    )
+endif()
+
 # LSP has some definitions
 target_compile_definitions(ChemicalLsp PRIVATE LSP_BUILD)
 
@@ -873,6 +882,19 @@ function(chem_disable_rtti_exceptions target)
     # (GCC/Clang only) — this can further reduce size when using -s or -Wl,--gc-sections.
     target_link_options(${target} PRIVATE
             $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Wl,--gc-sections>
+    )
+
+    # Release size: without these, --gc-sections cannot discard unused
+    # functions/data (they share one section), and unwind tables are needless
+    # for the non-LLVM compiler. Keep debug/sanitizer builds untouched.
+    target_compile_options(${target} PRIVATE
+            $<$<AND:$<CONFIG:Release>,$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>>:-ffunction-sections>
+            $<$<AND:$<CONFIG:Release>,$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>>:-fdata-sections>
+            $<$<AND:$<CONFIG:Release>,$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>>:-fno-unwind-tables>
+            $<$<AND:$<CONFIG:Release>,$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>>:-fno-asynchronous-unwind-tables>
+    )
+    target_link_options(${target} PRIVATE
+            $<$<AND:$<CONFIG:Release>,$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>>:-s>
     )
 endfunction()
 

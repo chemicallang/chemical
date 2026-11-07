@@ -102,14 +102,14 @@ func test_slices() {
         var view : [int] = &values
         return view.size() == 2 && view[1] == 2
     })
-    test("Box<[T]> owns its elements and supports indexing", () => {
-        var values = std::vector<int>()
-        values.push(5)
-        values.push(6)
-        var owned : Box<[int]> = values
-        if(owned.size() != 2 || owned[1] != 6) { return false }
-        owned[1] = 9
-        return owned[1] == 9 && owned.as_span()[0] == 5
+    test("vector<T> owns its elements and supports indexing", () => {
+        var owned = std::vector<int>()
+        owned.push(5)
+        owned.push(6)
+        if(owned.size() != 2 || owned.get(1) != 6) { return false }
+        owned.set(1, 9)
+        var view : [int] = &owned
+        return owned.get(1) == 9 && view[0] == 5
     })
     test("&mut [T] mutates through a vector view", () => {
         var values = std::vector<int>()
@@ -144,15 +144,15 @@ func test_slices() {
         sub[0] = 9
         return arr[1] == 9
     })
-    test("Box<[T]> subviews support shared and mutable views", () => {
-        var values = std::vector<int>()
-        values.push(5)
-        values.push(6)
-        var owned : Box<[int]> = values
-        var shared = owned.subview(1, 2)
-        var mutable = owned.subview_mut(1, 2)
+    test("vector<T> subviews support shared and mutable views", () => {
+        var owned = std::vector<int>()
+        owned.push(5)
+        owned.push(6)
+        var view : &mut [int] = &mut owned
+        var mutable = view.subview(1, 2)
         mutable[0] = 7
-        return shared.size() == 1 && shared[0] == 7 && owned[1] == 7
+        var shared : [int] = &owned
+        return shared.size() == 2 && shared[1] == 7 && owned.get(1) == 7
     })
     test("split_at returns two shared subviews", () => {
         var arr : [5]int = [1, 2, 3, 4, 5]
@@ -168,40 +168,40 @@ func test_slices() {
         parts.second[0] = 8
         return arr[0] == 9 && arr[2] == 8
     })
-    test("Box<[T]> split_at returns shared subviews", () => {
-        var values = std::vector<int>()
-        values.push(5)
-        values.push(6)
-        values.push(7)
-        var owned : Box<[int]> = values
-        var parts = owned.split_at(1)
+    test("vector<T> split_at returns shared subviews", () => {
+        var owned = std::vector<int>()
+        owned.push(5)
+        owned.push(6)
+        owned.push(7)
+        var view : [int] = &owned
+        var parts = view.split_at(1)
         return parts.first.size() == 1 && parts.second.size() == 2 && parts.first[0] == 5 && parts.second[0] == 6
     })
-    test("range syntax subviews slices", () => {
+    test("subview method slices a range", () => {
         var arr : [5]int = [1, 2, 3, 4, 5]
         var view : [int] = arr
-        var middle = view[1..4]
-        var prefix = view[..2]
-        var suffix = view[3..]
-        var all = view[..]
+        var middle = view.subview(1, 4)
+        var prefix = view.subview(0, 2)
+        var suffix = view.subview(3, 5)
+        var all = view.subview(0, 5)
         return middle.size() == 3 && middle[0] == 2 && prefix.size() == 2 && suffix.size() == 2 && all.size() == 5
     })
-    test("range syntax mutates a slice", () => {
+    test("subview method mutates a slice", () => {
         var arr : [5]int = [1, 2, 3, 4, 5]
         var view : &mut [int] = &mut arr
-        var middle = view[1..4]
+        var middle = view.subview(1, 4)
         middle[0] = 9
         return arr[1] == 9
     })
-    test("range syntax subviews strings and boxed slices", () => {
+    test("subview method slices strings and vectors", () => {
         var text : &str = "hello"
-        var word = text[1..4]
-        var values = std::vector<int>()
-        values.push(5)
-        values.push(6)
-        values.push(7)
-        var owned : Box<[int]> = values
-        var sub = owned[1..3]
+        var word = text.subview(1, 4)
+        var owned = std::vector<int>()
+        owned.push(5)
+        owned.push(6)
+        owned.push(7)
+        var view : [int] = &owned
+        var sub = view.subview(1, 3)
         return word.size() == 3 && word.get(0) == 'e' && sub.size() == 2 && sub[0] == 6
     })
     test("windows returns overlapping subviews", () => {
@@ -232,98 +232,22 @@ func test_slices() {
         var again = explicit_str_identity(text)
         return again.size() == 5 && again.get(0) == 'h'
     })
-    test("slice rest pattern binds the first and last elements", () => {
+    test("flat fixed-array rest pattern binds the first and last elements", () => {
         var arr : [5]int = [1, 2, 3, 4, 5]
-        var view : [int] = arr
-        if(var [first, .., last] = view) {
-            return first == 1 && last == 5
-        }
-        return false
-    })
-    test("slice rest pattern at either end", () => {
-        var arr : [4]int = [10, 20, 30, 40]
-        var view : [int] = arr
-        var last_ok = false
-        if(var [.., last] = view) {
-            last_ok = last == 40
-        }
-        if(!last_ok) { return false }
-        if(var [first, ..] = view) {
-            return first == 10
-        }
-        return false
-    })
-    test("slice rest pattern requires enough elements", () => {
-        var arr : [1]int = [7]
-        var view : [int] = arr
-        var matched = false
-        if(var [a, b, ..] = view) {
-            matched = true
-        }
-        return !matched
-    })
-    test("statement slice rest pattern binds the first and last elements", () => {
-        var arr : [5]int = [1, 2, 3, 4, 5]
-        var view : [int] = arr
-        var [first, .., last] = view
+        var [first, .., last] = arr
         return first == 1 && last == 5
     })
-    test("statement mutable slice rest pattern binds", () => {
+    test("flat fixed-array rest pattern at either end", () => {
         var arr : [4]int = [10, 20, 30, 40]
-        var view : &mut [int] = &mut arr
-        var [first, .., last] = view
-        return first == 10 && last == 40
+        var [.., last] = arr
+        if(last != 40) { return false }
+        var [first, ..] = arr
+        return first == 10
     })
-    test("statement slice pattern else binds on match", () => {
-        var arr : [2]int = [10, 20]
-        var view : [int] = arr
-        var [a, b] = view else return false
-        return a == 10 && b == 20
-    })
-    test("statement slice pattern else runs on mismatch", () => {
-        var arr : [1]int = [7]
-        var view : [int] = arr
-        var [a, b] = view else return true
-        return false
-    })
-    test("statement Box<[T]> exact pattern binds", () => {
-        var values = std::vector<int>()
-        values.push(10)
-        values.push(20)
-        var owned : Box<[int]> = values
-        var [a, b] = owned
-        return a == 10 && b == 20
-    })
-    test("mutable slice rest pattern reads through the view", () => {
+    test("flat fixed-array exact destructuring binds all elements", () => {
         var arr : [4]int = [10, 20, 30, 40]
-        var view : &mut [int] = &mut arr
-        var first_ok = false
-        if(var [first, .., last] = view) {
-            first_ok = first == 10 && last == 40
-        }
-        return first_ok
-    })
-    test("Box<[T]> condition pattern reads exact elements", () => {
-        var values = std::vector<int>()
-        values.push(1)
-        values.push(2)
-        values.push(3)
-        var owned : Box<[int]> = values
-        if(var [a, b, c] = owned) {
-            return a == 1 && b == 2 && c == 3
-        }
-        return false
-    })
-    test("Box<[T]> rest pattern uses the runtime length", () => {
-        var values = std::vector<int>()
-        values.push(10)
-        values.push(20)
-        values.push(30)
-        var owned : Box<[int]> = values
-        if(var [first, .., last] = owned) {
-            return first == 10 && last == 30
-        }
-        return false
+        var [a, b, c, d] = arr
+        return a == 10 && b == 20 && c == 30 && d == 40
     })
     test("split partitions on a delimiter", () => {
         var arr : [7]int = [1, 0, 2, 3, 0, 0, 4]
@@ -339,7 +263,7 @@ func test_slices() {
         values.push(1)
         values.push(0)
         values.push(2)
-        var owned : Box<[int]> = values
+        var owned : [int] = &values
         var owned_parts = owned.split(0)
         return owned_parts.size() == 2 && owned_parts.get(1)[0] == 2
     })

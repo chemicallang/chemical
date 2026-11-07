@@ -50,13 +50,13 @@ Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2489/2489` |
-| LLVM main | `2487/2487` |
+| TCC main | `2478/2478` (Phase 1 removals) |
+| LLVM main | `2476/2476` (Phase 1 removals) |
 | `@test` runner | `57/57` |
-| TCC/LLVM negative | `871/871` |
+| TCC/LLVM negative | `861/861` (plus 12 `--removed` checks) |
 | TCC/LLVM safety | `190/190` |
 | TCC/LLVM async | `83/83` |
-| TCC libs | `736/736` |
+| TCC libs | `734/734` (Box<[T]> tests removed) |
 | TCC plugins | `1305/1305` |
 | TCC interpret | `1938/1938` |
 | `MIRTests` | `4749 checks` |

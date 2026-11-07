@@ -120,7 +120,12 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, ASTAllocator& body_all
                 impl->struct_type = getErroredType(allocator);
             }
         } else {
-            // `impl Type { ... }` is an inherent implementation.
+            // `impl Type { ... }` was an external/generic inherent
+            // implementation. It is a removed feature; keep parsing the body
+            // for recovery, but report the stable removal code.
+            error("REMOVED-002: external and generic inherent implementations are "
+                  "not supported; declare methods in the type body or implement an "
+                  "interface with 'impl Trait for Type'");
             impl->struct_type = impl->interface_type;
             impl->interface_type = { nullptr, ZERO_LOC };
         }

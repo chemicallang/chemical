@@ -639,9 +639,6 @@ public:
         for(auto& ty : type->types) {
             visit_it(ty);
         }
-        for(auto& binding : type->associated_bindings) {
-            visit_it(binding.type);
-        }
     }
 
     void VisitFunctionType(FunctionType* type) {

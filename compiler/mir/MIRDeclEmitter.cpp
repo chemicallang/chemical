@@ -104,9 +104,6 @@ void MIRDeclEmitter::fwd_declare(ASTNode* node) {
 void MIRDeclEmitter::declare_typedef(TypealiasStatement* stmt) {
     if (!stmt || stmt->has_declared) return;
     stmt->has_declared = true;
-    // An associated-type declaration is a contract, not a C typedef. Its
-    // concrete type lives in the implementing `type Item = ...` alias.
-    if (stmt->is_associated()) return;
     // declaring the underlying type first pulls in composed/capturing-function
     // instance structs the typedef's type depends on
     early_declare_type(stmt->actual_type, nullptr, true, true);

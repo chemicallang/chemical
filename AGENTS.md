@@ -26,7 +26,7 @@ dropping capabilities. The **first** release may be much larger (7–15 MB) to s
 after that, size + compile time + memory are reduced together. See
 `lang/docs/language-goals.md` §2.
 
-**Safety implementation status (2026-11-01):** the enforceable core is green
+**Safety implementation status (2026-11-07; see `lang/docs/safety-sharpen/STATUS.md`):** the enforceable core is green
 (M0, M3, and the enforceable M4/M5/M6 rules), but full parity is not done. The
 async `FutureHandle<'a, T>` now carries a frame lifetime (`'static` for owning
 frames, elided for borrowed frames); `SAFE-LIFE-005` rejects safe retaining
@@ -45,10 +45,10 @@ rejects un-auditable extern callback ABIs, `SAFE-FFI-006` rejects variadic or
 non-x86 32-bit `@stdcall`), `dyn` being conservatively
 `!Send`/`!Sync` when no
 explicit `+ Send`/`+ Sync` bound is written (`+ Unpin` is construction-checked),
-basic tuples and `[T]`/`&[T]`/`&mut [T]`/`Box<[T]>` slices plus `&str` views
+basic tuples and `[T]`/`&[T]`/`&mut [T]` slices plus `&str` views
 (array/vector views, mutable array/vector indexing,
 subviews/split_at/ranges/split/split_by, explicit slice/string lifetimes, windows/chunks,
-owning boxed slices, UTF-8 validation,
+UTF-8 validation,
 local-escape rejection), and the partially
 implemented `Fn`/`FnMut`/`FnOnce` callable model (call-once/mutable-receiver
 kinds, `FnOnce` capture moves with per-capture drop flags, field-stored `FnOnce`
@@ -72,10 +72,10 @@ declarations; no JavaScript backend; borrow checking makes DOM-heavy code harder
 platforms (JVM) vs. native semantics; **a native GC mode (a Go-like "ignore
 allocation, still a native binary" mode with an embedded collector) — its semantics,
 boundary, and implementation are open** (see `lang/docs/language-goals.md` §6.7);
-**generic impls (`impl<T> Trait for MyType<T>`) are not supported** — `impl <T> ...`
-is rejected and parameterized impls do not resolve methods, so generic types cannot
-participate uniformly in protocols (§6.8); and the open problem of one syntax across
-divergent platform memory models.
+**generic impls (`impl<T> Trait for MyType<T>`) are supported**; external/generic
+inherent impls (`impl Type {}`) are not. Associated types were removed in the
+safety-sharpen Phase 1 (see `lang/docs/safety-sharpen/REMOVED.md`). The open
+problem remains one syntax across divergent platform memory models.
 
 **Proposal roadmap (2026-10):** the large-feature proposals live in `lang/docs/proposals/`
 (open `review.md`). Approved: generic impls (`0003`), borrow checker (`0004`), no-panic

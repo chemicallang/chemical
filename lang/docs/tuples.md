@@ -115,12 +115,9 @@ view remains rejected with `SAFE-MOVE-004`. Nested non-Copy patterns are
 supported for owned local arrays up to two fixed-array levels; deeper nesting
 remains rejected.
 
-Slice views (`[T]`, `&[T]`) support exact refutable patterns in condition
-position: `if(var [a, b] = view) { ... }` binds only when `view.size()` equals
-the pattern length. These condition bindings read through the view rather than
-taking a snapshot; use the fixed-array statement form if a snapshot is needed.
-Slice rest patterns (`[a, .., z]`) and `Box<[T]>` patterns are not implemented
-yet.
+Fixed arrays support flat exact/rest statement patterns only. Slice-view
+patterns, condition patterns, nested patterns, and `Box<[T]>` patterns were
+removed in safety-sharpen Phase 1 (`REMOVED-003`/`REMOVED-004`/`REMOVED-005`).
 
 ## Type facts
 
@@ -135,14 +132,11 @@ yet.
 
 ## Not implemented
 
-- Tuple patterns in match/switch position, and nested array patterns (tuple
-  nesting and `if` condition patterns are implemented; fixed-array patterns
-  remain flat).
+- Tuple patterns in match/switch position, nested tuple/array patterns, and
+  tuple/slice patterns in `if` conditions (removed in Phase 1).
 - Tuple-struct field visibility (fields are always public).
 - `impl Trait for (T1, T2)` / methods on structural tuples.
-- Slice rest patterns, `&mut [T]`/`Box<[T]>` patterns, statement forms with an
-  `else` path, and nested non-Copy array destructuring deeper than two
-  fixed-array levels. Exact `[T]`/`&[T]` condition patterns, flat non-Copy
-  destructuring, and two-level nested non-Copy destructuring of an owned local
-  array are supported.
+- Slice-view patterns, `Box<[T]>` patterns, nested non-Copy array
+  destructuring, and condition/`else` statement patterns. Flat fixed-array
+  exact/rest destructuring of owned locals is supported.
 - Slices, `&str`, const generics, GATs, and `impl Trait` are separate M1 work.

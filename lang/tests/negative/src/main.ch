@@ -701,7 +701,7 @@ func neg_nested_array_pattern_arity(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var values : [2][2]int = []\n    var [[a, b], [c]] = values\n    return 0\n}\n"
     expect_compile_error(env, "nested_array_pattern_arity", ch,
-                         "array pattern arity does not match at a nested level")
+                         "REMOVED-003")
 }
 
 @test
@@ -709,7 +709,7 @@ func neg_nested_array_pattern_requires_array(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var values : [2]int = []\n    var [[a, b], c] = values\n    return 0\n}\n"
     expect_compile_error(env, "nested_array_pattern_requires_array", ch,
-                         "nested array pattern element is not a fixed-size array")
+                         "REMOVED-003")
 }
 
 @test
@@ -717,7 +717,7 @@ func neg_nested_tuple_pattern_arity(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var ((a, b), c) = ((1, 2, 3), 4)\n    return 0\n}\n"
     expect_compile_error(env, "nested_tuple_pattern_arity", ch,
-                         "tuple pattern arity does not match at a nested level")
+                         "REMOVED-003")
 }
 
 @test
@@ -725,7 +725,7 @@ func neg_nested_tuple_pattern_requires_tuple(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var (a, (b, c)) = (1, 2)\n    return 0\n}\n"
     expect_compile_error(env, "nested_tuple_pattern_requires_tuple", ch,
-                         "nested tuple pattern element is not a tuple")
+                         "REMOVED-003")
 }
 
 @test
@@ -811,129 +811,47 @@ func neg_array_pattern_non_copy_field_partial_move(env : &mut TestEnv) {
 func array_pattern_non_copy_nested_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    var values : [2][2]DT\n    values[0][0] = DT { x : 1 }\n    values[0][1] = DT { x : 2 }\n    values[1][0] = DT { x : 3 }\n    values[1][1] = DT { x : 4 }\n    var [[a, b], [c, d]] = values\n    return a.x + b.x + c.x + d.x\n}\n"
-    expect_compile_success(env, "array_pattern_non_copy_nested", ch)
+    expect_compile_error(env, "array_pattern_non_copy_nested", ch, "REMOVED-003")
 }
 
 @test
 func slice_rest_pattern_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "public func main() : int {\n    var values : [3]int = [1, 2, 3]\n    var view : [int] = values\n    if(var [a, .., z] = view) { return a + z }\n    return 1\n}\n"
-    expect_compile_success_with_mod(env, "slice_rest_pattern_compiles", ch, NEG_MOD_STD_CORE)
+    expect_compile_error_with_mod(env, "slice_rest_pattern_compiles", ch, "REMOVED-004", NEG_MOD_STD_CORE)
 }
 
 @test
-func associated_type_binding_compiles(env : &mut TestEnv) {
+func neg_associated_types_removed(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "interface HasItem {\n    type Item\n    func value(&self) : int\n}\nstruct HasItemImpl {\n    var n : int\n}\nimpl HasItem for HasItemImpl {\n    type Item = int\n    func value(&self) : int { return self.n }\n}\npublic func main() : int { return 0 }\n"
-    expect_compile_success(env, "associated_type_binding_compiles", ch)
+    var ch = "interface HasItem {\n    type Item\n    func value(&self) : int\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "associated_types_removed", ch, "REMOVED-001")
 }
 
 @test
-func neg_associated_type_missing_binding(env : &mut TestEnv) {
+func neg_external_inherent_impl_removed(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "interface HasItem {\n    type Item\n}\nstruct HasItemImpl { var n : int }\nimpl HasItem for HasItemImpl { }\npublic func main() : int { return 0 }\n"
-    expect_compile_error(env, "associated_type_missing_binding", ch,
-                         "type does not implement associated type 'Item'")
+    var ch = "struct Point { var x : int }\nimpl Point {\n    func get(&self) : int { return self.x }\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "external_inherent_impl_removed", ch, "REMOVED-002")
 }
 
 @test
-func associated_type_projection_return_compiles(env : &mut TestEnv) {
+func neg_tuple_pattern_in_condition_removed(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "interface HasItem {\n    type Item\n    func value(&self) : Self::Item\n}\nstruct Counter { var n : int }\nimpl HasItem for Counter {\n    type Item = int\n    func value(&self) : int { return self.n }\n}\npublic func main() : int { return 0 }\n"
-    expect_compile_success(env, "associated_type_projection_return_compiles", ch)
+    var ch = "public func main() : int {\n    var value = (1, 2)\n    if(var (a, b) = value) { return a + b }\n    return 0\n}\n"
+    expect_compile_error(env, "tuple_pattern_in_condition_removed", ch, "REMOVED-004")
 }
 
 @test
-func associated_type_projection_parameter_compiles(env : &mut TestEnv) {
+func neg_boxed_slice_removed(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "interface HasItem {\n    type Item\n    func set(&mut self, value : Self::Item)\n}\nstruct Counter { var n : int }\nimpl HasItem for Counter {\n    type Item = int\n    func set(&mut self, value : int) { self.n = value }\n}\npublic func main() : int { return 0 }\n"
-    expect_compile_success(env, "associated_type_projection_parameter_compiles", ch)
+    var ch = "public func main() : int {\n    var values : Box<[int]>\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "boxed_slice_removed", ch, "REMOVED-005", NEG_MOD_STD_CORE)
 }
 
 @test
-func associated_type_bound_compiles(env : &mut TestEnv) {
+func neg_range_slice_syntax_removed(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "interface HasCopyItem {\n    type Item: Copy\n    func get(&self) : Self::Item\n}\nstruct Good { var n : int }\nimpl HasCopyItem for Good {\n    type Item = int\n    func get(&self) : int { return self.n }\n}\npublic func main() : int { return 0 }\n"
-    expect_compile_success_with_mod(env, "associated_type_bound_compiles", ch, NEG_MOD_STD_CORE)
-}
-
-@test
-func neg_associated_type_bound_rejects_noncopy(env : &mut TestEnv) {
-    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "interface HasCopyItem {\n    type Item: Copy\n    func get(&self) : Self::Item\n}\nstruct Bad { var s : std::string }\nimpl HasCopyItem for Bad {\n    type Item = std::string\n    func get(&self) : std::string { return self.s }\n}\npublic func main() : int { return 0 }\n"
-    expect_compile_error_with_mod(env, "associated_type_bound_rejects_noncopy", ch,
-                                  "associated type 'Item' binding does not satisfy bound 'Copy'",
-                                  NEG_MOD_STD_CORE)
-}
-
-@test
-func neg_associated_equality_inline_mismatch(env : &mut TestEnv) {
-    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "interface HasItem {\n    type Item\n    func get(&self) : Self::Item\n}\nstruct Counter { var n : int }\nimpl HasItem for Counter {\n    type Item = int\n    func get(&self) : int { return self.n }\n}\nfunc <T : HasItem<Item = long>> read_item(t : &T) : T::Item { return t.get() }\npublic func main() : int {\n    var c = Counter { n : 7 }\n    return read_item(&c) as int\n}\n"
-    expect_compile_error(env, "associated_equality_inline_mismatch", ch,
-                         "associated type 'Item' of 'Counter' is 'int', but the bound requires 'long'")
-}
-
-@test
-func neg_associated_equality_where_mismatch(env : &mut TestEnv) {
-    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "interface HasItem {\n    type Item\n    func get(&self) : Self::Item\n}\nstruct Counter { var n : int }\nimpl HasItem for Counter {\n    type Item = int\n    func get(&self) : int { return self.n }\n}\nfunc <T> read_item(t : &T) : T::Item where T : HasItem<Item = long> { return t.get() }\npublic func main() : int {\n    var c = Counter { n : 7 }\n    return read_item(&c) as int\n}\n"
-    expect_compile_error(env, "associated_equality_where_mismatch", ch,
-                         "associated type 'Item' of 'Counter' is 'int', but the bound requires 'long'")
-}
-
-@test
-func neg_associated_equality_unknown_name(env : &mut TestEnv) {
-    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "interface HasItem {\n    type Item\n    func get(&self) : Self::Item\n}\nfunc <T : HasItem<Nope = int>> bad(t : &T) { }\npublic func main() : int { return 0 }\n"
-    expect_compile_error(env, "associated_equality_unknown_name", ch,
-                         "interface 'HasItem' has no associated type 'Nope'")
-}
-
-@test
-func neg_associated_equality_requires_interface(env : &mut TestEnv) {
-    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "struct Box<T> { var value : T }\nfunc <T : Box<Item = int>> bad(t : &T) { }\npublic func main() : int { return 0 }\n"
-    expect_compile_error(env, "associated_equality_requires_interface", ch,
-                         "associated-type equality constraints are only valid on interface bounds")
-}
-
-@test
-func neg_associated_projection_without_bound(env : &mut TestEnv) {
-    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "func <T> bad(t : &T) : T::Item { return t.n }\npublic func main() : int { return 0 }\n"
-    expect_compile_error(env, "associated_projection_without_bound", ch,
-                         "unresolved identifier, 'Item' not found")
-}
-
-@test
-func neg_associated_projection_unknown_member(env : &mut TestEnv) {
-    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "interface HasItem {\n    type Item\n    func get(&self) : Self::Item\n}\nfunc <T : HasItem> bad(t : &T) : T::Nope { return t.get() }\npublic func main() : int { return 0 }\n"
-    expect_compile_error(env, "associated_projection_unknown_member", ch,
-                         "unresolved identifier, 'Nope' not found")
-}
-
-@test
-func neg_associated_type_projection_default_parameter(env : &mut TestEnv) {
-    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "interface HasItem {\n    type Item\n    func set(&mut self, value : Self::Item) { }\n}\nstruct Counter { var n : int }\nimpl HasItem for Counter {\n    type Item = int\n    func set(&mut self, value : int) { self.n = value }\n}\npublic func main() : int { return 0 }\n"
-    expect_compile_error(env, "associated_type_projection_default_parameter", ch,
-                         "associated type projections in parameter position are not implemented yet in default interface methods")
-}
-
-@test
-func neg_dyn_associated_type_interface_rejected(env : &mut TestEnv) {
-    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "interface HasItem {\n    type Item\n    func get(&self) : Self::Item\n}\nstruct Counter { var n : int }\nimpl HasItem for Counter {\n    type Item = int\n    func get(&self) : int { return self.n }\n}\npublic func main() : int {\n    var c = Counter { n : 7 }\n    var d : dyn HasItem = dyn<HasItem>(c)\n    return 0\n}\n"
-    expect_compile_error(env, "dyn_associated_type_interface", ch,
-                         "is not object safe")
-}
-
-@test
-func neg_dyn_inherited_associated_type_interface_rejected(env : &mut TestEnv) {
-    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "interface HasItem {\n    type Item\n    func get(&self) : Self::Item\n}\ninterface Child : HasItem {\n    func tag(&self) : int\n}\nstruct Counter { var n : int }\nimpl HasItem for Counter {\n    type Item = int\n    func get(&self) : int { return self.n }\n}\nimpl Child for Counter {\n    func tag(&self) : int { return 1 }\n}\npublic func main() : int {\n    var c = Counter { n : 7 }\n    var d : dyn Child = dyn<Child>(c)\n    return 0\n}\n"
-    expect_compile_error(env, "dyn_inherited_associated_type_interface", ch,
-                         "is not object safe")
+    var ch = "public func main() : int {\n    var a : [3]int = [1, 2, 3]\n    var s : [int] = a\n    var x = s[0..2]\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "range_slice_syntax_removed", ch, "REMOVED-006", NEG_MOD_STD_CORE)
 }

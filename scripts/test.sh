@@ -60,6 +60,7 @@ usage() {
   echo "  --llvm                  Use Compiler (LLVM/Clang backend)"
   echo "  --interpret             Run tests via interpretation job (no executable produced)"
   echo "  --negative              Run negative (compile-fail) safety tests only"
+  echo "  --removed               Run only the removed-feature (REMOVED-*) compile-fail tests"
   echo "  --safety                Run the runtime/parity safety suite (passes --arg-test-safety)"
   echo "  --mirtests              Build and run the MIR unit tests (MIRTests)"
   echo "  --thread-tsan           Build and run the M6 thread data-race smoke test under TSAN (LLVM only)"
@@ -119,6 +120,11 @@ while [ $# -gt 0 ]; do
       ;;
     --interpret) TEST_INTERPRET=true ;;
     --negative) TEST_NEGATIVE=true ;;
+    --removed)
+      TEST_NEGATIVE=true
+      TEST_NAMES="neg_associated_types_removed,neg_external_inherent_impl_removed,neg_tuple_pattern_in_condition_removed,neg_boxed_slice_removed,neg_range_slice_syntax_removed,neg_nested_array_pattern_arity,neg_nested_array_pattern_requires_array,neg_nested_tuple_pattern_arity,neg_nested_tuple_pattern_requires_tuple,array_pattern_non_copy_nested_compiles,slice_rest_pattern_compiles,neg_impl_missing_for"
+      SKIP_SEQUENTIAL=true
+      ;;
     --safety) TEST_SAFETY=true ;;
     --mirtests) TEST_MIR=true ;;
     --thread-tsan) TEST_THREAD_TSAN=true ;;
@@ -295,8 +301,8 @@ run_all_suites() {
   fi
 
   # The slow `tls` suite is opt-in (`--include-tls`); everything else always runs.
-  local names=("main" "interpret" "negative" "safety" "plugins" "async" "libs" "regexp" "process" "server")
-  local flags=("" "--interpret" "--negative" "--safety" "--plugins" "--async" "--libs" "--regexp" "--process" "--server")
+  local names=("main" "interpret" "negative" "removed" "safety" "plugins" "async" "libs" "regexp" "process" "server")
+  local flags=("" "--interpret" "--negative" "--removed" "--safety" "--plugins" "--async" "--libs" "--regexp" "--process" "--server")
   if [ "$INCLUDE_TLS" = true ]; then
     names+=("tls")
     flags+=("--tls")
@@ -513,7 +519,11 @@ if [ "$TEST_NEGATIVE" = true ]; then
       exit 1
     fi
     echo "==> Running negative tests..."
-    "$NEG_OUT"
+    if [ -n "$TEST_NAMES" ]; then
+      "$NEG_OUT" --skip-sequential --test-names "$TEST_NAMES"
+    else
+      "$NEG_OUT"
+    fi
   fi
 elif [ "$TEST_SAFETY" = true ]; then
   SAFETY_OUT="$TEST_OUT_DIR/safety-tests-$([ "$TARGET" = "Compiler" ] && echo llvm || echo tcc).exe"

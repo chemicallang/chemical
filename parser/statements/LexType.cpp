@@ -97,6 +97,8 @@ BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idT
         // parser turns `[T]` into `std::span<T>`.
         if(linked_type_leaf_name(idType) == chem::string_view("Box") &&
            token->type == TokenType::LBracket) {
+            error("REMOVED-005: Box<[T]> is not part of Chemical; use vector<T> "
+                  "for ownership or [T]/&[T] for a view");
             Token* const save = token;
             const int saved_pending = pending_greater_count;
             const bool prev_suppression = suppress_errors;
@@ -114,7 +116,6 @@ BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idT
         }
         std::vector<TypeLoc> types;
         std::vector<chem::string_view> lifetime_args;
-        std::vector<GenericTypeAssocBinding> assoc_bindings;
         do {
             if(token->type == TokenType::Lifetime) {
                 lifetime_args.emplace_back(allocate_view(allocator, token->value));
@@ -128,18 +129,9 @@ BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idT
                 // belongs to the enclosing expression (e.g. the assignment in
                 // `var f : Fn<(x) => R<int>> = ...`), not to this argument list.
                 if(pending_greater_count == 0 && consumeToken(TokenType::EqualSym)) {
-                    auto name = linked_type_leaf_name(type);
-                    if(name.empty()) {
-                        error("expected an associated type name before '=' in generic argument list");
-                    } else {
-                        auto bound = parseTypeLoc(allocator);
-                        if(!bound) {
-                            error("expected a type after '=' in associated-type equality constraint");
-                        } else {
-                            assoc_bindings.emplace_back(
-                                name, bound, loc_single(arg_start));
-                        }
-                    }
+                    error("REMOVED-001: associated-type equality constraints are "
+                          "not part of Chemical; use a generic parameter instead");
+                    parseTypeLoc(allocator);
                 } else {
                     types.emplace_back(type);
                 }
@@ -151,7 +143,6 @@ BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idT
             unexpected_error("expected '>' for generic type");
         }
         auto generic = new (allocator.allocate<GenericType>()) GenericType((LinkedType*) idType, std::move(types), std::move(lifetime_args));
-        generic->associated_bindings = std::move(assoc_bindings);
         return generic;
     } else {
         return idType;

@@ -2,6 +2,23 @@
 
 public namespace process {
 
+// Close pipe descriptors owned by a Child. Does not signal the child; callers
+// that need to terminate it must call kill_process explicitly.
+func process_cleanup(child : *mut ChildProcess) {
+    unsafe {
+        if(child._unix.stdin_fd >= 0) { close(child._unix.stdin_fd); child._unix.stdin_fd = -1; }
+        if(child._unix.stdout_fd >= 0) { close(child._unix.stdout_fd); child._unix.stdout_fd = -1; }
+        if(child._unix.stderr_fd >= 0) { close(child._unix.stderr_fd); child._unix.stderr_fd = -1; }
+        if(child.is_running && child._unix.pid > 0) {
+            var status : int = 0;
+            var r = waitpid(child._unix.pid, &raw mut status, 1);
+            if(r == child._unix.pid) { child._unix.pid = 0; child.is_running = false; }
+        }
+    }
+}
+
+
+
 using std::string;
 using std::string_view;
 using std::vector;
@@ -23,7 +40,7 @@ func redirect_to_devnull(fd : int) {
 // (close/dup2/chdir/execve) — never getenv()/malloc()/execvp — otherwise
 // process::execute() deadlocks when called from a worker thread while
 // another thread holds a lock (e.g. WebKitGTK/GLib).
-public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
+func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
         unsafe {
         var stdout_pipe : [2]int;
         var stderr_pipe : [2]int;
@@ -212,7 +229,7 @@ func read_available(fd : int, data : *mut vector<u8>) : bool { unsafe {
 
 // Same parent-side setup rule as posix_execute() above (no getenv()/malloc()
 // in the forked child) to avoid the multi-threaded deadlock.
-public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
+func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
         unsafe {
         var stdout_pipe : [2]int;
         var stderr_pipe : [2]int;
@@ -309,7 +326,7 @@ public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool 
         }
     }
 
-public func posix_wait(child : *mut ChildProcess, out : *mut ProcessResult) : bool {
+func posix_wait(child : *mut ChildProcess, out : *mut ProcessResult) : bool {
         unsafe {
         var stdout_data = vector<u8>();
         var stderr_data = vector<u8>();

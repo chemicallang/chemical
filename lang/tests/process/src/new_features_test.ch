@@ -96,8 +96,8 @@ public func test_process_no_timeout_by_default(env : &mut TestEnv) {
 
 @test
 public func test_environment_all(env : &mut TestEnv) {
-    environment::set("CHEMICAL_TEST_ALL_VAR", "test_all_value")
-    var vars = environment::all()
+    unsafe(environment::set("CHEMICAL_TEST_ALL_VAR", "test_all_value"))
+    var vars = unsafe(environment::all())
     // Should contain at least some entries
     if(vars.size() == 0) { env.error("environment::all() returned empty"); return }
     // Look for our test variable
@@ -111,7 +111,7 @@ public func test_environment_all(env : &mut TestEnv) {
         i += 1
     }
     if(!found) { env.error("environment::all() should contain our test var"); return }
-    environment::unset("CHEMICAL_TEST_ALL_VAR")
+    unsafe(environment::unset("CHEMICAL_TEST_ALL_VAR"))
 }
 
 // ===========================================================================

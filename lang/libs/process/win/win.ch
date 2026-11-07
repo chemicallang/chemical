@@ -5,6 +5,20 @@
 
 public namespace process {
 
+// Close handles owned by a Child. Does not terminate the process.
+func process_cleanup(child : *mut ChildProcess) {
+    unsafe {
+        if(child.win.h_stdin_write != null) { CloseHandle(child.win.h_stdin_write); child.win.h_stdin_write = null; }
+        if(child.win.h_stdout_read != null) { CloseHandle(child.win.h_stdout_read); child.win.h_stdout_read = null; }
+        if(child.win.h_stderr_read != null) { CloseHandle(child.win.h_stderr_read); child.win.h_stderr_read = null; }
+        if(child.win.h_process != null) { CloseHandle(child.win.h_process); child.win.h_process = null; }
+        if(child.win.h_thread != null) { CloseHandle(child.win.h_thread); child.win.h_thread = null; }
+        child.is_running = false;
+    }
+}
+
+
+
 using std::string;
 using std::string_view;
 using std::vector;
@@ -158,7 +172,7 @@ func win_build_env_block(env : *vector<string>) : *mut void {
 // execute — run a process and wait for completion
 // ---------------------------------------------------------------------------
 
-public func win_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
+func win_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
     if(cfg.args.size() == 0) { return false }
 
     var stdout_read : HANDLE = null
@@ -375,7 +389,7 @@ public func win_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
 // spawn — start a process without waiting
 // ---------------------------------------------------------------------------
 
-public func win_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
+func win_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
     if(cfg.args.size() == 0) { return false }
 
     var stdout_read : HANDLE = null
@@ -496,7 +510,7 @@ public func win_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
 // wait — wait for a spawned process and collect output
 // ---------------------------------------------------------------------------
 
-public func win_wait(child : *mut ChildProcess, out : *mut ProcessResult) : bool {
+func win_wait(child : *mut ChildProcess, out : *mut ProcessResult) : bool {
     var stdout_data = vector<u8>()
     var stderr_data = vector<u8>()
 

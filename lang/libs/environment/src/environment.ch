@@ -59,7 +59,7 @@ public func get_or(name : string_view, default_val : string_view) : string {
 
 /// Set an environment variable.
 /// Returns Err if the operation fails.
-public func set(name : string_view, value : string_view) : Result<UnitTy, EnvError> {
+public unsafe func set(name : string_view, value : string_view) : Result<UnitTy, EnvError> {
     comptime if(def.windows) {
         var r = SetEnvironmentVariableA(name.data(), value.data());
         if(r == 0) { return Result.Err(EnvError.OperationFailed(string("SetEnvironmentVariableA failed"))); }
@@ -72,7 +72,7 @@ public func set(name : string_view, value : string_view) : Result<UnitTy, EnvErr
 }
 
 /// Unset/remove an environment variable.
-public func unset(name : string_view) : Result<UnitTy, EnvError> {
+public unsafe func unset(name : string_view) : Result<UnitTy, EnvError> {
     comptime if(def.windows) {
         var r = SetEnvironmentVariableA(name.data(), null);
         if(r == 0) { return Result.Err(EnvError.OperationFailed(string("SetEnvironmentVariableA failed"))); }
@@ -131,7 +131,7 @@ public func current_dir() : Option<string> {
 
 /// Enumerate all environment variables.
 /// Returns a vector of "KEY=VALUE" strings.
-public func all() : vector<string> {
+public unsafe func all() : vector<string> {
         unsafe {
         var result = vector<string>()
         comptime if(def.windows) {

@@ -5,7 +5,7 @@ using std::Result;
 
 @test
 public func test_environment_set_get(env : &mut TestEnv) {
-    var set_res = environment::set("CHEMICAL_TEST_VAR", "test_value")
+    var set_res = unsafe(environment::set("CHEMICAL_TEST_VAR", "test_value"))
     if(set_res is Result.Err) {
         env.error("environment::set failed")
         return
@@ -20,7 +20,7 @@ public func test_environment_set_get(env : &mut TestEnv) {
         env.error("environment::get returned wrong value")
         return
     }
-    var unset_res = environment::unset("CHEMICAL_TEST_VAR")
+    var unset_res = unsafe(environment::unset("CHEMICAL_TEST_VAR"))
     if(unset_res is Result.Err) {
         env.error("environment::unset failed")
         return

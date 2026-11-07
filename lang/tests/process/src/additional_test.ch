@@ -49,13 +49,13 @@ public func test_environment_shell(env : &mut TestEnv) {
 
 @test
 public func test_environment_set_get_unset_roundtrip(env : &mut TestEnv) {
-    var set_res = environment::set("CHEMICAL_ROUNDTRIP_XYZ", "value_abc")
+    var set_res = unsafe(environment::set("CHEMICAL_ROUNDTRIP_XYZ", "value_abc"))
     if(set_res is Result.Err) { env.error("set failed"); return }
     var got = environment::get("CHEMICAL_ROUNDTRIP_XYZ")
     if(got is Option.None) { env.error("get should return Some after set"); return }
     var Some(v) = got else unsafe { unreachable }
     if(!string_eq(&raw v, string_view("value_abc"))) { env.error("get returned wrong value"); return }
-    var unset_res = environment::unset("CHEMICAL_ROUNDTRIP_XYZ")
+    var unset_res = unsafe(environment::unset("CHEMICAL_ROUNDTRIP_XYZ"))
     if(unset_res is Result.Err) { env.error("unset failed"); return }
     var after = environment::get("CHEMICAL_ROUNDTRIP_XYZ")
     if(after is Option.Some) { env.error("get should return None after unset"); return }
@@ -69,10 +69,10 @@ public func test_environment_get_missing(env : &mut TestEnv) {
 
 @test
 public func test_environment_get_or_existing(env : &mut TestEnv) {
-    environment::set("CHEMICAL_GET_OR_TEST", "real_val")
+    unsafe(environment::set("CHEMICAL_GET_OR_TEST", "real_val"))
     var v = environment::get_or("CHEMICAL_GET_OR_TEST", "default")
     if(!string_eq(&raw v, string_view("real_val"))) { env.error("get_or should return real value"); return }
-    environment::unset("CHEMICAL_GET_OR_TEST")
+    unsafe(environment::unset("CHEMICAL_GET_OR_TEST"))
 }
 
 // ===========================================================================
@@ -161,11 +161,11 @@ public func test_process_spawn_kill_wait_lifecycle(env : &mut TestEnv) {
     var spawn_res = process::spawn(cfg)
     if(spawn_res is Result.Err) { env.error("spawn failed"); return }
     var Ok(child) = spawn_res else unsafe { unreachable }
-    if(!child.is_running) { env.error("should be running after spawn"); return }
-    var kr = process::kill_process(&raw mut child, 9)
+    if(!process::is_running(&mut child)) { env.error("should be running after spawn"); return }
+    var kr = process::kill_process(&mut child, 9)
     if(kr is Result.Err) { env.error("kill should succeed"); return }
-    if(child.is_running) { env.error("should not be running after kill"); return }
-    var w = process::wait(&raw mut child)
+    if(process::is_running(&mut child)) { env.error("should not be running after kill"); return }
+    var w = process::wait(&mut child)
     if(w is Result.Err) { env.error("wait should succeed"); return }
     var Ok(wr) = w else unsafe { unreachable }
     if(wr.success) { env.error("killed process should not succeed"); return }
@@ -279,7 +279,7 @@ public func test_process_merge_stderr_stdout_spawn(env : &mut TestEnv) {
     var spawn_res = process::spawn(cfg)
     if(spawn_res is Result.Err) { env.error("spawn failed"); return }
     var Ok(child) = spawn_res else unsafe { unreachable }
-    var w = process::wait(&raw mut child)
+    var w = process::wait(&mut child)
     if(w is Result.Err) { env.error("wait failed"); return }
     var Ok(wr) = w else unsafe { unreachable }
     if(!wr.success) { env.error("should succeed"); return }

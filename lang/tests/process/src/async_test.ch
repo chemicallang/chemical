@@ -43,7 +43,7 @@ public func test_process_spawn_wait_async(env : &mut TestEnv) {
         return
     }
     var Ok(child) = sp else unsafe { unreachable }
-    var wr = async::block_on(process::wait_async(&raw mut child))
+    var wr = async::block_on(process::wait_async(&mut child))
     if(wr is Result.Err) {
         env.error("wait_async returned Err")
         return
@@ -72,12 +72,12 @@ public func test_process_wait_async_after_kill(env : &mut TestEnv) {
         return
     }
     var Ok(child) = sp else unsafe { unreachable }
-    var kr = process::kill_process(&raw mut child, 9)
+    var kr = process::kill_process(&mut child, 9)
     if(kr is Result.Err) {
         env.error("kill_process failed")
         return
     }
-    var r = async::block_on(process::wait_async(&raw mut child))
+    var r = async::block_on(process::wait_async(&mut child))
     if(r is Result.Err) {
         env.error("wait_async after kill should still reap the child")
     }
@@ -118,11 +118,11 @@ public func test_process_is_running_async(env : &mut TestEnv) {
         return
     }
     var Ok(child) = sp else unsafe { unreachable }
-    var running = async::block_on(process::is_running_async(&raw mut child))
+    var running = async::block_on(process::is_running_async(&mut child))
     if(!running) {
         env.error("is_running_async should report true right after spawn")
     }
-    process::kill_process(&raw mut child, 9)
+    process::kill_process(&mut child, 9)
 }
 
 // `spawn_async` and `wait_async` both offload to `spawn_blocking`; the config is
@@ -139,7 +139,7 @@ public func test_process_spawn_async_then_wait_async(env : &mut TestEnv) {
         return
     }
     var Ok(child) = sp else unsafe { unreachable }
-    var wr = async::block_on(process::wait_async(&raw mut child))
+    var wr = async::block_on(process::wait_async(&mut child))
     if(wr is Result.Err) {
         env.error("wait_async after spawn_async returned Err")
         return

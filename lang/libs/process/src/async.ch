@@ -33,28 +33,28 @@ public async func spawn_async(cfg : ProcessConfig) : CP_Result {
     return result
 }
 
-public async func wait_async(child : *mut ChildProcess) : PR_Result {
+public async func wait_async(child : &mut Child) : PR_Result {
     var result = await unsafe(async::spawn_blocking<PR_Result>(|child|() => wait(child)))
     return result
 }
 
-public async func try_wait_async(child : *mut ChildProcess) : PR_Result {
+public async func try_wait_async(child : &mut Child) : PR_Result {
     return try_wait(child)
 }
 
-public async func kill_process_async(child : *mut ChildProcess, signal : int) : UT_Result {
+public async func kill_process_async(child : &mut Child, signal : int) : UT_Result {
     return kill_process(child, signal)
 }
 
-public async func write_stdin_async(child : *mut ChildProcess, data : *vector<u8>) : UT_Result {
-    return write_stdin(child, data)
+public async func write_stdin_async(child : &mut Child, data : [u8]) : UT_Result {
+    return write_stdin_raw(&raw mut child.inner, data.data(), data.size())
 }
 
-public async func close_stdin_async(child : *mut ChildProcess) : UT_Result {
+public async func close_stdin_async(child : &mut Child) : UT_Result {
     return close_stdin(child)
 }
 
-public async func is_running_async(child : *mut ChildProcess) : bool {
+public async func is_running_async(child : &mut Child) : bool {
     return is_running(child)
 }
 

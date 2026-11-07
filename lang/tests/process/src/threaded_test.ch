@@ -78,7 +78,7 @@ public func process_spawn_thread_entry(arg : *void) : *void {
             return null
         }
         var Ok(child) = res else unsafe { unreachable }
-        var waited = process::wait(&raw mut child)
+        var waited = process::wait(&mut child)
         if(waited is Result.Err) {
             return null
         }

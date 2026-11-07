@@ -19,3 +19,13 @@ public variant EnvError {
 }
 
 } // end namespace environment
+
+public namespace environment {
+
+public func io_error(e : EnvError) : std::io::IoError {
+    switch(e) {
+        OperationFailed(msg) => { return std::io::IoError.Message(std::io::IoErrorKind.Other(), msg) }
+    }
+}
+
+}

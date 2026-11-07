@@ -123,14 +123,15 @@ public func test_practical_stdin_to_cat(env : &mut TestEnv) {
         input.push(msg[i] as u8)
         i += 1
     }
-    var wr = process::write_stdin(&raw mut child, &raw input)
+    var input_view : [u8] = &input
+    var wr = process::write_stdin(&mut child, input_view)
     if(wr is Result.Err) { env.error("write_stdin failed"); return }
 
     // Close stdin so cat finishes
-    process::close_stdin(&raw mut child)
+    process::close_stdin(&mut child)
 
     // Wait for result
-    var wait_res = process::wait(&raw mut child)
+    var wait_res = process::wait(&mut child)
     if(wait_res is Result.Err) { env.error("wait failed"); return }
     var Ok(wr_res) = wait_res else unsafe { unreachable }
     if(!wr_res.success) { env.error("cat should succeed"); return }
@@ -147,7 +148,7 @@ public func test_practical_stdin_to_cat(env : &mut TestEnv) {
 @test
 public func test_practical_env_var_in_child(env : &mut TestEnv) {
     // Set an env var
-    environment::set("CHEMICAL_PRACTICAL_TEST_VAR", "practical_value")
+    unsafe(environment::set("CHEMICAL_PRACTICAL_TEST_VAR", "practical_value"))
 
     var cfg = process::ProcessConfig.default()
     cfg.args.push(string("sh"))
@@ -162,7 +163,7 @@ public func test_practical_env_var_in_child(env : &mut TestEnv) {
         return
     }
     // Cleanup
-    environment::unset("CHEMICAL_PRACTICAL_TEST_VAR")
+    unsafe(environment::unset("CHEMICAL_PRACTICAL_TEST_VAR"))
 }
 
 // ---------------------------------------------------------------------------
@@ -215,16 +216,16 @@ public func test_practical_spawn_lifecycle(env : &mut TestEnv) {
     var Ok(child) = spawn_res else unsafe { unreachable }
 
     // Should be running right after spawn
-    if(!process::is_running(&raw mut child)) { env.error("should be running"); return }
+    if(!process::is_running(&mut child)) { env.error("should be running"); return }
 
     // Wait for it to finish
-    var wait_res = process::wait(&raw mut child)
+    var wait_res = process::wait(&mut child)
     if(wait_res is Result.Err) { env.error("wait failed"); return }
     var Ok(wr) = wait_res else unsafe { unreachable }
     if(!wr.success) { env.error("should succeed"); return }
 
     // Should not be running now
-    if(process::is_running(&raw mut child)) { env.error("should not be running after wait"); return }
+    if(process::is_running(&mut child)) { env.error("should not be running after wait"); return }
 
     // Output should contain both lines
     if(!bytes_contains(&raw wr.output.stdout_data, "alive" as *char, 5)) {
@@ -251,14 +252,14 @@ public func test_practical_kill_long_process(env : &mut TestEnv) {
     var Ok(child) = spawn_res else unsafe { unreachable }
 
     // Verify it's running
-    if(!process::is_running(&raw mut child)) { env.error("sleep should be running"); return }
+    if(!process::is_running(&mut child)) { env.error("sleep should be running"); return }
 
     // Kill it
-    var kr = process::kill_process(&raw mut child, 9)
+    var kr = process::kill_process(&mut child, 9)
     if(kr is Result.Err) { env.error("kill should succeed"); return }
 
     // Should not be running
-    if(process::is_running(&raw mut child)) { env.error("should not be running after kill"); return }
+    if(process::is_running(&mut child)) { env.error("should not be running after kill"); return }
 }
 
 // ---------------------------------------------------------------------------

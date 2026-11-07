@@ -36,3 +36,18 @@ public variant ProcessError {
 public struct UnitTy {}
 
 } // end namespace process
+
+public namespace process {
+
+// Conversion into the shared I/O error used by Read/Write/network APIs.
+public func io_error(e : ProcessError) : std::io::IoError {
+    switch(e) {
+        InvalidArgs(msg) => { return std::io::IoError.Message(std::io::IoErrorKind.InvalidInput(), msg) }
+        OperationFailed(msg) => { return std::io::IoError.Message(std::io::IoErrorKind.Other(), msg) }
+        NotRunning() => { return std::io::IoError.Kind(std::io::IoErrorKind.Other()) }
+        TimedOut() => { return std::io::IoError.Kind(std::io::IoErrorKind.WouldBlock()) }
+        IoError(msg) => { return std::io::IoError.Message(std::io::IoErrorKind.Other(), msg) }
+    }
+}
+
+}

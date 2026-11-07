@@ -9,7 +9,7 @@ using std::string_view;
 public func test_environment_async_set_get_unset(env : &mut TestEnv) {
     var key = string_view("CHEM_ENV_ASYNC_TEST")
 
-    var setr = async::block_on(environment::set_async(key, string_view("hello")))
+    var setr = unsafe(async::block_on(environment::set_async(key, string_view("hello"))))
     if(setr is Result.Err) {
         env.error("environment::set_async failed")
         return
@@ -25,7 +25,7 @@ public func test_environment_async_set_get_unset(env : &mut TestEnv) {
         }
     }
 
-    var un = async::block_on(environment::unset_async(key))
+    var un = unsafe(async::block_on(environment::unset_async(key)))
     if(un is Result.Err) {
         env.error("environment::unset_async failed")
     }

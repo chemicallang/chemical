@@ -1395,6 +1395,30 @@ func non_copy_large_template_rest_clears_the_moved_source_element(env : &mut Tes
 }
 
 @test
+func non_copy_array_field_pattern_moves_elements(env : &mut TestEnv) {
+    safety_init_work_dir()
+    // A non-Copy array field of an owned local aggregate is owned storage: the
+    // pattern may move its elements and clear only those element flags.
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var items : [4]Tracker\n    var other : Tracker\n}\npublic func main() : int {\n    {\n        var s = S { items : [Tracker { id : 1 }, Tracker { id : 2 }, Tracker { id : 3 }, Tracker { id : 4 }], other : Tracker { id : 9 } }\n        {\n            var [first, .., last] = s.items\n            if(first.id != 1 || last.id != 4) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "array_pattern_non_copy_field", ch, &mut out)
+    if(rc != 5) {
+        env.error("non-Copy array field destructuring did not move only the selected elements")
+    }
+}
+
+@test
+func non_copy_large_array_field_pattern_moves_elements(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct S {\n    var items : [65]Tracker\n    var x : int\n}\npublic func main() : int {\n    {\n        var s : S\n        s.x = 1\n        s.items[64] = Tracker { id : 2 }\n        {\n            var [.., last] = s.items\n            if(last.id != 2) { return 10 }\n        }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "array_pattern_non_copy_field_large", ch, &mut out)
+    if(rc != 1) {
+        env.error("large array field rest pattern did not clear the resolved element flag")
+    }
+}
+
+@test
 func non_copy_array_pattern_moves_elements(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "@thread_local var drops : int = 0\nstruct Tracker {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\npublic func main() : int {\n    {\n        var values : [2]Tracker = [Tracker { id : 1 }, Tracker { id : 2 }]\n        {\n            var [a, b] = values\n            if(a.id != 1 || b.id != 2) { return 10 }\n        }\n    }\n    return drops\n}\n"

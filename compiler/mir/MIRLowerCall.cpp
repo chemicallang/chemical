@@ -8508,38 +8508,79 @@ bool MIRLowerer::lower_array_pattern_node(PatternMatchExpr* pm,
     const TypeId et = types_.map(element_type);
     const bool copying_elements = mir_type_is_copy(module_.types, et);
     bool move_owned_elements = false;
+    // For a direct local array the owning place is the array itself. For a
+    // direct field of an owned local aggregate, the owning place is the root
+    // and `move_path` names the field chain used by the drop-flag lookup.
+    std::vector<std::string> move_path;
+    Value* move_root = nullptr;
     if (!copying_elements) {
         if (slice_view || boxed_slice) {
             error = "SAFE-MOVE-004: array destructuring of a borrowed slice or "
                     "boxed slice requires Copy elements";
             return false;
         }
-        Value* source = pm->expression;
-        for (int guard = 0; guard < 4 && source; ++guard) {
-            if (source->val_kind() == ValueKind::AccessChain) {
-                auto* c = source->as_access_chain_unsafe();
-                if (c->values.size() == 1) { source = c->values[0]; continue; }
+        auto unwrap_single = [](Value* value) -> Value* {
+            for (int guard = 0; guard < 4 && value; ++guard) {
+                if (value->val_kind() == ValueKind::AccessChain) {
+                    auto* c = value->as_access_chain_unsafe();
+                    if (c->values.size() == 1) { value = c->values[0]; continue; }
+                    break;
+                }
+                if (value->val_kind() == ValueKind::UnsafeValue) {
+                    auto* u = static_cast<UnsafeValue*>(value);
+                    if (u->getValue()) { value = u->getValue(); continue; }
+                    break;
+                }
                 break;
             }
-            if (source->val_kind() == ValueKind::UnsafeValue) {
-                auto* u = static_cast<UnsafeValue*>(source);
-                if (u->getValue()) { source = u->getValue(); continue; }
-                break;
+            return value;
+        };
+        Value* source = unwrap_single(pm->expression);
+        if (source != nullptr && source->val_kind() == ValueKind::AccessChain) {
+            auto* chain = source->as_access_chain_unsafe();
+            if (chain->values.size() > 1) {
+                if (chain->values.size() != 2) {
+                    error = "SAFE-MOVE-004: non-Copy array destructuring "
+                            "supports a direct array field of an owned local "
+                            "aggregate; bind nested fields to a local first";
+                    return false;
+                }
+                move_root = unwrap_single(chain->values[0]);
+                Value* step = chain->values[1];
+                if (step == nullptr ||
+                    !Value::isIdentifier(step->val_kind())) {
+                    error = "SAFE-MOVE-004: non-Copy array destructuring "
+                            "supports only direct field access";
+                    return false;
+                }
+                auto* fid = step->as_identifier_unsafe();
+                if (fid->is_ns || fid->linked == nullptr ||
+                    fid->linked->kind() != ASTNodeKind::StructMember) {
+                    error = "SAFE-MOVE-004: non-Copy array destructuring "
+                            "requires an owned local aggregate field";
+                    return false;
+                }
+                move_path.emplace_back(fid->value.data(), fid->value.size());
+            } else {
+                move_root = unwrap_single(chain->values[0]);
             }
-            break;
+        } else {
+            move_root = source;
         }
-        if (source == nullptr || source->val_kind() != ValueKind::Identifier) {
+        if (move_root == nullptr ||
+            !Value::isIdentifier(move_root->val_kind())) {
             error = "SAFE-MOVE-004: non-Copy array destructuring requires an "
-                    "owned local array; bind the array to a local first";
+                    "owned local array or a direct field of one";
             return false;
         }
-        auto* sid = source->as_identifier_unsafe();
+        auto* sid = move_root->as_identifier_unsafe();
         if (sid->linked == nullptr ||
             sid->linked->kind() != ASTNodeKind::VarInitStmt ||
-            sid->linked->as_var_init_unsafe()->is_const()) {
+            sid->linked->as_var_init_unsafe()->is_const() ||
+            sid->linked->as_var_init_unsafe()->is_reference()) {
             error = "SAFE-MOVE-004: non-Copy array destructuring requires a "
-                    "mutable local array (not a const, parameter, or borrowed "
-                    "array)";
+                    "mutable local array or a direct field of one (not a const, "
+                    "parameter, reference, or borrowed array)";
             return false;
         }
         move_owned_elements = true;
@@ -8548,20 +8589,47 @@ bool MIRLowerer::lower_array_pattern_node(PatternMatchExpr* pm,
     if (!base.ok()) return false;
     PlaceId move_base = MIR_INVALID_ID;
     if (move_owned_elements) {
-        if (base.kind != MIRExprKind::Place) {
-            error = "SAFE-MOVE-004: non-Copy array destructuring requires an "
-                    "owned local array";
-            return false;
+        if (move_path.empty()) {
+            if (base.kind != MIRExprKind::Place) {
+                error = "SAFE-MOVE-004: non-Copy array destructuring requires an "
+                        "owned local array";
+                return false;
+            }
+            move_base = static_cast<PlaceId>(base.id);
+        } else {
+            MIRExprResult root_base = lower_expr(move_root, error);
+            if (!root_base.ok() || root_base.kind != MIRExprKind::Place) {
+                error = "SAFE-MOVE-004: non-Copy array destructuring requires an "
+                        "owned local aggregate";
+                return false;
+            }
+            move_base = static_cast<PlaceId>(root_base.id);
         }
-        move_base = static_cast<PlaceId>(base.id);
         const auto storage = static_cast<MIRStorageClass>(
             builder_->function().places[move_base].storage_class);
         if (storage != MIRStorageClass::Local &&
             storage != MIRStorageClass::FrameField &&
             storage != MIRStorageClass::FramePtr) {
             error = "SAFE-MOVE-004: non-Copy array destructuring requires an "
-                    "owned local array";
+                    "owned local array or aggregate";
             return false;
+        }
+        if (!move_path.empty()) {
+            const TypeId root_t = builder_->function().places[move_base].type;
+            if (root_t == MIR_INVALID_ID ||
+                root_t >= module_.types.types.size()) {
+                error = "SAFE-MOVE-004: non-Copy array destructuring requires a "
+                        "resolved owned local aggregate";
+                return false;
+            }
+            const MIRTypeRecord& root_rec = module_.types.types[root_t];
+            if (root_rec.kind != MIRTypeKind::Struct ||
+                (root_rec.flags & TF_USER_DESTRUCTOR) != 0) {
+                error = "SAFE-MOVE-004: non-Copy array destructuring through a "
+                        "reference, pointer, union, variant, or user-destructor "
+                        "aggregate is not supported";
+                return false;
+            }
         }
     }
     if (slice_view || boxed_slice) {
@@ -8673,7 +8741,7 @@ bool MIRLowerer::lower_array_pattern_node(PatternMatchExpr* pm,
                     indices.push_back(id->array_index);
                 }
                 MIRDropElementRef ref =
-                    drop_flag_for_indices(move_base, {}, indices);
+                    drop_flag_for_indices(move_base, move_path, indices);
                 if (!ref.valid()) {
                     error = "SAFE-MOVE-004: cannot move a destructible array "
                             "element whose element drop flag is not tracked";

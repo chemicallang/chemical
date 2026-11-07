@@ -782,6 +782,32 @@ func neg_array_pattern_non_copy_parameter(env : &mut TestEnv) {
 }
 
 @test
+func neg_array_pattern_non_copy_user_destructor_field(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Moving a field out of an owned aggregate with a user destructor is not
+    // safe: the destructor may observe the moved field.
+    var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nstruct S {\n    var items : [2]DT\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    var s = S { items : [DT { x : 1 }, DT { x : 2 }] }\n    var [a, b] = s.items\n    return a.x + b.x\n}\n"
+    expect_compile_error(env, "array_pattern_non_copy_user_destructor_field", ch, "SAFE-MOVE-004")
+}
+
+@test
+func neg_array_pattern_non_copy_reference_field(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nstruct S {\n    var items : [2]DT\n}\npublic func main() : int {\n    var s = S { items : [DT { x : 1 }, DT { x : 2 }] }\n    var r = &s\n    var [a, b] = r.items\n    return a.x + b.x\n}\n"
+    expect_compile_error(env, "array_pattern_non_copy_reference_field", ch, "SAFE-MOVE-004")
+}
+
+@test
+func neg_array_pattern_non_copy_field_partial_move(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Moving elements out of an array field must mark the owning aggregate as
+    // partially moved; a later whole-value move would duplicate the remaining
+    // live elements.
+    var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nstruct S {\n    var items : [2]DT\n}\npublic func main() : int {\n    var s = S { items : [DT { x : 1 }, DT { x : 2 }] }\n    var [a, b] = s.items\n    var t = s\n    return t.items[0].x\n}\n"
+    expect_compile_error(env, "array_pattern_non_copy_field_partial_move", ch, "SAFE-MOVE-001")
+}
+
+@test
 func array_pattern_non_copy_nested_compiles(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    var values : [2][2]DT\n    values[0][0] = DT { x : 1 }\n    values[0][1] = DT { x : 2 }\n    values[1][0] = DT { x : 3 }\n    values[1][1] = DT { x : 4 }\n    var [[a, b], [c, d]] = values\n    return a.x + b.x + c.x + d.x\n}\n"

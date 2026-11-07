@@ -784,6 +784,10 @@ private:
         // `outer_count * inner_count` slots and `inner_count` elements per
         // outer element.
         uint64_t inner_count = 0;
+        // For a direct leaf flag array that is flat over a generated element's
+        // inner dimension: the element type. Scope destruction uses it to drop
+        // every inner element's leaf.
+        BaseType* flat_element_type = nullptr;
         // Nested owned fields/elements (generated-glue structs and arrays).
         std::vector<MIRDropField> children;
     };
@@ -1081,6 +1085,12 @@ private:
     void destroy_flag_array_from(ValueId array_ptr, BaseType* element_type,
                                  PlaceId flags, ValueId base_index,
                                  uint64_t count);
+    /** Drop one direct leaf field across `count` flat inner elements. */
+    void destroy_flat_leaf_array_from(ValueId array_ptr,
+                                      BaseType* element_type,
+                                      const chem::string_view& field_name,
+                                      BaseType* leaf_type, PlaceId flags,
+                                      ValueId base_index, uint64_t count);
     /** Whether a generated-glue element can use a per-leaf flag template. */
     bool can_build_element_template(BaseType* type, int depth = 0);
     /** Destroy the live leaves of one template element. */

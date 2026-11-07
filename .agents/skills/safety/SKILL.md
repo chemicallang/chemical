@@ -54,7 +54,7 @@ Latest measured baseline:
 | LLVM main | `2487/2487` |
 | `@test` runner | `57/57` |
 | TCC/LLVM negative | `865/865` |
-| TCC/LLVM safety | `159/159` |
+| TCC/LLVM safety | `163/163` |
 | TCC/LLVM async | `83/83` |
 | TCC libs | `736/736` |
 | TCC plugins | `1305/1305` |
@@ -537,7 +537,8 @@ memory safety.
     glue 3D elements use the same runtime tree. Compressed generated 3D levels
     support inner-large, middle-large, and outer-large templates, including
     flat inner blocks and mixed constant/runtime chains; a generated inner array
-    above 1024 nested under a large outer/middle template remains reject-only.
+    above 1024 under a large outer/middle template uses one flat flag block per
+    direct leaf field, while nested destructible field paths remain reject-only.
     Generated-glue 2D arrays support
     small/small, outer-small/inner-large, outer-large/inner-small, and
     both-large layouts (the largest inner dimension uses a flat block), with

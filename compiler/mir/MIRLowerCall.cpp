@@ -1123,6 +1123,38 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_two_dynamic_indices(
                 )
             });
         }
+        // Generated-glue both-large layout: one flat flag block per direct
+        // leaf field, indexed by `outer * inner_count + inner`.
+        if (outer_count > 0 && !tpl.children.empty()) {
+            uint64_t flat_inner = 0;
+            bool flat = true;
+            for (auto& child : tpl.children) {
+                if (child.array_index != MIR_INVALID_ID ||
+                    child.flag_array == MIR_INVALID_ID ||
+                    child.inner_count == 0 ||
+                    child.flat_element_type == nullptr ||
+                    child.flag_count != outer_count * child.inner_count ||
+                    (flat_inner != 0 && child.inner_count != flat_inner)) {
+                    flat = false;
+                    break;
+                }
+                flat_inner = child.inner_count;
+            }
+            if (flat && flat_inner > 0) {
+                bounded(outer, outer_count);
+                bounded(inner, flat_inner);
+                MIRDropElementRef ref;
+                ref.template_node = &tpl;
+                ref.flat_template = true;
+                ref.flat_inner_count = flat_inner;
+                ref.place = place;
+                ref.path = path;
+                ref.indices = prefix;
+                ref.dynamic_outer = outer;
+                ref.dynamic_index = inner;
+                return ref;
+            }
+        }
         if (n > 0 && n <= 1024 && outer_count > 0) {
             std::vector<MIRDropField*> inners(n, nullptr);
             bool usable = true;
@@ -3030,8 +3062,48 @@ MIRLowerer::MIRDropField MIRLowerer::build_drop_field(const chem::string_view& n
         if (elem != nullptr && n > 1024 && array_flags > 0 &&
             array_flags <= 0xFFFFFFFFull / n) {
             // A very large inner array uses one flat flag block for all outer
-            // elements instead of expanding one child per inner index.
+            // elements instead of expanding one child per inner index. When the
+            // element has generated glue, keep one flat block per leaf field so
+            // every field remains independently tracked.
             const uint64_t total = array_flags * n;
+            BaseType* elem_canon = elem->canonical();
+            ASTNode* elem_node = elem_canon != nullptr
+                                     ? elem_canon
+                                           ->get_direct_linked_canonical_node()
+                                     : nullptr;
+            const bool generated_leaf =
+                elem_canon != nullptr && !elem_canon->has_user_destructor() &&
+                elem_node != nullptr &&
+                elem_node->kind() == ASTNodeKind::StructDecl &&
+                can_build_element_template(elem);
+            if (generated_leaf) {
+                MIRDropField tpl = build_drop_field(
+                    chem::string_view{}, elem, depth + 1, frame_flags, slot,
+                    flag_seq, total
+                );
+                bool direct_leaves = !tpl.children.empty();
+                for (auto& child : tpl.children) {
+                    if (child.flag_array == MIR_INVALID_ID ||
+                        !child.children.empty()) {
+                        direct_leaves = false;
+                        break;
+                    }
+                }
+                if (direct_leaves) {
+                    f.children = std::move(tpl.children);
+                    f.element_template = true;
+                    f.array_count = n;
+                    f.inner_count = n;
+                    for (auto& child : f.children) {
+                        child.inner_count = n;
+                        child.flat_element_type = elem;
+                    }
+                    return f;
+                }
+                // Nested leaf paths currently fall back to the one-flag-per-
+                // element representation, which selectors reject rather than
+                // risk dropping the wrong subobject.
+            }
             f.inner_count = n;
             f.flag_count = total;
             if (frame_flags && slot != MIR_INVALID_ID && flag_seq != nullptr) {
@@ -3347,6 +3419,77 @@ void MIRLowerer::destroy_flag_array_from(ValueId array_ptr,
     builder_->set_block(end_b);
 }
 
+void MIRLowerer::destroy_flat_leaf_array_from(
+        ValueId array_ptr, BaseType* element_type,
+        const chem::string_view& field_name, BaseType* leaf_type,
+        PlaceId flags, ValueId base_index, uint64_t count) {
+    if (array_ptr == MIR_NULL || element_type == nullptr ||
+        leaf_type == nullptr || flags == MIR_INVALID_ID || count == 0 ||
+        builder_->current_block_terminated()) {
+        return;
+    }
+    const TypeId et = types_.map(element_type);
+    const TypeId eptr = types_.pointer_type(et, true);
+    const TypeId lt = types_.map(leaf_type);
+    const ValueId base = builder_->cast(array_ptr, eptr);
+    const TypeId u32 = types_.u32_type();
+    const TypeId bool_t = types_.bool_type();
+    const ValueId false_value = builder_->const_bool(
+        bool_t, module_.constants.add_bool(bool_t, false)
+    );
+    const ConstantId sub_op = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Sub)
+    );
+    const ConstantId eq_op = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq)
+    );
+    const ConstantId add_op = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Add)
+    );
+    ConstantId field_const = MIR_INVALID_ID;
+    if (!field_name.empty()) {
+        field_const = module_.constants.add_string(
+            MIR_INVALID_ID, field_name.data(),
+            static_cast<uint32_t>(field_name.size())
+        );
+    }
+    const PlaceId index_place = builder_->alloca(u32, MIRStorageClass::Local);
+    builder_->store(index_place, builder_->const_int(
+        u32, module_.constants.add_int(u32, count)
+    ));
+    const BlockId cond_b = builder_->create_block();
+    const BlockId body_b = builder_->create_block();
+    const BlockId end_b = builder_->create_block();
+    builder_->br(cond_b);
+    builder_->set_block(cond_b);
+    const ValueId cur = builder_->load(index_place, u32);
+    const ValueId zero = builder_->const_int(
+        u32, module_.constants.add_int(u32, 0)
+    );
+    const ValueId done = builder_->compare(cur, zero, eq_op, bool_t);
+    builder_->cond_br(done, end_b, body_b);
+    builder_->set_block(body_b);
+    const ValueId one = builder_->const_int(
+        u32, module_.constants.add_int(u32, 1)
+    );
+    const ValueId next = builder_->binary(cur, one, sub_op, u32);
+    builder_->store(index_place, next);
+    const ValueId elem_addr = builder_->index_addr_ptr(base, next, et);
+    const ValueId leaf_addr = field_const == MIR_INVALID_ID
+                                  ? elem_addr
+                                  : builder_->field_addr_ptr(
+                                        elem_addr, field_const, lt);
+    const ValueId flag_index =
+        base_index == MIR_INVALID_ID
+            ? next
+            : builder_->binary(base_index, next, add_op, u32);
+    MIRDropFlagRef flag = flag_array_ref_value(flags, flag_index);
+    emit_dtor_ptr_cond(leaf_addr, leaf_type, flag);
+    builder_->store_indirect(flag.address, false_value);
+    builder_->br(cond_b);
+    builder_->set_block(end_b);
+}
+
 bool MIRLowerer::can_build_element_template(BaseType* type, int depth) {
     if (type == nullptr || depth > 32) return false;
     BaseType* canon = type->canonical();
@@ -3466,6 +3609,17 @@ void MIRLowerer::destroy_drop_fields_at(ValueId self_ptr,
                     builder_->binary(elem_index, stride, mul_op, u32);
                 destroy_flag_array_from(
                     addr, array_canon->as_array_type_unsafe()->elem_type,
+                    f.flag_array, base_index, f.inner_count);
+            } else if (f.flat_element_type != nullptr) {
+                const TypeId u32 = types_.u32_type();
+                const ConstantId mul_op = module_.constants.add_int(
+                    MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Mul));
+                const ValueId stride = builder_->const_int(
+                    u32, module_.constants.add_int(u32, f.inner_count));
+                const ValueId base_index =
+                    builder_->binary(elem_index, stride, mul_op, u32);
+                destroy_flat_leaf_array_from(
+                    self_ptr, f.flat_element_type, f.name, f.type,
                     f.flag_array, base_index, f.inner_count);
             }
         } else if (f.flag_array != MIR_INVALID_ID) {
@@ -4710,6 +4864,17 @@ bool MIRLowerer::emit_dynamic_element_read_check(
         }
         std::reverse(indices.begin(), indices.end());
         ref = drop_flag_for_indices(base, path, indices);
+    }
+    if (!ref.valid()) {
+        const std::vector<ValueId> chain =
+            collect_index_addr_chain(address.id);
+        if (chain.size() == 3) {
+            ref = drop_flag_for_three_compressed_indices(base, path, chain);
+        }
+        if (!ref.valid() && !chain.empty()) {
+            ref = drop_flag_for_runtime_tree(base, path, chain);
+        }
+        dynamic_ref = ref.valid();
     }
     if (!ref.valid()) {
         error = "SAFE-INIT-001: cannot read a selected generated-glue array "
@@ -6054,8 +6219,7 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
                             );
                         }
                     }
-                    if (!ref.valid() &&
-                        element_dynamic_index != MIR_INVALID_ID) {
+                    if (!ref.valid()) {
                         const std::vector<ValueId> chain =
                             collect_index_addr_chain(result.id);
                         if (chain.size() == 3) {
@@ -6078,8 +6242,13 @@ bool MIRLowerer::mark_field_moved(Value* value, MIRExprResult result,
                         // runtime row/template check proves every leaf live
                         // before the move clears them.
                         bool checked = false;
+                        const bool constant_check =
+                            ref.flat_template ||
+                            ref.runtime_three_inner_template ||
+                            ref.runtime_three_middle_template ||
+                            ref.runtime_three_outer_template;
                         if (!emit_dynamic_element_read_check(
-                                value, result, ref.flat_template, checked,
+                                value, result, constant_check, checked,
                                 error)) {
                             return false;
                         }

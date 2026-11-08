@@ -26,7 +26,7 @@ func pw_fail(env : &mut TestEnv, what : string_view, out : &string) {
     msg.append_view(&what)
     msg.append_view(" -> ")
     msg.append_view(out.to_view())
-    env.error(msg.data())
+    test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0)
 }
 
 // Runs `writeToPageJs` on a `std::string` and returns what it produced.

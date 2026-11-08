@@ -379,7 +379,7 @@ func fail(env : &mut TestEnv, hex : string_view, what : string_view) {
     s.append_view(&hex)
     s.append_string(string(": "))
     s.append_view(&what)
-    env.error(s.data())
+    test_env::ffi::log_cstr(env, LogType.Error, s.data(), 0, 0)
 }
 
 func nibble(c : char) : u8 {

@@ -15,7 +15,7 @@ public func create(title : *char, width : int, height : int) : std::Result<WebVi
     wv.width = width
     wv.height = height
 
-    var result = webview_create(&raw mut wv)
+    var result = raw::webview_create(&raw mut wv)
     if(result is Result.Err) {
         var Err(err) = result else unsafe { unreachable }
         return std.Result.Err(WebViewError.InitFailed(err.message()))
@@ -31,10 +31,10 @@ public func open_url(url : *char, title : *char, width : int, height : int) : st
         return std.Result.Err(WebViewError.InitFailed(string("failed to create webview")))
     }
     var Ok(wv) = wv_result else unsafe { unreachable }
-    webview_load_url(&raw mut wv, url)
-    webview_show(&raw mut wv)
-    webview_run(&raw mut wv)
-    webview_destroy(&raw mut wv)
+    raw::webview_load_url(&raw mut wv, url)
+    raw::webview_show(&raw mut wv)
+    raw::webview_run(&raw mut wv)
+    raw::webview_destroy(&raw mut wv)
     return std.Result.Ok(std::Unit{})
 }
 
@@ -45,10 +45,10 @@ public func open_html(html : *char, title : *char, width : int, height : int) : 
         return std.Result.Err(WebViewError.InitFailed(string("failed to create webview")))
     }
     var Ok(wv) = wv_result else unsafe { unreachable }
-    webview_load_html(&raw mut wv, html)
-    webview_show(&raw mut wv)
-    webview_run(&raw mut wv)
-    webview_destroy(&raw mut wv)
+    raw::webview_load_html(&raw mut wv, html)
+    raw::webview_show(&raw mut wv)
+    raw::webview_run(&raw mut wv)
+    raw::webview_destroy(&raw mut wv)
     return std.Result.Ok(std::Unit{})
 }
 

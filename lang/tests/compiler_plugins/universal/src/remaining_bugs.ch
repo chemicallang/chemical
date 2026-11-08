@@ -28,7 +28,7 @@ public func universal_func_prop_not_corrupted(env : &mut TestEnv) {
         env.success("function prop is present in JS output")
     } else {
         env.error("function prop was lost or corrupted")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -67,7 +67,7 @@ public func universal_many_attrs_compile(env : &mut TestEnv) {
     // If the component didn't register, the HTML contains raw JSX.
     if(html.contains("ManyAttrsComp")) {
         env.error("component with >64 attrs did not register (possible overflow)")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     } else {
         env.success("component with >64 attrs compiled and rendered")
     }
@@ -102,12 +102,12 @@ public func universal_inline_style_not_corrupted(env : &mut TestEnv) {
         env.success("inline style object renders in SSR")
     } else {
         env.error("inline style object was not rendered in SSR")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
     // The JS should not reference any #css helper function
     if(js.contains("#css") || js.contains("css_helper")) {
         env.error("JS references #css helper (will crash at hydration)")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     } else {
         env.success("JS does not reference #css helper")
     }
@@ -139,7 +139,7 @@ public func universal_dispatch_no_error_isolation(env : &mut TestEnv) {
         env.success("confirmed: no try/catch in emitted dispatch (runtime-level isolation needed)")
     } else {
         env.error("unexpected try/catch in emitted dispatch")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -167,7 +167,7 @@ public func universal_state_map_ssr_not_empty(env : &mut TestEnv) {
         env.success("state array .map() is SSR'd with actual content")
     } else {
         env.error("state array .map() produced empty SSR content")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -196,6 +196,6 @@ public func universal_hooks_rewritten_to_r(env : &mut TestEnv) {
     } else {
         if(!useMemoOk) env.error("useMemo not rewritten to $_r.useMemo")
         if(!useCallbackOk) env.error("useCallback not rewritten to $_r.useCallback")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }

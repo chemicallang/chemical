@@ -330,7 +330,7 @@ func apply_cursor(w : *mut Window) {
         if(gdkwin == null) {
             return
         }
-        ensure_gtk_init()
+        raw::ensure_gtk_init()
         var cursor = unsafe(gdk_cursor_new_from_name(unsafe(gdk_display_get_default()), cursor_name_for_kind(w.cursor)))
         if(cursor != null) {
             unsafe { gdk_window_set_cursor(gdkwin, cursor) }
@@ -662,6 +662,9 @@ func linux_on_drag_data_received(
 // ===========================================================================
 // public API
 // ===========================================================================
+
+// Raw platform API. Canonical handle: `window::safe::Window`.
+public namespace raw {
 
 public func window_create(w : *mut Window) : std::Result<std::Unit, WindowError> {
         unsafe {
@@ -1335,6 +1338,8 @@ public func window_cancel_timer(timer_id : int) {
         }
     }
 
+} // namespace raw
+
 // ===========================================================================
 // UI-thread async bridge (Tier 5) — GTK backend
 // ===========================================================================
@@ -1349,7 +1354,7 @@ public func window_cancel_timer(timer_id : int) {
 // installed for the lifetime of the loop.
 func linux_async_pump_tick(data : *mut void) : int {
     unsafe {
-        async::executor_poll_tasks(async::executor(), 4096u)
+        async::raw::executor_poll_tasks(async::raw::executor(), 4096u)
     }
     return 1
 }
@@ -1361,8 +1366,8 @@ var g_async_pump_installed : bool = false
 func window_async_platform_install_pump() {
         unsafe {
         if(g_async_pump_installed) { return }
-        ensure_gtk_init()
-        unsafe { g_timeout_add(1u, linux_async_pump_tick as *mut void, null) }
+        raw::ensure_gtk_init()
+        unsafe { raw::g_timeout_add(1u, linux_async_pump_tick as *mut void, null) }
         g_async_pump_installed = true
 
         }
@@ -1371,12 +1376,12 @@ func window_async_platform_install_pump() {
 // Wake the GLib loop from any thread. An idle source is enough: the installed
 // timeout then polls the executor on the UI thread.
 func window_async_platform_wake(arg : *mut void) {
-    unsafe { g_idle_add(linux_empty_callback as *mut void, null) }
+    unsafe { g_idle_add(raw::linux_empty_callback as *mut void, null) }
 }
 
 // Drain pending GLib events (idle/wake sources, window events) once.
 func window_async_platform_pump() {
-    ensure_gtk_init()
+    raw::ensure_gtk_init()
     var safety = 0
     while(unsafe(gtk_events_pending()) != 0 && safety < 100000) {
         unsafe { gtk_main_iteration() }

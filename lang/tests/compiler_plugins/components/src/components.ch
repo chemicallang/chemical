@@ -13,11 +13,11 @@ public func contains_assert(env : &mut TestEnv, str : std::string_view, needle :
     var exp = std::string("needle :\"");
     exp.append_view(&needle_ref)
     exp.append('"');
-    env.info(exp.data())
+    test_env::ffi::log_cstr(env, LogType.Information, exp.data(), 0, 0)
     var got = std::string("in     :\"");
     got.append_view(&str_ref)
     got.append('"');
-    env.info(got.data())
+    test_env::ffi::log_cstr(env, LogType.Information, got.data(), 0, 0)
 }
 
 public func contains_string_assert(env : &mut TestEnv, str : std::string_view, needle : std::string_view) {
@@ -35,11 +35,11 @@ public func not_contains_string_assert(env : &mut TestEnv, str : std::string_vie
     var exp = std::string("needle :\"");
     exp.append_view(&needle_ref)
     exp.append('"');
-    env.info(exp.data())
+    test_env::ffi::log_cstr(env, LogType.Information, exp.data(), 0, 0)
     var got = std::string("in     :\"");
     got.append_view(&str_ref)
     got.append('"');
-    env.info(got.data())
+    test_env::ffi::log_cstr(env, LogType.Information, got.data(), 0, 0)
 }
 
 // ---------------------------------------------------------------------------
@@ -417,7 +417,7 @@ public func components_field_unlabeled_skips_label(env : &mut TestEnv) {
     var hasEmptyLabel = html.contains(std::string_view("<span class=\"")) && html.contains(std::string_view(">\n        </span>"))
     if(hasEmptyLabel) {
         env.error("unlabeled Field rendered an empty label span")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     } else {
         env.success("unlabeled Field skips label/hint/error spans")
     }
@@ -1563,7 +1563,7 @@ public func components_default_theme_is_emitted_once(env : &mut TestEnv) {
         m.append_integer(count as bigint)
         m.append_view(std::string_view(" times"))
         env.error("injectDefaultComponentsTheme must be idempotent (default --primary emitted once)")
-        env.info(m.data())
+        test_env::ffi::log_cstr(env, LogType.Information, m.data(), 0, 0)
         return
     }
     env.success("default components theme emitted once across repeated calls")

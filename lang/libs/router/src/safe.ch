@@ -76,7 +76,7 @@ public func query(html_page : &HtmlPage, key : &std::str) : Option<string> {
     // `parameters` map.
     var lookup = string()
     lookup.append_view(full.to_view())
-    if(!html_page.route_param_owned.contains(&lookup)) {
+    if(!html_page.has_owned_parameter(lookup.to_view())) {
         return Option.None<string>()
     }
     var view = html_page.get_owned_parameter(full.to_view())

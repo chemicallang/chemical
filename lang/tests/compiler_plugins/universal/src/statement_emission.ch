@@ -24,7 +24,7 @@ public func universal_switch_emitted_js(env : &mut TestEnv) {
         env.success("switch statement is emitted")
     } else {
         env.error("switch statement was dropped")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -47,7 +47,7 @@ public func universal_while_emitted_js(env : &mut TestEnv) {
         env.success("while loop is emitted")
     } else {
         env.error("while loop was dropped")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -70,7 +70,7 @@ public func universal_do_while_emitted_js(env : &mut TestEnv) {
         env.success("do-while loop is emitted")
     } else {
         env.error("do-while loop was dropped")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -90,7 +90,7 @@ public func universal_throw_emitted_js(env : &mut TestEnv) {
         env.success("throw statement is emitted")
     } else {
         env.error("throw statement was dropped")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -113,7 +113,7 @@ public func universal_break_continue_emitted_js(env : &mut TestEnv) {
         env.success("break and continue are emitted")
     } else {
         env.error("break/continue were dropped")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -134,7 +134,7 @@ public func universal_for_of_emitted_js(env : &mut TestEnv) {
         env.success("for-of loop is emitted")
     } else {
         env.error("for-of loop was dropped")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -158,7 +158,7 @@ public func universal_class_decl_emitted_js(env : &mut TestEnv) {
         env.success("class declaration is emitted")
     } else {
         env.error("class declaration was dropped")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -177,6 +177,6 @@ public func universal_modulo_emitted_js(env : &mut TestEnv) {
         env.success("modulo operator is emitted")
     } else {
         env.error("modulo operator failed to parse/emit")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }

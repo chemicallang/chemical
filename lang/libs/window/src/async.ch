@@ -3,7 +3,7 @@
 //
 // The async runtime's executor is a cooperative poll loop. A GUI app spends its
 // time inside the native event loop (`gtk_main` / `GetMessage`), so a future
-// submitted with `async::spawn_local` would never be polled on its own. This
+// submitted with `async::raw::spawn_local` would never be polled on its own. This
 // file couples the executor to the native loop:
 //
 //   * `window_run_async` installs a wake hook and a periodic tick, then runs the
@@ -29,23 +29,23 @@ public namespace window {
 // a custom event loop, or repeatedly from a test, to drive UI-spawned tasks.
 public func window_pump() {
     unsafe {
-        async::executor_poll_tasks(async::executor(), 4096u)
+        async::raw::executor_poll_tasks(async::raw::executor(), 4096u)
         window_async_platform_pump()
-        async::executor_poll_tasks(async::executor(), 4096u)
+        async::raw::executor_poll_tasks(async::raw::executor(), 4096u)
     }
 }
 
 // Like `window_run`, but drives the async executor from the event loop. Use
-// this instead of `window_run` when the app uses `async::spawn_local`.
+// this instead of `window_run` when the app uses `async::raw::spawn_local`.
 public func window_run_async() {
-    var e = async::executor()
+    var e = async::raw::executor()
     unsafe {
-        async::executor_set_wake_hook(e, window_async_platform_wake, null)
+        async::raw::executor_set_wake_hook(e, window_async_platform_wake, null)
     }
     window_async_platform_install_pump()
-    window_run()
+    raw::window_run()
     unsafe {
-        async::executor_set_wake_hook(e, null, null)
+        async::raw::executor_set_wake_hook(e, null, null)
     }
 }
 

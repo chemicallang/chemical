@@ -38,7 +38,7 @@ public func universal_render_html_attrs_skips_none(env : &mut TestEnv) {
         env.success("None attribute values are skipped in HTML")
     } else {
         env.error("None attribute values rendered as literal null")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -64,7 +64,7 @@ public func universal_render_js_attrs_skips_none(env : &mut TestEnv) {
         env.success("None attribute values are skipped in JS")
     } else {
         env.error("None attribute values rendered as literal null in JS")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -91,7 +91,7 @@ public func universal_render_html_attrs_escapes_values(env : &mut TestEnv) {
         env.success("HTML attribute values are escaped")
     } else {
         env.error("HTML attribute values are not escaped")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -108,7 +108,7 @@ public func universal_spread_props_ssr(env : &mut TestEnv) {
         env.success("spreading real props works in SSR")
     } else {
         env.error("spreading props failed in SSR")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -125,7 +125,7 @@ public func universal_spread_object_literal_ssr(env : &mut TestEnv) {
         env.success("spreading an object literal enumerates its members in SSR")
     } else {
         env.error("spreading an object literal failed in SSR")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -145,7 +145,7 @@ public func universal_chem_string_prop_js_safe(env : &mut TestEnv) {
         env.success("Chemical string prop is escaped for the JS bundle")
     } else {
         env.error("Chemical string prop is not escaped for the JS bundle")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -168,7 +168,7 @@ public func universal_spread_dynamic_skipped_ssr(env : &mut TestEnv) {
         env.success("dynamic spread is skipped in SSR without degrading")
     } else {
         env.error("dynamic spread degraded into null in SSR")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -195,6 +195,6 @@ public func universal_render_js_attrs_escapes_values(env : &mut TestEnv) {
         env.success("JS attribute values are escaped")
     } else {
         env.error("JS attribute values are not escaped")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }

@@ -16,12 +16,18 @@
 
 public namespace lab {
 
+// Canonical typed handles (the raw types stay at module scope for the CBI ABI).
+public type ModuleId = safe::ModuleId;
+public type JobId = safe::JobId;
+public type LabError = safe::LabError;
+
 public namespace safe {
 
 using std::Result;
 using std::string;
 using std::string_view;
 using std::vector;
+using namespace raw;
 
 /** Failure modes of the safe build/command facade. */
 public variant LabError {

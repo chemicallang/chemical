@@ -67,7 +67,7 @@ public func MATRIX_download_size_boundaries(env : &mut TestEnv) {
             env.error("download failed")
             var m = string("size=")
             m.append_uinteger(n as ubigint)
-            env.error(m.data())
+            test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
             test_kill_port(PORT as int)
             return
         }
@@ -78,7 +78,7 @@ public func MATRIX_download_size_boundaries(env : &mut TestEnv) {
             env.error("download body read failed")
             var m2 = string("size=")
             m2.append_uinteger(n as ubigint)
-            env.error(m2.data())
+            test_env::ffi::log_cstr(env, LogType.Error, m2.data(), 0, 0)
             test_kill_port(PORT as int)
             return
         }
@@ -89,7 +89,7 @@ public func MATRIX_download_size_boundaries(env : &mut TestEnv) {
             m3.append_uinteger(n as ubigint)
             m3.append_view(" got ")
             m3.append_uinteger(v.size() as ubigint)
-            env.error(m3.data())
+            test_env::ffi::log_cstr(env, LogType.Error, m3.data(), 0, 0)
             test_kill_port(PORT as int)
             return
         }
@@ -143,7 +143,7 @@ public func MATRIX_upload_size_boundaries(env : &mut TestEnv) {
             env.error("upload failed")
             var m = string("size=")
             m.append_uinteger(n as ubigint)
-            env.error(m.data())
+            test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
             test_kill_port(PORT as int)
             return
         }
@@ -153,7 +153,7 @@ public func MATRIX_upload_size_boundaries(env : &mut TestEnv) {
             env.error("upload echo read failed")
             var m2 = string("size=")
             m2.append_uinteger(n as ubigint)
-            env.error(m2.data())
+            test_env::ffi::log_cstr(env, LogType.Error, m2.data(), 0, 0)
             test_kill_port(PORT as int)
             return
         }
@@ -162,7 +162,7 @@ public func MATRIX_upload_size_boundaries(env : &mut TestEnv) {
             env.error("upload echo mismatch")
             var m3 = string("size=")
             m3.append_uinteger(n as ubigint)
-            env.error(m3.data())
+            test_env::ffi::log_cstr(env, LogType.Error, m3.data(), 0, 0)
             test_kill_port(PORT as int)
             return
         }
@@ -199,7 +199,7 @@ public func MATRIX_full_byte_cycle_roundtrip(env : &mut TestEnv) {
             env.error("byte-cycle mismatch")
             var m = string("at offset ")
             m.append_uinteger(i as ubigint)
-            env.error(m.data())
+            test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
             break
         }
         i += 1
@@ -299,7 +299,7 @@ public func MATRIX_large_query_string_roundtrip(env : &mut TestEnv) {
         m.append_uinteger(v.size() as ubigint)
         m.append_view(" want len ")
         m.append_uinteger(expected.size() as ubigint)
-        env.error(m.data())
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
     }
 
     test_kill_port(PORT as int)

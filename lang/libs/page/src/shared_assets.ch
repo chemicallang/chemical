@@ -74,7 +74,57 @@ public struct SharedAssets {
     }
 }
 
-// Heap-allocated so a set of pages can share one instance by pointer.
+// Owning handle for a shared sink. This is the canonical way to create and
+// dispose a `SharedAssets`: the handle owns the heap object, is move-only, and
+// frees it in its `@delete` destructor. Pages borrow the sink for the render
+// (they never take ownership), so detach pages before dropping the handle.
+//
+// `SharedAssets` itself owns all of its state (`std::string` buffers and the
+// visited hash maps); nothing in the public surface hands out an internal raw
+// pointer.
+@direct_init
+public struct SharedAssetsHandle {
+    private var ptr : *mut SharedAssets
+
+    @make
+    public func make(name : &std::str = "") : SharedAssetsHandle {
+        unsafe {
+            var s = new SharedAssets()
+            if(s == null) { return SharedAssetsHandle { ptr : null } }
+            s.name.append_view(name.to_view())
+            return SharedAssetsHandle { ptr : s }
+        }
+    }
+
+    public func is_valid(&self) : bool {
+        return self.ptr != null
+    }
+
+    // Borrow the sink for reading (js/css/size). Requires `is_valid()`; an
+    // allocation-failed handle has no sink to borrow.
+    public func get(&self) : &SharedAssets {
+        unsafe { return &*self.ptr }
+    }
+
+    // Borrow the sink for mutation (e.g. attaching pages or clearing).
+    // Requires `is_valid()`.
+    public func get_mut(&mut self) : &mut SharedAssets {
+        unsafe { return &mut *self.ptr }
+    }
+
+    @delete
+    func destruct(&self) {
+        unsafe {
+            if(self.ptr != null) { delete self.ptr }
+        }
+    }
+}
+
+// --- Legacy raw allocation (kept for existing callers) -------------------
+//
+// Prefer `SharedAssetsHandle`. These two functions are the raw pointer form:
+// the caller owns the returned pointer and must release it with
+// `shared_assets_free` exactly once.
 public func shared_assets(name : std::string_view = "") : *mut SharedAssets {
         unsafe {
         var s = new SharedAssets()

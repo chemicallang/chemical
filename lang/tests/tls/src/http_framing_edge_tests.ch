@@ -84,7 +84,7 @@ public func FRAM_close_delimited_no_content_length(env : &mut TestEnv) {
         env.error("close-delimited length mismatch")
         var msg = string("got ")
         msg.append_uinteger(v.size() as ubigint)
-        env.error(msg.data())
+        test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0)
     } else if(!v.equals_view(body.to_view())) {
         env.error("close-delimited bytes mismatch")
     }
@@ -253,7 +253,7 @@ public func FRAM_dribbled_response_reassembly(env : &mut TestEnv) {
         env.error("dribbled length mismatch")
         var msg = string("got ")
         msg.append_uinteger(v.size() as ubigint)
-        env.error(msg.data())
+        test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0)
     } else {
         var i : size_t = 0
         while(i < v.size()) {

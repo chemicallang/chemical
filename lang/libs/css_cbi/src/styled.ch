@@ -240,7 +240,7 @@ public func styled_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedde
         support.pageNode = pageParam;
         support.appendCssCharFn = htmlPageType.child("append_css_char");
         support.appendCssCharPtrFn = htmlPageType.child("append_css_char_ptr");
-        support.appendCssFn = htmlPageType.child("append_css");
+        support.appendCssFn = htmlPageType.child("append_css_raw");
         support.appendCssIntFn = htmlPageType.child("append_css_integer");
         support.appendCssUIntFn = htmlPageType.child("append_css_uinteger");
         support.appendCssFloatFn = htmlPageType.child("append_css_float");
@@ -256,7 +256,7 @@ public func styled_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedde
         }
 
         // resolve html emitter functions used by the SSR body
-        root.appendHtmlFn = htmlPageType.child("append_html");
+        root.appendHtmlFn = htmlPageType.child("append_html_raw");
         if(root.appendHtmlFn == null) {
             resolver.error(std::string_view("'append_html' is required on 'page' for styled components to work"), loc);
             return;
@@ -337,7 +337,7 @@ public func styled_replacementNodeDeclare(builder : *mut ASTBuilder, diagnoser :
 func styled_make_html_call(builder : *mut ASTBuilder, pageParam : *mut ASTNode, fnNode : *mut ASTNode, text : std::string_view, parent : *mut ASTNode, loc : ubigint) : *mut FunctionCallNode {
         unsafe {
         var base = builder.make_identifier(std::string_view("page"), pageParam, false, loc);
-        var id = builder.make_identifier(std::string_view("append_html"), fnNode, false, loc);
+        var id = builder.make_identifier(std::string_view("append_html_raw"), fnNode, false, loc);
         var chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), loc);
         var call = builder.make_function_call_node(chain, parent, loc);
         call.get_args().push(builder.make_string_value(&text, loc));
@@ -363,7 +363,7 @@ func styled_make_render_attrs_call(builder : *mut ASTBuilder, fnNode : *mut ASTN
 func styled_make_children_call(builder : *mut ASTBuilder, pageParam : *mut ASTNode, fnNode : *mut ASTNode, childrenParam : *mut ASTNode, dataFn : *mut ASTNode, sizeFn : *mut ASTNode, parent : *mut ASTNode, loc : ubigint) : *mut FunctionCallNode {
         unsafe {
         var base = builder.make_identifier(std::string_view("page"), pageParam, false, loc);
-        var id = builder.make_identifier(std::string_view("append_html"), fnNode, false, loc);
+        var id = builder.make_identifier(std::string_view("append_html_raw"), fnNode, false, loc);
         var chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), loc);
         var call = builder.make_function_call_node(chain, parent, loc);
 

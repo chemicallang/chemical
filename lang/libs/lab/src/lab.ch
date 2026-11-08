@@ -1,3 +1,7 @@
+// Typed safe handles are canonical (`lab::safe::ModuleId` / `lab::safe::JobId`);
+// the raw build interfaces stay at module scope for the CBI ABI, and raw
+// pointer helpers live under `lab::raw`.
+
 public enum ModuleType {
     File,
     CFile,
@@ -252,6 +256,8 @@ public interface BuildContext {
 
 }
 
+public namespace raw {
+
 public func (ctx : &BuildContext) new_module(type : ModuleType, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<ModuleDependency>) : *mut Module {
     return ctx.new_package(type, PackageKind.Library, scope_name, name, dependencies);
 }
@@ -324,6 +330,8 @@ public func (ctx : &BuildContext) directory_app_module(scope_name : &std::string
     return mod;
 }
 
+} // namespace raw
+
 public struct ImportSymbol {
     var parts : std::span<std::string_view>;
     var alias : std::string_view;
@@ -349,6 +357,8 @@ public struct ImportRepo {
 public interface AppBuildContext : BuildContext {
 
 }
+
+public namespace raw {
 
 public func (ctx : &BuildContext) add_compiler_interfaces(mod : *mut Module, interfaces : std::span<std::string_view>) {
     if(!interfaces.empty()) {
@@ -477,7 +487,11 @@ public func (ctx : &BuildContext) bitcode_path(job : *mut LabJob, mod : *mut Mod
     return unsafe(ctx.build_bitcode_path(job.getName(), mod.getScopeName(), mod.getName()))
 }
 
+} // namespace raw
+
 public namespace lab {
+
+public namespace raw {
 
     unsafe func find_last_pos_of_or(str : *char, len : size_t, value : char, value2 : char) : int {
         unsafe {
@@ -547,6 +561,22 @@ public namespace lab {
     @expand
     public comptime func rel_path_to(path : %runtime<*char>) : std::string {
         return appended_str(curr_dir(), path)
+    }
+
+
+} // namespace raw
+
+
+    // Stable top-level aliases: generated build.lab and LLVM expansion bind
+    // these names; the implementations remain in lab::raw.
+    @expand
+    public comptime func get_my_path() : std::string_view {
+        return raw::get_my_path()
+    }
+
+    @expand
+    public comptime func rel_path_to(path : %runtime<*char>) : std::string {
+        return raw::rel_path_to(path)
     }
 
 }

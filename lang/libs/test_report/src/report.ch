@@ -129,28 +129,71 @@ public struct TestDisplayConfig {
  * alive for the duration of the synchronous `on_test` call.
  */
 public struct TestOutcome {
+    // State is private: runners build outcomes through `make_test_outcome` and
+    // the setters below, and reporters read it through accessors. This keeps
+    // raw `logs_ptr` storage from leaking into ordinary runner code.
+    internal var runner : string_view
+    internal var name : string_view
+    internal var group : string_view
+    internal var id : int
+    internal var passed : bool
+    internal var skipped : bool
+    internal var exit_code : int
+    internal var message : string_view
+    internal var logs_ptr : *TestLog
+    internal var logs_count : size_t
+    internal var duration_ms : ubigint
+
     /** which runner produced this test (e.g. "test", "universal_test") */
-    public var runner : string_view
+    public func runner_name(&self) : string_view { return self.runner }
     /** the test's display name */
-    public var name : string_view
+    public func test_name(&self) : string_view { return self.name }
     /** the group the test belongs to (may be empty) */
-    public var group : string_view
+    public func group_name(&self) : string_view { return self.group }
     /** the test's numeric id (may be 0 / negative when not applicable) */
-    public var id : int
+    public func test_id(&self) : int { return self.id }
     /** did the test pass */
-    public var passed : bool
+    public func did_pass(&self) : bool { return self.passed }
     /** was the test skipped */
-    public var skipped : bool
+    public func was_skipped(&self) : bool { return self.skipped }
     /** process exit code, when the runner has one */
-    public var exit_code : int
+    public func process_exit_code(&self) : int { return self.exit_code }
     /** failure detail (borrowed; empty on success) */
-    public var message : string_view
-    /** borrowed array of structured logs (may be null) */
-    public var logs_ptr : *TestLog
-    /** number of entries in `logs_ptr` */
-    public var logs_count : size_t
+    public func failure_message(&self) : string_view { return self.message }
     /** wall-clock duration in milliseconds (0 when unknown) */
-    public var duration_ms : ubigint
+    public func duration(&self) : ubigint { return self.duration_ms }
+
+    /** Number of structured logs attached to this outcome. */
+    public func log_count(&self) : size_t {
+        if(self.logs_ptr == null) { return 0 }
+        return self.logs_count
+    }
+
+    /** Internal contiguous log access for the console reporter. */
+    internal func log_at_ptr(&self, index : size_t) : *TestLog {
+        return unsafe(self.logs_ptr + index)
+    }
+
+    /** Checked access to one structured log entry. */
+    public func log_at(&self, index : size_t) : std::Option<&TestLog> {
+        if(self.logs_ptr == null || index >= self.logs_count) {
+            return std::Option.None<&TestLog>()
+        }
+        const entry = unsafe(self.logs_ptr + index)
+        return std::Option.Some<&TestLog>(unsafe(&*entry))
+    }
+
+    public func set_passed(&mut self, value : bool) { self.passed = value }
+    public func set_skipped(&mut self, value : bool) { self.skipped = value }
+    public func set_exit_code(&mut self, value : int) { self.exit_code = value }
+    public func set_failure_message(&mut self, value : string_view) { self.message = value }
+    public func set_duration_ms(&mut self, value : ubigint) { self.duration_ms = value }
+
+    /** Attach the structured log array (borrowed for the `on_test` call). */
+    public func set_logs(&mut self, logs : std::span<TestLog>) {
+        self.logs_ptr = logs.data()
+        self.logs_count = logs.size()
+    }
 }
 
 /** Build an outcome with sensible defaults; assign the rest afterwards. */
@@ -192,7 +235,7 @@ public func make_test_outcome(runner : string_view, name : string_view, group : 
 public interface TestReporter {
 
     /** configure how tests are displayed (counting is unaffected) */
-    func configure(&mut self, display : *TestDisplayConfig)
+    func configure(&mut self, display : TestDisplayConfig)
 
     /** a new runner is about to stream its tests */
     func begin_runner(&mut self, name : string_view)
@@ -235,6 +278,13 @@ public func log_type_name(t : LogType) : *char {
 
         }
     }
+
+/** Safe string-view spelling of a log type name (no raw pointer exposed). */
+public func log_type_name_str(t : LogType) : string_view {
+    var p = log_type_name(t)
+    if(p == null) { return string_view() }
+    return unsafe(string_view(p))
+}
 
 /* Short icon for log severity */
 func log_type_icon(t : LogType) : *char {
@@ -366,11 +416,8 @@ public func new_console_reporter() : ConsoleReporter {
 
 impl TestReporter for ConsoleReporter {
 
-    func configure(&mut self, display_ : *TestDisplayConfig) {
-        unsafe {     unsafe {
-            self.display = *display_
-         }
-        }
+    func configure(&mut self, display_ : TestDisplayConfig) {
+        self.display = display_
     }
 
     func begin_runner(&mut self, name : string_view) {
@@ -387,18 +434,18 @@ impl TestReporter for ConsoleReporter {
 
     func on_test(&mut self, outcome : &TestOutcome) {
         unsafe {
-            if(outcome.passed) {
+            if(outcome.did_pass()) {
                 self.cur_pass += 1
             } else {
                 self.cur_fail += 1
             }
 
             // display filters never affect counting, only printing
-            if(outcome.passed && self.display.failure_only) { return }
-            if(!outcome.passed && self.display.successful_only) { return }
+            if(outcome.did_pass() && self.display.failure_only) { return }
+            if(!outcome.did_pass() && self.display.successful_only) { return }
 
             // group header whenever the group changes
-            const grp = unsafe(string_view(outcome.group.data(), outcome.group.size()))
+            const grp = outcome.group_name()
             if(self.first_group || !sv_eq_str(&self.cur_group, grp)) {
                 if(grp.size() == 0) {
                     unsafe { printf("%s%sGroup: %s(no-group)%s\n", col_bold(), col_blue(), col_gray(), col_reset()) }
@@ -410,20 +457,20 @@ impl TestReporter for ConsoleReporter {
                 self.first_group = false
             }
 
-            var status_color = if(outcome.passed) col_green() else col_red()
-            var status_text = if(outcome.passed) "PASS" else "FAIL"
+            var status_color = if(outcome.did_pass()) col_green() else col_red()
+            var status_text = if(outcome.did_pass()) "PASS" else "FAIL"
 
-            unsafe { printf("  %s- %s%.*s%s%s", status_color, col_bold(), outcome.name.size() as int, outcome.name.data(), col_reset(), col_reset()) }
-            unsafe { printf(" %d\n", outcome.id) }
+            unsafe { printf("  %s- %s%.*s%s%s", status_color, col_bold(), outcome.test_name().size() as int, outcome.test_name().data(), col_reset(), col_reset()) }
+            unsafe { printf(" %d\n", outcome.test_id()) }
 
-            if(outcome.message.size() > 0) {
-                unsafe { printf("     failed message parsing with message : %.*s\n", outcome.message.size() as int, outcome.message.data()) }
+            if(outcome.failure_message().size() > 0) {
+                unsafe { printf("     failed message parsing with message : %.*s\n", outcome.failure_message().size() as int, outcome.failure_message().data()) }
             }
 
-            if(self.display.display_logs && outcome.logs_count > 0) {
+            if(self.display.display_logs && outcome.log_count() > 0) {
                 var li : size_t = 0
-                while(li < outcome.logs_count) {
-                    const l = outcome.logs_ptr + li
+                while(li < outcome.log_count()) {
+                    const l = unsafe(outcome.log_at_ptr(li))
                     const lt_color = log_type_color(l.type)
                     const icon = log_type_icon(l.type)
                     const lname = log_type_name(l.type)
@@ -446,8 +493,8 @@ impl TestReporter for ConsoleReporter {
             }
 
             unsafe { printf("    ") };
-            if(outcome.exit_code != 0) {
-                unsafe { printf("[%s%d%s] ", status_color, outcome.exit_code, col_reset()) };
+            if(outcome.process_exit_code() != 0) {
+                unsafe { printf("[%s%d%s] ", status_color, outcome.process_exit_code(), col_reset()) };
             }
             unsafe { printf("%s%s%s\n", status_color, status_text, col_reset()) };
             unsafe { printf("\n") };
@@ -550,92 +597,3 @@ public func finish_reporter(reporter : &mut TestReporter) : int {
  * exact element type is owned by the runner library). `run_fn` receives the
  * handle so it can recover that array and stream outcomes to the reporter.
  */
-public struct TestRunnerHandle {
-    public var name : string_view
-    public var tests_ptr : *void
-    public var tests_count : size_t
-    public var run_fn : (h : *mut TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) => int
-}
-
-/** Does `argv` contain `flag` (searched from index 1, like main)? */
-public func argv_has_flag(argv : **char, argc : int, flag : *char) : bool {
-        unsafe {
-        var i : int = 1
-        while(i < argc) {
-            if(unsafe(strcmp(argv[i], flag)) == 0) { return true }
-            i += 1
-        }
-        return false
-
-        }
-    }
-
-/** Compare a runner name against a C string without allocating. */
-func runner_name_is(name : string_view, expected : *char) : bool {
-        unsafe {
-        const elen = unsafe(strlen(expected))
-        if(name.size() != elen) { return false }
-        var i : size_t = 0
-        while(i < elen) {
-            if(name.get(i) != expected[i]) { return false }
-            i += 1
-        }
-        return true
-
-        }
-    }
-
-/**
- * Runs several runners in order under a single reporter and prints one
- * combined summary at the end.
- *
- * When the process is a spawned test-library child (`--comm-id` present) only
- * the `test` runner executes and nothing is printed, matching the historical
- * child-process behaviour.
- */
-public struct MultiTestRunner {
-    var runners : vector<TestRunnerHandle>
-}
-
-public func new_multi_test_runner() : MultiTestRunner {
-        unsafe {
-        return MultiTestRunner {
-            runners : vector<TestRunnerHandle>()
-        }
-
-        }
-    }
-
-public func (runner : &mut MultiTestRunner) add(handle : TestRunnerHandle) {
-        unsafe {
-        runner.runners.push(handle)
-
-        }
-    }
-
-public func (runner : &mut MultiTestRunner) run(argc : int, argv : **char) : int {
-        unsafe {
-        var console = new_console_reporter()
-        const is_child = argv_has_flag(argv, argc, "--comm-id")
-
-        var i : size_t = 0
-        while(i < runner.runners.size()) {
-            const h = runner.runners.get_ptr(i)
-            if(is_child && !runner_name_is(h.name, "test")) {
-                i += 1
-                continue
-            }
-            if(!is_child) {
-                unsafe { printf("\n%s%s==> runner: %.*s%s\n", col_bold(), col_cyan(), h.name.size() as int, h.name.data(), col_reset()) }
-            }
-            h.run_fn(h, &mut console, argc, argv)
-            i += 1
-        }
-
-        if(is_child) {
-            return 0
-        }
-        return finish_reporter(&mut console)
-
-        }
-    }

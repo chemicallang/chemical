@@ -23,7 +23,7 @@ public func universal_key_prop_in_map_emitted(env : &mut TestEnv) {
         env.success("key prop is present in generated JS")
     } else {
         env.error("key prop was lost during conversion")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -59,7 +59,7 @@ public func universal_use_ref_compiles(env : &mut TestEnv) {
         env.success("useRef hook rewritten to $_r.useRef in JS output")
     } else {
         env.error("useRef hook was not rewritten to $_r.useRef")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -78,7 +78,7 @@ public func universal_use_memo_compiles(env : &mut TestEnv) {
         env.success("useMemo hook rewritten to $_r.useMemo in JS output")
     } else {
         env.error("useMemo hook was not rewritten to $_r.useMemo")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -97,7 +97,7 @@ public func universal_use_callback_compiles(env : &mut TestEnv) {
         env.success("useCallback hook rewritten to $_r.useCallback in JS output")
     } else {
         env.error("useCallback hook was not rewritten to $_r.useCallback")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -116,7 +116,7 @@ public func universal_use_context_compiles(env : &mut TestEnv) {
         env.success("useContext hook rewritten to $_r.useContext in JS output")
     } else {
         env.error("useContext hook was not rewritten to $_r.useContext")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -141,7 +141,7 @@ public func universal_nullish_coalescing_compiles(env : &mut TestEnv) {
         env.success("nullish coalescing compiles and emits ??")
     } else {
         env.error("nullish coalescing was not emitted")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -160,7 +160,7 @@ public func universal_optional_chaining_compiles(env : &mut TestEnv) {
         env.success("optional chaining compiles and emits member access")
     } else {
         env.error("optional chaining was not emitted")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -179,7 +179,7 @@ public func universal_exponent_operator_compiles(env : &mut TestEnv) {
         env.success("exponent operator compiles and emits **")
     } else {
         env.error("exponent operator was not emitted")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -209,7 +209,7 @@ public func universal_nested_component_prop_ssr(env : &mut TestEnv) {
         env.success("nested component receives string prop correctly")
     } else {
         env.error("nested component prop was not passed through")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -236,7 +236,7 @@ public func universal_static_state_list_ssr(env : &mut TestEnv) {
         env.success("static state array is folded into SSR HTML")
     } else {
         env.error("static state array was NOT SSR'd (empty shell)")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -257,7 +257,7 @@ public func universal_ternary_on_state_ssr(env : &mut TestEnv) {
         env.success("ternary on state is SSR'd with initial value")
     } else {
         env.error("ternary on state was NOT SSR'd (empty content)")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -291,7 +291,7 @@ public func universal_multiple_components_in_html(env : &mut TestEnv) {
         env.success("multiple components produce dispatch calls")
     } else {
         env.error("not all components produced dispatch calls")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -314,7 +314,7 @@ public func universal_inline_style_object_ssr(env : &mut TestEnv) {
         env.success("inline style object renders in SSR HTML")
     } else {
         env.error("inline style object was not rendered in SSR")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -335,7 +335,7 @@ public func universal_numeric_props_render_in_ssr(env : &mut TestEnv) {
         env.success("numeric props render in SSR HTML")
     } else {
         env.error("numeric props did not render correctly")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -358,6 +358,6 @@ public func universal_bool_attr_in_ssr(env : &mut TestEnv) {
         env.success("boolean attribute renders in SSR HTML")
     } else {
         env.error("boolean attribute was not rendered")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }

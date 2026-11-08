@@ -95,7 +95,7 @@ public func apply_route_url(page : &mut HtmlPage, router : std::string_view, spe
 
     const m = match_route(&mut patterns, url, base)
     if(m.matched) {
-        page.add_parameter(router, m.id)
+        page.add_parameter_view(router, m.id)
         for(var k : size_t = 0; k < m.params.size(); k++) {
             const p = m.params.get_ptr(k)
             var Param(name, value) = *p else unsafe { unreachable }
@@ -109,7 +109,7 @@ public func apply_route_url(page : &mut HtmlPage, router : std::string_view, spe
         // server-side, mirroring the client activation chain.
         for(var c : size_t = 0; c < m.chain.size(); c++) {
             const step = m.chain.get(c)
-            page.add_parameter(step.reg, step.id)
+            page.add_parameter_view(step.reg, step.id)
         }
     } else {
         page.mark_route_missing()

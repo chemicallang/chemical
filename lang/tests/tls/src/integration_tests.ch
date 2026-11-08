@@ -736,7 +736,7 @@ public func INT_tls13_stream_large_with_small_buffers(env : &mut TestEnv) {
     if(!ok || total != PAYLOAD) {
         env.error("tls13 large stream: incomplete read (got ")
         var tstr = string(); tstr.append_uinteger(total as ubigint)
-        env.error(tstr.data())
+        test_env::ffi::log_cstr(env, LogType.Error, tstr.data(), 0, 0)
         env.error(" want 102400)")
     }
     ssl_close_notify(unsafe(&raw mut ctx))

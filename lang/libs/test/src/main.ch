@@ -207,8 +207,7 @@ public func run_test_runner_reporting(tests_view : std::span<TestFunction>, repo
         return 1;
     }
 
-    var disp = config.display
-    reporter.configure(&raw disp)
+    reporter.configure(config.display)
     reporter.begin_runner(std::string_view("test"))
 
     // run the tests (it knows which ones to run from configuration)
@@ -229,25 +228,25 @@ public func run_test_runner(tests_view : std::span<TestFunction>, argc : int, ar
     return 0;
 }
 
-type TestHandleRunFn = (h : *mut TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) => int
+type TestHandleRunFn = (h : *mut test_report::ffi::TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) => int
 
 @retained
-public func test_handle_run(h : *mut TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) : int {
+public func test_handle_run(h : *mut test_report::ffi::TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) : int {
     unsafe {
-        var ptr = h.tests_ptr as *mut TestFunction
-        var span = unsafe(std::span<TestFunction>(ptr, h.tests_count))
+        var ptr = h.tests_ptr_value() as *mut TestFunction
+        var span = unsafe(std::span<TestFunction>(ptr, h.tests_count_value()))
         return run_test_runner_reporting(span, reporter, argc, argv)
     }
 }
 
 @retained
-public func make_test_runner_handle(tests : std::span<TestFunction>) : TestRunnerHandle {
-    return TestRunnerHandle {
-        name : std::string_view("test"),
-        tests_ptr : tests.data() as *void,
-        tests_count : tests.size(),
-        run_fn : test_handle_run as TestHandleRunFn
-    }
+public func make_test_runner_handle(tests : std::span<TestFunction>) : test_report::ffi::TestRunnerHandle {
+    return test_report::ffi::make_runner_handle(
+        std::string_view("test"),
+        tests.data() as *void,
+        tests.size(),
+        test_handle_run as TestHandleRunFn
+    )
 }
 
 /**
@@ -255,7 +254,7 @@ public func make_test_runner_handle(tests : std::span<TestFunction>) : TestRunne
  * site so `get_tests()` sees the caller's @test declarations, mirroring
  * `test_runner`.
  */
-public comptime func test_runner_handle() : TestRunnerHandle {
+public comptime func test_runner_handle() : test_report::ffi::TestRunnerHandle {
     const t = get_tests()
     return make_test_runner_handle(std::span<TestFunction>(t))
 }

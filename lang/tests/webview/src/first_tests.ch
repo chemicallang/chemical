@@ -72,16 +72,16 @@ func run_bridge_test(
 
     reset_state()
     var wv = webview::WebView.make()
-    webview::webview_set_size(&raw mut wv, 480, 360)
+    webview::raw::webview_set_size(&raw mut wv, 480, 360)
 
-    var r = webview::webview_create(&raw mut wv)
+    var r = webview::raw::webview_create(&raw mut wv)
     if(r is std::Result.Err) {
         env.error("webview_create failed")
         return
     }
 
     // Bind echo handler that records the call and stops on "done" or "stop"
-    webview::webview_bind(&raw mut wv, (| |(method, args) => {
+    webview::raw::webview_bind(&raw mut wv, (| |(method, args) => {
         state().calls_received = state().calls_received + 1
         state().last_method = string("")
         state().last_method.append_view(&method)
@@ -98,14 +98,14 @@ func run_bridge_test(
                 state().bridge_ok = true
                 state().last_result = string("")
                 state().last_result.append_view(&args)
-                webview::webview_stop(state().wv_ptr)
+                webview::raw::webview_stop(state().wv_ptr)
                 return string("{\"ok\":true}")
             }
             if(d0 == 's' && d1 == 't' && d2 == 'o' && d3 == 'p') {
                 state().bridge_ok = false
                 state().error_msg = string("")
                 state().error_msg.append_view(&args)
-                webview::webview_stop(state().wv_ptr)
+                webview::raw::webview_stop(state().wv_ptr)
                 return string("{\"ok\":true}")
             }
         }
@@ -120,14 +120,14 @@ func run_bridge_test(
     // Store webview pointer in state so handler can stop it
     state().wv_ptr = &raw mut wv
 
-    webview::webview_load_html(&raw mut wv, html)
+    webview::raw::webview_load_html(&raw mut wv, html)
 
     // Safety timeout: if the test hangs, stop after 6 seconds via JS timer
-    webview::webview_evaluate_js(&raw mut wv, "setTimeout(function(){window.__webview__.call('stop','timeout');},10000)")
+    webview::raw::webview_evaluate_js(&raw mut wv, "setTimeout(function(){window.__webview__.call('stop','timeout');},10000)")
 
     // Run the message loop — blocks until handler calls webview_stop
-    webview::webview_run(&raw mut wv)
-    webview::webview_destroy(&raw mut wv)
+    webview::raw::webview_run(&raw mut wv)
+    webview::raw::webview_destroy(&raw mut wv)
 
     // Verify results
     verify_fn(env)
@@ -545,7 +545,7 @@ func verify_large_payload_under_load(env : &mut TestEnv) {
             msg.append_view(std::string_view::make_no_len(": "))
             msg.append_view(std::string_view::make_view(&state().error_msg))
         }
-        env.error(msg.data())
+        test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0)
         return
     }
 

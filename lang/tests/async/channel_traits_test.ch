@@ -17,11 +17,11 @@ func channel_handles_are_send_and_sync(env : &mut TestEnv) {
     }
     ch.sender.send(7)
     var got = ch.receiver.try_recv()
-    if(got is Option.None) {
+    if(got is std::Result.Err) {
         env.error("channel lost the sent value")
         return
     }
-    var Some(value) = got else unsafe { unreachable }
+    var Ok(value) = got else unsafe { unreachable }
     if(value != 7) {
         env.error("channel delivered the wrong value")
     }

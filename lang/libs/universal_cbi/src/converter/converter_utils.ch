@@ -437,10 +437,10 @@ func (converter : &mut JsConverter) make_value_call(value : *mut Value, len : si
         var name : std::string_view
         var fnPtr : *mut ASTNode
         if(converter.target == BufferType.JavaScript) {
-            name = std::string_view("append_js")
+            name = std::string_view("append_js_raw")
             fnPtr = converter.support.appendHeadJsFn
         } else {
-            name = std::string_view("append_html")
+            name = std::string_view("append_html_raw")
             fnPtr = converter.support.appendHtmlFn
         }
 
@@ -1799,7 +1799,7 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
                         var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
                         var childrenId = builder.make_identifier(std::string_view("children"), converter.support.childrenParamNode, false, location);
 
-                        const appendHtmlId = builder.make_identifier(std::string_view("append_html"), converter.support.appendHtmlFn, false, location)
+                        const appendHtmlId = builder.make_identifier(std::string_view("append_html_raw"), converter.support.appendHtmlFn, false, location)
                         var appendCall = builder.make_function_call_node(
                             builder.make_access_chain(&std::span<*mut Value>([ pageId, appendHtmlId ]), location),
                             converter.parent,
@@ -1867,7 +1867,7 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
             if(converter.is_ssr_children_alias(id.value)) {
                 var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
                 const childrenId = builder.make_identifier(std::string_view("children"), converter.support.childrenParamNode, false, location);
-                const appendHtmlId = builder.make_identifier(std::string_view("append_html"), converter.support.appendHtmlFn, false, location);
+                const appendHtmlId = builder.make_identifier(std::string_view("append_html_raw"), converter.support.appendHtmlFn, false, location);
                 var appendCall = builder.make_function_call_node(
                     builder.make_access_chain(&std::span<*mut Value>([ pageId, appendHtmlId ]), location),
                     converter.parent, location

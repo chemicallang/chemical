@@ -3,7 +3,7 @@ using std::string;
 // ===========================================================================
 // Tier 5 — UI-thread async bridge
 //
-// `async::spawn_local` submits a future to the process-wide executor. On its
+// `async::raw::spawn_local` submits a future to the process-wide executor. On its
 // own that executor only runs inside `block_on`; a GUI app is instead parked in
 // the native event loop. `window_pump` and `window_run_async` drive the
 // executor from that loop, so a UI-spawned task is polled on the UI thread and
@@ -62,7 +62,7 @@ public func test_spawn_local_eager(env : &mut TestEnv) {
     unsafe {
 
     g_ui_eager_ran = 0
-    var h = unsafe(async::spawn_local<int>(async_ui_eager(41)))
+    var h = unsafe(async::raw::spawn_local<int>(async_ui_eager(41)))
     var ok = pump_until(() => g_ui_eager_ran > 0, 1000)
     if(!ok) {
         env.error("spawn_local future was not polled by window_pump")
@@ -82,7 +82,7 @@ public func test_spawn_local_await_blocking(env : &mut TestEnv) {
 
     g_ui_await_ran = 0
     g_ui_await_value = 0
-    var h = unsafe(async::spawn_local<int>(async_ui_await_blocking()))
+    var h = unsafe(async::raw::spawn_local<int>(async_ui_await_blocking()))
     var ok = pump_until(() => g_ui_await_value == 21, 2000)
     if(!ok) {
         env.error("spawn_local continuation after await did not run")
@@ -97,7 +97,7 @@ public func test_spawn_local_value_is_joinable(env : &mut TestEnv) {
     // The eager future also produces a join result; drive it to completion
     // through the pump, then read it via block_on (already complete, so it
     // returns immediately without parking the UI thread).
-    var h = unsafe(async::spawn_local<int>(async_ui_eager(9)))
+    var h = unsafe(async::raw::spawn_local<int>(async_ui_eager(9)))
     window::window_pump()
     var v = async::block_on<int>(h)
     if(v != 10) {
@@ -112,7 +112,7 @@ public func test_spawn_local_cancel_no_crash(env : &mut TestEnv) {
     // must observe cancellation and reclaim them without crashing.
     var i = 0
     while(i < 8) {
-        var h = unsafe(async::spawn_local<int>(async_ui_eager(i)))
+        var h = unsafe(async::raw::spawn_local<int>(async_ui_eager(i)))
         i = i + 1
     }
     window::window_pump()
@@ -128,7 +128,7 @@ func run_async_quit_cb(data : *mut void) {
     unsafe {
 
     g_run_async_quit = 1
-    window::window_quit()
+    window::raw::window_quit()
 
 }
 }
@@ -141,26 +141,26 @@ public func test_window_run_async_drives_executor(env : &mut TestEnv) {
     w.title = string("window async test")
     w.width = 200
     w.height = 120
-    var cr = window::window_create(&raw mut w)
+    var cr = window::raw::window_create(&raw mut w)
     if(cr is std::Result.Err) {
         env.error("window_run_async test: could not create window (display?)")
         return
     }
-    window::window_show(&raw mut w)
+    window::raw::window_show(&raw mut w)
 
     g_ui_eager_ran = 0
     g_run_async_quit = 0
-    var h = unsafe(async::spawn_local<int>(async_ui_eager(1)))
+    var h = unsafe(async::raw::spawn_local<int>(async_ui_eager(1)))
     // Quit the loop shortly after it starts; the executor tick runs in between.
-    window::window_set_timer(50, run_async_quit_cb, null)
+    window::raw::window_set_timer(50, run_async_quit_cb, null)
     window::window_run_async()
 
     if(g_ui_eager_ran == 0) {
         env.error("window_run_async did not poll the executor before quitting")
-        window::window_destroy(&raw mut w)
+        window::raw::window_destroy(&raw mut w)
         return
     }
-    window::window_destroy(&raw mut w)
+    window::raw::window_destroy(&raw mut w)
 
 }
 }

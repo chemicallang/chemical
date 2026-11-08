@@ -11,6 +11,34 @@
 // payload is moved out with `memcpy` (B18).
 public namespace async {
 
+/** Error returned when a send fails because the channel is closed. */
+public variant SendError<T> {
+    Closed(value : T)
+}
+
+/** Why a non-blocking receive had no value. */
+public variant TryRecvError {
+    /// The channel is still open but no value is queued.
+    Empty()
+    /// Every sender is gone and the queue is empty.
+    Disconnected()
+}
+
+// `()` cannot be spelled inside variant-constructor generic arguments yet; use
+// an alias for the unit tuple in constructor positions.
+// Build unit-returning results through a typed local.
+@retained
+public func <E> result_ok_unit() : std::Result<std::Unit, E> {
+    var out : std::Result<std::Unit, E> = std::Result.Ok<std::Unit, E>(std::Unit {})
+    return out
+}
+
+@retained
+public func <E> result_err_unit(error : E) : std::Result<std::Unit, E> {
+    var out : std::Result<std::Unit, E> = std::Result.Err<std::Unit, E>(error)
+    return out
+}
+
 public struct ChannelNode<T> {
     internal var value : T
     internal var next : *mut ChannelNode<T>
@@ -103,12 +131,12 @@ public func <T> channel_release_shared(s : *mut ChannelShared<T>) {
     }
 
 @retained
-public func <T> channel_push(s : *mut ChannelShared<T>, value : T) : bool {
+public func <T> channel_push(s : *mut ChannelShared<T>, value : T) : std::Result<std::Unit, T> {
         unsafe {
         s.m.lock()
         if(s.closed) {
             s.m.unlock()
-            return false
+            return result_err_unit<T>(value)
         }
         var node = unsafe(malloc(sizeof(ChannelNode<T>))) as *mut ChannelNode<T>
         if(node == null) {
@@ -128,7 +156,7 @@ public func <T> channel_push(s : *mut ChannelShared<T>, value : T) : bool {
         }
         channel_wake_locked<T>(s)
         s.m.unlock()
-        return true
+        return result_ok_unit<T>()
 
         }
     }
@@ -162,11 +190,17 @@ public func <T> channel_pop_opt(s : *mut ChannelShared<T>) : std::Option<T> {
 public struct Sender<T> {
     internal var shared : *mut ChannelShared<T>
 
-    public func send(&self, value : T) : bool {
-        unsafe {
-            return channel_push<T>(self.shared, value)
-    
+    /**
+     * Enqueue `value`. Returns `Err(SendError::Closed(value))` when the
+     * channel is closed; the value is handed back so the caller can recover it.
+     */
+    public func send(&self, value : T) : std::Result<std::Unit, SendError<T> > {
+        var pushed = channel_push<T>(self.shared, value)
+        if(pushed is std::Result.Ok) {
+            return result_ok_unit<SendError<T> >()
         }
+        var Err(rejected) = pushed else unsafe { unreachable }
+        return result_err_unit<SendError<T> >(SendError.Closed<T>(rejected))
     }
 
     // A new handle to the same channel. The channel closes once every handle
@@ -222,13 +256,20 @@ public struct Sender<T> {
 public struct Receiver<T> {
     internal var shared : *mut ChannelShared<T>
 
-    // Non-blocking receive. Returns `None` when nothing is queued (the channel
-    // may still be open or already be closed).
-    public func try_recv(&self) : std::Option<T> {
-        unsafe {
-            return channel_pop_opt<T>(self.shared)
-    
+    /**
+     * Non-blocking receive. `Err(Empty)` means the channel is open but has no
+     * queued value; `Err(Disconnected)` means every sender is gone.
+     */
+    public func try_recv(&self) : std::Result<T, TryRecvError> {
+        var opt = channel_pop_opt<T>(self.shared)
+        if(opt is std::Option.Some) {
+            var value = option_take<T>(&raw mut opt)
+            return std::Result.Ok<T, TryRecvError>(value)
         }
+        if(self.is_closed()) {
+            return std::Result.Err<T, TryRecvError>(TryRecvError.Disconnected())
+        }
+        return std::Result.Err<T, TryRecvError>(TryRecvError.Empty())
     }
 
     public func is_closed(&self) : bool {

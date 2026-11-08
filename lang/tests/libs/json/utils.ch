@@ -8,12 +8,12 @@ public func view_equals(env : &mut TestEnv, str : &std::string_view, view : &std
     var expected = std::string("expected:\"");
     expected.append_view(view)
     expected.append('"');
-    env.info(expected.data())
+    test_env::ffi::log_cstr(env, LogType.Information, expected.data(), 0, 0)
 
     var got = std::string("got     :\"");
     got.append_view(str)
     got.append('"');
-    env.info(got.data())
+    test_env::ffi::log_cstr(env, LogType.Information, got.data(), 0, 0)
 }
 
 func test_parsed_json_equals(env : &mut TestEnv, doc : &std::string_view, other : &std::string_view) {

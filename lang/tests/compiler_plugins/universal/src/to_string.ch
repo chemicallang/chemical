@@ -731,6 +731,6 @@ public func universal_ssr_children_alias_renders(env : &mut TestEnv) {
         env.success("var children = props.children renders at SSR")
     } else {
         env.error("children alias did not render at SSR")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }

@@ -26,7 +26,7 @@ public func link_href_from_string_var(env : &mut TestEnv) {
         env.success("Link href from string var works")
     } else {
         env.error("Link href from string var failed - href is empty or missing")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -52,7 +52,7 @@ public func link_href_from_string_var_inside_while(env : &mut TestEnv) {
         env.success("Link href from string var inside while works")
     } else {
         env.error("Link href from string var inside while failed - href is empty")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -71,7 +71,7 @@ public func link_href_from_concatenated_string(env : &mut TestEnv) {
         env.success("Link href from concatenated string works")
     } else {
         env.error("Link href from concatenated string failed")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -98,10 +98,10 @@ public func link_href_not_empty_inside_while(env : &mut TestEnv) {
         env.success("Link href contains expected value inside while loop")
     } else if(html.contains("href=\"\"")) {
         env.error("BUG CONFIRMED: Link href is empty when variable is passed as prop")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     } else {
         env.error("Link href has unexpected value")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -127,7 +127,7 @@ public func link_href_literal_string_inside_while(env : &mut TestEnv) {
         env.success("Link with literal href inside while works")
     } else {
         env.error("Link with literal href inside while failed")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -154,6 +154,6 @@ public func raw_a_href_from_string_var_inside_while(env : &mut TestEnv) {
         env.success("Raw <a> href from string var inside while works")
     } else {
         env.error("Raw <a> href from string var inside while failed")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }

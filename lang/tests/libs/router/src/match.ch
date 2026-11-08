@@ -94,7 +94,7 @@ public func test_router_build_path_roundtrip(env : &mut TestEnv) {
     var expected = std::string_view("/projects/a%20b%2Fc")
     if(!path.to_view().equals(&expected)) {
         env.error("build_path should percent-encode params")
-        env.info(path.data())
+        test_env::ffi::log_cstr(env, LogType.Information, path.data(), 0, 0)
     }
 }
 
@@ -107,7 +107,7 @@ public func test_router_build_path_missing_param(env : &mut TestEnv) {
     var expected = std::string_view("/projects/")
     if(!path.to_view().equals(&expected)) {
         env.error("missing param should build an empty segment")
-        env.info(path.data())
+        test_env::ffi::log_cstr(env, LogType.Information, path.data(), 0, 0)
     }
 }
 
@@ -196,7 +196,7 @@ public func test_router_build_path_fallback_returns_root(env : &mut TestEnv) {
         // Documented client/server split: the client `buildPath` skips fallback
         // entries (returns `null`); the server reverses the fallback to root.
         env.error("server build_path for the fallback id should return '/'")
-        env.info(path.data())
+        test_env::ffi::log_cstr(env, LogType.Information, path.data(), 0, 0)
     }
 }
 

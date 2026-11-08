@@ -3,15 +3,15 @@ using namespace std;
 // Small helpers for fs tests. Keep things C-like and explicit.
 
 public func env_fail(env : &mut TestEnv, msg : *char) {
-    env.error(msg);
+    test_env::ffi::log_cstr(env, LogType.Error, msg, 0, 0);
 }
 
 public func env_info(env : &mut TestEnv, msg : *char) {
-    env.info(msg);
+    test_env::ffi::log_cstr(env, LogType.Information, msg, 0, 0);
 }
 public func expect_eq_usize(env : &mut TestEnv, actual : size_t, expected : size_t, msg : *char) : bool {
     if(actual != expected) {
-        env.error(msg);
+        test_env::ffi::log_cstr(env, LogType.Error, msg, 0, 0);
         return false;
     }
     return true;
@@ -24,7 +24,7 @@ public func expect_cstr_equals(env : &mut TestEnv, a : *char, b : *char, msg : *
             var ca = a[i];
             var cb = b[i];
             if(ca != cb) {
-                env.error(msg);
+                test_env::ffi::log_cstr(env, LogType.Error, msg, 0, 0);
                 return false;
             }
             if(ca == '\0') {
@@ -57,13 +57,13 @@ public func bytes_equal(buf : *u8, len : size_t, cstr : *char, msg : *char, env 
         unsafe {
         var want = unsafe(strlen(cstr)) as size_t;
         if(len != want) {
-            env.error(msg);
+            test_env::ffi::log_cstr(env, LogType.Error, msg, 0, 0);
             return false;
         }
         var i : size_t = 0;
         while(i < want) {
             if(buf[i] != (cstr[i] as u8)) {
-                env.error(msg);
+                test_env::ffi::log_cstr(env, LogType.Error, msg, 0, 0);
                 return false;
             }
             i++;

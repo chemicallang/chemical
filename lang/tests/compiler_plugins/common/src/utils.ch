@@ -8,12 +8,12 @@ public func view_equals(env : &mut TestEnv, str : &std::string_view, view : &std
     var exp = std::string("expected:\"");
     exp.append_view(view)
     exp.append('"');
-    env.info(exp.data())
+    test_env::ffi::log_cstr(env, LogType.Information, exp.data(), 0, 0)
 
     var got2 = std::string("got     :\"");
     got2.append_view(str)
     got2.append('"');
-    env.info(got2.data())
+    test_env::ffi::log_cstr(env, LogType.Information, got2.data(), 0, 0)
 
     // print information to easily track where the in-equality comes from
     var i : size_t = 0;
@@ -34,14 +34,14 @@ public func view_equals(env : &mut TestEnv, str : &std::string_view, view : &std
     expected.append_view(view.subview(start, view_end));
     if (view_end < view_len) { expected.append_view("..."); }
     expected.append('"');
-    env.info(expected.data())
+    test_env::ffi::log_cstr(env, LogType.Information, expected.data(), 0, 0)
 
     var got = std::string("got     :\"");
     if (start > 0) { got.append_view("..."); }
     got.append_view(str.subview(start, str_end));
     if (str_end < str_len) { got.append_view("..."); }
     got.append('"');
-    env.info(got.data())
+    test_env::ffi::log_cstr(env, LogType.Information, got.data(), 0, 0)
 
     var diff = std::string("");
     var j : size_t = 0;
@@ -71,7 +71,7 @@ public func view_equals(env : &mut TestEnv, str : &std::string_view, view : &std
         diff.append('\'');
     }
 
-    env.info(diff.data())
+    test_env::ffi::log_cstr(env, LogType.Information, diff.data(), 0, 0)
 
 }
 

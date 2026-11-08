@@ -52,7 +52,7 @@ func test_channel_drain_destroys_values_once(env : &mut TestEnv) {
         {
             var a = ch.receiver.try_recv()
             var b = ch.receiver.try_recv()
-            if(a is std::Option.None || b is std::Option.None) {
+            if(a is std::Result.Err || b is std::Result.Err) {
                 env.error("try_recv should drain the queued values")
                 return
             }
@@ -70,19 +70,19 @@ func test_channel_send_after_close(env : &mut TestEnv) {
     var ch = async::channel<int>()
     ch.sender.send(1)
     ch.sender.close()
-    if(ch.sender.send(2)) {
-        env.error("send after close must return false")
+    if(ch.sender.send(2) is std::Result.Ok) {
+        env.error("send after close must return Err")
     }
     var a = ch.receiver.try_recv()
-    if(a is std::Option.None) {
+    if(a is std::Result.Err) {
         env.error("a value queued before close must still be received")
         return
     }
-    var Some(v) = a else unsafe { unreachable }
+    var Ok(v) = a else unsafe { unreachable }
     if(v != 1) {
         env.error("queued value mismatch after close")
     }
-    if(!(ch.receiver.try_recv() is std::Option.None)) {
+    if(!(ch.receiver.try_recv() is std::Result.Err)) {
         env.error("no value should remain after draining a closed channel")
     }
     if(!ch.receiver.is_closed()) {
@@ -175,7 +175,7 @@ func test_spawn_cancel_destroys_task_locals(env : &mut TestEnv) {
         unsafe {
         life_drops = 0;
         {
-            var h = unsafe(async::spawn<int>(life_sleeper(100000u, 3)))
+            var h = unsafe(async::raw::spawn<int>(life_sleeper(100000u, 3)))
             // Drive the executor so the task runs up to its suspension.
             var u = async::block_on<core::async::Unit>(async::yield_now())
             // `h` is dropped here, cancelling the task.
@@ -198,7 +198,7 @@ async func life_make_str(n : int) : std::string {
 
 @test
 func test_spawn_destructible_payload(env : &mut TestEnv) {
-    var s = async::block_on<std::string>(unsafe(async::spawn<std::string>(life_make_str(1))))
+    var s = async::block_on<std::string>(unsafe(async::raw::spawn<std::string>(life_make_str(1))))
     if(s.size() != 10u) {
         env.error("spawned destructible payload size mismatch")
     }

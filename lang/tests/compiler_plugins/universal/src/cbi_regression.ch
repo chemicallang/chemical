@@ -16,7 +16,7 @@ public func universal_url_query_in_jsx(env : &mut TestEnv) {
         env.success("URL with query string in JSX expression works")
     } else {
         env.error("URL query string handling failed")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -39,7 +39,7 @@ public func universal_arrow_block_body_in_jsx(env : &mut TestEnv) {
         env.success("arrow block body in JSX map works")
     } else {
         env.error("arrow block body in JSX map failed")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -58,7 +58,7 @@ public func universal_var_prefix_variable(env : &mut TestEnv) {
         env.success("var_ prefix variable name works")
     } else {
         env.error("var_ prefix variable name failed")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -77,7 +77,7 @@ public func universal_mustache_in_string(env : &mut TestEnv) {
         env.success("mustache {{ }} in string works")
     } else {
         env.error("mustache {{ }} in string failed")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -96,6 +96,6 @@ public func universal_regexp_from_string(env : &mut TestEnv) {
         env.success("RegExp from string constructor works")
     } else {
         env.error("RegExp from string constructor failed")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }

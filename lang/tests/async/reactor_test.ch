@@ -49,10 +49,10 @@ public func test_posix_reactor_high_fd(env : &mut TestEnv) {
     }
 
     // The executor's blocking path registers the fd and waits in the reactor.
-    var e = async::executor()
-    var wk = unsafe(async::exec_make_waker(e))
-    async::reactor_register(r, async::posix::POLLIN, wk)
-    if(async::reactor_poll(0) <= 0) {
+    var e = async::raw::executor()
+    var wk = unsafe(async::raw::exec_make_waker(e))
+    async::raw::reactor_register(r, async::posix::POLLIN, wk)
+    if(async::raw::reactor_poll(0) <= 0) {
         env.error("reactor_poll did not report a ready fd above FD_SETSIZE")
     }
 
@@ -74,17 +74,17 @@ public func test_posix_reactor_mod_preserves_events(env : &mut TestEnv) {
     }
     var r = fds[0]
     var w = fds[1]
-    var e = async::executor()
-    async::reactor_register(r, async::posix::POLLIN, unsafe(async::exec_make_waker(e)))
+    var e = async::raw::executor()
+    async::raw::reactor_register(r, async::posix::POLLIN, unsafe(async::raw::exec_make_waker(e)))
     // The node already exists, so this is a modification (POLLIN | POLLOUT).
-    async::reactor_register(r, async::posix::POLLOUT, unsafe(async::exec_make_waker(e)))
+    async::raw::reactor_register(r, async::posix::POLLOUT, unsafe(async::raw::exec_make_waker(e)))
 
     var ch : char = 'x'
     if(unsafe(write(w, &raw mut ch as *void, 1u as ulong)) != 1) {
         env.error("write failed")
         return
     }
-    if(async::reactor_poll(0) <= 0) {
+    if(async::raw::reactor_poll(0) <= 0) {
         env.error("reactor MOD must preserve the read registration")
     }
     unsafe { read(r, &raw mut ch as *mut void, 1u as ulong) }
@@ -105,10 +105,10 @@ public func test_posix_reactor_hup_wakes_reader(env : &mut TestEnv) {
     var w = fds[1]
     unsafe { close(w) }
 
-    var e = async::executor()
-    var wk = unsafe(async::exec_make_waker(e))
-    async::reactor_register(r, async::posix::POLLIN, wk)
-    if(async::reactor_poll(0) <= 0) {
+    var e = async::raw::executor()
+    var wk = unsafe(async::raw::exec_make_waker(e))
+    async::raw::reactor_register(r, async::posix::POLLIN, wk)
+    if(async::raw::reactor_poll(0) <= 0) {
         env.error("a closed peer must wake the reader (HUP)")
     }
     unsafe { close(r) }

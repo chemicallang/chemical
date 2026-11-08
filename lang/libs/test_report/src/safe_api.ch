@@ -28,19 +28,19 @@ using std::vector;
  * observe a `str` with an unvalidated backing buffer.
  */
 public func name(outcome : &TestOutcome) : Option<str> {
-    return utf8_view(outcome.name)
+    return utf8_view(outcome.test_name())
 }
 
 public func group(outcome : &TestOutcome) : Option<str> {
-    return utf8_view(outcome.group)
+    return utf8_view(outcome.group_name())
 }
 
 public func runner(outcome : &TestOutcome) : Option<str> {
-    return utf8_view(outcome.runner)
+    return utf8_view(outcome.runner_name())
 }
 
 public func message(outcome : &TestOutcome) : Option<str> {
-    return utf8_view(outcome.message)
+    return utf8_view(outcome.failure_message())
 }
 
 public func log_message(log : &TestLog) : Option<str> {
@@ -65,19 +65,12 @@ func utf8_view(view : std::string_view) : Option<str> {
 
 /// Number of structured logs attached to an outcome.
 public func log_count(outcome : &TestOutcome) : size_t {
-    if(outcome.logs_ptr == null) {
-        return 0
-    }
-    return outcome.logs_count
+    return outcome.log_count()
 }
 
 /// Checked access to one structured log entry.
 public func log_at(outcome : &TestOutcome, index : size_t) : Option<&TestLog> {
-    if(outcome.logs_ptr == null || index >= outcome.logs_count) {
-        return Option.None<&TestLog>()
-    }
-    const entry = unsafe(outcome.logs_ptr + index)
-    return Option.Some<&TestLog>(unsafe(&*entry))
+    return outcome.log_at(index)
 }
 
 // -------------------------------------------------------------------------
@@ -139,15 +132,15 @@ public func snapshot(outcome : &TestOutcome) : SafeTestOutcome {
     }
 
     return SafeTestOutcome {
-        runner : copy_view(outcome.runner),
-        name : copy_view(outcome.name),
-        group : copy_view(outcome.group),
-        message : copy_view(outcome.message),
-        id : outcome.id,
-        passed : outcome.passed,
-        skipped : outcome.skipped,
-        exit_code : outcome.exit_code,
-        duration_ms : outcome.duration_ms,
+        runner : copy_view(outcome.runner_name()),
+        name : copy_view(outcome.test_name()),
+        group : copy_view(outcome.group_name()),
+        message : copy_view(outcome.failure_message()),
+        id : outcome.test_id(),
+        passed : outcome.did_pass(),
+        skipped : outcome.was_skipped(),
+        exit_code : outcome.process_exit_code(),
+        duration_ms : outcome.duration(),
         logs : logs
     }
 }
@@ -158,7 +151,7 @@ public func snapshot(outcome : &TestOutcome) : SafeTestOutcome {
 
 /// Configure a reporter from an owned display config (no out-pointer).
 public func configure(reporter : &mut TestReporter, display : TestDisplayConfig) {
-    reporter.configure(&raw display)
+    reporter.configure(display)
 }
 
 /// Start a runner from a `&str` name.
@@ -187,11 +180,6 @@ public func (outcome : &TestOutcome) snapshot() : safe::SafeTestOutcome {
     return safe::snapshot(outcome)
 }
 
-/// Checked log entry access.
-public func (outcome : &TestOutcome) log_at(index : size_t) : std::Option<&TestLog> {
-    return safe::log_at(outcome, index)
-}
-
 /// Configure a reporter from an owned display config.
 public func (reporter : &mut TestReporter) configure_owned(display : TestDisplayConfig) {
     safe::configure(reporter, display)
@@ -206,5 +194,131 @@ public func (reporter : &mut TestReporter) begin_runner_str(name : &str) {
 public func (reporter : &mut TestReporter) on_test_ref(outcome : &TestOutcome) {
     safe::on_test(reporter, outcome)
 }
+
+public namespace ffi {
+
+using std::string_view;
+using std::vector;
+
+public struct TestRunnerHandle {
+    internal var name : string_view
+    internal var tests_ptr : *void
+    internal var tests_count : size_t
+    internal var run_fn : (h : *mut TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) => int
+}
+
+/** Runner type-erased test array pointer (raw runner-hook access). */
+public func (h : &TestRunnerHandle) tests_ptr_value() : *void {
+    return h.tests_ptr
+}
+
+/** Number of type-erased tests in the runner handle. */
+public func (h : &TestRunnerHandle) tests_count_value() : size_t {
+    return h.tests_count
+}
+
+/** Build a runner handle without exposing its raw fields. */
+public func make_runner_handle(name : string_view, tests_ptr : *void, tests_count : size_t, run_fn : (h : *mut TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) => int) : TestRunnerHandle {
+    return TestRunnerHandle {
+        name : name,
+        tests_ptr : tests_ptr,
+        tests_count : tests_count,
+        run_fn : run_fn
+    }
+}
+
+/** Does `argv` contain `flag` (searched from index 1, like main)? */
+public func argv_has_flag(argv : **char, argc : int, flag : *char) : bool {
+        unsafe {
+        var i : int = 1
+        while(i < argc) {
+            if(unsafe(strcmp(argv[i], flag)) == 0) { return true }
+            i += 1
+        }
+        return false
+
+        }
+    }
+
+/** Safe `&str` spelling of `argv_has_flag`. */
+public func argv_has_flag_str(argv : **char, argc : int, flag : &str) : bool {
+    if(argv == null || argc <= 0) { return false }
+    var made = std::cstring_make(flag)
+    if(made is std::Result.Err) { return false }
+    var Ok(c) = made else unsafe { unreachable }
+    return argv_has_flag(argv, argc, unsafe(c.as_ptr()))
+}
+
+/** Compare a runner name against a C string without allocating. */
+func runner_name_is(name : string_view, expected : *char) : bool {
+        unsafe {
+        const elen = unsafe(strlen(expected))
+        if(name.size() != elen) { return false }
+        var i : size_t = 0
+        while(i < elen) {
+            if(name.get(i) != expected[i]) { return false }
+            i += 1
+        }
+        return true
+
+        }
+    }
+
+/**
+ * Runs several runners in order under a single reporter and prints one
+ * combined summary at the end.
+ *
+ * When the process is a spawned test-library child (`--comm-id` present) only
+ * the `test` runner executes and nothing is printed, matching the historical
+ * child-process behaviour.
+ */
+public struct MultiTestRunner {
+    var runners : vector<TestRunnerHandle>
+}
+
+public func new_multi_test_runner() : MultiTestRunner {
+        unsafe {
+        return MultiTestRunner {
+            runners : vector<TestRunnerHandle>()
+        }
+
+        }
+    }
+
+public func (runner : &mut MultiTestRunner) add(handle : TestRunnerHandle) {
+        unsafe {
+        runner.runners.push(handle)
+
+        }
+    }
+
+public func (runner : &mut MultiTestRunner) run(argc : int, argv : **char) : int {
+        unsafe {
+        var console = new_console_reporter()
+        const is_child = argv_has_flag(argv, argc, "--comm-id")
+
+        var i : size_t = 0
+        while(i < runner.runners.size()) {
+            const h = runner.runners.get_ptr(i)
+            if(is_child && !runner_name_is(h.name, "test")) {
+                i += 1
+                continue
+            }
+            if(!is_child) {
+                unsafe { printf("\n%s%s==> runner: %.*s%s\n", col_bold(), col_cyan(), h.name.size() as int, h.name.data(), col_reset()) }
+            }
+            h.run_fn(h, &mut console, argc, argv)
+            i += 1
+        }
+
+        if(is_child) {
+            return 0
+        }
+        return finish_reporter(&mut console)
+
+        }
+    }
+
+} // namespace ffi
 
 } // namespace test_report

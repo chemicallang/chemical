@@ -8,7 +8,7 @@ func untrusted_attr() : *char {
 
 @test
 public func escape_html_char_ptr_escapes_special_chars(env : &mut TestEnv) {
-    var out = escape_html(std::string_view("<>& \"'").data())
+    var out = raw::escape_html(std::string_view("<>& \"'").data())
     string_equals(env, &out, "&lt;&gt;&amp; &quot;&#39;")
 }
 
@@ -20,13 +20,13 @@ public func escape_html_view_escapes_special_chars(env : &mut TestEnv) {
 
 @test
 public func escape_html_ptr_escapes(env : &mut TestEnv) {
-    var out = escape_html(untrusted_html())
+    var out = raw::escape_html(untrusted_html())
     string_equals(env, &out, "&lt;script&gt;alert(1)&lt;/script&gt;")
 }
 
 @test
 public func escape_html_null_is_safe(env : &mut TestEnv) {
-    var out = escape_html(null)
+    var out = raw::escape_html(null)
     string_equals(env, &out, "")
 }
 
@@ -40,7 +40,7 @@ public func escape_html_empty_is_safe(env : &mut TestEnv) {
 public func escape_html_used_in_expression_is_safe(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
-        <div>{escape_html(untrusted_html())}</div>
+        <div>{raw::escape_html(untrusted_html())}</div>
     }
     string_equals(env, page.toStringHtmlOnly(), "<div>&lt;script&gt;alert(1)&lt;/script&gt;</div>")
 }
@@ -49,7 +49,7 @@ public func escape_html_used_in_expression_is_safe(env : &mut TestEnv) {
 public func escape_html_attr_used_in_expression_is_safe(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
-        <div class={escape_html(untrusted_attr())}>content</div>
+        <div class={raw::escape_html(untrusted_attr())}>content</div>
     }
     string_equals(env, page.toStringHtmlOnly(), "<div class=\"&quot;&gt;&lt;script&gt;x&lt;/script&gt;\">content</div>")
 }

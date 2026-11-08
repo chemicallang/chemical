@@ -20,9 +20,9 @@ public func <T> block_on_send(handle : core::async::SendFutureHandle<T>) : T {
 
 public func <'a, T> block_on(handle : core::async::FutureHandle<'a, T>) : T {
         unsafe {
-        var e = executor()
+        var e = raw::executor()
         var cx = core::async::Context {
-            waker : exec_make_waker(e)
+            waker : raw::exec_make_waker(e)
         }
         var out : T = loop {
             var r = handle.vtbl_ptr().poll(handle.frame_ptr(), &raw mut cx)
@@ -32,8 +32,8 @@ public func <'a, T> block_on(handle : core::async::FutureHandle<'a, T>) : T {
                 // (the payload is treated as a pointer), see B18.
                 break poll_take_ready<T>(&raw mut r)
             }
-            executor_poll_tasks(e, 4096u)
-            executor_wait(e, 1u)
+            raw::executor_poll_tasks(e, 4096u)
+            raw::executor_wait(e, 1u)
             continue
         }
         return out

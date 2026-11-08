@@ -365,7 +365,7 @@ public func FULL_https_concurrent_clients_parallel_handshakes(env : &mut TestEnv
         env.error("concurrent clients: expected 24 successes")
         var msg = string("got ")
         msg.append_uinteger(cap.success as ubigint)
-        env.error(msg.data())
+        test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0)
     }
 
     test_kill_port(PORT as int)
@@ -394,7 +394,7 @@ public func FULL_https_large_post_100k_echo_exact(env : &mut TestEnv) {
         env.error("large POST echo length mismatch")
         var msg = string("got ")
         msg.append_uinteger(v.size() as ubigint)
-        env.error(msg.data())
+        test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0)
     } else if(!v.equals_view(payload.to_view())) {
         env.error("large POST echo bytes mismatch")
     }
@@ -718,7 +718,7 @@ public func FULL_https_thirty_sequential_handshakes(env : &mut TestEnv) {
         env.error("sequential handshakes: some rounds failed")
         var msg = string("ok=")
         msg.append_uinteger(ok_count as ubigint)
-        env.error(msg.data())
+        test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0)
     }
 
     test_kill_port(PORT as int)
@@ -808,7 +808,7 @@ public func FULL_https_streaming_body_small_reads(env : &mut TestEnv) {
         env.error("streaming read mismatch")
         var msg = string("total=")
         msg.append_uinteger(total as ubigint)
-        env.error(msg.data())
+        test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0)
     }
 
     test_kill_port(PORT as int)
@@ -963,7 +963,7 @@ public func FULL_python_client_method_matrix_over_tls(env : &mut TestEnv) {
             dmsg.append_uinteger(ssl_mem.last_alert_desc as ubigint)
             dmsg.append_view(" round=")
             dmsg.append_integer(rounds)
-            env.error(dmsg.data())
+            test_env::ffi::log_cstr(env, LogType.Error, dmsg.data(), 0, 0)
             var errbuf2 : [512]u8
             var en2 = test_read_file("/tmp/fm20_err.txt", &raw mut errbuf2[0], 511)
             if(en2 > 0) { errbuf2[en2] = 0; unsafe { printf("[FM20 py-stderr] %s\n", &raw errbuf2[0]) } }

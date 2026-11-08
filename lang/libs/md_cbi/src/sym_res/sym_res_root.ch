@@ -14,7 +14,7 @@ public func sym_res_root(root : *mut MdRoot, visitor : *mut SymResLinkBody, loc 
         // TODO: these are not NULL
         root.support.appendHtmlCharFn = pageNode.child(std::string_view("append_html_char"))
         root.support.appendHtmlCharPtrFn = pageNode.child(std::string_view("append_html_char_ptr"))
-        root.support.appendHtmlFn = pageNode.child(std::string_view("append_html"))
+        root.support.appendHtmlFn = pageNode.child(std::string_view("append_html_raw"))
         root.support.appendHtmlIntFn = pageNode.child(std::string_view("append_html_integer"))
         root.support.appendHtmlUIntFn = pageNode.child(std::string_view("append_html_uinteger"))
         root.support.appendHtmlFloatFn = pageNode.child(std::string_view("append_html_float"))

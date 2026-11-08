@@ -20,7 +20,7 @@ public func universal_nested_component_hoisting_correct(env : &mut TestEnv) {
         env.success("nested components both present in JS output")
     } else {
         env.error("nested components missing from JS output")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -42,7 +42,7 @@ public func universal_component_emitted_once_per_page(env : &mut TestEnv) {
         env.success("DedupComp present in JS output")
     } else {
         env.error("DedupComp not found in JS output")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -63,7 +63,7 @@ public func universal_js_output_valid_structure(env : &mut TestEnv) {
         env.success("JS output has both function definition and dispatch")
     } else {
         env.error("JS output missing function or dispatch")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -77,7 +77,7 @@ public func universal_page_js_end_has_flush(env : &mut TestEnv) {
         env.success("finalized JS contains $__universal_flush()")
     } else {
         env.error("finalized JS missing $__universal_flush()")
-        env.info(finalized.data())
+        test_env::ffi::log_cstr(env, LogType.Information, finalized.data(), 0, 0)
     }
 }
 
@@ -98,7 +98,7 @@ public func universal_empty_state_array_ssr_empty(env : &mut TestEnv) {
         env.success("empty state array produces no <li> elements in SSR")
     } else {
         env.error("empty state array produced unexpected <li> elements")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -126,7 +126,7 @@ public func universal_nested_ternary_false_ssr(env : &mut TestEnv) {
         env.success("state=false renders 'Closed' branch in SSR")
     } else {
         env.error("state=false did not render expected branch")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -140,7 +140,7 @@ public func universal_nested_ternary_true_ssr(env : &mut TestEnv) {
         env.success("state=true renders 'Open' branch in SSR")
     } else {
         env.error("state=true did not render expected branch")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -186,6 +186,6 @@ public func universal_null_prop_ssr_skipped(env : &mut TestEnv) {
         env.success("null props are skipped in SSR (no literal 'null')")
     } else {
         env.error("null props rendered as literal 'null' in SSR")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }

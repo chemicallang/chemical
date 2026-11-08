@@ -26,9 +26,9 @@ func sym_res_root(
             return false;
         }
 
-        const appendCssFn = page.child("append_css");
+        const appendCssFn = page.child("append_css_raw");
         if(appendCssFn == null) {
-            diagnoser.error("'append_css' function is required on 'page' for css to work", loc);
+            diagnoser.error("'append_css_raw' function is required on 'page' for css to work", loc);
             return false;
         }
 

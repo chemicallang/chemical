@@ -175,7 +175,7 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
             env.error("server handshake failed")
             var dmsg = string("handshake ret=")
             dmsg.append_integer(hret)
-            env.error(dmsg.data())
+            test_env::ffi::log_cstr(env, LogType.Error, dmsg.data(), 0, 0)
             ssl_free(ssl_mem); unsafe { dealloc ssl_mem }
             net::raw::close_socket(cs)
             ok = false
@@ -374,7 +374,7 @@ func sdv_loop_chunkup(env : &mut TestEnv, ssl_mem : *mut SSLContext) : bool {
         var ds = string("false")
         if(done) { ds = string("true") }
         m.append_view(ds.to_view())
-        env.error(m.data())
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
     }
 
     // Echo exactly what we decoded — python validates against the original.

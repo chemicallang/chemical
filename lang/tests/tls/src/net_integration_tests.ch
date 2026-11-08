@@ -78,7 +78,7 @@ public func NET_send_all_megabyte_integrity(env : &mut TestEnv) {
         bad = true
         var m = string("received ")
         m.append_uinteger(total as ubigint)
-        env.error(m.data())
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
     } else {
         var i : usize = 0
         while(i < total) {

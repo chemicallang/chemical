@@ -144,5 +144,5 @@ public func universal_ssr_concat_embed_js_quoted(env : &mut TestEnv) {
         return;
     }
     env.error("JS bundle must embed the CSS hash as a quoted string literal");
-    env.info(js.data())
+    test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
 }

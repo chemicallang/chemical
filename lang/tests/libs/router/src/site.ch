@@ -13,7 +13,7 @@ public func test_router_site_routes_aggregate(env : &mut TestEnv) {
     const expected = std::string_view("[{\"name\":\"index\"},{\"name\":\"about\"}]")
     if(!agg.to_view().equals(&expected)) {
         env.error("site aggregate should wrap the per-page documents in a JSON array")
-        env.info(agg.data())
+        test_env::ffi::log_cstr(env, LogType.Information, agg.data(), 0, 0)
     }
 }
 
@@ -54,7 +54,7 @@ public func test_router_write_site_routes(env : &mut TestEnv) {
     const idx = std::string_view("{\"name\":\"index\"")
     if(content.find(&idx) == std::NPOS) {
         env.error("the aggregate should contain the index document")
-        env.info(content.data())
+        test_env::ffi::log_cstr(env, LogType.Information, content.data(), 0, 0)
     }
     const about = std::string_view("\"name\":\"about\"")
     if(content.find(&about) == std::NPOS) {

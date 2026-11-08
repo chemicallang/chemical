@@ -182,8 +182,8 @@ public func <'a, T> timeout_or(handle : core::async::FutureHandle<'a, T>, millis
 // dropped either way, cancelling an unfinished child.
 public func <'a, T> block_on_timeout(handle : core::async::FutureHandle<'a, T>, millis : u64) : std::Option<T> {
         unsafe {
-        var e = executor()
-        var cx = core::async::Context { waker : exec_make_waker(e) }
+        var e = raw::executor()
+        var cx = core::async::Context { waker : raw::exec_make_waker(e) }
         var start = std::now_milli()
         var out : std::Option<T> = loop {
             var r = handle.vtbl_ptr().poll(handle.frame_ptr(), &raw mut cx)
@@ -194,8 +194,8 @@ public func <'a, T> block_on_timeout(handle : core::async::FutureHandle<'a, T>, 
             if(std::now_milli() - start >= millis as i64) {
                 break std::Option.None<T>()
             }
-            executor_poll_tasks(e, 4096u)
-            executor_wait(e, 1u)
+            raw::executor_poll_tasks(e, 4096u)
+            raw::executor_wait(e, 1u)
             continue
         }
         return out

@@ -46,7 +46,7 @@ public func universal_js_attr_escapes_script_tag(env : &mut TestEnv) {
         env.success("JS attribute values escape </script> via appendJsEscaped")
     } else {
         env.error("JS attribute values do NOT escape </script> — possible XSS")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -90,7 +90,7 @@ public func universal_html_attr_escapes_double_quotes_not_single(env : &mut Test
         env.success("HTML attributes escape &, <, >, \" correctly")
     } else {
         env.error("HTML attribute escaping incomplete")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
     // Single quote is NOT escaped — pinning this as current behavior.
     if(has_single_quote) {
@@ -130,7 +130,7 @@ public func universal_js_bool_false_is_skipped(env : &mut TestEnv) {
         env.success("JS omits Boolean(false) attributes")
     } else {
         env.error("JS rendered Boolean(false) instead of omitting it")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -163,7 +163,7 @@ public func universal_js_none_is_skipped(env : &mut TestEnv) {
         env.success("JS omits SsrAttributeValue.None attributes")
     } else {
         env.error("JS rendered None instead of omitting it")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -196,7 +196,7 @@ public func universal_backslash_prop_escaped_in_js(env : &mut TestEnv) {
         env.success("backslash props are properly escaped in JS bundle")
     } else {
         env.error("backslash props may not be properly escaped")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -225,7 +225,7 @@ public func universal_newline_prop_escaped_in_js(env : &mut TestEnv) {
         env.success("newline props are escaped in JS bundle")
     } else {
         env.error("newline props may not be escaped (literal newline in JS string)")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -254,7 +254,7 @@ public func universal_quote_prop_escaped_in_js(env : &mut TestEnv) {
         env.success("double quote props are escaped in JS bundle")
     } else {
         env.error("double quote props may not be escaped")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -281,7 +281,7 @@ public func universal_text_content_html_escaped(env : &mut TestEnv) {
         env.success("text content is HTML-escaped in SSR output")
     } else {
         env.error("text content is NOT HTML-escaped — XSS vulnerability")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -307,6 +307,6 @@ public func universal_float_precision_in_ssr(env : &mut TestEnv) {
         env.success("float precision renders correctly in SSR")
     } else {
         env.error("float precision did not render as expected")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }

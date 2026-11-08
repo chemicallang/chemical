@@ -67,7 +67,7 @@ func (converter : &mut ASTConverter) make_append_css_value_chain(value : *mut Va
         const builder = converter.builder
         const location = intrinsics::get_raw_location();
         var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-        var id = builder.make_identifier(std::string_view("append_css"), converter.support.appendCssFn, false, location);
+        var id = builder.make_identifier(std::string_view("append_css_raw"), converter.support.appendCssFn, false, location);
         const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
         var call = builder.make_function_call_node(chain, converter.parent, location)
         var args = call.get_args();

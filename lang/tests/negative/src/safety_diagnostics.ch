@@ -589,7 +589,7 @@ func future_handle_aggregate_wrapper_same_scope_compiles(env : &mut TestEnv) {
 @test
 func neg_future_handle_unsafe_custom_consumer_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc unsafe_consumer(h : core::async::FutureHandle<int>) {\n    unsafe {\n        var f = async::spawn(h)\n    }\n}\npublic func main() : int {\n    var s = std::string(\"A\")\n    var h = work(&s)\n    unsafe_consumer(h)\n    return 0\n}\n"
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\nfunc unsafe_consumer(h : core::async::FutureHandle<int>) {\n    unsafe {\n        var f = async::raw::spawn(h)\n    }\n}\npublic func main() : int {\n    var s = std::string(\"A\")\n    var h = work(&s)\n    unsafe_consumer(h)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "future_unsafe_custom_consumer", ch, "SAFE-LIFE-005", NEG_MOD_ASYNC_STD)
 }
 
@@ -1695,7 +1695,7 @@ func neg_async_spawn_requires_unsafe(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // The future frame's captures are erased, so `spawn` cannot check
     // Send/'static; submitting it is an explicit unsafe boundary.
-    var ch = "async func one() : int { return 1 }\npublic func main() : int {\n    var h = async::spawn<int>(one())\n    return async::block_on<int>(h) - 1\n}\n"
+    var ch = "async func one() : int { return 1 }\npublic func main() : int {\n    var h = async::raw::spawn<int>(one())\n    return async::block_on<int>(h) - 1\n}\n"
     expect_compile_error_with_mod(env, "async_spawn_requires_unsafe", ch, "SAFE-UNSAFE-002", NEG_MOD_ASYNC_STD)
 }
 
@@ -2449,7 +2449,7 @@ func neg_mutable_slice_array_view_cannot_escape(env : &mut TestEnv) {
 @test
 func neg_async_executor_state_not_send(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "func <T> needs_send_type() : int where T : Send { return 0 }\npublic func main() : int {\n    return needs_send_type<async::Executor>()\n}\n"
+    var ch = "func <T> needs_send_type() : int where T : Send { return 0 }\npublic func main() : int {\n    return needs_send_type<async::raw::Executor>()\n}\n"
     expect_compile_error_with_mod(env, "async_executor_not_send", ch,
                                   "is declared !Send", NEG_MOD_ASYNC_STD)
 }
@@ -2457,7 +2457,7 @@ func neg_async_executor_state_not_send(env : &mut TestEnv) {
 @test
 func neg_async_executor_enqueue_requires_unsafe(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "public func main() : int {\n    var e = async::executor()\n    async::exec_enqueue_task(e, null, null)\n    return 0\n}\n"
+    var ch = "public func main() : int {\n    var e = async::raw::executor()\n    async::raw::exec_enqueue_task(e, null, null)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "async_executor_enqueue_unsafe", ch,
                                   "SAFE-UNSAFE-002", NEG_MOD_ASYNC_STD)
 }
@@ -2465,7 +2465,7 @@ func neg_async_executor_enqueue_requires_unsafe(env : &mut TestEnv) {
 @test
 func neg_async_executor_poll_requires_unsafe(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "public func main() : int {\n    async::executor_poll_tasks(async::executor(), 1u)\n    return 0\n}\n"
+    var ch = "public func main() : int {\n    async::raw::executor_poll_tasks(async::raw::executor(), 1u)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "async_executor_poll_unsafe", ch,
                                   "SAFE-UNSAFE-002", NEG_MOD_ASYNC_STD)
 }

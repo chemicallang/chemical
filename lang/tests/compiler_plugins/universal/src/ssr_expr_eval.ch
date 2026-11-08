@@ -126,7 +126,7 @@ public func universal_ssr_expr_js_parity(env : &mut TestEnv) {
         env.success("ternary class expression present in JS bundle")
     } else {
         env.error("ternary class expression missing from JS bundle")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -143,7 +143,7 @@ public func universal_ssr_expr_js_class_merge(env : &mut TestEnv) {
         env.success("duplicate class attrs merged reactively on JS side")
     } else {
         env.error("duplicate class attrs not merged on JS side")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -162,8 +162,8 @@ public func universal_ssr_expr_spread_class_js(env : &mut TestEnv) {
         env.success("spread + class merge works")
     } else {
         env.error("spread + class merge broken")
-        env.info(html.data())
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -266,7 +266,7 @@ public func universal_ssr_prop_scalar_array_renders(env : &mut TestEnv) {
         env.success("scalar state array prop maps at SSR")
     } else {
         env.error("scalar state array prop did not render at SSR")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -279,7 +279,7 @@ public func universal_ssr_prop_object_array_renders(env : &mut TestEnv) {
         env.success("object state array prop resolves item.prop at SSR")
     } else {
         env.error("object state array prop did not render at SSR")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -307,7 +307,7 @@ public func universal_ssr_props_filter_runtime_predicate(env : &mut TestEnv) {
         env.success("props-derived .filter() predicate evaluates at SSR")
     } else {
         env.error("props-derived .filter() did not filter at SSR")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -327,7 +327,7 @@ public func universal_ssr_props_filter_inline_chain(env : &mut TestEnv) {
         env.success("inline filter+map chain renders at SSR")
     } else {
         env.error("inline filter+map chain did not render at SSR")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -354,7 +354,7 @@ public func universal_ssr_props_filter_length(env : &mut TestEnv) {
         env.success("props-derived .filter().length counts at SSR")
     } else {
         env.error("props-derived .filter().length did not count at SSR")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -381,7 +381,7 @@ public func universal_ssr_props_filter_tolowercase(env : &mut TestEnv) {
         env.success("case-insensitive props .filter() evaluates at SSR")
     } else {
         env.error("case-insensitive props .filter() did not filter at SSR")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -405,7 +405,7 @@ public func universal_ssr_inline_object_array_prop(env : &mut TestEnv) {
         env.success("inline object-array prop maps at SSR")
     } else {
         env.error("inline object-array prop did not render at SSR")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 

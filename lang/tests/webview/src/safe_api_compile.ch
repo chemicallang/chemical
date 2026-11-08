@@ -32,6 +32,11 @@ func p25_safe_window_api_typechecks() {
         w.set_decorated(false)
         var _dpi = w.dpi()
         var _scale = w.scale_factor()
+        var _monitors = w.monitor_count()
+        var _bounds = w.monitor_bounds(0)
+        var _mon_scale = w.monitor_scale(0)
+        var _clip = w.get_clipboard()
+        var _set_clip = w.set_clipboard("text")
 
         w.on_resize((width : int, height : int) => {})
         w.off_resize()
@@ -45,6 +50,12 @@ func p25_safe_window_api_typechecks() {
         w.off_drop()
         w.on_command((id : int) => {})
         w.off_command()
+
+        var timer = w.set_timer(100, () => {})
+        if(timer is std::Result.Ok) {
+            var Ok(timer_id) = timer else unsafe { unreachable }
+            w.cancel_timer(timer_id)
+        }
 
         var _open = w.is_open()
         w.close()
@@ -71,6 +82,11 @@ func p25_safe_webview_api_typechecks() {
         if(bound is std::Result.Err) { }
         w.unbind("method")
         w.return_value("id", 0, "{}")
+
+        unsafe {
+            w.dispatch((arg : *mut void) => {}, null)
+            var _native = w.native_handle(webview::NATIVE_HANDLE_WINDOW)
+        }
 
         w.stop()
         w.run()

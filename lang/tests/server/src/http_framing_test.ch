@@ -145,7 +145,7 @@ func framing_check(env : &mut TestEnv, label : *char, resp : &string, expect_mar
     if(elapsed_ms < 0) {
         var m = string::make_no_len(label)
         m.append_view(": no response at all — the server blocked on the request body")
-        env.error(m.data())
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
         return
     }
     if(elapsed_ms > FRAM_BUDGET_MS) {
@@ -155,13 +155,13 @@ func framing_check(env : &mut TestEnv, label : *char, resp : &string, expect_mar
         m.append_view("ms, budget is ")
         m.append_uinteger(FRAM_BUDGET_MS as ubigint)
         m.append_view("ms")
-        env.error(m.data())
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
     }
     if(!resp.starts_with("HTTP/1.1 200")) {
         var m = string::make_no_len(label)
         m.append_view(": expected a 200 response, got: ")
         m.append_view(resp.to_view())
-        env.error(m.data())
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
         return
     }
     if(!resp.contains(string_view(expect_marker))) {
@@ -170,7 +170,7 @@ func framing_check(env : &mut TestEnv, label : *char, resp : &string, expect_mar
         m.append_view(string_view(expect_marker))
         m.append_view(", response was: ")
         m.append_view(resp.to_view())
-        env.error(m.data())
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
     }
 
 }
@@ -265,7 +265,7 @@ public func FRAM_bodyless_request_is_framed_empty_not_unknown(env : &mut TestEnv
     } else if(!resp.contains("REMAINING:0")) {
         var m = string("bodyless GET: expected REMAINING:0 (empty body), got: ")
         m.append_view(resp.to_view())
-        env.error(m.data())
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
     }
 
     // Control: an explicit Content-Length must still be honored, so a "fix"
@@ -278,7 +278,7 @@ public func FRAM_bodyless_request_is_framed_empty_not_unknown(env : &mut TestEnv
     } else if(!resp2.contains("REMAINING:7")) {
         var m = string("Content-Length: 7: expected REMAINING:7, got: ")
         m.append_view(resp2.to_view())
-        env.error(m.data())
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
     }
 
     srv.shutdown()
@@ -404,11 +404,11 @@ public func FRAM_truncated_chunked_body_terminates_at_body_timeout(env : &mut Te
         var m = string("truncated chunked body: took ")
         m.append_uinteger(el as ubigint)
         m.append_view("ms, must be bounded by the body timeout")
-        env.error(m.data())
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
     } else if(!resp.contains("OBSERVED:0:")) {
         var m = string("truncated chunked body: handler should still see an empty body, got: ")
         m.append_view(resp.to_view())
-        env.error(m.data())
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
     }
 
     srv.shutdown()

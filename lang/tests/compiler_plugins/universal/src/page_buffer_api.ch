@@ -10,7 +10,7 @@
 
 @test
 public func feature_escape_html_null_ptr_returns_empty(env : &mut TestEnv) {
-    var result = escape_html(null)
+    var result = raw::escape_html(null)
     if(result.size() == 0) {
         env.success("escape_html(null) returns empty string")
     } else {
@@ -25,7 +25,7 @@ public func feature_escape_html_escapes_all_special_chars(env : &mut TestEnv) {
         env.success("escape_html escapes < > & \" ' correctly")
     } else {
         env.error("escape_html did not escape all special chars")
-        env.info(result.data())
+        test_env::ffi::log_cstr(env, LogType.Information, result.data(), 0, 0)
     }
 }
 
@@ -33,12 +33,12 @@ public func feature_escape_html_escapes_all_special_chars(env : &mut TestEnv) {
 public func feature_escape_html_view_same_as_ptr(env : &mut TestEnv) {
     var view = std::string_view("<div class=\"x\">&test</div>")
     var from_view = escape_html_view(view)
-    var from_ptr = escape_html(view.data())
+    var from_ptr = raw::escape_html(view.data())
     if(from_view.equals(&from_ptr)) {
         env.success("escape_html_view and escape_html produce identical output")
     } else {
         env.error("escape_html_view and escape_html differ")
-        env.info(from_view.data())
+        test_env::ffi::log_cstr(env, LogType.Information, from_view.data(), 0, 0)
     }
 }
 
@@ -108,7 +108,7 @@ public func feature_append_html_integer(env : &mut TestEnv) {
         env.success("append_html_integer writes negative integer to pageHtml")
     } else {
         env.error("append_html_integer did not write correctly")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -135,7 +135,7 @@ public func feature_append_html_double(env : &mut TestEnv) {
         env.success("append_html_double writes double to pageHtml")
     } else {
         env.error("append_html_double did not write correctly")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -248,7 +248,7 @@ public func feature_append_js_escaped_escapes_quotes(env : &mut TestEnv) {
         env.success("append_js_escaped escapes double quotes")
     } else {
         env.error("append_js_escaped did not escape quotes")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -262,7 +262,7 @@ public func feature_append_js_escaped_escapes_backslash(env : &mut TestEnv) {
         env.success("append_js_escaped escapes backslashes")
     } else {
         env.error("append_js_escaped did not escape backslash")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -276,7 +276,7 @@ public func feature_append_js_escaped_escapes_newline(env : &mut TestEnv) {
         env.success("append_js_escaped escapes newlines as \\n")
     } else {
         env.error("append_js_escaped did not escape newline")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -290,7 +290,7 @@ public func feature_append_js_escaped_escapes_script_tag(env : &mut TestEnv) {
         env.success("append_js_escaped escapes </script> as \\u003C/")
     } else {
         env.error("append_js_escaped did not escape </script>")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -320,7 +320,7 @@ public func feature_truncate_html_reduces_size(env : &mut TestEnv) {
         env.success("truncate_html truncates to correct size")
     } else {
         env.error("truncate_html did not work correctly")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -410,7 +410,7 @@ public func feature_move_js_range_basic(env : &mut TestEnv) {
         env.success("move_js_range moves range before existing content")
     } else {
         env.error("move_js_range produced wrong result")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -426,7 +426,7 @@ public func feature_move_js_range_move_to_end(env : &mut TestEnv) {
         env.success("move_js_range moves range to end")
     } else {
         env.error("move_js_range move-to-end produced wrong result")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -444,7 +444,7 @@ public func feature_default_prepare_adds_meta_tags(env : &mut TestEnv) {
         env.success("defaultPrepare adds charset and viewport meta tags")
     } else {
         env.error("defaultPrepare missing meta tags")
-        env.info(head.data())
+        test_env::ffi::log_cstr(env, LogType.Information, head.data(), 0, 0)
     }
 }
 
@@ -460,7 +460,7 @@ public func feature_append_title(env : &mut TestEnv) {
         env.success("append_title wraps content in title tags")
     } else {
         env.error("append_title did not produce correct output")
-        env.info(head.data())
+        test_env::ffi::log_cstr(env, LogType.Information, head.data(), 0, 0)
     }
 }
 
@@ -476,7 +476,7 @@ public func feature_append_viewport_meta(env : &mut TestEnv) {
         env.success("appendViewportMeta emits viewport meta tag")
     } else {
         env.error("appendViewportMeta did not produce correct output")
-        env.info(head.data())
+        test_env::ffi::log_cstr(env, LogType.Information, head.data(), 0, 0)
     }
 }
 
@@ -492,7 +492,7 @@ public func feature_append_charset_utf8_meta(env : &mut TestEnv) {
         env.success("appendCharsetUTF8Meta emits charset meta tag")
     } else {
         env.error("appendCharsetUTF8Meta did not produce correct output")
-        env.info(head.data())
+        test_env::ffi::log_cstr(env, LogType.Information, head.data(), 0, 0)
     }
 }
 
@@ -508,7 +508,7 @@ public func feature_append_favicon(env : &mut TestEnv) {
         env.success("appendFavicon generates correct link tag")
     } else {
         env.error("appendFavicon did not produce correct output")
-        env.info(head.data())
+        test_env::ffi::log_cstr(env, LogType.Information, head.data(), 0, 0)
     }
 }
 
@@ -522,7 +522,7 @@ public func feature_append_png_favicon(env : &mut TestEnv) {
         env.success("appendPngFavicon generates correct link tag")
     } else {
         env.error("appendPngFavicon did not produce correct output")
-        env.info(head.data())
+        test_env::ffi::log_cstr(env, LogType.Information, head.data(), 0, 0)
     }
 }
 
@@ -537,7 +537,7 @@ public func feature_to_string_has_doctype(env : &mut TestEnv) {
         env.success("toString includes DOCTYPE")
     } else {
         env.error("toString missing DOCTYPE")
-        env.info(result.data())
+        test_env::ffi::log_cstr(env, LogType.Information, result.data(), 0, 0)
     }
 }
 
@@ -550,7 +550,7 @@ public func feature_to_string_inlines_css_in_style_tag(env : &mut TestEnv) {
         env.success("toString wraps CSS in <style> tags")
     } else {
         env.error("toString did not inline CSS correctly")
-        env.info(result.data())
+        test_env::ffi::log_cstr(env, LogType.Information, result.data(), 0, 0)
     }
 }
 
@@ -562,7 +562,7 @@ public func feature_to_string_empty_css_no_style_tag(env : &mut TestEnv) {
         env.success("toString omits <style> tag when CSS is empty")
     } else {
         env.error("toString included empty <style> tag")
-        env.info(result.data())
+        test_env::ffi::log_cstr(env, LogType.Information, result.data(), 0, 0)
     }
 }
 
@@ -575,7 +575,7 @@ public func feature_to_string_body_contains_html_content(env : &mut TestEnv) {
         env.success("toString places HTML content inside <body>")
     } else {
         env.error("toString body content incorrect")
-        env.info(result.data())
+        test_env::ffi::log_cstr(env, LogType.Information, result.data(), 0, 0)
     }
 }
 
@@ -588,7 +588,7 @@ public func feature_to_string_with_lang_and_classes(env : &mut TestEnv) {
         env.success("toString applies lang and class attributes to html/body")
     } else {
         env.error("toString did not apply lang/class correctly")
-        env.info(result.data())
+        test_env::ffi::log_cstr(env, LogType.Information, result.data(), 0, 0)
     }
 }
 

@@ -45,7 +45,7 @@ public func universal_layout_effect_emitted_in_js(env : &mut TestEnv) {
         env.success("useLayoutEffect is rewritten to $_r.useLayoutEffect in JS output")
     } else {
         env.error("useLayoutEffect was not rewritten to $_r.useLayoutEffect")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -63,7 +63,7 @@ public func universal_layout_effects_are_ever_run(env : &mut TestEnv) {
         env.success("layout effects are drained synchronously by $__uni_mount")
     } else {
         env.error("layout effects are never drained — useLayoutEffect would silently no-op")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -101,7 +101,7 @@ public func universal_flush_throws_on_missing_component(env : &mut TestEnv) {
         env.error("flush still throws $__uni_error on missing component (bug #2 not fixed)")
     } else {
         env.error("unexpected flush behavior")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -127,7 +127,7 @@ public func universal_effect_deps_compared_by_value(env : &mut TestEnv) {
         env.success("effect deps are compared by resolved value")
     } else {
         env.error("effect deps are not resolved before comparison — effects over-run")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -147,7 +147,7 @@ public func universal_reconciler_driven_disposal(env : &mut TestEnv) {
         env.success("reconciler disposes removed subtrees deterministically")
     } else {
         env.error("reconciler does not dispose removed subtrees — relies on MutationObserver only")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -186,7 +186,7 @@ public func universal_state_captures_global_instance(env : &mut TestEnv) {
         env.success("confirmed: $_us captures global instance (bug #3 — async interleaving risk)")
     } else {
         env.error("$_us may have been changed to receive inst as parameter — bug #3 may be fixed")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -222,7 +222,7 @@ public func universal_effects_scheduled_via_microtask(env : &mut TestEnv) {
         env.success("confirmed: effects scheduled via microtask (bug #4 — no flush-before-event)")
     } else {
         env.error("effect scheduling changed — may use synchronous flush now")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -260,7 +260,7 @@ public func universal_unmount_cleanup_exists(env : &mut TestEnv) {
         env.success("runtime has ownership-driven disposal ($__uni_dispose + _resources)")
     } else {
         env.error("runtime is missing ownership-driven disposal — subscriptions leak on removal")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -296,7 +296,7 @@ public func universal_keyed_reconciliation_exists(env : &mut TestEnv) {
         env.success("runtime reconciles keyed lists by identity")
     } else {
         env.error("runtime has no keyed reconciliation — reorders would patch the wrong nodes")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -327,7 +327,7 @@ public func universal_dynamic_style_value_skipped_in_ssr(env : &mut TestEnv) {
         env.success("static style property renders in SSR")
     } else {
         env.error("static style property did not render in SSR")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -359,7 +359,7 @@ public func universal_context_producer_compiles(env : &mut TestEnv) {
         env.success("createContext compiles and references the correct name")
     } else {
         env.error("createContext compilation failed")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -373,7 +373,7 @@ public func universal_context_consumer_compiles(env : &mut TestEnv) {
         env.success("useContext compiles and references the correct name")
     } else {
         env.error("useContext compilation failed")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -399,7 +399,7 @@ public func universal_use_ref_returns_plain_object(env : &mut TestEnv) {
         env.success("useRef rewritten to $_r.useRef in JS output")
     } else {
         env.error("useRef was not rewritten to $_r.useRef")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -424,7 +424,7 @@ public func universal_useMemo_wraps_in_computed(env : &mut TestEnv) {
         env.success("useMemo rewritten to $_r.useMemo")
     } else {
         env.error("useMemo was not rewritten to $_r.useMemo")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -448,6 +448,6 @@ public func universal_render_context_is_stack_based(env : &mut TestEnv) {
         env.success("runtime keeps render context on a stack")
     } else {
         env.error("runtime still uses flat render globals — nested contexts can clobber each other")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }

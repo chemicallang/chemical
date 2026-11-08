@@ -8,12 +8,12 @@ func css_view_equals(env : &mut TestEnv, got : &std::string_view, expected : &st
     var expected_s = std::string("expected:\"");
     expected_s.append_view(expected)
     expected_s.append('"');
-    env.info(expected_s.data())
+    test_env::ffi::log_cstr(env, LogType.Information, expected_s.data(), 0, 0)
 
     var got_s = std::string("got     :\"");
     got_s.append_view(got)
     got_s.append('"');
-    env.info(got_s.data())
+    test_env::ffi::log_cstr(env, LogType.Information, got_s.data(), 0, 0)
 }
 
 @test

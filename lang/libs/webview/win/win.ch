@@ -1644,6 +1644,9 @@ func wv_inject_bridge(wv : *mut WebView) {
 // public API (matches posix/linux.ch exactly)
 // ===========================================================================
 
+// Raw platform API. Canonical handle: `webview::safe::WebView`.
+public namespace raw {
+
 public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewError> {
         unsafe {
     var err = wv_init(wv, 0)
@@ -1683,7 +1686,7 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
 // the window (add controls to the parent window through the window library).
 // The parent is subclassed so the webview stays pinned to its section when the
 // parent is resized (move the section with webview_set_bounds). The parent
-// must already be created via window::window_create.
+// must already be created via window::raw::window_create.
 //
 // LIMITATION: one webview per parent window — the embed association uses a
 // single window property name shared module-wide, so attaching a second
@@ -1701,8 +1704,8 @@ public func webview_attach(
     if(parent == null) {
         return std.Result.Err(WebViewError.InitFailed(string("webview_attach: parent window is null")))
     }
-    if(!window::window_is_created(parent)) {
-        return std.Result.Err(WebViewError.InitFailed(string("webview_attach: parent window is not created (call window::window_create first)")))
+    if(!window::raw::window_is_created(parent)) {
+        return std.Result.Err(WebViewError.InitFailed(string("webview_attach: parent window is not created (call window::raw::window_create first)")))
     }
     if(wv.attached) {
         return std.Result.Err(WebViewError.InitFailed(string("webview_attach: webview is already attached")))
@@ -1811,14 +1814,14 @@ func wv_init(wv : *mut WebView, debug : int) : int {
         // (96-dpi units); the window library scales them by DPI.
         wv.win.width = wv.width
         wv.win.height = wv.height
-        window::window_set_title(&raw mut wv.win, wv.title.data())
-        var wres = window::window_create(&raw mut wv.win)
+        window::raw::window_set_title(&raw mut wv.win, wv.title.data())
+        var wres = window::raw::window_create(&raw mut wv.win)
         if(wres is std::Result.Err) {
             return -2
         }
-        window::window_set_user_data(&raw mut wv.win, wv as *mut void)
-        window::window_set_resize_callback(&raw mut wv.win, wv_win_resize_cb)
-        window::window_set_focus_callback(&raw mut wv.win, wv_win_focus_cb)
+        window::raw::window_set_user_data(&raw mut wv.win, wv as *mut void)
+        window::raw::window_set_resize_callback(&raw mut wv.win, wv_win_resize_cb)
+        window::raw::window_set_focus_callback(&raw mut wv.win, wv_win_focus_cb)
 
         wv.widget = CreateWindowExW(
             WS_EX_CONTROLPARENT,
@@ -1862,7 +1865,7 @@ public func webview_rebind(wv : *mut WebView) {
     if(wv.win.hwnd != null) {
         SetWindowLongPtrW(wv.win.hwnd, GWLP_USERDATA, &raw mut wv.win as LONG_PTR)
     }
-    window::window_set_user_data(&raw mut wv.win, wv as *mut void)
+    window::raw::window_set_user_data(&raw mut wv.win, wv as *mut void)
     // Re-store the WebView pointer on the widget HWND so that
     // wv_widget_proc reads the correct WebView.
     if(wv.widget != null) {
@@ -1874,12 +1877,12 @@ public func webview_rebind(wv : *mut WebView) {
 public func webview_run(wv : *mut WebView) {
         unsafe {
     webview_rebind(wv)
-    window::window_run()
+    window::raw::window_run()
 
         }}
 
 // Like webview_run, but the message loop also drives the async executor, so
-// tasks submitted with `async::spawn_local` are polled on the UI thread.
+// tasks submitted with `async::raw::spawn_local` are polled on the UI thread.
 public func webview_run_async(wv : *mut WebView) {
         unsafe {
     webview_rebind(wv)
@@ -1889,7 +1892,7 @@ public func webview_run_async(wv : *mut WebView) {
 
 public func webview_stop(wv : *mut WebView) {
         unsafe {
-    window::window_quit()
+    window::raw::window_quit()
 
         }}
 
@@ -1903,8 +1906,8 @@ public func webview_set_title(wv : *mut WebView, title : *char) {
         unsafe {
     wv.title = string("")
     wv.title.append_char_ptr(title)
-    if(!wv.attached && window::window_is_created(&raw mut wv.win)) {
-        window::window_set_title(&raw mut wv.win, title)
+    if(!wv.attached && window::raw::window_is_created(&raw mut wv.win)) {
+        window::raw::window_set_title(&raw mut wv.win, title)
     }
 
         }}
@@ -1915,20 +1918,20 @@ func wv_set_size(wv : *mut WebView, width : int, height : int, hints : int) {
         // embed mode: the section size is managed via webview_set_bounds
         return
     }
-    if(!window::window_is_created(&raw mut wv.win)) {
+    if(!window::raw::window_is_created(&raw mut wv.win)) {
         wv.win.width = width
         wv.win.height = height
         return
     }
     if(hints == WV_HINT_MAX) {
-        window::window_set_max_size(&raw mut wv.win, width, height)
+        window::raw::window_set_max_size(&raw mut wv.win, width, height)
     } else if(hints == WV_HINT_MIN) {
-        window::window_set_min_size(&raw mut wv.win, width, height)
+        window::raw::window_set_min_size(&raw mut wv.win, width, height)
     } else if(hints == WV_HINT_FIXED) {
-        window::window_set_min_size(&raw mut wv.win, width, height)
-        window::window_set_max_size(&raw mut wv.win, width, height)
+        window::raw::window_set_min_size(&raw mut wv.win, width, height)
+        window::raw::window_set_max_size(&raw mut wv.win, width, height)
     } else {
-        window::window_set_size(&raw mut wv.win, width, height)
+        window::raw::window_set_size(&raw mut wv.win, width, height)
     }
 
         }}
@@ -1953,9 +1956,9 @@ public func webview_show(wv : *mut WebView) {
             SetFocus(wv.widget)
         }
         wv.visible = true
-    } else if(window::window_is_created(&raw mut wv.win)) {
-        window::window_show(&raw mut wv.win)
-        window::window_focus(&raw mut wv.win)
+    } else if(window::raw::window_is_created(&raw mut wv.win)) {
+        window::raw::window_show(&raw mut wv.win)
+        window::raw::window_focus(&raw mut wv.win)
         wv.visible = true
     }
 
@@ -1968,8 +1971,8 @@ public func webview_hide(wv : *mut WebView) {
         if(wv.widget != null) {
             ShowWindow(wv.widget, 0) // SW_HIDE — hide just the webview section
         }
-    } else if(window::window_is_created(&raw mut wv.win)) {
-        window::window_hide(&raw mut wv.win)
+    } else if(window::raw::window_is_created(&raw mut wv.win)) {
+        window::raw::window_hide(&raw mut wv.win)
     }
 
         }}
@@ -2104,8 +2107,8 @@ public func webview_destroy(wv : *mut WebView) {
         wv.attached = false
         wv.parent = null
         wv.parent_wndproc = 0
-    } else if(window::window_is_created(&raw mut wv.win)) {
-        window::window_destroy(&raw mut wv.win)
+    } else if(window::raw::window_is_created(&raw mut wv.win)) {
+        window::raw::window_destroy(&raw mut wv.win)
     }
     if(wv.loader_lib != null) {
         FreeLibrary(wv.loader_lib)
@@ -2407,6 +2410,8 @@ public func webview_browse_folder(title : *char) : string {
     return result
 
         }}
+
+} // namespace raw
 
 } // end namespace webview
 

@@ -6,13 +6,14 @@ import "@std/build.lab" as stdMod
 import "@compiler/build.lab" as compilerMod
 import "@md_parser/build.lab" as mdParserMod
 import "@md_ide/build.lab" as mdIdeMod
+using namespace lab::raw;
 
 using namespace std;
 
 public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module {
         unsafe {
 
-        const curr_file_path = lab::get_my_path();
+        const curr_file_path = lab::raw::get_my_path();
         const previous_module = ctx.get_cached(user_job, &curr_file_path);
         if(previous_module != null) return previous_module;
         const empty_module = ctx.empty_module(std::string_view(""), std::string_view("md_cbi"));
@@ -66,7 +67,7 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
         }
 
         const dependencies = [ cstd_module, std_module, compiler_module, md_parser, mdIde ]
-        var src_path = lab::rel_path_to("src")
+        var src_path = lab::raw::rel_path_to("src")
         const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("md_cbi"), src_path.to_view(), dependencies);
 
         ctx.add_module(cbi, module)

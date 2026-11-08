@@ -1,26 +1,29 @@
-// safe — additive, pointer-free façade over the page API.
+// safe — pointer-free façade over the page API.
 //
-// The legacy entry points in `page.ch`/`ssr.ch` take `*char` + explicit
-// lengths (`append_html`, `append_js`, `append_js_escaped`, `escape_html`).
-// This file adds the normal-use surface: `&str` inputs, owned `string`
-// outputs, no raw pointers, and a typed parameter setter.
+// The canonical normal-use surface is on `HtmlPage` itself:
 //
-// The public functions are FLAT top-level declarations prefixed `safe_page_`.
+//   page.append_html(&str)      page.append_js(&str)      page.append_css(&str)
+//   page.append_head(&str)      page.append_js_end(&str)
+//   escape_html(&str)           escape_html_view(string_view)
+//   page.add_parameter<T>(key, &value)
+//   page.add_parameter_owned / add_parameter_view
+//   page.get_parameter(key) / has_parameter(key)
+//
+// Raw `*char` + length entry points (and the CBI-required `append_*_char`
+// helpers) live in the page module's `raw` namespace (`raw::…`) and on
+// `HtmlPage` as `append_*_raw`.
+//
+// The flat `safe_page_*` functions below are compatibility aliases for the
+// original P2.5 spellings. New code should use the methods.
+//
 // They deliberately do NOT live in a namespace named `page`: such a namespace
 // shadows the module name and makes the html/css CBI plugins fail to find the
 // `HtmlPage` helpers (`append_html_char`, `append_css_char`, …).
 //
-// `safe_page_append_html` / `safe_page_append_js` append the bytes VERBATIM
-// (they are markup/script sinks, matching the legacy functions). Use
-// `safe_page_escape_html` / `safe_page_escape_js` for untrusted data.
-// `safe_page_escape_js` additionally escapes `'`, `\`, control characters and
-// `</` (so a value can never close an inline <script> element).
-//
-// Why free functions instead of methods on `HtmlPage`: Chemical has no
-// function overloading and external inherent impls are not supported, so a
-// one-argument `HtmlPage::append_html(&str)` cannot be added without changing
-// the existing two-argument method. The functions below are the additive safe
-// equivalent.
+// `append_html` / `append_js` append the bytes VERBATIM (they are
+// markup/script sinks). Use `escape_html` / `safe_page_escape_js` for
+// untrusted data. `safe_page_escape_js` additionally escapes `'`, `\`, control
+// characters and `</` (so a value can never close an inline <script> element).
 
 using std::Option;
 using std::string;
@@ -128,24 +131,26 @@ public func safe_page_escape_json(value : &std::str) : string {
 
 // Append raw HTML (a length-tracked `&str`, no NUL scan).
 public func safe_page_append_html(page : &mut HtmlPage, value : &std::str) {
-    page.append_html(value.data(), value.size())
+    page.append_html(value)
 }
 
 // Append raw JavaScript.
 public func safe_page_append_js(page : &mut HtmlPage, value : &std::str) {
-    page.append_js(value.data(), value.size())
+    page.append_js(value)
 }
 
 // Append HTML-escaped text.
 public func safe_page_append_html_escaped(page : &mut HtmlPage, value : &std::str) {
     var escaped = safe_page_escape_html(value)
-    page.append_html(escaped.data(), escaped.size())
+    var escaped_str = std::str.make_view(escaped.to_view())
+    page.append_html(&escaped_str)
 }
 
 // Append a JS-escaped string BODY (without surrounding quotes).
 public func safe_page_append_js_escaped(page : &mut HtmlPage, value : &std::str) {
     var escaped = safe_page_escape_js(value)
-    page.append_js(escaped.data(), escaped.size())
+    var escaped_str = std::str.make_view(escaped.to_view())
+    page.append_js(&escaped_str)
 }
 
 // ---------------------------------------------------------------------------

@@ -391,7 +391,7 @@ public func router_body_emitter_renders_into_route_host(env : &mut TestEnv) {
     const stub = std::string_view("window.$__uni_route_register(\"mainEmit\", \"dashboard\", { key: \"mainEmit#dashboard\", id: \"dashboard\", comp: null")
     if(js.find(&stub) == std::NPOS) {
         env.error("an emitter-only route body must register with no client root")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -425,7 +425,7 @@ public func router_ssr_survives_a_shared_sink_hit(env : &mut TestEnv) {
     const wrapper = std::string_view("class=\"chx-route\"")
     if(html.find(&wrapper) == std::NPOS) {
         env.error("a router component already in the shared sink must still SSR its wrappers on a later page")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
     }
     env.success("router SSR survives a shared-sink hit")
@@ -453,7 +453,7 @@ public func router_activation_survives_a_shared_sink_hit(env : &mut TestEnv) {
         const tail = std::string_view("window.$__uni_activate_initial(\"main\"")
         if(local.find(&tail) == std::NPOS) {
             env.error("a later page must still emit the router activation tail after a shared-sink hit")
-            env.info(local.data())
+            test_env::ffi::log_cstr(env, LogType.Information, local.data(), 0, 0)
             return
         }
 
@@ -466,7 +466,7 @@ public func router_activation_survives_a_shared_sink_hit(env : &mut TestEnv) {
         const n = shared_count(&bundle_view, &reg)
         if(n != 1) {
             env.error("the router registry must be emitted exactly once in a shared sink")
-            env.info(bundle.data())
+            test_env::ffi::log_cstr(env, LogType.Information, bundle.data(), 0, 0)
             return
         }
         env.success("router activation survives a shared-sink hit")
@@ -499,7 +499,7 @@ public func router_nested_url_emits_full_pattern_and_chain(env : &mut TestEnv) {
     const full = std::string_view("\"projects\", \"{id}\", \"settings\"")
     if(js.find(&full) == std::NPOS) {
         env.error("a nested URL route should emit its full accumulated pattern")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
         return
     }
     // ...and carries the derived-registry/id activation chain.

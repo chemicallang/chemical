@@ -96,7 +96,7 @@ public func shared_assets_dedupes_definitions_across_pages(env : &mut TestEnv) {
         const n = shared_count(&bundle_view, &sig)
         if(n != 1) {
             env.error("shared bundle must define a shared component exactly once")
-            env.info(bundle.data())
+            test_env::ffi::log_cstr(env, LogType.Information, bundle.data(), 0, 0)
             return
         }
         env.success("shared component definition de-duplicated across pages")
@@ -124,7 +124,7 @@ public func shared_assets_dedupes_css_across_pages(env : &mut TestEnv) {
         const n = shared_count(&css_view, &marker)
         if(n != 1) {
             env.error("shared CSS must contain a repeated class exactly once")
-            env.info(css.data())
+            test_env::ffi::log_cstr(env, LogType.Information, css.data(), 0, 0)
             return
         }
         env.success("shared component class de-duplicated across pages")

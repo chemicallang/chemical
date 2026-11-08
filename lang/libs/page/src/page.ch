@@ -6,25 +6,9 @@ using std::Result;
 // markup: #html { <div>{escape_html(userValue)}</div> }. Escaping is explicit to keep
 // the framework fast and avoid escaping values that are already safe (e.g. a single
 // *char placed into <head>).
-public func escape_html(value : *char) : std::string {
-        unsafe {
-        var out = std::string()
-        if(value == null) { return out }
-        var i : size_t = 0
-        while(value[i] != '\0') {
-            var c = value[i]
-            if(c == '<') { out.append_view(std::string_view("&lt;")) }
-            else if(c == '>') { out.append_view(std::string_view("&gt;")) }
-            else if(c == '&') { out.append_view(std::string_view("&amp;")) }
-            else if(c == '"') { out.append_view(std::string_view("&quot;")) }
-            else if(c == '\'') { out.append_view(std::string_view("&#39;")) }
-            else { out.append(c) }
-            i = i + 1
-        }
-        return out
-
-        }
-    }
+public func escape_html(value : &std::str) : std::string {
+    return escape_html_view(value.to_view())
+}
 
 public func escape_html_view(value : std::string_view) : std::string {
     var out = std::string()
@@ -151,9 +135,12 @@ public struct HtmlPage {
     var pageJsEnd : std::string
     var js_hoist_pos : ubigint = 0
 
-    var shared : *mut SharedAssets = null
-    var local_js_depth : ubigint = 0
-    var local_css_depth : ubigint = 0
+    // Non-owning sink borrowed for the render. Private so the pointer cannot be
+    // forged or replaced without `attach_shared`; the owning handle is
+    // `SharedAssetsHandle` (see shared_assets.ch).
+    private var shared : *mut SharedAssets = null
+    private var local_js_depth : ubigint = 0
+    private var local_css_depth : ubigint = 0
 
     // When true, a generated universal component server function emits only its
     // client JS (its `require_component` block + hoisting) and skips SSR markup.
@@ -165,33 +152,34 @@ public struct HtmlPage {
 
     // we track which classes are done through this unordered map
     // TODO using ubigint, instead need to use size_t
-    var doneClasses : std::unordered_map<ubigint, bool>
+    private var doneClasses : std::unordered_map<ubigint, bool>
 
     // track random CSS classes (for dynamic values) to prevent duplicates
-    var doneRandomClasses : std::unordered_map<ubigint, bool>
+    private var doneRandomClasses : std::unordered_map<ubigint, bool>
 
-    var doneComponents : std::unordered_map<ubigint, bool>
+    private var doneComponents : std::unordered_map<ubigint, bool>
 
     // Global JS blocks emitted via `#globaljs`, keyed by source location.
-    var doneJs : std::unordered_map<ubigint, bool>
+    private var doneJs : std::unordered_map<ubigint, bool>
 
     // ── Router parameter store (§3.2) ────────────────────────────────────────
     // Node-based map, so `get_ptr(key)` references stay valid across later
     // inserts for the lifetime of the render (D-5.1).
-    var parameters : std::unordered_map<std::string_view, PageParameter>
+    private var parameters : std::unordered_map<std::string_view, PageParameter>
     // Node-based storage for decoded URL params whose views are stored in
     // `parameters` (§6.1 / D-5.3): decoding produces new bytes that must outlive
     // the match, and the node addresses are stable across later inserts.
-    var route_param_owned : std::unordered_map<std::string, std::string>
+    // Private: `add_parameter_owned`/`has_owned_parameter` are the API.
+    private var route_param_owned : std::unordered_map<std::string, std::string>
     // Set when a request URL matched no route and no fallback existed; read by
     // the handler after render to choose the status code (§6.1). Server-only.
-    var route_missing_flag : bool = false
+    private var route_missing_flag : bool = false
     // Patterns declared by generated router functions during render, serialized
     // by writeToDirectory for static export (§13.2.3).
-    var route_manifest : std::vector<RouteManifestEntry>
+    private var route_manifest : std::vector<RouteManifestEntry>
     // Emitted-once latch for the client router runtime (INV-18: zero bytes on
     // pages that never call ensure_router_runtime).
-    var router_runtime_emitted : bool = false
+    private var router_runtime_emitted : bool = false
 
     func getHead(&self) : std::string_view {
         return pageHead.to_view()
@@ -214,8 +202,26 @@ public struct HtmlPage {
     }
 
     // ── Shared JS/CSS sink ────────────────────────────────────────────────
+    // Raw pointer attach (legacy). The page does not take ownership; the sink
+    // must outlive every attached page. Prefer `attach_shared_ref` /
+    // `SharedAssetsHandle`.
     public func attach_shared(&mut self, s : *mut SharedAssets) {
         shared = s
+    }
+
+    // Borrow a shared sink for this render. The caller keeps ownership (via a
+    // `SharedAssetsHandle`) and must drop it only after the pages are done.
+    public func attach_shared_ref(&mut self, s : &mut SharedAssets) {
+        shared = s as *mut SharedAssets
+    }
+
+    // Stop routing page-independent output into the sink.
+    public func detach_shared(&mut self) {
+        shared = null
+    }
+
+    public func has_shared(&self) : bool {
+        return self.shared != null
     }
 
     public func begin_local_js(&mut self) {
@@ -249,25 +255,33 @@ public struct HtmlPage {
     func runtime_css(&mut self, v : &std::string_view) {
         unsafe {
             if(shared != null) { shared.css_data.append_view(v) } else { pageCss.append_view(v) }
-    
+
         }
     }
 
     func runtime_js(&mut self, v : &std::string_view) {
         unsafe {
             if(shared != null) { shared.js_data.append_view(v) } else { pageJs.append_view(v) }
-    
+
         }
     }
 
     func runtime_head_js(&mut self, v : &std::string_view) {
         unsafe {
             if(shared != null) { shared.js_data.append_view(v) } else { pageHeadJs.append_view(v) }
-    
+
         }
     }
 
-    func append_html(&mut self, value : *char, len : size_t) {
+    // Safe append: a length-tracked string view. The raw `*char` + length form
+    // lives in the module's `raw` namespace (`raw::append_html`) and in
+    // `append_html_raw` for CBI.
+    public func append_html(&mut self, value : &std::str) {
+        pageHtml.append_view(value.to_view())
+    }
+
+    // Raw CBI entry point: the html plugin emits `page.append_html_raw(ptr, len)`.
+    func append_html_raw(&mut self, value : *char, len : size_t) {
         pageHtml.append_with_len(value, len);
     }
 
@@ -303,7 +317,11 @@ public struct HtmlPage {
         pageHtml.resize(size);
     }
 
-    func append_head(&mut self, value : *char, len : size_t) {
+    public func append_head(&mut self, value : &std::str) {
+        pageHead.append_view(value.to_view())
+    }
+
+    func append_head_raw(&mut self, value : *char, len : size_t) {
         pageHead.append_with_len(value, len);
     }
 
@@ -335,11 +353,16 @@ public struct HtmlPage {
         pageHead.append_double(value, 3)
     }
 
-    func append_css(&mut self, value : *char, len : size_t) {
+    public func append_css(&mut self, value : &std::str) {
+        var view = value.to_view()
+        append_css_view(&view)
+    }
+
+    func append_css_raw(&mut self, value : *char, len : size_t) {
         unsafe {
             if(shared != null && local_css_depth == 0) { shared.css_data.append_with_len(value, len); return }
             pageCss.append_with_len(value, len);
-    
+
         }
     }
 
@@ -347,7 +370,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null && local_css_depth == 0) { shared.css_data.append_with_len(value.data(), value.size()); return }
             pageCss.append_with_len(value.data(), value.size())
-    
+
         }
     }
 
@@ -355,7 +378,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null) { return !shared.done_classes.contains(&hash) }
             return !doneClasses.contains(&hash)
-    
+
         }
     }
 
@@ -363,7 +386,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null) { shared.done_classes.insert(hash, true); return }
             doneClasses.insert(hash, true)
-    
+
         }
     }
 
@@ -371,7 +394,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null) { return !shared.done_components.contains(&hash) }
             return !doneComponents.contains(&hash)
-    
+
         }
     }
 
@@ -379,7 +402,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null) { shared.done_components.insert(hash, true); return }
             doneComponents.insert(hash, true)
-    
+
         }
     }
 
@@ -390,7 +413,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null) { return !shared.done_js.contains(&hash) }
             return !doneJs.contains(&hash)
-    
+
         }
     }
 
@@ -398,17 +421,26 @@ public struct HtmlPage {
         unsafe {
             if(shared != null) { shared.done_js.insert(hash, true); return }
             doneJs.insert(hash, true)
-    
+
         }
     }
 
     // ── Router parameter store (§3.2) ────────────────────────────────────────
     // Keys beginning with `__route_`/`__query_` are reserved for router
     // internals (D-5.2); passing one here is a programming error.
-    public func add_parameter(&mut self, key : std::string_view, value : std::string_view) {
-        // The public setter must not retain caller storage: a router segment or
-        // stack buffer may die before the page renders. Copy both key and value
-        // into page-owned storage.
+    // Typed parameter setter: `page.add_parameter<int>("count", &count)`. The
+    // value is formatted and copied into page-owned storage. Because Chemical
+    // cannot infer a generic method's type parameter from the argument, the
+    // type argument must be written explicitly (or use the free function
+    // `safe_page_set_parameter`, which infers).
+    public func <T : SafePageParam> add_parameter(&mut self, key : &std::str, value : &T) {
+        var text = value.to_page_param()
+        add_parameter_owned(key.to_view(), text.to_view())
+    }
+
+    // Borrowed-view setter: both key and value are copied into page-owned
+    // storage, so the caller's buffers may die immediately after the call.
+    public func add_parameter_view(&mut self, key : std::string_view, value : std::string_view) {
         add_parameter_owned(key, value)
     }
 
@@ -426,7 +458,7 @@ public struct HtmlPage {
             const p = route_param_owned.get_ptr(&lookup)
             if(kp == null || p == null) { return }
             parameters.insert(kp.to_view(), PageParameter.Text(p.to_view()))
-    
+
         }
     }
 
@@ -445,13 +477,40 @@ public struct HtmlPage {
             const p = route_param_owned.get_ptr(&lookup)
             if(p == null) { return std::string_view() }
             return p.to_view()
-    
+
         }
     }
 
-    public func add_parameter_object(&mut self, key : std::string_view, ptr : *mut void) {
+    // Presence check for the owned store (keys written by
+    // `add_parameter_owned`/`add_owned_parameter`).
+    public func has_owned_parameter(&self, key : std::string_view) : bool {
+        unsafe {
+            var lookup = unsafe(std::string(key.data(), key.size()))
+            return route_param_owned.contains(&lookup)
+        }
+    }
+
+    // Raw object-parameter write. Kept as a public raw method for
+    // `router::raw`; `raw::add_parameter_object` forwards to this.
+    public func add_parameter_object_raw(&mut self, key : std::string_view, ptr : *mut void) {
         parameters.insert(key, PageParameter.Object(ptr))
     }
+
+    // Raw object-parameter lookup (internal to `page`/`router`). Returns the
+    // stored pointer without a cast; callers must know the concrete type.
+    public func get_parameter_object_ptr(&self, key : std::string_view) : *mut void {
+        unsafe {
+            const p = parameters.get_ptr(&key)
+            if(p == null) { return null }
+            if(p is PageParameter.Object) {
+                var Object(ptr) = *p else return null
+                return ptr
+            }
+            return null
+        }
+    }
+
+
 
     public func get_parameter(&self, key : std::string_view) : std::string_view { unsafe {
         const p = parameters.get_ptr(&key)
@@ -488,7 +547,7 @@ public struct HtmlPage {
             pageHtml.append_with_len(p.data.data(), p.data.size())
             route_snapshot_hits = route_snapshot_hits + 1
             return true
-    
+
         }
     }
 
@@ -503,16 +562,16 @@ public struct HtmlPage {
             var lk = std::lock_guard(&mut route_snapshots_mutex)
             route_snapshots.insert(k, RouteSnapshot { data : unsafe(std::string(pageHtml.data() + start, len)) })
             route_snapshot_misses = route_snapshot_misses + 1
-    
+
         }
     }
 
     public func route_snapshot_hits_count(&self) : ubigint {
-        unsafe {     return route_snapshot_hits 
+        unsafe {     return route_snapshot_hits
         }
     }
     public func route_snapshot_misses_count(&self) : ubigint {
-        unsafe {     return route_snapshot_misses 
+        unsafe {     return route_snapshot_misses
         }
     }
     // Drops every cached snapshot. `clear()` runs each entry's destructor, so
@@ -524,7 +583,7 @@ public struct HtmlPage {
             route_snapshots.clear()
             route_snapshot_hits = 0
             route_snapshot_misses = 0
-    
+
         }
     }
 
@@ -614,14 +673,18 @@ public struct HtmlPage {
                 out.append_view(std::string_view("]}"))
             }
             out.append_view(std::string_view("]"))
-    
+
         }
     }
 
     // Appends raw JS to `pageJsEnd`, which the runtime emits *after*
     // `$__universal_flush()` (D-7.4). Used by the generated router code for the
     // initial activation tail.
-    public func append_js_end(&mut self, value : *char, len : size_t) {
+    public func append_js_end(&mut self, value : &std::str) {
+        pageJsEnd.append_view(value.to_view())
+    }
+
+    func append_js_end_raw(&mut self, value : *char, len : size_t) {
         pageJsEnd.append_with_len(value, len);
     }
 
@@ -696,7 +759,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null) { return !shared.done_random_classes.contains(&hash) }
             return !doneRandomClasses.contains(&hash)
-    
+
         }
     }
 
@@ -704,7 +767,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null) { shared.done_random_classes.insert(hash, true); return }
             doneRandomClasses.insert(hash, true)
-    
+
         }
     }
 
@@ -712,7 +775,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null && local_css_depth == 0) { shared.css_data.append_char_ptr(value); return }
             pageCss.append_char_ptr(value);
-    
+
         }
     }
 
@@ -720,7 +783,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null && local_css_depth == 0) { shared.css_data.append(value); return }
             pageCss.append(value)
-    
+
         }
     }
 
@@ -728,7 +791,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null && local_css_depth == 0) { shared.css_data.append_integer(value); return }
             pageCss.append_integer(value)
-    
+
         }
     }
 
@@ -736,7 +799,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null && local_css_depth == 0) { shared.css_data.append_uinteger(value); return }
             pageCss.append_uinteger(value)
-    
+
         }
     }
 
@@ -744,7 +807,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null && local_css_depth == 0) { shared.css_data.append_float(value, 3); return }
             pageCss.append_float(value, 3)
-    
+
         }
     }
 
@@ -752,15 +815,23 @@ public struct HtmlPage {
         unsafe {
             if(shared != null && local_css_depth == 0) { shared.css_data.append_double(value, 3); return }
             pageCss.append_double(value, 3)
-    
+
         }
     }
 
-    func append_js(&mut self, value : *char, len : size_t) {
+    public func append_js(&mut self, value : &std::str) {
+        var view = value.to_view()
+        unsafe {
+            if(shared != null && local_js_depth == 0) { shared.js_data.append_with_len(view.data(), view.size()); return }
+            pageJs.append_with_len(view.data(), view.size());
+        }
+    }
+
+    func append_js_raw(&mut self, value : *char, len : size_t) {
         unsafe {
             if(shared != null && local_js_depth == 0) { shared.js_data.append_with_len(value, len); return }
             pageJs.append_with_len(value, len);
-    
+
         }
     }
 
@@ -768,7 +839,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null && local_js_depth == 0) { shared.js_data.append_char_ptr(value); return }
             pageJs.append_char_ptr(value);
-    
+
         }
     }
 
@@ -780,7 +851,7 @@ public struct HtmlPage {
             const view = unsafe(std::string_view(value, unsafe(strlen(value))))
             if(shared != null && local_js_depth == 0) { appendJsEscaped(&mut shared.js_data, &view); return }
             appendJsEscaped(&mut pageJs, &view)
-    
+
         }
     }
 
@@ -789,7 +860,7 @@ public struct HtmlPage {
             const view = unsafe(std::string_view(value, len))
             if(shared != null && local_js_depth == 0) { appendJsEscaped(&mut shared.js_data, &view); return }
             appendJsEscaped(&mut pageJs, &view)
-    
+
         }
     }
 
@@ -797,7 +868,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null && local_js_depth == 0) { shared.js_data.append(value); return }
             pageJs.append(value)
-    
+
         }
     }
 
@@ -805,7 +876,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null && local_js_depth == 0) { shared.js_data.append_integer(value); return }
             pageJs.append_integer(value)
-    
+
         }
     }
 
@@ -813,7 +884,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null && local_js_depth == 0) { shared.js_data.append_uinteger(value); return }
             pageJs.append_uinteger(value)
-    
+
         }
     }
 
@@ -821,7 +892,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null && local_js_depth == 0) { shared.js_data.append_float(value, 3); return }
             pageJs.append_float(value, 3)
-    
+
         }
     }
 
@@ -829,7 +900,7 @@ public struct HtmlPage {
         unsafe {
             if(shared != null && local_js_depth == 0) { shared.js_data.append_double(value, 3); return }
             pageJs.append_double(value, 3)
-    
+
         }
     }
 
@@ -904,7 +975,7 @@ public struct HtmlPage {
         unsafe {
             if (self.shared != null) { return self.shared.js_data.size(); }
             return pageJs.size();
-    
+
         }
     }
 
@@ -913,7 +984,7 @@ public struct HtmlPage {
             // Same reasoning as get_js_pos: move inside the buffer the bytes are in.
             if (self.shared != null) { move_js_range_in(&mut self.shared.js_data, fromStart, fromEnd, index); return; }
             move_js_range_in(&mut self.pageJs, fromStart, fromEnd, index);
-    
+
         }
     }
 
@@ -3184,7 +3255,7 @@ public struct HtmlPage {
     };
     """))
             pageJsEnd.append_view(std::string_view("window.$__universal_flush();"))
-    
+
         }
     }
 
@@ -3203,7 +3274,7 @@ public struct HtmlPage {
                 pageCss.append_view(std::string_view(".chx-route[data-uni-route-active=\"false\"]{display:none !important;}"))
                 pageJs.append_view(&rr)
             }
-    
+
         }
     }
 

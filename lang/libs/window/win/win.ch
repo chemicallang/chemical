@@ -665,6 +665,9 @@ func win_window_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESUL
 // public API
 // ===========================================================================
 
+// Raw platform API. Canonical handle: `window::safe::Window`.
+public namespace raw {
+
 public func window_create(w : *mut Window) : std::Result<std::Unit, WindowError> {
         unsafe {
     if(w.created) {
@@ -1357,6 +1360,8 @@ public func window_cancel_timer(timer_id : int) {
 
         }}
 
+} // namespace raw
+
 // ===========================================================================
 // UI-thread async bridge (Tier 5) — Win32 backend
 // ===========================================================================
@@ -1371,7 +1376,7 @@ comptime const WIN_ASYNC_TIMER_ID : UINT = 0xFFF1
 // Poll the executor once per WM_TIMER.
 func win_async_timer_proc(hwnd : HWND, msg : UINT, timer_id : WPARAM, lp : LPARAM) {
         unsafe {
-    async::executor_poll_tasks(async::executor(), 4096u)
+    async::raw::executor_poll_tasks(async::raw::executor(), 4096u)
 
         }}
 
@@ -1388,7 +1393,7 @@ func window_async_platform_install_pump() {
 
 func window_async_platform_wake(arg : *mut void) {
         unsafe {
-    window_post_empty_event()
+    raw::window_post_empty_event()
 
         }}
 

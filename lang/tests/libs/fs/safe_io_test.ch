@@ -120,7 +120,7 @@ func test_safe_directory_and_metadata(env : &mut TestEnv) {
             if(em is Result.Err) {
                 var Err(eme) = em else unsafe { unreachable }
                 var emsg = eme.message()
-                env.info(emsg.data())
+                test_env::ffi::log_cstr(env, LogType.Information, emsg.data(), 0, 0)
                 env.error("DirEntry.metadata failed")
             }
             }

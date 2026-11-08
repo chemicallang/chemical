@@ -8,9 +8,9 @@ using std::string_view
 //
 //   Pattern A ("stack-local"):
 //       var wv = webview::WebView.make()
-//       webview::webview_set_title(&raw mut wv, ...)
-//       webview::webview_set_size(&raw mut wv, ...)
-//       webview::webview_create(&raw mut wv)
+//       webview::raw::webview_set_title(&raw mut wv, ...)
+//       webview::raw::webview_set_size(&raw mut wv, ...)
+//       webview::raw::webview_create(&raw mut wv)
 //       // wv lives on this stack frame — user data pointers stay valid
 //
 //   Pattern B ("by-value via webview::create"):
@@ -34,12 +34,12 @@ func create_pat_cb(data : *mut void, result : *char) : void {
 
     if(result == null) {
         g_create_pat_ok = false
-        if(g_create_pat_wv != null) { webview::webview_stop(g_create_pat_wv) }
+        if(g_create_pat_wv != null) { webview::raw::webview_stop(g_create_pat_wv) }
         return
     }
     var rv = string_view::make_no_len(result)
     g_create_pat_ok = rv.size() == 1 && rv.find(string_view::make_no_len("5")) == 0
-    if(g_create_pat_wv != null) { webview::webview_stop(g_create_pat_wv) }
+    if(g_create_pat_wv != null) { webview::raw::webview_stop(g_create_pat_wv) }
 
 }
 }
@@ -58,28 +58,28 @@ public func test_create_pattern_a_bridge(env : &mut TestEnv) {
     g_create_pat_wv = null
 
     var wv = webview::WebView.make()
-    webview::webview_set_title(&raw mut wv, "PatA Bridge\0" as *char)
-    webview::webview_set_size(&raw mut wv, 400, 300)
-    var cr = webview::webview_create(&raw mut wv)
+    webview::raw::webview_set_title(&raw mut wv, "PatA Bridge\0" as *char)
+    webview::raw::webview_set_size(&raw mut wv, 400, 300)
+    var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {
         env.error("webview_create failed (Pattern A)")
         return
     }
     g_create_pat_wv = &raw mut wv
 
-    webview::webview_bind(&raw mut wv, (method, args) => {
+    webview::raw::webview_bind(&raw mut wv, (method, args) => {
         if(method.find(string_view::make_no_len("ping")) == 0) {
             g_create_pat_ok = true
-            if(g_create_pat_wv != null) { webview::webview_stop(g_create_pat_wv) }
+            if(g_create_pat_wv != null) { webview::raw::webview_stop(g_create_pat_wv) }
         }
         return string("{\"ok\":true}")
     })
 
     var html = "<html><body><script>window.__webview__.call('ping', JSON.stringify({pattern:'A'}));</script></body></html>\0" as *char
-    webview::webview_load_html(&raw mut wv, html)
-    webview::webview_show(&raw mut wv)
-    webview::webview_run(&raw mut wv)
-    webview::webview_destroy(&raw mut wv)
+    webview::raw::webview_load_html(&raw mut wv, html)
+    webview::raw::webview_show(&raw mut wv)
+    webview::raw::webview_run(&raw mut wv)
+    webview::raw::webview_destroy(&raw mut wv)
 
     if(!g_create_pat_ok) {
         env.error("Pattern A bridge round-trip failed")
@@ -98,27 +98,27 @@ public func test_create_pattern_a_evaluate_js(env : &mut TestEnv) {
     g_create_pat_wv = null
 
     var wv = webview::WebView.make()
-    webview::webview_set_title(&raw mut wv, "PatA Eval\0" as *char)
-    webview::webview_set_size(&raw mut wv, 400, 300)
-    var cr = webview::webview_create(&raw mut wv)
+    webview::raw::webview_set_title(&raw mut wv, "PatA Eval\0" as *char)
+    webview::raw::webview_set_size(&raw mut wv, 400, 300)
+    var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {
         env.error("webview_create failed (Pattern A eval)")
         return
     }
     g_create_pat_wv = &raw mut wv
 
-    webview::webview_bind(&raw mut wv, (method, args) => {
+    webview::raw::webview_bind(&raw mut wv, (method, args) => {
         if(method.find(string_view::make_no_len("go")) == 0) {
-            webview::webview_evaluate_js_result(g_create_pat_wv, "2+3\0" as *char, create_pat_cb, null)
+            webview::raw::webview_evaluate_js_result(g_create_pat_wv, "2+3\0" as *char, create_pat_cb, null)
         }
         return string("")
     })
 
     var html = "<html><body><script>window.__webview__.call('go', '{}');</script></body></html>\0" as *char
-    webview::webview_load_html(&raw mut wv, html)
-    webview::webview_show(&raw mut wv)
-    webview::webview_run(&raw mut wv)
-    webview::webview_destroy(&raw mut wv)
+    webview::raw::webview_load_html(&raw mut wv, html)
+    webview::raw::webview_show(&raw mut wv)
+    webview::raw::webview_run(&raw mut wv)
+    webview::raw::webview_destroy(&raw mut wv)
 
     if(!g_create_pat_ok) {
         env.error("Pattern A evaluate_js_result failed")
@@ -151,24 +151,24 @@ public func test_create_pattern_b_bridge(env : &mut TestEnv) {
     var Ok(wv) = wv_result else unsafe { unreachable }
     g_create_pat_wv = &raw mut wv
 
-    var bind_result = webview::webview_bind(&raw mut wv, (method, args) => {
+    var bind_result = webview::raw::webview_bind(&raw mut wv, (method, args) => {
         if(method.find(string_view::make_no_len("ping")) == 0) {
             g_create_pat_ok = true
-            if(g_create_pat_wv != null) { webview::webview_stop(g_create_pat_wv) }
+            if(g_create_pat_wv != null) { webview::raw::webview_stop(g_create_pat_wv) }
         }
         return string("{\"ok\":true}")
     })
     if(bind_result is std::Result.Err) {
         env.error("webview_bind failed (Pattern B)")
-        webview::webview_destroy(&raw mut wv)
+        webview::raw::webview_destroy(&raw mut wv)
         return
     }
 
     var html = "<html><body><script>window.__webview__.call('ping', JSON.stringify({pattern:'B'}));</script></body></html>\0" as *char
-    webview::webview_load_html(&raw mut wv, html)
-    webview::webview_show(&raw mut wv)
-    webview::webview_run(&raw mut wv)
-    webview::webview_destroy(&raw mut wv)
+    webview::raw::webview_load_html(&raw mut wv, html)
+    webview::raw::webview_show(&raw mut wv)
+    webview::raw::webview_run(&raw mut wv)
+    webview::raw::webview_destroy(&raw mut wv)
 
     if(!g_create_pat_ok) {
         env.error("Pattern B bridge round-trip failed")
@@ -194,23 +194,23 @@ public func test_create_pattern_b_evaluate_js(env : &mut TestEnv) {
     var Ok(wv) = wv_result else unsafe { unreachable }
     g_create_pat_wv = &raw mut wv
 
-    var bind_result = webview::webview_bind(&raw mut wv, (method, args) => {
+    var bind_result = webview::raw::webview_bind(&raw mut wv, (method, args) => {
         if(method.find(string_view::make_no_len("go")) == 0) {
-            webview::webview_evaluate_js_result(g_create_pat_wv, "2+3\0" as *char, create_pat_cb, null)
+            webview::raw::webview_evaluate_js_result(g_create_pat_wv, "2+3\0" as *char, create_pat_cb, null)
         }
         return string("")
     })
     if(bind_result is std::Result.Err) {
         env.error("webview_bind failed (Pattern B eval)")
-        webview::webview_destroy(&raw mut wv)
+        webview::raw::webview_destroy(&raw mut wv)
         return
     }
 
     var html = "<html><body><script>window.__webview__.call('go', '{}');</script></body></html>\0" as *char
-    webview::webview_load_html(&raw mut wv, html)
-    webview::webview_show(&raw mut wv)
-    webview::webview_run(&raw mut wv)
-    webview::webview_destroy(&raw mut wv)
+    webview::raw::webview_load_html(&raw mut wv, html)
+    webview::raw::webview_show(&raw mut wv)
+    webview::raw::webview_run(&raw mut wv)
+    webview::raw::webview_destroy(&raw mut wv)
 
     if(!g_create_pat_ok) {
         env.error("Pattern B evaluate_js_result failed")
@@ -233,18 +233,18 @@ public func test_create_pattern_b_set_size_live(env : &mut TestEnv) {
 
     // set_size on a by-value webview — triggers MoveWindow → WM_SIZE →
     // resize callback reads user data. webview_rebind corrects it.
-    webview::webview_set_size(&raw mut wv, 1024, 768)
+    webview::raw::webview_set_size(&raw mut wv, 1024, 768)
     if(wv.width != 1024) {
         env.error("Pattern B set_size did not update width")
-        webview::webview_destroy(&raw mut wv)
+        webview::raw::webview_destroy(&raw mut wv)
         return
     }
     if(wv.height != 768) {
         env.error("Pattern B set_size did not update height")
-        webview::webview_destroy(&raw mut wv)
+        webview::raw::webview_destroy(&raw mut wv)
         return
     }
-    webview::webview_destroy(&raw mut wv)
+    webview::raw::webview_destroy(&raw mut wv)
 }
 
 @test
@@ -260,20 +260,20 @@ public func test_create_pattern_b_title_size_fields(env : &mut TestEnv) {
     }
     var Ok(wv) = wv_result else unsafe { unreachable }
 
-    webview::webview_set_title(&raw mut wv, "NewTitle\0" as *char)
-    webview::webview_set_size(&raw mut wv, 800, 600)
+    webview::raw::webview_set_title(&raw mut wv, "NewTitle\0" as *char)
+    webview::raw::webview_set_size(&raw mut wv, 800, 600)
 
     if(!(string_view::make_view(&wv.title).find(string_view::make_no_len("NewTitle")) == 0)) {
         env.error("Pattern B set_title did not update field")
-        webview::webview_destroy(&raw mut wv)
+        webview::raw::webview_destroy(&raw mut wv)
         return
     }
     if(wv.width != 800 || wv.height != 600) {
         env.error("Pattern B set_size did not update fields")
-        webview::webview_destroy(&raw mut wv)
+        webview::raw::webview_destroy(&raw mut wv)
         return
     }
-    webview::webview_destroy(&raw mut wv)
+    webview::raw::webview_destroy(&raw mut wv)
 
 }
 }

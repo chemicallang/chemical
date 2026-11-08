@@ -25,9 +25,9 @@ func sym_res_root(
             return false;
         }
 
-        const appendJsFn = page.child("append_js");
+        const appendJsFn = page.child("append_js_raw");
         if(appendJsFn == null) {
-            diagnoser.error("'append_js' function is required on 'page' for js to work", loc);
+            diagnoser.error("'append_js_raw' function is required on 'page' for js to work", loc);
             return false;
         }
 

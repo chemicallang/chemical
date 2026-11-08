@@ -139,7 +139,7 @@ public func style_block_follows_component_into_shared_sink(env : &mut TestEnv) {
 
         if(!sink_css.contains("rgb(11 22 33)")) {
             env.error("component style { } must go into the shared sink when one is attached")
-            env.info(sink_css.data())
+            test_env::ffi::log_cstr(env, LogType.Information, sink_css.data(), 0, 0)
             return
         }
         if(page_css.contains("rgb(11 22 33)")) {
@@ -216,7 +216,7 @@ public func globaljs_is_emitted_once_across_pages(env : &mut TestEnv) {
         const n = shared_count(&sink_view, &std::string_view("routing_global_js"))
         if(n != 1) {
             env.error("#globaljs must be emitted exactly once across pages sharing a sink")
-            env.info(sink_js.data())
+            test_env::ffi::log_cstr(env, LogType.Information, sink_js.data(), 0, 0)
             return
         }
         env.success("#globaljs de-duplicated across pages")

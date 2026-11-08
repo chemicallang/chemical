@@ -28,9 +28,9 @@ async func edge_never() : int {
 
 // A never-ready task must not starve the ready ones (executor rotation).
 async func edge_run() : int {
-    var h0 = unsafe(async::spawn<int>(edge_never()))
-    var h1 = unsafe(async::spawn<int>(edge_task(3, 10)))
-    var h2 = unsafe(async::spawn<int>(edge_task(3, 20)))
+    var h0 = unsafe(async::raw::spawn<int>(edge_never()))
+    var h1 = unsafe(async::raw::spawn<int>(edge_task(3, 10)))
+    var h2 = unsafe(async::raw::spawn<int>(edge_task(3, 20)))
     var a = await h1
     var b = await h2
     return a + b
@@ -195,7 +195,7 @@ async func edge_mixed_channel_and_reactor() : int {
     }
     // Registers fds[0] and is never ready (nothing writes), so the executor
     // parks in the reactor.
-    var h0 = unsafe(async::spawn<core::async::Unit>(async::readable(fds[0])))
+    var h0 = unsafe(async::raw::spawn<core::async::Unit>(async::readable(fds[0])))
     var ch = async::channel<int>()
     var s = ch.sender.clone_sender()
     var h = unsafe(async::spawn_blocking<bool>(|s|() => {
@@ -226,13 +226,13 @@ async func edge_inner(x : int) : int {
 }
 
 async func edge_outer(x : int) : int {
-    var h = unsafe(async::spawn<int>(edge_inner(x)))
+    var h = unsafe(async::raw::spawn<int>(edge_inner(x)))
     var v = await h
     return v * 2
 }
 
 async func edge_nested() : int {
-    var h = unsafe(async::spawn<int>(edge_outer(20)))
+    var h = unsafe(async::raw::spawn<int>(edge_outer(20)))
     return await h
 }
 
@@ -321,7 +321,7 @@ async func edge_make_opt(x : int) : std::Option<int> {
 
 @test
 func test_spawn_variant_payload(env : &mut TestEnv) {
-    var d = async::block_on<std::Option<int>>(unsafe(async::spawn<std::Option<int>>(edge_make_opt(5))))
+    var d = async::block_on<std::Option<int>>(unsafe(async::raw::spawn<std::Option<int>>(edge_make_opt(5))))
     if(d is std::Option.None) {
         env.error("spawned Option payload should be Some")
         return
@@ -330,7 +330,7 @@ func test_spawn_variant_payload(env : &mut TestEnv) {
     if(v != 5) {
         env.error("spawned Option payload value mismatch")
     }
-    var e = async::block_on<std::Option<int>>(unsafe(async::spawn<std::Option<int>>(edge_make_opt(0))))
+    var e = async::block_on<std::Option<int>>(unsafe(async::raw::spawn<std::Option<int>>(edge_make_opt(0))))
     if(!(e is std::Option.None)) {
         env.error("spawned Option payload should preserve None")
     }

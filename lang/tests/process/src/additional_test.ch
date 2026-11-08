@@ -189,17 +189,17 @@ public func test_process_no_stderr_capture(env : &mut TestEnv) {
 public func test_window_maximize_minimize_restore(env : &mut TestEnv) {
     var w = window::Window.make()
     // These should not crash when called before creation
-    window::window_maximize(&raw mut w)
-    window::window_minimize(&raw mut w)
-    window::window_restore(&raw mut w)
+    window::raw::window_maximize(&raw mut w)
+    window::raw::window_minimize(&raw mut w)
+    window::raw::window_restore(&raw mut w)
 }
 
 @test
 public func test_window_show_hide_before_create(env : &mut TestEnv) {
     var w = window::Window.make()
-    window::window_show(&raw mut w)
+    window::raw::window_show(&raw mut w)
     if(!w.visible) { env.error("visible should be true after show"); return }
-    window::window_hide(&raw mut w)
+    window::raw::window_hide(&raw mut w)
     if(w.visible) { env.error("visible should be false after hide"); return }
 }
 
@@ -228,7 +228,7 @@ public func test_window_error_messages(env : &mut TestEnv) {
 public func test_window_user_data_before_create(env : &mut TestEnv) {
     var w = window::Window.make()
     var marker : int = 99
-    window::window_set_user_data(&raw mut w, &raw mut marker as *mut void)
+    window::raw::window_set_user_data(&raw mut w, &raw mut marker as *mut void)
     // Should not crash — no handle to verify from public API
 }
 
@@ -243,7 +243,7 @@ public func test_window_user_data_before_create(env : &mut TestEnv) {
 @test
 public func test_window_quit_by_destroy_default(env : &mut TestEnv) {
     // Without creating/destroying any window, should return 0
-    var qbd = window::window_quit_by_destroy()
+    var qbd = window::raw::window_quit_by_destroy()
     if(qbd != 0) { env.error("quit_by_destroy should be 0 by default"); return }
 }
 
@@ -254,7 +254,7 @@ public func test_window_quit_by_destroy_default(env : &mut TestEnv) {
 @test
 public func test_window_post_empty_event(env : &mut TestEnv) {
     // Should not crash
-    window::window_post_empty_event()
+    window::raw::window_post_empty_event()
 }
 
 // ===========================================================================

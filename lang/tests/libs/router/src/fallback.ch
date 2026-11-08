@@ -23,7 +23,7 @@ public func test_router_fallback_receives_path(env : &mut TestEnv) {
     var html = page.getHtml()
     if(html.find(std::string_view("/does-not-exist")) == std::NPOS) {
         env.error("the fallback body should receive the requested path as props.__path")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -36,11 +36,11 @@ public func test_router_fallback_path_is_escaped(env : &mut TestEnv) {
     var html = page.getHtml()
     if(html.find(std::string_view("<script>alert(1)</script>")) != std::NPOS) {
         env.error("a hostile path must be escaped in the 404 body")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
     }
     if(html.find(std::string_view("&lt;script&gt;")) == std::NPOS) {
         env.error("the escaped path should still be visible")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }

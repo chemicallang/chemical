@@ -64,9 +64,9 @@ func sym_res_root(
             return false;
         }
 
-        const appendHtmlFn = page.child("append_html");
+        const appendHtmlFn = page.child("append_html_raw");
         if(appendHtmlFn == null) {
-            diagnoser.error("'append_html' function is required on 'page' for html to work", loc);
+            diagnoser.error("'append_html_raw' function is required on 'page' for html to work", loc);
             return false;
         }
 
@@ -170,9 +170,9 @@ func sym_res_root(
             return false;
         }
 
-        const appendHeadFn = page.child("append_head");
+        const appendHeadFn = page.child("append_head_raw");
         if(appendHeadFn == null) {
-            diagnoser.error("'append_head' function is required on 'page' for html to work", loc);
+            diagnoser.error("'append_head_raw' function is required on 'page' for html to work", loc);
             return false;
         }
 
@@ -232,9 +232,9 @@ func sym_res_root(
             return false;
         }
 
-        const appendJsFn = page.child("append_js");
+        const appendJsFn = page.child("append_js_raw");
         if(appendJsFn == null) {
-            diagnoser.error("'append_js' function is required on 'page' for html to work", loc);
+            diagnoser.error("'append_js_raw' function is required on 'page' for html to work", loc);
             return false;
         }
 

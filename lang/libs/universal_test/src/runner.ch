@@ -99,7 +99,7 @@ func ut_watchdog_tick(data : *mut void) {
         g_results.push(r)
         i += 1
     }
-    if(g_wv != null) { webview::webview_stop(g_wv) }
+    if(g_wv != null) { webview::raw::webview_stop(g_wv) }
 
 }
 }
@@ -166,7 +166,7 @@ func ut_bridge(method : string_view, args : string_view) : string {
         g_results.push(r)
     } else if(method.size() == 8) {
         // "all_done" — stop the message loop
-        if(g_wv != null) { webview::webview_stop(g_wv) }
+        if(g_wv != null) { webview::raw::webview_stop(g_wv) }
     }
     return string("{}")
 }
@@ -251,18 +251,18 @@ func ut_execute(tests : *mut *mut UTFunction, count : size_t, headed : bool) {
     var Ok(wv) = wv_res else unsafe { unreachable }
     g_wv = &raw mut wv
 
-    webview::webview_bind(&raw mut wv, (method, args) => {
+    webview::raw::webview_bind(&raw mut wv, (method, args) => {
         return ut_bridge(method, args)
     })
 
-    webview::webview_load_html(&raw mut wv, html.data() as *char)
+    webview::raw::webview_load_html(&raw mut wv, html.data() as *char)
     // Hidden by default: the WebView runs JS off-screen so no window flashes.
     // `--ut-headed` shows it for debugging.
-    if(headed) { webview::webview_show(&raw mut wv) }
+    if(headed) { webview::raw::webview_show(&raw mut wv) }
 
     // Arm the watchdog so a page that never reports cannot block forever.
     g_silence_left_ms = ut_silence_budget_ms()
-    g_watchdog_id = window::window_set_timer(UT_WATCHDOG_TICK_MS, ut_watchdog_tick as window::TimerCallback, null)
+    g_watchdog_id = window::raw::window_set_timer(UT_WATCHDOG_TICK_MS, ut_watchdog_tick as window::TimerCallback, null)
     if(g_watchdog_id == 0) {
         // Every timer slot is taken. The page-side error reporting still holds,
         // but say so rather than leaving the host unbounded and unexplained.
@@ -270,13 +270,13 @@ func ut_execute(tests : *mut *mut UTFunction, count : size_t, headed : bool) {
         g_silence_left_ms = 0
     }
 
-    webview::webview_run(&raw mut wv)
+    webview::raw::webview_run(&raw mut wv)
 
     if(g_watchdog_id > 0) {
-        window::window_cancel_timer(g_watchdog_id)
+        window::raw::window_cancel_timer(g_watchdog_id)
         g_watchdog_id = 0
     }
-    webview::webview_destroy(&raw mut wv)
+    webview::raw::webview_destroy(&raw mut wv)
     g_wv = null
 
 }
@@ -333,12 +333,12 @@ func ut_emit(tests : *mut *mut UTFunction, count : size_t, reporter : *mut TestR
         var outcome = make_test_outcome(string_view("universal_test"), t.name, t.group, t.id)
         if(!found) {
             msg.append_view("no result: the page never reported this test")
-            outcome.message = msg.to_view()
+            outcome.set_failure_message(msg.to_view())
             failed += 1
         } else if(ok) {
-            outcome.passed = true
+            outcome.set_passed(true)
         } else {
-            outcome.message = msg.to_view()
+            outcome.set_failure_message(msg.to_view())
             failed += 1
         }
 
@@ -477,27 +477,27 @@ public func run_universal_tests(tests : std::span<UTFunction>, argc : int, argv 
     return finish_reporter(&mut console)
 }
 
-type UTHandleRunFn = (h : *mut TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) => int
+type UTHandleRunFn = (h : *mut test_report::ffi::TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) => int
 
 @retained
-public func universal_handle_run(h : *mut TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) : int {
+public func universal_handle_run(h : *mut test_report::ffi::TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) : int {
     unsafe {
 
-    var ptr = h.tests_ptr as *mut UTFunction
-    var span = unsafe(std::span<UTFunction>(ptr, h.tests_count))
+    var ptr = h.tests_ptr_value() as *mut UTFunction
+    var span = unsafe(std::span<UTFunction>(ptr, h.tests_count_value()))
     return run_universal_tests_reporting(span, reporter, argc, argv)
 
 }
 }
 
 @retained
-public func make_universal_runner_handle(tests : std::span<UTFunction>) : TestRunnerHandle {
-    return TestRunnerHandle {
-        name : string_view("universal_test"),
-        tests_ptr : tests.data() as *void,
-        tests_count : tests.size(),
-        run_fn : universal_handle_run as UTHandleRunFn
-    }
+public func make_universal_runner_handle(tests : std::span<UTFunction>) : test_report::ffi::TestRunnerHandle {
+    return test_report::ffi::make_runner_handle(
+        string_view("universal_test"),
+        tests.data() as *void,
+        tests.size(),
+        universal_handle_run as UTHandleRunFn
+    )
 }
 
 /**
@@ -505,7 +505,7 @@ public func make_universal_runner_handle(tests : std::span<UTFunction>) : TestRu
  * the call site so `ut_all()` sees the caller's declarations.
  */
 @expand
-public comptime func universal_test_runner_handle() : TestRunnerHandle {
+public comptime func universal_test_runner_handle() : test_report::ffi::TestRunnerHandle {
     const tests = ut_all()
     return make_universal_runner_handle(std::span<UTFunction>(tests))
 }

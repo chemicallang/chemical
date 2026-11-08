@@ -132,9 +132,9 @@ public func test_environment_current_dir(env : &mut TestEnv) {
 @test
 public func test_window_clipboard_roundtrip(env : &mut TestEnv) {
     var text = string_view("clipboard_test_content")
-    var ok = window::window_set_clipboard(text)
+    var ok = window::raw::window_set_clipboard(text)
     if(!ok) { env.error("window_set_clipboard failed"); return }
-    var got = window::window_get_clipboard()
+    var got = window::raw::window_get_clipboard()
     if(got is Option.None) { env.error("window_get_clipboard returned None"); return }
     var Some(v) = got else unsafe { unreachable }
     if(!string_eq(&raw v, text)) {
@@ -146,7 +146,7 @@ public func test_window_clipboard_roundtrip(env : &mut TestEnv) {
 @test
 public func test_window_clipboard_empty(env : &mut TestEnv) {
     // Set empty string, should still succeed
-    var ok = window::window_set_clipboard(string_view(""))
+    var ok = window::raw::window_set_clipboard(string_view(""))
     if(!ok) { env.error("set_clipboard empty should succeed"); return }
 }
 
@@ -167,7 +167,7 @@ func timer_increment_cb(data : *mut void) : void {
 public func test_window_set_cancel_timer(env : &mut TestEnv) {
         unsafe {
         g_timer_counter = 0
-        var tid = window::window_set_timer(50, timer_increment_cb as window::TimerCallback, null)
+        var tid = window::raw::window_set_timer(50, timer_increment_cb as window::TimerCallback, null)
         if(tid == 0) { env.error("window_set_timer should return non-zero"); return }
         // On Windows, timers need a message loop to fire. Pump messages briefly.
         comptime if(def.windows) {
@@ -179,7 +179,7 @@ public func test_window_set_cancel_timer(env : &mut TestEnv) {
             process::sleep_ms(200)
         }
         // Cancel the timer
-        window::window_cancel_timer(tid)
+        window::raw::window_cancel_timer(tid)
         // Timer was set/cancelled without crash — that's the main invariant.
         // On GTK the timer fires without a message loop (g_timeout_add in GLib main context),
         // but on Windows it needs GetMessage/DispatchMessage. Both paths are valid.
@@ -190,9 +190,9 @@ public func test_window_set_cancel_timer(env : &mut TestEnv) {
 @test
 public func test_window_cancel_nonexistent_timer(env : &mut TestEnv) {
     // Cancelling a non-existent timer should not crash
-    window::window_cancel_timer(999)
-    window::window_cancel_timer(0)
-    window::window_cancel_timer(-1)
+    window::raw::window_cancel_timer(999)
+    window::raw::window_cancel_timer(0)
+    window::raw::window_cancel_timer(-1)
 }
 
 

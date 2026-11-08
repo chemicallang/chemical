@@ -43,7 +43,7 @@ func test_net_async_loopback(env : &mut TestEnv) {
         return
     }
 
-    var server_f = unsafe(async::spawn<int>(net_echo_once(listener.raw(), 9)))
+    var server_f = unsafe(async::raw::spawn<int>(net_echo_once(listener.raw(), 9)))
     var client_f = net::raw::dial_async("127.0.0.1", port)
 
     var client_fd = async::block_on<int>(client_f)

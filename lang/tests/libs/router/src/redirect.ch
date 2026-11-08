@@ -35,7 +35,7 @@ public func test_router_redirect_to_records_path(env : &mut TestEnv) {
     page.redirect_to("main", "dashboard", "/dashboard")
     if(!page.get_route_redirect().equals(std::string_view("/dashboard"))) {
         env.error("get_route_redirect should return the target path")
-        env.info(page.get_route_redirect().data())
+        env.info(page.get_route_redirect())
     }
     // The path also drives the matcher, so an in-place render follows it.
     if(!page.get_route_url().equals(std::string_view("/dashboard"))) {
@@ -65,7 +65,7 @@ public func test_router_redirect_overrides_url_match(env : &mut TestEnv) {
     const dashActive = std::string_view("data-uni-route=\"main#/dashboard\" data-uni-route-active=\"true\"")
     if(html.find(&dashActive) == std::NPOS) {
         env.error("a redirect should win over the request URL match")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
     }
     const projActive = std::string_view("data-uni-route=\"main#/projects/{id}\" data-uni-route-active=\"true\"")

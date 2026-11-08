@@ -125,6 +125,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     }
 
     // build method
+    output << "\nusing namespace lab::raw;\n";
     output << "\npublic func build(ctx : *mut BuildContext, __chx_job : *mut LabJob) : *mut Module {\n";
     // Generated build code drives the build context and job through raw
     // pointers. The converter owns those pointers, so the generated body is
@@ -253,7 +254,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     const auto pkg_kind_str = (data.package_kind == PackageKind::Application) ? "PackageKind.Application" : "PackageKind.Library";
     output << "\tconst mod = ctx.new_package(ModuleType.Directory, " << pkg_kind_str << ", \"" << data.scope_name << "\", \"" << data.module_name << "\", deps_view);\n";
     output << "\tctx.set_cached(__chx_job, &__curr_lab_path, mod)\n";
-    
+
     // Now handle remote imports
     i = 0;
     for(const auto node : data.scope.body.nodes) {

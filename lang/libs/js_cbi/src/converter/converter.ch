@@ -168,7 +168,7 @@ func (converter : &mut JsConverter) make_value_call(value : *mut Value, len : si
         const builder = converter.builder
         const location = intrinsics::get_raw_location();
         var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-        var name = std::string_view("append_js")
+        var name = std::string_view("append_js_raw")
     
         var id = builder.make_identifier(&name, converter.support.appendJsFn, false, location);
         const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)

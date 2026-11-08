@@ -125,7 +125,7 @@ func test_form_urlencoded_fails_gracefully(env : &mut TestEnv) {
     } else {
         const msg_view = unsafe(std::string_view(r.msg))
         if (!msg_view.equals("invalid literal")) {
-             env.error(r.msg);
+             test_env::ffi::log_cstr(env, LogType.Error, r.msg, 0, 0);
         }
     }
 }
@@ -796,7 +796,7 @@ func test_long_string_over_old_4096_limit(env : &mut TestEnv) { unsafe {
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 1048576)
     var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
-    if (!r.ok) { env.error(r.msg); return }
+    if (!r.ok) { test_env::ffi::log_cstr(env, LogType.Error, r.msg, 0, 0); return }
     if (!(ph.root is JsonValue.Object)) { env.error("expected object"); return }
     var Object(map) = ph.root else unsafe { unreachable }
     var vp = map.get_ptr(std::string("url"))
@@ -818,7 +818,7 @@ func test_long_escaped_string_over_old_4096_limit(env : &mut TestEnv) { unsafe {
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 1048576)
     var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
-    if (!r.ok) { env.error(r.msg); return }
+    if (!r.ok) { test_env::ffi::log_cstr(env, LogType.Error, r.msg, 0, 0); return }
     if (!(ph.root is JsonValue.Object)) { env.error("expected object"); return }
     var Object(map) = ph.root else unsafe { unreachable }
     var vp = map.get_ptr(std::string("k"))
@@ -839,7 +839,7 @@ func test_long_string_roundtrip(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 1048576)
     var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
-    if (!r.ok) { env.error(r.msg); return }
+    if (!r.ok) { test_env::ffi::log_cstr(env, LogType.Error, r.msg, 0, 0); return }
     var encoded = json::stringify(&ph.root)
     var ph2 = ASTJsonHandler()
     var parser2 = JsonParser(256, 1048576)
@@ -873,7 +873,7 @@ func test_string_that_outgrows_the_heap_buffer_stays_intact(env : &mut TestEnv) 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8u * 1024u * 1024u)
     var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
-    if (!r.ok) { env.error(r.msg); return }
+    if (!r.ok) { test_env::ffi::log_cstr(env, LogType.Error, r.msg, 0, 0); return }
     if (!(ph.root is JsonValue.Object)) { env.error("expected object"); return }
     var Object(map) = ph.root else unsafe { unreachable }
     var vp = map.get_ptr(std::string("k"))

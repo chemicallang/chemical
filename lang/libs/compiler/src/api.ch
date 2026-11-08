@@ -17,7 +17,6 @@
 using std::Option;
 using std::span;
 using std::string_view;
-
 public namespace compiler {
 
 public namespace api {
@@ -65,21 +64,43 @@ public func current_type(parser : &mut Parser) : int {
 // -------------------------------------------------------------------------
 
 /**
+ * Allocate arena storage for a `T` that is not initialized yet.
+ *
+ * The returned reference is to a `MaybeUninit<T>`, so safe code can never read
+ * a `T` before it has been written. Initialize the slot with
+ * `MaybeUninit::write`, then call `unsafe(assume_init)` when the value is
+ * ready. The storage lives as long as the builder's arena.
+ */
+public func <T> allocate_uninit(builder : &mut ASTBuilder) : &mut std::MaybeUninit<T> {
+    const raw = builder.allocate_size(sizeof(std::MaybeUninit<T>), alignof(std::MaybeUninit<T>))
+    const ptr = raw as *mut std::MaybeUninit<T>
+    unsafe {
+        memset(ptr as *mut void, 0, sizeof(std::MaybeUninit<T>))
+    }
+    return unsafe(&mut *ptr)
+}
+
+/*
+ * `allocate_default<T: Default>()` cannot be expressed until a generic
+ * function returning `&mut T` under a `T: Default` bound links (the checker
+ * currently rejects the call with an identical-type lifetime mismatch). Use
+ * `allocate_uninit<T>` plus `MaybeUninit::write`, or `allocate_value` with a
+ * caller-built default.
+ */
+
+/**
  * Move `value` into the builder's arena and return a stable reference to it.
  *
- * Allocation failure (arena growth) follows the builder's normal behavior;
- * the wrapper itself neither dereferences caller memory nor leaks.
+ * The slot is explicitly initialized with `MaybeUninit::write` before the
+ * reference is created, so the returned `&mut T` never points at
+ * uninitialized storage. Allocation failure (arena growth) follows the
+ * builder's normal behavior; the wrapper itself neither dereferences caller
+ * memory nor leaks.
  */
 public func <T> allocate_value(builder : &mut ASTBuilder, value : T) : &mut T {
-    const ptr = builder.allocate<T>()
-    // `allocate<T>` returns uninitialized arena storage. Assigning through it
-    // would run the destination assignment operator (and potentially destroy
-    // garbage); initialize the storage with the moved value's bits instead.
-    unsafe {
-        memcpy(ptr as *mut void, &raw value as *void, sizeof(T))
-    }
-    intrinsics::forget(value)
-    return unsafe(&mut *ptr)
+    const slot : &mut std::MaybeUninit<T> = allocate_uninit<T>(builder)
+    slot.write(value)
+    return unsafe(&mut *slot.as_ptr())
 }
 
 
@@ -91,6 +112,16 @@ public func <T> allocate_value(builder : &mut ASTBuilder, value : T) : &mut T {
 public func allocate_string(builder : &mut ASTBuilder, value : &str) : string_view {
     const ptr = builder.allocate_str(value.data(), value.size())
     return unsafe(string_view(ptr, value.size()))
+}
+
+/// Advance past the current token (safe spelling of `Parser::increment`).
+public func increment(parser : &mut Parser) {
+    parser.increment()
+}
+
+/// True when the parser has no current token.
+public func at_end(parser : &mut Parser) : bool {
+    return current(parser) is std::Option.None
 }
 
 // -------------------------------------------------------------------------
@@ -142,6 +173,16 @@ public func <'a> source_reader(provider : &'a mut SourceProvider) : SourceReader
     return SourceReader<'a> { provider : provider }
 }
 
+/// The next character of `provider` without advancing.
+public func peek(provider : &SourceProvider) : char {
+    return provider.peek()
+}
+
+/// Consume and return the next character of `provider`.
+public func read_char(provider : &SourceProvider) : char {
+    return provider.readCharacter()
+}
+
 // -------------------------------------------------------------------------
 // Symbol resolution
 // -------------------------------------------------------------------------
@@ -176,6 +217,21 @@ public func (parser : &mut Parser) current_token() : std::Option<&Token> {
     return compiler::api::current(parser)
 }
 
+/// The parsing position, or `None` at end of input.
+public func (parser : &mut Parser) current() : std::Option<&Token> {
+    return compiler::api::current(parser)
+}
+
+/// Safe `SourceProvider::peek` spelling.
+public func (provider : &SourceProvider) peek_char() : char {
+    return compiler::api::peek(provider)
+}
+
+/// Safe `SourceProvider::readCharacter` spelling.
+public func (provider : &SourceProvider) read_char() : char {
+    return compiler::api::read_char(provider)
+}
+
 /// Safe alias for `compiler::api::advance`.
 public func (parser : &mut Parser) advance_token() {
     compiler::api::advance(parser)
@@ -200,5 +256,71 @@ public func (visitor : &mut SymResLinkBody) error_str(message : &str, location :
 public func (diagnoser : &ASTDiagnoser) error_str(message : &str, location : ubigint) {
     compiler::api::report_error(diagnoser, message, location)
 }
+
+/**
+ * Raw compiler-CBI operations.
+ *
+ * Everything here returns/accepts compiler-owned pointers or uninitialized
+ * arena storage. Normal macro/plugin code should use `compiler::api`; reach for
+ * `compiler::ffi` only when implementing the parser/arena plumbing itself.
+ */
+public namespace ffi {
+
+    /// Raw arena allocation of `T` (uninitialized bytes).
+    public func <T> allocate(builder : &mut ASTBuilder) : *mut T {
+        return builder.allocate<T>()
+    }
+
+    /// Raw arena allocation of `obj_size` bytes.
+    public func allocate_size(builder : &mut ASTBuilder, obj_size : size_t, alignment : size_t) : *mut char {
+        return builder.allocate_size(obj_size, alignment)
+    }
+
+    /// Raw arena allocation of a NUL-terminated string buffer.
+    public func allocate_str_size(builder : &mut ASTBuilder, size : size_t) : *mut char {
+        return builder.allocate_str_size(size)
+    }
+
+    /// Raw arena copy of a C string.
+    public func allocate_str(builder : &mut ASTBuilder, data : *char, size : size_t) : *mut char {
+        return builder.allocate_str(data, size)
+    }
+
+    /// Raw arena copy of a string view.
+    public func allocate_view(builder : &mut ASTBuilder, view : &string_view) : 'static string_view {
+        return builder.allocate_view(view)
+    }
+
+    /// Raw current-token pointer (null at end of input).
+    public func get_token(parser : &mut Parser) : *mut Token {
+        return parser.getToken()
+    }
+
+    /// Raw token-slot assignment.
+    public func set_token(parser : &mut Parser, token : *mut Token) {
+        parser.setToken(token)
+    }
+
+    /// Raw token advance.
+    public func increment(parser : &mut Parser) {
+        parser.increment()
+    }
+
+    /// Raw parent-node pointer.
+    public func get_parent_node(parser : &mut Parser) : *mut ASTNode {
+        return parser.getParentNode()
+    }
+
+    /// Raw parent-node assignment.
+    public func set_parent_node(parser : &mut Parser, node : *mut ASTNode) {
+        parser.setParentNode(node)
+    }
+
+    /// Raw `SourceProvider` character read.
+    public func read_character(provider : &SourceProvider) : char {
+        return provider.readCharacter()
+    }
+
+} // namespace ffi
 
 } // namespace compiler

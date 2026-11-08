@@ -115,15 +115,15 @@ public func test_bridge_params_array_unwrap(env : &mut TestEnv) {
     reset_params_state()
 
     var wv = webview::WebView.make()
-    webview::webview_set_size(&raw mut wv, 480, 360)
-    var cr = webview::webview_create(&raw mut wv)
+    webview::raw::webview_set_size(&raw mut wv, 480, 360)
+    var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {
         env.error("webview_create failed (is a display available?)")
         return
     }
     g_wv_params = &raw mut wv
 
-    webview::webview_bind(&raw mut wv, (method, args) => {
+    webview::raw::webview_bind(&raw mut wv, (method, args) => {
         g_params_count = g_params_count + 1
 
         // Check for "extract" method — this is the key test
@@ -138,7 +138,7 @@ public func test_bridge_params_array_unwrap(env : &mut TestEnv) {
                 if(g_params_ok) {
                     g_params_ok = val.find(string_view::make_no_len("yt-dlp")) != val.size()
                 }
-                if(g_wv_params != null) { webview::webview_stop(g_wv_params) }
+                if(g_wv_params != null) { webview::raw::webview_stop(g_wv_params) }
                 return string("{\"ok\":true}")
             }
         }
@@ -160,10 +160,10 @@ public func test_bridge_params_array_unwrap(env : &mut TestEnv) {
     html.append_view(string_view::make_no_len("}catch(e){window.__webview__.call('done', JSON.stringify({error:e.message}));}}"))
     html.append_view(string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
 
-    webview::webview_load_html(&raw mut wv, html.data() as *char)
-    webview::webview_show(&raw mut wv)
-    webview::webview_run(&raw mut wv)
-    webview::webview_destroy(&raw mut wv)
+    webview::raw::webview_load_html(&raw mut wv, html.data() as *char)
+    webview::raw::webview_show(&raw mut wv)
+    webview::raw::webview_run(&raw mut wv)
+    webview::raw::webview_destroy(&raw mut wv)
 
     if(!g_params_ok) {
         env.error("failed to extract 'tool' field from params array — resolve_bridge_args logic is broken")
@@ -197,15 +197,15 @@ public func test_bridge_params_multi_field(env : &mut TestEnv) {
     reset_params_state()
 
     var wv = webview::WebView.make()
-    webview::webview_set_size(&raw mut wv, 480, 360)
-    var cr = webview::webview_create(&raw mut wv)
+    webview::raw::webview_set_size(&raw mut wv, 480, 360)
+    var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {
         env.error("webview_create failed")
         return
     }
     g_wv_params = &raw mut wv
 
-    webview::webview_bind(&raw mut wv, (method, args) => {
+    webview::raw::webview_bind(&raw mut wv, (method, args) => {
         g_params_count = g_params_count + 1
 
         if(method.size() == 7) {
@@ -217,7 +217,7 @@ public func test_bridge_params_multi_field(env : &mut TestEnv) {
                 g_params_ok = tool_val.find(string_view::make_no_len("yt-dlp")) != tool_val.size() &&
                               format_val.find(string_view::make_no_len("best")) != format_val.size() &&
                               priority_val.find(string_view::make_no_len("100")) != priority_val.size()
-                if(g_wv_params != null) { webview::webview_stop(g_wv_params) }
+                if(g_wv_params != null) { webview::raw::webview_stop(g_wv_params) }
                 return string("{\"ok\":true}")
             }
         }
@@ -232,10 +232,10 @@ public func test_bridge_params_multi_field(env : &mut TestEnv) {
     html.append_view(string_view::make_no_len("}catch(e){window.__webview__.call('done', JSON.stringify({error:e.message}));}}"))
     html.append_view(string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
 
-    webview::webview_load_html(&raw mut wv, html.data() as *char)
-    webview::webview_show(&raw mut wv)
-    webview::webview_run(&raw mut wv)
-    webview::webview_destroy(&raw mut wv)
+    webview::raw::webview_load_html(&raw mut wv, html.data() as *char)
+    webview::raw::webview_show(&raw mut wv)
+    webview::raw::webview_run(&raw mut wv)
+    webview::raw::webview_destroy(&raw mut wv)
 
     if(!g_params_ok) {
         env.error("failed to extract multiple fields from params array")
@@ -270,22 +270,22 @@ public func test_bridge_promise_chain_long(env : &mut TestEnv) {
     reset_params_state()
 
     var wv = webview::WebView.make()
-    webview::webview_set_size(&raw mut wv, 480, 360)
-    var cr = webview::webview_create(&raw mut wv)
+    webview::raw::webview_set_size(&raw mut wv, 480, 360)
+    var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {
         env.error("webview_create failed")
         return
     }
     g_wv_params = &raw mut wv
 
-    webview::webview_bind(&raw mut wv, (method, args) => {
+    webview::raw::webview_bind(&raw mut wv, (method, args) => {
         g_params_count = g_params_count + 1
 
         if(method.size() == 4) {
             var d = method.data()
             if(d[0] == 'd' && d[1] == 'o' && d[2] == 'n' && d[3] == 'e') {
                 g_promise_chain_ok = true
-                if(g_wv_params != null) { webview::webview_stop(g_wv_params) }
+                if(g_wv_params != null) { webview::raw::webview_stop(g_wv_params) }
                 return string("{\"ok\":true}")
             }
         }
@@ -324,10 +324,10 @@ public func test_bridge_promise_chain_long(env : &mut TestEnv) {
     html.append_view(string_view::make_no_len("}catch(e){window.__webview__.call('done',{error:e.message});}}"))
     html.append_view(string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
 
-    webview::webview_load_html(&raw mut wv, html.data() as *char)
-    webview::webview_show(&raw mut wv)
-    webview::webview_run(&raw mut wv)
-    webview::webview_destroy(&raw mut wv)
+    webview::raw::webview_load_html(&raw mut wv, html.data() as *char)
+    webview::raw::webview_show(&raw mut wv)
+    webview::raw::webview_run(&raw mut wv)
+    webview::raw::webview_destroy(&raw mut wv)
 
     if(!g_promise_chain_ok) {
         env.error("long promise chain (10 sequential calls) did not complete — webview_evaluate_js may not be pumping enough")
@@ -346,12 +346,12 @@ func eval_reliable_cb(data : *mut void, result : *char) : void {
 
     if(result == null) {
         g_eval_reliable_ok = false
-        if(g_wv_params != null) { webview::webview_stop(g_wv_params) }
+        if(g_wv_params != null) { webview::raw::webview_stop(g_wv_params) }
         return
     }
     var rv = string_view::make_no_len(result)
     g_eval_reliable_ok = rv.find(string_view::make_no_len("42")) != rv.size()
-    if(g_wv_params != null) { webview::webview_stop(g_wv_params) }
+    if(g_wv_params != null) { webview::raw::webview_stop(g_wv_params) }
 
 }
 }
@@ -378,20 +378,20 @@ public func test_bridge_evaluate_js_reliable(env : &mut TestEnv) {
     reset_params_state()
 
     var wv = webview::WebView.make()
-    webview::webview_set_size(&raw mut wv, 480, 360)
-    var cr = webview::webview_create(&raw mut wv)
+    webview::raw::webview_set_size(&raw mut wv, 480, 360)
+    var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {
         env.error("webview_create failed")
         return
     }
     g_wv_params = &raw mut wv
 
-    webview::webview_bind(&raw mut wv, (method, args) => {
+    webview::raw::webview_bind(&raw mut wv, (method, args) => {
         if(method.size() == 4) {
             var d = method.data()
             if(d[0] == 'g' && d[1] == 'o' && d[2] == 'o' && d[3] == 'd') {
                 // Trigger evaluate_js from within the handler context
-                webview::webview_evaluate_js_result(g_wv_params, "6*7\0" as *char, eval_reliable_cb, null)
+                webview::raw::webview_evaluate_js_result(g_wv_params, "6*7\0" as *char, eval_reliable_cb, null)
                 return string("{\"ok\":true}")
             }
         }
@@ -406,10 +406,10 @@ public func test_bridge_evaluate_js_reliable(env : &mut TestEnv) {
     html.append_view(string_view::make_no_len("}catch(e){window.__webview__.call('done', e.message);}}"))
     html.append_view(string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
 
-    webview::webview_load_html(&raw mut wv, html.data() as *char)
-    webview::webview_show(&raw mut wv)
-    webview::webview_run(&raw mut wv)
-    webview::webview_destroy(&raw mut wv)
+    webview::raw::webview_load_html(&raw mut wv, html.data() as *char)
+    webview::raw::webview_show(&raw mut wv)
+    webview::raw::webview_run(&raw mut wv)
+    webview::raw::webview_destroy(&raw mut wv)
 
     if(!g_eval_reliable_ok) {
         env.error("evaluate_js from handler context did not deliver result (42)")
@@ -443,15 +443,15 @@ public func test_bridge_params_nested_json(env : &mut TestEnv) {
     reset_params_state()
 
     var wv = webview::WebView.make()
-    webview::webview_set_size(&raw mut wv, 480, 360)
-    var cr = webview::webview_create(&raw mut wv)
+    webview::raw::webview_set_size(&raw mut wv, 480, 360)
+    var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {
         env.error("webview_create failed")
         return
     }
     g_wv_params = &raw mut wv
 
-    webview::webview_bind(&raw mut wv, (method, args) => {
+    webview::raw::webview_bind(&raw mut wv, (method, args) => {
         g_params_count = g_params_count + 1
 
         if(method.size() == 7) {
@@ -460,7 +460,7 @@ public func test_bridge_params_nested_json(env : &mut TestEnv) {
                 // Extract a string field from the params array
                 var name_val = resolve_and_extract_field(args, string_view::make_no_len("name"))
                 g_params_ok = name_val.find(string_view::make_no_len("test-video")) != name_val.size()
-                if(g_wv_params != null) { webview::webview_stop(g_wv_params) }
+                if(g_wv_params != null) { webview::raw::webview_stop(g_wv_params) }
                 return string("{\"ok\":true}")
             }
         }
@@ -475,10 +475,10 @@ public func test_bridge_params_nested_json(env : &mut TestEnv) {
     html.append_view(string_view::make_no_len("}catch(e){window.__webview__.call('done', JSON.stringify({error:e.message}));}}"))
     html.append_view(string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
 
-    webview::webview_load_html(&raw mut wv, html.data() as *char)
-    webview::webview_show(&raw mut wv)
-    webview::webview_run(&raw mut wv)
-    webview::webview_destroy(&raw mut wv)
+    webview::raw::webview_load_html(&raw mut wv, html.data() as *char)
+    webview::raw::webview_show(&raw mut wv)
+    webview::raw::webview_run(&raw mut wv)
+    webview::raw::webview_destroy(&raw mut wv)
 
     if(!g_params_ok) {
         env.error("failed to extract field from nested JSON in params array")

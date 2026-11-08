@@ -285,7 +285,7 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
         msg.append_uinteger(cap.ok_plain as ubigint)
         msg.append_view(" tls=")
         msg.append_uinteger(cap.ok_tls as ubigint)
-        env.error(msg.data())
+        test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0)
     }
 
     xpy_force_kill_port(MTX8_PLAIN_PORT)
@@ -376,7 +376,7 @@ public func MATRIX_parallel_upload_download_streams(env : &mut TestEnv) {
         env.error("parallel up/down stream failures occurred")
         var msg = string("fails=")
         msg.append_uinteger(st.fails as ubigint)
-        env.error(msg.data())
+        test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0)
     }
 
     test_kill_port(PORT as int)

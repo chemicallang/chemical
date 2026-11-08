@@ -84,7 +84,7 @@ internal func safety_run_command_capture(args : vector<string>, out : &mut strin
     var opt = result.stdout_str()
     if(opt is std::Option.Some) {
         var Some(view) = opt else unsafe { unreachable }
-        out.append_view(&view)
+        out.append_view(&view.to_view())
     }
     var status = result.status()
     if(status.signaled()) {
@@ -381,7 +381,7 @@ func vector_zero_sized_element_works(env : &mut TestEnv) {
     var rc = safety_compile_and_run(env, "vector_zero_sized_element_works", ch, &mut out)
     if(rc != 0) {
         env.error("zero-sized vector should compile and run")
-        if(out.size() > 0) { env.error(out.data()) }
+        if(out.size() > 0) { test_env::ffi::log_cstr(env, LogType.Error, out.data(), 0, 0) }
     }
 }
 

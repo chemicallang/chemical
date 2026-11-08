@@ -70,6 +70,37 @@ func page_safe_append_escaped_blocks_injection(env : &mut TestEnv) {
 }
 
 @test
+func page_shared_assets_handle_owns_lifecycle(env : &mut TestEnv) {
+    var handle = SharedAssetsHandle.make("safe-api")
+    if(!handle.is_valid()) { env.error("SharedAssetsHandle.make returned an invalid handle"); return }
+    var page = HtmlPage()
+    page.attach_shared_ref(handle.get_mut())
+    if(!page.has_shared()) { env.error("attach_shared_ref did not attach the sink"); return }
+    page.detach_shared()
+    if(page.has_shared()) { env.error("detach_shared did not detach the sink"); return }
+    // The handle's destructor frees the heap sink exactly once at scope exit.
+}
+
+@test
+func page_canonical_methods_are_type_safe(env : &mut TestEnv) {
+    var html_page = HtmlPage()
+    html_page.append_html("<b>canonical</b>")
+    html_page.append_js("var canonical = 1;")
+    html_page.append_css(".canonical{}")
+
+    var escaped = escape_html("<script>")
+    if(!ps_contains(escaped.to_view(), string_view("&lt;script&gt;"))) {
+        env.error("escape_html(&str) did not escape markup"); return
+    }
+
+    var count : int = 7
+    html_page.add_parameter<int>("count", &count)
+    if(!ps_eq(html_page.get_parameter("count"), string_view("7"))) {
+        env.error("typed add_parameter did not round-trip"); return
+    }
+}
+
+@test
 func page_safe_typed_parameter_round_trip(env : &mut TestEnv) {
     var html_page = HtmlPage()
 

@@ -39,7 +39,7 @@ async func async_worker_increment(shared : std::Arc<std::Mutex<int>>) : int {
 func worker_channel_send(sender : async::Sender<int>) : int {
     var i = 0
     while(i < 200) {
-        if(!sender.send(i)) {
+        if(sender.send(i) is std::Result.Err) {
             return -1
         }
         i = i + 1
@@ -112,8 +112,8 @@ public func main() : int {
     var spins = 0
     while(received < 200 && spins < 200000) {
         var next = ch.receiver.try_recv()
-        if(next is std::Option.Some) {
-            var Some(value) = next else unsafe { unreachable }
+        if(next is std::Result.Ok) {
+            var Ok(value) = next else unsafe { unreachable }
             total = total + value
             received = received + 1
         } else {

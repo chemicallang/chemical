@@ -7,7 +7,7 @@ using namespace std;
 @test
 public func test_router_parameter_text_roundtrip(env : &mut TestEnv) {
     var page = HtmlPage()
-    page.add_parameter("greeting", "hello")
+    page.add_parameter_view("greeting", "hello")
     if(!page.has_parameter("greeting")) {
         env.error("has_parameter should be true for an inserted key")
         return
@@ -22,8 +22,8 @@ public func test_router_parameter_text_roundtrip(env : &mut TestEnv) {
 public func test_router_parameter_object_roundtrip(env : &mut TestEnv) { unsafe {
     var page = HtmlPage()
     var value : int = 42
-    page.add_parameter_object("ptr", (&raw mut value) as *mut void)
-    const p = get_parameter_object<int>(&mut page, "ptr")
+    page.add_parameter_object_raw("ptr", (&raw mut value) as *mut void)
+    const p = router::raw::get_parameter_object<int>(&mut page, "ptr")
     if(p == null) {
         env.error("get_parameter_object should resolve an inserted object")
         return
@@ -43,7 +43,7 @@ public func test_router_parameter_miss_paths(env : &mut TestEnv) {
     if(v.size() != 0) {
         env.error("get_parameter on a miss should be empty")
     }
-    const p = get_parameter_object<int>(&mut page, "nope")
+    const p = router::raw::get_parameter_object<int>(&mut page, "nope")
     if(p != null) {
         env.error("get_parameter_object on a miss should be null")
     }
@@ -52,8 +52,8 @@ public func test_router_parameter_miss_paths(env : &mut TestEnv) {
 @test
 public func test_router_parameter_wrong_type(env : &mut TestEnv) {
     var page = HtmlPage()
-    page.add_parameter("text", "x")
-    const p = get_parameter_object<int>(&mut page, "text")
+    page.add_parameter_view("text", "x")
+    const p = router::raw::get_parameter_object<int>(&mut page, "text")
     if(p != null) {
         env.error("get_parameter_object on a Text parameter should be null")
     }
@@ -80,7 +80,7 @@ public func test_router_manifest_json(env : &mut TestEnv) {
     var expected = std::string_view("{\"routers\":[{\"name\":\"main\",\"routes\":[{\"id\":\"projects\",\"pattern\":\"/projects/{id}\",\"fallback\":false},{\"id\":\"not-found\",\"pattern\":null,\"fallback\":true}]}]}")
     if(!json.to_view().equals(&expected)) {
         env.error("route_manifest_json did not match")
-        env.info(json.data())
+        test_env::ffi::log_cstr(env, LogType.Information, json.data(), 0, 0)
     }
 }
 
@@ -93,6 +93,6 @@ public func test_router_manifest_document(env : &mut TestEnv) {
     var expected = std::string_view("{\"name\":\"index\",\"base\":\"/app\",\"routers\":[{\"name\":\"main\",\"routes\":[{\"id\":\"projects\",\"pattern\":\"/projects/{id}\",\"fallback\":false},{\"id\":\"not-found\",\"pattern\":null,\"fallback\":true}]}]}")
     if(!json.to_view().equals(&expected)) {
         env.error("route_manifest_document did not match template 6")
-        env.info(json.data())
+        test_env::ffi::log_cstr(env, LogType.Information, json.data(), 0, 0)
     }
 }

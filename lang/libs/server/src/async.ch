@@ -20,7 +20,7 @@ using std::string;
 // is called. Resolves with 0 on a clean shutdown.
 //
 // Drive it with `async::block_on<int>(serve_files_async(...))`, or submit it
-// with `async::spawn<int>(...)` and stop it by calling `srv.shutdown()` (the
+// with `async::raw::spawn<int>(...)` and stop it by calling `srv.shutdown()` (the
 // accept loop observes `srv.run`). The caller owns `srv`; the same pattern as
 // the synchronous `Server::S.serve`.
 // Route installation is deliberately synchronous: the handler owns a shared

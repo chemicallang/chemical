@@ -92,11 +92,10 @@ func emit_state(reporter : *mut TestReporter, fn_state : *mut TestFunctionState)
         unsafe {
         const fn = fn_state.fn
         var outcome = make_test_outcome(std::string_view("test"), fn.name, fn.group, fn.id)
-        outcome.passed = !fn_state.has_failed
-        outcome.exit_code = fn_state.exitCode as int
-        outcome.message = fn_state.failed_msg_parse.to_view()
-        outcome.logs_ptr = fn_state.logs.data()
-        outcome.logs_count = fn_state.logs.size()
+        outcome.set_passed(!fn_state.has_failed)
+        outcome.set_exit_code(fn_state.exitCode as int)
+        outcome.set_failure_message(fn_state.failed_msg_parse.to_view())
+        outcome.set_logs(unsafe(std::span<TestLog>(fn_state.logs.data(), fn_state.logs.size())))
         reporter.on_test(&outcome)
 
         }

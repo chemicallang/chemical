@@ -1,8 +1,8 @@
 // safe — additive owning/borrowing façade over the window API.
 //
-// The legacy surface (`window_create`, `window_set_*`, `window_run`, callback
-// setters with `*mut void` user data) stays in the platform files. This file
-// adds the normal-use surface:
+// The raw surface (`window_create`, `window_set_*`, `window_run`, callback
+// setters with `*mut void` user data) lives under `window::raw`. This file is
+// the canonical normal-use surface:
 //
 //   * `window::safe::Window` is an owning handle created with `Window.new(&str)`
 //     and destroyed by its `@delete` destructor or `close()`;
@@ -20,6 +20,7 @@ public namespace window {
 
 public namespace safe {
 
+using std::Option;
 using std::Result;
 using std::string;
 using std::string_view;
@@ -34,6 +35,14 @@ public type FocusHandler = std::function<(focused : bool) => void>
 public type EventHandler = std::function<(event : &Event) => void>
 public type DropHandler = std::function<(path : string_view) => void>
 public type CommandHandler = std::function<(id : int) => void>
+public type TimerHandler = std::function<() => void>
+
+// One owned timer callback. The native timer receives the box address as user
+// data; the box lives until `cancel_timer`/the window destructor frees it.
+@direct_init
+protected struct TimerBox {
+    var cb : TimerHandler
+}
 
 // Empty typed handlers return a real `%capture` value (not a bare function
 // pointer), so `off_*` releases the previous captures through normal assignment.
@@ -76,6 +85,9 @@ protected struct WindowState {
     var drop_fn : DropHandler
     var has_command : bool
     var command_fn : CommandHandler
+    // Owned timer callback boxes, indexed by (native timer id - 1). The array
+    // is zeroed with the rest of the state, so unused slots are null.
+    var timer_boxes : [16]*mut TimerBox
 }
 
 // ---------------------------------------------------------------------------
@@ -119,6 +131,12 @@ func on_command_trampoline(data : *mut void, id : int) { unsafe {
     st.command_fn(id)
 }}
 
+func on_timer_trampoline(data : *mut void) { unsafe {
+    var box = data as *mut TimerBox
+    if(box == null) { return }
+    box.cb()
+}}
+
 // ---------------------------------------------------------------------------
 // Owning handle
 // ---------------------------------------------------------------------------
@@ -153,7 +171,7 @@ public struct Window {
             st.inner.drop_cb = on_drop_trampoline
             st.inner.command_cb = on_command_trampoline
 
-            var created = window_create(&raw mut st.inner)
+            var created = raw::window_create(&raw mut st.inner)
             if(created is Result.Err) {
                 var Err(err) = created else unsafe { unreachable }
                 delete st
@@ -167,7 +185,7 @@ public struct Window {
         unsafe {
             var st = self.state
             if(st == null || st.closed) { return false }
-            return window_is_created(&raw mut st.inner)
+            return raw::window_is_created(&raw mut st.inner)
         }
     }
 
@@ -177,7 +195,7 @@ public struct Window {
         unsafe {
             var st = self.state
             if(st == null) { return string("") }
-            return window_title(&raw mut st.inner)
+            return raw::window_title(&raw mut st.inner)
         }
     }
 
@@ -187,7 +205,7 @@ public struct Window {
             if(st == null || st.closed) { return }
             var text = string()
             text.append_view(title.to_view())
-            window_set_title(&raw mut st.inner, text.data())
+            raw::window_set_title(&raw mut st.inner, text.data())
         }
     }
 
@@ -195,7 +213,7 @@ public struct Window {
         unsafe {
             var st = self.state
             if(st == null) { return Size.make(0, 0) }
-            return window_size(&raw mut st.inner)
+            return raw::window_size(&raw mut st.inner)
         }
     }
 
@@ -203,7 +221,7 @@ public struct Window {
         unsafe {
             var st = self.state
             if(st == null) { return Size.make(0, 0) }
-            return window_client_size(&raw mut st.inner)
+            return raw::window_client_size(&raw mut st.inner)
         }
     }
 
@@ -211,7 +229,7 @@ public struct Window {
         unsafe {
             var st = self.state
             if(st == null || st.closed) { return }
-            window_set_size(&raw mut st.inner, width, height)
+            raw::window_set_size(&raw mut st.inner, width, height)
         }
     }
 
@@ -219,7 +237,7 @@ public struct Window {
         unsafe {
             var st = self.state
             if(st == null) { return Position.make(0, 0) }
-            return window_position(&raw mut st.inner)
+            return raw::window_position(&raw mut st.inner)
         }
     }
 
@@ -227,7 +245,7 @@ public struct Window {
         unsafe {
             var st = self.state
             if(st == null || st.closed) { return }
-            window_set_position(&raw mut st.inner, x, y)
+            raw::window_set_position(&raw mut st.inner, x, y)
         }
     }
 
@@ -237,7 +255,7 @@ public struct Window {
         unsafe {
             var st = self.state
             if(st == null || st.closed) { return }
-            window_show(&raw mut st.inner)
+            raw::window_show(&raw mut st.inner)
         }
     }
 
@@ -245,7 +263,7 @@ public struct Window {
         unsafe {
             var st = self.state
             if(st == null || st.closed) { return }
-            window_hide(&raw mut st.inner)
+            raw::window_hide(&raw mut st.inner)
         }
     }
 
@@ -253,7 +271,7 @@ public struct Window {
         unsafe {
             var st = self.state
             if(st == null || st.closed) { return }
-            window_focus(&raw mut st.inner)
+            raw::window_focus(&raw mut st.inner)
         }
     }
 
@@ -263,7 +281,7 @@ public struct Window {
         unsafe {
             var st = self.state
             if(st == null || st.closed) { return }
-            window_close(&raw mut st.inner)
+            raw::window_close(&raw mut st.inner)
             st.closed = true
         }
     }
@@ -274,7 +292,7 @@ public struct Window {
         unsafe {
             var st = self.state
             if(st == null || st.closed) { return }
-            window_set_cursor(&raw mut st.inner, cursor)
+            raw::window_set_cursor(&raw mut st.inner, cursor)
         }
     }
 
@@ -286,7 +304,7 @@ public struct Window {
             }
             var p = string()
             p.append_view(path.to_view())
-            window_set_icon(&raw mut st.inner, p.data())
+            raw::window_set_icon(&raw mut st.inner, p.data())
             return Result.Ok(std::Unit{})
         }
     }
@@ -295,7 +313,7 @@ public struct Window {
         unsafe {
             var st = self.state
             if(st == null || st.closed) { return }
-            window_set_opacity(&raw mut st.inner, opacity)
+            raw::window_set_opacity(&raw mut st.inner, opacity)
         }
     }
 
@@ -303,7 +321,7 @@ public struct Window {
         unsafe {
             var st = self.state
             if(st == null || st.closed) { return }
-            window_set_always_on_top(&raw mut st.inner, on_top)
+            raw::window_set_always_on_top(&raw mut st.inner, on_top)
         }
     }
 
@@ -311,7 +329,7 @@ public struct Window {
         unsafe {
             var st = self.state
             if(st == null || st.closed) { return }
-            window_set_decorated(&raw mut st.inner, decorated)
+            raw::window_set_decorated(&raw mut st.inner, decorated)
         }
     }
 
@@ -319,7 +337,7 @@ public struct Window {
         unsafe {
             var st = self.state
             if(st == null) { return 96 }
-            return window_dpi(&raw mut st.inner)
+            return raw::window_dpi(&raw mut st.inner)
         }
     }
 
@@ -327,8 +345,33 @@ public struct Window {
         unsafe {
             var st = self.state
             if(st == null) { return 1.0 }
-            return window_scale_factor(&raw mut st.inner)
+            return raw::window_scale_factor(&raw mut st.inner)
         }
+    }
+
+    // ── monitors / clipboard ─────────────────────────────────────────────
+    // These are process-global in the native backend; the instance methods are
+    // ergonomic forwarding wrappers so a caller never needs `window::raw`.
+
+    public func monitor_count(&self) : int {
+        return raw::window_monitor_count()
+    }
+
+    public func monitor_bounds(&self, index : int) : Rect {
+        return raw::window_monitor_bounds(index)
+    }
+
+    public func monitor_scale(&self, index : int) : double {
+        return raw::window_monitor_scale(index)
+    }
+
+    // An owned copy of the clipboard text, or None when it is empty/unavailable.
+    public func get_clipboard(&self) : Option<string> {
+        return raw::window_get_clipboard()
+    }
+
+    public func set_clipboard(&self, text : &std::str) : bool {
+        return raw::window_set_clipboard(text.to_view())
     }
 
     // Explicit raw platform handle access. The returned pointer is owned by the
@@ -337,7 +380,7 @@ public struct Window {
         unsafe {
             var st = self.state
             if(st == null) { return null }
-            return window_native_handle(&raw mut st.inner)
+            return raw::window_native_handle(&raw mut st.inner)
         }
     }
 
@@ -455,13 +498,63 @@ public struct Window {
         }
     }
 
+    // ── timers (owned callback) ──────────────────────────────────────────
+
+    // Register a periodic timer. The returned id is passed to `cancel_timer`.
+    // The callback is owned by the handle and released by `cancel_timer` or
+    // when the window is destroyed.
+    public func set_timer(&mut self, interval_ms : int, handler : TimerHandler) : Result<int, WindowError> {
+        unsafe {
+            var st = self.state
+            if(st == null || st.closed) {
+                return Result.Err(WindowError.InvalidState(string("window is closed")))
+            }
+            var box = new TimerBox
+            if(box == null) {
+                return Result.Err(WindowError.CreateFailed(string("window: out of memory")))
+            }
+            memset(box as *mut void, 0, sizeof(TimerBox))
+            box.cb = handler
+            const id = raw::window_set_timer(interval_ms, on_timer_trampoline, box as *mut void)
+            if(id <= 0 || id > 16) {
+                delete box
+                return Result.Err(WindowError.CreateFailed(string("window: no timer slot available")))
+            }
+            st.timer_boxes[id - 1] = box
+            return Result.Ok(id)
+        }
+    }
+
+    public func cancel_timer(&mut self, id : int) {
+        unsafe {
+            var st = self.state
+            if(st == null) { return }
+            raw::window_cancel_timer(id)
+            if(id > 0 && id <= 16) {
+                var box = st.timer_boxes[id - 1]
+                if(box != null) {
+                    delete box
+                    st.timer_boxes[id - 1] = null
+                }
+            }
+        }
+    }
+
     @delete
     func destruct(&self) {
         unsafe {
             var st = self.state
             if(st == null) { return }
+            // Stop and free every owned timer before tearing down native state.
+            for(var i : int = 0; i < 16; i++) {
+                if(st.timer_boxes[i] != null) {
+                    raw::window_cancel_timer(i + 1)
+                    delete st.timer_boxes[i]
+                    st.timer_boxes[i] = null
+                }
+            }
             if(!st.closed && st.inner.created) {
-                window_destroy(&raw mut st.inner)
+                raw::window_destroy(&raw mut st.inner)
             }
             delete st
         }

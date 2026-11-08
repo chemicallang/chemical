@@ -17,97 +17,6 @@
 // leaked and nothing is written after free.
 public namespace async {
 
-public struct BlockingState<T> {
-    internal var m : std::mutex
-    internal var ready : bool
-    internal var consumed : bool
-    internal var abandoned : bool
-    internal var value : std::Option<T>
-    internal var task : std::function<() => T>
-    internal var vtbl : *mut core::async::FutureTable<T>
-}
-
-impl<T> !Send for BlockingState<T> { }
-impl<T> !Sync for BlockingState<T> { }
-
-@retained
-public func <T> blocking_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
-        unsafe {
-        var st = frame as *mut BlockingState<T>
-        st.m.lock()
-        if(!st.ready) {
-            st.m.unlock()
-            return core::async::Poll.Pending<T>()
-        }
-        var taken = st.value.take()
-        st.ready = false
-        st.consumed = true
-        st.m.unlock()
-        return core::async::Poll.Ready<T>(taken)
-
-        }
-    }
-
-@retained
-public func <T> blocking_drop(frame : *mut void) {
-        unsafe {
-        var st = frame as *mut BlockingState<T>
-        var vtbl = st.vtbl
-        var free_state = false
-        st.m.lock()
-        if(st.consumed) {
-            // consumer already took the value; nothing left to destroy here
-            free_state = true
-        } else if(st.abandoned) {
-            // worker is still running and will free the state itself
-            free_state = false
-        } else if(st.ready) {
-            // worker finished but the result was never consumed; destroy it here
-            st.ready = false
-            free_state = true
-        } else {
-            // worker has not finished yet; hand ownership of the state to it
-            st.abandoned = true
-            free_state = false
-        }
-        st.m.unlock()
-        if(free_state) {
-            unsafe {
-                delete st
-            }
-        }
-        if(vtbl != null) {
-            unsafe {
-                dealloc vtbl
-            }
-        }
-
-        }
-    }
-
-// Lazily created, process-wide blocking pool. `ThreadPool` owns native worker
-// threads and frees them in its destructor; it is intentionally never torn down
-// before process exit.
-@never_destructed
-var g_blocking_pool : std::concurrent.ThreadPool
-var g_blocking_pool_ready : bool = false
-
-@retained
-public func blocking_pool() : *mut std::concurrent.ThreadPool {
-        unsafe {
-        if(!g_blocking_pool_ready) {
-            var n = std::concurrent.hardware_threads()
-            if(n < 1u) {
-                n = 1u
-            }
-            g_blocking_pool = std::concurrent.create_pool(n as uint)
-            g_blocking_pool_ready = true
-        }
-        return &raw mut g_blocking_pool
-
-        }
-    }
-
 // Run `f` on the blocking pool and return its future. Await it with
 // `await spawn_blocking(...)` / `async::block_on(...)`.
 //
@@ -116,7 +25,7 @@ public func blocking_pool() : *mut std::concurrent.ThreadPool {
 // unsafe boundary until capture-type tracking lands (S6.5).
 public unsafe func <T> spawn_blocking(f : std::function<() => T>) : core::async::FutureHandle<'static, T> {
         unsafe {
-        var st = unsafe(malloc(sizeof(BlockingState<T>))) as *mut BlockingState<T>
+        var st = unsafe(malloc(sizeof(raw::BlockingState<T>))) as *mut raw::BlockingState<T>
         if(st == null) {
             panic("failed to allocate blocking state")
         }
@@ -125,9 +34,9 @@ public unsafe func <T> spawn_blocking(f : std::function<() => T>) : core::async:
             unsafe { dealloc st }
             panic("failed to allocate blocking vtable")
         }
-        vtbl.poll = blocking_poll<T>
-        vtbl.drop = blocking_drop<T>
-        new(st) BlockingState<T> {
+        vtbl.poll = raw::blocking_poll<T>
+        vtbl.drop = raw::blocking_drop<T>
+        new(st) raw::BlockingState<T> {
             m : std::mutex(),
             ready : false,
             consumed : false,
@@ -136,7 +45,7 @@ public unsafe func <T> spawn_blocking(f : std::function<() => T>) : core::async:
             task : f,
             vtbl : vtbl
         }
-        var pool = blocking_pool()
+        var pool = raw::blocking_pool()
         unsafe { pool.submit_void(|st|() => {
             var r = st.task()
             st.m.lock()

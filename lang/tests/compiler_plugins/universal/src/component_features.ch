@@ -19,7 +19,7 @@ public func feature_boundary_has_data_chx_i_attribute(env : &mut TestEnv) {
         env.success("component SSR boundary has data-chx-i attribute")
     } else {
         env.error("missing data-chx-i on boundary")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -50,7 +50,7 @@ public func feature_boundary_span_wraps_component_html(env : &mut TestEnv) {
         env.success("boundary span wraps the component's rendered HTML")
     } else {
         env.error("boundary span structure incorrect")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -67,7 +67,7 @@ public func feature_component_dedup_function_emitted_once(env : &mut TestEnv) {
         env.success("component function is present in JS output")
     } else {
         env.error("component function missing from JS output")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -85,7 +85,7 @@ public func feature_multiple_component_dispatches_present(env : &mut TestEnv) {
         env.success("dispatch calls present for multiple component instances")
     } else {
         env.error("dispatch calls missing")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -104,7 +104,7 @@ public func feature_state_renders_initial_value_in_ssr(env : &mut TestEnv) {
         env.success("state initial value used in SSR ternary")
     } else {
         env.error("state initial value not reflected in SSR")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -118,7 +118,7 @@ public func feature_state_map_renders_all_items(env : &mut TestEnv) {
         env.success("state array .map() renders all items in SSR")
     } else {
         env.error("state array .map() did not render all items")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -132,7 +132,7 @@ public func feature_state_map_index_renders_correctly(env : &mut TestEnv) {
         env.success("state .map() with index renders index:value pairs")
     } else {
         env.error("state .map() with index incorrect")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -146,7 +146,7 @@ public func feature_state_length_renders_count(env : &mut TestEnv) {
         env.success("state array .length renders correct count")
     } else {
         env.error("state array .length incorrect")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -160,7 +160,7 @@ public func feature_state_concat_renders_all_with_suffix(env : &mut TestEnv) {
         env.success("state .map() with string concatenation renders correctly")
     } else {
         env.error("state .map() concatenation incorrect")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -174,7 +174,7 @@ public func feature_state_numeric_expression_renders(env : &mut TestEnv) {
         env.success("state .map() with numeric expression renders computed values")
     } else {
         env.error("state .map() numeric expression incorrect")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -188,7 +188,7 @@ public func feature_empty_state_array_renders_no_items(env : &mut TestEnv) {
         env.success("empty state array produces no <li> elements")
     } else {
         env.error("empty state array produced unexpected items")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -206,7 +206,7 @@ public func feature_props_passed_through_to_component(env : &mut TestEnv) {
         env.success("props passed through to nested component")
     } else {
         env.error("props not forwarded correctly")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -220,7 +220,7 @@ public func feature_props_array_map_renders_all(env : &mut TestEnv) {
         env.success("props array .map() renders all items")
     } else {
         env.error("props array .map() did not render all items")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -234,7 +234,7 @@ public func feature_props_length_renders_count(env : &mut TestEnv) {
         env.success("props array .length renders correct count")
     } else {
         env.error("props array .length incorrect")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -248,7 +248,7 @@ public func feature_null_prop_skipped_in_ssr(env : &mut TestEnv) {
         env.success("null/undefined props produce no literal 'null' in SSR")
     } else {
         env.error("null prop leaked into SSR output")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -262,7 +262,7 @@ public func feature_numeric_props_render_in_ssr(env : &mut TestEnv) {
         env.success("numeric props render as string in SSR attributes")
     } else {
         env.error("numeric props did not render correctly")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -281,7 +281,7 @@ public func feature_nested_component_renders_inner_html(env : &mut TestEnv) {
         env.success("nested component renders inner component's HTML")
     } else {
         env.error("nested component did not render inner HTML")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -295,7 +295,7 @@ public func feature_nested_component_with_props(env : &mut TestEnv) {
         env.success("nested component receives and renders props")
     } else {
         env.error("nested component props not forwarded")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -313,7 +313,7 @@ public func feature_fragment_renders_multiple_children(env : &mut TestEnv) {
         env.success("fragment renders all sibling children")
     } else {
         env.error("fragment did not render all children")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -331,7 +331,7 @@ public func feature_spread_props_forward_all(env : &mut TestEnv) {
         env.success("spread props forwarded alongside static attrs")
     } else {
         env.error("spread props not forwarded correctly")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -347,7 +347,7 @@ public func feature_spread_static_overrides_dynamic(env : &mut TestEnv) {
         env.success("static attribute overrides spread attribute (last-wins)")
     } else {
         env.error("static did not override spread")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -365,7 +365,7 @@ public func feature_conditional_true_branch_renders(env : &mut TestEnv) {
         env.success("state=true renders true branch in SSR")
     } else {
         env.error("state=true did not render true branch")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -379,7 +379,7 @@ public func feature_conditional_false_branch_renders(env : &mut TestEnv) {
         env.success("state=false renders false branch in SSR")
     } else {
         env.error("state=false did not render false branch")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -398,7 +398,7 @@ public func feature_inline_style_object_renders_in_ssr(env : &mut TestEnv) {
         env.success("inline style object renders correct value in SSR")
     } else {
         env.error("inline style object not rendered in SSR")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -418,7 +418,7 @@ public func feature_js_output_has_function_and_dispatch(env : &mut TestEnv) {
         env.success("JS output contains both function definition and dispatch")
     } else {
         env.error("JS output missing function or dispatch")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -432,7 +432,7 @@ public func feature_js_state_creates_signal(env : &mut TestEnv) {
         env.success("state declaration generates $_us() call in JS")
     } else {
         env.error("state declaration missing $_us() in JS output")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -446,7 +446,7 @@ public func feature_js_use_effect_registers(env : &mut TestEnv) {
         env.success("useEffect generates $_r.useEffect() call in JS")
     } else {
         env.error("useEffect missing from JS output")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -460,7 +460,7 @@ public func feature_js_event_handler_emitted(env : &mut TestEnv) {
         env.success("event handler emitted in JS output")
     } else {
         env.error("event handler missing from JS output")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -481,7 +481,7 @@ public func feature_multiple_component_types_on_page(env : &mut TestEnv) {
         env.success("multiple component types render correctly on same page")
     } else {
         env.error("multiple component types did not render correctly")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -498,7 +498,7 @@ public func feature_same_component_multiple_times(env : &mut TestEnv) {
         env.success("same component rendered multiple times with different props")
     } else {
         env.error("multiple instances of same component failed")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -516,7 +516,7 @@ public func feature_map_block_body_renders_all(env : &mut TestEnv) {
         env.success(".map() with block body renders all items")
     } else {
         env.error(".map() block body did not render correctly")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -534,7 +534,7 @@ public func feature_inline_literal_array_map(env : &mut TestEnv) {
         env.success("inline literal array .map() renders correctly")
     } else {
         env.error("inline literal array .map() did not render correctly")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -553,7 +553,7 @@ public func feature_state_initialized_from_props(env : &mut TestEnv) {
         env.success("state initialized from props renders correctly")
     } else {
         env.error("state props init incorrect")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -571,7 +571,7 @@ public func feature_component_with_class_merge(env : &mut TestEnv) {
         env.success("component class merge produces both base and extra classes")
     } else {
         env.error("component class merge incorrect")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -590,7 +590,7 @@ public func feature_nested_universal_with_component_child(env : &mut TestEnv) {
         env.success("nested universal component renders child component's HTML")
     } else {
         env.error("nested universal component child not rendered")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -608,7 +608,7 @@ public func feature_backtick_in_text_content_not_interpolated(env : &mut TestEnv
         env.success("backtick in text content is preserved literally")
     } else {
         env.error("backtick text content not rendered")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -626,7 +626,7 @@ public func feature_dollar_identifier_not_treated_as_interpolation(env : &mut Te
         env.success("dollar identifier in JSX not treated as interpolation")
     } else {
         env.error("dollar identifier handling incorrect")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -644,7 +644,7 @@ public func feature_typeof_check_emitted_correctly(env : &mut TestEnv) {
         env.success("typeof check emitted in JS output")
     } else {
         env.error("typeof check missing from JS output")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -662,7 +662,7 @@ public func feature_parenthesized_ternary_member_access(env : &mut TestEnv) {
         env.success("parenthesized ternary with member access emitted")
     } else {
         env.error("parenthesized ternary not emitted correctly")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -680,7 +680,7 @@ public func feature_event_handler_nested_through_component(env : &mut TestEnv) {
         env.success("event handler passed through nested component")
     } else {
         env.error("event handler not present in JS output")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -699,7 +699,7 @@ public func feature_spread_with_event_handler(env : &mut TestEnv) {
         env.success("event handler forwarded through spread")
     } else {
         env.error("event handler forwarding through spread failed")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -718,7 +718,7 @@ public func feature_multiple_state_variables(env : &mut TestEnv) {
         env.success("multiple state variables generate multiple $_us() calls")
     } else {
         env.error("multiple state variables incorrect")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -736,7 +736,7 @@ public func feature_empty_component_renders_empty(env : &mut TestEnv) {
         env.success("empty component renders empty div inside boundary")
     } else {
         env.error("empty component rendering incorrect")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -754,7 +754,7 @@ public func feature_deeply_nested_prop_access(env : &mut TestEnv) {
         env.success("deeply nested prop access emitted in JS")
     } else {
         env.error("deeply nested prop access missing from JS")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -772,7 +772,7 @@ public func feature_css_display_contents_rule(env : &mut TestEnv) {
         env.success("defaultUniversalSetup adds display:contents for hydration boundaries")
     } else {
         env.error("display:contents CSS rule missing")
-        env.info(css.data())
+        test_env::ffi::log_cstr(env, LogType.Information, css.data(), 0, 0)
     }
 }
 
@@ -786,6 +786,6 @@ public func feature_head_js_has_dispatch_runtime(env : &mut TestEnv) {
         env.success("headJs contains hydration queue and dispatch runtime")
     } else {
         env.error("headJs missing runtime functions")
-        env.info(headJs.data())
+        test_env::ffi::log_cstr(env, LogType.Information, headJs.data(), 0, 0)
     }
 }

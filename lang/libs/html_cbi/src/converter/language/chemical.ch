@@ -127,9 +127,9 @@ func (converter : &mut ASTConverter) make_value_call(value : *mut Value, len : s
         var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
         var name : std::string_view
         if(converter.in_head) {
-            name = std::string_view("append_head")
+            name = std::string_view("append_head_raw")
         } else {
-            name = std::string_view("append_html")
+            name = std::string_view("append_html_raw")
         }
         var node : *mut ASTNode
         if(converter.in_head) {

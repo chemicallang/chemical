@@ -30,7 +30,7 @@ var g_reg_wv : *mut webview::WebView
 func reg_stop() {
     unsafe {
 
-    if(g_reg_wv != null) { webview::webview_stop(g_reg_wv) }
+    if(g_reg_wv != null) { webview::raw::webview_stop(g_reg_wv) }
 
 }
 }
@@ -76,7 +76,7 @@ func reg_run_bridge(title : *char) : bool {
     var Ok(wv) = wv_result else unsafe { unreachable }
     g_reg_wv = &raw mut wv
 
-    webview::webview_bind(&raw mut wv, (method, args) => {
+    webview::raw::webview_bind(&raw mut wv, (method, args) => {
         if(method.find(string_view::make_no_len("ping")) == 0) {
             g_reg_ok = true
             reg_stop()
@@ -87,10 +87,10 @@ func reg_run_bridge(title : *char) : bool {
     })
 
     var html = "<html><body><script>window.__webview__.call('ping','{}');setTimeout(function(){window.__webview__.call('stop','timeout');},6000);</script></body></html>\0" as *char
-    webview::webview_load_html(&raw mut wv, html)
-    webview::webview_show(&raw mut wv)
-    webview::webview_run(&raw mut wv)
-    webview::webview_destroy(&raw mut wv)
+    webview::raw::webview_load_html(&raw mut wv, html)
+    webview::raw::webview_show(&raw mut wv)
+    webview::raw::webview_run(&raw mut wv)
+    webview::raw::webview_destroy(&raw mut wv)
     g_reg_wv = null
     return g_reg_ok
 
@@ -123,7 +123,7 @@ public func test_webview_load_html_large_page(env : &mut TestEnv) {
     var Ok(wv) = wv_result else unsafe { unreachable }
     g_reg_wv = &raw mut wv
 
-    webview::webview_bind(&raw mut wv, (method, args) => {
+    webview::raw::webview_bind(&raw mut wv, (method, args) => {
         if(method.find(string_view::make_no_len("padlen")) == 0) {
             // The page must have executed and seen all ~90 KB of padding.
             g_reg_ok = args.contains(string_view::make_no_len("90000"))
@@ -135,10 +135,10 @@ public func test_webview_load_html_large_page(env : &mut TestEnv) {
         return string("{\"ok\":true}")
     })
 
-    webview::webview_load_html(&raw mut wv, html.data() as *char)
-    webview::webview_show(&raw mut wv)
-    webview::webview_run(&raw mut wv)
-    webview::webview_destroy(&raw mut wv)
+    webview::raw::webview_load_html(&raw mut wv, html.data() as *char)
+    webview::raw::webview_show(&raw mut wv)
+    webview::raw::webview_run(&raw mut wv)
+    webview::raw::webview_destroy(&raw mut wv)
     g_reg_wv = null
 
     if(!g_reg_ok) {
@@ -165,7 +165,7 @@ public func test_webview_evaluate_js_large_script(env : &mut TestEnv) {
     var Ok(wv) = wv_result else unsafe { unreachable }
     g_reg_wv = &raw mut wv
 
-    webview::webview_bind(&raw mut wv, (method, args) => {
+    webview::raw::webview_bind(&raw mut wv, (method, args) => {
         if(method.find(string_view::make_no_len("ready")) == 0) {
             // > 32768 chars: a long comment (so truncation loses the statement)
             // followed by the actual call that must still reach the bridge.
@@ -173,7 +173,7 @@ public func test_webview_evaluate_js_large_script(env : &mut TestEnv) {
             var pad = reg_pad(40000)
             big.append_view(string_view::make_view(&pad))
             big.append_view(string_view::make_no_len("*/window.__webview__.call('evok','1');"))
-            webview::webview_evaluate_js(g_reg_wv, big.data() as *char)
+            webview::raw::webview_evaluate_js(g_reg_wv, big.data() as *char)
         } else if(method.find(string_view::make_no_len("evok")) == 0) {
             g_reg_ok = true
             reg_stop()
@@ -184,10 +184,10 @@ public func test_webview_evaluate_js_large_script(env : &mut TestEnv) {
     })
 
     var html = "<html><body><script>window.__webview__.call('ready','{}');setTimeout(function(){window.__webview__.call('stop','timeout');},6000);</script></body></html>\0" as *char
-    webview::webview_load_html(&raw mut wv, html)
-    webview::webview_show(&raw mut wv)
-    webview::webview_run(&raw mut wv)
-    webview::webview_destroy(&raw mut wv)
+    webview::raw::webview_load_html(&raw mut wv, html)
+    webview::raw::webview_show(&raw mut wv)
+    webview::raw::webview_run(&raw mut wv)
+    webview::raw::webview_destroy(&raw mut wv)
     g_reg_wv = null
 
     if(!g_reg_ok) {
@@ -214,7 +214,7 @@ public func test_webview_init_large_script(env : &mut TestEnv) {
     var Ok(wv) = wv_result else unsafe { unreachable }
     g_reg_wv = &raw mut wv
 
-    webview::webview_bind(&raw mut wv, (method, args) => {
+    webview::raw::webview_bind(&raw mut wv, (method, args) => {
         if(method.find(string_view::make_no_len("initok")) == 0) {
             g_reg_ok = true
             reg_stop()
@@ -230,13 +230,13 @@ public func test_webview_init_large_script(env : &mut TestEnv) {
     var pad = reg_pad(40000)
     big.append_view(string_view::make_view(&pad))
     big.append_view(string_view::make_no_len("*/window.__webview__.call('initok','1');"))
-    webview::webview_init(&raw mut wv, big.data() as *char)
+    webview::raw::webview_init(&raw mut wv, big.data() as *char)
 
     var html = "<html><body><script>setTimeout(function(){window.__webview__.call('stop','timeout');},6000);</script></body></html>\0" as *char
-    webview::webview_load_html(&raw mut wv, html)
-    webview::webview_show(&raw mut wv)
-    webview::webview_run(&raw mut wv)
-    webview::webview_destroy(&raw mut wv)
+    webview::raw::webview_load_html(&raw mut wv, html)
+    webview::raw::webview_show(&raw mut wv)
+    webview::raw::webview_run(&raw mut wv)
+    webview::raw::webview_destroy(&raw mut wv)
     g_reg_wv = null
 
     if(!g_reg_ok) {

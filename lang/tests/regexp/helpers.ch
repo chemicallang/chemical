@@ -6,7 +6,7 @@
 // heap under the C backend, so the helpers below never take temporaries.
 
 func rx_check(env : &mut TestEnv, cond : bool, name : *char) {
-    if(cond) { env.success(name) } else { env.error(name) }
+    if(cond) { test_env::ffi::log_cstr(env, LogType.Success, name, 0, 0) } else { test_env::ffi::log_cstr(env, LogType.Error, name, 0, 0) }
 }
 
 func rx_match(env : &mut TestEnv, re : &regex::Regex, text : std::string_view, expected : bool, name : *char) {

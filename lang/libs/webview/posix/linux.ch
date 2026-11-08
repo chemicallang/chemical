@@ -184,7 +184,7 @@ public struct WebView {
     // calls. The handler is heap-allocated (std.function fields cannot be
     // initialized inside a struct literal); bind_ctx is null until bound and
     // bind_handler_set guards dispatch when no handler is bound.
-    var bind_ctx : *mut JsBindHolder
+    var bind_ctx : *mut raw::JsBindHolder
     var bind_handler_set : bool
 
     @make
@@ -219,6 +219,9 @@ func linux_on_window_destroy(widget : *mut GtkWidget, data : *mut void) {
 func linux_on_navigation_complete(web_view : *mut WebKitWebView, event : int, data : *mut void) {
 }
 
+// Raw platform API. Canonical handle: `webview::safe::WebView`.
+public namespace raw {
+
 public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewError> {
     unsafe {
 
@@ -237,12 +240,12 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
         wv.win.width = wv.width
         wv.win.height = wv.height
     }
-    window::window_set_title(&raw mut wv.win, wv.title.data())
-    var wres = window::window_create(&raw mut wv.win)
+    window::raw::window_set_title(&raw mut wv.win, wv.title.data())
+    var wres = window::raw::window_create(&raw mut wv.win)
     if(wres is std::Result.Err) {
         return std.Result.Err(WebViewError.InitFailed(string("failed to create window")))
     }
-    var window_widget = window::window_native_handle(&raw mut wv.win) as *mut GtkWidget
+    var window_widget = window::raw::window_native_handle(&raw mut wv.win) as *mut GtkWidget
 
     // Create box layout
     wv.box = unsafe(gtk_box_new(0, 0)) // horizontal, no spacing
@@ -743,7 +746,7 @@ func gtk_container_add(container : *mut GtkContainer, child : *mut GtkWidget)
 // own top-level window. The webview occupies the section (x, y, width, height)
 // inside a GtkFixed that is added to the app's window; native UI can live in
 // the rest of the app's window. Move the section with webview_set_bounds. The
-// parent must already be created via window::window_create.
+// parent must already be created via window::raw::window_create.
 public func webview_attach(
     wv : *mut WebView,
     parent : *mut window::Window,
@@ -757,8 +760,8 @@ public func webview_attach(
     if(parent == null) {
         return std.Result.Err(WebViewError.InitFailed(string("webview_attach: parent window is null")))
     }
-    if(!window::window_is_created(parent)) {
-        return std.Result.Err(WebViewError.InitFailed(string("webview_attach: parent window is not created (call window::window_create first)")))
+    if(!window::raw::window_is_created(parent)) {
+        return std.Result.Err(WebViewError.InitFailed(string("webview_attach: parent window is not created (call window::raw::window_create first)")))
     }
     if(wv.attached) {
         return std.Result.Err(WebViewError.InitFailed(string("webview_attach: webview is already attached")))
@@ -787,7 +790,7 @@ public func webview_attach(
 
     // Absolute-position the webview inside a GtkFixed so it occupies its
     // section of the app's existing window.
-    var parent_widget = window::window_native_handle(parent) as *mut GtkWidget
+    var parent_widget = window::raw::window_native_handle(parent) as *mut GtkWidget
     wv.fixed = unsafe(gtk_fixed_new())
     unsafe { gtk_widget_set_size_request(wv.web_view, width, height) }
     unsafe { gtk_fixed_put(wv.fixed as *mut GtkFixed, wv.web_view, x, y) }
@@ -851,7 +854,7 @@ public func webview_destroy(wv : *mut WebView) {
     // standalone by-value case the embedded wv.win may also still hold stale
     // pointers (the struct can be relocated by webview::create), so just
     // clear the state.
-    if(window::window_quit_by_destroy() != 0) {
+    if(window::raw::window_quit_by_destroy() != 0) {
         if(wv.bind_ctx != null) {
             delete wv.bind_ctx
         }
@@ -885,8 +888,8 @@ public func webview_destroy(wv : *mut WebView) {
         unsafe { gtk_widget_destroy(wv.web_view) }
         wv.web_view = null
     }
-    if(window::window_is_created(&raw mut wv.win)) {
-        window::window_destroy(&raw mut wv.win)
+    if(window::raw::window_is_created(&raw mut wv.win)) {
+        window::raw::window_destroy(&raw mut wv.win)
     }
 
 }
@@ -1027,8 +1030,8 @@ public func webview_set_title(wv : *mut WebView, title : *char) {
 
     wv.title = string("")
     wv.title.append_char_ptr(title)
-    if(!wv.attached && window::window_is_created(&raw mut wv.win)) {
-        window::window_set_title(&raw mut wv.win, title)
+    if(!wv.attached && window::raw::window_is_created(&raw mut wv.win)) {
+        window::raw::window_set_title(&raw mut wv.win, title)
     }
 
 }
@@ -1039,8 +1042,8 @@ public func webview_set_size(wv : *mut WebView, width : int, height : int) {
 
     wv.width = width
     wv.height = height
-    if(!wv.attached && window::window_is_created(&raw mut wv.win)) {
-        window::window_set_size(&raw mut wv.win, width, height)
+    if(!wv.attached && window::raw::window_is_created(&raw mut wv.win)) {
+        window::raw::window_set_size(&raw mut wv.win, width, height)
     }
 
 }
@@ -1056,8 +1059,8 @@ public func webview_show(wv : *mut WebView) {
             unsafe { gtk_widget_show_all(wv.fixed) }
         }
         wv.visible = true
-    } else if(window::window_is_created(&raw mut wv.win)) {
-        window::window_show(&raw mut wv.win)
+    } else if(window::raw::window_is_created(&raw mut wv.win)) {
+        window::raw::window_show(&raw mut wv.win)
         wv.visible = true
     }
 
@@ -1072,8 +1075,8 @@ public func webview_hide(wv : *mut WebView) {
         if(wv.fixed != null) {
             unsafe { gtk_widget_hide(wv.fixed) }
         }
-    } else if(window::window_is_created(&raw mut wv.win)) {
-        window::window_hide(&raw mut wv.win)
+    } else if(window::raw::window_is_created(&raw mut wv.win)) {
+        window::raw::window_hide(&raw mut wv.win)
     }
 
 }
@@ -1083,8 +1086,8 @@ public func webview_run(wv : *mut WebView) {
     unsafe {
 
     if(!wv.attached) {
-        window::window_run()
-        if(window::window_quit_by_destroy() != 0) {
+        window::raw::window_run()
+        if(window::raw::window_quit_by_destroy() != 0) {
             // The user closed the window: the webview and window are gone.
             // Clear the stale references so webview_destroy is a no-op.
             wv.web_view = null
@@ -1098,11 +1101,11 @@ public func webview_run(wv : *mut WebView) {
 }
 
 public func webview_stop(wv : *mut WebView) {
-    window::window_quit()
+    window::raw::window_quit()
 }
 
 // Like webview_run, but the event loop also drives the async executor
-// (`window_run_async`), so tasks submitted with `async::spawn_local` are polled
+// (`window_run_async`), so tasks submitted with `async::raw::spawn_local` are polled
 // on the UI thread. Use this when the app's bridge handlers await background
 // work and must touch the webview in the continuation.
 public func webview_run_async(wv : *mut WebView) {
@@ -1110,7 +1113,7 @@ public func webview_run_async(wv : *mut WebView) {
 
     if(!wv.attached) {
         window::window_run_async()
-        if(window::window_quit_by_destroy() != 0) {
+        if(window::raw::window_quit_by_destroy() != 0) {
             wv.web_view = null
             wv.win.created = false
             wv.win.widget = null
@@ -1191,8 +1194,8 @@ public func webview_set_size_hints(wv : *mut WebView, width : int, height : int,
 
     wv.width = width
     wv.height = height
-    if(!wv.attached && window::window_is_created(&raw mut wv.win) && wv.web_view != null) {
-        var win = window::window_native_handle(&raw mut wv.win) as *mut GtkWindow
+    if(!wv.attached && window::raw::window_is_created(&raw mut wv.win) && wv.web_view != null) {
+        var win = window::raw::window_native_handle(&raw mut wv.win) as *mut GtkWindow
         if(hint == webview::SIZE_HINT_FIXED) {
             unsafe { gtk_widget_set_size_request(wv.web_view as *mut GtkWidget, width, height) }
             unsafe { gtk_window_set_resizable(win, 0) }
@@ -1318,7 +1321,7 @@ public func webview_get_native_handle(wv : *mut WebView, kind : int) : *mut void
         return null
     }
     if(kind == webview::NATIVE_HANDLE_WINDOW) {
-        return window::window_native_handle(&raw mut wv.win) as *mut void
+        return window::raw::window_native_handle(&raw mut wv.win) as *mut void
     }
     if(kind == webview::NATIVE_HANDLE_WIDGET) {
         return wv.web_view as *mut void
@@ -1368,5 +1371,7 @@ public func webview_browse_folder(title : *char) : string {
 
 }
 }
+
+} // namespace raw
 
 } // end namespace webview

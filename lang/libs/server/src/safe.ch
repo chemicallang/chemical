@@ -34,7 +34,7 @@ public func serve_static(root : &std::str, port : uint = 8080u, addr : &std::str
 }
 
 // Coroutine static-file server. Drive it with `async::block_on<int>(...)` or
-// submit it with `async::spawn<int>(...)`; `srv.shutdown()` stops the accept
+// submit it with `async::raw::spawn<int>(...)`; `srv.shutdown()` stops the accept
 // loop. The server and the root string live in this function's async frame for
 // the whole run.
 public async func serve_static_async(root : &std::str, port : uint = 8080u,

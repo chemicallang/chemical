@@ -72,7 +72,7 @@ func (converter : &mut MdConverter) make_html_value_call(value : *mut Value, len
         const builder = converter.builder
         const location = intrinsics::get_raw_location()
         var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
-        var id = builder.make_identifier(std::string_view("append_html"), converter.support.appendHtmlFn, false, location)
+        var id = builder.make_identifier(std::string_view("append_html_raw"), converter.support.appendHtmlFn, false, location)
         const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
         var call = builder.make_function_call_node(chain, converter.parent, location)
         var args = call.get_args()

@@ -32,7 +32,7 @@ public func test_router_server_deeplink_selects_route(env : &mut TestEnv) {
     const active = std::string_view("data-uni-route=\"main#/projects/{id}\" data-uni-route-active=\"true\"")
     if(html.find(&active) == std::NPOS) {
         env.error("deep link should select the URL route server-side")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
     }
     // The matched param is stored for the SSR props / activation tail.
@@ -133,7 +133,7 @@ public func test_router_server_percent_decoding(env : &mut TestEnv) {
     const id = page.get_parameter("id")
     if(!id.equals(std::string_view("a b"))) {
         env.error("a deep-linked percent-encoded param should be decoded")
-        env.info(id.data())
+        test_env::ffi::log_cstr(env, LogType.Information, id.data(), 0, 0)
     }
 }
 
@@ -147,7 +147,7 @@ public func test_router_server_param_plus_not_space(env : &mut TestEnv) {
     const id = page.get_parameter("id")
     if(!id.equals(std::string_view("a+b"))) {
         env.error("a `+` in a path param must stay a literal plus")
-        env.info(id.data())
+        test_env::ffi::log_cstr(env, LogType.Information, id.data(), 0, 0)
     }
 }
 
@@ -183,7 +183,7 @@ public func test_router_server_param_reaches_ssr_props(env : &mut TestEnv) {
     const expected = std::string_view("<div class=\"proj\">42</div>")
     if(html.find(&expected) == std::NPOS) {
         env.error("a deep-linked {id} must reach the route component's SSR props")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -211,7 +211,7 @@ public func test_router_server_param_reaches_ssr_props(env : &mut TestEnv) {
 @test
 public func test_router_nested_ssr(env : &mut TestEnv) {
     var page = HtmlPage()
-    page.add_parameter("main", "projects")
+    page.add_parameter_view("main", "projects")
     #html { <NestedApp /> }
     var html = page.getHtml()
     const layout = std::string_view("class=\"layout\"")
@@ -223,7 +223,7 @@ public func test_router_nested_ssr(env : &mut TestEnv) {
     const listActive = std::string_view("data-uni-route=\"main#projects#list\" data-uni-route-active=\"true\"")
     if(html.find(&listActive) == std::NPOS) {
         env.error("nested default route should render active")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
     }
     const detailInactive = std::string_view("data-uni-route=\"main#projects#detail\" data-uni-route-active=\"false\"")
@@ -240,7 +240,7 @@ public func test_router_nested_ssr(env : &mut TestEnv) {
 @test
 public func test_router_nested_registry_and_activation(env : &mut TestEnv) {
     var page = HtmlPage()
-    page.add_parameter("main", "projects")
+    page.add_parameter_view("main", "projects")
     #html { <NestedApp /> }
     var doc = page.toString()
     const registry = std::string_view("window.$__uni_routers[\"main#projects\"]")
@@ -288,7 +288,7 @@ public func test_router_nested_param_reaches_ssr(env : &mut TestEnv) {
     const expected = std::string_view("class=\"np\">42</div>")
     if(html.find(&expected) == std::NPOS) {
         env.error("a nested child under /projects/{id} should receive the {id} param at SSR")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -319,7 +319,7 @@ public func test_router_nested_url_deeplink_selects_child(env : &mut TestEnv) {
     const childActive = std::string_view("data-uni-route=\"nurl#/projects/{id}#/settings\" data-uni-route-active=\"true\"")
     if(html.find(&childActive) == std::NPOS) {
         env.error("a deep link to a nested URL route should select the child server-side")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
     }
     const parentActive = std::string_view("data-uni-route=\"nurl#/projects/{id}\" data-uni-route-active=\"true\"")
@@ -338,7 +338,7 @@ public func test_router_nested_url_deeplink_selects_child(env : &mut TestEnv) {
     const rendered = std::string_view("class=\"nup\">42</div>")
     if(html.find(&rendered) == std::NPOS) {
         env.error("the selected nested child should render the inherited {id}")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
     // The nested route's title is emitted for a nested deep link.
     const title = std::string_view("<title>Settings</title>")
@@ -399,7 +399,7 @@ public func test_router_nested_url_under_id_layout(env : &mut TestEnv) {
     const shellActive = std::string_view("data-uni-route=\"idroot#shell\" data-uni-route-active=\"true\"")
     if(html.find(&shellActive) == std::NPOS) {
         env.error("an id layout should activate for a nested URL child")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
     }
     const childActive = std::string_view("data-uni-route=\"idroot#shell#/reports/{id}\" data-uni-route-active=\"true\"")
@@ -426,7 +426,7 @@ public func test_router_nested_url_under_id_layout(env : &mut TestEnv) {
 @test
 public func test_router_nested_without_inline_outlet_still_renders_children(env : &mut TestEnv) {
     var page = HtmlPage()
-    page.add_parameter("nno", "shell")
+    page.add_parameter_view("nno", "shell")
     #html { <NestedNoOutletApp /> }
     var html = page.getHtml()
     const layout = std::string_view("class=\"nno\">shell</div>")
@@ -436,7 +436,7 @@ public func test_router_nested_without_inline_outlet_still_renders_children(env 
     const child = std::string_view("data-uni-route=\"nno#shell#a\"")
     if(html.find(&child) == std::NPOS) {
         env.error("nested wrappers must still be emitted without an inline <Outlet/>")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -470,7 +470,7 @@ public func test_router_nested_fallback_catches_unknown_remainder(env : &mut Tes
     const fbActive = std::string_view("data-uni-route=\"nfb#/projects/{id}#*\" data-uni-route-active=\"true\"")
     if(html.find(&fbActive) == std::NPOS) {
         env.error("the nested fallback wrapper should be active")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
     }
     const layoutActive = std::string_view("data-uni-route=\"nfb#/projects/{id}\" data-uni-route-active=\"true\"")
@@ -480,7 +480,7 @@ public func test_router_nested_fallback_catches_unknown_remainder(env : &mut Tes
     const rendered = std::string_view("class=\"nfb-pane\">Missing 42</div>")
     if(html.find(&rendered) == std::NPOS) {
         env.error("the nested fallback should render the inherited {id}")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -509,7 +509,7 @@ public func test_router_nested_url_child_wins_over_fallback(env : &mut TestEnv) 
     const settingsActive = std::string_view("data-uni-route=\"nfb#/projects/{id}#/settings\" data-uni-route-active=\"true\"")
     if(html.find(&settingsActive) == std::NPOS) {
         env.error("the nested URL child must win over the fallback")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -532,13 +532,13 @@ public func test_router_nested_url_child_wins_over_fallback(env : &mut TestEnv) 
 @test
 public func test_router_separate_component_outlet_ssr(env : &mut TestEnv) {
     var page = HtmlPage()
-    page.add_parameter("bo", "shell")
+    page.add_parameter_view("bo", "shell")
     #html { <BodyOutletApp /> }
     var html = page.getHtml()
     const slot = std::string_view("data-uni-outlet=\"true\"")
     if(html.find(&slot) == std::NPOS) {
         env.error("a layout's own <Outlet/> should SSR a relocation slot")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
     }
     // The nested wrappers are emitted after the layout (relocated client-side),

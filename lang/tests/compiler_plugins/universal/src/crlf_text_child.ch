@@ -36,14 +36,14 @@ public func universal_crlf_jsx_text_child_normalized_in_client_bundle(env : &mut
     // string literal.
     if(js.contains("\r")) {
         env.error("client bundle contains a raw carriage return")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
         return
     }
 
     // Or the escaped form: a JS string literal holding "\r" rather than "\n".
     if(js.contains("\\r")) {
         env.error("client bundle contains an escaped \\r in a string literal")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
         return
     }
 
@@ -51,7 +51,7 @@ public func universal_crlf_jsx_text_child_normalized_in_client_bundle(env : &mut
     // green for the wrong reason. The gap must still be in the bundle as newlines.
     if(!js.contains("\\n")) {
         env.error("fixture did not emit a text child with newlines at all")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
         return
     }
 

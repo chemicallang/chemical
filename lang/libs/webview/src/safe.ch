@@ -1,8 +1,8 @@
 // safe — additive owning/borrowing façade over the webview API.
 //
-// The legacy surface (`webview_create`, `webview_load_url(*char)`,
-// `webview_evaluate_js_result(..., *mut void)`, `webview_bind`, …) stays in
-// the platform files. This file adds the normal-use surface:
+// The raw surface (`webview_create`, `webview_load_url(*char)`,
+// `webview_evaluate_js_result(..., *mut void)`, `webview_bind`, …) lives under
+// `webview::raw`. This file is the canonical normal-use surface:
 //
 //   * `webview::safe::WebView` is an owning handle created with
 //     `WebView.new(&str, width, height)`;
@@ -77,7 +77,7 @@ public struct WebView {
             st.inner.height = height
             st.destroyed = false
 
-            var created = webview_create(&raw mut st.inner)
+            var created = raw::webview_create(&raw mut st.inner)
             if(created is Result.Err) {
                 var Err(err) = created else unsafe { unreachable }
                 delete st
@@ -95,7 +95,7 @@ public struct WebView {
             if(st == null || st.destroyed) { return }
             var text = string()
             text.append_view(url.to_view())
-            webview_load_url(&raw mut st.inner, text.data())
+            raw::webview_load_url(&raw mut st.inner, text.data())
         }
     }
 
@@ -105,7 +105,7 @@ public struct WebView {
             if(st == null || st.destroyed) { return }
             var text = string()
             text.append_view(html.to_view())
-            webview_load_html(&raw mut st.inner, text.data())
+            raw::webview_load_html(&raw mut st.inner, text.data())
         }
     }
 
@@ -116,7 +116,7 @@ public struct WebView {
             if(st == null || st.destroyed) { return }
             var text = string()
             text.append_view(script.to_view())
-            webview_evaluate_js(&raw mut st.inner, text.data())
+            raw::webview_evaluate_js(&raw mut st.inner, text.data())
         }
     }
 
@@ -131,7 +131,7 @@ public struct WebView {
             box.cb = handler
             var text = string()
             text.append_view(script.to_view())
-            webview_evaluate_js_result(&raw mut st.inner, text.data(), eval_result_trampoline, box as *mut void)
+            raw::webview_evaluate_js_result(&raw mut st.inner, text.data(), eval_result_trampoline, box as *mut void)
         }
     }
 
@@ -141,7 +141,7 @@ public struct WebView {
         unsafe {
             var st = self.state
             if(st == null) { return string("") }
-            return webview_title(&raw mut st.inner)
+            return raw::webview_title(&raw mut st.inner)
         }
     }
 
@@ -151,7 +151,7 @@ public struct WebView {
             if(st == null || st.destroyed) { return }
             var text = string()
             text.append_view(title.to_view())
-            webview_set_title(&raw mut st.inner, text.data())
+            raw::webview_set_title(&raw mut st.inner, text.data())
         }
     }
 
@@ -159,7 +159,7 @@ public struct WebView {
         unsafe {
             var st = self.state
             if(st == null || st.destroyed) { return }
-            webview_set_size(&raw mut st.inner, width, height)
+            raw::webview_set_size(&raw mut st.inner, width, height)
         }
     }
 
@@ -167,7 +167,7 @@ public struct WebView {
         unsafe {
             var st = self.state
             if(st == null || st.destroyed) { return }
-            webview_show(&raw mut st.inner)
+            raw::webview_show(&raw mut st.inner)
         }
     }
 
@@ -175,7 +175,7 @@ public struct WebView {
         unsafe {
             var st = self.state
             if(st == null || st.destroyed) { return }
-            webview_hide(&raw mut st.inner)
+            raw::webview_hide(&raw mut st.inner)
         }
     }
 
@@ -184,7 +184,7 @@ public struct WebView {
         unsafe {
             var st = self.state
             if(st == null || st.destroyed) { return }
-            webview_run(&raw mut st.inner)
+            raw::webview_run(&raw mut st.inner)
         }
     }
 
@@ -192,19 +192,25 @@ public struct WebView {
         unsafe {
             var st = self.state
             if(st == null || st.destroyed) { return }
-            webview_stop(&raw mut st.inner)
+            raw::webview_stop(&raw mut st.inner)
         }
     }
 
     // ── JS <-> native bridge ─────────────────────────────────────────────
 
+    // Register the single native bridge handler. The backend exposes ONE
+    // handler (`window.__webview__.call(method, ...)`) that routes by method
+    // name; there is no per-name registration in the native layer, so this
+    // surface deliberately does not fake `bind(name, handler)`. Register one
+    // handler and dispatch on `method` inside it. `unbind(name)` removes that
+    // single handler and tells the page to stop routing `name`.
     public func bind(&mut self, handler : webview::JsBindHandler) : Result<std::Unit, WebViewError> {
         unsafe {
             var st = self.state
             if(st == null || st.destroyed) {
                 return Result.Err(WebViewError.InitFailed(string("webview is destroyed")))
             }
-            return webview_bind(&raw mut st.inner, handler)
+            return raw::webview_bind(&raw mut st.inner, handler)
         }
     }
 
@@ -214,7 +220,7 @@ public struct WebView {
             if(st == null || st.destroyed) { return }
             var text = string()
             text.append_view(name.to_view())
-            webview_unbind(&raw mut st.inner, text.data())
+            raw::webview_unbind(&raw mut st.inner, text.data())
         }
     }
 
@@ -226,7 +232,30 @@ public struct WebView {
             id_text.append_view(id.to_view())
             var result_text = string()
             result_text.append_view(result.to_view())
-            webview_return(&raw mut st.inner, id_text.data(), status, result_text.data())
+            raw::webview_return(&raw mut st.inner, id_text.data(), status, result_text.data())
+        }
+    }
+
+    // ── UI-thread dispatch / native handle (explicitly unsafe) ───────────
+
+    // Schedule `fn` to run on the UI thread. The callback and `arg` are raw
+    // state: `arg` must stay valid until the callback runs, and `fn` must be a
+    // plain function pointer (no capture).
+    public unsafe func dispatch(&self, fn : webview::DispatchCallback, arg : *mut void) {
+        unsafe {
+            var st = self.state
+            if(st == null || st.destroyed) { return }
+            raw::webview_dispatch(&raw mut st.inner, fn, arg)
+        }
+    }
+
+    // The platform handle for `kind` (NATIVE_HANDLE_*). Owned by the native
+    // webview; it must not outlive it.
+    public unsafe func native_handle(&self, kind : int) : *mut void {
+        unsafe {
+            var st = self.state
+            if(st == null) { return null }
+            return raw::webview_get_native_handle(&raw mut st.inner, kind)
         }
     }
 
@@ -236,7 +265,7 @@ public struct WebView {
             var st = self.state
             if(st == null) { return }
             if(!st.destroyed) {
-                webview_destroy(&raw mut st.inner)
+                raw::webview_destroy(&raw mut st.inner)
                 st.destroyed = true
             }
             delete st

@@ -27,7 +27,7 @@ public func test_var_simple_ref_wraps_in_ucs(env : &mut TestEnv) {
         env.success("double wrapped in $_ucs")
     } else {
         env.error("double should be $_ucs wrapped")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -144,7 +144,7 @@ public func test_var_object_literal_wraps(env : &mut TestEnv) {
         env.success("object literal var wrapped")
     } else {
         env.error("object literal var should wrap in $_ucs")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -384,7 +384,7 @@ public func test_edge_manual_ucs_not_double_wrapped(env : &mut TestEnv) {
         }
     } else {
         env.error("manual $_ucs pattern not found")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -498,7 +498,7 @@ public func test_edge_computed_var_in_string_concat(env : &mut TestEnv) {
         env.success("computed var with string concat wrapped")
     } else {
         env.error("computed var with string concat should wrap in $_ucs")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 

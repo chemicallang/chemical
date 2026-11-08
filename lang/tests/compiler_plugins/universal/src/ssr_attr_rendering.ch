@@ -79,7 +79,7 @@ public func feature_html_none_renders_nothing(env : &mut TestEnv) {
         env.success("HTML None renders nothing (attr skipped)")
     } else {
         env.error("HTML None rendered unexpected output")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -95,7 +95,7 @@ public func feature_html_boolean_true_renders_attr(env : &mut TestEnv) {
         env.success("HTML Boolean(true) renders attr with value 'true'")
     } else {
         env.error("HTML Boolean(true) did not render correctly")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -109,7 +109,7 @@ public func feature_html_boolean_false_skips_attr(env : &mut TestEnv) {
         env.success("HTML Boolean(false) skips the attribute")
     } else {
         env.error("HTML Boolean(false) rendered attribute")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -128,7 +128,7 @@ public func feature_html_text_renders_escaped_value(env : &mut TestEnv) {
         env.success("HTML Text escapes &, <, >, \" correctly")
     } else {
         env.error("HTML Text escaping incomplete")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -144,7 +144,7 @@ public func feature_html_ptr_char_renders_escaped_value(env : &mut TestEnv) {
         env.success("HTML PtrChar escapes & correctly")
     } else {
         env.error("HTML PtrChar escaping incorrect")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -160,7 +160,7 @@ public func feature_html_integer_renders_decimal(env : &mut TestEnv) {
         env.success("HTML Integer renders as decimal string")
     } else {
         env.error("HTML Integer did not render correctly")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -176,7 +176,7 @@ public func feature_html_uinteger_renders_decimal(env : &mut TestEnv) {
         env.success("HTML UInteger renders as decimal string")
     } else {
         env.error("HTML UInteger did not render correctly")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -192,7 +192,7 @@ public func feature_html_double_renders_with_precision(env : &mut TestEnv) {
         env.success("HTML Double renders with specified precision")
     } else {
         env.error("HTML Double did not render correctly")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -208,7 +208,7 @@ public func feature_html_char_renders_single_character(env : &mut TestEnv) {
         env.success("HTML Char renders single character")
     } else {
         env.error("HTML Char did not render correctly")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -229,7 +229,7 @@ public func feature_js_none_renders_nothing(env : &mut TestEnv) {
         env.success("JS None renders nothing (attr skipped)")
     } else {
         env.error("JS None rendered unexpected output")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -245,7 +245,7 @@ public func feature_js_boolean_true_renders_true(env : &mut TestEnv) {
         env.success("JS Boolean(true) renders as bare true")
     } else {
         env.error("JS Boolean(true) did not render correctly")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -260,7 +260,7 @@ public func feature_js_boolean_false_skipped(env : &mut TestEnv) {
         env.success("JS Boolean(false) is skipped (no attr in JS output)")
     } else {
         env.error("JS Boolean(false) rendered unexpected output")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -276,7 +276,7 @@ public func feature_js_text_renders_escaped(env : &mut TestEnv) {
         env.success("JS Text escapes double quotes")
     } else {
         env.error("JS Text did not escape correctly")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -292,7 +292,7 @@ public func feature_js_ptr_char_renders_escaped(env : &mut TestEnv) {
         env.success("JS PtrChar escapes backslash")
     } else {
         env.error("JS PtrChar did not escape correctly")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -308,7 +308,7 @@ public func feature_js_integer_renders_bare_number(env : &mut TestEnv) {
         env.success("JS Integer renders as bare number (no quotes)")
     } else {
         env.error("JS Integer did not render correctly")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -324,7 +324,7 @@ public func feature_js_uinteger_renders_bare_number(env : &mut TestEnv) {
         env.success("JS UInteger renders as bare number (no quotes)")
     } else {
         env.error("JS UInteger did not render correctly")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -340,7 +340,7 @@ public func feature_js_double_renders_bare_number(env : &mut TestEnv) {
         env.success("JS Double renders as bare decimal number")
     } else {
         env.error("JS Double did not render correctly")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -356,7 +356,7 @@ public func feature_js_char_renders_single_quoted(env : &mut TestEnv) {
         env.success("JS Char renders as single-quoted character")
     } else {
         env.error("JS Char did not render correctly")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -370,7 +370,7 @@ public func feature_js_char_escapes_single_quote(env : &mut TestEnv) {
         env.success("JS Char escapes single quote inside single-quoted string")
     } else {
         env.error("JS Char did not escape single quote")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -393,7 +393,7 @@ public func feature_html_class_merge_space_separated(env : &mut TestEnv) {
         env.success("HTML class merging produces space-separated class list")
     } else {
         env.error("HTML class merging did not produce expected output")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -416,7 +416,7 @@ public func feature_html_style_merge_semicolon_separated(env : &mut TestEnv) {
         env.success("HTML style merging produces semicolon-separated style list")
     } else {
         env.error("HTML style merging did not produce expected output")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -439,7 +439,7 @@ public func feature_js_class_merge_space_separated(env : &mut TestEnv) {
         env.success("JS class merging produces merged class string")
     } else {
         env.error("JS class merging did not produce expected output")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -462,7 +462,7 @@ public func feature_js_style_merge_semicolon_separated(env : &mut TestEnv) {
         env.success("JS style merging produces merged style string")
     } else {
         env.error("JS style merging did not produce expected output")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -493,7 +493,7 @@ public func feature_html_spread_attrs_resolved(env : &mut TestEnv) {
         env.success("HTML spread attrs are recursively resolved")
     } else {
         env.error("HTML spread attrs not resolved")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -516,7 +516,7 @@ public func feature_html_last_wins_dedup(env : &mut TestEnv) {
         env.success("HTML last-wins dedup: last value overwrites earlier")
     } else {
         env.error("HTML dedup behavior incorrect")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -539,7 +539,7 @@ public func feature_js_last_wins_dedup(env : &mut TestEnv) {
         env.success("JS last-wins dedup: last value overwrites earlier")
     } else {
         env.error("JS dedup behavior incorrect")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -592,7 +592,7 @@ public func feature_special_attrs_64_others_overflow(env : &mut TestEnv) {
             env.success("SpecialAttrs: all 70 attrs rendered")
         } else {
             env.error("SpecialAttrs dropped attributes")
-            env.info(html.data())
+            test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         }
 
         }
@@ -646,7 +646,7 @@ public func feature_special_attrs_32_classes_overflow(env : &mut TestEnv) {
             env.success("SpecialAttrs classes: all 40 classes rendered")
         } else {
             env.error("SpecialAttrs dropped classes")
-            env.info(html.data())
+            test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         }
 
         }
@@ -665,7 +665,7 @@ public func feature_html_child_boolean_false_renders_nothing(env : &mut TestEnv)
         env.success("HTML renderHtmlChildValue skips Boolean(false)")
     } else {
         env.error("HTML renderHtmlChildValue rendered Boolean(false)")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -680,7 +680,7 @@ public func feature_html_child_none_renders_nothing(env : &mut TestEnv) {
         env.success("HTML renderHtmlChildValue skips None")
     } else {
         env.error("HTML renderHtmlChildValue rendered None")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }
 
@@ -695,6 +695,6 @@ public func feature_html_attr_boolean_true_renders(env : &mut TestEnv) {
         env.success("HTML renderHtmlAttrValue renders Boolean(true)")
     } else {
         env.error("HTML renderHtmlAttrValue did not render Boolean(true)")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
 }

@@ -19,7 +19,7 @@ func test_fs_create_dir_all_and_remove_recursive(env : &mut TestEnv) {
     if(r is Result.Err) {
         var Err(e) = r else unsafe { unreachable };
         var m = e.message();
-        env.error(m.data());
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0);
         env.error("create_dir_all failed");
         return;
     }
@@ -29,7 +29,7 @@ func test_fs_create_dir_all_and_remove_recursive(env : &mut TestEnv) {
     if(rem is Result.Err) {
         var Err(e) = rem else unsafe { unreachable };
         var m = e.message();
-        env.error(m.data());
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0);
         env.error("remove_dir_all_recursive failed");
         return;
     }
@@ -44,7 +44,7 @@ func test_fs_write_and_read_to_buffer_roundtrip(env : &mut TestEnv) {
     if(rdir is Result.Err) {
         var Err(e) = rdir else unsafe { unreachable };
         var m = e.message();
-        env.error(m.data());
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0);
         env.error("create_dir_all failed");
         return;
     }
@@ -57,7 +57,7 @@ func test_fs_write_and_read_to_buffer_roundtrip(env : &mut TestEnv) {
     if(wr is Result.Err) {
         var Err(e) = wr else unsafe { unreachable };
         var m = e.message();
-        env.error(m.data());
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0);
         env.error("write_text_file failed");
         fs::raw::remove_dir_all_recursive(base.data());
         return;
@@ -68,7 +68,7 @@ func test_fs_write_and_read_to_buffer_roundtrip(env : &mut TestEnv) {
     if(rd is Result.Err) {
         var Err(e) = rd else unsafe { unreachable };
         var m = e.message();
-        env.error(m.data());
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0);
         env.error("read_to_buffer failed");
         fs::raw::remove_dir_all_recursive(base.data());
         return;
@@ -89,7 +89,7 @@ func test_fs_write_and_read_entire_file_roundtrip(env : &mut TestEnv) {
     if(rdir is Result.Err) {
         var Err(e) = rdir else unsafe { unreachable };
         var m = e.message();
-        env.error(m.data());
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0);
         env.error("create_dir_all failed");
         return;
     }
@@ -102,7 +102,7 @@ func test_fs_write_and_read_entire_file_roundtrip(env : &mut TestEnv) {
     if(wr is Result.Err) {
         var Err(e) = wr else unsafe { unreachable };
         var m = e.message();
-        env.error(m.data());
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0);
         env.error("write_text_file failed");
         fs::raw::remove_dir_all_recursive(base.data());
         return;
@@ -112,7 +112,7 @@ func test_fs_write_and_read_entire_file_roundtrip(env : &mut TestEnv) {
     if(rd is Result.Err) {
         var Err(e) = rd else unsafe { unreachable };
         var m = e.message();
-        env.error(m.data());
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0);
         env.error("read_entire_file failed");
         fs::raw::remove_dir_all_recursive(base.data());
         return;
@@ -142,7 +142,7 @@ func test_fs_copy_file_copies_contents(env : &mut TestEnv) {
     if(wr is Result.Err) {
         var Err(e) = wr else unsafe { unreachable };
         var m = e.message();
-        env.error(m.data());
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0);
         env.error("write_text_file(src) failed");
         fs::raw::remove_dir_all_recursive(base.data());
         return;
@@ -152,7 +152,7 @@ func test_fs_copy_file_copies_contents(env : &mut TestEnv) {
     if(cp is Result.Err) {
         var Err(e) = cp else unsafe { unreachable };
         var m = e.message();
-        env.error(m.data());
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0);
         env.error("copy_file failed");
         fs::raw::remove_dir_all_recursive(base.data());
         return;
@@ -162,7 +162,7 @@ func test_fs_copy_file_copies_contents(env : &mut TestEnv) {
     if(rd is Result.Err) {
         var Err(e) = rd else unsafe { unreachable };
         var m = e.message();
-        env.error(m.data());
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0);
         env.error("read_entire_file(dst) failed");
         fs::raw::remove_dir_all_recursive(base.data());
         return;
@@ -185,7 +185,7 @@ func test_fs_remove_file_makes_file_unreadable(env : &mut TestEnv) {
     if(wr is Result.Err) {
         var Err(e) = wr else unsafe { unreachable };
         var m = e.message();
-        env.error(m.data());
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0);
         env.error("write_text_file failed");
         fs::raw::remove_dir_all_recursive(base.data());
         return;
@@ -195,7 +195,7 @@ func test_fs_remove_file_makes_file_unreadable(env : &mut TestEnv) {
     if(rm is Result.Err) {
         var Err(e) = rm else unsafe { unreachable };
         var m = e.message();
-        env.error(m.data());
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0);
         env.error("remove_file failed");
         fs::raw::remove_dir_all_recursive(base.data());
         return;
@@ -224,7 +224,7 @@ func test_fs_remove_dir_recursive_removes_nested_files(env : &mut TestEnv) {
     if(mk is Result.Err) {
         var Err(e) = mk else unsafe { unreachable };
         var m = e.message();
-        env.error(m.data());
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0);
         env.error("create_dir_all failed");
         return;
     }
@@ -245,7 +245,7 @@ func test_fs_remove_dir_recursive_removes_nested_files(env : &mut TestEnv) {
     if(rm is Result.Err) {
         var Err(e) = rm else unsafe { unreachable };
         var m = e.message();
-        env.error(m.data());
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0);
         env.error("remove_dir_all_recursive failed");
         return;
     }
@@ -255,7 +255,7 @@ func test_fs_remove_dir_recursive_removes_nested_files(env : &mut TestEnv) {
     if(mk2 is Result.Err) {
         var Err(e) = mk2 else unsafe { unreachable };
         var m = e.message();
-        env.error(m.data());
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0);
         env.error("expected create_dir_all to work after removing tree");
         return;
     }
@@ -276,7 +276,7 @@ func test_fs_set_permissions_on_existing_file(env : &mut TestEnv) {
     if(wr is Result.Err) {
         var Err(e) = wr else unsafe { unreachable };
         var m = e.message();
-        env.error(m.data());
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0);
         env.error("write_text_file failed");
         fs::raw::remove_dir_all_recursive(base.data());
         return;
@@ -287,7 +287,7 @@ func test_fs_set_permissions_on_existing_file(env : &mut TestEnv) {
     if(sp is Result.Err) {
         var Err(e) = sp else unsafe { unreachable };
         var m = e.message();
-        env.error(m.data());
+        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0);
         env.error("set_permissions failed");
         fs::raw::remove_dir_all_recursive(base.data());
         return;

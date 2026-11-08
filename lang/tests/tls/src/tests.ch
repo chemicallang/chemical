@@ -4034,13 +4034,13 @@ public func tls_x25519_rfc7748_vector1_works(env : &mut TestEnv) {
     _x1pos = (_x1pos as int + unsafe(snprintf(&raw mut _x1buf[0], sizeof(_x1buf), "[X25519_V1] actual:   "))) as size_t
     var _pi : size_t = 0
     while(_pi < 32) { _x1pos = (_x1pos as int + unsafe(snprintf(&raw mut _x1buf[_x1pos], sizeof(_x1buf) - _x1pos, "%02x", output[_pi] as int))) as size_t; _pi += 1 }
-    env.info(&raw _x1buf[0])
+    test_env::ffi::log_cstr(env, LogType.Information, &raw _x1buf[0], 0, 0)
     var _x2buf : [512]char
     var _x2pos : size_t = 0
     _x2pos = (_x2pos as int + unsafe(snprintf(&raw mut _x2buf[0], sizeof(_x2buf), "[X25519_V1] expected: "))) as size_t
     _pi = 0
     while(_pi < 32) { _x2pos = (_x2pos as int + unsafe(snprintf(&raw mut _x2buf[_x2pos], sizeof(_x2buf) - _x2pos, "%02x", expected[_pi] as int))) as size_t; _pi += 1 }
-    env.info(&raw _x2buf[0])
+    test_env::ffi::log_cstr(env, LogType.Information, &raw _x2buf[0], 0, 0)
 
     var matches = true
     var i : size_t = 0

@@ -223,7 +223,7 @@ func (converter : &mut ASTConverter) emit_append_html_call(value : *mut Value, l
         const support = converter.support
     
         var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location)
-        var name = if (converter.in_head) std::string_view("append_head") else std::string_view("append_html")
+        var name = if (converter.in_head) std::string_view("append_head_raw") else std::string_view("append_html_raw")
         var fnPtr = if (converter.in_head) support.appendHeadFn else support.appendHtmlFn
         var id = builder.make_identifier(&name, fnPtr, false, location)
         const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)

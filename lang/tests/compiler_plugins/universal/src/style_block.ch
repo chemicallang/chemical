@@ -32,19 +32,19 @@ public func style_block_emits_css_and_returns_class(env : &mut TestEnv) {
     css.append_view(page.getCss())
     if(!css.contains("color:red")) {
         env.error("style block declarations missing from page CSS")
-        env.info(css.data())
+        test_env::ffi::log_cstr(env, LogType.Information, css.data(), 0, 0)
         return
     }
     if(!css.contains("hover") || !css.contains("blue")) {
         env.error("nested selector in a style block was not emitted")
-        env.info(css.data())
+        test_env::ffi::log_cstr(env, LogType.Information, css.data(), 0, 0)
         return
     }
     var html = std::string()
     html.append_view(page.getHtml())
     if(!html.contains("class=\"")) {
         env.error("the class returned by style { } was not applied")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
     }
     env.success("style block emits scoped CSS and returns a usable class")
@@ -65,7 +65,7 @@ public func style_block_is_deterministic_and_deduplicated(env : &mut TestEnv) {
     // Two instances of the same component must emit its rule exactly once.
     if(shared_count(&view, &std::string_view("color:red")) != 1) {
         env.error("style block rule must be emitted once even for repeated instances")
-        env.info(css.data())
+        test_env::ffi::log_cstr(env, LogType.Information, css.data(), 0, 0)
         return
     }
     env.success("style block rule is deterministic and emitted once")
@@ -81,7 +81,7 @@ public func style_block_supports_multiple_blocks_per_component(env : &mut TestEn
     css.append_view(page.getCss())
     if(!css.contains("color:red") || !css.contains("display:block")) {
         env.error("each style block must emit its own class/rules")
-        env.info(css.data())
+        test_env::ffi::log_cstr(env, LogType.Information, css.data(), 0, 0)
         return
     }
     env.success("multiple style blocks per component are supported")

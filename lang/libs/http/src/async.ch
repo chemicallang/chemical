@@ -160,7 +160,7 @@ using std::Result;
 
 // Coroutine accept loop (R1: `serve_async` is taken by the thread variant).
 // Drive it with `async::block_on<int>(serve_coro(&raw mut srv, port))`, or
-// submit it with `async::spawn<int>(...)` and call `srv.shutdown()` to stop.
+// submit it with `async::raw::spawn<int>(...)` and call `srv.shutdown()` to stop.
 public async func serve_coro(srv : *mut Server, port : uint = 8080u) : int { unsafe {
     srv.start(port)
     if(!srv.run) { return 1 }

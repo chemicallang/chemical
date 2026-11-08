@@ -37,17 +37,17 @@ public func html_entity_in_component_child_is_decoded_in_js(env : &mut TestEnv) 
     var html = page.getHtml()
     if(js.contains("\"children\":[\"&lt;CodeText&gt;\"]")) {
         env.error("component child entity was not decoded in the emitted client vnode")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
         return
     }
     if(!js.contains("\"children\":[\"<CodeText>\"]")) {
         env.error("expected decoded child text in the emitted client vnode")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
         return
     }
     if(!html.contains("&lt;CodeText&gt;")) {
         env.error("SSR HTML must keep the escaped entity")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
     }
     env.success("component child entity decoded in JS and preserved in SSR HTML")
@@ -64,7 +64,7 @@ public func html_component_parent_dispatch_precedes_child_dispatch(env : &mut Te
     var childNeedle = std::string_view("'universal_lib_test_RegOrderChild'")
     if(!js.contains(&parentNeedle) || !js.contains(&childNeedle)) {
         env.error("expected dispatches for both the parent and child component")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
         return
     }
     var parentIdx = js.find(&parentNeedle)
@@ -73,7 +73,7 @@ public func html_component_parent_dispatch_precedes_child_dispatch(env : &mut Te
         env.success("parent dispatch precedes child dispatch")
     } else {
         env.error("child dispatch precedes parent dispatch")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }
 }
 
@@ -87,22 +87,22 @@ public func html_table_context_uses_comment_boundary(env : &mut TestEnv) {
     var js = page.getJs()
     if(!html.contains("<!--u")) {
         env.error("expected a comment hydration boundary inside table structure")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
     }
     if(html.contains("<tr><span")) {
         env.error("<span> wrapper inside <tr> would be foster-parented and corrupt the table")
-        env.info(html.data())
+        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
     }
     if(!js.contains("window.$__uni_boundary(")) {
         env.error("table-context dispatch must resolve a comment boundary")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
         return
     }
     if(!js.contains("\"root\"")) {
         env.error("table-context component must hydrate its own root element")
-        env.info(js.data())
+        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
         return
     }
     env.success("table-context component uses a comment boundary and root hydration")

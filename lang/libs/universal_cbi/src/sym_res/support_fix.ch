@@ -25,9 +25,9 @@ func resolve_page_children(
             return false;
         }
 
-        const appendHeadJsFn = page.child("append_js");
+        const appendHeadJsFn = page.child("append_js_raw");
         if(appendHeadJsFn == null) {
-            diagnoser.error("'append_js' function is required on 'page' for html to work", loc);
+            diagnoser.error("'append_js_raw' function is required on 'page' for html to work", loc);
             return false;
         }
 
@@ -55,9 +55,9 @@ func resolve_page_children(
             return false;
         }
 
-        const appendHtmlFn = page.child("append_html");
+        const appendHtmlFn = page.child("append_html_raw");
         if(appendHtmlFn == null) {
-            diagnoser.error("'append_html' function is required on 'page' for html to work", loc);
+            diagnoser.error("'append_html_raw' function is required on 'page' for html to work", loc);
             return false;
         }
 

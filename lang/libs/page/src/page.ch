@@ -415,11 +415,14 @@ public struct HtmlPage {
     // for the rest of the render.
     public func add_parameter_owned(&mut self, key : std::string_view, value : std::string_view) {
         unsafe {
-            route_param_owned.insert(unsafe(std::string(key.data(), key.size())), unsafe(std::string(value.data(), value.size())))
+            var owned_key = unsafe(std::string(key.data(), key.size()))
+            var owned_value = unsafe(std::string(value.data(), value.size()))
+            route_param_owned.insert(owned_key, owned_value)
             var lookup = unsafe(std::string(key.data(), key.size()))
+            const kp = route_param_owned.get_key_ptr(&lookup)
             const p = route_param_owned.get_ptr(&lookup)
-            if(p == null) { return }
-            parameters.insert(key, PageParameter.Text(p.to_view()))
+            if(kp == null || p == null) { return }
+            parameters.insert(kp.to_view(), PageParameter.Text(p.to_view()))
     
         }
     }

@@ -68,7 +68,7 @@ func framing_handler(req : http.Request, res : http::ResponseWriter) {
 // of only showing up as an 8-second stall.
 func framing_remaining_handler(req : http.Request, res : http::ResponseWriter) {
     var out = string("REMAINING:")
-    out.append_integer(req.body.remaining as bigint)
+    out.append_integer(req.body.remaining_bytes() as bigint)
     res.write_string(&out)
 }
 

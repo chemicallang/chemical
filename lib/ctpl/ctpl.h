@@ -29,6 +29,7 @@
 #include <future>
 #include <mutex>
 #include <queue>
+#include <chrono>
 
 
 
@@ -85,6 +86,27 @@ namespace ctpl {
 
         // number of idle threads
         int n_idle() { return this->nWaiting; }
+
+        // Wait until every queued/running user task has completed. Safe to call
+        // from a non-worker thread; when called from one of this pool's workers
+        // it waits for all *other* work (the caller's own frame is not counted).
+        void wait_idle() {
+            const auto self = std::this_thread::get_id();
+            bool worker = false;
+            for (auto& t : this->threads) {
+                if (t && t->get_id() == self) { worker = true; break; }
+            }
+            while (true) {
+                {
+                    std::lock_guard<std::mutex> lock(this->mutex);
+                    const int n = this->nWaiting;
+                    const int total = static_cast<int>(this->threads.size());
+                    // A worker calling this cannot count itself as waiting.
+                    if (this->q.empty() && (worker ? n >= total - 1 : n >= total)) return;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+        }
         std::thread & get_thread(int i) { return *this->threads[i]; }
 
         // change the number of threads in the pool
@@ -215,7 +237,9 @@ namespace ctpl {
                 while (true) {
                     while (isPop) {  // if there is anything in the queue
                         std::unique_ptr<std::function<void(int id)>> func(_f); // at return, delete the function even if an exception occurred
+                        ++this->active;
                         (*_f)(i);
+                        --this->active;
                         if (_flag)
                             return;  // the thread is wanted to stop, return even if the queue is not empty yet
                         else
@@ -240,7 +264,8 @@ namespace ctpl {
         detail::Queue<std::function<void(int id)> *> q;
         std::atomic<bool> isDone;
         std::atomic<bool> isStop;
-        std::atomic<int> nWaiting;  // how many threads are waiting
+        std::atomic<int> nWaiting;
+        std::atomic<int> active{0};  // user tasks currently executing
 
         std::mutex mutex;
         std::condition_variable cv;

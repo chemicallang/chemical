@@ -9,9 +9,9 @@ using std::string;
 @test
 public func font_create_empty_works(env : &mut TestEnv) {
     var f = font::Font.make()
-    if(f.loaded) { env.error("unloaded font should not be loaded") }
-    if(f.units_per_em != 0) { env.error("units per em should be 0") }
-    if(f.num_glyphs != 0) { env.error("num glyphs should be 0") }
+    if(f.is_loaded()) { env.error("unloaded font should not be loaded") }
+    if(f.em_size() != 0) { env.error("units per em should be 0") }
+    if(f.glyph_count() != 0) { env.error("num glyphs should be 0") }
 }
 
 @test

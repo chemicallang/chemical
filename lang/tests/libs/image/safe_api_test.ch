@@ -209,3 +209,19 @@ public func image_safe_unsupported_save_extension(env : &mut TestEnv) {
     var result = img.save(&p)
     if(result is Result.Ok) { env.error("unknown extension should fail") }
 }
+
+@test
+public func image_safe_rejects_forged_dimensions(env : &mut TestEnv) {
+    // `Image` is an aggregate with public metadata for compatibility; the safe
+    // methods must validate that the pixel buffer actually matches it.
+    var img = image::Image.make()
+    img.width = 4
+    img.height = 4
+    img.channels = 4
+    var check = img.validate()
+    if(check is Result.Ok) { env.error("empty pixel buffer must not validate") }
+    var encoded = img.encode_png()
+    if(encoded is Result.Ok) { env.error("forged Image must not encode") }
+    var set = img.set(0, 0, image::RGBA8.make(1, 2, 3, 4))
+    if(set is Result.Ok) { env.error("forged Image must not accept pixel writes") }
+}

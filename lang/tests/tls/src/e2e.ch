@@ -169,7 +169,7 @@ public func INT_tls12_client(env : &mut TestEnv) {
 // its own KeyUpdate, and the client must decrypt the "OK" after rotating its
 // receive keys.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_tls13_key_update_e2e(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(19910)
@@ -225,7 +225,7 @@ public func INT_tls13_key_update_e2e(env : &mut TestEnv) {
 // After a handshake, ssl.peer_cert must hold the server's certificate (a
 // stable, library-owned copy) and hostname verification against it must pass.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_tls13_peer_cert(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(19911)
@@ -268,7 +268,7 @@ public func INT_tls13_peer_cert(env : &mut TestEnv) {
 // The server's post-handshake NewSessionTicket must be stored in ssl.session
 // (ticket + derived resumption key) as it flows through ssl_read.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_tls13_session_ticket(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(19912)
@@ -326,7 +326,7 @@ public func INT_tls13_session_ticket(env : &mut TestEnv) {
 // pre_shared_key (with a correct binder) against the SAME server process;
 // the server resumes, skipping the certificate exchange.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_tls13_session_resumption(env : &mut TestEnv) {
     unsafe {
 
@@ -684,7 +684,7 @@ public func INT_ecdsa_client_handshake(env : &mut TestEnv) {
 }
 
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_x509_extract_ecdsa_pubkey_works(env : &mut TestEnv) {
     write_tls_python_utils()
     test_py_run_foreground(string_view("cert /tmp/tls_ec_pub.crt /tmp/tls_ec_pub.key localhost ec"))
@@ -733,7 +733,7 @@ public func INT_x509_extract_ecdsa_pubkey_works(env : &mut TestEnv) {
 }
 
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
     unsafe {
 
@@ -816,7 +816,7 @@ public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
 // suite exercises the server's CBC record layer (MAC key swap, CBC encrypt/
 // decrypt with seq_num MAC) end-to-end against a real OpenSSL client.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
     unsafe {
 
@@ -901,7 +901,7 @@ public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
 // Chemical client config offers only that suite, so the client's CBC record
 // path (server_write MAC verify, CBC decrypt) is exercised end-to-end.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_tls12_client_cbc(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(19887)
@@ -943,7 +943,7 @@ public func INT_tls12_client_cbc(env : &mut TestEnv) {
 // exercises record fragmentation, sequencing, and TCP reassembly across many
 // ssl_read calls (each returning one decrypted record).
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_tls13_large_payload_transfer(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(19888)

@@ -78,7 +78,7 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
             dealloc table;
             table = newTable;
             capacity = newCapacity;
-    
+
         }
     }
 
@@ -112,7 +112,7 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
                 }
             }
             dealloc table;
-    
+
         }
     }
 
@@ -149,7 +149,7 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
             }
             table[index] = newNode;
             _size++;
-    
+
         }
     }
 
@@ -164,7 +164,25 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
                 currentNode = currentNode.next;
             }
             return null;
-    
+
+        }
+    }
+
+    // The node address is stable across later inserts/resizes; callers may keep
+    // the returned key pointer for the map's lifetime. Used by page-owned
+    // parameter storage, which needs a key view that outlives the caller.
+    func get_key_ptr(&self, key : &Key) : *mut Key {
+        unsafe {
+            var index : size_t = hash_with_capacity(key);
+            var currentNode = table[index];
+            while (currentNode != null) {
+                if (compare_now(&currentNode.key, key)) {
+                    return &raw mut currentNode.key;
+                }
+                currentNode = currentNode.next;
+            }
+            return null;
+
         }
     }
 
@@ -209,7 +227,7 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
                 currentNode = currentNode.next;
             }
             return false;
-    
+
         }
     }
 
@@ -228,7 +246,7 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
                 table[i] = null;
             }
             _size = 0;
-    
+
         }
     }
 
@@ -264,7 +282,7 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
                 it.node = null; // end
             }
             return it;
-    
+
         }
     }
 

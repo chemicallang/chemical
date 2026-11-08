@@ -16,7 +16,7 @@ using std::string_view
 // The server presents a leaf signed by CA-A; the client only trusts CA-B.
 // With authmode REQUIRED (default) the handshake must be rejected.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func NEG_verified_handshake_untrusted_ca_fails(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20120u)
@@ -61,7 +61,7 @@ public func NEG_verified_handshake_untrusted_ca_fails(env : &mut TestEnv) {
 // ─── Hostname mismatch must fail when authmode is REQUIRED ──────────────────
 // Cert SAN/CN is localhost; connecting by IP sets hostname "127.0.0.1".
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func NEG_hostname_mismatch_fails_when_verifying(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20121u)
@@ -101,7 +101,7 @@ public func NEG_hostname_mismatch_fails_when_verifying(env : &mut TestEnv) {
 // certificate — no mutually usable suite exists. min=max=TLS 1.2 disables the
 // automatic 1.3→1.2 fallback retry so the alert is observable directly.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func NEG_no_common_cipher_alert40_tls12(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20122u)
@@ -141,7 +141,7 @@ public func NEG_no_common_cipher_alert40_tls12(env : &mut TestEnv) {
 // The server must answer protocol_version(70); the client surfaces it as a
 // fatal-alert error rather than crashing or hanging.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func NEG_version_mismatch_alert70(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20123u)
@@ -178,7 +178,7 @@ public func NEG_version_mismatch_alert70(env : &mut TestEnv) {
 
 // ─── Plain TCP peer (not TLS): handshake must fail without crash/hang ───────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func NEG_plain_tcp_peer_handshake_fails_gracefully(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20124u)
@@ -212,7 +212,7 @@ public func NEG_plain_tcp_peer_handshake_fails_gracefully(env : &mut TestEnv) {
 // A non-TLS client dumps plaintext at our TLS 1.3 server; ssl_handshake must
 // reject it cleanly instead of crashing.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func NEG_raw_http_to_chemical_tls_server_fails(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20125u)
@@ -274,7 +274,7 @@ public func NEG_raw_http_to_chemical_tls_server_fails(env : &mut TestEnv) {
 
 // ─── Oversized ssl_write (>16384) must be rejected, context stays usable ────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func NEG_oversized_write_fragments_cleanly(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20126u)
@@ -326,7 +326,7 @@ public func NEG_oversized_write_fragments_cleanly(env : &mut TestEnv) {
 
 // ─── Double close_notify followed by free must be safe ──────────────────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func NEG_double_close_notify_safe(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20127u)

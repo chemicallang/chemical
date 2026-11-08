@@ -2,7 +2,8 @@
 
 > **Plan version:** 1.0  
 > **Date:** 2026-11-07  
-> **Status:** Phase 1 executed (2026-11-07); Phase 2 not started. See
+> **Status:** Phase 1 executed (2026-11-07); Phase 2 safe-API implementation and
+> release-gate hardening executed (2026-11-08). See
 > `lang/docs/safety-sharpen/STATUS.md` for the live job/evidence table.
 > **Scope:** remove low-value surface added during the safety wave, close the
 > safety gaps that prevent safe APIs, reshape every shipped library around safe
@@ -18,9 +19,9 @@
 
 > **Phase 1 result:** completed in commit `safety-sharpen: complete phase 1
 > removals and release sizing`; release `TCCCompiler` is **4,037,816 bytes**
-> (under the 5 MB hard ceiling). The remaining Phase 1 exception is the
-> pre-existing TCC `--server` C-emitter failure recorded in
-> `lang/docs/safety-sharpen/BLOCKED.md`; it is Phase 2 codegen work.
+> (under the 5 MB hard ceiling). The TCC `--server` C-emitter failure recorded in
+> `lang/docs/safety-sharpen/BLOCKED.md` was fixed during Phase 2; see the
+> status evidence table.
 
 
 Chemical now has a real safety model: MIR-owned move/init/drop state, borrow and

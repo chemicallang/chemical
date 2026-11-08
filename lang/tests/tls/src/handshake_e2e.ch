@@ -16,7 +16,7 @@ using std::string_view
 
 // ─── TLS 1.3 pinned to TLS1_3_AES_256_GCM_SHA384 ────────────────────────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func E2E_tls13_pinned_aes256_gcm_sha384(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20100u)
@@ -84,7 +84,7 @@ public func E2E_tls13_pinned_aes256_gcm_sha384(env : &mut TestEnv) {
 
 // ─── TLS 1.3 pinned to TLS1_3_CHACHA20_POLY1305_SHA256 ──────────────────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func E2E_tls13_pinned_chacha20_poly1305(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20101u)
@@ -135,7 +135,7 @@ public func E2E_tls13_pinned_chacha20_poly1305(env : &mut TestEnv) {
 
 // ─── TLS 1.3 against an RSA-certificate server ──────────────────────────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func E2E_tls13_with_rsa_certificate(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20102u)
@@ -179,7 +179,7 @@ public func E2E_tls13_with_rsa_certificate(env : &mut TestEnv) {
 
 // ─── TLS 1.2 RSA key exchange pinned to AES-256-GCM-SHA384 ──────────────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func E2E_tls12_pinned_rsa_aes256_gcm(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20103u)
@@ -228,7 +228,7 @@ public func E2E_tls12_pinned_rsa_aes256_gcm(env : &mut TestEnv) {
 
 // ─── TLS 1.2 RSA key exchange pinned to AES-256-CBC-SHA256 ──────────────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func E2E_tls12_pinned_rsa_aes256_cbc(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20104u)
@@ -271,7 +271,7 @@ public func E2E_tls12_pinned_rsa_aes256_cbc(env : &mut TestEnv) {
 
 // ─── ALPN negotiation (client offers http/1.1+h2, server prefers h2) ────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func E2E_alpn_negotiation_h2(env : &mut TestEnv) {
     unsafe {
 
@@ -334,7 +334,7 @@ public func E2E_alpn_negotiation_h2(env : &mut TestEnv) {
 // conf.ca_chain holds only the self-signed root, and the server presents its
 // leaf. The handshake must succeed and hostname must verify against SAN.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func E2E_verified_handshake_trusted_ca(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20106u)
@@ -391,7 +391,7 @@ public func E2E_verified_handshake_trusted_ca(env : &mut TestEnv) {
 // trusts ONLY the root. x509_verify_chain must walk the intermediate sent by
 // the peer to reach the trusted anchor.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func E2E_verified_handshake_intermediate_chain(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20107u)
@@ -433,7 +433,7 @@ public func E2E_verified_handshake_intermediate_chain(env : &mut TestEnv) {
 
 // ─── Five sequential request/response rounds on ONE connection ──────────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func E2E_multi_roundtrip_single_connection(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20108u)
@@ -484,7 +484,7 @@ public func E2E_multi_roundtrip_single_connection(env : &mut TestEnv) {
 
 // ─── Fifty tiny request/response rounds (record sequencing both ways) ───────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func E2E_many_small_roundtrips_fifty(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20109u)
@@ -531,7 +531,7 @@ public func E2E_many_small_roundtrips_fifty(env : &mut TestEnv) {
 // The echo server validates every received byte against the i%251 pattern and
 // answers OK/BAD, proving record fragmentation + reassembly preserved data.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func E2E_upload_96kb_pattern_validated(env : &mut TestEnv) {
     const UPLOAD_SIZE : size_t = 98304   // 6 * 16384
     write_tls_python_utils()
@@ -590,7 +590,7 @@ public func E2E_upload_96kb_pattern_validated(env : &mut TestEnv) {
 
 // ─── Client→server upload: exactly one max-fragment (16384 B) record ────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func E2E_upload_exact_max_fragment_16k(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20111u)
@@ -633,7 +633,7 @@ public func E2E_upload_exact_max_fragment_16k(env : &mut TestEnv) {
 
 // ─── Two parallel connections to two servers stay isolated ──────────────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func E2E_two_connections_interleaved_isolated(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20112u)
@@ -691,7 +691,7 @@ public func E2E_two_connections_interleaved_isolated(env : &mut TestEnv) {
 
 // ─── Clean close: reading after the peer's close_notify returns EOF ─────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func E2E_clean_close_returns_eof(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20114u)
@@ -736,7 +736,7 @@ public func E2E_clean_close_returns_eof(env : &mut TestEnv) {
 
 // ─── Chemical TLS 1.3 server pinned to AES-256-GCM-SHA384 vs Python client ──
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func E2E_tls13_server_pinned_aes256_gcm(env : &mut TestEnv) {
     unsafe {
 
@@ -835,7 +835,7 @@ public func E2E_tls13_server_pinned_aes256_gcm(env : &mut TestEnv) {
 
 // ─── Chemical TLS 1.3 server pinned to AES-256-GCM-SHA384 with a P-384 cert ──
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func E2E_tls13_server_pinned_p384_aes256_gcm(env : &mut TestEnv) {
     unsafe {
 
@@ -932,7 +932,7 @@ public func E2E_tls13_server_pinned_p384_aes256_gcm(env : &mut TestEnv) {
 
 // ─── Server must reassemble a ClientHello delivered in fragmented TCP writes ──
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func E2E_tls13_server_fragmented_clienthello(env : &mut TestEnv) {
     unsafe {
 

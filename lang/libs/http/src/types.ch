@@ -154,18 +154,21 @@ func header_name_equals(a : std::string_view, b : std::string_view) : bool {
     @direct_init
     public struct Body {
 
-        var sock: net::Socket;               // underlying socket (do not close here)
-        var buf: *mut net::Buffer;       // pointer to buffer that holds bytes already read
-        var remaining: isize;                // -1 meaning unknown (no Content-Length), otherwise bytes left
-        var chunked: bool;                   // transfer-encoding: chunked
-        var timeout_secs: long;              // timeout for subsequent recv calls
-        var max_body: usize;                 // configured max body size (for limits)
-        var closed: bool;                    // has the handler closed this Body?
+        // All ownership- and lifetime-sensitive state is internal. Safe callers
+        // use read_into/read_all/read_to_string and the accessors below; forging
+        // `owns_buf`/`buf`/`tls_ctx` would make the destructor double-free.
+        internal var sock: net::Socket;               // underlying socket (do not close here)
+        internal var buf: *mut net::Buffer;       // pointer to buffer that holds bytes already read
+        internal var remaining: isize;                // -1 meaning unknown (no Content-Length), otherwise bytes left
+        internal var chunked: bool;                   // transfer-encoding: chunked
+        internal var timeout_secs: long;              // timeout for subsequent recv calls
+        internal var max_body: usize;                 // configured max body size (for limits)
+        internal var closed: bool;                    // has the handler closed this Body?
         // chunked state
-        var cur_chunk_left: usize;           // bytes left in current chunk when chunked==true
-        var seen_total: usize;               // how many body bytes have been delivered to user (enforce max_body)
-        var owns_buf: bool;                  // whether this Body owns the buf pointer (must free it)
-        var tls_ctx: *mut tls::SSLContext     // TLS context for secure reads (null = plain socket)
+        internal var cur_chunk_left: usize;           // bytes left in current chunk when chunked==true
+        internal var seen_total: usize;               // how many body bytes have been delivered to user (enforce max_body)
+        internal var owns_buf: bool;                  // whether this Body owns the buf pointer (must free it)
+        internal var tls_ctx: *mut tls::SSLContext     // TLS context for secure reads (null = plain socket)
 
         @make
         func empty_make() {
@@ -182,6 +185,16 @@ func header_name_equals(a : std::string_view, b : std::string_view) : bool {
                 owns_buf = false,
                 tls_ctx = null
             }
+        }
+
+        /// Bytes left when the body has a known Content-Length, otherwise -1.
+        public func remaining_bytes(&self) : isize {
+            return self.remaining
+        }
+
+        /// True once the body has been fully consumed or explicitly closed.
+        public func is_closed(&self) : bool {
+            return self.closed
         }
 
         @delete

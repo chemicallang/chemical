@@ -18,18 +18,18 @@ lang/libs/http/src/client.ch:154:        public func set_body_str(&mut self, b :
 lang/libs/http/src/client.ch:160:        public func basic_auth(&mut self, user: *char, pass: *char) : &mut RequestBuilder {
 lang/libs/http/src/client.ch:164:        public func build(&self, absolute: bool = false) : std::string {
 lang/libs/http/src/client.ch:226:    public struct Client {
-lang/libs/http/src/client.ch:255:        public func set_ca_chain(&mut self, ca: *mut tls::X509Cert) : &mut Client {
+lang/libs/http/src/client.ch:257:        public unsafe func set_ca_chain(&mut self, ca: *mut tls::X509Cert) : &mut Client {
 lang/libs/http/src/client.ch:25:        public func parse(url_str: &std::string_view) : std::Option<URL> {
-lang/libs/http/src/client.ch:261:        public func insecure_skip_verify(&mut self, skip: bool = true) : &mut Client {
-lang/libs/http/src/client.ch:268:        public func set_proxy(&mut self, host: &std::string_view, port: uint) : &mut Client {
-lang/libs/http/src/client.ch:274:        public func request(&self, req_builder: &RequestBuilder) : std::Result<Response, std::string> { unsafe {
+lang/libs/http/src/client.ch:263:        public func insecure_skip_verify(&mut self, skip: bool = true) : &mut Client {
+lang/libs/http/src/client.ch:270:        public func set_proxy(&mut self, host: &std::string_view, port: uint) : &mut Client {
+lang/libs/http/src/client.ch:276:        public func request(&self, req_builder: &RequestBuilder) : std::Result<Response, std::string> { unsafe {
 lang/libs/http/src/client.ch:4:    public struct URL {
-lang/libs/http/src/client.ch:505:        public func get(&self, url_str: &std::string_view) : std::Result<Response, std::string> {
-lang/libs/http/src/client.ch:518:        public func post(&self, url_str: &std::string_view, body: &std::string_view, content_type: *char = "text/plain") : std::Result<Response, std::string> {
-lang/libs/http/src/client.ch:532:        public func put(&self, url_str: &std::string_view, body: &std::string_view, content_type: *char = "text/plain") : std::Result<Response, std::string> {
-lang/libs/http/src/client.ch:546:        public func patch(&self, url_str: &std::string_view, body: &std::string_view, content_type: *char = "text/plain") : std::Result<Response, std::string> {
-lang/libs/http/src/client.ch:560:        public func delete(&self, url_str: &std::string_view) : std::Result<Response, std::string> {
-lang/libs/http/src/client.ch:573:        public func head(&self, url_str: &std::string_view) : std::Result<Response, std::string> {
+lang/libs/http/src/client.ch:507:        public func get(&self, url_str: &std::string_view) : std::Result<Response, std::string> {
+lang/libs/http/src/client.ch:520:        public func post(&self, url_str: &std::string_view, body: &std::string_view, content_type: *char = "text/plain") : std::Result<Response, std::string> {
+lang/libs/http/src/client.ch:534:        public func put(&self, url_str: &std::string_view, body: &std::string_view, content_type: *char = "text/plain") : std::Result<Response, std::string> {
+lang/libs/http/src/client.ch:548:        public func patch(&self, url_str: &std::string_view, body: &std::string_view, content_type: *char = "text/plain") : std::Result<Response, std::string> {
+lang/libs/http/src/client.ch:562:        public func delete(&self, url_str: &std::string_view) : std::Result<Response, std::string> {
+lang/libs/http/src/client.ch:575:        public func head(&self, url_str: &std::string_view) : std::Result<Response, std::string> {
 lang/libs/http/src/client.ch:89:    public struct RequestBuilder {
 lang/libs/http/src/parser.ch:107:    public unsafe func parse_request_from_bytes(buf:*u8, n: usize, s: net::Socket) : std::Option<Request> {
 lang/libs/http/src/parser.ch:191:    func http_recv(s: net::Socket, tls_ctx: *mut tls::SSLContext, buf: *mut u8, cap: usize) : int {
@@ -69,32 +69,34 @@ lang/libs/http/src/types.ch:111:        func make_from_qs(qs : &std::string_view
 lang/libs/http/src/types.ch:117:        public func get(&self, key : &std::string_view) : std::string_view {
 lang/libs/http/src/types.ch:134:    public unsafe func strcasecmp(a:*char, b:*char) : int {
 lang/libs/http/src/types.ch:155:    public struct Body {
-lang/libs/http/src/types.ch:171:        func empty_make() {
-lang/libs/http/src/types.ch:188:        func destruct(&self) {
+lang/libs/http/src/types.ch:174:        func empty_make() {
 lang/libs/http/src/types.ch:18:    public struct HeaderMap {
-lang/libs/http/src/types.ch:208:        public unsafe func make_body(
+lang/libs/http/src/types.ch:191:        public func remaining_bytes(&self) : isize {
+lang/libs/http/src/types.ch:196:        public func is_closed(&self) : bool {
+lang/libs/http/src/types.ch:201:        func destruct(&self) {
+lang/libs/http/src/types.ch:221:        public unsafe func make_body(
 lang/libs/http/src/types.ch:23:        func make() {
-lang/libs/http/src/types.ch:248:    func body_recv(b:*mut Body, dst:*mut u8, cap: usize) : int {
-lang/libs/http/src/types.ch:262:    func copy_from_buffer(b:*mut Body, dst:*mut u8, want: usize) : usize {
-lang/libs/http/src/types.ch:284:    public func (b: &mut Body) read(dst:*mut u8, cap: usize) : int {
+lang/libs/http/src/types.ch:261:    func body_recv(b:*mut Body, dst:*mut u8, cap: usize) : int {
+lang/libs/http/src/types.ch:275:    func copy_from_buffer(b:*mut Body, dst:*mut u8, want: usize) : usize {
+lang/libs/http/src/types.ch:297:    public func (b: &mut Body) read(dst:*mut u8, cap: usize) : int {
 lang/libs/http/src/types.ch:29:        func empty(&self) : bool {
 lang/libs/http/src/types.ch:33:        func print(&self) {
 lang/libs/http/src/types.ch:43:        func insert(&mut self, k: std::string, v: std::string) {
-lang/libs/http/src/types.ch:464:    public func (b: &mut Body) read_into(buf : &mut [u8]) : std::Result<size_t, std::io::IoError> {
-lang/libs/http/src/types.ch:476:    public func (b: &mut Body) read_all() : std::Result<std::vector<u8>, std::io::IoError> {
+lang/libs/http/src/types.ch:477:    public func (b: &mut Body) read_into(buf : &mut [u8]) : std::Result<size_t, std::io::IoError> {
 lang/libs/http/src/types.ch:47:        func insert_view(&mut self, k: &std::string_view, v: &std::string_view) {
+lang/libs/http/src/types.ch:489:    public func (b: &mut Body) read_all() : std::Result<std::vector<u8>, std::io::IoError> {
 lang/libs/http/src/types.ch:4:func header_name_equals(a : std::string_view, b : std::string_view) : bool {
-lang/libs/http/src/types.ch:500:    public func (b: &mut Body) read_to_string() : std::Option<std::string> {
-lang/libs/http/src/types.ch:517:    public func (b: &mut Body) read_exact(n: usize) : std::Option<std::string> {
-lang/libs/http/src/types.ch:538:    public func (b: &mut Body) drain() : bool {
-lang/libs/http/src/types.ch:549:    public func (b: &mut Body) close() {
-lang/libs/http/src/types.ch:555:    public func (b: &Body) socket() : net::Socket {
-lang/libs/http/src/types.ch:561:    public func (b: &mut Body) close_socket() {
+lang/libs/http/src/types.ch:513:    public func (b: &mut Body) read_to_string() : std::Option<std::string> {
+lang/libs/http/src/types.ch:530:    public func (b: &mut Body) read_exact(n: usize) : std::Option<std::string> {
+lang/libs/http/src/types.ch:551:    public func (b: &mut Body) drain() : bool {
+lang/libs/http/src/types.ch:562:    public func (b: &mut Body) close() {
+lang/libs/http/src/types.ch:568:    public func (b: &Body) socket() : net::Socket {
 lang/libs/http/src/types.ch:56:        public func get(&self, name: *char) : std::Option<std::string> {
-lang/libs/http/src/types.ch:570:    public func (b: &Body) is_chunked() : bool {
-lang/libs/http/src/types.ch:576:    public func (b: &Body) content_length() : isize {
-lang/libs/http/src/types.ch:580:    public struct Request {
-lang/libs/http/src/types.ch:606:    public struct Response {
+lang/libs/http/src/types.ch:574:    public func (b: &mut Body) close_socket() {
+lang/libs/http/src/types.ch:583:    public func (b: &Body) is_chunked() : bool {
+lang/libs/http/src/types.ch:589:    public func (b: &Body) content_length() : isize {
+lang/libs/http/src/types.ch:593:    public struct Request {
+lang/libs/http/src/types.ch:619:    public struct Response {
 lang/libs/http/src/types.ch:73:        public func get_str(&self, name : &str) : std::Option<std::string> {
 lang/libs/http/src/types.ch:86:        public func get_view(&self, name : &std::string_view) : std::string_view {
 lang/libs/http/src/writer.ch:138:        public func send_json(&mut self, value : &JsonValue) {

@@ -29,8 +29,9 @@ ceiling. See `metrics.json`.
 - `fs::File` owns its descriptor again (`@delete`); `fs::close_file` is
   idempotent. Safe path-based helpers (`open_file`, `create_file`, `read_file`,
   `write_file`, `*_safe` directory/metadata helpers) take `&str`/`[u8]` and
-  return `Result<_, IoError>`. Legacy raw-buffer functions remain for in-tree
-  callers and are explicitly unsafe.
+  return `Result<_, IoError>`. Legacy raw-buffer functions remain as reviewed
+  migration debt for in-tree callers; the ones that retain caller pointers are
+  `unsafe`.
 - `process::spawn` returns an owning `Result<Child, ProcessError>`.
   `wait`/`try_wait`/`kill_process`/`is_running`/`write_stdin`/`close_stdin`/
   `child_pid` take `&mut Child`; `Child` owns the platform handles.
@@ -45,12 +46,16 @@ ceiling. See `metrics.json`.
   ownership-transfer accessor used by TLS.
 - `http::Body::read_into`/`read_all`, `HeaderMap::get_str`,
   `RequestBuilder::header_str`, and `RequestBuilder::set_body_str` are the safe
-  HTTP body/header surface. Legacy raw body/header calls remain.
+  HTTP body/header surface. `Body` ownership fields are internal; legacy raw
+  body/header calls remain. `Client::set_ca_chain` is unsafe because the chain
+  must outlive every request.
 - `tls::TlsStream` (verified client), `tls::TlsServerStream`, `CertificateChain`,
   `PrivateKey`, `TlsServerConfig`, `load_certificate`,
   `load_rsa_private_key`, `load_ec_private_key`, `rsa_private_key_from_components`,
-  `connect`, `connect_insecure`, and `accept` are the safe TLS surface. Raw
-  mbedTLS-shaped functions remain for the HTTP/TLS internals and tests.
+  `connect`, `connect_insecure`, and `accept` are the safe TLS surface.
+  `TlsServerConfig<'a>` borrows the certificate chain and private key for the
+  whole `accept` call. Raw mbedTLS-shaped functions remain for the HTTP/TLS
+  internals and tests.
 - `std::CString`/`CStr`, `vector::try_reserve`/`try_push`/`get_opt`/`get_mut_opt`/
   `try_set`/`try_pop`, `span::get_opt`, `mut_span::get_mut_opt`, and
   `string::get_opt` are the additive safe primitive surface. Legacy raw pointer

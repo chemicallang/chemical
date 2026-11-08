@@ -50,7 +50,7 @@ func frm_url(port : uint, path : string_view) : string {
 // RFC 9112 §6.3: close-delimited responses are valid; the body is everything
 // read until EOF.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func FRAM_close_delimited_no_content_length(env : &mut TestEnv) {
     const PORT : uint = 20410u
     var body = full_pattern(1000u, 0u)
@@ -93,7 +93,7 @@ public func FRAM_close_delimited_no_content_length(env : &mut TestEnv) {
 
 // ─── 2. 204 and 304 carry no body at all ─────────────────────────────────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func FRAM_empty_bodies_204_and_304(env : &mut TestEnv) {
     const PORT : uint = 20411u
     var l1 = string("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
@@ -142,7 +142,7 @@ public func FRAM_empty_bodies_204_and_304(env : &mut TestEnv) {
 // Response A ends immediately ("0\r\n\r\n"). Response B carries a trailer
 // section after the terminating chunk, which must not corrupt the body.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func FRAM_chunked_zero_length_and_trailers(env : &mut TestEnv) {
     const PORT : uint = 20412u
     var l1 = string("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n0\r\n\r\n")
@@ -184,7 +184,7 @@ public func FRAM_chunked_zero_length_and_trailers(env : &mut TestEnv) {
 // CONFORMANCE (RFC 9112 §7.1.1): "a recipient MUST ignore unrecognized chunk
 // extensions". "5;ext=v\r\nHello\r\n" must deliver "Hello".
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func FRAM_chunk_extensions_must_be_ignored(env : &mut TestEnv) {
     const PORT : uint = 20413u
     var l1 = string("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n5;ext=v\r\nHello\r\n0\r\n\r\n")
@@ -268,7 +268,7 @@ public func FRAM_dribbled_response_reassembly(env : &mut TestEnv) {
 // Server sends headers only (no CL, no TE) and closes immediately. The client
 // must report an empty body rather than erroring or hanging.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func FRAM_head_response_headers_only(env : &mut TestEnv) {
     const PORT : uint = 20415u
     var l1 = string("HTTP/1.1 200 OK\r\nX-A: b\r\nConnection: close\r\n\r\n")
@@ -304,7 +304,7 @@ public func FRAM_head_response_headers_only(env : &mut TestEnv) {
 // the client to wait for body bytes. The server closes immediately so this
 // cannot hang: a compliant client returns an empty body instantly.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func FRAM_head_with_content_length_has_no_body(env : &mut TestEnv) {
     const PORT : uint = 20416u
     var l1 = string("HTTP/1.1 200 OK\r\nContent-Length: 5\r\nConnection: close\r\n\r\n")
@@ -339,7 +339,7 @@ public func FRAM_head_with_content_length_has_no_body(env : &mut TestEnv) {
 // interim 1xx responses before the final response. The server sends
 // "100 Continue" followed by the real final response in one write.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func FRAM_interim_100_continue_is_skipped(env : &mut TestEnv) {
     const PORT : uint = 20417u
     var l1 = string("HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nOK")

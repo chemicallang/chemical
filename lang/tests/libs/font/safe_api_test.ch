@@ -114,11 +114,11 @@ public func font_safe_load_and_metrics(env : &mut TestEnv) {
     if(loaded is Result.Err) { env.error("Font.load should succeed"); return }
     var Ok(font) = loaded else unsafe { unreachable }
 
-    if(!font.loaded) { env.error("font should be loaded") }
-    if(font.units_per_em != 1000) { env.error("units_per_em should be 1000") }
-    if(font.ascent != 800) { env.error("ascent should be 800") }
-    if(font.descent != -200) { env.error("descent should be -200") }
-    if(font.num_glyphs != 10) { env.error("num_glyphs should be 10") }
+    if(!font.is_loaded()) { env.error("font should be loaded") }
+    if(font.em_size() != 1000) { env.error("units_per_em should be 1000") }
+    if(font.ascender() != 800) { env.error("ascent should be 800") }
+    if(font.descender() != -200) { env.error("descent should be -200") }
+    if(font.glyph_count() != 10) { env.error("num_glyphs should be 10") }
     if(font.line_height() != 1000) { env.error("line height should be 1000") }
 
     var metrics = font.metrics(100.0f)
@@ -141,8 +141,8 @@ public func font_safe_from_path_roundtrip(env : &mut TestEnv) {
     var loaded = font::Font.from_path(&p)
     if(loaded is Result.Err) { env.error("Font.from_path should succeed"); return }
     var Ok(font) = loaded else unsafe { unreachable }
-    if(font.units_per_em != 1000) { env.error("loaded units_per_em") }
-    if(font.num_glyphs != 10) { env.error("loaded num_glyphs") }
+    if(font.em_size() != 1000) { env.error("loaded units_per_em") }
+    if(font.glyph_count() != 10) { env.error("loaded num_glyphs") }
 }
 
 @test
@@ -192,4 +192,13 @@ public func font_safe_from_path_nonexistent(env : &mut TestEnv) {
     var p = font_safe_temp_pathbuf("p24_no_such_font.ttf")
     var result = font::Font.from_path(&p)
     if(result is Result.Ok) { env.error("missing font file must fail") }
+}
+
+@test
+public func font_safe_rejects_unloaded_font(env : &mut TestEnv) {
+    var font = font::Font.make()
+    if(font.is_loaded()) { env.error("fresh Font should not be loaded") }
+    if(font.validate() is Result.Ok) { env.error("unloaded Font must not validate") }
+    var glyph = font.glyph(65)
+    if(glyph is Result.Ok) { env.error("unloaded Font must not resolve glyphs") }
 }

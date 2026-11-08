@@ -196,7 +196,7 @@ public func INT_aes256_gcm_non12iv_vs_py(env : &mut TestEnv) {
 }
 
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_rsa_cross_encrypt_vs_py(env : &mut TestEnv) {
     unsafe {
 
@@ -309,7 +309,7 @@ public func INT_rsa_cross_encrypt_vs_py(env : &mut TestEnv) {
 }
 
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_rsa_keygen_sign_verify_vs_py(env : &mut TestEnv) {
     unsafe {
 

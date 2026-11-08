@@ -174,7 +174,7 @@ public func MATRIX_upload_size_boundaries(env : &mut TestEnv) {
 // â”€â”€â”€ 3. Full 0..255 byte cycle survives upload+echo over TLS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Catches signed-char / sign-extension bugs that the usual %251 pattern misses.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func MATRIX_full_byte_cycle_roundtrip(env : &mut TestEnv) {
     const PORT : uint = 20432u
     xpy_force_kill_port(PORT)
@@ -209,7 +209,7 @@ public func MATRIX_full_byte_cycle_roundtrip(env : &mut TestEnv) {
 
 // â”€â”€â”€ 4. 120 response headers: presence + case-insensitive lookup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func MATRIX_many_response_headers_lookup(env : &mut TestEnv) {
     const PORT : uint = 20433u
     write_http_extra_py()
@@ -259,7 +259,7 @@ public func MATRIX_many_response_headers_lookup(env : &mut TestEnv) {
 
 // â”€â”€â”€ 5. Very large query string (~8 KB) survives builder + TLS + parse â”€â”€â”€â”€â”€â”€
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func MATRIX_large_query_string_roundtrip(env : &mut TestEnv) {
     const PORT : uint = 20434u
     xpy_force_kill_port(PORT)

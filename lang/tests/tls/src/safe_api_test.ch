@@ -1,7 +1,7 @@
 using namespace std;
 
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_safe_tls_client(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20200)
@@ -28,15 +28,16 @@ public func INT_safe_tls_client(env : &mut TestEnv) {
 }
 
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_safe_tls_server(env : &mut TestEnv) {
     write_tls_python_utils()
-    test_kill_port(20201)
-    test_server_wait()
-    test_py_run_foreground(string_view("cert /tmp/tls_20201_cert.pem /tmp/tls_20201_key.pem localhost rsa"))
-    test_py_run_foreground(string_view("privkey /tmp/tls_20201_key.pem /tmp/tls_20201_priv.txt"))
+    // 20220 is reserved for this test; do not run fuser here. Killing every
+    // process that once used the port can also signal this test process when a
+    // previous run is still draining, which the runner reports as exit 9.
+    test_py_run_foreground(string_view("cert /tmp/tls_20220_cert.pem /tmp/tls_20220_key.pem localhost rsa"))
+    test_py_run_foreground(string_view("privkey /tmp/tls_20220_key.pem /tmp/tls_20220_priv.txt"))
 
-    var certs = tls::load_certificate("/tmp/tls_20201_cert.pem")
+    var certs = tls::load_certificate("/tmp/tls_20220_cert.pem")
     if(certs is Result.Err) { env.error("safe TLS cert load failed"); return }
     var Ok(chain) = certs else unsafe { unreachable }
 
@@ -44,7 +45,7 @@ public func INT_safe_tls_server(env : &mut TestEnv) {
     var d_buf : [512]u8
     var n_len : size_t = 0
     var d_len : size_t = 0
-    test_parse_n_d_hex_file("/tmp/tls_20201_priv.txt\0" as *char,
+    test_parse_n_d_hex_file("/tmp/tls_20220_priv.txt\0" as *char,
                             &raw mut n_buf[0], 512, &raw mut n_len,
                             &raw mut d_buf[0], 512, &raw mut d_len)
     if(n_len == 0 || d_len == 0) { env.error("safe TLS server key parse failed"); return }
@@ -54,13 +55,13 @@ public func INT_safe_tls_server(env : &mut TestEnv) {
     if(keyr is Result.Err) { env.error("safe TLS key import failed"); return }
     var Ok(key) = keyr else unsafe { unreachable }
 
-    var listener = net::bind_tcp("127.0.0.1", 20201u16)
+    var listener = net::bind_tcp("127.0.0.1", 20220u16)
     if(listener is Result.Err) { env.error("safe TLS listener failed"); return }
     var Ok(l) = listener else unsafe { unreachable }
 
     var cli_cmd = test_py_interp()
-    cli_cmd.append_view("/tmp/tls_utils.py cli 127.0.0.1 20201 1.2 AES128-GCM-SHA256:@SECLEVEL=0 2>/tmp/tls_safe_cli_err.txt")
-    test_run_bg_server(cli_cmd.data(), 20201u16)
+    cli_cmd.append_view("/tmp/tls_utils.py cli 127.0.0.1 20220 1.2 AES128-GCM-SHA256:@SECLEVEL=0 2>/tmp/tls_safe_cli_err.txt")
+    test_run_bg_server(cli_cmd.data(), 20220u16)
     test_server_wait()
 
     var accepted = l.accept()

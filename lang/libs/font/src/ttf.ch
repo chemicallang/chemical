@@ -39,13 +39,16 @@ func read_i32_be(data : *u8, offset : size_t) : i32 {
 
 @direct_init
 public struct Font {
-    var data : vector<u8>
-    var tables : vector<FontTable>
-    var units_per_em : u16
-    var ascent : i16
-    var descent : i16
-    var num_glyphs : u16
-    var loaded : bool
+    // Parsed state is owned by the Font. Callers use the read-only accessors
+    // below; exposing the backing vector/table offsets would let safe code
+    // forge a Font and drive unchecked reads in the glyph parser.
+    internal var data : vector<u8>
+    internal var tables : vector<FontTable>
+    internal var units_per_em : u16
+    internal var ascent : i16
+    internal var descent : i16
+    internal var num_glyphs : u16
+    internal var loaded : bool
 
     @make
     func make() : Font {
@@ -74,6 +77,35 @@ public struct Font {
 
     // ── safe metrics ─────────────────────────────────────────────────────
 
+    public func is_loaded(&self) : bool { return self.loaded }
+    public func em_size(&self) : u16 { return self.units_per_em }
+    public func ascender(&self) : i16 { return self.ascent }
+    public func descender(&self) : i16 { return self.descent }
+    public func glyph_count(&self) : u16 { return self.num_glyphs }
+    public func data_size(&self) : size_t { return self.data.size() }
+    public func table_count(&self) : size_t { return self.tables.size() }
+
+    /// Verify that the parsed table directory is internally consistent.
+    public func validate(&self) : std::Result<std::Unit, FontError> {
+        if(!self.loaded || self.data.size() < 12) {
+            return std::Result.Err< std::Unit, FontError >(FontError.InvalidFormat(string("font is not loaded")))
+        }
+        var i : size_t = 0
+        while(i < self.tables.size()) {
+            var t = self.tables.get(i)
+            var off = t.offset as size_t
+            var len = t.length as size_t
+            if(off > self.data.size()) {
+                return std::Result.Err< std::Unit, FontError >(FontError.InvalidFormat(string("font table offset is out of range")))
+            }
+            if(len > self.data.size() - off) {
+                return std::Result.Err< std::Unit, FontError >(FontError.InvalidFormat(string("font table length is out of range")))
+            }
+            i += 1
+        }
+        return std::Result.Ok< std::Unit, FontError >(std::Unit{})
+    }
+
     func metrics(&self, font_size : float) : FontMetrics {
         return font_safe_metrics(self, font_size)
     }
@@ -90,14 +122,20 @@ public struct Font {
     // ── safe glyph lookup ────────────────────────────────────────────────
 
     func glyph(&self, codepoint : u32) : std::Result<u16, FontError> {
+        var check = self.validate()
+        if(check is std::Result.Err) { var Err(e) = check else unsafe { unreachable }; return std::Result.Err<u16, FontError>(e) }
         return font_get_glyph(unsafe(self as *mut Font), codepoint)
     }
 
     func glyph_metrics(&self, glyph_id : u16) : std::Result<GlyphMetrics, FontError> {
+        var check = self.validate()
+        if(check is std::Result.Err) { var Err(e) = check else unsafe { unreachable }; return std::Result.Err<GlyphMetrics, FontError>(e) }
         return font_get_glyph_metrics(unsafe(self as *mut Font), glyph_id)
     }
 
     func glyph_outline(&self, glyph_id : u16) : std::Result<GlyphOutline, FontError> {
+        var check = self.validate()
+        if(check is std::Result.Err) { var Err(e) = check else unsafe { unreachable }; return std::Result.Err<GlyphOutline, FontError>(e) }
         return font_get_glyph_outline(unsafe(self as *mut Font), glyph_id)
     }
 }
@@ -397,7 +435,7 @@ public func font_get_glyph_metrics(font : *mut Font, glyph_id : u16) : std::Resu
                 metrics.advance_width = read_u16_be(font.data.data(), entry_offset) as i32
                 metrics.left_side_bearing = read_i16_be(font.data.data(), entry_offset + 2)
             }
-        } else {
+        } else if(num_lsb > 0) {
             // Use last long metric entry
             var last_offset = base + ((num_lsb as size_t) - 1) * 4
             if(last_offset + 4 <= font.data.size()) {
@@ -477,12 +515,23 @@ public func font_get_glyph_outline(font : *mut Font, glyph_id : u16) : std::Resu
             // Empty glyph
             return std.Result.Ok(outline)
         } else if(num_contours > 0) {
-            // Simple glyph
+            // Simple glyph. Every offset below is derived from the file; reject
+            // a malformed contour/instruction count before reading it.
+            var remaining = font.data.size() - (glyf_offset + 10)
+            if((num_contours as size_t) > remaining / 2) {
+                return std.Result.Err<GlyphOutline, FontError>(FontError.InvalidFormat(string("glyph contour table is out of range")))
+            }
             var contour_end_offset = glyf_offset + 10 + (num_contours as size_t) * 2
+            if(contour_end_offset + 2 > font.data.size()) {
+                return std.Result.Err<GlyphOutline, FontError>(FontError.InvalidFormat(string("glyph instructions offset is out of range")))
+            }
             var instructions_offset = contour_end_offset + 2
             var num_instructions = read_u16_be(font.data.data(), contour_end_offset)
 
             var points_offset = instructions_offset + (num_instructions as size_t)
+            if(points_offset > font.data.size()) {
+                return std.Result.Err<GlyphOutline, FontError>(FontError.InvalidFormat(string("glyph instructions are out of range")))
+            }
             var num_points : u16 = 0
             var i : i16 = 0
             while(i < num_contours) {

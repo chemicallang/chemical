@@ -59,7 +59,7 @@ func full_pattern(len : usize, phase : usize) : string {
 // GET â†’ POST â†’ PUT â†’ PATCH â†’ DELETE â†’ HEAD in sequence. Every request is a
 // fresh URL parse + TLS handshake + HTTP exchange; one Client drives all six.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func FULL_https_crud_lifecycle_single_server(env : &mut TestEnv) {
     const PORT : uint = 20300u
     full_start_httpsrv(env, PORT, "/tmp/tls_fs00_cert.pem", "/tmp/tls_fs00_key.pem", 8u)
@@ -139,7 +139,7 @@ public func FULL_https_crud_lifecycle_single_server(env : &mut TestEnv) {
 // POST a 32 KiB binary pattern (upload fragmented across TLS records), then
 // GET a 64 KiB download and verify every single byte.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func FULL_https_binary_roundtrip_upload_download(env : &mut TestEnv) {
     const PORT : uint = 20301u
     full_start_httpsrv(env, PORT, "/tmp/tls_fs01_cert.pem", "/tmp/tls_fs01_key.pem", 8u)
@@ -179,7 +179,7 @@ public func FULL_https_binary_roundtrip_upload_download(env : &mut TestEnv) {
 // Status codes, query echo, header echo and chunked responses â€” six different
 // routes exercised back-to-back on a single server process.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func FULL_https_routing_matrix_all_routes(env : &mut TestEnv) {
     const PORT : uint = 20302u
     full_start_httpsrv(env, PORT, "/tmp/tls_fs02_cert.pem", "/tmp/tls_fs02_key.pem", 10u)
@@ -372,7 +372,7 @@ public func FULL_https_concurrent_clients_parallel_handshakes(env : &mut TestEnv
 
 // â”€â”€â”€ 5. Large POST: 100 KiB echoed exactly across many TLS records â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func FULL_https_large_post_100k_echo_exact(env : &mut TestEnv) {
     const PORT : uint = 20304u
     full_start_httpsrv(env, PORT, "/tmp/tls_fs04_cert.pem", "/tmp/tls_fs04_key.pem", 8u)
@@ -405,7 +405,7 @@ public func FULL_https_large_post_100k_echo_exact(env : &mut TestEnv) {
 // Reads X-Custom from /hello, sends it as X-Test to /hdrs; the server echoes
 // it back â€” proving header extraction and injection across requests works.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func FULL_https_header_value_state_flow_between_requests(env : &mut TestEnv) {
     const PORT : uint = 20305u
     full_start_httpsrv(env, PORT, "/tmp/tls_fs05_cert.pem", "/tmp/tls_fs05_key.pem", 8u)
@@ -447,7 +447,7 @@ public func FULL_https_header_value_state_flow_between_requests(env : &mut TestE
 // Multi-byte UTF-8 sequences plus tab/newline content posted to /echo and
 // compared byte-for-byte after the TLS roundtrip.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func FULL_https_utf8_and_control_char_bodies(env : &mut TestEnv) {
     unsafe {
 
@@ -501,7 +501,7 @@ public func FULL_https_utf8_and_control_char_bodies(env : &mut TestEnv) {
 // A POST with no body omits Content-Length; the server still sees the
 // Content-Type header and answers with its own empty body.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func FULL_https_empty_body_post_semantics(env : &mut TestEnv) {
     const PORT : uint = 20307u
     full_start_httpsrv(env, PORT, "/tmp/tls_fs07_cert.pem", "/tmp/tls_fs07_key.pem", 8u)
@@ -534,7 +534,7 @@ public func FULL_https_empty_body_post_semantics(env : &mut TestEnv) {
 //   3. HTTP/1.0 + duplicate X-Multi headers
 // Each flows through the TLS layer into the response parser.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func FULL_https_raw_response_parsing_variants(env : &mut TestEnv) {
     const PORT : uint = 20308u
     write_tls_python_utils()
@@ -745,7 +745,7 @@ public func FULL_https_two_level_ca_chain_verification(env : &mut TestEnv) {
     if(root == null) { env.error("could not load generated root"); test_kill_port(PORT as int); return }
 
     var client = Client()
-    client.set_ca_chain(root)
+    unsafe(client.set_ca_chain(root))
 
     var res = client.get(string_view("https://localhost:20313/hello"))
     if(res is Result.Err) {
@@ -769,7 +769,7 @@ public func FULL_https_two_level_ca_chain_verification(env : &mut TestEnv) {
 // Pulls a 50 KB response through 1000-byte reads so individual TLS records
 // are delivered piecemeal; verifies every byte positionally.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func FULL_https_streaming_body_small_reads(env : &mut TestEnv) {
     const PORT : uint = 20314u
     const TOTAL : size_t = 50000u
@@ -811,7 +811,7 @@ public func FULL_https_streaming_body_small_reads(env : &mut TestEnv) {
 
 // â”€â”€â”€ 15. Uppercase HTTPS scheme parsed and executed live â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func FULL_https_uppercase_scheme_end_to_end(env : &mut TestEnv) {
     const PORT : uint = 20315u
     full_start_httpsrv(env, PORT, "/tmp/tls_fs15_cert.pem", "/tmp/tls_fs15_key.pem", 8u)

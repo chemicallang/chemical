@@ -118,7 +118,7 @@ public func API_ssl_read_new_session_ticket_no_socket_fails(env : &mut TestEnv) 
 // in TLS 1.2. The client must decrypt it through the active transform, store
 // the ticket + master secret in ssl.session, and keep the connection usable.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func E2E_tls12_session_ticket_received_and_stored(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20130u)

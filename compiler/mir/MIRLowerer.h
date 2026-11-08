@@ -1398,6 +1398,10 @@ private:
          * journal.
          */
         chem::string_view name;
+        // Kind 2 (comptime bindings) can outlive the map that owns the key:
+        // `restore_comptime_bindings` moves a saved map over it. Keep an owned
+        // copy for that case instead of a view into the replaced map.
+        std::string owned_name;
         bool existed = false;
         PlaceId place = MIR_INVALID_ID;
         Value* cval = nullptr;

@@ -3,8 +3,9 @@
 Tier C is the raw C binding surface (`cstd`, compiler CBI, platform APIs). Tier A
 libraries expose safe wrappers; the remaining entries below are legacy
 raw-buffer compatibility APIs retained for in-tree callers and are scheduled for
-removal/migration. They are not part of the safe API guarantee and every one is
-inside an `unsafe` boundary when called.
+removal/migration. They are not part of the safe API guarantee. Some are
+`unsafe func`s; the ordinary raw entries are tracked as migration debt, not as
+an endorsement.
 
 Reviewed explicit raw accessors (allowed):
 
@@ -32,7 +33,7 @@ in-tree callers. They are not part of the safe surface and are counted by
 | path | 8 | 8 |
 | environment | 0 | 3 |
 | net | 17 | 3 |
-| http | 15 | 4 |
+| http | 15 | 5 |
 | tls | 137 | 4 |
 | encoding | 13 | 0 |
 | crypto | 22 | 0 |

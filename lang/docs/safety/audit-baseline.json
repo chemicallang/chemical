@@ -931,7 +931,7 @@
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
       "unsafe_blocks": 63,
-      "unsafe_func_decls": 4,
+      "unsafe_func_decls": 5,
       "unsafe_impl_decls": 0,
       "unsafe_values": 41,
       "variadic_calls": 6
@@ -951,15 +951,15 @@
       "new_values": 0,
       "panic_calls": 0,
       "raw_pointer_addrs": 26,
-      "raw_pointer_casts": 42,
+      "raw_pointer_casts": 41,
       "raw_pointer_derefs": 0,
-      "raw_pointer_types": 120,
+      "raw_pointer_types": 119,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
       "unsafe_blocks": 51,
       "unsafe_func_decls": 0,
       "unsafe_impl_decls": 0,
-      "unsafe_values": 21,
+      "unsafe_values": 20,
       "variadic_calls": 0
     },
     "::js": {
@@ -1288,7 +1288,7 @@
       "mutable_globals": 10,
       "new_values": 0,
       "panic_calls": 0,
-      "raw_pointer_addrs": 837,
+      "raw_pointer_addrs": 838,
       "raw_pointer_casts": 149,
       "raw_pointer_derefs": 27,
       "raw_pointer_types": 242,
@@ -1297,7 +1297,7 @@
       "unsafe_blocks": 95,
       "unsafe_func_decls": 0,
       "unsafe_impl_decls": 0,
-      "unsafe_values": 199,
+      "unsafe_values": 200,
       "variadic_calls": 0
     },
     "::md": {
@@ -2071,13 +2071,13 @@
       "raw_pointer_addrs": 2054,
       "raw_pointer_casts": 111,
       "raw_pointer_derefs": 80,
-      "raw_pointer_types": 752,
+      "raw_pointer_types": 750,
       "union_field_accesses": 0,
       "unreachable_stmts": 0,
       "unsafe_blocks": 379,
       "unsafe_func_decls": 4,
       "unsafe_impl_decls": 0,
-      "unsafe_values": 1027,
+      "unsafe_values": 1026,
       "variadic_calls": 94
     },
     "::tls_integration_tests": {
@@ -2103,7 +2103,7 @@
       "unsafe_blocks": 457,
       "unsafe_func_decls": 0,
       "unsafe_impl_decls": 0,
-      "unsafe_values": 2837,
+      "unsafe_values": 2841,
       "variadic_calls": 66
     },
     "::universal": {
@@ -2459,16 +2459,16 @@
     "mutable_globals": 145,
     "new_values": 9,
     "panic_calls": 152,
-    "raw_pointer_addrs": 10235,
-    "raw_pointer_casts": 2988,
+    "raw_pointer_addrs": 10236,
+    "raw_pointer_casts": 2987,
     "raw_pointer_derefs": 1162,
-    "raw_pointer_types": 9584,
+    "raw_pointer_types": 9581,
     "union_field_accesses": 0,
     "unreachable_stmts": 0,
     "unsafe_blocks": 3928,
-    "unsafe_func_decls": 71,
+    "unsafe_func_decls": 72,
     "unsafe_impl_decls": 21,
-    "unsafe_values": 5243,
+    "unsafe_values": 5246,
     "variadic_calls": 296
   }
 }

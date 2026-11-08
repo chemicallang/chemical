@@ -111,6 +111,33 @@ public struct Image {
 
     // ── safe metadata ────────────────────────────────────────────────────
 
+    /// Check that the public dimension/channel fields describe exactly the
+    /// owned pixel buffer. All safe operations call this before touching raw
+    /// pixel memory, so a forged Image cannot cause an out-of-bounds access.
+    public func validate(&self) : std::Result<std::Unit, ImageError> {
+        if(self.width <= 0 || self.height <= 0) {
+            return std::Result.Err< std::Unit, ImageError >(ImageError.InvalidDimensions(self.width, self.height))
+        }
+        if(self.channels != 1 && self.channels != 2 && self.channels != 3 && self.channels != 4) {
+            return std::Result.Err< std::Unit, ImageError >(ImageError.InvalidFormat(string("unsupported channel count")))
+        }
+        const max_size = (0 as size_t) - 1
+        const w = self.width as size_t
+        const h = self.height as size_t
+        if(w > max_size / h) {
+            return std::Result.Err< std::Unit, ImageError >(ImageError.InvalidDimensions(self.width, self.height))
+        }
+        const pixels = w * h
+        if(pixels > max_size / (self.channels as size_t)) {
+            return std::Result.Err< std::Unit, ImageError >(ImageError.InvalidDimensions(self.width, self.height))
+        }
+        const expected = pixels * (self.channels as size_t)
+        if(self.pixels.size() != expected) {
+            return std::Result.Err< std::Unit, ImageError >(ImageError.InvalidFormat(string("pixel buffer size does not match dimensions")))
+        }
+        return std::Result.Ok< std::Unit, ImageError >(std::Unit{})
+    }
+
     // `width`, `height`, and `channels` are already public fields; these
     // accessors exist for interface-style call sites.
     func get_width(&self) : int { return self.width }
@@ -131,39 +158,51 @@ public struct Image {
     // ── safe pixel operations ────────────────────────────────────────────
 
     func pixel(&self, x : int, y : int) : std::Result<RGBA8, ImageError> {
+        var check = self.validate()
+        if(check is std::Result.Err) { var Err(e) = check else unsafe { unreachable }; return std::Result.Err<RGBA8, ImageError>(e) }
         return image_get_rgba(unsafe(self as *mut Image), x, y)
     }
 
     func get(&self, x : int, y : int) : std::Result<RGBA8, ImageError> {
-        return image_get_rgba(unsafe(self as *mut Image), x, y)
+        return self.pixel(x, y)
     }
 
     func set(&mut self, x : int, y : int, color : RGBA8) : std::Result<std::Unit, ImageError> {
+        var check = self.validate()
+        if(check is std::Result.Err) { return check }
         return image_set_rgba(unsafe(self as *mut Image), x, y, color)
     }
 
     func crop(&self, x : int, y : int, w : int, h : int) : std::Result<Image, ImageError> {
+        var check = self.validate()
+        if(check is std::Result.Err) { var Err(e) = check else unsafe { unreachable }; return std::Result.Err<Image, ImageError>(e) }
         return image_crop(unsafe(self as *mut Image), x, y, w, h)
     }
 
     func flip_h(&mut self) {
-        image_flip_h(unsafe(self as *mut Image))
+        if(self.validate() is std::Result.Ok) { image_flip_h(unsafe(self as *mut Image)) }
     }
 
     func flip_v(&mut self) {
-        image_flip_v(unsafe(self as *mut Image))
+        if(self.validate() is std::Result.Ok) { image_flip_v(unsafe(self as *mut Image)) }
     }
 
     // `horizontal == true` mirrors left/right; false mirrors top/bottom.
     func flip(&mut self, horizontal : bool) {
-        if(horizontal) {
-            image_flip_h(unsafe(self as *mut Image))
-        } else {
-            image_flip_v(unsafe(self as *mut Image))
+        if(self.validate() is std::Result.Ok) {
+            if(horizontal) {
+                image_flip_h(unsafe(self as *mut Image))
+            } else {
+                image_flip_v(unsafe(self as *mut Image))
+            }
         }
     }
 
     func blit(&mut self, src : &Image, dx : int, dy : int) : std::Result<std::Unit, ImageError> {
+        var check = self.validate()
+        if(check is std::Result.Err) { return check }
+        var src_check = src.validate()
+        if(src_check is std::Result.Err) { return src_check }
         return image_blit(unsafe(self as *mut Image), unsafe(src as *mut Image), dx, dy)
     }
 

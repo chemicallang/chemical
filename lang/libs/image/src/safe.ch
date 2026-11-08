@@ -54,14 +54,20 @@ func image_safe_from_ppm(data : *u8, len : size_t) : Result<Image, ImageError> {
 // ── encoding ──────────────────────────────────────────────────────────────
 
 func image_safe_encode_png(img : &Image) : Result<vector<u8>, ImageError> {
+    var check = img.validate()
+    if(check is Result.Err) { var Err(e) = check else unsafe { unreachable }; return Result.Err<vector<u8>, ImageError>(e) }
     return encode_png(unsafe(img as *mut Image))
 }
 
 func image_safe_encode_bmp(img : &Image) : Result<vector<u8>, ImageError> {
+    var check = img.validate()
+    if(check is Result.Err) { var Err(e) = check else unsafe { unreachable }; return Result.Err<vector<u8>, ImageError>(e) }
     return encode_bmp(unsafe(img as *mut Image))
 }
 
 func image_safe_encode_ppm(img : &Image) : Result<vector<u8>, ImageError> {
+    var check = img.validate()
+    if(check is Result.Err) { var Err(e) = check else unsafe { unreachable }; return Result.Err<vector<u8>, ImageError>(e) }
     return encode_ppm(unsafe(img as *mut Image))
 }
 

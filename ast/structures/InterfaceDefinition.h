@@ -7,6 +7,7 @@
 #pragma once
 
 #include <utility>
+#include <mutex>
 
 #include "ast/base/ASTNode.h"
 #include "ast/base/GlobalInterpretScope.h"
@@ -86,6 +87,9 @@ public:
      * users of this interface,
      */
     std::vector<ExtendableMembersContainerNode*> users;
+    // Generic instantiation can register implementations from several file
+    // workers at once; `users`/`has_implementation` are shared.
+    std::mutex users_mutex;
 
     /**
      * this maps structs that implement this interface with their global variable pointers
@@ -216,6 +220,7 @@ public:
      * which should be registered by calling register_use_to_inherited_interfaces
      */
     void register_use(ExtendableMembersContainerNode* definition) {
+        std::lock_guard<std::mutex> lock(users_mutex);
         users.emplace_back(definition);
         attrs.has_implementation = true;
     }

@@ -142,23 +142,23 @@ lang/libs/tls/src/safe.ch:212:public func load_certificate(path : &str) : Result
 lang/libs/tls/src/safe.ch:225:public func load_rsa_private_key(path : &str) : Result<PrivateKey, std::io::IoError> {
 lang/libs/tls/src/safe.ch:238:public func load_ec_private_key(path : &str) : Result<PrivateKey, std::io::IoError> {
 lang/libs/tls/src/safe.ch:251:public func rsa_private_key_from_components(n : [u8], d : [u8]) : Result<PrivateKey, std::io::IoError> {
-lang/libs/tls/src/safe.ch:268:public struct TlsServerConfig {
-lang/libs/tls/src/safe.ch:274:public func server_config(certs : &CertificateChain, key : &PrivateKey) : TlsServerConfig {
-lang/libs/tls/src/safe.ch:284:public struct TlsServerStream {
-lang/libs/tls/src/safe.ch:288:    func delete(&mut self) {
-lang/libs/tls/src/safe.ch:296:    func read_bytes(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
-lang/libs/tls/src/safe.ch:308:    func write_bytes(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
+lang/libs/tls/src/safe.ch:271:public struct TlsServerConfig<'a> {
+lang/libs/tls/src/safe.ch:277:public func <'a> server_config(certs : &'a CertificateChain, key : &'a PrivateKey) : TlsServerConfig<'a> {
+lang/libs/tls/src/safe.ch:287:public struct TlsServerStream {
+lang/libs/tls/src/safe.ch:291:    func delete(&mut self) {
+lang/libs/tls/src/safe.ch:299:    func read_bytes(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
 lang/libs/tls/src/safe.ch:30:public struct TlsStream {
-lang/libs/tls/src/safe.ch:320:    func close_notify(&mut self) {
-lang/libs/tls/src/safe.ch:324:    func alpn_protocol(&self) : Option<std::string_view> {
-lang/libs/tls/src/safe.ch:335:public func accept(stream : net::TcpStream, cfg : &TlsServerConfig) : Result<TlsServerStream, std::io::IoError> {
+lang/libs/tls/src/safe.ch:311:    func write_bytes(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
+lang/libs/tls/src/safe.ch:323:    func close_notify(&mut self) {
+lang/libs/tls/src/safe.ch:327:    func alpn_protocol(&self) : Option<std::string_view> {
+lang/libs/tls/src/safe.ch:338:public func <'a> accept(stream : net::TcpStream, cfg : &'a TlsServerConfig<'a>) : std::Result<TlsServerStream, std::io::IoError> {
 lang/libs/tls/src/safe.ch:33:    func read_bytes(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
-lang/libs/tls/src/safe.ch:348:    func read(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
-lang/libs/tls/src/safe.ch:351:    func read_exact(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
-lang/libs/tls/src/safe.ch:363:    func try_read_to_end(&mut self, out : &mut std::vector<u8>) : Result<size_t, std::io::IoError> {
-lang/libs/tls/src/safe.ch:386:    func write(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
-lang/libs/tls/src/safe.ch:389:    func write_all(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
-lang/libs/tls/src/safe.ch:401:    func flush(&mut self) : Result<size_t, std::io::IoError> {
+lang/libs/tls/src/safe.ch:351:    func read(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
+lang/libs/tls/src/safe.ch:354:    func read_exact(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
+lang/libs/tls/src/safe.ch:366:    func try_read_to_end(&mut self, out : &mut std::vector<u8>) : Result<size_t, std::io::IoError> {
+lang/libs/tls/src/safe.ch:389:    func write(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
+lang/libs/tls/src/safe.ch:392:    func write_all(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
+lang/libs/tls/src/safe.ch:404:    func flush(&mut self) : Result<size_t, std::io::IoError> {
 lang/libs/tls/src/safe.ch:44:    func write_bytes(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
 lang/libs/tls/src/safe.ch:57:    func close_notify(&mut self) {
 lang/libs/tls/src/safe.ch:61:    func alpn_protocol(&self) : Option<std::string_view> {

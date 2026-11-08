@@ -7,7 +7,8 @@ boundary; safe callers use the facade documented in the library README/api snaps
 
 ```
 lang/libs/http/src/types.ch:134:    public unsafe func strcasecmp(a:*char, b:*char) : int {
-lang/libs/http/src/types.ch:208:        public unsafe func make_body(
+lang/libs/http/src/types.ch:221:        public unsafe func make_body(
+lang/libs/http/src/client.ch:257:        public unsafe func set_ca_chain(&mut self, ca: *mut tls::X509Cert) : &mut Client {
 lang/libs/http/src/parser.ch:107:    public unsafe func parse_request_from_bytes(buf:*u8, n: usize, s: net::Socket) : std::Option<Request> {
 lang/libs/http/src/parser.ch:203:    public unsafe func read_response_incremental(
 ```

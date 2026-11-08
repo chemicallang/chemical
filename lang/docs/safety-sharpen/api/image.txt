@@ -76,32 +76,33 @@ lang/libs/image/src/safe.ch:42:func image_safe_from_png(data : *u8, len : size_t
 lang/libs/image/src/safe.ch:46:func image_safe_from_bmp(data : *u8, len : size_t) : Result<Image, ImageError> {
 lang/libs/image/src/safe.ch:50:func image_safe_from_ppm(data : *u8, len : size_t) : Result<Image, ImageError> {
 lang/libs/image/src/safe.ch:56:func image_safe_encode_png(img : &Image) : Result<vector<u8>, ImageError> {
-lang/libs/image/src/safe.ch:60:func image_safe_encode_bmp(img : &Image) : Result<vector<u8>, ImageError> {
-lang/libs/image/src/safe.ch:64:func image_safe_encode_ppm(img : &Image) : Result<vector<u8>, ImageError> {
-lang/libs/image/src/safe.ch:70:func image_safe_save(img : &Image, path : &path::Path) : Result<std::Unit, ImageError> {
+lang/libs/image/src/safe.ch:62:func image_safe_encode_bmp(img : &Image) : Result<vector<u8>, ImageError> {
+lang/libs/image/src/safe.ch:68:func image_safe_encode_ppm(img : &Image) : Result<vector<u8>, ImageError> {
+lang/libs/image/src/safe.ch:76:func image_safe_save(img : &Image, path : &path::Path) : Result<std::Unit, ImageError> {
 lang/libs/image/src/types.ch:100:    func from_png(data : &[u8]) : std::Result<Image, ImageError> {
 lang/libs/image/src/types.ch:104:    func from_bmp(data : &[u8]) : std::Result<Image, ImageError> {
 lang/libs/image/src/types.ch:108:    func from_ppm(data : &[u8]) : std::Result<Image, ImageError> {
-lang/libs/image/src/types.ch:116:    func get_width(&self) : int { return self.width }
-lang/libs/image/src/types.ch:117:    func get_height(&self) : int { return self.height }
-lang/libs/image/src/types.ch:118:    func get_channels(&self) : int { return self.channels }
-lang/libs/image/src/types.ch:119:    func pixel_count(&self) : size_t { return (self.width as size_t) * (self.height as size_t) }
-lang/libs/image/src/types.ch:120:    func total_bytes(&self) : size_t { return self.pixels.size() }
-lang/libs/image/src/types.ch:123:    func pixels_view(&self) : [u8] {
-lang/libs/image/src/types.ch:127:    func pixels_mut_view(&mut self) : &mut [u8] {
-lang/libs/image/src/types.ch:133:    func pixel(&self, x : int, y : int) : std::Result<RGBA8, ImageError> {
-lang/libs/image/src/types.ch:137:    func get(&self, x : int, y : int) : std::Result<RGBA8, ImageError> {
-lang/libs/image/src/types.ch:141:    func set(&mut self, x : int, y : int, color : RGBA8) : std::Result<std::Unit, ImageError> {
-lang/libs/image/src/types.ch:145:    func crop(&self, x : int, y : int, w : int, h : int) : std::Result<Image, ImageError> {
-lang/libs/image/src/types.ch:149:    func flip_h(&mut self) {
+lang/libs/image/src/types.ch:117:    public func validate(&self) : std::Result<std::Unit, ImageError> {
+lang/libs/image/src/types.ch:143:    func get_width(&self) : int { return self.width }
+lang/libs/image/src/types.ch:144:    func get_height(&self) : int { return self.height }
+lang/libs/image/src/types.ch:145:    func get_channels(&self) : int { return self.channels }
+lang/libs/image/src/types.ch:146:    func pixel_count(&self) : size_t { return (self.width as size_t) * (self.height as size_t) }
+lang/libs/image/src/types.ch:147:    func total_bytes(&self) : size_t { return self.pixels.size() }
 lang/libs/image/src/types.ch:14:    func message(&self) : string {
-lang/libs/image/src/types.ch:153:    func flip_v(&mut self) {
-lang/libs/image/src/types.ch:158:    func flip(&mut self, horizontal : bool) {
-lang/libs/image/src/types.ch:166:    func blit(&mut self, src : &Image, dx : int, dy : int) : std::Result<std::Unit, ImageError> {
-lang/libs/image/src/types.ch:172:    func encode_png(&self) : std::Result<vector<u8>, ImageError> {
-lang/libs/image/src/types.ch:176:    func encode_bmp(&self) : std::Result<vector<u8>, ImageError> {
-lang/libs/image/src/types.ch:180:    func encode_ppm(&self) : std::Result<vector<u8>, ImageError> {
-lang/libs/image/src/types.ch:185:    func save(&self, path : &path::Path) : std::Result<std::Unit, ImageError> {
+lang/libs/image/src/types.ch:150:    func pixels_view(&self) : [u8] {
+lang/libs/image/src/types.ch:154:    func pixels_mut_view(&mut self) : &mut [u8] {
+lang/libs/image/src/types.ch:160:    func pixel(&self, x : int, y : int) : std::Result<RGBA8, ImageError> {
+lang/libs/image/src/types.ch:166:    func get(&self, x : int, y : int) : std::Result<RGBA8, ImageError> {
+lang/libs/image/src/types.ch:170:    func set(&mut self, x : int, y : int, color : RGBA8) : std::Result<std::Unit, ImageError> {
+lang/libs/image/src/types.ch:176:    func crop(&self, x : int, y : int, w : int, h : int) : std::Result<Image, ImageError> {
+lang/libs/image/src/types.ch:182:    func flip_h(&mut self) {
+lang/libs/image/src/types.ch:186:    func flip_v(&mut self) {
+lang/libs/image/src/types.ch:191:    func flip(&mut self, horizontal : bool) {
+lang/libs/image/src/types.ch:201:    func blit(&mut self, src : &Image, dx : int, dy : int) : std::Result<std::Unit, ImageError> {
+lang/libs/image/src/types.ch:211:    func encode_png(&self) : std::Result<vector<u8>, ImageError> {
+lang/libs/image/src/types.ch:215:    func encode_bmp(&self) : std::Result<vector<u8>, ImageError> {
+lang/libs/image/src/types.ch:219:    func encode_ppm(&self) : std::Result<vector<u8>, ImageError> {
+lang/libs/image/src/types.ch:224:    func save(&self, path : &path::Path) : std::Result<std::Unit, ImageError> {
 lang/libs/image/src/types.ch:51:public struct RGBA8 {
 lang/libs/image/src/types.ch:58:    func make(r_ : u8, g_ : u8, b_ : u8, a_ : u8 = 255) : RGBA8 {
 lang/libs/image/src/types.ch:63:public struct RGB8 {

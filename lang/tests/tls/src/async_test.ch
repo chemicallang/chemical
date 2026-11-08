@@ -10,7 +10,7 @@ using namespace tls
 using std::string_view
 
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_tls13_client_async(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(19890)

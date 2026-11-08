@@ -97,4 +97,12 @@ func page_safe_typed_parameter_round_trip(env : &mut TestEnv) {
 
     var missing = safe_page_get_parameter_safe(&html_page, "nope")
     if(missing is Option.Some) { env.error("missing parameter should be None"); return }
+
+    // The key must be copied into page-owned storage: mutating the caller's
+    // key after setting the parameter must not affect lookup.
+    var dynamic_key = string("dynamic_key")
+    safe_page_set_parameter(&mut html_page, &dynamic_key, &count)
+    dynamic_key.clear()
+    var dynamic_opt = safe_page_get_parameter_safe(&html_page, "dynamic_key")
+    if(dynamic_opt is Option.None) { env.error("dynamic parameter key was not copied"); return }
 }

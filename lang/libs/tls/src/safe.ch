@@ -265,16 +265,19 @@ public func rsa_private_key_from_components(n : [u8], d : [u8]) : Result<Private
     return Result.Ok(PrivateKey { ptr : ctx as *mut void, kind : 1 })
 }
 
-public struct TlsServerConfig {
-    internal var cert : *mut X509Cert
-    internal var key : *mut void
+/// Borrowed server credentials. The lifetime keeps the certificate chain and
+/// private key alive for at least as long as this config, including the
+/// `accept` call that consumes it.
+public struct TlsServerConfig<'a> {
+    internal var cert : &'a CertificateChain
+    internal var key : &'a PrivateKey
     internal var cipher_suite : int
 }
 
-public func server_config(certs : &CertificateChain, key : &PrivateKey) : TlsServerConfig {
-    return TlsServerConfig {
-        cert : certs.ptr,
-        key : key.ptr,
+public func <'a> server_config(certs : &'a CertificateChain, key : &'a PrivateKey) : TlsServerConfig<'a> {
+    return TlsServerConfig<'a> {
+        cert : certs,
+        key : key,
         cipher_suite : TLS_RSA_WITH_AES_128_GCM_SHA256
     }
 }
@@ -332,16 +335,16 @@ public struct TlsServerStream {
 
 /// Accept a TLS connection on an already-connected TCP stream. Ownership of the
 /// socket moves into the returned stream.
-public func accept(stream : net::TcpStream, cfg : &TlsServerConfig) : Result<TlsServerStream, std::io::IoError> {
-    if(cfg.cert == null || cfg.key == null) {
-        return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
+public func <'a> accept(stream : net::TcpStream, cfg : &'a TlsServerConfig<'a>) : std::Result<TlsServerStream, std::io::IoError> {
+    if(cfg.cert.ptr == null || cfg.key.ptr == null) {
+        return std::Result.Err<TlsServerStream, std::io::IoError>(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
     }
     var fd = unsafe(net::release_raw(&mut stream))
-    var ctx = tls_accept(fd, cfg.cert, cfg.key, cfg.cipher_suite)
+    var ctx = tls_accept(fd, cfg.cert.ptr, cfg.key.ptr, cfg.cipher_suite)
     if(ctx == null) {
-        return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::ConnectionReset()))
+        return std::Result.Err<TlsServerStream, std::io::IoError>(std::io::IoError.Kind(std::io::IoErrorKind::ConnectionReset()))
     }
-    return Result.Ok(TlsServerStream { ctx : ctx })
+    return std::Result.Ok<TlsServerStream, std::io::IoError>(TlsServerStream { ctx : ctx })
 }
 
 impl std::io::Read for TlsServerStream {

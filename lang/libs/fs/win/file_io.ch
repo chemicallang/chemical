@@ -31,7 +31,7 @@ func file_open_native(path : path_ptr, opts : OpenOptions) : Result<File, FsErro
         var err = GetLastError();
         return Result.Err(winerr_to_fs(err as int));
     }
-    var f : File; f.win.handle = handle; f.valid = true;
+    var f : File; f.handle = handle as i64; f.valid = true;
     return Result.Ok(f);
 
         }}
@@ -39,7 +39,7 @@ func file_open_native(path : path_ptr, opts : OpenOptions) : Result<File, FsErro
 public func file_close_ref(f : &mut File) : Result<UnitTy, FsError> {
         unsafe {
     if(!f.valid) { return Result.Ok(UnitTy{}); }
-    var ok = CloseHandle(f.win.handle);
+    var ok = CloseHandle((f.handle as *mut void));
     if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
     f.valid = false;
     return Result.Ok(UnitTy{});
@@ -48,7 +48,7 @@ public func file_close(f : *mut File) : Result<UnitTy, FsError> {
         unsafe {
     if(f == null) { return Result.Err(FsError.InvalidInput()); }
     if(!f.valid) { return Result.Ok(UnitTy{}); }
-    var ok = CloseHandle(f.win.handle);
+    var ok = CloseHandle((f.handle as *mut void));
     if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
     f.valid = false;
     return Result.Ok(UnitTy{});
@@ -57,10 +57,10 @@ public func file_close(f : *mut File) : Result<UnitTy, FsError> {
 
 public func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
         unsafe {
-    if(f == null || (buf == null && buf_len != 0)) { return Result.Err(FsError.InvalidInput()); }
+    if(f == null || !f.valid || (buf == null && buf_len != 0)) { return Result.Err(FsError.InvalidInput()); }
     if(buf_len == 0) { return Result.Ok(0 as size_t); }
     var read_out : u32 = 0;
-    var ok = ReadFile(f.win.handle, buf as *mut void, buf_len as u32, (&mut read_out) as *mut DWORD, null);
+    var ok = ReadFile((f.handle as *mut void), buf as *mut void, buf_len as u32, (&mut read_out) as *mut DWORD, null);
     if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
     return Result.Ok(read_out as size_t);
 
@@ -68,10 +68,10 @@ public func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<s
 
 public func file_write(f : *mut File, buf : *u8, buf_len : size_t) : Result<size_t, FsError> {
         unsafe {
-    if(f == null || (buf == null && buf_len != 0)) { return Result.Err(FsError.InvalidInput()); }
+    if(f == null || !f.valid || (buf == null && buf_len != 0)) { return Result.Err(FsError.InvalidInput()); }
     if(buf_len == 0) { return Result.Ok(0 as size_t); }
     var written : u32 = 0;
-    var ok = WriteFile(f.win.handle, buf as *void, buf_len as u32, (&mut written) as *mut DWORD, null);
+    var ok = WriteFile((f.handle as *mut void), buf as *void, buf_len as u32, (&mut written) as *mut DWORD, null);
     if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
     return Result.Ok(written as size_t);
 
@@ -79,8 +79,8 @@ public func file_write(f : *mut File, buf : *u8, buf_len : size_t) : Result<size
 
 public func file_flush(f : *mut File) : Result<UnitTy, FsError> {
         unsafe {
-    if(f == null) { return Result.Err(FsError.InvalidInput()); }
-    var ok = FlushFileBuffers(f.win.handle);
+    if(f == null || !f.valid) { return Result.Err(FsError.InvalidInput()); }
+    var ok = FlushFileBuffers((f.handle as *mut void));
     if(ok == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
     return Result.Ok(UnitTy{});
 
@@ -130,7 +130,7 @@ func create_temp_file_in_native(dir : path_ptr, prefix : path_ptr, out_path : mu
         return Result.Err(e)
     }
     var Ok(f) = fo else unsafe { unreachable };
-    fh.valid = f.valid; fh.win.handle = f.win.handle;
+    fh.valid = f.valid; fh.handle = f.handle;
     return Result.Ok(UnitTy{});
 
         }}

@@ -62,7 +62,7 @@ void MIRLowerer::set_comptime_binding(const std::string& key, Value* value) {
         if (scope_journal_) {
             ScopeUndo u;
             u.kind = 2;
-            u.name = chem::string_view(it->first.data(), it->first.size());
+            u.owned_name = it->first;
             scope_undo_.push_back(std::move(u));
         }
         return;
@@ -101,7 +101,7 @@ void MIRLowerer::undo_scope_from(size_t mark) {
                 break;
             }
             case 2: {
-                auto it = comptime_bindings_.find(u.name);
+                auto it = comptime_bindings_.find(u.owned_name);
                 if (it == comptime_bindings_.end()) break;
                 if (u.existed) it->second = u.cval;
                 else comptime_bindings_.erase(it);

@@ -7,8 +7,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # and INCLUDE/LIB are set up correctly for cl.exe
 source "$SCRIPT_DIR/msvc_env.sh"
 
-BUILD_DIR="cmake-build-debug"
+BUILD_DIR="${BUILD_DIR:-cmake-build-debug}"
 JOBS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+# Optional compiler concurrency override (the compiler's --jobs flag). Used by
+# sanitizer gates until the parallel symres lifetime race is fixed.
+COMPILER_JOBS="${COMPILER_JOBS:-}"
 TARGET=""
 TEST_BUILD_LAB="lang/tests/build.lab"
 TEST_OUT_DIR="lang/tests/build"
@@ -514,6 +517,7 @@ fi
 if [ "$TEST_NEGATIVE" = true ]; then
   NEG_OUT="$TEST_OUT_DIR/negative-tests-$([ "$TARGET" = "Compiler" ] && echo llvm || echo tcc).exe"
   CMD=("$COMPILER_BIN" "$TEST_BUILD_LAB" -o "$NEG_OUT" --mode "$MODE" --arg-negative)
+  [ -n "$COMPILER_JOBS" ] && CMD+=("--jobs" "$COMPILER_JOBS")
   [ -n "$NO_CACHE" ] && CMD+=("$NO_CACHE")
   [ "$EMIT_C" = true ] && CMD+=("--emit-c")
   [ "$DEBUG_FLAG" = true ] && CMD+=("-g")
@@ -543,6 +547,7 @@ if [ "$TEST_NEGATIVE" = true ]; then
 elif [ "$TEST_SAFETY" = true ]; then
   SAFETY_OUT="$TEST_OUT_DIR/safety-tests-$([ "$TARGET" = "Compiler" ] && echo llvm || echo tcc).exe"
   CMD=("$COMPILER_BIN" "$TEST_BUILD_LAB" -o "$SAFETY_OUT" --mode "$MODE" --arg-test-safety)
+  [ -n "$COMPILER_JOBS" ] && CMD+=("--jobs" "$COMPILER_JOBS")
   [ -n "$NO_CACHE" ] && CMD+=("$NO_CACHE")
   [ "$EMIT_C" = true ] && CMD+=("--emit-c")
   [ "$DEBUG_FLAG" = true ] && CMD+=("-g")
@@ -568,6 +573,7 @@ elif [ "$TEST_SAFETY" = true ]; then
 elif [ "$TEST_INTERPRET" = true ]; then
   # Interpretation mode: run the compiler which interprets main() directly
   CMD=("$COMPILER_BIN" "$TEST_BUILD_LAB" --mode "$MODE" --arg-interpret)
+  [ -n "$COMPILER_JOBS" ] && CMD+=("--jobs" "$COMPILER_JOBS")
   [ -n "$NO_CACHE" ] && CMD+=("$NO_CACHE")
   [ "$EMIT_C" = true ] && CMD+=("--emit-c")
   [ "$DEBUG_FLAG" = true ] && CMD+=("-g")
@@ -595,6 +601,7 @@ elif [ "$TEST_INTERPRET" = true ]; then
 else
   # Normal compilation mode: build executable then run
   CMD=("$COMPILER_BIN" "$TEST_BUILD_LAB" -o "$TEST_OUT" --mode "$MODE")
+  [ -n "$COMPILER_JOBS" ] && CMD+=("--jobs" "$COMPILER_JOBS")
   [ -n "$NO_CACHE" ] && CMD+=("$NO_CACHE")
   [ "$EMIT_C" = true ] && CMD+=("--emit-c")
   [ "$USE_C" = true ] && CMD+=("--use-c")

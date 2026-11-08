@@ -1188,8 +1188,10 @@ int LabBuildCompiler::process_module_gen(
         // removing non public nodes, because these would be disposed when allocator clears
         remove_non_public_nodes(processor, mod->direct_files);
 
-        // disposing data
-        mod_allocator->clear();
+        // Keep the module AST alive until the job allocator is destroyed. The
+        // build pool may still have a deferred reader (symres/type-verify) and
+        // clearing here turned that into a use-after-free under ASAN.
+        pool.wait_idle();
 
         // the module hasn't changed
         return 0;
@@ -1226,8 +1228,10 @@ int LabBuildCompiler::process_module_gen(
         return 1;
     }
 
-    // disposing data
-    mod_allocator->clear();
+    // Keep the module AST alive until the job allocator is destroyed. Deferred
+    // symres/type-verify work (and other modules' references) may still point at
+    // it; the per-module clear was a use-after-free under ASAN.
+    pool.wait_idle();
 
     CodegenEmitterOptions emitter_options;
     // emitter options allow to configure type of build (debug or release)

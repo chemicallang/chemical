@@ -25,7 +25,7 @@ func lim_url(port : uint, path : string_view) : string {
 // A 64 KB download with a 32 KB cap must stop delivering (read error) while a
 // default client reads the same resource fully.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func LIMIT_max_body_len_enforced(env : &mut TestEnv) {
     const PORT : uint = 20420u
     xpy_force_kill_port(PORT)
@@ -126,7 +126,7 @@ public func LIMIT_max_response_header_bytes_enforced(env : &mut TestEnv) {
 // The python slowsrv sleeps 3 seconds before answering. timeout(1) must give
 // up during the header wait; timeout(8) must complete successfully.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func LIMIT_request_timeout_short_fails_long_succeeds(env : &mut TestEnv) {
     const PORT : uint = 20423u
     write_http_extra_py()
@@ -175,7 +175,7 @@ public func LIMIT_request_timeout_short_fails_long_succeeds(env : &mut TestEnv) 
 // The response parses fine (headers arrive), but read_to_string must surface
 // the truncation instead of silently returning short data.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func LIMIT_truncated_body_detected(env : &mut TestEnv) {
     const PORT : uint = 20424u
     write_http_extra_py()

@@ -19,4 +19,9 @@ Known limits, tracked for Phase 3:
 - remaining move/borrow/HRTB closure gaps (P3.3).
 - Windows/macOS runners and GUI/webview execution are environment-gated; the
   per-library target matrix is in `TARGETS.md`.
-- Legacy raw-buffer APIs remain under explicit unsafe/allowlisted surfaces.
+- The ASAN gate instruments the compiler and now runs the actual ASAN build;
+  generated test executables are not yet ASAN-linked. Leak detection is
+  deliberately disabled for compiler-side process-lifetime arenas.
+- Legacy raw-buffer APIs remain as reviewed migration debt. New code uses the
+  additive safe surface; raw entry points that retain pointers are `unsafe`,
+  and the rest are explicitly enumerated by the API audit.

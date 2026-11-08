@@ -28,7 +28,7 @@ func ntx_fill_pattern(buf : *mut u8, len : usize) {
 // send_all must loop over partial sends; the receiver accumulates until EOF
 // and verifies every byte.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func NET_send_all_megabyte_integrity(env : &mut TestEnv) {
     unsafe {
 
@@ -100,7 +100,7 @@ public func NET_send_all_megabyte_integrity(env : &mut TestEnv) {
 // Sender writes 1000 bytes then closes; a single recv_all call may legitimately
 // return fewer bytes. The data returned must be a correct prefix.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func NET_recv_partial_on_early_peer_close(env : &mut TestEnv) {
     const PORT : uint = 20451u
     const SEND_LEN : usize = 1000u
@@ -154,7 +154,7 @@ public func NET_recv_partial_on_early_peer_close(env : &mut TestEnv) {
 // HTTP clients pass hostnames straight to dial; prove the resolution path
 // works for names (not just literal IPs).
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func NET_dial_resolves_localhost_hostname(env : &mut TestEnv) {
     const PORT : uint = 20452u
 

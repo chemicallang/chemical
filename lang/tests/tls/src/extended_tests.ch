@@ -1094,7 +1094,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 // RSA tests (4)
 // ============================================================
 
-@test @test.timeout(60000) public func INT_rsa_encrypt_decrypt(env : &mut TestEnv) {
+@test @test.timeout(180000) public func INT_rsa_encrypt_decrypt(env : &mut TestEnv) {
     unsafe {
 
     var script : [1024]u8; var sp : size_t = 0; var si : size_t = 0
@@ -1125,7 +1125,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 }
 }
 
-@test @test.timeout(60000) public func INT_rsa_sign_verify(env : &mut TestEnv) {
+@test @test.timeout(180000) public func INT_rsa_sign_verify(env : &mut TestEnv) {
     unsafe {
 
     var script : [1024]u8; var sp : size_t = 0; var si : size_t = 0

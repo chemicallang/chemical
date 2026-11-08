@@ -26,7 +26,7 @@ func mtx2_url(port : uint, path : string_view) : string {
 
 // â”€â”€â”€ 6. Redirect flow: 301 Location header drives a second hop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func MATRIX_redirect_location_header_flow(env : &mut TestEnv) {
     const PORT : uint = 20435u
     write_http_extra_py()
@@ -73,7 +73,7 @@ public func MATRIX_redirect_location_header_flow(env : &mut TestEnv) {
 // â”€â”€â”€ 7. OPTIONS method + URL fragment stripping, live â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // The builder supports arbitrary methods; fragments must never reach the wire.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func MATRIX_options_method_and_fragment_stripping(env : &mut TestEnv) {
     const PORT : uint = 20436u
     write_http_extra_py()

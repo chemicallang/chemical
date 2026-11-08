@@ -62,12 +62,19 @@ public struct OpenOptions {
 }
 
 public struct File {
-    if(def.windows) {
-        struct { var handle : *mut void; } win;
-    } else {
-        struct { var fd : int; } _unix;
+    // Owned native state. Only this module (and its platform implementation
+    // files) may inspect or mutate these fields; callers use `is_open` and the
+    // Read/Write/Seek surface.
+    // Platform-neutral owned handle: a POSIX fd or a Windows HANDLE. Platform
+    // implementation files cast it to their native representation; callers use
+    // the safe Read/Write/Seek surface and `is_open`.
+    internal var handle : i64;
+    internal var valid : bool;
+
+    /// True while this handle owns an open native file.
+    public func is_open(&self) : bool {
+        return self.valid
     }
-    var valid : bool;
 
     @delete
     func delete(&mut self) {

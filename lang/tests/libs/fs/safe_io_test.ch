@@ -49,6 +49,11 @@ func test_safe_file_explicit_close(env : &mut TestEnv) {
     if(wr is Result.Err) { env.error("safe File.write_all failed") }
     var closed = fs::close_file(&mut f)
     if(closed is Result.Err) { env.error("safe close_file failed") }
+    if(f.is_open()) { env.error("closed File must report is_open() == false") }
+    var read_buf : [3]u8
+    var read_view = unsafe(std::mut_span<u8>(&raw mut read_buf[0], 3 as size_t))
+    var rr = f.read(read_view)
+    if(rr is Result.Ok) { env.error("read on a closed File must fail") }
     fs::remove_dir_all_recursive(base.data())
 }
 

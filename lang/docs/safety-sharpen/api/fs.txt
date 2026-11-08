@@ -106,9 +106,8 @@ lang/libs/fs/src/types.ch:43:public struct Metadata {
 lang/libs/fs/src/types.ch:54:public struct OpenOptions {
 lang/libs/fs/src/types.ch:5:public variant FsError {
 lang/libs/fs/src/types.ch:64:public struct File {
-lang/libs/fs/src/types.ch:66:        struct { var handle : *mut void; } win;
-lang/libs/fs/src/types.ch:68:        struct { var fd : int; } _unix;
-lang/libs/fs/src/types.ch:73:    func delete(&mut self) {
+lang/libs/fs/src/types.ch:75:    public func is_open(&self) : bool {
+lang/libs/fs/src/types.ch:80:    func delete(&mut self) {
 lang/libs/fs/src/utf.ch:100:func utf16_to_utf8(in_w : *u16, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
 lang/libs/fs/src/utf.ch:5:func utf8_to_utf16(in_utf8 : *char, out_w : *mut u16, out_w_len : size_t) : Result<size_t, FsError> {
 lang/libs/fs/win/api.ch:104:public func GetDiskFreeSpaceExW(

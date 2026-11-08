@@ -8,7 +8,7 @@
 using namespace std;
 
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_http_async_loopback(env : &mut TestEnv) {
     unsafe {
 

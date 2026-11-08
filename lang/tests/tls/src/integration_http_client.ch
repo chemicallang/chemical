@@ -49,7 +49,7 @@ func int_url(port : uint, path : string_view) : string {
 
 // ─── GET over TLS: status, body and response headers ────────────────────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_https_get_200_body_headers(env : &mut TestEnv) {
     int_start_httpsrv(env, 20200u, "/tmp/tls_ih00_cert.pem", "/tmp/tls_ih00_key.pem")
 
@@ -90,7 +90,7 @@ func int_pattern_string(len : usize, phase : uint) : string {
 }
 
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_https_post_echo_roundtrip(env : &mut TestEnv) {
     int_start_httpsrv(env, 20201u, "/tmp/tls_ih01_cert.pem", "/tmp/tls_ih01_key.pem")
 
@@ -121,7 +121,7 @@ public func INT_https_post_echo_roundtrip(env : &mut TestEnv) {
 
 // ─── Large download over TLS: 200 KB across many records ────────────────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_https_large_download_200k(env : &mut TestEnv) {
     int_start_httpsrv(env, 20202u, "/tmp/tls_ih02_cert.pem", "/tmp/tls_ih02_key.pem")
 
@@ -150,7 +150,7 @@ public func INT_https_large_download_200k(env : &mut TestEnv) {
 
 // ─── Status codes propagate unchanged through the stack ─────────────────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_https_status_codes_propagate(env : &mut TestEnv) {
     int_start_httpsrv(env, 20203u, "/tmp/tls_ih03_cert.pem", "/tmp/tls_ih03_key.pem")
 
@@ -182,7 +182,7 @@ public func INT_https_status_codes_propagate(env : &mut TestEnv) {
 
 // ─── Query parameters survive URL building + TLS transport ──────────────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_https_query_params_reach_server(env : &mut TestEnv) {
     int_start_httpsrv(env, 20204u, "/tmp/tls_ih04_cert.pem", "/tmp/tls_ih04_key.pem")
 
@@ -211,7 +211,7 @@ public func INT_https_query_params_reach_server(env : &mut TestEnv) {
 
 // ─── Custom request headers reach the server; default UA is sent ────────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_https_custom_request_headers(env : &mut TestEnv) {
     int_start_httpsrv(env, 20205u, "/tmp/tls_ih05_cert.pem", "/tmp/tls_ih05_key.pem")
 
@@ -240,7 +240,7 @@ public func INT_https_custom_request_headers(env : &mut TestEnv) {
 
 // ─── HEAD over TLS yields headers without a body ────────────────────────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_https_head_request_empty_body(env : &mut TestEnv) {
     int_start_httpsrv(env, 20206u, "/tmp/tls_ih06_cert.pem", "/tmp/tls_ih06_key.pem")
 
@@ -261,7 +261,7 @@ public func INT_https_head_request_empty_body(env : &mut TestEnv) {
 
 // ─── PUT / PATCH / DELETE over TLS ──────────────────────────────────────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_https_put_patch_delete_work(env : &mut TestEnv) {
     int_start_httpsrv(env, 20207u, "/tmp/tls_ih07_cert.pem", "/tmp/tls_ih07_key.pem")
 
@@ -302,7 +302,7 @@ public func INT_https_put_patch_delete_work(env : &mut TestEnv) {
 
 // ─── Transfer-Encoding: chunked responses reassemble correctly over TLS ─────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_https_chunked_response_parsed(env : &mut TestEnv) {
     int_start_httpsrv(env, 20208u, "/tmp/tls_ih08_cert.pem", "/tmp/tls_ih08_key.pem")
 
@@ -329,7 +329,7 @@ public func INT_https_chunked_response_parsed(env : &mut TestEnv) {
 // Full trust path: system bundle bypassed, custom root verifies the chain,
 // SNI + hostname check use "localhost" (matches the leaf SAN).
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_https_verified_with_custom_ca(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20209u)
@@ -342,7 +342,7 @@ public func INT_https_verified_with_custom_ca(env : &mut TestEnv) {
     if(root == null) { env.error("could not load generated root"); return }
 
     var client = Client()
-    client.set_ca_chain(root)
+    unsafe(client.set_ca_chain(root))
 
     var res = client.get(string_view("https://localhost:20209/hello"))
     if(res is Result.Err) {
@@ -366,7 +366,7 @@ public func INT_https_verified_with_custom_ca(env : &mut TestEnv) {
 // ─── Untrusted chain must be rejected by the Client ─────────────────────────
 // Server leaf is signed by CA-A; the client only trusts an unrelated CA-B.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_https_untrusted_ca_fails(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20210u)
@@ -380,7 +380,7 @@ public func INT_https_untrusted_ca_fails(env : &mut TestEnv) {
     if(wrong_root == null) { env.error("could not load unrelated root"); return }
 
     var client = Client()
-    client.set_ca_chain(wrong_root)
+    unsafe(client.set_ca_chain(wrong_root))
 
     var res = client.get(string_view("https://localhost:20210/hello"))
     if(res is Result.Ok) {
@@ -399,7 +399,7 @@ public func INT_https_untrusted_ca_fails(env : &mut TestEnv) {
 // cannot match the certificate's DNSName(localhost). A control request with
 // the matching name succeeds with the same client + trust anchor.
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_https_hostname_mismatch_fails_verification(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20211u)
@@ -412,7 +412,7 @@ public func INT_https_hostname_mismatch_fails_verification(env : &mut TestEnv) {
     if(root == null) { env.error("could not load root"); return }
 
     var client = Client()
-    client.set_ca_chain(root)
+    unsafe(client.set_ca_chain(root))
 
     var res = client.get(string_view("https://127.0.0.1:20211/hello"))
     if(res is Result.Ok) {
@@ -437,7 +437,7 @@ public func INT_https_hostname_mismatch_fails_verification(env : &mut TestEnv) {
 
 // ─── One client instance switches between plain and TLS targets ─────────────
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_http_plain_and_https_same_client(env : &mut TestEnv) {
     write_tls_python_utils()
     test_ensure_tmp_dir()

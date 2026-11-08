@@ -233,7 +233,7 @@ public namespace http {
         //                      The Client does NOT take ownership (caller frees).
         //   tls_skip_verify  - disable certificate chain AND hostname verification
         //                      (self-signed local servers, test harnesses).
-        var ca_chain: *mut tls::X509Cert;
+        internal var ca_chain: *mut tls::X509Cert;
         var tls_skip_verify: bool;
         var proxy_host: std::string;
         var proxy_port: uint;
@@ -251,8 +251,10 @@ public namespace http {
         }
 
         // Use a specific CA certificate (chain) for HTTPS server verification
-        // instead of the system bundle. The chain remains caller-owned.
-        public func set_ca_chain(&mut self, ca: *mut tls::X509Cert) : &mut Client {
+        // instead of the system bundle. The chain remains caller-owned and must
+        // outlive every request made with this client; this raw setter is
+        // therefore unsafe. Prefer a future `set_ca_chain_owned` API.
+        public unsafe func set_ca_chain(&mut self, ca: *mut tls::X509Cert) : &mut Client {
             ca_chain = ca;
             return self;
         }

@@ -2816,22 +2816,30 @@ int ASTProcessor::implement_module(
         mir::MIRLowerer* host = mir::MIRLowerer::current_lowering();
         if (!host) host = &mir_lowerer;
         host->note_comptime_binding_consumed();
-        std::vector<std::pair<chem::string_view, Value*>> saved;
+        // Own the key: MIRComptime's BindingRestore frees the binding map
+        // before this vector is popped, so a borrowed string_view would be
+        // used-after-free during the erase below.
+        std::vector<std::pair<std::unique_ptr<std::string>, Value*>> saved;
         const auto& binds = host->comptime_binding_names();
         for (const auto& kv : binds) {
-            chem::string_view k(kv.first.data(), kv.first.size());
-            auto it = c_visitor.comptime_scope.values.find(k);
-            saved.emplace_back(k, it == c_visitor.comptime_scope.values.end() ? nullptr
-                                                                             : it->second);
-            c_visitor.comptime_scope.values[k] = kv.second;
+            // The saved key is owned for the later erase; the key inserted into
+            // the scope map must point at the lowerer's live binding string
+            // (a local here would be stack-use-after-return).
+            auto saved_key = std::make_unique<std::string>(kv.first.data(), kv.first.size());
+            chem::string_view live_key(saved_key->data(), saved_key->size());
+            auto it = c_visitor.comptime_scope.values.find(live_key);
+            saved.emplace_back(std::move(saved_key), it == c_visitor.comptime_scope.values.end() ? nullptr
+                                                                                                : it->second);
+            c_visitor.comptime_scope.values[live_key] = kv.second;
         }
         return saved;
     };
     auto pop_comptime_bindings =
-        [&c_visitor](std::vector<std::pair<chem::string_view, Value*>>& saved) {
+        [&c_visitor](std::vector<std::pair<std::unique_ptr<std::string>, Value*>>& saved) {
             for (auto& sv : saved) {
-                if (sv.second) c_visitor.comptime_scope.values[sv.first] = sv.second;
-                else c_visitor.comptime_scope.values.erase(sv.first);
+                chem::string_view key(sv.first->data(), sv.first->size());
+                if (sv.second) c_visitor.comptime_scope.values[key] = sv.second;
+                else c_visitor.comptime_scope.values.erase(key);
             }
         };
     // A comptime function call is lowered to the driver's MIR module and run on
@@ -3212,22 +3220,30 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
         mir::MIRLowerer* host = mir::MIRLowerer::current_lowering();
         if (!host) host = &mir_lowerer;
         host->note_comptime_binding_consumed();
-        std::vector<std::pair<chem::string_view, Value*>> saved;
+        // Own the key: MIRComptime's BindingRestore frees the binding map
+        // before this vector is popped, so a borrowed string_view would be
+        // used-after-free during the erase below.
+        std::vector<std::pair<std::unique_ptr<std::string>, Value*>> saved;
         const auto& binds = host->comptime_binding_names();
         for (const auto& kv : binds) {
-            chem::string_view k(kv.first.data(), kv.first.size());
-            auto it = c_visitor.comptime_scope.values.find(k);
-            saved.emplace_back(k, it == c_visitor.comptime_scope.values.end() ? nullptr
-                                                                             : it->second);
-            c_visitor.comptime_scope.values[k] = kv.second;
+            // The saved key is owned for the later erase; the key inserted into
+            // the scope map must point at the lowerer's live binding string
+            // (a local here would be stack-use-after-return).
+            auto saved_key = std::make_unique<std::string>(kv.first.data(), kv.first.size());
+            chem::string_view live_key(saved_key->data(), saved_key->size());
+            auto it = c_visitor.comptime_scope.values.find(live_key);
+            saved.emplace_back(std::move(saved_key), it == c_visitor.comptime_scope.values.end() ? nullptr
+                                                                                                : it->second);
+            c_visitor.comptime_scope.values[live_key] = kv.second;
         }
         return saved;
     };
     auto pop_comptime_bindings =
-        [&c_visitor](std::vector<std::pair<chem::string_view, Value*>>& saved) {
+        [&c_visitor](std::vector<std::pair<std::unique_ptr<std::string>, Value*>>& saved) {
             for (auto& sv : saved) {
-                if (sv.second) c_visitor.comptime_scope.values[sv.first] = sv.second;
-                else c_visitor.comptime_scope.values.erase(sv.first);
+                chem::string_view key(sv.first->data(), sv.first->size());
+                if (sv.second) c_visitor.comptime_scope.values[key] = sv.second;
+                else c_visitor.comptime_scope.values.erase(key);
             }
         };
     // A comptime function call is lowered to the driver's MIR module and run on

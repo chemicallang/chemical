@@ -16,6 +16,6 @@ lang/libs/tls/src/ssl.ch:4857:    public unsafe func ssl_get_alpn_negotiated(ssl
 
 - unsafe blocks: 340
 - unsafe expressions: 695
-- raw-pointer dereferences/indexing: 2772
+- raw-pointer dereferences/indexing: 2770
 
 Review rule: a safe wrapper must validate null/length/ownership before any raw call.

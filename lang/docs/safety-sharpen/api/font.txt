@@ -5,36 +5,44 @@ lang/libs/font/src/safe.ch:13:public struct FontMetrics {
 lang/libs/font/src/safe.ch:23:func font_safe_from_path(path : &path::Path) : Result<Font, FontError> {
 lang/libs/font/src/safe.ch:33:func font_safe_load(data : *u8, len : size_t) : Result<Font, FontError> {
 lang/libs/font/src/safe.ch:54:func font_safe_metrics(f : &Font, font_size : float) : FontMetrics {
-lang/libs/font/src/ttf.ch:100:    func glyph_outline(&self, glyph_id : u16) : std::Result<GlyphOutline, FontError> {
-lang/libs/font/src/ttf.ch:105:public struct FontTable {
-lang/libs/font/src/ttf.ch:113:public func font_load(path : *char) : std::Result<Font, FontError> {
-lang/libs/font/src/ttf.ch:136:func parse_font_header(font : *mut Font) : std::Result<std::Unit, FontError> {
+lang/libs/font/src/ttf.ch:109:    func metrics(&self, font_size : float) : FontMetrics {
+lang/libs/font/src/ttf.ch:113:    func line_height(&self) : i32 {
+lang/libs/font/src/ttf.ch:118:    func measure_text(&self, text : &str, font_size : float) : TextMetrics {
+lang/libs/font/src/ttf.ch:124:    func glyph(&self, codepoint : u32) : std::Result<u16, FontError> {
+lang/libs/font/src/ttf.ch:130:    func glyph_metrics(&self, glyph_id : u16) : std::Result<GlyphMetrics, FontError> {
+lang/libs/font/src/ttf.ch:136:    func glyph_outline(&self, glyph_id : u16) : std::Result<GlyphOutline, FontError> {
+lang/libs/font/src/ttf.ch:143:public struct FontTable {
+lang/libs/font/src/ttf.ch:151:public func font_load(path : *char) : std::Result<Font, FontError> {
 lang/libs/font/src/ttf.ch:15:func read_u16_be(data : *u8, offset : size_t) : u16 {
-lang/libs/font/src/ttf.ch:204:func find_table(font : *mut Font, tag : u32) : std::Result<FontTable, FontError> {
-lang/libs/font/src/ttf.ch:219:public func font_units_per_em(font : *mut Font) : u16 {
-lang/libs/font/src/ttf.ch:226:public func font_ascent(font : *mut Font) : i16 {
+lang/libs/font/src/ttf.ch:174:func parse_font_header(font : *mut Font) : std::Result<std::Unit, FontError> {
 lang/libs/font/src/ttf.ch:22:func read_u32_be(data : *u8, offset : size_t) : u32 {
-lang/libs/font/src/ttf.ch:233:public func font_descent(font : *mut Font) : i16 {
-lang/libs/font/src/ttf.ch:240:public func font_num_glyphs(font : *mut Font) : u16 {
-lang/libs/font/src/ttf.ch:247:public func font_line_height(font : *mut Font) : i32 {
-lang/libs/font/src/ttf.ch:258:func cmap_lookup(font : *mut Font, codepoint : u32) : u16 {
+lang/libs/font/src/ttf.ch:242:func find_table(font : *mut Font, tag : u32) : std::Result<FontTable, FontError> {
+lang/libs/font/src/ttf.ch:257:public func font_units_per_em(font : *mut Font) : u16 {
+lang/libs/font/src/ttf.ch:264:public func font_ascent(font : *mut Font) : i16 {
+lang/libs/font/src/ttf.ch:271:public func font_descent(font : *mut Font) : i16 {
+lang/libs/font/src/ttf.ch:278:public func font_num_glyphs(font : *mut Font) : u16 {
+lang/libs/font/src/ttf.ch:285:public func font_line_height(font : *mut Font) : i32 {
+lang/libs/font/src/ttf.ch:296:func cmap_lookup(font : *mut Font, codepoint : u32) : u16 {
 lang/libs/font/src/ttf.ch:30:func read_i16_be(data : *u8, offset : size_t) : i16 {
-lang/libs/font/src/ttf.ch:328:func cmap_format4_lookup(font : *mut Font, base : size_t, codepoint : u32) : u16 {
 lang/libs/font/src/ttf.ch:35:func read_i32_be(data : *u8, offset : size_t) : i32 {
-lang/libs/font/src/ttf.ch:373:public func font_get_glyph_metrics(font : *mut Font, glyph_id : u16) : std::Result<GlyphMetrics, FontError> {
+lang/libs/font/src/ttf.ch:366:func cmap_format4_lookup(font : *mut Font, base : size_t, codepoint : u32) : u16 {
+lang/libs/font/src/ttf.ch:411:public func font_get_glyph_metrics(font : *mut Font, glyph_id : u16) : std::Result<GlyphMetrics, FontError> {
 lang/libs/font/src/ttf.ch:41:public struct Font {
-lang/libs/font/src/ttf.ch:422:public func font_get_glyph_outline(font : *mut Font, glyph_id : u16) : std::Result<GlyphOutline, FontError> {
-lang/libs/font/src/ttf.ch:51:    func make() : Font {
-lang/libs/font/src/ttf.ch:569:public func font_get_glyph(font : *mut Font, codepoint : u32) : std::Result<u16, FontError> {
-lang/libs/font/src/ttf.ch:581:public struct TextMetrics {
-lang/libs/font/src/ttf.ch:588:public func font_measure_text(font : *mut Font, text : *char, text_len : size_t, font_size : float) : TextMetrics {
-lang/libs/font/src/ttf.ch:66:    func load(data : &[u8]) : std::Result<Font, FontError> {
-lang/libs/font/src/ttf.ch:71:    func from_path(path : &path::Path) : std::Result<Font, FontError> {
-lang/libs/font/src/ttf.ch:77:    func metrics(&self, font_size : float) : FontMetrics {
-lang/libs/font/src/ttf.ch:81:    func line_height(&self) : i32 {
-lang/libs/font/src/ttf.ch:86:    func measure_text(&self, text : &str, font_size : float) : TextMetrics {
-lang/libs/font/src/ttf.ch:92:    func glyph(&self, codepoint : u32) : std::Result<u16, FontError> {
-lang/libs/font/src/ttf.ch:96:    func glyph_metrics(&self, glyph_id : u16) : std::Result<GlyphMetrics, FontError> {
+lang/libs/font/src/ttf.ch:460:public func font_get_glyph_outline(font : *mut Font, glyph_id : u16) : std::Result<GlyphOutline, FontError> {
+lang/libs/font/src/ttf.ch:54:    func make() : Font {
+lang/libs/font/src/ttf.ch:618:public func font_get_glyph(font : *mut Font, codepoint : u32) : std::Result<u16, FontError> {
+lang/libs/font/src/ttf.ch:630:public struct TextMetrics {
+lang/libs/font/src/ttf.ch:637:public func font_measure_text(font : *mut Font, text : *char, text_len : size_t, font_size : float) : TextMetrics {
+lang/libs/font/src/ttf.ch:69:    func load(data : &[u8]) : std::Result<Font, FontError> {
+lang/libs/font/src/ttf.ch:74:    func from_path(path : &path::Path) : std::Result<Font, FontError> {
+lang/libs/font/src/ttf.ch:80:    public func is_loaded(&self) : bool { return self.loaded }
+lang/libs/font/src/ttf.ch:81:    public func em_size(&self) : u16 { return self.units_per_em }
+lang/libs/font/src/ttf.ch:82:    public func ascender(&self) : i16 { return self.ascent }
+lang/libs/font/src/ttf.ch:83:    public func descender(&self) : i16 { return self.descent }
+lang/libs/font/src/ttf.ch:84:    public func glyph_count(&self) : u16 { return self.num_glyphs }
+lang/libs/font/src/ttf.ch:85:    public func data_size(&self) : size_t { return self.data.size() }
+lang/libs/font/src/ttf.ch:86:    public func table_count(&self) : size_t { return self.tables.size() }
+lang/libs/font/src/ttf.ch:89:    public func validate(&self) : std::Result<std::Unit, FontError> {
 lang/libs/font/src/types.ch:13:    func message(&self) : string {
 lang/libs/font/src/types.ch:37:public struct GlyphMetrics {
 lang/libs/font/src/types.ch:49:public struct GlyphOutline {

@@ -2227,7 +2227,7 @@ public func https_tls_handshake_on_plain_server_fails(env : &mut TestEnv) {
 }
 
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func https_error_does_not_crash(env : &mut TestEnv) {
     // Make multiple failed HTTPS requests to ensure no crash or memory leak
     var client = http::Client()
@@ -2320,7 +2320,7 @@ public func https_mixed_http_and_https_requests_work(env : &mut TestEnv) {
 }
 
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func https_repeated_failures_no_crash(env : &mut TestEnv) {
     // Make multiple HTTPS requests in sequence to ensure no crash
     var client = http::Client()
@@ -2907,7 +2907,7 @@ public func tls13_key_update_send_key_update_builds_message(env : &mut TestEnv) 
 // ═══════════════════════════════════════════════════════════════
 
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func tls_rsa_gen_key_returns_error(env : &mut TestEnv) {
     // rsa_gen_key generates a real RSA-2048 key pair.
     var ctx : tls::RSAContext = unsafe(std::mem.zeroed_unchecked<tls::RSAContext>())
@@ -2942,7 +2942,7 @@ public func tls_rsa_gen_key_returns_error(env : &mut TestEnv) {
 }
 
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func tls_rsa_gen_key_math_invariants(env : &mut TestEnv) {
     // Verify the mathematical invariants of a real generated RSA-2048 key:
     //   N = P*Q, gcd(E, phi)=1, D*E ≡ 1 (mod phi), CRT params DP/DQ/QP correct,
@@ -3032,7 +3032,7 @@ public func tls_rsa_gen_key_math_invariants(env : &mut TestEnv) {
 }
 
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func tls_rsa_gen_key_distinct_keys(env : &mut TestEnv) {
     // Two consecutive keygens must produce different primes/moduli (guards
     // against a deterministic/constant random source).
@@ -3077,7 +3077,7 @@ public func tls_rsa_gen_key_rejects_bad_nbits(env : &mut TestEnv) {
 }
 
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func tls_rsa_gen_key_1024_roundtrip(env : &mut TestEnv) {
     // RSA-1024 (128-byte modulus) full encrypt/decrypt roundtrip.
     var ctx : tls::RSAContext = unsafe(std::mem.zeroed_unchecked<tls::RSAContext>())

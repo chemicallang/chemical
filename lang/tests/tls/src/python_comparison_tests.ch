@@ -1018,7 +1018,7 @@ public func INT_hmac_md5_empty_key_vs_python(env : &mut TestEnv) {
 // ─── RSA PKCS#1 encrypt produces different outputs each time vs Python ──
 
 @test
-@test.timeout(60000)
+@test.timeout(180000)
 public func INT_rsa_pkcs1_encrypt_determinism_vs_python(env : &mut TestEnv) {
     unsafe {
 

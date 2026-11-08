@@ -10,6 +10,7 @@
 //   4. cert_chain_free (x509_crt.ch) — walk-to-and-fro chain cleanup.
 
 using namespace tls
+using namespace tls::raw
 using std::string_view
 using std::string
 

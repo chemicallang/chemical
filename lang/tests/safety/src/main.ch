@@ -13,7 +13,7 @@ internal var SAFETY_WORK_DIR : *char = null
 
 internal func safety_init_work_dir() {
         unsafe {
-        var r = fs::temp_dir(unsafe(&raw mut safety_work_dir_buf[0]), 512 as size_t)
+        var r = fs::raw::temp_dir(unsafe(&raw mut safety_work_dir_buf[0]), 512 as size_t)
         var i : size_t = 0
         if(r is Result.Ok) {
             var Ok(len) = r else unsafe { unreachable }
@@ -55,39 +55,44 @@ internal func safety_write_file(path : *char, content : *char) {
 }
 
 internal func safety_run_command(args : vector<string>) : int {
-    var cfg = process::ProcessConfig.default()
-    cfg.args = args
-    cfg.capture_stdout = true
-    cfg.capture_stderr = true
-    cfg.timeout_ms = 60000
-    var r = process::execute(cfg)
+    var cfg = process::Command.new("")
+    cfg.set_argv(&args)
+    cfg.timeout_ms(60000)
+    var r = cfg.output()
     if(r is Result.Err) {
         return -1
     }
     var Ok(result) = r else unsafe { unreachable }
-    if(result.status.signaled) {
-        return 128 + result.status.signal
+    var status = result.status()
+    if(status.signaled()) {
+        var sig = status.signal()
+        var Some(signal_no) = sig else unsafe { unreachable }
+        return 128 + signal_no
     }
-    return result.status.code
+    return result.exit_code()
 }
 
 internal func safety_run_command_capture(args : vector<string>, out : &mut string) : int {
-    var cfg = process::ProcessConfig.default()
-    cfg.args = args
-    cfg.capture_stdout = true
-    cfg.capture_stderr = true
-    cfg.timeout_ms = 60000
-    var r = process::execute(cfg)
+    var cfg = process::Command.new("")
+    cfg.set_argv(&args)
+    cfg.timeout_ms(60000)
+    var r = cfg.output()
     if(r is Result.Err) {
         return -1
     }
     var Ok(result) = r else unsafe { unreachable }
-    var view = result.stdout_str()
-    out.append_view(&view)
-    if(result.status.signaled) {
-        return 128 + result.status.signal
+    var opt = result.stdout_str()
+    if(opt is std::Option.Some) {
+        var Some(view) = opt else unsafe { unreachable }
+        out.append_view(&view)
     }
-    return result.status.code
+    var status = result.status()
+    if(status.signaled()) {
+        var sig = status.signal()
+        var Some(signal_no) = sig else unsafe { unreachable }
+        return 128 + signal_no
+    }
+    return result.exit_code()
 }
 
 // Compile `ch_content` into `name` and run it. The program is expected to

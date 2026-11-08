@@ -9,7 +9,7 @@ internal var NEG_WORK_DIR : *char = null
 
 internal func neg_init_work_dir() {
         unsafe {
-        var r = fs::temp_dir(unsafe(&raw mut g_neg_work_dir_buf[0]), 512 as size_t)
+        var r = fs::raw::temp_dir(unsafe(&raw mut g_neg_work_dir_buf[0]), 512 as size_t)
         var i : size_t = 0
         if(r is std::Result.Ok) {
             var Ok(len) = r else unsafe { unreachable }
@@ -152,7 +152,7 @@ internal func run_compiler_capture(mod_path : *char, out_path : *char, output_bu
 internal func setup_test_files(work_dir : *char, name : *char, mod_content : *char, ch_content : *char) : bool {
     var test_dir : char[512]
     unsafe { sprintf(unsafe(&raw mut test_dir[0]), "%s/%s", work_dir, name) }
-    fs::mkdir(unsafe(&raw test_dir[0]))
+    fs::raw::mkdir(unsafe(&raw test_dir[0]))
 
     var mod_path : char[512]
     unsafe { sprintf(unsafe(&raw mut mod_path[0]), "%s/chemical.mod", unsafe(&raw test_dir[0])) }
@@ -170,7 +170,7 @@ internal func cleanup_test_dir(work_dir : *char, name : *char) {
     unsafe { sprintf(unsafe(&raw mut path[0]), "%s/%s", work_dir, name) }
     // cross-platform recursive delete (no shelling out to "rm -rf", which
     // does not exist on Windows cmd.exe)
-    fs::remove_dir_all_recursive(unsafe(&raw path[0]))
+    fs::raw::remove_dir_all_recursive(unsafe(&raw path[0]))
 }
 
 internal func neg_debug_print(name : *char, output : *char) {
@@ -337,7 +337,7 @@ internal func expect_compile_output_not_contains(env : &mut TestEnv, name : *cha
 // Returns true when `needle` occurs in the file at `path`.
 internal func read_file_contains(path : *char, needle : *char) : bool {
     var buf : [131072]u8
-    var r = fs::read_to_buffer(path, unsafe(&raw mut buf[0]), 131071)
+    var r = fs::raw::read_to_buffer(path, unsafe(&raw mut buf[0]), 131071)
     if(r is std::Result.Err) {
         return false
     }

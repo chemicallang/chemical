@@ -63,7 +63,7 @@ func test_script_append_view(buf : *mut u8, len : *mut size_t, v : string_view) 
 
 // -- Cross-platform random bytes --
 func test_random_bytes(buf : *mut u8, len : size_t) {
-    tls::random_fill(buf, len)
+    tls::raw::random_fill(buf, len)
 }
 
 // -- Cross-platform shell helpers --

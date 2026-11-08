@@ -54,14 +54,14 @@ public struct SharedAssets {
     // want content-hashed names can hash `js()` / `css()` themselves and serve
     // the buffers directly instead of using this.
     public func write_to(&self, dir : &std::string_view, base_name : &std::string_view) {
-        fs::mkdir(dir.data())
+        fs::raw::mkdir(dir.data())
 
         if(!js_data.empty()) {
             var js_path = unsafe(std::string(dir.data(), dir.size()))
             js_path.append('/')
             js_path.append_view(base_name)
             js_path.append_view(".js")
-            fs::write_text_file(js_path.data(), js_data.data() as *u8, js_data.size())
+            fs::raw::write_text_file(js_path.data(), js_data.data() as *u8, js_data.size())
         }
 
         if(!css_data.empty()) {
@@ -69,7 +69,7 @@ public struct SharedAssets {
             css_path.append('/')
             css_path.append_view(base_name)
             css_path.append_view(".css")
-            fs::write_text_file(css_path.data(), css_data.data() as *u8, css_data.size())
+            fs::raw::write_text_file(css_path.data(), css_data.data() as *u8, css_data.size())
         }
     }
 }

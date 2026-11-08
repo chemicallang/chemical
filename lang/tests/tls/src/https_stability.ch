@@ -42,12 +42,12 @@ func tls13_dummy_accept_main(arg : *void) : *void {
     // A peer that speaks only TLS 1.3: accept, then immediately close without
     // completing a handshake. The client advertises TLS 1.3 but its 1.3 handshake
     // is a stub, so it cannot complete — the connection must fail.
-    var ls = net::listen_addr("127.0.0.1" as *char, TLS13_TEST_PORT);
-    var cs = net::accept_socket(ls);
+    var ls = net::raw::listen_addr("127.0.0.1" as *char, TLS13_TEST_PORT);
+    var cs = net::raw::accept_socket(ls);
     if(cs != 0u) {
-        net::close_socket(cs);
+        net::raw::close_socket(cs);
     }
-    net::close_socket(ls);
+    net::raw::close_socket(ls);
     return null;
 }
 
@@ -66,7 +66,7 @@ public func https_tls13_server_handshake_is_not_implemented(env : &mut TestEnv) 
     std.concurrent.sleep_ms(150u);
 
     var client = http::Client();
-    var res = client.get(string_view("https://127.0.0.1:18443/"));
+    var res = client.get_view(string_view("https://127.0.0.1:18443/"));
     // Intended: once TLS 1.3 works, this returns Ok(200). Today it must fail.
     if(res is Result.Ok) {
         var Ok(r) = res else unsafe { unreachable };
@@ -86,7 +86,7 @@ public func https_tls13_server_handshake_is_not_implemented(env : &mut TestEnv) 
 func write_cn_cert_fixture(env : &mut TestEnv, path : *char) : bool {
     unsafe {
 
-    var w = fs::write_text_file(path, CN_MATCH_CERT_PEM as *u8, string_view(CN_MATCH_CERT_PEM).size());
+    var w = fs::raw::write_text_file(path, CN_MATCH_CERT_PEM as *u8, string_view(CN_MATCH_CERT_PEM).size());
     if(w is Result.Err) { env.error("failed to write cert fixture"); return false }
     return true;
 
@@ -97,14 +97,14 @@ func write_cn_cert_fixture(env : &mut TestEnv, path : *char) : bool {
 public func https_hostname_verification_accepts_matching_cn(env : &mut TestEnv) {
     const path = "/tmp/https_test_cn_cert_match.pem" as *char;
     if(!write_cn_cert_fixture(env, path)) { return }
-    var cert = tls::x509_crt_load_pem_file(path);
+    var cert = tls::raw::x509_crt_load_pem_file(path);
     if(cert == null) { env.error("cert should load from embedded PEM"); return }
-    var rc = tls::x509_verify_hostname(cert, "test.example.com" as *char);
+    var rc = tls::raw::x509_verify_hostname(cert, "test.example.com" as *char);
     if(rc != 0) {
-        tls::cert_free(cert); unsafe { dealloc cert }
+        tls::raw::cert_free(cert); unsafe { dealloc cert }
         env.error("hostname matching CN should verify"); return
     }
-    tls::cert_free(cert);
+    tls::raw::cert_free(cert);
     unsafe { dealloc cert }
 }
 
@@ -112,15 +112,15 @@ public func https_hostname_verification_accepts_matching_cn(env : &mut TestEnv) 
 public func https_hostname_verification_accepts_matching_san(env : &mut TestEnv) {
     const path = "/tmp/https_test_cn_cert_san.pem" as *char;
     if(!write_cn_cert_fixture(env, path)) { return }
-    var cert = tls::x509_crt_load_pem_file(path);
+    var cert = tls::raw::x509_crt_load_pem_file(path);
     if(cert == null) { env.error("cert should load from embedded PEM"); return }
     // SAN == CN here, so a SAN-aware or CN-aware check must accept.
-    var rc = tls::x509_verify_hostname(cert, "test.example.com" as *char);
+    var rc = tls::raw::x509_verify_hostname(cert, "test.example.com" as *char);
     if(rc != 0) {
-        tls::cert_free(cert); unsafe { dealloc cert }
+        tls::raw::cert_free(cert); unsafe { dealloc cert }
         env.error("hostname matching SAN should verify"); return
     }
-    tls::cert_free(cert);
+    tls::raw::cert_free(cert);
     unsafe { dealloc cert }
 }
 
@@ -128,14 +128,14 @@ public func https_hostname_verification_accepts_matching_san(env : &mut TestEnv)
 public func https_hostname_verification_rejects_wrong_host(env : &mut TestEnv) {
     const path = "/tmp/https_test_cn_cert_wrong.pem" as *char;
     if(!write_cn_cert_fixture(env, path)) { return }
-    var cert = tls::x509_crt_load_pem_file(path);
+    var cert = tls::raw::x509_crt_load_pem_file(path);
     if(cert == null) { env.error("cert should load from embedded PEM"); return }
-    var rc = tls::x509_verify_hostname(cert, "other.example.com" as *char);
+    var rc = tls::raw::x509_verify_hostname(cert, "other.example.com" as *char);
     if(rc == 0) {
-        tls::cert_free(cert); unsafe { dealloc cert }
+        tls::raw::cert_free(cert); unsafe { dealloc cert }
         env.error("hostname mismatch must be rejected"); return
     }
-    tls::cert_free(cert);
+    tls::raw::cert_free(cert);
     unsafe { dealloc cert }
 }
 
@@ -143,15 +143,15 @@ public func https_hostname_verification_rejects_wrong_host(env : &mut TestEnv) {
 public func https_hostname_verification_rejects_wrong_host_ip(env : &mut TestEnv) {
     const path = "/tmp/https_test_cn_cert_wrong_ip.pem" as *char;
     if(!write_cn_cert_fixture(env, path)) { return }
-    var cert = tls::x509_crt_load_pem_file(path);
+    var cert = tls::raw::x509_crt_load_pem_file(path);
     if(cert == null) { env.error("cert should load from embedded PEM"); return }
     // CN is a DNS name, not an IP; verifying against an IP literal must fail.
-    var rc = tls::x509_verify_hostname(cert, "127.0.0.1" as *char);
+    var rc = tls::raw::x509_verify_hostname(cert, "127.0.0.1" as *char);
     if(rc == 0) {
-        tls::cert_free(cert); unsafe { dealloc cert }
+        tls::raw::cert_free(cert); unsafe { dealloc cert }
         env.error("IP literal must not match a DNS-only cert"); return
     }
-    tls::cert_free(cert);
+    tls::raw::cert_free(cert);
     unsafe { dealloc cert }
 }
 
@@ -189,7 +189,7 @@ public func https_url_parsing_with_fragment_works(env : &mut TestEnv) {
 public func https_post_to_closed_port_fails_gracefully(env : &mut TestEnv) {
     var client = http::Client();
     var body = string("payload");
-    var res = client.post(string_view("https://127.0.0.1:49991/submit"), body.to_view());
+    var res = client.post_view(string_view("https://127.0.0.1:49991/submit"), body.to_view());
     if(res is Result.Ok) { env.error("POST to closed port should fail"); return }
 }
 
@@ -204,7 +204,7 @@ public func https_many_distinct_ports_no_crash(env : &mut TestEnv) {
         var url = string("https://127.0.0.1:");
         url.append_uinteger(p as ubigint);
         url.append_view("/");
-        var res = client.get(url.to_view());
+        var res = client.get_view(url.to_view());
         if(res is Result.Ok) { env.error("should fail for closed port"); return }
     }
 }

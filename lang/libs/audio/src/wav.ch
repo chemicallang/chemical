@@ -38,7 +38,7 @@ func write_u32_le(out : *mut u8, offset : size_t, val : u32) {
     }
 
 public func load_wav(path : *char) : std::Result<Audio, AudioError> {
-    var read_result = fs::read_entire_file(path)
+    var read_result = fs::raw::read_entire_file(path)
     if(read_result is Result.Err) {
         return std.Result.Err(AudioError.FileNotFound())
     }
@@ -238,7 +238,7 @@ public func save_wav(audio : *mut Audio, path : *char) : std::Result<std::Unit, 
             i += 1
         }
 
-        var write_result = fs::write_text_file(path, file_data.data(), file_data.size())
+        var write_result = fs::raw::write_text_file(path, file_data.data(), file_data.size())
         if(write_result is Result.Err) {
             return std.Result.Err(AudioError.IoError(string("failed to write WAV file")))
         }

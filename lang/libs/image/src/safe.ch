@@ -11,8 +11,7 @@ using std::vector;
 // ── loading ───────────────────────────────────────────────────────────────
 
 func image_safe_load(path : &path::Path) : Result<Image, ImageError> {
-    var ps = path.as_string()
-    var read = fs::read_entire_file(ps.c_str())
+    var read = fs::read(path)
     if(read is Result.Err) {
         return Result.Err(ImageError.FileNotFound())
     }
@@ -74,15 +73,19 @@ func image_safe_encode_ppm(img : &Image) : Result<vector<u8>, ImageError> {
 // ── saving ────────────────────────────────────────────────────────────────
 
 func image_safe_save(img : &Image, path : &path::Path) : Result<std::Unit, ImageError> {
-    var ext_buf = path.extension()
+    var ext_path = path.extension()
+    if(ext_path is std::Option.None) {
+        return Result.Err(ImageError.UnsupportedFormat(string("expected .png, .bmp, or .ppm")))
+    }
+    var Some(ext_buf) = ext_path else unsafe { unreachable }
     var ext = ext_buf.as_view()
 
     var encoded : Result<vector<u8>, ImageError>
-    if(ext.equals(std::string_view(".png"))) {
+    if(ext.equals(std::string_view("png"))) {
         encoded = image_safe_encode_png(img)
-    } else if(ext.equals(std::string_view(".bmp"))) {
+    } else if(ext.equals(std::string_view("bmp"))) {
         encoded = image_safe_encode_bmp(img)
-    } else if(ext.equals(std::string_view(".ppm"))) {
+    } else if(ext.equals(std::string_view("ppm"))) {
         encoded = image_safe_encode_ppm(img)
     } else {
         return Result.Err(ImageError.UnsupportedFormat(string("expected .png, .bmp, or .ppm")))
@@ -94,8 +97,8 @@ func image_safe_save(img : &Image, path : &path::Path) : Result<std::Unit, Image
     }
     var Ok(bytes) = encoded else unsafe { unreachable }
 
-    var ps = path.as_string()
-    var written = fs::write_text_file(ps.c_str(), bytes.data(), bytes.size())
+    var view : [u8] = &bytes
+    var written = fs::write(path, view)
     if(written is Result.Err) {
         return Result.Err(ImageError.IoError(string("failed to write image file")))
     }

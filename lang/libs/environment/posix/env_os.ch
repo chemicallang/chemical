@@ -8,4 +8,10 @@ public namespace environment {
     @extern
     func unsetenv(name : *char) : int
 
+    @extern
+    func getcwd(buf : *mut char, size : size_t) : *mut char
+
+    @extern
+    func chdir(path : *char) : int
+
 } // end namespace environment

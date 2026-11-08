@@ -1,4 +1,5 @@
 using namespace tls
+using namespace tls::raw
 using namespace crypto
 using std::string
 using std::string_view
@@ -31,7 +32,7 @@ func run_py_script(script : *u8, slen : size_t, out : *mut u8, out_max : size_t)
     unsafe {
 
     var rnd : u32 = unsafe(std::mem.zeroed_unchecked<u32>())
-    tls::random_fill(unsafe(&raw mut rnd) as *mut u8, 4)
+    tls::raw::random_fill(unsafe(&raw mut rnd) as *mut u8, 4)
     var name = string("py_")
     name.append_uinteger((rnd as ubigint) & 0xFFFFFFFu)
     var py_out = test_python_run_script(script, slen, name.to_view())

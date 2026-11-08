@@ -21,17 +21,17 @@ public func test_router_site_routes_aggregate(env : &mut TestEnv) {
 public func test_router_write_site_routes(env : &mut TestEnv) {
     var dir = unsafe(std::string(intrinsics::get_build_dir()))
     dir.append_view(std::string_view("/site_routes_test"))
-    fs::mkdir(dir.data())
+    fs::raw::mkdir(dir.data())
 
     var p1 = unsafe(std::string(dir.data(), dir.size()))
     p1.append_view(std::string_view("/index.routes.json"))
     const d1 = std::string_view("{\"name\":\"index\",\"base\":\"\",\"routers\":[]}")
-    fs::write_text_file(p1.data(), d1.data() as *u8, d1.size())
+    fs::raw::write_text_file(p1.data(), d1.data() as *u8, d1.size())
 
     var p2 = unsafe(std::string(dir.data(), dir.size()))
     p2.append_view(std::string_view("/about.routes.json"))
     const d2 = std::string_view("{\"name\":\"about\",\"base\":\"\",\"routers\":[]}")
-    fs::write_text_file(p2.data(), d2.data() as *u8, d2.size())
+    fs::raw::write_text_file(p2.data(), d2.data() as *u8, d2.size())
 
     var names = std::vector<std::string_view>()
     names.push(std::string_view("index"))
@@ -44,7 +44,7 @@ public func test_router_write_site_routes(env : &mut TestEnv) {
 
     var sitePath = unsafe(std::string(dir.data(), dir.size()))
     sitePath.append_view(std::string_view("/routes.json"))
-    var rr = fs::read_entire_file(sitePath.data())
+    var rr = fs::raw::read_entire_file(sitePath.data())
     if(rr is Result.Err) {
         env.error("routes.json should be written")
         return

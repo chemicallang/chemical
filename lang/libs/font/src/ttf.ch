@@ -150,7 +150,7 @@ impl Copy for FontTable {}
 
 public func font_load(path : *char) : std::Result<Font, FontError> {
         unsafe {
-        var read_result = fs::read_entire_file(path)
+        var read_result = fs::raw::read_entire_file(path)
         if(read_result is Result.Err) {
             return std.Result.Err(FontError.FileNotFound())
         }

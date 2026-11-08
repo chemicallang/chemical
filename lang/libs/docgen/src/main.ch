@@ -10,14 +10,14 @@ func mkdir_p(path : std::string_view) {
         const c = path.data()[i];
         if(c == '/' || c == '\\') {
             if(temp.size() > 0) {
-                fs::mkdir(temp.data());
+                fs::raw::mkdir(temp.data());
             }
         }
         temp.append(c);
         i++;
     }
     if(temp.size() > 0) {
-        fs::mkdir(temp.data());
+        fs::raw::mkdir(temp.data());
     }
 }
 

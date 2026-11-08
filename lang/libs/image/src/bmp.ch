@@ -7,7 +7,7 @@ using fs::File;
 using fs::OpenOptions;
 
 public func load_bmp(path : *char) : std::Result<Image, ImageError> {
-    var read_result = fs::read_entire_file(path)
+    var read_result = fs::raw::read_entire_file(path)
     if(read_result is Result.Err) {
         return std.Result.Err(ImageError.FileNotFound())
     }
@@ -225,7 +225,7 @@ public func save_bmp(img : *mut Image, path : *char) : std::Result<std::Unit, Im
             row += 1
         }
 
-        var write_result = fs::write_text_file(path, file_data.data(), file_data.size())
+        var write_result = fs::raw::write_text_file(path, file_data.data(), file_data.size())
         if(write_result is Result.Err) {
             return std.Result.Err(ImageError.IoError(string("failed to write BMP file")))
         }

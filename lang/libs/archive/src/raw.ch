@@ -142,7 +142,7 @@ public struct ZipArchive {
 
 public func open_zip(path : *char, output : *mut ZipArchive) : std::Result<std::Unit, ArchiveError> {
         unsafe {
-        var read_result = fs::read_entire_file(path)
+        var read_result = fs::raw::read_entire_file(path)
         if(read_result is Result.Err) {
             return std.Result.Err(ArchiveError.FileNotFound())
         }
@@ -424,16 +424,16 @@ public func zip_extract_entry(archive : *mut ZipArchive, entry : *mut ArchiveEnt
         full_path.append_string(&entry.name)
 
         if(!entry.is_directory) {
-            var parent = fs::parent_path_view(unsafe(std::string_view(full_path.data(), full_path.size())))
-            fs::create_dir_all(parent.c_str())
+            var parent = fs::raw::parent_path_view(unsafe(std::string_view(full_path.data(), full_path.size())))
+            fs::raw::create_dir_all(parent.c_str())
         }
 
         if(entry.is_directory) {
-            fs::create_dir_all(full_path.c_str())
+            fs::raw::create_dir_all(full_path.c_str())
             return std.Result.Ok(std::Unit{})
         }
 
-        var write_result = fs::write_text_file(full_path.c_str(), content.data(), content.size())
+        var write_result = fs::raw::write_text_file(full_path.c_str(), content.data(), content.size())
         if(write_result is Result.Err) {
             return std.Result.Err(ArchiveError.IoError(string("failed to write file")))
         }
@@ -445,7 +445,7 @@ public func zip_extract_entry(archive : *mut ZipArchive, entry : *mut ArchiveEnt
 
 public func zip_extract_all(archive : *mut ZipArchive, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
         unsafe {
-        fs::create_dir_all(dest_dir)
+        fs::raw::create_dir_all(dest_dir)
         var i : size_t = 0
         while(i < archive.entries.size()) {
             var entry = archive.entries.get_ptr(i)
@@ -471,7 +471,7 @@ public struct TarArchive {
 
 public func open_tar(path : *char, output : *mut TarArchive) : std::Result<std::Unit, ArchiveError> {
         unsafe {
-        var read_result = fs::read_entire_file(path)
+        var read_result = fs::raw::read_entire_file(path)
         if(read_result is Result.Err) {
             return std.Result.Err(ArchiveError.FileNotFound())
         }
@@ -688,7 +688,7 @@ public func tar_extract_entry(archive : *mut TarArchive, entry : *mut ArchiveEnt
         full_path.append_string(&entry.name)
 
         if(entry.is_directory) {
-            fs::create_dir_all(full_path.c_str())
+            fs::raw::create_dir_all(full_path.c_str())
             return std.Result.Ok(std::Unit{})
         }
 
@@ -698,9 +698,9 @@ public func tar_extract_entry(archive : *mut TarArchive, entry : *mut ArchiveEnt
             return std.Result.Err(ArchiveError.IoError(string("failed to read entry for extraction")))
         }
 
-        fs::create_dir_all(full_path.c_str())
+        fs::raw::create_dir_all(full_path.c_str())
 
-        var write_result = fs::write_text_file(full_path.c_str(), content.data(), content.size())
+        var write_result = fs::raw::write_text_file(full_path.c_str(), content.data(), content.size())
         if(write_result is Result.Err) {
             return std.Result.Err(ArchiveError.IoError(string("failed to write file")))
         }
@@ -712,7 +712,7 @@ public func tar_extract_entry(archive : *mut TarArchive, entry : *mut ArchiveEnt
 
 public func tar_extract_all(archive : *mut TarArchive, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
         unsafe {
-        fs::create_dir_all(dest_dir)
+        fs::raw::create_dir_all(dest_dir)
         var i : size_t = 0
         while(i < archive.entries.size()) {
             var entry = archive.entries.get_ptr(i)
@@ -902,7 +902,7 @@ public func zip_writer_save(writer : *mut ZipWriter, path : *char) : std::Result
         unsafe {
         zip_writer_close(writer)
 
-        var write_result = fs::write_text_file(path, writer.data.data(), writer.data.size())
+        var write_result = fs::raw::write_text_file(path, writer.data.data(), writer.data.size())
         if(write_result is Result.Err) {
             return std.Result.Err(ArchiveError.IoError(string("failed to write ZIP data")))
         }

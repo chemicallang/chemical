@@ -12,7 +12,9 @@
 // ============================================================================
 
 using namespace tls
+using namespace tls::raw
 using namespace net
+using namespace net::raw
 using namespace http
 using std::Result
 using std::string
@@ -91,7 +93,7 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
     }
 
     var ls = listen_addr("127.0.0.1", port)
-    if(ls == 0 as net::Socket) {
+    if(ls == 0 as net::raw::Socket) {
         cert_free(cert); unsafe { dealloc cert }
         ecdsa_context_free(priv_key)
         env.error("listen failed")
@@ -137,7 +139,7 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
     const MAX_ACCEPTS : int = 1
     while(served < MAX_ACCEPTS) {
         var cs = srv_accept_with_retry(ls)
-        if(cs == 0 as net::Socket) {
+        if(cs == 0 as net::raw::Socket) {
             // One retry: cold python starts (AV scan, import cost) can exceed
             // the accept window under load.
             env.info("[SDV] accept timed out; relaunching python client once")
@@ -145,7 +147,7 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
             std::concurrent::sleep_ms(500u)
             cs = srv_accept_with_retry(ls)
         }
-        if(cs == 0 as net::Socket) {
+        if(cs == 0 as net::raw::Socket) {
             env.error("python client never connected")
             var errbuf : [512]u8
             var en = test_read_file(err_path.data(), &raw mut errbuf[0], 511)
@@ -175,7 +177,7 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
             dmsg.append_integer(hret)
             env.error(dmsg.data())
             ssl_free(ssl_mem); unsafe { dealloc ssl_mem }
-            net::close_socket(cs)
+            net::raw::close_socket(cs)
             ok = false
             break
         }
@@ -197,7 +199,7 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
         ssl_close_notify(ssl_mem)
         ssl_free(ssl_mem)
         unsafe { dealloc ssl_mem }
-        net::close_socket(cs)
+        net::raw::close_socket(cs)
         served += 1
     }
 
@@ -212,7 +214,7 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
     cert_free(cert)
     unsafe { dealloc cert }
     ecdsa_context_free(priv_key)
-    net::close_socket(ls)
+    net::raw::close_socket(ls)
     test_kill_port(port as int)
     return ok
 }
@@ -288,7 +290,7 @@ func sdv_loop_chunkup(env : &mut TestEnv, ssl_mem : *mut SSLContext) : bool {
     var consumed : size_t = 0
 
     // Bound the drain so a missing Content-Length cannot hang us forever.
-    net::set_recv_timeout(ssl_mem.transport_socket, 1, 0)
+    net::raw::set_recv_timeout(ssl_mem.transport_socket, 1, 0)
 
     var rret = srv_read_request_stream(ssl_mem, &raw mut req_buf[0], BUF_CAP,
                                         &raw mut filled, &raw mut consumed)

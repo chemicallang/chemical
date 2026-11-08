@@ -12,6 +12,7 @@
 // ============================================================================
 
 using namespace tls
+using namespace tls::raw
 using std::string
 using std::string_view
 
@@ -194,7 +195,7 @@ func srv_check_result_file(env : &mut TestEnv, path : *char) {
 //   "post"      one POST /integrate round (body echoed), then close
 //   "keepalive" two GET rounds on ONE connection without closing between
 //   "bigresp"   answer the first GET with a streamed 300 KB pattern body
-func srv_serve_one_connection(env : &mut TestEnv, cs : net::Socket, mode : string_view,
+func srv_serve_one_connection(env : &mut TestEnv, cs : net::raw::Socket, mode : string_view,
                                cert_path : *char, key_pem_path : *char, tag : string_view,
                                tls12_rsa : bool) : bool {
                                    unsafe {
@@ -439,8 +440,8 @@ func srv_launch_hcli(port : uint, host : string_view, py_mode : string_view,
     test_run_bg(bg.data())
 }
 
-func srv_accept_with_retry(ls : net::Socket) : net::Socket {
-    net::set_nonblocking(ls)
+func srv_accept_with_retry(ls : net::raw::Socket) : net::raw::Socket {
+    net::raw::set_nonblocking(ls)
     // Wait up to ~30s for the client to arrive. The runner launches the whole
     // suite in parallel, so a python client can sit behind a dozen other
     // interpreter startups (each ~1-3s of CPU) before it even reaches
@@ -452,11 +453,11 @@ func srv_accept_with_retry(ls : net::Socket) : net::Socket {
     // is genuinely going to fail waits the full window.
     const ACCEPT_ATTEMPTS : int = 300
     const ACCEPT_POLL_MS : uint = 100u
-    var cs = net::accept_socket(ls)
+    var cs = net::raw::accept_socket(ls)
     var tries : int = 0
-    while(cs == 0 as net::Socket && tries < ACCEPT_ATTEMPTS) {
+    while(cs == 0 as net::raw::Socket && tries < ACCEPT_ATTEMPTS) {
         std::concurrent::sleep_ms(ACCEPT_POLL_MS)
-        cs = net::accept_socket(ls)
+        cs = net::raw::accept_socket(ls)
         tries += 1
     }
     return cs
@@ -473,23 +474,23 @@ public func INT_srv_python_https_get_validated(env : &mut TestEnv) {
     test_server_wait()
     test_py_run_foreground(string_view("cert /tmp/tls_is20_cert.pem /tmp/tls_is20_key.pem localhost ec"))
 
-    var ls = net::listen_addr("127.0.0.1", PORT)
-    if(ls == 0 as net::Socket) { env.error("listen failed"); return }
+    var ls = net::raw::listen_addr("127.0.0.1", PORT)
+    if(ls == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     srv_launch_hcli(PORT, "localhost", "get", "", "", "/tmp/hcli_r20.txt")
 
     var cs = srv_accept_with_retry(ls)
-    if(cs == 0 as net::Socket) {
+    if(cs == 0 as net::raw::Socket) {
         env.error("client never connected")
-        net::close_socket(ls)
+        net::raw::close_socket(ls)
         return
     }
 
     srv_serve_one_connection(env, cs, "get", "/tmp/tls_is20_cert.pem", "/tmp/tls_is20_key.pem", "20", false)
     srv_check_result_file(env, "/tmp/hcli_r20.txt")
 
-    net::close_socket(cs)
-    net::close_socket(ls)
+    net::raw::close_socket(cs)
+    net::raw::close_socket(ls)
     test_kill_port(20220)
 }
 
@@ -504,23 +505,23 @@ public func INT_srv_python_post_50k_echo(env : &mut TestEnv) {
     test_server_wait()
     test_py_run_foreground(string_view("cert /tmp/tls_is21_cert.pem /tmp/tls_is21_key.pem localhost ec"))
 
-    var ls = net::listen_addr("127.0.0.1", PORT)
-    if(ls == 0 as net::Socket) { env.error("listen failed"); return }
+    var ls = net::raw::listen_addr("127.0.0.1", PORT)
+    if(ls == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     srv_launch_hcli(PORT, "localhost", "post", "", "", "/tmp/hcli_r21.txt")
 
     var cs = srv_accept_with_retry(ls)
-    if(cs == 0 as net::Socket) {
+    if(cs == 0 as net::raw::Socket) {
         env.error("client never connected")
-        net::close_socket(ls)
+        net::raw::close_socket(ls)
         return
     }
 
     srv_serve_one_connection(env, cs, "post", "/tmp/tls_is21_cert.pem", "/tmp/tls_is21_key.pem", "21", false)
     srv_check_result_file(env, "/tmp/hcli_r21.txt")
 
-    net::close_socket(cs)
-    net::close_socket(ls)
+    net::raw::close_socket(cs)
+    net::raw::close_socket(ls)
     test_kill_port(20221)
 }
 
@@ -535,15 +536,15 @@ public func INT_srv_python_slowpost_reassembled(env : &mut TestEnv) {
     test_server_wait()
     test_py_run_foreground(string_view("cert /tmp/tls_is22_cert.pem /tmp/tls_is22_key.pem localhost ec"))
 
-    var ls = net::listen_addr("127.0.0.1", PORT)
-    if(ls == 0 as net::Socket) { env.error("listen failed"); return }
+    var ls = net::raw::listen_addr("127.0.0.1", PORT)
+    if(ls == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     srv_launch_hcli(PORT, "localhost", "slowpost", "", "", "/tmp/hcli_r22.txt")
 
     var cs = srv_accept_with_retry(ls)
-    if(cs == 0 as net::Socket) {
+    if(cs == 0 as net::raw::Socket) {
         env.error("client never connected")
-        net::close_socket(ls)
+        net::raw::close_socket(ls)
         return
     }
 
@@ -551,8 +552,8 @@ public func INT_srv_python_slowpost_reassembled(env : &mut TestEnv) {
     srv_serve_one_connection(env, cs, "post", "/tmp/tls_is22_cert.pem", "/tmp/tls_is22_key.pem", "22", false)
     srv_check_result_file(env, "/tmp/hcli_r22.txt")
 
-    net::close_socket(cs)
-    net::close_socket(ls)
+    net::raw::close_socket(cs)
+    net::raw::close_socket(ls)
     test_kill_port(20222)
 }
 
@@ -567,23 +568,23 @@ public func INT_srv_python_keepalive_two_requests(env : &mut TestEnv) {
     test_server_wait()
     test_py_run_foreground(string_view("cert /tmp/tls_is23_cert.pem /tmp/tls_is23_key.pem localhost ec"))
 
-    var ls = net::listen_addr("127.0.0.1", PORT)
-    if(ls == 0 as net::Socket) { env.error("listen failed"); return }
+    var ls = net::raw::listen_addr("127.0.0.1", PORT)
+    if(ls == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     srv_launch_hcli(PORT, "localhost", "keepalive", "", "", "/tmp/hcli_r23.txt")
 
     var cs = srv_accept_with_retry(ls)
-    if(cs == 0 as net::Socket) {
+    if(cs == 0 as net::raw::Socket) {
         env.error("client never connected")
-        net::close_socket(ls)
+        net::raw::close_socket(ls)
         return
     }
 
     srv_serve_one_connection(env, cs, "keepalive", "/tmp/tls_is23_cert.pem", "/tmp/tls_is23_key.pem", "23", false)
     srv_check_result_file(env, "/tmp/hcli_r23.txt")
 
-    net::close_socket(cs)
-    net::close_socket(ls)
+    net::raw::close_socket(cs)
+    net::raw::close_socket(ls)
     test_kill_port(20223)
 }
 
@@ -598,23 +599,23 @@ public func INT_srv_big_response_streamed_300k(env : &mut TestEnv) {
     test_server_wait()
     test_py_run_foreground(string_view("cert /tmp/tls_is24_cert.pem /tmp/tls_is24_key.pem localhost ec"))
 
-    var ls = net::listen_addr("127.0.0.1", PORT)
-    if(ls == 0 as net::Socket) { env.error("listen failed"); return }
+    var ls = net::raw::listen_addr("127.0.0.1", PORT)
+    if(ls == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     srv_launch_hcli(PORT, "localhost", "bigresp", "", "", "/tmp/hcli_r24.txt")
 
     var cs = srv_accept_with_retry(ls)
-    if(cs == 0 as net::Socket) {
+    if(cs == 0 as net::raw::Socket) {
         env.error("client never connected")
-        net::close_socket(ls)
+        net::raw::close_socket(ls)
         return
     }
 
     srv_serve_one_connection(env, cs, "bigresp", "/tmp/tls_is24_cert.pem", "/tmp/tls_is24_key.pem", "24", false)
     srv_check_result_file(env, "/tmp/hcli_r24.txt")
 
-    net::close_socket(cs)
-    net::close_socket(ls)
+    net::raw::close_socket(cs)
+    net::raw::close_socket(ls)
     test_kill_port(20224)
 }
 
@@ -629,23 +630,23 @@ public func INT_srv_verified_client_trusts_root(env : &mut TestEnv) {
     test_server_wait()
     test_py_run_foreground(string_view("ca /tmp/tls_is25ca localhost"))
 
-    var ls = net::listen_addr("127.0.0.1", PORT)
-    if(ls == 0 as net::Socket) { env.error("listen failed"); return }
+    var ls = net::raw::listen_addr("127.0.0.1", PORT)
+    if(ls == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     srv_launch_hcli(PORT, "localhost", "get", "/tmp/tls_is25ca_root.pem", "", "/tmp/hcli_r25.txt")
 
     var cs = srv_accept_with_retry(ls)
-    if(cs == 0 as net::Socket) {
+    if(cs == 0 as net::raw::Socket) {
         env.error("client never connected")
-        net::close_socket(ls)
+        net::raw::close_socket(ls)
         return
     }
 
     srv_serve_one_connection(env, cs, "get", "/tmp/tls_is25ca_chain.crt", "/tmp/tls_is25ca_leaf.key", "25", false)
     srv_check_result_file(env, "/tmp/hcli_r25.txt")
 
-    net::close_socket(cs)
-    net::close_socket(ls)
+    net::raw::close_socket(cs)
+    net::raw::close_socket(ls)
     test_kill_port(20225)
 }
 
@@ -660,24 +661,24 @@ public func INT_srv_tls12_rsa_get_validated(env : &mut TestEnv) {
     test_server_wait()
     test_py_run_foreground(string_view("cert /tmp/tls_is26_cert.pem /tmp/tls_is26_key.pem localhost rsa"))
 
-    var ls = net::listen_addr("127.0.0.1", PORT)
-    if(ls == 0 as net::Socket) { env.error("listen failed"); return }
+    var ls = net::raw::listen_addr("127.0.0.1", PORT)
+    if(ls == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     // OpenSSL 3 disables static-RSA key exchange at the default level.
     srv_launch_hcli(PORT, "localhost", "get", "", "AES128-GCM-SHA256:@SECLEVEL=0", "/tmp/hcli_r26.txt")
 
     var cs = srv_accept_with_retry(ls)
-    if(cs == 0 as net::Socket) {
+    if(cs == 0 as net::raw::Socket) {
         env.error("client never connected")
-        net::close_socket(ls)
+        net::raw::close_socket(ls)
         return
     }
 
     srv_serve_one_connection(env, cs, "get", "/tmp/tls_is26_cert.pem", "/tmp/tls_is26_key.pem", "26", true)
     srv_check_result_file(env, "/tmp/hcli_r26.txt")
 
-    net::close_socket(cs)
-    net::close_socket(ls)
+    net::raw::close_socket(cs)
+    net::raw::close_socket(ls)
     test_kill_port(20226)
 }
 
@@ -692,8 +693,8 @@ public func INT_srv_two_clients_both_served(env : &mut TestEnv) {
     test_server_wait()
     test_py_run_foreground(string_view("cert /tmp/tls_is27_cert.pem /tmp/tls_is27_key.pem localhost ec"))
 
-    var ls = net::listen_addr("127.0.0.1", PORT)
-    if(ls == 0 as net::Socket) { env.error("listen failed"); return }
+    var ls = net::raw::listen_addr("127.0.0.1", PORT)
+    if(ls == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     srv_launch_hcli(PORT, "localhost", "get", "", "", "/tmp/hcli_r27a.txt")
     srv_launch_hcli(PORT, "localhost", "get", "", "", "/tmp/hcli_r27b.txt")
@@ -701,31 +702,31 @@ public func INT_srv_two_clients_both_served(env : &mut TestEnv) {
     var ok_all = true
 
     var cs1 = srv_accept_with_retry(ls)
-    if(cs1 == 0 as net::Socket) {
+    if(cs1 == 0 as net::raw::Socket) {
         env.error("first client never connected")
-        net::close_socket(ls)
+        net::raw::close_socket(ls)
         return
     }
     if(!srv_serve_one_connection(env, cs1, "get", "/tmp/tls_is27_cert.pem", "/tmp/tls_is27_key.pem", "27a", false)) {
         ok_all = false
     }
-    net::close_socket(cs1)
+    net::raw::close_socket(cs1)
 
     var cs2 = srv_accept_with_retry(ls)
-    if(cs2 == 0 as net::Socket) {
+    if(cs2 == 0 as net::raw::Socket) {
         env.error("second client never connected")
-        net::close_socket(ls)
+        net::raw::close_socket(ls)
         return
     }
     if(!srv_serve_one_connection(env, cs2, "get", "/tmp/tls_is27_cert.pem", "/tmp/tls_is27_key.pem", "27b", false)) {
         ok_all = false
     }
-    net::close_socket(cs2)
+    net::raw::close_socket(cs2)
 
     srv_check_result_file(env, "/tmp/hcli_r27a.txt")
     srv_check_result_file(env, "/tmp/hcli_r27b.txt")
     if(!ok_all) { env.error("one of the served connections reported an error") }
 
-    net::close_socket(ls)
+    net::raw::close_socket(ls)
     test_kill_port(20227)
 }

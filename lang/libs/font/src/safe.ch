@@ -21,8 +21,7 @@ public struct FontMetrics {
 // ── loading ───────────────────────────────────────────────────────────────
 
 func font_safe_from_path(path : &path::Path) : Result<Font, FontError> {
-    var ps = path.as_string()
-    var read = fs::read_entire_file(ps.c_str())
+    var read = fs::read(path)
     if(read is Result.Err) {
         return Result.Err(FontError.FileNotFound())
     }

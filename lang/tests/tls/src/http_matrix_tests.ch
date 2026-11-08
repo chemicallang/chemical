@@ -10,6 +10,7 @@
 // ============================================================================
 
 using namespace tls
+using namespace tls::raw
 using namespace http
 using std::Result
 using std::string
@@ -61,7 +62,7 @@ public func MATRIX_download_size_boundaries(env : &mut TestEnv) {
         var path = string("/size/")
         path.append_uinteger(n as ubigint)
         var u = mtx_url(PORT, path.to_view())
-        var res = client.get(u.to_view())
+        var res = client.get_view(u.to_view())
         if(res is Result.Err) {
             env.error("download failed")
             var m = string("size=")
@@ -72,7 +73,7 @@ public func MATRIX_download_size_boundaries(env : &mut TestEnv) {
         }
         var Ok(r) = res else unsafe { unreachable };
         if(r.status != 200u) { env.error("download expected 200") }
-        var b = r.body.read_to_string()
+        var b = r.body.read_to_string_opt()
         if(b is std.Option.None) {
             env.error("download body read failed")
             var m2 = string("size=")
@@ -116,10 +117,10 @@ public func MATRIX_upload_size_boundaries(env : &mut TestEnv) {
     client.insecure_skip_verify()
 
     var u0 = mtx_url(PORT, "/echo")
-    var r0 = client.post(u0.to_view(), string_view(""), "text/plain")
+    var r0 = client.post_view(u0.to_view(), string_view(""), "text/plain")
     if(r0 is Result.Err) { env.error("empty POST failed"); test_kill_port(PORT as int); return }
     var Ok(x0) = r0 else unsafe { unreachable };
-    var b0 = x0.body.read_to_string()
+    var b0 = x0.body.read_to_string_opt()
     if(b0 is std.Option.None) { env.error("empty POST body read failed"); test_kill_port(PORT as int); return }
     var Some(v0) = b0 else unsafe { unreachable };
     if(v0.size() != 0u) { env.error("empty POST should echo empty") }
@@ -137,7 +138,7 @@ public func MATRIX_upload_size_boundaries(env : &mut TestEnv) {
         var payload = full_pattern(n, phase)
         phase += 3u
         var u = mtx_url(PORT, "/echo")
-        var res = client.post(u.to_view(), payload.to_view(), "application/octet-stream")
+        var res = client.post_view(u.to_view(), payload.to_view(), "application/octet-stream")
         if(res is Result.Err) {
             env.error("upload failed")
             var m = string("size=")
@@ -147,7 +148,7 @@ public func MATRIX_upload_size_boundaries(env : &mut TestEnv) {
             return
         }
         var Ok(r) = res else unsafe { unreachable };
-        var b = r.body.read_to_string()
+        var b = r.body.read_to_string_opt()
         if(b is std.Option.None) {
             env.error("upload echo read failed")
             var m2 = string("size=")
@@ -185,10 +186,10 @@ public func MATRIX_full_byte_cycle_roundtrip(env : &mut TestEnv) {
 
     var payload = mtx_pattern256(65536u)
     var u = mtx_url(PORT, "/echo")
-    var res = client.post(u.to_view(), payload.to_view(), "application/octet-stream")
+    var res = client.post_view(u.to_view(), payload.to_view(), "application/octet-stream")
     if(res is Result.Err) { env.error("byte-cycle POST failed"); test_kill_port(PORT as int); return }
     var Ok(r) = res else unsafe { unreachable };
-    var b = r.body.read_to_string()
+    var b = r.body.read_to_string_opt()
     if(b is std.Option.None) { env.error("byte-cycle echo read failed"); test_kill_port(PORT as int); return }
     var Some(v) = b else unsafe { unreachable };
     if(v.size() != 65536u) { env.error("byte-cycle length mismatch") }
@@ -224,11 +225,11 @@ public func MATRIX_many_response_headers_lookup(env : &mut TestEnv) {
     client.insecure_skip_verify()
 
     var u = mtx_url(PORT, "/many")
-    var res = client.get(u.to_view())
+    var res = client.get_view(u.to_view())
     if(res is Result.Err) {
         // Server startup can lag under load; give it one more chance.
         std::concurrent::sleep_ms(1500u)
-        res = client.get(u.to_view())
+        res = client.get_view(u.to_view())
     }
     if(res is Result.Err) { env.error("many-headers request failed"); test_kill_port(PORT as int); return }
     var Ok(r) = res else unsafe { unreachable };
@@ -242,7 +243,8 @@ public func MATRIX_many_response_headers_lookup(env : &mut TestEnv) {
     while(ci < checks.size()) {
         var nm = string("X-H-")
         nm.append_uinteger(checks.get(ci) as ubigint)
-        var opt = r.headers.get(nm.data())
+        var nmv = std::str.make_view(nm.to_view())
+        var opt = r.headers.get(nmv)
         if(opt is std.Option.None) { env.error("header missing from response") } else {
             var Some(hv) = opt else unsafe { unreachable };
             if(!hv.equals_view("vvvvvvvv")) { env.error("header value mismatch") }
@@ -288,7 +290,7 @@ public func MATRIX_large_query_string_roundtrip(env : &mut TestEnv) {
     expected.append_string(&big)
     expected.append_view("&tail=end")
 
-    var b = r.body.read_to_string()
+    var b = r.body.read_to_string_opt()
     if(b is std.Option.None) { env.error("large query body read failed"); test_kill_port(PORT as int); return }
     var Some(v) = b else unsafe { unreachable };
     if(!v.equals_view(expected.to_view())) {

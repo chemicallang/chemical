@@ -4,13 +4,13 @@
 // cross-platform. The lib tests used to hardcode "/tmp/..." which works
 // on Linux but not on Windows: a native Windows process resolves
 // "/tmp/..." to "\tmp\..." on the current drive, which usually does not
-// exist, so save operations fail. fs::temp_dir() returns the user's temp
+// exist, so save operations fail. fs::raw::temp_dir() returns the user's temp
 // directory on Windows (%TEMP%) and "/tmp" on POSIX.
 
 func make_temp_test_path(name : *char) : std::string {
     var out = std::string()
     var buf : [4096]char
-    var r = fs::temp_dir(&raw mut buf[0], 4096 as size_t)
+    var r = fs::raw::temp_dir(&raw mut buf[0], 4096 as size_t)
     if(r is std::Result.Ok) {
         var Ok(len) = r else unsafe { unreachable }
         var i : size_t = 0

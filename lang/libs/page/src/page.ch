@@ -3247,14 +3247,14 @@ public struct HtmlPage {
 
     func writeToFile(&self, path : &std::string_view) {
         var completePage = toString();
-        fs::write_text_file(path.data(), completePage.data() as *u8, completePage.size())
+        fs::raw::write_text_file(path.data(), completePage.data() as *u8, completePage.size())
     }
 
     // given name -> {name}.css, {name}_head.js, {name}.js assets maybe generated
     func writeToDirectory(&self, path : &std::string_view, name : &std::string_view, lang : std::string_view = "", htmlClass : std::string_view = "", bodyClass : std::string_view = "") {
 
         // TODO only if not exists
-        fs::mkdir(path.data());
+        fs::raw::mkdir(path.data());
 
         // creating the route file at
         var htmlFile = unsafe(std::string(path.data(), path.size()))
@@ -3264,7 +3264,7 @@ public struct HtmlPage {
 
         // writing only html to route
         var htmlPage = htmlPageToString(name, lang, htmlClass, bodyClass)
-        fs::write_text_file(htmlFile.data(), htmlPage.data() as *u8, htmlPage.size())
+        fs::raw::write_text_file(htmlFile.data(), htmlPage.data() as *u8, htmlPage.size())
 
         // {name}.css
         if(!pageCss.empty()) {
@@ -3273,7 +3273,7 @@ public struct HtmlPage {
             cssFile.append('/');
             cssFile.append_view(name)
             cssFile.append_view(".css")
-            fs::write_text_file(cssFile.data(), pageCss.data() as *u8, pageCss.size())
+            fs::raw::write_text_file(cssFile.data(), pageCss.data() as *u8, pageCss.size())
         }
 
         // {name}_head.js
@@ -3282,7 +3282,7 @@ public struct HtmlPage {
             jsHeadFile.append('/');
             jsHeadFile.append_view(name)
             jsHeadFile.append_view("_head.js")
-            fs::write_text_file(jsHeadFile.data(), pageHeadJs.data() as *u8, pageHeadJs.size())
+            fs::raw::write_text_file(jsHeadFile.data(), pageHeadJs.data() as *u8, pageHeadJs.size())
         }
 
         // {name}.js
@@ -3292,7 +3292,7 @@ public struct HtmlPage {
             jsFile.append('/');
             jsFile.append_view(name)
             jsFile.append_view(".js")
-            fs::write_text_file(jsFile.data(), finalizedJs.data() as *u8, finalizedJs.size())
+            fs::raw::write_text_file(jsFile.data(), finalizedJs.data() as *u8, finalizedJs.size())
         }
 
         // {name}.routes.json — static-export deep-link manifest (§13.2.3)
@@ -3302,7 +3302,7 @@ public struct HtmlPage {
             manifestFile.append('/');
             manifestFile.append_view(name)
             manifestFile.append_view(".routes.json")
-            fs::write_text_file(manifestFile.data(), manifest.data() as *u8, manifest.size())
+            fs::raw::write_text_file(manifestFile.data(), manifest.data() as *u8, manifest.size())
         }
 
     }
@@ -3339,8 +3339,8 @@ public func write_site_routes(dir : std::string_view, page_names : &std::vector<
             manifestPath.append('/')
             manifestPath.append_view(&page_names.get(i))
             manifestPath.append_view(std::string_view(".routes.json"))
-            if(!fs::exists(manifestPath.data())) { continue }
-            var read_result = fs::read_entire_file(manifestPath.data())
+            if(!fs::raw::exists(manifestPath.data())) { continue }
+            var read_result = fs::raw::read_entire_file(manifestPath.data())
             if(read_result is Result.Err) { continue }
             var Ok(bytes) = read_result else unsafe { unreachable }
             owned.push(unsafe(std::string(bytes.data() as *char, bytes.size())))
@@ -3352,7 +3352,7 @@ public func write_site_routes(dir : std::string_view, page_names : &std::vector<
         const agg = site_routes_aggregate(&docs)
         var sitePath = unsafe(std::string(dir.data(), dir.size()))
         sitePath.append_view(std::string_view("/routes.json"))
-        fs::write_text_file(sitePath.data(), agg.data() as *u8, agg.size())
+        fs::raw::write_text_file(sitePath.data(), agg.data() as *u8, agg.size())
         return owned.size() as int
 
         }

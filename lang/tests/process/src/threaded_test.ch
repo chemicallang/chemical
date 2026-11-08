@@ -21,17 +21,16 @@ var g_thread_exec_code : int = -1
 
 public func process_execute_thread_entry(arg : *void) : *void {
         unsafe {
-        var cfg = process::ProcessConfig.default()
-        cfg.args.push(string("echo"))
-        cfg.args.push(string("threaded_execute_ok"))
-        var res = process::execute(cfg)
+        var cfg = process::Command.new("echo")
+        cfg.arg("threaded_execute_ok")
+        var res = cfg.output()
         g_thread_exec_done = true
         if(res is Result.Err) {
             return null
         }
         var Ok(r) = res else unsafe { unreachable }
-        g_thread_exec_code = r.status.code
-        g_thread_exec_ok = r.success
+        g_thread_exec_code = r.exit_code()
+        g_thread_exec_ok = r.success()
         return null
 
         }
@@ -69,21 +68,20 @@ var g_thread_spawn_ok : bool = false
 
 public func process_spawn_thread_entry(arg : *void) : *void {
         unsafe {
-        var cfg = process::ProcessConfig.default()
-        cfg.args.push(string("echo"))
-        cfg.args.push(string("threaded_spawn_ok"))
-        var res = process::spawn(cfg)
+        var cfg = process::Command.new("echo")
+        cfg.arg("threaded_spawn_ok")
+        var res = cfg.spawn()
         g_thread_spawn_done = true
         if(res is Result.Err) {
             return null
         }
         var Ok(child) = res else unsafe { unreachable }
-        var waited = process::wait(&mut child)
+        var waited = child.wait_with_output()
         if(waited is Result.Err) {
             return null
         }
         var Ok(r) = waited else unsafe { unreachable }
-        g_thread_spawn_ok = r.success && r.status.code == 0
+        g_thread_spawn_ok = r.success() && r.exit_code() == 0
         return null
 
         }

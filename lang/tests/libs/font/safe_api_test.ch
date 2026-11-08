@@ -149,10 +149,10 @@ public func font_safe_from_path_roundtrip(env : &mut TestEnv) {
     var p = font_safe_temp_pathbuf("p24_safe_font.ttf")
 
     var ps = p.as_string()
-    var wr = fs::write_text_file(ps.c_str(), bytes.data(), bytes.size())
+    var wr = fs::raw::write_text_file(ps.c_str(), bytes.data(), bytes.size())
     if(wr is Result.Err) { env.error("failed to write font fixture"); return }
 
-    var loaded = font::Font.from_path(&p)
+    var loaded = font::Font.from_path(&p.as_path())
     if(loaded is Result.Err) { env.error("Font.from_path should succeed"); return }
     var Ok(font) = loaded else unsafe { unreachable }
     if(font.em_size() != 1000) { env.error("loaded units_per_em") }
@@ -222,7 +222,7 @@ public func font_safe_truncated_rejected(env : &mut TestEnv) {
 @test
 public func font_safe_from_path_nonexistent(env : &mut TestEnv) {
     var p = font_safe_temp_pathbuf("p24_no_such_font.ttf")
-    var result = font::Font.from_path(&p)
+    var result = font::Font.from_path(&p.as_path())
     if(result is Result.Ok) { env.error("missing font file must fail") }
 }
 

@@ -11,8 +11,7 @@ using std::vector;
 // ── loading ───────────────────────────────────────────────────────────────
 
 func audio_safe_load(path : &path::Path) : Result<Audio, AudioError> {
-    var ps = path.as_string()
-    var read = fs::read_entire_file(ps.c_str())
+    var read = fs::read(path)
     if(read is Result.Err) {
         return Result.Err(AudioError.FileNotFound())
     }
@@ -50,8 +49,8 @@ func audio_safe_save(a : &Audio, path : &path::Path) : Result<std::Unit, AudioEr
     }
     var Ok(bytes) = encoded else unsafe { unreachable }
 
-    var ps = path.as_string()
-    var written = fs::write_text_file(ps.c_str(), bytes.data(), bytes.size())
+    var view : [u8] = &bytes
+    var written = fs::write(path, view)
     if(written is Result.Err) {
         return Result.Err(AudioError.IoError(string("failed to write WAV file")))
     }

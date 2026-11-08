@@ -30,9 +30,7 @@ public func test_environment_user_name(env : &mut TestEnv) {
 @test
 public func test_environment_temp_dir(env : &mut TestEnv) {
     var tmp = environment::temp_dir()
-    if(tmp is Option.None) { env.error("temp_dir() should return Some"); return }
-    var Some(t) = tmp else unsafe { unreachable }
-    if(t.size() == 0) { env.error("temp_dir() should not be empty"); return }
+    if(tmp.size() == 0) { env.error("temp_dir() should not be empty"); return }
 }
 
 @test
@@ -81,21 +79,20 @@ public func test_environment_get_or_existing(env : &mut TestEnv) {
 
 @test
 public func test_process_stdin_data_echo(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sh"))
-    cfg.args.push(string("-c"))
-    cfg.args.push(string("cat"))
+    var cfg = process::Command.new("sh")
+    cfg.arg("-c")
+    cfg.arg("cat")
     var msg = "hello_stdin"
     var i : size_t = 0
     while(i < 11) {
-        cfg.stdin_data.push(msg[i] as u8)
+        cfg.stdin_push(msg[i] as u8)
         i += 1
     }
-    var res = process::execute(cfg)
+    var res = cfg.output()
     if(res is Result.Err) { env.error("execute failed"); return }
     var Ok(r) = res else unsafe { unreachable }
-    if(!r.success) { env.error("should succeed"); return }
-    if(!bc(&raw r.output.stdout_data, "hello_stdin" as *char, 11)) {
+    if(!r.success()) { env.error("should succeed"); return }
+    if(!bc(r.stdout_bytes(), "hello_stdin" as *char, 11)) {
         env.error("stdout should contain stdin data")
         return
     }
@@ -103,14 +100,13 @@ public func test_process_stdin_data_echo(env : &mut TestEnv) {
 
 @test
 public func test_process_empty_stdin_data(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("echo"))
-    cfg.args.push(string("no_stdin"))
+    var cfg = process::Command.new("echo")
+    cfg.arg("no_stdin")
     // stdin_data is empty by default — should work fine
-    var res = process::execute(cfg)
+    var res = cfg.output()
     if(res is Result.Err) { env.error("execute failed"); return }
     var Ok(r) = res else unsafe { unreachable }
-    if(!r.success) { env.error("should succeed"); return }
+    if(!r.success()) { env.error("should succeed"); return }
 }
 
 // ===========================================================================
@@ -119,28 +115,27 @@ public func test_process_empty_stdin_data(env : &mut TestEnv) {
 
 @test
 public func test_process_working_directory(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sh"))
-    cfg.args.push(string("-c"))
-    cfg.args.push(string("pwd"))
+    var cfg = process::Command.new("sh")
+    cfg.arg("-c")
+    cfg.arg("pwd")
     // `/tmp` is not a valid Win32 working directory (CreateProcess uses the
     // native path), so use a root that exists on both platforms.
     comptime if(def.windows) {
-        cfg.working_dir = string("C:/")
+        cfg.current_dir(&path::Path.new("C:/"))
     } else {
-        cfg.working_dir = string("/tmp")
+        cfg.current_dir(&path::Path.new("/tmp"))
     }
-    var res = process::execute(cfg)
+    var res = cfg.output()
     if(res is Result.Err) { env.error("execute failed"); return }
     var Ok(r) = res else unsafe { unreachable }
-    if(!r.success) { env.error("pwd should succeed"); return }
+    if(!r.success()) { env.error("pwd should succeed"); return }
     comptime if(def.windows) {
-        if(!bc(&raw r.output.stdout_data, "/c" as *char, 2)) {
+        if(!bc(r.stdout_bytes(), "/c" as *char, 2)) {
             env.error("pwd should output /c")
             return
         }
     } else {
-        if(!bc(&raw r.output.stdout_data, "/tmp" as *char, 4)) {
+        if(!bc(r.stdout_bytes(), "/tmp" as *char, 4)) {
             env.error("pwd should output /tmp")
             return
         }
@@ -153,22 +148,21 @@ public func test_process_working_directory(env : &mut TestEnv) {
 
 @test
 public func test_process_spawn_kill_wait_lifecycle(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("ping"))
-    cfg.args.push(string("-n"))
-    cfg.args.push(string("60"))
-    cfg.args.push(string("127.0.0.1"))
-    var spawn_res = process::spawn(cfg)
+    var cfg = process::Command.new("ping")
+    cfg.arg("-n")
+    cfg.arg("60")
+    cfg.arg("127.0.0.1")
+    var spawn_res = cfg.spawn()
     if(spawn_res is Result.Err) { env.error("spawn failed"); return }
     var Ok(child) = spawn_res else unsafe { unreachable }
     if(!process::is_running(&mut child)) { env.error("should be running after spawn"); return }
-    var kr = process::kill_process(&mut child, 9)
+    var kr = child.kill()
     if(kr is Result.Err) { env.error("kill should succeed"); return }
     if(process::is_running(&mut child)) { env.error("should not be running after kill"); return }
-    var w = process::wait(&mut child)
+    var w = child.wait_with_output()
     if(w is Result.Err) { env.error("wait should succeed"); return }
     var Ok(wr) = w else unsafe { unreachable }
-    if(wr.success) { env.error("killed process should not succeed"); return }
+    if(wr.success()) { env.error("killed process should not succeed"); return }
 }
 
 // ===========================================================================
@@ -177,15 +171,14 @@ public func test_process_spawn_kill_wait_lifecycle(env : &mut TestEnv) {
 
 @test
 public func test_process_no_stderr_capture(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sh"))
-    cfg.args.push(string("-c"))
-    cfg.args.push(string("echo err >&2"))
-    cfg.capture_stderr = false
-    var res = process::execute(cfg)
+    var cfg = process::Command.new("sh")
+    cfg.arg("-c")
+    cfg.arg("echo err >&2")
+    cfg.stderr(process::Stdio.Null())
+    var res = cfg.output()
     if(res is Result.Err) { env.error("execute failed"); return }
     var Ok(r) = res else unsafe { unreachable }
-    if(r.output.stderr_data.size() != 0) { env.error("stderr should be empty when capture is off"); return }
+    if(r.stderr_bytes().size() != 0) { env.error("stderr should be empty when capture is off"); return }
 }
 
 // ===========================================================================
@@ -270,25 +263,24 @@ public func test_window_post_empty_event(env : &mut TestEnv) {
 
 @test
 public func test_process_merge_stderr_stdout_spawn(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sh"))
-    cfg.args.push(string("-c"))
-    cfg.args.push(string("echo out && echo err >&2"))
-    cfg.merge_stdout_stderr = true
-    cfg.capture_stderr = false
-    var spawn_res = process::spawn(cfg)
+    var cfg = process::Command.new("sh")
+    cfg.arg("-c")
+    cfg.arg("echo out && echo err >&2")
+    cfg.merge_stdout_stderr(true)
+    cfg.stderr(process::Stdio.Null())
+    var spawn_res = cfg.spawn()
     if(spawn_res is Result.Err) { env.error("spawn failed"); return }
     var Ok(child) = spawn_res else unsafe { unreachable }
-    var w = process::wait(&mut child)
+    var w = child.wait_with_output()
     if(w is Result.Err) { env.error("wait failed"); return }
     var Ok(wr) = w else unsafe { unreachable }
-    if(!wr.success) { env.error("should succeed"); return }
+    if(!wr.success()) { env.error("should succeed"); return }
     // Both should be in stdout_data since they're merged
-    if(!bc(&raw wr.output.stdout_data, "out" as *char, 3)) {
+    if(!bc(wr.stdout_bytes(), "out" as *char, 3)) {
         env.error("merged output should contain 'out'")
         return
     }
-    if(!bc(&raw wr.output.stdout_data, "err" as *char, 3)) {
+    if(!bc(wr.stdout_bytes(), "err" as *char, 3)) {
         env.error("merged output should contain 'err'")
         return
     }
@@ -298,7 +290,7 @@ public func test_process_merge_stderr_stdout_spawn(env : &mut TestEnv) {
 // Helpers
 // ===========================================================================
 
-func bc(data : *vector<u8>, needle : *char, needle_len : size_t) : bool {
+func bc(data : [u8], needle : *char, needle_len : size_t) : bool {
         unsafe {
         if(data.size() < needle_len) { return false }
         var d = data.data()

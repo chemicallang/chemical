@@ -15,7 +15,7 @@
 // ============================================================================
 
 using namespace tls
-
+using namespace tls::raw
 func sha384_bytes_eq(a : *u8, b : *u8, len : size_t) : bool {
     unsafe {
 

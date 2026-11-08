@@ -1,57 +1,58 @@
-// Async wrappers for the process library (design §7 Tier 4).
+// Async wrappers for the process library.
 //
-// Additive: every synchronous signature in `process.ch` is unchanged. Each entry
-// point is a compiler-lowered `async func`, so the compiler emits its
-// `FutureHandle<...>` vtable - no hand-authored generic future is needed, and
-// callers drive it with `await` / `async::block_on`.
-//
-// The three genuinely blocking entry points (`execute`, `spawn`, `wait`) offload
-// their work to the runtime thread pool via `async::spawn_blocking`, so the
-// executor keeps running while the child process is created or reaped. The
-// remaining calls are quick non-blocking syscalls and keep a direct body.
-//
-// Note: the polling (non-reaping) `try_wait` does not capture stdout/stderr on
-// POSIX, so `wait_async` delegates to `wait`, which shares the same syscall
-// helpers and preserves the synchronous result exactly.
+// Additive: the synchronous `Command`/`Child` API is unchanged. The blocking
+// entry points offload their work to the runtime thread pool via
+// `async::spawn_blocking`, so the executor keeps running while the child
+// process is created or reaped.
 public namespace process {
 
 using std::Result;
 using std::vector;
 
-// The config is owned by the closure (it is a by-value capture), so it must not
-// be moved out of the capture directly: the closure would still destroy the
-// (now moved-from) capture when the task is dropped and free its buffers twice.
-// `std::replace` takes the value out and leaves a zeroed capture behind, whose
-// destructor is a no-op.
-public async func execute_async(cfg : ProcessConfig) : PR_Result {
-    var result = await unsafe(async::spawn_blocking<PR_Result>(|cfg|() => execute(std::replace<ProcessConfig>(&mut cfg, unsafe(std::mem.zeroed_unchecked<ProcessConfig>())))))
+public async func output_async(cmd : Command) : Result<Output, ProcessError> {
+    var result = await unsafe(async::spawn_blocking<Result<Output, ProcessError>>(
+        |cmd|() => {
+            var owned = std::replace<Command>(&mut cmd, unsafe(std::mem.zeroed_unchecked<Command>()))
+            return owned.output()
+        }
+    ))
     return result
 }
 
-public async func spawn_async(cfg : ProcessConfig) : CP_Result {
-    var result = await unsafe(async::spawn_blocking<CP_Result>(|cfg|() => spawn(std::replace<ProcessConfig>(&mut cfg, unsafe(std::mem.zeroed_unchecked<ProcessConfig>())))))
+// Compatibility alias for the old name.
+public async func execute_async(cmd : Command) : Result<Output, ProcessError> {
+    return await output_async(cmd)
+}
+
+public async func spawn_async(cmd : Command) : Result<Child, ProcessError> {
+    var result = await unsafe(async::spawn_blocking<Result<Child, ProcessError>>(
+        |cmd|() => {
+            var owned = std::replace<Command>(&mut cmd, unsafe(std::mem.zeroed_unchecked<Command>()))
+            return owned.spawn()
+        }
+    ))
     return result
 }
 
-public async func wait_async(child : &mut Child) : PR_Result {
-    var result = await unsafe(async::spawn_blocking<PR_Result>(|child|() => wait(child)))
+public async func wait_async(child : &mut Child) : Result<ExitStatus, ProcessError> {
+    var result = await unsafe(async::spawn_blocking<Result<ExitStatus, ProcessError>>(|child|() => child.wait()))
     return result
 }
 
-public async func try_wait_async(child : &mut Child) : PR_Result {
-    return try_wait(child)
+public async func try_wait_async(child : &mut Child) : Result<std::Option<ExitStatus>, ProcessError> {
+    return child.try_wait()
 }
 
 public async func kill_process_async(child : &mut Child, signal : int) : UT_Result {
     return kill_process(child, signal)
 }
 
-public async func write_stdin_async(child : &mut Child, data : [u8]) : UT_Result {
+public async func write_stdin_async(child : &mut Child, data : &[u8]) : UT_Result {
     return write_stdin_raw(&raw mut child.inner, data.data(), data.size())
 }
 
 public async func close_stdin_async(child : &mut Child) : UT_Result {
-    return close_stdin(child)
+    return child.close_stdin()
 }
 
 public async func is_running_async(child : &mut Child) : bool {

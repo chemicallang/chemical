@@ -10,7 +10,7 @@ using std::string_view;
 // POSIX `/tmp` is not a valid Win32 path).
 func server_test_root() : string {
     comptime if(def.windows) {
-        var t = environment::get(string_view("TEMP"))
+        var t = environment::get("TEMP")
         if(t is std::Option.Some) {
             var Some(s) = t else unsafe { unreachable }
             return s.copy()
@@ -27,7 +27,7 @@ func write_server_fixture() : bool {
     var path = server_test_root()
     path.append('/')
     path.append_view(string_view("chemical_tier6_server_test.txt"))
-    var r = fs::write_text_file(path.data(), content.data() as *mut u8, content.size())
+    var r = fs::raw::write_text_file(path.data(), content.data() as *mut u8, content.size())
     return r is std::Result.Ok
 }
 
@@ -38,7 +38,7 @@ func server_async_get(url_str : string_view) : *mut http::HttpResult {
     var box : *mut http::HttpResult = null
     while(n < 200) {
         var u = url_str
-        box = async::block_on<*mut http::HttpResult>(http::get_async(&raw mut client, &raw mut u))
+        box = async::block_on<*mut http::HttpResult>(http::raw::get_async(&raw mut client, &raw mut u))
         if(box != null) { return box }
         std::concurrent.sleep_ms(5u)
         n = n + 1

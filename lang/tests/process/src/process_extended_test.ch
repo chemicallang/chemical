@@ -4,6 +4,7 @@ using std::string;
 using std::string_view;
 using std::vector;
 using std::Result;
+using std::Option;
 
 // ---------------------------------------------------------------------------
 // execute: exit code
@@ -11,29 +12,27 @@ using std::Result;
 
 @test
 public func test_process_execute_exit_code_zero(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("true"))
-    var res = process::execute(cfg)
+    var cfg = process::Command.new("true")
+    var res = cfg.output()
     if(res is Result.Err) {
         env.error("execute(true) returned Err")
         return
     }
     var Ok(r) = res else unsafe { unreachable }
-    if(!r.success) { env.error("true should exit successfully"); return }
+    if(!r.success()) { env.error("true should exit successfully"); return }
     if(r.exit_code() != 0) { env.error("true should exit with code 0"); return }
 }
 
 @test
 public func test_process_execute_exit_code_nonzero(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("false"))
-    var res = process::execute(cfg)
+    var cfg = process::Command.new("false")
+    var res = cfg.output()
     if(res is Result.Err) {
         env.error("execute(false) returned Err")
         return
     }
     var Ok(r) = res else unsafe { unreachable }
-    if(r.success) { env.error("false should not succeed"); return }
+    if(r.success()) { env.error("false should not succeed"); return }
     if(r.exit_code() != 1) { env.error("false should exit with code 1"); return }
 }
 
@@ -43,17 +42,16 @@ public func test_process_execute_exit_code_nonzero(env : &mut TestEnv) {
 
 @test
 public func test_process_execute_stderr_capture(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sh"))
-    cfg.args.push(string("-c"))
-    cfg.args.push(string("echo error_output >&2"))
-    var res = process::execute(cfg)
+    var cfg = process::Command.new("sh")
+    cfg.arg("-c")
+    cfg.arg("echo error_output >&2")
+    var res = cfg.output()
     if(res is Result.Err) {
         env.error("execute returned Err")
         return
     }
     var Ok(r) = res else unsafe { unreachable }
-    if(r.output.stderr_data.size() == 0) { env.error("stderr should not be empty"); return }
+    if(r.stderr_bytes().size() == 0) { env.error("stderr should not be empty"); return }
 }
 
 // ---------------------------------------------------------------------------
@@ -63,16 +61,17 @@ public func test_process_execute_stderr_capture(env : &mut TestEnv) {
 @test
 public func test_process_result_stdout_str(env : &mut TestEnv) {
         unsafe {
-        var cfg = process::ProcessConfig.default()
-        cfg.args.push(string("echo"))
-        cfg.args.push(string("convenience_test"))
-        var res = process::execute(cfg)
+        var cfg = process::Command.new("echo")
+        cfg.arg("convenience_test")
+        var res = cfg.output()
         if(res is Result.Err) {
             env.error("execute returned Err")
             return
         }
         var Ok(r) = res else unsafe { unreachable }
-        var sv = r.stdout_str()
+        var svopt = r.stdout_str()
+        if(svopt is Option.None) { env.error("stdout_str invalid UTF-8"); return }
+        var Some(sv) = svopt else unsafe { unreachable }
         if(sv.size() == 0) { env.error("stdout_str should not be empty"); return }
         // stdout should contain "convenience_test"
         var found = false
@@ -98,9 +97,8 @@ public func test_process_result_stdout_str(env : &mut TestEnv) {
 
 @test
 public func test_process_result_is_success(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("true"))
-    var res = process::execute(cfg)
+    var cfg = process::Command.new("true")
+    var res = cfg.output()
     if(res is Result.Err) {
         env.error("execute returned Err")
         return
@@ -115,25 +113,24 @@ public func test_process_result_is_success(env : &mut TestEnv) {
 
 @test
 public func test_process_spawn_and_wait(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("echo"))
-    cfg.args.push(string("spawn_test"))
-    var spawn_res = process::spawn(cfg)
+    var cfg = process::Command.new("echo")
+    cfg.arg("spawn_test")
+    var spawn_res = cfg.spawn()
     if(spawn_res is Result.Err) {
         env.error("spawn returned Err")
         return
     }
     var Ok(child) = spawn_res else unsafe { unreachable }
     if(!process::is_running(&mut child)) { env.error("child should be running after spawn"); return }
-    var pid = process::child_pid(&mut child)
+    var pid = child.id() as int
     if(pid <= 0) { env.error("child_pid should be > 0"); return }
-    var wait_res = process::wait(&mut child)
+    var wait_res = child.wait_with_output()
     if(wait_res is Result.Err) {
         env.error("wait returned Err")
         return
     }
     var Ok(wr) = wait_res else unsafe { unreachable }
-    if(!wr.success) { env.error("spawn+wait should succeed"); return }
+    if(!wr.success()) { env.error("spawn+wait should succeed"); return }
     if(process::is_running(&mut child)) { env.error("child should not be running after wait"); return }
 }
 
@@ -143,16 +140,15 @@ public func test_process_spawn_and_wait(env : &mut TestEnv) {
 
 @test
 public func test_process_kill(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sleep"))
-    cfg.args.push(string("100"))
-    var spawn_res = process::spawn(cfg)
+    var cfg = process::Command.new("sleep")
+    cfg.arg("100")
+    var spawn_res = cfg.spawn()
     if(spawn_res is Result.Err) {
         env.error("spawn returned Err")
         return
     }
     var Ok(child) = spawn_res else unsafe { unreachable }
-    var kill_res = process::kill_process(&mut child, 9)
+    var kill_res = child.kill()
     if(kill_res is Result.Err) {
         env.error("kill returned Err")
         return
@@ -166,10 +162,9 @@ public func test_process_kill(env : &mut TestEnv) {
 
 @test
 public func test_process_is_running_after_spawn(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sleep"))
-    cfg.args.push(string("100"))
-    var spawn_res = process::spawn(cfg)
+    var cfg = process::Command.new("sleep")
+    cfg.arg("100")
+    var spawn_res = cfg.spawn()
     if(spawn_res is Result.Err) {
         env.error("spawn returned Err")
         return
@@ -177,7 +172,7 @@ public func test_process_is_running_after_spawn(env : &mut TestEnv) {
     var Ok(child) = spawn_res else unsafe { unreachable }
     if(!process::is_running(&mut child)) { env.error("child should be running immediately after spawn"); return }
     // Kill it so we don't leave zombies
-    process::kill_process(&mut child, 9)
+    child.kill()
 }
 
 // ---------------------------------------------------------------------------
@@ -186,16 +181,16 @@ public func test_process_is_running_after_spawn(env : &mut TestEnv) {
 
 @test
 public func test_process_execute_empty_args(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
+    var cfg = process::Command.new("")
     // cfg.args is empty by default
-    var res = process::execute(cfg)
+    var res = cfg.output()
     if(res is Result.Ok) { env.error("execute with empty args should return Err"); return }
 }
 
 @test
 public func test_process_spawn_empty_args(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    var res = process::spawn(cfg)
+    var cfg = process::Command.new("")
+    var res = cfg.spawn()
     if(res is Result.Ok) { env.error("spawn with empty args should return Err"); return }
 }
 
@@ -204,21 +199,22 @@ public func test_process_spawn_empty_args(env : &mut TestEnv) {
 // ---------------------------------------------------------------------------
 
 @test
-public func test_process_wait_not_running(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("true"))
-    var spawn_res = process::spawn(cfg)
+public func test_process_wait_is_idempotent(env : &mut TestEnv) {
+    var cfg = process::Command.new("true")
+    var spawn_res = cfg.spawn()
     if(spawn_res is Result.Err) {
         env.error("spawn returned Err")
         return
     }
     var Ok(child) = spawn_res else unsafe { unreachable }
-    // First wait should succeed
-    var w1 = process::wait(&mut child)
+    var w1 = child.wait()
     if(w1 is Result.Err) { env.error("first wait should succeed"); return }
-    // Second wait should fail (not running)
-    var w2 = process::wait(&mut child)
-    if(w2 is Result.Ok) { env.error("second wait should return Err"); return }
+    var w2 = child.wait()
+    if(w2 is Result.Err) { env.error("second wait should return the cached status"); return }
+    var tw = child.try_wait()
+    if(tw is Result.Err) { env.error("try_wait on reaped child should succeed"); return }
+    var Ok(tws) = tw else unsafe { unreachable }
+    if(tws is std::Option.None) { env.error("try_wait should report the cached exit status"); return }
 }
 
 // ---------------------------------------------------------------------------
@@ -227,18 +223,17 @@ public func test_process_wait_not_running(env : &mut TestEnv) {
 
 @test
 public func test_process_kill_not_running(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("true"))
-    var spawn_res = process::spawn(cfg)
+    var cfg = process::Command.new("true")
+    var spawn_res = cfg.spawn()
     if(spawn_res is Result.Err) {
         env.error("spawn returned Err")
         return
     }
     var Ok(child) = spawn_res else unsafe { unreachable }
     // Wait to reap
-    process::wait(&mut child)
+    child.wait()
     // Kill on non-running should fail
-    var kill_res = process::kill_process(&mut child, 9)
+    var kill_res = child.kill()
     if(kill_res is Result.Ok) { env.error("kill on non-running child should return Err"); return }
 }
 
@@ -258,17 +253,16 @@ public func test_process_current_pid(env : &mut TestEnv) {
 
 @test
 public func test_process_child_pid(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("true"))
-    var spawn_res = process::spawn(cfg)
+    var cfg = process::Command.new("true")
+    var spawn_res = cfg.spawn()
     if(spawn_res is Result.Err) {
         env.error("spawn returned Err")
         return
     }
     var Ok(child) = spawn_res else unsafe { unreachable }
-    var pid = process::child_pid(&mut child)
+    var pid = child.id() as int
     if(pid <= 0) { env.error("child_pid should be > 0"); return }
-    process::wait(&mut child)
+    child.wait()
 }
 
 // ---------------------------------------------------------------------------
@@ -287,18 +281,19 @@ public func test_process_sleep_ms(env : &mut TestEnv) {
 
 @test
 public func test_process_try_wait_not_running(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("true"))
-    var spawn_res = process::spawn(cfg)
+    var cfg = process::Command.new("true")
+    var spawn_res = cfg.spawn()
     if(spawn_res is Result.Err) {
         env.error("spawn returned Err")
         return
     }
     var Ok(child) = spawn_res else unsafe { unreachable }
-    process::wait(&mut child)
-    // try_wait on already-reaped child should fail
-    var tw = process::try_wait(&mut child)
-    if(tw is Result.Ok) { env.error("try_wait on non-running child should return Err"); return }
+    child.wait()
+    // try_wait on a reaped child returns the cached status
+    var tw = child.try_wait()
+    if(tw is Result.Err) { env.error("try_wait on reaped child should succeed"); return }
+    var Ok(tws) = tw else unsafe { unreachable }
+    if(tws is std::Option.None) { env.error("try_wait should return the cached status"); return }
 }
 
 // ---------------------------------------------------------------------------
@@ -306,15 +301,13 @@ public func test_process_try_wait_not_running(env : &mut TestEnv) {
 // ---------------------------------------------------------------------------
 
 @test
-public func test_process_config_default_fields(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    if(cfg.args.size() != 0) { env.error("default args should be empty"); return }
-    if(cfg.env.size() != 0) { env.error("default env should be empty"); return }
-    if(cfg.working_dir.size() != 0) { env.error("default working_dir should be empty"); return }
-    if(!cfg.capture_stdout) { env.error("default capture_stdout should be true"); return }
-    if(!cfg.capture_stderr) { env.error("default capture_stderr should be true"); return }
-    if(cfg.merge_stdout_stderr) { env.error("default merge_stdout_stderr should be false"); return }
-    if(cfg.stdin_data.size() != 0) { env.error("default stdin_data should be empty"); return }
+public func test_process_command_builder(env : &mut TestEnv) {
+    var cfg = process::Command.new("echo")
+    cfg.arg("builder")
+    var res = cfg.output()
+    if(res is Result.Err) { env.error("Command builder should run"); return }
+    var Ok(r) = res else unsafe { unreachable }
+    if(!r.success()) { env.error("Command builder should succeed"); return }
 }
 
 // ---------------------------------------------------------------------------
@@ -324,19 +317,20 @@ public func test_process_config_default_fields(env : &mut TestEnv) {
 @test
 public func test_process_execute_multiple_args(env : &mut TestEnv) {
         unsafe {
-        var cfg = process::ProcessConfig.default()
-        cfg.args.push(string("sh"))
-        cfg.args.push(string("-c"))
-        cfg.args.push(string("echo arg1 arg2 arg3"))
-        var res = process::execute(cfg)
+        var cfg = process::Command.new("sh")
+        cfg.arg("-c")
+        cfg.arg("echo arg1 arg2 arg3")
+        var res = cfg.output()
         if(res is Result.Err) {
             env.error("execute returned Err")
             return
         }
         var Ok(r) = res else unsafe { unreachable }
-        if(!r.success) { env.error("should succeed"); return }
+        if(!r.success()) { env.error("should succeed"); return }
         // stdout should contain "arg1 arg2 arg3"
-        var sv = r.stdout_str()
+        var svopt = r.stdout_str()
+        if(svopt is Option.None) { env.error("stdout_str invalid UTF-8"); return }
+        var Some(sv) = svopt else unsafe { unreachable }
         var found = false
         var i : size_t = 0
         while(i + 12 <= sv.size()) {
@@ -360,17 +354,18 @@ public func test_process_execute_multiple_args(env : &mut TestEnv) {
 
 @test
 public func test_process_result_stderr_str(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sh"))
-    cfg.args.push(string("-c"))
-    cfg.args.push(string("echo err_output >&2"))
-    var res = process::execute(cfg)
+    var cfg = process::Command.new("sh")
+    cfg.arg("-c")
+    cfg.arg("echo err_output >&2")
+    var res = cfg.output()
     if(res is Result.Err) {
         env.error("execute returned Err")
         return
     }
     var Ok(r) = res else unsafe { unreachable }
-    var sv = r.stderr_str()
+    var svopt = r.stderr_str()
+    if(svopt is Option.None) { env.error("stderr_str invalid UTF-8"); return }
+    var Some(sv) = svopt else unsafe { unreachable }
     if(sv.size() == 0) { env.error("stderr_str should not be empty"); return }
 }
 
@@ -407,22 +402,21 @@ public func test_process_error_messages(env : &mut TestEnv) {
 
 @test
 public func test_process_close_stdin(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sh"))
-    cfg.args.push(string("-c"))
-    cfg.args.push(string("cat"))
-    var spawn_res = process::spawn(cfg)
+    var cfg = process::Command.new("sh")
+    cfg.arg("-c")
+    cfg.arg("cat")
+    var spawn_res = cfg.spawn()
     if(spawn_res is Result.Err) {
         env.error("spawn returned Err")
         return
     }
     var Ok(child) = spawn_res else unsafe { unreachable }
     // Close stdin — cat should then exit
-    var cs = process::close_stdin(&mut child)
+    var cs = child.close_stdin()
     if(cs is Result.Err) { env.error("close_stdin should succeed"); return }
     // Wait for cat to finish
     process::sleep_ms(50)
-    var w = process::wait(&mut child)
+    var w = child.wait_with_output()
     if(w is Result.Err) { env.error("wait after close_stdin should succeed"); return }
 }
 
@@ -432,15 +426,14 @@ public func test_process_close_stdin(env : &mut TestEnv) {
 
 @test
 public func test_process_execute_no_stdout_capture(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("echo"))
-    cfg.args.push(string("should_not_appear"))
-    cfg.capture_stdout = false
-    var res = process::execute(cfg)
+    var cfg = process::Command.new("echo")
+    cfg.arg("should_not_appear")
+    cfg.stdout(process::Stdio.Null())
+    var res = cfg.output()
     if(res is Result.Err) {
         env.error("execute returned Err")
         return
     }
     var Ok(r) = res else unsafe { unreachable }
-    if(r.output.stdout_data.size() != 0) { env.error("stdout should be empty when capture is off"); return }
+    if(r.stdout_bytes().size() != 0) { env.error("stdout should be empty when capture is off"); return }
 }

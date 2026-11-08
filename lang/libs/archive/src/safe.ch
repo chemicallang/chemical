@@ -17,8 +17,7 @@ public struct Archive {
 
     // Open a ZIP or TAR archive from a filesystem path.
     func open(path : &path::Path) : Result<Archive, ArchiveError> {
-        var ps = path.as_string()
-        var read = fs::read_entire_file(ps.c_str())
+        var read = fs::read(path)
         if(read is Result.Err) {
             var Err(e) = read else unsafe { unreachable }
             return Result.Err(ArchiveError.FileNotFound())
@@ -110,6 +109,7 @@ public struct Archive {
     // through an existing symlink are rejected with `ArchiveError.UnsafePath`.
     func extract(&mut self, dest : &path::Path) : Result<std::Unit, ArchiveError> {
         var base = dest.as_string()
+        var base_path = dest.to_path_buf()
 
         // Validate every name up front so a malicious entry cannot leave a
         // partially extracted tree behind.
@@ -126,7 +126,7 @@ public struct Archive {
             i += 1
         }
 
-        var created = fs::create_dir_all(base.c_str())
+        var created = fs::create_dir_all(&base_path.as_path())
         if(created is Result.Err) {
             return Result.Err(ArchiveError.IoError(string("failed to create destination directory")))
         }
@@ -140,9 +140,10 @@ public struct Archive {
             }
             var meta = unsafe(unwrap_archive_entry(meta_result))
             var full = archive_safe_join(&raw base, &raw meta.name)
+            var full_path = path::PathBuf.from_view(full.to_view())
 
             if(meta.is_directory) {
-                var dr = fs::create_dir_all(full.c_str())
+                var dr = fs::create_dir_all(&full_path.as_path())
                 if(dr is Result.Err) {
                     return Result.Err(ArchiveError.IoError(string("failed to create directory")))
                 }
@@ -157,15 +158,17 @@ public struct Archive {
             }
             var content = unsafe(unwrap_archive_bytes(content_result))
 
-            var parent = fs::parent_path_view(full.to_view())
-            if(parent.size() > 0) {
-                var pr = fs::create_dir_all(parent.c_str())
+            var parent = full_path.parent()
+            if(parent is std::Option.Some) {
+                var Some(parent_path) = parent else unsafe { unreachable }
+                var pr = fs::create_dir_all(&parent_path)
                 if(pr is Result.Err) {
                     return Result.Err(ArchiveError.IoError(string("failed to create parent directory")))
                 }
             }
 
-            var wr = fs::write_text_file(full.c_str(), content.data(), content.size())
+            var content_view : [u8] = &content
+            var wr = fs::write(&full_path.as_path(), content_view)
             if(wr is Result.Err) {
                 return Result.Err(ArchiveError.IoError(string("failed to write extracted file")))
             }
@@ -245,8 +248,8 @@ public struct ZipWriter {
 
     public func save(&mut self, path : &path::Path) : Result<std::Unit, ArchiveError> {
         var bytes = self.finish()
-        var ps = path.as_string()
-        var written = fs::write_text_file(ps.c_str(), bytes.data(), bytes.size())
+        var view : [u8] = &bytes
+        var written = fs::write(path, view)
         if(written is Result.Err) {
             return Result.Err(ArchiveError.IoError(string("failed to write ZIP data")))
         }
@@ -396,7 +399,7 @@ func archive_safe_validate_name(name : *string) : bool {
 
 func archive_safe_is_symlink(p : *string) : bool {
     unsafe {
-        var r = fs::metadata(p.c_str())
+        var r = fs::raw::metadata(p.c_str())
         if(r is Result.Err) {
             return false
         }

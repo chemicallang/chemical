@@ -12,6 +12,9 @@ public namespace net {
     @extern protected func setsockopt(s: int, level:int, optname:int, optval:*char, optlen:int): int;
     @extern protected func getaddrinfo(node:*char, service:*char, hints:*mut char, res:*mut *mut char): int;
     @extern protected func freeaddrinfo(res:*mut char): void;
+    @extern protected func getsockname(s: int, name: *mut char, namelen: *mut int): int;
+    @extern protected func getpeername(s: int, name: *mut char, namelen: *mut int): int;
+    @extern protected func shutdown(s: int, how: int): int;
 
 
     @extern protected func fcntl(fd: int, cmd: int, _ : any...): int;
@@ -33,30 +36,44 @@ public namespace net {
     func startup() { }
     func cleanup() { }
 
-    func sock_socket(af:int, typ:int, proto:int) : Socket { return unsafe(socket(af, typ, proto)) as Socket }
-    func sock_bind(s:Socket, addr:*char, addrlen:int) : int { return unsafe(bind(s as int, addr, addrlen)) }
-    func sock_listen(s:Socket, backlog:int) : int { return unsafe(listen(s as int, backlog)) }
-    func sock_connect(s:Socket, addr:*char, addrlen:int) : int { return unsafe(connect(s as int, addr, addrlen)) }
-    func sock_accept(s:Socket, addr:*mut char, addrlen:*mut int) : Socket { return unsafe(accept(s as int, addr, addrlen)) as Socket }
-    func sock_recv(s:Socket, buf:*mut char, len:int) : int { return unsafe(recv(s as int, buf, len, 0)) }
+    func sock_socket(af:int, typ:int, proto:int) : usize { return unsafe(socket(af, typ, proto)) as usize }
+    func sock_bind(s:usize, addr:*char, addrlen:int) : int { return unsafe(bind(s as int, addr, addrlen)) }
+    func sock_listen(s:usize, backlog:int) : int { return unsafe(listen(s as int, backlog)) }
+    func sock_connect(s:usize, addr:*char, addrlen:int) : int { return unsafe(connect(s as int, addr, addrlen)) }
+    func sock_accept(s:usize, addr:*mut char, addrlen:*mut int) : usize { return unsafe(accept(s as int, addr, addrlen)) as usize }
+    func sock_recv(s:usize, buf:*mut char, len:int) : int { return unsafe(recv(s as int, buf, len, 0)) }
     // MSG_NOSIGNAL (0x4000 on Linux): raise EPIPE instead of SIGPIPE on broken connection
     comptime const MSG_NOSIGNAL = 0x4000
-    func sock_send(s:Socket, buf:*char, len:int) : int { return unsafe(send(s as int, buf, len, MSG_NOSIGNAL)) }
-    func sock_close(s:Socket) { unsafe { close(s as int) } }
-    func sock_setsockopt(s:Socket, level:int, optname:int, optval:*char, optlen:int) : int { return unsafe(setsockopt(s as int, level, optname, optval, optlen)) }
+    func sock_send(s:usize, buf:*char, len:int) : int { return unsafe(send(s as int, buf, len, MSG_NOSIGNAL)) }
+    func sock_close(s:usize) { unsafe { close(s as int) } }
+    func sock_setsockopt(s:usize, level:int, optname:int, optval:*char, optlen:int) : int { return unsafe(setsockopt(s as int, level, optname, optval, optlen)) }
     func sock_getaddrinfo(node:*char, service:*char, hints:*mut char, res:*mut *mut char) : int { return unsafe(getaddrinfo(node, service, hints, res)) }
     func sock_freeaddrinfo(res:*mut char) { unsafe { freeaddrinfo(res) } }
 
     // poll wrapper for timed I/O (stub - use non-blocking accept instead)
 
-    public func set_nonblocking(s: Socket) {
+    func sock_set_nonblocking(s: usize) {
         var flags = unsafe(fcntl(s as int, F_GETFL, 0));
         unsafe { fcntl(s as int, F_SETFL, flags | O_NONBLOCK) };
     }
 
-    public func set_blocking(s: Socket) {
+    func sock_set_blocking(s: usize) {
         var flags = unsafe(fcntl(s as int, F_GETFL, 0));
         unsafe { fcntl(s as int, F_SETFL, flags & ~O_NONBLOCK) };
+    }
+
+    func sock_local_addr(s : usize, out : *mut raw::sockaddr_in) : int {
+        var len : int = sizeof(raw::sockaddr_in) as int
+        return unsafe(getsockname(s as int, out as *mut char, &raw mut len))
+    }
+
+    func sock_peer_addr(s : usize, out : *mut raw::sockaddr_in) : int {
+        var len : int = sizeof(raw::sockaddr_in) as int
+        return unsafe(getpeername(s as int, out as *mut char, &raw mut len))
+    }
+
+    func sock_shutdown(s : usize, how : int) : int {
+        return unsafe(shutdown(s as int, how))
     }
 
 }

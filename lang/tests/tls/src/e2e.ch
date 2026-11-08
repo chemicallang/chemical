@@ -1,4 +1,5 @@
 using namespace tls
+using namespace tls::raw
 using namespace crypto
 using std::string_view
 
@@ -497,8 +498,8 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
         env.error("failed to load private key"); return
     }
 
-    var server_sock = net::listen_addr("127.0.0.1", 19880u)
-    if(server_sock == 0 as net::Socket) {
+    var server_sock = net::raw::listen_addr("127.0.0.1", 19880u)
+    if(server_sock == 0 as net::raw::Socket) {
         cert_free(cert); unsafe { dealloc cert }
         ecdsa_context_free(priv_key)
         env.error("listen failed"); return
@@ -507,19 +508,19 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
     test_py_run_background(string_view("cli 127.0.0.1 19880 1.3"))
     test_server_wait()
 
-    net::set_nonblocking(server_sock)
-    var client_sock = net::accept_socket(server_sock) as net::Socket
+    net::raw::set_nonblocking(server_sock)
+    var client_sock = net::raw::accept_socket(server_sock) as net::raw::Socket
     var accept_attempts = 0
-    while(client_sock == 0 as net::Socket && accept_attempts < 50) {
+    while(client_sock == 0 as net::raw::Socket && accept_attempts < 50) {
         std::concurrent::sleep_ms(100u)
-        client_sock = net::accept_socket(server_sock)
+        client_sock = net::raw::accept_socket(server_sock)
         accept_attempts += 1
     }
-    if(client_sock == 0 as net::Socket) {
+    if(client_sock == 0 as net::raw::Socket) {
         env.error("no client connected")
         cert_free(cert); unsafe { dealloc cert }
         ecdsa_context_free(priv_key)
-        net::close_socket(server_sock)
+        net::raw::close_socket(server_sock)
         return
     }
 
@@ -555,7 +556,7 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
     cert_free(cert)
     unsafe { dealloc cert }
     ecdsa_context_free(priv_key)
-    net::close_socket(server_sock)
+    net::raw::close_socket(server_sock)
     test_kill_port(19880)
 
 }
@@ -580,8 +581,8 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
         env.error("failed to load private key"); return
     }
 
-    var server_sock = net::listen_addr("127.0.0.1", 19882u)
-    if(server_sock == 0 as net::Socket) {
+    var server_sock = net::raw::listen_addr("127.0.0.1", 19882u)
+    if(server_sock == 0 as net::raw::Socket) {
         cert_free(cert); unsafe { dealloc cert }
         ecdsa_context_free(priv_key)
         env.error("listen failed"); return
@@ -590,19 +591,19 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     test_py_run_background(string_view("cli 127.0.0.1 19882 1.3"))
     test_server_wait()
 
-    net::set_nonblocking(server_sock)
-    var client_sock = net::accept_socket(server_sock) as net::Socket
+    net::raw::set_nonblocking(server_sock)
+    var client_sock = net::raw::accept_socket(server_sock) as net::raw::Socket
     var accept_attempts = 0
-    while(client_sock == 0 as net::Socket && accept_attempts < 50) {
+    while(client_sock == 0 as net::raw::Socket && accept_attempts < 50) {
         std::concurrent::sleep_ms(100u)
-        client_sock = net::accept_socket(server_sock)
+        client_sock = net::raw::accept_socket(server_sock)
         accept_attempts += 1
     }
-    if(client_sock == 0 as net::Socket) {
+    if(client_sock == 0 as net::raw::Socket) {
         env.error("no client")
         cert_free(cert); unsafe { dealloc cert }
         ecdsa_context_free(priv_key)
-        net::close_socket(server_sock)
+        net::raw::close_socket(server_sock)
         return
     }
 
@@ -635,7 +636,7 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     cert_free(cert)
     unsafe { dealloc cert }
     ecdsa_context_free(priv_key)
-    net::close_socket(server_sock)
+    net::raw::close_socket(server_sock)
     test_kill_port(19882)
 
 }
@@ -760,8 +761,8 @@ public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
     var kret = rsa_import_privkey(unsafe(&raw mut rsa_ctx), &raw n_buf[0], n_len, &raw d_buf[0], d_len)
     if(kret < 0) { env.error("failed to import RSA private key"); return }
 
-    var server_sock = net::listen_addr("127.0.0.1", 19885u)
-    if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
+    var server_sock = net::raw::listen_addr("127.0.0.1", 19885u)
+    if(server_sock == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     // The Chemical TLS 1.2 server uses RSA key exchange (no forward secrecy),
     // which OpenSSL 3 disables by default. Enable the legacy cipher client-side.
@@ -771,17 +772,17 @@ public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
     test_server_wait()
     test_cat_file(string_view("/tmp/tls_cli_err.txt"))
 
-    net::set_nonblocking(server_sock)
-    var client_sock = net::accept_socket(server_sock) as net::Socket
+    net::raw::set_nonblocking(server_sock)
+    var client_sock = net::raw::accept_socket(server_sock) as net::raw::Socket
     var accept_attempts = 0
-    while(client_sock == 0 as net::Socket && accept_attempts < 50) {
+    while(client_sock == 0 as net::raw::Socket && accept_attempts < 50) {
         std::concurrent::sleep_ms(100u)
-        client_sock = net::accept_socket(server_sock)
+        client_sock = net::raw::accept_socket(server_sock)
         accept_attempts += 1
     }
-    if(client_sock == 0 as net::Socket) {
+    if(client_sock == 0 as net::raw::Socket) {
         env.error("no client connected")
-        net::close_socket(server_sock)
+        net::raw::close_socket(server_sock)
         return
     }
 
@@ -805,7 +806,7 @@ public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
 
     cert_free(cert)
     unsafe { dealloc cert }
-    net::close_socket(server_sock)
+    net::raw::close_socket(server_sock)
     test_kill_port(19885)
 
 }
@@ -843,8 +844,8 @@ public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
     var kret = rsa_import_privkey(unsafe(&raw mut rsa_ctx), &raw n_buf[0], n_len, &raw d_buf[0], d_len)
     if(kret < 0) { env.error("failed to import RSA private key"); return }
 
-    var server_sock = net::listen_addr("127.0.0.1", 19886u)
-    if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
+    var server_sock = net::raw::listen_addr("127.0.0.1", 19886u)
+    if(server_sock == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     // OpenSSL 3 disables RSA key exchange by default; re-enable it client-side.
     var cli_cmd = test_py_interp()
@@ -853,17 +854,17 @@ public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
     test_server_wait()
     test_cat_file(string_view("/tmp/tls_cli_err_cbc.txt"))
 
-    net::set_nonblocking(server_sock)
-    var client_sock = net::accept_socket(server_sock) as net::Socket
+    net::raw::set_nonblocking(server_sock)
+    var client_sock = net::raw::accept_socket(server_sock) as net::raw::Socket
     var accept_attempts = 0
-    while(client_sock == 0 as net::Socket && accept_attempts < 50) {
+    while(client_sock == 0 as net::raw::Socket && accept_attempts < 50) {
         std::concurrent::sleep_ms(100u)
-        client_sock = net::accept_socket(server_sock)
+        client_sock = net::raw::accept_socket(server_sock)
         accept_attempts += 1
     }
-    if(client_sock == 0 as net::Socket) {
+    if(client_sock == 0 as net::raw::Socket) {
         env.error("no client connected")
-        net::close_socket(server_sock)
+        net::raw::close_socket(server_sock)
         return
     }
 
@@ -890,7 +891,7 @@ public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
 
     cert_free(cert)
     unsafe { dealloc cert }
-    net::close_socket(server_sock)
+    net::raw::close_socket(server_sock)
     test_kill_port(19886)
 
 }

@@ -2,7 +2,13 @@ public namespace fs {
 
 using std::Option;
 using std::Result;
+using path::Path;
+using path::PathBuf;
+using std::string;
+using std::string_view;
+using std::vector;
 
+// Conversion into the shared I/O error used by Read/Write/network APIs.
 public func io_error(e : FsError) : std::io::IoError {
     switch(e) {
         NotFound() => { return std::io::IoError.Kind(std::io::IoErrorKind.NotFound()) }
@@ -14,120 +20,297 @@ public func io_error(e : FsError) : std::io::IoError {
         WouldBlock() => { return std::io::IoError.Kind(std::io::IoErrorKind.WouldBlock()) }
         PathTooLong() => { return std::io::IoError.Kind(std::io::IoErrorKind.PathTooLong()) }
         Unsupported() => { return std::io::IoError.Kind(std::io::IoErrorKind.Unsupported()) }
+        OutOfMemory() => { return std::io::IoError.Kind(std::io::IoErrorKind.OutOfMemory()) }
         Io(_, message) => {
-            var owned = unsafe(std::string(message))
-            return std::io::IoError.Message(std::io::IoErrorKind.Other(), owned)
+            return std::io::IoError.Message(std::io::IoErrorKind.Other(), message.copy())
         }
         Other(message) => {
-            var owned = unsafe(std::string(message))
-            return std::io::IoError.Message(std::io::IoErrorKind.Other(), owned)
+            return std::io::IoError.Message(std::io::IoErrorKind.Other(), message.copy())
         }
     }
 }
 
-
-public func open_file(path : &str) : Result<File, std::io::IoError> {
-    var opts : OpenOptions;
-    opts.read = true;
-    opts.write = false;
-    opts.append = false;
-    opts.create = false;
-    opts.create_new = false;
-    opts.truncate = false;
-    opts.binary = true;
-    return open_file_with(path, opts)
-}
-
-public func create_file(path : &str) : Result<File, std::io::IoError> {
-    var opts : OpenOptions;
-    opts.read = false;
-    opts.write = true;
-    opts.append = false;
-    opts.create = true;
-    opts.create_new = false;
-    opts.truncate = true;
-    opts.binary = true;
-    return open_file_with(path, opts)
-}
-
-public func open_file_with(path : &str, opts : OpenOptions) : Result<File, std::io::IoError> {
-    var made = std::cstring_make(path)
-    if(made is Result.Err) {
-        return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind.InvalidInput()))
+// Convert a shared I/O error back into a filesystem error. Used by wrappers
+// whose implementation goes through the `Read`/`Write` traits.
+public func fs_error_from_io(e : std::io::IoError) : FsError {
+    var kind = e.kind()
+    switch(kind) {
+        NotFound() => { return FsError.NotFound() }
+        PermissionDenied() => { return FsError.PermissionDenied() }
+        AlreadyExists() => { return FsError.AlreadyExists() }
+        InvalidInput() => { return FsError.InvalidInput() }
+        UnexpectedEof() => { return FsError.Io(0, string("unexpected end of file")) }
+        WouldBlock() => { return FsError.WouldBlock() }
+        TimedOut() => { return FsError.WouldBlock() }
+        ConnectionRefused() => { return FsError.Io(-1, string("connection refused")) }
+        ConnectionReset() => { return FsError.Io(-1, string("connection reset")) }
+        BrokenPipe() => { return FsError.Io(-1, string("broken pipe")) }
+        AddrInUse() => { return FsError.Io(-1, string("address in use")) }
+        AddrNotAvailable() => { return FsError.Io(-1, string("address not available")) }
+        Interrupted() => { return FsError.Io(-1, string("interrupted")) }
+        OutOfMemory() => { return FsError.OutOfMemory() }
+        PathTooLong() => { return FsError.PathTooLong() }
+        Unsupported() => { return FsError.Unsupported() }
+        Other() => {
+            if(e.has_message()) {
+                return FsError.Other(string(e.message()))
+            }
+            return FsError.Other(string("I/O error"))
+        }
     }
-    var Ok(owned) = made else unsafe { unreachable }
-    var r = file_open(unsafe(owned.as_ptr()), opts)
-    if(r is Result.Err) {
-        var Err(e) = r else unsafe { unreachable }
-        return Result.Err(io_error(e))
-    }
-    var Ok(f) = r else unsafe { unreachable }
-    return Result.Ok(f)
 }
 
+// ---------------------------------------------------------------------------
+// File construction
+// ---------------------------------------------------------------------------
 
-public func close_file(f : &mut File) : Result<size_t, std::io::IoError> {
-    var r = file_close_ref(f)
-    if(r is Result.Err) {
-        var Err(e) = r else unsafe { unreachable }
-        return Result.Err(io_error(e))
-    }
-    return Result.Ok(0 as size_t)
+/// Open an existing file with default read-only options.
+public func open_file(path : &Path) : Result<File, FsError> {
+    var opts = OpenOptions.make()
+    return File.open(path, &opts)
 }
 
-public func read_file(path : &str) : Result<std::vector<u8>, std::io::IoError> {
+/// Create/truncate a file for writing.
+public func create_file(path : &Path) : Result<File, FsError> {
+    return File.create(path)
+}
+
+/// Explicitly close a file. Idempotent; the destructor uses the same path.
+public func close_file(f : &mut File) : Result<UnitTy, FsError> {
+    return raw::file_close_ref(f)
+}
+
+// ---------------------------------------------------------------------------
+// Whole-file helpers
+// ---------------------------------------------------------------------------
+
+/// Read the entire file into a byte vector.
+public func read(path : &Path) : Result<vector<u8>, FsError> {
     var opened = open_file(path)
     if(opened is Result.Err) {
         var Err(e) = opened else unsafe { unreachable }
         return Result.Err(e)
     }
     var Ok(f) = opened else unsafe { unreachable }
-    var out = std::vector<u8>()
-    var r = f.try_read_to_end(&mut out)
-    if(r is Result.Err) {
-        var Err(e) = r else unsafe { unreachable }
-        var _ = close_file(&mut f)
-        return Result.Err(e)
+    var out = vector<u8>()
+    var chunk : [8192]u8
+    while(true) {
+        var r = raw::file_read(&raw mut f, &raw mut chunk[0], 8192 as size_t)
+        if(r is Result.Err) {
+            var Err(e) = r else unsafe { unreachable }
+            var _ = raw::file_close_ref(&mut f)
+            return Result.Err(e)
+        }
+        var Ok(n) = r else unsafe { unreachable }
+        if(n == 0) {
+            var _ = raw::file_close_ref(&mut f)
+            return Result.Ok(out)
+        }
+        var i : size_t = 0
+        while(i < n) {
+            if(!out.try_push(chunk[i])) {
+                var _ = raw::file_close_ref(&mut f)
+                return Result.Err(FsError.OutOfMemory())
+            }
+            i += 1
+        }
     }
-    var cr = close_file(&mut f)
-    if(cr is Result.Err) {
-        var Err(e) = cr else unsafe { unreachable }
-        return Result.Err(e)
-    }
+    var _ = raw::file_close_ref(&mut f)
     return Result.Ok(out)
 }
 
-public func write_file(path : &str, data : [u8]) : Result<size_t, std::io::IoError> {
-    var opened = create_file(path)
+/// Write all bytes to a file, creating/truncating it.
+public func write(path : &Path, data : &[u8]) : Result<UnitTy, FsError> {
+    var opened = File.create(path)
     if(opened is Result.Err) {
         var Err(e) = opened else unsafe { unreachable }
         return Result.Err(e)
     }
     var Ok(f) = opened else unsafe { unreachable }
-    var r = f.write_all(data)
+    var r = raw::file_write_all(&raw mut f, data.data(), data.size())
+    if(r is Result.Err) {
+        var Err(e) = r else unsafe { unreachable }
+        var _ = raw::file_close_ref(&mut f)
+        return Result.Err(e)
+    }
+    var fr = raw::file_flush(&raw mut f)
+    if(fr is Result.Err) {
+        var Err(e) = fr else unsafe { unreachable }
+        var _ = raw::file_close_ref(&mut f)
+        return Result.Err(e)
+    }
+    return raw::file_close_ref(&mut f)
+}
+
+/// Read a file and validate it as UTF-8.
+public func read_to_string(path : &Path) : Result<string, FsError> {
+    var r = read(path)
     if(r is Result.Err) {
         var Err(e) = r else unsafe { unreachable }
         return Result.Err(e)
     }
-    var Ok(n) = r else unsafe { unreachable }
-    var fr = f.flush()
-    if(fr is Result.Err) {
-        var Err(e) = fr else unsafe { unreachable }
-        var _ = close_file(&mut f)
-        return Result.Err(e)
+    var Ok(bytes) = r else unsafe { unreachable }
+    var view = unsafe(string_view(bytes.data() as *char, bytes.size()))
+    var made = std::try_from_utf8(view)
+    if(made is Result.Err) {
+        return Result.Err(FsError.InvalidInput())
     }
-    var cr = close_file(&mut f)
-    if(cr is Result.Err) {
-        var Err(e) = cr else unsafe { unreachable }
-        return Result.Err(e)
-    }
-    return Result.Ok(n)
+    var Ok(text) = made else unsafe { unreachable }
+    return Result.Ok(string(text.to_view()))
 }
+
+// ---------------------------------------------------------------------------
+// Directory and metadata helpers
+// ---------------------------------------------------------------------------
+
+public func create_dir(path : &Path) : Result<UnitTy, FsError> {
+    if(path.has_nul()) { return Result.Err(FsError.InvalidInput()) }
+    var native = path.native_ptr()
+    if(native != null) { return raw::create_dir_native(native) }
+    var text = path.as_string()
+    return raw::create_dir(text.c_str())
+}
+
+public func create_dir_all(path : &Path) : Result<UnitTy, FsError> {
+    if(path.has_nul()) { return Result.Err(FsError.InvalidInput()) }
+    var text = path.as_string()
+    return raw::create_dir_all(text.c_str())
+}
+
+public func remove_dir(path : &Path) : Result<UnitTy, FsError> {
+    if(path.has_nul()) { return Result.Err(FsError.InvalidInput()) }
+    var native = path.native_ptr()
+    if(native != null) { return raw::remove_dir_native(native) }
+    var text = path.as_string()
+    return raw::remove_dir(text.c_str())
+}
+
+public func remove_dir_all(path : &Path) : Result<UnitTy, FsError> {
+    if(path.has_nul()) { return Result.Err(FsError.InvalidInput()) }
+    var native = path.native_ptr()
+    if(native != null) { return raw::remove_dir_all_recursive_native(native) }
+    var text = path.as_string()
+    return raw::remove_dir_all_recursive(text.c_str())
+}
+
+public func remove_file(path : &Path) : Result<UnitTy, FsError> {
+    if(path.has_nul()) { return Result.Err(FsError.InvalidInput()) }
+    var native = path.native_ptr()
+    if(native != null) { return raw::remove_file_native(native) }
+    var text = path.as_string()
+    return raw::remove_file(text.c_str())
+}
+
+public func copy_file(src : &Path, dst : &Path) : Result<UnitTy, FsError> {
+    if(src.has_nul() || dst.has_nul()) { return Result.Err(FsError.InvalidInput()) }
+    var snative = src.native_ptr()
+    var dnative = dst.native_ptr()
+    if(snative != null && dnative != null) {
+        return raw::copy_file_native(snative, dnative)
+    }
+    var stext = src.as_string()
+    var dtext = dst.as_string()
+    return raw::copy_file(stext.c_str(), dtext.c_str())
+}
+
+public func move_path(src : &Path, dst : &Path) : Result<UnitTy, FsError> {
+    if(src.has_nul() || dst.has_nul()) { return Result.Err(FsError.InvalidInput()) }
+    var stext = src.as_string()
+    var dtext = dst.as_string()
+    return raw::move_path(stext.c_str(), dtext.c_str())
+}
+
+public func metadata(path : &Path) : Result<Metadata, FsError> {
+    if(path.has_nul()) { return Result.Err(FsError.InvalidInput()) }
+    var text = path.as_string()
+    return raw::metadata(text.c_str())
+}
+
+public func exists(path : &Path) : bool {
+    var r = metadata(path)
+    return !(r is Result.Err)
+}
+
+public func is_file(path : &Path) : bool {
+    var r = metadata(path)
+    if(r is Result.Err) { return false }
+    var Ok(m) = r else unsafe { unreachable }
+    return m.is_file
+}
+
+public func is_dir(path : &Path) : bool {
+    var r = metadata(path)
+    if(r is Result.Err) { return false }
+    var Ok(m) = r else unsafe { unreachable }
+    return m.is_dir
+}
+
+// State shared with the callback-style raw directory walker.
+struct ReadDirState {
+    var base : path::PathBuf
+    var out : vector<DirEntry>
+    var failed : bool
+    var err : FsError
+}
+
+/// Read all directory entries (excluding `.` and `..`) as owned values.
+public func read_dir(path : &Path) : Result<vector<DirEntry>, FsError> {
+    var state = ReadDirState {
+        base : path.to_path_buf(),
+        out : vector<DirEntry>(),
+        failed : false,
+        err : FsError.InvalidInput()
+    }
+    var statep = &raw mut state
+    var adapted : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool> = |statep|(name, name_len, is_dir) => {
+        var state = statep
+        var nview = unsafe(string_view(name, name_len))
+        if(nview.size() == 1 && nview.get(0) == '.') { return true }
+        if(nview.size() == 2 && nview.get(0) == '.' && nview.get(1) == '.') { return true }
+        var made = std::try_from_utf8(nview)
+        if(made is Result.Err) {
+            unsafe { state.failed = true; state.err = FsError.InvalidInput() }
+            return false
+        }
+        var Ok(text) = made else unsafe { unreachable }
+        var child = unsafe(state.base.join(&Path.new(text)))
+        var name_str = string(text.to_view())
+        var impl = new DirEntryImpl {
+            path : PathBuf.from(""),
+            name : string(),
+            is_dir : is_dir
+        }
+        unsafe {
+            impl.path = std::replace<PathBuf>(&mut child, std::mem.zeroed_unchecked<PathBuf>())
+            impl.name = std::replace<string>(&mut name_str, std::mem.zeroed_unchecked<string>())
+        }
+        if(!unsafe(state.out.try_push(DirEntry { _impl : impl }))) {
+            unsafe { state.failed = true; state.err = FsError.OutOfMemory() }
+            return false
+        }
+        return true
+    }
+    var text = path.as_string()
+    var r = raw::read_dir(text.c_str(), adapted)
+    if(r is Result.Err) {
+        var Err(e) = r else unsafe { unreachable }
+        return Result.Err(e)
+    }
+    if(state.failed) {
+        return Result.Err(state.err)
+    }
+    var result = std::replace<std::vector<DirEntry>>(&mut state.out, unsafe(std::mem.zeroed_unchecked<std::vector<DirEntry>>()))
+    return Result.Ok(result)
+}
+
+// ---------------------------------------------------------------------------
+// Read / Write / Seek implementations for File
+// ---------------------------------------------------------------------------
 
 impl std::io::Read for File {
 
     func read(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
-        var r = file_read(self as *mut File, buf.data(), buf.size())
+        var r = raw::file_read(self as *mut File, buf.data(), buf.size())
         if(r is Result.Err) {
             var Err(e) = r else unsafe { unreachable }
             return Result.Err(io_error(e))
@@ -139,7 +322,7 @@ impl std::io::Read for File {
     func read_exact(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
         var pos : size_t = 0
         while(pos < buf.size()) {
-            var r = file_read(self as *mut File, unsafe(buf.data() + pos), buf.size() - pos)
+            var r = raw::file_read(self as *mut File, unsafe(buf.data() + pos), buf.size() - pos)
             if(r is Result.Err) {
                 var Err(e) = r else unsafe { unreachable }
                 return Result.Err(io_error(e))
@@ -157,7 +340,7 @@ impl std::io::Read for File {
         var chunk : [8192]u8
         var total : size_t = 0
         while(true) {
-            var r = file_read(self as *mut File, &raw mut chunk[0], 8192 as size_t)
+            var r = raw::file_read(self as *mut File, &raw mut chunk[0], 8192 as size_t)
             if(r is Result.Err) {
                 var Err(e) = r else unsafe { unreachable }
                 return Result.Err(io_error(e))
@@ -180,7 +363,7 @@ impl std::io::Read for File {
 impl std::io::Write for File {
 
     func write(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
-        var r = file_write(self as *mut File, buf.data(), buf.size())
+        var r = raw::file_write(self as *mut File, buf.data(), buf.size())
         if(r is Result.Err) {
             var Err(e) = r else unsafe { unreachable }
             return Result.Err(io_error(e))
@@ -192,7 +375,7 @@ impl std::io::Write for File {
     func write_all(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
         var pos : size_t = 0
         while(pos < buf.size()) {
-            var r = file_write(self as *mut File, unsafe(buf.data() + pos), buf.size() - pos)
+            var r = raw::file_write(self as *mut File, unsafe(buf.data() + pos), buf.size() - pos)
             if(r is Result.Err) {
                 var Err(e) = r else unsafe { unreachable }
                 return Result.Err(io_error(e))
@@ -207,7 +390,7 @@ impl std::io::Write for File {
     }
 
     func flush(&mut self) : Result<size_t, std::io::IoError> {
-        var r = file_flush(self as *mut File)
+        var r = raw::file_flush(self as *mut File)
         if(r is Result.Err) {
             var Err(e) = r else unsafe { unreachable }
             return Result.Err(io_error(e))
@@ -216,160 +399,24 @@ impl std::io::Write for File {
     }
 }
 
+impl std::io::Seek for File {
 
-// ---------------------------------------------------------------------------
-// Safe directory/metadata helpers
-// ---------------------------------------------------------------------------
-
-public func create_dir_safe(path : &str) : Result<size_t, std::io::IoError> {
-    var made = std::cstring_make(path)
-    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
-    var Ok(c) = made else unsafe { unreachable }
-    var r = create_dir(unsafe(c.as_ptr()))
-    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
-    return Result.Ok(0 as size_t)
-}
-
-public func create_dir_all_safe(path : &str) : Result<size_t, std::io::IoError> {
-    var made = std::cstring_make(path)
-    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
-    var Ok(c) = made else unsafe { unreachable }
-    var r = create_dir_all(unsafe(c.as_ptr()))
-    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
-    return Result.Ok(0 as size_t)
-}
-
-public func remove_dir_safe(path : &str) : Result<size_t, std::io::IoError> {
-    var made = std::cstring_make(path)
-    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
-    var Ok(c) = made else unsafe { unreachable }
-    var r = remove_dir(unsafe(c.as_ptr()))
-    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
-    return Result.Ok(0 as size_t)
-}
-
-public func remove_dir_all_safe(path : &str) : Result<size_t, std::io::IoError> {
-    var made = std::cstring_make(path)
-    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
-    var Ok(c) = made else unsafe { unreachable }
-    var r = remove_dir_all_recursive(unsafe(c.as_ptr()))
-    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
-    return Result.Ok(0 as size_t)
-}
-
-public func remove_file_safe(path : &str) : Result<size_t, std::io::IoError> {
-    var made = std::cstring_make(path)
-    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
-    var Ok(c) = made else unsafe { unreachable }
-    var r = remove_file(unsafe(c.as_ptr()))
-    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
-    return Result.Ok(0 as size_t)
-}
-
-public func copy_file_safe(src : &str, dst : &str) : Result<size_t, std::io::IoError> {
-    var m1 = std::cstring_make(src)
-    var m2 = std::cstring_make(dst)
-    if(m1 is Result.Err || m2 is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
-    var Ok(c1) = m1 else unsafe { unreachable }
-    var Ok(c2) = m2 else unsafe { unreachable }
-    var r = copy_file(unsafe(c1.as_ptr()), unsafe(c2.as_ptr()))
-    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
-    return Result.Ok(0 as size_t)
-}
-
-public func move_path_safe(src : &str, dst : &str) : Result<size_t, std::io::IoError> {
-    var m1 = std::cstring_make(src)
-    var m2 = std::cstring_make(dst)
-    if(m1 is Result.Err || m2 is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
-    var Ok(c1) = m1 else unsafe { unreachable }
-    var Ok(c2) = m2 else unsafe { unreachable }
-    var r = move_path(unsafe(c1.as_ptr()), unsafe(c2.as_ptr()))
-    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
-    return Result.Ok(0 as size_t)
-}
-
-public func metadata_safe(path : &str) : Result<Metadata, std::io::IoError> {
-    var made = std::cstring_make(path)
-    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
-    var Ok(c) = made else unsafe { unreachable }
-    var r = metadata(unsafe(c.as_ptr()))
-    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
-    var Ok(m) = r else unsafe { unreachable }
-    return Result.Ok(m)
-}
-
-public func exists_safe(path : &str) : bool {
-    var made = std::cstring_make(path)
-    if(made is Result.Err) { return false }
-    var Ok(c) = made else unsafe { unreachable }
-    return exists(unsafe(c.as_ptr()))
-}
-
-public func is_file_safe(path : &str) : bool {
-    var made = std::cstring_make(path)
-    if(made is Result.Err) { return false }
-    var Ok(c) = made else unsafe { unreachable }
-    var r = is_file(unsafe(c.as_ptr()))
-    if(r is Result.Err) { return false }
-    var Ok(v) = r else unsafe { unreachable }
-    return v
-}
-
-public func is_dir_safe(path : &str) : bool {
-    var made = std::cstring_make(path)
-    if(made is Result.Err) { return false }
-    var Ok(c) = made else unsafe { unreachable }
-    var r = is_dir(unsafe(c.as_ptr()))
-    if(r is Result.Err) { return false }
-    var Ok(v) = r else unsafe { unreachable }
-    return v
-}
-
-public func atomic_write_safe(path : &str, data : [u8]) : Result<size_t, std::io::IoError> {
-    var made = std::cstring_make(path)
-    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
-    var Ok(c) = made else unsafe { unreachable }
-    var r = atomic_write(unsafe(c.as_ptr()), data.data(), data.size())
-    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
-    return Result.Ok(data.size())
-}
-
-public func read_dir_safe(path : &str, callback : std::function<(name : &std::string_view, is_dir : bool) => bool>) : Result<size_t, std::io::IoError> {
-    var made = std::cstring_make(path)
-    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
-    var Ok(c) = made else unsafe { unreachable }
-    var adapted : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool> = |callback|(name, name_len, is_dir) => {
-        var view = unsafe(std::string_view(name, name_len))
-        return callback(&view, is_dir)
+    func seek(&mut self, pos : std::io::SeekFrom) : Result<u64, std::io::IoError> {
+        var offset : i64 = 0
+        var whence : int = 0
+        switch(pos) {
+            Start(o) => { offset = o; whence = 0 }
+            Current(o) => { offset = o; whence = 1 }
+            End(o) => { offset = o; whence = 2 }
+        }
+        var r = raw::file_seek(self as *mut File, offset, whence)
+        if(r is Result.Err) {
+            var Err(e) = r else unsafe { unreachable }
+            return Result.Err(io_error(e))
+        }
+        var Ok(n) = r else unsafe { unreachable }
+        return Result.Ok(n)
     }
-    var r = read_dir(unsafe(c.as_ptr()), adapted)
-    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
-    return Result.Ok(0 as size_t)
-}
-
-public func temp_dir_path() : Option<std::string> {
-    var buf : [4096]char
-    var r = temp_dir(&raw mut buf[0], 4096)
-    if(r is Result.Err) { return Option.None<std::string>() }
-    return Option.Some<std::string>(unsafe(std::string.make_no_len(&raw mut buf[0])))
-}
-
-public func set_times_safe(path : &str, atime : i64, mtime : i64) : Result<size_t, std::io::IoError> {
-    var made = std::cstring_make(path)
-    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
-    var Ok(c) = made else unsafe { unreachable }
-    var r = set_times(unsafe(c.as_ptr()), atime, mtime)
-    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
-    return Result.Ok(0 as size_t)
-}
-
-public func set_permissions_safe(path : &str, perms : u32) : Result<size_t, std::io::IoError> {
-    var made = std::cstring_make(path)
-    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
-    var Ok(c) = made else unsafe { unreachable }
-    var r = set_permissions(unsafe(c.as_ptr()), perms)
-    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
-    return Result.Ok(0 as size_t)
 }
 
 } // namespace fs

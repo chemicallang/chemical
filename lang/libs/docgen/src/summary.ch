@@ -127,7 +127,7 @@ func parse_list_item(item : *mut MdListItem, arena : *mut md::Arena) : *mut Summ
 }
 
 public func parse_summary(path : std::string_view) : *mut Summary {
-    var result = fs::read_entire_file(path.data());
+    var result = fs::raw::read_entire_file(path.data());
     if(result is std.Result.Err) return null;
     
     var Ok(content) = result else unsafe { unreachable };

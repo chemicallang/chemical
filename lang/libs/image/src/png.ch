@@ -705,7 +705,7 @@ public func parse_png(data : *u8, data_len : size_t) : std::Result<Image, ImageE
 // ---------------------------------------------------------------------------
 
 public func load_png(path : *char) : std::Result<Image, ImageError> {
-    var read_result = fs::read_entire_file(path)
+    var read_result = fs::raw::read_entire_file(path)
     if(read_result is Result.Err) {
         return std.Result.Err(ImageError.FileNotFound())
     }
@@ -947,7 +947,7 @@ public func save_png(img : *mut Image, path : *char) : std::Result<std::Unit, Im
         // IEND chunk
         png_write_chunk(fptr, &raw mut wpos, 0x49454E44, null, 0)
 
-        var write_result = fs::write_text_file(path, file_buf.data(), file_buf.size())
+        var write_result = fs::raw::write_text_file(path, file_buf.data(), file_buf.size())
         if(write_result is Result.Err) {
             return std.Result.Err(ImageError.IoError(string("failed to write PNG file")))
         }

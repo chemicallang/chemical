@@ -7,6 +7,7 @@
 // `fuser -k` tore down the other's server and the loser reported a handshake
 // failure that had nothing to do with TLS.
 using namespace tls
+using namespace tls::raw
 using std::string_view
 
 @test

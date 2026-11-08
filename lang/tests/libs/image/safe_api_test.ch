@@ -162,10 +162,10 @@ public func image_safe_load_and_save_png(env : &mut TestEnv) {
     var _ = img.set(2, 2, green)
 
     var p = image_safe_temp_pathbuf("p24_safe_image.png")
-    var saved = img.save(&p)
+    var saved = img.save(&p.as_path())
     if(saved is Result.Err) { env.error("save(.png) should succeed"); return }
 
-    var loaded = image::Image.load(&p)
+    var loaded = image::Image.load(&p.as_path())
     if(loaded is Result.Err) { env.error("load should succeed"); return }
     var Ok(loaded_img) = loaded else unsafe { unreachable }
     if(loaded_img.width() != 5 || loaded_img.height() != 4) { env.error("loaded dimensions") }
@@ -260,7 +260,7 @@ public func image_safe_invalid_crop_and_pixel(env : &mut TestEnv) {
 public func image_safe_unsupported_save_extension(env : &mut TestEnv) {
     var img = image_safe_new_rgba(2, 2)
     var p = image_safe_temp_pathbuf("p24_safe_image.xyz")
-    var result = img.save(&p)
+    var result = img.save(&p.as_path())
     if(result is Result.Ok) { env.error("unknown extension should fail") }
 }
 

@@ -5,35 +5,32 @@ using std::Result;
 
 @test
 public func test_process_execute(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("echo"))
-    cfg.args.push(string("hello world"))
-    var res = process::execute(cfg)
+    var cfg = process::Command.new("echo")
+    cfg.arg("hello world")
+    var res = cfg.output()
     if(res is Result.Err) {
         env.error("process::execute returned Err")
         return
     }
     var Ok(r) = res else unsafe { unreachable }
-    if(!r.success) {
+    if(!r.success()) {
         env.error("process::execute did not succeed")
         return
     }
-    if(!stdout_contains(&raw r.output.stdout_data, "hello world")) {
+    if(!stdout_contains(r.stdout_bytes(), "hello world")) {
         env.error("process stdout did not contain expected text")
         return
     }
 }
 
 @test
-public func test_process_config_defaults(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    if(cfg.args.size() != 0) { env.error("default args should be empty"); return }
-    if(!cfg.capture_stdout) { env.error("default capture_stdout should be true"); return }
-    if(!cfg.capture_stderr) { env.error("default capture_stderr should be true"); return }
-    if(cfg.merge_stdout_stderr) { env.error("default merge_stdout_stderr should be false"); return }
+public func test_process_command_defaults(env : &mut TestEnv) {
+    var cfg = process::Command.new("true")
+    var res = cfg.status()
+    if(res is Result.Err) { env.error("Command defaults should run"); return }
 }
 
-func stdout_contains(data : *vector<u8>, expected : string_view) : bool {
+func stdout_contains(data : [u8], expected : string_view) : bool {
         unsafe {
         if(data.size() < expected.size()) { return false }
         var d = data.data()

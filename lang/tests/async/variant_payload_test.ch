@@ -1,7 +1,7 @@
 // Regression tests for B26: a *large struct variant* carried through a
 // `FutureHandle` must survive the LLVM async result store/load.
 //
-// Historically `block_on<Result<Response, std::string>>(http::get_async(...))`
+// Historically `block_on<Result<Response, std::string>>(http::raw::get_async(...))`
 // read back a garbage payload (the `Response` contains strings + a vector +
 // pointer/bool state). The result-store bug was the same one fixed for B23
 // (`Codegen::writeReturnStmtFor`'s coroutine branch stored an alloca pointer

@@ -9,6 +9,7 @@
 // ============================================================================
 
 using namespace tls
+using namespace tls::raw
 using namespace http
 using std::Result
 using std::string
@@ -41,7 +42,7 @@ public func LIMIT_max_body_len_enforced(env : &mut TestEnv) {
     var r1 = capped.get(u.to_view())
     if(r1 is Result.Err) { env.error("capped request should still receive headers"); test_kill_port(PORT as int); return }
     var Ok(x1) = r1 else unsafe { unreachable };
-    var b1 = x1.body.read_to_string()
+    var b1 = x1.body.read_to_string_opt()
     if(b1 is std.Option.Some) {
         env.error("body read must fail once max_body_len is exceeded")
     }
@@ -52,7 +53,7 @@ public func LIMIT_max_body_len_enforced(env : &mut TestEnv) {
     var r2 = full.get(u.to_view())
     if(r2 is Result.Err) { env.error("control download failed"); test_kill_port(PORT as int); return }
     var Ok(x2) = r2 else unsafe { unreachable };
-    var b2 = x2.body.read_to_string()
+    var b2 = x2.body.read_to_string_opt()
     if(b2 is std.Option.None) { env.error("control body read failed"); test_kill_port(PORT as int); return }
     var Some(v2) = b2 else unsafe { unreachable };
     if(v2.size() != 65536u) {
@@ -97,17 +98,17 @@ public func LIMIT_max_response_header_bytes_enforced(env : &mut TestEnv) {
     client.insecure_skip_verify()
 
     var ub = lim_url(BIG_PORT, "/big")
-    var r1 = client.get(ub.to_view())
+    var r1 = client.get_view(ub.to_view())
     if(r1 is Result.Ok) {
         env.error("oversized response header block must be rejected")
     }
 
     var uo = lim_url(OK_PORT, "/ok")
-    var r2 = client.get(uo.to_view())
+    var r2 = client.get_view(uo.to_view())
     if(r2 is Result.Err) {
         // Server startup can lag under load; give it one more chance.
         std::concurrent::sleep_ms(1500u)
-        r2 = client.get(uo.to_view())
+        r2 = client.get_view(uo.to_view())
     }
     if(r2 is Result.Err) { env.error("normal-size response failed"); test_kill_port(OK_PORT as int); test_kill_port(BIG_PORT as int); return }
     var Ok(x2) = r2 else unsafe { unreachable };
@@ -163,7 +164,7 @@ public func LIMIT_request_timeout_short_fails_long_succeeds(env : &mut TestEnv) 
     if(r2 is Result.Err) { env.error("10s timeout should tolerate the 3s delay"); test_kill_port(PORT as int); return }
     var Ok(x2) = r2 else unsafe { unreachable };
     if(x2.status != 200u) { env.error("slow request expected 200") }
-    var b = x2.body.read_to_string()
+    var b = x2.body.read_to_string_opt()
     if(b is std.Option.None) { env.error("slow request body read failed"); test_kill_port(PORT as int); return }
     var Some(v) = b else unsafe { unreachable };
     if(!v.equals_view("late-ok")) { env.error("slow request body mismatch") }
@@ -190,12 +191,12 @@ public func LIMIT_truncated_body_detected(env : &mut TestEnv) {
     client.insecure_skip_verify()
 
     var u = lim_url(PORT, "/truncated")
-    var res = client.post(u.to_view(), string_view("0123456789ABCDEF"), "text/plain")
+    var res = client.post_view(u.to_view(), string_view("0123456789ABCDEF"), "text/plain")
     if(res is Result.Err) { env.error("truncated request should parse headers"); test_kill_port(PORT as int); return }
     var Ok(r) = res else unsafe { unreachable };
     if(r.status != 200u) { env.error("expected 200 status despite later truncation") }
 
-    var b = r.body.read_to_string()
+    var b = r.body.read_to_string_opt()
     if(b is std.Option.Some) {
         var Some(v) = b else unsafe { unreachable };
         if(v.size() >= 1000u) {

@@ -6,5 +6,6 @@ source "posix" if !windows
 
 import cstd
 import std
+import path
 import environment
 import async

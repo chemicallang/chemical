@@ -83,7 +83,7 @@ public func to_html(text : std::string_view, highlighter : (lang : std::string_v
 }
 
 public func file_to_html(path : *char, highlighter : (lang : std::string_view, code : std::string_view) => std::string, link_rewriter : (url : std::string_view) => std::string) : Result<std::string, MdError> {
-    var r = fs::read_entire_file(path)
+    var r = fs::raw::read_entire_file(path)
     if(r is Result.Err) {
         var Err(value) = r else unsafe { unreachable };
         var msg = value.message()

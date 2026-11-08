@@ -10,6 +10,7 @@
 // ============================================================================
 
 using namespace tls
+using namespace tls::raw
 using std::string_view
 
 // ─── Verified handshake with an UNRELATED trusted CA must fail ──────────────
@@ -222,8 +223,8 @@ public func NEG_raw_http_to_chemical_tls_server_fails(env : &mut TestEnv) {
     var cert = x509_crt_load_pem_file("/tmp/tls_20125_cert.pem")
     if(cert == null) { env.error("raw http: failed to load cert"); return }
 
-    var server_sock = net::listen_addr("127.0.0.1", 20125u)
-    if(server_sock == 0 as net::Socket) {
+    var server_sock = net::raw::listen_addr("127.0.0.1", 20125u)
+    if(server_sock == 0 as net::raw::Socket) {
         cert_free(cert); unsafe { dealloc cert }
         env.error("raw http: listen failed"); return
     }
@@ -234,18 +235,18 @@ public func NEG_raw_http_to_chemical_tls_server_fails(env : &mut TestEnv) {
     test_py_run_background(string_view("rawcli 127.0.0.1 20125 GET"))
     test_server_wait()
 
-    net::set_nonblocking(server_sock)
-    var client_sock = net::accept_socket(server_sock) as net::Socket
+    net::raw::set_nonblocking(server_sock)
+    var client_sock = net::raw::accept_socket(server_sock) as net::raw::Socket
     var attempts : int = 0
-    while(client_sock == 0 as net::Socket && attempts < 50) {
+    while(client_sock == 0 as net::raw::Socket && attempts < 50) {
         std::concurrent::sleep_ms(100u)
-        client_sock = net::accept_socket(server_sock) as net::Socket
+        client_sock = net::raw::accept_socket(server_sock) as net::raw::Socket
         attempts += 1
     }
-    if(client_sock == 0 as net::Socket) {
+    if(client_sock == 0 as net::raw::Socket) {
         env.error("raw http: no connection arrived")
         cert_free(cert); unsafe { dealloc cert }
-        net::close_socket(server_sock)
+        net::raw::close_socket(server_sock)
         test_kill_port(20125u)
         return
     }
@@ -268,7 +269,7 @@ public func NEG_raw_http_to_chemical_tls_server_fails(env : &mut TestEnv) {
     unsafe { dealloc ssl_mem }
     cert_free(cert)
     unsafe { dealloc cert }
-    net::close_socket(server_sock)
+    net::raw::close_socket(server_sock)
     test_kill_port(20125u)
 }
 

@@ -7,7 +7,7 @@
 // ============================================================================
 
 using namespace tls
-
+using namespace tls::raw
 // ─── Test 1: Single record consumption ─────────────────────────────────────
 // After consuming a single record, in_left should be 0 and buffer should be empty.
 

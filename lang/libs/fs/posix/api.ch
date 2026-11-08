@@ -27,6 +27,7 @@ public namespace fs {
     const AT_SYMLINK_NOFOLLOW = 0x100;   // do not follow symlinks (Linux typical)
     @extern public func utimensat(dirfd : int, pathname : *char, times : *timespec, flags : int) : int;
     @extern public func fsync(fd : int) : int;
+    @extern public func lseek(fd : int, offset : longlong, whence : int) : longlong;
 
     @extern public func link(oldpath : *char, newpath : *char) : int;
     @extern public func symlink(target : *char, linkpath : *char) : int;

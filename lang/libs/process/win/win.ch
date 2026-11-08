@@ -378,9 +378,9 @@ func win_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
 
     out.output.stdout_data = stdout_data
     out.output.stderr_data = stderr_data
-    out.status.code = exit_code as int
-    out.status.signaled = false
-    out.status.signal = 0
+    out.status._code = exit_code as int
+    out.status._signaled = false
+    out.status._signal = 0
     out.success = (exit_code == 0 && !timed_out)
     return true
 }
@@ -563,9 +563,9 @@ func win_wait(child : *mut ChildProcess, out : *mut ProcessResult) : bool {
 
     out.output.stdout_data = stdout_data
     out.output.stderr_data = stderr_data
-    out.status.code = exit_code as int
-    out.status.signaled = false
-    out.status.signal = 0
+    out.status._code = exit_code as int
+    out.status._signaled = false
+    out.status._signal = 0
     out.success = (exit_code == 0)
     return true
 }

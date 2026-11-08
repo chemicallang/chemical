@@ -1,5 +1,6 @@
 using namespace std;
 using namespace net;
+using namespace net::raw;
 using namespace http;
 
 // ===== Socket-level timeout tests =====
@@ -7,13 +8,13 @@ using namespace http;
 @test
 func test_recv_timeout_on_idle_socket(env : &mut TestEnv) {
     // Setup: listen, connect in thread, accept, then recv without data should timeout
-    var listen_sock = net::listen_addr("127.0.0.1", 19990u)
-    if(listen_sock == 0 as net::Socket) { env.error("listen failed"); return }
+    var listen_sock = net::raw::listen_addr("127.0.0.1", 19990u)
+    if(listen_sock == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     // Connect in a background thread
     var t = unsafe(std::concurrent::spawn(||(arg : *void) => {
-        var sock = net::dial("127.0.0.1", 19990u)
-        if(sock == 0 as net::Socket) { }
+        var sock = net::raw::dial("127.0.0.1", 19990u)
+        if(sock == 0 as net::raw::Socket) { }
         // Stay connected but send nothing
         std::concurrent::sleep_ms(500u)
         // Hang up
@@ -22,53 +23,53 @@ func test_recv_timeout_on_idle_socket(env : &mut TestEnv) {
     std::concurrent::sleep_ms(100u)
 
     // Accept the connection
-    var client_sock = net::accept_socket(listen_sock)
-    if(client_sock == 0 as net::Socket) { env.error("accept failed"); net::close_socket(listen_sock); t.join(); return }
+    var client_sock = net::raw::accept_socket(listen_sock)
+    if(client_sock == 0 as net::raw::Socket) { env.error("accept failed"); net::raw::close_socket(listen_sock); t.join(); return }
 
     // Set a 1-second recv timeout
-    net::set_recv_timeout(client_sock, 1, 0)
+    net::raw::set_recv_timeout(client_sock, 1, 0)
 
     // Try to recv — should time out after ~1s instead of hanging forever
     var buf : [1]u8
-    var n = net::recv_all(client_sock, &raw mut buf[0], 1)
+    var n = net::raw::recv_all(client_sock, &raw mut buf[0], 1)
     if(n > 0) {
         env.error("recv should not succeed on idle socket")
     }
     // n <= 0 means timeout or error — that's the expected behavior
 
-    net::close_socket(client_sock)
-    net::close_socket(listen_sock)
+    net::raw::close_socket(client_sock)
+    net::raw::close_socket(listen_sock)
     t.join()
 }
 
 @test
 func test_socket_echo(env : &mut TestEnv) {
     // Verify basic socket send/recv works (connect, send, recv, verify)
-    var listen_sock = net::listen_addr("127.0.0.1", 19991u)
-    if(listen_sock == 0 as net::Socket) { env.error("listen failed"); return }
+    var listen_sock = net::raw::listen_addr("127.0.0.1", 19991u)
+    if(listen_sock == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     // Spawn a client thread that connects, sends "ping", then waits
     var t = unsafe(std::concurrent::spawn(||(arg : *void) => {
-        var sock = net::dial("127.0.0.1", 19991u)
-        if(sock == 0 as net::Socket) { return null }
+        var sock = net::raw::dial("127.0.0.1", 19991u)
+        if(sock == 0 as net::raw::Socket) { return null }
         // Wait for the server to be ready to recv
         std::concurrent::sleep_ms(200u)
         var msg = "ping\0"
-        net::send_all(sock, &raw msg[0], 5)
+        net::raw::send_all(sock, &raw msg[0], 5)
         std::concurrent::sleep_ms(300u)
-        net::close_socket(sock)
+        net::raw::close_socket(sock)
         return null
     }, null))
     std::concurrent::sleep_ms(100u)
 
     // Accept
-    var client_sock = net::accept_socket(listen_sock)
-    if(client_sock == 0 as net::Socket) { env.error("accept failed"); net::close_socket(listen_sock); t.join(); return }
+    var client_sock = net::raw::accept_socket(listen_sock)
+    if(client_sock == 0 as net::raw::Socket) { env.error("accept failed"); net::raw::close_socket(listen_sock); t.join(); return }
 
     // Read with timeout
-    net::set_recv_timeout(client_sock, 3, 0)
+    net::raw::set_recv_timeout(client_sock, 3, 0)
     var buf : [16]u8
-    var n = net::recv_all(client_sock, &raw mut buf[0], 16)
+    var n = net::raw::recv_all(client_sock, &raw mut buf[0], 16)
     if(n <= 0) { env.error("recv failed or timed out"); }
     else if(n < 5) {
         env.error("received too little data")
@@ -76,8 +77,8 @@ func test_socket_echo(env : &mut TestEnv) {
         env.error("received wrong data")
     }
 
-    net::close_socket(client_sock)
-    net::close_socket(listen_sock)
+    net::raw::close_socket(client_sock)
+    net::raw::close_socket(listen_sock)
     t.join()
 }
 
@@ -101,7 +102,7 @@ func test_http_get(env : &mut TestEnv) {
 
     if(res_result is Result.Err) {
         var Err(e) = res_result else return;
-        env.error(e.data());
+        env.error("http request failed");
         srv.shutdown();
         thread.join();
         return;
@@ -109,7 +110,7 @@ func test_http_get(env : &mut TestEnv) {
 
     var Ok(res) = res_result else unsafe { unreachable };
     if(res.status != 200u) { env.error("Status mismatch"); }
-    var body_opt = res.body.read_to_string();
+    var body_opt = res.body.read_to_string_opt();
     if(body_opt is std.Option.None) {
         env.error("Read body failed");
     } else {
@@ -132,7 +133,7 @@ func test_http_post(env : &mut TestEnv) {
     var srv = server::Server(cfg);
 
     srv.router.add("POST", "/echo", ||(req, res) => {
-        var body_opt = req.body.read_to_string();
+        var body_opt = req.body.read_to_string_opt();
         if(body_opt is std.Option.None) {
             res.status = 400u;
             res.write_string(std::string::make_no_len("no body"));
@@ -150,14 +151,14 @@ func test_http_post(env : &mut TestEnv) {
 
     if(res_result is Result.Err) {
         var Err(e) = res_result else return;
-        env.error(e.data());
+        env.error("http request failed");
         srv.shutdown();
         thread.join();
         return;
     }
 
     var Ok(res) = res_result else unsafe { unreachable };
-    var body_opt = res.body.read_to_string();
+    var body_opt = res.body.read_to_string_opt();
     if(body_opt is std.Option.None) {
         env.error("Read body failed");
     } else {
@@ -187,7 +188,7 @@ func test_http_404(env : &mut TestEnv) {
 
     if(res_result is Result.Err) {
         var Err(e) = res_result else return;
-        env.error(e.data());
+        env.error("http request failed");
         srv.shutdown();
         thread.join();
         return;
@@ -218,7 +219,7 @@ func test_http_headers(env : &mut TestEnv) {
             return;
         }
         var Some(v) = val else unsafe { unreachable };
-        res.set_header(std::string::make_no_len("X-Response-Header"), std::replace(&mut v, std::string()));
+        res.set_header_view("X-Response-Header", &v);
         res.write_string(std::string::make_no_len("ok"));
     });
 
@@ -235,7 +236,7 @@ func test_http_headers(env : &mut TestEnv) {
 
     if(res_result is Result.Err) {
         var Err(e) = res_result else return;
-        env.error(e.data());
+        env.error("http request failed");
         srv.shutdown();
         thread.join();
         return;
@@ -281,7 +282,7 @@ func test_http_put_delete(env : &mut TestEnv) {
         env.error("PUT failed");
     } else {
         var Ok(r1) = res1 else unsafe { unreachable };
-        var b1_opt = r1.body.read_to_string();
+        var b1_opt = r1.body.read_to_string_opt();
         if(b1_opt is std.Option.None) {
             env.error("PUT read body failed");
         } else {
@@ -295,7 +296,7 @@ func test_http_put_delete(env : &mut TestEnv) {
         env.error("DELETE failed");
     } else {
         var Ok(r2) = res2 else unsafe { unreachable };
-        var b2_opt = r2.body.read_to_string();
+        var b2_opt = r2.body.read_to_string_opt();
         if(b2_opt is std.Option.None) {
             env.error("DELETE read body failed");
         } else {
@@ -338,7 +339,7 @@ func test_http_query_params_builder(env : &mut TestEnv) {
         env.error("Request failed");
     } else {
         var Ok(res) = res_result else unsafe { unreachable };
-        var body_opt = res.body.read_to_string();
+        var body_opt = res.body.read_to_string_opt();
         if(body_opt is std.Option.None) {
             env.error("Read body failed");
         } else {
@@ -362,7 +363,7 @@ func test_http_large_body(env : &mut TestEnv) {
     var srv = server::Server(cfg);
 
     srv.router.add("POST", "/large", ||(req, res) => {
-        var body_opt = req.body.read_to_string();
+        var body_opt = req.body.read_to_string_opt();
         if(body_opt is std.Option.None) {
             res.status = 400u;
             return;
@@ -384,7 +385,7 @@ func test_http_large_body(env : &mut TestEnv) {
         env.error("Large POST failed");
     } else {
         var Ok(res) = res_result else unsafe { unreachable };
-        var body_opt = res.body.read_to_string();
+        var body_opt = res.body.read_to_string_opt();
         if(body_opt is std.Option.None) {
             env.error("Read body failed");
         } else {
@@ -423,7 +424,7 @@ func test_http_patch_head(env : &mut TestEnv) {
     var res_patch = client.patch("http://127.0.0.1:8088/patch", "data", "application/json");
     if(res_patch is Result.Ok) {
         var Ok(r) = res_patch else unsafe { unreachable };
-        var str = r.body.read_to_string()
+        var str = r.body.read_to_string_opt()
         var b = str.take();
         if(!b.equals_view("patched")) env.error("PATCH mismatch");
     } else {
@@ -552,7 +553,7 @@ func test_empty_body_response(env : &mut TestEnv) {
     else {
         var Ok(r) = res else unsafe { unreachable };
         if(r.status != 200u) { env.error("Status should be 200"); }
-        var body_opt = r.body.read_to_string();
+        var body_opt = r.body.read_to_string_opt();
         if(body_opt is std.Option.None) { env.error("Read body failed"); }
         else {
             var Some(body) = body_opt else unsafe { unreachable };
@@ -680,7 +681,7 @@ func test_query_param_encoding(env : &mut TestEnv) {
     if(res is Result.Err) { env.error("Request failed"); }
     else {
         var Ok(r) = res else unsafe { unreachable };
-        var body_opt = r.body.read_to_string();
+        var body_opt = r.body.read_to_string_opt();
         if(body_opt is std.Option.None) { env.error("Read body failed"); }
         else {
             var Some(body) = body_opt else unsafe { unreachable };
@@ -721,7 +722,7 @@ func test_router_static_routes(env : &mut TestEnv) {
     var r1 = client.get(std::string_view("http://127.0.0.1:8094/users"));
     if(r1 is Result.Ok) {
         var Ok(resp) = r1 else unsafe { unreachable };
-        var str = resp.body.read_to_string()
+        var str = resp.body.read_to_string_opt()
         var body = str.take();
         if(!body.equals_view("users")) { env.error("Users route mismatch"); }
     } else { env.error("Users route failed"); }
@@ -729,7 +730,7 @@ func test_router_static_routes(env : &mut TestEnv) {
     var r2 = client.get(std::string_view("http://127.0.0.1:8094/posts"));
     if(r2 is Result.Ok) {
         var Ok(resp) = r2 else unsafe { unreachable };
-        var str = resp.body.read_to_string()
+        var str = resp.body.read_to_string_opt()
         var body = str.take();
         if(!body.equals_view("posts")) { env.error("Posts route mismatch"); }
     } else { env.error("Posts route failed"); }
@@ -737,7 +738,7 @@ func test_router_static_routes(env : &mut TestEnv) {
     var r3 = client.post(std::string_view("http://127.0.0.1:8094/users"), std::string_view("data"), "text/plain");
     if(r3 is Result.Ok) {
         var Ok(resp) = r3 else unsafe { unreachable };
-        var str = resp.body.read_to_string()
+        var str = resp.body.read_to_string_opt()
         var body = str.take();
         if(!body.equals_view("created")) { env.error("POST users mismatch"); }
     } else { env.error("POST users failed"); }
@@ -836,7 +837,7 @@ func test_binary_body(env : &mut TestEnv) {
     var srv = server::Server(cfg);
 
     srv.router.add("POST", "/binary", ||(req, res) => {
-        var body_opt = req.body.read_to_string();
+        var body_opt = req.body.read_to_string_opt();
         if(body_opt is std.Option.None) { res.status = 400u; return; }
         var Some(body) = body_opt else unsafe { unreachable };
         res.write_string(&body);
@@ -858,7 +859,7 @@ func test_binary_body(env : &mut TestEnv) {
     if(res is Result.Err) { env.error("Binary request failed"); }
     else {
         var Ok(r) = res else unsafe { unreachable };
-        var body_opt = r.body.read_to_string();
+        var body_opt = r.body.read_to_string_opt();
         if(body_opt is std.Option.None) { env.error("Read binary body failed"); }
     }
 
@@ -877,7 +878,7 @@ func test_special_characters_in_body(env : &mut TestEnv) {
     var srv = server::Server(cfg);
 
     srv.router.add("POST", "/special", ||(req, res) => {
-        var body_opt = req.body.read_to_string();
+        var body_opt = req.body.read_to_string_opt();
         if(body_opt is std.Option.None) { res.status = 400u; return; }
         var Some(body) = body_opt else unsafe { unreachable };
         res.write_string(&body);
@@ -895,7 +896,7 @@ func test_special_characters_in_body(env : &mut TestEnv) {
     if(res is Result.Err) { env.error("Special chars request failed"); }
     else {
         var Ok(r) = res else unsafe { unreachable };
-        var body_opt = r.body.read_to_string();
+        var body_opt = r.body.read_to_string_opt();
         if(body_opt is std.Option.None) { env.error("Read special body failed"); }
         else {
             var Some(body) = body_opt else unsafe { unreachable };

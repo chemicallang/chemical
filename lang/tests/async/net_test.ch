@@ -6,11 +6,11 @@
 using namespace std;
 
 async func net_echo_once(listener_fd : int, expect : int) : int {
-    var server_fd = await net::accept_async(listener_fd)
+    var server_fd = await net::raw::accept_async(listener_fd)
     if(server_fd <= 0) {
         return -1
     }
-    var server = net::async_socket(server_fd)
+    var server = net::raw::async_socket(server_fd)
     var buf : [64]char
     var got = await server.read(&raw mut buf[0] as *mut u8, expect as usize)
     if(got != expect) {
@@ -24,12 +24,12 @@ async func net_echo_once(listener_fd : int, expect : int) : int {
 
 @test
 func test_net_rejects_invalid_buffer_and_port(env : &mut TestEnv) {
-    var s = net::dial("127.0.0.1", 65536u);
-    if(s != 0 as net::Socket) { env.error("dial must reject a port above 65535") }
-    if(net::send_all(0 as net::Socket, null, 1) != -1) {
+    var s = net::raw::dial("127.0.0.1", 65536u);
+    if(s != 0 as net::raw::Socket) { env.error("dial must reject a port above 65535") }
+    if(net::raw::send_all(0 as net::raw::Socket, null, 1) != -1) {
         env.error("send_all must reject a null buffer with a positive length")
     }
-    if(net::recv_all(0 as net::Socket, null, 1) != -1) {
+    if(net::raw::recv_all(0 as net::raw::Socket, null, 1) != -1) {
         env.error("recv_all must reject a null buffer with a positive length")
     }
 }
@@ -37,14 +37,14 @@ func test_net_rejects_invalid_buffer_and_port(env : &mut TestEnv) {
 @test
 func test_net_async_loopback(env : &mut TestEnv) {
     var port = 45933u
-    var listener = net::async_listener("127.0.0.1", port)
+    var listener = net::raw::async_listener("127.0.0.1", port)
     if(!listener.valid()) {
         env.error("listener creation failed")
         return
     }
 
     var server_f = unsafe(async::spawn<int>(net_echo_once(listener.raw(), 9)))
-    var client_f = net::dial_async("127.0.0.1", port)
+    var client_f = net::raw::dial_async("127.0.0.1", port)
 
     var client_fd = async::block_on<int>(client_f)
     if(client_fd <= 0) {
@@ -52,7 +52,7 @@ func test_net_async_loopback(env : &mut TestEnv) {
         listener.close()
         return
     }
-    var client = net::async_socket(client_fd)
+    var client = net::raw::async_socket(client_fd)
 
     var msg = "async-net"
     var sent = async::block_on<int>(client.write(msg, 9))

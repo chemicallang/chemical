@@ -16,9 +16,12 @@ public namespace net {
     @dllimport @stdcall @extern protected func setsockopt(s: uintptr_t, level:int, optname:int, optval:*char, optlen:int): int;
     @dllimport @stdcall @extern protected func getaddrinfo(node:*char, service:*char, hints:*mut char, res:*mut *mut char): int;
     @dllimport @stdcall @extern protected func freeaddrinfo(res:*mut char): void;
+    @dllimport @stdcall @extern protected func getsockname(s: uintptr_t, name: *mut char, namelen: *mut int): int;
+    @dllimport @stdcall @extern protected func getpeername(s: uintptr_t, name: *mut char, namelen: *mut int): int;
+    @dllimport @stdcall @extern protected func shutdown(s: uintptr_t, how: int): int;
 
     @dllimport @stdcall @extern protected func TransmitFile(
-        hSocket: uintptr_t,
+        husize: uintptr_t,
         hFile: uintptr_t,
         nNumberOfBytesToWrite: u32,
         nNumberOfBytesPerSend: u32,
@@ -47,31 +50,31 @@ public namespace net {
         }}
 
     // wrappers
-    func sock_socket(af:int, typ:int, proto:int) : Socket {
-        unsafe { return socket(af, typ, proto) as Socket
+    func sock_socket(af:int, typ:int, proto:int) : usize {
+        unsafe { return socket(af, typ, proto) as usize
         }}
-    func sock_bind(s:Socket, addr:*char, addrlen:int) : int {
+    func sock_bind(s:usize, addr:*char, addrlen:int) : int {
         unsafe { return bind(s as uintptr_t, addr, addrlen)
         }}
-    func sock_listen(s:Socket, backlog:int) : int {
+    func sock_listen(s:usize, backlog:int) : int {
         unsafe { return listen(s as uintptr_t, backlog)
         }}
-    func sock_connect(s:Socket, addr:*char, addrlen:int) : int {
+    func sock_connect(s:usize, addr:*char, addrlen:int) : int {
         unsafe { return connect(s as uintptr_t, addr, addrlen)
         }}
-    func sock_accept(s:Socket, addr:*mut char, addrlen:*mut int) : Socket {
-        unsafe { return accept(s as uintptr_t, addr, addrlen) as Socket
+    func sock_accept(s:usize, addr:*mut char, addrlen:*mut int) : usize {
+        unsafe { return accept(s as uintptr_t, addr, addrlen) as usize
         }}
-    func sock_recv(s:Socket, buf:*mut char, len:int) : int {
+    func sock_recv(s:usize, buf:*mut char, len:int) : int {
         unsafe { return recv(s as uintptr_t, buf, len, 0)
         }}
-    func sock_send(s:Socket, buf:*char, len:int) : int {
+    func sock_send(s:usize, buf:*char, len:int) : int {
         unsafe { return send(s as uintptr_t, buf, len, 0)
         }}
-    func sock_close(s:Socket) {
+    func sock_close(s:usize) {
         unsafe { closesocket(s as uintptr_t)
         }}
-    func sock_setsockopt(s:Socket, level:int, optname:int, optval:*char, optlen:int) : int {
+    func sock_setsockopt(s:usize, level:int, optname:int, optval:*char, optlen:int) : int {
         unsafe { return setsockopt(s as uintptr_t, level, optname, optval, optlen)
         }}
     func sock_getaddrinfo(node:*char, service:*char, hints:*mut char, res:*mut *mut char) : int {
@@ -95,18 +98,33 @@ public namespace net {
 
         }}
 
-    public func set_nonblocking(s: Socket) {
+    func sock_set_nonblocking(s: usize) {
         unsafe {
         var argp: u32 = 1u;
         ioctlsocket(s as uintptr_t, FIONBIO, &raw mut argp);
 
         }}
 
-    public func set_blocking(s: Socket) {
+    func sock_set_blocking(s: usize) {
         unsafe {
         var argp: u32 = 0u;
         ioctlsocket(s as uintptr_t, FIONBIO, &raw mut argp);
 
         }}
+
+
+    func sock_local_addr(s : usize, out : *mut raw::sockaddr_in) : int {
+        var len : int = sizeof(raw::sockaddr_in) as int
+        return unsafe(getsockname(s as uintptr_t, out as *mut char, &raw mut len))
+    }
+
+    func sock_peer_addr(s : usize, out : *mut raw::sockaddr_in) : int {
+        var len : int = sizeof(raw::sockaddr_in) as int
+        return unsafe(getpeername(s as uintptr_t, out as *mut char, &raw mut len))
+    }
+
+    func sock_shutdown(s : usize, how : int) : int {
+        return unsafe(shutdown(s as uintptr_t, how))
+    }
 
 }

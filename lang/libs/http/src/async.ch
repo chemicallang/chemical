@@ -1,197 +1,188 @@
-// Async HTTP (design §7 Tier 3).
+// http::raw — legacy raw-pointer HTTP surface.
 //
-// Additive: the synchronous client/server APIs are unchanged. The payloads are
-// pointer/int-only, the simplest ABI (B23, a plain-struct future payload on
-// LLVM, is now fixed; B24, struct-typed async parameters on 2c, still applies).
-//
-// Client: each request offloads the whole blocking exchange (dial → TLS →
-// write → incremental read) to the runtime thread pool, so requests from many
-// tasks overlap (bounded by pool size).
-//
-// Server: a coroutine accept loop over the Tier 1 `net::accept_async`, with a
-// short per-accept timeout so it can observe `Server::run` for shutdown.
-// Accepted connections are handed to the pool because the request handler is
-// synchronous, so the loop itself never blocks on a connection.
-//
-// Body: `read`/`read_to_string` offload to the pool.
+// This is the ONLY declaration of `http::raw` in the module. It contains:
+//   * the C-string header getter (safe callers use `HeaderMap::get`/`get_owned`);
+//   * the async client entry points, which return a caller-owned
+//     `*mut HttpResult` and must be `delete`d by the caller. Prefer the
+//     synchronous `http::Client` surface where possible.
 public namespace http {
 
-// ---- client ----------------------------------------------------------------
-//
-// The response is copied into a flat, heap-allocated `HttpResult` and the future
-// carries a pointer to it:
-//   * it gives callers a non-moving accessor API (`ok`/`status`/`body_view`),
-//     avoiding B18 moves out of a variant payload;
-//   * it also keeps the future payload to a single pointer. (This originally
-//     worked around B26 — a large struct variant through a `FutureHandle` — now
-//     fixed; the flat box is kept as the public API.)
-// The caller owns the box and must `delete` it.
+public namespace raw {
 
-public struct HttpResult {
-    var ok : bool
-    var status : uint
-    var status_text : std::string
-    var headers : HeaderMap
-    var body : std::string
-    var error : std::string
+using std::Option;
+using std::Result;
+using std::string;
+using std::string_view;
 
-    public func is_ok(&self) : bool {
-        return self.ok
+/// C-string header lookup. Prefer `HeaderMap::get`/`get_owned`.
+public unsafe func header_get_cstr(map : &HeaderMap, name : *char) : Option<string> {
+    var want = unsafe(string_view.make_no_len(name))
+    var i = 0u
+    while(i < map.headers.size()) {
+        var p = unsafe(map.headers.get_ptr(i))
+        if(header_name_equals(unsafe(p.first.to_view()), want)) {
+            return Option.Some<string>(unsafe(p.second.copy()))
+        }
+        i += 1u
     }
-
-    public func status_code(&self) : uint {
-        return self.status
-    }
-
-    public func body_view(&self) : std::string_view {
-        return self.body.to_view()
-    }
-
-    public func error_view(&self) : std::string_view {
-        return self.error.to_view()
-    }
+    return Option.None<string>()
 }
 
-func http_box(client : *mut Client, r : std::Result<Response, std::string>) : *mut HttpResult {
-    unsafe {
+/// Compatibility raw body constructor for tests/migration. The socket handle
+/// is ignored; transport reads fail closed until a real Transport is attached.
+public unsafe func make_body(sock : net::raw::Socket,
+                             buf_ptr : *mut net::Buffer,
+                             content_len : isize,
+                             chunked : bool,
+                             timeout_secs : long,
+                             max_body : usize,
+                             owns : bool = false) : Body {
+    var t = unsafe(malloc(sizeof(Transport))) as *mut Transport
+    if(t != null) { unsafe { *t = Transport() } }
+    return Body.make_owned(t, buf_ptr, content_len, chunked, timeout_secs, max_body)
+}
 
+/// Raw pointer read. Safe callers use `Body::read(&mut [u8])`.
+public unsafe func body_read(b : *mut Body, dst : *mut u8, cap : usize) : int {
+    return unsafe(b.read_raw(dst, cap))
+}
+
+// ---- async client ----------------------------------------------------------
+//
+// The result is a flat heap box: the caller owns it and must `delete` it.
+// These return pointers because the original async ABI predates the safe
+// `HttpResult` value; new code should call the synchronous client and move the
+// result, or use `http::HttpResult` directly.
+
+func http_box(r : Result<Response, HttpError>) : *mut HttpResult {
     var box = unsafe(malloc(sizeof(HttpResult))) as *mut HttpResult
-    if(r is std::Result.Ok) {
+    if(r is Result.Ok) {
         var Ok(resp) = r else unsafe { unreachable }
-        var body = std::string()
-        var bopt = resp.body.read_to_string()
-        if(bopt is std::Option.Some) {
+        var body = string()
+        var bopt = resp.body.read_to_string_opt()
+        if(bopt is Option.Some) {
             var Some(s) = bopt else unsafe { unreachable }
-            body = std::replace(&mut s, std::string())
+            body = std::replace(&mut s, string())
         }
-        new(box) HttpResult {
+        unsafe { new(box) HttpResult {
             ok : true,
             status : resp.status,
-            status_text : std::replace(&mut resp.status_text, std::string()),
+            status_text : std::replace(&mut resp.status_text, string()),
             headers : std::replace(&mut resp.headers, HeaderMap.make()),
             body : body,
-            error : std::string()
-        }
+            error : string()
+        } }
     } else {
         var Err(e) = r else unsafe { unreachable }
-        new(box) HttpResult {
+        var message = string()
+        var view = e.message()
+        message.append_view(&view)
+        unsafe { new(box) HttpResult {
             ok : false,
             status : 0u,
-            status_text : std::string(),
+            status_text : string(),
             headers : HeaderMap.make(),
-            body : std::string(),
-            error : std::replace(&mut e, std::string())
-        }
-    }
+            body : string(),
+            error : std::replace(&mut message, string())
+        } } }
     return box
-
-}
 }
 
 public async func request_async(client : *mut Client, req_builder : *mut RequestBuilder) : *mut HttpResult {
     return await unsafe(async::spawn_blocking<*mut HttpResult>(|client, req_builder|() => {
-        return http_box(client, client.request(unsafe(&mut *req_builder)))
+        return http_box(client.request(unsafe(&mut *req_builder)))
     }))
 }
 
 public async func get_async(client : *mut Client, url_str : *std::string_view) : *mut HttpResult {
     return await unsafe(async::spawn_blocking<*mut HttpResult>(|client, url_str|() => {
-        return http_box(client, client.get(unsafe(&mut *url_str)))
+        return http_box(client.get_view(unsafe(&mut *url_str)))
     }))
 }
 
 public async func post_async(client : *mut Client, url_str : *std::string_view, body : *std::string_view, content_type : *char = "text/plain") : *mut HttpResult {
     return await unsafe(async::spawn_blocking<*mut HttpResult>(|client, url_str, body, content_type|() => {
-        return http_box(client, client.post(unsafe(&mut *url_str), unsafe(&mut *body), content_type))
+        var ct = http_lit(content_type)
+        return http_box(client.post_view(unsafe(&mut *url_str), unsafe(&mut *body), ct.to_view()))
     }))
 }
 
 public async func put_async(client : *mut Client, url_str : *std::string_view, body : *std::string_view, content_type : *char = "text/plain") : *mut HttpResult {
     return await unsafe(async::spawn_blocking<*mut HttpResult>(|client, url_str, body, content_type|() => {
-        return http_box(client, client.put(unsafe(&mut *url_str), unsafe(&mut *body), content_type))
+        var ct = http_lit(content_type)
+        return http_box(client.put_view(unsafe(&mut *url_str), unsafe(&mut *body), ct.to_view()))
     }))
 }
 
 public async func patch_async(client : *mut Client, url_str : *std::string_view, body : *std::string_view, content_type : *char = "text/plain") : *mut HttpResult {
     return await unsafe(async::spawn_blocking<*mut HttpResult>(|client, url_str, body, content_type|() => {
-        return http_box(client, client.patch(unsafe(&mut *url_str), unsafe(&mut *body), content_type))
+        var ct = http_lit(content_type)
+        return http_box(client.patch_view(unsafe(&mut *url_str), unsafe(&mut *body), ct.to_view()))
     }))
 }
 
 public async func delete_async(client : *mut Client, url_str : *std::string_view) : *mut HttpResult {
     return await unsafe(async::spawn_blocking<*mut HttpResult>(|client, url_str|() => {
-        return http_box(client, client.delete(unsafe(&mut *url_str)))
+        return http_box(client.delete_view(unsafe(&mut *url_str)))
     }))
 }
 
 public async func head_async(client : *mut Client, url_str : *std::string_view) : *mut HttpResult {
     return await unsafe(async::spawn_blocking<*mut HttpResult>(|client, url_str|() => {
-        return http_box(client, client.head(unsafe(&mut *url_str)))
+        return http_box(client.head_view(unsafe(&mut *url_str)))
     }))
 }
 
-// ---- body ------------------------------------------------------------------
-
-// Await the next chunk of the response body (F12 streaming). Resolves with the
-// number of bytes read, 0 at end of body, <0 on error.
+// Await the next chunk of the response body. Resolves with the number of bytes
+// read, 0 at end of body, <0 on error. Raw destination pointer.
 public func read_chunk_async(b : *mut Body, dst : *mut u8, cap : usize) : core::async::FutureHandle<'static, int> {
     return body_read_async(b, dst, cap)
 }
 
 public async func body_read_async(b : *mut Body, dst : *mut u8, cap : usize) : int {
     return await unsafe(async::spawn_blocking<int>(|b, dst, cap|() => {
-        return b.read(dst, cap)
+        return unsafe(b.read_raw(dst, cap))
     }))
 }
 
-public async func read_to_string_async(b : *mut Body) : std::Option<std::string> {
-    return await unsafe(async::spawn_blocking<std::Option<std::string>>(|b|() => {
-        return b.read_to_string()
+public async func read_to_string_async(b : *mut Body) : std::Option<string> {
+    return await unsafe(async::spawn_blocking<std::Option<string>>(|b|() => {
+        return b.read_to_string_opt()
     }))
 }
 
-}
-
-// ---- server ----------------------------------------------------------------
-// `server` is a top-level namespace (see `server.ch`), not nested under `http`.
+} // namespace raw
+} // namespace http
 
 public namespace server {
+
+using std::Result;
 
 // Coroutine accept loop (R1: `serve_async` is taken by the thread variant).
 // Drive it with `async::block_on<int>(serve_coro(&raw mut srv, port))`, or
 // submit it with `async::spawn<int>(...)` and call `srv.shutdown()` to stop.
-public async func serve_coro(srv : *mut Server, port : uint = 8080u) : int {
-    unsafe {
-
+public async func serve_coro(srv : *mut Server, port : uint = 8080u) : int { unsafe {
     srv.start(port)
-    var listener_fd = srv.listen_sock as int
-    // Bounded blocking accept on the pool: the loop stays responsive to `run`
-    // without nesting a combinator await inside the coroutine. (A spawned
-    // coroutine that awaits `timeout_or`/`select` currently loses its `Context`
-    // on LLVM — B25.)
-    net::set_recv_timeout(listener_fd as net::Socket, 0, 200000)
+    if(!srv.run) { return 1 }
+    var listener_fd = net::raw::listener_fd(&srv.listener)
+    net::raw::set_recv_timeout(listener_fd, 0, 200000)
     while(srv.run) {
-        var accepted = await unsafe(async::spawn_blocking<int>(|listener_fd|() => net::accept_socket(listener_fd as net::Socket) as int))
+        var accepted = await unsafe(async::spawn_blocking<int>(|listener_fd|() => net::raw::accept_socket(listener_fd) as int))
         if(accepted <= 0) {
             continue
         }
-        var fd = accepted as net::Socket
-        net::set_keep_alive(fd, true)
-        // accepted sockets inherit the listener's non-blocking mode on Windows;
-        // the request/body reader uses blocking recv
-        net::set_blocking(fd)
+        var fd = accepted as net::raw::Socket
         var s = srv
         var h = unsafe(async::spawn_blocking<core::async::Unit>(|s, fd|() => {
-            s.handle_conn(fd)
+            var conn = net::raw::stream_from_fd(fd)
+            conn.set_keep_alive(true)
+            s.handle_conn(conn)
             return core::async::Unit { }
         }))
     }
-    net::close_socket(listener_fd as net::Socket)
-    srv.listen_sock = 0u
-    srv.shutdown()
+    net::raw::close_socket(listener_fd)
+    srv.run = false
     return 0
+}}
 
-}
-}
-
-}
+} // namespace server

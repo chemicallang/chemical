@@ -77,10 +77,10 @@ public func archive_safe_zip_read_entry_and_open(env : &mut TestEnv) {
 
     var zip_path = archive_safe_temp_pathbuf("p24_safe_archive.zip")
     var zs = zip_path.as_string()
-    var wr = fs::write_text_file(zs.c_str(), zip.data(), zip.size())
+    var wr = fs::raw::write_text_file(zs.c_str(), zip.data(), zip.size())
     if(wr is Result.Err) { env.error("failed to write zip fixture"); return }
 
-    var opened = archive::Archive.open(&zip_path)
+    var opened = archive::Archive.open(&zip_path.as_path())
     if(opened is Result.Err) { env.error("open should parse ZIP"); return }
     var Ok(handle) = opened else unsafe { unreachable }
 
@@ -127,20 +127,20 @@ public func archive_safe_extract_writes_entries(env : &mut TestEnv) {
 
     var dest = archive_safe_temp_pathbuf("p24_safe_archive_dest")
     var ds = dest.as_string()
-    fs::remove_dir_all_recursive(ds.c_str())
-    fs::create_dir_all(ds.c_str())
+    fs::raw::remove_dir_all_recursive(ds.c_str())
+    fs::raw::create_dir_all(ds.c_str())
 
-    var extracted = handle.extract(&dest)
+    var extracted = handle.extract(&dest.as_path())
     if(extracted is Result.Err) { env.error("extract should succeed"); return }
 
     ds.append_view("/nested/hello.txt")
-    var read_back = fs::read_entire_file(ds.c_str())
+    var read_back = fs::raw::read_entire_file(ds.c_str())
     if(read_back is Result.Err) { env.error("extracted file should exist"); return }
     var Ok(bytes) = read_back else unsafe { unreachable }
     if(!archive_safe_bytes_equal(&bytes, &raw payload[0], 3)) { env.error("extracted content mismatch") }
 
     var cleanup = dest.as_string()
-    fs::remove_dir_all_recursive(cleanup.c_str())
+    fs::raw::remove_dir_all_recursive(cleanup.c_str())
 }
 
 @test
@@ -175,10 +175,10 @@ public func archive_safe_zip_writer_save(env : &mut TestEnv) {
     var _ = writer.add_bytes("saved.bin", archive_safe_fixed_view(&raw payload[0], 3))
 
     var p = archive_safe_temp_pathbuf("p24_safe_writer.zip")
-    var saved = writer.save(&p)
+    var saved = writer.save(&p.as_path())
     if(saved is Result.Err) { env.error("safe writer save"); return }
 
-    var opened = archive::Archive.open(&p)
+    var opened = archive::Archive.open(&p.as_path())
     if(opened is Result.Err) { env.error("saved ZIP should open"); return }
     var Ok(handle) = opened else unsafe { unreachable }
     if(!handle.contains("saved.bin")) { env.error("saved ZIP should contain entry") }
@@ -234,14 +234,14 @@ public func archive_safe_extract_rejects_dotdot(env : &mut TestEnv) {
 
     var dest = archive_safe_temp_pathbuf("p24_zip_slip_dest")
     var ds = dest.as_string()
-    fs::create_dir_all(ds.c_str())
+    fs::raw::create_dir_all(ds.c_str())
 
-    var extracted = handle.extract(&dest)
+    var extracted = handle.extract(&dest.as_path())
     if(extracted is Result.Ok) { env.error("path traversal must be rejected"); return }
     var Err(err) = extracted else unsafe { unreachable }
     if(err !is archive::ArchiveError.UnsafePath) { env.error("expected UnsafePath error") }
 
-    fs::remove_dir_all_recursive(ds.c_str())
+    fs::raw::remove_dir_all_recursive(ds.c_str())
 }
 
 @test
@@ -255,14 +255,14 @@ public func archive_safe_extract_rejects_absolute(env : &mut TestEnv) {
 
     var dest = archive_safe_temp_pathbuf("p24_absolute_dest")
     var ds = dest.as_string()
-    fs::create_dir_all(ds.c_str())
+    fs::raw::create_dir_all(ds.c_str())
 
-    var extracted = handle.extract(&dest)
+    var extracted = handle.extract(&dest.as_path())
     if(extracted is Result.Ok) { env.error("absolute path must be rejected"); return }
     var Err(err) = extracted else unsafe { unreachable }
     if(err !is archive::ArchiveError.UnsafePath) { env.error("expected UnsafePath error") }
 
-    fs::remove_dir_all_recursive(ds.c_str())
+    fs::raw::remove_dir_all_recursive(ds.c_str())
 }
 
 @test
@@ -280,20 +280,20 @@ public func archive_safe_rejects_symlink_escape(env : &mut TestEnv) {
 
         var dest = archive_safe_temp_pathbuf("p24_symlink_dest")
         var ds = dest.as_string()
-        fs::remove_dir_all_recursive(ds.c_str())
-        fs::create_dir_all(ds.c_str())
+        fs::raw::remove_dir_all_recursive(ds.c_str())
+        fs::raw::create_dir_all(ds.c_str())
 
         var target = std::string("/tmp")
         var link = ds.copy()
         link.append_view("/link")
         var _ = unsafe(fs::symlink(target.c_str(), link.c_str()))
 
-        var extracted = handle.extract(&dest)
+        var extracted = handle.extract(&dest.as_path())
         if(extracted is Result.Ok) { env.error("symlink escape must be rejected"); return }
         var Err(err) = extracted else unsafe { unreachable }
         if(err !is archive::ArchiveError.UnsafePath) { env.error("expected UnsafePath for symlink escape") }
 
-        fs::remove_dir_all_recursive(ds.c_str())
+        fs::raw::remove_dir_all_recursive(ds.c_str())
     }
 }
 

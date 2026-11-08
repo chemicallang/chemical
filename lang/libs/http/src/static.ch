@@ -18,7 +18,7 @@ public namespace http {
             return mime::get_type(std::str.make_string(ext))
         }
 
-        public func serve_http(&self, req: http.Request, res: http.ResponseWriter) {
+        public func serve_http(&self, req: &mut http.Request, res: &mut http.ResponseWriter) {
             var path = req.path.copy();
             if (path.find(std::string_view("..")) != std::NPOS) {
                 res.status = 403u;

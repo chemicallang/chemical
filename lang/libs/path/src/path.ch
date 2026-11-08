@@ -1,13 +1,15 @@
-// path — cross-platform path manipulation library.
-// All functions operate on *char buffers (caller-supplied output buffers).
-// No heap allocations.
+// Raw, caller-buffer path helpers. The canonical safe surface is `path::Path`
+// and `path::PathBuf`; these entry points remain for C-style callers and are
+// intentionally namespaced under `path::raw`.
 
 public namespace path {
 
+public comptime const MAX_PATH = 4096;
+
+public namespace raw {
+
 using std::Result;
 using std::string_view;
-
-public comptime const MAX_PATH = 4096;
 
 // ---------------------------------------------------------------------------
 // Path component extraction
@@ -349,5 +351,7 @@ public func parent(sv : string_view) : std::string {
 
         }
     }
+
+} // end namespace raw
 
 } // end namespace path

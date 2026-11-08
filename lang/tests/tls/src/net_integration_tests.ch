@@ -9,7 +9,7 @@
 
 using namespace std;
 using namespace net;
-
+using namespace net::raw;
 const NET_TOTAL : usize = 1048576u  // 1 MB
 
 func ntx_fill_pattern(buf : *mut u8, len : usize) {
@@ -41,7 +41,7 @@ public func NET_send_all_megabyte_integrity(env : &mut TestEnv) {
         var sock = dial("127.0.0.1", 20450u)
         if(sock == 0 as Socket) { return null }
         var buf = unsafe(malloc(1048576u)) as *mut u8
-        if(buf == null) { net::close_socket(sock); return null }
+        if(buf == null) { net::raw::close_socket(sock); return null }
         ntx_fill_pattern(buf, 1048576u)
         var off : usize = 0
         while(off < 1048576u) {
@@ -112,7 +112,7 @@ public func NET_recv_partial_on_early_peer_close(env : &mut TestEnv) {
         var sock = dial("127.0.0.1", 20451u)
         if(sock == 0 as Socket) { return null }
         var buf = unsafe(malloc(1000u)) as *mut u8
-        if(buf == null) { net::close_socket(sock); return null }
+        if(buf == null) { net::raw::close_socket(sock); return null }
         ntx_fill_pattern(buf, 1000u)
         send_all(sock, buf as *char, 1000)
         unsafe { dealloc buf }

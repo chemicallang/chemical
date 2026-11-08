@@ -1,219 +1,26 @@
 public namespace fs {
 
 using std::Result;
+using path::Path;
 
 public type path_ptr = if(def.windows) *u16 else *char
 
 public type mut_path_ptr = if(def.windows) *mut u16 else *mut char
 
-public func basename(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
-        unsafe {
-        if(path == null || out == null) { return Result.Err(FsError.InvalidInput()); }
-        var len : size_t = 0;
-        while(path[len] != 0) { len++ }
-        if(len == 0) {
-            if(out_len < 2) { return Result.Err(FsError.PathTooLong()); }
-            out[0] = '.'; out[1] = 0; return Result.Ok(1);
-        }
-        var i : size_t = len;
-        while(i > 0 && (path[i-1] == '/' || path[i-1] == '\\')) { i-- }
-        if(i == 0) { // path was "/" or "\" repeated
-            if(out_len < 2) { return Result.Err(FsError.PathTooLong()); }
-            out[0] = '/'; out[1] = 0; return Result.Ok(1);
-        }
-        var j : size_t = i;
-        while(j > 0 && path[j-1] != '/' && path[j-1] != '\\') { j-- }
-        var comp_len = i - j;
-        if(comp_len >= out_len) { return Result.Err(FsError.PathTooLong()); }
-        var k : size_t = 0;
-        while(k < comp_len) { out[k] = path[j + k]; k++ }
-        out[k] = 0;
-        return Result.Ok(comp_len);
-
-        }
+// Resolve a safe `path::Path` to the native NUL-terminated form cached by
+// `PathBuf`. Rejects interior NUL and views that cannot provide a safe native
+// pointer (for example a Windows `Path::new` without conversion).
+public func native_path(path : &Path) : Result<path_ptr, FsError> {
+    if(path.has_nul()) {
+        return Result.Err(FsError.InvalidInput())
     }
-
-public func dirname(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
-        unsafe {
-        if(path == null || out == null) { return Result.Err(FsError.InvalidInput()); }
-        var len : size_t = 0;
-        while(path[len] != 0) { len++ }
-        if(len == 0) {
-            if(out_len < 2) { return Result.Err(FsError.PathTooLong()); }
-            out[0] = '.'; out[1] = 0; return Result.Ok(1);
-        }
-        var i : size_t = len;
-        while(i > 0 && (path[i-1] == '/' || path[i-1] == '\\')) { i-- }
-        if(i == 0) { if(out_len < 2) { return Result.Err(FsError.PathTooLong()); } out[0] = '/'; out[1] = 0; return Result.Ok(1); }
-        var j : size_t = i;
-        while(j > 0 && path[j-1] != '/' && path[j-1] != '\\') { j-- }
-        if(j == 0) { if(out_len < 2) { return Result.Err(FsError.PathTooLong()); } out[0] = '.'; out[1] = 0; return Result.Ok(1); }
-        var end = j;
-        while(end > 0 && (path[end-1] == '/' || path[end-1] == '\\')) { end-- }
-        if(end == 0) { if(out_len < 2) { return Result.Err(FsError.PathTooLong()); } out[0] = '/'; out[1] = 0; return Result.Ok(1); }
-        if(end >= out_len) { return Result.Err(FsError.PathTooLong()); }
-        var k : size_t = 0;
-        while(k < end) { out[k] = path[k]; k++ }
-        out[k] = 0;
-        return Result.Ok(end);
-
-        }
+    var p = path.native_ptr()
+    if(p == null) {
+        return Result.Err(FsError.InvalidInput())
     }
-
-// extension (returns extension starting at '.' or empty)
-public func extension(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
-        unsafe {
-        if(path == null || out == null) { return Result.Err(FsError.InvalidInput()); }
-        var base_buf : [PATH_MAX_BUF]char;
-        var r = basename(path, &raw mut base_buf[0], PATH_MAX_BUF as size_t);
-        if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err<size_t, FsError>(e); }
-        var Ok(base_len) = r else unsafe { unreachable };
-        var i : size_t = base_len;
-        while(i > 0 && base_buf[i-1] != '.') { i-- }
-        if(i == 0) {
-            if(out_len < 1) { return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
-            out[0] = 0; return Result.Ok<size_t, FsError>(0);
-        }
-        var ext_len = base_len - i;
-        if(ext_len >= out_len) { return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
-        var k : size_t = 0;
-        while(k < ext_len) { out[k] = base_buf[i + k]; k++ }
-        out[k] = 0;
-        return Result.Ok<size_t, FsError>(ext_len);
-
-        }
-    }
-
-// join path a + b -> out (normalizes separators). Caller must provide out buffer.
-public func join_path(a : *char, b : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
-        unsafe {
-        if(a == null || b == null || out == null) { return Result.Err(FsError.InvalidInput()); }
-        const max_size = (0 as size_t) - 1;
-        var a_len : size_t = 0; while(a[a_len] != 0) { a_len++ }
-        var b_len : size_t = 0; while(b[b_len] != 0) { b_len++ }
-        if(a_len == 0) {
-            if(b_len >= out_len) { return Result.Err(FsError.PathTooLong()); }
-            var i : size_t = 0; while(i <= b_len) { out[i] = b[i]; i++ }
-            return Result.Ok(b_len);
-        }
-        var need_sep : bool = false; if(a[a_len-1] != '/' && a[a_len-1] != '\\') { need_sep = true }
-        if(a_len > max_size - b_len) { return Result.Err(FsError.PathTooLong()); }
-        var total = a_len + b_len;
-        if(need_sep) {
-            if(total == max_size) { return Result.Err(FsError.PathTooLong()); }
-            total += 1;
-        }
-        if(total == max_size || total + 1 > out_len) { return Result.Err(FsError.PathTooLong()); }
-        var pos : size_t = 0; var i : size_t = 0;
-        while(i < a_len) { out[pos++] = a[i++]; }
-        if(need_sep) { out[pos++] = '/'; }
-        i = 0; while(i <= b_len) { out[pos++] = b[i++]; }
-        return Result.Ok(total);
-
-        }
-    }
-
-// normalize_path: resolve "." and ".." (does not resolve symlinks). Uses stack arrays for components.
-// normalize path removing "." and resolving ".." relative components (no symlink resolution)
-public func normalize_path(path_in : *char, out_buf : *mut char, out_len : size_t) : Result<size_t, FsError> {
-        unsafe {
-        if(path_in == null || out_buf == null) { return Result.Err(FsError.InvalidInput()); }
-        var len : size_t = 0; while(path_in[len] != 0) { len++ }
-        // Preserve an absolute root so absolute paths stay absolute (critical for
-        // create_dir_all: dropping "/" would turn "/tmp/x" into a relative
-        // "tmp/x" created under the process CWD).
-        var is_abs : bool = false;
-        if(len > 0 && (path_in[0] == '/' || path_in[0] == '\\')) { is_abs = true }
-        const MAX_COMPS = 512;
-        var offs : [MAX_COMPS]size_t;
-        var lens : [MAX_COMPS]size_t;
-        var count : size_t = 0;
-        var i : size_t = 0;
-        while(i < len) {
-            while(i < len && (path_in[i] == '/' || path_in[i] == '\\')) { i++ }
-            if(i >= len) { break; }
-            var start = i;
-            while(i < len && path_in[i] != '/' && path_in[i] != '\\') { i++ }
-            var c_len = i - start;
-            if(c_len == 1 && path_in[start] == '.') {
-                // skip
-            } else if(c_len == 2 && path_in[start] == '.' && path_in[start+1] == '.') {
-                if(count > 0) { count -= 1; } else {
-                    // ".." at the root of an absolute path is a no-op (can't go up
-                    // past "/"); for relative paths keep it.
-                    if(!is_abs) {
-                        if(count >= MAX_COMPS) { return Result.Err(FsError.PathTooLong()); }
-                        offs[count] = start; lens[count] = c_len; count++;
-                    }
-                }
-            } else {
-                if(count >= MAX_COMPS) { return Result.Err(FsError.PathTooLong()); }
-                offs[count] = start; lens[count] = c_len; count++;
-            }
-        }
-        if(count == 0) {
-            if(is_abs) {
-                if(out_len < 2) { return Result.Err(FsError.PathTooLong()); }
-                out_buf[0] = '/'; out_buf[1] = 0; return Result.Ok(1);
-            }
-            if(out_len < 2) { return Result.Err(FsError.PathTooLong()); }
-            out_buf[0] = '.'; out_buf[1] = 0; return Result.Ok(1);
-        }
-        var pos : size_t = 0; var j : size_t = 0;
-        // Emit the leading "/" for absolute paths before the first component.
-        if(is_abs) {
-            if(pos + 1 >= out_len) { return Result.Err(FsError.PathTooLong()); }
-            out_buf[pos++] = '/';
-        }
-        while(j < count) {
-            if(j > 0) {
-                if(pos + 1 >= out_len) { return Result.Err(FsError.PathTooLong()); }
-                out_buf[pos++] = '/';
-            }
-            var off = offs[j]; var l = lens[j];
-            if(pos + l >= out_len) { return Result.Err(FsError.PathTooLong()); }
-            var k : size_t = 0; while(k < l) { out_buf[pos + k] = path_in[off + k]; k++ }
-            pos += l; j++
-        }
-        if(pos >= out_len) { return Result.Err(FsError.PathTooLong()); }
-        out_buf[pos] = 0;
-        return Result.Ok(pos);
-
-        }
-    }
-
-func find_last_pos_of_or(str : *char, len : size_t, value : char, value2 : char) : int {
-        unsafe {
-        if(len == 0) return -1;
-        var i : int = len as int - 1;
-        while(i >= 0) {
-            // printf("checking %c against %c and %c \n", str[i], value, value2)
-            if(str[i] == value || str[i] == value2) {
-                return i;
-            }
-            // printf("found not\n");
-            i--;
-        }
-        return -1;
-
-        }
-    }
-
-public func parent_path_view(str : std::string_view) : std::string {
-        unsafe {
-        var final = std::string()
-        var pos : int = 0
-        comptime if(def.windows) {
-            pos = find_last_pos_of_or(str.data(), str.size(), '\\', '/')
-        } else {
-            pos = find_last_pos_of_or(str.data(), str.size(), '/', '/')
-        }
-        if(pos > 0) {
-            final.append_with_len(str.data(), (pos + 1) as size_t)
-        }
-        return final;
-
-        }
-    }
-
+    return Result.Ok(p)
 }
+
+
+
+} // namespace fs

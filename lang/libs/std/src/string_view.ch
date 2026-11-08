@@ -344,6 +344,16 @@ public namespace std {
     }
 
     impl Eq for string_view {
+        // Compatibility alias used by owned-string call sites.
+        func equals_view(&self, other : &std::string_view) : bool {
+            return self.equals(other)
+        }
+
+        func equals_with_len(&self, data : *char, len : size_t) : bool {
+            var other = unsafe(std::string_view(data, len))
+            return self.equals(&other)
+        }
+
         func equals(&self, other : &std::string_view) : bool {
             const self_size = _size;
             return self_size == other.size() && unsafe(strncmp(data(), other.data(), self_size)) == 0;

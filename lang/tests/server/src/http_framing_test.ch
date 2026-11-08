@@ -47,8 +47,8 @@ using std::string_view;
 const FRAM_HEADER_TIMEOUT : long = 2
 const FRAM_BUDGET_MS : int = 1000
 
-func framing_handler(req : http.Request, res : http::ResponseWriter) {
-    var b = req.body.read_to_string()
+func framing_handler(req : &mut http.Request, res : &mut http::ResponseWriter) {
+    var b = req.body.read_to_string_opt()
     if(b is std::Option.None) {
         var m = string("READFAIL")
         res.write_string(&m)
@@ -66,7 +66,7 @@ func framing_handler(req : http.Request, res : http::ResponseWriter) {
 // test below uses this to assert `remaining == 0` (empty) directly, so a
 // regression to `-1` ("unknown / read until close") fails immediately instead
 // of only showing up as an 8-second stall.
-func framing_remaining_handler(req : http.Request, res : http::ResponseWriter) {
+func framing_remaining_handler(req : &mut http.Request, res : &mut http::ResponseWriter) {
     var out = string("REMAINING:")
     out.append_integer(req.body.remaining_bytes() as bigint)
     res.write_string(&out)
@@ -83,22 +83,22 @@ func framing_remaining_handler(req : http.Request, res : http::ResponseWriter) {
 func raw_exchange(port : uint, raw : &string, budget_ms : int, resp : *mut string) : int {
     unsafe {
 
-    var s = net::dial("127.0.0.1", port)
+    var s = net::raw::dial("127.0.0.1", port)
     if(s == 0u || (s as longlong) < 0) { return -1 }
-    net::set_recv_timeout(s, budget_ms / 1000, 0)
+    net::raw::set_recv_timeout(s, budget_ms / 1000, 0)
 
     var t0 = std::chrono::Instant::now()
-    net::send_all(s, raw.data(), raw.size() as int)
+    net::raw::send_all(s, raw.data(), raw.size() as int)
 
     var acc = string::empty_str()
     var chunk : [4096]u8
     while(true) {
-        var n = net::recv_all(s, &raw mut chunk[0], 4096u)
+        var n = net::raw::recv_all(s, &raw mut chunk[0], 4096u)
         if(n <= 0) { break }
         acc.append_view(std::string_view(&chunk[0] as *char, n as size_t))
     }
     var el = t0.elapsed().as_millis() as int
-    net::close_socket(s)
+    net::raw::close_socket(s)
 
     resp.append_string(&acc)
     return el
@@ -112,24 +112,24 @@ func raw_exchange(port : uint, raw : &string, budget_ms : int, resp : *mut strin
 func raw_exchange_split(port : uint, part1 : &string, part2 : &string, gap_ms : int, budget_ms : int, resp : *mut string) : int {
     unsafe {
 
-    var s = net::dial("127.0.0.1", port)
+    var s = net::raw::dial("127.0.0.1", port)
     if(s == 0u || (s as longlong) < 0) { return -1 }
-    net::set_recv_timeout(s, budget_ms / 1000, 0)
+    net::raw::set_recv_timeout(s, budget_ms / 1000, 0)
 
     var t0 = std::chrono::Instant::now()
-    net::send_all(s, part1.data(), part1.size() as int)
+    net::raw::send_all(s, part1.data(), part1.size() as int)
     std::concurrent.sleep_ms(gap_ms as ulong)
-    net::send_all(s, part2.data(), part2.size() as int)
+    net::raw::send_all(s, part2.data(), part2.size() as int)
 
     var acc = string::empty_str()
     var chunk : [4096]u8
     while(true) {
-        var n = net::recv_all(s, &raw mut chunk[0], 4096u)
+        var n = net::raw::recv_all(s, &raw mut chunk[0], 4096u)
         if(n <= 0) { break }
         acc.append_view(std::string_view(&chunk[0] as *char, n as size_t))
     }
     var el = t0.elapsed().as_millis() as int
-    net::close_socket(s)
+    net::raw::close_socket(s)
 
     resp.append_string(&acc)
     return el

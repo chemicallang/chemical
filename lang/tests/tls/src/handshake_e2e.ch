@@ -12,6 +12,7 @@
 // ============================================================================
 
 using namespace tls
+using namespace tls::raw
 using std::string_view
 
 // ─── TLS 1.3 pinned to TLS1_3_AES_256_GCM_SHA384 ────────────────────────────
@@ -748,8 +749,8 @@ public func E2E_tls13_server_pinned_aes256_gcm(env : &mut TestEnv) {
     var cert = x509_crt_load_pem_file("/tmp/tls_20115_cert.pem")
     if(cert == null) { env.error("server aes256: failed to load cert"); return }
 
-    var server_sock = net::listen_addr("127.0.0.1", 20115u)
-    if(server_sock == 0 as net::Socket) {
+    var server_sock = net::raw::listen_addr("127.0.0.1", 20115u)
+    if(server_sock == 0 as net::raw::Socket) {
         cert_free(cert); unsafe { dealloc cert }
         env.error("server aes256: listen failed"); return
     }
@@ -757,18 +758,18 @@ public func E2E_tls13_server_pinned_aes256_gcm(env : &mut TestEnv) {
     test_py_run_background(string_view("cli 127.0.0.1 20115 1.3"))
     test_server_wait()
 
-    net::set_nonblocking(server_sock)
-    var client_sock = net::accept_socket(server_sock) as net::Socket
+    net::raw::set_nonblocking(server_sock)
+    var client_sock = net::raw::accept_socket(server_sock) as net::raw::Socket
     var attempts : int = 0
-    while(client_sock == 0 as net::Socket && attempts < 50) {
+    while(client_sock == 0 as net::raw::Socket && attempts < 50) {
         std::concurrent::sleep_ms(100u)
-        client_sock = net::accept_socket(server_sock) as net::Socket
+        client_sock = net::raw::accept_socket(server_sock) as net::raw::Socket
         attempts += 1
     }
-    if(client_sock == 0 as net::Socket) {
+    if(client_sock == 0 as net::raw::Socket) {
         env.error("server aes256: no client connected")
         cert_free(cert); unsafe { dealloc cert }
-        net::close_socket(server_sock)
+        net::raw::close_socket(server_sock)
         test_kill_port(20115u)
         return
     }
@@ -793,7 +794,7 @@ public func E2E_tls13_server_pinned_aes256_gcm(env : &mut TestEnv) {
         env.error("server aes256: failed to load private key")
         ssl_free(ssl_mem); unsafe { dealloc ssl_mem }
         cert_free(cert); unsafe { dealloc cert }
-        net::close_socket(server_sock)
+        net::raw::close_socket(server_sock)
         test_kill_port(20115u)
         return
     }
@@ -827,7 +828,7 @@ public func E2E_tls13_server_pinned_aes256_gcm(env : &mut TestEnv) {
     unsafe { dealloc ssl_mem }
     cert_free(cert)
     unsafe { dealloc cert }
-    net::close_socket(server_sock)
+    net::raw::close_socket(server_sock)
     test_kill_port(20115u)
 
 }
@@ -847,8 +848,8 @@ public func E2E_tls13_server_pinned_p384_aes256_gcm(env : &mut TestEnv) {
     var cert = x509_crt_load_pem_file("/tmp/tls_20116_cert.pem")
     if(cert == null) { env.error("server p384 aes256: failed to load cert"); return }
 
-    var server_sock = net::listen_addr("127.0.0.1", 20116u)
-    if(server_sock == 0 as net::Socket) {
+    var server_sock = net::raw::listen_addr("127.0.0.1", 20116u)
+    if(server_sock == 0 as net::raw::Socket) {
         cert_free(cert); unsafe { dealloc cert }
         env.error("server p384 aes256: listen failed"); return
     }
@@ -856,18 +857,18 @@ public func E2E_tls13_server_pinned_p384_aes256_gcm(env : &mut TestEnv) {
     test_py_run_background(string_view("cli 127.0.0.1 20116 1.3"))
     test_server_wait()
 
-    net::set_nonblocking(server_sock)
-    var client_sock = net::accept_socket(server_sock) as net::Socket
+    net::raw::set_nonblocking(server_sock)
+    var client_sock = net::raw::accept_socket(server_sock) as net::raw::Socket
     var attempts : int = 0
-    while(client_sock == 0 as net::Socket && attempts < 50) {
+    while(client_sock == 0 as net::raw::Socket && attempts < 50) {
         std::concurrent::sleep_ms(100u)
-        client_sock = net::accept_socket(server_sock) as net::Socket
+        client_sock = net::raw::accept_socket(server_sock) as net::raw::Socket
         attempts += 1
     }
-    if(client_sock == 0 as net::Socket) {
+    if(client_sock == 0 as net::raw::Socket) {
         env.error("server p384 aes256: no client connected")
         cert_free(cert); unsafe { dealloc cert }
-        net::close_socket(server_sock)
+        net::raw::close_socket(server_sock)
         test_kill_port(20116u)
         return
     }
@@ -890,7 +891,7 @@ public func E2E_tls13_server_pinned_p384_aes256_gcm(env : &mut TestEnv) {
         env.error("server p384 aes256: failed to load private key")
         ssl_free(ssl_mem); unsafe { dealloc ssl_mem }
         cert_free(cert); unsafe { dealloc cert }
-        net::close_socket(server_sock)
+        net::raw::close_socket(server_sock)
         test_kill_port(20116u)
         return
     }
@@ -924,7 +925,7 @@ public func E2E_tls13_server_pinned_p384_aes256_gcm(env : &mut TestEnv) {
     unsafe { dealloc ssl_mem }
     cert_free(cert)
     unsafe { dealloc cert }
-    net::close_socket(server_sock)
+    net::raw::close_socket(server_sock)
     test_kill_port(20116u)
 
 }
@@ -944,8 +945,8 @@ public func E2E_tls13_server_fragmented_clienthello(env : &mut TestEnv) {
     var cert = x509_crt_load_pem_file("/tmp/tls_20117_cert.pem")
     if(cert == null) { env.error("frag ch: failed to load cert"); return }
 
-    var server_sock = net::listen_addr("127.0.0.1", 20117u)
-    if(server_sock == 0 as net::Socket) {
+    var server_sock = net::raw::listen_addr("127.0.0.1", 20117u)
+    if(server_sock == 0 as net::raw::Socket) {
         cert_free(cert); unsafe { dealloc cert }
         env.error("frag ch: listen failed"); return
     }
@@ -954,18 +955,18 @@ public func E2E_tls13_server_fragmented_clienthello(env : &mut TestEnv) {
     test_py_run_background(string_view("clifrag 127.0.0.1 20117 1.3"))
     test_server_wait()
 
-    net::set_nonblocking(server_sock)
-    var client_sock = net::accept_socket(server_sock) as net::Socket
+    net::raw::set_nonblocking(server_sock)
+    var client_sock = net::raw::accept_socket(server_sock) as net::raw::Socket
     var attempts : int = 0
-    while(client_sock == 0 as net::Socket && attempts < 50) {
+    while(client_sock == 0 as net::raw::Socket && attempts < 50) {
         std::concurrent::sleep_ms(100u)
-        client_sock = net::accept_socket(server_sock) as net::Socket
+        client_sock = net::raw::accept_socket(server_sock) as net::raw::Socket
         attempts += 1
     }
-    if(client_sock == 0 as net::Socket) {
+    if(client_sock == 0 as net::raw::Socket) {
         env.error("frag ch: no client connected")
         cert_free(cert); unsafe { dealloc cert }
-        net::close_socket(server_sock)
+        net::raw::close_socket(server_sock)
         test_kill_port(20117u)
         return
     }
@@ -988,7 +989,7 @@ public func E2E_tls13_server_fragmented_clienthello(env : &mut TestEnv) {
         env.error("frag ch: failed to load private key")
         ssl_free(ssl_mem); unsafe { dealloc ssl_mem }
         cert_free(cert); unsafe { dealloc cert }
-        net::close_socket(server_sock)
+        net::raw::close_socket(server_sock)
         test_kill_port(20117u)
         return
     }
@@ -1022,7 +1023,7 @@ public func E2E_tls13_server_fragmented_clienthello(env : &mut TestEnv) {
     unsafe { dealloc ssl_mem }
     cert_free(cert)
     unsafe { dealloc cert }
-    net::close_socket(server_sock)
+    net::raw::close_socket(server_sock)
     test_kill_port(20117u)
 
 }

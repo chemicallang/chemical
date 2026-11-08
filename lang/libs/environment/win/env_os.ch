@@ -15,3 +15,13 @@ public namespace environment {
     func FreeEnvironmentStringsA(pEnvBlock : *u8) : int
 
 } // end namespace environment
+
+public namespace environment {
+
+    @extern
+    func GetCommandLineA() : *char
+
+    @extern
+    func SetCurrentDirectoryW(path : *u16) : int
+
+}

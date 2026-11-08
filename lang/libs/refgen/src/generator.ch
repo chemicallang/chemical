@@ -498,7 +498,7 @@ public struct Generator {
     }
 
     public func generate(&mut self, module : *TransformerModule) {
-        var res = fs::create_dir_all(self.output_dir.data());
+        var res = fs::raw::create_dir_all(self.output_dir.data());
         if (res is std::Result.Err) {
             var Err(e) = res else unsafe { unreachable };
             printf("Error creating output directory %s: %s\n", self.output_dir.data(), e.message().data());
@@ -510,7 +510,7 @@ public struct Generator {
         mod_dir.append_view("/");
         mod_dir.append_view(&mod_name);
         
-        res = fs::create_dir_all(mod_dir.data());
+        res = fs::raw::create_dir_all(mod_dir.data());
         if (res is std::Result.Err) {
             var Err(e) = res else unsafe { unreachable };
             printf("Error creating module directory %s: %s\n", mod_dir.data(), e.message().data());
@@ -650,7 +650,7 @@ public struct Generator {
 
         var out_file = std::string(mod_dir.data(), mod_dir.size());
         out_file.append_view("/index.html");
-        fs::write_text_file(out_file.data(), html.data() as *u8, html.size());
+        fs::raw::write_text_file(out_file.data(), html.data() as *u8, html.size());
     }
 
     public func finish(&mut self) {
@@ -889,7 +889,7 @@ public struct Generator {
         out_file.append_view(f_id_str.to_view());
         out_file.append_view(".html");
 
-        fs::write_text_file(out_file.data(), html.data() as *u8, html.size());
+        fs::raw::write_text_file(out_file.data(), html.data() as *u8, html.size());
     }
 
     func find_symbol(&mut self, name : &std::string_view) : *mut SymbolInfo {
@@ -1430,7 +1430,7 @@ public struct Generator {
 
         var out_file = self.output_dir.copy();
         out_file.append_view("/index.html");
-        fs::write_text_file(out_file.data(), html.data() as *u8, html.size());
+        fs::raw::write_text_file(out_file.data(), html.data() as *u8, html.size());
     }
 
     func generate_search_index(&mut self) {
@@ -1453,7 +1453,7 @@ public struct Generator {
 
         var out_file = self.output_dir.copy();
         out_file.append_view("/search_index.js");
-        fs::write_text_file(out_file.data(), js.data() as *u8, js.size());
+        fs::raw::write_text_file(out_file.data(), js.data() as *u8, js.size());
     }
 
     func generate_sitemap(&mut self) {
@@ -1507,7 +1507,7 @@ public struct Generator {
 
         var out_file = self.output_dir.copy();
         out_file.append_view("/sitemap.xml");
-        fs::write_text_file(out_file.data(), xml.data() as *u8, xml.size());
+        fs::raw::write_text_file(out_file.data(), xml.data() as *u8, xml.size());
     }
 
     // Shared page shell: head, fonts, CSS, theme init, topbar.

@@ -472,7 +472,7 @@ public func tar_parse_single_file(env : &mut TestEnv) {
     var a = archive::raw::TarArchive{data: vector<u8>(), entries: vector<archive::ArchiveEntry>(), data_loaded: false}
     // Write tar to disk and open
     var tar_path = make_temp_test_path("test_single_file.tar")
-    var write_result = fs::write_text_file(tar_path.data(), tar_data.data(), tar_data.size())
+    var write_result = fs::raw::write_text_file(tar_path.data(), tar_data.data(), tar_data.size())
     if(write_result is Result.Err) { env.error("write tar file"); return }
 
     var open_result = archive::raw::open_tar(tar_path.data(), &raw mut a)
@@ -495,7 +495,7 @@ public func tar_find_entry_not_found(env : &mut TestEnv) {
     var tar_data = build_single_file_tar(string("present.txt"), &raw data[0], 3)
 
     var tar_path = make_temp_test_path("test_tar_not_found.tar")
-    var write_result = fs::write_text_file(tar_path.data(), tar_data.data(), tar_data.size())
+    var write_result = fs::raw::write_text_file(tar_path.data(), tar_data.data(), tar_data.size())
     if(write_result is Result.Err) { env.error("write tar"); return }
 
     var a = archive::raw::TarArchive{data: vector<u8>(), entries: vector<archive::ArchiveEntry>(), data_loaded: false}
@@ -515,7 +515,7 @@ public func tar_entries_accessor(env : &mut TestEnv) {
         var tar_data = build_single_file_tar(string("a.dat"), &raw data[0], 2)
 
         var tar_path = make_temp_test_path("test_tar_entries.tar")
-        var write_result = fs::write_text_file(tar_path.data(), tar_data.data(), tar_data.size())
+        var write_result = fs::raw::write_text_file(tar_path.data(), tar_data.data(), tar_data.size())
         if(write_result is Result.Err) { env.error("write tar"); return }
 
         var a = archive::raw::TarArchive{data: vector<u8>(), entries: vector<archive::ArchiveEntry>(), data_loaded: false}
@@ -539,7 +539,7 @@ public func archive_open_zip(env : &mut TestEnv) {
     archive::raw::zip_writer_close(&raw mut writer)
 
     var zip_path = make_temp_test_path("test_unified_archive.zip")
-    var write_result = fs::write_text_file(zip_path.data(), writer.data.data(), writer.data.size())
+    var write_result = fs::raw::write_text_file(zip_path.data(), writer.data.data(), writer.data.size())
     if(write_result is Result.Err) { env.error("write zip"); return }
 
     var  arc_result = archive::raw::open(zip_path.data())
@@ -561,7 +561,7 @@ public func archive_open_tar_via_unified(env : &mut TestEnv) {
     var tar_data = build_single_file_tar(string("info.txt"), &raw content[0], 4)
 
     var tar_path = make_temp_test_path("test_unified_tar.tar")
-    var write_result = fs::write_text_file(tar_path.data(), tar_data.data(), tar_data.size())
+    var write_result = fs::raw::write_text_file(tar_path.data(), tar_data.data(), tar_data.size())
     if(write_result is Result.Err) { env.error("write tar"); return }
 
     var archive_result = archive::raw::open(tar_path.data())
@@ -582,7 +582,7 @@ public func archive_open_invalid_format(env : &mut TestEnv) {
     var garbage : [20]u8; var i : size_t = 0
     while(i < 20) { garbage[i] = i as u8; i += 1 }
     var arc_path = make_temp_test_path("test_invalid_archive.bin")
-    var write_result = fs::write_text_file(arc_path.data(), &raw garbage[0], 20)
+    var write_result = fs::raw::write_text_file(arc_path.data(), &raw garbage[0], 20)
     if(write_result is Result.Err) { env.error("write"); return }
 
     var result = archive::raw::open(arc_path.data())

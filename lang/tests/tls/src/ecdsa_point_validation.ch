@@ -30,6 +30,7 @@
 // why the rest of this suite is as repetitive as it is.
 
 using namespace tls
+using namespace tls::raw
 using std::string_view
 
 @test

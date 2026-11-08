@@ -8,6 +8,7 @@
 // ============================================================================
 
 using namespace tls
+using namespace tls::raw
 using std::string_view
 
 // ─── handshake_params_init zeroes all sensitive buffers ─────────────────────

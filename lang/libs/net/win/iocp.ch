@@ -1,6 +1,7 @@
 public namespace net {
 
     public namespace iocp {
+        using net::raw::Socket;
         public struct OVERLAPPED {
             var Internal: usize;
             var InternalHigh: usize;

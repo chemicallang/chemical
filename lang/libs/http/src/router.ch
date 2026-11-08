@@ -1,6 +1,6 @@
 // ===== Router + middleware =====
 public namespace web {
-    public type Handler = std.function<(req: http.Request, res: http.ResponseWriter) => void>
+    public type Handler = std.function<(req: &mut http.Request, res: &mut http.ResponseWriter) => void>
     public type Middleware = std.function<(next: Handler) => Handler>
 
     public struct Route {

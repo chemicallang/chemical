@@ -4,6 +4,7 @@
 // ============================================================================
 
 using namespace tls
+using namespace tls::raw
 using std::Result; using std::string; using std::string_view
 
 // ─── Helper: fill array from sequential values ───────────────────

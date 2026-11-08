@@ -5,6 +5,7 @@
 // ============================================================================
 
 using namespace tls
+using namespace tls::raw
 using namespace http
 using std::Result
 using std::string
@@ -42,7 +43,7 @@ public func MATRIX_redirect_location_header_flow(env : &mut TestEnv) {
 
     // Hop 1: must observe 301 + Location without following anything.
     var u1 = mtx2_url(PORT, "/r1")
-    var r1 = client.get(u1.to_view())
+    var r1 = client.get_view(u1.to_view())
     if(r1 is Result.Err) { env.error("redirect source request failed"); test_kill_port(PORT as int); return }
     var Ok(x1) = r1 else unsafe { unreachable };
     if(x1.status != 301u) { env.error("expected status 301") }
@@ -50,7 +51,7 @@ public func MATRIX_redirect_location_header_flow(env : &mut TestEnv) {
     if(loc is std.Option.None) { env.error("Location header missing on 301"); test_kill_port(PORT as int); return }
     var Some(lv) = loc else unsafe { unreachable };
     if(!lv.equals_view("/r2")) { env.error("Location value mismatch") }
-    var b1 = x1.body.read_to_string()
+    var b1 = x1.body.read_to_string_opt()
     if(b1 is std.Option.None) { env.error("301 body read failed") } else {
         var Some(v1) = b1 else unsafe { unreachable };
         if(v1.size() != 0u) { env.error("301 body should be empty (CL:0)") }
@@ -58,11 +59,11 @@ public func MATRIX_redirect_location_header_flow(env : &mut TestEnv) {
 
     // Hop 2: manually follow to the target.
     var u2 = mtx2_url(PORT, "/r2")
-    var r2 = client.get(u2.to_view())
+    var r2 = client.get_view(u2.to_view())
     if(r2 is Result.Err) { env.error("redirect target request failed"); test_kill_port(PORT as int); return }
     var Ok(x2) = r2 else unsafe { unreachable };
     if(x2.status != 200u) { env.error("target expected 200") }
-    var b2 = x2.body.read_to_string()
+    var b2 = x2.body.read_to_string_opt()
     if(b2 is std.Option.None) { env.error("target body read failed"); test_kill_port(PORT as int); return }
     var Some(v2) = b2 else unsafe { unreachable };
     if(!v2.equals_view("final-target")) { env.error("target body mismatch") }
@@ -96,7 +97,7 @@ public func MATRIX_options_method_and_fragment_stripping(env : &mut TestEnv) {
     var r1 = client.request(&rb)
     if(r1 is Result.Err) { env.error("OPTIONS request failed"); test_kill_port(PORT as int); return }
     var Ok(x1) = r1 else unsafe { unreachable };
-    var b1 = x1.body.read_to_string()
+    var b1 = x1.body.read_to_string_opt()
     if(b1 is std.Option.None) { env.error("OPTIONS body read failed"); test_kill_port(PORT as int); return }
     var Some(v1) = b1 else unsafe { unreachable };
     if(!v1.equals_view("OPTIONS /opts")) { env.error("OPTIONS echo mismatch") }
@@ -108,10 +109,10 @@ public func MATRIX_options_method_and_fragment_stripping(env : &mut TestEnv) {
 
     // Fragment in the URL is stripped before the request line.
     var frag_url = string("https://127.0.0.1:20436/p#section-anchor")
-    var r2 = client.get(frag_url.to_view())
+    var r2 = client.get_view(frag_url.to_view())
     if(r2 is Result.Err) { env.error("fragment request failed"); test_kill_port(PORT as int); return }
     var Ok(x2) = r2 else unsafe { unreachable };
-    var b2 = x2.body.read_to_string()
+    var b2 = x2.body.read_to_string_opt()
     if(b2 is std.Option.None) { env.error("fragment body read failed"); test_kill_port(PORT as int); return }
     var Some(v2) = b2 else unsafe { unreachable };
     if(!v2.equals_view("GET /p")) { env.error("fragment reached the server or path corrupted") }
@@ -203,7 +204,7 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
         var client = http::Client()
         var u = string("http://127.0.0.1:20437/")
         for(var i=0u; i<5u; i++) {
-            var res = client.get(u.to_view())
+            var res = client.get_view(u.to_view())
             if(res is Result.Ok) {
                 var Ok(rr) = res else unsafe { unreachable };
                 if(rr.status == 200u) {
@@ -221,7 +222,7 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
         var client = http::Client()
         var u = string("http://127.0.0.1:20437/")
         for(var i=0u; i<5u; i++) {
-            var res = client.get(u.to_view())
+            var res = client.get_view(u.to_view())
             if(res is Result.Ok) {
                 var Ok(rr) = res else unsafe { unreachable };
                 if(rr.status == 200u) {
@@ -241,7 +242,7 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
         client.insecure_skip_verify()
         var u = string("https://127.0.0.1:20438/hello")
         for(var i=0u; i<5u; i++) {
-            var res = client.get(u.to_view())
+            var res = client.get_view(u.to_view())
             if(res is Result.Ok) {
                 var Ok(rr) = res else unsafe { unreachable };
                 if(rr.status == 200u) {
@@ -260,7 +261,7 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
         client.insecure_skip_verify()
         var u = string("https://127.0.0.1:20438/hello")
         for(var i=0u; i<5u; i++) {
-            var res = client.get(u.to_view())
+            var res = client.get_view(u.to_view())
             if(res is Result.Ok) {
                 var Ok(rr) = res else unsafe { unreachable };
                 if(rr.status == 200u) {
@@ -319,13 +320,13 @@ public func MATRIX_parallel_upload_download_streams(env : &mut TestEnv) {
             var payload = full_pattern(32768u, phase)
             phase += 11u
             var u = string("https://127.0.0.1:20439/echo")
-            var res = client.post(u.to_view(), payload.to_view(), "application/octet-stream")
+            var res = client.post_view(u.to_view(), payload.to_view(), "application/octet-stream")
             if(res is Result.Err) {
                 s.lock.lock(); s.fails = s.fails + 1u; s.lock.unlock()
                 continue
             }
             var Ok(r) = res else unsafe { unreachable };
-            var b = r.body.read_to_string()
+            var b = r.body.read_to_string_opt()
             if(b is std.Option.None) {
                 s.lock.lock(); s.fails = s.fails + 1u; s.lock.unlock()
                 continue
@@ -345,13 +346,13 @@ public func MATRIX_parallel_upload_download_streams(env : &mut TestEnv) {
         client.insecure_skip_verify()
         for(var k=0u; k<3u; k++) {
             var u = string("https://127.0.0.1:20439/size/65536")
-            var res = client.get(u.to_view())
+            var res = client.get_view(u.to_view())
             if(res is Result.Err) {
                 s.lock.lock(); s.fails = s.fails + 1u; s.lock.unlock()
                 continue
             }
             var Ok(r) = res else unsafe { unreachable };
-            var b = r.body.read_to_string()
+            var b = r.body.read_to_string_opt()
             if(b is std.Option.None) {
                 s.lock.lock(); s.fails = s.fails + 1u; s.lock.unlock()
                 continue

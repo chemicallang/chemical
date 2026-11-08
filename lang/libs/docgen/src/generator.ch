@@ -393,7 +393,7 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     // Favicon
     if(gen.config.favicon_path.size() > 0) {
         var favicon_name_buf : [fs::PATH_MAX_BUF]char;
-        var r = fs::basename(gen.config.favicon_path.data(), &raw mut favicon_name_buf[0], fs::PATH_MAX_BUF as size_t);
+        var r = fs::raw::basename(gen.config.favicon_path.data(), &raw mut favicon_name_buf[0], fs::PATH_MAX_BUF as size_t);
         if(r is std::Result.Ok) {
             var Ok(len) = r else unsafe { unreachable };
             html.append_view("\n\t<link rel=\"icon\" type=\"image/png\" href=\"");
@@ -435,7 +435,7 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     html.append_view("\n\t<meta property=\"og:type\" content=\"website\">");
     if(gen.config.logo_path.size() > 0) {
         var logo_name_buf : [fs::PATH_MAX_BUF]char;
-        var r = fs::basename(gen.config.logo_path.data(), &raw mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
+        var r = fs::raw::basename(gen.config.logo_path.data(), &raw mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
         if(r is std::Result.Ok) {
             var Ok(len) = r else unsafe { unreachable };
             html.append_view("\n\t<meta property=\"og:image\" content=\"");
@@ -459,7 +459,7 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     }
     if(gen.config.logo_path.size() > 0) {
         var logo_name_buf : [fs::PATH_MAX_BUF]char;
-        var r = fs::basename(gen.config.logo_path.data(), &raw mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
+        var r = fs::raw::basename(gen.config.logo_path.data(), &raw mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
         if(r is std::Result.Ok) {
             var Ok(len) = r else unsafe { unreachable };
             html.append_view("\n\t<meta name=\"twitter:image\" content=\"");
@@ -517,7 +517,7 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     // Logo - use image if configured, otherwise SVG
     if(gen.config.logo_path.size() > 0) {
         var logo_name_buf : [fs::PATH_MAX_BUF]char;
-        var r = fs::basename(gen.config.logo_path.data(), &raw mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
+        var r = fs::raw::basename(gen.config.logo_path.data(), &raw mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
         if(r is std::Result.Ok) {
             var Ok(len) = r else unsafe { unreachable };
             html.append_view("<img src=\"");
@@ -610,10 +610,10 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
 </html>""");
     
     // Ensure parent dir exists
-    var parent = fs::parent_path_view(output_path.to_view());
+    var parent = fs::raw::parent_path_view(output_path.to_view());
     mkdir_p(parent.to_view());
 
-    fs::write_text_file(output_path.data(), html.data() as *u8, html.size());
+    fs::raw::write_text_file(output_path.data(), html.data() as *u8, html.size());
 }
 
 
@@ -724,13 +724,13 @@ func generate_sitemap(config : &DocConfig, urls : &std::vector<std::string>) {
     
     xml.append_view("</urlset>\n");
 
-    fs::write_text_file(sitemap_path.data(), xml.data() as *u8, xml.size());
+    fs::raw::write_text_file(sitemap_path.data(), xml.data() as *u8, xml.size());
     printf("Generated sitemap at %s\n", sitemap_path.c_str());
 }
 
 public func generate(config : DocConfig, summary : *Summary) {
     // Create build dir
-    fs::mkdir(config.build_dir.data());
+    fs::raw::mkdir(config.build_dir.data());
     
     var flat_pages = std::vector<*mut SummaryItem>();
     collect_pages(&summary.items, &mut flat_pages);
@@ -766,14 +766,14 @@ public func generate(config : DocConfig, summary : *Summary) {
     js_content.append_view(gen.search_index.to_view());
     js_content.append_view(";");
 
-    fs::write_text_file(index_path.data(), js_content.data() as *u8, js_content.size());
+    fs::raw::write_text_file(index_path.data(), js_content.data() as *u8, js_content.size());
     printf("Generated search index at %s\n", index_path.c_str());
 
     // Copy custom index if provided
     if (config.index_path.size() > 0) {
         var out_index = config.build_dir.copy();
         out_index.append_view("/index.html");
-        var custom_index = fs::copy_file(config.index_path.data(), out_index.data());
+        var custom_index = fs::raw::copy_file(config.index_path.data(), out_index.data());
         if (custom_index is std::Result.Ok) {
             printf("Copied custom index from %s to %s\n", config.index_path.c_str(), out_index.c_str());
         } else {
@@ -786,14 +786,14 @@ public func generate(config : DocConfig, summary : *Summary) {
         var favicon_src = config.favicon_path.copy();
         
         var favicon_name_buf : [fs::PATH_MAX_BUF]char;
-        var r = fs::basename(config.favicon_path.data(), &raw mut favicon_name_buf[0], fs::PATH_MAX_BUF as size_t);
+        var r = fs::raw::basename(config.favicon_path.data(), &raw mut favicon_name_buf[0], fs::PATH_MAX_BUF as size_t);
         if(r is std::Result.Ok) {
             var Ok(len) = r else unsafe { unreachable };
             var favicon_dest = config.build_dir.copy();
             favicon_dest.append('/');
             favicon_dest.append_view(std::string_view(&raw favicon_name_buf[0], len));
             
-            var result = fs::copy_file(favicon_src.data(), favicon_dest.data());
+            var result = fs::raw::copy_file(favicon_src.data(), favicon_dest.data());
             if (result is std::Result.Ok) {
                 printf("Copied favicon from %s to %s\n", favicon_src.c_str(), favicon_dest.c_str());
             } else {
@@ -807,14 +807,14 @@ public func generate(config : DocConfig, summary : *Summary) {
         var logo_src = config.logo_path.copy()
         
         var logo_name_buf : [fs::PATH_MAX_BUF]char;
-        var r = fs::basename(config.logo_path.data(), &raw mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
+        var r = fs::raw::basename(config.logo_path.data(), &raw mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
         if(r is std::Result.Ok) {
             var Ok(len) = r else unsafe { unreachable };
             var logo_dest = config.build_dir.copy();
             logo_dest.append('/');
             logo_dest.append_view(std::string_view(&raw logo_name_buf[0], len));
             
-            var result = fs::copy_file(logo_src.data(), logo_dest.data());
+            var result = fs::raw::copy_file(logo_src.data(), logo_dest.data());
             if (result is std::Result.Ok) {
                 printf("Copied logo from %s to %s\n", logo_src.c_str(), logo_dest.c_str());
             } else {

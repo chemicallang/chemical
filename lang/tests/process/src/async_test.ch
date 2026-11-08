@@ -13,31 +13,29 @@ using std::Result;
 
 @test
 public func test_process_execute_async(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("echo"))
-    cfg.args.push(string("async hello"))
-    var res = async::block_on(process::execute_async(cfg))
+    var cfg = process::Command.new("echo")
+    cfg.arg("async hello")
+    var res = async::block_on(process::output_async(cfg))
     if(res is Result.Err) {
         env.error("process::execute_async returned Err")
         return
     }
     var Ok(r) = res else unsafe { unreachable }
-    if(!r.success) {
+    if(!r.success()) {
         env.error("process::execute_async did not succeed")
         return
     }
-    if(!stdout_contains(&raw r.output.stdout_data, "async hello")) {
+    if(!stdout_contains(r.stdout_bytes(), "async hello")) {
         env.error("execute_async stdout did not contain expected text")
     }
 }
 
 @test
 public func test_process_spawn_wait_async(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sh"))
-    cfg.args.push(string("-c"))
-    cfg.args.push(string("echo waited"))
-    var sp = process::spawn(cfg)
+    var cfg = process::Command.new("sh")
+    cfg.arg("-c")
+    cfg.arg("echo waited")
+    var sp = cfg.spawn()
     if(sp is Result.Err) {
         env.error("spawn failed")
         return
@@ -49,12 +47,9 @@ public func test_process_spawn_wait_async(env : &mut TestEnv) {
         return
     }
     var Ok(r) = wr else unsafe { unreachable }
-    if(!r.success) {
+    if(!r.success()) {
         env.error("wait_async child did not succeed")
         return
-    }
-    if(!stdout_contains(&raw r.output.stdout_data, "waited")) {
-        env.error("wait_async stdout did not contain expected text")
     }
 }
 
@@ -63,16 +58,15 @@ public func test_process_spawn_wait_async(env : &mut TestEnv) {
 // preserves it.
 @test
 public func test_process_wait_async_after_kill(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sleep"))
-    cfg.args.push(string("100"))
-    var sp = process::spawn(cfg)
+    var cfg = process::Command.new("sleep")
+    cfg.arg("100")
+    var sp = cfg.spawn()
     if(sp is Result.Err) {
         env.error("spawn failed")
         return
     }
     var Ok(child) = sp else unsafe { unreachable }
-    var kr = process::kill_process(&mut child, 9)
+    var kr = child.kill()
     if(kr is Result.Err) {
         env.error("kill_process failed")
         return
@@ -109,10 +103,9 @@ public func test_process_sleep_ms_async_suspends(env : &mut TestEnv) {
 
 @test
 public func test_process_is_running_async(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sleep"))
-    cfg.args.push(string("100"))
-    var sp = process::spawn(cfg)
+    var cfg = process::Command.new("sleep")
+    cfg.arg("100")
+    var sp = cfg.spawn()
     if(sp is Result.Err) {
         env.error("spawn failed")
         return
@@ -122,7 +115,7 @@ public func test_process_is_running_async(env : &mut TestEnv) {
     if(!running) {
         env.error("is_running_async should report true right after spawn")
     }
-    process::kill_process(&mut child, 9)
+    child.kill()
 }
 
 // `spawn_async` and `wait_async` both offload to `spawn_blocking`; the config is
@@ -130,9 +123,8 @@ public func test_process_is_running_async(env : &mut TestEnv) {
 // two vectors) is moved back out through the shared state.
 @test
 public func test_process_spawn_async_then_wait_async(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("echo"))
-    cfg.args.push(string("spawned"))
+    var cfg = process::Command.new("echo")
+    cfg.arg("spawned")
     var sp = async::block_on(process::spawn_async(cfg))
     if(sp is Result.Err) {
         env.error("process::spawn_async returned Err")
@@ -145,11 +137,8 @@ public func test_process_spawn_async_then_wait_async(env : &mut TestEnv) {
         return
     }
     var Ok(r) = wr else unsafe { unreachable }
-    if(!r.success) {
+    if(!r.success()) {
         env.error("spawn_async child did not succeed")
         return
-    }
-    if(!stdout_contains(&raw r.output.stdout_data, "spawned")) {
-        env.error("spawn_async stdout did not contain expected text")
     }
 }

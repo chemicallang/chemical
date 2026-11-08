@@ -9,7 +9,7 @@ using std::Result;
 
 // Helper: does a byte slice contain the given substring? needle does NOT
 // include a trailing null — we search for exact byte content.
-func bytes_contains(data : *vector<u8>, needle : *char, needle_len : size_t) : bool {
+func bytes_contains(data : [u8], needle : *char, needle_len : size_t) : bool {
         unsafe {
         if(data.size() < needle_len) { return false }
         var d = data.data()
@@ -35,14 +35,13 @@ func bytes_contains(data : *vector<u8>, needle : *char, needle_len : size_t) : b
 
 @test
 public func test_practical_echo_hello(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("echo"))
-    cfg.args.push(string("hello_from_chemical"))
-    var res = process::execute(cfg)
+    var cfg = process::Command.new("echo")
+    cfg.arg("hello_from_chemical")
+    var res = cfg.output()
     if(res is Result.Err) { env.error("execute failed"); return }
     var Ok(r) = res else unsafe { unreachable }
-    if(!r.success) { env.error("echo should succeed"); return }
-    if(!bytes_contains(&raw r.output.stdout_data, "hello_from_chemical" as *char, 19)) {
+    if(!r.success()) { env.error("echo should succeed"); return }
+    if(!bytes_contains(r.stdout_bytes(), "hello_from_chemical" as *char, 19)) {
         env.error("stdout should contain 'hello_from_chemical'")
         return
     }
@@ -54,34 +53,31 @@ public func test_practical_echo_hello(env : &mut TestEnv) {
 
 @test
 public func test_practical_write_file(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sh"))
-    cfg.args.push(string("-c"))
-    cfg.args.push(string("echo chemical_test_content > /tmp/chemical_test_write.txt"))
-    var res = process::execute(cfg)
+    var cfg = process::Command.new("sh")
+    cfg.arg("-c")
+    cfg.arg("echo chemical_test_content > /tmp/chemical_test_write.txt")
+    var res = cfg.output()
     if(res is Result.Err) { env.error("execute failed"); return }
     var Ok(r) = res else unsafe { unreachable }
-    if(!r.success) { env.error("write command should succeed"); return }
+    if(!r.success()) { env.error("write command should succeed"); return }
 
     // Now read the file back
-    var cfg2 = process::ProcessConfig.default()
-    cfg2.args.push(string("sh"))
-    cfg2.args.push(string("-c"))
-    cfg2.args.push(string("cat /tmp/chemical_test_write.txt"))
-    var res2 = process::execute(cfg2)
+    var cfg2 = process::Command.new("sh")
+    cfg2.arg("-c")
+    cfg2.arg("cat /tmp/chemical_test_write.txt")
+    var res2 = cfg2.output()
     if(res2 is Result.Err) { env.error("cat failed"); return }
     var Ok(r2) = res2 else unsafe { unreachable }
-    if(!r2.success) { env.error("cat should succeed"); return }
-    if(!bytes_contains(&raw r2.output.stdout_data, "chemical_test_content" as *char, 21)) {
+    if(!r2.success()) { env.error("cat should succeed"); return }
+    if(!bytes_contains(r2.stdout_bytes(), "chemical_test_content" as *char, 21)) {
         env.error("file should contain 'chemical_test_content'")
         return
     }
     // Cleanup
-    var cleanup_cfg = process::ProcessConfig.default()
-    cleanup_cfg.args.push(string("sh"))
-    cleanup_cfg.args.push(string("-c"))
-    cleanup_cfg.args.push(string("rm -f /tmp/chemical_test_write.txt"))
-    process::execute(cleanup_cfg)
+    var cleanup_cfg = process::Command.new("sh")
+    cleanup_cfg.arg("-c")
+    cleanup_cfg.arg("rm -f /tmp/chemical_test_write.txt")
+    cleanup_cfg.output()
 }
 
 // ---------------------------------------------------------------------------
@@ -90,14 +86,13 @@ public func test_practical_write_file(env : &mut TestEnv) {
 
 @test
 public func test_practical_exit_code_42(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sh"))
-    cfg.args.push(string("-c"))
-    cfg.args.push(string("exit 42"))
-    var res = process::execute(cfg)
+    var cfg = process::Command.new("sh")
+    cfg.arg("-c")
+    cfg.arg("exit 42")
+    var res = cfg.output()
     if(res is Result.Err) { env.error("execute failed"); return }
     var Ok(r) = res else unsafe { unreachable }
-    if(r.success) { env.error("exit 42 should not succeed"); return }
+    if(r.success()) { env.error("exit 42 should not succeed"); return }
     if(r.exit_code() != 42) { env.error("expected exit code 42"); return }
 }
 
@@ -107,11 +102,10 @@ public func test_practical_exit_code_42(env : &mut TestEnv) {
 
 @test
 public func test_practical_stdin_to_cat(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sh"))
-    cfg.args.push(string("-c"))
-    cfg.args.push(string("cat"))
-    var spawn_res = process::spawn(cfg)
+    var cfg = process::Command.new("sh")
+    cfg.arg("-c")
+    cfg.arg("cat")
+    var spawn_res = cfg.spawn()
     if(spawn_res is Result.Err) { env.error("spawn failed"); return }
     var Ok(child) = spawn_res else unsafe { unreachable }
 
@@ -124,18 +118,18 @@ public func test_practical_stdin_to_cat(env : &mut TestEnv) {
         i += 1
     }
     var input_view : [u8] = &input
-    var wr = process::write_stdin(&mut child, input_view)
+    var wr = child.write_stdin(input_view)
     if(wr is Result.Err) { env.error("write_stdin failed"); return }
 
     // Close stdin so cat finishes
-    process::close_stdin(&mut child)
+    child.close_stdin()
 
     // Wait for result
-    var wait_res = process::wait(&mut child)
+    var wait_res = child.wait_with_output()
     if(wait_res is Result.Err) { env.error("wait failed"); return }
     var Ok(wr_res) = wait_res else unsafe { unreachable }
-    if(!wr_res.success) { env.error("cat should succeed"); return }
-    if(!bytes_contains(&raw wr_res.output.stdout_data, "piped_from_chemical" as *char, 19)) {
+    if(!wr_res.success()) { env.error("cat should succeed"); return }
+    if(!bytes_contains(wr_res.stdout_bytes(), "piped_from_chemical" as *char, 19)) {
         env.error("stdout should contain piped data")
         return
     }
@@ -150,15 +144,14 @@ public func test_practical_env_var_in_child(env : &mut TestEnv) {
     // Set an env var
     unsafe(environment::set("CHEMICAL_PRACTICAL_TEST_VAR", "practical_value"))
 
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sh"))
-    cfg.args.push(string("-c"))
-    cfg.args.push(string("echo $CHEMICAL_PRACTICAL_TEST_VAR"))
-    var res = process::execute(cfg)
+    var cfg = process::Command.new("sh")
+    cfg.arg("-c")
+    cfg.arg("echo $CHEMICAL_PRACTICAL_TEST_VAR")
+    var res = cfg.output()
     if(res is Result.Err) { env.error("execute failed"); return }
     var Ok(r) = res else unsafe { unreachable }
-    if(!r.success) { env.error("command should succeed"); return }
-    if(!bytes_contains(&raw r.output.stdout_data, "practical_value" as *char, 15)) {
+    if(!r.success()) { env.error("command should succeed"); return }
+    if(!bytes_contains(r.stdout_bytes(), "practical_value" as *char, 15)) {
         env.error("child should see CHEMICAL_PRACTICAL_TEST_VAR")
         return
     }
@@ -172,29 +165,28 @@ public func test_practical_env_var_in_child(env : &mut TestEnv) {
 
 @test
 public func test_practical_working_directory(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sh"))
-    cfg.args.push(string("-c"))
-    cfg.args.push(string("pwd"))
+    var cfg = process::Command.new("sh")
+    cfg.arg("-c")
+    cfg.arg("pwd")
     // `/tmp` is not a valid Win32 working directory (CreateProcess uses the
     // native path), so use a root that exists on both platforms.
     comptime if(def.windows) {
-        cfg.working_dir = string("C:/")
+        cfg.current_dir(&path::Path.new("C:/"))
     } else {
-        cfg.working_dir = string("/tmp")
+        cfg.current_dir(&path::Path.new("/tmp"))
     }
-    var res = process::execute(cfg)
+    var res = cfg.output()
     if(res is Result.Err) { env.error("execute failed"); return }
     var Ok(r) = res else unsafe { unreachable }
-    if(!r.success) { env.error("pwd should succeed"); return }
+    if(!r.success()) { env.error("pwd should succeed"); return }
     // pwd outputs the directory followed by a newline; search for the path only
     comptime if(def.windows) {
-        if(!bytes_contains(&raw r.output.stdout_data, "/c" as *char, 2)) {
+        if(!bytes_contains(r.stdout_bytes(), "/c" as *char, 2)) {
             env.error("pwd should output /c")
             return
         }
     } else {
-        if(!bytes_contains(&raw r.output.stdout_data, "/tmp" as *char, 4)) {
+        if(!bytes_contains(r.stdout_bytes(), "/tmp" as *char, 4)) {
             env.error("pwd should output /tmp")
             return
         }
@@ -207,11 +199,10 @@ public func test_practical_working_directory(env : &mut TestEnv) {
 
 @test
 public func test_practical_spawn_lifecycle(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sh"))
-    cfg.args.push(string("-c"))
-    cfg.args.push(string("echo alive && sleep 0.1 && echo done"))
-    var spawn_res = process::spawn(cfg)
+    var cfg = process::Command.new("sh")
+    cfg.arg("-c")
+    cfg.arg("echo alive && sleep 0.1 && echo done")
+    var spawn_res = cfg.spawn()
     if(spawn_res is Result.Err) { env.error("spawn failed"); return }
     var Ok(child) = spawn_res else unsafe { unreachable }
 
@@ -219,20 +210,20 @@ public func test_practical_spawn_lifecycle(env : &mut TestEnv) {
     if(!process::is_running(&mut child)) { env.error("should be running"); return }
 
     // Wait for it to finish
-    var wait_res = process::wait(&mut child)
+    var wait_res = child.wait_with_output()
     if(wait_res is Result.Err) { env.error("wait failed"); return }
     var Ok(wr) = wait_res else unsafe { unreachable }
-    if(!wr.success) { env.error("should succeed"); return }
+    if(!wr.success()) { env.error("should succeed"); return }
 
     // Should not be running now
     if(process::is_running(&mut child)) { env.error("should not be running after wait"); return }
 
     // Output should contain both lines
-    if(!bytes_contains(&raw wr.output.stdout_data, "alive" as *char, 5)) {
+    if(!bytes_contains(wr.stdout_bytes(), "alive" as *char, 5)) {
         env.error("stdout should contain 'alive'")
         return
     }
-    if(!bytes_contains(&raw wr.output.stdout_data, "done" as *char, 4)) {
+    if(!bytes_contains(wr.stdout_bytes(), "done" as *char, 4)) {
         env.error("stdout should contain 'done'")
         return
     }
@@ -244,10 +235,9 @@ public func test_practical_spawn_lifecycle(env : &mut TestEnv) {
 
 @test
 public func test_practical_kill_long_process(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sleep"))
-    cfg.args.push(string("300"))
-    var spawn_res = process::spawn(cfg)
+    var cfg = process::Command.new("sleep")
+    cfg.arg("300")
+    var spawn_res = cfg.spawn()
     if(spawn_res is Result.Err) { env.error("spawn failed"); return }
     var Ok(child) = spawn_res else unsafe { unreachable }
 
@@ -255,7 +245,7 @@ public func test_practical_kill_long_process(env : &mut TestEnv) {
     if(!process::is_running(&mut child)) { env.error("sleep should be running"); return }
 
     // Kill it
-    var kr = process::kill_process(&mut child, 9)
+    var kr = child.kill()
     if(kr is Result.Err) { env.error("kill should succeed"); return }
 
     // Should not be running
@@ -270,14 +260,13 @@ public func test_practical_kill_long_process(env : &mut TestEnv) {
 public func test_practical_sequential_processes(env : &mut TestEnv) {
     var i = 0
     while(i < 5) {
-        var cfg = process::ProcessConfig.default()
-        cfg.args.push(string("echo"))
-        cfg.args.push(string("seq_test"))
-        var res = process::execute(cfg)
+        var cfg = process::Command.new("echo")
+        cfg.arg("seq_test")
+        var res = cfg.output()
         if(res is Result.Err) { env.error("execute failed in loop"); return }
         var Ok(r) = res else unsafe { unreachable }
-        if(!r.success) { env.error("should succeed in loop"); return }
-        if(!bytes_contains(&raw r.output.stdout_data, "seq_test" as *char, 8)) {
+        if(!r.success()) { env.error("should succeed in loop"); return }
+        if(!bytes_contains(r.stdout_bytes(), "seq_test" as *char, 8)) {
             env.error("stdout should contain 'seq_test'")
             return
         }
@@ -291,22 +280,21 @@ public func test_practical_sequential_processes(env : &mut TestEnv) {
 
 @test
 public func test_practical_merge_stdout_stderr(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sh"))
-    cfg.args.push(string("-c"))
-    cfg.args.push(string("echo out && echo err >&2"))
-    cfg.merge_stdout_stderr = true
-    cfg.capture_stderr = false
-    var res = process::execute(cfg)
+    var cfg = process::Command.new("sh")
+    cfg.arg("-c")
+    cfg.arg("echo out && echo err >&2")
+    cfg.merge_stdout_stderr(true)
+    cfg.stderr(process::Stdio.Null())
+    var res = cfg.output()
     if(res is Result.Err) { env.error("execute failed"); return }
     var Ok(r) = res else unsafe { unreachable }
-    if(!r.success) { env.error("should succeed"); return }
+    if(!r.success()) { env.error("should succeed"); return }
     // Both stdout and stderr should be merged into stdout_data
-    if(!bytes_contains(&raw r.output.stdout_data, "out" as *char, 3)) {
+    if(!bytes_contains(r.stdout_bytes(), "out" as *char, 3)) {
         env.error("merged stdout should contain 'out'")
         return
     }
-    if(!bytes_contains(&raw r.output.stdout_data, "err" as *char, 3)) {
+    if(!bytes_contains(r.stdout_bytes(), "err" as *char, 3)) {
         env.error("merged stdout should contain 'err'")
         return
     }
@@ -318,16 +306,15 @@ public func test_practical_merge_stdout_stderr(env : &mut TestEnv) {
 
 @test
 public func test_practical_command_pipeline(env : &mut TestEnv) {
-    var cfg = process::ProcessConfig.default()
-    cfg.args.push(string("sh"))
-    cfg.args.push(string("-c"))
-    cfg.args.push(string("echo one two three | wc -w"))
-    var res = process::execute(cfg)
+    var cfg = process::Command.new("sh")
+    cfg.arg("-c")
+    cfg.arg("echo one two three | wc -w")
+    var res = cfg.output()
     if(res is Result.Err) { env.error("execute failed"); return }
     var Ok(r) = res else unsafe { unreachable }
-    if(!r.success) { env.error("pipeline should succeed"); return }
+    if(!r.success()) { env.error("pipeline should succeed"); return }
     // wc -w outputs "3\n"
-    if(!bytes_contains(&raw r.output.stdout_data, "3" as *char, 1)) {
+    if(!bytes_contains(r.stdout_bytes(), "3" as *char, 1)) {
         env.error("pipeline output should contain '3'")
         return
     }

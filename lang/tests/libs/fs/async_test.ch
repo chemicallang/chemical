@@ -8,16 +8,16 @@ using namespace fs;
 @test
 func test_fs_read_entire_file_async(env : &mut TestEnv) {
     var base = make_test_base_dir(env);
-    fs::remove_dir_all_recursive(base.data());
-    fs::create_dir_all(base.data());
+    fs::raw::remove_dir_all_recursive(base.data());
+    fs::raw::create_dir_all(base.data());
     var p = make_child_path(&base, "async_read.txt");
 
     var msg : *char = "async hello";
     var len = unsafe(strlen(msg)) as size_t;
-    var wr = fs::write_text_file(p.data(), msg as *u8, len);
+    var wr = fs::raw::write_text_file(p.data(), msg as *u8, len);
     if(wr is Result.Err) {
         env.error("write_text_file failed");
-        fs::remove_dir_all_recursive(base.data());
+        fs::raw::remove_dir_all_recursive(base.data());
         return;
     }
 
@@ -29,14 +29,14 @@ func test_fs_read_entire_file_async(env : &mut TestEnv) {
         expect_eq_usize(env, data.size(), len, "async read size mismatch");
     }
 
-    fs::remove_dir_all_recursive(base.data());
+    fs::raw::remove_dir_all_recursive(base.data());
 }
 
 @test
 func test_fs_write_text_file_async(env : &mut TestEnv) {
     var base = make_test_base_dir(env);
-    fs::remove_dir_all_recursive(base.data());
-    fs::create_dir_all(base.data());
+    fs::raw::remove_dir_all_recursive(base.data());
+    fs::raw::create_dir_all(base.data());
     var p = make_child_path(&base, "async_write.txt");
 
     var msg : *char = "written asynchronously";
@@ -44,12 +44,12 @@ func test_fs_write_text_file_async(env : &mut TestEnv) {
     var wr = async::block_on(fs::write_text_file_async(p.data(), msg as *u8, len));
     if(wr is Result.Err) {
         env.error("write_text_file_async failed");
-        fs::remove_dir_all_recursive(base.data());
+        fs::raw::remove_dir_all_recursive(base.data());
         return;
     }
 
     // read it back synchronously to verify
-    var rr = fs::read_entire_file(p.data());
+    var rr = fs::raw::read_entire_file(p.data());
     if(rr is Result.Err) {
         env.error("sync read-back failed");
     } else {
@@ -57,14 +57,14 @@ func test_fs_write_text_file_async(env : &mut TestEnv) {
         expect_eq_usize(env, data.size(), len, "async write size mismatch");
     }
 
-    fs::remove_dir_all_recursive(base.data());
+    fs::raw::remove_dir_all_recursive(base.data());
 }
 
 @test
 func test_fs_atomic_write_async(env : &mut TestEnv) {
     var base = make_test_base_dir(env);
-    fs::remove_dir_all_recursive(base.data());
-    fs::create_dir_all(base.data());
+    fs::raw::remove_dir_all_recursive(base.data());
+    fs::raw::create_dir_all(base.data());
     var p = make_child_path(&base, "async_atomic.txt");
 
     var msg : *char = "atomic async";
@@ -74,5 +74,5 @@ func test_fs_atomic_write_async(env : &mut TestEnv) {
         env.error("atomic_write_async failed");
     }
 
-    fs::remove_dir_all_recursive(base.data());
+    fs::raw::remove_dir_all_recursive(base.data());
 }

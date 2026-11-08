@@ -3,6 +3,7 @@
 // ============================================================================
 
 using namespace tls
+using namespace tls::raw
 using namespace crypto
 using std::string
 using std::string_view

@@ -190,9 +190,9 @@ func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
 
         out.output.stdout_data = stdout_data;
         out.output.stderr_data = stderr_data;
-        out.status.code = exit_code;
-        out.status.signaled = signaled;
-        out.status.signal = signal_no;
+        out.status._code = exit_code;
+        out.status._signaled = signaled;
+        out.status._signal = signal_no;
         out.success = (exit_code == 0 && !signaled && !timed_out);
         return true
 
@@ -367,9 +367,9 @@ func posix_wait(child : *mut ChildProcess, out : *mut ProcessResult) : bool {
         child._unix.pid = 0;
         out.output.stdout_data = stdout_data;
         out.output.stderr_data = stderr_data;
-        out.status.code = exit_code;
-        out.status.signaled = signaled;
-        out.status.signal = signal_no;
+        out.status._code = exit_code;
+        out.status._signaled = signaled;
+        out.status._signal = signal_no;
         out.success = (exit_code == 0 && !signaled);
         return true
 

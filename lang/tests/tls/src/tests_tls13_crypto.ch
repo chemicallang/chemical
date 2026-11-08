@@ -12,7 +12,7 @@
 // ============================================================================
 
 using namespace tls
-
+using namespace tls::raw
 // ─── Helper: byte-level comparison ─────────────────────────────────────────
 
 func bytes_eq(a : *u8, b : *u8, len : size_t) : bool {

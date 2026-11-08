@@ -70,10 +70,10 @@ public func audio_safe_load_and_save(env : &mut TestEnv) {
     var a = audio_safe_make_tone(16000, 6)
     var p = audio_safe_temp_pathbuf("p24_safe_audio.wav")
 
-    var saved = a.save(&p)
+    var saved = a.save(&p.as_path())
     if(saved is Result.Err) { env.error("save should succeed"); return }
 
-    var loaded = audio::Audio.load(&p)
+    var loaded = audio::Audio.load(&p.as_path())
     if(loaded is Result.Err) { env.error("load should succeed"); return }
     var Ok(read_back) = loaded else unsafe { unreachable }
     if(read_back.sample_rate() != 16000) { env.error("loaded sample rate") }
@@ -137,6 +137,6 @@ public func audio_safe_riff_without_wave_rejected(env : &mut TestEnv) {
 @test
 public func audio_safe_load_nonexistent(env : &mut TestEnv) {
     var p = audio_safe_temp_pathbuf("p24_does_not_exist.wav")
-    var result = audio::Audio.load(&p)
+    var result = audio::Audio.load(&p.as_path())
     if(result is Result.Ok) { env.error("missing file must fail") }
 }

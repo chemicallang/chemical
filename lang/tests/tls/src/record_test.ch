@@ -1,4 +1,5 @@
 using namespace tls
+using namespace tls::raw
 using namespace crypto
 using std::string_view
 

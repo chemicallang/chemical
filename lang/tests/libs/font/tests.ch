@@ -127,7 +127,7 @@ public func font_load_garbage_data(env : &mut TestEnv) {
     var garbage : [20]u8; var i : size_t = 0
     while(i < 20) { garbage[i] = i as u8; i += 1 }
     var font_path = make_temp_test_path("test_bad_font.ttf")
-    var write_result = fs::write_text_file(font_path.data(), &raw garbage[0], 20)
+    var write_result = fs::raw::write_text_file(font_path.data(), &raw garbage[0], 20)
     if(write_result is Result.Err) { env.error("should write temp file"); return }
 
     var result = font::font_load(font_path.data())
@@ -138,7 +138,7 @@ public func font_load_garbage_data(env : &mut TestEnv) {
 public func font_load_too_small(env : &mut TestEnv) {
     var tiny : [4]u8 = [0, 0, 0, 0]
     var font_path = make_temp_test_path("test_tiny_font.ttf")
-    var write_result = fs::write_text_file(font_path.data(), &raw tiny[0], 4)
+    var write_result = fs::raw::write_text_file(font_path.data(), &raw tiny[0], 4)
     if(write_result is Result.Err) { env.error("should write temp file"); return }
 
     var result = font::font_load(font_path.data())
@@ -152,7 +152,7 @@ public func font_load_bad_sfnt_version(env : &mut TestEnv) {
     data[0] = 0x00; data[1] = 0x00; data[2] = 0x00; data[3] = 0x00  // sfVersion = 0, not 0x00010000
     data[4] = 0; data[5] = 0  // numTables = 0
     var font_path = make_temp_test_path("test_bad_sfnt.ttf")
-    var write_result = fs::write_text_file(font_path.data(), &raw data[0], 12)
+    var write_result = fs::raw::write_text_file(font_path.data(), &raw data[0], 12)
     if(write_result is Result.Err) { env.error("should write temp file"); return }
 
     var result = font::font_load(font_path.data())

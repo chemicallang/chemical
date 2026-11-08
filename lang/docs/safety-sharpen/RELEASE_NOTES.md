@@ -1,4 +1,4 @@
-# Safe-API release notes (Phase 2 draft)
+# Safe-API release notes (v0.5.19)
 
 This release is the first safe-API release. It keeps the Phase 1 language
 removals and adds the safe library surfaces:

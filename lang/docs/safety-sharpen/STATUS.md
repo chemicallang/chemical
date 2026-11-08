@@ -28,8 +28,8 @@ Status values: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked.
 ## Current baseline (Phase 2 release candidate)
 
 - Release `TCCCompiler`: **4,037,816 bytes** — under the 5,000,000-byte hard gate;
-  the 4 MB goal is missed by 37,816 bytes. `safety_sample_compile_ms` 250 ms,
-  `safety_sample_max_rss_kb` 32,944 (recorded in `metrics.json`).
+  the 4 MB goal is missed by 37,816 bytes. `safety_sample_compile_ms` 255 ms,
+  `safety_sample_max_rss_kb` 33,060 (recorded in `metrics.json`).
 - Final TCC gates: main 2478/2478; negative 863/863; removed 12/12; safety
   191/191; async 84/84; libs 868/868; regexp 153/153; cbor 23/23; fuzz 3/3;
   api 4/4; process 127/127; server 10/10; plugins 1305/1305; interpret

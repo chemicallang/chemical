@@ -15,20 +15,20 @@
 // behaviour is unchanged.
 public struct SharedAssets {
 
-    var name : std::string
+    internal var name : std::string
 
-    var js_data : std::string
-    var css_data : std::string
+    internal var js_data : std::string
+    internal var css_data : std::string
 
-    var done_components : std::unordered_map<ubigint, bool>
-    var done_classes : std::unordered_map<ubigint, bool>
-    var done_random_classes : std::unordered_map<ubigint, bool>
+    internal var done_components : std::unordered_map<ubigint, bool>
+    internal var done_classes : std::unordered_map<ubigint, bool>
+    internal var done_random_classes : std::unordered_map<ubigint, bool>
     // Global JS blocks emitted via `#globaljs`, keyed by source location.
-    var done_js : std::unordered_map<ubigint, bool>
+    internal var done_js : std::unordered_map<ubigint, bool>
 
     // Set once the runtime has been written into `js_data`, so N attached
     // pages emit the hydration runtime exactly once.
-    var runtime_emitted : bool = false
+    internal var runtime_emitted : bool = false
 
     // ── Buffers ──────────────────────────────────────────────────────────
     // The page-independent JS (runtime + component definitions + router
@@ -83,3 +83,10 @@ public func shared_assets(name : std::string_view = "") : *mut SharedAssets {
 
         }
     }
+
+/// Release a `SharedAssets` heap handle created by `shared_assets`.
+/// Explicit because the handle is shared by pointer between pages.
+public unsafe func shared_assets_free(s : *mut SharedAssets) {
+    if(s == null) { return }
+    unsafe { delete s }
+}

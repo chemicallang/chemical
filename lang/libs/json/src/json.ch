@@ -1,24 +1,3 @@
-/* ParseResult: return status */
-public struct ParseResult {
-    var ok : bool;
-    var pos : size_t; /* byte index where error occurred */
-    var msg : *char; /* short error message */
-    func Ok() : ParseResult { 
-        return ParseResult {
-            ok : true,
-            pos : 0,
-            msg : null
-        };
-    }
-    func Err(p : size_t, m : *char) : ParseResult {
-        return ParseResult {
-            ok : false,
-            pos : p,
-            msg : m
-        }
-    }
-};
-
 @static
 public interface JsonSaxHandler {
 
@@ -62,19 +41,19 @@ public struct JsonParser {
         }
     }
 
-    func parse(&mut self, buffer : *char, length : size_t, h : &mut JsonSaxHandler) : ParseResult {
+    internal func parse(&mut self, buffer : *char, length : size_t, h : &mut JsonSaxHandler) : json::raw::ParseResult {
         s = buffer; len = length; pos = 0; handler = &raw mut h;
         skip_ws();
         var r = parse_value(0);
         if (!r.ok) return r;
         skip_ws();
-        if (pos != len) return ParseResult::Err(pos, "trailing data");
-        return ParseResult::Ok();
+        if (pos != len) return json::raw::ParseResult::Err(pos, "trailing data");
+        return json::raw::ParseResult::Ok();
     }
 
     // Safe alias for the raw parser: accepts a UTF-8 `&str` (string
     // literals, string views, and `std::str` values), never a raw pointer.
-    public func parse_view(&mut self, text : &str, h : &mut JsonSaxHandler) : ParseResult {
+    public func parse_view(&mut self, text : &str, h : &mut JsonSaxHandler) : json::raw::ParseResult {
         return self.parse(text.data(), text.size(), h)
     }
 
@@ -108,9 +87,9 @@ private:
         }
     }
 
-    func parse_value(&mut self, depth : size_t) : ParseResult {
-        if (depth > max_depth) return ParseResult::Err(pos, "exceeded max depth");
-        if (at_end()) return ParseResult::Err(pos, "unexpected end");
+    func parse_value(&mut self, depth : size_t) : json::raw::ParseResult {
+        if (depth > max_depth) return json::raw::ParseResult::Err(pos, "exceeded max depth");
+        if (at_end()) return json::raw::ParseResult::Err(pos, "unexpected end");
         var c : char = cur();
         if (c == '{') return parse_object(depth + 1);
         if (c == '[') return parse_array(depth + 1);
@@ -123,16 +102,16 @@ private:
         if (c == '-' || (c >= '0' && c <= '9')) {
             return parse_number();
         }
-        return ParseResult::Err(pos, "unexpected character");
+        return json::raw::ParseResult::Err(pos, "unexpected character");
     }
 
     /* parse literal like true/false/null */
-    func parse_literal(&mut self, lit : *char, litlen : size_t, type : int) : ParseResult {
+    func parse_literal(&mut self, lit : *char, litlen : size_t, type : int) : json::raw::ParseResult {
         unsafe {
-            if (pos + litlen > len) return ParseResult::Err(pos, "unexpected end in literal");
+            if (pos + litlen > len) return json::raw::ParseResult::Err(pos, "unexpected end in literal");
             var i : size_t = 0;
             for (i = 0; i < litlen; ++i) {
-                if (s[pos + i] != lit[i]) return ParseResult::Err(pos, "invalid literal");
+                if (s[pos + i] != lit[i]) return json::raw::ParseResult::Err(pos, "invalid literal");
             }
             pos += litlen;
             switch(type) {
@@ -140,90 +119,90 @@ private:
                 1 => { handler.on_bool(false); }
                 default, 2 => {  handler.on_null(); }
             }
-            return ParseResult::Ok();
+            return json::raw::ParseResult::Ok();
     
         }
     }
 
-    func parse_number(&mut self) : ParseResult {
+    func parse_number(&mut self) : json::raw::ParseResult {
         unsafe {
             var start : size_t = pos;
             if (cur() == '-') advance();
-            if (at_end()) return ParseResult::Err(pos, "unexpected end in number");
+            if (at_end()) return json::raw::ParseResult::Err(pos, "unexpected end in number");
             if (cur() == '0') {
                 advance();
                 /* leading zero must not be followed by digit */
-                if (!at_end() && unsafe(isdigit(cur() as int))) return ParseResult::Err(pos, "leading zero in number");
+                if (!at_end() && unsafe(isdigit(cur() as int))) return json::raw::ParseResult::Err(pos, "leading zero in number");
             } else {
-                if (!unsafe(isdigit(cur() as int))) return ParseResult::Err(pos, "invalid number");
+                if (!unsafe(isdigit(cur() as int))) return json::raw::ParseResult::Err(pos, "invalid number");
                 while (!at_end() && unsafe(isdigit(cur() as int))) { advance(); }
             }
             if (!at_end() && cur() == '.') {
                 advance();
-                if (at_end() || !unsafe(isdigit(cur() as int))) return ParseResult::Err(pos, "invalid fraction");
+                if (at_end() || !unsafe(isdigit(cur() as int))) return json::raw::ParseResult::Err(pos, "invalid fraction");
                 while (!at_end() && unsafe(isdigit(cur() as int))) { advance(); }
             }
             if (!at_end() && (cur() == 'e' || cur() == 'E')) {
                 advance();
                 if (!at_end() && (cur() == '+' || cur() == '-')) advance();
-                if (at_end() || !unsafe(isdigit(cur() as int))) return ParseResult::Err(pos, "invalid exponent");
+                if (at_end() || !unsafe(isdigit(cur() as int))) return json::raw::ParseResult::Err(pos, "invalid exponent");
                 while (!at_end() && unsafe(isdigit(cur() as int))) { advance(); }
             }
             var nlen : size_t = pos - start;
             handler.on_number(s + start, nlen);
-            return ParseResult::Ok();
+            return json::raw::ParseResult::Ok();
     
         }
     }
 
-    func parse_object(&mut self, depth : size_t) : ParseResult {
+    func parse_object(&mut self, depth : size_t) : json::raw::ParseResult {
         unsafe {
             /* expect '{' */
-            if (cur() != '{') return ParseResult::Err(pos, "expected '{'");
+            if (cur() != '{') return json::raw::ParseResult::Err(pos, "expected '{'");
             advance();
             handler.on_object_begin();
             skip_ws();
-            if (!at_end() && cur() == '}') { advance(); handler.on_object_end(); return ParseResult::Ok(); }
+            if (!at_end() && cur() == '}') { advance(); handler.on_object_end(); return json::raw::ParseResult::Ok(); }
             loop {
                 skip_ws();
-                if (at_end()) return ParseResult::Err(pos, "unexpected end in object");
-                if (cur() != '"') return ParseResult::Err(pos, "expected string key");
+                if (at_end()) return json::raw::ParseResult::Err(pos, "unexpected end in object");
+                if (cur() != '"') return json::raw::ParseResult::Err(pos, "expected string key");
                 /* parse key into string buffer */
-                var r : ParseResult = parse_string_key();
+                var r : json::raw::ParseResult = parse_string_key();
                 if (!r.ok) return r;
                 skip_ws();
-                if (at_end() || cur() != ':') return ParseResult::Err(pos, "expected ':' after key");
+                if (at_end() || cur() != ':') return json::raw::ParseResult::Err(pos, "expected ':' after key");
                 advance();
                 skip_ws();
                 /* parse value */
                 r = parse_value(depth);
                 if (!r.ok) return r;
                 skip_ws();
-                if (at_end()) return ParseResult::Err(pos, "unexpected end in object");
+                if (at_end()) return json::raw::ParseResult::Err(pos, "unexpected end in object");
                 if (cur() == ',') { advance(); continue; }
-                if (cur() == '}') { advance(); handler.on_object_end(); return ParseResult::Ok(); }
-                return ParseResult::Err(pos, "expected ',' or '}' in object");
+                if (cur() == '}') { advance(); handler.on_object_end(); return json::raw::ParseResult::Ok(); }
+                return json::raw::ParseResult::Err(pos, "expected ',' or '}' in object");
             }
     
         }
     }
 
-    func parse_array(&mut self, depth : size_t) : ParseResult {
+    func parse_array(&mut self, depth : size_t) : json::raw::ParseResult {
         unsafe {
-            if (cur() != '[') return ParseResult::Err(pos, "expected '['");
+            if (cur() != '[') return json::raw::ParseResult::Err(pos, "expected '['");
             advance();
             handler.on_array_begin();
             skip_ws();
-            if (!at_end() && cur() == ']') { advance(); handler.on_array_end(); return ParseResult::Ok(); }
+            if (!at_end() && cur() == ']') { advance(); handler.on_array_end(); return json::raw::ParseResult::Ok(); }
             loop {
                 skip_ws();
-                var r : ParseResult = parse_value(depth);
+                var r : json::raw::ParseResult = parse_value(depth);
                 if (!r.ok) return r;
                 skip_ws();
-                if (at_end()) return ParseResult::Err(pos, "unexpected end in array");
+                if (at_end()) return json::raw::ParseResult::Err(pos, "unexpected end in array");
                 if (cur() == ',') { advance(); continue; }
-                if (cur() == ']') { advance(); handler.on_array_end(); return ParseResult::Ok(); }
-                return ParseResult::Err(pos, "expected ',' or ']' in array");
+                if (cur() == ']') { advance(); handler.on_array_end(); return json::raw::ParseResult::Ok(); }
+                return json::raw::ParseResult::Err(pos, "expected ',' or ']' in array");
             }
     
         }
@@ -323,65 +302,65 @@ private:
     /* parse a JSON string starting at current pos (expects '"').
        Unescape into a growable buffer. Strict: control chars (0x00-0x1F) forbidden.
        Calls handler.on_string with the resulting (unterminated) buffer. */
-    func parse_string_value(&mut self) : ParseResult {
+    func parse_string_value(&mut self) : json::raw::ParseResult {
         unsafe {
             var outlen : size_t = 0;
             var r = self.parse_string_body(&mut outlen);
             if (!r.ok) { self.free_str_buf(); return r; }
             handler.on_string(self.str_buf, outlen);
             self.free_str_buf();
-            return ParseResult::Ok();
+            return json::raw::ParseResult::Ok();
     
         }
     }
 
-    func parse_string_key(&mut self) : ParseResult {
+    func parse_string_key(&mut self) : json::raw::ParseResult {
         unsafe {
             var outlen : size_t = 0;
             var r = self.parse_string_body(&mut outlen);
             if (!r.ok) { self.free_str_buf(); return r; }
             handler.on_key(self.str_buf, outlen);
             self.free_str_buf();
-            return ParseResult::Ok();
+            return json::raw::ParseResult::Ok();
     
         }
     }
 
-    func parse_string_body(&mut self, outlen : &mut size_t) : ParseResult {
+    func parse_string_body(&mut self, outlen : &mut size_t) : json::raw::ParseResult {
         unsafe {
-            if (cur() != '"') return ParseResult::Err(pos, "expected '\"'");
+            if (cur() != '"') return json::raw::ParseResult::Err(pos, "expected '\"'");
             advance(); /* skip '"' */
             *outlen = 0 as size_t;
             self.str_buf = &raw mut scratch[0];
             while (!at_end()) {
                 var c = cur() as uchar;
-                if (c == '"') { advance(); return ParseResult::Ok(); }
-                if (c <= 0x1F) return ParseResult::Err(pos, "control char in string");
+                if (c == '"') { advance(); return json::raw::ParseResult::Ok(); }
+                if (c <= 0x1F) return json::raw::ParseResult::Err(pos, "control char in string");
                 if (c == '\\') {
                     /* escape */
                     advance();
-                    if (at_end()) return ParseResult::Err(pos, "unterminated escape");
+                    if (at_end()) return json::raw::ParseResult::Err(pos, "unterminated escape");
                     var e = cur() as uchar;
                     advance();
                     if (e == '"') {
-                        if (!self.emit_char('"', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
+                        if (!self.emit_char('"', outlen)) return json::raw::ParseResult::Err(pos, "string exceeds max_string");
                     } else if (e == '\\') {
-                        if (!self.emit_char('\\', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
+                        if (!self.emit_char('\\', outlen)) return json::raw::ParseResult::Err(pos, "string exceeds max_string");
                     } else if (e == '/') {
-                        if (!self.emit_char('/', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
+                        if (!self.emit_char('/', outlen)) return json::raw::ParseResult::Err(pos, "string exceeds max_string");
                     } else if (e == 'b') {
-                        if (!self.emit_char('\b', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
+                        if (!self.emit_char('\b', outlen)) return json::raw::ParseResult::Err(pos, "string exceeds max_string");
                     } else if (e == 'f') {
-                        if (!self.emit_char('\f', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
+                        if (!self.emit_char('\f', outlen)) return json::raw::ParseResult::Err(pos, "string exceeds max_string");
                     } else if (e == 'n') {
-                        if (!self.emit_char('\n', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
+                        if (!self.emit_char('\n', outlen)) return json::raw::ParseResult::Err(pos, "string exceeds max_string");
                     } else if (e == 'r') {
-                        if (!self.emit_char('\r', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
+                        if (!self.emit_char('\r', outlen)) return json::raw::ParseResult::Err(pos, "string exceeds max_string");
                     } else if (e == 't') {
-                        if (!self.emit_char('\t', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
+                        if (!self.emit_char('\t', outlen)) return json::raw::ParseResult::Err(pos, "string exceeds max_string");
                     } else if (e == 'u') {
                         /* expect 4 hex digits */
-                        if (pos + 4 > len) return ParseResult::Err(pos, "incomplete unicode escape");
+                        if (pos + 4 > len) return json::raw::ParseResult::Err(pos, "incomplete unicode escape");
                         var code : uint32_t = 0;
                         for (var k : uint = 0; k < 4; ++k) {
                             var hc = s[pos + k] as uchar;
@@ -389,15 +368,15 @@ private:
                             if (hc >= '0' && hc <= '9') code |= (hc - '0');
                             else if (hc >= 'A' && hc <= 'F') code |= (hc - 'A' + 10);
                             else if (hc >= 'a' && hc <= 'f') code |= (hc - 'a' + 10);
-                            else return ParseResult::Err(pos + k, "invalid hex in unicode escape");
+                            else return json::raw::ParseResult::Err(pos + k, "invalid hex in unicode escape");
                         }
                         pos += 4;
                         /* handle surrogate pairs for UTF-16 escapes */
                         if (code >= 0xD800 && code <= 0xDBFF) {
                             /* high surrogate, expect \uXXXX for low surrogate */
-                            if (pos + 2 >= len || s[pos] != '\\' || s[pos+1] != 'u') return ParseResult::Err(pos, "expected low surrogate");
+                            if (pos + 2 >= len || s[pos] != '\\' || s[pos+1] != 'u') return json::raw::ParseResult::Err(pos, "expected low surrogate");
                             pos += 2;
-                            if (pos + 4 > len) return ParseResult::Err(pos, "incomplete unicode escape");
+                            if (pos + 4 > len) return json::raw::ParseResult::Err(pos, "incomplete unicode escape");
                             var lo : uint32_t = 0;
                             for (var k : uint = 0; k < 4; ++k) {
                                 var hc = s[pos + k] as uchar;
@@ -405,24 +384,185 @@ private:
                                 if (hc >= '0' && hc <= '9') lo |= (hc - '0');
                                 else if (hc >= 'A' && hc <= 'F') lo |= (hc - 'A' + 10);
                                 else if (hc >= 'a' && hc <= 'f') lo |= (hc - 'a' + 10);
-                                else return ParseResult::Err(pos + k, "invalid hex in unicode escape");
+                                else return json::raw::ParseResult::Err(pos + k, "invalid hex in unicode escape");
                             }
                             pos += 4;
-                            if (!(lo >= 0xDC00 && lo <= 0xDFFF)) return ParseResult::Err(pos, "invalid low surrogate");
+                            if (!(lo >= 0xDC00 && lo <= 0xDFFF)) return json::raw::ParseResult::Err(pos, "invalid low surrogate");
                             var full : uint32_t = (0x10000 + (((code - 0xD800) << 10) | (lo - 0xDC00))) as uint32_t;
-                            if (!self.emit_codepoint(full, outlen)) return ParseResult::Err(pos, "string exceeds max_string or invalid unicode");
+                            if (!self.emit_codepoint(full, outlen)) return json::raw::ParseResult::Err(pos, "string exceeds max_string or invalid unicode");
                         } else {
-                            if (!self.emit_codepoint(code, outlen)) return ParseResult::Err(pos, "string exceeds max_string or invalid unicode");
+                            if (!self.emit_codepoint(code, outlen)) return json::raw::ParseResult::Err(pos, "string exceeds max_string or invalid unicode");
                         }
-                    } else return ParseResult::Err(pos, "invalid escape");
+                    } else return json::raw::ParseResult::Err(pos, "invalid escape");
                 } else {
                     /* regular character: copy as-is (assume UTF-8 in source) */
-                    if (!self.emit_char(c as char, outlen)) { return ParseResult::Err(pos, "string exceeds max_string"); }
+                    if (!self.emit_char(c as char, outlen)) { return json::raw::ParseResult::Err(pos, "string exceeds max_string"); }
                     advance();
                 }
             }
-            return ParseResult::Err(pos, "unterminated string");
+            return json::raw::ParseResult::Err(pos, "unterminated string");
     
         }
     }
 };
+
+// Raw JSON entry points: raw-pointer parsing, escaping, and number scanning.
+//
+// The high-level API in api.ch (`json::parse`, `json::stringify`,
+// `json::encode<T>`, `json::decode<T>`) never exposes these. They exist for
+// existing C-style callers and are grouped under `json::raw` so the safe
+// surface stays pointer-free.
+
+public namespace json {
+
+public namespace raw {
+/* ParseResult: return status for the raw parser */
+public struct ParseResult {
+    var ok : bool;
+    var pos : size_t; /* byte index where error occurred */
+    var msg : *char; /* short error message */
+    func Ok() : ParseResult {
+        return ParseResult {
+            ok : true,
+            pos : 0,
+            msg : null
+        };
+    }
+    func Err(p : size_t, m : *char) : ParseResult {
+        return ParseResult {
+            ok : false,
+            pos : p,
+            msg : m
+        }
+    }
+};
+
+
+
+// Raw parser entry point. `parse_view` on JsonParser is the safe wrapper.
+public func parse(parser : &mut JsonParser, buffer : *char, length : size_t, h : &mut JsonSaxHandler) : ParseResult {
+    return parser.parse(buffer, length, h)
+}
+
+// Append `str[0..len]` as a JSON string literal (including quotes). Internal
+// callers that already own a string use `json_escape_into`.
+public func json_escape_into_raw(output : &mut std::string, str : *char, len : u64) {
+    unsafe {
+        output.append('"')
+        for(var i : u64 = 0; i < len; i++) {
+            append_escaped_char(output, str[i])
+        }
+        output.append('"')
+    }
+}
+
+public func parse_i64(s : *char) : i64 {
+    unsafe {
+        var i : int = 0
+        var negative = false
+        if(s[0] == '-') { negative = true; i = 1 }
+        var result : i64 = 0
+        while(s[i] != '\0' && s[i] >= '0' && s[i] <= '9') {
+            result = result * 10i64 + (s[i] - '0') as i64
+            i++
+        }
+        if(negative) result = -result
+        return result
+    }
+}
+
+public func parse_u64(s : *char) : u64 {
+    unsafe {
+        var i : int = 0
+        var result : u64 = 0
+        while(s[i] != '\0' && s[i] >= '0' && s[i] <= '9') {
+            result = result * 10u64 + (s[i] - '0') as u64
+            i++
+        }
+        return result
+    }
+}
+
+public func parse_double(s : *char) : double {
+    unsafe {
+        var i : int = 0
+        var negative = false
+        if(s[0] == '-') { negative = true; i = 1 }
+        var result : double = 0.0
+        while(s[i] >= '0' && s[i] <= '9') {
+            result = result * 10.0 + (s[i] - '0') as double
+            i++
+        }
+        if(s[i] == '.') {
+            i++
+            var divisor : double = 10.0
+            while(s[i] >= '0' && s[i] <= '9') {
+                result += (s[i] - '0') as double / divisor
+                divisor *= 10.0
+                i++
+            }
+        }
+        if(s[i] == 'e' || s[i] == 'E') {
+            i++
+            var exp_sign = 1
+            if(s[i] == '+') i++
+            else if(s[i] == '-') { exp_sign = -1; i++ }
+            var exp_val : int = 0
+            while(s[i] >= '0' && s[i] <= '9') {
+                exp_val = exp_val * 10 + (s[i] - '0') as int
+                i++
+            }
+            var multiplier : double = 1.0
+            for(var j = 0; j < exp_val; j++) { multiplier *= 10.0 }
+            if(exp_sign > 0) result *= multiplier
+            else result /= multiplier
+        }
+        if(negative) result = -result
+        return result
+    }
+}
+
+// ── Implementation helpers called by public generic declarations ───────────
+// They need public linkage (compiler retention rule) but live under `raw` so
+// they are not part of the top-level json API.
+
+public func new_counts() : std::vector<u64> {
+    return std::vector<u64>()
+}
+
+public func new_encoder(buffer : &mut std::string, counts : &mut std::vector<u64>) : JsonEncoder {
+    return JsonEncoder::from_parts(buffer, counts)
+}
+
+public func try_parse(text : std::string_view) : std::Option<JsonValue> {
+    var pr = json::parse(text)
+    if(pr is std::Result.Err) {
+        return std::Option.None<JsonValue>()
+    }
+    var Ok(v) = pr else unsafe { unreachable }
+    return std::Option.Some<JsonValue>(std::replace(&mut v, JsonValue.Null()))
+}
+
+public func container_begin_item(buffer : *mut std::string, counts : *mut std::vector<u64>) { unsafe {
+    var cnt = counts.get_ptr(counts.size() - 1)
+    if(*cnt > 0) {
+        buffer.append(',')
+    }
+    *cnt += 1
+ }}
+
+public func <T> cast_encoder(e : &JsonEncoder) : &std::Encoder<T> {
+    return e as &std::Encoder<T>
+}
+
+public func <T, K : std::Deserializer<T>> decode_dispatch_1(k : &K) : std::Result<T, std::SerializationError> {
+    return k.deserialize() as std::Result<T, std::SerializationError>
+}
+
+public func <T, K : std::Deserializer<T>> decode_dispatch_2(t : &TypeDecoder<T>) : std::Result<T, std::SerializationError> {
+    return decode_dispatch_1<T, K>(t as &K)
+}
+
+} // namespace raw
+
+} // namespace json

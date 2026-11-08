@@ -70,24 +70,72 @@ public struct Gray8 {
     var v : u8
 }
 
+// Owned image with an invariant pixel buffer: `img_width`, `img_height`,
+// `img_channels`, and `pixel_data.size()` always agree once the image is
+// constructed through `new` or a decoder. Fields are internal so safe code
+// cannot desynchronise them; use the accessors and `pixels()`/`pixels_mut()`.
 @direct_init
 public struct Image {
-    var pixels : vector<u8>
-    var width : int
-    var height : int
-    var channels : int
+    internal var pixel_data : vector<u8>
+    internal var img_width : int
+    internal var img_height : int
+    internal var img_channels : int
 
     @make
-    func make() : Image {
+    internal func make() : Image {
         return Image {
-            pixels : vector<u8>(),
-            width : 0,
-            height : 0,
-            channels : 0
+            pixel_data : vector<u8>(),
+            img_width : 0,
+            img_height : 0,
+            img_channels : 0
         }
     }
 
     // ── safe construction ────────────────────────────────────────────────
+
+    /// Allocate a zero-filled image. Rejects non-positive dimensions,
+    /// unsupported channel counts (only 1/2/3/4 are valid), and sizes that
+    /// overflow the target address space. The buffer is always exactly
+    /// `width * height * channels` bytes on success.
+    public func new(width : int, height : int, channels : int) : std::Result<Image, ImageError> {
+        if(width <= 0 || height <= 0) {
+            return std::Result.Err<Image, ImageError>(ImageError.InvalidDimensions(width, height))
+        }
+        if(channels < 1 || channels > 4) {
+            return std::Result.Err<Image, ImageError>(ImageError.InvalidFormat(string("unsupported channel count")))
+        }
+
+        const max_size = (0 as size_t) - 1
+        var w = width as size_t
+        var h = height as size_t
+        var c = channels as size_t
+        if(w > max_size / h) {
+            return std::Result.Err<Image, ImageError>(ImageError.InvalidDimensions(width, height))
+        }
+        var pixel_count = w * h
+        if(pixel_count > max_size / c) {
+            return std::Result.Err<Image, ImageError>(ImageError.InvalidDimensions(width, height))
+        }
+
+        var img = Image.make()
+        img.img_width = width
+        img.img_height = height
+        img.img_channels = channels
+        img.pixel_data.resize(pixel_count * c)
+        return std::Result.Ok<Image, ImageError>(img)
+    }
+
+    public func new_rgba(width : int, height : int) : std::Result<Image, ImageError> {
+        return Image.new(width, height, 4)
+    }
+
+    public func new_rgb(width : int, height : int) : std::Result<Image, ImageError> {
+        return Image.new(width, height, 3)
+    }
+
+    public func new_gray(width : int, height : int) : std::Result<Image, ImageError> {
+        return Image.new(width, height, 1)
+    }
 
     func load(path : &path::Path) : std::Result<Image, ImageError> {
         return image_safe_load(path)
@@ -111,52 +159,65 @@ public struct Image {
 
     // ── safe metadata ────────────────────────────────────────────────────
 
-    /// Check that the public dimension/channel fields describe exactly the
-    /// owned pixel buffer. All safe operations call this before touching raw
-    /// pixel memory, so a forged Image cannot cause an out-of-bounds access.
+    public func width(&self) : int { return self.img_width }
+    public func height(&self) : int { return self.img_height }
+    public func channels(&self) : int { return self.img_channels }
+
+    /// Compatibility aliases for the original accessor names.
+    func get_width(&self) : int { return self.img_width }
+    func get_height(&self) : int { return self.img_height }
+    func get_channels(&self) : int { return self.img_channels }
+
+    func pixel_count(&self) : size_t { return (self.img_width as size_t) * (self.img_height as size_t) }
+    func total_bytes(&self) : size_t { return self.pixel_data.size() }
+
+    /// Check that the dimensions, channel count, and owned buffer agree.
+    /// Every safe operation validates first, so a forged/empty image cannot
+    /// cause an out-of-bounds access.
     public func validate(&self) : std::Result<std::Unit, ImageError> {
-        if(self.width <= 0 || self.height <= 0) {
-            return std::Result.Err< std::Unit, ImageError >(ImageError.InvalidDimensions(self.width, self.height))
+        if(self.img_width <= 0 || self.img_height <= 0) {
+            return std::Result.Err< std::Unit, ImageError >(ImageError.InvalidDimensions(self.img_width, self.img_height))
         }
-        if(self.channels != 1 && self.channels != 2 && self.channels != 3 && self.channels != 4) {
+        if(self.img_channels != 1 && self.img_channels != 2 && self.img_channels != 3 && self.img_channels != 4) {
             return std::Result.Err< std::Unit, ImageError >(ImageError.InvalidFormat(string("unsupported channel count")))
         }
         const max_size = (0 as size_t) - 1
-        const w = self.width as size_t
-        const h = self.height as size_t
+        const w = self.img_width as size_t
+        const h = self.img_height as size_t
         if(w > max_size / h) {
-            return std::Result.Err< std::Unit, ImageError >(ImageError.InvalidDimensions(self.width, self.height))
+            return std::Result.Err< std::Unit, ImageError >(ImageError.InvalidDimensions(self.img_width, self.img_height))
         }
         const pixels = w * h
-        if(pixels > max_size / (self.channels as size_t)) {
-            return std::Result.Err< std::Unit, ImageError >(ImageError.InvalidDimensions(self.width, self.height))
+        if(pixels > max_size / (self.img_channels as size_t)) {
+            return std::Result.Err< std::Unit, ImageError >(ImageError.InvalidDimensions(self.img_width, self.img_height))
         }
-        const expected = pixels * (self.channels as size_t)
-        if(self.pixels.size() != expected) {
+        const expected = pixels * (self.img_channels as size_t)
+        if(self.pixel_data.size() != expected) {
             return std::Result.Err< std::Unit, ImageError >(ImageError.InvalidFormat(string("pixel buffer size does not match dimensions")))
         }
         return std::Result.Ok< std::Unit, ImageError >(std::Unit{})
     }
 
-    // `width`, `height`, and `channels` are already public fields; these
-    // accessors exist for interface-style call sites.
-    func get_width(&self) : int { return self.width }
-    func get_height(&self) : int { return self.height }
-    func get_channels(&self) : int { return self.channels }
-    func pixel_count(&self) : size_t { return (self.width as size_t) * (self.height as size_t) }
-    func total_bytes(&self) : size_t { return self.pixels.size() }
-
-    // Borrowed pixel bytes. `pixels_mut_view` requires `&mut self`.
-    func pixels_view(&self) : [u8] {
-        return unsafe(std::span<u8>(self.pixels.data(), self.pixels.size()))
+    /// Borrowed pixel bytes in row-major order. Length is exactly
+    /// `width * height * channels` for a validated image.
+    public func pixels(&self) : &[u8] {
+        return unsafe(std::span<u8>(self.pixel_data.data(), self.pixel_data.size()))
     }
 
-    func pixels_mut_view(&mut self) : &mut [u8] {
-        return unsafe(std::mut_span<u8>(self.pixels.mutable_data(), self.pixels.size()))
+    /// Mutable borrowed pixel bytes. Bulk codec work uses this instead of a
+    /// raw `*mut u8`.
+    public func pixels_mut(&mut self) : &mut [u8] {
+        return unsafe(std::mut_span<u8>(self.pixel_data.mutable_data(), self.pixel_data.size()))
     }
+
+    // Compatibility aliases for the original view names.
+    func pixels_view(&self) : &[u8] { return self.pixels() }
+    func pixels_mut_view(&mut self) : &mut [u8] { return self.pixels_mut() }
 
     // ── safe pixel operations ────────────────────────────────────────────
 
+    /// Read one pixel as RGBA. Grayscale/GA/RGB images are expanded:
+    /// 1ch -> (v,v,v,255), 2ch -> (v,v,v,a), 3ch -> (r,g,b,255).
     func pixel(&self, x : int, y : int) : std::Result<RGBA8, ImageError> {
         var check = self.validate()
         if(check is std::Result.Err) { var Err(e) = check else unsafe { unreachable }; return std::Result.Err<RGBA8, ImageError>(e) }
@@ -167,6 +228,9 @@ public struct Image {
         return self.pixel(x, y)
     }
 
+    /// Write one pixel, storing only the channels the image actually has:
+    /// 1ch stores `color.r`; 2ch stores `color.r` + `color.a`; 3ch stores
+    /// `r,g,b`; 4ch stores all four.
     func set(&mut self, x : int, y : int, color : RGBA8) : std::Result<std::Unit, ImageError> {
         var check = self.validate()
         if(check is std::Result.Err) { return check }
@@ -179,23 +243,34 @@ public struct Image {
         return image_crop(unsafe(self as *mut Image), x, y, w, h)
     }
 
-    func flip_h(&mut self) {
-        if(self.validate() is std::Result.Ok) { image_flip_h(unsafe(self as *mut Image)) }
+    /// Mirror left/right. Returns `Err` instead of silently doing nothing when
+    /// the image invariant is invalid.
+    func flip_h(&mut self) : std::Result<std::Unit, ImageError> {
+        var check = self.validate()
+        if(check is std::Result.Err) { return check }
+        image_flip_h(unsafe(self as *mut Image))
+        return std::Result.Ok<std::Unit, ImageError>(std::Unit{})
     }
 
-    func flip_v(&mut self) {
-        if(self.validate() is std::Result.Ok) { image_flip_v(unsafe(self as *mut Image)) }
+    /// Mirror top/bottom. Returns `Err` instead of silently doing nothing when
+    /// the image invariant is invalid.
+    func flip_v(&mut self) : std::Result<std::Unit, ImageError> {
+        var check = self.validate()
+        if(check is std::Result.Err) { return check }
+        image_flip_v(unsafe(self as *mut Image))
+        return std::Result.Ok<std::Unit, ImageError>(std::Unit{})
     }
 
     // `horizontal == true` mirrors left/right; false mirrors top/bottom.
-    func flip(&mut self, horizontal : bool) {
-        if(self.validate() is std::Result.Ok) {
-            if(horizontal) {
-                image_flip_h(unsafe(self as *mut Image))
-            } else {
-                image_flip_v(unsafe(self as *mut Image))
-            }
+    func flip(&mut self, horizontal : bool) : std::Result<std::Unit, ImageError> {
+        var check = self.validate()
+        if(check is std::Result.Err) { return check }
+        if(horizontal) {
+            image_flip_h(unsafe(self as *mut Image))
+        } else {
+            image_flip_v(unsafe(self as *mut Image))
         }
+        return std::Result.Ok<std::Unit, ImageError>(std::Unit{})
     }
 
     func blit(&mut self, src : &Image, dx : int, dy : int) : std::Result<std::Unit, ImageError> {

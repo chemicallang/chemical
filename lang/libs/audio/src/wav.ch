@@ -72,11 +72,11 @@ public func parse_wav(data : *u8, data_len : size_t) : std::Result<Audio, AudioE
                     return std.Result.Err(AudioError.InvalidFormat(string("fmt chunk too small")))
                 }
                 var audio_format = read_u16_le(data, pos + 8)
-                audio.channels = read_u16_le(data, pos + 10)
-                audio.sample_rate = read_u32_le(data, pos + 12)
+                audio.channel_count = read_u16_le(data, pos + 10)
+                audio.sample_rate_hz = read_u32_le(data, pos + 12)
                 var byte_rate = read_u32_le(data, pos + 16)
                 var block_align = read_u16_le(data, pos + 20)
-                audio.bits_per_sample = read_u16_le(data, pos + 22)
+                audio.bit_depth = read_u16_le(data, pos + 22)
 
                 if(audio_format != 1) {
                     return std.Result.Err(AudioError.UnsupportedFormat(string("only PCM WAV supported")))
@@ -86,28 +86,28 @@ public func parse_wav(data : *u8, data_len : size_t) : std::Result<Audio, AudioE
                 if(chunk_size % 2 != 0) { pos += 1 }
             } else if(chunk_id == 0x61746164u32) {
                 var data_size = chunk_size
-                var bytes_per_sample = (audio.bits_per_sample / 8) as size_t
+                var bytes_per_sample = (audio.bit_depth / 8) as size_t
                 var total_samples = data_size / bytes_per_sample
 
-                audio.samples.resize(total_samples)
-                audio.num_samples = total_samples / (audio.channels as size_t)
+                audio.sample_data.resize(total_samples)
+                audio.frame_total = total_samples / (audio.channel_count as size_t)
 
                 var src_pos = pos + 8
-                var sptr = audio.samples.data() as *mut i16
+                var sptr = audio.sample_data.data() as *mut i16
                 var i : size_t = 0
                 while(i < total_samples && src_pos + bytes_per_sample <= data_len) {
-                    if(audio.bits_per_sample == 16) {
+                    if(audio.bit_depth == 16) {
                         var lo = data[src_pos] as i16
                         var hi = (data[src_pos + 1] as i16) << 8
                         sptr[i] = lo | hi
-                    } else if(audio.bits_per_sample == 8) {
+                    } else if(audio.bit_depth == 8) {
                         sptr[i] = ((data[src_pos] as i16) - 128) << 8
                     }
                     src_pos += bytes_per_sample
                     i += 1
                 }
 
-                audio.loaded = true
+                audio.loaded_flag = true
                 break
             } else {
                 pos += 8 + chunk_size
@@ -115,7 +115,7 @@ public func parse_wav(data : *u8, data_len : size_t) : std::Result<Audio, AudioE
             }
         }
 
-        if(!audio.loaded) {
+        if(!audio.loaded_flag) {
             return std.Result.Err(AudioError.InvalidFormat(string("no data chunk found")))
         }
 
@@ -127,8 +127,8 @@ public func parse_wav(data : *u8, data_len : size_t) : std::Result<Audio, AudioE
 // encode_wav — encode Audio to in-memory WAV bytes (no file I/O).
 public func encode_wav(audio : *mut Audio) : std::Result<vector<u8>, AudioError> {
         unsafe {
-        var bytes_per_sample = (audio.bits_per_sample / 8) as u32
-        var data_size = (audio.samples.size() as u32) * bytes_per_sample
+        var bytes_per_sample = (audio.bit_depth / 8) as u32
+        var data_size = (audio.sample_data.size() as u32) * bytes_per_sample
         var file_size = 36 + data_size
 
         var file_data = vector<u8>()
@@ -152,11 +152,11 @@ public func encode_wav(audio : *mut Audio) : std::Result<vector<u8>, AudioError>
         fptr[15] = ' ' as u8
         write_u32_le(fptr, 16, 16)
         write_u16_le(fptr, 20, 1)
-        write_u16_le(fptr, 22, audio.channels)
-        write_u32_le(fptr, 24, audio.sample_rate)
-        write_u32_le(fptr, 28, audio.sample_rate * (audio.channels as u32) * bytes_per_sample)
-        write_u16_le(fptr, 32, audio.channels * (audio.bits_per_sample / 8))
-        write_u16_le(fptr, 34, audio.bits_per_sample)
+        write_u16_le(fptr, 22, audio.channel_count)
+        write_u32_le(fptr, 24, audio.sample_rate_hz)
+        write_u32_le(fptr, 28, audio.sample_rate_hz * (audio.channel_count as u32) * bytes_per_sample)
+        write_u16_le(fptr, 32, audio.channel_count * (audio.bit_depth / 8))
+        write_u16_le(fptr, 34, audio.bit_depth)
 
         fptr[36] = 'd' as u8
         fptr[37] = 'a' as u8
@@ -165,14 +165,14 @@ public func encode_wav(audio : *mut Audio) : std::Result<vector<u8>, AudioError>
         write_u32_le(fptr, 40, data_size)
 
         var i : size_t = 0
-        while(i < audio.samples.size()) {
+        while(i < audio.sample_data.size()) {
             var offset = 44 + i * (bytes_per_sample as size_t)
             if(offset < file_data.size()) {
-                var sample = audio.samples.get(i)
-                if(audio.bits_per_sample == 16) {
+                var sample = audio.sample_data.get(i)
+                if(audio.bit_depth == 16) {
                     fptr[offset] = (sample & 0xFF) as u8
                     fptr[offset + 1] = ((sample >> 8) & 0xFF) as u8
-                } else if(audio.bits_per_sample == 8) {
+                } else if(audio.bit_depth == 8) {
                     fptr[offset] = ((sample >> 8) + 128) as u8
                 }
             }
@@ -186,8 +186,8 @@ public func encode_wav(audio : *mut Audio) : std::Result<vector<u8>, AudioError>
 
 public func save_wav(audio : *mut Audio, path : *char) : std::Result<std::Unit, AudioError> {
         unsafe {
-        var bytes_per_sample = (audio.bits_per_sample / 8) as u32
-        var data_size = (audio.samples.size() as u32) * bytes_per_sample
+        var bytes_per_sample = (audio.bit_depth / 8) as u32
+        var data_size = (audio.sample_data.size() as u32) * bytes_per_sample
         var file_size = 36 + data_size
 
         var file_data = vector<u8>()
@@ -211,11 +211,11 @@ public func save_wav(audio : *mut Audio, path : *char) : std::Result<std::Unit, 
         fptr[15] = ' ' as u8
         write_u32_le(fptr, 16, 16)
         write_u16_le(fptr, 20, 1)
-        write_u16_le(fptr, 22, audio.channels)
-        write_u32_le(fptr, 24, audio.sample_rate)
-        write_u32_le(fptr, 28, audio.sample_rate * (audio.channels as u32) * bytes_per_sample)
-        write_u16_le(fptr, 32, audio.channels * (audio.bits_per_sample / 8))
-        write_u16_le(fptr, 34, audio.bits_per_sample)
+        write_u16_le(fptr, 22, audio.channel_count)
+        write_u32_le(fptr, 24, audio.sample_rate_hz)
+        write_u32_le(fptr, 28, audio.sample_rate_hz * (audio.channel_count as u32) * bytes_per_sample)
+        write_u16_le(fptr, 32, audio.channel_count * (audio.bit_depth / 8))
+        write_u16_le(fptr, 34, audio.bit_depth)
 
         fptr[36] = 'd' as u8
         fptr[37] = 'a' as u8
@@ -224,14 +224,14 @@ public func save_wav(audio : *mut Audio, path : *char) : std::Result<std::Unit, 
         write_u32_le(fptr, 40, data_size)
 
         var i : size_t = 0
-        while(i < audio.samples.size()) {
+        while(i < audio.sample_data.size()) {
             var offset = 44 + i * (bytes_per_sample as size_t)
             if(offset < file_data.size()) {
-                var sample = audio.samples.get(i)
-                if(audio.bits_per_sample == 16) {
+                var sample = audio.sample_data.get(i)
+                if(audio.bit_depth == 16) {
                     fptr[offset] = (sample & 0xFF) as u8
                     fptr[offset + 1] = ((sample >> 8) & 0xFF) as u8
-                } else if(audio.bits_per_sample == 8) {
+                } else if(audio.bit_depth == 8) {
                     fptr[offset] = ((sample >> 8) + 128) as u8
                 }
             }
@@ -250,39 +250,56 @@ public func save_wav(audio : *mut Audio, path : *char) : std::Result<std::Unit, 
 
 public func audio_duration_ms(audio : *mut Audio) : double {
         unsafe {
-        if(audio.sample_rate == 0) { return 0.0 }
-        return (audio.num_samples as double) * 1000.0 / (audio.sample_rate as double)
+        if(audio.sample_rate_hz == 0) { return 0.0 }
+        return (audio.frame_total as double) * 1000.0 / (audio.sample_rate_hz as double)
 
         }
     }
 
 public func audio_trim(audio : *mut Audio, start_ms : double, end_ms : double) : Audio {
         unsafe {
-        var start_sample = ((start_ms * (audio.sample_rate as double)) / 1000.0) as size_t
-        var end_sample = ((end_ms * (audio.sample_rate as double)) / 1000.0) as size_t
+        // Empty input (or a malformed channel count/rate) is an identity copy:
+        // never underflow `frame_total - 1` and never divide by zero.
+        if(audio.sample_rate_hz == 0 || audio.channel_count == 0 || audio.frame_total == 0) {
+            return audio_copy(audio)
+        }
 
-        if(start_sample >= audio.num_samples) { start_sample = audio.num_samples - 1 }
-        if(end_sample > audio.num_samples) { end_sample = audio.num_samples }
+        var ch = audio.channel_count as size_t
+        var available_frames = audio.sample_data.size() / ch
+        var total_frames = audio.frame_total
+        if(total_frames > available_frames) { total_frames = available_frames }
+        if(total_frames == 0) { return audio_copy(audio) }
+
+        var clamped_start_ms = start_ms
+        if(clamped_start_ms < 0.0) { clamped_start_ms = 0.0 }
+        var clamped_end_ms = end_ms
+        if(clamped_end_ms < clamped_start_ms) { clamped_end_ms = clamped_start_ms }
+
+        var start_sample = ((clamped_start_ms * (audio.sample_rate_hz as double)) / 1000.0) as size_t
+        var end_sample = ((clamped_end_ms * (audio.sample_rate_hz as double)) / 1000.0) as size_t
+
+        if(start_sample > total_frames) { start_sample = total_frames }
+        if(end_sample > total_frames) { end_sample = total_frames }
+        if(end_sample < start_sample) { end_sample = start_sample }
 
         var result = Audio.make()
-        result.sample_rate = audio.sample_rate
-        result.channels = audio.channels
-        result.bits_per_sample = audio.bits_per_sample
-        result.num_samples = end_sample - start_sample
+        result.sample_rate_hz = audio.sample_rate_hz
+        result.channel_count = audio.channel_count
+        result.bit_depth = audio.bit_depth
+        result.frame_total = end_sample - start_sample
 
-        var ch = audio.channels as size_t
-        var total = result.num_samples * ch
-        result.samples.resize(total)
+        var total = result.frame_total * ch
+        result.sample_data.resize(total)
 
         var src_offset = start_sample * ch
-        var sptr = result.samples.data() as *mut i16
+        var sptr = result.sample_data.data() as *mut i16
         var i : size_t = 0
         while(i < total) {
-            sptr[i] = audio.samples.get(src_offset + i)
+            sptr[i] = audio.sample_data.get(src_offset + i)
             i += 1
         }
 
-        result.loaded = true
+        result.loaded_flag = true
         return result
 
         }
@@ -290,10 +307,10 @@ public func audio_trim(audio : *mut Audio, start_ms : double, end_ms : double) :
 
 public func audio_volume(audio : *mut Audio, factor : float) {
         unsafe {
-        var sptr = audio.samples.data() as *mut i16
+        var sptr = audio.sample_data.data() as *mut i16
         var i : size_t = 0
-        while(i < audio.samples.size()) {
-            var sample = (audio.samples.get(i) as float * factor) as i32
+        while(i < audio.sample_data.size()) {
+            var sample = (audio.sample_data.get(i) as float * factor) as i32
             if(sample > 32767) { sample = 32767 }
             if(sample < -32768) { sample = -32768 }
             sptr[i] = sample as i16
@@ -305,35 +322,35 @@ public func audio_volume(audio : *mut Audio, factor : float) {
 
 public func audio_mix(a : *mut Audio, b : *mut Audio) : std::Result<Audio, AudioError> {
         unsafe {
-        if(a.sample_rate != b.sample_rate) {
+        if(a.sample_rate_hz != b.sample_rate_hz) {
             return std.Result.Err(AudioError.InvalidFormat(string("sample rate mismatch")))
         }
-        if(a.channels != b.channels) {
+        if(a.channel_count != b.channel_count) {
             return std.Result.Err(AudioError.InvalidFormat(string("channel count mismatch")))
         }
 
         var max_samples : size_t
-        if(a.num_samples > b.num_samples) {
-            max_samples = a.num_samples
+        if(a.frame_total > b.frame_total) {
+            max_samples = a.frame_total
         } else {
-            max_samples = b.num_samples
+            max_samples = b.frame_total
         }
-        var ch = a.channels as size_t
+        var ch = a.channel_count as size_t
 
         var result = Audio.make()
-        result.sample_rate = a.sample_rate
-        result.channels = a.channels
-        result.bits_per_sample = a.bits_per_sample
-        result.num_samples = max_samples
-        result.samples.resize(max_samples * ch)
+        result.sample_rate_hz = a.sample_rate_hz
+        result.channel_count = a.channel_count
+        result.bit_depth = a.bit_depth
+        result.frame_total = max_samples
+        result.sample_data.resize(max_samples * ch)
 
-        var rptr = result.samples.data() as *mut i16
+        var rptr = result.sample_data.data() as *mut i16
         var i : size_t = 0
         while(i < max_samples * ch) {
             var sa : i32 = 0
             var sb : i32 = 0
-            if(i < a.samples.size()) { sa = a.samples.get(i) as i32 }
-            if(i < b.samples.size()) { sb = b.samples.get(i) as i32 }
+            if(i < a.sample_data.size()) { sa = a.sample_data.get(i) as i32 }
+            if(i < b.sample_data.size()) { sb = b.sample_data.get(i) as i32 }
             var mixed = (sa + sb) / 2
             if(mixed > 32767) { mixed = 32767 }
             if(mixed < -32768) { mixed = -32768 }
@@ -341,7 +358,7 @@ public func audio_mix(a : *mut Audio, b : *mut Audio) : std::Result<Audio, Audio
             i += 1
         }
 
-        result.loaded = true
+        result.loaded_flag = true
         return std.Result.Ok(result)
 
         }
@@ -349,36 +366,36 @@ public func audio_mix(a : *mut Audio, b : *mut Audio) : std::Result<Audio, Audio
 
 public func audio_append(a : *mut Audio, b : *mut Audio) : std::Result<Audio, AudioError> {
         unsafe {
-        if(a.sample_rate != b.sample_rate) {
+        if(a.sample_rate_hz != b.sample_rate_hz) {
             return std.Result.Err(AudioError.InvalidFormat(string("sample rate mismatch")))
         }
-        if(a.channels != b.channels) {
+        if(a.channel_count != b.channel_count) {
             return std.Result.Err(AudioError.InvalidFormat(string("channel count mismatch")))
         }
 
         var result = Audio.make()
-        result.sample_rate = a.sample_rate
-        result.channels = a.channels
-        result.bits_per_sample = a.bits_per_sample
-        result.num_samples = a.num_samples + b.num_samples
+        result.sample_rate_hz = a.sample_rate_hz
+        result.channel_count = a.channel_count
+        result.bit_depth = a.bit_depth
+        result.frame_total = a.frame_total + b.frame_total
 
-        var total_a = a.samples.size()
-        var total_b = b.samples.size()
-        result.samples.resize(total_a + total_b)
+        var total_a = a.sample_data.size()
+        var total_b = b.sample_data.size()
+        result.sample_data.resize(total_a + total_b)
 
-        var rptr = result.samples.data() as *mut i16
+        var rptr = result.sample_data.data() as *mut i16
         var i : size_t = 0
         while(i < total_a) {
-            rptr[i] = a.samples.get(i)
+            rptr[i] = a.sample_data.get(i)
             i += 1
         }
         i = 0
         while(i < total_b) {
-            rptr[total_a + i] = b.samples.get(i)
+            rptr[total_a + i] = b.sample_data.get(i)
             i += 1
         }
 
-        result.loaded = true
+        result.loaded_flag = true
         return std.Result.Ok(result)
 
         }
@@ -386,35 +403,62 @@ public func audio_append(a : *mut Audio, b : *mut Audio) : std::Result<Audio, Au
 
 public func audio_resample(audio : *mut Audio, target_rate : u32) : Audio {
         unsafe {
-        if(audio.sample_rate == target_rate) {
+        if(audio.channel_count == 0) {
             return audio_copy(audio)
         }
 
-        var ratio = (target_rate as double) / (audio.sample_rate as double)
-        var new_num_samples = (audio.num_samples as double * ratio) as size_t
-        var ch = audio.channels as size_t
+        var ch = audio.channel_count as size_t
+        var available_frames = audio.sample_data.size() / ch
+        var source_frames = audio.frame_total
+        if(source_frames > available_frames) { source_frames = available_frames }
+
+        // Empty source, zero/absent source rate, or an invalid target rate is
+        // an empty result with a target rate when one was supplied. This keeps
+        // the operation total instead of dividing by zero or reading
+        // `frame_total - 1` on an empty buffer.
+        if(source_frames == 0 || audio.sample_rate_hz == 0 || target_rate == 0) {
+            var empty = Audio.make()
+            empty.sample_rate_hz = target_rate
+            if(target_rate == 0) { empty.sample_rate_hz = audio.sample_rate_hz }
+            empty.channel_count = audio.channel_count
+            empty.bit_depth = audio.bit_depth
+            empty.frame_total = 0
+            empty.loaded_flag = audio.loaded_flag
+            return empty
+        }
+
+        if(audio.sample_rate_hz == target_rate) {
+            return audio_copy(audio)
+        }
+
+        var ratio = (target_rate as double) / (audio.sample_rate_hz as double)
+        var new_num_samples = (source_frames as double * ratio) as size_t
+        const max_size = (0 as size_t) - 1
+        if(ch != 0 && new_num_samples > max_size / ch) {
+            new_num_samples = max_size / ch
+        }
 
         var result = Audio.make()
-        result.sample_rate = target_rate
-        result.channels = audio.channels
-        result.bits_per_sample = audio.bits_per_sample
-        result.num_samples = new_num_samples
-        result.samples.resize(new_num_samples * ch)
+        result.sample_rate_hz = target_rate
+        result.channel_count = audio.channel_count
+        result.bit_depth = audio.bit_depth
+        result.frame_total = new_num_samples
+        result.sample_data.resize(new_num_samples * ch)
 
-        var rptr = result.samples.data() as *mut i16
+        var rptr = result.sample_data.data() as *mut i16
         var i : size_t = 0
         while(i < new_num_samples) {
             var src_pos = (i as double / ratio) as size_t
-            if(src_pos >= audio.num_samples) { src_pos = audio.num_samples - 1 }
+            if(src_pos >= source_frames) { src_pos = source_frames - 1 }
             var j : size_t = 0
             while(j < ch) {
-                rptr[i * ch + j] = audio.samples.get(src_pos * ch + j)
+                rptr[i * ch + j] = audio.sample_data.get(src_pos * ch + j)
                 j += 1
             }
             i += 1
         }
 
-        result.loaded = true
+        result.loaded_flag = true
         return result
 
         }
@@ -423,16 +467,16 @@ public func audio_resample(audio : *mut Audio, target_rate : u32) : Audio {
 public func audio_copy(audio : *mut Audio) : Audio {
         unsafe {
         var result = Audio.make()
-        result.sample_rate = audio.sample_rate
-        result.channels = audio.channels
-        result.bits_per_sample = audio.bits_per_sample
-        result.num_samples = audio.num_samples
-        result.loaded = audio.loaded
-        result.samples.resize(audio.samples.size())
-        var rptr = result.samples.data() as *mut i16
+        result.sample_rate_hz = audio.sample_rate_hz
+        result.channel_count = audio.channel_count
+        result.bit_depth = audio.bit_depth
+        result.frame_total = audio.frame_total
+        result.loaded_flag = audio.loaded_flag
+        result.sample_data.resize(audio.sample_data.size())
+        var rptr = result.sample_data.data() as *mut i16
         var i : size_t = 0
-        while(i < audio.samples.size()) {
-            rptr[i] = audio.samples.get(i)
+        while(i < audio.sample_data.size()) {
+            rptr[i] = audio.sample_data.get(i)
             i += 1
         }
         return result

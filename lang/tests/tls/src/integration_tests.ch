@@ -323,7 +323,7 @@ public func INT_rsa_keygen_sign_verify_vs_py(env : &mut TestEnv) {
 
     // 1. Message + SHA-256 digest
     var msg : [48]u8; test_random_bytes(&raw mut msg[0], 48)
-    var digest : [32]u8; sha256_hash(&raw msg[0], 48, &raw mut digest[0])
+    var digest : [32]u8; crypto::raw::sha256_hash(&raw msg[0], 48, &raw mut digest[0])
 
     // 2. Build EM = 0x00 0x01 0xFF..0xFF 0x00 || DigestInfo(SHA-256) || digest
     var em : [256]u8; var i : size_t = 0
@@ -428,7 +428,7 @@ public func INT_aes_cbc_hmac_tls12_vs_py(env : &mut TestEnv) {
     if(ret < 0) { env.error("aes_crypt_cbc encrypt failed"); return } else {}
 
     var chem_mac : [32]u8
-    hmac_sha256(&raw mac_key[0], 16, &raw chem_ct[0], 48, &raw mut chem_mac[0])
+    crypto::raw::hmac_sha256(&raw mac_key[0], 16, &raw chem_ct[0], 48, &raw mut chem_mac[0])
 
     var script : [1536]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes\nimport hmac,hashlib\n" as *char; si=0
@@ -594,7 +594,7 @@ public func INT_hmac_long_key_vs_py(env : &mut TestEnv) {
     var data_hex : [65]char; test_bytes_to_hex(&raw data[0], 32, &raw mut data_hex[0])
 
     var chem_mac : [32]u8
-    hmac_sha256(&raw key[0], 72, &raw data[0], 32, &raw mut chem_mac[0])
+    crypto::raw::hmac_sha256(&raw key[0], 72, &raw data[0], 32, &raw mut chem_mac[0])
 
     var script : [1024]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "import hmac,hashlib\n" as *char; si=0

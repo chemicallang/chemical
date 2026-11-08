@@ -1,9 +1,14 @@
 // compression — compression interface and built-in algorithms.
+//
+// Raw pointer/out-buffer entry points. The canonical owned-buffer API lives at
+// `compression::compress` / `compression::decompress` (see `safe.ch`).
 
 public namespace compression {
 
 using std::Result;
 using std::vector;
+
+public namespace raw {
 
 // ---------------------------------------------------------------------------
 // Built-in: RLE (Run-Length Encoding)
@@ -81,5 +86,7 @@ public func decompress(data : *u8, data_len : size_t, out : *mut u8, out_len : *
     var rle = RleCompressor{};
     return rle.decompress(data, data_len, out, out_len, out_capacity);
 }
+
+} // namespace raw
 
 } // end namespace compression

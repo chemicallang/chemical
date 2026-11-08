@@ -19,17 +19,14 @@ func audio_safe_fixed_view(p : *u8, n : size_t) : [u8] {
 }
 
 func audio_safe_make_tone(rate : u32, sample_count : int) : audio::Audio {
-    var a = audio::Audio.make()
-    a.sample_rate = rate
-    a.channels = 1
-    a.bits_per_sample = 16
+    var samples = vector<i16>()
     var i : int = 0
     while(i < sample_count) {
-        a.samples.push((i * 100 - 500) as i16)
+        samples.push((i * 100 - 500) as i16)
         i += 1
     }
-    a.num_samples = a.samples.size()
-    a.loaded = true
+    var result = audio::Audio.new(rate, 1, 16, samples)
+    var Ok(a) = result else unsafe { unreachable }
     return a
 }
 
@@ -50,8 +47,8 @@ public func audio_safe_wav_roundtrip(env : &mut TestEnv) {
     if(parsed is Result.Err) { env.error("from_wav should succeed"); return }
     var Ok(loaded) = parsed else unsafe { unreachable }
 
-    if(loaded.sample_rate != 8000) { env.error("sample rate roundtrip") }
-    if(loaded.samples.size() != 8) { env.error("sample count roundtrip") }
+    if(loaded.sample_rate() != 8000) { env.error("sample rate roundtrip") }
+    if(loaded.samples().size() != 8) { env.error("sample count roundtrip") }
     if(loaded.duration_ms() <= 0.0) { env.error("duration should be positive") }
 
     var view = loaded.samples_view()
@@ -64,8 +61,8 @@ public func audio_safe_sample_views_are_mutable(env : &mut TestEnv) {
     var view = a.samples_mut_view()
     view.set(0, 1234)
     view.set(1, -5678)
-    if(a.samples.get(0) != 1234) { env.error("samples_mut_view write 0") }
-    if(a.samples.get(1) != -5678) { env.error("samples_mut_view write 1") }
+    if(a.samples()[0] != 1234) { env.error("samples_mut_view write 0") }
+    if(a.samples()[1] != -5678) { env.error("samples_mut_view write 1") }
 }
 
 @test
@@ -79,20 +76,20 @@ public func audio_safe_load_and_save(env : &mut TestEnv) {
     var loaded = audio::Audio.load(&p)
     if(loaded is Result.Err) { env.error("load should succeed"); return }
     var Ok(read_back) = loaded else unsafe { unreachable }
-    if(read_back.sample_rate != 16000) { env.error("loaded sample rate") }
-    if(read_back.samples.size() != 6) { env.error("loaded sample count") }
+    if(read_back.sample_rate() != 16000) { env.error("loaded sample rate") }
+    if(read_back.samples().size() != 6) { env.error("loaded sample count") }
 }
 
 @test
 public func audio_safe_transformations(env : &mut TestEnv) {
     var a = audio_safe_make_tone(8000, 8)
-    var before = a.samples.get(7)
+    var before = a.samples()[7]
     a.volume(0.5f)
-    var after = a.samples.get(7)
+    var after = a.samples()[7]
     if(before > 0 && after >= before) { env.error("volume should attenuate positive samples") }
 
     var trimmed = a.trim(0.0, 0.25)
-    if(trimmed.samples.size() > a.samples.size()) { env.error("trim should not grow audio") }
+    if(trimmed.samples().size() > a.samples().size()) { env.error("trim should not grow audio") }
 
     var b = audio_safe_make_tone(8000, 8)
     var mixed = a.mix(&b)
@@ -101,10 +98,10 @@ public func audio_safe_transformations(env : &mut TestEnv) {
     var appended = a.append(&b)
     if(appended is Result.Err) { env.error("append should succeed"); return }
     var Ok(longer) = appended else unsafe { unreachable }
-    if(longer.samples.size() != a.samples.size() + b.samples.size()) { env.error("append sample count") }
+    if(longer.samples().size() != a.samples().size() + b.samples().size()) { env.error("append sample count") }
 
     var resampled = a.resample(16000)
-    if(resampled.sample_rate != 16000) { env.error("resample target rate") }
+    if(resampled.sample_rate() != 16000) { env.error("resample target rate") }
 }
 
 // ═══════════════════════════════════════════════════════════════

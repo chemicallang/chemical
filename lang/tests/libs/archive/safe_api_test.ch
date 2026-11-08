@@ -2,7 +2,7 @@ using std::Result;
 using std::vector;
 using std::string;
 
-// Focused tests for the additive safe archive surface (`ArchiveHandle`).
+// Focused tests for the safe archive surface (`Archive`, `ZipWriter`).
 // Digest work is exercised by the legacy tests; these cover ownership,
 // `&[u8]` parsing, `&str` lookups, and extraction safety.
 
@@ -30,9 +30,9 @@ func archive_safe_bytes_equal(v : &vector<u8>, expected : *u8, n : size_t) : boo
 }
 
 func archive_safe_build_zip(name : *char, data : *u8, n : size_t) : vector<u8> {
-    var writer = archive::ZipWriter{entries: vector<archive::ZipWriteEntry>(), data: vector<u8>()}
-    archive::zip_writer_add_file(&raw mut writer, name, data, n)
-    archive::zip_writer_close(&raw mut writer)
+    var writer = archive::raw::ZipWriter{entries: vector<archive::raw::ZipWriteEntry>(), data: vector<u8>()}
+    archive::raw::zip_writer_add_file(&raw mut writer, name, data, n)
+    archive::raw::zip_writer_close(&raw mut writer)
     // Copy rather than returning the field: moving a vector field out of a
     // destructor-bearing local would leave the writer's drop glue live.
     var out = vector<u8>()
@@ -53,7 +53,7 @@ public func archive_safe_zip_from_bytes_roundtrip(env : &mut TestEnv) {
     var payload : [13]u8 = ['H' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8, ',' as u8, ' ' as u8, 'W' as u8, 'o' as u8, 'r' as u8, 'l' as u8, 'd' as u8, '!' as u8]
     var zip = archive_safe_build_zip("hello.txt\0" as *char, &raw payload[0], 13)
 
-    var opened = archive::ArchiveHandle.from_bytes(archive_safe_view(&zip))
+    var opened = archive::Archive.from_bytes(archive_safe_view(&zip))
     if(opened is Result.Err) { env.error("from_bytes should parse ZIP"); return }
     var Ok(handle) = opened else unsafe { unreachable }
 
@@ -80,7 +80,7 @@ public func archive_safe_zip_read_entry_and_open(env : &mut TestEnv) {
     var wr = fs::write_text_file(zs.c_str(), zip.data(), zip.size())
     if(wr is Result.Err) { env.error("failed to write zip fixture"); return }
 
-    var opened = archive::ArchiveHandle.open(&zip_path)
+    var opened = archive::Archive.open(&zip_path)
     if(opened is Result.Err) { env.error("open should parse ZIP"); return }
     var Ok(handle) = opened else unsafe { unreachable }
 
@@ -103,7 +103,7 @@ public func archive_safe_tar_from_bytes_roundtrip(env : &mut TestEnv) {
     var payload : [4]u8 = [0x54, 0x45, 0x53, 0x54]
     var tar = build_single_file_tar(string("info.txt"), &raw payload[0], 4)
 
-    var opened = archive::ArchiveHandle.from_bytes(archive_safe_view(&tar))
+    var opened = archive::Archive.from_bytes(archive_safe_view(&tar))
     if(opened is Result.Err) { env.error("from_bytes should parse TAR"); return }
     var Ok(handle) = opened else unsafe { unreachable }
 
@@ -121,7 +121,7 @@ public func archive_safe_extract_writes_entries(env : &mut TestEnv) {
     var payload : [3]u8 = [0x41, 0x42, 0x43]
     var zip = archive_safe_build_zip("nested/hello.txt\0" as *char, &raw payload[0], 3)
 
-    var opened = archive::ArchiveHandle.from_bytes(archive_safe_view(&zip))
+    var opened = archive::Archive.from_bytes(archive_safe_view(&zip))
     if(opened is Result.Err) { env.error("from_bytes should parse ZIP"); return }
     var Ok(handle) = opened else unsafe { unreachable }
 
@@ -143,6 +143,64 @@ public func archive_safe_extract_writes_entries(env : &mut TestEnv) {
     fs::remove_dir_all_recursive(cleanup.c_str())
 }
 
+@test
+public func archive_safe_zip_writer_roundtrip(env : &mut TestEnv) {
+    var payload : [5]u8 = [0x41, 0x42, 0x43, 0x44, 0x45]
+    var writer = archive::ZipWriter.new()
+    var added = writer.add_bytes("hello.txt", archive_safe_fixed_view(&raw payload[0], 5))
+    if(added is Result.Err) { env.error("safe writer add_bytes should succeed"); return }
+
+    var zip = writer.finish()
+    var opened = archive::Archive.from_bytes(archive_safe_view(&zip))
+    if(opened is Result.Err) { env.error("safe writer output should parse"); return }
+    var Ok(handle) = opened else unsafe { unreachable }
+    if(handle.entry_count() != 1) { env.error("safe writer entry count") }
+    var read = handle.read_file("hello.txt")
+    if(read is Result.Err) { env.error("safe writer read_file"); return }
+    var Ok(content) = read else unsafe { unreachable }
+    if(!archive_safe_bytes_equal(&content, &raw payload[0], 5)) { env.error("safe writer content") }
+
+    // `finish` is idempotent, and adding after finish is rejected instead of
+    // appending a second central directory.
+    var again = writer.finish()
+    if(again.size() != zip.size()) { env.error("finish should be idempotent") }
+    var late = writer.add_bytes("late.txt", archive_safe_fixed_view(&raw payload[0], 5))
+    if(late is Result.Ok) { env.error("add after finish should fail") }
+}
+
+@test
+public func archive_safe_zip_writer_save(env : &mut TestEnv) {
+    var payload : [3]u8 = [0x58, 0x59, 0x5A]
+    var writer = archive::ZipWriter.new()
+    var _ = writer.add_bytes("saved.bin", archive_safe_fixed_view(&raw payload[0], 3))
+
+    var p = archive_safe_temp_pathbuf("p24_safe_writer.zip")
+    var saved = writer.save(&p)
+    if(saved is Result.Err) { env.error("safe writer save"); return }
+
+    var opened = archive::Archive.open(&p)
+    if(opened is Result.Err) { env.error("saved ZIP should open"); return }
+    var Ok(handle) = opened else unsafe { unreachable }
+    if(!handle.contains("saved.bin")) { env.error("saved ZIP should contain entry") }
+}
+
+@test
+public func archive_safe_zip_writer_rejects_nul_name(env : &mut TestEnv) {
+    var payload : [1]u8 = [0x01]
+    var name_bytes = vector<u8>()
+    name_bytes.push('b' as u8)
+    name_bytes.push('a' as u8)
+    name_bytes.push('d' as u8)
+    name_bytes.push(0 as u8)
+    name_bytes.push('x' as u8)
+    var sv = unsafe(std::string_view(name_bytes.data() as *char, name_bytes.size()))
+    var name = std::str.make_view(sv)
+
+    var writer = archive::ZipWriter.new()
+    var result = writer.add_bytes(name, archive_safe_fixed_view(&raw payload[0], 1))
+    if(result is Result.Ok) { env.error("NUL in entry name must be rejected") }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // Misuse / hostile input
 // ═══════════════════════════════════════════════════════════════
@@ -153,7 +211,7 @@ public func archive_safe_bad_magic_rejected(env : &mut TestEnv) {
     var i : size_t = 0
     while(i < 16) { garbage[i] = i as u8; i += 1 }
     var view = archive_safe_fixed_view(&raw garbage[0], 16)
-    var opened = archive::ArchiveHandle.from_bytes(view)
+    var opened = archive::Archive.from_bytes(view)
     if(opened is Result.Ok) { env.error("garbage bytes should not parse") }
 }
 
@@ -161,7 +219,7 @@ public func archive_safe_bad_magic_rejected(env : &mut TestEnv) {
 public func archive_safe_truncated_rejected(env : &mut TestEnv) {
     var tiny : [4]u8 = [0x50, 0x4B, 0x03, 0x04]
     var view = archive_safe_fixed_view(&raw tiny[0], 4)
-    var opened = archive::ArchiveHandle.from_bytes(view)
+    var opened = archive::Archive.from_bytes(view)
     if(opened is Result.Ok) { env.error("truncated ZIP should not parse") }
 }
 
@@ -170,7 +228,7 @@ public func archive_safe_extract_rejects_dotdot(env : &mut TestEnv) {
     var payload : [1]u8 = [0x58]
     var zip = archive_safe_build_zip("../p24_escape.txt\0" as *char, &raw payload[0], 1)
 
-    var opened = archive::ArchiveHandle.from_bytes(archive_safe_view(&zip))
+    var opened = archive::Archive.from_bytes(archive_safe_view(&zip))
     if(opened is Result.Err) { env.error("fixture should parse"); return }
     var Ok(handle) = opened else unsafe { unreachable }
 
@@ -191,7 +249,7 @@ public func archive_safe_extract_rejects_absolute(env : &mut TestEnv) {
     var payload : [1]u8 = [0x58]
     var zip = archive_safe_build_zip("/tmp/p24_absolute.txt\0" as *char, &raw payload[0], 1)
 
-    var opened = archive::ArchiveHandle.from_bytes(archive_safe_view(&zip))
+    var opened = archive::Archive.from_bytes(archive_safe_view(&zip))
     if(opened is Result.Err) { env.error("fixture should parse"); return }
     var Ok(handle) = opened else unsafe { unreachable }
 
@@ -216,7 +274,7 @@ public func archive_safe_rejects_symlink_escape(env : &mut TestEnv) {
         var payload : [1]u8 = [0x58]
         var zip = archive_safe_build_zip("link/p24_escape.txt\0" as *char, &raw payload[0], 1)
 
-        var opened = archive::ArchiveHandle.from_bytes(archive_safe_view(&zip))
+        var opened = archive::Archive.from_bytes(archive_safe_view(&zip))
         if(opened is Result.Err) { env.error("fixture should parse"); return }
         var Ok(handle) = opened else unsafe { unreachable }
 
@@ -244,7 +302,7 @@ public func archive_safe_unknown_entry_is_error(env : &mut TestEnv) {
     var payload : [1]u8 = [0x01]
     var zip = archive_safe_build_zip("only.txt\0" as *char, &raw payload[0], 1)
 
-    var opened = archive::ArchiveHandle.from_bytes(archive_safe_view(&zip))
+    var opened = archive::Archive.from_bytes(archive_safe_view(&zip))
     if(opened is Result.Err) { env.error("fixture should parse"); return }
     var Ok(handle) = opened else unsafe { unreachable }
 

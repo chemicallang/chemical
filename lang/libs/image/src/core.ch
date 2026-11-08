@@ -63,15 +63,18 @@ func write_u32_le(out : *mut u8, offset : size_t, val : u32) {
         }
     }
 
+// Raw, unchecked construction. These live under `image::raw`; safe code uses
+// `Image.new`/`Image.new_rgb`/`Image.new_rgba`/`Image.new_gray` instead.
+public namespace raw {
 public func image_create(w : int, h : int, ch : int) : Image {
         unsafe {
-        var img = Image{pixels: vector<u8>(), width: 0, height: 0, channels: 0}
-        img.width = w
-        img.height = h
-        img.channels = ch
+        var img = Image.make()
+        img.img_width = w
+        img.img_height = h
+        img.img_channels = ch
         var total = (w as size_t) * (h as size_t) * (ch as size_t)
-        img.pixels.resize(total)
-        var ptr = img.pixels.data() as *mut u8
+        img.pixel_data.resize(total)
+        var ptr = img.pixel_data.data() as *mut u8
         var i : size_t = 0
         while(i < total) {
             ptr[i] = 0
@@ -83,95 +86,121 @@ public func image_create(w : int, h : int, ch : int) : Image {
     }
 
 public func image_create_rgba(w : int, h : int) : Image {
-    return image_create(w, h, 4)
+    return raw::image_create(w, h, 4)
 }
 
 public func image_create_rgb(w : int, h : int) : Image {
-    return image_create(w, h, 3)
+    return raw::image_create(w, h, 3)
 }
 
 public func image_create_gray(w : int, h : int) : Image {
-    return image_create(w, h, 1)
+    return raw::image_create(w, h, 1)
 }
+} // end namespace raw
 
 public func image_width(img : *mut Image) : int {
         unsafe {
-        return img.width
+        return img.img_width
 
         }
     }
 
 public func image_height(img : *mut Image) : int {
         unsafe {
-        return img.height
+        return img.img_height
 
         }
     }
 
 public func image_channels(img : *mut Image) : int {
         unsafe {
-        return img.channels
+        return img.img_channels
 
         }
     }
 
 public func image_pixels(img : *mut Image) : *mut u8 {
         unsafe {
-        return img.pixels.data() as *mut u8
+        return img.pixel_data.data() as *mut u8
 
         }
     }
 
 public func image_pixel_count(img : *mut Image) : size_t {
         unsafe {
-        return (img.width as size_t) * (img.height as size_t)
+        return (img.img_width as size_t) * (img.img_height as size_t)
 
         }
     }
 
 public func image_bytes_per_row(img : *mut Image) : size_t {
         unsafe {
-        return (img.width as size_t) * (img.channels as size_t)
+        return (img.img_width as size_t) * (img.img_channels as size_t)
 
         }
     }
 
 public func image_total_bytes(img : *mut Image) : size_t {
         unsafe {
-        return image_bytes_per_row(img) * (img.height as size_t)
+        return image_bytes_per_row(img) * (img.img_height as size_t)
 
         }
     }
 
+// Read one pixel as RGBA. Grayscale (1ch) and gray+alpha (2ch) are expanded
+// to RGBA so callers get a uniform colour value for every supported layout.
 public func image_get_rgba(img : *mut Image, x : int, y : int) : std::Result<RGBA8, ImageError> {
         unsafe {
-        if(x < 0 || x >= img.width || y < 0 || y >= img.height) {
+        if(x < 0 || x >= img.img_width || y < 0 || y >= img.img_height) {
             return std.Result.Err(ImageError.PixelOutOfBounds(x, y))
         }
-        if(img.channels < 4) {
-            return std.Result.Err(ImageError.InvalidFormat(string("image does not have alpha channel")))
+        var bpp = img.img_channels as size_t
+        if(bpp < 1 || bpp > 4) {
+            return std.Result.Err(ImageError.InvalidFormat(string("unsupported channel count")))
         }
-        var offset = ((y as size_t) * (img.width as size_t) + (x as size_t)) * 4
-        var px = img.pixels.data() + offset
+        var offset = ((y as size_t) * (img.img_width as size_t) + (x as size_t)) * bpp
+        var px = img.pixel_data.data() + offset
+        if(bpp == 1) {
+            return std.Result.Ok(RGBA8.make(px[0], px[0], px[0], 255))
+        }
+        if(bpp == 2) {
+            return std.Result.Ok(RGBA8.make(px[0], px[0], px[0], px[1]))
+        }
+        if(bpp == 3) {
+            return std.Result.Ok(RGBA8.make(px[0], px[1], px[2], 255))
+        }
         return std.Result.Ok(RGBA8.make(px[0], px[1], px[2], px[3]))
 
         }
     }
 
+// Write one pixel, storing only the channels this image actually has.
 public func image_set_rgba(img : *mut Image, x : int, y : int, color : RGBA8) : std::Result<std::Unit, ImageError> {
         unsafe {
-        if(x < 0 || x >= img.width || y < 0 || y >= img.height) {
+        if(x < 0 || x >= img.img_width || y < 0 || y >= img.img_height) {
             return std.Result.Err(ImageError.PixelOutOfBounds(x, y))
         }
-        if(img.channels < 4) {
-            return std.Result.Err(ImageError.InvalidFormat(string("image does not have alpha channel")))
+        var bpp = img.img_channels as size_t
+        if(bpp < 1 || bpp > 4) {
+            return std.Result.Err(ImageError.InvalidFormat(string("unsupported channel count")))
         }
-        var offset = ((y as size_t) * (img.width as size_t) + (x as size_t)) * 4
-        var ptr = img.pixels.data() as *mut u8
-        ptr[offset] = color.r
-        ptr[offset + 1] = color.g
-        ptr[offset + 2] = color.b
-        ptr[offset + 3] = color.a
+        var offset = ((y as size_t) * (img.img_width as size_t) + (x as size_t)) * bpp
+        var ptr = img.pixel_data.data() as *mut u8
+        if(bpp == 1) {
+            ptr[offset] = color.r
+        } else if(bpp == 2) {
+            ptr[offset] = color.r
+            ptr[offset + 1] = color.a
+        } else if(bpp == 3) {
+            ptr[offset] = color.r
+            ptr[offset + 1] = color.g
+            ptr[offset + 2] = color.b
+        } else {
+            ptr[offset] = color.r
+            ptr[offset + 1] = color.g
+            ptr[offset + 2] = color.b
+            ptr[offset + 3] = color.a
+        }
         return std.Result.Ok(std::Unit{})
 
         }
@@ -179,12 +208,13 @@ public func image_set_rgba(img : *mut Image, x : int, y : int, color : RGBA8) : 
 
 public func image_fill(img : *mut Image, color : RGBA8) {
         unsafe {
-        var bpp = img.channels as size_t
-        var ptr = img.pixels.data() as *mut u8
+        var bpp = img.img_channels as size_t
+        var ptr = img.pixel_data.data() as *mut u8
         var i : size_t = 0
-        while(i < img.pixels.size()) {
+        while(i < img.pixel_data.size()) {
             if(bpp >= 1) { ptr[i] = color.r }
             if(bpp >= 3) { ptr[i + 1] = color.g; ptr[i + 2] = color.b }
+            if(bpp == 2) { ptr[i + 1] = color.a }
             if(bpp >= 4) { ptr[i + 3] = color.a }
             i += bpp
         }
@@ -194,10 +224,10 @@ public func image_fill(img : *mut Image, color : RGBA8) {
 
 public func image_copy(src : *mut Image) : Image {
         unsafe {
-        var dst = image_create(src.width, src.height, src.channels)
+        var dst = raw::image_create(src.img_width, src.img_height, src.img_channels)
         var total = image_total_bytes(src)
-        var dst_ptr = dst.pixels.data() as *mut u8
-        var src_ptr = src.pixels.data()
+        var dst_ptr = dst.pixel_data.data() as *mut u8
+        var src_ptr = src.pixel_data.data()
         var i : size_t = 0
         while(i < total) {
             dst_ptr[i] = src_ptr[i]
@@ -210,17 +240,17 @@ public func image_copy(src : *mut Image) : Image {
 
 public func image_crop(img : *mut Image, x : int, y : int, w : int, h : int) : std::Result<Image, ImageError> {
         unsafe {
-        if(x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > img.width || y + h > img.height) {
+        if(x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > img.img_width || y + h > img.img_height) {
             return std.Result.Err(ImageError.InvalidDimensions(w, h))
         }
-        var cropped = image_create(w, h, img.channels)
-        var bpp = img.channels as size_t
+        var cropped = raw::image_create(w, h, img.img_channels)
+        var bpp = img.img_channels as size_t
         var row_bytes = (w as size_t) * bpp
-        var src_ptr = img.pixels.data()
-        var dst_ptr = cropped.pixels.data() as *mut u8
+        var src_ptr = img.pixel_data.data()
+        var dst_ptr = cropped.pixel_data.data() as *mut u8
         var dst_y : int = 0
         while(dst_y < h) {
-            var src_offset = (((y + dst_y) as size_t) * (img.width as size_t) + (x as size_t)) * bpp
+            var src_offset = (((y + dst_y) as size_t) * (img.img_width as size_t) + (x as size_t)) * bpp
             var dst_offset = (dst_y as size_t) * row_bytes
             var col : size_t = 0
             while(col < row_bytes) {
@@ -236,11 +266,11 @@ public func image_crop(img : *mut Image, x : int, y : int, w : int, h : int) : s
 
 public func image_flip_h(img : *mut Image) {
         unsafe {
-        var bpp = img.channels as size_t
-        var row_bytes = (img.width as size_t) * bpp
-        var ptr = img.pixels.data() as *mut u8
+        var bpp = img.img_channels as size_t
+        var row_bytes = (img.img_width as size_t) * bpp
+        var ptr = img.pixel_data.data() as *mut u8
         var row : int = 0
-        while(row < img.height) {
+        while(row < img.img_height) {
             var row_start = (row as size_t) * row_bytes
             var left : size_t = 0
             var right = row_bytes - bpp
@@ -263,14 +293,14 @@ public func image_flip_h(img : *mut Image) {
 
 public func image_flip_v(img : *mut Image) {
         unsafe {
-        var bpp = img.channels as size_t
-        var row_bytes = (img.width as size_t) * bpp
-        var half_h = img.height / 2
-        var ptr = img.pixels.data() as *mut u8
+        var bpp = img.img_channels as size_t
+        var row_bytes = (img.img_width as size_t) * bpp
+        var half_h = img.img_height / 2
+        var ptr = img.pixel_data.data() as *mut u8
         var row : int = 0
         while(row < half_h) {
             var top_start = (row as size_t) * row_bytes
-            var bot_start = ((img.height - 1 - row) as size_t) * row_bytes
+            var bot_start = ((img.img_height - 1 - row) as size_t) * row_bytes
             var col : size_t = 0
             while(col < row_bytes) {
                 var tmp = ptr[top_start + col]
@@ -286,12 +316,12 @@ public func image_flip_v(img : *mut Image) {
 
 public func image_rotate90(img : *mut Image) : Image {
         unsafe {
-        var rotated = image_create(img.height, img.width, img.channels)
-        var bpp = img.channels as size_t
-        var src_w = img.width as size_t
-        var src_h = img.height as size_t
-        var src_ptr = img.pixels.data()
-        var dst_ptr = rotated.pixels.data() as *mut u8
+        var rotated = raw::image_create(img.img_height, img.img_width, img.img_channels)
+        var bpp = img.img_channels as size_t
+        var src_w = img.img_width as size_t
+        var src_h = img.img_height as size_t
+        var src_ptr = img.pixel_data.data()
+        var dst_ptr = rotated.pixel_data.data() as *mut u8
         var y : size_t = 0
         while(y < src_h) {
             var x : size_t = 0
@@ -314,21 +344,21 @@ public func image_rotate90(img : *mut Image) : Image {
 
 public func image_blit(dst : *mut Image, src : *mut Image, dx : int, dy : int) : std::Result<std::Unit, ImageError> {
         unsafe {
-        var bpp = src.channels as size_t
-        if(dst.channels != src.channels) {
+        var bpp = src.img_channels as size_t
+        if(dst.img_channels != src.img_channels) {
             return std.Result.Err(ImageError.InvalidFormat(string("channel count mismatch for blit")))
         }
-        var src_ptr = src.pixels.data()
-        var dst_ptr = dst.pixels.data() as *mut u8
+        var src_ptr = src.pixel_data.data()
+        var dst_ptr = dst.pixel_data.data() as *mut u8
         var y : int = 0
-        while(y < src.height) {
+        while(y < src.img_height) {
             var x : int = 0
-            while(x < src.width) {
+            while(x < src.img_width) {
                 var dst_x = dx + x
                 var dst_y = dy + y
-                if(dst_x >= 0 && dst_x < dst.width && dst_y >= 0 && dst_y < dst.height) {
-                    var src_off = ((y as size_t) * (src.width as size_t) + (x as size_t)) * bpp
-                    var dst_off = ((dst_y as size_t) * (dst.width as size_t) + (dst_x as size_t)) * bpp
+                if(dst_x >= 0 && dst_x < dst.img_width && dst_y >= 0 && dst_y < dst.img_height) {
+                    var src_off = ((y as size_t) * (src.img_width as size_t) + (x as size_t)) * bpp
+                    var dst_off = ((dst_y as size_t) * (dst.img_width as size_t) + (dst_x as size_t)) * bpp
                     var i : size_t = 0
                     while(i < bpp) {
                         dst_ptr[dst_off + i] = src_ptr[src_off + i]
@@ -356,7 +386,7 @@ public func image_line(img : *mut Image, x0 : int, y0 : int, x1 : int, y1 : int,
         var x = x0
         var y = y0
         while(true) {
-            if(x >= 0 && x < img.width && y >= 0 && y < img.height) {
+            if(x >= 0 && x < img.img_width && y >= 0 && y < img.img_height) {
                 image_set_rgba(img, x, y, color)
             }
             if(x == x1 && y == y1) { break }
@@ -377,17 +407,18 @@ public func image_rectangle(img : *mut Image, x : int, y : int, w : int, h : int
 
 public func image_fill_rect(img : *mut Image, x : int, y : int, w : int, h : int, color : RGBA8) {
         unsafe {
-        var bpp = img.channels as size_t
-        var ptr = img.pixels.data() as *mut u8
+        var bpp = img.img_channels as size_t
+        var ptr = img.pixel_data.data() as *mut u8
         var row : int = y
         while(row < y + h) {
-            if(row >= 0 && row < img.height) {
+            if(row >= 0 && row < img.img_height) {
                 var col : int = x
                 while(col < x + w) {
-                    if(col >= 0 && col < img.width) {
-                        var offset = ((row as size_t) * (img.width as size_t) + (col as size_t)) * bpp
+                    if(col >= 0 && col < img.img_width) {
+                        var offset = ((row as size_t) * (img.img_width as size_t) + (col as size_t)) * bpp
                         if(bpp >= 1) { ptr[offset] = color.r }
                         if(bpp >= 3) { ptr[offset + 1] = color.g; ptr[offset + 2] = color.b }
+                        if(bpp == 2) { ptr[offset + 1] = color.a }
                         if(bpp >= 4) { ptr[offset + 3] = color.a }
                     }
                     col += 1

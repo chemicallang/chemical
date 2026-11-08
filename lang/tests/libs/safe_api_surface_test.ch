@@ -10,12 +10,14 @@ func test_safe_api_surface_smoke(env : &mut TestEnv) {
 
     var data : [3]u8 = ['a','b','c']
     var view : [u8] = data
-    var enc = encoding::safe::hex_encode(view)
+    var encoded = encoding::hex_encode(view)
+    if(encoded is Result.Err) { env.error("hex_encode safe failed"); return }
+    var Ok(enc) = encoded else unsafe { unreachable }
     if(!enc.equals_view(string_view("616263"))) { env.error("hex_encode safe") }
-    var dec = encoding::safe::hex_decode("616263")
+    var dec = encoding::hex_decode("616263")
     if(dec is Result.Err) { env.error("hex_decode safe") }
 
-    var digest = crypto::safe::sha256(view)
+    var digest = crypto::sha256(view)
     if(digest[0] == 0u8 && digest[1] == 0u8 && digest[2] == 0u8 && digest[3] == 0u8) {
         env.error("sha256 safe returned all-zero prefix")
     }

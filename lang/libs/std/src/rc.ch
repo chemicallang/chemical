@@ -26,6 +26,10 @@ public struct Rc<T> {
     // able to retarget or corrupt them.
     private var ptr : *mut RcInner<T>
 
+    public func new(value : T) : Rc<T> {
+        return rc(value)
+    }
+
     @delete
     func delete(&mut self) {
         if(self.ptr == null) {

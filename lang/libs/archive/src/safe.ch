@@ -1,7 +1,7 @@
 // Safe archive surface: owning handles, `&str`/`&[u8]`/`&path::Path` parameters,
 // `Result` errors, and zip-slip-safe extraction. The legacy raw functions in
 // `main.ch` / `zip_read.ch` / `tar_read.ch` remain available for callers that
-// still need them; new code should use `ArchiveHandle`.
+// still need them; new code should use `Archive`.
 public namespace archive {
 
 using std::Result;
@@ -10,13 +10,13 @@ using std::vector;
 
 // Owning archive handle. Both ZIP and TAR are supported; the format is sniffed
 // by `open`/`from_bytes`.
-public struct ArchiveHandle {
-    internal var inner : Archive
+public struct Archive {
+    internal var inner : raw::Archive
 
     // ── construction ──────────────────────────────────────────────────────
 
     // Open a ZIP or TAR archive from a filesystem path.
-    func open(path : &path::Path) : Result<ArchiveHandle, ArchiveError> {
+    func open(path : &path::Path) : Result<Archive, ArchiveError> {
         var ps = path.as_string()
         var read = fs::read_entire_file(ps.c_str())
         if(read is Result.Err) {
@@ -29,7 +29,7 @@ public struct ArchiveHandle {
     }
 
     // Parse a ZIP or TAR archive from an in-memory byte buffer.
-    func from_bytes(bytes : &[u8]) : Result<ArchiveHandle, ArchiveError> {
+    func from_bytes(bytes : &[u8]) : Result<Archive, ArchiveError> {
         return archive_safe_from_bytes(bytes.data(), bytes.size())
     }
 
@@ -74,13 +74,13 @@ public struct ArchiveHandle {
         var out = vector<u8>()
         var entry = archive_safe_entry_ptr_mut(&raw mut self.inner, index)
         if(self.inner.archive_type == 1) {
-            var r = zip_read_entry(&raw mut self.inner.zip_data, entry, &raw mut out)
+            var r = raw::zip_read_entry(&raw mut self.inner.zip_data, entry, &raw mut out)
             if(r is Result.Err) {
                 var Err(e) = r else unsafe { unreachable }
                 return Result.Err(e)
             }
         } else {
-            var r = tar_read_entry(&raw mut self.inner.tar_data, entry, &raw mut out)
+            var r = raw::tar_read_entry(&raw mut self.inner.tar_data, entry, &raw mut out)
             if(r is Result.Err) {
                 var Err(e) = r else unsafe { unreachable }
                 return Result.Err(e)
@@ -176,26 +176,104 @@ public struct ArchiveHandle {
     }
 }
 
+// ── safe ZIP writer ───────────────────────────────────────────────────────
+
+/// Safe in-memory ZIP writer. Entries are STORED (uncompressed) with names and
+/// byte slices; `finish` produces the archive bytes and `save` writes them to
+/// a path. The writer is single-shot: calling `finish`/`save` again returns the
+/// same bytes without appending a second central directory.
+@direct_init
+public struct ZipWriter {
+    internal var inner : raw::ZipWriter
+    internal var finished : bool
+
+    @make
+    func make() : ZipWriter {
+        return ZipWriter {
+            inner : raw::ZipWriter {
+                entries : vector<raw::ZipWriteEntry>(),
+                data : vector<u8>()
+            },
+            finished : false
+        }
+    }
+
+    public func new() : ZipWriter {
+        return ZipWriter.make()
+    }
+
+    /// Add a stored entry. `name` is the archive-relative path (forward
+    /// slashes); interior NUL bytes are rejected because the ZIP name encoding
+    /// is C-string based.
+    public func add_bytes(&mut self, name : &str, data : &[u8]) : Result<std::Unit, ArchiveError> {
+        if(self.finished) {
+            return Result.Err(ArchiveError.InvalidFormat(string("cannot add entries after finish")))
+        }
+        if(name.size() == 0) {
+            return Result.Err(ArchiveError.InvalidFormat(string("empty entry name")))
+        }
+        var i : size_t = 0
+        while(i < name.size()) {
+            if(name.get(i) == 0 as char) {
+                return Result.Err(ArchiveError.InvalidFormat(string("entry name contains NUL")))
+            }
+            i += 1
+        }
+
+        var name_buf = string()
+        name_buf.append_view(name.to_view())
+        name_buf.append(0 as char)
+        raw::zip_writer_add_file(&raw mut self.inner, name_buf.c_str(), data.data(), data.size())
+        self.finished = false
+        return Result.Ok(std::Unit{})
+    }
+
+    /// Append the central directory (once) and return the ZIP bytes.
+    public func finish(&mut self) : vector<u8> {
+        if(!self.finished) {
+            raw::zip_writer_close(&raw mut self.inner)
+            self.finished = true
+        }
+        var out = vector<u8>()
+        var i : size_t = 0
+        while(i < self.inner.data.size()) {
+            out.push(self.inner.data.get(i))
+            i += 1
+        }
+        return out
+    }
+
+    public func save(&mut self, path : &path::Path) : Result<std::Unit, ArchiveError> {
+        var bytes = self.finish()
+        var ps = path.as_string()
+        var written = fs::write_text_file(ps.c_str(), bytes.data(), bytes.size())
+        if(written is Result.Err) {
+            return Result.Err(ArchiveError.IoError(string("failed to write ZIP data")))
+        }
+        return Result.Ok(std::Unit{})
+    }
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────
 
-func archive_safe_from_bytes(data : *u8, len : size_t) : Result<ArchiveHandle, ArchiveError> {
+func archive_safe_from_bytes(data : *u8, len : size_t) : Result<Archive, ArchiveError> {
     if(len == 0) {
         return Result.Err(ArchiveError.InvalidFormat(string("empty archive")))
     }
 
-    var zip_archive = Archive {
-        zip_data : ZipArchive { data : vector<u8>(), entries : vector<ArchiveEntry>(), data_loaded : false },
-        tar_data : TarArchive { data : vector<u8>(), entries : vector<ArchiveEntry>(), data_loaded : false },
+    var zip_archive = raw::Archive {
+        zip_data : raw::ZipArchive { data : vector<u8>(), entries : vector<ArchiveEntry>(), data_loaded : false },
+        tar_data : raw::TarArchive { data : vector<u8>(), entries : vector<ArchiveEntry>(), data_loaded : false },
         archive_type : 1,
         loaded : false
     }
-    var zr = open_zip_bytes(data, len, &raw mut zip_archive.zip_data)
+    var zr = raw::open_zip_bytes(data, len, &raw mut zip_archive.zip_data)
     if(zr is Result.Ok) {
         zip_archive.loaded = true
-        return Result.Ok(ArchiveHandle { inner : zip_archive })
+        return Result.Ok(Archive { inner : zip_archive })
     }
 
-    var tar_archive = TarArchive { data : vector<u8>(), entries : vector<ArchiveEntry>(), data_loaded : false }
+    var tar_archive = raw::TarArchive { data : vector<u8>(), entries : vector<ArchiveEntry>(), data_loaded : false }
     unsafe {
         var i : size_t = 0
         while(i < len) {
@@ -207,7 +285,7 @@ func archive_safe_from_bytes(data : *u8, len : size_t) : Result<ArchiveHandle, A
         return Result.Err(ArchiveError.InvalidFormat(string("not a recognized archive format")))
     }
     tar_archive.data_loaded = true
-    var tr = parse_tar_entries(&raw mut tar_archive)
+    var tr = raw::parse_tar_entries(&raw mut tar_archive)
     if(tr is Result.Err) {
         return Result.Err(ArchiveError.InvalidFormat(string("failed to parse TAR entries")))
     }
@@ -215,9 +293,9 @@ func archive_safe_from_bytes(data : *u8, len : size_t) : Result<ArchiveHandle, A
         return Result.Err(ArchiveError.InvalidFormat(string("no valid TAR entries found")))
     }
 
-    return Result.Ok(ArchiveHandle {
-        inner : Archive {
-            zip_data : ZipArchive { data : vector<u8>(), entries : vector<ArchiveEntry>(), data_loaded : false },
+    return Result.Ok(Archive {
+        inner : raw::Archive {
+            zip_data : raw::ZipArchive { data : vector<u8>(), entries : vector<ArchiveEntry>(), data_loaded : false },
             tar_data : tar_archive,
             archive_type : 2,
             loaded : true
@@ -225,7 +303,7 @@ func archive_safe_from_bytes(data : *u8, len : size_t) : Result<ArchiveHandle, A
     })
 }
 
-func archive_safe_entry_ptr_const(archive : *Archive, index : size_t) : *ArchiveEntry {
+func archive_safe_entry_ptr_const(archive : *raw::Archive, index : size_t) : *ArchiveEntry {
     unsafe {
         if(archive.archive_type == 1) {
             return archive.zip_data.entries.get_ptr(index)
@@ -234,7 +312,7 @@ func archive_safe_entry_ptr_const(archive : *Archive, index : size_t) : *Archive
     }
 }
 
-func archive_safe_copy_entry(archive : *Archive, index : size_t) : ArchiveEntry {
+func archive_safe_copy_entry(archive : *raw::Archive, index : size_t) : ArchiveEntry {
     unsafe {
         var e = archive_safe_entry_ptr_const(archive, index)
         return ArchiveEntry {
@@ -249,7 +327,7 @@ func archive_safe_copy_entry(archive : *Archive, index : size_t) : ArchiveEntry 
     }
 }
 
-func archive_safe_entry_ptr_mut(archive : *mut Archive, index : size_t) : *mut ArchiveEntry {
+func archive_safe_entry_ptr_mut(archive : *mut raw::Archive, index : size_t) : *mut ArchiveEntry {
     unsafe {
         if(archive.archive_type == 1) {
             return archive.zip_data.entries.get_ptr(index)
@@ -258,7 +336,7 @@ func archive_safe_entry_ptr_mut(archive : *mut Archive, index : size_t) : *mut A
     }
 }
 
-func archive_safe_find_index(archive : *Archive, name : &str) : int {
+func archive_safe_find_index(archive : *raw::Archive, name : &str) : int {
     unsafe {
         var target = name.to_view()
         var count : size_t = 0

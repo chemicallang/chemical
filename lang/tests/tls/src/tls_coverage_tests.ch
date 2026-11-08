@@ -535,7 +535,7 @@ public func SHA256_abc_known_answer(env : &mut TestEnv) {
         0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad
     ]
     var actual : [32]u8
-    sha256_hash(&raw input[0], 3, &raw mut actual[0])
+    crypto::raw::sha256_hash(&raw input[0], 3, &raw mut actual[0])
     if(!tc_bytes_eq(&raw actual[0], &raw expected[0], 32)) {
         env.error("SHA-256('abc') known answer failed")
     }
@@ -550,7 +550,7 @@ public func SHA256_empty_known_answer(env : &mut TestEnv) {
         0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55
     ]
     var actual : [32]u8
-    sha256_hash(null, 0, &raw mut actual[0])
+    crypto::raw::sha256_hash(null, 0, &raw mut actual[0])
     if(!tc_bytes_eq(&raw actual[0], &raw expected[0], 32)) {
         env.error("SHA-256('') known answer failed")
     }
@@ -561,8 +561,8 @@ public func SHA256_deterministic(env : &mut TestEnv) {
     var input : [5]u8 = [0x01, 0x02, 0x03, 0x04, 0x05]
     var out1 : [32]u8
     var out2 : [32]u8
-    sha256_hash(&raw input[0], 5, &raw mut out1[0])
-    sha256_hash(&raw input[0], 5, &raw mut out2[0])
+    crypto::raw::sha256_hash(&raw input[0], 5, &raw mut out1[0])
+    crypto::raw::sha256_hash(&raw input[0], 5, &raw mut out2[0])
     if(!tc_bytes_eq(&raw out1[0], &raw out2[0], 32)) {
         env.error("SHA-256 should be deterministic")
     }
@@ -1175,7 +1175,7 @@ public func HMAC_SHA256_empty_inputs_works(env : &mut TestEnv) {
     var key : [1]u8 = [0x00]
     var msg : [1]u8 = [0x00]
     var tag : [32]u8
-    hmac_sha256(&raw key[0], 0, &raw msg[0], 0, &raw mut tag[0])
+    crypto::raw::hmac_sha256(&raw key[0], 0, &raw msg[0], 0, &raw mut tag[0])
     if(!tc_bytes_not_zero(&raw tag[0], 32)) {
         env.error("HMAC with empty inputs should produce non-zero output")
     }
@@ -1188,8 +1188,8 @@ public func HMAC_SHA256_deterministic(env : &mut TestEnv) {
     var msg : [5]u8 = [0x48, 0x65, 0x6C, 0x6C, 0x6F]
     var tag1 : [32]u8
     var tag2 : [32]u8
-    hmac_sha256(&raw key[0], 16, &raw msg[0], 5, &raw mut tag1[0])
-    hmac_sha256(&raw key[0], 16, &raw msg[0], 5, &raw mut tag2[0])
+    crypto::raw::hmac_sha256(&raw key[0], 16, &raw msg[0], 5, &raw mut tag1[0])
+    crypto::raw::hmac_sha256(&raw key[0], 16, &raw msg[0], 5, &raw mut tag2[0])
     if(!tc_bytes_eq(&raw tag1[0], &raw tag2[0], 32)) {
         env.error("HMAC-SHA256 should be deterministic")
     }

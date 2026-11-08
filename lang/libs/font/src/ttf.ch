@@ -634,6 +634,70 @@ public struct TextMetrics {
     var descent : i32
 }
 
+// Number of bytes in the UTF-8 sequence starting at `pos` (1..4). Invalid or
+// truncated leads advance by one byte so measurement always makes progress.
+func font_utf8_advance(data : *char, len : size_t, pos : size_t) : size_t {
+        unsafe {
+        var b0 = data[pos] as u8
+        if(b0 < 0x80u8) { return 1 }
+        if(b0 >= 0xC2u8 && b0 <= 0xDFu8) {
+            if(pos + 1 < len) { return 2 }
+            return 1
+        }
+        if(b0 >= 0xE0u8 && b0 <= 0xEFu8) {
+            if(pos + 2 < len) { return 3 }
+            return 1
+        }
+        if(b0 >= 0xF0u8 && b0 <= 0xF4u8) {
+            if(pos + 3 < len) { return 4 }
+            return 1
+        }
+        return 1
+
+        }
+    }
+
+// Decode one UTF-8 code point at `pos`. Malformed, overlong, surrogate, and
+// out-of-range sequences decode to U+FFFD while `font_utf8_advance` still
+// consumes at least one byte.
+func font_utf8_codepoint(data : *char, len : size_t, pos : size_t) : u32 {
+        unsafe {
+        var b0 = (data[pos] as u8) as u32
+        if(b0 < 0x80u32) { return b0 }
+        if(b0 < 0xC2u32 || b0 > 0xF4u32) { return 0xFFFDu32 }
+
+        var need : size_t = 0
+        var cp : u32 = 0
+        if(b0 <= 0xDFu32) {
+            need = 1
+            cp = b0 & 0x1Fu32
+        } else if(b0 <= 0xEFu32) {
+            need = 2
+            cp = b0 & 0x0Fu32
+        } else {
+            need = 3
+            cp = b0 & 0x07u32
+        }
+        if(pos + need >= len) { return 0xFFFDu32 }
+
+        var i : size_t = 1
+        while(i <= need) {
+            var b = (data[pos + i] as u8) as u32
+            if(b < 0x80u32 || b > 0xBFu32) { return 0xFFFDu32 }
+            cp = (cp << 6) | (b & 0x3Fu32)
+            i += 1
+        }
+
+        // Reject overlong forms, UTF-16 surrogates, and values beyond U+10FFFF.
+        if(need == 2 && cp < 0x800u32) { return 0xFFFDu32 }
+        if(need == 3 && cp < 0x10000u32) { return 0xFFFDu32 }
+        if(cp >= 0xD800u32 && cp <= 0xDFFFu32) { return 0xFFFDu32 }
+        if(cp > 0x10FFFFu32) { return 0xFFFDu32 }
+        return cp
+
+        }
+    }
+
 public func font_measure_text(font : *mut Font, text : *char, text_len : size_t, font_size : float) : TextMetrics {
         unsafe {
         var scale = font_size / (font.units_per_em as float)
@@ -642,7 +706,10 @@ public func font_measure_text(font : *mut Font, text : *char, text_len : size_t,
 
         var i : size_t = 0
         while(i < text_len) {
-            var cp = text[i] as u32
+            // Decode a full UTF-8 code point; advancing by bytes here would
+            // measure each continuation byte as a separate glyph.
+            var cp = font_utf8_codepoint(text, text_len, i)
+            var step = font_utf8_advance(text, text_len, i)
             var glyph_result = font_get_glyph(font, cp)
             if(glyph_result is Result.Ok) {
                 var Ok(glyph_id) = glyph_result else unsafe { unreachable }
@@ -654,7 +721,7 @@ public func font_measure_text(font : *mut Font, text : *char, text_len : size_t,
                     if(glyph_height > max_height) { max_height = glyph_height }
                 }
             }
-            i += 1
+            i += step
         }
 
         return TextMetrics {

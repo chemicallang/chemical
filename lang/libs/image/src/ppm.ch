@@ -74,9 +74,9 @@ public func parse_ppm(data : *u8, data_len : size_t) : std::Result<Image, ImageE
 
         if(format == '6' as u8) {
             pos += 1
-            var img = image_create(w, h, 3)
+            var img = raw::image_create(w, h, 3)
             var total = (w as size_t) * (h as size_t) * 3
-            var ptr = img.pixels.data() as *mut u8
+            var ptr = img.pixel_data.data() as *mut u8
             var i : size_t = 0
             while(i < total && pos + i < data_len) {
                 ptr[i] = data[pos + i]
@@ -84,9 +84,9 @@ public func parse_ppm(data : *u8, data_len : size_t) : std::Result<Image, ImageE
             }
             return std.Result.Ok(img)
         } else {
-            var img = image_create(w, h, 3)
+            var img = raw::image_create(w, h, 3)
             var pixel_count = (w as size_t) * (h as size_t)
-            var ptr = img.pixels.data() as *mut u8
+            var ptr = img.pixel_data.data() as *mut u8
             var Ok(mv) = max_val else unsafe { unreachable }
             var i : size_t = 0
             while(i < pixel_count) {
@@ -118,7 +118,7 @@ public func parse_ppm(data : *u8, data_len : size_t) : std::Result<Image, ImageE
 // encode_ppm — encode Image to in-memory PPM bytes (no file I/O).
 public func encode_ppm(img : *mut Image) : std::Result<vector<u8>, ImageError> {
         unsafe {
-        if(img.channels != 3) {
+        if(img.img_channels != 3) {
             return std.Result.Err(ImageError.InvalidFormat(string("PPM requires 3 channels (RGB)")))
         }
 
@@ -126,14 +126,14 @@ public func encode_ppm(img : *mut Image) : std::Result<vector<u8>, ImageError> {
         header.append('P')
         header.append('6')
         header.append(' ')
-        header.append_integer(img.width)
+        header.append_integer(img.img_width)
         header.append(' ')
-        header.append_integer(img.height)
+        header.append_integer(img.img_height)
         header.append(' ')
         header.append_integer(255)
         header.append('\n')
 
-        var total_size = header.size() + img.pixels.size()
+        var total_size = header.size() + img.pixel_data.size()
         var file_data = vector<u8>()
         file_data.resize(total_size)
 
@@ -145,7 +145,7 @@ public func encode_ppm(img : *mut Image) : std::Result<vector<u8>, ImageError> {
         }
 
         var pix_bytes = image_total_bytes(img)
-        var pix_ptr = img.pixels.data()
+        var pix_ptr = img.pixel_data.data()
         var j : size_t = 0
         while(j < pix_bytes) {
             fptr[header.size() + j] = pix_ptr[j]
@@ -159,7 +159,7 @@ public func encode_ppm(img : *mut Image) : std::Result<vector<u8>, ImageError> {
 
 public func save_ppm(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
         unsafe {
-        if(img.channels != 3) {
+        if(img.img_channels != 3) {
             return std.Result.Err(ImageError.InvalidFormat(string("PPM requires 3 channels (RGB)")))
         }
 
@@ -167,14 +167,14 @@ public func save_ppm(img : *mut Image, path : *char) : std::Result<std::Unit, Im
         header.append('P')
         header.append('6')
         header.append(' ')
-        header.append_integer(img.width)
+        header.append_integer(img.img_width)
         header.append(' ')
-        header.append_integer(img.height)
+        header.append_integer(img.img_height)
         header.append(' ')
         header.append_integer(255)
         header.append('\n')
 
-        var total_size = header.size() + img.pixels.size()
+        var total_size = header.size() + img.pixel_data.size()
         var file_data = vector<u8>()
         file_data.resize(total_size)
 
@@ -186,7 +186,7 @@ public func save_ppm(img : *mut Image, path : *char) : std::Result<std::Unit, Im
         }
 
         var pix_bytes = image_total_bytes(img)
-        var pix_ptr = img.pixels.data()
+        var pix_ptr = img.pixel_data.data()
         var j : size_t = 0
         while(j < pix_bytes) {
             fptr[header.size() + j] = pix_ptr[j]

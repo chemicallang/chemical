@@ -9,11 +9,11 @@ func test_rle_all_unique(env : &mut TestEnv) {
     var input : [10]u8 = [ 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09 ];
     var compressed : [64]u8;
     var comp_len : size_t = 0;
-    var r = compression::compress(&raw input[0], 10, &raw mut compressed[0], &raw mut comp_len, 64);
+    var r = compression::raw::compress(&raw input[0], 10, &raw mut compressed[0], &raw mut comp_len, 64);
     if(r is Result.Err) { env.error("compress failed"); return; }
     var decompressed : [64]u8;
     var dec_len : size_t = 0;
-    var r2 = compression::decompress(&raw compressed[0], comp_len, &raw mut decompressed[0], &raw mut dec_len, 64);
+    var r2 = compression::raw::decompress(&raw compressed[0], comp_len, &raw mut decompressed[0], &raw mut dec_len, 64);
     if(r2 is Result.Err) { env.error("decompress failed"); return; }
     if(dec_len != 10) { env.error("decompressed length wrong"); return; }
     var i : size_t = 0;
@@ -31,13 +31,13 @@ func test_rle_max_run(env : &mut TestEnv) {
     while(i < 255) { input[i] = 0xAB; i += 1; }
     var compressed : [512]u8;
     var comp_len : size_t = 0;
-    var r = compression::compress(&raw input[0], 255, &raw mut compressed[0], &raw mut comp_len, 512);
+    var r = compression::raw::compress(&raw input[0], 255, &raw mut compressed[0], &raw mut comp_len, 512);
     if(r is Result.Err) { env.error("compress failed"); return; }
     // Should compress to 2 bytes (run-length=255, byte-value=0xAB)
     if(comp_len < 1) { env.error("compressed data too short"); return; }
     var decompressed : [512]u8;
     var dec_len : size_t = 0;
-    var r2 = compression::decompress(&raw compressed[0], comp_len, &raw mut decompressed[0], &raw mut dec_len, 512);
+    var r2 = compression::raw::decompress(&raw compressed[0], comp_len, &raw mut decompressed[0], &raw mut dec_len, 512);
     if(r2 is Result.Err) { env.error("decompress failed"); return; }
     if(dec_len != 255) { env.error("decompressed length should be 255"); return; }
     var j : size_t = 0;
@@ -55,11 +55,11 @@ func test_rle_overflow_run(env : &mut TestEnv) {
     while(i < 300) { input[i] = 0x42; i += 1; }
     var compressed : [512]u8;
     var comp_len : size_t = 0;
-    var r = compression::compress(&raw input[0], 300, &raw mut compressed[0], &raw mut comp_len, 512);
+    var r = compression::raw::compress(&raw input[0], 300, &raw mut compressed[0], &raw mut comp_len, 512);
     if(r is Result.Err) { env.error("compress failed"); return; }
     var decompressed : [512]u8;
     var dec_len : size_t = 0;
-    var r2 = compression::decompress(&raw compressed[0], comp_len, &raw mut decompressed[0], &raw mut dec_len, 512);
+    var r2 = compression::raw::decompress(&raw compressed[0], comp_len, &raw mut decompressed[0], &raw mut dec_len, 512);
     if(r2 is Result.Err) { env.error("decompress failed"); return; }
     if(dec_len != 300) { env.error("decompressed length should be 300"); return; }
     var j : size_t = 0;
@@ -73,12 +73,12 @@ func test_rle_overflow_run(env : &mut TestEnv) {
 func test_rle_compress_empty(env : &mut TestEnv) {
     var compressed : [8]u8;
     var comp_len : size_t = 0;
-    var r = compression::compress(&raw compressed[0] as *u8, 0, &raw mut compressed[0], &raw mut comp_len, 8);
+    var r = compression::raw::compress(&raw compressed[0] as *u8, 0, &raw mut compressed[0], &raw mut comp_len, 8);
     if(r is Result.Err) { env.error("compress empty failed"); return; }
     // Compressing empty should produce some valid output
     var decompressed : [8]u8;
     var dec_len : size_t = 0;
-    var r2 = compression::decompress(&raw compressed[0], comp_len, &raw mut decompressed[0], &raw mut dec_len, 8);
+    var r2 = compression::raw::decompress(&raw compressed[0], comp_len, &raw mut decompressed[0], &raw mut dec_len, 8);
     if(r2 is Result.Err) { env.error("decompress of empty-compressed failed"); return; }
     if(dec_len != 0) {
         env.error("compress empty -> decompress should produce 0 bytes");
@@ -93,11 +93,11 @@ func test_rle_all_zeros(env : &mut TestEnv) {
     while(i < 50) { input[i] = 0; i += 1; }
     var compressed : [128]u8;
     var comp_len : size_t = 0;
-    var r = compression::compress(&raw input[0], 50, &raw mut compressed[0], &raw mut comp_len, 128);
+    var r = compression::raw::compress(&raw input[0], 50, &raw mut compressed[0], &raw mut comp_len, 128);
     if(r is Result.Err) { env.error("compress failed"); return; }
     var decompressed : [128]u8;
     var dec_len : size_t = 0;
-    var r2 = compression::decompress(&raw compressed[0], comp_len, &raw mut decompressed[0], &raw mut dec_len, 128);
+    var r2 = compression::raw::decompress(&raw compressed[0], comp_len, &raw mut decompressed[0], &raw mut dec_len, 128);
     if(r2 is Result.Err) { env.error("decompress failed"); return; }
     if(dec_len != 50) { env.error("decompressed length wrong"); return; }
     var j : size_t = 0;
@@ -114,11 +114,11 @@ func test_rle_mixed_runs(env : &mut TestEnv) {
                            0x43, 0x43, 0x44, 0x45, 0x45, 0x45, 0x45, 0x45, 0x45, 0x45 ];
     var compressed : [64]u8;
     var comp_len : size_t = 0;
-    var r = compression::compress(&raw input[0], 18, &raw mut compressed[0], &raw mut comp_len, 64);
+    var r = compression::raw::compress(&raw input[0], 18, &raw mut compressed[0], &raw mut comp_len, 64);
     if(r is Result.Err) { env.error("compress failed"); return; }
     var decompressed : [64]u8;
     var dec_len : size_t = 0;
-    var r2 = compression::decompress(&raw compressed[0], comp_len, &raw mut decompressed[0], &raw mut dec_len, 64);
+    var r2 = compression::raw::decompress(&raw compressed[0], comp_len, &raw mut decompressed[0], &raw mut dec_len, 64);
     if(r2 is Result.Err) { env.error("decompress failed"); return; }
     if(dec_len != 18) { env.error("decompressed length wrong"); return; }
     var k : size_t = 0;
@@ -134,7 +134,7 @@ func test_rle_invalid_decompress(env : &mut TestEnv) {
     var corrupted : [4]u8 = [ 5, 0x41, 0, 0x42 ];
     var decompressed : [64]u8;
     var dec_len : size_t = 0;
-    var r = compression::decompress(&raw corrupted[0], 4, &raw mut decompressed[0], &raw mut dec_len, 64);
+    var r = compression::raw::decompress(&raw corrupted[0], 4, &raw mut decompressed[0], &raw mut dec_len, 64);
     // A zero-count run signals end, so should return len=5 with just AAA
     if(r is Result.Err) { env.error("decompress with end marker should succeed"); return; }
     var Ok(len) = r else unsafe { unreachable };

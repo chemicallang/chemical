@@ -56,9 +56,9 @@ public func stringify_pretty(value : &JsonValue) : std::string {
 // typed encode: serialize any Serializer type (including #json structs) to JSON text
 public func <T : std::Serializer<JsonValue, JsonEncoder>> encode(value : &T) : std::Result<std::string, std::SerializationError> {
     var output = std::string()
-    var counts = __new_counts()
-    var encoder = __new_encoder(&mut output, &mut counts)
-    var r = value.serialize(__unsafe_cast_json_encoder<JsonValue>(&encoder)) as std::Result<std::Unit, std::SerializationError>
+    var counts = json::raw::new_counts()
+    var encoder = json::raw::new_encoder(&mut output, &mut counts)
+    var r = value.serialize(json::raw::cast_encoder<JsonValue>(&encoder)) as std::Result<std::Unit, std::SerializationError>
     if(r is std::Result.Ok) {
         // move the buffer out (leave an empty string behind)
         var out = std::replace(&mut output, std::string())
@@ -69,17 +69,6 @@ public func <T : std::Serializer<JsonValue, JsonEncoder>> encode(value : &T) : s
     // non-generic code), so the message is static here. The lower-level
     // container API (ObjectEncoder.field etc.) still propagates the real error.
     return std::Result.Err<std::string, std::SerializationError>(se_err("encode failed"))
-}
-
-// non-generic helpers: create the encoder state outside generic functions -
-// &raw mut of generic-instantiation locals (vector<u64>) inside a generic
-// function hits a type-alias quirk, so the creation lives in a plain function
-public func __new_counts() : std::vector<u64> {
-    return std::vector<u64>()
-}
-
-public func __new_encoder(buffer : &mut std::string, counts : &mut std::vector<u64>) : JsonEncoder {
-    return JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
 }
 
 // typed decode: deserialize any Deserializer type (including #json structs) from a JsonValue
@@ -93,9 +82,9 @@ public func <T> decode(value : &JsonValue) : std::Result<T, std::SerializationEr
 public func <T> decode_str(text : std::string_view) : std::Result<T, std::SerializationError> {
     // Pattern-matching a Result inside a generic function mis-types the bound
     // payload (the compiler can't link the concrete variant member), so the
-    // parse + payload extraction happens in the NON-generic __try_parse helper,
+    // parse + payload extraction happens in the non-generic json::raw::try_parse helper,
     // which returns an owned Option<JsonValue>.
-    var opt = __try_parse(text)
+    var opt = json::raw::try_parse(text)
     if(opt is std::Option.None) {
         return std::Result.Err<T, std::SerializationError>(se_err("json parse error"))
     }
@@ -107,16 +96,3 @@ public func <T> decode_str(text : std::string_view) : std::Result<T, std::Serial
 }
 
 } // end namespace json
-
-// non-generic parse helper used by json::decode_str: parses the text and moves
-// the root JsonValue out of the parse Result on success (None on parse error,
-// whose detail is dropped at this layer). Lives OUTSIDE the generic decode_str
-// so its pattern binds happen in a non-generic context (where they link).
-public func __try_parse(text : std::string_view) : std::Option<JsonValue> {
-    var pr = json::parse(text)
-    if(pr is std::Result.Err) {
-        return std::Option.None<JsonValue>()
-    }
-    var Ok(v) = pr else unsafe { unreachable }
-    return std::Option.Some<JsonValue>(std::replace(&mut v, JsonValue.Null()))
-}

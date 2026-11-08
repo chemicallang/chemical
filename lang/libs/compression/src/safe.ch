@@ -4,16 +4,13 @@
 // Allocation failure is reported through `CompressionError.OutOfMemory()`
 // instead of aborting, and every malformed RLE stream is rejected.
 //
-// They live under `compression::safe` because Chemical has no function
-// overloading: the raw buffer entry points keep their names in `compression`.
+// The legacy raw RLE/out-buffer entry points live under `compression::raw`.
 //
 // Wire format (matching the legacy RLE codec): a sequence of
 // `(count : u8, byte : u8)` pairs, terminated by a single `0` byte. No count
 // may be zero except the terminator, and no trailer is allowed after it.
 
 public namespace compression {
-
-public namespace safe {
 
 using std::Result;
 using std::vector;
@@ -89,6 +86,4 @@ public func decompress(data : &[u8]) : Result<vector<u8>, CompressionError> {
     return Result.Err(CompressionError.InvalidData())
 }
 
-} // namespace safe
-
-} // namespace compression
+} // end namespace compression

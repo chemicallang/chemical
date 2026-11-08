@@ -1,5 +1,5 @@
 // Compile errors: `compile()` never throws, it records a message in
-// `Regex.compile_error`. These tests pin the exact messages.
+// `Regex.error()`. These tests pin the exact messages.
 
 @test
 public func regex_error_unclosed_class(env : &mut TestEnv) {
@@ -74,5 +74,5 @@ public func regex_valid_patterns_compile(env : &mut TestEnv) {
 public func regex_error_records_pattern(env : &mut TestEnv) {
     var re = regex::compile("[abc")
     var expected = std::string_view("[abc")
-    rx_check(env, re.pattern.equals_view(&expected), "pattern is recorded even on error")
+    rx_check(env, re.pattern().equals(&expected), "pattern is recorded even on error")
 }

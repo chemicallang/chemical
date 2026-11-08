@@ -34,15 +34,20 @@ using std::string;
 using std::vector;
 using std::Result;
 using std::string_view;
+using std::span;
 
 public struct CborDecoder {
-    var data : vector<u8>
-    var pos : size_t
-    var err : CborError
+    internal var data : span<u8>
+    internal var pos : size_t
+    internal var err : CborError
 
     func remaining(&self) : u64 {
         if(self.pos >= self.data.size()) { return 0u64 }
         return (self.data.size() - self.pos) as u64
+    }
+
+    func byte_at(&self, at : size_t) : u8 {
+        return unsafe(*self.data.get(at))
     }
 
     func fail(&mut self, e : CborError) : bool {
@@ -73,7 +78,7 @@ public struct CborDecoder {
             // The out-of-range `get` past the end returning 0 is what turned a
             // stride bug into "IT\0\0" instead of an obvious failure.
             var at = self.pos
-            var byte_val = self.data.get(at)
+            var byte_val = self.byte_at(at)
             self.pos += 1u
             v = (v << 8) | (byte_val as u64)
         }
@@ -85,7 +90,7 @@ public struct CborDecoder {
     // indefinite-length item to know when to stop.
     func at_break(&mut self) : bool {
         if(self.pos >= self.data.size()) { return false }
-        return self.data.get(self.pos) == 0xFFu8
+        return self.byte_at(self.pos) == 0xFFu8
     }
 
     func skip_break(&mut self) {
@@ -117,7 +122,7 @@ public struct CborDecoder {
         for(var i = 0u64; i < len; i++) {
             // Read the cursor alone, then advance it - see read_uint for why
             var at = self.pos
-            var byte_val = self.data.get(at)
+            var byte_val = self.byte_at(at)
             self.pos += 1u
             out.push_back(byte_val)
         }
@@ -136,7 +141,7 @@ public struct CborDecoder {
                 return fail(CborError.UnexpectedEnd(self.pos))
             }
             var at = self.pos
-            var initial = self.data.get(self.pos)
+            var initial = self.byte_at(self.pos)
             self.pos += 1u
             var chunk_major = (initial >> 5) as u8
             var ai = initial & 0x1Fu8
@@ -300,7 +305,7 @@ public struct CborDecoder {
             return fail(CborError.UnexpectedEnd(self.pos))
         }
         var start = self.pos
-        var initial = self.data.get(self.pos)
+        var initial = self.byte_at(self.pos)
         self.pos += 1u
         var major = (initial >> 5) as u8
         var ai = initial & 0x1Fu8
@@ -402,10 +407,11 @@ public struct CborDecoder {
     }
 }
 
-// Decode exactly one CBOR item from `data`, which must be fully consumed.
-public func decode(data : vector<u8>) : Result<CborValue, CborError> {
+// Decode exactly one CBOR item from `data`, which must be fully consumed. The
+// canonical form takes a borrowed byte view; nothing is copied out of it.
+public func decode(data : &[u8]) : Result<CborValue, CborError> {
     var d = CborDecoder {
-        data : data,
+        data : unsafe(span<u8>(data.data(), data.size())),
         pos : 0u,
         err : CborError.UnexpectedEnd(0u)
     }
@@ -426,9 +432,9 @@ public func decode(data : vector<u8>) : Result<CborValue, CborError> {
 // match binds by reference and the language rejects moving that binding � so
 // `Err` is otherwise write-only. Re-decoding to produce a message is cheap
 // next to staring at a hex dump wondering which byte the parser disliked.
-public func explain(data : vector<u8>) : string {
+public func explain(data : &[u8]) : string {
     var d = CborDecoder {
-        data : data,
+        data : unsafe(span<u8>(data.data(), data.size())),
         pos : 0u,
         err : CborError.UnexpectedEnd(0u)
     }

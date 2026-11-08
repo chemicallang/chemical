@@ -41,6 +41,10 @@ public struct Arc<T> {
     // able to retarget or corrupt them.
     private var ptr : *mut ArcInner<T>
 
+    public func new(value : T) : Arc<T> {
+        return arc(value)
+    }
+
     @delete
     func delete(&mut self) {
         if(self.ptr == null) {

@@ -4,21 +4,21 @@ using namespace std;
 // lang/tests/fuzz/corpus/ for external fuzz drivers.
 @test
 func fuzz_encoding_malformed(env : &mut TestEnv) {
-    var b1 = encoding::safe::base64_decode("!")
+    var b1 = encoding::base64_decode("!")
     if(b1 is Result.Ok) { env.error("base64 '!' accepted") }
-    var b2 = encoding::safe::base64_decode("A")
+    var b2 = encoding::base64_decode("A")
     if(b2 is Result.Ok) { env.error("base64 length 1 accepted") }
-    var b3 = encoding::safe::base64_decode("AA=A")
+    var b3 = encoding::base64_decode("AA=A")
     if(b3 is Result.Ok) { env.error("base64 interior padding accepted") }
-    var h1 = encoding::safe::hex_decode("zz")
+    var h1 = encoding::hex_decode("zz")
     if(h1 is Result.Ok) { env.error("hex 'zz' accepted") }
-    var u1 = encoding::safe::url_decode("%%")
+    var u1 = encoding::url_decode("%%")
     if(u1 is Result.Ok) { env.error("url '%%' accepted") }
-    var u2 = encoding::safe::url_decode("%FF")
+    var u2 = encoding::url_decode("%FF")
     if(u2 is Result.Ok) { env.error("url invalid UTF-8 accepted") }
     var bad : [3]u8 = [0xF0u8, 0x28u8, 0x8Cu8]
     var view : [u8] = bad
-    if(encoding::safe::utf8_to_string(view) is Result.Ok) {
+    if(encoding::utf8_to_string(view) is Result.Ok) {
         env.error("malformed UTF-8 accepted")
     }
 }
@@ -32,7 +32,8 @@ func fuzz_json_cbor_malformed(env : &mut TestEnv) {
     var bad_cbor = vector<u8>()
     bad_cbor.push(0x82u8)
     bad_cbor.push(0x01u8)
-    var cv = cbor::decode(bad_cbor)
+    var cbor_view : [u8] = &bad_cbor
+    var cv = cbor::decode(cbor_view)
     if(cv is Result.Ok) { env.error("truncated CBOR accepted") }
 }
 

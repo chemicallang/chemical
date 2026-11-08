@@ -9,7 +9,11 @@ func uuid_thread_entry(arg : *void) : *void {
         unsafe {
         var ta = arg as *mut UUIDThreadArg;
         for (var i = 0; i < 50; i++) {
-            ta.v.push(uuid::v7());
+            var gen = uuid::v7();
+            if(gen is std::Result.Ok) {
+                var Ok(u) = gen else unsafe { unreachable }
+                ta.v.push(u);
+            }
         }
         return null;
 
@@ -126,8 +130,12 @@ func test_uuid_parsing_invalid(env : &mut TestEnv) {
             env.error("Parsing should have failed for invalid hex char 'g'");
         }
         Err(err) => {
-            expect_true(env, err.contains(std::string_view("Invalid hex character")), "Error message should mention invalid hex character");
-            expect_true(env, err.contains(std::string_view("35")), "Error message should point to index 35");
+            expect_true(env, err is UuidError.InvalidHex, "Error should be UuidError.InvalidHex");
+            if(err is UuidError.InvalidHex) {
+                var InvalidHex(pos, ch) = err else unsafe { unreachable }
+                expect_uint_eq(env, pos as uint, 35u, "Error should point to index 35");
+                expect_true(env, ch == 'g', "Error should carry the offending character");
+            }
         }
     }
 }
@@ -153,7 +161,9 @@ func test_uuid_sorting(env : &mut TestEnv) {
 
 @test
 func test_uuid_v4(env : &mut TestEnv) {
-    var u1 = uuid::v4();
+    var gen1 = uuid::v4();
+    if(gen1 is std::Result.Err) { env.error("UUIDv4 generation failed"); return }
+    var Ok(u1) = gen1 else unsafe { unreachable }
     var b1 = u1.to_bytes();
 
     // Check version is 4 (byte 6 high nibble == 4)
@@ -163,13 +173,17 @@ func test_uuid_v4(env : &mut TestEnv) {
     expect_uint_eq(env, (b1.get(8) >> 6u) as uint, 2u, "UUIDv4 variant bits must be 2 (0b10)");
 
     // Uniqueness test
-    var u2 = uuid::v4();
+    var gen2 = uuid::v4();
+    if(gen2 is std::Result.Err) { env.error("UUIDv4 generation failed"); return }
+    var Ok(u2) = gen2 else unsafe { unreachable }
     expect_false(env, u1.equals(&u2), "Consecutive v4 calls must generate unique UUIDs");
 }
 
 @test
 func test_uuid_v7(env : &mut TestEnv) {
-    var u1 = uuid::v7();
+    var gen1 = uuid::v7();
+    if(gen1 is std::Result.Err) { env.error("UUIDv7 generation failed"); return }
+    var Ok(u1) = gen1 else unsafe { unreachable }
     var b1 = u1.to_bytes();
 
     // Check version is 7 (byte 6 high nibble == 7)
@@ -189,7 +203,9 @@ func test_uuid_v7(env : &mut TestEnv) {
     expect_true(env, ts > 0u64, "UUIDv7 timestamp must be non-zero");
 
     // Monotonicity / Uniqueness test under rapid generation
-    var u2 = uuid::v7();
+    var gen2 = uuid::v7();
+    if(gen2 is std::Result.Err) { env.error("UUIDv7 generation failed"); return }
+    var Ok(u2) = gen2 else unsafe { unreachable }
     expect_false(env, u1.equals(&u2), "Consecutive v7 calls must generate unique UUIDs");
     expect_true(env, u1.compare(&u2) < 0, "UUIDv7 generated later must compare greater lexicographically");
 }

@@ -198,7 +198,7 @@ public interface TestReporter {
     func begin_runner(&mut self, name : string_view)
 
     /** one test finished (streamed live) */
-    func on_test(&mut self, outcome : *TestOutcome)
+    func on_test(&mut self, outcome : &TestOutcome)
 
     /** the current runner finished streaming */
     func end_runner(&mut self)
@@ -385,7 +385,7 @@ impl TestReporter for ConsoleReporter {
         }
     }
 
-    func on_test(&mut self, outcome : *TestOutcome) {
+    func on_test(&mut self, outcome : &TestOutcome) {
         unsafe {
             if(outcome.passed) {
                 self.cur_pass += 1

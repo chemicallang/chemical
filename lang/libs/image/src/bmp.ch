@@ -62,7 +62,7 @@ public func parse_bmp(data : *u8, data_len : size_t) : std::Result<Image, ImageE
             return std.Result.Err(ImageError.UnsupportedFormat(string("unsupported bits per pixel")))
         }
 
-        var img = image_create(width, abs_height, channels)
+        var img = raw::image_create(width, abs_height, channels)
         var row_size = (((bits_per_pixel as int) * width + 31) / 32) * 4
 
         var row : int = 0
@@ -80,8 +80,8 @@ public func parse_bmp(data : *u8, data_len : size_t) : std::Result<Image, ImageE
             while(col < width) {
                 var px_src = src_offset + (col as size_t) * (bits_per_pixel as size_t / 8)
                 var px_dst = dst_offset + (col as size_t) * (channels as size_t)
-                if(px_src + 2 < data_len && px_dst + 2 < img.pixels.size()) {
-                    var ptr = img.pixels.data() as *mut u8
+                if(px_src + 2 < data_len && px_dst + 2 < img.pixel_data.size()) {
+                    var ptr = img.pixel_data.data() as *mut u8
                     if(channels == 3) {
                         ptr[px_dst] = data[px_src + 2]
                         ptr[px_dst + 1] = data[px_src + 1]
@@ -109,15 +109,15 @@ public func parse_bmp(data : *u8, data_len : size_t) : std::Result<Image, ImageE
 public func encode_bmp(img : *mut Image) : std::Result<vector<u8>, ImageError> {
         unsafe {
         var bpp : int
-        if(img.channels == 4) {
+        if(img.img_channels == 4) {
             bpp = 32
-        } else if(img.channels == 3) {
+        } else if(img.img_channels == 3) {
             bpp = 24
         } else {
             bpp = 8
         }
-        var row_size = (((bpp * img.width + 31) / 32) * 4)
-        var pixel_data_size = row_size * img.height
+        var row_size = (((bpp * img.img_width + 31) / 32) * 4)
+        var pixel_data_size = row_size * img.img_height
         var file_size = 54 + pixel_data_size
 
         var file_data = vector<u8>()
@@ -130,29 +130,29 @@ public func encode_bmp(img : *mut Image) : std::Result<vector<u8>, ImageError> {
         write_u32_le(fptr, 2, file_size as u32)
         write_u32_le(fptr, 10, 54)
         write_u32_le(fptr, 14, 40)
-        write_u32_le(fptr, 18, img.width as u32)
-        write_u32_le(fptr, 22, img.height as u32)
+        write_u32_le(fptr, 18, img.img_width as u32)
+        write_u32_le(fptr, 22, img.img_height as u32)
         write_u16_le(fptr, 26, 1)
         write_u16_le(fptr, 28, bpp as u16)
         write_u32_le(fptr, 30, 0)
 
-        var pix_ptr = img.pixels.data()
+        var pix_ptr = img.pixel_data.data()
         var row : int = 0
-        while(row < img.height) {
-            var src_row = img.height - 1 - row
-            var src_offset = (src_row as size_t) * (img.width as size_t) * (img.channels as size_t)
+        while(row < img.img_height) {
+            var src_row = img.img_height - 1 - row
+            var src_offset = (src_row as size_t) * (img.img_width as size_t) * (img.img_channels as size_t)
             var dst_offset = 54 + (row as size_t) * (row_size as size_t)
 
             var col : int = 0
-            while(col < img.width) {
-                var px_src = src_offset + (col as size_t) * (img.channels as size_t)
+            while(col < img.img_width) {
+                var px_src = src_offset + (col as size_t) * (img.img_channels as size_t)
                 var px_dst = dst_offset + (col as size_t) * (bpp as size_t / 8)
 
-                if(img.channels >= 3) {
+                if(img.img_channels >= 3) {
                     fptr[px_dst] = pix_ptr[px_src + 2]
                     fptr[px_dst + 1] = pix_ptr[px_src + 1]
                     fptr[px_dst + 2] = pix_ptr[px_src]
-                    if(img.channels == 4) {
+                    if(img.img_channels == 4) {
                         fptr[px_dst + 3] = pix_ptr[px_src + 3]
                     }
                 } else {
@@ -171,15 +171,15 @@ public func encode_bmp(img : *mut Image) : std::Result<vector<u8>, ImageError> {
 public func save_bmp(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
         unsafe {
         var bpp : int
-        if(img.channels == 4) {
+        if(img.img_channels == 4) {
             bpp = 32
-        } else if(img.channels == 3) {
+        } else if(img.img_channels == 3) {
             bpp = 24
         } else {
             bpp = 8
         }
-        var row_size = (((bpp * img.width + 31) / 32) * 4)
-        var pixel_data_size = row_size * img.height
+        var row_size = (((bpp * img.img_width + 31) / 32) * 4)
+        var pixel_data_size = row_size * img.img_height
         var file_size = 54 + pixel_data_size
 
         var file_data = vector<u8>()
@@ -192,29 +192,29 @@ public func save_bmp(img : *mut Image, path : *char) : std::Result<std::Unit, Im
         write_u32_le(fptr, 2, file_size as u32)
         write_u32_le(fptr, 10, 54)
         write_u32_le(fptr, 14, 40)
-        write_u32_le(fptr, 18, img.width as u32)
-        write_u32_le(fptr, 22, img.height as u32)
+        write_u32_le(fptr, 18, img.img_width as u32)
+        write_u32_le(fptr, 22, img.img_height as u32)
         write_u16_le(fptr, 26, 1)
         write_u16_le(fptr, 28, bpp as u16)
         write_u32_le(fptr, 30, 0)
 
-        var pix_ptr = img.pixels.data()
+        var pix_ptr = img.pixel_data.data()
         var row : int = 0
-        while(row < img.height) {
-            var src_row = img.height - 1 - row
-            var src_offset = (src_row as size_t) * (img.width as size_t) * (img.channels as size_t)
+        while(row < img.img_height) {
+            var src_row = img.img_height - 1 - row
+            var src_offset = (src_row as size_t) * (img.img_width as size_t) * (img.img_channels as size_t)
             var dst_offset = 54 + (row as size_t) * (row_size as size_t)
 
             var col : int = 0
-            while(col < img.width) {
-                var px_src = src_offset + (col as size_t) * (img.channels as size_t)
+            while(col < img.img_width) {
+                var px_src = src_offset + (col as size_t) * (img.img_channels as size_t)
                 var px_dst = dst_offset + (col as size_t) * (bpp as size_t / 8)
 
-                if(img.channels >= 3) {
+                if(img.img_channels >= 3) {
                     fptr[px_dst] = pix_ptr[px_src + 2]
                     fptr[px_dst + 1] = pix_ptr[px_src + 1]
                     fptr[px_dst + 2] = pix_ptr[px_src]
-                    if(img.channels == 4) {
+                    if(img.img_channels == 4) {
                         fptr[px_dst + 3] = pix_ptr[px_src + 3]
                     }
                 } else {

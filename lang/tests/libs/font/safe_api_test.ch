@@ -35,13 +35,15 @@ func font_safe_write_u32(out : *mut u8, off : size_t, value : u32) {
 }
 
 // Minimal sfnt with `head` (units_per_em=1000), `hhea` (800/-200),
-// `maxp` (10 glyphs), and a format-6 `cmap` mapping 'A' -> glyph 1.
-func font_safe_build_tiny_font() : vector<u8> {
-    const HEAD_OFF : size_t = 76
-    const HHEA_OFF : size_t = 130
-    const MAXP_OFF : size_t = 166
-    const CMAP_OFF : size_t = 198
-    const TOTAL : size_t = 222
+// `maxp` (10 glyphs), a format-6 `cmap` mapping `first_code` -> glyph 1, and
+// an `hmtx` table giving glyph 1 an advance width of 500.
+func font_safe_build_tiny_font(first_code : u16 = 65u16) : vector<u8> {
+    const HEAD_OFF : size_t = 92
+    const HHEA_OFF : size_t = 146
+    const MAXP_OFF : size_t = 182
+    const CMAP_OFF : size_t = 214
+    const HMTX_OFF : size_t = 238
+    const TOTAL : size_t = 248
 
     var out = vector<u8>()
     out.resize(TOTAL)
@@ -49,7 +51,7 @@ func font_safe_build_tiny_font() : vector<u8> {
 
     // sfnt header
     font_safe_write_u32(p, 0, 0x00010000u32)
-    font_safe_write_u16(p, 4, 4u16)
+    font_safe_write_u16(p, 4, 5u16)
     font_safe_write_u16(p, 6, 0u16)
     font_safe_write_u16(p, 8, 0u16)
     font_safe_write_u16(p, 10, 0u16)
@@ -75,15 +77,27 @@ func font_safe_build_tiny_font() : vector<u8> {
     font_safe_write_u32(p, 68, CMAP_OFF as u32)
     font_safe_write_u32(p, 72, 24u32)
 
+    font_safe_write_u32(p, 76, 0x686D7478u32) // hmtx
+    font_safe_write_u32(p, 80, 0u32)
+    font_safe_write_u32(p, 84, HMTX_OFF as u32)
+    font_safe_write_u32(p, 88, 8u32)
+
     // head: units_per_em at +18
     font_safe_write_u16(p, HEAD_OFF + 18, 1000u16)
 
-    // hhea: ascent at +4, descent at +6
+    // hhea: ascent at +4, descent at +6, numberOfHMetrics at +34
     font_safe_write_u16(p, HHEA_OFF + 4, 800u16)
     font_safe_write_u16(p, HHEA_OFF + 6, 0xFF38u16) // -200
+    font_safe_write_u16(p, HHEA_OFF + 34, 2u16)
 
     // maxp: num_glyphs at +4
     font_safe_write_u16(p, MAXP_OFF + 4, 10u16)
+
+    // hmtx: glyph 0 advance=0/lsb=0, glyph 1 advance=500/lsb=0
+    font_safe_write_u16(p, HMTX_OFF, 0u16)
+    font_safe_write_u16(p, HMTX_OFF + 2, 0u16)
+    font_safe_write_u16(p, HMTX_OFF + 4, 500u16)
+    font_safe_write_u16(p, HMTX_OFF + 6, 0u16)
 
     // cmap: header + one Windows Unicode BMP subtable at offset 12
     font_safe_write_u16(p, CMAP_OFF, 0u16)
@@ -93,12 +107,12 @@ func font_safe_build_tiny_font() : vector<u8> {
     font_safe_write_u32(p, CMAP_OFF + 8, 12u32)
 
     var sub = CMAP_OFF + 12
-    font_safe_write_u16(p, sub, 6u16)      // format 6
-    font_safe_write_u16(p, sub + 2, 12u16) // length
-    font_safe_write_u16(p, sub + 4, 0u16)  // language
-    font_safe_write_u16(p, sub + 6, 65u16) // firstCode 'A'
-    font_safe_write_u16(p, sub + 8, 1u16)  // entryCount
-    font_safe_write_u16(p, sub + 10, 1u16) // glyph id
+    font_safe_write_u16(p, sub, 6u16)            // format 6
+    font_safe_write_u16(p, sub + 2, 12u16)       // length
+    font_safe_write_u16(p, sub + 4, 0u16)        // language
+    font_safe_write_u16(p, sub + 6, first_code)  // firstCode
+    font_safe_write_u16(p, sub + 8, 1u16)        // entryCount
+    font_safe_write_u16(p, sub + 10, 1u16)       // glyph id
 
     return out
 }
@@ -163,6 +177,24 @@ public func font_safe_measure_text_and_glyph(env : &mut TestEnv) {
     var measured = font.measure_text("A", 100.0f)
     if(measured.ascent != 80) { env.error("measured ascent should be 80") }
     if(measured.descent != 20) { env.error("measured descent should be 20") }
+}
+
+@test
+public func font_safe_measure_text_decodes_utf8(env : &mut TestEnv) {
+    // 'é' is U+00E9 (two UTF-8 bytes). The cmap maps that codepoint to glyph 1,
+    // whose advance is 500 units at 1000 upem, so at 100px the width is 50.
+    var bytes = font_safe_build_tiny_font(233u16)
+    var loaded = font::Font.load(font_safe_view(&bytes))
+    if(loaded is Result.Err) { env.error("UTF-8 fixture should load"); return }
+    var Ok(font) = loaded else unsafe { unreachable }
+
+    var measured = font.measure_text("é", 100.0f)
+    if(measured.width != 50) { env.error("two-byte UTF-8 codepoint should advance once") }
+
+    // An unmapped multi-byte codepoint contributes no width but must not be
+    // measured as two separate continuation bytes either.
+    var missing = font.measure_text("ø", 100.0f)
+    if(missing.width != 0) { env.error("unmapped codepoint should not add width") }
 }
 
 // ═══════════════════════════════════════════════════════════════

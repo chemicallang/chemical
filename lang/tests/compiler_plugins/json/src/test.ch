@@ -124,7 +124,7 @@ struct JMLargeVector {
 public func json_macro_scalar_struct_roundtrip(env : &mut TestEnv) {
     var buffer = std::string()
     var counts = std::vector<u64>()
-    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var encoder = JsonEncoder::from_parts(&mut buffer, &mut counts)
     var p = JMPoint { x : 10, y : -20 }
     var r = p.serialize(&encoder)
     if(!(r is std::Result.Ok)) { env.error("serialize returned Err"); return }
@@ -135,7 +135,7 @@ public func json_macro_scalar_struct_roundtrip(env : &mut TestEnv) {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
     if(!pr.ok) { env.error("scalar macro parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMPoint>()
@@ -150,7 +150,7 @@ public func json_macro_scalar_struct_roundtrip(env : &mut TestEnv) {
 public func json_macro_nested_struct_roundtrip(env : &mut TestEnv) {
     var buffer = std::string()
     var counts = std::vector<u64>()
-    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var encoder = JsonEncoder::from_parts(&mut buffer, &mut counts)
     var p = JMParent { x : 1, c : JMChild { a : 3, b : 4 }, ok : true }
     var r = p.serialize(&encoder)
     if(!(r is std::Result.Ok)) { env.error("nested serialize returned Err"); return }
@@ -161,7 +161,7 @@ public func json_macro_nested_struct_roundtrip(env : &mut TestEnv) {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
     if(!pr.ok) { env.error("nested macro parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMParent>()
@@ -176,7 +176,7 @@ public func json_macro_nested_struct_roundtrip(env : &mut TestEnv) {
 public func json_macro_wide_scalar_struct_roundtrip(env : &mut TestEnv) {
     var buffer = std::string()
     var counts = std::vector<u64>()
-    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var encoder = JsonEncoder::from_parts(&mut buffer, &mut counts)
     var p = JMWide { i : -42, lg : -7, u : 4000000000u, b : true, f : 1.5f, d : -2.25 }
     var r = p.serialize(&encoder)
     if(!(r is std::Result.Ok)) { env.error("wide serialize returned Err"); return }
@@ -187,7 +187,7 @@ public func json_macro_wide_scalar_struct_roundtrip(env : &mut TestEnv) {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
     if(!pr.ok) { env.error("wide macro parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMWide>()
@@ -204,7 +204,7 @@ public func json_macro_namespaced_struct_roundtrip(env : &mut TestEnv) {
     // impls for the namespaced type (mangled under its real scope).
     var buffer = std::string()
     var counts = std::vector<u64>()
-    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var encoder = JsonEncoder::from_parts(&mut buffer, &mut counts)
     var p = jmns::JMNs { x : 7, tag : std::string("ns") }
     var r = p.serialize(&encoder)
     if(!(r is std::Result.Ok)) { env.error("namespaced serialize returned Err"); return }
@@ -215,7 +215,7 @@ public func json_macro_namespaced_struct_roundtrip(env : &mut TestEnv) {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
     if(!pr.ok) { env.error("namespaced parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<jmns::JMNs>()
@@ -232,7 +232,7 @@ public func json_macro_char_struct_roundtrip(env : &mut TestEnv) {
     // back through decode_char - including chars that need JSON escaping.
     var buffer = std::string()
     var counts = std::vector<u64>()
-    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var encoder = JsonEncoder::from_parts(&mut buffer, &mut counts)
     var p = JMChar { a : '"', b : 'z' as uchar }
     var r = p.serialize(&encoder)
     if(!(r is std::Result.Ok)) { env.error("char serialize returned Err"); return }
@@ -243,7 +243,7 @@ public func json_macro_char_struct_roundtrip(env : &mut TestEnv) {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
     if(!pr.ok) { env.error("char parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMChar>()
@@ -258,7 +258,7 @@ public func json_macro_char_struct_roundtrip(env : &mut TestEnv) {
 public func json_macro_decode_rejects_non_object_root(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
-    var pr = parser.parse("5", 1, &mut ph)
+    var pr = json::raw::parse(&mut parser, "5", 1, &mut ph)
     if(!pr.ok) { env.error("root number parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMTwo>()
@@ -266,7 +266,7 @@ public func json_macro_decode_rejects_non_object_root(env : &mut TestEnv) {
 
     var ph2 = ASTJsonHandler()
     var parser2 = JsonParser(128, 4096)
-    var pr2 = parser2.parse("[1,2]", 5, &mut ph2)
+    var pr2 = json::raw::parse(&mut parser2, "[1,2]", 5, &mut ph2)
     if(!pr2.ok) { env.error("root array parse failed"); return }
     var d2 = JsonDecoder { value : &ph2.root }
     var res2 = d2.decode<JMTwo>()
@@ -278,7 +278,7 @@ public func json_macro_decode_field_type_mismatch(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("{\"a\":\"not a number\",\"b\":2}")
-    var pr = parser.parse(doc.data(), doc.size(), &mut ph)
+    var pr = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
     if(!pr.ok) { env.error("type mismatch parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMTwo>()
@@ -290,7 +290,7 @@ public func json_macro_decode_missing_field(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("{\"a\":1}")
-    var pr = parser.parse(doc.data(), doc.size(), &mut ph)
+    var pr = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
     if(!pr.ok) { env.error("missing field parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMTwo>()
@@ -369,7 +369,7 @@ struct JMDHolder {
 func run_dtor_scalar_roundtrip() : int {
     var buffer = std::string()
     var counts = std::vector<u64>()
-    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var encoder = JsonEncoder::from_parts(&mut buffer, &mut counts)
     var v = JMDPoint { x : 10, y : -20 }
     var r = v.serialize(&encoder)
     if(!(r is std::Result.Ok)) { return 1 }
@@ -377,7 +377,7 @@ func run_dtor_scalar_roundtrip() : int {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
     if(!pr.ok) { return 3 }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMDPoint>()
@@ -406,7 +406,7 @@ public func json_macro_destructor_scalar_struct_roundtrip(env : &mut TestEnv) {
 func run_dtor_owning_roundtrip() : int {
     var buffer = std::string()
     var counts = std::vector<u64>()
-    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var encoder = JsonEncoder::from_parts(&mut buffer, &mut counts)
     var v = JMDChild { num : 5, tag : std::string("world") }
     var r = v.serialize(&encoder)
     if(!(r is std::Result.Ok)) { return 1 }
@@ -414,7 +414,7 @@ func run_dtor_owning_roundtrip() : int {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
     if(!pr.ok) { return 3 }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMDChild>()
@@ -444,7 +444,7 @@ public func json_macro_owning_string_struct_roundtrip(env : &mut TestEnv) {
 func run_dtor_nested_roundtrip() : int {
     var buffer = std::string()
     var counts = std::vector<u64>()
-    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var encoder = JsonEncoder::from_parts(&mut buffer, &mut counts)
     var v = JMDHolder { id : 7, child : JMDChild { num : 3, tag : std::string("hello") }, active : true }
     var r = v.serialize(&encoder)
     if(!(r is std::Result.Ok)) { return 1 }
@@ -452,7 +452,7 @@ func run_dtor_nested_roundtrip() : int {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
     if(!pr.ok) { return 3 }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMDHolder>()
@@ -484,7 +484,7 @@ struct JMEnumPoint {
 public func json_macro_enum_struct_roundtrip(env : &mut TestEnv) {
     var buffer = std::string()
     var counts = std::vector<u64>()
-    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var encoder = JsonEncoder::from_parts(&mut buffer, &mut counts)
     var p = JMEnumPoint { name : std::string("pt"), color : JMColor.Blue, x : 3, y : -4 }
     var r = p.serialize(&encoder)
     if(!(r is std::Result.Ok)) { env.error("enum serialize returned Err"); return }
@@ -495,7 +495,7 @@ public func json_macro_enum_struct_roundtrip(env : &mut TestEnv) {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
     if(!pr.ok) { env.error("enum parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMEnumPoint>()
@@ -512,7 +512,7 @@ public func json_macro_enum_unknown_name_rejected(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
     var doc = std::string_view("{\"name\":\"pt\",\"color\":\"Purple\",\"x\":1,\"y\":2}")
-    var pr = parser.parse(doc.data(), doc.size(), &mut ph)
+    var pr = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
     if(!pr.ok) { env.error("unknown enum name parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMEnumPoint>()
@@ -544,7 +544,7 @@ public func json_macro_nested_destructible_roundtrip(env : &mut TestEnv) {
 public func json_macro_vector_int_roundtrip(env : &mut TestEnv) { unsafe {
     var buffer = std::string()
     var counts = std::vector<u64>()
-    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var encoder = JsonEncoder::from_parts(&mut buffer, &mut counts)
     var p = JMVectorInt { values : std::vector<int>() }
     p.values.push(1)
     p.values.push(2)
@@ -559,7 +559,7 @@ public func json_macro_vector_int_roundtrip(env : &mut TestEnv) { unsafe {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
     if(!pr.ok) { env.error("vector<int> parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMVectorInt>()
@@ -575,7 +575,7 @@ public func json_macro_vector_int_roundtrip(env : &mut TestEnv) { unsafe {
 public func json_macro_vector_empty_roundtrip(env : &mut TestEnv) {
     var buffer = std::string()
     var counts = std::vector<u64>()
-    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var encoder = JsonEncoder::from_parts(&mut buffer, &mut counts)
     var p = JMVectorInt { values : std::vector<int>() }
 
     var r = p.serialize(&encoder)
@@ -587,7 +587,7 @@ public func json_macro_vector_empty_roundtrip(env : &mut TestEnv) {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
     if(!pr.ok) { env.error("empty vector parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMVectorInt>()
@@ -601,7 +601,7 @@ public func json_macro_vector_string_roundtrip(env : &mut TestEnv) {
         unsafe {
         var buffer = std::string()
         var counts = std::vector<u64>()
-        var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+        var encoder = JsonEncoder::from_parts(&mut buffer, &mut counts)
         var p = JMVectorStrings { values : std::vector<std::string>() }
         p.values.push(std::string("a\"b"))
         p.values.push(std::string(""))
@@ -615,7 +615,7 @@ public func json_macro_vector_string_roundtrip(env : &mut TestEnv) {
 
         var ph = ASTJsonHandler()
         var parser = JsonParser(256, 8192)
-        var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+        var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
         if(!pr.ok) { env.error("vector<string> parse failed"); return }
         var d = JsonDecoder { value : &ph.root }
         var res = d.decode<JMVectorStrings>()
@@ -634,7 +634,7 @@ public func json_macro_vector_string_roundtrip(env : &mut TestEnv) {
 public func json_macro_nested_vector_roundtrip(env : &mut TestEnv) { unsafe {
     var buffer = std::string()
     var counts = std::vector<u64>()
-    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var encoder = JsonEncoder::from_parts(&mut buffer, &mut counts)
     var p = JMNestedVector { rows : std::vector<std::vector<int>>() }
     var r0 = std::vector<int>()
     r0.push(1)
@@ -653,7 +653,7 @@ public func json_macro_nested_vector_roundtrip(env : &mut TestEnv) { unsafe {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
     if(!pr.ok) { env.error("nested vector parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMNestedVector>()
@@ -671,7 +671,7 @@ public func json_macro_vector_struct_roundtrip(env : &mut TestEnv) {
         unsafe {
         var buffer = std::string()
         var counts = std::vector<u64>()
-        var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+        var encoder = JsonEncoder::from_parts(&mut buffer, &mut counts)
         var p = JMVectorChild { children : std::vector<JMChild>() }
         p.children.push(JMChild { a : 3, b : 4 })
         p.children.push(JMChild { a : 5, b : 6 })
@@ -685,7 +685,7 @@ public func json_macro_vector_struct_roundtrip(env : &mut TestEnv) {
 
         var ph = ASTJsonHandler()
         var parser = JsonParser(256, 8192)
-        var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+        var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
         if(!pr.ok) { env.error("vector<JMChild> parse failed"); return }
         var d = JsonDecoder { value : &ph.root }
         var res = d.decode<JMVectorChild>()
@@ -702,7 +702,7 @@ public func json_macro_vector_struct_roundtrip(env : &mut TestEnv) {
 public func json_macro_ordered_map_roundtrip(env : &mut TestEnv) { unsafe {
     var buffer = std::string()
     var counts = std::vector<u64>()
-    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var encoder = JsonEncoder::from_parts(&mut buffer, &mut counts)
     var p = JMOrderedMap { m : std::ordered_map<std::string, int>() }
     p.m.insert(std::string("a"), 1)
     p.m.insert(std::string("b"), 2)
@@ -716,7 +716,7 @@ public func json_macro_ordered_map_roundtrip(env : &mut TestEnv) { unsafe {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
     if(!pr.ok) { env.error("ordered_map parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMOrderedMap>()
@@ -731,7 +731,7 @@ public func json_macro_ordered_map_roundtrip(env : &mut TestEnv) { unsafe {
 public func json_macro_unordered_map_roundtrip(env : &mut TestEnv) { unsafe {
     var buffer = std::string()
     var counts = std::vector<u64>()
-    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var encoder = JsonEncoder::from_parts(&mut buffer, &mut counts)
     var p = JMUnorderedMap { m : std::unordered_map<std::string, int>() }
     p.m.insert(std::string("a"), 1)
     p.m.insert(std::string("b"), 2)
@@ -741,7 +741,7 @@ public func json_macro_unordered_map_roundtrip(env : &mut TestEnv) { unsafe {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
     if(!pr.ok) { env.error("unordered_map parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMUnorderedMap>()
@@ -756,7 +756,7 @@ public func json_macro_unordered_map_roundtrip(env : &mut TestEnv) { unsafe {
 public func json_macro_large_vector_roundtrip(env : &mut TestEnv) { unsafe {
     var buffer = std::string()
     var counts = std::vector<u64>()
-    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var encoder = JsonEncoder::from_parts(&mut buffer, &mut counts)
     var p = JMLargeVector { values : std::vector<int>() }
     var i = 0
     while(i < 512) {
@@ -769,7 +769,7 @@ public func json_macro_large_vector_roundtrip(env : &mut TestEnv) { unsafe {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(512, 16384)
-    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
     if(!pr.ok) { env.error("large vector parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMLargeVector>()
@@ -793,7 +793,7 @@ public func json_generic_span_serialize(env : &mut TestEnv) {
 
     var buffer = std::string()
     var counts = std::vector<u64>()
-    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var encoder = JsonEncoder::from_parts(&mut buffer, &mut counts)
     var r = s.serialize(&encoder)
     if(!(r is std::Result.Ok)) { env.error("span<int> serialize returned Err"); return }
     if(!buffer.to_view().equals(std::string_view("[1,2,3]"))) {

@@ -77,16 +77,16 @@ func test_mime_safe_is_text_and_is_image_empty(env : &mut TestEnv) {
 
 @test
 func test_mime_legacy_cstr_entry_points_still_work(env : &mut TestEnv) {
-    if(!mime::get_type_cstr(".html").equals(string_view("text/html"))) {
+    if(!mime::raw::get_type_cstr(".html").equals(string_view("text/html"))) {
         env.error("legacy get_type_cstr should still work")
     }
-    if(!mime::extension_cstr("/a/b.css").equals_view(string_view(".css"))) {
+    if(!mime::raw::extension_cstr("/a/b.css").equals_view(string_view(".css"))) {
         env.error("legacy extension_cstr should still work")
     }
-    if(!mime::is_text_cstr("application/json")) {
+    if(!mime::raw::is_text_cstr("application/json")) {
         env.error("legacy is_text_cstr should still work")
     }
-    if(!mime::is_image_cstr("image/png")) {
+    if(!mime::raw::is_image_cstr("image/png")) {
         env.error("legacy is_image_cstr should still work")
     }
 }

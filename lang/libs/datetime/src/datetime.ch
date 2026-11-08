@@ -1,18 +1,28 @@
 public namespace datetime {
 
+    // A date/time parse or component-validation failure.
+    public variant DateTimeError {
+        InputTooShort(position : size_t)
+        LiteralMismatch(position : size_t)
+        TrailingInput(position : size_t)
+        UnsupportedSpecifier(position : size_t)
+        InvalidDate(year : i64, month : i64, day : i64)
+        InvalidTime(hour : i64, minute : i64, second : i64, nanos : i64)
+    }
+
     // -----------------------------------------------------------------------
     // DateTime – a date and time with timezone awareness
     // -----------------------------------------------------------------------
     public struct DateTime {
 
-        var year : i64
-        var month : i64    // 1-12
-        var day : i64      // 1-31
-        var hour : i64     // 0-23
-        var minute : i64   // 0-59
-        var second : i64   // 0-59
-        var nanos : i64    // 0-999_999_999
-        var tz : TimeZone
+        internal var year : i64
+        internal var month : i64    // 1-12
+        internal var day : i64      // 1-31
+        internal var hour : i64     // 0-23
+        internal var minute : i64   // 0-59
+        internal var second : i64   // 0-59
+        internal var nanos : i64    // 0-999_999_999
+        internal var tz : TimeZone
 
         // ---- Constructors ---------------------------------------------------
 
@@ -25,6 +35,8 @@ public namespace datetime {
             }
         }
 
+        // Unchecked construction, kept for callers that already validated their
+        // inputs. Prefer `try_from_components` for user-supplied values.
         public func from_components(
             year : i64, month : i64, day : i64,
             hour : i64, minute : i64, second : i64, nanos : i64,
@@ -35,6 +47,26 @@ public namespace datetime {
                 hour : hour, minute : minute, second : second, nanos : nanos,
                 tz : tz
             }
+        }
+
+        // Validating construction: calendar and clock fields are checked before
+        // a DateTime is created.
+        public func try_from_components(
+            year : i64, month : i64, day : i64,
+            hour : i64, minute : i64, second : i64, nanos : i64,
+            tz : TimeZone
+        ) : std::Result<DateTime, DateTimeError> {
+            if(!datetime::is_valid_date(year, month, day)) {
+                return std.Result.Err<DateTime, DateTimeError>(DateTimeError.InvalidDate(year, month, day))
+            }
+            if(!datetime::is_valid_time(hour, minute, second, nanos)) {
+                return std.Result.Err<DateTime, DateTimeError>(DateTimeError.InvalidTime(hour, minute, second, nanos))
+            }
+            return std.Result.Ok<DateTime, DateTimeError>(DateTime {
+                year : year, month : month, day : day,
+                hour : hour, minute : minute, second : second, nanos : nanos,
+                tz : tz
+            })
         }
 
         // Convert SystemTime to DateTime (UTC)
@@ -197,7 +229,7 @@ public namespace datetime {
 
         // Parse a date/time string using format specifiers.
         // Supported: %Y (year), %m (month), %d (day), %H (hour), %M (minute), %S (second)
-        public func parse(fmt : std::string_view, input : std::string_view) : std::Result<DateTime, std::string> {
+        public func parse(fmt : std::string_view, input : std::string_view) : std::Result<DateTime, DateTimeError> {
             var year : i64 = 1970
             var month : i64 = 1
             var day : i64 = 1
@@ -215,11 +247,11 @@ public namespace datetime {
                     var spec = fmt.get(fi)
                     if(spec == 'Y') {
                         // parse 4-digit year
-                        if(si + 4 > sLen) { return std.Result.Err(std.string("insufficient input for year")) }
+                        if(si + 4 > sLen) { return std.Result.Err<DateTime, DateTimeError>(DateTimeError.InputTooShort(si)) }
                         year = parse_digits_4(input, si)
                         si = si + 4
                     } else if(spec == 'm' || spec == 'd' || spec == 'H' || spec == 'M' || spec == 'S') {
-                        if(si + 2 > sLen) { return std.Result.Err(std.string("insufficient input for two-digit field")) }
+                        if(si + 2 > sLen) { return std.Result.Err<DateTime, DateTimeError>(DateTimeError.InputTooShort(si)) }
                         var val = parse_digits_2(input, si)
                         si = si + 2
                         if(spec == 'm') { month = val }
@@ -228,20 +260,21 @@ public namespace datetime {
                         else if(spec == 'M') { minute = val }
                         else { second = val }
                     } else {
-                        return std.Result.Err(std.string("unsupported format specifier"))
+                        return std.Result.Err<DateTime, DateTimeError>(DateTimeError.UnsupportedSpecifier(fi))
                     }
                 } else {
                     // literal character — must match
                     if(fc != input.get(si)) {
-                        return std.Result.Err(std.string("literal mismatch in input"))
+                        return std.Result.Err<DateTime, DateTimeError>(DateTimeError.LiteralMismatch(si))
                     }
                     si = si + 1
                 }
                 fi = fi + 1
             }
-            // Check that the entire format string was consumed
-            if(fi < fLen) { return std.Result.Err(std.string("input too short for format")) }
-            return std.Result.Ok(DateTime{
+            // Both the format and the input must be consumed completely.
+            if(fi < fLen) { return std.Result.Err<DateTime, DateTimeError>(DateTimeError.InputTooShort(si)) }
+            if(si < sLen) { return std.Result.Err<DateTime, DateTimeError>(DateTimeError.TrailingInput(si)) }
+            return std.Result.Ok<DateTime, DateTimeError>(DateTime{
                 year: year, month: month, day: day,
                 hour: hour, minute: minute, second: second, nanos: 0,
                 tz: TimeZone::utc()

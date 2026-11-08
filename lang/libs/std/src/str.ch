@@ -108,6 +108,10 @@ public struct str {
         return _view.empty()
     }
 
+    func get_opt(&self, index : size_t) : std::Option<char> {
+        return _view.get_opt(index)
+    }
+
     func get(&self, index : size_t) : char {
         return _view.get(index)
     }

@@ -1,6 +1,6 @@
 public struct AtomicU8 {
 
-    var value: u8
+    internal var value: u8
 
     public func new(v: u8) : AtomicU8 {
         return AtomicU8 { value : v }

@@ -97,7 +97,7 @@ func emit_state(reporter : *mut TestReporter, fn_state : *mut TestFunctionState)
         outcome.message = fn_state.failed_msg_parse.to_view()
         outcome.logs_ptr = fn_state.logs.data()
         outcome.logs_count = fn_state.logs.size()
-        reporter.on_test(&raw outcome)
+        reporter.on_test(&outcome)
 
         }
     }

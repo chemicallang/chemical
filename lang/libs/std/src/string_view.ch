@@ -66,6 +66,13 @@ public namespace std {
             return _size == 0;
         }
 
+        func get_opt(&self, index : size_t) : std::Option<char> { unsafe {
+            if(index >= size()) {
+                return std::Option.None<char>()
+            }
+            return std::Option.Some<char>(*(_data + index))
+         }}
+
         func get(&self, index : size_t) : char { unsafe {
             if(index >= size()) {
                 panic("string_view index out of bounds")

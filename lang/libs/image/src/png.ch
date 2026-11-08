@@ -628,8 +628,8 @@ public func parse_png(data : *u8, data_len : size_t) : std::Result<Image, ImageE
         }
 
         // reconstruct image
-        var img = image_create(width, height, channels)
-        var dst_ptr = img.pixels.data() as *mut u8
+        var img = raw::image_create(width, height, channels)
+        var dst_ptr = img.pixel_data.data() as *mut u8
         var src_ptr = raw_buf.data()
         var prev_row = vector<u8>()
         prev_row.resize(row_bytes as size_t)
@@ -675,8 +675,8 @@ public func parse_png(data : *u8, data_len : size_t) : std::Result<Image, ImageE
 
             // handle indexed color: expand palette to RGB
         if(color_type == PNG_INDEXED && plte_data.size() >= 768) {
-            var expanded = image_create(width, height, 3)
-            var exp_ptr = expanded.pixels.data() as *mut u8
+            var expanded = raw::image_create(width, height, 3)
+            var exp_ptr = expanded.pixel_data.data() as *mut u8
             var plt_ptr = plte_data.data()
             var py : int = 0
             while(py < height) {
@@ -797,16 +797,16 @@ func png_store_deflate(raw : *u8, raw_len : size_t, out : *mut u8, out_capacity 
 public func encode_png(img : *mut Image) : std::Result<vector<u8>, ImageError> {
         unsafe {
         // build raw scanline data with filter byte 0 (no filter) per row
-        var bpp = img.channels
-        var row_bytes = img.width * bpp
-        var raw_size = (row_bytes + 1) * img.height
+        var bpp = img.img_channels
+        var row_bytes = img.img_width * bpp
+        var raw_size = (row_bytes + 1) * img.img_height
         var raw_buf = vector<u8>()
         raw_buf.resize(raw_size as size_t)
         var raw_ptr = raw_buf.data() as *mut u8
-        var src_ptr = img.pixels.data()
+        var src_ptr = img.pixel_data.data()
 
         var y : int = 0
-        while(y < img.height) {
+        while(y < img.img_height) {
             var row_off = (y as size_t) * (row_bytes as size_t + 1)
             raw_ptr[row_off] = 0  // filter: None
             var c : size_t = 0
@@ -848,14 +848,14 @@ public func encode_png(img : *mut Image) : std::Result<vector<u8>, ImageError> {
 
         // IHDR chunk (13 bytes of data)
         var ihdr : [13]u8
-        ihdr[0] = ((img.width as u32) >> 24) as u8; ihdr[1] = ((img.width as u32) >> 16) as u8
-        ihdr[2] = ((img.width as u32) >> 8) as u8; ihdr[3] = (img.width as u32) as u8
-        ihdr[4] = ((img.height as u32) >> 24) as u8; ihdr[5] = ((img.height as u32) >> 16) as u8
-        ihdr[6] = ((img.height as u32) >> 8) as u8; ihdr[7] = (img.height as u32) as u8
+        ihdr[0] = ((img.img_width as u32) >> 24) as u8; ihdr[1] = ((img.img_width as u32) >> 16) as u8
+        ihdr[2] = ((img.img_width as u32) >> 8) as u8; ihdr[3] = (img.img_width as u32) as u8
+        ihdr[4] = ((img.img_height as u32) >> 24) as u8; ihdr[5] = ((img.img_height as u32) >> 16) as u8
+        ihdr[6] = ((img.img_height as u32) >> 8) as u8; ihdr[7] = (img.img_height as u32) as u8
         ihdr[8] = 8  // bit depth
-        if(img.channels == 1) { ihdr[9] = PNG_GRAYSCALE as u8 }
-        else if(img.channels == 2) { ihdr[9] = PNG_GRAY_ALPHA as u8 }
-        else if(img.channels == 3) { ihdr[9] = PNG_RGB as u8 }
+        if(img.img_channels == 1) { ihdr[9] = PNG_GRAYSCALE as u8 }
+        else if(img.img_channels == 2) { ihdr[9] = PNG_GRAY_ALPHA as u8 }
+        else if(img.img_channels == 3) { ihdr[9] = PNG_RGB as u8 }
         else { ihdr[9] = PNG_RGBA as u8 }
         ihdr[10] = 0  // compression method
         ihdr[11] = 0  // filter method
@@ -876,16 +876,16 @@ public func encode_png(img : *mut Image) : std::Result<vector<u8>, ImageError> {
 public func save_png(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
         unsafe {
         // build raw scanline data with filter byte 0 (no filter) per row
-        var bpp = img.channels
-        var row_bytes = img.width * bpp
-        var raw_size = (row_bytes + 1) * img.height
+        var bpp = img.img_channels
+        var row_bytes = img.img_width * bpp
+        var raw_size = (row_bytes + 1) * img.img_height
         var raw_buf = vector<u8>()
         raw_buf.resize(raw_size as size_t)
         var raw_ptr = raw_buf.data() as *mut u8
-        var src_ptr = img.pixels.data()
+        var src_ptr = img.pixel_data.data()
 
         var y : int = 0
-        while(y < img.height) {
+        while(y < img.img_height) {
             var row_off = (y as size_t) * (row_bytes as size_t + 1)
             raw_ptr[row_off] = 0  // filter: None
             var c : size_t = 0
@@ -927,14 +927,14 @@ public func save_png(img : *mut Image, path : *char) : std::Result<std::Unit, Im
 
         // IHDR chunk (13 bytes of data)
         var ihdr : [13]u8
-        ihdr[0] = ((img.width as u32) >> 24) as u8; ihdr[1] = ((img.width as u32) >> 16) as u8
-        ihdr[2] = ((img.width as u32) >> 8) as u8; ihdr[3] = (img.width as u32) as u8
-        ihdr[4] = ((img.height as u32) >> 24) as u8; ihdr[5] = ((img.height as u32) >> 16) as u8
-        ihdr[6] = ((img.height as u32) >> 8) as u8; ihdr[7] = (img.height as u32) as u8
+        ihdr[0] = ((img.img_width as u32) >> 24) as u8; ihdr[1] = ((img.img_width as u32) >> 16) as u8
+        ihdr[2] = ((img.img_width as u32) >> 8) as u8; ihdr[3] = (img.img_width as u32) as u8
+        ihdr[4] = ((img.img_height as u32) >> 24) as u8; ihdr[5] = ((img.img_height as u32) >> 16) as u8
+        ihdr[6] = ((img.img_height as u32) >> 8) as u8; ihdr[7] = (img.img_height as u32) as u8
         ihdr[8] = 8  // bit depth
-        if(img.channels == 1) { ihdr[9] = PNG_GRAYSCALE as u8 }
-        else if(img.channels == 2) { ihdr[9] = PNG_GRAY_ALPHA as u8 }
-        else if(img.channels == 3) { ihdr[9] = PNG_RGB as u8 }
+        if(img.img_channels == 1) { ihdr[9] = PNG_GRAYSCALE as u8 }
+        else if(img.img_channels == 2) { ihdr[9] = PNG_GRAY_ALPHA as u8 }
+        else if(img.img_channels == 3) { ihdr[9] = PNG_RGB as u8 }
         else { ihdr[9] = PNG_RGBA as u8 }
         ihdr[10] = 0  // compression method
         ihdr[11] = 0  // filter method

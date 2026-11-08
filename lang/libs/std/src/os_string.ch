@@ -13,9 +13,9 @@ if(def.windows) {
 }
 
 // OsString: stores an OS-native string. Convert explicitly to/from UTF-8.
-struct OsString {
+public struct OsString {
 
-    var data_ : native_string_t;
+    internal var data_ : native_string_t;
 
     @make
     func make(str : native_string_t) {

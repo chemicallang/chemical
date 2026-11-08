@@ -401,7 +401,7 @@ public func INT_hmac_sha256_long_msg_vs_python(env : &mut TestEnv) {
     if(mac_len != 32) { env.error("failed to parse Python output"); return }
 
     var chem_mac : [32]u8
-    hmac_sha256(&raw key[0], 32, &raw data[0], 256, &raw mut chem_mac[0])
+    crypto::raw::hmac_sha256(&raw key[0], 32, &raw data[0], 256, &raw mut chem_mac[0])
     if(!test_bytes_eq(&raw chem_mac[0], &raw py_mac[0], 32)) { env.error("HMAC-SHA256 long msg mismatch vs Python"); return }
 
 }
@@ -416,7 +416,7 @@ public func INT_base64_decode_vs_python(env : &mut TestEnv) {
     var data : [48]u8; test_random_bytes(&raw mut data[0], 48)
     var d_hex : [97]char; test_bytes_to_hex(&raw data[0], 48, &raw mut d_hex[0])
 
-    var enc : [72]char; var enc_r = base64_encode(&raw data[0], 48, &raw mut enc[0], 72)
+    var enc : [72]char; var enc_r = crypto::raw::base64_encode(&raw data[0], 48, &raw mut enc[0], 72)
     if(enc_r is Result.Err) { env.error("b64 enc failed"); return }
     var Ok(enc_len) = enc_r else unsafe { unreachable }
 
@@ -432,7 +432,7 @@ public func INT_base64_decode_vs_python(env : &mut TestEnv) {
     if(pw!=enc_len||!test_bytes_eq(&raw enc[0] as *u8,&raw py_enc[0],enc_len)){env.error("b64 enc vs py");return}
 
     // Now decode back
-    var dec_r = base64_decode(&raw enc[0], enc_len, &raw mut data[0], 48)
+    var dec_r = crypto::raw::base64_decode(&raw enc[0], enc_len, &raw mut data[0], 48)
     if(dec_r is Result.Err) { env.error("b64 dec failed"); return }
     var Ok(dec_len) = dec_r else unsafe { unreachable }
     if(dec_len != 48) { env.error("b64 dec length mismatch"); return }
@@ -459,13 +459,13 @@ public func INT_md5_hash_vs_python(env : &mut TestEnv) {
     l = "')).hexdigest()\nprint('HASH='+h)\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
-    var py_out = test_python_run_script(&raw script[0], sp, string_view("md5_hash.py"))
+    var py_out = test_python_run_script(&raw script[0], sp, string_view("crypto::raw::md5_hash.py"))
     var py_hash : [16]u8
     var hash_len = test_parse_py_hex_label(&raw mut py_out, string_view("HASH="), &raw mut py_hash[0], 16)
     if(hash_len != 16) { env.error("failed to parse Python output"); return }
 
     var chem_hash : [16]u8
-    md5_hash(&raw data[0], 64, &raw mut chem_hash[0])
+    crypto::raw::md5_hash(&raw data[0], 64, &raw mut chem_hash[0])
     if(!test_bytes_eq(&raw chem_hash[0], &raw py_hash[0], 16)) { env.error("MD5 hash mismatch vs Python"); return }
 
 }
@@ -483,7 +483,7 @@ public func INT_md5_empty_vs_python(env : &mut TestEnv) {
     var hash_len = test_parse_py_hex_label(&raw mut py_out, string_view("HASH="), &raw mut py_hash[0], 16)
     if(hash_len != 16) { env.error("failed to parse Python output"); return }
     var chem_hash : [16]u8
-    md5_hash(null, 0, &raw mut chem_hash[0])
+    crypto::raw::md5_hash(null, 0, &raw mut chem_hash[0])
     if(!test_bytes_eq(&raw chem_hash[0], &raw py_hash[0], 16)) { env.error("MD5 empty hash mismatch vs Python"); return }
 
 }
@@ -599,7 +599,7 @@ public func INT_hmac_sha256_empty_key_vs_python(env : &mut TestEnv) {
     var mac_len = test_parse_py_hex_label(&raw mut py_out, string_view("MAC="), &raw mut py_mac[0], 32)
     if(mac_len != 32) { env.error("failed to parse Python output"); return }
     var chem_mac : [32]u8
-    hmac_sha256(null, 0, &raw data[0], 32, &raw mut chem_mac[0])
+    crypto::raw::hmac_sha256(null, 0, &raw data[0], 32, &raw mut chem_mac[0])
     if(!test_bytes_eq(&raw chem_mac[0], &raw py_mac[0], 32)) { env.error("HMAC-SHA256 empty key mismatch vs Python"); return }
 
 }
@@ -625,7 +625,7 @@ public func INT_hmac_sha256_empty_data_vs_python(env : &mut TestEnv) {
     var mac_len = test_parse_py_hex_label(&raw mut py_out, string_view("MAC="), &raw mut py_mac[0], 32)
     if(mac_len != 32) { env.error("failed to parse Python output"); return }
     var chem_mac : [32]u8
-    hmac_sha256(&raw key[0], 16, null, 0, &raw mut chem_mac[0])
+    crypto::raw::hmac_sha256(&raw key[0], 16, null, 0, &raw mut chem_mac[0])
     if(!test_bytes_eq(&raw chem_mac[0], &raw py_mac[0], 32)) { env.error("HMAC-SHA256 empty data mismatch vs Python"); return }
 
 }
@@ -1009,7 +1009,7 @@ public func INT_hmac_md5_empty_key_vs_python(env : &mut TestEnv) {
     var mac_len = test_parse_py_hex_label(&raw mut py_out, string_view("MAC="), &raw mut py_mac[0], 16)
     if(mac_len != 16) { env.error("failed to parse Python output"); return }
     var chem_mac : [16]u8
-    hmac_md5(null, 0, &raw data[0], 16, &raw mut chem_mac[0])
+    crypto::raw::hmac_md5(null, 0, &raw data[0], 16, &raw mut chem_mac[0])
     if(!test_bytes_eq(&raw chem_mac[0], &raw py_mac[0], 16)) { env.error("HMAC-MD5 empty key mismatch vs Python"); return }
 
 }

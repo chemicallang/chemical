@@ -9,7 +9,7 @@ public struct JsonDecoder {
 // deserialize error path: it stores `repl` in `value` and returns the ORIGINAL
 // error value. non-generic so the generated code can call it without needing a
 // generic instantiation of std::replace during codegen.
-public func __non_gen_se_repl(value : &mut std::SerializationError, repl : std::SerializationError) : std::SerializationError {
+public func se_repl(value : &mut std::SerializationError, repl : std::SerializationError) : std::SerializationError {
     var temp : std::SerializationError
     unsafe {
         memcpy(&raw mut temp, &raw value, sizeof(std::SerializationError))
@@ -91,7 +91,7 @@ impl std::Decoder for JsonDecoder {
     func decode_u64(&self) : std::Result<u64, std::SerializationError> {
         if(self.value is JsonValue.Number) {
             var Number(s) = self.value else unsafe { unreachable }
-            return std::Result.Ok(parse_u64(s.data()))
+            return std::Result.Ok(json::raw::parse_u64(s.data()))
         }
         return std::Result.Err(se_err("expected number"))
     }
@@ -99,7 +99,7 @@ impl std::Decoder for JsonDecoder {
     func decode_i64(&self) : std::Result<i64, std::SerializationError> {
         if(self.value is JsonValue.Number) {
             var Number(s) = self.value else unsafe { unreachable }
-            return std::Result.Ok(parse_i64(s.data()))
+            return std::Result.Ok(json::raw::parse_i64(s.data()))
         }
         if(self.value is JsonValue.Bool) {
             var Bool(v) = self.value else unsafe { unreachable }
@@ -111,7 +111,7 @@ impl std::Decoder for JsonDecoder {
     func decode_double(&self) : std::Result<double, std::SerializationError> {
         if(self.value is JsonValue.Number) {
             var Number(s) = self.value else unsafe { unreachable }
-            return std::Result.Ok(parse_double(s.data()))
+            return std::Result.Ok(json::raw::parse_double(s.data()))
         }
         return std::Result.Err(se_err("expected number"))
     }
@@ -119,7 +119,7 @@ impl std::Decoder for JsonDecoder {
     func decode_float(&self) : std::Result<float, std::SerializationError> {
         if(self.value is JsonValue.Number) {
             var Number(s) = self.value else unsafe { unreachable }
-            return std::Result.Ok(parse_double(s.data()) as float)
+            return std::Result.Ok(json::raw::parse_double(s.data()) as float)
         }
         return std::Result.Err(se_err("expected number"))
     }
@@ -221,21 +221,9 @@ impl std::ObjectDecoder<JsonValue> for JsonObjectDecoder {
 // based on a generic type
 public struct TypeDecoder<T> { var decoder : &JsonDecoder }
 
-// generic-dispatch internals: JsonDecoder.decode<T>() routes through
-// TypeDecoder<T>, whose Deserializer<T> impls live in types.ch. The entry point
-// is (decoder : &JsonDecoder) decode<T>(). __-prefixed but public: they are
-// called from public generic declarations (retention rule).
-public func <T, K : std::Deserializer<T>> __decode_dispatch_1(k : &K) : std::Result<T, std::SerializationError> {
-    return k.deserialize() as std::Result<T, std::SerializationError>
-}
-
-public func <T, K : std::Deserializer<T>> __decode_dispatch_2(t : &TypeDecoder<T>) : std::Result<T, std::SerializationError> {
-    return __decode_dispatch_1<T, K>(t as &K)
-}
-
 public func <T> (decoder : &JsonDecoder) decode() : std::Result<T, std::SerializationError> {
     var t = TypeDecoder<T> { decoder : decoder }
-    return __decode_dispatch_2<T, TypeDecoder<T>>(&t)
+    return json::raw::decode_dispatch_2<T, TypeDecoder<T>>(&t)
 }
 
 // ===== JsonMapDecoder =====

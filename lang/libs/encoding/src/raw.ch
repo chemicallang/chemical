@@ -1,8 +1,236 @@
-// utf — UTF-8 and UTF-16 conversion utilities.
+// raw — legacy pointer/out-buffer encoding entry points.
+//
+// This file is the single declaration of `encoding::raw` in the module; nested
+// namespaces cannot be reopened across files. The canonical owned-buffer API
+// lives at the top-level `encoding` namespace (see `safe.ch`).
 
 public namespace encoding {
 
+public namespace raw {
+
 using std::Result;
+using std::string_view;
+using std::string;
+using std::vector;
+
+// Encode raw bytes to base64 string.
+// Caller provides output buffer. Returns encoded length or error.
+public func base64_encode(data : *u8, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
+    var r = crypto::raw::base64_encode(data, data_len, out, out_len)
+    if(r is Result.Err) {
+        return Result.Err(EncodingError.InvalidInput())
+    }
+    var Ok(n) = r else unsafe { unreachable }
+    return Result.Ok(n)
+}
+
+// Decode base64 string to raw bytes.
+// Caller provides output buffer. Returns decoded length or error.
+public func base64_decode(b64 : *char, b64_len : size_t, out : *mut u8, out_len : size_t) : Result<size_t, EncodingError> {
+    var r = crypto::raw::base64_decode(b64, b64_len, out, out_len)
+    if(r is Result.Err) {
+        return Result.Err(EncodingError.InvalidInput())
+    }
+    var Ok(n) = r else unsafe { unreachable }
+    return Result.Ok(n)
+}
+
+// Encode raw bytes to base64 string (legacy heap convenience).
+// Allocates the output string internally.
+public func base64_encode_to_string(data : *u8, data_len : size_t) : Result<string, EncodingError> {
+    var encoded_len = ((data_len + 2) / 3) * 4
+    var buf = unsafe(malloc(encoded_len + 1)) as *mut char
+    if(buf == null) { return Result.Err(EncodingError.InvalidInput()) }
+    var r = crypto::raw::base64_encode(data, data_len, buf, encoded_len + 1)
+    if(r is Result.Err) {
+        unsafe { free(buf) }
+        return Result.Err(EncodingError.InvalidInput())
+    }
+    var Ok(n) = r else unsafe { unreachable }
+    var s = unsafe(string.constructor(buf as *char, n))
+    unsafe { free(buf) }
+    return Result.Ok(s)
+}
+
+// Decode base64 string to vector<u8> (legacy heap convenience).
+// Allocates the output vector internally.
+public func base64_decode_to_vec(b64 : string_view) : Result<vector<u8>, EncodingError> {
+    if(b64.size() == 0) { return Result.Ok(vector<u8>()) }
+    // Estimate decoded length
+    var eff_len = b64.size()
+    if(b64.get(eff_len - 1) == '=') { eff_len -= 1 }
+    if(eff_len > 0 && b64.get(eff_len - 1) == '=') { eff_len -= 1 }
+    var decoded_len = (eff_len / 4) * 3
+    if(b64.size() % 4 == 2) { decoded_len += 1 }
+    else if(b64.size() % 4 == 3) { decoded_len += 2 }
+
+    var out = vector<u8>()
+    out.resize(decoded_len)
+    var r = crypto::raw::base64_decode(b64.data(), b64.size(), out.data() as *mut u8, decoded_len)
+    if(r is Result.Err) {
+        return Result.Err(EncodingError.InvalidInput())
+    }
+    var Ok(n) = r else unsafe { unreachable }
+    if(n < decoded_len) { out.resize(n) }
+    return Result.Ok(out)
+}
+
+public func hex_encode(data : *u8, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
+        unsafe {
+        var needed = data_len * 2;
+        if(needed + 1 > out_len) { return Result.Err(EncodingError.BufferTooSmall(needed + 1)); }
+        var pos : size_t = 0;
+        var i : size_t = 0;
+        while(i < data_len) {
+            var b = data[i];
+            out[pos] = HEX_DIGITS_LOWER[(b >> 4) as size_t] as char;
+            pos += 1;
+            out[pos] = HEX_DIGITS_LOWER[(b & 0x0F) as size_t] as char;
+            pos += 1;
+            i += 1;
+        }
+        out[pos] = 0;
+        return Result.Ok(needed);
+
+        }
+    }
+
+public func hex_encode_upper(data : *u8, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
+        unsafe {
+        var needed = data_len * 2;
+        if(needed + 1 > out_len) { return Result.Err(EncodingError.BufferTooSmall(needed + 1)); }
+        var pos : size_t = 0;
+        var i : size_t = 0;
+        while(i < data_len) {
+            var b = data[i];
+            out[pos] = HEX_DIGITS_UPPER[(b >> 4) as size_t] as char;
+            pos += 1;
+            out[pos] = HEX_DIGITS_UPPER[(b & 0x0F) as size_t] as char;
+            pos += 1;
+            i += 1;
+        }
+        out[pos] = 0;
+        return Result.Ok(needed);
+
+        }
+    }
+
+public func hex_decode(hex : *char, out : *mut u8, out_len : size_t) : Result<size_t, EncodingError> {
+        unsafe {
+        var hex_len : size_t = 0;
+        while(hex[hex_len] != 0) { hex_len += 1; }
+        if(hex_len % 2 != 0) { return Result.Err(EncodingError.InvalidInput()); }
+        var byte_count = hex_len / 2;
+        if(byte_count > out_len) { return Result.Err(EncodingError.BufferTooSmall(byte_count)); }
+        var pos : size_t = 0;
+        var i : size_t = 0;
+        while(i < hex_len) {
+            var high = hex_to_nibble(hex[i]);
+            if(high < 0) { return Result.Err(EncodingError.InvalidInput()); }
+            var low = hex_to_nibble(hex[i + 1]);
+            if(low < 0) { return Result.Err(EncodingError.InvalidInput()); }
+            out[pos] = ((high as u8) << 4) | (low as u8);
+            pos += 1;
+            i += 2;
+        }
+        return Result.Ok(byte_count);
+
+        }
+    }
+
+/// URL-encode a string (percent-encoding).
+/// Encodes everything except unreserved characters.
+/// out_len should be at least 3 * input_len + 1.
+public func url_encode(data : *char, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
+        unsafe {
+        var pos : size_t = 0;
+        var i : size_t = 0;
+        while(i < data_len) {
+            var c = data[i];
+            if(is_unreserved(c)) {
+                if(pos + 1 >= out_len) { return Result.Err(EncodingError.BufferTooSmall(pos + 2)); }
+                out[pos] = c;
+                pos += 1;
+            } else {
+                if(pos + 3 >= out_len) { return Result.Err(EncodingError.BufferTooSmall(pos + 4)); }
+                out[pos] = '%';
+                out[pos+1] = HEX_DIGITS_UPPER[((c as u8) >> 4) as size_t] as char;
+                out[pos+2] = HEX_DIGITS_UPPER[((c as u8) & 0x0F) as size_t] as char;
+                pos += 3;
+            }
+            i += 1;
+        }
+        out[pos] = 0;
+        return Result.Ok(pos);
+
+        }
+    }
+
+/// URL-encode only the query component (encodes spaces as '+').
+public func url_encode_query(data : *char, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
+        unsafe {
+        var pos : size_t = 0;
+        var i : size_t = 0;
+        while(i < data_len) {
+            var c = data[i];
+            if(c == ' ') {
+                if(pos + 1 >= out_len) { return Result.Err(EncodingError.BufferTooSmall(pos + 2)); }
+                out[pos] = '+';
+                pos += 1;
+            } else if(is_unreserved(c)) {
+                if(pos + 1 >= out_len) { return Result.Err(EncodingError.BufferTooSmall(pos + 2)); }
+                out[pos] = c;
+                pos += 1;
+            } else {
+                if(pos + 3 >= out_len) { return Result.Err(EncodingError.BufferTooSmall(pos + 4)); }
+                out[pos] = '%';
+                out[pos+1] = HEX_DIGITS_UPPER[((c as u8) >> 4) as size_t] as char;
+                out[pos+2] = HEX_DIGITS_UPPER[((c as u8) & 0x0F) as size_t] as char;
+                pos += 3;
+            }
+            i += 1;
+        }
+        out[pos] = 0;
+        return Result.Ok(pos);
+
+        }
+    }
+
+/// URL-decode a percent-encoded string (also decodes '+' as space).
+/// out_len should be at least input_len + 1.
+public func url_decode(data : *char, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
+        unsafe {
+        var pos : size_t = 0;
+        var i : size_t = 0;
+        while(i < data_len) {
+            var c = data[i];
+            if(c == '%' && i + 2 < data_len) {
+                var high = hex_to_nibble(data[i+1]);
+                var low = hex_to_nibble(data[i+2]);
+                if(high >= 0 && low >= 0) {
+                    if(pos + 1 >= out_len) { return Result.Err(EncodingError.BufferTooSmall(pos + 2)); }
+                    out[pos] = ((high as u8) << 4 | (low as u8)) as char;
+                    pos += 1;
+                    i += 3;
+                    continue;
+                }
+            }
+            if(c == '+') {
+                if(pos + 1 >= out_len) { return Result.Err(EncodingError.BufferTooSmall(pos + 2)); }
+                out[pos] = ' ';
+                pos += 1;
+            } else {
+                if(pos + 1 >= out_len) { return Result.Err(EncodingError.BufferTooSmall(pos + 2)); }
+                out[pos] = c;
+                pos += 1;
+            }
+            i += 1;
+        }
+        out[pos] = 0;
+        return Result.Ok(pos);
+
+        }
+    }
 
 // ---------------------------------------------------------------------------
 // UTF-8 validation
@@ -150,23 +378,13 @@ public func utf16_to_utf8(in_w : *u16, out : *mut char, out_len : size_t) : Resu
 // UTF-8 helper functions
 // ---------------------------------------------------------------------------
 
-public func utf8_char_len(leading : u8) : size_t {
-        unsafe {
-        if(leading < 0x80) { return 1; }
-        if((leading & 0xE0) == 0xC0) { return 2; }
-        if((leading & 0xF0) == 0xE0) { return 3; }
-        if((leading & 0xF8) == 0xF0) { return 4; }
-        return 1;
-
-        }
-    }
 
 public func utf8_decode(data : *char, data_len : size_t, out_codepoint : *mut int, out_bytes : *mut size_t) : bool {
         unsafe {
         if(data_len == 0) { out_bytes[0] = 0; out_codepoint[0] = 0; return false; }
         var c = data[0] as u8;
         if(c < 0x80) { out_codepoint[0] = c as int; out_bytes[0] = 1; return true; }
-        var seq_len = utf8_char_len(c);
+        var seq_len = encoding::utf8_char_len(c);
         if(seq_len > data_len) { out_bytes[0] = data_len; out_codepoint[0] = -1; return false; }
         if(seq_len == 2) {
             var c2 = data[1] as u8;
@@ -193,5 +411,7 @@ public func utf8_decode(data : *char, data_len : size_t, out_codepoint : *mut in
 
         }
     }
+
+} // namespace raw
 
 } // end namespace encoding

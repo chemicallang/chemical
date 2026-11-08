@@ -46,11 +46,6 @@ public namespace mime {
         return std::string_view("application/octet-stream")
     }
 
-    // Legacy C-string form of `get_type`. New code should pass a `&str`.
-    public func get_type_cstr(ext : *char) : std::string_view {
-        return get_type(std::str.make_view(unsafe(std::string_view.make_no_len(ext))))
-    }
-
     // Extract the file extension from a path (including the dot), or "" if none.
     // Example: "/foo/bar.css" -> ".css". The result owns its bytes.
     public func extension(path : &str) : std::string {
@@ -78,6 +73,41 @@ public namespace mime {
         return std::string()
     }
 
+    // Check if a MIME type is a text type.
+    public func is_text(content_type : &str) : bool {
+        var v = content_type.to_view()
+        if(v.equals(std::string_view("text/plain"))) return true
+        if(v.equals(std::string_view("text/html"))) return true
+        if(v.equals(std::string_view("text/css"))) return true
+        if(v.equals(std::string_view("text/csv"))) return true
+        if(v.equals(std::string_view("text/markdown"))) return true
+        if(v.equals(std::string_view("application/javascript"))) return true
+        if(v.equals(std::string_view("application/json"))) return true
+        if(v.equals(std::string_view("application/xml"))) return true
+        return false
+    }
+
+    // Check if a MIME type is an image type.
+    public func is_image(content_type : &str) : bool {
+        var v = content_type.to_view()
+        if(v.equals(std::string_view("image/png"))) return true
+        if(v.equals(std::string_view("image/jpeg"))) return true
+        if(v.equals(std::string_view("image/gif"))) return true
+        if(v.equals(std::string_view("image/webp"))) return true
+        if(v.equals(std::string_view("image/svg+xml"))) return true
+        if(v.equals(std::string_view("image/x-icon"))) return true
+        if(v.equals(std::string_view("image/bmp"))) return true
+        return false
+    }
+
+
+    // Raw C-string entry points. New code should pass `&str` to the safe
+    // functions above.
+    public namespace raw {
+    // Legacy C-string form of `get_type`. New code should pass a `&str`.
+    public func get_type_cstr(ext : *char) : std::string_view {
+        return get_type(std::str.make_view(unsafe(std::string_view.make_no_len(ext))))
+    }
     // Legacy C-string form of `extension`. New code should pass a `&str`.
     public func extension_cstr(path : *char) : std::string {
         unsafe {
@@ -109,42 +139,14 @@ public namespace mime {
             return std::string()
         }
     }
-
-    // Check if a MIME type is a text type.
-    public func is_text(content_type : &str) : bool {
-        var v = content_type.to_view()
-        if(v.equals(std::string_view("text/plain"))) return true
-        if(v.equals(std::string_view("text/html"))) return true
-        if(v.equals(std::string_view("text/css"))) return true
-        if(v.equals(std::string_view("text/csv"))) return true
-        if(v.equals(std::string_view("text/markdown"))) return true
-        if(v.equals(std::string_view("application/javascript"))) return true
-        if(v.equals(std::string_view("application/json"))) return true
-        if(v.equals(std::string_view("application/xml"))) return true
-        return false
-    }
-
     // Legacy C-string form of `is_text`. New code should pass a `&str`.
     public func is_text_cstr(content_type : *char) : bool {
         return is_text(std::str.make_view(unsafe(std::string_view.make_no_len(content_type))))
     }
-
-    // Check if a MIME type is an image type.
-    public func is_image(content_type : &str) : bool {
-        var v = content_type.to_view()
-        if(v.equals(std::string_view("image/png"))) return true
-        if(v.equals(std::string_view("image/jpeg"))) return true
-        if(v.equals(std::string_view("image/gif"))) return true
-        if(v.equals(std::string_view("image/webp"))) return true
-        if(v.equals(std::string_view("image/svg+xml"))) return true
-        if(v.equals(std::string_view("image/x-icon"))) return true
-        if(v.equals(std::string_view("image/bmp"))) return true
-        return false
-    }
-
     // Legacy C-string form of `is_image`. New code should pass a `&str`.
     public func is_image_cstr(content_type : *char) : bool {
         return is_image(std::str.make_view(unsafe(std::string_view.make_no_len(content_type))))
+    }
     }
 
 } // end namespace mime

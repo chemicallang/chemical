@@ -25,7 +25,7 @@ func test_safe_map_value_by_int_owned(env : &mut TestEnv) {
         return
     }
     var Some(val) = got else unsafe { unreachable }
-    var n = cbor::as_u64(&mut val)
+    var n = cbor::as_u64(val)
     if(n is Option.None) {
         env.error("key 1 should hold an unsigned integer")
     } else {
@@ -54,7 +54,7 @@ func test_safe_map_value_by_text_and_unicode_key(env : &mut TestEnv) {
         return
     }
     var Some(val) = got else unsafe { unreachable }
-    var n = cbor::as_u64(&mut val)
+    var n = cbor::as_u64(val)
     if(n is Option.None) {
         env.error("unicode-key value should be an integer")
     } else {
@@ -111,7 +111,7 @@ func test_safe_array_value_at_owned(env : &mut TestEnv) {
         return
     }
     var Some(val) = first else unsafe { unreachable }
-    var n = cbor::as_u64(&mut val)
+    var n = cbor::as_u64(val)
     if(n is Option.None) {
         env.error("array element 0 should be an integer")
     } else {

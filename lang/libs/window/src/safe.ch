@@ -35,6 +35,27 @@ public type EventHandler = std::function<(event : &Event) => void>
 public type DropHandler = std::function<(path : string_view) => void>
 public type CommandHandler = std::function<(id : int) => void>
 
+// Empty typed handlers return a real `%capture` value (not a bare function
+// pointer), so `off_*` releases the previous captures through normal assignment.
+func empty_resize_handler() : ResizeHandler {
+    return (width : int, height : int) => {}
+}
+func empty_close_handler() : CloseHandler {
+    return () => {}
+}
+func empty_focus_handler() : FocusHandler {
+    return (focused : bool) => {}
+}
+func empty_event_handler() : EventHandler {
+    return (event : &Event) => {}
+}
+func empty_drop_handler() : DropHandler {
+    return (path : string_view) => {}
+}
+func empty_command_handler() : CommandHandler {
+    return (id : int) => {}
+}
+
 // ---------------------------------------------------------------------------
 // Heap state (stable address for the lifetime of the native window)
 // ---------------------------------------------------------------------------
@@ -310,6 +331,16 @@ public struct Window {
         }
     }
 
+    // Explicit raw platform handle access. The returned pointer is owned by the
+    // native window and must not outlive it; all use is an unsafe boundary.
+    public unsafe func native_handle(&self) : *mut void {
+        unsafe {
+            var st = self.state
+            if(st == null) { return null }
+            return window_native_handle(&raw mut st.inner)
+        }
+    }
+
     // ── callbacks (owned captures) ───────────────────────────────────────
 
     public func on_resize(&mut self, handler : ResizeHandler) {
@@ -328,6 +359,7 @@ public struct Window {
             var st = self.state
             if(st == null) { return }
             st.has_resize = false
+            st.resize_fn = empty_resize_handler()
         }
     }
 
@@ -345,6 +377,7 @@ public struct Window {
             var st = self.state
             if(st == null) { return }
             st.has_close = false
+            st.close_fn = empty_close_handler()
         }
     }
 
@@ -362,6 +395,7 @@ public struct Window {
             var st = self.state
             if(st == null) { return }
             st.has_focus = false
+            st.focus_fn = empty_focus_handler()
         }
     }
 
@@ -379,6 +413,7 @@ public struct Window {
             var st = self.state
             if(st == null) { return }
             st.has_event = false
+            st.event_fn = empty_event_handler()
         }
     }
 
@@ -398,6 +433,7 @@ public struct Window {
             var st = self.state
             if(st == null) { return }
             st.has_drop = false
+            st.drop_fn = empty_drop_handler()
         }
     }
 
@@ -415,6 +451,7 @@ public struct Window {
             var st = self.state
             if(st == null) { return }
             st.has_command = false
+            st.command_fn = empty_command_handler()
         }
     }
 

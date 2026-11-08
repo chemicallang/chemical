@@ -949,7 +949,7 @@ public namespace tls {
 
         // Decode base64 to DER
         var der_buf : [4096]u8
-        var result = crypto::base64_decode(b64_buf as *char, buf_pos, &raw mut der_buf[0], 4096)
+        var result = crypto::raw::base64_decode(b64_buf as *char, buf_pos, &raw mut der_buf[0], 4096)
         if(result is Result.Err) {
             return ERR_X509_INVALID_FORMAT
         }

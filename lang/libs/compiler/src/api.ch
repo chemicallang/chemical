@@ -72,7 +72,13 @@ public func current_type(parser : &mut Parser) : int {
  */
 public func <T> allocate_value(builder : &mut ASTBuilder, value : T) : &mut T {
     const ptr = builder.allocate<T>()
-    unsafe { *ptr = value }
+    // `allocate<T>` returns uninitialized arena storage. Assigning through it
+    // would run the destination assignment operator (and potentially destroy
+    // garbage); initialize the storage with the moved value's bits instead.
+    unsafe {
+        memcpy(ptr as *mut void, &raw value as *void, sizeof(T))
+    }
+    intrinsics::forget(value)
     return unsafe(&mut *ptr)
 }
 

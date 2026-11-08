@@ -20,9 +20,9 @@ impl<T : std::Serializer<JsonValue, JsonEncoder>> std::Serializer<JsonValue, Jso
                 // vector's own `T`, not this impl's `T`, so bridge it explicitly:
                 // the cast also gives the pointer the Serializer bound.
                 var item = self.get_ptr(i) as *mut T
-                __container_begin_item(encoder.buffer, encoder.counts)
-                var itemenc = JsonEncoder { buffer : encoder.buffer, counts : encoder.counts }
-                var r = item.serialize(__unsafe_cast_json_encoder<JsonValue>(&itemenc))
+                json::raw::container_begin_item(encoder.buffer, encoder.counts)
+                var itemenc = JsonEncoder::from_parts(&mut *encoder.buffer, &mut *encoder.counts)
+                var r = item.serialize(json::raw::cast_encoder<JsonValue>(&itemenc))
                 if(r is std::Result.Err) {
                     return r
                 }
@@ -76,9 +76,9 @@ impl<T : std::Serializer<JsonValue, JsonEncoder>> std::Serializer<JsonValue, Jso
             var i = 0u
             while(i < self.size()) {
                 var item = self.get(i) as *mut T
-                __container_begin_item(encoder.buffer, encoder.counts)
-                var itemenc = JsonEncoder { buffer : encoder.buffer, counts : encoder.counts }
-                var r = item.serialize(__unsafe_cast_json_encoder<JsonValue>(&itemenc))
+                json::raw::container_begin_item(encoder.buffer, encoder.counts)
+                var itemenc = JsonEncoder::from_parts(&mut *encoder.buffer, &mut *encoder.counts)
+                var r = item.serialize(json::raw::cast_encoder<JsonValue>(&itemenc))
                 if(r is std::Result.Err) {
                     return r
                 }
@@ -101,11 +101,11 @@ impl<V : std::Serializer<JsonValue, JsonEncoder>> std::Serializer<JsonValue, Jso
         while(it.valid()) {
             var key = it.key() as *std::string
             var value = it.value() as *mut V
-            __container_begin_item(encoder.buffer, encoder.counts)
-            json_escape_into_raw(&mut *encoder.buffer, key.data(), key.size() as u64)
+            json::raw::container_begin_item(encoder.buffer, encoder.counts)
+            json::raw::json_escape_into_raw(&mut *encoder.buffer, key.data(), key.size() as u64)
             encoder.buffer.append(':')
-            var venc = JsonEncoder { buffer : encoder.buffer, counts : encoder.counts }
-            var r = value.serialize(__unsafe_cast_json_encoder<JsonValue>(&venc))
+            var venc = JsonEncoder::from_parts(&mut *encoder.buffer, &mut *encoder.counts)
+            var r = value.serialize(json::raw::cast_encoder<JsonValue>(&venc))
             if(r is std::Result.Err) {
                 return r
             }
@@ -158,11 +158,11 @@ impl<V : std::Serializer<JsonValue, JsonEncoder>> std::Serializer<JsonValue, Jso
         while(it.valid()) {
             var key = it.key() as *std::string
             var value = it.value() as *mut V
-            __container_begin_item(encoder.buffer, encoder.counts)
-            json_escape_into_raw(&mut *encoder.buffer, key.data(), key.size() as u64)
+            json::raw::container_begin_item(encoder.buffer, encoder.counts)
+            json::raw::json_escape_into_raw(&mut *encoder.buffer, key.data(), key.size() as u64)
             encoder.buffer.append(':')
-            var venc = JsonEncoder { buffer : encoder.buffer, counts : encoder.counts }
-            var r = value.serialize(__unsafe_cast_json_encoder<JsonValue>(&venc))
+            var venc = JsonEncoder::from_parts(&mut *encoder.buffer, &mut *encoder.counts)
+            var r = value.serialize(json::raw::cast_encoder<JsonValue>(&venc))
             if(r is std::Result.Err) {
                 return r
             }

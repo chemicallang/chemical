@@ -572,7 +572,7 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
     abc[0] = 'a' as u8; abc[1] = 'b' as u8; abc[2] = 'c' as u8
     var digest : [64]u8
 
-    crypto::sha384_hash(&raw abc[0], 3, &raw mut digest[0])
+    crypto::raw::sha384_hash(&raw abc[0], 3, &raw mut digest[0])
     var h = string()
     bytes_to_lower_hex(&raw digest[0], 48, &mut h)
     var want_abc = string::make_no_len("cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7")
@@ -581,7 +581,7 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
         unsafe { printf("got  %s\nwant %s\n", h.data(), want_abc.data()) }
     }
 
-    crypto::sha384_hash(null, 0, &raw mut digest[0])
+    crypto::raw::sha384_hash(null, 0, &raw mut digest[0])
     h = string()
     bytes_to_lower_hex(&raw digest[0], 48, &mut h)
     var want_empty = string::make_no_len("38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b")
@@ -594,7 +594,7 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
     var msg_buf : [128]u8
     var mbi : usize = 0
     while(mbi < msg.size()) { msg_buf[mbi] = msg.get(mbi) as u8; mbi += 1 }
-    crypto::sha384_hash(&raw msg_buf[0], mbi, &raw mut digest[0])
+    crypto::raw::sha384_hash(&raw msg_buf[0], mbi, &raw mut digest[0])
     h = string()
     bytes_to_lower_hex(&raw digest[0], 48, &mut h)
     var want_msg = string::make_no_len("3391fdddfc8dc7393707a65b1b4709397cf8b1d162af05abfe8f450de5f36bc6b0455a8520bc4e6f5fe95b1fe3c8452b")
@@ -613,7 +613,7 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
     abc[0] = 'a' as u8; abc[1] = 'b' as u8; abc[2] = 'c' as u8
     var digest : [64]u8
 
-    crypto::sha512_hash(&raw abc[0], 3, &raw mut digest[0])
+    crypto::raw::sha512_hash(&raw abc[0], 3, &raw mut digest[0])
     var h = string()
     bytes_to_lower_hex(&raw digest[0], 64, &mut h)
     var want_abc = string::make_no_len("ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f")
@@ -622,7 +622,7 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
         unsafe { printf("got  %s\nwant %s\n", h.data(), want_abc.data()) }
     }
 
-    crypto::sha512_hash(null, 0, &raw mut digest[0])
+    crypto::raw::sha512_hash(null, 0, &raw mut digest[0])
     h = string()
     bytes_to_lower_hex(&raw digest[0], 64, &mut h)
     var want_empty = string::make_no_len("cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e")
@@ -634,7 +634,7 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
     var msg_buf : [128]u8
     var mbi : usize = 0
     while(mbi < msg.size()) { msg_buf[mbi] = msg.get(mbi) as u8; mbi += 1 }
-    crypto::sha512_hash(&raw msg_buf[0], mbi, &raw mut digest[0])
+    crypto::raw::sha512_hash(&raw msg_buf[0], mbi, &raw mut digest[0])
     h = string()
     bytes_to_lower_hex(&raw digest[0], 64, &mut h)
     var want_msg = string::make_no_len("204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445")
@@ -646,7 +646,7 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
 }
 }
 
-// Regression: sha384_final / sha384_hash must write exactly 48 bytes.
+// Regression: crypto::raw::sha384_final / crypto::raw::sha384_hash must write exactly 48 bytes.
 // They used to emit the full 64-byte SHA-512 state and then zero
 // digest[48..64), so callers that (correctly) sized the buffer at 48 bytes
 // got 16 bytes written past the end — clobbering adjacent stack slots. In the
@@ -661,12 +661,12 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
     var buf : [64]u8
     i = 0
     while(i < 64) { buf[i] = 0xAA; i += 1 }
-    crypto::sha384_hash(&raw msg[0], 100, &raw mut buf[0])
+    crypto::raw::sha384_hash(&raw msg[0], 100, &raw mut buf[0])
 
     i = 48
     while(i < 64) {
         if(buf[i] != 0xAA) {
-            env.error("sha384_hash wrote past the 48-byte digest")
+            env.error("crypto::raw::sha384_hash wrote past the 48-byte digest")
             break
         }
         i += 1
@@ -676,16 +676,16 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
     var buf2 : [64]u8
     i = 0
     while(i < 64) { buf2[i] = 0xAA; i += 1 }
-    var ctx : crypto::Sha512Context = unsafe(std::mem.zeroed_unchecked<crypto::Sha512Context>())
-    crypto::sha384_init(unsafe(&raw mut ctx))
-    crypto::sha384_update(unsafe(&raw mut ctx), &raw msg[0], 40)
-    crypto::sha384_update(unsafe(&raw mut ctx), &raw msg[40], 60)
-    crypto::sha384_final(unsafe(&raw mut ctx), &raw mut buf2[0])
+    var ctx : crypto::raw::Sha512Context = unsafe(std::mem.zeroed_unchecked<crypto::raw::Sha512Context>())
+    crypto::raw::sha384_init(unsafe(&raw mut ctx))
+    crypto::raw::sha384_update(unsafe(&raw mut ctx), &raw msg[0], 40)
+    crypto::raw::sha384_update(unsafe(&raw mut ctx), &raw msg[40], 60)
+    crypto::raw::sha384_final(unsafe(&raw mut ctx), &raw mut buf2[0])
 
     i = 48
     while(i < 64) {
         if(buf2[i] != 0xAA) {
-            env.error("sha384_final wrote past the 48-byte digest")
+            env.error("crypto::raw::sha384_final wrote past the 48-byte digest")
             break
         }
         i += 1
@@ -710,15 +710,15 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
     while(i < 1000) { msg[i] = (i % 251) as u8; i += 1 }
 
     var one : [64]u8
-    crypto::sha512_hash(&raw msg[0], 1000, &raw mut one[0])
+    crypto::raw::sha512_hash(&raw msg[0], 1000, &raw mut one[0])
 
     var inc : [64]u8
-    var ctx : crypto::Sha512Context = unsafe(std::mem.zeroed_unchecked<crypto::Sha512Context>())
-    crypto::sha512_init(unsafe(&raw mut ctx))
-    crypto::sha512_update(unsafe(&raw mut ctx), &raw msg[0], 100)
-    crypto::sha512_update(unsafe(&raw mut ctx), &raw msg[100], 300)
-    crypto::sha512_update(unsafe(&raw mut ctx), &raw msg[400], 600)
-    crypto::sha512_final(unsafe(&raw mut ctx), &raw mut inc[0])
+    var ctx : crypto::raw::Sha512Context = unsafe(std::mem.zeroed_unchecked<crypto::raw::Sha512Context>())
+    crypto::raw::sha512_init(unsafe(&raw mut ctx))
+    crypto::raw::sha512_update(unsafe(&raw mut ctx), &raw msg[0], 100)
+    crypto::raw::sha512_update(unsafe(&raw mut ctx), &raw msg[100], 300)
+    crypto::raw::sha512_update(unsafe(&raw mut ctx), &raw msg[400], 600)
+    crypto::raw::sha512_final(unsafe(&raw mut ctx), &raw mut inc[0])
 
     var eq = true
     var j : usize = 0

@@ -6,7 +6,7 @@ using namespace std;
 func test_sha256_hello(env : &mut TestEnv) {
     var data : [5]u8 = [ 0x48, 0x65, 0x6C, 0x6C, 0x6F ];
     var digest : [32]u8;
-    crypto::sha256_hash(&raw data[0], 5, &raw mut digest[0]);
+    crypto::raw::sha256_hash(&raw data[0], 5, &raw mut digest[0]);
     if(!(digest[0] == 0x18 && digest[1] == 0x5F && digest[2] == 0x8D && digest[3] == 0xB3 &&
          digest[4] == 0x22 && digest[5] == 0x71 && digest[6] == 0xFE && digest[7] == 0x25 &&
          digest[8] == 0xF5 && digest[9] == 0x61 && digest[10] == 0xA6 && digest[11] == 0xFC &&
@@ -22,7 +22,7 @@ func test_sha256_hello(env : &mut TestEnv) {
 @test
 func test_sha256_empty(env : &mut TestEnv) {
     var digest : [32]u8;
-    crypto::sha256_hash(&raw digest[0] as *u8, 0, &raw mut digest[0]);
+    crypto::raw::sha256_hash(&raw digest[0] as *u8, 0, &raw mut digest[0]);
     if(!(digest[0] == 0xE3 && digest[1] == 0xB0 && digest[2] == 0xC4 && digest[3] == 0x42 &&
          digest[4] == 0x98 && digest[5] == 0xFC && digest[6] == 0x1C && digest[7] == 0x14 &&
          digest[8] == 0x9A && digest[9] == 0xFB && digest[10] == 0xF4 && digest[11] == 0xC8 &&
@@ -39,7 +39,7 @@ func test_sha256_empty(env : &mut TestEnv) {
 func test_md5_hello(env : &mut TestEnv) {
     var data : [5]u8 = [ 0x48, 0x65, 0x6C, 0x6C, 0x6F ];
     var digest : [16]u8;
-    crypto::md5_hash(&raw data[0], 5, &raw mut digest[0]);
+    crypto::raw::md5_hash(&raw data[0], 5, &raw mut digest[0]);
     if(!(digest[0] == 0x8B && digest[1] == 0x1A && digest[2] == 0x99 && digest[3] == 0x53 &&
          digest[4] == 0xC4 && digest[5] == 0x61 && digest[6] == 0x12 && digest[7] == 0x96 &&
          digest[8] == 0xA8 && digest[9] == 0x27 && digest[10] == 0xAB && digest[11] == 0xF8 &&
@@ -51,7 +51,7 @@ func test_md5_hello(env : &mut TestEnv) {
 @test
 func test_md5_empty(env : &mut TestEnv) {
     var digest : [16]u8;
-    crypto::md5_hash(&raw digest[0] as *u8, 0, &raw mut digest[0]);
+    crypto::raw::md5_hash(&raw digest[0] as *u8, 0, &raw mut digest[0]);
     if(!(digest[0] == 0xD4 && digest[1] == 0x1D && digest[2] == 0x8C && digest[3] == 0xD9 &&
          digest[4] == 0x8F && digest[5] == 0x00 && digest[6] == 0xB2 && digest[7] == 0x04 &&
          digest[8] == 0xE9 && digest[9] == 0x80 && digest[10] == 0x09 && digest[11] == 0x98 &&
@@ -64,7 +64,7 @@ func test_md5_empty(env : &mut TestEnv) {
 func test_base64_encode(env : &mut TestEnv) {
     var buf : [128]char;
     var data : [3]u8 = [ 0x48, 0x65, 0x6C ];
-    var r = crypto::base64_encode(&raw data[0], 3, &raw mut buf[0], 128);
+    var r = crypto::raw::base64_encode(&raw data[0], 3, &raw mut buf[0], 128);
     if(r is Result.Err) { env.error("base64_encode failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     if(!(len == 4 && buf[0] == 'S' && buf[1] == 'G' && buf[2] == 'V' && buf[3] == 's' && buf[4] == '\0')) {
@@ -76,7 +76,7 @@ func test_base64_encode(env : &mut TestEnv) {
 func test_base64_encode_padded(env : &mut TestEnv) {
     var buf : [128]char;
     var data : [4]u8 = [ 0x48, 0x65, 0x6C, 0x6C ];
-    var r = crypto::base64_encode(&raw data[0], 4, &raw mut buf[0], 128);
+    var r = crypto::raw::base64_encode(&raw data[0], 4, &raw mut buf[0], 128);
     if(r is Result.Err) { env.error("base64_encode failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     if(!(len == 8 && buf[0] == 'S' && buf[1] == 'G' && buf[2] == 'V' && buf[3] == 's' &&
@@ -88,7 +88,7 @@ func test_base64_encode_padded(env : &mut TestEnv) {
 @test
 func test_base64_decode(env : &mut TestEnv) {
     var buf : [64]u8;
-    var r = crypto::base64_decode("SGVsbG8=", 8, &raw mut buf[0], 64);
+    var r = crypto::raw::base64_decode("SGVsbG8=", 8, &raw mut buf[0], 64);
     if(r is Result.Err) { env.error("base64_decode failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     if(!(len == 5 && buf[0] == 0x48 && buf[1] == 0x65 && buf[2] == 0x6C && buf[3] == 0x6C && buf[4] == 0x6F)) {
@@ -101,10 +101,10 @@ func test_base64_roundtrip(env : &mut TestEnv) {
     var original : [6]u8 = [ 0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0xFF ];
     var encoded : [16]char;
     var decoded : [6]u8;
-    var r = crypto::base64_encode(&raw original[0], 6, &raw mut encoded[0], 16);
+    var r = crypto::raw::base64_encode(&raw original[0], 6, &raw mut encoded[0], 16);
     if(r is Result.Err) { env.error("base64_encode failed"); return; }
     var Ok(enc_len) = r else unsafe { unreachable };
-    var r2 = crypto::base64_decode(encoded, enc_len, &raw mut decoded[0], 6);
+    var r2 = crypto::raw::base64_decode(encoded, enc_len, &raw mut decoded[0], 6);
     if(r2 is Result.Err) { env.error("base64_decode failed"); return; }
     var Ok(dec_len) = r2 else unsafe { unreachable };
     if(!(dec_len == 6 && decoded[0] == 0xDE && decoded[1] == 0xAD && decoded[2] == 0xBE &&
@@ -118,7 +118,7 @@ func test_hmac_sha256_not_zero(env : &mut TestEnv) {
     var key : [3]u8 = [ 0x6B, 0x65, 0x79 ];
     var data : [5]u8 = [ 0x48, 0x65, 0x6C, 0x6C, 0x6F ];
     var digest : [32]u8;
-    crypto::hmac_sha256(&raw key[0], 3, &raw data[0], 5, &raw mut digest[0]);
+    crypto::raw::hmac_sha256(&raw key[0], 3, &raw data[0], 5, &raw mut digest[0]);
     if(digest[0] == 0 && digest[1] == 0 && digest[2] == 0 && digest[3] == 0) {
         env.error("HMAC-SHA256 should produce non-zero output");
     }
@@ -128,7 +128,7 @@ func test_hmac_sha256_not_zero(env : &mut TestEnv) {
 func test_constant_time_equal_same(env : &mut TestEnv) {
     var a : [3]u8 = [ 0x01, 0x02, 0x03 ];
     var b : [3]u8 = [ 0x01, 0x02, 0x03 ];
-    if(!crypto::constant_time_equal(&raw a[0], &raw b[0], 3)) {
+    if(!crypto::raw::constant_time_equal(&raw a[0], &raw b[0], 3)) {
         env.error("constant_time_equal should return true for equal buffers");
     }
 }
@@ -137,7 +137,7 @@ func test_constant_time_equal_same(env : &mut TestEnv) {
 func test_constant_time_equal_different(env : &mut TestEnv) {
     var a : [3]u8 = [ 0x01, 0x02, 0x03 ];
     var b : [3]u8 = [ 0x01, 0xFF, 0x03 ];
-    if(crypto::constant_time_equal(&raw a[0], &raw b[0], 3)) {
+    if(crypto::raw::constant_time_equal(&raw a[0], &raw b[0], 3)) {
         env.error("constant_time_equal should return false for different buffers");
     }
 }
@@ -145,7 +145,7 @@ func test_constant_time_equal_different(env : &mut TestEnv) {
 @test
 func test_constant_time_equal_empty(env : &mut TestEnv) {
     var dummy : [1]u8 = [ 0 ];
-    if(!crypto::constant_time_equal(&raw dummy[0], &raw dummy[0], 0)) {
+    if(!crypto::raw::constant_time_equal(&raw dummy[0], &raw dummy[0], 0)) {
         env.error("constant_time_equal should return true for empty buffers");
     }
 }
@@ -157,7 +157,7 @@ func test_constant_time_equal_empty(env : &mut TestEnv) {
 @test
 func test_osrand_random_fill_nonzero(env : &mut TestEnv) {
     var buf : [32]u8
-    var ret = osrand::random_fill(&raw mut buf[0], 32)
+    var ret = unsafe(osrand::raw::random_fill(&raw mut buf[0], 32))
     if(ret != 0) { env.error("random_fill should return 0 on success") }
     // Verify buffer is not all zeros (extremely unlikely with CSPRNG)
     var all_zero = true
@@ -172,7 +172,7 @@ func test_osrand_random_fill_nonzero(env : &mut TestEnv) {
 @test
 func test_osrand_random_fill_empty(env : &mut TestEnv) {
     var buf : [4]u8 = [0, 0, 0, 0]
-    var ret = osrand::random_fill(&raw mut buf[0], 0)
+    var ret = unsafe(osrand::raw::random_fill(&raw mut buf[0], 0))
     if(ret != 0) { env.error("random_fill with len=0 should return 0") }
     // Buffer should remain unchanged
     if(buf[0] != 0 || buf[1] != 0) { env.error("random_fill len=0 should not modify buffer") }
@@ -182,8 +182,8 @@ func test_osrand_random_fill_empty(env : &mut TestEnv) {
 func test_osrand_random_fill_different(env : &mut TestEnv) {
     var buf1 : [32]u8
     var buf2 : [32]u8
-    osrand::random_fill(&raw mut buf1[0], 32)
-    osrand::random_fill(&raw mut buf2[0], 32)
+    unsafe(osrand::raw::random_fill(&raw mut buf1[0], 32))
+    unsafe(osrand::raw::random_fill(&raw mut buf2[0], 32))
     // Two random fills should not produce identical output (extremely unlikely)
     var identical = true
     var i : size_t = 0
@@ -196,22 +196,26 @@ func test_osrand_random_fill_different(env : &mut TestEnv) {
 
 @test
 func test_osrand_random_u32_nonzero(env : &mut TestEnv) {
-    var val = osrand::random_u32()
+    var val = osrand::random_u32_safe()
+    if(val is Result.Err) { env.error("random_u32_safe failed"); return }
+    var Ok(random_val) = val else unsafe { unreachable }
     // random_u32 should return some value (0xDEADBEEF is the error sentinel)
     // We just verify it doesn't crash and returns a u32
     var buf : [4]u8
-    osrand::random_fill(&raw mut buf[0], 4)
+    unsafe(osrand::raw::random_fill(&raw mut buf[0], 4))
     var from_fill : u32 = (buf[0] as u32) | ((buf[1] as u32) << 8) | ((buf[2] as u32) << 16) | ((buf[3] as u32) << 24)
     // Verify random_u32 and random_fill produce some output
-    if(val == 0xDEADBEEFu32 && from_fill == 0) { env.error("at least one should produce non-error output") }
+    if(random_val == 0xDEADBEEFu32 && from_fill == 0) { env.error("at least one should produce non-error output") }
 }
 
 @test
 func test_osrand_random_u64_nonzero(env : &mut TestEnv) {
-    var val = osrand::random_u64()
+    var val = osrand::random_u64_safe()
+    if(val is Result.Err) { env.error("random_u64_safe failed"); return }
+    var Ok(random_val) = val else unsafe { unreachable }
     // Verify it doesn't crash and returns a u64
     var buf : [8]u8
-    osrand::random_fill(&raw mut buf[0], 8)
+    unsafe(osrand::raw::random_fill(&raw mut buf[0], 8))
     var from_fill : u64 = (buf[0] as u64) | ((buf[1] as u64) << 8) | ((buf[2] as u64) << 16) | ((buf[3] as u64) << 24)
-    if(val == 0xDEADBEEFDEADBEEFu64 && from_fill == 0) { env.error("at least one should produce non-error output") }
+    if(random_val == 0xDEADBEEFDEADBEEFu64 && from_fill == 0) { env.error("at least one should produce non-error output") }
 }

@@ -406,7 +406,10 @@ public struct HtmlPage {
     // Keys beginning with `__route_`/`__query_` are reserved for router
     // internals (D-5.2); passing one here is a programming error.
     public func add_parameter(&mut self, key : std::string_view, value : std::string_view) {
-        parameters.insert(key, PageParameter.Text(value))
+        // The public setter must not retain caller storage: a router segment or
+        // stack buffer may die before the page renders. Copy both key and value
+        // into page-owned storage.
+        add_parameter_owned(key, value)
     }
 
     // Stores a parameter whose value is not backed by page-lifetime memory

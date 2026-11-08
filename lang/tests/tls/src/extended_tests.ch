@@ -504,13 +504,13 @@ public func INT_hmac_sha256_basic(env : &mut TestEnv) {
     l = "'),hashlib.sha256).hexdigest()\nprint('MAC='+h)" as *char; si=0; while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     script[sp]=10; sp+=1
 
-    var py_out = test_python_run_script(&raw script[0], sp, string_view("hmac_sha256.py"))
+    var py_out = test_python_run_script(&raw script[0], sp, string_view("crypto::raw::hmac_sha256.py"))
     var py_mac : [32]u8
     var mac_len = test_parse_py_hex_label(&raw mut py_out, string_view("MAC="), &raw mut py_mac[0], 32)
     if(mac_len != 32) { env.error("failed to parse Python output"); return } else {}
 
     var chem_mac : [32]u8
-    hmac_sha256(&raw key[0], 16, &raw data[0], 32, &raw mut chem_mac[0])
+    crypto::raw::hmac_sha256(&raw key[0], 16, &raw data[0], 32, &raw mut chem_mac[0])
 
     if(!test_bytes_eq(&raw chem_mac[0], &raw py_mac[0], 32)) { env.error("HMAC-SHA256 mismatch vs Python"); return } else {}
 
@@ -526,8 +526,8 @@ public func INT_hmac_sha256_two_keys(env : &mut TestEnv) {
     var data : [16]u8; test_random_bytes(&raw mut data[0], 16)
     var d_hex : [33]char; test_bytes_to_hex(&raw data[0], 16, &raw mut d_hex[0])
 
-    var mac1 : [32]u8; hmac_sha256(&raw key1[0], 16, &raw data[0], 16, &raw mut mac1[0])
-    var mac2 : [32]u8; hmac_sha256(&raw key2[0], 32, &raw data[0], 16, &raw mut mac2[0])
+    var mac1 : [32]u8; crypto::raw::hmac_sha256(&raw key1[0], 16, &raw data[0], 16, &raw mut mac1[0])
+    var mac2 : [32]u8; crypto::raw::hmac_sha256(&raw key2[0], 32, &raw data[0], 16, &raw mut mac2[0])
 
     var k1_hex : [33]char; test_bytes_to_hex(&raw key1[0], 16, &raw mut k1_hex[0])
     var k2_hex : [65]char; test_bytes_to_hex(&raw key2[0], 32, &raw mut k2_hex[0])
@@ -577,13 +577,13 @@ public func INT_hmac_md5_basic(env : &mut TestEnv) {
     l = "'),hashlib.md5).hexdigest()\nprint('MAC='+h)" as *char; si=0; while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     script[sp]=10; sp+=1
 
-    var py_out = test_python_run_script(&raw script[0], sp, string_view("hmac_md5.py"))
+    var py_out = test_python_run_script(&raw script[0], sp, string_view("crypto::raw::hmac_md5.py"))
     var py_mac : [16]u8
     var mac_len = test_parse_py_hex_label(&raw mut py_out, string_view("MAC="), &raw mut py_mac[0], 16)
     if(mac_len != 16) { env.error("failed to parse Python output"); return } else {}
 
     var chem_mac : [16]u8
-    hmac_md5(&raw key[0], 16, &raw data[0], 32, &raw mut chem_mac[0])
+    crypto::raw::hmac_md5(&raw key[0], 16, &raw data[0], 32, &raw mut chem_mac[0])
 
     if(!test_bytes_eq(&raw chem_mac[0], &raw py_mac[0], 16)) { env.error("HMAC-MD5 mismatch vs Python"); return } else {}
 
@@ -604,7 +604,7 @@ public func INT_sha256_empty_input(env : &mut TestEnv) {
     if(hash_len != 32) { env.error("failed to parse Python output"); return } else {}
 
     var chem_hash : [32]u8
-    sha256_hash(null, 0, &raw mut chem_hash[0])
+    crypto::raw::sha256_hash(null, 0, &raw mut chem_hash[0])
 
     if(!test_bytes_eq(&raw chem_hash[0], &raw py_hash[0], 32)) { env.error("SHA-256 empty input mismatch"); return } else {}
 
@@ -633,7 +633,7 @@ public func INT_sha256_vs_python(env : &mut TestEnv) {
     if(hash_len != 32) { env.error("failed to parse Python output"); return } else {}
 
     var chem_hash : [32]u8
-    sha256_hash(&raw data[0], 128, &raw mut chem_hash[0])
+    crypto::raw::sha256_hash(&raw data[0], 128, &raw mut chem_hash[0])
 
     if(!test_bytes_eq(&raw chem_hash[0], &raw py_hash[0], 32)) { env.error("SHA-256 mismatch vs Python"); return } else {}
 
@@ -667,12 +667,12 @@ public func INT_sha256_incremental(env : &mut TestEnv) {
     var hash_len = test_parse_py_hex_label(&raw mut py_out, string_view("HASH="), &raw mut py_hash[0], 32)
     if(hash_len != 32) { env.error("failed to parse Python output"); return } else {}
 
-    var ctx : Sha256Context = unsafe(std::mem.zeroed_unchecked<Sha256Context>())
-    sha256_init(unsafe(&raw mut ctx))
-    sha256_update(unsafe(&raw mut ctx), &raw part1[0], 32)
-    sha256_update(unsafe(&raw mut ctx), &raw part2[0], 32)
+    var ctx : crypto::raw::Sha256Context = unsafe(std::mem.zeroed_unchecked<crypto::raw::Sha256Context>())
+    crypto::raw::sha256_init(unsafe(&raw mut ctx))
+    crypto::raw::sha256_update(unsafe(&raw mut ctx), &raw part1[0], 32)
+    crypto::raw::sha256_update(unsafe(&raw mut ctx), &raw part2[0], 32)
     var chem_hash : [32]u8
-    sha256_final(unsafe(&raw mut ctx), &raw mut chem_hash[0])
+    crypto::raw::sha256_final(unsafe(&raw mut ctx), &raw mut chem_hash[0])
 
     if(!test_bytes_eq(&raw chem_hash[0], &raw py_hash[0], 32)) { env.error("SHA-256 incremental mismatch"); return } else {}
 
@@ -702,7 +702,7 @@ public func INT_sha256_long_input(env : &mut TestEnv) {
     if(hash_len != 32) { env.error("failed to parse Python output"); return } else {}
 
     var chem_hash : [32]u8
-    sha256_hash(data, 2048, &raw mut chem_hash[0])
+    crypto::raw::sha256_hash(data, 2048, &raw mut chem_hash[0])
 
     if(!test_bytes_eq(&raw chem_hash[0], &raw py_hash[0], 32)) { env.error("SHA-256 long input mismatch"); return } else {}
     unsafe { dealloc data; dealloc data_hex }
@@ -732,7 +732,7 @@ public func INT_md5_basic_vs_python(env : &mut TestEnv) {
     if(hash_len != 16) { env.error("failed to parse Python output"); return } else {}
 
     var chem_hash : [16]u8
-    md5_hash(&raw data[0], 64, &raw mut chem_hash[0])
+    crypto::raw::md5_hash(&raw data[0], 64, &raw mut chem_hash[0])
 
     if(!test_bytes_eq(&raw chem_hash[0], &raw py_hash[0], 16)) { env.error("MD5 basic mismatch vs Python"); return } else {}
 
@@ -768,13 +768,13 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var hash_len = test_parse_py_hex_label(&raw mut py_out, string_view("HASH="), &raw mut py_hash[0], 16)
     if(hash_len != 16) { env.error("failed to parse Python output"); return } else {}
 
-    var ctx : Md5Context = unsafe(std::mem.zeroed_unchecked<Md5Context>())
-    md5_init(unsafe(&raw mut ctx))
-    md5_update(unsafe(&raw mut ctx), &raw part1[0], 16)
-    md5_update(unsafe(&raw mut ctx), &raw part2[0], 16)
-    md5_update(unsafe(&raw mut ctx), &raw part3[0], 16)
+    var ctx : crypto::raw::Md5Context = unsafe(std::mem.zeroed_unchecked<crypto::raw::Md5Context>())
+    crypto::raw::md5_init(unsafe(&raw mut ctx))
+    crypto::raw::md5_update(unsafe(&raw mut ctx), &raw part1[0], 16)
+    crypto::raw::md5_update(unsafe(&raw mut ctx), &raw part2[0], 16)
+    crypto::raw::md5_update(unsafe(&raw mut ctx), &raw part3[0], 16)
     var chem_hash : [16]u8
-    md5_final(unsafe(&raw mut ctx), &raw mut chem_hash[0])
+    crypto::raw::md5_final(unsafe(&raw mut ctx), &raw mut chem_hash[0])
 
     if(!test_bytes_eq(&raw chem_hash[0], &raw py_hash[0], 16)) { env.error("MD5 incremental mismatch"); return } else {}
 
@@ -884,7 +884,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var py_hexstr : [65]char; test_bytes_to_hex(&raw py_hex[0], 32, &raw mut py_hexstr[0])
     var ctx : ECDSAContext = unsafe(std::mem.zeroed_unchecked<ECDSAContext>()); ecdsa_init(unsafe(&raw mut ctx))
     ecdsa_import_privkey(unsafe(&raw mut ctx), &raw sk_hex[0], 32, TLS_GROUP_SECP256R1 as u16)
-    var th : [32]u8; sha256_hash("fixed transcript for cv debug\0" as *u8, 28, &raw mut th[0])
+    var th : [32]u8; crypto::raw::sha256_hash("fixed transcript for cv debug\0" as *u8, 28, &raw mut th[0])
     var sig_in : [200]u8; var sp2 : size_t = 0
     while(sp2<64){sig_in[sp2]=0x20 as u8;sp2+=1}
     var lbl = "TLS 1.3, server CertificateVerify\0" as *char; var ll:size_t=0
@@ -892,7 +892,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     sig_in[sp2]=0;sp2+=1
     var ci:size_t=0; while(ci<32){sig_in[sp2+ci]=th[ci];ci+=1}
     sp2+=32
-    var cv_hash : [32]u8; sha256_hash(&raw sig_in[0], sp2, &raw mut cv_hash[0])
+    var cv_hash : [32]u8; crypto::raw::sha256_hash(&raw sig_in[0], sp2, &raw mut cv_hash[0])
     var sig : [256]u8; var sig_len : u16 = 256
     if(ecdsa_sign(unsafe(&raw mut ctx), &raw cv_hash[0], 32, &raw mut sig[0], &raw mut sig_len) < 0){env.error("sign");return}else{}
     var sig_hex : [513]char; test_bytes_to_hex(&raw sig[0], sig_len as size_t, &raw mut sig_hex[0])
@@ -1003,7 +1003,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     unsafe {
 
     var data : [40]u8; test_random_bytes(&raw mut data[0], 40)
-    var hash : [48]u8; sha384_hash(&raw data[0], 40, &raw mut hash[0])
+    var hash : [48]u8; crypto::raw::sha384_hash(&raw data[0], 40, &raw mut hash[0])
     var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.asymmetric import ec\nkey=ec.generate_private_key(ec.SECP384R1())\npub=key.public_key()\nn=pub.public_numbers()\nprint('SK='+format(key.private_numbers().private_value,'096x'))\nprint('PX='+format(n.x,'096x'))\nprint('PY='+format(n.y,'096x'))\n" as *char
     si=0; while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
@@ -1028,7 +1028,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     unsafe {
 
     var data : [40]u8; test_random_bytes(&raw mut data[0], 40)
-    var hash : [48]u8; sha384_hash(&raw data[0], 40, &raw mut hash[0])
+    var hash : [48]u8; crypto::raw::sha384_hash(&raw data[0], 40, &raw mut hash[0])
     var h_hex : [97]char; test_bytes_to_hex(&raw hash[0], 48, &raw mut h_hex[0])
     var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.asymmetric import ec,utils\nfrom cryptography.hazmat.primitives import hashes\nkey=ec.generate_private_key(ec.SECP384R1())\npub=key.public_key()\nsig=key.sign(bytes.fromhex('" as *char
@@ -1064,7 +1064,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var px_hexstr : [97]char; test_bytes_to_hex(&raw px_hex[0], 48, &raw mut px_hexstr[0])
     var py_hexstr : [97]char; test_bytes_to_hex(&raw py_hex[0], 48, &raw mut py_hexstr[0])
     var data : [40]u8; test_random_bytes(&raw mut data[0], 40)
-    var hash : [48]u8; sha384_hash(&raw data[0], 40, &raw mut hash[0])
+    var hash : [48]u8; crypto::raw::sha384_hash(&raw data[0], 40, &raw mut hash[0])
     var h_hex : [97]char; test_bytes_to_hex(&raw hash[0], 48, &raw mut h_hex[0])
     var ctx : ECDSAContext = unsafe(std::mem.zeroed_unchecked<ECDSAContext>()); ecdsa_init(unsafe(&raw mut ctx)); ecdsa_import_privkey(unsafe(&raw mut ctx), &raw sk_hex[0], 48, TLS_GROUP_SECP384R1 as u16)
     var sig : [256]u8; var sig_len : u16 = 256
@@ -1142,7 +1142,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var e_bytes : [3]u8; e_bytes[0]=1; e_bytes[1]=0; e_bytes[2]=1
     var ctx : RSAContext = unsafe(std::mem.zeroed_unchecked<RSAContext>()); rsa_init(unsafe(&raw mut ctx), 0, 0)
     rsa_import_pubkey(unsafe(&raw mut ctx), &raw n_hex[0], n_len, &raw e_bytes[0], 3)
-    var digest : [32]u8; sha256_hash(&raw msg_hex[0], msg_len, &raw mut digest[0])
+    var digest : [32]u8; crypto::raw::sha256_hash(&raw msg_hex[0], msg_len, &raw mut digest[0])
     if(rsa_pkcs1_verify(unsafe(&raw mut ctx), &raw digest[0], 32, &raw sig_hex[0], sig_len) < 0){env.error("rsa verify");return}else{}
     rsa_free(unsafe(&raw mut ctx))
 
@@ -1431,10 +1431,10 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 
 @test public func INT_base64_roundtrip(env : &mut TestEnv) {
     var data : [48]u8; test_random_bytes(&raw mut data[0], 48)
-    var enc : [72]char; var enc_r = base64_encode(&raw data[0], 48, &raw mut enc[0], 72)
+    var enc : [72]char; var enc_r = crypto::raw::base64_encode(&raw data[0], 48, &raw mut enc[0], 72)
     if(enc_r is Result.Err){env.error("b64 enc");return}else{}
     var Ok(enc_len) = enc_r else unsafe { unreachable }
-    var dec : [48]u8; var dec_r = base64_decode(&raw enc[0], enc_len, &raw mut dec[0], 48)
+    var dec : [48]u8; var dec_r = crypto::raw::base64_decode(&raw enc[0], enc_len, &raw mut dec[0], 48)
     if(dec_r is Result.Err){env.error("b64 dec");return}else{}
     var Ok(dec_len) = dec_r else unsafe { unreachable }
     if(dec_len != 48 || !test_bytes_eq(&raw data[0], &raw dec[0], 48)){env.error("b64 roundtrip");return}else{}
@@ -1445,7 +1445,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 
     var data : [48]u8; test_random_bytes(&raw mut data[0], 48)
     var d_hex : [97]char; test_bytes_to_hex(&raw data[0], 48, &raw mut d_hex[0])
-    var enc : [72]char; var enc_r = base64_encode(&raw data[0], 48, &raw mut enc[0], 72)
+    var enc : [72]char; var enc_r = crypto::raw::base64_encode(&raw data[0], 48, &raw mut enc[0], 72)
     if(enc_r is Result.Err){env.error("b64 enc");return}else{}
     var Ok(enc_len) = enc_r else unsafe { unreachable }
     var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
@@ -1487,7 +1487,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 @test public func INT_compound_hmac_gcm(env : &mut TestEnv) {
     var key_material : [32]u8; test_random_bytes(&raw mut key_material[0], 32)
     var salt : [16]u8; test_random_bytes(&raw mut salt[0], 16)
-    var hmac_key : [32]u8; hmac_sha256(&raw salt[0], 16, &raw key_material[0], 32, &raw mut hmac_key[0])
+    var hmac_key : [32]u8; crypto::raw::hmac_sha256(&raw salt[0], 16, &raw key_material[0], 32, &raw mut hmac_key[0])
     var pt : [48]u8; test_random_bytes(&raw mut pt[0], 48)
     var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
     var gcm : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut gcm), &raw hmac_key[0], 16)
@@ -1513,7 +1513,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     if(n_len==0){env.error("rsa n");return}else{}
     var e_bytes : [3]u8; e_bytes[0]=1; e_bytes[1]=0; e_bytes[2]=1
     var msg : [32]u8; test_random_bytes(&raw mut msg[0], 32)
-    var digest : [32]u8; sha256_hash(&raw msg[0], 32, &raw mut digest[0])
+    var digest : [32]u8; crypto::raw::sha256_hash(&raw msg[0], 32, &raw mut digest[0])
     var ctx : RSAContext = unsafe(std::mem.zeroed_unchecked<RSAContext>()); rsa_init(unsafe(&raw mut ctx), 0, 0)
     rsa_import_pubkey(unsafe(&raw mut ctx), &raw n_hex[0], n_len, &raw e_bytes[0], 3)
     var ct : [256]u8
@@ -1535,8 +1535,8 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 @test public func INT_x509_constant_time(env : &mut TestEnv) {
     var a : [16]u8; var b : [32]u8
     test_random_bytes(&raw mut a[0], 16); test_random_bytes(&raw mut b[0], 32)
-    if(!constant_time_equal(&raw a[0], &raw a[0], 16)){env.error("ct eq self");return}else{}
-    if(constant_time_equal(&raw a[0], &raw b[0], 16)){env.error("ct eq diff");return}else{}
+    if(!crypto::raw::constant_time_equal(&raw a[0], &raw a[0], 16)){env.error("ct eq self");return}else{}
+    if(crypto::raw::constant_time_equal(&raw a[0], &raw b[0], 16)){env.error("ct eq diff");return}else{}
 }
 
 // ============================================================
@@ -1793,8 +1793,8 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
     var d1 : [16]u8; test_random_bytes(&raw mut d1[0], 16)
     var d2 : [16]u8; test_random_bytes(&raw mut d2[0], 16)
-    var m1 : [32]u8; hmac_sha256(&raw key[0], 16, &raw d1[0], 16, &raw mut m1[0])
-    var m2 : [32]u8; hmac_sha256(&raw key[0], 16, &raw d2[0], 16, &raw mut m2[0])
+    var m1 : [32]u8; crypto::raw::hmac_sha256(&raw key[0], 16, &raw d1[0], 16, &raw mut m1[0])
+    var m2 : [32]u8; crypto::raw::hmac_sha256(&raw key[0], 16, &raw d2[0], 16, &raw mut m2[0])
     if(test_bytes_eq(&raw m1[0], &raw m2[0], 32)){env.error("same mac diff data");return}else{}
 }
 
@@ -1802,8 +1802,8 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var k1 : [16]u8; test_random_bytes(&raw mut k1[0], 16)
     var k2 : [16]u8; test_random_bytes(&raw mut k2[0], 16)
     var data : [16]u8; test_random_bytes(&raw mut data[0], 16)
-    var m1 : [32]u8; hmac_sha256(&raw k1[0], 16, &raw data[0], 16, &raw mut m1[0])
-    var m2 : [32]u8; hmac_sha256(&raw k2[0], 16, &raw data[0], 16, &raw mut m2[0])
+    var m1 : [32]u8; crypto::raw::hmac_sha256(&raw k1[0], 16, &raw data[0], 16, &raw mut m1[0])
+    var m2 : [32]u8; crypto::raw::hmac_sha256(&raw k2[0], 16, &raw data[0], 16, &raw mut m2[0])
     if(test_bytes_eq(&raw m1[0], &raw m2[0], 32)){env.error("same mac diff key");return}else{}
 }
 
@@ -1853,7 +1853,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     if(out[0]==0&&out[31]==0){env.error("x25519 all zero");return}else{}
 }
 
-// ── SHA-384 hash: verify sha384_hash matches Python hashlib.sha384 ──
+// ── SHA-384 hash: verify crypto::raw::sha384_hash matches Python hashlib.sha384 ──
 @test public func INT_sha384_hash_vs_python(env : &mut TestEnv) {
     unsafe {
 
@@ -1866,7 +1866,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     }
 
     var digest : [48]u8
-    sha384_hash(&raw data_bytes[0], 56, &raw mut digest[0])
+    crypto::raw::sha384_hash(&raw data_bytes[0], 56, &raw mut digest[0])
 
     var script : [512]u8; var sp : size_t = 0
     var hdr = "import hashlib,binascii\nd=binascii.unhexlify('" as *char; var si : size_t = 0
@@ -1885,7 +1885,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 }
 }
 
-// ── SHA-512 hash: verify sha512_hash matches Python hashlib.sha512 ──
+// ── SHA-512 hash: verify crypto::raw::sha512_hash matches Python hashlib.sha512 ──
 @test public func INT_sha512_hash_vs_python(env : &mut TestEnv) {
     unsafe {
 
@@ -1898,7 +1898,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     }
 
     var digest : [64]u8
-    sha512_hash(&raw data_bytes[0], 56, &raw mut digest[0])
+    crypto::raw::sha512_hash(&raw data_bytes[0], 56, &raw mut digest[0])
 
     var script : [512]u8; var sp : size_t = 0
     var hdr = "import hashlib,binascii\nd=binascii.unhexlify('" as *char; var si : size_t = 0
@@ -1950,7 +1950,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     if(ret < 0) { env.error("p384 import failed"); return }
 
     var hash : [48]u8
-    sha384_hash("hello world" as *u8, 11, &raw mut hash[0])
+    crypto::raw::sha384_hash("hello world" as *u8, 11, &raw mut hash[0])
 
     // Verify runs without crashing (return value is checked but not asserted
     // as success because P-384 verify is not yet fully functional).
@@ -1990,7 +1990,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 
     // Hash a DIFFERENT message - should NOT verify
     var hash : [48]u8
-    sha384_hash("wrong message" as *u8, 13, &raw mut hash[0])
+    crypto::raw::sha384_hash("wrong message" as *u8, 13, &raw mut hash[0])
 
     ret = ecdsa_verify(unsafe(&raw mut ctx), &raw hash[0], 48, &raw sig_bytes[0], sig_len)
     if(ret >= 0) { env.error("wrong digest should fail"); return }

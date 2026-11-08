@@ -168,7 +168,7 @@ public func begin_runner(reporter : &mut TestReporter, name : &str) {
 
 /// Stream one outcome by reference (no raw pointer at the call site).
 public func on_test(reporter : &mut TestReporter, outcome : &TestOutcome) {
-    reporter.on_test(outcome as *TestOutcome)
+    reporter.on_test(outcome)
 }
 
 /// Finish the reporter and return its process-status result.

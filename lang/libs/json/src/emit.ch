@@ -13,7 +13,7 @@ func (output : &mut std::string) append_value_inner(value : &JsonValue, pretty :
             }
         }
         Number(value) => { output.append_view(value.to_view()) }
-        String(value) => { json_escape_into_raw(output, value.data(), value.size()) }
+        String(value) => { json::raw::json_escape_into_raw(output, value.data(), value.size()) }
         Object(values) => {
             if(pretty) { output.append_char_ptr("{\n") } else { output.append('{') }
             var itr = values.iterator();
@@ -29,7 +29,7 @@ func (output : &mut std::string) append_value_inner(value : &JsonValue, pretty :
                 }
 
                 var key = itr.key()
-                json_escape_into_raw(output, key.data(), key.size())
+                json::raw::json_escape_into_raw(output, key.data(), key.size())
                 if(pretty) { output.append_char_ptr(": ") } else { output.append(':') }
                 var val = itr.value();
                 output.append_value_inner(val, pretty, indent + 2);

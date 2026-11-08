@@ -8,10 +8,10 @@ public namespace tls {
 
     // ─── Secure Random Fill ────────────────────────────────────────────────
     // Fill a buffer with cryptographically secure random bytes.
-    // Delegates to osrand::random_fill (shared OS entropy source).
+    // Delegates to osrand::raw::random_fill (shared OS entropy source).
     // Returns 0 on success, ERR_SSL_NO_RNG on failure.
     public func random_fill(buf : *mut u8, len : size_t) : int {
-        var ret = osrand::random_fill(buf, len)
+        var ret = unsafe(osrand::raw::random_fill(buf, len))
         if(ret != 0) { return ERR_SSL_NO_RNG }
         return 0
     }

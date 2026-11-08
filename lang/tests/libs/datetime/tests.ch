@@ -64,7 +64,7 @@ public func calendar_is_valid_time(env : &mut TestEnv) {
 @test
 public func timezone_utc(env : &mut TestEnv) {
     var tz = datetime::TimeZone::utc()
-    if(tz.offset_secs == 0) { env.success("utc offset 0") } else { env.error("utc offset should be 0") }
+    if(tz.offset_secs_val() == 0) { env.success("utc offset 0") } else { env.error("utc offset should be 0") }
     var off_h = tz.offset_hours()
     if(off_h == 0) { env.success("utc hours 0") } else { env.error("utc hours should be 0") }
 }
@@ -72,7 +72,7 @@ public func timezone_utc(env : &mut TestEnv) {
 @test
 public func timezone_fixed_offset(env : &mut TestEnv) {
     var tz = datetime::TimeZone::fixed(19800, std::string_view("Asia/Kolkata"))
-    if(tz.offset_secs == 19800) { env.success("offset 19800") } else { env.error("offset should be 19800") }
+    if(tz.offset_secs_val() == 19800) { env.success("offset 19800") } else { env.error("offset should be 19800") }
     var off_h = tz.offset_hours()
     if(off_h == 5) { env.success("hours 5") } else { env.error("hours should be 5") }
     var off_m = tz.offset_minutes()
@@ -82,7 +82,7 @@ public func timezone_fixed_offset(env : &mut TestEnv) {
 @test
 public func timezone_negative_offset(env : &mut TestEnv) {
     var tz = datetime::TimeZone::fixed(-18000, std::string_view("America/New_York"))
-    if(tz.offset_secs == -18000) { env.success("offset -18000") } else { env.error("offset should be -18000") }
+    if(tz.offset_secs_val() == -18000) { env.success("offset -18000") } else { env.error("offset should be -18000") }
     var off_h = tz.offset_hours()
     if(off_h == -5) { env.success("hours -5") } else { env.error("hours should be -5") }
 }
@@ -436,4 +436,44 @@ public func datetime_now_returns_valid(env : &mut TestEnv) {
     if(dt.year_val() < 2024) { env.error("now() year should be >= 2024") }
     if(dt.month_val() < 1 || dt.month_val() > 12) { env.error("now() month should be 1-12") }
     if(dt.day_val() < 1 || dt.day_val() > 31) { env.error("now() day should be 1-31") }
+}
+
+@test
+public func datetime_parse_rejects_trailing_input(env : &mut TestEnv) {
+    var result = datetime::DateTime::parse(std::string_view("%Y-%m-%d"), std::string_view("2024-03-05extra"))
+    if(result is std::Result.Ok) {
+        env.error("parse must reject trailing input")
+        return
+    }
+    var Err(err) = result else unsafe { unreachable }
+    if(!(err is datetime::DateTimeError.TrailingInput)) {
+        env.error("trailing input should report DateTimeError.TrailingInput")
+    }
+}
+
+@test
+public func datetime_try_from_components_validates(env : &mut TestEnv) {
+    var tz = datetime::TimeZone::utc()
+    var good = datetime::DateTime::try_from_components(2024, 2, 29, 23, 59, 59, 999999999, tz.copy())
+    if(good is std::Result.Err) { env.error("try_from_components should accept a valid leap day") }
+
+    var bad_date = datetime::DateTime::try_from_components(2023, 2, 29, 0, 0, 0, 0, tz.copy())
+    if(bad_date is std::Result.Ok) {
+        env.error("try_from_components should reject an invalid date")
+    } else {
+        var Err(date_err) = bad_date else unsafe { unreachable }
+        if(!(date_err is datetime::DateTimeError.InvalidDate)) {
+            env.error("invalid date should report DateTimeError.InvalidDate")
+        }
+    }
+
+    var bad_time = datetime::DateTime::try_from_components(2024, 1, 1, 24, 0, 0, 0, tz)
+    if(bad_time is std::Result.Ok) {
+        env.error("try_from_components should reject an invalid time")
+    } else {
+        var Err(time_err) = bad_time else unsafe { unreachable }
+        if(!(time_err is datetime::DateTimeError.InvalidTime)) {
+            env.error("invalid time should report DateTimeError.InvalidTime")
+        }
+    }
 }

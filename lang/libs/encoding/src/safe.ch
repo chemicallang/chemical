@@ -1,16 +1,11 @@
 // safe — owned-buffer encoding surface (no raw pointers, no caller buffers).
 //
-// The legacy functions in `base64.ch`/`hex.ch`/`url.ch`/`utf.ch` take caller
-// owned `*u8`/`*mut char` buffers. These wrappers take `&[u8]`/`&str`, return
-// owned `string`/`vector<u8>`, and report every validation failure through
-// `Result<_, EncodingError>`.
-//
-// They live under `encoding::safe` because Chemical has no function
-// overloading: the raw entry points keep their original names in `encoding`.
+// The legacy pointer/out-buffer entry points live under `encoding::raw`
+// (`base64.ch`/`hex.ch`/`url.ch`/`utf.ch`). These canonical functions take
+// `&[u8]`/`&str`, return owned `string`/`vector<u8>`, and report every
+// validation failure through `Result<_, EncodingError>`.
 
 public namespace encoding {
-
-public namespace safe {
 
 using std::Result;
 using std::string;
@@ -42,7 +37,7 @@ public func base64_encode(data : &[u8]) : Result<string, EncodingError> {
     if(!out.try_reserve(encoded_len + 1)) {
         return Result.Err(EncodingError.OutOfMemory())
     }
-    var r = crypto::base64_encode(data.data(), n, out.data() as *mut char, encoded_len + 1)
+    var r = crypto::raw::base64_encode(data.data(), n, out.data() as *mut char, encoded_len + 1)
     if(r is Result.Err) {
         return Result.Err(EncodingError.InvalidInput())
     }
@@ -92,7 +87,7 @@ public func base64_decode(b64 : &str) : Result<vector<u8>, EncodingError> {
         return Result.Ok(out)
     }
     out.resize(decoded_len)
-    var r = crypto::base64_decode(b64.data(), size, out.data() as *mut u8, decoded_len)
+    var r = crypto::raw::base64_decode(b64.data(), size, out.data() as *mut u8, decoded_len)
     if(r is Result.Err) {
         return Result.Err(EncodingError.InvalidInput())
     }
@@ -108,10 +103,10 @@ public func base64_decode(b64 : &str) : Result<vector<u8>, EncodingError> {
 // ---------------------------------------------------------------------------
 
 /// Encode bytes as lowercase hex. Allocates the result.
-public func hex_encode(data : &[u8]) : string {
+public func hex_encode(data : &[u8]) : Result<string, EncodingError> {
     const n = data.size()
     if(n > ((((0 as size_t) - 1) - 1) / 2)) {
-        panic("hex_encode input too large")
+        return Result.Err(EncodingError.InvalidInput())
     }
     var out = string()
     out.reserve(n * 2 + 1)
@@ -122,14 +117,14 @@ public func hex_encode(data : &[u8]) : string {
         out.append(HEX_DIGITS_LOWER[(b & 0x0F) as size_t])
         i += 1
     }
-    return out
+    return Result.Ok(out)
 }
 
 /// Encode bytes as uppercase hex. Allocates the result.
-public func hex_encode_upper(data : &[u8]) : string {
+public func hex_encode_upper(data : &[u8]) : Result<string, EncodingError> {
     const n = data.size()
     if(n > ((((0 as size_t) - 1) - 1) / 2)) {
-        panic("hex_encode_upper input too large")
+        return Result.Err(EncodingError.InvalidInput())
     }
     var out = string()
     out.reserve(n * 2 + 1)
@@ -140,37 +135,13 @@ public func hex_encode_upper(data : &[u8]) : string {
         out.append(HEX_DIGITS_UPPER[(b & 0x0F) as size_t])
         i += 1
     }
-    return out
+    return Result.Ok(out)
 }
 
 /// Decode a hex string (case-insensitive). Rejects odd lengths and non-hex
 /// characters.
 public func hex_decode(hex : &str) : Result<vector<u8>, EncodingError> {
-    const size = hex.size()
-    if(size % 2 != 0) {
-        return Result.Err(EncodingError.InvalidInput())
-    }
-    const byte_count = size / 2
-    var out = vector<u8>()
-    if(!out.try_reserve(byte_count)) {
-        return Result.Err(EncodingError.OutOfMemory())
-    }
-    var i : size_t = 0
-    while(i < size) {
-        var high = hex_to_nibble(hex.get(i))
-        if(high < 0) {
-            return Result.Err(EncodingError.InvalidInput())
-        }
-        var low = hex_to_nibble(hex.get(i + 1))
-        if(low < 0) {
-            return Result.Err(EncodingError.InvalidInput())
-        }
-        if(!out.try_push((((high as u8) << 4) | (low as u8)))) {
-            return Result.Err(EncodingError.OutOfMemory())
-        }
-        i += 2
-    }
-    return Result.Ok(out)
+    return hex_decode_view(hex.to_view())
 }
 
 // ---------------------------------------------------------------------------
@@ -178,10 +149,10 @@ public func hex_decode(hex : &str) : Result<vector<u8>, EncodingError> {
 // ---------------------------------------------------------------------------
 
 /// Percent-encode every byte except the RFC 3986 unreserved set. Allocates.
-public func url_encode(value : &str) : string {
+public func url_encode(value : &str) : Result<string, EncodingError> {
     const n = value.size()
     if(n > (((0 as size_t) - 1) - 1) / 3) {
-        panic("url_encode input too large")
+        return Result.Err(EncodingError.InvalidInput())
     }
     var out = string()
     out.reserve(n * 3 + 1)
@@ -198,7 +169,7 @@ public func url_encode(value : &str) : string {
         }
         i += 1
     }
-    return out
+    return Result.Ok(out)
 }
 
 /// Decode a percent-encoded string. `+` decodes to a space. Malformed
@@ -493,6 +464,4 @@ public func utf16_to_utf8(value : &[u16]) : Result<string, EncodingError> {
     return Result.Ok(s)
 }
 
-} // namespace safe
-
-} // namespace encoding
+} // end namespace encoding

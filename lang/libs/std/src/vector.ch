@@ -40,6 +40,18 @@ public struct vector<T> {
         }
     }
 
+    public func with_capacity(init_cap : size_t) : vector<T> {
+        return vector<T>(init_cap)
+    }
+
+    public func try_with_capacity(init_cap : size_t) : std::Result<vector<T>, std::alloc::AllocError> {
+        var out = vector<T>()
+        if(!out.try_reserve(init_cap)) {
+            return std::Result.Err<vector<T>, std::alloc::AllocError>(std::alloc::AllocError.OutOfMemory())
+        }
+        return std::Result.Ok<vector<T>, std::alloc::AllocError>(out)
+    }
+
     @constructor
     func make_with_capacity(init_cap : size_t) {
         const elem_size = sizeof(T)
@@ -208,6 +220,10 @@ public struct vector<T> {
         if(index >= data_size) { return false }
         set(index, value)
         return true
+    }
+
+    func pop(&mut self) : Option<T> {
+        return try_pop()
     }
 
     func try_pop(&mut self) : Option<T> {

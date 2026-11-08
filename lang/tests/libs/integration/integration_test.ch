@@ -14,9 +14,9 @@ using namespace std;
 func test_sha256_then_hex_hello(env : &mut TestEnv) {
     var data : [5]u8 = [ 0x48, 0x65, 0x6C, 0x6C, 0x6F ];
     var digest : [32]u8;
-    crypto::sha256_hash(&raw data[0], 5, &raw mut digest[0]);
+    crypto::raw::sha256_hash(&raw data[0], 5, &raw mut digest[0]);
     var hex_buf : [128]char;
-    var r = encoding::hex_encode(&raw digest[0], 32, &raw mut hex_buf[0], 128);
+    var r = encoding::raw::hex_encode(&raw digest[0], 32, &raw mut hex_buf[0], 128);
     if(r is Result.Err) { env.error("hex_encode failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     // SHA-256("Hello") hex-encoded
@@ -28,9 +28,9 @@ func test_sha256_then_hex_hello(env : &mut TestEnv) {
 @test
 func test_md5_then_hex_empty(env : &mut TestEnv) {
     var digest : [16]u8;
-    crypto::md5_hash(&raw digest[0] as *u8, 0, &raw mut digest[0]);
+    crypto::raw::md5_hash(&raw digest[0] as *u8, 0, &raw mut digest[0]);
     var hex_buf : [128]char;
-    var r = encoding::hex_encode(&raw digest[0], 16, &raw mut hex_buf[0], 128);
+    var r = encoding::raw::hex_encode(&raw digest[0], 16, &raw mut hex_buf[0], 128);
     if(r is Result.Err) { env.error("hex_encode failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     // MD5("") = d41d8cd98f00b204e9800998ecf8427e
@@ -43,9 +43,9 @@ func test_md5_then_hex_empty(env : &mut TestEnv) {
 func test_sha256_then_hex_upper(env : &mut TestEnv) {
     var data : [3]u8 = [ 0x61, 0x62, 0x63 ];
     var digest : [32]u8;
-    crypto::sha256_hash(&raw data[0], 3, &raw mut digest[0]);
+    crypto::raw::sha256_hash(&raw data[0], 3, &raw mut digest[0]);
     var hex_buf : [128]char;
-    var r = encoding::hex_encode_upper(&raw digest[0], 32, &raw mut hex_buf[0], 128);
+    var r = encoding::raw::hex_encode_upper(&raw digest[0], 32, &raw mut hex_buf[0], 128);
     if(r is Result.Err) { env.error("hex_encode_upper failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     // SHA-256("abc") = BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD
@@ -67,23 +67,23 @@ func test_compress_then_b64_roundtrip(env : &mut TestEnv) {
                           0x41, 0x41, 0x41, 0x42, 0x42, 0x43, 0x44, 0x44, 0x44, 0x45 ];
     var compressed : [256]u8;
     var comp_len : size_t = 0;
-    var rc = compression::compress(&raw input[0], 50, &raw mut compressed[0], &raw mut comp_len, 256);
+    var rc = compression::raw::compress(&raw input[0], 50, &raw mut compressed[0], &raw mut comp_len, 256);
     if(rc is Result.Err) { env.error("compress failed"); return; }
     // Base64 encode the compressed data
     var b64_buf : [512]char;
-    var rb = crypto::base64_encode(&raw compressed[0], comp_len, &raw mut b64_buf[0], 512);
+    var rb = crypto::raw::base64_encode(&raw compressed[0], comp_len, &raw mut b64_buf[0], 512);
     if(rb is Result.Err) { env.error("base64_encode of compressed data failed"); return; }
     var Ok(b64_len) = rb else unsafe { unreachable };
     if(b64_len < 1) { env.error("b64 encoded length should be > 0"); return; }
     // Base64 decode back
     var decoded_comp : [256]u8;
-    var rd = crypto::base64_decode(b64_buf, b64_len, &raw mut decoded_comp[0], 256);
+    var rd = crypto::raw::base64_decode(b64_buf, b64_len, &raw mut decoded_comp[0], 256);
     if(rd is Result.Err) { env.error("base64_decode failed"); return; }
     var Ok(dec_comp_len) = rd else unsafe { unreachable };
     // Decompress
     var decompressed : [256]u8;
     var dec_len : size_t = 0;
-    var rx = compression::decompress(&raw decoded_comp[0], dec_comp_len, &raw mut decompressed[0], &raw mut dec_len, 256);
+    var rx = compression::raw::decompress(&raw decoded_comp[0], dec_comp_len, &raw mut decompressed[0], &raw mut dec_len, 256);
     if(rx is Result.Err) { env.error("decompress after b64 roundtrip failed"); return; }
     if(dec_len != 50) { env.error("final decompressed length should be 50"); return; }
     var ok = true;
@@ -106,22 +106,22 @@ func test_compress_then_hex_roundtrip(env : &mut TestEnv) {
                           0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC ];
     var compressed : [128]u8;
     var comp_len : size_t = 0;
-    var rc = compression::compress(&raw input[0], 30, &raw mut compressed[0], &raw mut comp_len, 128);
+    var rc = compression::raw::compress(&raw input[0], 30, &raw mut compressed[0], &raw mut comp_len, 128);
     if(rc is Result.Err) { env.error("compress failed"); return; }
     // Hex-encode compressed
     var hex_buf : [512]char;
-    var rh = encoding::hex_encode(&raw compressed[0], comp_len, &raw mut hex_buf[0], 512);
+    var rh = encoding::raw::hex_encode(&raw compressed[0], comp_len, &raw mut hex_buf[0], 512);
     if(rh is Result.Err) { env.error("hex_encode of compressed data failed"); return; }
     var Ok(hex_len) = rh else unsafe { unreachable };
     // Hex-decode back
     var decoded_comp : [128]u8;
-    var rhd = encoding::hex_decode(hex_buf, &raw mut decoded_comp[0], 128);
+    var rhd = encoding::raw::hex_decode(hex_buf, &raw mut decoded_comp[0], 128);
     if(rhd is Result.Err) { env.error("hex_decode failed"); return; }
     var Ok(dec_comp_len) = rhd else unsafe { unreachable };
     // Decompress
     var decompressed : [128]u8;
     var dec_len : size_t = 0;
-    var rx = compression::decompress(&raw decoded_comp[0], dec_comp_len, &raw mut decompressed[0], &raw mut dec_len, 128);
+    var rx = compression::raw::decompress(&raw decoded_comp[0], dec_comp_len, &raw mut decompressed[0], &raw mut dec_len, 128);
     if(rx is Result.Err) { env.error("decompress after hex roundtrip failed"); return; }
     if(dec_len != 30) { env.error("final decompressed length should be 30"); return; }
     var ok = true;
@@ -145,7 +145,7 @@ func test_path_basename_then_hash(env : &mut TestEnv) {
     var Ok(len) = r else unsafe { unreachable };
     // Hash the basename "gcc" as data
     var digest : [32]u8;
-    crypto::sha256_hash(&raw buf[0] as *u8, len, &raw mut digest[0]);
+    crypto::raw::sha256_hash(&raw buf[0] as *u8, len, &raw mut digest[0]);
     // SHA256("gcc") first 4 bytes: verify it's non-zero
     if(digest[0] == 0 && digest[1] == 0 && digest[2] == 0 && digest[3] == 0) {
         env.error("SHA-256 of path basename gave all-zero hash");
@@ -160,10 +160,10 @@ func test_path_normalize_then_hex_hash(env : &mut TestEnv) {
     var Ok(len) = r else unsafe { unreachable };
     // Hash the normalized path
     var digest : [32]u8;
-    crypto::sha256_hash(&raw buf[0] as *u8, len, &raw mut digest[0]);
+    crypto::raw::sha256_hash(&raw buf[0] as *u8, len, &raw mut digest[0]);
     // Hex-encode the hash for display verification
     var hex_buf : [128]char;
-    var rh = encoding::hex_encode(&raw digest[0], 32, &raw mut hex_buf[0], 128);
+    var rh = encoding::raw::hex_encode(&raw digest[0], 32, &raw mut hex_buf[0], 128);
     if(rh is Result.Err) { env.error("hex_encode failed"); return; }
     var Ok(hex_len) = rh else unsafe { unreachable };
     if(hex_len != 64) { env.error("hash hex output should be 64 chars"); return; }
@@ -188,13 +188,13 @@ func test_hex_decode_then_b64_encode(env : &mut TestEnv) {
     // Base64 of "Hello" = "SGVsbG8="
     var hex = "48656C6C6F";
     var bytes : [16]u8;
-    var rd = encoding::hex_decode(hex, &raw mut bytes[0], 16);
+    var rd = encoding::raw::hex_decode(hex, &raw mut bytes[0], 16);
     if(rd is Result.Err) { env.error("hex_decode failed"); return; }
     var Ok(byte_len) = rd else unsafe { unreachable };
     if(byte_len != 5) { env.error("expected 5 bytes from hex"); return; }
     // Base64 encode the decoded bytes
     var b64_buf : [32]char;
-    var rb = crypto::base64_encode(&raw bytes[0], byte_len, &raw mut b64_buf[0], 32);
+    var rb = crypto::raw::base64_encode(&raw bytes[0], byte_len, &raw mut b64_buf[0], 32);
     if(rb is Result.Err) { env.error("base64_encode failed"); return; }
     var Ok(b64_len) = rb else unsafe { unreachable };
     if(!(b64_len == 8 && b64_buf[0] == 'S' && b64_buf[1] == 'G' && b64_buf[2] == 'V' && b64_buf[3] == 's' &&
@@ -207,13 +207,13 @@ func test_hex_decode_then_b64_encode(env : &mut TestEnv) {
 func test_b64_decode_then_hex_encode(env : &mut TestEnv) {
     var b64 = "SGVsbG8=";
     var bytes : [16]u8;
-    var rd = crypto::base64_decode(b64, 8, &raw mut bytes[0], 16);
+    var rd = crypto::raw::base64_decode(b64, 8, &raw mut bytes[0], 16);
     if(rd is Result.Err) { env.error("base64_decode failed"); return; }
     var Ok(byte_len) = rd else unsafe { unreachable };
     if(byte_len != 5) { env.error("expected 5 bytes from b64"); return; }
     // Hex-encode the decoded bytes
     var hex_buf : [32]char;
-    var rh = encoding::hex_encode(&raw bytes[0], byte_len, &raw mut hex_buf[0], 32);
+    var rh = encoding::raw::hex_encode(&raw bytes[0], byte_len, &raw mut hex_buf[0], 32);
     if(rh is Result.Err) { env.error("hex_encode failed"); return; }
     var Ok(hex_len) = rh else unsafe { unreachable };
     if(!(hex_len == 10 && hex_buf[0] == '4' && hex_buf[1] == '8' && hex_buf[2] == '6' && hex_buf[3] == '5' &&
@@ -230,7 +230,7 @@ func test_b64_decode_then_hex_encode(env : &mut TestEnv) {
 func test_url_encode_then_verify_with_hex(env : &mut TestEnv) {
     var data : [3]u8 = [ 0x00, 0x80, 0xFF ];
     var url_buf : [32]char;
-    var ru = encoding::url_encode(&raw data[0] as *char, 3, &raw mut url_buf[0], 32);
+    var ru = encoding::raw::url_encode(&raw data[0] as *char, 3, &raw mut url_buf[0], 32);
     if(ru is Result.Err) { env.error("url_encode failed"); return; }
     var Ok(url_len) = ru else unsafe { unreachable };
     // Verify the URL-encoded output contains valid percent-encoded bytes
@@ -255,15 +255,15 @@ func test_path_hash_hex_b64_roundtrip(env : &mut TestEnv) {
     var Ok(path_len) = rn else unsafe { unreachable };
     // Hash the normalized path
     var digest : [32]u8;
-    crypto::sha256_hash(&raw path_buf[0] as *u8, path_len, &raw mut digest[0]);
+    crypto::raw::sha256_hash(&raw path_buf[0] as *u8, path_len, &raw mut digest[0]);
     // Hex-encode the hash
     var hex_buf : [128]char;
-    var rh = encoding::hex_encode(&raw digest[0], 32, &raw mut hex_buf[0], 128);
+    var rh = encoding::raw::hex_encode(&raw digest[0], 32, &raw mut hex_buf[0], 128);
     if(rh is Result.Err) { env.error("hex_encode failed"); return; }
     var Ok(hex_len) = rh else unsafe { unreachable };
     // Base64-encode the hex string (double encoding just for pipeline test)
     var b64_buf : [256]char;
-    var rb = crypto::base64_encode(&raw hex_buf[0] as *u8, hex_len, &raw mut b64_buf[0], 256);
+    var rb = crypto::raw::base64_encode(&raw hex_buf[0] as *u8, hex_len, &raw mut b64_buf[0], 256);
     if(rb is Result.Err) { env.error("base64_encode of hex failed"); return; }
     var Ok(b64_len) = rb else unsafe { unreachable };
     // Verify b64 output is non-empty and valid base64
@@ -292,9 +292,9 @@ func test_hmac_then_hex(env : &mut TestEnv) {
                          0x20, 0x77, 0x61, 0x6E, 0x74, 0x20, 0x66, 0x6F, 0x72, 0x20,
                          0x6E, 0x6F, 0x74, 0x68, 0x69, 0x6E, 0x67, 0x3F ];
     var digest : [32]u8;
-    crypto::hmac_sha256(&raw key[0], 4, &raw data[0], 28, &raw mut digest[0]);
+    crypto::raw::hmac_sha256(&raw key[0], 4, &raw data[0], 28, &raw mut digest[0]);
     var hex_buf : [128]char;
-    var rh = encoding::hex_encode(&raw digest[0], 32, &raw mut hex_buf[0], 128);
+    var rh = encoding::raw::hex_encode(&raw digest[0], 32, &raw mut hex_buf[0], 128);
     if(rh is Result.Err) { env.error("hex_encode failed"); return; }
     var Ok(hex_len) = rh else unsafe { unreachable };
     // Expected: 5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843
@@ -312,17 +312,17 @@ func test_url_encode_utf8_then_decode(env : &mut TestEnv) {
     // UTF-8 encoded "héllo wörld" (with multi-byte characters)
     var utf8_data : [12]u8 = [ 0x68, 0xC3, 0xA9, 0x6C, 0x6C, 0x6F, 0x20, 0x77, 0xC3, 0xB6, 0x72, 0x6C ];
     // First verify it's valid UTF-8
-    if(!encoding::utf8_is_valid(&raw utf8_data[0] as *char, 12)) {
+    if(!encoding::raw::utf8_is_valid(&raw utf8_data[0] as *char, 12)) {
         env.error("UTF-8 data should be valid"); return;
     }
     // URL-encode it
     var url_buf : [64]char;
-    var ru = encoding::url_encode(&raw utf8_data[0] as *char, 12, &raw mut url_buf[0], 64);
+    var ru = encoding::raw::url_encode(&raw utf8_data[0] as *char, 12, &raw mut url_buf[0], 64);
     if(ru is Result.Err) { env.error("url_encode of UTF-8 failed"); return; }
     var Ok(url_len) = ru else unsafe { unreachable };
     // URL-decode back
     var decoded_buf : [64]char;
-    var rdu = encoding::url_decode(url_buf, url_len, &raw mut decoded_buf[0], 64);
+    var rdu = encoding::raw::url_decode(url_buf, url_len, &raw mut decoded_buf[0], 64);
     if(rdu is Result.Err) { env.error("url_decode failed"); return; }
     var Ok(dec_len) = rdu else unsafe { unreachable };
     if(dec_len != 12) { env.error("URL roundtrip length mismatch"); return; }
@@ -347,7 +347,7 @@ func test_path_extension_then_hex(env : &mut TestEnv) {
     var Ok(ext_len) = re else unsafe { unreachable };
     // Hex-encode the extension bytes (including the dot)
     var hex_buf : [64]char;
-    var rh = encoding::hex_encode(&raw ext_buf[0] as *u8, ext_len, &raw mut hex_buf[0], 64);
+    var rh = encoding::raw::hex_encode(&raw ext_buf[0] as *u8, ext_len, &raw mut hex_buf[0], 64);
     if(rh is Result.Err) { env.error("hex_encode of extension failed"); return; }
     var Ok(hex_len) = rh else unsafe { unreachable };
     // ".txt" = 0x2E 0x74 0x78 0x74 -> "2e747874"
@@ -370,18 +370,18 @@ func test_hmac_compressed_data(env : &mut TestEnv) {
     // Compress it
     var compressed : [256]u8;
     var comp_len : size_t = 0;
-    var rc = compression::compress(&raw input[0], 100, &raw mut compressed[0], &raw mut comp_len, 256);
+    var rc = compression::raw::compress(&raw input[0], 100, &raw mut compressed[0], &raw mut comp_len, 256);
     if(rc is Result.Err) { env.error("compress failed"); return; }
     // HMAC the compressed data
     var key : [3]u8 = [ 0x6B, 0x65, 0x79 ];
     var digest : [32]u8;
-    crypto::hmac_sha256(&raw key[0], 3, &raw compressed[0], comp_len, &raw mut digest[0]);
+    crypto::raw::hmac_sha256(&raw key[0], 3, &raw compressed[0], comp_len, &raw mut digest[0]);
     if(digest[0] == 0 && digest[1] == 0 && digest[2] == 0 && digest[3] == 0) {
         env.error("HMAC of compressed data gave all-zero");
     }
     // Verify the HMAC is consistent by running it twice
     var digest2 : [32]u8;
-    crypto::hmac_sha256(&raw key[0], 3, &raw compressed[0], comp_len, &raw mut digest2[0]);
+    crypto::raw::hmac_sha256(&raw key[0], 3, &raw compressed[0], comp_len, &raw mut digest2[0]);
     var same = true;
     var j : size_t = 0;
     while(j < 32) {
@@ -400,28 +400,28 @@ func test_hex_b64_compress_inverse(env : &mut TestEnv) {
     // Start with hex-encoded data, decode to bytes
     var hex = "48656C6C6F202D20436F6D7072657373696F6E2054657374";
     var bytes : [64]u8;
-    var rh = encoding::hex_decode(hex, &raw mut bytes[0], 64);
+    var rh = encoding::raw::hex_decode(hex, &raw mut bytes[0], 64);
     if(rh is Result.Err) { env.error("hex_decode failed"); return; }
     var Ok(byte_len) = rh else unsafe { unreachable };
     // Base64 encode those bytes
     var b64_buf : [128]char;
-    var rb = crypto::base64_encode(&raw bytes[0], byte_len, &raw mut b64_buf[0], 128);
+    var rb = crypto::raw::base64_encode(&raw bytes[0], byte_len, &raw mut b64_buf[0], 128);
     if(rb is Result.Err) { env.error("base64_encode failed"); return; }
     var Ok(b64_len) = rb else unsafe { unreachable };
     // Base64 decode back
     var decoded_bytes : [64]u8;
-    var rbd = crypto::base64_decode(b64_buf, b64_len, &raw mut decoded_bytes[0], 64);
+    var rbd = crypto::raw::base64_decode(b64_buf, b64_len, &raw mut decoded_bytes[0], 64);
     if(rbd is Result.Err) { env.error("base64_decode failed"); return; }
     var Ok(dec_byte_len) = rbd else unsafe { unreachable };
     // Compress decoded bytes
     var compressed : [128]u8;
     var comp_len : size_t = 0;
-    var rc = compression::compress(&raw decoded_bytes[0], dec_byte_len, &raw mut compressed[0], &raw mut comp_len, 128);
+    var rc = compression::raw::compress(&raw decoded_bytes[0], dec_byte_len, &raw mut compressed[0], &raw mut comp_len, 128);
     if(rc is Result.Err) { env.error("compress failed"); return; }
     // Decompress
     var decompressed : [128]u8;
     var dec_len : size_t = 0;
-    var rx = compression::decompress(&raw compressed[0], comp_len, &raw mut decompressed[0], &raw mut dec_len, 128);
+    var rx = compression::raw::decompress(&raw compressed[0], comp_len, &raw mut decompressed[0], &raw mut dec_len, 128);
     if(rx is Result.Err) { env.error("decompress failed"); return; }
     // Verify the whole pipeline: original hex decoded bytes match
     if(dec_len != byte_len) { env.error("pipeline length mismatch"); return; }
@@ -456,7 +456,7 @@ func test_path_join_hash_verify(env : &mut TestEnv) {
     var Ok(ext_len) = re else unsafe { unreachable };
     // Verify extension is .txt via hex
     var hex_buf : [32]char;
-    var rh = encoding::hex_encode(&raw ext_buf[0] as *u8, ext_len, &raw mut hex_buf[0], 32);
+    var rh = encoding::raw::hex_encode(&raw ext_buf[0] as *u8, ext_len, &raw mut hex_buf[0], 32);
     if(rh is Result.Err) { env.error("hex_encode failed"); return; }
     var Ok(hex_len) = rh else unsafe { unreachable };
     if(!(hex_len == 8 && hex_buf[0] == '2' && hex_buf[1] == 'e')) {

@@ -34,29 +34,77 @@ public namespace regex {
         var outs : std::vector<PatchPtr>
     }
 
+    // Capture ranges for one successful search. The searched text is retained
+    // as a borrowed view so `group(index)` can hand back a view without asking
+    // the caller to pass the text again. Fields are implementation state, not
+    // part of the public contract.
     public struct Captures {
-        var matched : bool
-        var positions : std::vector<i64>
+        internal var text : std::string_view
+        internal var matched_flag : bool
+        internal var positions : std::vector<i64>
 
         public func size(&self) : size_t {
             return self.positions.size()
         }
 
+        public func matched(&self) : bool {
+            return self.matched_flag
+        }
+
         // The borrowed text of capture group `index` (0 is the whole match).
         // `None` when the group did not participate or the index is out of
-        // range. The view borrows `text`; it is not an owning copy.
-        public func group(&self, text : &str, index : size_t) : std::Option<std::string_view> {
-            var pos = index * 2u
-            if(!self.matched || pos + 1u >= self.positions.size()) {
+        // range. The view borrows the text that was searched; it is not an
+        // owning copy.
+        public func group(&self, index : size_t) : std::Option<std::string_view> {
+            var start = self.capture_start(index)
+            if(start is std::Option.None) {
                 return std::Option.None<std::string_view>()
+            }
+            var Some(first) = start else unsafe { unreachable }
+            var end = self.capture_end(index)
+            var Some(last) = end else unsafe { unreachable }
+            return std::Option.Some<std::string_view>(self.text.subview(first, last))
+        }
+
+        public func capture_start(&self, index : size_t) : std::Option<size_t> {
+            var pos = index * 2u
+            if(!self.matched_flag || pos + 1u >= self.positions.size()) {
+                return std::Option.None<size_t>()
             }
             var start = self.positions.get(pos)
             var end = self.positions.get(pos + 1u)
             if(start < 0 || end < start) {
-                return std::Option.None<std::string_view>()
+                return std::Option.None<size_t>()
             }
-            var view = text.to_view()
-            return std::Option.Some<std::string_view>(view.subview(start as size_t, end as size_t))
+            return std::Option.Some<size_t>(start as size_t)
+        }
+
+        public func capture_end(&self, index : size_t) : std::Option<size_t> {
+            var pos = index * 2u
+            if(!self.matched_flag || pos + 1u >= self.positions.size()) {
+                return std::Option.None<size_t>()
+            }
+            var start = self.positions.get(pos)
+            var end = self.positions.get(pos + 1u)
+            if(start < 0 || end < start) {
+                return std::Option.None<size_t>()
+            }
+            return std::Option.Some<size_t>(end as size_t)
+        }
+    }
+
+    // Why a pattern did not compile. `position` is the byte offset the parser
+    // was at when it failed (0 when the parser did not track one).
+    public struct RegexError {
+        internal var message_text : std::string
+        internal var error_position : size_t
+
+        public func message(&self) : std::string_view {
+            return self.message_text.to_view()
+        }
+
+        public func position(&self) : size_t {
+            return self.error_position
         }
     }
 
@@ -78,12 +126,12 @@ public namespace regex {
     }
 
     public struct Regex {
-        var states : std::vector<NFAState>
-        var classes : std::vector<CharClass>
-        var start_state : i64
-        var num_captures : i64
-        var pattern : std::string
-        var compile_error : std::string
+        internal var states : std::vector<NFAState>
+        internal var classes : std::vector<CharClass>
+        internal var start_state : i64
+        internal var num_captures : i64
+        internal var pattern_text : std::string
+        internal var compile_error : std::string
 
         @constructor
         public func init() : Regex {
@@ -92,9 +140,26 @@ public namespace regex {
                 classes : std::vector<CharClass>(),
                 start_state : -1,
                 num_captures : 0,
-                pattern : std::string(),
+                pattern_text : std::string(),
                 compile_error : std::string()
             }
+        }
+
+        // Whether the pattern compiled successfully. A `Regex` that is not
+        // valid never matches; use `error()` for the reason.
+        public func is_valid(&self) : bool {
+            return self.start_state >= 0
+        }
+
+        // The source pattern, as supplied to `compile`.
+        public func pattern(&self) : std::string_view {
+            return self.pattern_text.to_view()
+        }
+
+        // The compile error message, or the empty view when the pattern is
+        // valid.
+        public func error(&self) : std::string_view {
+            return self.compile_error.to_view()
         }
 
         public func is_match(&self, text : std::string_view) : bool {
@@ -113,12 +178,17 @@ public namespace regex {
         // Safe search: `None` when there is no match (including a regex that
         // failed to compile). The returned `Match` borrows `text`.
         public func find(&self, text : &str) : std::Option<Match> {
+            var view = text.to_view()
             var start : i64 = -1
             var end : i64 = -1
-            if(!self.find_raw(text.to_view(), &raw mut start, &raw mut end)) {
+            if(self.start_state < 0) {
                 return std::Option.None<Match>()
             }
-            var view = text.to_view()
+            unsafe {
+                if(!find_from(&self.states, &self.classes, self.start_state, view, 0, &raw mut start, &raw mut end)) {
+                    return std::Option.None<Match>()
+                }
+            }
             return std::Option.Some<Match>(Match {
                 text : view.subview(start as size_t, end as size_t),
                 start : start as size_t,
@@ -126,42 +196,24 @@ public namespace regex {
             })
         }
 
-        // Legacy raw out-parameter search. New code should use `find`.
-        public func find_raw(&self, text : std::string_view, start_pos : *mut i64, end_pos : *mut i64) : bool {
-        unsafe {
-                *start_pos = -1
-                *end_pos = -1
-                if(self.start_state < 0) return false
-                return find_from(&self.states, &self.classes, self.start_state, text, 0, start_pos, end_pos)
-        
-        }
-    }
-
         // Safe capture search: `None` when there is no match. Capture ranges are
-        // byte offsets; `Captures::group` turns one into a borrowed view.
+        // byte offsets; `Captures::group(index)` turns one into a borrowed view
+        // of the retained searched text.
         public func captures(&self, text : &str) : std::Option<Captures> {
             if(self.start_state < 0) {
                 return std::Option.None<Captures>()
             }
+            var view = text.to_view()
             var positions = std::vector<i64>()
-            var found = find_captures_from(&self.states, &self.classes, self.start_state, text.to_view(), 0, self.num_captures, &raw mut positions)
+            var found = find_captures_from(&self.states, &self.classes, self.start_state, view, 0, self.num_captures, &raw mut positions)
             if(found) {
-                return std::Option.Some<Captures>(Captures { matched : true, positions : positions })
+                return std::Option.Some<Captures>(Captures {
+                    text : view,
+                    matched_flag : true,
+                    positions : positions
+                })
             }
             return std::Option.None<Captures>()
-        }
-
-        // Legacy capture value. New code should use `captures`.
-        public func captures_raw(&self, text : std::string_view) : Captures {
-            if(self.start_state < 0) {
-                return Captures { matched : false, positions : std::vector<i64>() }
-            }
-            var positions = std::vector<i64>()
-            var found = find_captures_from(&self.states, &self.classes, self.start_state, text, 0, self.num_captures, &raw mut positions)
-            if(found) {
-                return Captures { matched : true, positions : positions }
-            }
-            return Captures { matched : false, positions : std::vector<i64>() }
         }
 
         public func replace(&self, text : &str, replacement : &str) : std::string {
@@ -205,11 +257,10 @@ public namespace regex {
             return result
         }
 
-        // Safe split: returns owned strings, one per segment. Unlike the legacy
-        // out-parameter form there is no caller-owned view vector to manage.
+        // Safe split: returns owned strings, one per segment.
         public func split(&self, text : &str) : std::vector<std::string> {
             var views = std::vector<std::string_view>()
-            self.split_raw(text.to_view(), &raw mut views)
+            unsafe { raw::split_raw(self, text.to_view(), &raw mut views) }
             var out = std::vector<std::string>()
             var i : size_t = 0
             while(i < views.size()) {
@@ -221,17 +272,45 @@ public namespace regex {
             }
             return out
         }
+    }
 
-        // Legacy split with a caller-owned view vector. New code should use
-        // `split`.
-        public func split_raw(&self, text : std::string_view, out : *mut std::vector<std::string_view>) {
-        unsafe {
+    // =========================================================================
+    // Raw / legacy surface
+    // =========================================================================
+    //
+    // These entry points take raw pointers or write through caller-owned
+    // out-parameters. They are grouped here so the safe surface above stays
+    // pointer-free; new code should use `find`, `captures`, and `split`.
+    public namespace raw {
+        public unsafe func find_raw(re : &Regex, text : std::string_view, start_pos : *mut i64, end_pos : *mut i64) : bool {
+            unsafe {
+                *start_pos = -1
+                *end_pos = -1
+                if(re.start_state < 0) return false
+                return find_from(&re.states, &re.classes, re.start_state, text, 0, start_pos, end_pos)
+            }
+        }
+
+        public func captures_raw(re : &Regex, text : std::string_view) : Captures {
+            if(re.start_state < 0) {
+                return Captures { text : text, matched_flag : false, positions : std::vector<i64>() }
+            }
+            var positions = std::vector<i64>()
+            var found = find_captures_from(&re.states, &re.classes, re.start_state, text, 0, re.num_captures, &raw mut positions)
+            if(found) {
+                return Captures { text : text, matched_flag : true, positions : positions }
+            }
+            return Captures { text : text, matched_flag : false, positions : std::vector<i64>() }
+        }
+
+        public unsafe func split_raw(re : &Regex, text : std::string_view, out : *mut std::vector<std::string_view>) {
+            unsafe {
                 var pos : size_t = 0
                 var text_len = text.size()
                 while(pos <= text_len) {
                     var start_out : i64 = 0
                     var end_out : i64 = 0
-                    var found = find_from(&self.states, &self.classes, self.start_state, text, pos, &raw mut start_out, &raw mut end_out)
+                    var found = find_from(&re.states, &re.classes, re.start_state, text, pos, &raw mut start_out, &raw mut end_out)
                     if(!found) {
                         var remaining = text.subview(pos, text_len)
                         out.push(remaining)
@@ -240,7 +319,7 @@ public namespace regex {
 
                     var seg = text.subview(pos, start_out as size_t)
                     out.push(seg)
-                
+
                     if(start_out == end_out) {
                         if((end_out as size_t) < text_len) {
                             out.push(text.subview(end_out as size_t, (end_out as size_t) + 1))
@@ -252,18 +331,20 @@ public namespace regex {
                         pos = end_out as size_t
                     }
                 }
-        
+            }
         }
-    }
     }
 
     // =========================================================================
     // Top-level compile function
     // =========================================================================
+    // Convenience constructor. It never fails at the call site: inspect
+    // `is_valid()`/`error()`, or use `try_compile` when the caller wants a
+    // typed `Result`.
     public func compile(pattern : std::string_view) : Regex {
         var re = Regex::init()
-        re.pattern.append_view(&pattern)
-        
+        re.pattern_text.append_view(&pattern)
+
         var ok = compile_internal(pattern, &mut re.states, &mut re.classes, &raw mut re.start_state, &raw mut re.num_captures, &mut re.compile_error)
 
         if(!ok) {
@@ -272,6 +353,19 @@ public namespace regex {
             }
         }
         return re
+    }
+
+    // Fallible compile: the canonical API for callers that must distinguish a
+    // bad pattern from a valid one without inspecting a partially built Regex.
+    public func try_compile(pattern : &str) : std::Result<Regex, RegexError> {
+        var re = compile(pattern.to_view())
+        if(re.is_valid()) {
+            return std::Result.Ok<Regex, RegexError>(re)
+        }
+        return std::Result.Err<Regex, RegexError>(RegexError {
+            message_text : re.compile_error.copy(),
+            error_position : 0u
+        })
     }
 
     // =========================================================================

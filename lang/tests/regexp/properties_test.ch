@@ -4,8 +4,8 @@
 public func regex_pattern_is_recorded(env : &mut TestEnv) {
     var re = regex::compile("a+b*c?")
     var expected = std::string_view("a+b*c?")
-    rx_check(env, re.pattern.equals_view(&expected), "pattern text is recorded")
-    rx_check(env, re.compile_error.empty(), "valid pattern has no error")
+    rx_check(env, re.pattern().equals(&expected), "pattern text is recorded")
+    rx_check(env, re.is_valid(), "valid pattern has no error")
 }
 
 @test

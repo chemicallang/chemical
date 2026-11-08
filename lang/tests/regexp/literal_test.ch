@@ -22,7 +22,7 @@ public func regex_literal_empty_pattern(env : &mut TestEnv) {
     var re = regex::compile("")
     rx_match(env, &re, "", true, "empty pattern matches empty text")
     rx_match(env, &re, "anything", true, "empty pattern matches any text")
-    rx_check(env, re.compile_error.empty(), "empty pattern compiles cleanly")
+    rx_check(env, re.is_valid(), "empty pattern compiles cleanly")
 }
 
 @test
@@ -168,5 +168,5 @@ public func regex_curly_braces_are_literal(env : &mut TestEnv) {
     var re = regex::compile("a{2}")
     rx_match(env, &re, "a{2}", true, "braces are literal")
     rx_match(env, &re, "aa", false, "braces do not repeat")
-    rx_check(env, re.compile_error.empty(), "brace pattern compiles cleanly")
+    rx_check(env, re.is_valid(), "brace pattern compiles cleanly")
 }

@@ -8,7 +8,7 @@
 // P_SHA384, so they pin the exact bytes rather than "is it non-zero".
 //
 // Regression: the SHA-384 path used to fail every real handshake even though
-// the master secret matched the peer — `crypto::sha384_final` wrote 64 bytes
+// the master secret matched the peer — `crypto::raw::sha384_final` wrote 64 bytes
 // into a 48-byte digest buffer and zeroed the caller's neighbouring stack
 // slots (here: `sf_hash_len`), so the server Finished was compared against a
 // PRF seeded with 0 bytes of transcript hash.

@@ -133,7 +133,7 @@ func ut_parse_result(args : string_view, out : *mut UTResult) { unsafe {
     out.msg = string()
     var parser = JsonParser(256, 8192)
     var ph = ASTJsonHandler.make()
-    parser.parse(args.data(), args.size(), &mut ph)
+    json::raw::parse(&mut parser, args.data(), args.size(), &mut ph)
     if(ph.root is JsonValue.Array) {
         var Array(arr) = ph.root else unsafe { unreachable }
         if(arr.size() >= 3) {
@@ -343,7 +343,7 @@ func ut_emit(tests : *mut *mut UTFunction, count : size_t, reporter : *mut TestR
         }
 
         if(reporter != null) {
-            reporter.on_test(&raw outcome)
+            reporter.on_test(&outcome)
         }
         i += 1
     }

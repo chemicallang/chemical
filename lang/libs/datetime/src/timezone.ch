@@ -5,8 +5,8 @@ public namespace datetime {
     // -----------------------------------------------------------------------
     public struct TimeZone {
 
-        var offset_secs : i64   // seconds east of UTC (-86400 .. +86400)
-        var tz_name : std::string  // e.g. "UTC", "America/New_York", "+05:30"
+        internal var offset_secs : i64   // seconds east of UTC (-86400 .. +86400)
+        internal var tz_name : std::string  // e.g. "UTC", "America/New_York", "+05:30"
 
         @constructor
         public func init() : TimeZone {
@@ -29,6 +29,14 @@ public namespace datetime {
 
         public func local() : TimeZone {
             return TimeZone::utc()
+        }
+
+        public func offset_secs_val(&self) : i64 {
+            return self.offset_secs
+        }
+
+        public func name(&self) : std::string_view {
+            return self.tz_name.to_view()
         }
 
         public func offset_hours(&self) : i64 {

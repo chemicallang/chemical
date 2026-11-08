@@ -251,8 +251,8 @@ func test_a_webauthn_attestation_object_decodes(env : &mut TestEnv) {
         env.error("attStmt is not reachable")
     } else {
         var Some(inner) = stmt else unsafe { unreachable }
-        if(!cbor::is_map(&mut inner)) { env.error("attStmt is not a map") }
-        else if(cbor::map_len(&mut inner) as u64 != 0u64) { env.error("attStmt is not empty") }
+        if(!cbor::is_map(inner)) { env.error("attStmt is not a map") }
+        else if(cbor::map_len(inner) as u64 != 0u64) { env.error("attStmt is not empty") }
     }
     // The 2-byte-length byte string: 16 bytes, and the right ones.
     var ad = cbor::map_bytes_by_text(&mut v, string_view("authData"))
@@ -336,7 +336,8 @@ func test_nesting_is_bounded(env : &mut TestEnv) {
         deep.push_back(0x81u8)
     }
     deep.push_back(0x00u8)
-    var r = cbor::decode(deep)
+    var deep_view : [u8] = &deep
+    var r = cbor::decode(deep_view)
     if(r is Result.Ok) {
         env.error("the depth limit should have rejected 200 nested arrays")
     }
@@ -346,7 +347,8 @@ func test_nesting_is_bounded(env : &mut TestEnv) {
         fine.push_back(0x81u8)
     }
     fine.push_back(0x00u8)
-    var r2 = cbor::decode(fine)
+    var fine_view : [u8] = &fine
+    var r2 = cbor::decode(fine_view)
     if(r2 is Result.Err) {
         env.error("60 levels of nesting should decode")
     }
@@ -362,7 +364,8 @@ func test_a_claimed_length_never_becomes_an_allocation(env : &mut TestEnv) {
     for(var i = 0u; i < 8u; i++) {
         bytes.push_back(0xFFu8)
     }
-    var r = cbor::decode(bytes)
+    var bytes_view : [u8] = &bytes
+    var r = cbor::decode(bytes_view)
     if(r is Result.Ok) {
         env.error("a 2^64-1 item array with no payload must be rejected")
     }
@@ -400,7 +403,9 @@ func hex_vec(hex : string_view) : vector<u8> {
 }
 
 func try_decode(hex : string_view) : Result<cbor::CborValue, cbor::CborError> {
-    return cbor::decode(hex_vec(hex))
+    var bytes = hex_vec(hex)
+    var view : [u8] = &bytes
+    return cbor::decode(view)
 }
 
 func expect_u64(env : &mut TestEnv, hex : string_view, want : u64) {

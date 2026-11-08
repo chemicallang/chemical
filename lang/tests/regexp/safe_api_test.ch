@@ -5,6 +5,7 @@
 // the fact that a returned Match view points into the searched text.
 
 using std::Option;
+using std::Result;
 using std::string;
 using std::string_view;
 using std::vector;
@@ -76,7 +77,7 @@ public func regex_safe_find_unicode_text(env : &mut TestEnv) {
         return
     }
     var Some(c) = caps else unsafe { unreachable }
-    var group = c.group("café", 0u)
+    var group = c.group(0u)
     if(group is Option.None) {
         env.error("group 0 should span the unicode text")
     } else {
@@ -96,10 +97,10 @@ public func regex_safe_captures_option_and_group_views(env : &mut TestEnv) {
         return
     }
     var Some(caps) = found else unsafe { unreachable }
-    if(!caps.matched) { env.error("safe captures should be marked matched") }
+    if(!caps.matched()) { env.error("safe captures should be marked matched") }
     if(caps.size() != 6u) { env.error("safe captures should have six slots") }
 
-    var whole = caps.group("id 42-abc!", 0u)
+    var whole = caps.group(0u)
     if(whole is Option.None) {
         env.error("group 0 should be present")
     } else {
@@ -107,7 +108,7 @@ public func regex_safe_captures_option_and_group_views(env : &mut TestEnv) {
         if(!view.equals(string_view("42-abc"))) { env.error("group 0 should be the full match") }
     }
 
-    var second = caps.group("id 42-abc!", 2u)
+    var second = caps.group(2u)
     if(second is Option.None) {
         env.error("group 2 should be present")
     } else {
@@ -115,7 +116,7 @@ public func regex_safe_captures_option_and_group_views(env : &mut TestEnv) {
         if(!view.equals(string_view("abc"))) { env.error("group 2 should be abc") }
     }
 
-    if(caps.group("id 42-abc!", 9u) is Option.Some) {
+    if(caps.group(9u) is Option.Some) {
         env.error("out-of-range group should be None")
     }
 }
@@ -197,7 +198,7 @@ public func regex_safe_split_edge_cases(env : &mut TestEnv) {
 @test
 public func regex_safe_apis_on_malformed_pattern(env : &mut TestEnv) {
     var bad = regex::compile("[abc")
-    if(bad.compile_error.empty()) {
+    if(bad.is_valid()) {
         env.error("test expects a malformed pattern")
         return
     }
@@ -209,4 +210,27 @@ public func regex_safe_apis_on_malformed_pattern(env : &mut TestEnv) {
     }
     var parts = bad.split("abc")
     if(parts.size() != 1u) { env.error("malformed regex split should yield one part") }
+}
+
+@test
+public func regex_safe_try_compile_typed_error(env : &mut TestEnv) {
+    var good = regex::try_compile("a+b")
+    if(good is Result.Err) {
+        env.error("try_compile should accept a valid pattern")
+        return
+    }
+    var Ok(re) = good else unsafe { unreachable }
+    if(!re.is_valid()) { env.error("a valid Regex should report is_valid") }
+    if(!re.error().empty()) { env.error("a valid Regex should have an empty error") }
+
+    var bad = regex::try_compile("[abc")
+    if(bad is Result.Ok) {
+        env.error("try_compile should reject a malformed pattern")
+        return
+    }
+    var Err(e) = bad else unsafe { unreachable }
+    if(e.message().empty()) { env.error("RegexError should carry a message") }
+    if(e.message().equals(string_view("unclosed character class")) == false) {
+        env.error("RegexError message should be the parser message")
+    }
 }

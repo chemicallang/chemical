@@ -136,8 +136,8 @@ func resolve_types(resolver : *mut SymbolResolver, info : *mut SerializableInfo,
         // by the generated deserialize error returns instead of generic std::replace,
         // because a generic call from generated code can register a bogus
         // instantiation while the nested decode<T> instantiation is in flight
-        info.se_repl_node = resolver.resolve(&std::string_view("__non_gen_se_repl"))
-        if(info.se_repl_node == null) { resolver.error(std::string_view("__non_gen_se_repl not found"), loc); return false }
+        info.se_repl_node = resolver.resolve(&std::string_view("se_repl"))
+        if(info.se_repl_node == null) { resolver.error(std::string_view("se_repl not found"), loc); return false }
 
         // take_ok: moves an Ok payload out of a Result<T, SerializationError> (leaving
         // an Err state), giving generated deserialize an owned local it can move into
@@ -584,7 +584,7 @@ func alloc_indexed_view(builder : *mut ASTBuilder, fmt : *char, idx : uint) : st
 // appends to `body`:
 //   if(<rname> is std::Result.Err) {
 //       var Err(__e) = <rname> else unreachable
-//       return std::Result.Err<T, SerializationError>(__non_gen_se_repl(&mut __e, SerializationError()))
+//       return std::Result.Err<T, SerializationError>(se_repl(&mut __e, SerializationError()))
 //   }
 // this mirrors the negative-check style of the handwritten json.ch impls
 func append_err_check(builder : *mut ASTBuilder, info : *mut SerializableInfo, body : *mut VecRef<ASTNode>, parent_fn : *mut ASTNode, rname : std::string_view, rnode : *mut ASTNode, loc : ubigint) {
@@ -613,7 +613,7 @@ func append_err_check(builder : *mut ASTBuilder, info : *mut SerializableInfo, b
         // the destructured error through an extra temp during call codegen
         var addr_e = builder.make_reference_of_value(e_id as *mut Value, true, loc)
         var se_repl_call = builder.make_function_call_value(
-            builder.make_identifier(&std::string_view("__non_gen_se_repl"), info.se_repl_node, false, loc) as *mut Value, loc
+            builder.make_identifier(&std::string_view("se_repl"), info.se_repl_node, false, loc) as *mut Value, loc
         )
         var se_call = builder.make_function_call_value(
             builder.make_identifier(&std::string_view("SerializationError"), info.serialization_error_node, false, loc) as *mut Value, loc

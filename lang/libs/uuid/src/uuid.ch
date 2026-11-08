@@ -2,8 +2,48 @@ using namespace std;
 
 public namespace uuid {
 
+    // A UUID parse or randomness failure. Typed so callers can react without
+    // string matching.
+    public variant UuidError {
+        RandomSourceFailed()
+        InvalidLength(expected : size_t, actual : size_t)
+        InvalidHyphen(position : size_t)
+        InvalidHex(position : size_t, character : char)
+
+        public func message(&self) : std::string {
+            switch(self) {
+                RandomSourceFailed() => {
+                    return std::string("failed to obtain secure random bytes")
+                }
+                InvalidLength(expected, actual) => {
+                    var s = std::string("UUID string must be exactly ")
+                    s.append_uinteger(expected as ubigint)
+                    s.append_view(" characters long (got ")
+                    s.append_uinteger(actual as ubigint)
+                    s.append(')')
+                    return s
+                }
+                InvalidHyphen(position) => {
+                    var s = std::string("UUID must have a hyphen at position ")
+                    s.append_uinteger(position as ubigint)
+                    return s
+                }
+                InvalidHex(position, character) => {
+                    var s = std::string("Invalid hex character '")
+                    s.append(character)
+                    s.append_view("' at index ")
+                    s.append_uinteger(position as ubigint)
+                    return s
+                }
+                default => {
+                    return std::string("UUID error")
+                }
+            }
+        }
+    }
+
     public struct UUID {
-        public var bytes : [16]u8;
+        internal var bytes : [16]u8;
 
         @constructor
         public func new() {
@@ -21,6 +61,8 @@ public namespace uuid {
             return u;
         }
 
+        // Owning copy of the 16 raw bytes (legacy form, kept for callers that
+        // need an independent buffer).
         public func to_bytes(&self) : std::vector<u8> {
             var v = std::vector<u8>();
             v.reserve(16u);
@@ -29,6 +71,13 @@ public namespace uuid {
             }
             return v;
         }
+
+        // Non-allocating borrowed view of the 16 raw bytes. The view is valid
+        // for as long as `self`.
+        public func as_bytes(&self) : [u8] {
+            return unsafe(std::span<u8>(&raw self.bytes[0], 16u));
+        }
+
 
         public func equals(&self, other : &UUID) : bool {
             for(var i = 0u; i < 16u; i++) {
@@ -73,13 +122,14 @@ public namespace uuid {
         return -1;
     }
 
-    public func parse(str : std::string_view) : std::Result<UUID, std::string> {
+    public func parse(str : std::string_view) : std::Result<UUID, UuidError> {
         if(str.size() != 36u) {
-            return std::Result.Err(std::string("UUID string must be exactly 36 characters long"));
+            return std::Result.Err<UUID, UuidError>(UuidError.InvalidLength(36u, str.size()));
         }
-        if(str.get(8) != '-' || str.get(13) != '-' || str.get(18) != '-' || str.get(23) != '-') {
-            return std::Result.Err(std::string("UUID must have hyphens at positions 8, 13, 18, and 23"));
-        }
+        if(str.get(8) != '-') { return std::Result.Err<UUID, UuidError>(UuidError.InvalidHyphen(8u)) }
+        if(str.get(13) != '-') { return std::Result.Err<UUID, UuidError>(UuidError.InvalidHyphen(13u)) }
+        if(str.get(18) != '-') { return std::Result.Err<UUID, UuidError>(UuidError.InvalidHyphen(18u)) }
+        if(str.get(23) != '-') { return std::Result.Err<UUID, UuidError>(UuidError.InvalidHyphen(23u)) }
 
         var bytes : [16]u8;
         var byte_idx = 0;
@@ -95,20 +145,12 @@ public namespace uuid {
 
             var high = hex_to_val(high_char);
             if(high < 0) {
-                var err = std::string("Invalid hex character '");
-                err.append(high_char);
-                err.append_view("' at index ");
-                err.append_uinteger((i - 1u) as ubigint);
-                return std::Result.Err(err);
+                return std::Result.Err<UUID, UuidError>(UuidError.InvalidHex(i - 1u, high_char));
             }
 
             var low = hex_to_val(low_char);
             if(low < 0) {
-                var err = std::string("Invalid hex character '");
-                err.append(low_char);
-                err.append_view("' at index ");
-                err.append_uinteger(i as ubigint);
-                return std::Result.Err(err);
+                return std::Result.Err<UUID, UuidError>(UuidError.InvalidHex(i, low_char));
             }
 
             bytes[byte_idx] = ((high << 4) | low) as u8;
@@ -119,26 +161,28 @@ public namespace uuid {
     }
 
     func get_random_bytes(buf : *mut u8, len : uint) : bool {
-        return osrand::random_fill(buf, len as size_t) == 0
+        return unsafe(osrand::raw::random_fill(buf, len as size_t)) == 0
     }
 
-    public func v4() : UUID {
+    // Fallible UUIDv4 generation: the OS entropy source can fail, so the
+    // failure is reported instead of panicking or returning a sentinel.
+    public func v4() : std::Result<UUID, UuidError> {
         var bytes : [16]u8;
         if(!get_random_bytes(&raw mut bytes[0], 16u)) {
-            panic("Failed to generate secure random bytes for UUIDv4");
+            return std::Result.Err<UUID, UuidError>(UuidError.RandomSourceFailed());
         }
 
         bytes[6] = (0x40u | (bytes[6] & 0x0Fu)) as u8;
         bytes[8] = (0x80u | (bytes[8] & 0x3Fu)) as u8;
 
-        return UUID.from_bytes(bytes);
+        return std::Result.Ok<UUID, UuidError>(UUID.from_bytes(bytes));
     }
 
     var g_v7_lock : u32 = 0;
     var g_v7_last_ts_ms : u64 = 0;
     var g_v7_counter : u16 = 0;
 
-    public func v7() : UUID {
+    public func v7() : std::Result<UUID, UuidError> {
         unsafe {
             var ts_ms = std::now_milli() as u64;
 
@@ -156,7 +200,10 @@ public namespace uuid {
                 }
             } else {
                 var rand_val : u16 = 0;
-                get_random_bytes(&mut rand_val as *mut u8, 2u);
+                if(!get_random_bytes(&mut rand_val as *mut u8, 2u)) {
+                    atomic_store_u32(&raw mut g_v7_lock, 0u, memory_order.release);
+                    return std::Result.Err<UUID, UuidError>(UuidError.RandomSourceFailed());
+                }
                 g_v7_counter = rand_val & 0x0FFFu;
             }
             g_v7_last_ts_ms = ts_ms;
@@ -166,7 +213,7 @@ public namespace uuid {
 
             var bytes : [16]u8;
             if(!get_random_bytes(&raw mut bytes[0], 16u)) {
-                panic("Failed to generate secure random bytes for UUIDv7");
+                return std::Result.Err<UUID, UuidError>(UuidError.RandomSourceFailed());
             }
 
             bytes[0] = ((ts_ms >> 40) & 0xFFu) as u8;
@@ -181,7 +228,7 @@ public namespace uuid {
 
             bytes[8] = (0x80u | (bytes[8] & 0x3Fu)) as u8;
 
-            return UUID.from_bytes(bytes);
+            return std::Result.Ok<UUID, UuidError>(UUID.from_bytes(bytes));
     
         }
     }

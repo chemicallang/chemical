@@ -401,72 +401,64 @@ public func map_bytes_by_text(v : &CborValue, key : string_view) : vector<u8> {
 }
 }
 
-// An owned copy of the value stored under a text key, or `None` when absent.
-//
-// The result is a deep copy, built by `clone_value`, rather than a borrow: a
-// reference-carrying `Option` is not safely usable for a destructor-bearing
-// value in this language yet (the payload binds by move, so the source is
-// destroyed twice). The caller reads the copy with the same accessors, one
-// level down:
+// A borrowed sub-value under a text key, or `None` when absent. The returned
+// reference points into `v` and lives no longer than it; callers walk nested
+// documents without a deep copy.
 //
 //   var stmt = cbor::map_value_by_text(&attestation, string_view("attStmt"))
 //   if(stmt is Option.Some) {
 //       var Some(inner) = stmt else unsafe { unreachable }
-//       var sig = cbor::map_bytes_by_text(&mut inner, string_view("sig"))
+//       var sig = cbor::map_bytes_by_text(inner, string_view("sig"))
 //   }
-//
-// That is the shape a WebAuthn attestation statement has: a map inside a map.
-// The returned value owns its bytes and never escapes as a raw pointer.
-public func map_value_by_text(v : &CborValue, key : string_view) : Option<CborValue> {
+public func map_value_by_text(v : &CborValue, key : string_view) : Option<&CborValue> {
     var i = map_find_text(v, key)
-    if(i < 0) { return Option.None<CborValue>() }
+    if(i < 0) { return Option.None<&CborValue>() }
     var p = map_value_at(v, i as size_t)
-    if(p == null) { return Option.None<CborValue>() }
-    // SAFETY: p points into v's live map vector and v outlives this call;
-    // clone_value copies the subtree before the pointer is discarded.
-    return Option.Some<CborValue>(unsafe(clone_value(&mut *p)))
+    if(p == null) { return Option.None<&CborValue>() }
+    // SAFETY: p points into v's live map vector and v outlives this call.
+    return Option.Some<&CborValue>(unsafe(&*p))
 }
 
 // The same, for an integer key.
-public func map_value_by_int(v : &CborValue, key : i64) : Option<CborValue> {
+public func map_value_by_int(v : &CborValue, key : i64) : Option<&CborValue> {
     var i = map_find_int(v, key)
-    if(i < 0) { return Option.None<CborValue>() }
+    if(i < 0) { return Option.None<&CborValue>() }
     var p = map_value_at(v, i as size_t)
-    if(p == null) { return Option.None<CborValue>() }
+    if(p == null) { return Option.None<&CborValue>() }
     // SAFETY: p points into v's live map vector and v outlives this call.
-    return Option.Some<CborValue>(unsafe(clone_value(&mut *p)))
+    return Option.Some<&CborValue>(unsafe(&*p))
 }
 
-// An owned copy of the value at `index` of an array, so an array of
-// sub-documents can be walked. `None` when the receiver is not an array or the
-// index is out of range.
-public func array_value_at(v : &CborValue, index : size_t) : Option<CborValue> {
-    if(!(v is CborValue.Array)) { return Option.None<CborValue>() }
+// The borrowed value at `index` of an array. `None` when the receiver is not
+// an array or the index is out of range.
+public func array_value_at(v : &CborValue, index : size_t) : Option<&CborValue> {
+    if(!(v is CborValue.Array)) { return Option.None<&CborValue>() }
     var Array(a) = v else unsafe { unreachable }
-    if(index >= a.size()) { return Option.None<CborValue>() }
-    // SAFETY: index is bounds-checked above and a is borrowed from v.
-    return Option.Some<CborValue>(unsafe(clone_value(a.get_ref(index))))
+    if(index >= a.size()) { return Option.None<&CborValue>() }
+    return Option.Some<&CborValue>(a.get_ref(index))
 }
 
-// Legacy raw-pointer accessors. New code should use the owned Option forms
-// above; these remain for existing C-style callers.
-public func map_value_by_text_ptr(v : &CborValue, key : string_view) : *mut CborValue {
-    var i = map_find_text(v, key)
-    if(i < 0) { return null }
-    return map_value_at(v, i as size_t)
-}
+// Legacy raw-pointer accessors. Grouped under `cbor::raw`; new code should use
+// the borrowed Option forms above.
+public namespace raw {
+    public func map_value_by_text_ptr(v : &CborValue, key : string_view) : *mut CborValue {
+        var i = map_find_text(v, key)
+        if(i < 0) { return null }
+        return map_value_at(v, i as size_t)
+    }
 
-public func map_value_by_int_ptr(v : &CborValue, key : i64) : *mut CborValue {
-    var i = map_find_int(v, key)
-    if(i < 0) { return null }
-    return map_value_at(v, i as size_t)
-}
+    public func map_value_by_int_ptr(v : &CborValue, key : i64) : *mut CborValue {
+        var i = map_find_int(v, key)
+        if(i < 0) { return null }
+        return map_value_at(v, i as size_t)
+    }
 
-public func array_value_at_ptr(v : &CborValue, index : size_t) : *mut CborValue {
-    if(!(v is CborValue.Array)) { return null }
-    var Array(a) = v else unsafe { unreachable }
-    if(index >= a.size()) { return null }
-    return a.get_ptr(index)
+    public func array_value_at_ptr(v : &CborValue, index : size_t) : *mut CborValue {
+        if(!(v is CborValue.Array)) { return null }
+        var Array(a) = v else unsafe { unreachable }
+        if(index >= a.size()) { return null }
+        return a.get_ptr(index)
+    }
 }
 
 // The byte string at `index` of an array. An attestation certificate chain is

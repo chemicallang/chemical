@@ -18,6 +18,28 @@ public struct Box<T> {
     // retarget it at another box's storage and cause a double free.
     private var ptr : *mut T
 
+    public func new(value : T) : Box<T> {
+        return box(value)
+    }
+
+    /** Fallible allocation; returns `AllocError` instead of panicking. */
+    public func try_new(value : T) : std::Result<Box<T>, std::alloc::AllocError> {
+        var bytes : size_t = sizeof(T)
+        if(bytes == 0) { bytes = 1 }
+        var mem = std::alloc.alloc_bytes(bytes)
+        if(mem is std::Result.Err) {
+            var Err(err) = mem else unsafe { unreachable }
+            return std::Result.Err<Box<T>, std::alloc::AllocError>(err)
+        }
+        var Ok(raw) = mem else unsafe { unreachable }
+        var ptr = raw as *mut T
+        unsafe {
+            memcpy(ptr as *mut void, &raw value as *void, sizeof(T))
+            intrinsics::forget(value)
+        }
+        return std::Result.Ok<Box<T>, std::alloc::AllocError>(unsafe(box_unchecked<T>(ptr)))
+    }
+
     @delete
     func delete(&mut self) {
         if(self.ptr != null) {

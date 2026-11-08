@@ -47,7 +47,7 @@ func reset_params_state() {
 func resolve_and_extract_field(args : string_view, key : string_view) : string { unsafe {
     var parser = JsonParser(128, 4096)
     var ph = ASTJsonHandler.make()
-    parser.parse(args.data(), args.size(), &mut ph)
+    json::raw::parse(&mut parser, args.data(), args.size(), &mut ph)
     // If already a JSON object, search directly.
     if(ph.root is JsonValue.Object) {
         var Object(map) = ph.root else unsafe { unreachable }
@@ -69,7 +69,7 @@ func resolve_and_extract_field(args : string_view, key : string_view) : string {
                 // Re-parse the inner string as JSON.
                 var inner = JsonParser(128, 4096)
                 var inner_ph = ASTJsonHandler.make()
-                inner.parse(s.data(), s.size(), &mut inner_ph)
+                json::raw::parse(&mut inner, s.data(), s.size(), &mut inner_ph)
                 if(inner_ph.root is JsonValue.Object) {
                     var Object(inner_map) = inner_ph.root else unsafe { unreachable }
                     var ik = string(key.data(), key.size())

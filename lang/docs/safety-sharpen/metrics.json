@@ -3,7 +3,7 @@
   "release_llvm_compiler_bytes": 0,
   "release_tcc_compiler_bytes": 4037816,
   "release_tcc_compiler_stripped_bytes": 4037816,
-  "safety_sample_compile_ms": 255,
-  "safety_sample_max_rss_kb": 33060,
+  "safety_sample_compile_ms": 230,
+  "safety_sample_max_rss_kb": 33632,
   "size_limit_bytes": 5000000
 }

@@ -2345,14 +2345,14 @@ v0.5.18 asset.
 If it does, reduce elsewhere or delete the code the change makes dead before the
 next release.
 
-**Comparison procedure** (after the next release, e.g. `v0.5.19`):
+**Comparison procedure** (after the next release, e.g. `v0.6.0`):
 
 ```bash
 # List a release's zipped asset sizes and diff against the v0.5.18 ceilings:
-gh release view v0.5.19 --json assets \
+gh release view v0.6.0 --json assets \
   -q '.assets[] | "\(.name)\t\(.size)"' | sort
 # or without gh:
-curl -s https://api.github.com/repos/chemicallang/chemical/releases/tags/v0.5.19 \
+curl -s https://api.github.com/repos/chemicallang/chemical/releases/tags/v0.6.0 \
   | grep -E '"name"|"size"' | paste - -
 ```
 

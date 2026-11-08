@@ -19,3 +19,39 @@ This release is allowed to break. The migration mapping is in
 The release `TCCCompiler` is now built with size-oriented flags (`-O2`,
 function/data sections, gc-sections, stripped) and is under the 5 MB hard
 ceiling. See `metrics.json`.
+
+## Phase 2 (safe APIs)
+
+- `std::io::IoError`, `IoErrorKind`, `Read`, `Write`, and `Seek` are the shared
+  I/O boundary. Library-specific errors convert with `fs::io_error`,
+  `process::io_error`, `environment::io_error`, `net::io_error`, and
+  `tls::io_error` where available.
+- `fs::File` owns its descriptor again (`@delete`); `fs::close_file` is
+  idempotent. Safe path-based helpers (`open_file`, `create_file`, `read_file`,
+  `write_file`, `*_safe` directory/metadata helpers) take `&str`/`[u8]` and
+  return `Result<_, IoError>`. Legacy raw-buffer functions remain for in-tree
+  callers and are explicitly unsafe.
+- `process::spawn` returns an owning `Result<Child, ProcessError>`.
+  `wait`/`try_wait`/`kill_process`/`is_running`/`write_stdin`/`close_stdin`/
+  `child_pid` take `&mut Child`; `Child` owns the platform handles.
+- `environment::set`, `unset`, `all`, `set_async`, and `unset_async` are
+  `unsafe` because they mutate process-global state.
+- `path::PathBuf` (`path::Path` alias) is the safe path value; `basename`,
+  `dirname`, `extension`, `stem`, `join`, `normalize`, `is_absolute`, and
+  `has_root` are methods. The legacy raw-buffer path functions are `unsafe`.
+- `net::TcpListener`/`net::TcpStream` are owning safe handles with
+  `bind_tcp`/`connect_tcp`, `Read`/`Write`, and safe async
+  `read_async`/`write_async`. `TcpStream::release_raw` is the explicit unsafe
+  ownership-transfer accessor used by TLS.
+- `http::Body::read_into`/`read_all`, `HeaderMap::get_str`,
+  `RequestBuilder::header_str`, and `RequestBuilder::set_body_str` are the safe
+  HTTP body/header surface. Legacy raw body/header calls remain.
+- `tls::TlsStream` (verified client), `tls::TlsServerStream`, `CertificateChain`,
+  `PrivateKey`, `TlsServerConfig`, `load_certificate`,
+  `load_rsa_private_key`, `load_ec_private_key`, `rsa_private_key_from_components`,
+  `connect`, `connect_insecure`, and `accept` are the safe TLS surface. Raw
+  mbedTLS-shaped functions remain for the HTTP/TLS internals and tests.
+- `std::CString`/`CStr`, `vector::try_reserve`/`try_push`/`get_opt`/`get_mut_opt`/
+  `try_set`/`try_pop`, `span::get_opt`, `mut_span::get_mut_opt`, and
+  `string::get_opt` are the additive safe primitive surface. Legacy raw pointer
+  accessors remain allowlisted.

@@ -3646,8 +3646,11 @@ public func tls_hostname_sni_stored_correctly(env : &mut TestEnv) {
     tls::ssl_init(unsafe(&raw mut ctx))
     var host = "test.example.com\0" as *char
     tls::ssl_set_hostname(unsafe(&raw mut ctx), host)
-    if(unsafe(ctx.hostname) != host) {
-        env.error("hostname pointer should match")
+    if(unsafe(ctx.hostname) == null || unsafe(strcmp(ctx.hostname, host)) != 0) {
+        env.error("hostname contents should match")
+    }
+    if(!unsafe(ctx.hostname_owned)) {
+        env.error("hostname should be context-owned")
     }
     if(unsafe(ctx.hostname_len) != 16 as size_t) {
         env.error("hostname_len should be 16")

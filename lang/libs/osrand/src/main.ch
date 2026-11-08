@@ -41,6 +41,43 @@ public namespace osrand {
         }
     }
 
+    // Safe surface: on failure return an Err instead of a sentinel value.
+    public func fill(buf : &mut [u8]) : std::Result<size_t, std::io::IoError> {
+        if(buf.size() == 0) { return std::Result.Ok(0 as size_t) }
+        var r = random_fill(buf.data(), buf.size())
+        if(r < 0) { return std::Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::Other())) }
+        return std::Result.Ok(buf.size())
+    }
+
+    public func random_bytes(len : size_t) : std::Result<std::vector<u8>, std::io::IoError> {
+        var out = std::vector<u8>()
+        if(!out.try_reserve(len)) {
+            return std::Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::OutOfMemory()))
+        }
+        out.resize(len)
+        var view = unsafe(std::mut_span<u8>(out.data() as *mut u8, out.size()))
+        var r = fill(view)
+        if(r is std::Result.Err) {
+            var Err(e) = r else unsafe { unreachable }
+            return std::Result.Err(e)
+        }
+        return std::Result.Ok(out)
+    }
+
+    public func random_u32_safe() : std::Result<u32, std::io::IoError> {
+        var v = random_bytes(4u)
+        if(v is std::Result.Err) {
+            var Err(e) = v else unsafe { unreachable }
+            return std::Result.Err(e)
+        }
+        var Ok(bytes) = v else unsafe { unreachable }
+        var out : u32 = 0
+        unsafe {
+            memcpy(&raw mut out, bytes.data(), 4)
+        }
+        return std::Result.Ok(out)
+    }
+
     // Generate a single random u32.
     public func random_u32() : u32 {
         var val : u32 = 0

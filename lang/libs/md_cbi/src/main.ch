@@ -25,8 +25,8 @@ public func md_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) 
         const nodes_arr : []*mut ASTNode = []
         const value = builder.make_embedded_value(std::string_view("md"), root, type, std::span<*mut ASTNode>(nodes_arr), unsafe(std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size())), loc);
         // Consume #endmd token
-        if(parser.getToken().type == MdTokenType.EndMd as int) {
-            parser.increment();
+        if(compiler::api::current_type(unsafe(&mut *parser)) == MdTokenType.EndMd as int) {
+            compiler::api::advance(unsafe(&mut *parser));
         }
         return value;
 
@@ -119,8 +119,8 @@ public func md_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) :
         const nodes_arr : []*mut ASTNode = []
         const node = builder.make_embedded_node(AccessSpecifier.Internal, std::string_view("md"), root, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), unsafe(std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size())), root.parent, loc);
         // Consume #endmd token
-        if(parser.getToken().type == MdTokenType.EndMd as int) {
-            parser.increment();
+        if(compiler::api::current_type(unsafe(&mut *parser)) == MdTokenType.EndMd as int) {
+            compiler::api::advance(unsafe(&mut *parser));
         }
         return node;
 

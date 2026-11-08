@@ -27,14 +27,14 @@ public namespace async {
 
 // Type-erased poll/drop table for a spawned task. Non-generic on purpose (B20).
 public struct TaskVTable {
-    var poll : (frame : *mut void, cx : *mut core::async::Context) => core::async::Poll<core::async::Unit>
-    var drop : (frame : *mut void) => void
+    internal var poll : (frame : *mut void, cx : *mut core::async::Context) => core::async::Poll<core::async::Unit>
+    internal var drop : (frame : *mut void) => void
 }
 
 // A queued, type-erased task. Non-generic on purpose (B20).
 public struct RawTask {
-    var frame : *mut void
-    var vtbl : *mut TaskVTable
+    internal var frame : *mut void
+    internal var vtbl : *mut TaskVTable
 }
 
 // Invoked (outside the executor lock) every time a waker fires. A native event
@@ -43,12 +43,14 @@ public struct RawTask {
 public type ExecWakeHook = (arg : *mut void) => void
 
 public struct Executor {
-    var m : std::mutex
-    var cv : std::condvar
-    var queue : std::vector<RawTask>
-    var woken : bool
-    var wake_hook : ExecWakeHook
-    var wake_hook_arg : *mut void
+    // Raw executor state is private to this module. Native loops drive it
+    // through `executor_drive`; the unchecked entry points remain `unsafe`.
+    internal var m : std::mutex
+    internal var cv : std::condvar
+    internal var queue : std::vector<RawTask>
+    internal var woken : bool
+    internal var wake_hook : ExecWakeHook
+    internal var wake_hook_arg : *mut void
 }
 
 // Runtime-owned state. These values are not exchanged through the safe
@@ -218,6 +220,15 @@ public unsafe func executor_poll_tasks(e : *mut Executor, max : uint) : uint {
         }
     }
 
+// Safe driver for native event loops: poll up to `max` queued tasks without
+// exposing the executor's queue or synchronization state. The raw entry points
+// (`executor_poll_tasks`, `exec_enqueue_task`, ...) stay `unsafe`.
+public func executor_drive(max : uint) : uint {
+    unsafe {
+        return executor_poll_tasks(executor(), max)
+    }
+}
+
 // Park the executor thread until a waker fires or `millis` elapse. The timeout
 // is what keeps futures that do not use their waker (timers, `spawn_blocking`)
 // making progress.
@@ -243,24 +254,24 @@ public unsafe func executor_wait(e : *mut Executor, millis : ulong) {
 
 // `spawn` join state, shared (refcounted) by the join handle and the task.
 public struct JoinState<T> {
-    var m : std::mutex
-    var refs : int
-    var done : bool
-    var consumed : bool
-    var cancelled : bool
+    internal var m : std::mutex
+    internal var refs : int
+    internal var done : bool
+    internal var consumed : bool
+    internal var cancelled : bool
     // The task stores its whole `Poll<T>` here rather than an `Option<T>`:
     // moving a `T` payload bound by a variant pattern is rejected in generic
     // code (B18), while moving the whole local `Poll<T>` is allowed.
-    var result : core::async::Poll<T>
-    var waker : core::async::Waker
-    var vtbl : *mut core::async::FutureTable<T>
+    internal var result : core::async::Poll<T>
+    internal var waker : core::async::Waker
+    internal var vtbl : *mut core::async::FutureTable<T>
 }
 
 // The executor-owned, type-erased task frame.
 public struct SpawnTask<T> {
-    var state : *mut JoinState<T>
-    var inner : core::async::FutureHandle<T>
-    var vtbl : *mut TaskVTable
+    internal var state : *mut JoinState<T>
+    internal var inner : core::async::FutureHandle<T>
+    internal var vtbl : *mut TaskVTable
 }
 
 impl<T> !Send for JoinState<T> { }

@@ -6,6 +6,7 @@ public variant EncodingError {
     BufferTooSmall(needed : size_t)
     InvalidInput()
     Unsupported()
+    OutOfMemory()
 
     func message(&self) : string {
         switch(self) {
@@ -16,6 +17,7 @@ public variant EncodingError {
             }
             InvalidInput() => return string("EncodingError: invalid input")
             Unsupported() => return string("EncodingError: unsupported operation")
+            OutOfMemory() => return string("EncodingError: out of memory")
         }
     }
 }

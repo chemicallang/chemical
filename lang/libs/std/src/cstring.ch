@@ -26,6 +26,19 @@ public func cstring_make(value : &str) : std::Result<CString, NulError> {
     return std::Result.Ok<CString, NulError>(CString { bytes : out })
 }
 
+public func cstr_from_bytes(bytes : &[u8]) : std::Result<CStr, NulError> {
+    var i : size_t = 0
+    while(i < bytes.size()) {
+        if(unsafe(*bytes.get(i)) == 0) {
+            return std::Result.Err<CStr, NulError>(NulError.Found(i))
+        }
+        i += 1
+    }
+    return std::Result.Ok<CStr, NulError>(CStr {
+        view : unsafe(std::string_view(bytes.data() as *char, bytes.size()))
+    })
+}
+
 @direct_init
 public struct CString {
     internal var bytes : std::vector<u8>
@@ -43,5 +56,29 @@ public struct CString {
         return self.bytes.data() as *char
     }
 }
+
+// Borrowed NUL-free C-string view. The trailing terminator is not part of the
+// view; construction rejects interior NUL so the pointer form is unambiguous.
+@direct_init
+public struct CStr {
+    internal var view : std::string_view
+
+    func to_bytes(&self) : [u8] {
+        return unsafe(std::span<u8>(self.view.data() as *u8, self.view.size()))
+    }
+
+    func to_str(&self) : std::Result<std::str, std::string_view> {
+        return std::try_from_utf8(self.view)
+    }
+
+    func size(&self) : size_t {
+        return self.view.size()
+    }
+
+    func empty(&self) : bool {
+        return self.view.empty()
+    }
+}
+
 
 } // namespace std

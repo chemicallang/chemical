@@ -6,6 +6,7 @@ public variant CryptoError {
     BufferTooSmall(needed : size_t)
     InvalidInput()
     UnknownAlgorithm()
+    OutOfMemory()
 
     func message(&self) : string {
         switch(self) {
@@ -16,6 +17,7 @@ public variant CryptoError {
             }
             InvalidInput() => return string("CryptoError: invalid input")
             UnknownAlgorithm() => return string("CryptoError: unknown algorithm")
+            OutOfMemory() => return string("CryptoError: out of memory")
         }
     }
 }

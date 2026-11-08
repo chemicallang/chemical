@@ -13,7 +13,7 @@ public comptime const MAX_PATH = 4096;
 // Path component extraction
 // ---------------------------------------------------------------------------
 
-public func basename(p : *char, out : *mut char, out_len : size_t) : Result<size_t, PathError> {
+public unsafe func basename(p : *char, out : *mut char, out_len : size_t) : Result<size_t, PathError> {
         unsafe {
         var len : size_t = 0;
         while(p[len] != 0) { len += 1; }
@@ -50,7 +50,7 @@ public func basename(p : *char, out : *mut char, out_len : size_t) : Result<size
         }
     }
 
-public func dirname(p : *char, out : *mut char, out_len : size_t) : Result<size_t, PathError> {
+public unsafe func dirname(p : *char, out : *mut char, out_len : size_t) : Result<size_t, PathError> {
         unsafe {
         var len : size_t = 0;
         while(p[len] != 0) { len += 1; }
@@ -98,7 +98,7 @@ public func dirname(p : *char, out : *mut char, out_len : size_t) : Result<size_
         }
     }
 
-public func extension(p : *char, out : *mut char, out_len : size_t) : Result<size_t, PathError> {
+public unsafe func extension(p : *char, out : *mut char, out_len : size_t) : Result<size_t, PathError> {
         unsafe {
         var len : size_t = 0;
         while(p[len] != 0) { len += 1; }
@@ -133,7 +133,7 @@ public func extension(p : *char, out : *mut char, out_len : size_t) : Result<siz
         }
     }
 
-public func stem(p : *char, out : *mut char, out_len : size_t) : Result<size_t, PathError> {
+public unsafe func stem(p : *char, out : *mut char, out_len : size_t) : Result<size_t, PathError> {
         unsafe {
         var len : size_t = 0;
         while(p[len] != 0) { len += 1; }
@@ -173,7 +173,7 @@ public func stem(p : *char, out : *mut char, out_len : size_t) : Result<size_t, 
 // Path joining and normalization
 // ---------------------------------------------------------------------------
 
-public func join(a : *char, b : *char, out : *mut char, out_len : size_t) : Result<size_t, PathError> {
+public unsafe func join(a : *char, b : *char, out : *mut char, out_len : size_t) : Result<size_t, PathError> {
         unsafe {
         var a_len : size_t = 0; while(a[a_len] != 0) { a_len += 1; }
         var b_len : size_t = 0; while(b[b_len] != 0) { b_len += 1; }
@@ -209,7 +209,7 @@ public func join(a : *char, b : *char, out : *mut char, out_len : size_t) : Resu
     }
 
 /// Normalize a path resolving ".", ".." and double separators.
-public func normalize(p : *char, out : *mut char, out_len : size_t) : Result<size_t, PathError> {
+public unsafe func normalize(p : *char, out : *mut char, out_len : size_t) : Result<size_t, PathError> {
         unsafe {
         var len : size_t = 0;
         while(p[len] != 0) { len += 1; }

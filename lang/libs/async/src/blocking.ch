@@ -18,13 +18,13 @@
 public namespace async {
 
 public struct BlockingState<T> {
-    var m : std::mutex
-    var ready : bool
-    var consumed : bool
-    var abandoned : bool
-    var value : std::Option<T>
-    var task : std::function<() => T>
-    var vtbl : *mut core::async::FutureTable<T>
+    internal var m : std::mutex
+    internal var ready : bool
+    internal var consumed : bool
+    internal var abandoned : bool
+    internal var value : std::Option<T>
+    internal var task : std::function<() => T>
+    internal var vtbl : *mut core::async::FutureTable<T>
 }
 
 impl<T> !Send for BlockingState<T> { }

@@ -7,7 +7,7 @@ using namespace std;
 @test
 func test_path_basename_trailing_slash(env : &mut TestEnv) {
     var buf : [4096]char;
-    var r = path::basename("/usr/bin/", &raw mut buf[0], 4096);
+    var r = unsafe(path::basename("/usr/bin/", &raw mut buf[0], 4096));
     if(r is Result.Err) { env.error("basename failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     if(!(len == 3 && buf[0] == 'b' && buf[1] == 'i' && buf[2] == 'n' && buf[3] == '\0')) {
@@ -18,7 +18,7 @@ func test_path_basename_trailing_slash(env : &mut TestEnv) {
 @test
 func test_path_basename_double_slash(env : &mut TestEnv) {
     var buf : [4096]char;
-    var r = path::basename("//usr//bin//", &raw mut buf[0], 4096);
+    var r = unsafe(path::basename("//usr//bin//", &raw mut buf[0], 4096));
     if(r is Result.Err) { env.error("basename failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     if(!(len == 3 && buf[0] == 'b' && buf[1] == 'i' && buf[2] == 'n' && buf[3] == '\0')) {
@@ -29,7 +29,7 @@ func test_path_basename_double_slash(env : &mut TestEnv) {
 @test
 func test_path_basename_single_char(env : &mut TestEnv) {
     var buf : [4096]char;
-    var r = path::basename("/a", &raw mut buf[0], 4096);
+    var r = unsafe(path::basename("/a", &raw mut buf[0], 4096));
     if(r is Result.Err) { env.error("basename failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     if(!(len == 1 && buf[0] == 'a' && buf[1] == '\0')) {
@@ -40,7 +40,7 @@ func test_path_basename_single_char(env : &mut TestEnv) {
 @test
 func test_path_basename_buffer_small(env : &mut TestEnv) {
     var buf : [2]char;
-    var r = path::basename("toolong", &raw mut buf[0], 2);
+    var r = unsafe(path::basename("toolong", &raw mut buf[0], 2));
     if(!(r is Result.Err)) {
         env.error("basename should fail with BufferTooSmall for len=2");
     }
@@ -49,7 +49,7 @@ func test_path_basename_buffer_small(env : &mut TestEnv) {
 @test
 func test_path_dirname_no_dir(env : &mut TestEnv) {
     var buf : [4096]char;
-    var r = path::dirname("file.txt", &raw mut buf[0], 4096);
+    var r = unsafe(path::dirname("file.txt", &raw mut buf[0], 4096));
     if(r is Result.Err) { env.error("dirname failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     if(!(len == 1 && buf[0] == '.' && buf[1] == '\0')) {
@@ -60,7 +60,7 @@ func test_path_dirname_no_dir(env : &mut TestEnv) {
 @test
 func test_path_dirname_empty(env : &mut TestEnv) {
     var buf : [4096]char;
-    var r = path::dirname("", &raw mut buf[0], 4096);
+    var r = unsafe(path::dirname("", &raw mut buf[0], 4096));
     if(r is Result.Err) { env.error("dirname failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     if(!(len == 1 && buf[0] == '.' && buf[1] == '\0')) {
@@ -71,7 +71,7 @@ func test_path_dirname_empty(env : &mut TestEnv) {
 @test
 func test_path_join_empty_a(env : &mut TestEnv) {
     var buf : [4096]char;
-    var r = path::join("", "bin", &raw mut buf[0], 4096);
+    var r = unsafe(path::join("", "bin", &raw mut buf[0], 4096));
     if(r is Result.Err) { env.error("join failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     if(!(len == 3 && buf[0] == 'b' && buf[1] == 'i' && buf[2] == 'n' && buf[3] == '\0')) {
@@ -82,7 +82,7 @@ func test_path_join_empty_a(env : &mut TestEnv) {
 @test
 func test_path_join_empty_both(env : &mut TestEnv) {
     var buf : [4096]char;
-    var r = path::join("", "", &raw mut buf[0], 4096);
+    var r = unsafe(path::join("", "", &raw mut buf[0], 4096));
     if(r is Result.Err) { env.error("join failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     if(!(len == 0 && buf[0] == '\0')) {
@@ -93,7 +93,7 @@ func test_path_join_empty_both(env : &mut TestEnv) {
 @test
 func test_path_join_buffer_small(env : &mut TestEnv) {
     var buf : [2]char;
-    var r = path::join("longer", "path", &raw mut buf[0], 2);
+    var r = unsafe(path::join("longer", "path", &raw mut buf[0], 2));
     if(!(r is Result.Err)) {
         env.error("join should fail with BufferTooSmall");
     }
@@ -102,7 +102,7 @@ func test_path_join_buffer_small(env : &mut TestEnv) {
 @test
 func test_path_normalize_deep_dotdot(env : &mut TestEnv) {
     var buf : [4096]char;
-    var r = path::normalize("a/../../b", &raw mut buf[0], 4096);
+    var r = unsafe(path::normalize("a/../../b", &raw mut buf[0], 4096));
     if(r is Result.Err) { env.error("normalize failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     if(!(len == 4 && buf[0] == '.' && buf[1] == '.' && buf[2] == '/' &&
@@ -114,7 +114,7 @@ func test_path_normalize_deep_dotdot(env : &mut TestEnv) {
 @test
 func test_path_normalize_root_dotdot(env : &mut TestEnv) {
     var buf : [4096]char;
-    var r = path::normalize("/../usr", &raw mut buf[0], 4096);
+    var r = unsafe(path::normalize("/../usr", &raw mut buf[0], 4096));
     if(r is Result.Err) { env.error("normalize failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     if(!(len == 4 && buf[0] == '/' && buf[1] == 'u' && buf[2] == 's' && buf[3] == 'r' && buf[4] == '\0')) {
@@ -125,7 +125,7 @@ func test_path_normalize_root_dotdot(env : &mut TestEnv) {
 @test
 func test_path_normalize_just_dot(env : &mut TestEnv) {
     var buf : [4096]char;
-    var r = path::normalize(".", &raw mut buf[0], 4096);
+    var r = unsafe(path::normalize(".", &raw mut buf[0], 4096));
     if(r is Result.Err) { env.error("normalize failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     if(!(len == 1 && buf[0] == '.' && buf[1] == '\0')) {
@@ -136,7 +136,7 @@ func test_path_normalize_just_dot(env : &mut TestEnv) {
 @test
 func test_path_normalize_just_dotdot(env : &mut TestEnv) {
     var buf : [4096]char;
-    var r = path::normalize("..", &raw mut buf[0], 4096);
+    var r = unsafe(path::normalize("..", &raw mut buf[0], 4096));
     if(r is Result.Err) { env.error("normalize failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     if(!(len == 2 && buf[0] == '.' && buf[1] == '.' && buf[2] == '\0')) {
@@ -147,7 +147,7 @@ func test_path_normalize_just_dotdot(env : &mut TestEnv) {
 @test
 func test_path_normalize_tricky(env : &mut TestEnv) {
     var buf : [4096]char;
-    var r = path::normalize("foo/.../bar", &raw mut buf[0], 4096);
+    var r = unsafe(path::normalize("foo/.../bar", &raw mut buf[0], 4096));
     if(r is Result.Err) { env.error("normalize failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     if(!(len == 11 && buf[0] == 'f' && buf[1] == 'o' && buf[2] == 'o' && buf[3] == '/' &&
@@ -160,7 +160,7 @@ func test_path_normalize_tricky(env : &mut TestEnv) {
 @test
 func test_path_extension_multi_dot(env : &mut TestEnv) {
     var buf : [256]char;
-    var r = path::extension("file.tar.gz", &raw mut buf[0], 256);
+    var r = unsafe(path::extension("file.tar.gz", &raw mut buf[0], 256));
     if(r is Result.Err) { env.error("extension failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     if(!(len == 3 && buf[0] == '.' && buf[1] == 'g' && buf[2] == 'z' && buf[3] == '\0')) {
@@ -171,7 +171,7 @@ func test_path_extension_multi_dot(env : &mut TestEnv) {
 @test
 func test_path_extension_no_dot(env : &mut TestEnv) {
     var buf : [256]char;
-    var r = path::extension("noext", &raw mut buf[0], 256);
+    var r = unsafe(path::extension("noext", &raw mut buf[0], 256));
     if(r is Result.Err) { env.error("extension failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     if(!(len == 0 && buf[0] == '\0')) {
@@ -182,7 +182,7 @@ func test_path_extension_no_dot(env : &mut TestEnv) {
 @test
 func test_path_extension_trailing_dot(env : &mut TestEnv) {
     var buf : [256]char;
-    var r = path::extension("file.", &raw mut buf[0], 256);
+    var r = unsafe(path::extension("file.", &raw mut buf[0], 256));
     if(r is Result.Err) { env.error("extension failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     // A trailing dot is part of the name in our implementation, so extension returns empty
@@ -194,7 +194,7 @@ func test_path_extension_trailing_dot(env : &mut TestEnv) {
 @test
 func test_path_stem_multi_dot(env : &mut TestEnv) {
     var buf : [256]char;
-    var r = path::stem("file.tar.gz", &raw mut buf[0], 256);
+    var r = unsafe(path::stem("file.tar.gz", &raw mut buf[0], 256));
     if(r is Result.Err) { env.error("stem failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     if(!(len == 8 && buf[0] == 'f' && buf[1] == 'i' && buf[2] == 'l' && buf[3] == 'e' &&
@@ -241,7 +241,7 @@ func test_path_has_root_empty(env : &mut TestEnv) {
 @test
 func test_path_normalize_buffer_small(env : &mut TestEnv) {
     var buf : [1]char;
-    var r = path::normalize("/usr", &raw mut buf[0], 1);
+    var r = unsafe(path::normalize("/usr", &raw mut buf[0], 1));
     if(!(r is Result.Err)) {
         env.error("normalize should fail with BufferTooSmall");
     }

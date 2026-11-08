@@ -163,6 +163,11 @@ public struct span<T> {
         return self._data;
     }
 
+    func get_opt(&self, loc : size_t) : Option<&T> {
+        if(loc >= _size) { return Option.None<&T>() }
+        return Option.Some<&T>(unsafe(&*(_data + loc)))
+    }
+
     func get(&self, loc : size_t) : *T {
         if(loc >= _size) {
             panic("span index out of bounds")
@@ -324,6 +329,11 @@ public struct mut_span<T> {
 
     func get_mut(&mut self, loc : size_t) : &mut T {
         return unsafe(&mut *self.get(loc))
+    }
+
+    func get_mut_opt(&mut self, loc : size_t) : Option<&mut T> {
+        if(loc >= _size) { return Option.None<&mut T>() }
+        return Option.Some<&mut T>(unsafe(&mut *(_data + loc)))
     }
 
     func set(&mut self, loc : size_t, value : T) {

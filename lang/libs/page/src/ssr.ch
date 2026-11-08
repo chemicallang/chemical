@@ -364,7 +364,7 @@ public func ssrNoneValue() : SsrAttributeValue {
     return SsrAttributeValue.None()
 }
 
-func appendHtmlEscaped(output : &mut std::string, text : &std::string_view) {
+public func appendHtmlEscaped(output : &mut std::string, text : &std::string_view) {
         unsafe {
         for(var i = 0u; i < text.size(); i++) {
             const c = text.data()[i];
@@ -381,7 +381,7 @@ func appendHtmlEscaped(output : &mut std::string, text : &std::string_view) {
         }
     }
 
-func appendJsHex2(output : &mut std::string, v : uint) {
+public func appendJsHex2(output : &mut std::string, v : uint) {
     const hex = "0123456789abcdef"
     output.append(hex[(v >> 4) & 0xF]);
     output.append(hex[v & 0xF]);

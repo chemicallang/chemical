@@ -1,5 +1,6 @@
 public namespace fs {
 
+using std::Option;
 using std::Result;
 
 public func io_error(e : FsError) : std::io::IoError {
@@ -213,6 +214,162 @@ impl std::io::Write for File {
         }
         return Result.Ok(0 as size_t)
     }
+}
+
+
+// ---------------------------------------------------------------------------
+// Safe directory/metadata helpers
+// ---------------------------------------------------------------------------
+
+public func create_dir_safe(path : &str) : Result<size_t, std::io::IoError> {
+    var made = std::cstring_make(path)
+    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
+    var Ok(c) = made else unsafe { unreachable }
+    var r = create_dir(unsafe(c.as_ptr()))
+    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
+    return Result.Ok(0 as size_t)
+}
+
+public func create_dir_all_safe(path : &str) : Result<size_t, std::io::IoError> {
+    var made = std::cstring_make(path)
+    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
+    var Ok(c) = made else unsafe { unreachable }
+    var r = create_dir_all(unsafe(c.as_ptr()))
+    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
+    return Result.Ok(0 as size_t)
+}
+
+public func remove_dir_safe(path : &str) : Result<size_t, std::io::IoError> {
+    var made = std::cstring_make(path)
+    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
+    var Ok(c) = made else unsafe { unreachable }
+    var r = remove_dir(unsafe(c.as_ptr()))
+    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
+    return Result.Ok(0 as size_t)
+}
+
+public func remove_dir_all_safe(path : &str) : Result<size_t, std::io::IoError> {
+    var made = std::cstring_make(path)
+    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
+    var Ok(c) = made else unsafe { unreachable }
+    var r = remove_dir_all_recursive(unsafe(c.as_ptr()))
+    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
+    return Result.Ok(0 as size_t)
+}
+
+public func remove_file_safe(path : &str) : Result<size_t, std::io::IoError> {
+    var made = std::cstring_make(path)
+    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
+    var Ok(c) = made else unsafe { unreachable }
+    var r = remove_file(unsafe(c.as_ptr()))
+    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
+    return Result.Ok(0 as size_t)
+}
+
+public func copy_file_safe(src : &str, dst : &str) : Result<size_t, std::io::IoError> {
+    var m1 = std::cstring_make(src)
+    var m2 = std::cstring_make(dst)
+    if(m1 is Result.Err || m2 is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
+    var Ok(c1) = m1 else unsafe { unreachable }
+    var Ok(c2) = m2 else unsafe { unreachable }
+    var r = copy_file(unsafe(c1.as_ptr()), unsafe(c2.as_ptr()))
+    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
+    return Result.Ok(0 as size_t)
+}
+
+public func move_path_safe(src : &str, dst : &str) : Result<size_t, std::io::IoError> {
+    var m1 = std::cstring_make(src)
+    var m2 = std::cstring_make(dst)
+    if(m1 is Result.Err || m2 is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
+    var Ok(c1) = m1 else unsafe { unreachable }
+    var Ok(c2) = m2 else unsafe { unreachable }
+    var r = move_path(unsafe(c1.as_ptr()), unsafe(c2.as_ptr()))
+    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
+    return Result.Ok(0 as size_t)
+}
+
+public func metadata_safe(path : &str) : Result<Metadata, std::io::IoError> {
+    var made = std::cstring_make(path)
+    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
+    var Ok(c) = made else unsafe { unreachable }
+    var r = metadata(unsafe(c.as_ptr()))
+    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
+    var Ok(m) = r else unsafe { unreachable }
+    return Result.Ok(m)
+}
+
+public func exists_safe(path : &str) : bool {
+    var made = std::cstring_make(path)
+    if(made is Result.Err) { return false }
+    var Ok(c) = made else unsafe { unreachable }
+    return exists(unsafe(c.as_ptr()))
+}
+
+public func is_file_safe(path : &str) : bool {
+    var made = std::cstring_make(path)
+    if(made is Result.Err) { return false }
+    var Ok(c) = made else unsafe { unreachable }
+    var r = is_file(unsafe(c.as_ptr()))
+    if(r is Result.Err) { return false }
+    var Ok(v) = r else unsafe { unreachable }
+    return v
+}
+
+public func is_dir_safe(path : &str) : bool {
+    var made = std::cstring_make(path)
+    if(made is Result.Err) { return false }
+    var Ok(c) = made else unsafe { unreachable }
+    var r = is_dir(unsafe(c.as_ptr()))
+    if(r is Result.Err) { return false }
+    var Ok(v) = r else unsafe { unreachable }
+    return v
+}
+
+public func atomic_write_safe(path : &str, data : [u8]) : Result<size_t, std::io::IoError> {
+    var made = std::cstring_make(path)
+    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
+    var Ok(c) = made else unsafe { unreachable }
+    var r = atomic_write(unsafe(c.as_ptr()), data.data(), data.size())
+    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
+    return Result.Ok(data.size())
+}
+
+public func read_dir_safe(path : &str, callback : std::function<(name : &std::string_view, is_dir : bool) => bool>) : Result<size_t, std::io::IoError> {
+    var made = std::cstring_make(path)
+    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
+    var Ok(c) = made else unsafe { unreachable }
+    var adapted : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool> = |callback|(name, name_len, is_dir) => {
+        var view = unsafe(std::string_view(name, name_len))
+        return callback(&view, is_dir)
+    }
+    var r = read_dir(unsafe(c.as_ptr()), adapted)
+    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
+    return Result.Ok(0 as size_t)
+}
+
+public func temp_dir_path() : Option<std::string> {
+    var buf : [4096]char
+    var r = temp_dir(&raw mut buf[0], 4096)
+    if(r is Result.Err) { return Option.None<std::string>() }
+    return Option.Some<std::string>(unsafe(std::string.make_no_len(&raw mut buf[0])))
+}
+
+public func set_times_safe(path : &str, atime : i64, mtime : i64) : Result<size_t, std::io::IoError> {
+    var made = std::cstring_make(path)
+    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
+    var Ok(c) = made else unsafe { unreachable }
+    var r = set_times(unsafe(c.as_ptr()), atime, mtime)
+    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
+    return Result.Ok(0 as size_t)
+}
+
+public func set_permissions_safe(path : &str, perms : u32) : Result<size_t, std::io::IoError> {
+    var made = std::cstring_make(path)
+    if(made is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
+    var Ok(c) = made else unsafe { unreachable }
+    var r = set_permissions(unsafe(c.as_ptr()), perms)
+    if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(io_error(e)) }
+    return Result.Ok(0 as size_t)
 }
 
 } // namespace fs

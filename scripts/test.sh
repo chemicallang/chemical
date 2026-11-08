@@ -29,6 +29,7 @@ TEST_SERVER=false
 TEST_LIBS=false
 TEST_ASYNC=false
 TEST_REGEXP=false
+TEST_CBOR=false
 RUN_ALL=false
 INCLUDE_TLS=false
 COMPILE_TARGET=""
@@ -74,6 +75,9 @@ usage() {
   echo "  --libs                  Build & run the library test suite (passes --arg-test-libs)"
   echo "  --async                 Build & run the async/await suite (C or LLVM)"
   echo "  --regexp                Build & run the extensive regular-expression suite (passes --arg-test-regexp)"
+  echo "  --fuzz                  Run the fixed Phase 2 malformed-input corpus (libs subset)"
+  echo "  --api                   Run the Phase 2 safe API smoke surface (libs subset)"
+  echo "  --cbor                  Build & run the CBOR test suite (passes --arg-test-cbor)"
   echo "  --all                   Run every suite (main, interpret, negative, plugins, async,"
   echo "                          libs, regexp, process, server, webview, universal) and print a summary table."
   echo "                          Uses --tcc unless --llvm is also given. The slow 'tls'"
@@ -137,6 +141,17 @@ while [ $# -gt 0 ]; do
     --libs) TEST_LIBS=true ;;
     --async) TEST_ASYNC=true ;;
     --regexp) TEST_REGEXP=true ;;
+    --fuzz)
+      TEST_LIBS=true
+      TEST_NAMES="fuzz_encoding_malformed,fuzz_json_cbor_malformed,fuzz_mime_bad_input"
+      SKIP_SEQUENTIAL=true
+      ;;
+    --cbor) TEST_CBOR=true ;;
+    --api)
+      TEST_LIBS=true
+      TEST_NAMES="test_safe_api_surface_smoke,test_safe_write_and_read_file,test_osrand_safe_surface,test_cstr_safe_view"
+      SKIP_SEQUENTIAL=true
+      ;;
     --all) RUN_ALL=true ;;
     --include-tls) INCLUDE_TLS=true ;;
     --target) COMPILE_TARGET="$2"; shift ;;
@@ -301,8 +316,8 @@ run_all_suites() {
   fi
 
   # The slow `tls` suite is opt-in (`--include-tls`); everything else always runs.
-  local names=("main" "interpret" "negative" "removed" "safety" "plugins" "async" "libs" "regexp" "process" "server")
-  local flags=("" "--interpret" "--negative" "--removed" "--safety" "--plugins" "--async" "--libs" "--regexp" "--process" "--server")
+  local names=("main" "interpret" "negative" "removed" "safety" "plugins" "async" "libs" "regexp" "cbor" "fuzz" "api" "process" "server")
+  local flags=("" "--interpret" "--negative" "--removed" "--safety" "--plugins" "--async" "--libs" "--regexp" "--cbor" "--fuzz" "--api" "--process" "--server")
   if [ "$INCLUDE_TLS" = true ]; then
     names+=("tls")
     flags+=("--tls")
@@ -617,6 +632,9 @@ else
   fi
   if [ "$TEST_REGEXP" = true ]; then
     CMD+=("--arg-test-regexp")
+  fi
+  if [ "$TEST_CBOR" = true ]; then
+    CMD+=("--arg-test-cbor")
   fi
   if [ -n "$COMPILE_TARGET" ]; then
     CMD+=("--target" "$COMPILE_TARGET")

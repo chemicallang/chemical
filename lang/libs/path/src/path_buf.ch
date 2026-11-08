@@ -33,28 +33,28 @@ public struct PathBuf {
 
     func basename(&self) : PathBuf {
         var buf : [4096]char
-        var r = path::basename(self.value.c_str(), &raw mut buf[0], 4096)
+        var r = unsafe(path::basename(self.value.c_str(), &raw mut buf[0], 4096))
         if(r is std::Result.Err) { return PathBuf { value : string() } }
         return PathBuf { value : unsafe(string.make_no_len(&raw mut buf[0])) }
     }
 
     func dirname(&self) : PathBuf {
         var buf : [4096]char
-        var r = path::dirname(self.value.c_str(), &raw mut buf[0], 4096)
+        var r = unsafe(path::dirname(self.value.c_str(), &raw mut buf[0], 4096))
         if(r is std::Result.Err) { return PathBuf { value : string() } }
         return PathBuf { value : unsafe(string.make_no_len(&raw mut buf[0])) }
     }
 
     func extension(&self) : PathBuf {
         var buf : [4096]char
-        var r = path::extension(self.value.c_str(), &raw mut buf[0], 4096)
+        var r = unsafe(path::extension(self.value.c_str(), &raw mut buf[0], 4096))
         if(r is std::Result.Err) { return PathBuf { value : string() } }
         return PathBuf { value : unsafe(string.make_no_len(&raw mut buf[0])) }
     }
 
     func stem(&self) : PathBuf {
         var buf : [4096]char
-        var r = path::stem(self.value.c_str(), &raw mut buf[0], 4096)
+        var r = unsafe(path::stem(self.value.c_str(), &raw mut buf[0], 4096))
         if(r is std::Result.Err) { return PathBuf { value : string() } }
         return PathBuf { value : unsafe(string.make_no_len(&raw mut buf[0])) }
     }
@@ -64,14 +64,14 @@ public struct PathBuf {
         if(made is std::Result.Err) { return PathBuf { value : string() } }
         var Ok(other_c) = made else unsafe { unreachable }
         var buf : [4096]char
-        var r = path::join(self.value.c_str(), unsafe(other_c.as_ptr()), &raw mut buf[0], 4096)
+        var r = unsafe(path::join(self.value.c_str(), unsafe(other_c.as_ptr()), &raw mut buf[0], 4096))
         if(r is std::Result.Err) { return PathBuf { value : string() } }
         return PathBuf { value : unsafe(string.make_no_len(&raw mut buf[0])) }
     }
 
     func normalize(&self) : PathBuf {
         var buf : [4096]char
-        var r = path::normalize(self.value.c_str(), &raw mut buf[0], 4096)
+        var r = unsafe(path::normalize(self.value.c_str(), &raw mut buf[0], 4096))
         if(r is std::Result.Err) { return PathBuf { value : string() } }
         return PathBuf { value : unsafe(string.make_no_len(&raw mut buf[0])) }
     }

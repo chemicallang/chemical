@@ -115,6 +115,12 @@ public namespace http {
         }
 }
 
+        public func header_str(&mut self, k : &str, v : &str) : &mut RequestBuilder {
+            var kview = unsafe(std::string_view(k.data(), k.size()))
+            var vview = unsafe(std::string_view(v.data(), v.size()))
+            return self.header_view(&kview, &vview)
+        }
+
         public func header_view(&mut self, k: &std::string_view, v: &std::string_view) : &mut RequestBuilder {
             headers.insert(std::string::view_make(k), std::string::view_make(v));
             return self;
@@ -143,6 +149,12 @@ public namespace http {
         public func timeout(&mut self, secs: long) : &mut RequestBuilder {
             timeout_secs = secs;
             return self;
+        }
+
+        public func set_body_str(&mut self, b : &str, content_type : &str = "text/plain") : &mut RequestBuilder {
+            var bview = unsafe(std::string_view(b.data(), b.size()))
+            body = std::string::view_make(&bview)
+            return self.header_str("Content-Type", content_type)
         }
 
         public func basic_auth(&mut self, user: *char, pass: *char) : &mut RequestBuilder {

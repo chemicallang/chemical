@@ -1,6 +1,20 @@
 // ===== HTTP utilities and types =====
 public namespace http {
 
+func header_name_equals(a : std::string_view, b : std::string_view) : bool {
+    if(a.size() != b.size()) { return false }
+    var i : size_t = 0
+    while(i < a.size()) {
+        var ca = a.get(i)
+        var cb = b.get(i)
+        if(ca >= 'A' && ca <= 'Z') { ca = (ca + 32) as char }
+        if(cb >= 'A' && cb <= 'Z') { cb = (cb + 32) as char }
+        if(ca != cb) { return false }
+        i += 1
+    }
+    return true
+}
+
     public struct HeaderMap {
 
         var headers: std::vector<std::pair<std::string,std::string>>;
@@ -46,13 +60,28 @@ public namespace http {
             while(i < headers.size()) {
                 var p = headers.get_ptr(i);
                 // case-insensitive compare using manual loop
-                if(strcasecmp(p.first.data(), name) == 0) { return std::Option.Some<std::string>(p.second.copy()) }
+                if(strcasecmp(p.first.data(), name) == 0) { return std::Option.Some<std::string>(unsafe(p.second.copy())) }
                 i = i + 1u;
             }
             return std::Option.None<std::string>();
 
         }
 }
+
+        // Length-aware, case-insensitive header lookup without a C-string
+        // pointer. Returns an owned value so callers can outlive the map.
+        public func get_str(&self, name : &str) : std::Option<std::string> {
+            var want = unsafe(std::string_view(name.data(), name.size()))
+            var i = 0u
+            while(i < headers.size()) {
+                var p = headers.get_ptr(i)
+                if(header_name_equals(unsafe(p.first.to_view()), want)) {
+                    return std::Option.Some<std::string>(unsafe(p.second.copy()))
+                }
+                i += 1u
+            }
+            return std::Option.None<std::string>()
+        }
 
         public func get_view(&self, name : &std::string_view) : std::string_view {
             unsafe {

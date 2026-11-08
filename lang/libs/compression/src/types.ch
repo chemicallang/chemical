@@ -6,6 +6,7 @@ public variant CompressionError {
     BufferTooSmall(needed : size_t)
     InvalidData()
     UnsupportedAlgorithm()
+    OutOfMemory()
 
     func message(&self) : string {
         switch(self) {
@@ -16,6 +17,7 @@ public variant CompressionError {
             }
             InvalidData() => return string("CompressionError: invalid compressed data")
             UnsupportedAlgorithm() => return string("CompressionError: unsupported compression algorithm")
+            OutOfMemory() => return string("CompressionError: out of memory")
         }
     }
 }

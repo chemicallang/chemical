@@ -212,12 +212,12 @@ public namespace std {
         unsafe impl<T> Send for Future<T> where T : Send { }
 
         public struct Task{
-            var f:std.function<() => void>
+            internal var f:std.function<() => void>
         }
 
         public struct WorkerArg {
-            var pool : *mut PoolData
-            var index : size_t
+            internal var pool : *mut PoolData
+            internal var index : size_t
         }
 
         func current_thread_id() : usize {
@@ -291,15 +291,17 @@ public namespace std {
 
         public struct PoolData {
 
-            var m:std.mutex;
-            var cv:std.condvar;
-            var q:std.vector<Task>;
-            var workers:std.vector<usize>;
-            var run:bool
-            var active_workers : size_t
-            var delete_requested : bool
-            var owner_frees : bool
-            var worker_ids : std.vector<usize>
+            // Raw pool state is private to this module; safe code only sees
+            // the owning `ThreadPool` handle and the public submission APIs.
+            internal var m:std.mutex;
+            internal var cv:std.condvar;
+            internal var q:std.vector<Task>;
+            internal var workers:std.vector<usize>;
+            internal var run:bool
+            internal var active_workers : size_t
+            internal var delete_requested : bool
+            internal var owner_frees : bool
+            internal var worker_ids : std::vector<usize>
 
             public unsafe func <T> submit(&mut self, f:std.function<() => T>):Future<T>{
         unsafe {
@@ -409,6 +411,17 @@ public namespace std {
 
             public unsafe func submit_void(&self, f:std.function<() => void>) {
                 unsafe { data.submit_void(f) }
+            }
+
+            // Safe submission of a non-capturing task. The wrapper captures
+            // only the function pointer itself (which has no environment), so
+            // the only cross-thread requirement is the result type.
+            public func <U> submit_fn(&self, f : () => U) : Future<U> where U : Send {
+                return unsafe(data.submit<U>(|f|() => f()))
+            }
+
+            public func submit_void_fn(&self, f : () => void) {
+                unsafe { data.submit_void(|f|() => f()) }
             }
 
             // Explicit-generic forms used by the free safe wrappers below.

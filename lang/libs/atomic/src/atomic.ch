@@ -44,8 +44,10 @@ comptime func convert_mem_order_to_llvm(order : memory_order) : llvm_atomic_memo
     }
 }
 
+comptime const LLVM_MEM_ORDER : [6]int = [2, 4, 4, 5, 6, 7]
+
 comptime func llvm_mem_order(order : memory_order) : int {
-    return mem_order_to_int(convert_mem_order_to_llvm(order))
+    return LLVM_MEM_ORDER[order as int]
 }
 
 enum llvm_atomic_sync_scope {
@@ -53,11 +55,10 @@ enum llvm_atomic_sync_scope {
     single_thread = 1
 }
 
+comptime const LLVM_SYNC_SCOPE : [2]int = [0, 1]
+
 comptime func scope_to_int(scope : llvm_atomic_sync_scope) : int {
-    switch(scope) {
-        llvm_atomic_sync_scope.system, default => { return 0; }
-        llvm_atomic_sync_scope.single_thread => { return 1; }
-    }
+    return LLVM_SYNC_SCOPE[scope as int]
 }
 
 enum llvm_atomic_op : int {
@@ -687,16 +688,11 @@ comptime func has_atomic_builtins() : bool {
     }
 }
 
-public comptime func atomic_fence(order : memory_order = memory_order.seq_cst) {
-    comptime if(has_atomic_builtins()) {
-        comptime if(intrinsics::get_backend_name() == "C") {
-            __chx__fence(llvm_mem_order(order))
-        } else {
-            intrinsics::llvm::atomic_fence(llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))
-        }
-    } else {
-        intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-    }
+public func atomic_fence(order : memory_order = memory_order.seq_cst) {
+    // The fence is a runtime-preserving helper: the architecture-specific
+    // instruction is selected by the runtime order, so it does not depend on
+    // folding a comptime call at every use site.
+    __chx__fence(LLVM_MEM_ORDER[order as int])
 }
 
 // ========================

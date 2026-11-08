@@ -140,7 +140,7 @@ func test_compress_then_hex_roundtrip(env : &mut TestEnv) {
 @test
 func test_path_basename_then_hash(env : &mut TestEnv) {
     var buf : [4096]char;
-    var r = path::basename("/usr/bin/gcc", &raw mut buf[0], 4096);
+    var r = unsafe(path::basename("/usr/bin/gcc", &raw mut buf[0], 4096));
     if(r is Result.Err) { env.error("basename failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     // Hash the basename "gcc" as data
@@ -155,7 +155,7 @@ func test_path_basename_then_hash(env : &mut TestEnv) {
 @test
 func test_path_normalize_then_hex_hash(env : &mut TestEnv) {
     var buf : [4096]char;
-    var r = path::normalize("/usr/bin/../lib/./file.txt", &raw mut buf[0], 4096);
+    var r = unsafe(path::normalize("/usr/bin/../lib/./file.txt", &raw mut buf[0], 4096));
     if(r is Result.Err) { env.error("normalize failed"); return; }
     var Ok(len) = r else unsafe { unreachable };
     // Hash the normalized path
@@ -250,7 +250,7 @@ func test_url_encode_then_verify_with_hex(env : &mut TestEnv) {
 func test_path_hash_hex_b64_roundtrip(env : &mut TestEnv) {
     // Take a path, normalize it, hash it, hex it, b64 it, then reverse all
     var path_buf : [4096]char;
-    var rn = path::normalize("/a/./b/../c/", &raw mut path_buf[0], 4096);
+    var rn = unsafe(path::normalize("/a/./b/../c/", &raw mut path_buf[0], 4096));
     if(rn is Result.Err) { env.error("normalize failed"); return; }
     var Ok(path_len) = rn else unsafe { unreachable };
     // Hash the normalized path
@@ -342,7 +342,7 @@ func test_url_encode_utf8_then_decode(env : &mut TestEnv) {
 @test
 func test_path_extension_then_hex(env : &mut TestEnv) {
     var ext_buf : [256]char;
-    var re = path::extension("document.txt", &raw mut ext_buf[0], 256);
+    var re = unsafe(path::extension("document.txt", &raw mut ext_buf[0], 256));
     if(re is Result.Err) { env.error("extension failed"); return; }
     var Ok(ext_len) = re else unsafe { unreachable };
     // Hex-encode the extension bytes (including the dot)
@@ -441,17 +441,17 @@ func test_hex_b64_compress_inverse(env : &mut TestEnv) {
 @test
 func test_path_join_hash_verify(env : &mut TestEnv) {
     var buf : [4096]char;
-    var rj = path::join("/home", "user/docs/file.txt", &raw mut buf[0], 4096);
+    var rj = unsafe(path::join("/home", "user/docs/file.txt", &raw mut buf[0], 4096));
     if(rj is Result.Err) { env.error("join failed"); return; }
     var Ok(join_len) = rj else unsafe { unreachable };
     // Get the basename
     var base_buf : [256]char;
-    var rb = path::basename(buf, &raw mut base_buf[0], 256);
+    var rb = unsafe(path::basename(buf, &raw mut base_buf[0], 256));
     if(rb is Result.Err) { env.error("basename failed"); return; }
     var Ok(base_len) = rb else unsafe { unreachable };
     // Get the extension from basename
     var ext_buf : [256]char;
-    var re = path::extension(base_buf, &raw mut ext_buf[0], 256);
+    var re = unsafe(path::extension(base_buf, &raw mut ext_buf[0], 256));
     if(re is Result.Err) { env.error("extension failed"); return; }
     var Ok(ext_len) = re else unsafe { unreachable };
     // Verify extension is .txt via hex

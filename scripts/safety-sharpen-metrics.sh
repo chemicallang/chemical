@@ -47,35 +47,49 @@ if [ -f "$TCC" ]; then
 fi
 
 COMPILE_MS=0
+RSS_KB=0
 if [ -x "$TCC" ] && [ -f "$SAMPLE_MODULE" ]; then
     START_NS="$(date +%s%N)"
     TMP_BUILD="$(mktemp -d "${TMPDIR:-/tmp}/chemical-sharpen-build.XXXXXX")"
-    if ! "$TCC" "$SAMPLE_MODULE" --check --no-cache --build-dir "$TMP_BUILD" >/tmp/chemical-sharpen-metrics.out 2>&1; then
-        echo "error: sample compile failed" >&2
-        tail -30 /tmp/chemical-sharpen-metrics.out >&2
-        rm -rf "$TMP_BUILD"
-        exit 1
+    TIME_FILE="$(mktemp "${TMPDIR:-/tmp}/chemical-sharpen-time.XXXXXX")"
+    if command -v /usr/bin/time >/dev/null 2>&1; then
+        if ! /usr/bin/time -v "$TCC" "$SAMPLE_MODULE" --check --no-cache --build-dir "$TMP_BUILD" >/tmp/chemical-sharpen-metrics.out 2>"$TIME_FILE"; then
+            echo "error: sample compile failed" >&2
+            tail -30 /tmp/chemical-sharpen-metrics.out >&2
+            rm -rf "$TMP_BUILD" "$TIME_FILE"
+            exit 1
+        fi
+        RSS_KB=$(awk '/Maximum resident set size/ {print $6}' "$TIME_FILE" | tail -1)
+        [ -n "$RSS_KB" ] || RSS_KB=0
+    else
+        if ! "$TCC" "$SAMPLE_MODULE" --check --no-cache --build-dir "$TMP_BUILD" >/tmp/chemical-sharpen-metrics.out 2>&1; then
+            echo "error: sample compile failed" >&2
+            tail -30 /tmp/chemical-sharpen-metrics.out >&2
+            rm -rf "$TMP_BUILD" "$TIME_FILE"
+            exit 1
+        fi
     fi
-    rm -rf "$TMP_BUILD"
+    rm -rf "$TMP_BUILD" "$TIME_FILE"
     END_NS="$(date +%s%N)"
     COMPILE_MS=$(( (END_NS - START_NS) / 1000000 ))
 fi
 
-python3 - "$METRICS" "$UPDATE" "$TCC_SIZE" "$LLVM_SIZE" "$STRIPPED" "$COMPILE_MS" "$LIMIT" <<'PY'
+python3 - "$METRICS" "$UPDATE" "$TCC_SIZE" "$LLVM_SIZE" "$STRIPPED" "$COMPILE_MS" "$RSS_KB" "$LIMIT" <<'PY'
 import json
 import os
 import sys
 import datetime
 
-path, update, tcc, llvm, stripped, compile_ms, limit = (
+path, update, tcc, llvm, stripped, compile_ms, rss_kb, limit = (
     sys.argv[1], sys.argv[2] == "true", int(sys.argv[3]), int(sys.argv[4]),
-    int(sys.argv[5]), int(sys.argv[6]), int(sys.argv[7])
+    int(sys.argv[5]), int(sys.argv[6]), int(sys.argv[7]), int(sys.argv[8])
 )
 data = {
     "release_tcc_compiler_bytes": tcc,
     "release_tcc_compiler_stripped_bytes": stripped,
     "release_llvm_compiler_bytes": llvm,
     "safety_sample_compile_ms": compile_ms,
+    "safety_sample_max_rss_kb": rss_kb,
     "size_limit_bytes": limit,
     "measured_at": datetime.date.today().isoformat(),
 }

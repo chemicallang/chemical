@@ -53,6 +53,80 @@ public struct Audio {
             loaded : false
         }
     }
+
+    // ── safe construction ────────────────────────────────────────────────
+
+    func load(path : &path::Path) : std::Result<Audio, AudioError> {
+        return audio_safe_load(path)
+    }
+
+    func from_bytes(data : &[u8]) : std::Result<Audio, AudioError> {
+        return audio_safe_from_bytes(data.data(), data.size())
+    }
+
+    func from_wav(data : &[u8]) : std::Result<Audio, AudioError> {
+        return audio_safe_from_wav(data.data(), data.size())
+    }
+
+    // ── safe metadata ────────────────────────────────────────────────────
+
+    func duration_ms(&self) : double {
+        return audio_duration_ms(unsafe(self as *mut Audio))
+    }
+
+    func duration(&self) : double {
+        return audio_duration_ms(unsafe(self as *mut Audio))
+    }
+
+    func frame_count(&self) : size_t {
+        return self.num_samples
+    }
+
+    // Borrowed sample views.
+    func samples_view(&self) : [i16] {
+        return unsafe(std::span<i16>(self.samples.data(), self.samples.size()))
+    }
+
+    func samples_mut_view(&mut self) : &mut [i16] {
+        return unsafe(std::mut_span<i16>(self.samples.mutable_data(), self.samples.size()))
+    }
+
+    // ── safe transformations ─────────────────────────────────────────────
+
+    func trim(&self, start_ms : double, end_ms : double) : Audio {
+        return audio_trim(unsafe(self as *mut Audio), start_ms, end_ms)
+    }
+
+    // Scale every sample in place by `factor` (clamped to the i16 range).
+    func volume(&mut self, factor : float) {
+        audio_volume(unsafe(self as *mut Audio), factor)
+    }
+
+    func set_volume(&mut self, factor : float) {
+        audio_volume(unsafe(self as *mut Audio), factor)
+    }
+
+    func mix(&self, other : &Audio) : std::Result<Audio, AudioError> {
+        return audio_mix(unsafe(self as *mut Audio), unsafe(other as *mut Audio))
+    }
+
+    func append(&self, other : &Audio) : std::Result<Audio, AudioError> {
+        return audio_append(unsafe(self as *mut Audio), unsafe(other as *mut Audio))
+    }
+
+    func resample(&self, target_rate : u32) : Audio {
+        return audio_resample(unsafe(self as *mut Audio), target_rate)
+    }
+
+    // ── safe encoding / saving ───────────────────────────────────────────
+
+    func encode_wav(&self) : std::Result<vector<u8>, AudioError> {
+        return audio_safe_encode_wav(self)
+    }
+
+    func save(&self, path : &path::Path) : std::Result<std::Unit, AudioError> {
+        return audio_safe_save(self, path)
+    }
 }
 
 } // end namespace audio

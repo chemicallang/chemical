@@ -26,8 +26,8 @@ dropping capabilities. The **first** release may be much larger (7–15 MB) to s
 after that, size + compile time + memory are reduced together. See
 `lang/docs/language-goals.md` §2.
 
-**Safety implementation status (2026-11-07; see `lang/docs/safety-sharpen/STATUS.md`):** the enforceable core is green
-(M0, M3, and the enforceable M4/M5/M6 rules), but full parity is not done. The
+**Safety implementation status (2026-11-08; see `lang/docs/safety-sharpen/STATUS.md`):** the enforceable core is green
+(M0, M3, and the enforceable M4/M5/M6 rules), but full parity is not done. Phase 2 safe-API surface implementation and release gate are complete as a release candidate (see `lang/docs/safety-sharpen/STATUS.md`, `API_AUDIT.md`, and `TARGETS.md`); legacy raw-buffer APIs remain an explicit reviewed migration surface. The
 async `FutureHandle<'a, T>` now carries a frame lifetime (`'static` for owning
 frames, elided for borrowed frames); `SAFE-LIFE-005` rejects safe retaining
 APIs, and call-site binding covers reference parameters, aggregate wrappers/fields,

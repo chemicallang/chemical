@@ -194,6 +194,33 @@ public struct vector<T> {
         return unsafe(&raw mut data_ptr[index]);
     }
 
+    func get_opt(&self, index : size_t) : Option<&T> {
+        if(index >= data_size) { return Option.None<&T>() }
+        return Option.Some<&T>(unsafe(&data_ptr[index]))
+    }
+
+    func get_mut_opt(&mut self, index : size_t) : Option<&mut T> {
+        if(index >= data_size) { return Option.None<&mut T>() }
+        return Option.Some<&mut T>(unsafe(&mut data_ptr[index]))
+    }
+
+    func try_set(&mut self, index : size_t, value : T) : bool {
+        if(index >= data_size) { return false }
+        set(index, value)
+        return true
+    }
+
+    func try_pop(&mut self) : Option<T> {
+        if(data_size == 0) { return Option.None<T>() }
+        var out : T = unsafe(zeroed:unsafe<T>())
+        unsafe {
+            var idx = data_size - 1
+            memcpy(&raw mut out, &raw mut data_ptr[idx], sizeof(T))
+            data_size = idx
+        }
+        return Option.Some<T>(out)
+    }
+
     func get_ref(&self, index : size_t) : &T {
         __vector_bounds_check(index, data_size)
         return unsafe(&data_ptr[index])

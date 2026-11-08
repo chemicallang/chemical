@@ -4,6 +4,22 @@ public variant Option<T> {
     Some(value : T)
     None()
 
+    func is_some(&self) : bool {
+        return self is Option.Some
+    }
+
+    func is_none(&self) : bool {
+        return self is Option.None
+    }
+
+    func take_or_none(&mut self) : Option<T> {
+        if(self is Option.None) {
+            return Option.None<T>()
+        }
+        var value = self.take()
+        return Option.Some<T>(value)
+    }
+
     func take(&mut self) : T {
         if(self is Option.None) {
             panic("cannot take on a option that's none")

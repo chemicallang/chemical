@@ -177,4 +177,42 @@ impl std::io::Write for TcpStream {
     }
 }
 
+
+// Async safe I/O over an owning TcpStream. The buffer is borrowed for the
+// duration of the returned future; the stream handle is only used to read the
+// descriptor before awaiting, so the future does not hold a long-lived borrow.
+public async func read_async(stream : &mut TcpStream, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
+    if(stream.fd == 0 as Socket) {
+        return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
+    }
+    if(buf.size() > 2147483647 as size_t) {
+        return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
+    }
+    var fd = stream.fd
+    var n = await recv_async(fd as int, buf.data(), buf.size())
+    if(n < 0) { return Result.Err(io_error()) }
+    return Result.Ok(n as size_t)
+}
+
+public async func write_async(stream : &mut TcpStream, buf : &[u8]) : Result<size_t, std::io::IoError> {
+    if(stream.fd == 0 as Socket) {
+        return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
+    }
+    if(buf.size() > 2147483647 as size_t) {
+        return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
+    }
+    var fd = stream.fd
+    var n = await send_async(fd as int, buf.data() as *char, buf.size() as int)
+    if(n < 0) { return Result.Err(io_error()) }
+    return Result.Ok(n as size_t)
+}
+
+// Explicit handle-release for wrappers that transfer ownership to another
+// subsystem (e.g. TLS accept). The caller becomes responsible for closing it.
+public unsafe func release_raw(stream : &mut TcpStream) : Socket {
+    var fd = stream.fd
+    stream.fd = 0 as Socket
+    return fd
+}
+
 } // namespace net

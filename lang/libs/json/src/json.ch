@@ -72,6 +72,12 @@ public struct JsonParser {
         return ParseResult::Ok();
     }
 
+    // Safe alias for the raw parser: accepts a UTF-8 `&str` (string
+    // literals, string views, and `std::str` values), never a raw pointer.
+    public func parse_view(&mut self, text : &str, h : &mut JsonSaxHandler) : ParseResult {
+        return self.parse(text.data(), text.size(), h)
+    }
+
 private:
     var s : *char;
     var len : size_t;

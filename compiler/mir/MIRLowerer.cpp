@@ -576,7 +576,12 @@ void MIRLowerer::clear_moved_ref(Value* value) {
     }
     if (!t || t->val_kind() != ValueKind::Identifier) return;
     auto* id = t->as_identifier_unsafe();
-    if (!id->linked || id->linked->kind() != ASTNodeKind::PatternMatchId) return;
+    if (!id->linked || id->linked->kind() != ASTNodeKind::PatternMatchId) {
+        PlaceId own = place_for_linked(id->linked);
+        if (own == MIR_INVALID_ID) own = place_for_name(id->value);
+        if (own != MIR_INVALID_ID) mark_moved(own);
+        return;
+    }
     PatternMatchExpr* pm = id->linked->as_patt_match_id_unsafe()->matchExpr;
     if (!pm || !pm->expression) return;
     Value* src = pm->expression;

@@ -102,7 +102,7 @@ impl<V : std::Serializer<JsonValue, JsonEncoder>> std::Serializer<JsonValue, Jso
             var key = it.key() as *std::string
             var value = it.value() as *mut V
             __container_begin_item(encoder.buffer, encoder.counts)
-            json_escape_into(&mut *encoder.buffer, key.data(), key.size() as u64)
+            json_escape_into_raw(&mut *encoder.buffer, key.data(), key.size() as u64)
             encoder.buffer.append(':')
             var venc = JsonEncoder { buffer : encoder.buffer, counts : encoder.counts }
             var r = value.serialize(__unsafe_cast_json_encoder<JsonValue>(&venc))
@@ -159,7 +159,7 @@ impl<V : std::Serializer<JsonValue, JsonEncoder>> std::Serializer<JsonValue, Jso
             var key = it.key() as *std::string
             var value = it.value() as *mut V
             __container_begin_item(encoder.buffer, encoder.counts)
-            json_escape_into(&mut *encoder.buffer, key.data(), key.size() as u64)
+            json_escape_into_raw(&mut *encoder.buffer, key.data(), key.size() as u64)
             encoder.buffer.append(':')
             var venc = JsonEncoder { buffer : encoder.buffer, counts : encoder.counts }
             var r = value.serialize(__unsafe_cast_json_encoder<JsonValue>(&venc))

@@ -15,7 +15,7 @@ public namespace http {
 }
 
         func get_mime_type(ext: &std.string) : std.string_view {
-            return mime::get_type(ext.data())
+            return mime::get_type(std::str.make_string(ext))
         }
 
         public func serve_http(&self, req: http.Request, res: http.ResponseWriter) {

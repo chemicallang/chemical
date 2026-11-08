@@ -991,12 +991,28 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     ptr ? operand_expr(function, module, *p)
                         : place_name(module, function, p->id);
                 bool arrow = ptr;
+                TypeId pt = p->kind() == MIROperandKind::Place
+                                ? function.places[p->id].type
+                                : p->type();
                 if (!ptr) {
                     const MIRTypeRecord& bt = module.types.get(function.places[p->id].type);
                     arrow = (bt.kind == MIRTypeKind::Pointer ||
                              bt.kind == MIRTypeKind::Reference);
                 }
-                return "&" + base + (arrow ? "->" : ".") + fname;
+                bool deref_base = false;
+                if (arrow && pt < module.types.size()) {
+                    const MIRTypeRecord& pr = module.types.get(pt);
+                    if ((pr.kind == MIRTypeKind::Pointer ||
+                         pr.kind == MIRTypeKind::Reference) &&
+                        pr.element < module.types.size()) {
+                        const MIRTypeRecord& er = module.types.get(pr.element);
+                        deref_base = (er.kind == MIRTypeKind::Pointer ||
+                                      er.kind == MIRTypeKind::Reference);
+                    }
+                }
+                if (arrow && deref_base) return "&((*(" + base + "))->" + fname + ")";
+                if (arrow) return "&((" + base + ")->" + fname + ")";
+                return "&" + base + "." + fname;
             }
             case MIROpcode::IndexAddr: {
                 const MIROperand* b = operand_at(function, inst, 0);
@@ -2102,8 +2118,27 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                              bt.kind == MIRTypeKind::Reference);
                 }
                 std::string access;
-                if (ptr) append_operand_expr(function, module, *p, access);
-                else append_place_name(module, function, p->id, access);
+                TypeId pt = p->kind() == MIROperandKind::Place
+                                ? function.places[p->id].type
+                                : p->type();
+                bool deref_base = false;
+                if (arrow && pt < module.types.size()) {
+                    const MIRTypeRecord& pr = module.types.get(pt);
+                    if ((pr.kind == MIRTypeKind::Pointer ||
+                         pr.kind == MIRTypeKind::Reference) &&
+                        pr.element < module.types.size()) {
+                        const MIRTypeRecord& er = module.types.get(pr.element);
+                        deref_base = (er.kind == MIRTypeKind::Pointer ||
+                                      er.kind == MIRTypeKind::Reference);
+                    }
+                }
+                if (ptr) {
+                    std::string base;
+                    append_operand_expr(function, module, *p, base);
+                    access = deref_base ? ("(*(" + base + "))") : ("(" + base + ")");
+                } else {
+                    append_place_name(module, function, p->id, access);
+                }
                 access += arrow ? "->" : ".";
                 access += fname;
                 const TypeId ft = function.values[v].type;

@@ -69,6 +69,13 @@ public struct File {
     }
     var valid : bool;
 
+    @delete
+    func delete(&mut self) {
+        if(self.valid) {
+            var _ = file_close_ref(self)
+        }
+    }
+
 }
 
 }

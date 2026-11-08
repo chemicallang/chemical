@@ -59,6 +59,47 @@ public struct Font {
             loaded : false
         }
     }
+
+    // ── safe construction ────────────────────────────────────────────────
+
+    // Parse a TrueType/OpenType font from memory.
+    func load(data : &[u8]) : std::Result<Font, FontError> {
+        return font_safe_load(data.data(), data.size())
+    }
+
+    // Read and parse a font from a filesystem path.
+    func from_path(path : &path::Path) : std::Result<Font, FontError> {
+        return font_safe_from_path(path)
+    }
+
+    // ── safe metrics ─────────────────────────────────────────────────────
+
+    func metrics(&self, font_size : float) : FontMetrics {
+        return font_safe_metrics(self, font_size)
+    }
+
+    func line_height(&self) : i32 {
+        return font_line_height(unsafe(self as *mut Font))
+    }
+
+    // Measure a UTF-8 text run at `font_size` pixels.
+    func measure_text(&self, text : &str, font_size : float) : TextMetrics {
+        return font_measure_text(unsafe(self as *mut Font), text.data(), text.size(), font_size)
+    }
+
+    // ── safe glyph lookup ────────────────────────────────────────────────
+
+    func glyph(&self, codepoint : u32) : std::Result<u16, FontError> {
+        return font_get_glyph(unsafe(self as *mut Font), codepoint)
+    }
+
+    func glyph_metrics(&self, glyph_id : u16) : std::Result<GlyphMetrics, FontError> {
+        return font_get_glyph_metrics(unsafe(self as *mut Font), glyph_id)
+    }
+
+    func glyph_outline(&self, glyph_id : u16) : std::Result<GlyphOutline, FontError> {
+        return font_get_glyph_outline(unsafe(self as *mut Font), glyph_id)
+    }
 }
 
 public struct FontTable {
@@ -273,10 +314,10 @@ func cmap_lookup(font : *mut Font, codepoint : u32) : u16 {
             // Trimmed table mapping
             if(st_base + 6 > font.data.size()) { return 0 }
             var length = read_u16_be(font.data.data(), st_base + 2)
-            var first_code = read_u16_be(font.data.data(), st_base + 4)
-            var entry_count = read_u16_be(font.data.data(), st_base + 6)
+            var first_code = read_u16_be(font.data.data(), st_base + 6)
+            var entry_count = read_u16_be(font.data.data(), st_base + 8)
             if(codepoint < first_code || codepoint >= first_code + entry_count) { return 0 }
-            return read_u16_be(font.data.data(), st_base + 8 + ((codepoint - first_code as u32) as size_t) * 2)
+            return read_u16_be(font.data.data(), st_base + 10 + ((codepoint - first_code as u32) as size_t) * 2)
         }
 
         return 0

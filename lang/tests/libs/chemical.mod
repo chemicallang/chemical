@@ -11,6 +11,7 @@ import atomic
 import bcrypt
 import uuid
 import json
+import cbor
 import datetime
 import fs
 import path

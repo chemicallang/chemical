@@ -12,6 +12,8 @@ public variant ArchiveError {
     IoError(msg : string)
     BufferTooSmall()
     FileAlreadyExists(name : string)
+    UnsafePath(name : string)
+    IndexOutOfBounds(index : size_t)
 
     func message(&self) : string {
         switch(self) {
@@ -41,6 +43,16 @@ public variant ArchiveError {
             FileAlreadyExists(name) => {
                 var s = string("ArchiveError: file already exists: ")
                 s.append_string(&name)
+                return s
+            }
+            UnsafePath(name) => {
+                var s = string("ArchiveError: unsafe archive path: ")
+                s.append_string(&name)
+                return s
+            }
+            IndexOutOfBounds(index) => {
+                var s = string("ArchiveError: entry index out of bounds: ")
+                s.append_integer(index as int)
                 return s
             }
         }

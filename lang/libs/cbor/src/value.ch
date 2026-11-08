@@ -215,6 +215,74 @@ func map_value_at(v : &CborValue, index : size_t) : *mut CborValue {
     return m.get_ptr(index * 2u + 1u)
 }
 
+// Deep copy of a decoded value. `Option<&CborValue>` cannot be used safely
+// here: pattern-binding the payload of a reference-carrying Option moves the
+// referenced CborValue's resources, so a map lookup that returned a borrow
+// double-freed them when either the borrow or the map went out of scope. The
+// safe accessors therefore return an owned copy; callers that only inspect a
+// value pay one copy of the subtree they asked for.
+public func clone_value(v : &CborValue) : CborValue {
+    // SAFETY: every vector element is read through bounds-checked `get_ref`;
+    // the unsafe boundary only permits the `unreachable` fallback for a
+    // discriminant that the surrounding `is` check already excluded.
+    unsafe {
+        if(v is CborValue.Unsigned) {
+            var Unsigned(n) = v else unreachable
+            return CborValue.Unsigned(n)
+        }
+        if(v is CborValue.Negative) {
+            var Negative(n) = v else unreachable
+            return CborValue.Negative(n)
+        }
+        if(v is CborValue.Bytes) {
+            return CborValue.Bytes(bytes_copy(v))
+        }
+        if(v is CborValue.Text) {
+            return CborValue.Text(text_copy(v))
+        }
+        if(v is CborValue.Array) {
+            var Array(a) = v else unreachable
+            var out = vector<CborValue>()
+            for(var i = 0u; i < a.size(); i++) {
+                out.push_back(clone_value(a.get_ref(i)))
+            }
+            return CborValue.Array(out)
+        }
+        if(v is CborValue.Map) {
+            var Map(m) = v else unreachable
+            var out = vector<CborValue>()
+            for(var i = 0u; i < m.size(); i++) {
+                out.push_back(clone_value(m.get_ref(i)))
+            }
+            return CborValue.Map(out)
+        }
+        if(v is CborValue.Tag) {
+            var Tag(n, inner) = v else unreachable
+            var boxed = vector<CborValue>()
+            for(var i = 0u; i < inner.size(); i++) {
+                boxed.push_back(clone_value(inner.get_ref(i)))
+            }
+            return CborValue.Tag(n, boxed)
+        }
+        if(v is CborValue.Simple) {
+            var Simple(n) = v else unreachable
+            return CborValue.Simple(n)
+        }
+        if(v is CborValue.Float) {
+            var Float(f) = v else unreachable
+            return CborValue.Float(f)
+        }
+        if(v is CborValue.Bool) {
+            var Bool(b) = v else unreachable
+            return CborValue.Bool(b)
+        }
+        if(v is CborValue.Undefined) {
+            return CborValue.Undefined()
+        }
+        return CborValue.Null()
+    }
+}
+
 // The index of the pair whose key is the integer `key`, or -1.
 func map_find_int(v : &CborValue, key : i64) : int {
     unsafe {
@@ -333,34 +401,68 @@ public func map_bytes_by_text(v : &CborValue, key : string_view) : vector<u8> {
 }
 }
 
-// A pointer to the value stored under a text key, or null when absent.
+// An owned copy of the value stored under a text key, or `None` when absent.
 //
-// A POINTER rather than a copy, because a nested value is often a whole
-// sub-document and copying one out is a deep copy the caller almost never
-// wants. The caller reads through it with the same accessors, one level down:
+// The result is a deep copy, built by `clone_value`, rather than a borrow: a
+// reference-carrying `Option` is not safely usable for a destructor-bearing
+// value in this language yet (the payload binds by move, so the source is
+// destroyed twice). The caller reads the copy with the same accessors, one
+// level down:
 //
 //   var stmt = cbor::map_value_by_text(&attestation, string_view("attStmt"))
-//   var sig  = cbor::map_bytes_by_text(stmt, string_view("sig"))
+//   if(stmt is Option.Some) {
+//       var Some(inner) = stmt else unsafe { unreachable }
+//       var sig = cbor::map_bytes_by_text(&mut inner, string_view("sig"))
+//   }
 //
 // That is the shape a WebAuthn attestation statement has: a map inside a map.
-// Without this, the accessors above can only ever see the top level, and a
-// caller would be pushed into re-decoding raw bytes it never had.
-public func map_value_by_text(v : &CborValue, key : string_view) : *mut CborValue {
+// The returned value owns its bytes and never escapes as a raw pointer.
+public func map_value_by_text(v : &CborValue, key : string_view) : Option<CborValue> {
+    var i = map_find_text(v, key)
+    if(i < 0) { return Option.None<CborValue>() }
+    var p = map_value_at(v, i as size_t)
+    if(p == null) { return Option.None<CborValue>() }
+    // SAFETY: p points into v's live map vector and v outlives this call;
+    // clone_value copies the subtree before the pointer is discarded.
+    return Option.Some<CborValue>(unsafe(clone_value(&mut *p)))
+}
+
+// The same, for an integer key.
+public func map_value_by_int(v : &CborValue, key : i64) : Option<CborValue> {
+    var i = map_find_int(v, key)
+    if(i < 0) { return Option.None<CborValue>() }
+    var p = map_value_at(v, i as size_t)
+    if(p == null) { return Option.None<CborValue>() }
+    // SAFETY: p points into v's live map vector and v outlives this call.
+    return Option.Some<CborValue>(unsafe(clone_value(&mut *p)))
+}
+
+// An owned copy of the value at `index` of an array, so an array of
+// sub-documents can be walked. `None` when the receiver is not an array or the
+// index is out of range.
+public func array_value_at(v : &CborValue, index : size_t) : Option<CborValue> {
+    if(!(v is CborValue.Array)) { return Option.None<CborValue>() }
+    var Array(a) = v else unsafe { unreachable }
+    if(index >= a.size()) { return Option.None<CborValue>() }
+    // SAFETY: index is bounds-checked above and a is borrowed from v.
+    return Option.Some<CborValue>(unsafe(clone_value(a.get_ref(index))))
+}
+
+// Legacy raw-pointer accessors. New code should use the owned Option forms
+// above; these remain for existing C-style callers.
+public func map_value_by_text_ptr(v : &CborValue, key : string_view) : *mut CborValue {
     var i = map_find_text(v, key)
     if(i < 0) { return null }
     return map_value_at(v, i as size_t)
 }
 
-// The same, for an integer key.
-public func map_value_by_int(v : &CborValue, key : i64) : *mut CborValue {
+public func map_value_by_int_ptr(v : &CborValue, key : i64) : *mut CborValue {
     var i = map_find_int(v, key)
     if(i < 0) { return null }
     return map_value_at(v, i as size_t)
 }
 
-// The value at `index` of an array, as a pointer, so an array of sub-documents
-// can be walked. Null when out of range.
-public func array_value_at(v : &CborValue, index : size_t) : *mut CborValue {
+public func array_value_at_ptr(v : &CborValue, index : size_t) : *mut CborValue {
     if(!(v is CborValue.Array)) { return null }
     var Array(a) = v else unsafe { unreachable }
     if(index >= a.size()) { return null }

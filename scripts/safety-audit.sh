@@ -57,9 +57,12 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 OUT="$TMP_DIR/audit.out"
 : > "$OUT"
 
+audit_idx=0
 for module in "${MODULES[@]}"; do
     echo "auditing $module" >&2
-    if ! "$COMPILER" "$module" --check --no-cache --build-dir "$TMP_DIR/build" \
+    audit_idx=$((audit_idx + 1))
+    module_build="$TMP_DIR/build-$audit_idx"
+    if ! "$COMPILER" "$module" --check --no-cache --build-dir "$module_build" \
             --safety-report json >> "$OUT" 2>&1; then
         echo "error: safety audit compilation failed for $module" >&2
         tail -40 "$OUT" >&2

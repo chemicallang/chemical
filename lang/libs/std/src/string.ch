@@ -387,6 +387,11 @@ public struct string {
         }
     }
 
+    func get_opt(&self, index : size_t) : Option<char> {
+        if(index >= size()) { return Option.None<char>() }
+        return Option.Some<char>(get(index))
+    }
+
     func get(&self, index : size_t) : char {
         unsafe {
             if(index >= size()) {

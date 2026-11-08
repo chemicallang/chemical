@@ -247,9 +247,13 @@ func test_a_webauthn_attestation_object_decodes(env : &mut TestEnv) {
     // attStmt for fmt:none is an empty MAP, not a null. Getting this wrong is
     // easy and would reject every platform authenticator.
     var stmt = cbor::map_value_by_text(&mut v, string_view("attStmt"))
-    if(stmt == null) { env.error("attStmt is not reachable") }
-    else if(!cbor::is_map(&mut *stmt)) { env.error("attStmt is not a map") }
-    else if(cbor::map_len(&mut *stmt) as u64 != 0u64) { env.error("attStmt is not empty") }
+    if(stmt is Option.None) {
+        env.error("attStmt is not reachable")
+    } else {
+        var Some(inner) = stmt else unsafe { unreachable }
+        if(!cbor::is_map(&mut inner)) { env.error("attStmt is not a map") }
+        else if(cbor::map_len(&mut inner) as u64 != 0u64) { env.error("attStmt is not empty") }
+    }
     // The 2-byte-length byte string: 16 bytes, and the right ones.
     var ad = cbor::map_bytes_by_text(&mut v, string_view("authData"))
     if(ad.size() != 16u) { env.error("authData is not 16 bytes") }

@@ -87,8 +87,9 @@ func append_escaped_char(output : &mut std::string, c : char) {
     }
 }
 
-// the single string-escaping implementation (encode + emit both use it)
-public func json_escape_into(output : &mut std::string, str : *char, len : u64) {
+// The single raw string-escaping implementation (encode + emit both use it).
+// New code should use the safe `json_escape_into(&mut string, &str)` form.
+public func json_escape_into_raw(output : &mut std::string, str : *char, len : u64) {
         unsafe {
         output.append('"')
         for(var i : u64 = 0; i < len; i++) {
@@ -98,6 +99,19 @@ public func json_escape_into(output : &mut std::string, str : *char, len : u64) 
 
         }
     }
+
+// Append `str` as a JSON string literal (including the surrounding quotes).
+// Control characters, quotes and backslashes are escaped; UTF-8 bytes pass
+// through unchanged. The output owns the resulting bytes.
+public func json_escape_into(output : &mut std::string, str : &str) {
+    output.append('"')
+    var i : size_t = 0
+    while(i < str.size()) {
+        append_escaped_char(output, str.get(i))
+        i += 1
+    }
+    output.append('"')
+}
 
 public func write_i64(output : &mut std::string, val : i64) {
     output.append_integer(val)
@@ -253,7 +267,7 @@ impl std::Encoder<JsonValue> for JsonEncoder {
         // a char is a single-char JSON string; the char itself must be escaped
         // (quotes/backslashes/control chars would otherwise emit invalid JSON)
         var buf : [1]char = [c]
-        json_escape_into(&mut *self.buffer, &raw mut buf[0], 1u64)
+        json_escape_into_raw(&mut *self.buffer, &raw mut buf[0], 1u64)
         return std::Result.Ok(std::Unit {})
      }}
 
@@ -278,14 +292,14 @@ impl std::Encoder<JsonValue> for JsonEncoder {
      }}
 
     func encode_str_of_len(&self, c : *char, l : u64) : std::Result<std::Unit, std::SerializationError> { unsafe {
-        json_escape_into(&mut *self.buffer, c, l)
+        json_escape_into_raw(&mut *self.buffer, c, l)
         return std::Result.Ok(std::Unit {})
      }}
 
     func encode_str(&self, c : *char) : std::Result<std::Unit, std::SerializationError> { unsafe {
         var len : u64 = 0
         while(c[len] != '\0') { len++ }
-        json_escape_into(&mut *self.buffer, c, len)
+        json_escape_into_raw(&mut *self.buffer, c, len)
         return std::Result.Ok(std::Unit {})
      }}
 
@@ -371,7 +385,7 @@ impl std::ArrayEncoder<JsonValue> for JsonArrayEncoder {
 impl std::ObjectEncoder<JsonValue> for JsonObjectEncoder {
     func <V : std::Serializer<JsonValue, JsonEncoder>> field(&self, name : std::string_view, value : &V) : std::Result<std::Unit, std::SerializationError> { unsafe {
         __container_begin_item(self.buffer, self.counts)
-        json_escape_into(&mut *self.buffer, name.data(), name.size())
+        json_escape_into_raw(&mut *self.buffer, name.data(), name.size())
         self.buffer.append(':')
         var encoder = JsonEncoder { buffer : self.buffer, counts : self.counts }
         // TODO: returning value.encode doesn't satisfy the result, compiler bug

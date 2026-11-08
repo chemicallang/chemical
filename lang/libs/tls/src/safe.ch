@@ -3,6 +3,7 @@
 // `tls::connect` and the returned `TlsStream`.
 public namespace tls {
 
+using std::Option;
 using std::Result;
 
 public func io_error(code : int) : std::io::IoError {
@@ -55,6 +56,16 @@ public struct TlsStream {
     /// dropped even if this is not called.
     func close_notify(&mut self) {
         var _ = ssl_close_notify(&raw mut self.ctx)
+    }
+
+    func alpn_protocol(&self) : Option<std::string_view> {
+        if(self.ctx.alpn_negotiated == null) { return Option.None<std::string_view>() }
+        return Option.Some<std::string_view>(unsafe(std::string_view(self.ctx.alpn_negotiated, self.ctx.alpn_negotiated_len)))
+    }
+
+    func peer_subject(&self) : Option<std::string> {
+        if(self.ctx.peer_cert == null) { return Option.None<std::string>() }
+        return Option.Some<std::string>(unsafe(self.ctx.peer_cert.subject.copy()))
     }
 }
 
@@ -159,5 +170,238 @@ impl std::io::Write for TlsStream {
         return Result.Ok(0 as size_t)
     }
 }
+
+// ---------------------------------------------------------------------------
+// Server-side TLS and certificate/key ownership
+// ---------------------------------------------------------------------------
+
+public struct CertificateChain {
+    internal var ptr : *mut X509Cert
+
+    @delete
+    func delete(&mut self) {
+        if(self.ptr != null) {
+            cert_chain_free(self.ptr)
+            self.ptr = null
+        }
+    }
+
+    func subject(&self) : Option<std::string> {
+        if(self.ptr == null) { return Option.None<std::string>() }
+        return Option.Some<std::string>(unsafe(self.ptr.subject.copy()))
+    }
+}
+
+public struct PrivateKey {
+    internal var ptr : *mut void
+    internal var kind : int
+
+    @delete
+    func delete(&mut self) {
+        if(self.ptr == null) { return }
+        if(self.kind == 1) {
+            rsa_free(self.ptr as *mut RSAContext)
+        } else if(self.kind == 2) {
+            ecdsa_context_free(self.ptr as *mut ECDSAContext)
+        }
+        unsafe { dealloc self.ptr }
+        self.ptr = null
+    }
+}
+
+public func load_certificate(path : &str) : Result<CertificateChain, std::io::IoError> {
+    var made = std::cstring_make(path)
+    if(made is Result.Err) {
+        return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind.InvalidInput()))
+    }
+    var Ok(cpath) = made else unsafe { unreachable }
+    var cert = x509_crt_load_pem_file(unsafe(cpath.as_ptr()))
+    if(cert == null) {
+        return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::NotFound()))
+    }
+    return Result.Ok(CertificateChain { ptr : cert })
+}
+
+public func load_rsa_private_key(path : &str) : Result<PrivateKey, std::io::IoError> {
+    var made = std::cstring_make(path)
+    if(made is Result.Err) {
+        return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
+    }
+    var Ok(cpath) = made else unsafe { unreachable }
+    var key = rsa_privkey_load_pem_file(unsafe(cpath.as_ptr()))
+    if(key == null) {
+        return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::NotFound()))
+    }
+    return Result.Ok(PrivateKey { ptr : key as *mut void, kind : 1 })
+}
+
+public func load_ec_private_key(path : &str) : Result<PrivateKey, std::io::IoError> {
+    var made = std::cstring_make(path)
+    if(made is Result.Err) {
+        return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
+    }
+    var Ok(cpath) = made else unsafe { unreachable }
+    var key = ec_privkey_load_hex_file(unsafe(cpath.as_ptr()))
+    if(key == null) {
+        return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::NotFound()))
+    }
+    return Result.Ok(PrivateKey { ptr : key as *mut void, kind : 2 })
+}
+
+public func rsa_private_key_from_components(n : [u8], d : [u8]) : Result<PrivateKey, std::io::IoError> {
+    if(n.size() == 0 || d.size() == 0 || n.size() > 512 || d.size() > 512) {
+        return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
+    }
+    var ctx = unsafe(malloc(sizeof(RSAContext))) as *mut RSAContext
+    if(ctx == null) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::OutOfMemory())) }
+    unsafe { memset(ctx as *mut void, 0, sizeof(RSAContext)) }
+    rsa_init(ctx, RSA_PKCS_V15, 0)
+    var ret = rsa_import_privkey(ctx, n.data(), n.size(), d.data(), d.size())
+    if(ret < 0) {
+        rsa_free(ctx)
+        unsafe { dealloc ctx }
+        return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
+    }
+    return Result.Ok(PrivateKey { ptr : ctx as *mut void, kind : 1 })
+}
+
+public struct TlsServerConfig {
+    internal var cert : *mut X509Cert
+    internal var key : *mut void
+    internal var cipher_suite : int
+}
+
+public func server_config(certs : &CertificateChain, key : &PrivateKey) : TlsServerConfig {
+    return TlsServerConfig {
+        cert : certs.ptr,
+        key : key.ptr,
+        cipher_suite : TLS_RSA_WITH_AES_128_GCM_SHA256
+    }
+}
+
+// Owning server-side TLS stream. `tls_accept` transfers the accepted socket
+// into the context; the caller must release its `TcpStream` handle first.
+public struct TlsServerStream {
+    internal var ctx : *mut SSLContext
+
+    @delete
+    func delete(&mut self) {
+        if(self.ctx != null) {
+            ssl_free(self.ctx)
+            unsafe { dealloc self.ctx }
+            self.ctx = null
+        }
+    }
+
+    func read_bytes(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
+        if(self.ctx == null) {
+            return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
+        }
+        if(buf.size() > 2147483647 as size_t) {
+            return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
+        }
+        var n = ssl_read(self.ctx, buf.data(), buf.size() as i32)
+        if(n < 0) { return Result.Err(io_error(n)) }
+        return Result.Ok(n as size_t)
+    }
+
+    func write_bytes(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
+        if(self.ctx == null) {
+            return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
+        }
+        if(buf.size() > 2147483647 as size_t) {
+            return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
+        }
+        var n = ssl_write(self.ctx, buf.data(), buf.size() as i32)
+        if(n < 0) { return Result.Err(io_error(n)) }
+        return Result.Ok(n as size_t)
+    }
+
+    func close_notify(&mut self) {
+        if(self.ctx != null) { var _ = ssl_close_notify(self.ctx) }
+    }
+
+    func alpn_protocol(&self) : Option<std::string_view> {
+        if(self.ctx == null) { return Option.None<std::string_view>() }
+        var neg = unsafe(self.ctx.alpn_negotiated)
+        if(neg == null) { return Option.None<std::string_view>() }
+        var len = unsafe(self.ctx.alpn_negotiated_len)
+        return Option.Some<std::string_view>(unsafe(std::string_view(neg, len)))
+    }
+}
+
+/// Accept a TLS connection on an already-connected TCP stream. Ownership of the
+/// socket moves into the returned stream.
+public func accept(stream : net::TcpStream, cfg : &TlsServerConfig) : Result<TlsServerStream, std::io::IoError> {
+    if(cfg.cert == null || cfg.key == null) {
+        return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
+    }
+    var fd = unsafe(net::release_raw(&mut stream))
+    var ctx = tls_accept(fd, cfg.cert, cfg.key, cfg.cipher_suite)
+    if(ctx == null) {
+        return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::ConnectionReset()))
+    }
+    return Result.Ok(TlsServerStream { ctx : ctx })
+}
+
+impl std::io::Read for TlsServerStream {
+    func read(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
+        return self.read_bytes(buf)
+    }
+    func read_exact(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
+        var pos : size_t = 0
+        while(pos < buf.size()) {
+            var sub = unsafe(std::mut_span<u8>(unsafe(buf.data() + pos), buf.size() - pos))
+            var r = self.read_bytes(sub)
+            if(r is Result.Err) { return r }
+            var Ok(n) = r else unsafe { unreachable }
+            if(n == 0) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::UnexpectedEof())) }
+            pos += n
+        }
+        return Result.Ok(pos)
+    }
+    func try_read_to_end(&mut self, out : &mut std::vector<u8>) : Result<size_t, std::io::IoError> {
+        var chunk : [8192]u8
+        var total : size_t = 0
+        while(true) {
+            var view = unsafe(std::mut_span<u8>(&raw mut chunk[0], 8192 as size_t))
+            var r = self.read_bytes(view)
+            if(r is Result.Err) { return r }
+            var Ok(n) = r else unsafe { unreachable }
+            if(n == 0) { return Result.Ok(total) }
+            var i : size_t = 0
+            while(i < n) {
+                if(!out.try_push(chunk[i])) {
+                    return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::OutOfMemory()))
+                }
+                i += 1
+            }
+            total += n
+        }
+        return Result.Ok(total)
+    }
+}
+
+impl std::io::Write for TlsServerStream {
+    func write(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
+        return self.write_bytes(buf)
+    }
+    func write_all(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
+        var pos : size_t = 0
+        while(pos < buf.size()) {
+            var sub : [u8] = buf.subview(pos, buf.size())
+            var r = self.write_bytes(sub)
+            if(r is Result.Err) { return r }
+            var Ok(n) = r else unsafe { unreachable }
+            if(n == 0) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::Other())) }
+            pos += n
+        }
+        return Result.Ok(pos)
+    }
+    func flush(&mut self) : Result<size_t, std::io::IoError> {
+        return Result.Ok(0 as size_t)
+    }
+}
+
 
 } // namespace tls

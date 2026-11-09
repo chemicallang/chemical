@@ -10,9 +10,10 @@ out of scope.
 
 ## Result
 
-The safe surface is additive. Legacy raw-buffer entry points remain for in-tree
-callers and are recorded as reviewed migration debt in `API_ALLOWLIST.md`; new
-user code uses `std::io`, safe `fs` helpers, `PathBuf`, `process::Child`,
+The 2026-11-09 API-freeze wave makes the safe names canonical for the
+shipped libraries. Legacy raw-buffer entry points remain for in-tree ABI/FFI
+callers under explicit `raw`/`ffi` namespaces and are recorded as reviewed
+migration debt in `API_ALLOWLIST.md`; new user code uses `std::io`, safe `fs` helpers, `PathBuf`, `process::Child`,
 `net::TcpListener`/`TcpStream`, `tls::TlsStream`/`TlsServerStream`,
 `safe_page_*`, the `encoding`/`crypto`/`compression`/`archive`/`image`/`audio`/
 `font` safe facades, the safe `regex`/`json`/`mime`/`cbor` forms, and

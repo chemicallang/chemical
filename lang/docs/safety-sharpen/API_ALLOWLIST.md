@@ -20,7 +20,7 @@ Reviewed explicit raw accessors (allowed):
 
 Run `scripts/safety-sharpen-api-audit.sh` for the current count by library.
 
-## Reviewed legacy raw inventory (2026-11-08)
+## Reviewed legacy raw inventory (2026-11-09)
 
 These are the deliberate raw-buffer/FFI compatibility entry points retained for
 in-tree callers. They are not part of the safe surface and are counted by

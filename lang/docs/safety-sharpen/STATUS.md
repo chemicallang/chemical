@@ -79,10 +79,13 @@ Status values: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked.
   `async` channel error types.
 
 **Std view lifetime status:** `span<'a, T>` / `mut_span<'a, T>` (`0ea3998cf`),
-`CStr<'a>` (`63188b8bc`), and the postfix-lifetime `str 'a` (`c8df07c17`) now
-carry their borrow lifetime. The vector-to-span constructor is retained so MIR
-view escape checks fire (`60ff5ece7`). Static-lifetime escapes are rejected for
-all three shapes, and the TCC/LLVM suites are green.
+`CStr<'a>` (`63188b8bc`), the postfix-lifetime `str 'a` (`c8df07c17`), and
+`core::Pin<'a, T>` (`c01dd4da3`) now carry their borrow lifetime. The
+vector-to-span constructor is retained so MIR view escape checks fire
+(`60ff5ece7`), and `Option::take` is now the non-panicking `Option<T>` form
+with `take_unchecked` for checked callers (`6ed7d0360`). Static-lifetime escapes
+are rejected for all view shapes; TCC/LLVM main, libs, negative, safety, async,
+and web suites are green.
 
 ## Phase 1 notes
 

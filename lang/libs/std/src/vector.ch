@@ -228,10 +228,6 @@ public struct vector<T> {
     }
 
     func pop(&mut self) : Option<T> {
-        return try_pop()
-    }
-
-    func try_pop(&mut self) : Option<T> {
         if(data_size == 0) { return Option.None<T>() }
         var out : T = unsafe(zeroed:unsafe<T>())
         unsafe {
@@ -240,6 +236,17 @@ public struct vector<T> {
             data_size = idx
         }
         return Option.Some<T>(out)
+    }
+
+    func pop_unchecked(&mut self) : T {
+        __vector_nonempty_check(data_size)
+        var out : T = unsafe(zeroed:unsafe<T>())
+        unsafe {
+            var idx = data_size - 1
+            memcpy(&raw mut out, &raw mut data_ptr[idx], sizeof(T))
+            data_size = idx
+        }
+        return out
     }
 
     func at_ref(&self, index : size_t) : &T {
@@ -310,16 +317,6 @@ public struct vector<T> {
 
     func pop_back(&mut self) {
         remove_last()
-    }
-
-    func take_last(&mut self) : T {
-        __vector_nonempty_check(data_size)
-        const last = data_size - 1
-        const ptr = get_ptr(last)
-        data_size = last;
-        unsafe {
-            return *ptr;
-        }
     }
 
     func empty(&self) : bool {

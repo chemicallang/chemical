@@ -34,7 +34,7 @@ func test_vector_span_safe_getters(env : &mut TestEnv) {
     if(copied is Option.None) { env.error("vector.get_copy") }
     if(!v.try_set(0u, 5)) { env.error("vector.try_set in range") }
     if(v.try_set(9u, 1)) { env.error("vector.try_set out of range") }
-    var popped = v.try_pop()
+    var popped = v.pop()
     if(popped is Option.None) { env.error("vector.try_pop") }
 
     var arr : [3]int = [3, 4, 5]

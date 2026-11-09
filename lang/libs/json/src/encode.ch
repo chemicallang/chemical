@@ -31,7 +31,7 @@ public struct JsonArrayEncoder {
     func destruct(&self) {
         unsafe {
             self.buffer.append(']')
-            self.counts.take_last()
+            self.counts.pop_unchecked()
     
         }
     }
@@ -45,7 +45,7 @@ public struct JsonObjectEncoder {
     func destruct(&self) {
         unsafe {
             self.buffer.append('}')
-            self.counts.take_last()
+            self.counts.pop_unchecked()
     
         }
     }
@@ -59,7 +59,7 @@ public struct JsonMapEncoder {
     func destruct(&self) {
         unsafe {
             self.buffer.append('}')
-            self.counts.take_last()
+            self.counts.pop_unchecked()
     
         }
     }

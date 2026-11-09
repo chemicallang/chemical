@@ -149,7 +149,7 @@ func (converter : &mut JsConverter) push_context() {
 
 func (converter : &mut JsConverter) pop_context() {
     if(converter.ctx_stack.empty()) return
-    const ctx = converter.ctx_stack.take_last()
+    const ctx = converter.ctx_stack.pop_unchecked()
     converter.in_jsx_attribute = ctx.in_jsx_attribute
     converter.skip_reactive_deref = ctx.skip_reactive_deref
 }

@@ -85,7 +85,7 @@ public struct ASTJsonHandler {
                     values.insert(key, v);
                 } else {
                     var Object(values) = *top else unsafe { unreachable }
-                    values.insert(key_stack.take_last(), v);
+                    values.insert(key_stack.pop_unchecked(), v);
                 }
             } else {
                 root = v;
@@ -128,7 +128,7 @@ impl JsonSaxHandler for ASTJsonHandler {
         if (stack.empty()) {
             return;
         }
-        attach_value(stack.take_last());
+        attach_value(stack.pop_unchecked());
     }
 
     func on_array_begin(&mut self) {
@@ -139,7 +139,7 @@ impl JsonSaxHandler for ASTJsonHandler {
         if (stack.empty()) {
             return;
         }
-        attach_value(stack.take_last());
+        attach_value(stack.pop_unchecked());
     }
 
     func on_key(&mut self, s : *char, len : size_t) {

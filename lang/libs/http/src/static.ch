@@ -20,7 +20,7 @@ public namespace http {
 
         public func serve_http(&self, req: &mut http.Request, res: &mut http.ResponseWriter) {
             var path = req.path.copy();
-            if (path.find(std::string_view("..")) != std::NPOS) {
+            if (path.find_or_npos(std::string_view("..")) != std::NPOS) {
                 res.status = 403u;
                 res.write_view("Forbidden\n");
                 return;
@@ -28,17 +28,17 @@ public namespace http {
 
             var full_path = self.root.copy();
             comptime if (def.windows) {
-                if (!full_path.empty() && full_path.get(full_path.size() - 1u) != '\\' && full_path.get(full_path.size() - 1u) != '/') {
+                if (!full_path.empty() && full_path.at(full_path.size() - 1u) != '\\' && full_path.at(full_path.size() - 1u) != '/') {
                     full_path.append('\\');
                 }
             } else {
-                if (!full_path.empty() && full_path.get(full_path.size() - 1u) != '/') {
+                if (!full_path.empty() && full_path.at(full_path.size() - 1u) != '/') {
                     full_path.append('/');
                 }
             }
 
             var req_path_view = path.to_view();
-            if (req_path_view.size() > 0 && req_path_view.get(0) == '/') {
+            if (req_path_view.size() > 0 && req_path_view.at(0) == '/') {
                 req_path_view = req_path_view.subview(1, req_path_view.size());
             }
             full_path.append_view(&req_path_view);
@@ -54,11 +54,11 @@ public namespace http {
 
             if (is_dir) {
                 comptime if (def.windows) {
-                    if (full_path.get(full_path.size() - 1u) != '\\' && full_path.get(full_path.size() - 1u) != '/') {
+                    if (full_path.at(full_path.size() - 1u) != '\\' && full_path.at(full_path.size() - 1u) != '/') {
                         full_path.append('\\');
                     }
                 } else {
-                    if (full_path.get(full_path.size() - 1u) != '/') {
+                    if (full_path.at(full_path.size() - 1u) != '/') {
                         full_path.append('/');
                     }
                 }
@@ -69,11 +69,11 @@ public namespace http {
             var i = full_path.size();
             while (i > 0u) {
                 i = i - 1u;
-                if (full_path.get(i) == '.') {
+                if (full_path.at(i) == '.') {
                     ext = full_path.substring(i, full_path.size());
                     break;
                 }
-                if (full_path.get(i) == '/' || full_path.get(i) == '\\') break;
+                if (full_path.at(i) == '/' || full_path.at(i) == '\\') break;
             }
 
             var mime = self.get_mime_type(&ext);

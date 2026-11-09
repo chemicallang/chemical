@@ -20,12 +20,18 @@ func test_vector_span_safe_getters(env : &mut TestEnv) {
     var v = vector<int>()
     v.push(1)
     v.push(2)
-    var a = v.get_opt(0u)
+    var a = v.get(0u)
     if(a is Option.None) { env.error("vector.get_opt in range") }
-    var miss = v.get_opt(9u)
+    var miss = v.get(9u)
     if(miss is Option.Some) { env.error("vector.get_opt out of range") }
-    var m = v.get_mut_opt(1u)
-    if(m is Option.None) { env.error("vector.get_mut_opt in range") }
+    var m = v.get_mut(1u)
+    if(m is Option.None) { env.error("vector.get_mut in range") }
+    if(v.at(0u) != 1) { env.error("vector.at") }
+    if(*v.at_ref(0u) != 1) { env.error("vector.at_ref") }
+    *v.at_mut(0u) = 6
+    if(v.at(0u) != 6) { env.error("vector.at_mut") }
+    var copied = v.get_copy(0u)
+    if(copied is Option.None) { env.error("vector.get_copy") }
     if(!v.try_set(0u, 5)) { env.error("vector.try_set in range") }
     if(v.try_set(9u, 1)) { env.error("vector.try_set out of range") }
     var popped = v.try_pop()
@@ -33,9 +39,11 @@ func test_vector_span_safe_getters(env : &mut TestEnv) {
 
     var arr : [3]int = [3, 4, 5]
     var sp : [int] = arr
-    var s0 = sp.get_opt(0u)
-    if(s0 is Option.None) { env.error("span.get_opt in range") }
-    if(sp.get_opt(8u) is Option.Some) { env.error("span.get_opt out of range") }
+    var s0 = sp.get(0u)
+    if(s0 is Option.None) { env.error("span.get in range") }
+    if(sp.get(8u) is Option.Some) { env.error("span.get out of range") }
+    if(unsafe(*sp.at(0u)) != 3) { env.error("span.at") }
+    if(*sp.at_ref(0u) != 3) { env.error("span.at_ref") }
 }
 
 @test

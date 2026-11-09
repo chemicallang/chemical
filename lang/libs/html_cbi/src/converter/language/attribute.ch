@@ -35,7 +35,7 @@ func (converter : &mut ASTConverter) convertHtmlAttribute(attr : *mut HtmlAttrib
                     const last = size - 1;
                     var i : uint = 0;
                     while(i < size) {
-                        converter.put_chemical_value_in(value.values.get(i))
+                        converter.put_chemical_value_in(value.values.at(i))
                         if(i != last) {
                             converter.put_char_chain(' ');
                         }

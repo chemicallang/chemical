@@ -136,7 +136,7 @@ public func test_bridge_params_array_unwrap(env : &mut TestEnv) {
                 g_params_ok = (val.size() > 0)
                 // Also verify the value is correct
                 if(g_params_ok) {
-                    g_params_ok = val.find(string_view::make_no_len("yt-dlp")) != val.size()
+                    g_params_ok = val.find_or_npos(string_view::make_no_len("yt-dlp")) != val.size()
                 }
                 if(g_wv_params != null) { webview::raw::webview_stop(g_wv_params) }
                 return string("{\"ok\":true}")
@@ -214,9 +214,9 @@ public func test_bridge_params_multi_field(env : &mut TestEnv) {
                 var tool_val = resolve_and_extract_field(args, string_view::make_no_len("tool"))
                 var format_val = resolve_and_extract_field(args, string_view::make_no_len("format"))
                 var priority_val = resolve_and_extract_field(args, string_view::make_no_len("priority"))
-                g_params_ok = tool_val.find(string_view::make_no_len("yt-dlp")) != tool_val.size() &&
-                              format_val.find(string_view::make_no_len("best")) != format_val.size() &&
-                              priority_val.find(string_view::make_no_len("100")) != priority_val.size()
+                g_params_ok = tool_val.find_or_npos(string_view::make_no_len("yt-dlp")) != tool_val.size() &&
+                              format_val.find_or_npos(string_view::make_no_len("best")) != format_val.size() &&
+                              priority_val.find_or_npos(string_view::make_no_len("100")) != priority_val.size()
                 if(g_wv_params != null) { webview::raw::webview_stop(g_wv_params) }
                 return string("{\"ok\":true}")
             }
@@ -350,7 +350,7 @@ func eval_reliable_cb(data : *mut void, result : *char) : void {
         return
     }
     var rv = string_view::make_no_len(result)
-    g_eval_reliable_ok = rv.find(string_view::make_no_len("42")) != rv.size()
+    g_eval_reliable_ok = rv.find_or_npos(string_view::make_no_len("42")) != rv.size()
     if(g_wv_params != null) { webview::raw::webview_stop(g_wv_params) }
 
 }
@@ -459,7 +459,7 @@ public func test_bridge_params_nested_json(env : &mut TestEnv) {
             if(d[0] == 'e' && d[1] == 'x' && d[2] == 't' && d[3] == 'r' && d[4] == 'a' && d[5] == 'c' && d[6] == 't') {
                 // Extract a string field from the params array
                 var name_val = resolve_and_extract_field(args, string_view::make_no_len("name"))
-                g_params_ok = name_val.find(string_view::make_no_len("test-video")) != name_val.size()
+                g_params_ok = name_val.find_or_npos(string_view::make_no_len("test-video")) != name_val.size()
                 if(g_wv_params != null) { webview::raw::webview_stop(g_wv_params) }
                 return string("{\"ok\":true}")
             }

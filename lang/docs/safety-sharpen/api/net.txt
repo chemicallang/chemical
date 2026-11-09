@@ -25,7 +25,7 @@ lang/libs/net/src/buffer.ch:22:    public func append_bytes(&mut self, src:*u8, 
 lang/libs/net/src/buffer.ch:32:    func consume(&mut self, n: usize) {
 lang/libs/net/src/buffer.ch:43:    func as_ptr(&self) : *u8 {
 lang/libs/net/src/buffer.ch:4:public struct Buffer {
-lang/libs/net/src/buffer.ch:51:    func get_byte(&self, idx: usize) : u8 { return v.get(read_pos + idx) }
+lang/libs/net/src/buffer.ch:51:    func get_byte(&self, idx: usize) : u8 { return v.at(read_pos + idx) }
 lang/libs/net/src/raw.ch:143:    public func listen_addr(addr_str : *char, port : uint) : Socket {
 lang/libs/net/src/raw.ch:151:    public func accept_socket(listen_sock: Socket) : Socket {
 lang/libs/net/src/raw.ch:15:    public type Socket = usize;

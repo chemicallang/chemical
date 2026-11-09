@@ -77,7 +77,7 @@ public struct span_split<T> {
         while(i < _source.size()) {
             // `as *T` pins the element type when this cursor is itself
             // instantiated from another generic (nested instantiation).
-            var value = unsafe(*(_source.get(i) as *T))
+            var value = unsafe(*(_source.at(i) as *T))
             if(_predicate(&value)) {
                 if(segment == index) {
                     return _source.subview(start, i)
@@ -111,7 +111,7 @@ public struct span_delim_split<T> {
         var segment : size_t = 0
         var i : size_t = 0
         while(i < _source.size()) {
-            var value = unsafe(*(_source.get(i) as *T))
+            var value = unsafe(*(_source.at(i) as *T))
             if(value == _delim) {
                 if(segment == index) {
                     return _source.subview(start, i)
@@ -166,16 +166,20 @@ public struct span<'a, T> {
         return self._data;
     }
 
-    func get_opt(&self, loc : size_t) : Option<&T> {
+    func get(&self, loc : size_t) : Option<&T> {
         if(loc >= _size) { return Option.None<&T>() }
         return Option.Some<&T>(unsafe(&*(_data + loc)))
     }
 
-    func get(&self, loc : size_t) : *T {
+    func at(&self, loc : size_t) : *T {
         if(loc >= _size) {
             panic("span index out of bounds")
         }
         return unsafe(_data + loc);
+    }
+
+    func at_ref(&self, loc : size_t) : &T {
+        return unsafe(&*self.at(loc))
     }
 
     func size(&self) : size_t {
@@ -234,7 +238,7 @@ public struct span<'a, T> {
         var count : size_t = 1
         var i : size_t = 0
         while(i < _size) {
-            var value = unsafe(*(get(i) as *T))
+            var value = unsafe(*(at(i) as *T))
             if(predicate(&value)) count += 1
             i += 1
         }
@@ -249,7 +253,7 @@ public struct span<'a, T> {
         var count : size_t = 1
         var i : size_t = 0
         while(i < _size) {
-            var value = unsafe(*(get(i) as *T))
+            var value = unsafe(*(at(i) as *T))
             if(value == delim) count += 1
             i += 1
         }
@@ -275,7 +279,7 @@ impl<'a, T> Copy for span<'a, T> {}
 
 impl<'a, T> core::ops::Index<size_t, T> for span<'a, T> {
     func index(&self, loc : size_t) : &T {
-        return unsafe(&*self.get(loc))
+        return self.at_ref(loc)
     }
 }
 
@@ -319,24 +323,29 @@ public struct mut_span<'a, T> {
         return self._data;
     }
 
-    func get(&self, loc : size_t) : *mut T {
+    func get(&self, loc : size_t) : Option<&T> {
+        if(loc >= _size) { return Option.None<&T>() }
+        return Option.Some<&T>(unsafe(&*(_data + loc)))
+    }
+
+    func get_mut(&mut self, loc : size_t) : Option<&mut T> {
+        if(loc >= _size) { return Option.None<&mut T>() }
+        return Option.Some<&mut T>(unsafe(&mut *(_data + loc)))
+    }
+
+    func at(&self, loc : size_t) : *mut T {
         if(loc >= _size) {
             panic("mut_span index out of bounds")
         }
         return unsafe(_data + loc);
     }
 
-    func get_ref(&self, loc : size_t) : &T {
-        return unsafe(&*self.get(loc))
+    func at_ref(&self, loc : size_t) : &T {
+        return unsafe(&*self.at(loc))
     }
 
-    func get_mut(&mut self, loc : size_t) : &mut T {
-        return unsafe(&mut *self.get(loc))
-    }
-
-    func get_mut_opt(&mut self, loc : size_t) : Option<&mut T> {
-        if(loc >= _size) { return Option.None<&mut T>() }
-        return Option.Some<&mut T>(unsafe(&mut *(_data + loc)))
+    func at_mut(&mut self, loc : size_t) : &mut T {
+        return unsafe(&mut *self.at(loc))
     }
 
     func set(&mut self, loc : size_t, value : T) {
@@ -416,13 +425,13 @@ public struct mut_span<'a, T> {
 
 impl<'a, T> core::ops::Index<size_t, T> for mut_span<'a, T> {
     func index(&self, loc : size_t) : &T {
-        return self.get_ref(loc)
+        return self.at_ref(loc)
     }
 }
 
 impl<'a, T> core::ops::IndexMut<size_t, T> for mut_span<'a, T> {
     func index_mut(&mut self, loc : size_t) : &mut T {
-        return self.get_mut(loc)
+        return self.at_mut(loc)
     }
 }
 

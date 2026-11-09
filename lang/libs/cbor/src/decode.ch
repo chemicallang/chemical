@@ -47,7 +47,7 @@ public struct CborDecoder {
     }
 
     func byte_at(&self, at : size_t) : u8 {
-        return unsafe(*self.data.get(at))
+        return unsafe(*self.data.at(at))
     }
 
     func fail(&mut self, e : CborError) : bool {
@@ -63,7 +63,7 @@ public struct CborDecoder {
         var v = 0u64
         for(var i = 0u64; i < n; i++) {
             // Read the cursor alone, then advance it. The earlier version of this
-            // loop was `self.data.get(self.pos + (i as size_t))` and it decoded
+            // loop was `self.data.at(self.pos + (i as size_t))` and it decoded
             // "IETF" as "IT" and 0x3903e7 as -769 instead of -1000.
             //
             // That was OUR bug, not a compiler one, and it is worth writing down

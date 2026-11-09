@@ -1420,7 +1420,7 @@ func (converter : &mut CSSRuntimeConverter) writeMediaNestedRule(rule : *mut CSS
         if(rule.selector != null) {
             var i : uint = 0;
             while(i < rule.selector.selectors.size()) {
-                var sel = rule.selector.selectors.get(i);
+                var sel = rule.selector.selectors.at(i);
                 if(has_ampersand_complex(sel) && !parent_selectors.empty()) {
                     var p : uint = 0;
                     while(p < parent_selectors.size()) {
@@ -1459,7 +1459,7 @@ func (converter : &mut CSSRuntimeConverter) writeMediaNestedRule(rule : *mut CSS
             str.append_view(std::string_view(" { "));
             i = 0;
             while(i < rule.declarations.size()) {
-                converter.convertDeclaration(rule.declarations.get(i));
+                converter.convertDeclaration(rule.declarations.at(i));
                 i++;
             }
             str.append_view(std::string_view(" } "));
@@ -1467,7 +1467,7 @@ func (converter : &mut CSSRuntimeConverter) writeMediaNestedRule(rule : *mut CSS
 
         var nested_i : uint = 0;
         while(nested_i < rule.nested_rules.size()) {
-            converter.writeMediaNestedRule(rule.nested_rules.get(nested_i), str, &mut current_selectors);
+            converter.writeMediaNestedRule(rule.nested_rules.at(nested_i), str, &mut current_selectors);
             nested_i++;
         }
 
@@ -1482,13 +1482,13 @@ func (converter : &mut CSSRuntimeConverter) writeKeyframesRule(rule : *mut CSSKe
 
         var i : uint = 0
         while(i < rule.keyframes.size()) {
-            var keyframe = rule.keyframes.get(i)
+            var keyframe = rule.keyframes.at(i)
             str.append_view(&keyframe.selector)
             str.append_view(std::string_view(" { "))
         
             var j : uint = 0
             while(j < keyframe.declarations.size()) {
-                converter.convertDeclaration(keyframe.declarations.get(j))
+                converter.convertDeclaration(keyframe.declarations.at(j))
                 j++
             }
         
@@ -1521,7 +1521,7 @@ func (converter : &mut CSSRuntimeConverter) writeMediaRule(rule : *mut CSSMediaR
                 str.append_view(std::string_view(" { "))
                 var i : uint = 0
                 while(i < rule.declarations.size()) {
-                    converter.convertDeclaration(rule.declarations.get(i))
+                    converter.convertDeclaration(rule.declarations.at(i))
                     i++;
                 }
                 str.append_view(std::string_view(" } "))
@@ -1530,7 +1530,7 @@ func (converter : &mut CSSRuntimeConverter) writeMediaRule(rule : *mut CSSMediaR
 
         var nested_i : uint = 0;
         while(nested_i < rule.nested_rules.size()) {
-            converter.writeMediaNestedRule(rule.nested_rules.get(nested_i), str, &mut parent_selectors);
+            converter.writeMediaNestedRule(rule.nested_rules.at(nested_i), str, &mut parent_selectors);
             nested_i++;
         }
 
@@ -1550,7 +1550,7 @@ func has_ampersand_compound(c : *mut CompoundSelector) : bool {
         unsafe {
         var i : uint = 0;
         while(i < c.simple_selectors.size()) {
-            if(has_ampersand_simple(c.simple_selectors.get(i))) return true;
+            if(has_ampersand_simple(c.simple_selectors.at(i))) return true;
             i++;
         }
         return false;
@@ -1590,7 +1590,7 @@ func serialize_compound(c : *mut CompoundSelector, out : &mut std::string, repla
         unsafe {
         var i : uint = 0;
         while(i < c.simple_selectors.size()) {
-            serialize_simple(c.simple_selectors.get(i), out, replacement);
+            serialize_simple(c.simple_selectors.at(i), out, replacement);
             i++;
         }
 
@@ -1776,7 +1776,7 @@ func (converter : &mut CSSRuntimeConverter) writeMediaQueryList(queryList : *mut
                 str.append_view(std::string_view(", "))
             }
         
-            var query = queryList.queries.get(i)
+            var query = queryList.queries.at(i)
             converter.writeMediaQuery(query, str)
         
             i++
@@ -1801,7 +1801,7 @@ public func convert_css_root(root : *mut CSSOM, out : &mut std::string) {
             converter.str.append(' ')
             var i : uint = 0
             while(i < root.declarations.size()) {
-                converter.convertDeclaration(root.declarations.get(i))
+                converter.convertDeclaration(root.declarations.at(i))
                 i++
             }
             converter.str.append(' ')
@@ -1812,21 +1812,21 @@ public func convert_css_root(root : *mut CSSOM, out : &mut std::string) {
         var parents = std::vector<std::string>()
         var n : uint = 0
         while(n < root.nested_rules.size()) {
-            converter.writeMediaNestedRule(root.nested_rules.get(n), &mut converter.str, &mut parents)
+            converter.writeMediaNestedRule(root.nested_rules.at(n), &mut converter.str, &mut parents)
             n++
         }
 
         // media rules
         var m : uint = 0
         while(m < root.media_queries.size()) {
-            converter.writeMediaRule(root.media_queries.get(m), &mut converter.str, std::string_view(""))
+            converter.writeMediaRule(root.media_queries.at(m), &mut converter.str, std::string_view(""))
             m++
         }
 
         // keyframes
         var k : uint = 0
         while(k < root.keyframes.size()) {
-            converter.writeKeyframesRule(root.keyframes.get(k), &mut converter.str)
+            converter.writeKeyframesRule(root.keyframes.at(k), &mut converter.str)
             k++
         }
 

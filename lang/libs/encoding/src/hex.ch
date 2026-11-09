@@ -29,9 +29,9 @@ func hex_decode_view(hex : std::string_view) : Result<std::vector<u8>, EncodingE
     if(!vec.try_reserve(byte_count)) { return Result.Err(EncodingError.OutOfMemory()); }
     var i : size_t = 0;
     while(i < hex.size()) {
-        var high = hex_to_nibble(hex.get(i));
+        var high = hex_to_nibble(hex.at(i));
         if(high < 0) { return Result.Err(EncodingError.InvalidInput()); }
-        var low = hex_to_nibble(hex.get(i + 1));
+        var low = hex_to_nibble(hex.at(i + 1));
         if(low < 0) { return Result.Err(EncodingError.InvalidInput()); }
         if(!vec.try_push(((high as u8) << 4) | (low as u8))) {
             return Result.Err(EncodingError.OutOfMemory());

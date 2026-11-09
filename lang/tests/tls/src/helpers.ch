@@ -41,7 +41,7 @@ func test_tmp_file(name : string_view) : string {
     var out = string()
     var i : size_t = 0
     while(i < p.size()) {
-        var c = p.get(i)
+        var c = p.at(i)
         if(c == '\\') { out.append('/') } else { out.append(c) }
         i += 1
     }
@@ -54,7 +54,7 @@ func test_script_append_view(buf : *mut u8, len : *mut size_t, v : string_view) 
     unsafe {
     var i : size_t = 0
     while(i < v.size()) {
-        buf[*len] = v.get(i) as u8
+        buf[*len] = v.at(i) as u8
         *len += 1
         i += 1
     }
@@ -225,14 +225,14 @@ var test_bg_server_port : u16 = 0
 func test_server_port_of(args : string_view) : u16 {
     var i : size_t = 0
     while(i < args.size()) {
-        while(i < args.size() && args.get(i) == ' ') { i += 1 }
+        while(i < args.size() && args.at(i) == ' ') { i += 1 }
         var j = i
-        while(j < args.size() && args.get(j) != ' ') { j += 1 }
+        while(j < args.size() && args.at(j) != ' ') { j += 1 }
 
         var all_digits = (j > i)
         var k = i
         while(k < j) {
-            var c = args.get(k)
+            var c = args.at(k)
             if(c < '0' || c > '9') { all_digits = false; break }
             k += 1
         }
@@ -240,7 +240,7 @@ func test_server_port_of(args : string_view) : u16 {
             var port : u32 = 0
             k = i
             while(k < j) {
-                port = port * 10u + ((args.get(k) as u32) - 48u)
+                port = port * 10u + ((args.at(k) as u32) - 48u)
                 k += 1
             }
             // Real ports only: this rejects the other numeric arguments these
@@ -488,7 +488,7 @@ func test_parse_py_hex_label(output : *vector<u8>, label : string_view, out : *m
         var match = true
         var li : size_t = 0
         while(li < label.size()) {
-            if(output.get(pos + li) != (label.get(li) as u8)) { match = false; break } else {}
+            if(output.at(pos + li) != (label.at(li) as u8)) { match = false; break } else {}
             li += 1
         }
         if(match) { pos += label.size(); found = true; break } else {}
@@ -497,14 +497,14 @@ func test_parse_py_hex_label(output : *vector<u8>, label : string_view, out : *m
     if(!found) { return 0 } else {}
     var written : size_t = 0
     while(written < out_len && pos < output.size()) {
-        var hi = output.get(pos) as char
+        var hi = output.at(pos) as char
         if(hi == 10 as char || hi == 13 as char || hi == 0 as char) { break } else {}
         if(pos + 1 >= output.size()) {
             out[written] = test_hex_char_val(hi) as u8
             written += 1
             break
         }
-        var lo = output.get(pos + 1) as char
+        var lo = output.at(pos + 1) as char
         if(lo == 10 as char || lo == 13 as char || lo == 0 as char) {
             out[written] = test_hex_char_val(hi) as u8
             written += 1

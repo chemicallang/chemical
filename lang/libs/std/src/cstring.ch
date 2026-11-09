@@ -11,7 +11,7 @@ public func cstring_make(value : &str) : std::Result<CString, NulError> {
     var out = std::vector<u8>()
     var i : size_t = 0
     while(i < value.size()) {
-        var c = value.get(i) as u8
+        var c = value.at(i) as u8
         if(c == 0) {
             return std::Result.Err<CString, NulError>(NulError.Found(i))
         }
@@ -29,7 +29,7 @@ public func cstring_make(value : &str) : std::Result<CString, NulError> {
 public func <'a> cstr_from_bytes(bytes : &'a [u8]) : std::Result<CStr<'a>, NulError> {
     var i : size_t = 0
     while(i < bytes.size()) {
-        if(unsafe(*bytes.get(i)) == 0) {
+        if(unsafe(*bytes.at(i)) == 0) {
             return std::Result.Err<CStr<'a>, NulError>(NulError.Found(i))
         }
         i += 1

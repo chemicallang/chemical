@@ -93,10 +93,10 @@ func vector_clone_roundtrip(env : &mut TestEnv) {
             env.error("vector<int>::clone returned the wrong size")
             return
         }
-        if(copy.get(0) != 1 || copy.get(1) != 2 || copy.get(2) != 3) {
+        if(copy.at(0) != 1 || copy.at(1) != 2 || copy.at(2) != 3) {
             env.error("vector<int>::clone copied the wrong elements")
         }
-        if(source.size() != 3 || source.get(0) != 1) {
+        if(source.size() != 3 || source.at(0) != 1) {
             env.error("vector<int>::clone mutated the source")
         }
 

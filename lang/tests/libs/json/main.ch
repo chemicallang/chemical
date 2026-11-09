@@ -884,10 +884,10 @@ func test_string_that_outgrows_the_heap_buffer_stays_intact(env : &mut TestEnv) 
     // Content, not just length: sample every realloc boundary and both ends.
     var i = 0u
     while (i < s.size()) {
-        if (s.get(i) != 'x') { env.error("byte mismatch past a buffer growth"); return }
+        if (s.at(i) != 'x') { env.error("byte mismatch past a buffer growth"); return }
         i += 997u
     }
-    if (s.get(s.size() - 1u) != 'x') { env.error("last byte mismatch"); return }
+    if (s.at(s.size() - 1u) != 'x') { env.error("last byte mismatch"); return }
  }}
 
 // The default ceiling is part of the contract, not an accident: a caller that

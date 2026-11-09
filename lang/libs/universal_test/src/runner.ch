@@ -107,7 +107,7 @@ func ut_watchdog_tick(data : *mut void) {
 // Escapes `v` for embedding inside a double-quoted JS string literal.
 func ut_js_quote(v : std::string_view, out : &mut std::string) {
     for(var i : size_t = 0; i < v.size(); i++) {
-        const c = v.get(i)
+        const c = v.at(i)
         if(c == '"') { out.append_view(std::string_view("\\\"")) }
         else if(c == '\\') { out.append_view(std::string_view("\\\\")) }
         else if(c == '\n') { out.append_view(std::string_view("\\n")) }
@@ -121,7 +121,7 @@ func ut_sv_eq(a : &string, b : string_view) : bool {
     if(a.size() != b.size()) { return false }
     var i : size_t = 0
     while(i < a.size()) {
-        if(a.get(i) != b.get(i)) { return false }
+        if(a.at(i) != b.at(i)) { return false }
         i += 1
     }
     return true

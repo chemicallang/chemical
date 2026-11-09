@@ -80,9 +80,9 @@ public func font_outline_add_data(env : &mut TestEnv) {
     outline.points.push(200)
     outline.flags.push(1)
     if(outline.points.size() != 2) { env.error("outline should have 2 points") }
-    if(outline.points.get(0) != 100) { env.error("first point X") }
-    if(outline.points.get(1) != 200) { env.error("first point Y") }
-    if(outline.flags.get(0) != 1) { env.error("first flag") }
+    if(outline.points.at(0) != 100) { env.error("first point X") }
+    if(outline.points.at(1) != 200) { env.error("first point Y") }
+    if(outline.flags.at(0) != 1) { env.error("first flag") }
 }
 
 @test

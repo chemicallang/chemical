@@ -78,7 +78,7 @@ func fn_name_match(fn_name : *char, name_list : &std::vector<*char>) : bool {
         if(name_list.empty()) { return true }
         var i : size_t = 0
         while(i < name_list.size()) {
-            if(unsafe(strcmp(fn_name, name_list.get(i))) == 0) { return true }
+            if(unsafe(strcmp(fn_name, name_list.at(i))) == 0) { return true }
             i += 1
         }
         return false
@@ -137,7 +137,7 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
                 if(filter_by_ids) {
                     var ii : size_t = 0
                     while(ii < config.test_ids.size()) {
-                        if(test_start.id == config.test_ids.get(ii)) { should_run = true; break }
+                        if(test_start.id == config.test_ids.at(ii)) { should_run = true; break }
                         ii += 1
                     }
                 }

@@ -257,7 +257,7 @@ public func FRAM_dribbled_response_reassembly(env : &mut TestEnv) {
     } else {
         var i : size_t = 0
         while(i < v.size()) {
-            if((v.get(i) as u8) != ((i % 251) as u8)) { env.error("dribbled pattern mismatch"); break }
+            if((v.at(i) as u8) != ((i % 251) as u8)) { env.error("dribbled pattern mismatch"); break }
             i += 1
         }
     }

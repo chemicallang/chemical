@@ -168,7 +168,7 @@ public func encode_wav(audio : *mut Audio) : std::Result<vector<u8>, AudioError>
         while(i < audio.sample_data.size()) {
             var offset = 44 + i * (bytes_per_sample as size_t)
             if(offset < file_data.size()) {
-                var sample = audio.sample_data.get(i)
+                var sample = audio.sample_data.at(i)
                 if(audio.bit_depth == 16) {
                     fptr[offset] = (sample & 0xFF) as u8
                     fptr[offset + 1] = ((sample >> 8) & 0xFF) as u8
@@ -227,7 +227,7 @@ public func save_wav(audio : *mut Audio, path : *char) : std::Result<std::Unit, 
         while(i < audio.sample_data.size()) {
             var offset = 44 + i * (bytes_per_sample as size_t)
             if(offset < file_data.size()) {
-                var sample = audio.sample_data.get(i)
+                var sample = audio.sample_data.at(i)
                 if(audio.bit_depth == 16) {
                     fptr[offset] = (sample & 0xFF) as u8
                     fptr[offset + 1] = ((sample >> 8) & 0xFF) as u8
@@ -295,7 +295,7 @@ public func audio_trim(audio : *mut Audio, start_ms : double, end_ms : double) :
         var sptr = result.sample_data.data() as *mut i16
         var i : size_t = 0
         while(i < total) {
-            sptr[i] = audio.sample_data.get(src_offset + i)
+            sptr[i] = audio.sample_data.at(src_offset + i)
             i += 1
         }
 
@@ -310,7 +310,7 @@ public func audio_volume(audio : *mut Audio, factor : float) {
         var sptr = audio.sample_data.data() as *mut i16
         var i : size_t = 0
         while(i < audio.sample_data.size()) {
-            var sample = (audio.sample_data.get(i) as float * factor) as i32
+            var sample = (audio.sample_data.at(i) as float * factor) as i32
             if(sample > 32767) { sample = 32767 }
             if(sample < -32768) { sample = -32768 }
             sptr[i] = sample as i16
@@ -349,8 +349,8 @@ public func audio_mix(a : *mut Audio, b : *mut Audio) : std::Result<Audio, Audio
         while(i < max_samples * ch) {
             var sa : i32 = 0
             var sb : i32 = 0
-            if(i < a.sample_data.size()) { sa = a.sample_data.get(i) as i32 }
-            if(i < b.sample_data.size()) { sb = b.sample_data.get(i) as i32 }
+            if(i < a.sample_data.size()) { sa = a.sample_data.at(i) as i32 }
+            if(i < b.sample_data.size()) { sb = b.sample_data.at(i) as i32 }
             var mixed = (sa + sb) / 2
             if(mixed > 32767) { mixed = 32767 }
             if(mixed < -32768) { mixed = -32768 }
@@ -386,12 +386,12 @@ public func audio_append(a : *mut Audio, b : *mut Audio) : std::Result<Audio, Au
         var rptr = result.sample_data.data() as *mut i16
         var i : size_t = 0
         while(i < total_a) {
-            rptr[i] = a.sample_data.get(i)
+            rptr[i] = a.sample_data.at(i)
             i += 1
         }
         i = 0
         while(i < total_b) {
-            rptr[total_a + i] = b.sample_data.get(i)
+            rptr[total_a + i] = b.sample_data.at(i)
             i += 1
         }
 
@@ -452,7 +452,7 @@ public func audio_resample(audio : *mut Audio, target_rate : u32) : Audio {
             if(src_pos >= source_frames) { src_pos = source_frames - 1 }
             var j : size_t = 0
             while(j < ch) {
-                rptr[i * ch + j] = audio.sample_data.get(src_pos * ch + j)
+                rptr[i * ch + j] = audio.sample_data.at(src_pos * ch + j)
                 j += 1
             }
             i += 1
@@ -476,7 +476,7 @@ public func audio_copy(audio : *mut Audio) : Audio {
         var rptr = result.sample_data.data() as *mut i16
         var i : size_t = 0
         while(i < audio.sample_data.size()) {
-            rptr[i] = audio.sample_data.get(i)
+            rptr[i] = audio.sample_data.at(i)
             i += 1
         }
         return result

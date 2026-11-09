@@ -85,19 +85,19 @@ public func (page : &mut HtmlPage) set_route_query(raw : std::string_view) {
     // Copy into a local: a `string_view` parameter is a pointer in the C ABI and
     // cannot be reassigned (same reason `normalize_path_view` copies to `p`).
     var q = raw
-    if(q.size() > 0 && q.get(0) == '?') { q = q.subview(1, q.size()) }
+    if(q.size() > 0 && q.at(0) == '?') { q = q.subview(1, q.size()) }
     page.add_parameter_view(std::string_view("__route_query"), q)
     var i : size_t = 0
     while(i < q.size()) {
         const start = i
-        while(i < q.size() && q.get(i) != '&') { i = i + 1 }
+        while(i < q.size() && q.at(i) != '&') { i = i + 1 }
         const part = q.subview(start, i)
         if(i < q.size()) { i = i + 1 }   // consume '&'
         if(part.size() == 0) { continue }
 
         var eq = std::NPOS
         for(var j : size_t = 0; j < part.size(); j++) {
-            if(part.get(j) == '=') { eq = j; break }
+            if(part.at(j) == '=') { eq = j; break }
         }
         var rawKey = part
         var rawVal = std::string_view()
@@ -155,14 +155,14 @@ public func parse_query(raw : std::string_view, out : &mut std::unordered_map<st
     var i : size_t = 0
     while(i < raw.size()) {
         var start = i
-        while(i < raw.size() && raw.get(i) != '&') { i = i + 1 }
+        while(i < raw.size() && raw.at(i) != '&') { i = i + 1 }
         var part = unsafe(std::string_view(raw.data() + start, i - start))
         if(i < raw.size()) { i = i + 1 }   // consume '&'
         if(part.size() == 0) { continue }
 
         var eq = std::NPOS
         for(var j : size_t = 0; j < part.size(); j++) {
-            if(part.get(j) == '=') { eq = j; break }
+            if(part.at(j) == '=') { eq = j; break }
         }
         if(eq == std::NPOS) {
             out.insert(part, std::string_view(""))

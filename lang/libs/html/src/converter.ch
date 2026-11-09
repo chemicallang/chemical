@@ -69,7 +69,7 @@ func (converter : &mut HtmlRuntimeConverter) convert_element(element : *mut Html
         converter.str.append('<')
         converter.emit_view(&element.name)
         for(var i = 0u; i < element.attributes.size(); i++) {
-            converter.convert_attribute(element.attributes.get(i))
+            converter.convert_attribute(element.attributes.at(i))
         }
         if(element.isSelfClosing) {
             converter.str.append_view("/>")
@@ -77,7 +77,7 @@ func (converter : &mut HtmlRuntimeConverter) convert_element(element : *mut Html
         }
         converter.str.append('>')
         for(var j = 0u; j < element.children.size(); j++) {
-            converter.convert_child(element.children.get(j))
+            converter.convert_child(element.children.at(j))
         }
         converter.str.append_view("</")
         converter.emit_view(&element.name)
@@ -119,7 +119,7 @@ public func convert_html_root(root : *mut HtmlRoot, str : &mut std::string) {
         unsafe {
         var converter = make_html_runtime_converter(str)
         for(var i = 0u; i < root.children.size(); i++) {
-            converter.convert_child(root.children.get(i))
+            converter.convert_child(root.children.at(i))
         }
 
         }

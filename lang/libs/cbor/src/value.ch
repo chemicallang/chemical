@@ -42,7 +42,7 @@ func is_valid_utf8(bytes : &vector<u8>) : bool {
     var i = 0u
     var n = bytes.size()
     while(i < n) {
-        var b0 = bytes.get(i) as u32
+        var b0 = bytes.at(i) as u32
         if(b0 < 0x80u32) {
             i += 1u
             continue
@@ -69,7 +69,7 @@ func is_valid_utf8(bytes : &vector<u8>) : bool {
         }
         if(i + (extra as size_t) + 1u > n) { return false }
         for(var k = 1u32; k <= extra; k++) {
-            var bk = bytes.get(i + (k as size_t)) as u32
+            var bk = bytes.at(i + (k as size_t)) as u32
             if(bk < 0x80u32 || bk > 0xBFu32) { return false }
             cp = (cp << 6) | (bk & 0x3Fu32)
         }
@@ -165,7 +165,7 @@ public func bytes_copy(v : &CborValue) : vector<u8> {
         var Bytes(b) = v else unsafe { unreachable }
         var out = vector<u8>()
         for(var i = 0u; i < b.size(); i++) {
-            out.push_back(b.get(i))
+            out.push_back(b.at(i))
         }
         return out
     }
@@ -244,7 +244,7 @@ public func clone_value(v : &CborValue) : CborValue {
             var Array(a) = v else unreachable
             var out = vector<CborValue>()
             for(var i = 0u; i < a.size(); i++) {
-                out.push_back(clone_value(a.get_ref(i)))
+                out.push_back(clone_value(a.at_ref(i)))
             }
             return CborValue.Array(out)
         }
@@ -252,7 +252,7 @@ public func clone_value(v : &CborValue) : CborValue {
             var Map(m) = v else unreachable
             var out = vector<CborValue>()
             for(var i = 0u; i < m.size(); i++) {
-                out.push_back(clone_value(m.get_ref(i)))
+                out.push_back(clone_value(m.at_ref(i)))
             }
             return CborValue.Map(out)
         }
@@ -260,7 +260,7 @@ public func clone_value(v : &CborValue) : CborValue {
             var Tag(n, inner) = v else unreachable
             var boxed = vector<CborValue>()
             for(var i = 0u; i < inner.size(); i++) {
-                boxed.push_back(clone_value(inner.get_ref(i)))
+                boxed.push_back(clone_value(inner.at_ref(i)))
             }
             return CborValue.Tag(n, boxed)
         }
@@ -306,7 +306,11 @@ func text_equals(t : &CborValue, key : string_view) : bool {
     if(!(t is CborValue.Text)) { return false }
     var Text(s) = t else unsafe { unreachable }
     var tv = s.to_view()
-    return tv.size() == key.size() && tv.find(&key) == 0u
+    if(tv.size() != key.size()) { return false }
+    var pos = tv.find(&key)
+    if(pos is std::Option.None) { return false }
+    var Some(index) = pos else unsafe { unreachable }
+    return index == 0u
 }
 
 // The index of the pair whose key is the text `key`, or -1.
@@ -435,7 +439,7 @@ public func array_value_at(v : &CborValue, index : size_t) : Option<&CborValue> 
     if(!(v is CborValue.Array)) { return Option.None<&CborValue>() }
     var Array(a) = v else unsafe { unreachable }
     if(index >= a.size()) { return Option.None<&CborValue>() }
-    return Option.Some<&CborValue>(a.get_ref(index))
+    return Option.Some<&CborValue>(a.at_ref(index))
 }
 
 // Legacy raw-pointer accessors. Grouped under `cbor::raw`; new code should use
@@ -517,7 +521,7 @@ public func describe(v : &CborValue) : string {
         var s = string("h:")
         var Bytes(b) = v else unsafe { unreachable }
         for(var i = 0u; i < b.size(); i++) {
-            var one = b.get(i)
+            var one = b.at(i)
             var pair = string("")
             pair.append_integer(((one >> 4) as int) + 48)
             pair.append_integer((one & 0x0Fu8) as int + 48)

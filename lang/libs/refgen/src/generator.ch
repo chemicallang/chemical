@@ -37,7 +37,7 @@ func find_comment_before(tokens : std::span<Token>, node_line : uint) : std::str
     }
     
     if (comment_start >= size) return std::string_view();
-    return tokens.get(comment_start).value;
+    return tokens.at(comment_start).value;
 }
 
 func clean_comment(comment : std::string_view) : std::string {
@@ -109,7 +109,7 @@ func process_doc_comment(comment : std::string_view, html : &mut std::string) {
         for (var i = 0u; i < params.size(); i++) {
             html.append_view("<li><b>");
             var p = params.get_ptr(i).to_view();
-            var space = p.find(" ");
+            var space = p.find_or_npos(" ");
             if (space != std::NPOS) {
                 html.append_view(p.subview(0, space));
                 html.append_view("</b> ");
@@ -362,7 +362,7 @@ public struct Generator {
             var children = ns.get_body();
             if (children != null) {
                 for (var i = 0u; i < children.size(); i++) {
-                    self.index_node_recursive(children.get(i), file_id, mod_name, name, filename);
+                    self.index_node_recursive(children.at(i), file_id, mod_name, name, filename);
                 }
             }
         } else if (kind == ASTNodeKind.StructDecl) {
@@ -370,13 +370,13 @@ public struct Generator {
             var funcs = def.getFunctions();
             if (funcs != null) {
                 for (var i = 0u; i < funcs.size(); i++) {
-                    self.index_node_recursive(funcs.get(i), file_id, mod_name, name, filename);
+                    self.index_node_recursive(funcs.at(i), file_id, mod_name, name, filename);
                 }
             }
             var members = def.getMembers();
             if (members != null) {
                 for (var i = 0u; i < members.size(); i++) {
-                    self.index_node_recursive(members.get(i), file_id, mod_name, name, filename);
+                    self.index_node_recursive(members.at(i), file_id, mod_name, name, filename);
                 }
             }
         } else if (kind == ASTNodeKind.InterfaceDecl) {
@@ -384,7 +384,7 @@ public struct Generator {
             var funcs = def.getFunctions();
             if (funcs != null) {
                 for (var i = 0u; i < funcs.size(); i++) {
-                    self.index_node_recursive(funcs.get(i), file_id, mod_name, name, filename);
+                    self.index_node_recursive(funcs.at(i), file_id, mod_name, name, filename);
                 }
             }
         } else if (kind == ASTNodeKind.VariantDecl) {
@@ -392,7 +392,7 @@ public struct Generator {
             var members = def.getMembers();
             if (members != null) {
                 for (var i = 0u; i < members.size(); i++) {
-                    self.index_node_recursive(members.get(i), file_id, mod_name, name, filename);
+                    self.index_node_recursive(members.at(i), file_id, mod_name, name, filename);
                 }
             }
         } else if (kind == ASTNodeKind.UnionDecl) {
@@ -400,13 +400,13 @@ public struct Generator {
             var members = def.getMembers();
             if (members != null) {
                 for (var i = 0u; i < members.size(); i++) {
-                    self.index_node_recursive(members.get(i), file_id, mod_name, name, filename);
+                    self.index_node_recursive(members.at(i), file_id, mod_name, name, filename);
                 }
             }
             var funcs = def.getFunctions();
             if (funcs != null) {
                 for (var i = 0u; i < funcs.size(); i++) {
-                    self.index_node_recursive(funcs.get(i), file_id, mod_name, name, filename);
+                    self.index_node_recursive(funcs.at(i), file_id, mod_name, name, filename);
                 }
             }
         } else if (kind == ASTNodeKind.GenericStructDecl) {
@@ -416,13 +416,13 @@ public struct Generator {
                 var funcs = def.getFunctions();
                 if (funcs != null) {
                     for (var i = 0u; i < funcs.size(); i++) {
-                        self.index_node_recursive(funcs.get(i), file_id, mod_name, name, filename);
+                        self.index_node_recursive(funcs.at(i), file_id, mod_name, name, filename);
                     }
                 }
                 var members = def.getMembers();
                 if (members != null) {
                     for (var i = 0u; i < members.size(); i++) {
-                        self.index_node_recursive(members.get(i), file_id, mod_name, name, filename);
+                        self.index_node_recursive(members.at(i), file_id, mod_name, name, filename);
                     }
                 }
             }
@@ -433,7 +433,7 @@ public struct Generator {
                 var members = def.getMembers();
                 if (members != null) {
                     for (var i = 0u; i < members.size(); i++) {
-                        self.index_node_recursive(members.get(i), file_id, mod_name, name, filename);
+                        self.index_node_recursive(members.at(i), file_id, mod_name, name, filename);
                     }
                 }
             }
@@ -444,13 +444,13 @@ public struct Generator {
                 var funcs = def.getFunctions();
                 if (funcs != null) {
                     for (var i = 0u; i < funcs.size(); i++) {
-                        self.index_node_recursive(funcs.get(i), file_id, mod_name, name, filename);
+                        self.index_node_recursive(funcs.at(i), file_id, mod_name, name, filename);
                     }
                 }
                 var members = def.getMembers();
                 if (members != null) {
                     for (var i = 0u; i < members.size(); i++) {
-                        self.index_node_recursive(members.get(i), file_id, mod_name, name, filename);
+                        self.index_node_recursive(members.at(i), file_id, mod_name, name, filename);
                     }
                 }
             }
@@ -461,7 +461,7 @@ public struct Generator {
                 var funcs = def.getFunctions();
                 if (funcs != null) {
                     for (var i = 0u; i < funcs.size(); i++) {
-                        self.index_node_recursive(funcs.get(i), file_id, mod_name, name, filename);
+                        self.index_node_recursive(funcs.at(i), file_id, mod_name, name, filename);
                     }
                 }
             }
@@ -476,8 +476,8 @@ public struct Generator {
             var file_id = file_meta.getFileId();
             var abs_path = file_meta.getAbsPath();
             var filename = std::string_view("");
-            var last_slash = abs_path.find_last("/");
-            if (last_slash == std::NPOS) last_slash = abs_path.find_last("\\");
+            var last_slash = abs_path.find_last_or_npos("/");
+            if (last_slash == std::NPOS) last_slash = abs_path.find_last_or_npos("\\");
             if (last_slash != std::NPOS) {
                 filename = abs_path.subview(last_slash + 1, abs_path.size());
             } else {
@@ -492,7 +492,7 @@ public struct Generator {
             if (nodes == null) continue;
             
             for (var j = 0u; j < nodes.size(); j++) {
-                self.index_node_recursive(nodes.get(j), file_id, mod_name, std::string_view(""), filename);
+                self.index_node_recursive(nodes.at(j), file_id, mod_name, std::string_view(""), filename);
             }
         }
     }
@@ -666,16 +666,16 @@ public struct Generator {
         var path_win = std::string(abs_path.data(), abs_path.size());
         var path = path_win.copy();
         for (var i = 0u; i < path.size(); i++) {
-            if(path.get(i) == '\\') path.set(i, '/');
+            if(path.at(i) == '\\') path.set(i, '/');
         }
 
-        var src_idx = path.to_view().find("src/");
+        var src_idx = path.to_view().find_or_npos("src/");
         if (src_idx != std::NPOS) {
             var rel_path = path.to_view().subview(src_idx + 4, path.size());
-            var libs_idx = path.to_view().find("libs/");
+            var libs_idx = path.to_view().find_or_npos("libs/");
             if (libs_idx != std::NPOS) {
                 var after_libs = path.to_view().subview(libs_idx + 5, path.size());
-                var slash_idx = after_libs.find("/");
+                var slash_idx = after_libs.find_or_npos("/");
                 if (slash_idx != std::NPOS) {
                     var m_name = after_libs.subview(0, slash_idx);
                     if (is_native_module(m_name)) {
@@ -701,7 +701,7 @@ public struct Generator {
     func find_module(&self, name : std::string_view) : *TransformerModule {
         var deps = self.ctx.getFlattenedModules();
         for (var i = 0u; i < deps.size(); i++) {
-            var m = deps.get(i) as *TransformerModule;
+            var m = deps.at(i) as *TransformerModule;
             if (m.getName().equals(&name)) return m;
         }
         return null;
@@ -812,8 +812,8 @@ public struct Generator {
 
         // Extract filename from abs_path
         var filename = std::string_view("");
-        var last_slash = abs_path.find_last("/");
-        if (last_slash == std::NPOS) last_slash = abs_path.find_last("\\");
+        var last_slash = abs_path.find_last_or_npos("/");
+        if (last_slash == std::NPOS) last_slash = abs_path.find_last_or_npos("\\");
         if (last_slash != std::NPOS) {
             filename = abs_path.subview(last_slash + 1, abs_path.size());
         } else {
@@ -825,7 +825,7 @@ public struct Generator {
         {
             var ci = 0u;
             while (ci < nodes.size()) {
-                var cname = get_node_name(nodes.get(ci));
+                var cname = get_node_name(nodes.at(ci));
                 if (cname.size() > 0) decl_count++;
                 ci++;
             }
@@ -862,7 +862,7 @@ public struct Generator {
 
         var i = 0u;
         while (i < nodes.size()) {
-            var node = nodes.get(i);
+            var node = nodes.at(i);
             var rel_view = rel_root.to_view();
             self.document_node(node, &mut html, tokens, &rel_view, &abs_path);
             i++;
@@ -991,7 +991,7 @@ public struct Generator {
             if (params != null) {
                 for (var i = 0u; i < params.size(); i++) {
                     if (i > 0) html.append_view(", ");
-                    self.render_type(params.get(i).getType(), html, rel_root);
+                    self.render_type(params.at(i).getType(), html, rel_root);
                 }
             }
             html.append_view(") : ");
@@ -1117,7 +1117,7 @@ public struct Generator {
                 html.append_view("&lt;");
                 for (var i = 0u; i < gparams.size(); i++) {
                     if (i > 0) html.append_view(", ");
-                    var gp = gparams.get(i);
+                    var gp = gparams.at(i);
                     html.append_view(gp.getName());
                     var def_t = gp.getDefaultType();
                     if (def_t != null) {
@@ -1132,7 +1132,7 @@ public struct Generator {
             var params = decl.get_params();
             for (var i = 0u; i < params.size(); i++) {
                 if (i > 0) html.append_view(", ");
-                var param = params.get(i);
+                var param = params.at(i);
                 html.append_view(param.getName());
                 html.append_view(" : ");
                 self.render_type(param.getType(), html, rel_root);
@@ -1187,7 +1187,7 @@ public struct Generator {
                 html.append_view("&lt;");
                 for (var i = 0u; i < gparams.size(); i++) {
                     if (i > 0) html.append_view(", ");
-                    var gp = gparams.get(i);
+                    var gp = gparams.at(i);
                     html.append_view(gp.getName());
                     var def_t = gp.getDefaultType();
                     if (def_t != null) {
@@ -1223,7 +1223,7 @@ public struct Generator {
             if (members != null && members.size() > 0) {
                 html.append_view(" {\n");
                 for (var i = 0u; i < members.size(); i++) {
-                    var m = members.get(i);
+                    var m = members.at(i);
                     html.append_view("    <span class='tok-kwd'>var</span> ");
                     html.append_view(m.getName());
                     
@@ -1246,7 +1246,7 @@ public struct Generator {
                 html.append_view("\n    ");
                 for (var i = 0u; i < members.size(); i++) {
                     if (i > 0) html.append_view(",\n    ");
-                    html.append_view(members.get(i).getName());
+                    html.append_view(members.at(i).getName());
                 }
                 html.append_view("\n");
             }
@@ -1261,7 +1261,7 @@ public struct Generator {
                 html.append_view("\n    ");
                 for (var i = 0u; i < members.size(); i++) {
                     if (i > 0) html.append_view("\n    ");
-                    var member = members.get(i);
+                    var member = members.at(i);
                     html.append_view(member.getName());
                     html.append_view(" : ");
                     self.render_type(member.getType(), html, rel_root);
@@ -1309,7 +1309,7 @@ public struct Generator {
             if (children != null && children.size() > 0) {
                 html.append_view("<div class='nested-container'>");
                 for (var i = 0u; i < children.size(); i++) {
-                    self.document_node(children.get(i), html, tokens, rel_root, abs_path);
+                    self.document_node(children.at(i), html, tokens, rel_root, abs_path);
                 }
                 html.append_view("</div>");
             }
@@ -1360,7 +1360,7 @@ public struct Generator {
                 html.append_view("<div class='nested-container'>");
                 if (funcs != null) {
                     for (var i = 0u; i < funcs.size(); i++) {
-                        self.document_node(funcs.get(i), html, tokens, rel_root, abs_path);
+                        self.document_node(funcs.at(i), html, tokens, rel_root, abs_path);
                     }
                 }
                 html.append_view("</div>");
@@ -1780,7 +1780,7 @@ public struct Generator {
         var last_idx = 0u;
         while (true) {
             var sub = raw.subview(last_idx, raw.size());
-            var p_idx = sub.find(&placeholder);
+            var p_idx = sub.find_or_npos(&placeholder);
             if (p_idx == std::NPOS) {
                 res.append_view(&sub);
                 break;

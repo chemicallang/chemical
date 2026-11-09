@@ -477,7 +477,7 @@ func (md : &mut MdParser) parseHeader(parser : *mut Parser) : *mut MdNode {
         // Skip space after hashes
         // Skip leading spaces in the first text token if present
         if(header.children.size() > 0) {
-            var first = header.children.get(0);
+            var first = header.children.at(0);
             if(first.kind == MdNodeKind.Text) {
                 var txtNode = first as *mut MdText;
                 if(txtNode.value.size() > 0 && txtNode.value.data()[0] == ' ') {
@@ -648,7 +648,7 @@ func (md : &mut MdParser) parseBlockquote(parser : *mut Parser) : *mut MdNode {
 
         // Trim leading space after [!TYPE] if we consumed it but it was part of a larger text token
         if (alert_type.size() > 0 && current_container.children.size() > 0) {
-            var first = current_container.children.get(0);
+            var first = current_container.children.at(0);
             if (first.kind == MdNodeKind.Text) {
                 var txtNode = first as *mut MdText;
                 if (txtNode.value.size() > 0 && txtNode.value.data()[0] == ' ') {
@@ -1543,7 +1543,7 @@ func (md : &mut MdParser) parseDefinitionList(parser : *mut Parser) : *mut MdNod
     
         // Try to capture preceding paragraph as term
         if(md.root.children.size() > 0) {
-            var last = md.root.children.get(md.root.children.size() - 1);
+            var last = md.root.children.at(md.root.children.size() - 1);
             if(last.kind == MdNodeKind.Paragraph) {
                 var para = last as *mut MdParagraph;
                 var term = builder.allocate<MdDefinitionTerm>()
@@ -1718,8 +1718,8 @@ func (md : &mut MdParser) parseLink(parser : *mut Parser) : *mut MdNode {
                 // Try to reconstruct ID from text_children
                 var i = 0u;
                 while(i < text_children.size()) {
-                    if(text_children.get(i).kind == MdNodeKind.Text) {
-                        const mdT = text_children.get(i) as *mut MdText
+                    if(text_children.at(i).kind == MdNodeKind.Text) {
+                        const mdT = text_children.at(i) as *mut MdText
                         ref_id.append_view(&mdT.value);
                     }
                     i++;

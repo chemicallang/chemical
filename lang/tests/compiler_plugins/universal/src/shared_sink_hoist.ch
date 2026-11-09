@@ -54,7 +54,7 @@ func sink_hoist_count_char(text : std::string_view, want : char) : i64 {
     var n = 0i64
     var i = 0u
     while(i < text.size()) {
-        if(text.get(i) == want) { n = n + 1i64 }
+        if(text.at(i) == want) { n = n + 1i64 }
         i = i + 1u
     }
     return n

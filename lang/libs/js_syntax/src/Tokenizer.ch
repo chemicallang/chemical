@@ -31,12 +31,12 @@ public struct JsSyntaxTokenizer {
 
 func (t : &mut JsSyntaxTokenizer) peek() : char {
     if(t.pos >= t.src.size()) return '\0'
-    return t.src.get(t.pos)
+    return t.src.at(t.pos)
 }
 
 func (t : &mut JsSyntaxTokenizer) advance() {
     if(t.pos >= t.src.size()) return
-    const c = t.src.get(t.pos)
+    const c = t.src.at(t.pos)
     t.pos += 1
     if(c == '\n') {
         t.line += 1

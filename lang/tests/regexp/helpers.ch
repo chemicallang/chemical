@@ -80,7 +80,7 @@ func rx_split_size(env : &mut TestEnv, re : &regex::Regex, text : std::string_vi
 func rx_split_part(env : &mut TestEnv, re : &regex::Regex, text : std::string_view, index : int, expected : std::string_view, name : *char) {
     var parts = re.split(text)
     var idx = index as size_t
-    rx_check(env, idx < parts.size() && parts.get_ref(idx).to_view().equals(&expected), name)
+    rx_check(env, idx < parts.size() && parts.at_ref(idx).to_view().equals(&expected), name)
 }
 
 func rx_compiles(env : &mut TestEnv, pattern : std::string_view, name : *char) {

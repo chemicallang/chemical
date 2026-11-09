@@ -359,7 +359,7 @@ func linux_on_script_message(
 func linux_json_value(msg_view : std::string_view, key : *char) : string {
     unsafe {
 
-    var pos = msg_view.find(std::string_view::make_no_len(key))
+    var pos = msg_view.find_or_npos(std::string_view::make_no_len(key))
     if(pos >= msg_view.size()) {
         return string()
     }
@@ -367,20 +367,20 @@ func linux_json_value(msg_view : std::string_view, key : *char) : string {
     if(vstart >= msg_view.size()) {
         return string()
     }
-    var c0 = msg_view.get(vstart)
+    var c0 = msg_view.at(vstart)
     if(c0 == '"') {
         // Quoted JSON string: copy the content, unescaping escapes.
         vstart = vstart + 1
         var out = string()
         var i = vstart
         while(i < msg_view.size()) {
-            var c = msg_view.get(i)
+            var c = msg_view.at(i)
             if(c == '"') {
                 break
             } else if(c == '\\') {
                 i = i + 1
                 if(i >= msg_view.size()) { break }
-                var e = msg_view.get(i)
+                var e = msg_view.at(i)
                 if(e == 'n') { out.append('\n') }
                 else if(e == 't') { out.append('\t') }
                 else if(e == 'r') { out.append('\r') }
@@ -403,7 +403,7 @@ func linux_json_value(msg_view : std::string_view, key : *char) : string {
     var depth = 0
     var i = vstart
     while(i < msg_view.size()) {
-        var c = msg_view.get(i)
+        var c = msg_view.at(i)
         if(depth == 0 && (c == ',' || c == '}' || c == ']')) {
             break
         }
@@ -431,7 +431,7 @@ func linux_json_escape(sv : std::string_view) : string {
     var result = string("\"")
     var i : size_t = 0
     while(i < sv.size()) {
-        var c = sv.get(i)
+        var c = sv.at(i)
         if(c == '"') { result.append_view(std::string_view::make_no_len("\\\"")) }
         else if(c == '\\') { result.append_view(std::string_view::make_no_len("\\\\")) }
         else if(c == '\b') { result.append_view(std::string_view::make_no_len("\\b")) }
@@ -443,8 +443,8 @@ func linux_json_escape(sv : std::string_view) : string {
             result.append_view(std::string_view::make_no_len("\\u00"))
             var hex = string("0123456789abcdef")
             var uc : u8 = c as u8
-            result.append(hex.get((uc >> 4) as size_t))
-            result.append(hex.get((uc & 0x0f) as size_t))
+            result.append(hex.at((uc >> 4) as size_t))
+            result.append(hex.at((uc & 0x0f) as size_t))
         } else {
             result.append(c)
         }
@@ -560,7 +560,7 @@ func linux_json_int_field(params_view : std::string_view, key : *char) : size_t 
     var result : size_t = 0
     var i : size_t = 0
     while(i < val_str.size()) {
-        var c = val_str.get(i)
+        var c = val_str.at(i)
         if(c >= '0' && c <= '9') {
             result = result * 10 + (c - '0') as size_t
         }

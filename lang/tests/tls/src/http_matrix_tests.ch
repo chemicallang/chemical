@@ -58,7 +58,7 @@ public func MATRIX_download_size_boundaries(env : &mut TestEnv) {
 
     var si : size_t = 0
     while(si < sizes.size()) {
-        var n = sizes.get(si)
+        var n = sizes.at(si)
         var path = string("/size/")
         path.append_uinteger(n as ubigint)
         var u = mtx_url(PORT, path.to_view())
@@ -94,11 +94,11 @@ public func MATRIX_download_size_boundaries(env : &mut TestEnv) {
             return
         }
         // Spot-check the pattern at start/middle/end.
-        if((v.get(0) as u8) != ((0 % 251) as u8)) { env.error("pattern[0] mismatch") }
+        if((v.at(0) as u8) != ((0 % 251) as u8)) { env.error("pattern[0] mismatch") }
         var mid = v.size() / 2u
-        if((v.get(mid) as u8) != ((mid % 251) as u8)) { env.error("pattern[mid] mismatch") }
+        if((v.at(mid) as u8) != ((mid % 251) as u8)) { env.error("pattern[mid] mismatch") }
         var last = v.size() - 1u
-        if((v.get(last) as u8) != ((last % 251) as u8)) { env.error("pattern[last] mismatch") }
+        if((v.at(last) as u8) != ((last % 251) as u8)) { env.error("pattern[last] mismatch") }
         si += 1
     }
 
@@ -134,7 +134,7 @@ public func MATRIX_upload_size_boundaries(env : &mut TestEnv) {
     var si : size_t = 0
     var phase : usize = 5u
     while(si < sizes.size()) {
-        var n = sizes.get(si)
+        var n = sizes.at(si)
         var payload = full_pattern(n, phase)
         phase += 3u
         var u = mtx_url(PORT, "/echo")
@@ -195,7 +195,7 @@ public func MATRIX_full_byte_cycle_roundtrip(env : &mut TestEnv) {
     if(v.size() != 65536u) { env.error("byte-cycle length mismatch") }
     var i : size_t = 0
     while(i < v.size()) {
-        if((v.get(i) as u8) != ((i % 256) as u8)) {
+        if((v.at(i) as u8) != ((i % 256) as u8)) {
             env.error("byte-cycle mismatch")
             var m = string("at offset ")
             m.append_uinteger(i as ubigint)
@@ -242,7 +242,7 @@ public func MATRIX_many_response_headers_lookup(env : &mut TestEnv) {
     var ci : size_t = 0
     while(ci < checks.size()) {
         var nm = string("X-H-")
-        nm.append_uinteger(checks.get(ci) as ubigint)
+        nm.append_uinteger(checks.at(ci) as ubigint)
         var nmv = std::str.make_view(nm.to_view())
         var opt = r.headers.get(nmv)
         if(opt is std.Option.None) { env.error("header missing from response") } else {

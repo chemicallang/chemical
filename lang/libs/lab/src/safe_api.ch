@@ -126,7 +126,7 @@ func module_dependencies(dependencies : std::span<ModuleId>) : vector<ModuleDepe
     var deps = vector<ModuleDependency>()
     var i : size_t = 0
     while(i < dependencies.size()) {
-        const id = unsafe(*dependencies.get(i))
+        const id = unsafe(*dependencies.at(i))
         deps.push(ModuleDependency {
             module : id.ptr,
             info : null

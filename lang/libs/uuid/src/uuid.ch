@@ -126,10 +126,10 @@ public namespace uuid {
         if(str.size() != 36u) {
             return std::Result.Err<UUID, UuidError>(UuidError.InvalidLength(36u, str.size()));
         }
-        if(str.get(8) != '-') { return std::Result.Err<UUID, UuidError>(UuidError.InvalidHyphen(8u)) }
-        if(str.get(13) != '-') { return std::Result.Err<UUID, UuidError>(UuidError.InvalidHyphen(13u)) }
-        if(str.get(18) != '-') { return std::Result.Err<UUID, UuidError>(UuidError.InvalidHyphen(18u)) }
-        if(str.get(23) != '-') { return std::Result.Err<UUID, UuidError>(UuidError.InvalidHyphen(23u)) }
+        if(str.at(8) != '-') { return std::Result.Err<UUID, UuidError>(UuidError.InvalidHyphen(8u)) }
+        if(str.at(13) != '-') { return std::Result.Err<UUID, UuidError>(UuidError.InvalidHyphen(13u)) }
+        if(str.at(18) != '-') { return std::Result.Err<UUID, UuidError>(UuidError.InvalidHyphen(18u)) }
+        if(str.at(23) != '-') { return std::Result.Err<UUID, UuidError>(UuidError.InvalidHyphen(23u)) }
 
         var bytes : [16]u8;
         var byte_idx = 0;
@@ -139,8 +139,8 @@ public namespace uuid {
                 continue;
             }
 
-            var high_char = str.get(i);
-            var low_char = str.get(i + 1u);
+            var high_char = str.at(i);
+            var low_char = str.at(i + 1u);
             i++;
 
             var high = hex_to_val(high_char);

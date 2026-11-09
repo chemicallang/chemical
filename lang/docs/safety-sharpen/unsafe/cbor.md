@@ -10,7 +10,7 @@ boundary; safe callers use the facade documented in the library README/api snaps
 
 ## Unsafe call/dereference sites (count)
 
-- unsafe blocks: 43
+- unsafe blocks: 44
 - unsafe expressions: 5
 - raw-pointer dereferences/indexing: 45
 

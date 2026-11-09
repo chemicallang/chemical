@@ -279,7 +279,7 @@ public func args() : Result<vector<string>, EnvError> {
         var start : size_t = 0
         var i : size_t = 0
         while(i <= len) {
-            if(i == len || view.get(i) == ' ' || view.get(i) == '\t') {
+            if(i == len || view.at(i) == ' ' || view.at(i) == '\t') {
                 if(i > start) {
                     var r = push_arg(&raw mut out, view.subview(start, i - start))
                     if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(e) }
@@ -313,7 +313,7 @@ public func args() : Result<vector<string>, EnvError> {
         var start : size_t = 0
         var i : size_t = 0
         while(i < bytes.size()) {
-            if(bytes.get(i) == 0) {
+            if(bytes.at(i) == 0) {
                 if(i > start) {
                     var view = unsafe(string_view(bytes.data() as *char + start, i - start))
                     var r = push_arg(&raw mut out, view)

@@ -48,7 +48,7 @@ public func test_window_set_title(env : &mut TestEnv) {
     window::raw::window_set_title(&raw mut w, "Hello World\0" as *char)
     var t = window::raw::window_title(&raw mut w)
     if(t.size() != 11) { env.error("title length should be 11"); return }
-    if(t.get(0) != 'H' as char) { env.error("title should start with H"); return }
+    if(t.at(0) != 'H' as char) { env.error("title should start with H"); return }
 }
 
 // ---------------------------------------------------------------------------

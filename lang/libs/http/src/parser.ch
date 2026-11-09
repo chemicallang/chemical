@@ -15,10 +15,10 @@ public func url_decode(in_s: &string_view) : string {
     var out = string();
     var i = 0u;
     while(i < in_s.size()) {
-        var c = in_s.get(i);
+        var c = in_s.at(i);
         if(c == '%') {
             if(i + 2 < in_s.size()) {
-                var hi = in_s.get(i+1u); var lo = in_s.get(i+2u);
+                var hi = in_s.at(i+1u); var lo = in_s.at(i+2u);
                 var hv = hex_value(hi); var lv = hex_value(lo);
                 if(hv >= 0 && lv >= 0) {
                     var val = (hv * 16 + lv) as int;
@@ -45,10 +45,10 @@ public func parse_query(qs: &string_view) : vector<std::pair<string, string>> {
     var out = vector<std::pair<string, string>>();
     var i = 0u; var start = 0u;
     while(i <= qs.size()) {
-        if(i == qs.size() || qs.get(i) == '&') {
+        if(i == qs.size() || qs.at(i) == '&') {
             var eq = start;
             var found = false;
-            while(eq < i) { if(qs.get(eq) == '=') { found = true; break } eq++ }
+            while(eq < i) { if(qs.at(eq) == '=') { found = true; break } eq++ }
             if(found) {
                 var k = qs.subview(start, eq);
                 var v = qs.subview(eq + 1u, i);
@@ -142,7 +142,7 @@ func parse_request_from_bytes(buf:*u8, n: usize) : Option<Request> {
     var q_pos = -1;
     var qi = 0u;
     while(qi < full_path.size()) {
-        if(full_path.get(qi) == '?') { q_pos = qi as int; break }
+        if(full_path.at(qi) == '?') { q_pos = qi as int; break }
         qi++;
     }
 
@@ -189,7 +189,7 @@ func parse_request_from_bytes(buf:*u8, n: usize) : Option<Request> {
     if(cl_opt is Option.Some) {
         var Some(v) = cl_opt else unsafe { unreachable };
         var val = 0u; var ii = 0u;
-        while(ii < v.size()) { var c = v.get(ii); if(c >= '0' && c <= '9') { val = val * 10u + (c as usize - '0' as usize) } ii = ii + 1u }
+        while(ii < v.size()) { var c = v.at(ii); if(c >= '0' && c <= '9') { val = val * 10u + (c as usize - '0' as usize) } ii = ii + 1u }
         req.body_len = val;
     }
 
@@ -262,7 +262,7 @@ func parse_response_from_bytes(buf:*u8, n: usize) : Option<Response> {
     var status_str = http_ctor((buf + (sp1 as usize + 1)) as *char, ((sp2 as usize) - (sp1 as usize) - 1) as size_t);
     var status_val = 0u;
     for(var i=0u; i<status_str.size(); i++) {
-        var c = status_str.get(i);
+        var c = status_str.at(i);
         if(c >= '0' && c <= '9') { status_val = status_val * 10u + (c as uint - '0' as uint) }
     }
     res.status = status_val;
@@ -297,7 +297,7 @@ func parse_response_from_bytes(buf:*u8, n: usize) : Option<Response> {
     if(cl_opt is Option.Some) {
         var Some(v) = cl_opt else unsafe { unreachable };
         var val = 0u; var ii = 0u;
-        while(ii < v.size()) { var c = v.get(ii); if(c >= '0' && c <= '9') { val = val * 10u + (c as usize - '0' as usize) } ii = ii + 1u }
+        while(ii < v.size()) { var c = v.at(ii); if(c >= '0' && c <= '9') { val = val * 10u + (c as usize - '0' as usize) } ii = ii + 1u }
         res.body_len = val;
     }
     return Option.Some<Response>(res);

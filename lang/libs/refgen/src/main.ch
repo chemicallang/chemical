@@ -86,7 +86,7 @@ public func transformer_main(ctx : *TransformerContext, argc : int, argv : **cha
     // Pass 1: Indexing
     var j = 0u;
     while (j < deps.size()) {
-        var mod = deps.get(j) as *TransformerModule;
+        var mod = deps.at(j) as *TransformerModule;
         generator.index_module(mod);
         j++;
     }
@@ -94,7 +94,7 @@ public func transformer_main(ctx : *TransformerContext, argc : int, argv : **cha
     // Pass 2: Generation
     j = 0u;
     while (j < deps.size()) {
-        var mod = deps.get(j) as *TransformerModule;
+        var mod = deps.at(j) as *TransformerModule;
         generator.generate(mod);
         j++;
     }

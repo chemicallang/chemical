@@ -145,7 +145,7 @@ func test_strings() {
             a[3] = '\0'
             var s = unsafe(std::string(&raw mut a[0], 39, false))
             s.set(0, 'X')
-            return s.size() == 39 && s.get(0) == 'X' && s.get(1) == 'b'
+            return s.size() == 39 && s.at(0) == 'X' && s.at(1) == 'b'
         })
         test("u16 string set copies a long constant view to heap storage", () => {
             var a : [12]u16 = [65u16, 66u16, 67u16, 68u16, 69u16, 70u16, 71u16, 72u16, 73u16, 74u16, 75u16, 0u16]
@@ -207,7 +207,7 @@ func test_strings() {
             var s = string("ab")
             s.resize(4)
             if(s.size() != 4) { return false }
-            if(s.get(2) != '\0' || s.get(3) != '\0') { return false }
+            if(s.at(2) != '\0' || s.at(3) != '\0') { return false }
             return true
         })
         test("string can append its own view across reallocation", () => {
@@ -218,7 +218,7 @@ func test_strings() {
             if(s.size() != 64) { return false }
             var out = s.to_view()
             for(var i : size_t = 0; i < 32; i++) {
-                if(out.get(i) != out.get(i + 32)) { return false }
+                if(out.at(i) != out.at(i + 32)) { return false }
             }
             return true
         })
@@ -237,20 +237,40 @@ func test_strings() {
             var s = string("a,,c")
             var parts = s.split(',')
             if(parts.size() != 3) { return false }
-            if(parts.get_ref(0).get(0) != 'a') { return false }
-            if(!parts.get_ref(1).empty()) { return false }
-            return parts.get_ref(2).get(0) == 'c'
+            if(parts.at_ref(0).at(0) != 'a') { return false }
+            if(!parts.at_ref(1).empty()) { return false }
+            return parts.at_ref(2).at(0) == 'c'
         })
         test("string_view split returns owned pieces", () => {
             var v = std::string_view("x,y")
             var parts = v.split(',')
             if(parts.size() != 2) { return false }
-            return parts.get_ref(0).get(0) == 'x' && parts.get_ref(1).get(0) == 'y'
+            return parts.at_ref(0).at(0) == 'x' && parts.at_ref(1).at(0) == 'y'
         })
         test("split pieces outlive the source", () => {
             var parts = split_owned_local()
             if(parts.size() != 2) { return false }
-            return parts.get_ref(0).get(0) == 'a' && parts.get_ref(1).get(0) == 'b'
+            return parts.at_ref(0).at(0) == 'a' && parts.at_ref(1).at(0) == 'b'
+        })
+        test("string find and find_last return Option", () => {
+            var s = string("hello hello")
+            var needle = string_view("hello")
+            var first = s.find(&needle)
+            if(first is Option.None) { return false }
+            var Some(first_pos) = first else unsafe { unreachable }
+            var last = s.find_last(&needle)
+            if(last is Option.None) { return false }
+            var Some(last_pos) = last else unsafe { unreachable }
+            var missing_view = string_view("zzz")
+            var missing = s.find(&missing_view)
+            return first_pos == 0 && last_pos == 6 && missing is Option.None
+        })
+        test("string get is Option and at panics on access", () => {
+            var s = string("ab")
+            var first = s.get(0)
+            if(first is Option.None) { return false }
+            var Some(c) = first else unsafe { unreachable }
+            return c == 'a' && s.at(1) == 'b' && s.get(9) is Option.None
         })
 
         }

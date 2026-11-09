@@ -56,7 +56,7 @@ public func base64_decode(b64 : &str) : Result<vector<u8>, EncodingError> {
     }
     var effective_len = size
     var padding : size_t = 0
-    while(effective_len > 0 && padding < 2 && b64.get(effective_len - 1) == '=') {
+    while(effective_len > 0 && padding < 2 && b64.at(effective_len - 1) == '=') {
         effective_len -= 1
         padding += 1
     }
@@ -70,7 +70,7 @@ public func base64_decode(b64 : &str) : Result<vector<u8>, EncodingError> {
     }
     var i : size_t = 0
     while(i < effective_len) {
-        if(base64_char_value(b64.get(i)) < 0) {
+        if(base64_char_value(b64.at(i)) < 0) {
             return Result.Err(EncodingError.InvalidInput())
         }
         i += 1
@@ -112,7 +112,7 @@ public func hex_encode(data : &[u8]) : Result<string, EncodingError> {
     out.reserve(n * 2 + 1)
     var i : size_t = 0
     while(i < n) {
-        var b = unsafe(*data.get(i))
+        var b = unsafe(*data.at(i))
         out.append(HEX_DIGITS_LOWER[((b >> 4) & 0x0F) as size_t])
         out.append(HEX_DIGITS_LOWER[(b & 0x0F) as size_t])
         i += 1
@@ -130,7 +130,7 @@ public func hex_encode_upper(data : &[u8]) : Result<string, EncodingError> {
     out.reserve(n * 2 + 1)
     var i : size_t = 0
     while(i < n) {
-        var b = unsafe(*data.get(i))
+        var b = unsafe(*data.at(i))
         out.append(HEX_DIGITS_UPPER[((b >> 4) & 0x0F) as size_t])
         out.append(HEX_DIGITS_UPPER[(b & 0x0F) as size_t])
         i += 1
@@ -158,7 +158,7 @@ public func url_encode(value : &str) : Result<string, EncodingError> {
     out.reserve(n * 3 + 1)
     var i : size_t = 0
     while(i < n) {
-        var c = value.get(i)
+        var c = value.at(i)
         if(is_unreserved(c)) {
             out.append(c)
         } else {
@@ -186,13 +186,13 @@ public func url_decode(value : &str) : Result<string, EncodingError> {
     }
     var i : size_t = 0
     while(i < n) {
-        var c = value.get(i)
+        var c = value.at(i)
         if(c == '%') {
             if(i + 2 >= n) {
                 return Result.Err(EncodingError.InvalidInput())
             }
-            var high = hex_to_nibble(value.get(i + 1))
-            var low = hex_to_nibble(value.get(i + 2))
+            var high = hex_to_nibble(value.at(i + 1))
+            var low = hex_to_nibble(value.at(i + 2))
             if(high < 0 || low < 0) {
                 return Result.Err(EncodingError.InvalidInput())
             }
@@ -237,54 +237,54 @@ public func utf8_is_valid(bytes : &[u8]) : bool {
     var i : size_t = 0
     const n = bytes.size()
     while(i < n) {
-        var c = unsafe(*bytes.get(i))
+        var c = unsafe(*bytes.at(i))
         if(c <= 0x7F) {
             i += 1
         } else if(c >= 0xC2 && c <= 0xDF) {
             if(i + 1 >= n) { return false }
-            var c1 = unsafe(*bytes.get(i + 1))
+            var c1 = unsafe(*bytes.at(i + 1))
             if(c1 < 0x80 || c1 > 0xBF) { return false }
             i += 2
         } else if(c == 0xE0) {
             if(i + 2 >= n) { return false }
-            var c1 = unsafe(*bytes.get(i + 1))
-            var c2 = unsafe(*bytes.get(i + 2))
+            var c1 = unsafe(*bytes.at(i + 1))
+            var c2 = unsafe(*bytes.at(i + 2))
             if(c1 < 0xA0 || c1 > 0xBF || c2 < 0x80 || c2 > 0xBF) { return false }
             i += 3
         } else if((c >= 0xE1 && c <= 0xEC) || c == 0xEE || c == 0xEF) {
             if(i + 2 >= n) { return false }
-            var c1 = unsafe(*bytes.get(i + 1))
-            var c2 = unsafe(*bytes.get(i + 2))
+            var c1 = unsafe(*bytes.at(i + 1))
+            var c2 = unsafe(*bytes.at(i + 2))
             if(c1 < 0x80 || c1 > 0xBF || c2 < 0x80 || c2 > 0xBF) { return false }
             i += 3
         } else if(c == 0xED) {
             // Exclude UTF-16 surrogate range U+D800..U+DFFF.
             if(i + 2 >= n) { return false }
-            var c1 = unsafe(*bytes.get(i + 1))
-            var c2 = unsafe(*bytes.get(i + 2))
+            var c1 = unsafe(*bytes.at(i + 1))
+            var c2 = unsafe(*bytes.at(i + 2))
             if(c1 < 0x80 || c1 > 0x9F || c2 < 0x80 || c2 > 0xBF) { return false }
             i += 3
         } else if(c == 0xF0) {
             if(i + 3 >= n) { return false }
-            var c1 = unsafe(*bytes.get(i + 1))
-            var c2 = unsafe(*bytes.get(i + 2))
-            var c3 = unsafe(*bytes.get(i + 3))
+            var c1 = unsafe(*bytes.at(i + 1))
+            var c2 = unsafe(*bytes.at(i + 2))
+            var c3 = unsafe(*bytes.at(i + 3))
             if(c1 < 0x90 || c1 > 0xBF) { return false }
             if(c2 < 0x80 || c2 > 0xBF || c3 < 0x80 || c3 > 0xBF) { return false }
             i += 4
         } else if(c >= 0xF1 && c <= 0xF3) {
             if(i + 3 >= n) { return false }
-            var c1 = unsafe(*bytes.get(i + 1))
-            var c2 = unsafe(*bytes.get(i + 2))
-            var c3 = unsafe(*bytes.get(i + 3))
+            var c1 = unsafe(*bytes.at(i + 1))
+            var c2 = unsafe(*bytes.at(i + 2))
+            var c3 = unsafe(*bytes.at(i + 3))
             if(c1 < 0x80 || c1 > 0xBF) { return false }
             if(c2 < 0x80 || c2 > 0xBF || c3 < 0x80 || c3 > 0xBF) { return false }
             i += 4
         } else if(c == 0xF4) {
             if(i + 3 >= n) { return false }
-            var c1 = unsafe(*bytes.get(i + 1))
-            var c2 = unsafe(*bytes.get(i + 2))
-            var c3 = unsafe(*bytes.get(i + 3))
+            var c1 = unsafe(*bytes.at(i + 1))
+            var c2 = unsafe(*bytes.at(i + 2))
+            var c3 = unsafe(*bytes.at(i + 3))
             if(c1 < 0x80 || c1 > 0x8F) { return false }
             if(c2 < 0x80 || c2 > 0xBF || c3 < 0x80 || c3 > 0xBF) { return false }
             i += 4
@@ -318,21 +318,21 @@ public func utf8_decode_char(bytes : &[u8], offset : size_t) : Result<Utf8Char, 
     if(offset >= n) {
         return Result.Err(EncodingError.InvalidInput())
     }
-    var c = unsafe(*bytes.get(offset))
+    var c = unsafe(*bytes.at(offset))
     if(c <= 0x7F) {
         return Result.Ok(Utf8Char { codepoint : c as u32, size : 1 })
     }
     if(c >= 0xC2 && c <= 0xDF) {
         if(offset + 1 >= n) { return Result.Err(EncodingError.InvalidInput()) }
-        var c1 = unsafe(*bytes.get(offset + 1))
+        var c1 = unsafe(*bytes.at(offset + 1))
         if(c1 < 0x80 || c1 > 0xBF) { return Result.Err(EncodingError.InvalidInput()) }
         var cp : u32 = (((c & 0x1F) as u32) << 6) | ((c1 & 0x3F) as u32)
         return Result.Ok(Utf8Char { codepoint : cp, size : 2 })
     }
     if(c >= 0xE0 && c <= 0xEF) {
         if(offset + 2 >= n) { return Result.Err(EncodingError.InvalidInput()) }
-        var c1 = unsafe(*bytes.get(offset + 1))
-        var c2 = unsafe(*bytes.get(offset + 2))
+        var c1 = unsafe(*bytes.at(offset + 1))
+        var c2 = unsafe(*bytes.at(offset + 2))
         var min1 : u8 = 0x80
         var max1 : u8 = 0xBF
         if(c == 0xE0) { min1 = 0xA0 }
@@ -344,9 +344,9 @@ public func utf8_decode_char(bytes : &[u8], offset : size_t) : Result<Utf8Char, 
     }
     if(c >= 0xF0 && c <= 0xF4) {
         if(offset + 3 >= n) { return Result.Err(EncodingError.InvalidInput()) }
-        var c1 = unsafe(*bytes.get(offset + 1))
-        var c2 = unsafe(*bytes.get(offset + 2))
-        var c3 = unsafe(*bytes.get(offset + 3))
+        var c1 = unsafe(*bytes.at(offset + 1))
+        var c2 = unsafe(*bytes.at(offset + 2))
+        var c3 = unsafe(*bytes.at(offset + 3))
         var min1 : u8 = 0x80
         var max1 : u8 = 0xBF
         if(c == 0xF0) { min1 = 0x90 }
@@ -431,7 +431,7 @@ public func utf16_to_utf8(value : &[u16]) : Result<string, EncodingError> {
     }
     var i : size_t = 0
     while(i < n) {
-        var w = unsafe(*value.get(i))
+        var w = unsafe(*value.at(i))
         if(w < 0xD800 || w > 0xDFFF) {
             if(w < 0x80) {
                 if(!out.try_push(w as u8)) { return Result.Err(EncodingError.OutOfMemory()) }
@@ -446,7 +446,7 @@ public func utf16_to_utf8(value : &[u16]) : Result<string, EncodingError> {
             i += 1
         } else if(w >= 0xD800 && w <= 0xDBFF) {
             if(i + 1 >= n) { return Result.Err(EncodingError.InvalidInput()) }
-            var w2 = unsafe(*value.get(i + 1))
+            var w2 = unsafe(*value.at(i + 1))
             if(w2 < 0xDC00 || w2 > 0xDFFF) { return Result.Err(EncodingError.InvalidInput()) }
             var cp : u32 = 0x10000u32 + ((((w & 0x3FF) as u32) << 10) | ((w2 & 0x3FF) as u32))
             if(!out.try_push((0xF0 | ((cp >> 18) & 0x07)) as u8)) { return Result.Err(EncodingError.OutOfMemory()) }

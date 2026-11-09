@@ -7,7 +7,7 @@
 using namespace std;
 
 func ps_contains(hay : string_view, needle : string_view) : bool {
-    return hay.find(&needle) != NPOS
+    return hay.find_or_npos(&needle) != NPOS
 }
 
 func ps_eq(value : string_view, expected : string_view) : bool {

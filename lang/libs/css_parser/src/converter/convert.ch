@@ -344,7 +344,7 @@ public func css_has_ampersand_compound(c : *mut CompoundSelector) : bool {
         unsafe {
         var i : uint = 0
         while(i < c.simple_selectors.size()) {
-            if(css_has_ampersand_simple(c.simple_selectors.get(i))) return true
+            if(css_has_ampersand_simple(c.simple_selectors.at(i))) return true
             i++
         }
         return false
@@ -384,7 +384,7 @@ public func css_serialize_simple(s : *mut SimpleSelector, out : &mut std::string
 public func css_serialize_compound(c : *mut CompoundSelector, out : &mut std::string, replacement : std::string_view) {
         unsafe {
         var i : uint = 0
-        while(i < c.simple_selectors.size()) { css_serialize_simple(c.simple_selectors.get(i), out, replacement); i++ }
+        while(i < c.simple_selectors.size()) { css_serialize_simple(c.simple_selectors.at(i), out, replacement); i++ }
 
         }
     }
@@ -816,7 +816,7 @@ public func css_write_media_query(query : *mut MediaQuery, str : &mut std::strin
 public func css_write_media_query_list(queryList : *mut MediaQueryList, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {
         var i : uint = 0; const size = queryList.queries.size()
-        while(i < size) { if(i > 0) { str.append_view(", "); } css_write_media_query(queryList.queries.get(i), str, emitter); i++ }
+        while(i < size) { if(i > 0) { str.append_view(", "); } css_write_media_query(queryList.queries.at(i), str, emitter); i++ }
 
         }
     }
@@ -827,7 +827,7 @@ public func css_write_media_nested_rule(rule : *mut CSSNestedRule, str : &mut st
         if(rule.selector != null) {
             var i : uint = 0
             while(i < rule.selector.selectors.size()) {
-                var sel = rule.selector.selectors.get(i)
+                var sel = rule.selector.selectors.at(i)
                 if(css_has_ampersand_complex(sel) && !parent_selectors.empty()) {
                     var p : uint = 0
                     while(p < parent_selectors.size()) {
@@ -865,11 +865,11 @@ public func css_write_media_nested_rule(rule : *mut CSSNestedRule, str : &mut st
             while(i < current_selectors.size()) { if(i > 0) str.append_view(", "); var sel_str_ptr = current_selectors.get_ptr(i); str.append_view(sel_str_ptr.view()); i++ }
             str.append_view(" { ")
             i = 0
-            while(i < rule.declarations.size()) { css_write_declaration_text(rule.declarations.get(i), str, emitter); i++ }
+            while(i < rule.declarations.size()) { css_write_declaration_text(rule.declarations.at(i), str, emitter); i++ }
             str.append_view(" } ")
         }
         var nested_i : uint = 0
-        while(nested_i < rule.nested_rules.size()) { css_write_media_nested_rule(rule.nested_rules.get(nested_i), str, &mut current_selectors, emitter); nested_i++ }
+        while(nested_i < rule.nested_rules.size()) { css_write_media_nested_rule(rule.nested_rules.at(nested_i), str, &mut current_selectors, emitter); nested_i++ }
 
         }
     }
@@ -879,10 +879,10 @@ public func css_write_keyframes_rule(rule : *mut CSSKeyframesRule, str : &mut st
         str.append_view("@keyframes "); str.append_view(&rule.name); str.append_view(" { ")
         var i : uint = 0
         while(i < rule.keyframes.size()) {
-            var keyframe = rule.keyframes.get(i)
+            var keyframe = rule.keyframes.at(i)
             str.append_view(&keyframe.selector); str.append_view(" { ")
             var j : uint = 0
-            while(j < keyframe.declarations.size()) { css_write_declaration_text(keyframe.declarations.get(j), str, emitter); j++ }
+            while(j < keyframe.declarations.size()) { css_write_declaration_text(keyframe.declarations.at(j), str, emitter); j++ }
             str.append_view(" } "); i++
         }
         str.append_view("}")
@@ -912,12 +912,12 @@ public func css_write_media_rule(rule : *mut CSSMediaRule, str : &mut std::strin
             if(!decl_selector.empty()) {
                 str.append_view(decl_selector.to_view()); str.append_view(" { ")
                 var i : uint = 0
-                while(i < rule.declarations.size()) { css_write_declaration_text(rule.declarations.get(i), str, emitter); i++ }
+                while(i < rule.declarations.size()) { css_write_declaration_text(rule.declarations.at(i), str, emitter); i++ }
                 str.append_view(" } ")
             }
         }
         var nested_i : uint = 0
-        while(nested_i < rule.nested_rules.size()) { css_write_media_nested_rule(rule.nested_rules.get(nested_i), str, &mut parent_selectors, emitter); nested_i++ }
+        while(nested_i < rule.nested_rules.size()) { css_write_media_nested_rule(rule.nested_rules.at(nested_i), str, &mut parent_selectors, emitter); nested_i++ }
         str.append_view("}")
 
         }

@@ -11,7 +11,7 @@ func encoding_safe_bytes_eq(v : &vector<u8>, expected : *u8, n : size_t) : bool 
     if(v.size() != n) { return false }
     var i : size_t = 0
     while(i < n) {
-        if(v.get(i) != unsafe(expected[i])) { return false }
+        if(v.at(i) != unsafe(expected[i])) { return false }
         i += 1
     }
     return true
@@ -20,7 +20,7 @@ func encoding_safe_bytes_eq(v : &vector<u8>, expected : *u8, n : size_t) : bool 
 func encoding_safe_bytes_all(v : &vector<u8>, expected : u8) : bool {
     var i : size_t = 0
     while(i < v.size()) {
-        if(v.get(i) != expected) { return false }
+        if(v.at(i) != expected) { return false }
         i += 1
     }
     return true
@@ -130,7 +130,7 @@ func test_encoding_safe_base64_large(env : &mut TestEnv) {
     if(bytes.size() != 1024) { env.error("large base64 length"); return }
     var j : size_t = 0
     while(j < 1024) {
-        if(bytes.get(j) != data.get(j)) { env.error("large base64 roundtrip mismatch"); return }
+        if(bytes.at(j) != data.at(j)) { env.error("large base64 roundtrip mismatch"); return }
         j += 1
     }
 }

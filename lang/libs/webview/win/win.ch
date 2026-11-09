@@ -1459,7 +1459,7 @@ func webview_json_escape(s : std::string_view) : string {
     var result = string("\"")
     var i : size_t = 0
     while(i < s.size()) {
-        var c = s.get(i)
+        var c = s.at(i)
         if(c == '"') {
             result.append_view(std::string_view::make_no_len("\\\""))
         } else if(c == '\\') {
@@ -1478,8 +1478,8 @@ func webview_json_escape(s : std::string_view) : string {
             result.append_view(std::string_view::make_no_len("\\u00"))
             var hex = std::string("0123456789abcdef")
             var uc : u8 = c as u8
-            result.append(hex.get((uc >> 4) as size_t))
-            result.append(hex.get((uc & 0x0f) as size_t))
+            result.append(hex.at((uc >> 4) as size_t))
+            result.append(hex.at((uc & 0x0f) as size_t))
         } else {
             result.append(c)
         }
@@ -1509,16 +1509,16 @@ func webview_json_parse(msg : std::string_view, key : std::string_view) : string
     if(vstart >= msg.size()) {
         return string("")
     }
-    var c0 = msg.get(vstart)
+    var c0 = msg.at(vstart)
     if(c0 == '"') {
         var out = string("")
         var j : size_t = vstart + 1
         while(j < msg.size()) {
-            var c = msg.get(j)
+            var c = msg.at(j)
             if(c == '\\') {
                 j = j + 1
                 if(j >= msg.size()) { break }
-                var e = msg.get(j)
+                var e = msg.at(j)
                 if(e == 'b') { out.append('\b') }
                 else if(e == 'f') { out.append('\f') }
                 else if(e == 'n') { out.append('\n') }
@@ -1542,7 +1542,7 @@ func webview_json_parse(msg : std::string_view, key : std::string_view) : string
     var j : size_t = vstart
     var depth : int = 0
     while(j < msg.size()) {
-        var c = msg.get(j)
+        var c = msg.at(j)
         // Check break conditions at current depth BEFORE adjusting depth
         if(depth == 0 && (c == ',' || c == '}' || c == ']')) { break }
         if(c == '{' || c == '[') { depth = depth + 1 }

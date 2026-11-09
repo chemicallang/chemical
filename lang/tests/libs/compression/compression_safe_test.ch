@@ -7,7 +7,7 @@ func compression_safe_bytes_eq(v : &vector<u8>, expected : *u8, n : size_t) : bo
     if(v.size() != n) { return false }
     var i : size_t = 0
     while(i < n) {
-        if(v.get(i) != unsafe(expected[i])) { return false }
+        if(v.at(i) != unsafe(expected[i])) { return false }
         i += 1
     }
     return true
@@ -16,7 +16,7 @@ func compression_safe_bytes_eq(v : &vector<u8>, expected : *u8, n : size_t) : bo
 func compression_safe_all(v : &vector<u8>, expected : u8) : bool {
     var i : size_t = 0
     while(i < v.size()) {
-        if(v.get(i) != expected) { return false }
+        if(v.at(i) != expected) { return false }
         i += 1
     }
     return true
@@ -27,7 +27,7 @@ func compression_safe_roundtrip(env : &mut TestEnv, input : &[u8]) : bool {
     if(compressed is Result.Err) { env.error("compress failed"); return false }
     var Ok(enc) = compressed else unsafe { unreachable }
     if(enc.size() == 0) { env.error("compress produced empty output"); return false }
-    if(enc.get(enc.size() - 1) != 0) { env.error("compress output missing terminator"); return false }
+    if(enc.at(enc.size() - 1) != 0) { env.error("compress output missing terminator"); return false }
     var enc_view : [u8] = &enc
     var decompressed = compression::decompress(enc_view)
     if(decompressed is Result.Err) { env.error("decompress failed"); return false }
@@ -98,7 +98,7 @@ func test_compression_safe_roundtrip_empty(env : &mut TestEnv) {
     var compressed = compression::compress(view)
     if(compressed is Result.Err) { env.error("compress empty failed"); return }
     var Ok(enc) = compressed else unsafe { unreachable }
-    if(enc.size() != 1 || enc.get(0) != 0) {
+    if(enc.size() != 1 || enc.at(0) != 0) {
         env.error("compress empty should be a single terminator")
         return
     }

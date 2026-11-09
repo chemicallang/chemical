@@ -365,7 +365,7 @@ public func (ctx : &BuildContext) add_compiler_interfaces(mod : *mut Module, int
         var i : uint = 0;
         const s = interfaces.size()
         while(i < s) {
-            const ci = interfaces.get(i)
+            const ci = interfaces.at(i)
             ctx.add_compiler_interface(mod, unsafe(&*ci))
             i++;
         }
@@ -421,7 +421,7 @@ public func (ctx : &BuildContext) include_headers(module : *mut Module, headers 
     var i = 0;
     const total = headers.size();
     while(i < total) {
-        var ele = headers.get(i as size_t);
+        var ele = headers.at(i as size_t);
         ctx.include_header(module, unsafe(&*ele));
         i++;
     }

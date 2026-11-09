@@ -49,21 +49,21 @@ func parse_list_item(item : *mut MdListItem, arena : *mut md::Arena) : *mut Summ
     if(item.children.size() > 0) {
         var i = 0u;
         while(i < item.children.size()) {
-            var child = item.children.get(i);
+            var child = item.children.at(i);
             // printf("    Child %d: kind=%d\n", i, child.kind);
             
             if(child.kind == MdNodeKind.Paragraph) {
                 var p = child as *mut MdParagraph;
                 var j = 0u;
                 while(j < p.children.size()) {
-                    var node = p.children.get(j);
+                    var node = p.children.at(j);
                     if(node.kind == MdNodeKind.Link) {
                         var l = node as *mut MdLink;
                         link.clear();
                         link.append_view(&l.url);  // Ensure proper copy
                         var k = 0u;
                         while(k < l.children.size()) {
-                            var lc = l.children.get(k);
+                            var lc = l.children.at(k);
                             if(lc.kind == MdNodeKind.Text) {
                                 title.append_view(&(lc as *mut MdText).value);
                             }
@@ -81,7 +81,7 @@ func parse_list_item(item : *mut MdListItem, arena : *mut md::Arena) : *mut Summ
                  // printf("    Found Link! URL='%s'\n", l.url.data());
                  var k = 0u;
                  while(k < l.children.size()) {
-                    var lc = l.children.get(k);
+                    var lc = l.children.at(k);
                     if(lc.kind == MdNodeKind.Text) {
                          title.append_view(&(lc as *mut MdText).value);
                     }
@@ -95,7 +95,7 @@ func parse_list_item(item : *mut MdListItem, arena : *mut md::Arena) : *mut Summ
                 // printf("    Found nested List with %d items\n", l.children.size());
                 var j = 0u;
                 while(j < l.children.size()) {
-                    var subitem = parse_list_item(l.children.get(j) as *mut MdListItem, arena);
+                    var subitem = parse_list_item(l.children.at(j) as *mut MdListItem, arena);
                     if(subitem != null) children.push_back(subitem);
                     j++;
                 }
@@ -117,7 +117,7 @@ func parse_list_item(item : *mut MdListItem, arena : *mut md::Arena) : *mut Summ
     summary_item.link.append_view(link.to_view());
     var i = 0u;
     while(i < children.size()) {
-        summary_item.children.push_back(children.get(i));
+        summary_item.children.push_back(children.at(i));
         i++;
     }
     
@@ -153,7 +153,7 @@ public func parse_summary(path : std::string_view) : *mut Summary {
     // Traverse root
     var i = 0u;
     while(i < root.children.size()) {
-        var node = root.children.get(i);
+        var node = root.children.at(i);
         // printf("Node kind: %d\n", node.kind);
         if(node.kind == MdNodeKind.Header) {
             var h = node as *mut MdHeader;
@@ -162,7 +162,7 @@ public func parse_summary(path : std::string_view) : *mut Summary {
                 summary.title.clear();
                 var k = 0u;
                 while(k < h.children.size()) {
-                    var c = h.children.get(k);
+                    var c = h.children.at(k);
                     if(c.kind == MdNodeKind.Text) {
                         summary.title.append_view(&(c as *mut MdText).value);
                     }
@@ -174,7 +174,7 @@ public func parse_summary(path : std::string_view) : *mut Summary {
             printf("Found List with %d items\n", list.children.size());
             var j = 0u;
             while(j < list.children.size()) {
-                var item = parse_list_item(list.children.get(j) as *mut MdListItem, &raw mut arena);
+                var item = parse_list_item(list.children.at(j) as *mut MdListItem, &raw mut arena);
                 if(item != null) {
                     summary.items.push_back(item);
                 } else {

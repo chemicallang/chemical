@@ -58,8 +58,8 @@ public func base64_decode_to_vec(b64 : string_view) : Result<vector<u8>, Encodin
     if(b64.size() == 0) { return Result.Ok(vector<u8>()) }
     // Estimate decoded length
     var eff_len = b64.size()
-    if(b64.get(eff_len - 1) == '=') { eff_len -= 1 }
-    if(eff_len > 0 && b64.get(eff_len - 1) == '=') { eff_len -= 1 }
+    if(b64.at(eff_len - 1) == '=') { eff_len -= 1 }
+    if(eff_len > 0 && b64.at(eff_len - 1) == '=') { eff_len -= 1 }
     var decoded_len = (eff_len / 4) * 3
     if(b64.size() % 4 == 2) { decoded_len += 1 }
     else if(b64.size() % 4 == 3) { decoded_len += 2 }

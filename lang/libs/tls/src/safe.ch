@@ -199,10 +199,10 @@ public struct CertificateChain {
         var count : size_t = 0
         while(pos < all.size()) {
             var rest = all.subview(pos, all.size())
-            var b = rest.find(&begin)
+            var b = rest.find_or_npos(&begin)
             if(b == std::NPOS) { break }
             var from_begin = all.subview(pos + b, all.size())
-            var e = from_begin.find(&end)
+            var e = from_begin.find_or_npos(&end)
             if(e == std::NPOS) {
                 if(count == 0) {
                     return Result.Err(TlsError.InvalidCertificate(make_string("unterminated PEM certificate")))
@@ -445,7 +445,7 @@ public struct TlsConfig {
         self.alpn_ptrs.clear()
         var i : size_t = 0
         while(i < protocols.size()) {
-            self.alpn_storage.push_back(unsafe(protocols.get(i).to_string()))
+            self.alpn_storage.push_back(unsafe(protocols.at(i).to_string()))
             i += 1
         }
         i = 0

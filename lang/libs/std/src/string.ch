@@ -387,12 +387,12 @@ public struct string {
         }
     }
 
-    func get_opt(&self, index : size_t) : Option<char> {
+    func get(&self, index : size_t) : Option<char> {
         if(index >= size()) { return Option.None<char>() }
-        return Option.Some<char>(get(index))
+        return Option.Some<char>(at(index))
     }
 
-    func get(&self, index : size_t) : char {
+    func at(&self, index : size_t) : char {
         unsafe {
             if(index >= size()) {
                 panic("string index out of bounds")
@@ -471,14 +471,6 @@ public struct string {
 
     func append_string(&mut self, value : &string) {
         append_with_len(value.data(), value.size())
-    }
-
-    func append_str(&mut self, value : *string) {
-        if(value == null) { panic("string append from a null string") }
-        unsafe {
-            append_with_len(value.data(), value.size())
-    
-        }
     }
 
     func append_view(&mut self, value : &std::string_view) {
@@ -683,18 +675,32 @@ public struct string {
         }
     }
 
-    func find(&self, needle : &std::string_view) : size_t {
+    func find_or_npos(&self, needle : &std::string_view) : size_t {
         var view = unsafe(std::string_view(data(), size()))
-        return internal_view_find(&view, needle);
+        return internal_view_find(&view, needle)
     }
 
-    func find_last(&self, needle : &std::string_view) : size_t {
+    func find_last_or_npos(&self, needle : &std::string_view) : size_t {
         var view = unsafe(std::string_view(data(), size()))
-        return internal_view_find_last(&view, needle);
+        return internal_view_find_last(&view, needle)
+    }
+
+    func find(&self, needle : &std::string_view) : Option<size_t> {
+        var view = unsafe(std::string_view(data(), size()))
+        var pos = internal_view_find(&view, needle)
+        if(pos == NPOS) { return Option.None<size_t>() }
+        return Option.Some<size_t>(pos)
+    }
+
+    func find_last(&self, needle : &std::string_view) : Option<size_t> {
+        var view = unsafe(std::string_view(data(), size()))
+        var pos = internal_view_find_last(&view, needle)
+        if(pos == NPOS) { return Option.None<size_t>() }
+        return Option.Some<size_t>(pos)
     }
 
     func contains(&self, needle : &std::string_view) : bool {
-        return find(needle) != NPOS
+        return find(needle) is Option.Some
     }
 
     func starts_with(&self, other : &std::string_view) : bool {

@@ -121,7 +121,7 @@ public struct Command {
     func args(&mut self, values : &[&str]) : &mut Command {
         var i : size_t = 0
         while(i < values.size()) {
-            var sv = unsafe(*values.get(i))
+            var sv = unsafe(*values.at(i))
             self.cfg.args.push(string(sv.to_view()))
             i += 1
         }
@@ -199,7 +199,7 @@ public struct Command {
         }
         i = 0
         while(i < self.cfg.stdin_data.size()) {
-            unsafe { cfg.stdin_data.push(self.cfg.stdin_data.get(i)) }
+            unsafe { cfg.stdin_data.push(self.cfg.stdin_data.at(i)) }
             i += 1
         }
         unsafe { cfg.timeout_ms = self.cfg.timeout_ms }

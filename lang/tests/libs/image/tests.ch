@@ -750,8 +750,8 @@ public func image_encode_png_roundtrip(env : &mut TestEnv) {
 
     // Verify PNG signature
     if(bytes.size() < 8) { env.error("encoded PNG too small") }
-    if(bytes.get(0) != 0x89u8) { env.error("PNG signature byte 0") }
-    if(bytes.get(1) != 0x50u8) { env.error("PNG signature byte 1 (P)") }
+    if(bytes.at(0) != 0x89u8) { env.error("PNG signature byte 0") }
+    if(bytes.at(1) != 0x50u8) { env.error("PNG signature byte 1 (P)") }
 
     // Parse back
     var parse_result = image::parse_png(bytes.data(), bytes.size())
@@ -807,7 +807,7 @@ public func image_encode_bmp_roundtrip(env : &mut TestEnv) {
 
     // Verify BMP signature
     if(bytes.size() < 2) { env.error("encoded BMP too small") }
-    if(bytes.get(0) != 0x42u8 || bytes.get(1) != 0x4Du8) { env.error("BMP signature should be BM") }
+    if(bytes.at(0) != 0x42u8 || bytes.at(1) != 0x4Du8) { env.error("BMP signature should be BM") }
 
     // Parse back
     var parse_result = image::parse_bmp(bytes.data(), bytes.size())
@@ -837,7 +837,7 @@ public func image_encode_ppm_roundtrip(env : &mut TestEnv) {
 
         // Verify P6 magic
         if(bytes.size() < 2) { env.error("encoded PPM too small") }
-        if(bytes.get(0) != 0x50u8 || bytes.get(1) != 0x36u8) { env.error("PPM magic should be P6") }
+        if(bytes.at(0) != 0x50u8 || bytes.at(1) != 0x36u8) { env.error("PPM magic should be P6") }
 
         // Parse back
         var parse_result = image::parse_ppm(bytes.data(), bytes.size())
@@ -1017,7 +1017,7 @@ public func image_ppm_parse_p3_ascii(env : &mut TestEnv) {
     vec.resize(ppm.size())
     var i : size_t = 0
     while(i < ppm.size()) {
-        vec.set(i, ppm.get(i) as u8)
+        vec.set(i, ppm.at(i) as u8)
         i += 1
     }
 

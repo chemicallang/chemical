@@ -14,7 +14,7 @@ public func escape_html_view(value : std::string_view) : std::string {
     var out = std::string()
     var i : size_t = 0
     while(i < value.size()) {
-        var c = value.get(i)
+        var c = value.at(i)
         if(c == '<') { out.append_view(std::string_view("&lt;")) }
         else if(c == '>') { out.append_view(std::string_view("&gt;")) }
         else if(c == '&') { out.append_view(std::string_view("&amp;")) }
@@ -50,7 +50,7 @@ public struct RouteManifestEntry {
 
 func route_json_escape(v : std::string_view, out : &mut std::string) {
     for(var i : size_t = 0; i < v.size(); i++) {
-        const c = v.get(i)
+        const c = v.at(i)
         if(c == '"') { out.append_view(std::string_view("\\\"")) }
         else if(c == '\\') { out.append_view(std::string_view("\\\\")) }
         else if(c == '\n') { out.append_view(std::string_view("\\n")) }
@@ -63,7 +63,7 @@ func route_json_escape(v : std::string_view, out : &mut std::string) {
 // Escapes `v` for embedding inside a double-quoted JS string literal.
 func append_router_js_quoted(v : std::string_view, out : &mut std::string) {
     for(var i : size_t = 0; i < v.size(); i++) {
-        const c = v.get(i)
+        const c = v.at(i)
         if(c == '"') { out.append_view(std::string_view("\\\"")) }
         else if(c == '\\') { out.append_view(std::string_view("\\\\")) }
         else if(c == '\n') { out.append_view(std::string_view("\\n")) }
@@ -3393,7 +3393,7 @@ public func site_routes_aggregate(documents : &std::vector<std::string_view>) : 
     out.append_view(std::string_view("["))
     for(var i : size_t = 0; i < documents.size(); i++) {
         if(i > 0) { out.append(',') }
-        out.append_view(&documents.get(i))
+        out.append_view(&documents.at(i))
     }
     out.append_view(std::string_view("]"))
     return out
@@ -3408,7 +3408,7 @@ public func write_site_routes(dir : std::string_view, page_names : &std::vector<
         for(var i : size_t = 0; i < page_names.size(); i++) {
             var manifestPath = unsafe(std::string(dir.data(), dir.size()))
             manifestPath.append('/')
-            manifestPath.append_view(&page_names.get(i))
+            manifestPath.append_view(&page_names.at(i))
             manifestPath.append_view(std::string_view(".routes.json"))
             if(!fs::raw::exists(manifestPath.data())) { continue }
             var read_result = fs::raw::read_entire_file(manifestPath.data())

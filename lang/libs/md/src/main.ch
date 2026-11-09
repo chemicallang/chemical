@@ -48,7 +48,7 @@ public func parse(tokens : *std::vector<Token>, arena : *mut Arena) : *mut MdRoo
         var tokens_copy = std::vector<Token>()
         var i = 0u
         while(i < tokens.size()) {
-            tokens_copy.push(tokens.get(i))
+            tokens_copy.push(tokens.at(i))
             i++
         }
 

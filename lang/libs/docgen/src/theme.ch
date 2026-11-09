@@ -1083,7 +1083,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const obs = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
-                const link = map.get(entry.target);
+                const link = map.at(entry.target);
                 if (link) link.classList.toggle('current', entry.isIntersecting);
             });
         }, { rootMargin: '-80px 0px -70% 0px' });

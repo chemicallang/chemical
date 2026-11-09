@@ -52,12 +52,12 @@ public func test_router_write_site_routes(env : &mut TestEnv) {
     var Ok(bytes) = rr else unsafe { unreachable }
     var content = unsafe(std::string(bytes.data() as *char, bytes.size()))
     const idx = std::string_view("{\"name\":\"index\"")
-    if(content.find(&idx) == std::NPOS) {
+    if(content.find_or_npos(&idx) == std::NPOS) {
         env.error("the aggregate should contain the index document")
         test_env::ffi::log_cstr(env, LogType.Information, content.data(), 0, 0)
     }
     const about = std::string_view("\"name\":\"about\"")
-    if(content.find(&about) == std::NPOS) {
+    if(content.find_or_npos(&about) == std::NPOS) {
         env.error("the aggregate should contain the about document")
     }
 }

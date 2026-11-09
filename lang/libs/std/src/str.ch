@@ -108,12 +108,12 @@ public struct str 'a {
         return _view.empty()
     }
 
-    func get_opt(&self, index : size_t) : std::Option<char> {
-        return _view.get_opt(index)
+    func get(&self, index : size_t) : std::Option<char> {
+        return _view.get(index)
     }
 
-    func get(&self, index : size_t) : char {
-        return _view.get(index)
+    func at(&self, index : size_t) : char {
+        return _view.at(index)
     }
 
     func to_view(&self) : std::string_view {

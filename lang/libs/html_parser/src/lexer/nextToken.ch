@@ -28,20 +28,20 @@ func ut_at_script_close(provider : &SourceProvider) : bool { unsafe {
 
 func is_script_tag_name(tag_value : std::string_view) : bool {
     return tag_value.size() == 6 &&
-        ut_char_lower_ascii(tag_value.get(0)) == 's' &&
-        ut_char_lower_ascii(tag_value.get(1)) == 'c' &&
-        ut_char_lower_ascii(tag_value.get(2)) == 'r' &&
-        ut_char_lower_ascii(tag_value.get(3)) == 'i' &&
-        ut_char_lower_ascii(tag_value.get(4)) == 'p' &&
-        ut_char_lower_ascii(tag_value.get(5)) == 't'
+        ut_char_lower_ascii(tag_value.at(0)) == 's' &&
+        ut_char_lower_ascii(tag_value.at(1)) == 'c' &&
+        ut_char_lower_ascii(tag_value.at(2)) == 'r' &&
+        ut_char_lower_ascii(tag_value.at(3)) == 'i' &&
+        ut_char_lower_ascii(tag_value.at(4)) == 'p' &&
+        ut_char_lower_ascii(tag_value.at(5)) == 't'
 }
 
 func ut_attr_name_is_type(name : std::string_view) : bool {
     return name.size() == 4 &&
-        ut_char_lower_ascii(name.get(0)) == 't' &&
-        ut_char_lower_ascii(name.get(1)) == 'y' &&
-        ut_char_lower_ascii(name.get(2)) == 'p' &&
-        ut_char_lower_ascii(name.get(3)) == 'e'
+        ut_char_lower_ascii(name.at(0)) == 't' &&
+        ut_char_lower_ascii(name.at(1)) == 'y' &&
+        ut_char_lower_ascii(name.at(2)) == 'p' &&
+        ut_char_lower_ascii(name.at(3)) == 'e'
 }
 
 // Called with the value of a quoted attribute value token. When that attribute
@@ -486,9 +486,9 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                             const tag_value = unsafe(std::string_view(data_ptr, provider.current_data() - data_ptr));
                             if(!html.in_end_tag) {
                                 const is_pre = tag_value.size() == 3 &&
-                                    tag_value.get(0) == 'p' &&
-                                    tag_value.get(1) == 'r' &&
-                                    tag_value.get(2) == 'e';
+                                    tag_value.at(0) == 'p' &&
+                                    tag_value.at(1) == 'r' &&
+                                    tag_value.at(2) == 'e';
                                 if(is_pre) {
                                     html.pre_depth++;
                                 }
@@ -501,9 +501,9 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                             } else {
                                 // closing tag; match against the currently open <pre>
                                 const is_pre_close = html.pre_depth > 0 && tag_value.size() == 3 &&
-                                    tag_value.get(0) == 'p' &&
-                                    tag_value.get(1) == 'r' &&
-                                    tag_value.get(2) == 'e';
+                                    tag_value.at(0) == 'p' &&
+                                    tag_value.at(1) == 'r' &&
+                                    tag_value.at(2) == 'e';
                                 if(is_pre_close) {
                                     html.pre_depth--;
                                 }

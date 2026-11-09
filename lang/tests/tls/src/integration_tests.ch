@@ -383,11 +383,11 @@ public func INT_rsa_keygen_sign_verify_vs_py(env : &mut TestEnv) {
     var pr : size_t = 0; var ok = false
     while(pr + 10 < py_out.size()) {
         // look for the marker line "VERIFIED_OK"
-        if(py_out.get(pr) == 'V') {
+        if(py_out.at(pr) == 'V') {
             var k : size_t = 0
             var marker = "VERIFIED_OK" as *char
             var match = true
-            while(marker[k] != 0) { if(py_out.get(pr + k) != marker[k] as u8) { match = false }; k += 1 }
+            while(marker[k] != 0) { if(py_out.at(pr + k) != marker[k] as u8) { match = false }; k += 1 }
             if(match) { ok = true }
         }
         pr += 1

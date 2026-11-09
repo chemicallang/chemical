@@ -48,7 +48,7 @@ public struct Buffer {
         }
     }
 
-    func get_byte(&self, idx: usize) : u8 { return v.get(read_pos + idx) }
+    func get_byte(&self, idx: usize) : u8 { return v.at(read_pos + idx) }
 }
 
 }

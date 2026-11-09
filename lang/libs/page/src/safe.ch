@@ -57,7 +57,7 @@ public func safe_page_escape_js(value : &std::str) : string {
     var out = string()
     var i : size_t = 0
     while(i < view.size()) {
-        var c = view.get(i)
+        var c = view.at(i)
         if(c == '"') {
             out.append_view(std::string_view("\\\""))
         } else if(c == '\'') {
@@ -71,7 +71,7 @@ public func safe_page_escape_js(value : &std::str) : string {
         } else if(c == '\t') {
             out.append_view(std::string_view("\\t"))
         } else if(c == '<') {
-            if(i + 1 < view.size() && view.get(i + 1) == '/') {
+            if(i + 1 < view.size() && view.at(i + 1) == '/') {
                 out.append_view(std::string_view("\\u003C/"))
                 i = i + 1
             } else {
@@ -96,7 +96,7 @@ public func safe_page_escape_json(value : &std::str) : string {
     var out = string()
     var i : size_t = 0
     while(i < view.size()) {
-        var c = view.get(i)
+        var c = view.at(i)
         if(c == '"') {
             out.append_view(std::string_view("\\\""))
         } else if(c == '\\') {
@@ -108,7 +108,7 @@ public func safe_page_escape_json(value : &std::str) : string {
         } else if(c == '\t') {
             out.append_view(std::string_view("\\t"))
         } else if(c == '<') {
-            if(i + 1 < view.size() && view.get(i + 1) == '/') {
+            if(i + 1 < view.size() && view.at(i + 1) == '/') {
                 out.append_view(std::string_view("\\u003C/"))
                 i = i + 1
             } else {

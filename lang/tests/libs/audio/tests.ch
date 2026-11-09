@@ -395,7 +395,7 @@ func build_test_wav(samples : *mut vector<i16>, channels : u16, sample_rate : u3
         while(i < samples.size()) {
             var offset = 44 + i * (bytes_per_sample as size_t)
             if(offset + 1 < file_data.size()) {
-                var sample = samples.get(i)
+                var sample = samples.at(i)
                 fptr[offset] = (sample & 0xFF) as u8
                 fptr[offset + 1] = ((sample >> 8) & 0xFF) as u8
             }
@@ -640,7 +640,7 @@ public func audio_encode_wav_roundtrip(env : &mut TestEnv) {
 
         // Verify RIFF signature
         if(bytes.size() < 12) { env.error("encoded WAV too small") }
-        if(bytes.get(0) != 0x52u8 || bytes.get(1) != 0x49u8 || bytes.get(2) != 0x46u8 || bytes.get(3) != 0x46u8) {
+        if(bytes.at(0) != 0x52u8 || bytes.at(1) != 0x49u8 || bytes.at(2) != 0x46u8 || bytes.at(3) != 0x46u8) {
             env.error("WAV signature should be RIFF")
         }
 

@@ -915,7 +915,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     l = "')\nsig_in=b' ' * 64 + b'TLS 1.3, server CertificateVerify' + b'\\x00' + th\ne=__import__('hashlib').sha256(sig_in).digest()\ntry:\n key.verify(sig,e,ec.ECDSA(utils.Prehashed(hashes.SHA256())))\n print('OK=1')\nexcept Exception:\n print('OK=0')\n" as *char; si3=0
     while(l[si3]!=0){script2[sp3]=l[si3] as u8;sp3+=1;si3+=1}
     var py_out2 = test_python_run_script(&raw script2[0], sp3, string_view("dbgcvv"))
-    if(py_out2.size()<4||py_out2.get(0)!=79||py_out2.get(1)!=75||py_out2.get(2)!=61||py_out2.get(3)!=49){env.error("dbg cv sign invalid");return}else{}
+    if(py_out2.size()<4||py_out2.at(0)!=79||py_out2.at(1)!=75||py_out2.at(2)!=61||py_out2.at(3)!=49){env.error("dbg cv sign invalid");return}else{}
 
 }
 }
@@ -978,7 +978,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     l = "'),ec.ECDSA(utils.Prehashed(hashes.SHA256())))\n print('OK=1')\nexcept Exception:\n print('OK=0')\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     py_out = test_python_run_script(&raw script[0], sp, string_view("ecdsa_st2"))
-    if(py_out.size()<4||py_out.get(0)!=79||py_out.get(1)!=75||py_out.get(2)!=61||py_out.get(3)!=49){env.error("python verify rejected");return}else{}
+    if(py_out.size()<4||py_out.at(0)!=79||py_out.at(1)!=75||py_out.at(2)!=61||py_out.at(3)!=49){env.error("python verify rejected");return}else{}
 
 }
 }
@@ -1086,7 +1086,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     l = "'),ec.ECDSA(utils.Prehashed(hashes.SHA384())))\n print('OK=1')\nexcept Exception:\n print('OK=0')\n" as *char; si=0
     while(l[si]!=0){script2[sp2]=l[si] as u8; sp2+=1; si+=1}
     py_out = test_python_run_script(&raw script2[0], sp2, string_view("ecdsa_p384st2"))
-    if(py_out.size()<4||py_out.get(0)!=79||py_out.get(1)!=75||py_out.get(2)!=61||py_out.get(3)!=49){env.error("python verify rejected p384");return}else{}
+    if(py_out.size()<4||py_out.at(0)!=79||py_out.at(1)!=75||py_out.at(2)!=61||py_out.at(3)!=49){env.error("python verify rejected p384");return}else{}
 
 }
 }
@@ -1173,7 +1173,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     var py_out = test_python_run_script(&raw script[0], sp, string_view("tls12prf"))
     var py_out_hex : [96]u8; var pw : size_t = 0; var pi : size_t = 0
-    while(pi+1<py_out.size()&&pw<48){var hi=py_out.get(pi)as char;var lo=py_out.get(pi+1)as char;if(hi==10||hi==13||hi==0){break}else{}py_out_hex[pw]=test_hex_pair_byte(hi,lo);pw+=1;pi+=2}
+    while(pi+1<py_out.size()&&pw<48){var hi=py_out.at(pi)as char;var lo=py_out.at(pi+1)as char;if(hi==10||hi==13||hi==0){break}else{}py_out_hex[pw]=test_hex_pair_byte(hi,lo);pw+=1;pi+=2}
     if(pw!=48||!test_bytes_eq(&raw output[0],&raw py_out_hex[0],48)){env.error("tls12 prf");return}else{}
 
 }
@@ -1455,7 +1455,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var l = "')\nprint(base64.b64encode(d).decode())\n" as *char; si=0; while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     var py_out = test_python_run_script(&raw script[0], sp, string_view("b64"))
     var py_enc : [72]u8; var pw : size_t = 0; var pi : size_t = 0
-    while(pi<py_out.size()&&pw<72){var c=py_out.get(pi)as char;if(c==10||c==13||c==0){break}else{py_enc[pw]=c as u8;pw+=1}pi+=1}
+    while(pi<py_out.size()&&pw<72){var c=py_out.at(pi)as char;if(c==10||c==13||c==0){break}else{py_enc[pw]=c as u8;pw+=1}pi+=1}
     if(pw!=enc_len||!test_bytes_eq(&raw enc[0] as *u8,&raw py_enc[0],enc_len)){env.error("b64 vs py");return}else{}
 
 }
@@ -1601,7 +1601,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var py_out = test_python_run_script(&raw script[0], sp, string_view("mpi_add2"))
     var py_hex : [16]u8; var pw : size_t = 0; var pi : size_t = 0
-    while(pi+1<py_out.size()&&pw<16){var hi=py_out.get(pi)as char;var lo=py_out.get(pi+1)as char;if(hi==10||hi==13||hi==0){break}else{}py_hex[pw]=test_hex_pair_byte(hi,lo);pw+=1;pi+=2}
+    while(pi+1<py_out.size()&&pw<16){var hi=py_out.at(pi)as char;var lo=py_out.at(pi+1)as char;if(hi==10||hi==13||hi==0){break}else{}py_hex[pw]=test_hex_pair_byte(hi,lo);pw+=1;pi+=2}
     if(pw==0||!test_bytes_eq(&raw chem[16-pw],&raw py_hex[0],pw)){env.error("mpi add2");return}else{}
 
 }
@@ -1619,7 +1619,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var py_out = test_python_run_script(&raw script[0], sp, string_view("mpi_mul2"))
     var py_hex : [16]u8; var pw : size_t = 0; var pi : size_t = 0
-    while(pi+1<py_out.size()&&pw<16){var hi=py_out.get(pi)as char;var lo=py_out.get(pi+1)as char;if(hi==10||hi==13||hi==0){break}else{}py_hex[pw]=test_hex_pair_byte(hi,lo);pw+=1;pi+=2}
+    while(pi+1<py_out.size()&&pw<16){var hi=py_out.at(pi)as char;var lo=py_out.at(pi+1)as char;if(hi==10||hi==13||hi==0){break}else{}py_hex[pw]=test_hex_pair_byte(hi,lo);pw+=1;pi+=2}
     if(pw==0||!test_bytes_eq(&raw chem[16-pw],&raw py_hex[0],pw)){env.error("mpi mul2");return}else{}
 
 }

@@ -46,7 +46,7 @@ func make_temp(s : string_view, flag : *mut int) : TempString {
 }
 
 func consume_view(v : string_view) : bool {
-    return v.size() > 0 && v.get(0) == 'H'
+    return v.size() > 0 && v.at(0) == 'H'
 }
 
 func consume_view_and_capture(v : string_view) : string {

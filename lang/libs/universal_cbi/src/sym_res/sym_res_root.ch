@@ -6,7 +6,7 @@ func sym_res_components(
         unsafe {
         var ok = true;
         for (var i : uint = 0; i < components.size(); i += 1) {
-            var element = components.get(i);
+            var element = components.at(i);
 
             var name : std::string_view;
             if(element.opening.tagName.kind == JsNodeKind.Identifier) {
@@ -62,7 +62,7 @@ func sym_res_components(
                 if (param.is_optional) continue;
                 var found = false;
                 for (var k : uint = 0; k < element.opening.attributes.size(); k += 1) {
-                    const attrNode = element.opening.attributes.get(k);
+                    const attrNode = element.opening.attributes.at(k);
                     if(attrNode.kind == JsNodeKind.JSXAttribute) {
                         const attr = attrNode as *mut JsJSXAttribute;
                         if (attr.name.equals(&param.name)) {
@@ -80,14 +80,14 @@ func sym_res_components(
                 var msg = std::string("missing required ")
                 if (missing.size() == 1) {
                     msg.append_view("prop '")
-                    msg.append_view(&missing.get(0))
+                    msg.append_view(&missing.at(0))
                     msg.append_view("'")
                 } else {
                     msg.append_view("props ")
                     for (var m : uint = 0; m < missing.size(); m += 1) {
                         if (m > 0) msg.append_view(", ")
                         msg.append_view("'")
-                        msg.append_view(&missing.get(m))
+                        msg.append_view(&missing.at(m))
                         msg.append_view("'")
                     }
                 }

@@ -28,10 +28,10 @@ public func compress(data : &[u8]) : Result<vector<u8>, CompressionError> {
     }
     var ipos : size_t = 0
     while(ipos < n) {
-        var current = unsafe(*data.get(ipos))
+        var current = unsafe(*data.at(ipos))
         var run_len : u8 = 1
         ipos += 1
-        while(ipos < n && run_len < 255 && unsafe(*data.get(ipos)) == current) {
+        while(ipos < n && run_len < 255 && unsafe(*data.at(ipos)) == current) {
             run_len += 1
             ipos += 1
         }
@@ -54,7 +54,7 @@ public func decompress(data : &[u8]) : Result<vector<u8>, CompressionError> {
     var out = vector<u8>()
     var ipos : size_t = 0
     while(ipos < data.size()) {
-        var count = unsafe(*data.get(ipos))
+        var count = unsafe(*data.at(ipos))
         ipos += 1
         if(count == 0) {
             if(ipos != data.size()) {
@@ -65,7 +65,7 @@ public func decompress(data : &[u8]) : Result<vector<u8>, CompressionError> {
         if(ipos >= data.size()) {
             return Result.Err(CompressionError.InvalidData())
         }
-        var byte_val = unsafe(*data.get(ipos))
+        var byte_val = unsafe(*data.at(ipos))
         ipos += 1
         var add = count as size_t
         if(out.size() > ((0 as size_t) - 1) - add) {

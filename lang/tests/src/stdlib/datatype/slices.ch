@@ -9,7 +9,7 @@ func slice_sum(values : &[int]) : int {
 }
 
 func first_str_byte(value : &str) : char {
-    return value.get(0)
+    return value.at(0)
 }
 
 func bare_slice_total(values : [int]) : int {
@@ -57,7 +57,7 @@ func test_slices() {
     })
     test("&str views a UTF-8 literal", () => {
         var text : &str = "hello"
-        return text.size() == 5 && text.get(0) == 'h' && !text.empty()
+        return text.size() == 5 && text.at(0) == 'h' && !text.empty()
     })
     test("&str passes through function parameters", () => {
         return first_str_byte("A") == 'A'
@@ -65,7 +65,7 @@ func test_slices() {
     test("&str views a string and validates at the boundary", () => {
         var value = std::string("hello")
         var text : &str = &value
-        return text.size() == 5 && text.get(4) == 'o'
+        return text.size() == 5 && text.at(4) == 'o'
     })
     test("&str can be copied without owning the bytes", () => {
         var text : &str = "hello"
@@ -107,23 +107,23 @@ func test_slices() {
         values.push(4)
         values.push(5)
         var view = values.as_span()
-        return view.size() == 2 && unsafe(*view.get(1)) == 5
+        return view.size() == 2 && unsafe(*view.at(1)) == 5
     })
     test("vector.as_mut_span mutates elements", () => {
         var values = std::vector<int>()
         values.push(1)
         var view = values.as_mut_span()
         view.set(0, 9)
-        return values.get(0) == 9
+        return values.at(0) == 9
     })
     test("vector<T> owns its elements and supports indexing", () => {
         var owned = std::vector<int>()
         owned.push(5)
         owned.push(6)
-        if(owned.size() != 2 || owned.get(1) != 6) { return false }
+        if(owned.size() != 2 || owned.at(1) != 6) { return false }
         owned.set(1, 9)
         var view : [int] = &owned
-        return owned.get(1) == 9 && view[0] == 5
+        return owned.at(1) == 9 && view[0] == 5
     })
     test("&mut [T] mutates through a vector view", () => {
         var values = std::vector<int>()
@@ -132,7 +132,7 @@ func test_slices() {
         var view : &mut [int] = &mut values
         view[0] = 4
         fill_mutable(&mut values)
-        return view.size() == 2 && values.get(0) == 7 && values.get(1) == 7
+        return view.size() == 2 && values.at(0) == 7 && values.at(1) == 7
     })
     test("&mut [T] mutates an array view", () => {
         var arr : [3]int = [1, 2, 3]
@@ -166,7 +166,7 @@ func test_slices() {
         var mutable = view.subview(1, 2)
         mutable[0] = 7
         var shared : [int] = &owned
-        return shared.size() == 2 && shared[1] == 7 && owned.get(1) == 7
+        return shared.size() == 2 && shared[1] == 7 && owned.at(1) == 7
     })
     test("split_at returns two shared subviews", () => {
         var arr : [5]int = [1, 2, 3, 4, 5]
@@ -216,7 +216,7 @@ func test_slices() {
         owned.push(7)
         var view : [int] = &owned
         var sub = view.subview(1, 3)
-        return word.size() == 3 && word.get(0) == 'e' && sub.size() == 2 && sub[0] == 6
+        return word.size() == 3 && word.at(0) == 'e' && sub.size() == 2 && sub[0] == 6
     })
     test("windows returns overlapping subviews", () => {
         var arr : [5]int = [1, 2, 3, 4, 5]
@@ -244,7 +244,7 @@ func test_slices() {
         if(longer[2] != 9) return false
         var text : &str = "hello"
         var again = explicit_str_identity(text)
-        return again.size() == 5 && again.get(0) == 'h'
+        return again.size() == 5 && again.at(0) == 'h'
     })
     test("flat fixed-array rest pattern binds the first and last elements", () => {
         var arr : [5]int = [1, 2, 3, 4, 5]

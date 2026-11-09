@@ -256,8 +256,8 @@ public func ssrTextEquals(val : &SsrAttributeValue, expected : SsrText) : bool {
                 var tmp = std::string()
                 tmp.append_double(v, precision)
                 var end = tmp.size()
-                while(end > 0 && tmp.get(end - 1) == '0') { end-- }
-                if(end > 0 && tmp.get(end - 1) == '.') { end-- }
+                while(end > 0 && tmp.at(end - 1) == '0') { end-- }
+                if(end > 0 && tmp.at(end - 1) == '.') { end-- }
                 if(end == 0) return false
                 const view = unsafe(std::string_view(tmp.data(), end))
                 return expected.size == view.size() && unsafe(strncmp(expected.data, view.data(), view.size())) == 0
@@ -297,8 +297,8 @@ func appendSsrValueText(val : &SsrAttributeValue, out : &mut std::string) : bool
         Double(v, precision) => {
             out.append_double(v, precision)
             var end = out.size()
-            while(end > 0 && out.get(end - 1) == '0') { end-- }
-            if(end > 0 && out.get(end - 1) == '.') { end-- }
+            while(end > 0 && out.at(end - 1) == '0') { end-- }
+            if(end > 0 && out.at(end - 1) == '.') { end-- }
             if(end == 0) out.append('0')
             else out.resize(end)
             return true
@@ -549,7 +549,7 @@ func accumulateAttrs(list : &SsrAttributeList, special : &mut SpecialAttrs) {
                         // Last-wins dedup: replace existing or append
                         var found = false
                         for(var j : size_t = 0; j < special.others_names.size(); j++) {
-                            if(special.others_names.get(j).equals_text(&d.name)) {
+                            if(special.others_names.at(j).equals_text(&d.name)) {
                                 special.others_values.set(j, &raw d.value)
                                 found = true
                                 break
@@ -579,7 +579,7 @@ public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) { un
         output.append_view(" class=\"")
         for (var i : size_t = 0; i < special.classes.size(); i++) {
             if (i > 0) output.append(' ') // Space-separated classes
-            writePrimitiveAttrValue(page, output, &*special.classes.get(i))
+            writePrimitiveAttrValue(page, output, &*special.classes.at(i))
         }
         output.append_view("\"")
     }
@@ -589,7 +589,7 @@ public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) { un
         output.append_view(" style=\"")
         for (var i : size_t = 0; i < special.styles.size(); i++) {
             if (i > 0) output.append(';') // Semicolon-separated styles
-            writePrimitiveAttrValue(page, &mut *output, &*special.styles.get(i))
+            writePrimitiveAttrValue(page, &mut *output, &*special.styles.at(i))
         }
         output.append_view("\"")
     }
@@ -597,9 +597,9 @@ public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) { un
     // 3. Render deferred non-special attributes (already dedup'd, last-wins)
     for (var i : size_t = 0; i < special.others_names.size(); i++) {
         output.append(' ')
-        output.append_with_len(special.others_names.get(i).data, special.others_names.get(i).size)
+        output.append_with_len(special.others_names.at(i).data, special.others_names.at(i).size)
         output.append_view("=\"")
-        writePrimitiveAttrValue(page, &mut *output, &*special.others_values.get(i))
+        writePrimitiveAttrValue(page, &mut *output, &*special.others_values.at(i))
         output.append_view("\"")
     }
  }}
@@ -624,7 +624,7 @@ public func renderHtmlAttrsWithBase(page : &mut HtmlPage, list : &SsrAttributeLi
         for (var i : size_t = 0; i < special.classes.size(); i++) {
             if (!first) output.append(' ') // Space-separated classes
             first = false
-            writePrimitiveAttrValue(page, output, &*special.classes.get(i))
+            writePrimitiveAttrValue(page, output, &*special.classes.at(i))
         }
         output.append_view("\"")
     }
@@ -634,7 +634,7 @@ public func renderHtmlAttrsWithBase(page : &mut HtmlPage, list : &SsrAttributeLi
         output.append_view(" style=\"")
         for (var i : size_t = 0; i < special.styles.size(); i++) {
             if (i > 0) output.append(';') // Semicolon-separated styles
-            writePrimitiveAttrValue(page, &mut *output, &*special.styles.get(i))
+            writePrimitiveAttrValue(page, &mut *output, &*special.styles.at(i))
         }
         output.append_view("\"")
     }
@@ -642,9 +642,9 @@ public func renderHtmlAttrsWithBase(page : &mut HtmlPage, list : &SsrAttributeLi
     // 3. Render deferred non-special attributes (already dedup'd, last-wins)
     for (var i : size_t = 0; i < special.others_names.size(); i++) {
         output.append(' ')
-        output.append_with_len(special.others_names.get(i).data, special.others_names.get(i).size)
+        output.append_with_len(special.others_names.at(i).data, special.others_names.at(i).size)
         output.append_view("=\"")
-        writePrimitiveAttrValue(page, &mut *output, &*special.others_values.get(i))
+        writePrimitiveAttrValue(page, &mut *output, &*special.others_values.at(i))
         output.append_view("\"")
     }
  }}
@@ -662,7 +662,7 @@ public func renderJsAttrs(page : &mut HtmlPage, list : &SsrAttributeList) { unsa
         output.append_view("class:\"")
         for (var i : size_t = 0; i < special.classes.size(); i++) {
             if (i > 0) output.append(' ')
-            writeJsPrimitiveAttrValue(page, &mut *output, &*special.classes.get(i))
+            writeJsPrimitiveAttrValue(page, &mut *output, &*special.classes.at(i))
         }
         output.append('"')
         is_first = false
@@ -674,7 +674,7 @@ public func renderJsAttrs(page : &mut HtmlPage, list : &SsrAttributeList) { unsa
         output.append_view("style:\"")
         for (var i : size_t = 0; i < special.styles.size(); i++) {
             if (i > 0) output.append(';')
-            writeJsPrimitiveAttrValue(page, &mut *output, &*special.styles.get(i))
+            writeJsPrimitiveAttrValue(page, &mut *output, &*special.styles.at(i))
         }
         output.append('"')
         is_first = false
@@ -684,9 +684,9 @@ public func renderJsAttrs(page : &mut HtmlPage, list : &SsrAttributeList) { unsa
     for (var i : size_t = 0; i < special.others_names.size(); i++) {
         if (!is_first) output.append_view(", ")
         is_first = false
-        output.append_with_len(special.others_names.get(i).data, special.others_names.get(i).size)
+        output.append_with_len(special.others_names.at(i).data, special.others_names.at(i).size)
         output.append(':')
-        writeJsPrimitiveAttrValue(page, &mut *output, &*special.others_values.get(i))
+        writeJsPrimitiveAttrValue(page, &mut *output, &*special.others_values.at(i))
     }
  }}
 

@@ -295,7 +295,7 @@ func sym_res_root(
         support.renderJsAttrs = renderJsAttrs;
 
         for (var i : uint = 0; i < root.components.size(); i += 1) {
-            var element = root.components.get(i);
+            var element = root.components.at(i);
         
             const compNode = resolver.resolve(&element.name);
             if (compNode == null) {
@@ -324,7 +324,7 @@ func sym_res_root(
                 if (!param.is_optional) {
                     var found = false;
                     for (var k : uint = 0; k < element.attributes.size(); k += 1) {
-                        const attr = element.attributes.get(k);
+                        const attr = element.attributes.at(k);
                         if (attr.name.equals(&param.name)) {
                             found = true;
                             break;

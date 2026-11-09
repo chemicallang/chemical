@@ -49,7 +49,7 @@ func parseSimpleSelector(parser : *mut Parser, builder : *mut ASTBuilder, start 
                 // If we want just name, we strip it. CSSOM usually keeps `#` for ID selector string?
                 // Or just name. `SimpleSelector` value usually implies just the name for ID/Class?
                 // Let's keep strict check.
-                if(start.value.get(0) == '#') {
+                if(start.value.at(0) == '#') {
                      s.value = builder.allocate_view(start.value.skip(1))
                 } else {
                      s.value = builder.allocate_view(&start.value)
@@ -70,8 +70,8 @@ func parseSimpleSelector(parser : *mut Parser, builder : *mut ASTBuilder, start 
 func strip_quotes_if_any(value : std::string_view) : std::string_view {
         unsafe {
         if(value.size() >= 2) {
-            const first = value.get(0);
-            const last = value.get(value.size() - 1);
+            const first = value.at(0);
+            const last = value.at(value.size() - 1);
             if((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
                 return value.subview(1, value.size() - 1);
             }

@@ -137,7 +137,7 @@ public struct Server {
         var host = string()
         var port = default_port
 
-        var pos = self.cfg.addr.find(":")
+        var pos = self.cfg.addr.find_or_npos(":")
         if (pos != std::NPOS) {
             if (pos > 0u) {
                 host = self.cfg.addr.substring(0u, pos)
@@ -146,7 +146,7 @@ public struct Server {
             if (!pstr.empty()) {
                 var pval = 0u
                 for(var i=0u; i<pstr.size(); i++) {
-                    var c = pstr.get(i)
+                    var c = pstr.at(i)
                     if(c >= '0' && c <= '9') { pval = pval * 10u + (c as uint - '0' as uint) }
                 }
                 if (pval > 0u) port = pval
@@ -250,8 +250,8 @@ public struct Server {
                          var abuf = &mut ctx.accumulated;
                          if(abuf.size() >= 4) {
                               while(j + 3 < abuf.size()) {
-                                  if(abuf.get(j) == '\r' as u8 && abuf.get(j+1u) == '\n' as u8 &&
-                                     abuf.get(j+2u) == '\r' as u8 && abuf.get(j+3u) == '\n' as u8) {
+                                  if(abuf.at(j) == '\r' as u8 && abuf.at(j+1u) == '\n' as u8 &&
+                                     abuf.at(j+2u) == '\r' as u8 && abuf.at(j+3u) == '\n' as u8) {
                                       found = true;
                                       crlfpos = j + 4u;
                                       break;

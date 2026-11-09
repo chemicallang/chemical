@@ -83,12 +83,12 @@ func test_clone_impls() {
     test("string_view clone", () => {
         var s = string_view("hello")
         var t = s.clone()
-        return t.size() == 5 && t.get(0) == 'h'
+        return t.size() == 5 && t.at(0) == 'h'
     })
     test("string deep clone", () => {
         var s = string("hello")
         var t = s.clone()
-        return t.size() == 5 && t.get(0) == 'h'
+        return t.size() == 5 && t.at(0) == 'h'
     })
     test("generic clone dispatch for a primitive", () => {
         return duplicate_value(41) == 41

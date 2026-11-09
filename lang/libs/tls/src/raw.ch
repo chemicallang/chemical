@@ -3545,8 +3545,8 @@ public namespace raw {
                             var m = true
                             while(di < san_dns.size()) {
                                 // Case-insensitive comparison for DNS names
-                                var sc = san_dns.get(di)
-                                var hc = host_view.get(di)
+                                var sc = san_dns.at(di)
+                                var hc = host_view.at(di)
                                 if(sc >= ('A' as u8) && sc <= ('Z' as u8)) { sc = sc + 32 }
                                 if(hc >= ('A' as u8) && hc <= ('Z' as u8)) { hc = hc + 32 }
                                 if(sc != hc) { m = false }
@@ -3555,14 +3555,14 @@ public namespace raw {
                             if(m) { return 0 }
                         }
                         // Wildcard: *.example.com matches www.example.com
-                        if(san_dns.size() > 2 && san_dns.get(0) == ('*' as u8) && san_dns.get(1) == ('.' as u8)) {
+                        if(san_dns.size() > 2 && san_dns.at(0) == ('*' as u8) && san_dns.at(1) == ('.' as u8)) {
                             var suffix_size = san_dns.size() - 1
                             if(host_view.size() >= suffix_size) {
                                 var m2 = true
                                 var wi : size_t = 0
                                 while(wi < suffix_size) {
-                                    var sc2 = san_dns.get(1 + wi)
-                                    var hc2 = host_view.get(host_view.size() - suffix_size + wi)
+                                    var sc2 = san_dns.at(1 + wi)
+                                    var hc2 = host_view.at(host_view.size() - suffix_size + wi)
                                     if(sc2 >= ('A' as u8) && sc2 <= ('Z' as u8)) { sc2 = sc2 + 32 }
                                     if(hc2 >= ('A' as u8) && hc2 <= ('Z' as u8)) { hc2 = hc2 + 32 }
                                     if(sc2 != hc2) { m2 = false }
@@ -3592,8 +3592,8 @@ public namespace raw {
         if(match) {
             var ci : size_t = 0
             while(ci < cn_view.size()) {
-                var cc = cn_view.get(ci)
-                var hc = host_view.get(ci)
+                var cc = cn_view.at(ci)
+                var hc = host_view.at(ci)
                 if(cc >= ('A' as u8) && cc <= ('Z' as u8)) { cc = cc + 32 }
                 if(hc >= ('A' as u8) && hc <= ('Z' as u8)) { hc = hc + 32 }
                 if(cc != hc) { match = false }
@@ -3604,15 +3604,15 @@ public namespace raw {
 
         // Wildcard check: CN = *.example.com, hostname = www.example.com
         if(cn_view.size() > 2) {
-            if(cn_view.get(0) == ('*' as u8) && cn_view.get(1) == ('.' as u8)) {
+            if(cn_view.at(0) == ('*' as u8) && cn_view.at(1) == ('.' as u8)) {
                 var wild_suffix_size = cn_view.size() - 1
                 var host_len = host_view.size()
                 if(host_len >= wild_suffix_size) {
                     var match2 = true
                     var wi : size_t = 0
                     while(wi < wild_suffix_size) {
-                        var c = cn_view.get(1 + wi)
-                        var h = host_view.get(host_len - wild_suffix_size + wi)
+                        var c = cn_view.at(1 + wi)
+                        var h = host_view.at(host_len - wild_suffix_size + wi)
                         if(c >= ('A' as u8) && c <= ('Z' as u8)) { c = c + 32 }
                         if(h >= ('A' as u8) && h <= ('Z' as u8)) { h = h + 32 }
                         if(c != h) { match2 = false }
@@ -5444,7 +5444,7 @@ public namespace raw {
         // Parse every PEM certificate in the bundle into a linked chain.
         while(scan_pos < total_read) {
             var search_view = data_view.subview(scan_pos, total_read)
-            var rel_pos = search_view.find(&begin_marker)
+            var rel_pos = search_view.find_or_npos(&begin_marker)
             if(rel_pos == std::NPOS) { break }
             var begin_pos = scan_pos + rel_pos
 
@@ -7745,7 +7745,7 @@ public namespace raw {
     public func cert_get_cn(crt : *mut X509Cert, out : *mut string) { unsafe {
         var cn_prefix = string_view("CN=")
         var sub_view = crt.subject.to_view()
-        var pos = sub_view.find(&cn_prefix)
+        var pos = sub_view.find_or_npos(&cn_prefix)
         if(pos == std::NPOS) {
             *out = string()
             return
@@ -7753,7 +7753,7 @@ public namespace raw {
         var start = pos + 3
         var end = start
         while(end < sub_view.size()) {
-            var c = sub_view.get(end)
+            var c = sub_view.at(end)
             if(c == (',' as u8) || c == ('/' as u8)) { break }
             end += 1
         }

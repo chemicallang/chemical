@@ -54,8 +54,8 @@ func header_name_equals(a : string_view, b : string_view) : bool {
     if(a.size() != b.size()) { return false }
     var i : size_t = 0
     while(i < a.size()) {
-        var ca = a.get(i)
-        var cb = b.get(i)
+        var ca = a.at(i)
+        var cb = b.at(i)
         if(ca >= 'A' && ca <= 'Z') { ca = (ca + 32) as char }
         if(cb >= 'A' && cb <= 'Z') { cb = (cb + 32) as char }
         if(ca != cb) { return false }
@@ -654,7 +654,7 @@ func (b: &mut Body) read_raw(dst:*mut u8, cap: usize) : int {
                 var ch = tmp[i];
                 linebuf.append(ch as char);
                 var L = linebuf.size();
-                if(L >= 2 && linebuf.get(L-2u) == '\r' && linebuf.get(L-1u) == '\n') {
+                if(L >= 2 && linebuf.at(L-2u) == '\r' && linebuf.at(L-1u) == '\n') {
                     linebuf = linebuf.substring(0u, L-2u);
                     found_crlf = true;
                     if((i as usize) + 1u < (n as usize)) {
@@ -670,7 +670,7 @@ func (b: &mut Body) read_raw(dst:*mut u8, cap: usize) : int {
         var hex_val : usize = 0u;
         var ii = 0u;
         while(ii < linebuf.size()) {
-            var c = linebuf.get(ii);
+            var c = linebuf.at(ii);
             if(c == ';' as char) { break }
             var v = hex_value(c);
             if(v < 0) { hex_ok = false; break }

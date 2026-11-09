@@ -65,7 +65,7 @@ public func md_get_align_style(align : MdTableAlign) : std::string_view {
 public func md_convert_children(str : &mut std::string, children : &std::vector<*mut MdNode>, emitter : *mut MdEmitter, highlighter : (lang : std::string_view, code : std::string_view) => std::string, link_rewriter : (url : std::string_view) => std::string) {
     var i = 0u
     while(i < children.size()) {
-        md_convert_md_node(str, children.get(i), emitter, highlighter, link_rewriter)
+        md_convert_md_node(str, children.at(i), emitter, highlighter, link_rewriter)
         i++
     }
 }
@@ -222,15 +222,15 @@ public func md_convert_md_node(str : &mut std::string, node : *mut MdNode, emitt
                 str.append_view("<table class=\"md-table\">\n")
                 var row_idx = 0u
                 while(row_idx < table.children.size()) {
-                    const row_node = table.children.get(row_idx)
+                    const row_node = table.children.at(row_idx)
                     const row = row_node as *mut MdTableRow
                     if(row.is_header) {
                         str.append_view("<thead class=\"md-thead\">\n<tr class=\"md-tr\">")
                         var col_idx = 0u
                         while(col_idx < row.children.size()) {
-                            const cell = row.children.get(col_idx) as *mut MdTableCell
+                            const cell = row.children.at(col_idx) as *mut MdTableCell
                             str.append_view("<th class=\"md-th\"")
-                            if(col_idx < table.alignments.size()) { str.append_view(md_get_align_style(table.alignments.get(col_idx))) }
+                            if(col_idx < table.alignments.size()) { str.append_view(md_get_align_style(table.alignments.at(col_idx))) }
                             str.append_view(">")
                             md_convert_children(str, &cell.children, emitter, highlighter, link_rewriter)
                             str.append_view("</th>")
@@ -241,9 +241,9 @@ public func md_convert_md_node(str : &mut std::string, node : *mut MdNode, emitt
                         str.append_view("<tr class=\"md-tr\">")
                         var col_idx = 0u
                         while(col_idx < row.children.size()) {
-                            const cell = row.children.get(col_idx) as *mut MdTableCell
+                            const cell = row.children.at(col_idx) as *mut MdTableCell
                             str.append_view("<td class=\"md-td\"")
-                            if(col_idx < table.alignments.size()) { str.append_view(md_get_align_style(table.alignments.get(col_idx))) }
+                            if(col_idx < table.alignments.size()) { str.append_view(md_get_align_style(table.alignments.at(col_idx))) }
                             str.append_view(">")
                             md_convert_children(str, &cell.children, emitter, highlighter, link_rewriter)
                             str.append_view("</td>")

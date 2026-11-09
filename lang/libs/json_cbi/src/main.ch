@@ -47,7 +47,7 @@ public func json_parseMacroTopLevelNode(parser : *mut Parser, builder : *mut AST
         var total : size_t = 0
         for(var si = 0u; si < segments.size(); si++) {
             if(si > 0u) { total += 2 } // "::"
-            total += segments.get(si).size()
+            total += segments.at(si).size()
         }
         var path_buf = builder.allocate_str_size(total + 1)
         var off = 0
@@ -57,7 +57,7 @@ public func json_parseMacroTopLevelNode(parser : *mut Parser, builder : *mut AST
                 path_buf[off + 1] = ':'
                 off += 2
             }
-            var seg = segments.get(sj)
+            var seg = segments.at(sj)
             for(var c = 0u; c < seg.size(); c++) {
                 path_buf[off] = seg.data()[c]
                 off++
@@ -416,8 +416,8 @@ func build_serialize_fn(builder : *mut ASTBuilder, info : *mut SerializableInfo,
         // composite fields emit obj.field<T>("name", &self.name) directly.
         var str_linked_type : *mut LinkedType = null
         for(var i = 0u; i < info.field_names.size(); i++) {
-            var fname = info.field_names.get(i)
-            var ftype_i = info.field_types.get(i)
+            var fname = info.field_names.at(i)
+            var ftype_i = info.field_types.at(i)
             var enum_node = field_enum_node(ftype_i)
 
             // explicit generic arg: the field's concrete type (std::string for enums)
@@ -696,7 +696,7 @@ func build_deserialize_fn(builder : *mut ASTBuilder, info : *mut SerializableInf
         var field_val_is_cast = std::vector<bool>()
 
         for(var i = 0u; i < info.field_names.size(); i++) {
-            var field_type = info.field_types.get(i)
+            var field_type = info.field_types.at(i)
             var enum_node = field_enum_node(field_type)
             var is_enum = enum_node != null
             var decode_method = find_decoder_method(info, field_type)
@@ -760,7 +760,7 @@ func build_deserialize_fn(builder : *mut ASTBuilder, info : *mut SerializableInf
             // master Result type while the decode<T> instantiation finalizes
             var v_var_type : *mut BaseType = null
             if(decode_is_generic) {
-                v_var_type = info.field_result_types.get(i) as *mut BaseType
+                v_var_type = info.field_result_types.at(i) as *mut BaseType
             }
             var v_var = builder.make_varinit_stmt(
                 false, false, &v_name, v_var_type, v_call as *mut Value,
@@ -898,10 +898,10 @@ func build_deserialize_fn(builder : *mut ASTBuilder, info : *mut SerializableInf
         // return std::Result.Ok<Point, SerializationError>(Point { x : __f0, y : __f1 })
         var struct_val = builder.make_struct_value(info.struct_node, loc)
         for(var j = 0u; j < field_val_nodes.size(); j++) {
-            var fname_j = info.field_names.get(j)
-            var ftype_j = info.field_types.get(j)
-            var fval_id = builder.make_identifier(&field_val_names.get(j), field_val_nodes.get(j), false, loc)
-            if(field_val_is_cast.get(j)) {
+            var fname_j = info.field_names.at(j)
+            var ftype_j = info.field_types.at(j)
+            var fval_id = builder.make_identifier(&field_val_names.at(j), field_val_nodes.at(j), false, loc)
+            if(field_val_is_cast.at(j)) {
                 var casted = builder.make_casted_value(fval_id as *mut Value, ftype_j, loc)
                 struct_val.add_value(&fname_j, casted as *mut Value)
             } else {
@@ -1066,7 +1066,7 @@ public func json_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedN
         // asynchronously, and the pattern-match temp vars emit the master type.
         info.field_result_types.clear()
         for(var i = 0u; i < info.field_types.size(); i++) {
-            var ftype = info.field_types.get(i)
+            var ftype = info.field_types.at(i)
             if(find_decoder_method(info, ftype) != null) {
                 info.field_result_types.push(null)
                 continue

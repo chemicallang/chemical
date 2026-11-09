@@ -97,7 +97,7 @@ public func json_escape_into(output : &mut std::string, str : &str) {
     output.append('"')
     var i : size_t = 0
     while(i < str.size()) {
-        append_escaped_char(output, str.get(i))
+        append_escaped_char(output, str.at(i))
         i += 1
     }
     output.append('"')

@@ -66,13 +66,13 @@ public func router_decl_summary(view : std::string_view) : std::string {
         var out = std::string()
         if(root != null) {
             for(var i : uint = 0; i < root.statements.size(); i++) {
-                const stmt = root.statements.get(i)
+                const stmt = root.statements.at(i)
                 if(stmt.kind != JsNodeKind.RouterDecl) continue
                 var rd = stmt as *mut JsRouterDecl
                 out.append_view("router:")
                 out.append_view(&rd.name)
                 for(var j : uint = 0; j < rd.routes.size(); j++) {
-                    const routeNode = rd.routes.get(j)
+                    const routeNode = rd.routes.at(j)
                     if(routeNode.kind != JsNodeKind.RouteDecl) continue
                     var r = routeNode as *mut JsRouteDecl
                     out.append_view(";route:")

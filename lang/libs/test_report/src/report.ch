@@ -367,7 +367,7 @@ func sv_eq_str(s : &string, v : string_view) : bool {
         if(s.size() != v.size()) { return false }
         var i : size_t = 0
         while(i < s.size()) {
-            if(s.get(i) != v.get(i)) { return false }
+            if(s.at(i) != v.at(i)) { return false }
             i += 1
         }
         return true

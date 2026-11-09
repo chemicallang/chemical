@@ -383,30 +383,31 @@ lang/libs/std/src/ordered_map.ch:100:    func insert(&mut self, key : Key, value
 lang/libs/std/src/ordered_map.ch:13:public struct ordered_map<Key : Hashable + Eq, Value> {
 lang/libs/std/src/ordered_map.ch:141:    func get_ptr(&self, key : &Key) : *mut Value {
 lang/libs/std/src/ordered_map.ch:157:    public func get(&self, key : &Key) : Option<&Value> {
-lang/libs/std/src/ordered_map.ch:165:    func find(&self, key : &Key, value : &mut Value) : bool where Value : Copy {
-lang/libs/std/src/ordered_map.ch:175:    func contains(&self, key : &Key) : bool {
-lang/libs/std/src/ordered_map.ch:179:    func erase(&mut self, key : &Key) : bool {
-lang/libs/std/src/ordered_map.ch:218:    func clear(&mut self) : void {
+lang/libs/std/src/ordered_map.ch:163:    func at(&self, key : &Key) : &Value {
+lang/libs/std/src/ordered_map.ch:172:    func find(&self, key : &Key, value : &mut Value) : bool where Value : Copy {
+lang/libs/std/src/ordered_map.ch:182:    func contains(&self, key : &Key) : bool {
+lang/libs/std/src/ordered_map.ch:186:    func erase(&mut self, key : &Key) : bool {
+lang/libs/std/src/ordered_map.ch:225:    func clear(&mut self) : void {
 lang/libs/std/src/ordered_map.ch:22:    func hash_now(&self, key : &Key) : size_t {
-lang/libs/std/src/ordered_map.ch:236:    func size(&self) : size_t {
-lang/libs/std/src/ordered_map.ch:240:    func empty(&self) : bool {
-lang/libs/std/src/ordered_map.ch:244:    func isEmpty(&self) : bool {
-lang/libs/std/src/ordered_map.ch:248:    func iterator(&self) : ordered_map_iterator<Key, Value> {
-lang/libs/std/src/ordered_map.ch:256:        func begin(&self) : ordered_map_iterator<Key, Value> {
-lang/libs/std/src/ordered_map.ch:260:        func valid(&self, c : ordered_map_iterator<Key, Value>) : bool {
-lang/libs/std/src/ordered_map.ch:264:        func current(&self, c : ordered_map_iterator<Key, Value>) : &ordered_map_node<Key, Value> {
-lang/libs/std/src/ordered_map.ch:268:        func next(&self, c : ordered_map_iterator<Key, Value>) : ordered_map_iterator<Key, Value> {
+lang/libs/std/src/ordered_map.ch:243:    func size(&self) : size_t {
+lang/libs/std/src/ordered_map.ch:247:    func empty(&self) : bool {
+lang/libs/std/src/ordered_map.ch:251:    func isEmpty(&self) : bool {
+lang/libs/std/src/ordered_map.ch:255:    func iterator(&self) : ordered_map_iterator<Key, Value> {
+lang/libs/std/src/ordered_map.ch:263:        func begin(&self) : ordered_map_iterator<Key, Value> {
+lang/libs/std/src/ordered_map.ch:267:        func valid(&self, c : ordered_map_iterator<Key, Value>) : bool {
 lang/libs/std/src/ordered_map.ch:26:    func hash_with_capacity(&self, key : &Key) : size_t {
-lang/libs/std/src/ordered_map.ch:277:        func rbegin(&self) : ordered_map_iterator<Key, Value> {
-lang/libs/std/src/ordered_map.ch:283:        func previous(&self, c : ordered_map_iterator<Key, Value>) : ordered_map_iterator<Key, Value> {
-lang/libs/std/src/ordered_map.ch:289:        func count(&self) : size_t {
-lang/libs/std/src/ordered_map.ch:296:public struct ordered_map_iterator<Key, Value> {
-lang/libs/std/src/ordered_map.ch:300:    func next(&mut self) {
-lang/libs/std/src/ordered_map.ch:305:    func prev(&mut self) {
+lang/libs/std/src/ordered_map.ch:271:        func current(&self, c : ordered_map_iterator<Key, Value>) : &ordered_map_node<Key, Value> {
+lang/libs/std/src/ordered_map.ch:275:        func next(&self, c : ordered_map_iterator<Key, Value>) : ordered_map_iterator<Key, Value> {
+lang/libs/std/src/ordered_map.ch:284:        func rbegin(&self) : ordered_map_iterator<Key, Value> {
+lang/libs/std/src/ordered_map.ch:290:        func previous(&self, c : ordered_map_iterator<Key, Value>) : ordered_map_iterator<Key, Value> {
+lang/libs/std/src/ordered_map.ch:296:        func count(&self) : size_t {
+lang/libs/std/src/ordered_map.ch:303:public struct ordered_map_iterator<Key, Value> {
+lang/libs/std/src/ordered_map.ch:307:    func next(&mut self) {
 lang/libs/std/src/ordered_map.ch:30:    func compare_now(key : &Key, key2 : &Key) : bool {
-lang/libs/std/src/ordered_map.ch:310:    public func key(&self) : &Key {
-lang/libs/std/src/ordered_map.ch:313:    public func value(&self) : &Value {
-lang/libs/std/src/ordered_map.ch:316:    public func valid(&self) : bool {
+lang/libs/std/src/ordered_map.ch:312:    func prev(&mut self) {
+lang/libs/std/src/ordered_map.ch:317:    public func key(&self) : &Key {
+lang/libs/std/src/ordered_map.ch:320:    public func value(&self) : &Value {
+lang/libs/std/src/ordered_map.ch:323:    public func valid(&self) : bool {
 lang/libs/std/src/ordered_map.ch:34:    func resize(&mut self) : void {
 lang/libs/std/src/ordered_map.ch:3:public struct ordered_map_node<Key : Hashable + Eq, Value> {
 lang/libs/std/src/ordered_map.ch:69:    func make() {
@@ -548,47 +549,49 @@ lang/libs/std/src/span.ch:128:public struct span<'a, T> {
 lang/libs/std/src/span.ch:150:    unsafe func constructor(array_ptr : *T, array_size : size_t) : span<'a, T> {
 lang/libs/std/src/span.ch:158:    func empty_make() : span<'a, T> {
 lang/libs/std/src/span.ch:165:    func data(&self) : *T {
-lang/libs/std/src/span.ch:169:    func get_opt(&self, loc : size_t) : Option<&T> {
+lang/libs/std/src/span.ch:169:    func get(&self, loc : size_t) : Option<&T> {
 lang/libs/std/src/span.ch:16:public struct span_windows<T> {
-lang/libs/std/src/span.ch:174:    func get(&self, loc : size_t) : *T {
-lang/libs/std/src/span.ch:181:    func size(&self) : size_t {
-lang/libs/std/src/span.ch:185:    func empty(&self) : bool {
-lang/libs/std/src/span.ch:189:    func subview(&self, start : size_t, end : size_t) : span<'self, T> {
-lang/libs/std/src/span.ch:200:    func split_at(&self, at : size_t) : slice_pair<T> {
+lang/libs/std/src/span.ch:174:    func at(&self, loc : size_t) : *T {
+lang/libs/std/src/span.ch:181:    func at_ref(&self, loc : size_t) : &T {
+lang/libs/std/src/span.ch:185:    func size(&self) : size_t {
+lang/libs/std/src/span.ch:189:    func empty(&self) : bool {
+lang/libs/std/src/span.ch:193:    func subview(&self, start : size_t, end : size_t) : span<'self, T> {
+lang/libs/std/src/span.ch:204:    func split_at(&self, at : size_t) : slice_pair<T> {
 lang/libs/std/src/span.ch:20:    func size(&self) : size_t {
-lang/libs/std/src/span.ch:218:    func windows(&self, width : size_t) : span_windows<T> {
-lang/libs/std/src/span.ch:225:    func chunks(&self, width : size_t) : span_chunks<T> {
-lang/libs/std/src/span.ch:233:    func split_by(&self, predicate : (value:&T)=>bool) : span_split<T> where T: Copy {
-lang/libs/std/src/span.ch:248:    func split(&self, delim : T) : span_delim_split<T> where T: Copy + core::ops::PartialEq {
+lang/libs/std/src/span.ch:222:    func windows(&self, width : size_t) : span_windows<T> {
+lang/libs/std/src/span.ch:229:    func chunks(&self, width : size_t) : span_chunks<T> {
+lang/libs/std/src/span.ch:237:    func split_by(&self, predicate : (value:&T)=>bool) : span_split<T> where T: Copy {
+lang/libs/std/src/span.ch:252:    func split(&self, delim : T) : span_delim_split<T> where T: Copy + core::ops::PartialEq {
 lang/libs/std/src/span.ch:25:    func empty(&self) : bool {
-lang/libs/std/src/span.ch:264:        func data(&self) : *T {
-lang/libs/std/src/span.ch:267:        func size(&self) : size_t {
-lang/libs/std/src/span.ch:277:    func index(&self, loc : size_t) : &T {
-lang/libs/std/src/span.ch:283:public struct mut_span<'a, T> {
+lang/libs/std/src/span.ch:268:        func data(&self) : *T {
+lang/libs/std/src/span.ch:271:        func size(&self) : size_t {
+lang/libs/std/src/span.ch:281:    func index(&self, loc : size_t) : &T {
+lang/libs/std/src/span.ch:287:public struct mut_span<'a, T> {
 lang/libs/std/src/span.ch:29:    func get(&self, index : size_t) : span<T> {
-lang/libs/std/src/span.ch:303:    unsafe func constructor(array_ptr : *mut T, array_size : size_t) : mut_span<'a, T> {
-lang/libs/std/src/span.ch:311:    func empty_make() : span<'a, T> {
-lang/libs/std/src/span.ch:318:    func data(&self) : *mut T {
-lang/libs/std/src/span.ch:322:    func get(&self, loc : size_t) : *mut T {
-lang/libs/std/src/span.ch:329:    func get_ref(&self, loc : size_t) : &T {
-lang/libs/std/src/span.ch:333:    func get_mut(&mut self, loc : size_t) : &mut T {
-lang/libs/std/src/span.ch:337:    func get_mut_opt(&mut self, loc : size_t) : Option<&mut T> {
-lang/libs/std/src/span.ch:342:    func set(&mut self, loc : size_t, value : T) {
-lang/libs/std/src/span.ch:349:    func size(&self) : size_t {
-lang/libs/std/src/span.ch:353:    func empty(&self) : bool {
-lang/libs/std/src/span.ch:357:    func subview(&mut self, start : size_t, end : size_t) : mut_span<'self, T> {
-lang/libs/std/src/span.ch:368:    func split_at(&mut self, at : size_t) : mut_slice_pair<T> {
+lang/libs/std/src/span.ch:307:    unsafe func constructor(array_ptr : *mut T, array_size : size_t) : mut_span<'a, T> {
+lang/libs/std/src/span.ch:315:    func empty_make() : span<'a, T> {
+lang/libs/std/src/span.ch:322:    func data(&self) : *mut T {
+lang/libs/std/src/span.ch:326:    func get(&self, loc : size_t) : Option<&T> {
+lang/libs/std/src/span.ch:331:    func get_mut(&mut self, loc : size_t) : Option<&mut T> {
+lang/libs/std/src/span.ch:336:    func at(&self, loc : size_t) : *mut T {
+lang/libs/std/src/span.ch:343:    func at_ref(&self, loc : size_t) : &T {
+lang/libs/std/src/span.ch:347:    func at_mut(&mut self, loc : size_t) : &mut T {
+lang/libs/std/src/span.ch:351:    func set(&mut self, loc : size_t, value : T) {
+lang/libs/std/src/span.ch:358:    func size(&self) : size_t {
+lang/libs/std/src/span.ch:362:    func empty(&self) : bool {
+lang/libs/std/src/span.ch:366:    func subview(&mut self, start : size_t, end : size_t) : mut_span<'self, T> {
 lang/libs/std/src/span.ch:36:public struct span_chunks<T> {
-lang/libs/std/src/span.ch:386:    func windows(&self, width : size_t) : span_windows<T> {
-lang/libs/std/src/span.ch:390:    func chunks(&self, width : size_t) : span_chunks<T> {
-lang/libs/std/src/span.ch:394:    func split_by(&self, predicate : (value:&T)=>bool) : span_split<T> where T: Copy {
-lang/libs/std/src/span.ch:398:    func split(&self, delim : T) : span_delim_split<T> where T: Copy + core::ops::PartialEq {
-lang/libs/std/src/span.ch:402:    func as_span(&self) : span<'self, T> {
-lang/libs/std/src/span.ch:407:        func data(&self) : *T {
+lang/libs/std/src/span.ch:377:    func split_at(&mut self, at : size_t) : mut_slice_pair<T> {
+lang/libs/std/src/span.ch:395:    func windows(&self, width : size_t) : span_windows<T> {
+lang/libs/std/src/span.ch:399:    func chunks(&self, width : size_t) : span_chunks<T> {
+lang/libs/std/src/span.ch:403:    func split_by(&self, predicate : (value:&T)=>bool) : span_split<T> where T: Copy {
+lang/libs/std/src/span.ch:407:    func split(&self, delim : T) : span_delim_split<T> where T: Copy + core::ops::PartialEq {
 lang/libs/std/src/span.ch:40:    func size(&self) : size_t {
-lang/libs/std/src/span.ch:410:        func size(&self) : size_t {
-lang/libs/std/src/span.ch:418:    func index(&self, loc : size_t) : &T {
-lang/libs/std/src/span.ch:424:    func index_mut(&mut self, loc : size_t) : &mut T {
+lang/libs/std/src/span.ch:411:    func as_span(&self) : span<'self, T> {
+lang/libs/std/src/span.ch:416:        func data(&self) : *T {
+lang/libs/std/src/span.ch:419:        func size(&self) : size_t {
+lang/libs/std/src/span.ch:427:    func index(&self, loc : size_t) : &T {
+lang/libs/std/src/span.ch:433:    func index_mut(&mut self, loc : size_t) : &mut T {
 lang/libs/std/src/span.ch:45:    func empty(&self) : bool {
 lang/libs/std/src/span.ch:49:    func get(&self, index : size_t) : span<T> {
 lang/libs/std/src/span.ch:4:public struct slice_pair<T> {
@@ -601,8 +604,8 @@ lang/libs/std/src/std.ch:23:public func exit(code : int)
 lang/libs/std/src/std.ch:24:public func quick_exit(code : int)
 lang/libs/std/src/str.ch:103:    func size(&self) : size_t {
 lang/libs/std/src/str.ch:107:    func empty(&self) : bool {
-lang/libs/std/src/str.ch:111:    func get_opt(&self, index : size_t) : std::Option<char> {
-lang/libs/std/src/str.ch:115:    func get(&self, index : size_t) : char {
+lang/libs/std/src/str.ch:111:    func get(&self, index : size_t) : std::Option<char> {
+lang/libs/std/src/str.ch:115:    func at(&self, index : size_t) : char {
 lang/libs/std/src/str.ch:119:    func to_view(&self) : std::string_view {
 lang/libs/std/src/str.ch:123:    func subview(&self, start : size_t, end : size_t) : str {
 lang/libs/std/src/str.ch:127:    func starts_with(&self, other : &std::str) : bool {
@@ -645,103 +648,106 @@ lang/libs/std/src/string.ch:32:func dbl_is_neg(x : double) : bool {
 lang/libs/std/src/string.ch:332:    func reserve(&mut self, new_capacity : size_t) {
 lang/libs/std/src/string.ch:363:    func set(&mut self, index : size_t, value : char) {
 lang/libs/std/src/string.ch:37:    func hash(&self) : uint {
-lang/libs/std/src/string.ch:390:    func get_opt(&self, index : size_t) : Option<char> {
-lang/libs/std/src/string.ch:395:    func get(&self, index : size_t) : char {
+lang/libs/std/src/string.ch:390:    func get(&self, index : size_t) : Option<char> {
+lang/libs/std/src/string.ch:395:    func at(&self, index : size_t) : char {
 lang/libs/std/src/string.ch:418:    func append_with_len(&mut self, value : *char, len : size_t) {
 lang/libs/std/src/string.ch:45:    func equals(&self, other : &string) : bool {
 lang/libs/std/src/string.ch:467:    func append_char_ptr(&mut self, value : *char) {
 lang/libs/std/src/string.ch:472:    func append_string(&mut self, value : &string) {
-lang/libs/std/src/string.ch:476:    func append_str(&mut self, value : *string) {
-lang/libs/std/src/string.ch:484:    func append_view(&mut self, value : &std::string_view) {
-lang/libs/std/src/string.ch:489:    func append_uinteger(&mut self, value : ubigint) {
+lang/libs/std/src/string.ch:476:    func append_view(&mut self, value : &std::string_view) {
+lang/libs/std/src/string.ch:481:    func append_uinteger(&mut self, value : ubigint) {
+lang/libs/std/src/string.ch:522:    func append_integer(&mut self, value : bigint) {
 lang/libs/std/src/string.ch:52:public struct string {
-lang/libs/std/src/string.ch:530:    func append_integer(&mut self, value : bigint) {
-lang/libs/std/src/string.ch:551:    func append_double(&mut self, value : double, precision : int) {
+lang/libs/std/src/string.ch:543:    func append_double(&mut self, value : double, precision : int) {
 lang/libs/std/src/string.ch:57:        struct {
-lang/libs/std/src/string.ch:614:    func append_float(&mut self, value : float, precision : int) {
-lang/libs/std/src/string.ch:618:    func copy(&self) : string {
+lang/libs/std/src/string.ch:606:    func append_float(&mut self, value : float, precision : int) {
+lang/libs/std/src/string.ch:610:    func copy(&self) : string {
+lang/libs/std/src/string.ch:614:    func substring(&self, start : size_t, end : size_t) : string {
 lang/libs/std/src/string.ch:61:        struct {
-lang/libs/std/src/string.ch:622:    func substring(&self, start : size_t, end : size_t) : string {
-lang/libs/std/src/string.ch:660:    func append(&mut self, value : char) {
+lang/libs/std/src/string.ch:652:    func append(&mut self, value : char) {
 lang/libs/std/src/string.ch:66:        struct {
-lang/libs/std/src/string.ch:686:    func find(&self, needle : &std::string_view) : size_t {
-lang/libs/std/src/string.ch:691:    func find_last(&self, needle : &std::string_view) : size_t {
-lang/libs/std/src/string.ch:696:    func contains(&self, needle : &std::string_view) : bool {
-lang/libs/std/src/string.ch:700:    func starts_with(&self, other : &std::string_view) : bool {
-lang/libs/std/src/string.ch:705:    func trim(&self) : 'self std::string_view {
-lang/libs/std/src/string.ch:712:    func split(&self, delim : char) : std::vector<std::string> {
-lang/libs/std/src/string.ch:716:    unsafe func split_views(&self, delim : char) : std::vector<std::string_view> {
-lang/libs/std/src/string.ch:720:    func ends_with(&self, other : &std::string_view) : bool {
-lang/libs/std/src/string.ch:726:    func erase(&mut self, start : size_t, len : size_t) {
-lang/libs/std/src/string.ch:778:    func capacity(&mut self) : size_t {
-lang/libs/std/src/string.ch:795:    func data(&self) : *char {
-lang/libs/std/src/string.ch:812:    func c_str(&self) : *char {
-lang/libs/std/src/string.ch:816:    func mutable_data(&mut self) : *mut char {
-lang/libs/std/src/string.ch:839:    func clear(&mut self) {
-lang/libs/std/src/string.ch:864:    func to_view(&self) : 'self std::string_view {
-lang/libs/std/src/string.ch:868:    func to_i8(&self) : std::Result<i8, std::string_view> { return to_view().to_i8() }
-lang/libs/std/src/string.ch:869:    func to_i16(&self) : std::Result<i16, std::string_view> { return to_view().to_i16() }
-lang/libs/std/src/string.ch:870:    func to_i32(&self) : std::Result<i32, std::string_view> { return to_view().to_i32() }
-lang/libs/std/src/string.ch:871:    func to_i64(&self) : std::Result<i64, std::string_view> { return to_view().to_i64() }
-lang/libs/std/src/string.ch:872:    func to_u8(&self) : std::Result<u8, std::string_view> { return to_view().to_u8() }
-lang/libs/std/src/string.ch:873:    func to_u16(&self) : std::Result<u16, std::string_view> { return to_view().to_u16() }
-lang/libs/std/src/string.ch:874:    func to_u32(&self) : std::Result<u32, std::string_view> { return to_view().to_u32() }
-lang/libs/std/src/string.ch:875:    func to_u64(&self) : std::Result<u64, std::string_view> { return to_view().to_u64() }
-lang/libs/std/src/string.ch:876:    func to_int(&self) : std::Result<int, std::string_view> { return to_view().to_int() }
-lang/libs/std/src/string.ch:877:    func to_uint(&self) : std::Result<uint, std::string_view> { return to_view().to_uint() }
-lang/libs/std/src/string.ch:878:    func to_float(&self) : std::Result<float, std::string_view> { unsafe {
-lang/libs/std/src/string.ch:886:    func to_double(&self) : std::Result<double, std::string_view> { unsafe {
+lang/libs/std/src/string.ch:678:    func find_or_npos(&self, needle : &std::string_view) : size_t {
+lang/libs/std/src/string.ch:683:    func find_last_or_npos(&self, needle : &std::string_view) : size_t {
+lang/libs/std/src/string.ch:688:    func find(&self, needle : &std::string_view) : Option<size_t> {
+lang/libs/std/src/string.ch:695:    func find_last(&self, needle : &std::string_view) : Option<size_t> {
+lang/libs/std/src/string.ch:702:    func contains(&self, needle : &std::string_view) : bool {
+lang/libs/std/src/string.ch:706:    func starts_with(&self, other : &std::string_view) : bool {
+lang/libs/std/src/string.ch:711:    func trim(&self) : 'self std::string_view {
+lang/libs/std/src/string.ch:718:    func split(&self, delim : char) : std::vector<std::string> {
+lang/libs/std/src/string.ch:722:    unsafe func split_views(&self, delim : char) : std::vector<std::string_view> {
+lang/libs/std/src/string.ch:726:    func ends_with(&self, other : &std::string_view) : bool {
+lang/libs/std/src/string.ch:732:    func erase(&mut self, start : size_t, len : size_t) {
+lang/libs/std/src/string.ch:784:    func capacity(&mut self) : size_t {
+lang/libs/std/src/string.ch:801:    func data(&self) : *char {
+lang/libs/std/src/string.ch:818:    func c_str(&self) : *char {
+lang/libs/std/src/string.ch:822:    func mutable_data(&mut self) : *mut char {
+lang/libs/std/src/string.ch:845:    func clear(&mut self) {
+lang/libs/std/src/string.ch:870:    func to_view(&self) : 'self std::string_view {
+lang/libs/std/src/string.ch:874:    func to_i8(&self) : std::Result<i8, std::string_view> { return to_view().to_i8() }
+lang/libs/std/src/string.ch:875:    func to_i16(&self) : std::Result<i16, std::string_view> { return to_view().to_i16() }
+lang/libs/std/src/string.ch:876:    func to_i32(&self) : std::Result<i32, std::string_view> { return to_view().to_i32() }
+lang/libs/std/src/string.ch:877:    func to_i64(&self) : std::Result<i64, std::string_view> { return to_view().to_i64() }
+lang/libs/std/src/string.ch:878:    func to_u8(&self) : std::Result<u8, std::string_view> { return to_view().to_u8() }
+lang/libs/std/src/string.ch:879:    func to_u16(&self) : std::Result<u16, std::string_view> { return to_view().to_u16() }
+lang/libs/std/src/string.ch:880:    func to_u32(&self) : std::Result<u32, std::string_view> { return to_view().to_u32() }
+lang/libs/std/src/string.ch:881:    func to_u64(&self) : std::Result<u64, std::string_view> { return to_view().to_u64() }
+lang/libs/std/src/string.ch:882:    func to_int(&self) : std::Result<int, std::string_view> { return to_view().to_int() }
+lang/libs/std/src/string.ch:883:    func to_uint(&self) : std::Result<uint, std::string_view> { return to_view().to_uint() }
+lang/libs/std/src/string.ch:884:    func to_float(&self) : std::Result<float, std::string_view> { unsafe {
 lang/libs/std/src/string.ch:88:    unsafe func constructor(value : *char, length : size_t) {
-lang/libs/std/src/string.ch:898:    func stream(&self, s : &mut StringStream) {
-lang/libs/std/src/string.ch:903:    func delete(&mut self) {
-lang/libs/std/src/string.ch:914:public struct StringStream {
-lang/libs/std/src/string.ch:922:    func writeChar(&mut self, value : char) {
-lang/libs/std/src/string.ch:926:    func writeUChar(&mut self, value : uchar) {
-lang/libs/std/src/string.ch:930:    func writeSigned(&mut self, value : bigint) {
-lang/libs/std/src/string.ch:934:    func writeUnsigned(&mut self, value : ubigint) {
-lang/libs/std/src/string.ch:938:    unsafe func writeStr(&mut self, value : *char, length : ubigint) {
-lang/libs/std/src/string.ch:942:    unsafe func writeStrNoLen(&mut self, value : *char) {
-lang/libs/std/src/string.ch:946:    func writeFloat(&mut self, value : float) {
-lang/libs/std/src/string.ch:950:    func writeDouble(&mut self, value : double) {
-lang/libs/std/src/string_view.ch:101:        func find_last(&self, needle : &std::string_view) : size_t {
-lang/libs/std/src/string_view.ch:105:        func contains(&self, needle : &std::string_view) : bool {
-lang/libs/std/src/string_view.ch:109:        func ends_with(&self, other : &std::string_view) : bool {
-lang/libs/std/src/string_view.ch:115:        func starts_with(&self, other : &std::string_view) : bool {
-lang/libs/std/src/string_view.ch:120:        func trim(&self) : 'self std::string_view {
-lang/libs/std/src/string_view.ch:129:        func to_i8(&self) : std::Result<i8, std::string_view> {
-lang/libs/std/src/string_view.ch:138:        func to_i16(&self) : std::Result<i16, std::string_view> {
-lang/libs/std/src/string_view.ch:147:        func to_i32(&self) : std::Result<i32, std::string_view> {
-lang/libs/std/src/string_view.ch:156:        func to_i64(&self) : std::Result<i64, std::string_view> {
+lang/libs/std/src/string.ch:892:    func to_double(&self) : std::Result<double, std::string_view> { unsafe {
+lang/libs/std/src/string.ch:904:    func stream(&self, s : &mut StringStream) {
+lang/libs/std/src/string.ch:909:    func delete(&mut self) {
+lang/libs/std/src/string.ch:920:public struct StringStream {
+lang/libs/std/src/string.ch:928:    func writeChar(&mut self, value : char) {
+lang/libs/std/src/string.ch:932:    func writeUChar(&mut self, value : uchar) {
+lang/libs/std/src/string.ch:936:    func writeSigned(&mut self, value : bigint) {
+lang/libs/std/src/string.ch:940:    func writeUnsigned(&mut self, value : ubigint) {
+lang/libs/std/src/string.ch:944:    unsafe func writeStr(&mut self, value : *char, length : ubigint) {
+lang/libs/std/src/string.ch:948:    unsafe func writeStrNoLen(&mut self, value : *char) {
+lang/libs/std/src/string.ch:952:    func writeFloat(&mut self, value : float) {
+lang/libs/std/src/string.ch:956:    func writeDouble(&mut self, value : double) {
+lang/libs/std/src/string_view.ch:101:        func find_last_or_npos(&self, needle : &std::string_view) : size_t {
+lang/libs/std/src/string_view.ch:105:        func find(&self, needle : &std::string_view) : std::Option<size_t> {
+lang/libs/std/src/string_view.ch:111:        func find_last(&self, needle : &std::string_view) : std::Option<size_t> {
+lang/libs/std/src/string_view.ch:117:        func contains(&self, needle : &std::string_view) : bool {
+lang/libs/std/src/string_view.ch:121:        func ends_with(&self, other : &std::string_view) : bool {
+lang/libs/std/src/string_view.ch:127:        func starts_with(&self, other : &std::string_view) : bool {
+lang/libs/std/src/string_view.ch:132:        func trim(&self) : 'self std::string_view {
+lang/libs/std/src/string_view.ch:141:        func to_i8(&self) : std::Result<i8, std::string_view> {
+lang/libs/std/src/string_view.ch:150:        func to_i16(&self) : std::Result<i16, std::string_view> {
+lang/libs/std/src/string_view.ch:159:        func to_i32(&self) : std::Result<i32, std::string_view> {
+lang/libs/std/src/string_view.ch:168:        func to_i64(&self) : std::Result<i64, std::string_view> {
 lang/libs/std/src/string_view.ch:18:        func empty_make() {
-lang/libs/std/src/string_view.ch:191:        func to_u8(&self) : std::Result<u8, std::string_view> {
-lang/libs/std/src/string_view.ch:200:        func to_u16(&self) : std::Result<u16, std::string_view> {
-lang/libs/std/src/string_view.ch:209:        func to_u32(&self) : std::Result<u32, std::string_view> {
-lang/libs/std/src/string_view.ch:218:        func to_u64(&self) : std::Result<u64, std::string_view> {
-lang/libs/std/src/string_view.ch:242:        func to_int(&self) : std::Result<int, std::string_view> {
-lang/libs/std/src/string_view.ch:248:        func to_uint(&self) : std::Result<uint, std::string_view> {
-lang/libs/std/src/string_view.ch:255:        func to_float(&self) : std::Result<float, std::string_view> {
+lang/libs/std/src/string_view.ch:203:        func to_u8(&self) : std::Result<u8, std::string_view> {
+lang/libs/std/src/string_view.ch:212:        func to_u16(&self) : std::Result<u16, std::string_view> {
+lang/libs/std/src/string_view.ch:221:        func to_u32(&self) : std::Result<u32, std::string_view> {
+lang/libs/std/src/string_view.ch:230:        func to_u64(&self) : std::Result<u64, std::string_view> {
+lang/libs/std/src/string_view.ch:254:        func to_int(&self) : std::Result<int, std::string_view> {
+lang/libs/std/src/string_view.ch:260:        func to_uint(&self) : std::Result<uint, std::string_view> {
+lang/libs/std/src/string_view.ch:267:        func to_float(&self) : std::Result<float, std::string_view> {
 lang/libs/std/src/string_view.ch:26:        unsafe func constructor(value : *char, length : size_t) {
-lang/libs/std/src/string_view.ch:274:        func to_double(&self) : std::Result<double, std::string_view> {
-lang/libs/std/src/string_view.ch:297:        func split(&self, delim : char) : std::vector<std::string> {
-lang/libs/std/src/string_view.ch:312:        unsafe func split_views(&self, delim : char) : std::vector<std::string_view> {
-lang/libs/std/src/string_view.ch:327:        func to_string(&self) : std::string {
-lang/libs/std/src/string_view.ch:334:        func stream(&self, s : &mut StringStream) {
-lang/libs/std/src/string_view.ch:341:        func hash(&self) : uint {
-lang/libs/std/src/string_view.ch:348:        func equals_view(&self, other : &std::string_view) : bool {
+lang/libs/std/src/string_view.ch:286:        func to_double(&self) : std::Result<double, std::string_view> {
+lang/libs/std/src/string_view.ch:309:        func split(&self, delim : char) : std::vector<std::string> {
+lang/libs/std/src/string_view.ch:324:        unsafe func split_views(&self, delim : char) : std::vector<std::string_view> {
+lang/libs/std/src/string_view.ch:339:        func to_string(&self) : std::string {
+lang/libs/std/src/string_view.ch:346:        func stream(&self, s : &mut StringStream) {
 lang/libs/std/src/string_view.ch:34:        unsafe func ref_make(value : &char, length : size_t) {
-lang/libs/std/src/string_view.ch:352:        func equals_with_len(&self, data : *char, len : size_t) : bool {
-lang/libs/std/src/string_view.ch:357:        func equals(&self, other : &std::string_view) : bool {
+lang/libs/std/src/string_view.ch:353:        func hash(&self) : uint {
+lang/libs/std/src/string_view.ch:360:        func equals_view(&self, other : &std::string_view) : bool {
+lang/libs/std/src/string_view.ch:364:        func equals_with_len(&self, data : *char, len : size_t) : bool {
+lang/libs/std/src/string_view.ch:369:        func equals(&self, other : &std::string_view) : bool {
 lang/libs/std/src/string_view.ch:42:        func make_view(str : &std::string) {
 lang/libs/std/src/string_view.ch:50:        unsafe func make_no_len(value : *char) {
 lang/libs/std/src/string_view.ch:57:        func data(&self) : *char {
 lang/libs/std/src/string_view.ch:5:    public struct string_view 'a {
 lang/libs/std/src/string_view.ch:61:        func size(&self) : size_t {
 lang/libs/std/src/string_view.ch:65:        func empty(&self) : bool {
-lang/libs/std/src/string_view.ch:69:        func get_opt(&self, index : size_t) : std::Option<char> { unsafe {
-lang/libs/std/src/string_view.ch:76:        func get(&self, index : size_t) : char { unsafe {
+lang/libs/std/src/string_view.ch:69:        func get(&self, index : size_t) : std::Option<char> { unsafe {
+lang/libs/std/src/string_view.ch:76:        func at(&self, index : size_t) : char { unsafe {
 lang/libs/std/src/string_view.ch:83:        func subview(&self, start : size_t, end : size_t) : 'self std::string_view {
 lang/libs/std/src/string_view.ch:90:        func skip(&self, count : size_t) : 'self std::string_view {
-lang/libs/std/src/string_view.ch:97:        func find(&self, needle : &std::string_view) : size_t {
+lang/libs/std/src/string_view.ch:97:        func find_or_npos(&self, needle : &std::string_view) : size_t {
 lang/libs/std/src/time/types.ch:104:            public func equals(&self, other : &Duration) : bool {
 lang/libs/std/src/time/types.ch:108:            public func cmp(&self, other : &Duration) : int {
 lang/libs/std/src/time/types.ch:118:            public func add(&self, other : &Duration) : Duration {
@@ -830,33 +836,34 @@ lang/libs/std/src/unordered_map2.ch:120:    func insert(&mut self, key : Key, va
 lang/libs/std/src/unordered_map2.ch:156:    func get_ptr(&self, key : &Key) : *mut Value {
 lang/libs/std/src/unordered_map2.ch:15:public struct unordered_map<Key : Hashable + Eq, Value> {
 lang/libs/std/src/unordered_map2.ch:172:    public func get(&self, key : &Key) : Option<&Value> {
-lang/libs/std/src/unordered_map2.ch:181:    func get_key_ptr(&self, key : &Key) : *mut Key {
-lang/libs/std/src/unordered_map2.ch:199:    func find(&self, key : &Key, value : &mut Value) : bool where Value : Copy {
-lang/libs/std/src/unordered_map2.ch:209:    func contains(&self, key : &Key) : bool {
-lang/libs/std/src/unordered_map2.ch:214:    func erase(&mut self, key : &Key) : bool {
+lang/libs/std/src/unordered_map2.ch:178:    func at(&self, key : &Key) : &Value {
+lang/libs/std/src/unordered_map2.ch:187:    func get_key_ptr(&self, key : &Key) : *mut Key {
+lang/libs/std/src/unordered_map2.ch:205:    func find(&self, key : &Key, value : &mut Value) : bool where Value : Copy {
+lang/libs/std/src/unordered_map2.ch:215:    func contains(&self, key : &Key) : bool {
+lang/libs/std/src/unordered_map2.ch:220:    func erase(&mut self, key : &Key) : bool {
 lang/libs/std/src/unordered_map2.ch:22:    func hash_now(&self, key : &Key) : size_t {
-lang/libs/std/src/unordered_map2.ch:242:    func clear(&mut self) : void {
-lang/libs/std/src/unordered_map2.ch:261:    func size(&self) : size_t {
-lang/libs/std/src/unordered_map2.ch:266:    func empty(&self) : bool {
+lang/libs/std/src/unordered_map2.ch:248:    func clear(&mut self) : void {
+lang/libs/std/src/unordered_map2.ch:267:    func size(&self) : size_t {
 lang/libs/std/src/unordered_map2.ch:26:    func hash_with_capacity(&self, key : &Key) : size_t {
-lang/libs/std/src/unordered_map2.ch:271:    func isEmpty(&self) : bool {
-lang/libs/std/src/unordered_map2.ch:275:    func iterator(&self) : unordered_map_iterator<Key, Value> {
-lang/libs/std/src/unordered_map2.ch:298:        func begin(&self) : unordered_map_iterator<Key, Value> {
-lang/libs/std/src/unordered_map2.ch:302:        func valid(&self, c : unordered_map_iterator<Key, Value>) : bool {
-lang/libs/std/src/unordered_map2.ch:306:        func current(&self, c : unordered_map_iterator<Key, Value>) : &unordered_map_node<Key, Value> {
+lang/libs/std/src/unordered_map2.ch:272:    func empty(&self) : bool {
+lang/libs/std/src/unordered_map2.ch:277:    func isEmpty(&self) : bool {
+lang/libs/std/src/unordered_map2.ch:281:    func iterator(&self) : unordered_map_iterator<Key, Value> {
+lang/libs/std/src/unordered_map2.ch:304:        func begin(&self) : unordered_map_iterator<Key, Value> {
+lang/libs/std/src/unordered_map2.ch:308:        func valid(&self, c : unordered_map_iterator<Key, Value>) : bool {
 lang/libs/std/src/unordered_map2.ch:30:    func compare_now(key : &Key, key2 : &Key) : bool {
-lang/libs/std/src/unordered_map2.ch:310:        func next(&self, c : unordered_map_iterator<Key, Value>) : unordered_map_iterator<Key, Value> {
-lang/libs/std/src/unordered_map2.ch:320:        func rbegin(&self) : unordered_map_iterator<Key, Value> {
-lang/libs/std/src/unordered_map2.ch:330:        func previous(&self, c : unordered_map_iterator<Key, Value>) : unordered_map_iterator<Key, Value> {
-lang/libs/std/src/unordered_map2.ch:347:        func count(&self) : size_t {
-lang/libs/std/src/unordered_map2.ch:354:public struct unordered_map_iterator<Key, Value> {
+lang/libs/std/src/unordered_map2.ch:312:        func current(&self, c : unordered_map_iterator<Key, Value>) : &unordered_map_node<Key, Value> {
+lang/libs/std/src/unordered_map2.ch:316:        func next(&self, c : unordered_map_iterator<Key, Value>) : unordered_map_iterator<Key, Value> {
+lang/libs/std/src/unordered_map2.ch:326:        func rbegin(&self) : unordered_map_iterator<Key, Value> {
+lang/libs/std/src/unordered_map2.ch:336:        func previous(&self, c : unordered_map_iterator<Key, Value>) : unordered_map_iterator<Key, Value> {
+lang/libs/std/src/unordered_map2.ch:353:        func count(&self) : size_t {
 lang/libs/std/src/unordered_map2.ch:35:    func resize(&mut self) : void {
-lang/libs/std/src/unordered_map2.ch:360:    func next(&mut self) {
-lang/libs/std/src/unordered_map2.ch:386:    public func key(&self) : &Key {
-lang/libs/std/src/unordered_map2.ch:389:    public func value(&self) : &Value {
-lang/libs/std/src/unordered_map2.ch:392:    public func valid(&self) : bool {
-lang/libs/std/src/unordered_map2.ch:395:    public func size(&self) : size_t {
+lang/libs/std/src/unordered_map2.ch:360:public struct unordered_map_iterator<Key, Value> {
+lang/libs/std/src/unordered_map2.ch:366:    func next(&mut self) {
+lang/libs/std/src/unordered_map2.ch:392:    public func key(&self) : &Key {
+lang/libs/std/src/unordered_map2.ch:395:    public func value(&self) : &Value {
+lang/libs/std/src/unordered_map2.ch:398:    public func valid(&self) : bool {
 lang/libs/std/src/unordered_map2.ch:3:public struct unordered_map_node<Key : Hashable + Eq, Value> {
+lang/libs/std/src/unordered_map2.ch:401:    public func size(&self) : size_t {
 lang/libs/std/src/unordered_map2.ch:86:    func make() {
 lang/libs/std/src/utils.ch:10:public func <T> swap(a : &mut T, b : &mut T) {
 lang/libs/std/src/utils.ch:16:func internal_view_find(me : &std::string_view, needle : &std::string_view) : size_t {
@@ -871,40 +878,41 @@ lang/libs/std/src/vector.ch:176:    func try_push(&mut self, value : T) : bool {
 lang/libs/std/src/vector.ch:17:public struct vector<T> {
 lang/libs/std/src/vector.ch:189:    func push(&mut self, value : T) {
 lang/libs/std/src/vector.ch:195:    func push_back(&mut self, value : T) {
-lang/libs/std/src/vector.ch:199:    func get(&self, index : size_t) : T where T : Copy {
-lang/libs/std/src/vector.ch:204:    func get_ptr(&self, index : size_t) : *mut T {
-lang/libs/std/src/vector.ch:209:    func get_opt(&self, index : size_t) : Option<&T> {
-lang/libs/std/src/vector.ch:214:    func get_mut_opt(&mut self, index : size_t) : Option<&mut T> {
-lang/libs/std/src/vector.ch:219:    func try_set(&mut self, index : size_t, value : T) : bool {
-lang/libs/std/src/vector.ch:225:    func pop(&mut self) : Option<T> {
-lang/libs/std/src/vector.ch:229:    func try_pop(&mut self) : Option<T> {
-lang/libs/std/src/vector.ch:240:    func get_ref(&self, index : size_t) : &T {
-lang/libs/std/src/vector.ch:245:    func get_mut(&mut self, index : size_t) : &mut T {
-lang/libs/std/src/vector.ch:250:    func set(&mut self, index : size_t, value : T) {
-lang/libs/std/src/vector.ch:259:    func size(&self) : size_t {
-lang/libs/std/src/vector.ch:263:    func capacity(&self) : size_t {
-lang/libs/std/src/vector.ch:267:    func data(&self) : *T {
+lang/libs/std/src/vector.ch:199:    func at(&self, index : size_t) : T where T : Copy {
+lang/libs/std/src/vector.ch:204:    func get_copy(&self, index : size_t) : Option<T> where T : Copy {
+lang/libs/std/src/vector.ch:209:    func get_ptr(&self, index : size_t) : *mut T {
+lang/libs/std/src/vector.ch:214:    func get(&self, index : size_t) : Option<&T> {
+lang/libs/std/src/vector.ch:219:    func get_mut(&mut self, index : size_t) : Option<&mut T> {
+lang/libs/std/src/vector.ch:224:    func try_set(&mut self, index : size_t, value : T) : bool {
+lang/libs/std/src/vector.ch:230:    func pop(&mut self) : Option<T> {
+lang/libs/std/src/vector.ch:234:    func try_pop(&mut self) : Option<T> {
+lang/libs/std/src/vector.ch:245:    func at_ref(&self, index : size_t) : &T {
+lang/libs/std/src/vector.ch:250:    func at_mut(&mut self, index : size_t) : &mut T {
+lang/libs/std/src/vector.ch:255:    func set(&mut self, index : size_t, value : T) {
+lang/libs/std/src/vector.ch:264:    func size(&self) : size_t {
+lang/libs/std/src/vector.ch:268:    func capacity(&self) : size_t {
 lang/libs/std/src/vector.ch:26:    func make() {
-lang/libs/std/src/vector.ch:271:    func mutable_data(&mut self) : *mut T {
-lang/libs/std/src/vector.ch:275:    func last_ptr(&self) : *mut T {
-lang/libs/std/src/vector.ch:280:    func remove(&mut self, index : size_t) {
-lang/libs/std/src/vector.ch:293:    func erase(&mut self, index : size_t) {
-lang/libs/std/src/vector.ch:297:    func remove_last(&mut self) {
-lang/libs/std/src/vector.ch:306:    func pop_back(&mut self) {
-lang/libs/std/src/vector.ch:310:    func take_last(&mut self) : T {
-lang/libs/std/src/vector.ch:320:    func empty(&self) : bool {
-lang/libs/std/src/vector.ch:324:    func clear(&mut self) {
-lang/libs/std/src/vector.ch:333:    unsafe func set_len(&mut self, new_size : size_t) {
-lang/libs/std/src/vector.ch:338:    func delete(&mut self) {
-lang/libs/std/src/vector.ch:348:        func data(&self) : *T {
-lang/libs/std/src/vector.ch:351:        func size(&self) : size_t {
-lang/libs/std/src/vector.ch:358:func <T : core::ops::Clone> __vector_clone_value(value : *T) : T {
-lang/libs/std/src/vector.ch:368:public interface SpanView<T> {
-lang/libs/std/src/vector.ch:369:    func as_span(&self) : span<'self, T>
-lang/libs/std/src/vector.ch:370:    func as_mut_span(&mut self) : mut_span<'self, T>
-lang/libs/std/src/vector.ch:374:    public func as_span(&self) : span<'self, T> {
-lang/libs/std/src/vector.ch:378:    public func as_mut_span(&mut self) : mut_span<'self, T> {
-lang/libs/std/src/vector.ch:384:    public func clone(&self) : vector<T> {
+lang/libs/std/src/vector.ch:272:    func data(&self) : *T {
+lang/libs/std/src/vector.ch:276:    func mutable_data(&mut self) : *mut T {
+lang/libs/std/src/vector.ch:280:    func last_ptr(&self) : *mut T {
+lang/libs/std/src/vector.ch:285:    func remove(&mut self, index : size_t) {
+lang/libs/std/src/vector.ch:298:    func erase(&mut self, index : size_t) {
+lang/libs/std/src/vector.ch:302:    func remove_last(&mut self) {
+lang/libs/std/src/vector.ch:311:    func pop_back(&mut self) {
+lang/libs/std/src/vector.ch:315:    func take_last(&mut self) : T {
+lang/libs/std/src/vector.ch:325:    func empty(&self) : bool {
+lang/libs/std/src/vector.ch:329:    func clear(&mut self) {
+lang/libs/std/src/vector.ch:338:    unsafe func set_len(&mut self, new_size : size_t) {
+lang/libs/std/src/vector.ch:343:    func delete(&mut self) {
+lang/libs/std/src/vector.ch:353:        func data(&self) : *T {
+lang/libs/std/src/vector.ch:356:        func size(&self) : size_t {
+lang/libs/std/src/vector.ch:363:func <T : core::ops::Clone> __vector_clone_value(value : *T) : T {
+lang/libs/std/src/vector.ch:373:public interface SpanView<T> {
+lang/libs/std/src/vector.ch:374:    func as_span(&self) : span<'self, T>
+lang/libs/std/src/vector.ch:375:    func as_mut_span(&mut self) : mut_span<'self, T>
+lang/libs/std/src/vector.ch:379:    public func as_span(&self) : span<'self, T> {
+lang/libs/std/src/vector.ch:383:    public func as_mut_span(&mut self) : mut_span<'self, T> {
+lang/libs/std/src/vector.ch:389:    public func clone(&self) : vector<T> {
 lang/libs/std/src/vector.ch:43:    public func with_capacity(init_cap : size_t) : vector<T> {
 lang/libs/std/src/vector.ch:47:    public func try_with_capacity(init_cap : size_t) : std::Result<vector<T>, std::alloc::AllocError> {
 lang/libs/std/src/vector.ch:4:public func __vector_bounds_check(index : size_t, size : size_t) {

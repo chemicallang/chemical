@@ -139,7 +139,7 @@ public func html_view_iequals(a : std::string_view, b : std::string_view) : bool
     if(a.size() != b.size()) { return false }
     var i = 0u
     while(i < a.size()) {
-        if(html_lower_byte(a.get(i)) != html_lower_byte(b.get(i))) { return false }
+        if(html_lower_byte(a.at(i)) != html_lower_byte(b.at(i))) { return false }
         i = i + 1u
     }
     return true
@@ -149,7 +149,7 @@ public func html_view_istarts_with(v : std::string_view, prefix : std::string_vi
     if(v.size() < prefix.size()) { return false }
     var i = 0u
     while(i < prefix.size()) {
-        if(html_lower_byte(v.get(i)) != html_lower_byte(prefix.get(i))) { return false }
+        if(html_lower_byte(v.at(i)) != html_lower_byte(prefix.at(i))) { return false }
         i = i + 1u
     }
     return true

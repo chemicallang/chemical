@@ -14,7 +14,7 @@ func crypto_safe_bytes_eq(v : &vector<u8>, expected : *u8, n : size_t) : bool {
     if(v.size() != n) { return false }
     var i : size_t = 0
     while(i < n) {
-        if(v.get(i) != unsafe(expected[i])) { return false }
+        if(v.at(i) != unsafe(expected[i])) { return false }
         i += 1
     }
     return true

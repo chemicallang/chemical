@@ -6,7 +6,7 @@ func (converter : &mut JsConverter) resolve_attributes(element : *mut JsJSXEleme
         var out = std::vector<ResolvedAttr>()
         const attributes = &element.opening.attributes
         for(var i : uint = 0; i < attributes.size(); i++) {
-            const attrNode = attributes.get(i)
+            const attrNode = attributes.at(i)
             if(attrNode == null) continue
             if(attrNode.kind == JsNodeKind.JSXAttribute) {
                 const attr = attrNode as *mut JsJSXAttribute
@@ -202,7 +202,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
 
             // 2. Render children
             for(var i : uint = 0; i < element.children.size(); i++) {
-                 converter.convertJsNode(element.children.get(i));
+                 converter.convertJsNode(element.children.at(i));
             }
 
             var childrenHtmlId = builder.make_identifier(&childrenHtmlName, childrenHtmlVar , false, location);
@@ -370,7 +370,7 @@ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSX
             converter.put_chain_in();
 
             for(var i : uint = 0; i < element.children.size(); i++) {
-                converter.convertJsNode(element.children.get(i));
+                converter.convertJsNode(element.children.at(i));
             }
 
             converter.str.append_view("</");
@@ -443,7 +443,7 @@ func (converter : &mut JsConverter) emit_js_attr_object(attrs : &std::vector<*mu
         var classAttrs = std::vector<*mut JsJSXAttribute>();
         var otherAttrs = std::vector<*mut JsJSXAttribute>();
         for(var i : uint = 0; i < attrs.size(); i++) {
-            const attr = attrs.get(i);
+            const attr = attrs.at(i);
             if(jsx_attr_kind(attr.name) == JsxAttrKind.Class) {
                 classAttrs.push(attr);
             } else {
@@ -457,15 +457,15 @@ func (converter : &mut JsConverter) emit_js_attr_object(attrs : &std::vector<*mu
             converter.str.append_view("\"class\": $_ucs(() => [");
             for(var i : uint = 0; i < classAttrs.size(); i++) {
                 if(i > 0) converter.str.append_view(", ");
-                converter.convertAttributeValue(classAttrs.get(i));
+                converter.convertAttributeValue(classAttrs.at(i));
             }
             converter.str.append_view("].map(w => window.$__uni_value(w)).filter(Boolean).join(\" \"))");
             first = false;
         } else if(classAttrs.size() == 1) {
-            converter.append_js_attr_entry(classAttrs.get(0), &mut first);
+            converter.append_js_attr_entry(classAttrs.at(0), &mut first);
         }
         for(var i : uint = 0; i < otherAttrs.size(); i++) {
-            converter.append_js_attr_entry(otherAttrs.get(i), &mut first);
+            converter.append_js_attr_entry(otherAttrs.at(i), &mut first);
         }
         converter.str.append_view("}");
 
@@ -484,7 +484,7 @@ func (converter : &mut JsConverter) emit_jsx_children_js(children : &std::vector
         unsafe {
         var first = true
         for(var i : uint = 0; i < children.size(); i++) {
-            const child = children.get(i)
+            const child = children.at(i)
             if(child == null) continue
             if(child.kind == JsNodeKind.ChemicalValue) continue
             if(leading_comma) {
@@ -508,7 +508,7 @@ func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElemen
         if(tagNameNode.kind == JsNodeKind.Identifier) {
             const jsId = tagNameNode as *mut JsIdentifier
             tagName = jsId.value
-            if(element.componentSignature != null || (tagName.size() > 0 && tagName.get(0) >= 'A' && tagName.get(0) <= 'Z')) {
+            if(element.componentSignature != null || (tagName.size() > 0 && tagName.at(0) >= 'A' && tagName.at(0) <= 'Z')) {
                 isComponent = true
             }
         } else if(tagNameNode.kind == JsNodeKind.JSXExpressionContainer) {
@@ -528,7 +528,7 @@ func (converter : &mut JsConverter) convertJSXFragment(fragment : *mut JsJSXFrag
         unsafe {
         if(converter.target == BufferType.HTML) {
             for(var i : uint = 0; i < fragment.children.size(); i++) {
-                 converter.convertJsNode(fragment.children.get(i));
+                 converter.convertJsNode(fragment.children.at(i));
             }
             return;
         }

@@ -92,7 +92,7 @@ public struct Font {
         }
         var i : size_t = 0
         while(i < self.tables.size()) {
-            var t = self.tables.get(i)
+            var t = self.tables.at(i)
             var off = t.offset as size_t
             var len = t.length as size_t
             if(off > self.data.size()) {
@@ -245,7 +245,7 @@ func find_table(font : *mut Font, tag : u32) : std::Result<FontTable, FontError>
         while(i < font.tables.size()) {
             var t = font.tables.get_ptr(i)
             if(t.tag == tag) {
-                return std.Result.Ok(font.tables.get(i))
+                return std.Result.Ok(font.tables.at(i))
             }
             i += 1
         }
@@ -555,7 +555,7 @@ public func font_get_glyph_outline(font : *mut Font, glyph_id : u16) : std::Resu
                         var dx = font.data.data()[pos] as i32
                         if((flags & 0x10) == 0) { dx = -dx }
                         var prev_x : i32 = 0
-                        if(outline.points.size() > 0) { prev_x = outline.points.get(outline.points.size() - 2) }
+                        if(outline.points.size() > 0) { prev_x = outline.points.at(outline.points.size() - 2) }
                         outline.points.push(prev_x + dx)
                         pos += 1
                     }
@@ -564,13 +564,13 @@ public func font_get_glyph_outline(font : *mut Font, glyph_id : u16) : std::Resu
                     if((flags & 0x10) != 0) {
                         // Same as previous
                         var prev_x : i32 = 0
-                        if(outline.points.size() > 0) { prev_x = outline.points.get(outline.points.size() - 2) }
+                        if(outline.points.size() > 0) { prev_x = outline.points.at(outline.points.size() - 2) }
                         outline.points.push(prev_x)
                     } else {
                         if(pos + 2 <= font.data.size()) {
                             var dx = read_i16_be(font.data.data(), pos) as i32
                             var prev_x : i32 = 0
-                            if(outline.points.size() > 0) { prev_x = outline.points.get(outline.points.size() - 2) }
+                            if(outline.points.size() > 0) { prev_x = outline.points.at(outline.points.size() - 2) }
                             outline.points.push(prev_x + dx)
                             pos += 2
                         }
@@ -583,20 +583,20 @@ public func font_get_glyph_outline(font : *mut Font, glyph_id : u16) : std::Resu
                         var dy = font.data.data()[pos] as i32
                         if((flags & 0x20) == 0) { dy = -dy }
                         var prev_y : i32 = 0
-                        if(outline.points.size() > 0) { prev_y = outline.points.get(outline.points.size() - 1) }
+                        if(outline.points.size() > 0) { prev_y = outline.points.at(outline.points.size() - 1) }
                         outline.points.push(prev_y + dy)
                         pos += 1
                     }
                 } else {
                     if((flags & 0x20) != 0) {
                         var prev_y : i32 = 0
-                        if(outline.points.size() > 0) { prev_y = outline.points.get(outline.points.size() - 1) }
+                        if(outline.points.size() > 0) { prev_y = outline.points.at(outline.points.size() - 1) }
                         outline.points.push(prev_y)
                     } else {
                         if(pos + 2 <= font.data.size()) {
                             var dy = read_i16_be(font.data.data(), pos) as i32
                             var prev_y : i32 = 0
-                            if(outline.points.size() > 0) { prev_y = outline.points.get(outline.points.size() - 1) }
+                            if(outline.points.size() > 0) { prev_y = outline.points.at(outline.points.size() - 1) }
                             outline.points.push(prev_y + dy)
                             pos += 2
                         }

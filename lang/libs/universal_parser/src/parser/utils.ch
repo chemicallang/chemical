@@ -9,7 +9,7 @@ func checkHasJSX(node : *mut JsNode) : bool {
             JsNodeKind.Block => {
                 var block = node as *mut JsBlock
                 for(var i : uint = 0; i < block.statements.size(); i++) {
-                    if(checkHasJSX(block.statements.get(i))) return true;
+                    if(checkHasJSX(block.statements.at(i))) return true;
                 }
                 return false;
             }
@@ -44,7 +44,7 @@ func checkHasJSX(node : *mut JsNode) : bool {
                 var call = node as *mut JsFunctionCall
                 if(checkHasJSX(call.callee)) return true;
                 for(var i : uint = 0; i < call.args.size(); i++) {
-                    if(checkHasJSX(call.args.get(i))) return true;
+                    if(checkHasJSX(call.args.at(i))) return true;
                 }
                 return false;
             }
@@ -96,7 +96,7 @@ func checkHasJSX(node : *mut JsNode) : bool {
                     var c = s.cases.get_ptr(i);
                     if(checkHasJSX(c.test)) return true;
                     for(var j : uint = 0; j < c.body.size(); j++) {
-                        if(checkHasJSX(c.body.get(j))) return true;
+                        if(checkHasJSX(c.body.at(j))) return true;
                     }
                 }
                 return false;
@@ -116,14 +116,14 @@ func checkHasJSX(node : *mut JsNode) : bool {
             JsNodeKind.ArrayLiteral => {
                 var a = node as *mut JsArrayLiteral
                 for(var i : uint = 0; i < a.elements.size(); i++) {
-                    if(checkHasJSX(a.elements.get(i))) return true;
+                    if(checkHasJSX(a.elements.at(i))) return true;
                 }
                 return false;
             }
             JsNodeKind.ObjectLiteral => {
                 var o = node as *mut JsObjectLiteral
                 for(var i : uint = 0; i < o.properties.size(); i++) {
-                    if(checkHasJSX(o.properties.get(i).value)) return true;
+                    if(checkHasJSX(o.properties.at(i).value)) return true;
                 }
                 return false;
             }

@@ -429,7 +429,7 @@ public func INT_base64_decode_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     var py_out = test_python_run_script(&raw script[0], sp, string_view("b64_enc"))
     var py_enc : [72]u8; var pw : size_t = 0; var pi : size_t = 0
-    while(pi<py_out.size()&&pw<72){var c=py_out.get(pi)as char;if(c==10||c==13||c==0){break}else{py_enc[pw]=c as u8;pw+=1}pi+=1}
+    while(pi<py_out.size()&&pw<72){var c=py_out.at(pi)as char;if(c==10||c==13||c==0){break}else{py_enc[pw]=c as u8;pw+=1}pi+=1}
     if(pw!=enc_len||!test_bytes_eq(&raw enc[0] as *u8,&raw py_enc[0],enc_len)){env.error("b64 enc vs py");return}
 
     // Now decode back

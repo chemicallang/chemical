@@ -21,7 +21,7 @@ func getCSSGlobalKeywordKind(view : &std::string_view) : CSSKeywordKind {
 
 func is_custom_property_name(view : &std::string_view) : bool {
         unsafe {
-        return view.size() >= 2 && view.get(0) == '-' && view.get(1) == '-';
+        return view.size() >= 2 && view.at(0) == '-' && view.at(1) == '-';
 
         }
     }

@@ -28,6 +28,6 @@ func test_safe_api_surface_smoke(env : &mut TestEnv) {
 
     var v = vector<int>()
     if(!v.try_push(1)) { env.error("vector try_push") }
-    if(v.get_opt(0u) is Option.None) { env.error("vector get_opt") }
+    if(v.get(0u) is Option.None) { env.error("vector get_opt") }
     if(v.try_pop() is Option.None) { env.error("vector try_pop") }
 }

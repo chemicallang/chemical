@@ -6,7 +6,7 @@
 // A CBOR decoder in `lang/libs/cbor` read bytes with:
 //
 //     for(var i = 0u64; i < len; i++) {
-//         v = (v << 8) | (self.data.get(self.pos + (i as size_t)) as u64)
+//         v = (v << 8) | (self.data.at(self.pos + (i as size_t)) as u64)
 //         self.pos += 1u
 //     }
 //

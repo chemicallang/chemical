@@ -29,7 +29,7 @@ func router_has_decl(block : *mut JsBlock) : bool {
         unsafe {
         if(block == null) return false
         for(var i : uint = 0; i < block.statements.size(); i++) {
-            const stmt = block.statements.get(i)
+            const stmt = block.statements.at(i)
             if(stmt != null && stmt.kind == JsNodeKind.RouterDecl) return true
         }
         return false
@@ -42,7 +42,7 @@ func router_default_id(rd : *mut JsRouterDecl) : std::string_view {
         unsafe {
         var first = std::string_view()
         for(var i : uint = 0; i < rd.routes.size(); i++) {
-            const rn = rd.routes.get(i)
+            const rn = rd.routes.at(i)
             if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
             var r = rn as *mut JsRouteDecl
             if(r.is_fallback) continue
@@ -60,7 +60,7 @@ func router_route_root(route : *mut JsRouteDecl) : *mut JsNode {
         if(route.body == null || route.body.kind != JsNodeKind.Block) return null
         const block = route.body as *mut JsBlock
         for(var i : uint = 0; i < block.statements.size(); i++) {
-            const stmt = block.statements.get(i)
+            const stmt = block.statements.at(i)
             if(stmt == null) continue
             if(stmt.kind == JsNodeKind.ExpressionStatement) {
                 const es = stmt as *mut JsExpressionStatement
@@ -81,7 +81,7 @@ func router_route_root(route : *mut JsRouteDecl) : *mut JsNode {
 func router_find_hook(route : *mut JsRouteDecl, hookName : std::string_view) : *mut JsNode {
         unsafe {
         for(var i : uint = 0; i < route.hooks.size(); i++) {
-            const hn = route.hooks.get(i)
+            const hn = route.hooks.at(i)
             if(hn == null || hn.kind != JsNodeKind.RouteHook) continue
             const h = hn as *mut JsRouteHook
             if(h.name.equals(&hookName)) return h.fn
@@ -113,7 +113,7 @@ func router_route_comp(root : *mut JsNode) : std::string {
 func router_html_escape(v : std::string_view, out : &mut std::string) {
         unsafe {
         for(var i : size_t = 0; i < v.size(); i++) {
-            const c = v.get(i)
+            const c = v.at(i)
             if(c == '"') { out.append_view(std::string_view("&quot;")) }
             else if(c == '&') { out.append_view(std::string_view("&amp;")) }
             else if(c == '<') { out.append_view(std::string_view("&lt;")) }
@@ -127,7 +127,7 @@ func router_html_escape(v : std::string_view, out : &mut std::string) {
 func router_js_escape(v : std::string_view, out : &mut std::string) {
         unsafe {
         for(var i : size_t = 0; i < v.size(); i++) {
-            const c = v.get(i)
+            const c = v.at(i)
             if(c == '\\') { out.append_view(std::string_view("\\\\")) }
             else if(c == '"') { out.append_view(std::string_view("\\\"")) }
             else if(c == '\n') { out.append_view(std::string_view("\\n")) }
@@ -144,12 +144,12 @@ func router_pattern_score(pattern : std::string_view, literalCount : &mut int, p
         unsafe {
         var i : size_t = 0
         while(i < pattern.size()) {
-            while(i < pattern.size() && pattern.get(i) == '/') { i = i + 1 }
+            while(i < pattern.size() && pattern.at(i) == '/') { i = i + 1 }
             if(i >= pattern.size()) { break }
             const start = i
-            while(i < pattern.size() && pattern.get(i) != '/') { i = i + 1 }
+            while(i < pattern.size() && pattern.at(i) != '/') { i = i + 1 }
             const seg = pattern.subview(start, i)
-            if(seg.size() >= 2 && seg.get(0) == '{') { *paramCount = *paramCount + 1 }
+            if(seg.size() >= 2 && seg.at(0) == '{') { *paramCount = *paramCount + 1 }
             else { *literalCount = *literalCount + 1 }
         }
 
@@ -180,19 +180,19 @@ func router_pattern_shape_equal(a : std::string_view, b : std::string_view) : bo
         var ia : size_t = 0
         var ib : size_t = 0
         while(true) {
-            while(ia < a.size() && a.get(ia) == '/') { ia = ia + 1 }
-            while(ib < b.size() && b.get(ib) == '/') { ib = ib + 1 }
+            while(ia < a.size() && a.at(ia) == '/') { ia = ia + 1 }
+            while(ib < b.size() && b.at(ib) == '/') { ib = ib + 1 }
             const aEnd = ia >= a.size()
             const bEnd = ib >= b.size()
             if(aEnd || bEnd) { return aEnd && bEnd }
             var ja = ia
-            while(ja < a.size() && a.get(ja) != '/') { ja = ja + 1 }
+            while(ja < a.size() && a.at(ja) != '/') { ja = ja + 1 }
             var jb = ib
-            while(jb < b.size() && b.get(jb) != '/') { jb = jb + 1 }
+            while(jb < b.size() && b.at(jb) != '/') { jb = jb + 1 }
             const sa = a.subview(ia, ja)
             const sb = b.subview(ib, jb)
-            const pa = sa.size() >= 2 && sa.get(0) == '{' && sa.get(sa.size() - 1) == '}'
-            const pb = sb.size() >= 2 && sb.get(0) == '{' && sb.get(sb.size() - 1) == '}'
+            const pa = sa.size() >= 2 && sa.at(0) == '{' && sa.at(sa.size() - 1) == '}'
+            const pb = sb.size() >= 2 && sb.at(0) == '{' && sb.at(sb.size() - 1) == '}'
             if(pa != pb) { return false }
             if(!pa && !sa.equals(&sb)) { return false }
             ia = ja
@@ -209,10 +209,10 @@ func (converter : &mut JsConverter) router_validate_ambiguity(entries : &std::ve
         unsafe {
         if(converter.diagnoser == null) return
         for(var i : size_t = 0; i < entries.size(); i++) {
-            var a = entries.get(i)
+            var a = entries.at(i)
             if(a.is_fallback || a.prefix) { continue }
             for(var j : size_t = i + 1; j < entries.size(); j++) {
-                var b = entries.get(j)
+                var b = entries.at(j)
                 if(b.is_fallback || b.prefix) { continue }
                 if(!router_pattern_shape_equal(a.pattern, b.pattern)) { continue }
                 var msg = std::string("route patterns '")
@@ -261,7 +261,7 @@ func (converter : &mut JsConverter) router_collect_url_entries(routes : &std::ve
         const isTop = ownerRegistry.equals(&rootRegistry)
 
         for(var i : uint = 0; i < routes.size(); i++) {
-            var r = routes.get(i) as *mut JsRouteDecl
+            var r = routes.at(i) as *mut JsRouteDecl
 
             if(isTop && r.is_fallback) {
                 const fe = builder.allocate<RouterUrlEntry>()
@@ -290,8 +290,8 @@ func (converter : &mut JsConverter) router_collect_url_entries(routes : &std::ve
             var selfRegs = std::vector<std::string_view>()
             var selfIds = std::vector<std::string_view>()
             for(var k : uint = 0; k < pathRegs.size(); k++) {
-                selfRegs.push(pathRegs.get(k))
-                selfIds.push(pathIds.get(k))
+                selfRegs.push(pathRegs.at(k))
+                selfIds.push(pathIds.at(k))
             }
             if(!isTop) {
                 var regStr = std::string()
@@ -305,8 +305,8 @@ func (converter : &mut JsConverter) router_collect_url_entries(routes : &std::ve
                 var entryRegs = std::vector<std::string_view>()
                 var entryIds = std::vector<std::string_view>()
                 for(var k : uint = 0; k < selfRegs.size(); k++) {
-                    entryRegs.push(selfRegs.get(k))
-                    entryIds.push(selfIds.get(k))
+                    entryRegs.push(selfRegs.at(k))
+                    entryIds.push(selfIds.at(k))
                 }
                 const e = builder.allocate<RouterUrlEntry>()
                 new (e) RouterUrlEntry {
@@ -340,8 +340,8 @@ func (converter : &mut JsConverter) router_collect_url_entries(routes : &std::ve
                     var fbRegs = std::vector<std::string_view>()
                     var fbIds = std::vector<std::string_view>()
                     for(var k : uint = 0; k < selfRegs.size(); k++) {
-                        fbRegs.push(selfRegs.get(k))
-                        fbIds.push(selfIds.get(k))
+                        fbRegs.push(selfRegs.at(k))
+                        fbIds.push(selfIds.at(k))
                     }
                     fbRegs.push(childView)
                     fbIds.push(builder.allocate_view(&std::string_view("*")))
@@ -372,7 +372,7 @@ func (converter : &mut JsConverter) router_collect_url_entries(routes : &std::ve
 func router_nested_fallback(routes : &std::vector<*mut JsNode>) : *mut JsRouteDecl {
         unsafe {
         for(var i : uint = 0; i < routes.size(); i++) {
-            var r = routes.get(i) as *mut JsRouteDecl
+            var r = routes.at(i) as *mut JsRouteDecl
             if(r.is_fallback) { return r }
         }
         return null
@@ -387,7 +387,7 @@ func (converter : &mut JsConverter) router_url_entries(rd : *mut JsRouterDecl) :
         var out = std::vector<*mut RouterUrlEntry>()
         var order = 0
         for(var i : uint = 0; i < rd.routes.size(); i++) {
-            const rn = rd.routes.get(i)
+            const rn = rd.routes.at(i)
             if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
             var one = std::vector<*mut JsNode>()
             one.push(rn)
@@ -398,16 +398,16 @@ func (converter : &mut JsConverter) router_url_entries(rd : *mut JsRouterDecl) :
         }
         // insertion sort (pointers; stable via the `order` tie-break)
         for(var a : size_t = 1; a < out.size(); a++) {
-            const key = out.get(a)
+            const key = out.at(a)
             var b = a
-            while(b > 0 && router_entry_precedes(key, out.get(b - 1))) {
+            while(b > 0 && router_entry_precedes(key, out.at(b - 1))) {
                 // Read before taking the mutable element borrow: holding a
                 // `get_mut` loan across `out.get` is aliasing (SAFE-BORROW-001).
-                const prev = out.get(b - 1)
-                *out.get_mut(b) = prev
+                const prev = out.at(b - 1)
+                *out.at_mut(b) = prev
                 b = b - 1
             }
-            *out.get_mut(b) = key
+            *out.at_mut(b) = key
         }
         return out
 
@@ -422,10 +422,10 @@ func router_chain_field(entry : *mut RouterUrlEntry, out : &mut std::string) {
         const unit = std::string_view("\x1f")
         for(var i : uint = 0; i < entry.chainRegs.size(); i++) {
             if(i > 0) { out.append_view(&rec) }
-            const reg = entry.chainRegs.get(i)
+            const reg = entry.chainRegs.at(i)
             out.append_view(&reg)
             out.append_view(&unit)
-            const cid = entry.chainIds.get(i)
+            const cid = entry.chainIds.at(i)
             out.append_view(&cid)
         }
 
@@ -437,7 +437,7 @@ func router_chain_field(entry : *mut RouterUrlEntry, out : &mut std::string) {
 func router_match_spec(entries : &std::vector<*mut RouterUrlEntry>, out : &mut std::string) {
         unsafe {
         for(var k : size_t = 0; k < entries.size(); k++) {
-            var e = entries.get(k)
+            var e = entries.at(k)
             out.append_view(&e.id)
             out.append('\t')
             out.append_view(&e.pattern)
@@ -459,12 +459,12 @@ func router_pattern_param_names(pattern : std::string_view) : std::vector<std::s
         var out = std::vector<std::string_view>()
         var i : size_t = 0
         while(i < pattern.size()) {
-            while(i < pattern.size() && pattern.get(i) == '/') { i = i + 1 }
+            while(i < pattern.size() && pattern.at(i) == '/') { i = i + 1 }
             if(i >= pattern.size()) { break }
             const start = i
-            while(i < pattern.size() && pattern.get(i) != '/') { i = i + 1 }
+            while(i < pattern.size() && pattern.at(i) != '/') { i = i + 1 }
             const seg = pattern.subview(start, i)
-            if(seg.size() >= 2 && seg.get(0) == '{' && seg.get(seg.size() - 1) == '}') {
+            if(seg.size() >= 2 && seg.at(0) == '{' && seg.at(seg.size() - 1) == '}') {
                 out.push(seg.subview(1, seg.size() - 1))
             }
         }
@@ -525,10 +525,10 @@ func (converter : &mut JsConverter) router_inject_param_props(effectivePattern :
         const names = router_pattern_param_names(effectivePattern)
 
         for(var i : uint = 0; i < names.size(); i++) {
-            const name = names.get(i)
+            const name = names.at(i)
             var already = false
             for(var a : uint = 0; a < el.opening.attributes.size(); a++) {
-                const existing = el.opening.attributes.get(a)
+                const existing = el.opening.attributes.at(a)
                 if(existing != null && existing.kind == JsNodeKind.JSXAttribute) {
                     if((existing as *mut JsJSXAttribute).name.equals(&name)) { already = true }
                 }
@@ -543,7 +543,7 @@ func (converter : &mut JsConverter) router_inject_param_props(effectivePattern :
         if(isFallback) {
             var already = false
             for(var a : uint = 0; a < el.opening.attributes.size(); a++) {
-                const existing = el.opening.attributes.get(a)
+                const existing = el.opening.attributes.at(a)
                 if(existing != null && existing.kind == JsNodeKind.JSXAttribute) {
                     if((existing as *mut JsJSXAttribute).name.equals(std::string_view("__path"))) { already = true }
                 }
@@ -563,10 +563,10 @@ func router_pattern_segments_js(pattern : std::string_view, out : &mut std::stri
         var first = true
         var i : size_t = 0
         while(i < pattern.size()) {
-            while(i < pattern.size() && pattern.get(i) == '/') { i = i + 1 }
+            while(i < pattern.size() && pattern.at(i) == '/') { i = i + 1 }
             if(i >= pattern.size()) { break }
             const start = i
-            while(i < pattern.size() && pattern.get(i) != '/') { i = i + 1 }
+            while(i < pattern.size() && pattern.at(i) != '/') { i = i + 1 }
             if(!first) out.append_view(", ")
             first = false
             out.append('"')
@@ -586,12 +586,12 @@ func router_pattern_params_js(pattern : std::string_view, isFallback : bool, out
         var first = firstIn
         var i : size_t = 0
         while(i < pattern.size()) {
-            while(i < pattern.size() && pattern.get(i) == '/') { i = i + 1 }
+            while(i < pattern.size() && pattern.at(i) == '/') { i = i + 1 }
             if(i >= pattern.size()) { break }
             const start = i
-            while(i < pattern.size() && pattern.get(i) != '/') { i = i + 1 }
+            while(i < pattern.size() && pattern.at(i) != '/') { i = i + 1 }
             const seg = pattern.subview(start, i)
-            if(seg.size() >= 2 && seg.get(0) == '{' && seg.get(seg.size() - 1) == '}') {
+            if(seg.size() >= 2 && seg.at(0) == '{' && seg.at(seg.size() - 1) == '}') {
                 if(!first) out.append_view(", ")
                 first = false
                 out.append('"')
@@ -701,7 +701,7 @@ func router_count_jsx_roots(route : *mut JsRouteDecl) : int {
         const block = route.body as *mut JsBlock
         var count = 0
         for(var i : uint = 0; i < block.statements.size(); i++) {
-            const stmt = block.statements.get(i)
+            const stmt = block.statements.at(i)
             if(stmt == null) continue
             if(stmt.kind == JsNodeKind.ExpressionStatement) {
                 const es = stmt as *mut JsExpressionStatement
@@ -728,7 +728,7 @@ func router_count_emitters(route : *mut JsRouteDecl) : int {
         const block = route.body as *mut JsBlock
         var count = 0
         for(var i : uint = 0; i < block.statements.size(); i++) {
-            const stmt = block.statements.get(i)
+            const stmt = block.statements.at(i)
             if(stmt == null) continue
             if(stmt.kind != JsNodeKind.ExpressionStatement) continue
             const es = stmt as *mut JsExpressionStatement
@@ -750,7 +750,7 @@ func (converter : &mut JsConverter) emit_route_body_statements(route : *mut JsRo
         if(route.body == null || route.body.kind != JsNodeKind.Block) return
         const block = route.body as *mut JsBlock
         for(var i : uint = 0; i < block.statements.size(); i++) {
-            const stmt = block.statements.get(i)
+            const stmt = block.statements.at(i)
             if(stmt == null) continue
             if(stmt.kind == JsNodeKind.RouteDecl) continue
             if(stmt.kind == JsNodeKind.ExpressionStatement) {
@@ -794,7 +794,7 @@ func router_scan_internals(node : *mut JsNode) : bool {
                 const c = node as *mut JsFunctionCall
                 if(router_scan_internals(c.callee)) return true
                 for(var i : uint = 0; i < c.args.size(); i++) {
-                    if(router_scan_internals(c.args.get(i))) return true
+                    if(router_scan_internals(c.args.at(i))) return true
                 }
                 return false
             }
@@ -804,7 +804,7 @@ func router_scan_internals(node : *mut JsNode) : bool {
             JsNodeKind.Block => {
                 const b = node as *mut JsBlock
                 for(var i : uint = 0; i < b.statements.size(); i++) {
-                    if(router_scan_internals(b.statements.get(i))) return true
+                    if(router_scan_internals(b.statements.at(i))) return true
                 }
                 return false
             }
@@ -831,14 +831,14 @@ func router_scan_internals(node : *mut JsNode) : bool {
             JsNodeKind.ArrayLiteral => {
                 const a = node as *mut JsArrayLiteral
                 for(var i : uint = 0; i < a.elements.size(); i++) {
-                    if(router_scan_internals(a.elements.get(i))) return true
+                    if(router_scan_internals(a.elements.at(i))) return true
                 }
                 return false
             }
             JsNodeKind.ObjectLiteral => {
                 const o = node as *mut JsObjectLiteral
                 for(var i : uint = 0; i < o.properties.size(); i++) {
-                    if(router_scan_internals(o.properties.get(i).value)) return true
+                    if(router_scan_internals(o.properties.at(i).value)) return true
                 }
                 return false
             }
@@ -849,10 +849,10 @@ func router_scan_internals(node : *mut JsNode) : bool {
             JsNodeKind.JSXElement => {
                 const el = node as *mut JsJSXElement
                 for(var i : uint = 0; i < el.opening.attributes.size(); i++) {
-                    if(router_scan_internals(el.opening.attributes.get(i))) return true
+                    if(router_scan_internals(el.opening.attributes.at(i))) return true
                 }
                 for(var i : uint = 0; i < el.children.size(); i++) {
-                    if(router_scan_internals(el.children.get(i))) return true
+                    if(router_scan_internals(el.children.at(i))) return true
                 }
                 return false
             }
@@ -868,7 +868,7 @@ func router_scan_internals(node : *mut JsNode) : bool {
             JsNodeKind.JSXFragment => {
                 const f = node as *mut JsJSXFragment
                 for(var i : uint = 0; i < f.children.size(); i++) {
-                    if(router_scan_internals(f.children.get(i))) return true
+                    if(router_scan_internals(f.children.at(i))) return true
                 }
                 return false
             }
@@ -898,19 +898,19 @@ func (converter : &mut JsConverter) router_validate_calls(node : *mut JsNode, ro
                             const recv = mem.object as *mut JsFunctionCall
                             if(recv.callee != null && recv.callee.kind == JsNodeKind.Identifier &&
                                (recv.callee as *mut JsIdentifier).value.equals(std::string_view("router")) &&
-                               recv.args.size() > 0 && recv.args.get(0).kind == JsNodeKind.Literal &&
-                               call.args.size() > 0 && call.args.get(0).kind == JsNodeKind.Literal) {
-                                const nameLit = (recv.args.get(0) as *mut JsLiteral).value
-                                const idLit = (call.args.get(0) as *mut JsLiteral).value
+                               recv.args.size() > 0 && recv.args.at(0).kind == JsNodeKind.Literal &&
+                               call.args.size() > 0 && call.args.at(0).kind == JsNodeKind.Literal) {
+                                const nameLit = (recv.args.at(0) as *mut JsLiteral).value
+                                const idLit = (call.args.at(0) as *mut JsLiteral).value
                                 var nameName = nameLit
-                                if(nameName.size() >= 2 && nameName.get(0) == '"' && nameName.get(nameName.size() - 1) == '"') {
+                                if(nameName.size() >= 2 && nameName.at(0) == '"' && nameName.at(nameName.size() - 1) == '"') {
                                     nameName = nameName.subview(1, nameName.size() - 1)
                                 }
                                 // Only validate the router this component declares.
                                 if(nameName.equals(&routerName)) {
                                     var found = false
                                     for(var i : uint = 0; i < validIds.size(); i++) {
-                                        var r = validIds.get(i) as *mut JsRouteDecl
+                                        var r = validIds.at(i) as *mut JsRouteDecl
                                         var quoted = std::string("\"")
                                         quoted.append_view(&r.id)
                                         quoted.append('"')
@@ -920,7 +920,7 @@ func (converter : &mut JsConverter) router_validate_calls(node : *mut JsNode, ro
                                         // Strip the JS string quotes to match the
                                         // frozen message (single-quoted id).
                                         var idName = idLit
-                                        if(idName.size() >= 2 && idName.get(0) == '"' && idName.get(idName.size() - 1) == '"') {
+                                        if(idName.size() >= 2 && idName.at(0) == '"' && idName.at(idName.size() - 1) == '"') {
                                             idName = idName.subview(1, idName.size() - 1)
                                         }
                                         var msg = std::string("no route '")
@@ -936,7 +936,7 @@ func (converter : &mut JsConverter) router_validate_calls(node : *mut JsNode, ro
                     }
                 }
                 for(var i : uint = 0; i < call.args.size(); i++) {
-                    converter.router_validate_calls(call.args.get(i), routerName, validIds, loc)
+                    converter.router_validate_calls(call.args.at(i), routerName, validIds, loc)
                 }
                 converter.router_validate_calls(call.callee, routerName, validIds, loc)
             }
@@ -947,7 +947,7 @@ func (converter : &mut JsConverter) router_validate_calls(node : *mut JsNode, ro
             JsNodeKind.Block => {
                 const b = node as *mut JsBlock
                 for(var i : uint = 0; i < b.statements.size(); i++) {
-                    converter.router_validate_calls(b.statements.get(i), routerName, validIds, loc)
+                    converter.router_validate_calls(b.statements.at(i), routerName, validIds, loc)
                 }
             }
             JsNodeKind.If => {
@@ -959,10 +959,10 @@ func (converter : &mut JsConverter) router_validate_calls(node : *mut JsNode, ro
             JsNodeKind.JSXElement => {
                 const el = node as *mut JsJSXElement
                 for(var i : uint = 0; i < el.opening.attributes.size(); i++) {
-                    converter.router_validate_calls(el.opening.attributes.get(i), routerName, validIds, loc)
+                    converter.router_validate_calls(el.opening.attributes.at(i), routerName, validIds, loc)
                 }
                 for(var i : uint = 0; i < el.children.size(); i++) {
-                    converter.router_validate_calls(el.children.get(i), routerName, validIds, loc)
+                    converter.router_validate_calls(el.children.at(i), routerName, validIds, loc)
                 }
             }
             JsNodeKind.JSXExpressionContainer => { converter.router_validate_calls((node as *mut JsJSXExpressionContainer).expression, routerName, validIds, loc) }
@@ -970,7 +970,7 @@ func (converter : &mut JsConverter) router_validate_calls(node : *mut JsNode, ro
             JsNodeKind.JSXFragment => {
                 const f = node as *mut JsJSXFragment
                 for(var i : uint = 0; i < f.children.size(); i++) {
-                    converter.router_validate_calls(f.children.get(i), routerName, validIds, loc)
+                    converter.router_validate_calls(f.children.at(i), routerName, validIds, loc)
                 }
             }
             default => {}
@@ -1001,7 +1001,7 @@ func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector
         var hasFallback = false
         var firstLoc : ubigint = 0
         for(var i : uint = 0; i < routes.size(); i++) {
-            const rn = routes.get(i)
+            const rn = routes.at(i)
             if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
             var r = rn as *mut JsRouteDecl
             if(!hasAny) { firstLoc = r.decl_loc }
@@ -1019,7 +1019,7 @@ func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector
         // R7: at most one fallback, and it must be the last route.
         var sawFallback = false
         for(var i : uint = 0; i < routes.size(); i++) {
-            const rn = routes.get(i)
+            const rn = routes.at(i)
             if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
             var r = rn as *mut JsRouteDecl
             if(r.is_fallback) {
@@ -1033,11 +1033,11 @@ func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector
 
         // R3: duplicate route ids within one router.
         for(var i : uint = 0; i < routes.size(); i++) {
-            const a = routes.get(i)
+            const a = routes.at(i)
             if(a == null || a.kind != JsNodeKind.RouteDecl) continue
             var ra = a as *mut JsRouteDecl
             for(var j : uint = i + 1; j < routes.size(); j++) {
-                const b = routes.get(j)
+                const b = routes.at(j)
                 if(b == null || b.kind != JsNodeKind.RouteDecl) continue
                 var rb = b as *mut JsRouteDecl
                 if(ra.id.equals(&rb.id)) {
@@ -1057,7 +1057,7 @@ func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector
         // of emitters has no root: the route is pure show/hide (`comp: null`) over
         // server-rendered HTML, which is the server-side-setup form of §1.1.
         for(var i : uint = 0; i < routes.size(); i++) {
-            const rn = routes.get(i)
+            const rn = routes.at(i)
             if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
             var r = rn as *mut JsRouteDecl
             const roots = router_count_jsx_roots(r)
@@ -1070,7 +1070,7 @@ func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector
         // R17: at most one JSX root per route body. The router mounts a single
         // subtree, so a second root would be silently dropped.
         for(var i : uint = 0; i < routes.size(); i++) {
-            const rn = routes.get(i)
+            const rn = routes.at(i)
             if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
             var r = rn as *mut JsRouteDecl
             if(router_count_jsx_roots(r) > 1) {
@@ -1081,7 +1081,7 @@ func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector
 
         // R13: mid-pattern wildcards are not supported (the only catch-all is `route *`).
         for(var i : uint = 0; i < routes.size(); i++) {
-            const rn = routes.get(i)
+            const rn = routes.at(i)
             if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
             var r = rn as *mut JsRouteDecl
             if(r.is_url && r.pattern.contains(std::string_view("*"))) {
@@ -1099,7 +1099,7 @@ func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector
         // may therefore sit behind a hidden route, so it is left alone.
         if(depth == 0) {
             for(var i : uint = 0; i < routes.size(); i++) {
-                const rn = routes.get(i)
+                const rn = routes.at(i)
                 if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
                 var r = rn as *mut JsRouteDecl
                 if(r.is_default && r.mode.equals(std::string_view("lazy"))) {
@@ -1111,7 +1111,7 @@ func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector
 
         // R14: route bodies and hooks must not reach `$__uni_*` internals.
         for(var i : uint = 0; i < routes.size(); i++) {
-            const rn = routes.get(i)
+            const rn = routes.at(i)
             if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
             var r = rn as *mut JsRouteDecl
             if(router_scan_internals(r.body)) {
@@ -1119,7 +1119,7 @@ func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector
                 converter.router_diag(&msg, r.decl_loc)
             }
             for(var h : uint = 0; h < r.hooks.size(); h++) {
-                const hook = r.hooks.get(h) as *mut JsRouteHook
+                const hook = r.hooks.at(h) as *mut JsRouteHook
                 if(router_scan_internals(hook.fn)) {
                     var msg = std::string("route bodies cannot call runtime internals")
                     converter.router_diag(&msg, r.decl_loc)
@@ -1130,19 +1130,19 @@ func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector
         // R8: literal ids passed to `router("m").activateRoute("x")` etc. must be
         // declared in this router.
         for(var i : uint = 0; i < routes.size(); i++) {
-            const rn = routes.get(i)
+            const rn = routes.at(i)
             if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
             var r = rn as *mut JsRouteDecl
             converter.router_validate_calls(r.body, routerName, routes, r.decl_loc)
             for(var h : uint = 0; h < r.hooks.size(); h++) {
-                const hook = r.hooks.get(h) as *mut JsRouteHook
+                const hook = r.hooks.at(h) as *mut JsRouteHook
                 converter.router_validate_calls(hook.fn, routerName, routes, r.decl_loc)
             }
         }
 
         // R11/R12: route-component prop reads (design §14.8).
         for(var i : uint = 0; i < routes.size(); i++) {
-            const rn = routes.get(i)
+            const rn = routes.at(i)
             if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
             var r = rn as *mut JsRouteDecl
             var ep = std::string()
@@ -1153,7 +1153,7 @@ func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector
 
         // Recurse: nested routes form a sub-router under a derived name.
         for(var i : uint = 0; i < routes.size(); i++) {
-            const rn = routes.get(i)
+            const rn = routes.at(i)
             if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
             var r = rn as *mut JsRouteDecl
             const nested = router_route_nested(r)
@@ -1182,7 +1182,7 @@ func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector
 func router_push_unique(out : &mut std::vector<std::string_view>, name : std::string_view) {
         unsafe {
         for(var i : uint = 0; i < out.size(); i++) {
-            if(out.get(i).equals(&name)) { return }
+            if(out.at(i).equals(&name)) { return }
         }
         out.push(name)
 
@@ -1213,14 +1213,14 @@ func router_collect_prop_reads(node : *mut JsNode, propsName : std::string_view,
                 const c = node as *mut JsFunctionCall
                 router_collect_prop_reads(c.callee, propsName, reads, dangerousReads, inDangerous)
                 for(var i : uint = 0; i < c.args.size(); i++) {
-                    router_collect_prop_reads(c.args.get(i), propsName, reads, dangerousReads, inDangerous)
+                    router_collect_prop_reads(c.args.at(i), propsName, reads, dangerousReads, inDangerous)
                 }
             }
             JsNodeKind.ExpressionStatement => { router_collect_prop_reads((node as *mut JsExpressionStatement).expression, propsName, reads, dangerousReads, inDangerous) }
             JsNodeKind.Block => {
                 const b = node as *mut JsBlock
                 for(var i : uint = 0; i < b.statements.size(); i++) {
-                    router_collect_prop_reads(b.statements.get(i), propsName, reads, dangerousReads, inDangerous)
+                    router_collect_prop_reads(b.statements.at(i), propsName, reads, dangerousReads, inDangerous)
                 }
             }
             JsNodeKind.If => {
@@ -1249,13 +1249,13 @@ func router_collect_prop_reads(node : *mut JsNode, propsName : std::string_view,
             JsNodeKind.ArrayLiteral => {
                 const a = node as *mut JsArrayLiteral
                 for(var i : uint = 0; i < a.elements.size(); i++) {
-                    router_collect_prop_reads(a.elements.get(i), propsName, reads, dangerousReads, inDangerous)
+                    router_collect_prop_reads(a.elements.at(i), propsName, reads, dangerousReads, inDangerous)
                 }
             }
             JsNodeKind.ObjectLiteral => {
                 const o = node as *mut JsObjectLiteral
                 for(var i : uint = 0; i < o.properties.size(); i++) {
-                    router_collect_prop_reads(o.properties.get(i).value, propsName, reads, dangerousReads, inDangerous)
+                    router_collect_prop_reads(o.properties.at(i).value, propsName, reads, dangerousReads, inDangerous)
                 }
             }
             JsNodeKind.IndexAccess => {
@@ -1266,10 +1266,10 @@ func router_collect_prop_reads(node : *mut JsNode, propsName : std::string_view,
             JsNodeKind.JSXElement => {
                 const el = node as *mut JsJSXElement
                 for(var i : uint = 0; i < el.opening.attributes.size(); i++) {
-                    router_collect_prop_reads(el.opening.attributes.get(i), propsName, reads, dangerousReads, inDangerous)
+                    router_collect_prop_reads(el.opening.attributes.at(i), propsName, reads, dangerousReads, inDangerous)
                 }
                 for(var i : uint = 0; i < el.children.size(); i++) {
-                    router_collect_prop_reads(el.children.get(i), propsName, reads, dangerousReads, inDangerous)
+                    router_collect_prop_reads(el.children.at(i), propsName, reads, dangerousReads, inDangerous)
                 }
             }
             JsNodeKind.JSXExpressionContainer => { router_collect_prop_reads((node as *mut JsJSXExpressionContainer).expression, propsName, reads, dangerousReads, inDangerous) }
@@ -1282,7 +1282,7 @@ func router_collect_prop_reads(node : *mut JsNode, propsName : std::string_view,
             JsNodeKind.JSXFragment => {
                 const f = node as *mut JsJSXFragment
                 for(var i : uint = 0; i < f.children.size(); i++) {
-                    router_collect_prop_reads(f.children.get(i), propsName, reads, dangerousReads, inDangerous)
+                    router_collect_prop_reads(f.children.at(i), propsName, reads, dangerousReads, inDangerous)
                 }
             }
             JsNodeKind.For => {
@@ -1321,7 +1321,7 @@ func router_collect_prop_reads(node : *mut JsNode, propsName : std::string_view,
                     const c = s.cases.get_ptr(i)
                     router_collect_prop_reads(c.test, propsName, reads, dangerousReads, inDangerous)
                     for(var j : uint = 0; j < c.body.size(); j++) {
-                        router_collect_prop_reads(c.body.get(j), propsName, reads, dangerousReads, inDangerous)
+                        router_collect_prop_reads(c.body.at(j), propsName, reads, dangerousReads, inDangerous)
                     }
                 }
             }
@@ -1343,7 +1343,7 @@ func router_is_pattern_param(pattern : std::string_view, name : std::string_view
         unsafe {
         const names = router_pattern_param_names(pattern)
         for(var i : uint = 0; i < names.size(); i++) {
-            if(names.get(i).equals(&name)) { return true }
+            if(names.at(i).equals(&name)) { return true }
         }
         return false
 
@@ -1365,9 +1365,9 @@ func (converter : &mut JsConverter) router_validate_props(route : *mut JsRouteDe
         // root's declared attributes, and `children`.
         var allowed = std::vector<std::string_view>()
         const paramNames = router_pattern_param_names(effectivePattern)
-        for(var i : uint = 0; i < paramNames.size(); i++) { allowed.push(paramNames.get(i)) }
+        for(var i : uint = 0; i < paramNames.size(); i++) { allowed.push(paramNames.at(i)) }
         for(var i : uint = 0; i < rootEl.opening.attributes.size(); i++) {
-            const attr = rootEl.opening.attributes.get(i)
+            const attr = rootEl.opening.attributes.at(i)
             if(attr != null && attr.kind == JsNodeKind.JSXAttribute) {
                 router_push_unique(&mut allowed, (attr as *mut JsJSXAttribute).name)
             }
@@ -1381,10 +1381,10 @@ func (converter : &mut JsConverter) router_validate_props(route : *mut JsRouteDe
         router_collect_prop_reads(sig.js_body as *mut JsNode, sig.propsName, &mut reads, &mut dangerousReads, false)
 
         for(var i : uint = 0; i < reads.size(); i++) {
-            const name = reads.get(i)
+            const name = reads.at(i)
             var ok = false
             for(var a : uint = 0; a < allowed.size(); a++) {
-                if(allowed.get(a).equals(&name)) { ok = true }
+                if(allowed.at(a).equals(&name)) { ok = true }
             }
             if(!ok) {
                 var msg = std::string("route prop '")
@@ -1398,7 +1398,7 @@ func (converter : &mut JsConverter) router_validate_props(route : *mut JsRouteDe
 
         // R12: a `dangerouslySetInnerHTML` fed one of the route's params.
         for(var i : uint = 0; i < dangerousReads.size(); i++) {
-            const name = dangerousReads.get(i)
+            const name = dangerousReads.at(i)
             if(router_is_pattern_param(effectivePattern, name)) {
                 var msg = std::string("route params must not be injected as raw HTML")
                 converter.router_diag(&msg, route.decl_loc)
@@ -1413,11 +1413,11 @@ func (converter : &mut JsConverter) router_validate_block(block : *mut JsBlock) 
         unsafe {
         if(converter.diagnoser == null || block == null) return
         for(var i : uint = 0; i < block.statements.size(); i++) {
-            const a = block.statements.get(i)
+            const a = block.statements.at(i)
             if(a == null || a.kind != JsNodeKind.RouterDecl) continue
             var ra = a as *mut JsRouterDecl
             for(var j : uint = i + 1; j < block.statements.size(); j++) {
-                const b = block.statements.get(j)
+                const b = block.statements.at(j)
                 if(b == null || b.kind != JsNodeKind.RouterDecl) continue
                 var rb = b as *mut JsRouterDecl
                 if(ra.name.equals(&rb.name)) {
@@ -1476,7 +1476,7 @@ func (converter : &mut JsConverter) emit_router_server(rd : *mut JsRouterDecl) {
     // 4a. One wrapper + SSR body per route (client JS is emitted in the guarded
     // pass below).
     for(var i : uint = 0; i < rd.routes.size(); i++) {
-        const rn = rd.routes.get(i)
+        const rn = rd.routes.at(i)
         if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
         converter.emit_route_server(rd.name, rn as *mut JsRouteDecl, defaultId, std::string_view(""), false)
     }
@@ -1484,7 +1484,7 @@ func (converter : &mut JsConverter) emit_router_server(rd : *mut JsRouterDecl) {
     // 4b. Route manifest entries (static-export `routes.json`, §13.2.3). This is
     // per-page `HtmlPage` state, so it is emitted on every page.
     for(var i : uint = 0; i < rd.routes.size(); i++) {
-        const rn = rd.routes.get(i)
+        const rn = rd.routes.at(i)
         if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
         var r = rn as *mut JsRouteDecl
         var call = converter.router_page_stmt(std::string_view("add_route_pattern"))
@@ -1544,7 +1544,7 @@ func (converter : &mut JsConverter) emit_router_server(rd : *mut JsRouterDecl) {
     // 4. One registration stub per route (client only; the SSR wrapper/body for
     // each route was emitted in the per-page pass above).
     for(var i : uint = 0; i < rd.routes.size(); i++) {
-        const rn = rd.routes.get(i)
+        const rn = rd.routes.at(i)
         if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
         converter.emit_route_server(rd.name, rn as *mut JsRouteDecl, defaultId, std::string_view(""), true)
     }
@@ -1552,7 +1552,7 @@ func (converter : &mut JsConverter) emit_router_server(rd : *mut JsRouterDecl) {
     // 5. `preload` routes hydrate at load (off the interaction path, §5.1).
     var preloadJs = std::string()
     for(var i : uint = 0; i < rd.routes.size(); i++) {
-        const rn = rd.routes.get(i)
+        const rn = rd.routes.at(i)
         if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
         var r = rn as *mut JsRouteDecl
         if(r.mode.equals(std::string_view("preload"))) {
@@ -1577,7 +1577,7 @@ func router_route_nested(route : *mut JsRouteDecl) : std::vector<*mut JsNode> {
         if(route.body == null || route.body.kind != JsNodeKind.Block) return out
         const block = route.body as *mut JsBlock
         for(var i : uint = 0; i < block.statements.size(); i++) {
-            const stmt = block.statements.get(i)
+            const stmt = block.statements.at(i)
             if(stmt != null && stmt.kind == JsNodeKind.RouteDecl) out.push(stmt)
         }
         return out
@@ -1590,7 +1590,7 @@ func router_routes_default(routes : &std::vector<*mut JsNode>) : std::string_vie
         unsafe {
         var first = std::string_view()
         for(var i : uint = 0; i < routes.size(); i++) {
-            var r = routes.get(i) as *mut JsRouteDecl
+            var r = routes.at(i) as *mut JsRouteDecl
             if(r.is_fallback) continue
             if(r.is_default) return r.id
             if(first.size() == 0) first = r.id
@@ -1630,7 +1630,7 @@ func (converter : &mut JsConverter) router_emit_url_table(name : std::string_vie
         table.append_view("\"].table = { base: \"\", routes: [")
         var firstEntry = true
         for(var k : size_t = 0; k < entries.size(); k++) {
-            var e = entries.get(k)
+            var e = entries.at(k)
             if(!firstEntry) table.append_view(", ")
             firstEntry = false
             if(e.is_fallback) {
@@ -1650,9 +1650,9 @@ func (converter : &mut JsConverter) router_emit_url_table(name : std::string_vie
                 for(var c : uint = 0; c < e.chainRegs.size(); c++) {
                     if(c > 0) { table.append_view(", ") }
                     table.append_view("[\"")
-                    router_js_escape(e.chainRegs.get(c), &mut table)
+                    router_js_escape(e.chainRegs.at(c), &mut table)
                     table.append_view("\", \"")
-                    router_js_escape(e.chainIds.get(c), &mut table)
+                    router_js_escape(e.chainIds.at(c), &mut table)
                     table.append_view("\"]")
                 }
                 table.append_view("]")
@@ -1727,7 +1727,7 @@ func (converter : &mut JsConverter) emit_nested_routes() {
         const def = converter.router_outlet_default
         const inherited = converter.router_outlet_inherited
         for(var i : uint = 0; i < converter.router_outlet_routes.size(); i++) {
-            var r = converter.router_outlet_routes.get(i) as *mut JsRouteDecl
+            var r = converter.router_outlet_routes.at(i) as *mut JsRouteDecl
             converter.emit_route_server(name, r, def, inherited, false)
         }
 
@@ -1746,21 +1746,21 @@ func router_jsx_is_static(node : *mut JsNode) : bool {
                 const el = node as *mut JsJSXElement
                 if(el.componentSignature != null) return false
                 for(var i : uint = 0; i < el.opening.attributes.size(); i++) {
-                    const attr = el.opening.attributes.get(i)
+                    const attr = el.opening.attributes.at(i)
                     if(attr == null) continue
                     if(attr.kind != JsNodeKind.JSXAttribute) return false
                     const a = attr as *mut JsJSXAttribute
                     if(a.value != null && a.value.kind != JsNodeKind.Literal) return false
                 }
                 for(var i : uint = 0; i < el.children.size(); i++) {
-                    if(!router_jsx_is_static(el.children.get(i))) return false
+                    if(!router_jsx_is_static(el.children.at(i))) return false
                 }
                 return true
             }
             JsNodeKind.JSXFragment => {
                 const f = node as *mut JsJSXFragment
                 for(var i : uint = 0; i < f.children.size(); i++) {
-                    if(!router_jsx_is_static(f.children.get(i))) return false
+                    if(!router_jsx_is_static(f.children.at(i))) return false
                 }
                 return true
             }
@@ -1853,7 +1853,7 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
                 // requires the outlet context to be set during the JS conversion.
                 var prevRoutes = std::vector<*mut JsNode>()
                 for(var pi : uint = 0; pi < converter.router_outlet_routes.size(); pi++) {
-                    prevRoutes.push(converter.router_outlet_routes.get(pi))
+                    prevRoutes.push(converter.router_outlet_routes.at(pi))
                 }
                 const prevName = converter.router_outlet_name
                 const prevDefault = converter.router_outlet_default
@@ -1862,7 +1862,7 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
 
                 converter.router_outlet_routes = std::vector<*mut JsNode>()
                 for(var ni : uint = 0; ni < nested.size(); ni++) {
-                    converter.router_outlet_routes.push(nested.get(ni))
+                    converter.router_outlet_routes.push(nested.at(ni))
                 }
                 converter.router_outlet_name = builder.allocate_view(nestedName.to_view())
                 converter.router_outlet_default = builder.allocate_view(&nestedDefault)
@@ -1886,7 +1886,7 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
 
                 converter.router_outlet_routes = std::vector<*mut JsNode>()
                 for(var ri : uint = 0; ri < prevRoutes.size(); ri++) {
-                    converter.router_outlet_routes.push(prevRoutes.get(ri))
+                    converter.router_outlet_routes.push(prevRoutes.at(ri))
                 }
                 converter.router_outlet_name = prevName
                 converter.router_outlet_default = prevDefault
@@ -1935,7 +1935,7 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
                     var isParam = false
                     if(a.original != null) {
                         for(var pi : uint = 0; pi < paramNames.size(); pi++) {
-                            if(a.original.name.equals(&paramNames.get(pi))) { isParam = true }
+                            if(a.original.name.equals(&paramNames.at(pi))) { isParam = true }
                         }
                         // The router-injected fallback `__path` is a server-provided
                         // prop, not a compile-time one: the placeholder below
@@ -2002,7 +2002,7 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
 
         // Nested client recursion: emit the nested registries/stubs.
         for(var i : uint = 0; i < nested.size(); i++) {
-            var r = nested.get(i) as *mut JsRouteDecl
+            var r = nested.at(i) as *mut JsRouteDecl
             converter.emit_route_server(nestedName.to_view(), r, nestedDefault, effectivePattern.to_view(), true)
         }
         return
@@ -2096,7 +2096,7 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
         // recursive nesting). Copy the routes vector; do not move the field.
         var prevRoutes = std::vector<*mut JsNode>()
         for(var pi : uint = 0; pi < converter.router_outlet_routes.size(); pi++) {
-            prevRoutes.push(converter.router_outlet_routes.get(pi))
+            prevRoutes.push(converter.router_outlet_routes.at(pi))
         }
         const prevName = converter.router_outlet_name
         const prevDefault = converter.router_outlet_default
@@ -2105,7 +2105,7 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
         if(nested.size() > 0) {
             converter.router_outlet_routes = std::vector<*mut JsNode>()
             for(var ni : uint = 0; ni < nested.size(); ni++) {
-                converter.router_outlet_routes.push(nested.get(ni))
+                converter.router_outlet_routes.push(nested.at(ni))
             }
             converter.router_outlet_name = builder.allocate_view(nestedName.to_view())
             converter.router_outlet_default = builder.allocate_view(&nestedDefault)
@@ -2143,7 +2143,7 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
         }
         converter.router_outlet_routes = std::vector<*mut JsNode>()
         for(var ri : uint = 0; ri < prevRoutes.size(); ri++) {
-            converter.router_outlet_routes.push(prevRoutes.get(ri))
+            converter.router_outlet_routes.push(prevRoutes.at(ri))
         }
         converter.router_outlet_name = prevName
         converter.router_outlet_default = prevDefault

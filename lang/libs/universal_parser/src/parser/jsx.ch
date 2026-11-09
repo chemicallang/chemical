@@ -336,7 +336,7 @@ func (jsParser : &mut JsParser) parseJSXElementBody(parser : *mut Parser, builde
         if(tagName.kind == JsNodeKind.Identifier) {
             var id = tagName as *mut JsIdentifier;
             if(id.value.size() > 0) {
-                 const first = id.value.get(0);
+                 const first = id.value.at(0);
                  if(first >= 'A' && first <= 'Z') {
                      jsParser.components.push(element);
                  }

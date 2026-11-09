@@ -37,7 +37,7 @@ func eval_cb(data : *mut void, result : *char) : void {
         return
     }
     var rv = string_view::make_no_len(result)
-    g_eval_ok = rv.size() == 1 && rv.find(string_view::make_no_len("5")) == 0
+    g_eval_ok = rv.size() == 1 && rv.find_or_npos(string_view::make_no_len("5")) == 0
     if(g_wv != null) { webview::raw::webview_stop(g_wv) }
 
 }
@@ -86,9 +86,9 @@ public func test_webview_bind_roundtrip(env : &mut TestEnv) {
     g_wv = &raw mut wv
 
     var bind_result = webview::raw::webview_bind(&raw mut wv, (method, args) => {
-        g_method_ok = method.find(string_view::make_no_len("ping")) == 0 && method.size() == 4
-        g_args_ok = args.find(string_view::make_no_len("42")) != args.size() &&
-                    args.find(string_view::make_no_len("hello")) != args.size()
+        g_method_ok = method.find_or_npos(string_view::make_no_len("ping")) == 0 && method.size() == 4
+        g_args_ok = args.find_or_npos(string_view::make_no_len("42")) != args.size() &&
+                    args.find_or_npos(string_view::make_no_len("hello")) != args.size()
         if(g_wv != null) {
             webview::raw::webview_stop(g_wv)
         }
@@ -139,11 +139,11 @@ public func test_webview_bind_result_delivery(env : &mut TestEnv) {
     g_wv = &raw mut wv
 
     var bind_result = webview::raw::webview_bind(&raw mut wv, (method, args) => {
-        if(method.find(string_view::make_no_len("get")) == 0) {
+        if(method.find_or_npos(string_view::make_no_len("get")) == 0) {
             return string("\"delivered\"")
         }
-        if(method.find(string_view::make_no_len("verify")) == 0) {
-            g_result_ok = args.find(string_view::make_no_len("delivered")) != args.size()
+        if(method.find_or_npos(string_view::make_no_len("verify")) == 0) {
+            g_result_ok = args.find_or_npos(string_view::make_no_len("delivered")) != args.size()
             if(g_wv != null) { webview::raw::webview_stop(g_wv) }
         }
         return string("{\"ok\":true}")
@@ -188,15 +188,15 @@ public func test_webview_bind_method_routing(env : &mut TestEnv) {
     g_wv = &raw mut wv
 
     var bind_result = webview::raw::webview_bind(&raw mut wv, (method, args) => {
-        if(method.find(string_view::make_no_len("alpha")) == 0) {
+        if(method.find_or_npos(string_view::make_no_len("alpha")) == 0) {
             g_alpha = true
             return string("\"A\"")
         }
-        if(method.find(string_view::make_no_len("beta")) == 0) {
+        if(method.find_or_npos(string_view::make_no_len("beta")) == 0) {
             g_beta = true
             return string("\"B\"")
         }
-        if(method.find(string_view::make_no_len("gamma")) == 0) {
+        if(method.find_or_npos(string_view::make_no_len("gamma")) == 0) {
             g_gamma = true
             if(g_wv != null) { webview::raw::webview_stop(g_wv) }
         }
@@ -239,7 +239,7 @@ public func test_webview_evaluate_js_result(env : &mut TestEnv) {
     g_wv = &raw mut wv
 
     var bind_result = webview::raw::webview_bind(&raw mut wv, (method, args) => {
-        if(method.find(string_view::make_no_len("eval")) == 0) {
+        if(method.find_or_npos(string_view::make_no_len("eval")) == 0) {
             webview::raw::webview_evaluate_js_result(g_wv, "2+3\0" as *char, eval_cb, null)
         }
         return string("")
@@ -281,7 +281,7 @@ public func test_webview_set_title_size_live(env : &mut TestEnv) {
     webview::raw::webview_set_title(&raw mut wv, "LiveTitle\0" as *char)
     webview::raw::webview_set_size(&raw mut wv, 1234, 567)
 
-    if(!(string_view::make_view(&wv.title).find(string_view::make_no_len("LiveTitle")) == 0)) {
+    if(!(string_view::make_view(&wv.title).find_or_npos(string_view::make_no_len("LiveTitle")) == 0)) {
         env.error("set_title did not update the title field on a created webview")
         webview::raw::webview_destroy(&raw mut wv)
         return

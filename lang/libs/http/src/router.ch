@@ -53,7 +53,7 @@ public namespace web {
             var i = (middlewares.size());
             while(i > 0u) {
                 i = i - 1u;
-                var m = middlewares.get_ref(i);
+                var m = middlewares.at_ref(i);
                 h = m(h);
             }
             return h;
@@ -70,14 +70,14 @@ public namespace web {
         while(i < pseg.size()) {
             var ps = pseg.get_ptr(i);
 
-            if(ps.size() > 0 && ps.get(0) == ':' ) {
-                if (ps.get(ps.size() - 1u) == '*') {
+            if(ps.size() > 0 && ps.at(0) == ':' ) {
+                if (ps.at(ps.size() - 1u) == '*') {
                     var key = ps.substring(1, ps.size() - 1u);
                     var val = std::string();
                     var j = i;
                     while (j < tseg.size()) {
                         if (j > i) val.append('/');
-                        val.append_string(tseg.get_ref(j));
+                        val.append_string(tseg.at_ref(j));
                         j++;
                     }
                     params_out.push_back(std::pair<std::string,std::string>{ first : key, second : val });
@@ -104,9 +104,9 @@ public namespace web {
     public func split_segments(s: &std::string) : std::vector<std::string> {
         var out = std::vector<std::string>();
         var i = 0u; var start = 0u;
-        if(i < s.size() && s.get(i) == '/') { i++; start = i }
+        if(i < s.size() && s.at(i) == '/') { i++; start = i }
         while(i <= s.size()) {
-            if(i == s.size() || s.get(i) == '/') {
+            if(i == s.size() || s.at(i) == '/') {
                 out.push_back(s.substring(start, i));
                 start = i + 1u;
             }

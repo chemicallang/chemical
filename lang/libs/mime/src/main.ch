@@ -57,7 +57,7 @@ public namespace mime {
         var i = view.size()
         while(i > 0) {
             i -= 1
-            var c = view.get(i)
+            var c = view.at(i)
             if(c == '.' && !found_dot) { last_dot = i; found_dot = true }
             else if(c == '/' || c == '\\') { last_slash = i; found_slash = true; break }
         }
@@ -65,7 +65,7 @@ public namespace mime {
             var result = std::string()
             var j = last_dot
             while(j < view.size()) {
-                result.append(view.get(j))
+                result.append(view.at(j))
                 j += 1
             }
             return result

@@ -289,7 +289,7 @@ func str_equals_cstr(s : *mut string, cstr : *char) : bool {
         var s_len = s.size()
         while(i < s_len) {
             if(cstr[i] == '\0' as char) { return false }
-            if(s.get(i) != cstr[i]) { return false }
+            if(s.at(i) != cstr[i]) { return false }
             i += 1
         }
         return cstr[i] == '\0' as char
@@ -416,7 +416,7 @@ public func zip_extract_entry(archive : *mut ZipArchive, entry : *mut ArchiveEnt
 
         var full_path = unsafe(string(dest_dir))
         if(full_path.size() > 0) {
-            var last = full_path.get(full_path.size() - 1)
+            var last = full_path.at(full_path.size() - 1)
             if(last != '/' as char) {
                 full_path.append('/')
             }
@@ -548,7 +548,7 @@ func parse_tar_entries(archive : *mut TarArchive) : std::Result<std::Unit, Archi
             full_name.append_string(&name)
 
             var is_dir = (typeflag == '5' as u8) || (typeflag == '/' as u8)
-            if(name.size() > 0 && name.get(name.size() - 1) == '/' as char) {
+            if(name.size() > 0 && name.at(name.size() - 1) == '/' as char) {
                 is_dir = true
             }
 
@@ -578,7 +578,7 @@ func tar_parse_octal(str : *mut string) : u64 {
         var result : u64 = 0
         var i : size_t = 0
         while(i < str.size()) {
-            var c = str.get(i)
+            var c = str.at(i)
             if(c >= '0' as char && c <= '7' as char) {
                 result = result * 8 + ((c as u64) - ('0' as u64))
             }
@@ -682,7 +682,7 @@ public func tar_contains(archive : *mut TarArchive, name : *char) : bool {
 public func tar_extract_entry(archive : *mut TarArchive, entry : *mut ArchiveEntry, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
         unsafe {
         var full_path = unsafe(string(dest_dir))
-        if(full_path.size() > 0 && full_path.get(full_path.size() - 1) != '/' as char) {
+        if(full_path.size() > 0 && full_path.at(full_path.size() - 1) != '/' as char) {
             full_path.append('/')
         }
         full_path.append_string(&entry.name)
@@ -855,7 +855,7 @@ public func zip_writer_close(writer : *mut ZipWriter) {
             var j : u16 = 0
             var hptr2 = header.data() as *mut u8
             while(j < name_len) {
-                hptr2[46 + j as size_t] = entry.name.get(j as size_t) as u8
+                hptr2[46 + j as size_t] = entry.name.at(j as size_t) as u8
                 j += 1
             }
 

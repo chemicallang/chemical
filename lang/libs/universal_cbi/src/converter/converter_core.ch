@@ -5,10 +5,10 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             JsNodeKind.Literal => {
                 var lit = node as *mut JsLiteral
                 const val = lit.value
-                if (val.size() >= 2 && (val.get(0) == '\'' || val.get(0) == '\"' || val.get(0) == '`')) {
-                    converter.str.append(val.get(0));
+                if (val.size() >= 2 && (val.at(0) == '\'' || val.at(0) == '\"' || val.at(0) == '`')) {
+                    converter.str.append(val.at(0));
                     converter.escapeJs(val.subview(1, val.size() - 1));
-                    converter.str.append(val.get(0));
+                    converter.str.append(val.at(0));
                 } else {
                     converter.str.append_view(&lit.value);
                 }
@@ -74,7 +74,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 }
                 if(unary.prefix) {
                     converter.str.append_view(&unary.operator);
-                    if(unary.operator.size() > 2 && unsafe(isalpha(unary.operator.get(0) as int))) {
+                    if(unary.operator.size() > 2 && unsafe(isalpha(unary.operator.at(0) as int))) {
                         converter.str.append_view(" ")
                     }
                     converter.convertJsNode(unary.operand);
@@ -196,7 +196,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                     if(is_hook && i == call.args.size() - 1 && call.args.size() >= 2) {
                         converter.skip_reactive_deref = true;
                     }
-                    converter.convertJsNode(call.args.get(i));
+                    converter.convertJsNode(call.args.at(i));
                     converter.pop_context();
                 }
                 converter.str.append_view(")");
@@ -235,7 +235,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 converter.str.append_view("[");
                 for(var i : uint = 0; i < arr.elements.size(); i++) {
                     if(i > 0) converter.str.append_view(", ");
-                    const el = arr.elements.get(i);
+                    const el = arr.elements.at(i);
                     if(el != null) converter.convertJsNode(el);
                 }
                 converter.str.append_view("]");
@@ -245,7 +245,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 converter.str.append_view("{");
                 for(var i : uint = 0; i < obj.properties.size(); i++) {
                     if(i > 0) converter.str.append_view(", ");
-                    const prop = obj.properties.get(i);
+                    const prop = obj.properties.at(i);
                     if(prop.value != null && prop.value.kind == JsNodeKind.Spread) {
                         converter.convertJsNode(prop.value);
                     } else {
@@ -286,11 +286,11 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                   // (`out = out + ...`) is not wrapped in a computed.
                   const savedAssigned = converter.assigned_names.size();
                   for(var ai : uint = 0; ai < block.statements.size(); ai++) {
-                      collect_assigned_names(block.statements.get(ai), &mut converter.assigned_names);
+                      collect_assigned_names(block.statements.at(ai), &mut converter.assigned_names);
                   }
                   converter.str.append_view("{ ");
                   for(var i : uint = 0; i < block.statements.size(); i++) {
-                      converter.convertJsNode(block.statements.get(i));
+                      converter.convertJsNode(block.statements.at(i));
                       converter.str.append_view(" ");
                   }
                   converter.str.append_view("}");
@@ -334,10 +334,10 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                                  var ctxNameExpr : *mut JsNode = null
                                  var ctxDefaultExpr : *mut JsNode = null
                                  if(ctxCall.args.size() >= 1) {
-                                     ctxNameExpr = ctxCall.args.get(0)
+                                     ctxNameExpr = ctxCall.args.at(0)
                                  }
                                  if(ctxId.value.equals(view("createContext")) && ctxCall.args.size() >= 2) {
-                                     ctxDefaultExpr = ctxCall.args.get(1)
+                                     ctxDefaultExpr = ctxCall.args.at(1)
                                  }
                                  if(ctxNameExpr != null) {
                                      converter.add_context_var(decl.name, ctxNameExpr, ctxDefaultExpr);
@@ -469,7 +469,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                          converter.str.append_view("default: ");
                      }
                      for(var j : uint = 0; j < c.body.size(); j++) {
-                         converter.convertJsNode(c.body.get(j));
+                         converter.convertJsNode(c.body.at(j));
                          converter.str.append(' ');
                      }
                  }
@@ -486,7 +486,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                      converter.str.append_view("default: ");
                  }
                  for(var j : uint = 0; j < c.body.size(); j++) {
-                     converter.convertJsNode(c.body.get(j));
+                     converter.convertJsNode(c.body.at(j));
                      converter.str.append(' ');
                  }
             }
@@ -530,10 +530,10 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                      converter.str.append_view("(");
                      for(var j : uint = 0; j < m.params.size(); j++) {
                          if(j > 0) converter.str.append_view(", ");
-                         converter.str.append_view(&m.params.get(j).name);
-                         if(m.params.get(j).default_value != null) {
+                         converter.str.append_view(&m.params.at(j).name);
+                         if(m.params.at(j).default_value != null) {
                              converter.str.append_view(" = ");
-                             converter.convertJsNode(m.params.get(j).default_value);
+                             converter.convertJsNode(m.params.at(j).default_value);
                          }
                      }
                      converter.str.append_view(") ");
@@ -547,7 +547,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                  converter.str.append_view("import ");
                  var specCount : uint = 0;
                  for(var i : uint = 0; i < imp.specifiers.size(); i++) {
-                     const spec = imp.specifiers.get(i);
+                     const spec = imp.specifiers.at(i);
                      if(spec.imported.equals(view("default"))) {
                          if(specCount > 0) converter.str.append_view(", ");
                          converter.str.append_view(&spec.local);
@@ -561,7 +561,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                  }
                  var named = std::vector<std::string_view>();
                  for(var i : uint = 0; i < imp.specifiers.size(); i++) {
-                     const spec = imp.specifiers.get(i);
+                     const spec = imp.specifiers.at(i);
                      if(spec.imported.equals(view("default")) || spec.imported.equals(view("*"))) continue;
                      named.push(spec.imported);
                  }
@@ -570,7 +570,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                      converter.str.append_view("{ ");
                      for(var i : uint = 0; i < named.size(); i++) {
                          if(i > 0) converter.str.append_view(", ");
-                         converter.str.append_view(&named.get(i));
+                         converter.str.append_view(&named.at(i));
                      }
                      converter.str.append_view(" }");
                      specCount++;
@@ -689,14 +689,14 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
 // with a mismatch on every whitespace-only child between elements.
 public func normalize_jsx_newlines(value : std::string_view) : std::string {
         unsafe {
-        if(value.find(&std::string_view("\r")) == std::NPOS) { return std::string(value) }
+        if(value.find(&std::string_view("\r")) is std::Option.None) { return std::string(value) }
         var out = std::string("")
         var i = 0u
         while(i < value.size()) {
-            var c = value.get(i)
+            var c = value.at(i)
             if(c == 13) {
                 // CRLF is ONE line break; consume both bytes and emit one LF.
-                if(i + 1u < value.size() && value.get(i + 1u) == 10) { i = i + 1u }
+                if(i + 1u < value.size() && value.at(i + 1u) == 10) { i = i + 1u }
                 out.append(10 as char)
             } else {
                 out.append(c)

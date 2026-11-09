@@ -362,7 +362,7 @@ public func MATRIX_parallel_upload_download_streams(env : &mut TestEnv) {
                 s.lock.lock(); s.fails = s.fails + 1u; s.lock.unlock()
                 continue
             }
-            if((v.get(65535u) as u8) != ((65535u % 251) as u8)) {
+            if((v.at(65535u) as u8) != ((65535u % 251) as u8)) {
                 s.lock.lock(); s.fails = s.fails + 1u; s.lock.unlock()
             }
         }

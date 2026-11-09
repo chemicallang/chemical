@@ -66,14 +66,14 @@ public namespace std {
             return _size == 0;
         }
 
-        func get_opt(&self, index : size_t) : std::Option<char> { unsafe {
+        func get(&self, index : size_t) : std::Option<char> { unsafe {
             if(index >= size()) {
                 return std::Option.None<char>()
             }
             return std::Option.Some<char>(*(_data + index))
          }}
 
-        func get(&self, index : size_t) : char { unsafe {
+        func at(&self, index : size_t) : char { unsafe {
             if(index >= size()) {
                 panic("string_view index out of bounds")
             }
@@ -94,16 +94,28 @@ public namespace std {
             return unsafe(std::string_view(_data + count, _size - count))
         }
 
-        func find(&self, needle : &std::string_view) : size_t {
-            return internal_view_find(self, needle);
+        func find_or_npos(&self, needle : &std::string_view) : size_t {
+            return internal_view_find(self, needle)
         }
 
-        func find_last(&self, needle : &std::string_view) : size_t {
-            return internal_view_find_last(self, needle);
+        func find_last_or_npos(&self, needle : &std::string_view) : size_t {
+            return internal_view_find_last(self, needle)
+        }
+
+        func find(&self, needle : &std::string_view) : std::Option<size_t> {
+            var pos = internal_view_find(self, needle)
+            if(pos == NPOS) { return std::Option.None<size_t>() }
+            return std::Option.Some<size_t>(pos)
+        }
+
+        func find_last(&self, needle : &std::string_view) : std::Option<size_t> {
+            var pos = internal_view_find_last(self, needle)
+            if(pos == NPOS) { return std::Option.None<size_t>() }
+            return std::Option.Some<size_t>(pos)
         }
 
         func contains(&self, needle : &std::string_view) : bool {
-            return find(needle) != NPOS
+            return find(needle) is std::Option.Some
         }
 
         func ends_with(&self, other : &std::string_view) : bool {
@@ -119,10 +131,10 @@ public namespace std {
 
         func trim(&self) : 'self std::string_view {
             var s = 0u;
-            while (s < _size && (get(s) == ' ' || get(s) == '\t' || get(s) == '\n' || get(s) == '\r')) s++;
+            while (s < _size && (at(s) == ' ' || at(s) == '\t' || at(s) == '\n' || at(s) == '\r')) s++;
             if (s == _size) return unsafe(std::string_view("", 0));
             var e = _size - 1;
-            while (e > s && (get(e) == ' ' || get(e) == '\t' || get(e) == '\n' || get(e) == '\r')) e--;
+            while (e > s && (at(e) == ' ' || at(e) == '\t' || at(e) == '\n' || at(e) == '\r')) e--;
             return subview(s, e + 1);
         }
 
@@ -298,7 +310,7 @@ public namespace std {
             var res = std::vector<std::string>();
             var start = 0u;
             for (var i = 0u; i < _size; i++) {
-                if (get(i) == delim) {
+                if (at(i) == delim) {
                     res.push(subview(start, i).to_string());
                     start = i + 1;
                 }
@@ -313,7 +325,7 @@ public namespace std {
             var res = std::vector<std::string_view>();
             var start = 0u;
             for (var i = 0u; i < _size; i++) {
-                if (get(i) == delim) {
+                if (at(i) == delim) {
                     res.push(subview(start, i));
                     start = i + 1;
                 }

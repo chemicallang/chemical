@@ -25,7 +25,7 @@ func test_uuid_constructors(env : &mut TestEnv) {
     var u1 = UUID();
     var b1 = u1.to_bytes();
     for (var i = 0u; i < 16u; i++) {
-        expect_uint_eq(env, b1.get(i) as uint, 0u, "Default UUID must be zeroed");
+        expect_uint_eq(env, b1.at(i) as uint, 0u, "Default UUID must be zeroed");
     }
 
     var custom_bytes : [16]u8 = [
@@ -35,7 +35,7 @@ func test_uuid_constructors(env : &mut TestEnv) {
     var u2 = UUID.from_bytes(custom_bytes);
     var b2 = u2.to_bytes();
     for (var i = 0u; i < 16u; i++) {
-        expect_uint_eq(env, b2.get(i) as uint, custom_bytes[i] as uint, "from_bytes must retain the input bytes");
+        expect_uint_eq(env, b2.at(i) as uint, custom_bytes[i] as uint, "from_bytes must retain the input bytes");
     }
 }
 
@@ -167,10 +167,10 @@ func test_uuid_v4(env : &mut TestEnv) {
     var b1 = u1.to_bytes();
 
     // Check version is 4 (byte 6 high nibble == 4)
-    expect_uint_eq(env, (b1.get(6) >> 4u) as uint, 4u, "UUIDv4 version bits must be 4");
+    expect_uint_eq(env, (b1.at(6) >> 4u) as uint, 4u, "UUIDv4 version bits must be 4");
 
     // Check variant is RFC 4122 (byte 8 high bits == 10xx, i.e. 8, 9, a, or b)
-    expect_uint_eq(env, (b1.get(8) >> 6u) as uint, 2u, "UUIDv4 variant bits must be 2 (0b10)");
+    expect_uint_eq(env, (b1.at(8) >> 6u) as uint, 2u, "UUIDv4 variant bits must be 2 (0b10)");
 
     // Uniqueness test
     var gen2 = uuid::v4();
@@ -187,19 +187,19 @@ func test_uuid_v7(env : &mut TestEnv) {
     var b1 = u1.to_bytes();
 
     // Check version is 7 (byte 6 high nibble == 7)
-    expect_uint_eq(env, (b1.get(6) >> 4u) as uint, 7u, "UUIDv7 version bits must be 7");
+    expect_uint_eq(env, (b1.at(6) >> 4u) as uint, 7u, "UUIDv7 version bits must be 7");
 
     // Check variant is RFC 9562 (byte 8 high bits == 10xx, i.e. 2 when shifted by 6)
-    expect_uint_eq(env, (b1.get(8) >> 6u) as uint, 2u, "UUIDv7 variant bits must be 2 (0b10)");
+    expect_uint_eq(env, (b1.at(8) >> 6u) as uint, 2u, "UUIDv7 variant bits must be 2 (0b10)");
 
     // Verify timestamp makes sense (must be non-zero and roughly current)
     var ts : u64 = 0;
-    ts |= (b1.get(0) as u64) << 40u64;
-    ts |= (b1.get(1) as u64) << 32u64;
-    ts |= (b1.get(2) as u64) << 24u64;
-    ts |= (b1.get(3) as u64) << 16u64;
-    ts |= (b1.get(4) as u64) << 8u64;
-    ts |= (b1.get(5) as u64);
+    ts |= (b1.at(0) as u64) << 40u64;
+    ts |= (b1.at(1) as u64) << 32u64;
+    ts |= (b1.at(2) as u64) << 24u64;
+    ts |= (b1.at(3) as u64) << 16u64;
+    ts |= (b1.at(4) as u64) << 8u64;
+    ts |= (b1.at(5) as u64);
     expect_true(env, ts > 0u64, "UUIDv7 timestamp must be non-zero");
 
     // Monotonicity / Uniqueness test under rapid generation
@@ -233,17 +233,17 @@ func test_uuid_v7_concurrency(env : &mut TestEnv) {
     t4.join();
 
     var all_uuids = std::vector<UUID>();
-    for (var i = 0u; i < v1.size(); i++) { all_uuids.push(v1.get(i)); }
-    for (var i = 0u; i < v2.size(); i++) { all_uuids.push(v2.get(i)); }
-    for (var i = 0u; i < v3.size(); i++) { all_uuids.push(v3.get(i)); }
-    for (var i = 0u; i < v4.size(); i++) { all_uuids.push(v4.get(i)); }
+    for (var i = 0u; i < v1.size(); i++) { all_uuids.push(v1.at(i)); }
+    for (var i = 0u; i < v2.size(); i++) { all_uuids.push(v2.at(i)); }
+    for (var i = 0u; i < v3.size(); i++) { all_uuids.push(v3.at(i)); }
+    for (var i = 0u; i < v4.size(); i++) { all_uuids.push(v4.at(i)); }
 
     expect_size_eq(env, all_uuids.size(), 200u, "Total generated UUID count should be 200");
 
     // Check that all generated UUIDs are unique
     for (var i = 0u; i < all_uuids.size(); i++) {
         for (var j = i + 1u; j < all_uuids.size(); j++) {
-            var eq = all_uuids.get_ref(i).equals(all_uuids.get_ref(j));
+            var eq = all_uuids.at_ref(i).equals(all_uuids.at_ref(j));
             expect_false(env, eq, "Generated UUIDs must be globally unique");
         }
     }

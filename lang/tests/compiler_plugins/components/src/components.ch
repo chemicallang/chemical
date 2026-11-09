@@ -1553,7 +1553,7 @@ public func components_default_theme_is_emitted_once(env : &mut TestEnv) {
     var pos : size_t = 0u
     while(pos + needle.size() <= css.size()) {
         var rest = css.subview(pos, css.size())
-        var found = rest.find(&needle)
+        var found = rest.find_or_npos(&needle)
         if(found == std::NPOS) { break }
         count = count + 1
         pos = pos + found + needle.size()

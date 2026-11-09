@@ -36,10 +36,10 @@ func router_decode_segment(value : std::string_view) : std::string {
     var out = std::string()
     var i : size_t = 0
     while(i < value.size()) {
-        const c = value.get(i)
+        const c = value.at(i)
         if(c == '%' && i + 2 < value.size()) {
-            const hi = router_hex_digit(value.get(i + 1))
-            const lo = router_hex_digit(value.get(i + 2))
+            const hi = router_hex_digit(value.at(i + 1))
+            const lo = router_hex_digit(value.at(i + 2))
             if(hi >= 0 && lo >= 0) {
                 out.append((hi * 16 + lo) as char)
                 i = i + 3
@@ -62,20 +62,20 @@ public func apply_route_url(page : &mut HtmlPage, router : std::string_view, spe
     var i : size_t = 0
     while(i < spec.size()) {
         var lineEnd = i
-        while(lineEnd < spec.size() && spec.get(lineEnd) != '\n') { lineEnd = lineEnd + 1 }
+        while(lineEnd < spec.size() && spec.at(lineEnd) != '\n') { lineEnd = lineEnd + 1 }
         const line = spec.subview(i, lineEnd)
         i = lineEnd + 1
         if(line.size() == 0) { continue }
 
-        const t1 = line.find(std::string_view("\t"))
+        const t1 = line.find_or_npos(std::string_view("\t"))
         if(t1 == std::NPOS) { continue }
         const id = line.subview(0, t1)
         const rest = line.subview(t1 + 1, line.size())
-        const t2 = rest.find(std::string_view("\t"))
+        const t2 = rest.find_or_npos(std::string_view("\t"))
         if(t2 == std::NPOS) { continue }
         const pattern = rest.subview(0, t2)
         const rest2 = rest.subview(t2 + 1, rest.size())
-        const t3 = rest2.find(std::string_view("\t"))
+        const t3 = rest2.find_or_npos(std::string_view("\t"))
         var fb = rest2
         var chainField = std::string_view()
         if(t3 != std::NPOS) {
@@ -86,8 +86,8 @@ public func apply_route_url(page : &mut HtmlPage, router : std::string_view, spe
         patterns.push(RoutePattern {
             segments : pattern_segments(pattern),
             id : id,
-            is_fallback : fb.size() > 0 && fb.get(0) == '1',
-            prefix : fb.size() > 0 && fb.get(0) == '2',
+            is_fallback : fb.size() > 0 && fb.at(0) == '1',
+            prefix : fb.size() > 0 && fb.at(0) == '2',
             chain : parse_route_chain(chainField)
         })
     }
@@ -108,7 +108,7 @@ public func apply_route_url(page : &mut HtmlPage, router : std::string_view, spe
         // under its derived registry name so the nested wrappers render visible
         // server-side, mirroring the client activation chain.
         for(var c : size_t = 0; c < m.chain.size(); c++) {
-            const step = m.chain.get(c)
+            const step = m.chain.at(c)
             page.add_parameter_view(step.reg, step.id)
         }
     } else {
@@ -126,12 +126,12 @@ func parse_route_chain(field : std::string_view) : std::vector<RouteChainStep> {
     const unit = std::string_view("\x1f")
     var i : size_t = 0
     while(i < field.size()) {
-        const rel = field.subview(i, field.size() - i).find(&rec)
+        const rel = field.subview(i, field.size() - i).find_or_npos(&rec)
         var end = field.size()
         if(rel != std::NPOS) { end = i + rel }
         const step = field.subview(i, end)
         if(step.size() > 0) {
-            const sep = step.find(&unit)
+            const sep = step.find_or_npos(&unit)
             if(sep != std::NPOS) {
                 out.push(RouteChainStep { reg : step.subview(0, sep), id : step.subview(sep + 1, step.size()) })
             }

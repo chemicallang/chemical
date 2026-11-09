@@ -292,7 +292,7 @@ func deque_bounds_panics(env : &mut TestEnv) {
 @test
 func span_bounds_panics(env : &mut TestEnv) {
     safety_init_work_dir()
-    var ch = "public func main() : int {\n    var a : [2]int = [1, 2]\n    var s = unsafe(std::span<int>(&raw mut a[0], 2))\n    var p = s.get(2)\n    return 0\n}\n"
+    var ch = "public func main() : int {\n    var a : [2]int = [1, 2]\n    var s = unsafe(std::span<int>(&raw mut a[0], 2))\n    var p = s.at(2)\n    return 0\n}\n"
     expect_runtime_panic(env, "span_bounds_panics", ch)
 }
 
@@ -458,7 +458,7 @@ func string_substring_end_past_size_panics(env : &mut TestEnv) {
 @test
 func string_bounds_read_panics(env : &mut TestEnv) {
     safety_init_work_dir()
-    var ch = "public func main() : int {\n    var s = std::string(\"abc\")\n    return s.get(3) as int\n}\n"
+    var ch = "public func main() : int {\n    var s = std::string(\"abc\")\n    return s.at(3) as int\n}\n"
     expect_runtime_panic(env, "string_bounds_read_panics", ch)
 }
 
@@ -472,7 +472,7 @@ func string_bounds_write_panics(env : &mut TestEnv) {
 @test
 func string_view_bounds_read_panics(env : &mut TestEnv) {
     safety_init_work_dir()
-    var ch = "public func main() : int {\n    var v = std::string_view(\"abc\")\n    return v.get(3) as int\n}\n"
+    var ch = "public func main() : int {\n    var v = std::string_view(\"abc\")\n    return v.at(3) as int\n}\n"
     expect_runtime_panic(env, "string_view_bounds_read_panics", ch)
 }
 
@@ -1653,12 +1653,12 @@ func temporary_lifetime_extension_runs(env : &mut TestEnv) {
     var holder9 = std::string_view("holder 9")
     var temp9 = std::string_view("temp 9")
     var after = std::string_view("after")
-    var i_inside = view.find(&inside)
-    var i_temp7 = view.find(&temp7)
-    var i_holder_live = view.find(&holder_live)
-    var i_holder9 = view.find(&holder9)
-    var i_temp9 = view.find(&temp9)
-    var i_after = view.find(&after)
+    var i_inside = view.find_or_npos(&inside)
+    var i_temp7 = view.find_or_npos(&temp7)
+    var i_holder_live = view.find_or_npos(&holder_live)
+    var i_holder9 = view.find_or_npos(&holder9)
+    var i_temp9 = view.find_or_npos(&temp9)
+    var i_after = view.find_or_npos(&after)
     if(i_inside == std::NPOS || i_temp7 == std::NPOS ||
        i_holder_live == std::NPOS || i_holder9 == std::NPOS ||
        i_temp9 == std::NPOS || i_after == std::NPOS) {

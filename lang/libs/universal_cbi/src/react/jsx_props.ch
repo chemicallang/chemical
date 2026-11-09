@@ -7,7 +7,7 @@ func try_build_style_object_text(
         if(obj == null) return false;
         var s = std::string();
         for(var i : uint = 0; i < obj.properties.size(); i++) {
-            const prop = obj.properties.get(i);
+            const prop = obj.properties.at(i);
             if(prop.value != null && prop.value.kind == JsNodeKind.Spread) return false;
             if(prop.value == null) return false;
             if(prop.value.kind != JsNodeKind.Literal) return false;
@@ -27,7 +27,7 @@ func try_build_style_object_text(
 func find_state_init_text(states : &std::vector<UniversalStateDecl>, name : std::string_view) : std::string_view {
         unsafe {
         for(var i : uint = 0; i < states.size(); i++) {
-            const st = states.get(i);
+            const st = states.at(i);
             if(st.name.equals(&name)) {
                 return st.initText;
             }
@@ -40,7 +40,7 @@ func find_state_init_text(states : &std::vector<UniversalStateDecl>, name : std:
 func has_state(states : &std::vector<UniversalStateDecl>, name : std::string_view) : bool {
         unsafe {
         for(var i : uint = 0; i < states.size(); i++) {
-            if(states.get(i).name.equals(&name)) return true;
+            if(states.at(i).name.equals(&name)) return true;
         }
         return false;
 
@@ -75,7 +75,7 @@ func find_jsx_attribute(element : *mut JsJSXElement, name : std::string_view) : 
         unsafe {
         if(element == null) return null;
         for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
-            const attrNode = element.opening.attributes.get(i);
+            const attrNode = element.opening.attributes.at(i);
             if(attrNode == null || attrNode.kind != JsNodeKind.JSXAttribute) continue;
             const attr = attrNode as *mut JsJSXAttribute;
             if(attr.name.equals(&name)) return attr;
@@ -156,7 +156,7 @@ func build_nested_props_expr(
         s.append_view("{");
         var first = true;
         for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
-            const attrNode = element.opening.attributes.get(i);
+            const attrNode = element.opening.attributes.at(i);
             if(attrNode == null) continue;
             if(attrNode.kind == JsNodeKind.JSXAttribute) {
                 const attr = attrNode as *mut JsJSXAttribute;

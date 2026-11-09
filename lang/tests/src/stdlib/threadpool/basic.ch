@@ -275,7 +275,7 @@ func test_mutex_contention() : bool {
         }
         i = 0u
         while(i < heap_pointers.size()) {
-            free(heap_pointers.get(i))
+            free(heap_pointers.at(i))
             i++
         }
         return counter == threads * incs_per_thread;

@@ -40,8 +40,8 @@ func run_py_script(script : *u8, slen : size_t, out : *mut u8, out_max : size_t)
     var written : size_t = 0
     var pos : size_t = 0
     while(pos + 1 < py_out.size() && written < out_max) {
-        var hi = py_out.get(pos) as char
-        var lo = py_out.get(pos + 1) as char
+        var hi = py_out.at(pos) as char
+        var lo = py_out.at(pos + 1) as char
         if(hi == 10 as char || hi == 13 as char || hi == 0 as char) { break } else {}
         out[written] = test_hex_pair_byte(hi, lo)
         written += 1
@@ -82,7 +82,7 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
     var py_r:[64]u8; var py_len : size_t = 0
     var pi : size_t = 0
     while(pi + 1 < py_out.size() && py_len < 64) {
-        var hi = py_out.get(pi) as char; var lo = py_out.get(pi+1) as char
+        var hi = py_out.at(pi) as char; var lo = py_out.at(pi+1) as char
         if(hi == 10 as char || hi == 13 as char || hi == 0 as char) { break } else {}
         py_r[py_len] = test_hex_pair_byte(hi, lo); py_len += 1; pi += 2
     }
@@ -121,7 +121,7 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
     var py_r:[40]u8; var py_len : size_t = 0
     var pi : size_t = 0
     while(pi + 1 < py_out.size() && py_len < 40) {
-        var hi = py_out.get(pi) as char; var lo = py_out.get(pi+1) as char
+        var hi = py_out.at(pi) as char; var lo = py_out.at(pi+1) as char
         if(hi == 10 as char || hi == 13 as char || hi == 0 as char) { break } else {}
         py_r[py_len] = test_hex_pair_byte(hi, lo); py_len += 1; pi += 2
     }
@@ -161,7 +161,7 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
     var py_r:[40]u8; var py_len : size_t = 0
     var pi : size_t = 0
     while(pi + 1 < py_out.size() && py_len < 40) {
-        var hi = py_out.get(pi) as char; var lo = py_out.get(pi+1) as char
+        var hi = py_out.at(pi) as char; var lo = py_out.at(pi+1) as char
         if(hi == 10 as char || hi == 13 as char || hi == 0 as char) { break } else {}
         py_r[py_len] = test_hex_pair_byte(hi, lo); py_len += 1; pi += 2
     }
@@ -201,7 +201,7 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
     var py_r:[64]u8; var py_len : size_t = 0
     var pi : size_t = 0
     while(pi + 1 < py_out.size() && py_len < 64) {
-        var hi = py_out.get(pi) as char; var lo = py_out.get(pi+1) as char
+        var hi = py_out.at(pi) as char; var lo = py_out.at(pi+1) as char
         if(hi == 10 as char || hi == 13 as char || hi == 0 as char) { break } else {}
         py_r[py_len] = test_hex_pair_byte(hi, lo); py_len += 1; pi += 2
     }
@@ -241,7 +241,7 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
     var py_r:[8]u8; var py_len : size_t = 0
     var pi : size_t = 0
     while(pi + 1 < py_out.size() && py_len < 8) {
-        var hi = py_out.get(pi) as char; var lo = py_out.get(pi+1) as char
+        var hi = py_out.at(pi) as char; var lo = py_out.at(pi+1) as char
         if(hi == 10 as char || hi == 13 as char || hi == 0 as char) { break } else {}
         py_r[py_len] = test_hex_pair_byte(hi, lo); py_len += 1; pi += 2
     }
@@ -282,7 +282,7 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
     var py_r:[8]u8; var py_len : size_t = 0
     var pi : size_t = 0
     while(pi + 1 < py_out.size() && py_len < 8) {
-        var hi = py_out.get(pi) as char; var lo = py_out.get(pi+1) as char
+        var hi = py_out.at(pi) as char; var lo = py_out.at(pi+1) as char
         if(hi == 10 as char || hi == 13 as char || hi == 0 as char) { break } else {}
         py_r[py_len] = test_hex_pair_byte(hi, lo); py_len += 1; pi += 2
     }
@@ -558,8 +558,8 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
     var i : usize = 0
     while(i < len) {
         var b = data[i]
-        out.append(hd.get((b >> 4) as uint))
-        out.append(hd.get((b & 0x0F) as uint))
+        out.append(hd.at((b >> 4) as uint))
+        out.append(hd.at((b & 0x0F) as uint))
         i += 1
     }
 
@@ -594,7 +594,7 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
     var msg = string::make_no_len("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq")
     var msg_buf : [128]u8
     var mbi : usize = 0
-    while(mbi < msg.size()) { msg_buf[mbi] = msg.get(mbi) as u8; mbi += 1 }
+    while(mbi < msg.size()) { msg_buf[mbi] = msg.at(mbi) as u8; mbi += 1 }
     crypto::raw::sha384_hash(&raw msg_buf[0], mbi, &raw mut digest[0])
     h = string()
     bytes_to_lower_hex(&raw digest[0], 48, &mut h)
@@ -634,7 +634,7 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
     var msg = string::make_no_len("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq")
     var msg_buf : [128]u8
     var mbi : usize = 0
-    while(mbi < msg.size()) { msg_buf[mbi] = msg.get(mbi) as u8; mbi += 1 }
+    while(mbi < msg.size()) { msg_buf[mbi] = msg.at(mbi) as u8; mbi += 1 }
     crypto::raw::sha512_hash(&raw msg_buf[0], mbi, &raw mut digest[0])
     h = string()
     bytes_to_lower_hex(&raw digest[0], 64, &mut h)

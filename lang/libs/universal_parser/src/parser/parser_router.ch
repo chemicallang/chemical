@@ -45,7 +45,7 @@ func js_token_ident_equals_cstr(token : *mut Token, value : *char) : bool {
 func js_strip_quotes(value : std::string_view) : std::string_view {
         unsafe {
         if(value.size() < 2) return value
-        const first = value.get(0)
+        const first = value.at(0)
         if(first != '"' && first != '\'' && first != '`') return value
         return unsafe(std::string_view(value.data() + 1, value.size() - 2))
 

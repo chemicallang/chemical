@@ -91,11 +91,11 @@ public func bf_set_key(key : std::string_view, expanded : [18]uint, initial : [1
         var tmp : [2]uint = [0u, 0u]
         for(var j = 0; j < 4; j++) {
             tmp[0] <<= 8u
-            var c = if(k_ptr < key.size()) key.get(k_ptr) as u8 else 0u8
+            var c = if(k_ptr < key.size()) key.at(k_ptr) as u8 else 0u8
             tmp[0] |= c as uint
             
             tmp[1] <<= 8u
-            var sc = if(k_ptr < key.size()) key.get(k_ptr) as i8 else 0i8
+            var sc = if(k_ptr < key.size()) key.at(k_ptr) as i8 else 0i8
             tmp[1] |= (sc as int) as uint
             
             if(k_ptr < key.size()) k_ptr++ else k_ptr = 0u
@@ -150,12 +150,12 @@ func bf_decode(dst : [4]uint, src : std::string_view, size : int) : bool { unsaf
     var count = 0
     
     while(count < size) {
-        var c1 = if(sidx < src.size()) src.get(sidx++) else 0u8
+        var c1 = if(sidx < src.size()) src.at(sidx++) else 0u8
         if(c1 < 0x20u8 || c1 >= 0x80u8) return false
         var b1 = BF_atoi64[c1 - 0x20u8]
         if(b1 > 63u8) return false
         
-        var c2 = if(sidx < src.size()) src.get(sidx++) else 0u8
+        var c2 = if(sidx < src.size()) src.at(sidx++) else 0u8
         if(c2 < 0x20u8 || c2 >= 0x80u8) return false
         var b2 = BF_atoi64[c2 - 0x20u8]
         if(b2 > 63u8) return false
@@ -163,7 +163,7 @@ func bf_decode(dst : [4]uint, src : std::string_view, size : int) : bool { unsaf
         *(dptr + count) = (b1 << 2u) | ((b2 & 0x30u) >> 4u); count++
         if(count >= size) break
         
-        var c3 = if(sidx < src.size()) src.get(sidx++) else 0u8
+        var c3 = if(sidx < src.size()) src.at(sidx++) else 0u8
         if(c3 < 0x20u8 || c3 >= 0x80u8) return false
         var b3 = BF_atoi64[c3 - 0x20u8]
         if(b3 > 63u8) return false
@@ -171,7 +171,7 @@ func bf_decode(dst : [4]uint, src : std::string_view, size : int) : bool { unsaf
         *(dptr + count) = ((b2 & 0x0Fu) << 4u) | ((b3 & 0x3Cu) >> 2u); count++
         if(count >= size) break
         
-        var c4 = if(sidx < src.size()) src.get(sidx++) else 0u8
+        var c4 = if(sidx < src.size()) src.at(sidx++) else 0u8
         if(c4 < 0x20u8 || c4 >= 0x80u8) return false
         var b4 = BF_atoi64[c4 - 0x20u8]
         if(b4 > 63u8) return false
@@ -190,9 +190,9 @@ func bf_swap(x : []uint, count : int) {
 }
 
 public func bf_crypt(key : std::string_view, setting : std::string_view) : std::string {
-    if(setting.size() < 7u || setting.get(0) != '$' || setting.get(1) != '2') return std::string()
+    if(setting.size() < 7u || setting.at(0) != '$' || setting.at(1) != '2') return std::string()
     
-    var cost_val = (setting.get(4) - '0' as u8) * 10u8 + (setting.get(5) - '0' as u8)
+    var cost_val = (setting.at(4) - '0' as u8) * 10u8 + (setting.at(5) - '0' as u8)
     var count = 1u << cost_val
     
     var salt_binary : [4]uint = [0u, 0u, 0u, 0u]
@@ -203,7 +203,7 @@ public func bf_crypt(key : std::string_view, setting : std::string_view) : std::
     var ctx = BF_ctx.new()
     
     var subtype_flags = 0u8
-    var st = setting.get(2)
+    var st = setting.at(2)
     if(st == 'a') subtype_flags = 2u8
     else if(st == 'b') subtype_flags = 4u8
     else if(st == 'y') subtype_flags = 4u8

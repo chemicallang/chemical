@@ -20,7 +20,7 @@ public func view_equals(env : &mut TestEnv, str : &std::string_view, view : &std
     const str_len = str.size();
     const view_len = view.size();
     const min_len = if (str_len < view_len) str_len else view_len;
-    while(i < min_len && str.get(i) == view.get(i)) {
+    while(i < min_len && str.at(i) == view.at(i)) {
         i++;
     }
 
@@ -57,17 +57,17 @@ public func view_equals(env : &mut TestEnv, str : &std::string_view, view : &std
 
     if (i < str_len && i < view_len) {
         diff.append_view(", got '");
-        diff.append(str.get(i));
+        diff.append(str.at(i));
         diff.append_view("' expected '");
-        diff.append(view.get(i));
+        diff.append(view.at(i));
         diff.append('\'');
     } else if (i < str_len) {
         diff.append_view(", got extra character '");
-        diff.append(str.get(i));
+        diff.append(str.at(i));
         diff.append('\'');
     } else if (i < view_len) {
         diff.append_view(", missing character '");
-        diff.append(view.get(i));
+        diff.append(view.at(i));
         diff.append('\'');
     }
 

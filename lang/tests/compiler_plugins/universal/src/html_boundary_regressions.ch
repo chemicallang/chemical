@@ -67,8 +67,8 @@ public func html_component_parent_dispatch_precedes_child_dispatch(env : &mut Te
         test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
         return
     }
-    var parentIdx = js.find(&parentNeedle)
-    var childIdx = js.find(&childNeedle)
+    var parentIdx = js.find_or_npos(&parentNeedle)
+    var childIdx = js.find_or_npos(&childNeedle)
     if(parentIdx < childIdx) {
         env.success("parent dispatch precedes child dispatch")
     } else {

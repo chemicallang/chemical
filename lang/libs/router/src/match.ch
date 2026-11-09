@@ -53,10 +53,10 @@ public func pattern_segments(pattern : std::string_view) : std::vector<std::stri
     var i : size_t = 0
     while(i < pattern.size()) {
         // skip separators
-        while(i < pattern.size() && pattern.get(i) == '/') { i = i + 1 }
+        while(i < pattern.size() && pattern.at(i) == '/') { i = i + 1 }
         if(i >= pattern.size()) { break }
         const start = i
-        while(i < pattern.size() && pattern.get(i) != '/') { i = i + 1 }
+        while(i < pattern.size() && pattern.at(i) != '/') { i = i + 1 }
         out.push(pattern.subview(start, i))
     }
     return out
@@ -66,13 +66,13 @@ public func pattern_segments(pattern : std::string_view) : std::vector<std::stri
 // stripped, one trailing slash removed (except root). Returns a view into `path`.
 public func normalize_path_view(path : std::string_view, base : std::string_view) : std::string_view {
     var p = path
-    const q = p.find(std::string_view("?"))
+    const q = p.find_or_npos(std::string_view("?"))
     if(q != std::NPOS) { p = p.subview(0, q) }
     if(base.size() > 0 && p.size() >= base.size() && p.starts_with(&base)) {
         p = p.subview(base.size(), p.size())
     }
     if(p.size() == 0) { return std::string_view("/") }
-    if(p.size() > 1 && p.get(p.size() - 1) == '/') {
+    if(p.size() > 1 && p.at(p.size() - 1) == '/') {
         p = p.subview(0, p.size() - 1)
     }
     return p
@@ -90,24 +90,24 @@ func split_path_segments(path : std::string_view, base : std::string_view) : std
     const p = normalize_path_view(path, base)
     var i : size_t = 0
     while(i < p.size()) {
-        while(i < p.size() && p.get(i) == '/') { i = i + 1 }
+        while(i < p.size() && p.at(i) == '/') { i = i + 1 }
         if(i >= p.size()) { break }
         const start = i
-        while(i < p.size() && p.get(i) != '/') { i = i + 1 }
+        while(i < p.size() && p.at(i) != '/') { i = i + 1 }
         out.push(p.subview(start, i))
     }
     return out
 }
 
 func is_param_segment(s : std::string_view) : bool {
-    return s.size() >= 2 && s.get(0) == '{' && s.get(s.size() - 1) == '}'
+    return s.size() >= 2 && s.at(0) == '{' && s.at(s.size() - 1) == '}'
 }
 
 // `.`/`..` are never route data (D-6.1): a `{param}` must not capture a
 // traversal segment, and no literal pattern may declare one.
 func is_dot_segment(s : std::string_view) : bool {
-    if(s.size() == 1) { return s.get(0) == '.' }
-    if(s.size() == 2) { return s.get(0) == '.' && s.get(1) == '.' }
+    if(s.size() == 1) { return s.at(0) == '.' }
+    if(s.size() == 2) { return s.at(0) == '.' && s.at(1) == '.' }
     return false
 }
 
@@ -118,7 +118,7 @@ func is_dot_segment(s : std::string_view) : bool {
 func is_traversal_segment(s : std::string_view) : bool {
     if(is_dot_segment(s)) { return true }
     if(s.size() > 6) { return false }
-    if(s.find(std::string_view("%")) == std::NPOS) { return false }
+    if(s.find_or_npos(std::string_view("%")) == std::NPOS) { return false }
     const decoded = router_decode_segment(s)
     return is_dot_segment(decoded.to_view())
 }
@@ -155,8 +155,8 @@ public func match_route(patterns : &std::vector<RoutePattern>, path : std::strin
             var params = std::vector<RouteParam>()
             var ok = true
             for(var j : size_t = 0; j < pattern.segments.size(); j++) {
-                const ps = pattern.segments.get(j)
-                const seg = segs.get(j)
+                const ps = pattern.segments.at(j)
+                const seg = segs.at(j)
                 if(is_param_segment(ps)) {
                     if(is_traversal_segment(seg)) {
                         ok = false
@@ -171,7 +171,7 @@ public func match_route(patterns : &std::vector<RoutePattern>, path : std::strin
             if(ok) {
                 var chain = std::vector<RouteChainStep>()
                 for(var c : uint = 0; c < pattern.chain.size(); c++) {
-                    chain.push(pattern.chain.get(c))
+                    chain.push(pattern.chain.at(c))
                 }
                 return RouteMatch {
                     matched : true,

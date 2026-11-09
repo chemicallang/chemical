@@ -19,7 +19,7 @@ using namespace std;
 // `find` needs a view, and a method call on a literal is not parseable, so the
 // needle is bound first.
 func pw_has(hay : &string, needle : &string_view) : bool {
-    return hay.find(needle) != NPOS
+    return hay.find_or_npos(needle) != NPOS
 }
 func pw_fail(env : &mut TestEnv, what : string_view, out : &string) {
     var msg = string()
@@ -70,8 +70,8 @@ func test_write_to_page_js_escapes_a_closing_script_tag(env : &mut TestEnv) {
     }
     // Still a single-quoted literal.
     if(out.size() < 2u) { pw_fail(env, string_view("output is too short to be a quoted literal"), &out); return }
-    if(out.get(0) != '\'') { pw_fail(env, string_view("output must open with a single quote"), &out); return }
-    if(out.get(out.size() - 1u) != '\'') { pw_fail(env, string_view("output must close with a single quote"), &out); return }
+    if(out.at(0) != '\'') { pw_fail(env, string_view("output must open with a single quote"), &out); return }
+    if(out.at(out.size() - 1u) != '\'') { pw_fail(env, string_view("output must close with a single quote"), &out); return }
 }
 
 @test
@@ -82,8 +82,8 @@ func test_write_to_page_js_escapes_a_breaking_quote(env : &mut TestEnv) {
     // backslash is the escape, not a break-out.
     var i = 1u;
     while(i + 1u < out.size()) {
-        if(out.get(i) == '\'') {
-            if(i == 0u || out.get(i - 1u) != '\\') {
+        if(out.at(i) == '\'') {
+            if(i == 0u || out.at(i - 1u) != '\\') {
                 pw_fail(env, string_view("writeToPageJs left an unescaped single quote in the literal"), &out)
                 return
             }
@@ -107,7 +107,7 @@ func test_write_to_page_js_escapes_backslash_and_controls(env : &mut TestEnv) {
     }
     // A raw newline would terminate the JS statement.
     for(var i = 0u; i < out.size(); i++) {
-        if(out.get(i) == '\n' || out.get(i) == '\r') {
+        if(out.at(i) == '\n' || out.at(i) == '\r') {
             pw_fail(env, string_view("writeToPageJs left a raw newline in the literal"), &out)
             return
         }

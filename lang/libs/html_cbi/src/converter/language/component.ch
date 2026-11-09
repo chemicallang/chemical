@@ -1,5 +1,5 @@
 func is_event_attribute_name(name : std::string_view) : bool {
-    return name.size() > 2 && name.get(0) == 'o' && name.get(1) == 'n';
+    return name.size() > 2 && name.at(0) == 'o' && name.at(1) == 'n';
 }
 
 func has_non_ssr_attr_value(attrValue : *AttributeValue) : bool {
@@ -13,7 +13,7 @@ func has_non_ssr_attr_value(attrValue : *AttributeValue) : bool {
             AttributeValueKind.ChemicalValues => {
                 const chem = attrValue as *mut ChemicalAttributeValues;
                 for(var i : uint = 0; i < chem.values.size(); i++) {
-                    const value = chem.values.get(i);
+                    const value = chem.values.at(i);
                     if(value != null && value.getKind() == ValueKind.LambdaFunc) return true;
                 }
                 return false;
@@ -63,12 +63,12 @@ func (converter : &mut ASTConverter) build_ssr_attrs(element : *mut HtmlElement,
 
         var pushedCount : ubigint = 0;
         for(var i = 0u; i < element.attributes.size(); i++) {
-            const attr = element.attributes.get(i)
+            const attr = element.attributes.at(i)
             if(is_event_attribute_name(attr.name) || has_non_ssr_attr_value(attr.value)) continue;
             // skip if a later attribute with same name exists
             var is_duplicate : bool = false;
             for(var j = i + 1u; j < element.attributes.size(); j++) {
-                const nextAttr = element.attributes.get(j)
+                const nextAttr = element.attributes.at(j)
                 if(nextAttr.name.equals(&attr.name)) {
                     is_duplicate = true;
                     break;
@@ -171,7 +171,7 @@ func (converter : &mut ASTConverter) build_ssr_children(element : *mut HtmlEleme
         const prevSuppress = converter.suppress_child_dispatch;
         if(childrenAreVnodes) converter.suppress_child_dispatch = true;
         for(var i : uint = 0; i < element.children.size(); i++) {
-             converter.convertHtmlChild(element.children.get(i));
+             converter.convertHtmlChild(element.children.at(i));
         }
         converter.suppress_child_dispatch = prevSuppress;
 
@@ -363,7 +363,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         const attrs = element.attributes.size()
         for (var i : uint = 0; i < attrs; i++) {
             if (i > 0) s.append_view(", ")
-            const attr = element.attributes.get(i)
+            const attr = element.attributes.at(i)
             s.append_view(&attr.name)
             s.append_view(": ")
 
@@ -396,7 +396,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
                         converter.emit_append_html_call(builder.make_string_value(builder.allocate_view(std::string_view("\"")), location), 1)
                         for (var j : uint = 0; j < valuesNode.values.size(); j++) {
                             if (j > 0) converter.emit_append_html_call(builder.make_string_value(builder.allocate_view(std::string_view(" ")), location), 1)
-                            converter.put_chemical_value_in(valuesNode.values.get(j))
+                            converter.put_chemical_value_in(valuesNode.values.at(j))
                         }
                         converter.emit_append_html_call(builder.make_string_value(builder.allocate_view(std::string_view("\"")), location), 1)
                     }

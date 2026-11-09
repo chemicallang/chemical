@@ -140,7 +140,7 @@ public func encode_ppm(img : *mut Image) : std::Result<vector<u8>, ImageError> {
         var fptr = file_data.data() as *mut u8
         var i : size_t = 0
         while(i < header.size()) {
-            fptr[i] = header.get(i) as u8
+            fptr[i] = header.at(i) as u8
             i += 1
         }
 
@@ -181,7 +181,7 @@ public func save_ppm(img : *mut Image, path : *char) : std::Result<std::Unit, Im
         var fptr = file_data.data() as *mut u8
         var i : size_t = 0
         while(i < header.size()) {
-            fptr[i] = header.get(i) as u8
+            fptr[i] = header.at(i) as u8
             i += 1
         }
 

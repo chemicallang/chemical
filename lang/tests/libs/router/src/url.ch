@@ -30,7 +30,7 @@ public func test_router_server_deeplink_selects_route(env : &mut TestEnv) {
     #html { <UrlDeepApp /> }
     var html = page.getHtml()
     const active = std::string_view("data-uni-route=\"main#/projects/{id}\" data-uni-route-active=\"true\"")
-    if(html.find(&active) == std::NPOS) {
+    if(html.find_or_npos(&active) == std::NPOS) {
         env.error("deep link should select the URL route server-side")
         test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
@@ -49,7 +49,7 @@ public func test_router_server_base_path_stripping(env : &mut TestEnv) {
     #html { <UrlDeepApp /> }
     var html = page.getHtml()
     const active = std::string_view("data-uni-route=\"main#/projects/{id}\" data-uni-route-active=\"true\"")
-    if(html.find(&active) == std::NPOS) {
+    if(html.find_or_npos(&active) == std::NPOS) {
         env.error("base-prefixed URL should strip the base and match")
         return
     }
@@ -70,7 +70,7 @@ public func test_router_server_miss_fallback(env : &mut TestEnv) {
     }
     var html = page.getHtml()
     const active = std::string_view("data-uni-route=\"main#*\" data-uni-route-active=\"true\"")
-    if(html.find(&active) == std::NPOS) {
+    if(html.find_or_npos(&active) == std::NPOS) {
         env.error("a miss should activate the fallback route")
     }
 }
@@ -98,7 +98,7 @@ public func test_router_server_title_default(env : &mut TestEnv) {
     #html { <UrlTitleApp /> }
     var head = page.getHead()
     const t = std::string_view("<title>Home Page</title>")
-    if(head.find(&t) == std::NPOS) {
+    if(head.find_or_npos(&t) == std::NPOS) {
         env.error("the default route's title should be emitted into the head")
     }
 }
@@ -110,7 +110,7 @@ public func test_router_server_title_deeplink(env : &mut TestEnv) {
     #html { <UrlTitleApp /> }
     var head = page.getHead()
     const t = std::string_view("<title>Project</title>")
-    if(head.find(&t) == std::NPOS) {
+    if(head.find_or_npos(&t) == std::NPOS) {
         env.error("a deep-linked route's title should be emitted into the head")
     }
 }
@@ -120,7 +120,7 @@ public func test_router_server_noindex_on_miss(env : &mut TestEnv) {
     var page = HtmlPage()
     page.set_route_url("/nope", "")
     #html { <UrlNoFallbackApp /> }
-    if(page.getHead().find(&std::string_view("noindex")) == std::NPOS) {
+    if(page.getHead().find_or_npos(&std::string_view("noindex")) == std::NPOS) {
         env.error("a route miss should emit a robots noindex meta")
     }
 }
@@ -158,7 +158,7 @@ public func test_router_server_table_base_written(env : &mut TestEnv) {
     #html { <UrlDeepApp /> }
     var doc = page.toString()
     const base = std::string_view("window.$__uni_set_table_base(\"main\", \"/app\")")
-    if(doc.find(&base) == std::NPOS) {
+    if(doc.find_or_npos(&base) == std::NPOS) {
         env.error("a mount base must be written into the client match table")
     }
 }
@@ -181,7 +181,7 @@ public func test_router_server_param_reaches_ssr_props(env : &mut TestEnv) {
     #html { <UrlParamApp /> }
     var html = page.getHtml()
     const expected = std::string_view("<div class=\"proj\">42</div>")
-    if(html.find(&expected) == std::NPOS) {
+    if(html.find_or_npos(&expected) == std::NPOS) {
         env.error("a deep-linked {id} must reach the route component's SSR props")
         test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
@@ -215,24 +215,24 @@ public func test_router_nested_ssr(env : &mut TestEnv) {
     #html { <NestedApp /> }
     var html = page.getHtml()
     const layout = std::string_view("class=\"layout\"")
-    if(html.find(&layout) == std::NPOS) {
+    if(html.find_or_npos(&layout) == std::NPOS) {
         env.error("nested layout markup missing")
         return
     }
     // The nested default (`list`) is active; `detail` ships hidden (eager SSR).
     const listActive = std::string_view("data-uni-route=\"main#projects#list\" data-uni-route-active=\"true\"")
-    if(html.find(&listActive) == std::NPOS) {
+    if(html.find_or_npos(&listActive) == std::NPOS) {
         env.error("nested default route should render active")
         test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
     }
     const detailInactive = std::string_view("data-uni-route=\"main#projects#detail\" data-uni-route-active=\"false\"")
-    if(html.find(&detailInactive) == std::NPOS) {
+    if(html.find_or_npos(&detailInactive) == std::NPOS) {
         env.error("inactive nested route should render hidden")
     }
     // The nested wrappers are registered under the derived router name.
     const nestedRoute = std::string_view("data-uni-route=\"main#projects#list\"")
-    if(html.find(&nestedRoute) == std::NPOS) {
+    if(html.find_or_npos(&nestedRoute) == std::NPOS) {
         env.error("nested wrapper missing its derived router name")
     }
 }
@@ -244,21 +244,21 @@ public func test_router_nested_registry_and_activation(env : &mut TestEnv) {
     #html { <NestedApp /> }
     var doc = page.toString()
     const registry = std::string_view("window.$__uni_routers[\"main#projects\"]")
-    if(doc.find(&registry) == std::NPOS) {
+    if(doc.find_or_npos(&registry) == std::NPOS) {
         env.error("nested router registry missing")
         return
     }
     // The outer route registers the nested router, so activation cascades.
     const nested = std::string_view("nested: \"main#projects\"")
-    if(doc.find(&nested) == std::NPOS) {
+    if(doc.find_or_npos(&nested) == std::NPOS) {
         env.error("outer route should register its nested router")
     }
     const nestedDefault = std::string_view("nestedDefault: \"list\"")
-    if(doc.find(&nestedDefault) == std::NPOS) {
+    if(doc.find_or_npos(&nestedDefault) == std::NPOS) {
         env.error("outer route should register the nested default")
     }
     const nestedStub = std::string_view("window.$__uni_route_register(\"main#projects\", \"list\"")
-    if(doc.find(&nestedStub) == std::NPOS) {
+    if(doc.find_or_npos(&nestedStub) == std::NPOS) {
         env.error("nested router should emit its own registration stub")
     }
 }
@@ -286,7 +286,7 @@ public func test_router_nested_param_reaches_ssr(env : &mut TestEnv) {
     #html { <NestedParamApp /> }
     var html = page.getHtml()
     const expected = std::string_view("class=\"np\">42</div>")
-    if(html.find(&expected) == std::NPOS) {
+    if(html.find_or_npos(&expected) == std::NPOS) {
         env.error("a nested child under /projects/{id} should receive the {id} param at SSR")
         test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
@@ -317,17 +317,17 @@ public func test_router_nested_url_deeplink_selects_child(env : &mut TestEnv) {
     var html = page.getHtml()
     // The full nested pattern selects the child; the parent layout is visible too.
     const childActive = std::string_view("data-uni-route=\"nurl#/projects/{id}#/settings\" data-uni-route-active=\"true\"")
-    if(html.find(&childActive) == std::NPOS) {
+    if(html.find_or_npos(&childActive) == std::NPOS) {
         env.error("a deep link to a nested URL route should select the child server-side")
         test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
     }
     const parentActive = std::string_view("data-uni-route=\"nurl#/projects/{id}\" data-uni-route-active=\"true\"")
-    if(html.find(&parentActive) == std::NPOS) {
+    if(html.find_or_npos(&parentActive) == std::NPOS) {
         env.error("the outer layout should stay visible for a nested deep link")
     }
     const defaultInactive = std::string_view("data-uni-route=\"nurl#/projects/{id}#overview\" data-uni-route-active=\"false\"")
-    if(html.find(&defaultInactive) == std::NPOS) {
+    if(html.find_or_npos(&defaultInactive) == std::NPOS) {
         env.error("the nested default should be hidden when a sibling is selected")
     }
     // The full pattern captures the ancestor param and the nested child reads it.
@@ -336,13 +336,13 @@ public func test_router_nested_url_deeplink_selects_child(env : &mut TestEnv) {
         env.error("the ancestor {id} param should be captured by the full nested pattern")
     }
     const rendered = std::string_view("class=\"nup\">42</div>")
-    if(html.find(&rendered) == std::NPOS) {
+    if(html.find_or_npos(&rendered) == std::NPOS) {
         env.error("the selected nested child should render the inherited {id}")
         test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
     // The nested route's title is emitted for a nested deep link.
     const title = std::string_view("<title>Settings</title>")
-    if(page.toString().find(&title) == std::NPOS) {
+    if(page.toString().find_or_npos(&title) == std::NPOS) {
         env.error("a nested URL route's title should be emitted server-side")
     }
 }
@@ -354,16 +354,16 @@ public func test_router_nested_url_parent_selects_default(env : &mut TestEnv) {
     #html { <NestedUrlApp /> }
     var html = page.getHtml()
     const parentActive = std::string_view("data-uni-route=\"nurl#/projects/{id}\" data-uni-route-active=\"true\"")
-    if(html.find(&parentActive) == std::NPOS) {
+    if(html.find_or_npos(&parentActive) == std::NPOS) {
         env.error("the parent pattern should match exactly")
         return
     }
     const defaultActive = std::string_view("data-uni-route=\"nurl#/projects/{id}#overview\" data-uni-route-active=\"true\"")
-    if(html.find(&defaultActive) == std::NPOS) {
+    if(html.find_or_npos(&defaultActive) == std::NPOS) {
         env.error("the nested default should be visible for the parent URL")
     }
     const childInactive = std::string_view("data-uni-route=\"nurl#/projects/{id}#/settings\" data-uni-route-active=\"false\"")
-    if(html.find(&childInactive) == std::NPOS) {
+    if(html.find_or_npos(&childInactive) == std::NPOS) {
         env.error("the nested child should be hidden for the parent URL")
     }
 }
@@ -397,17 +397,17 @@ public func test_router_nested_url_under_id_layout(env : &mut TestEnv) {
     #html { <IdRootNestedUrlApp /> }
     var html = page.getHtml()
     const shellActive = std::string_view("data-uni-route=\"idroot#shell\" data-uni-route-active=\"true\"")
-    if(html.find(&shellActive) == std::NPOS) {
+    if(html.find_or_npos(&shellActive) == std::NPOS) {
         env.error("an id layout should activate for a nested URL child")
         test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
     }
     const childActive = std::string_view("data-uni-route=\"idroot#shell#/reports/{id}\" data-uni-route-active=\"true\"")
-    if(html.find(&childActive) == std::NPOS) {
+    if(html.find_or_npos(&childActive) == std::NPOS) {
         env.error("the nested URL child under an id layout should be selected")
     }
     const rendered = std::string_view("class=\"nup\">weekly</div>")
-    if(html.find(&rendered) == std::NPOS) {
+    if(html.find_or_npos(&rendered) == std::NPOS) {
         env.error("the nested child should render the captured param")
     }
 }
@@ -430,11 +430,11 @@ public func test_router_nested_without_inline_outlet_still_renders_children(env 
     #html { <NestedNoOutletApp /> }
     var html = page.getHtml()
     const layout = std::string_view("class=\"nno\">shell</div>")
-    if(html.find(&layout) == std::NPOS) {
+    if(html.find_or_npos(&layout) == std::NPOS) {
         env.error("the layout should render")
     }
     const child = std::string_view("data-uni-route=\"nno#shell#a\"")
-    if(html.find(&child) == std::NPOS) {
+    if(html.find_or_npos(&child) == std::NPOS) {
         env.error("nested wrappers must still be emitted without an inline <Outlet/>")
         test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
@@ -468,17 +468,17 @@ public func test_router_nested_fallback_catches_unknown_remainder(env : &mut Tes
         env.error("a nested `route *` should catch an unknown remainder")
     }
     const fbActive = std::string_view("data-uni-route=\"nfb#/projects/{id}#*\" data-uni-route-active=\"true\"")
-    if(html.find(&fbActive) == std::NPOS) {
+    if(html.find_or_npos(&fbActive) == std::NPOS) {
         env.error("the nested fallback wrapper should be active")
         test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
     }
     const layoutActive = std::string_view("data-uni-route=\"nfb#/projects/{id}\" data-uni-route-active=\"true\"")
-    if(html.find(&layoutActive) == std::NPOS) {
+    if(html.find_or_npos(&layoutActive) == std::NPOS) {
         env.error("the outer layout should stay active for a nested fallback")
     }
     const rendered = std::string_view("class=\"nfb-pane\">Missing 42</div>")
-    if(html.find(&rendered) == std::NPOS) {
+    if(html.find_or_npos(&rendered) == std::NPOS) {
         env.error("the nested fallback should render the inherited {id}")
         test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
@@ -491,11 +491,11 @@ public func test_router_nested_exact_still_wins_over_fallback(env : &mut TestEnv
     #html { <NestedFallbackApp /> }
     var html = page.getHtml()
     const defaultActive = std::string_view("data-uni-route=\"nfb#/projects/{id}#overview\" data-uni-route-active=\"true\"")
-    if(html.find(&defaultActive) == std::NPOS) {
+    if(html.find_or_npos(&defaultActive) == std::NPOS) {
         env.error("the nested default must win over the fallback for the bare layout URL")
     }
     const fbInactive = std::string_view("data-uni-route=\"nfb#/projects/{id}#*\" data-uni-route-active=\"false\"")
-    if(html.find(&fbInactive) == std::NPOS) {
+    if(html.find_or_npos(&fbInactive) == std::NPOS) {
         env.error("the nested fallback must be hidden for an exact match")
     }
 }
@@ -507,7 +507,7 @@ public func test_router_nested_url_child_wins_over_fallback(env : &mut TestEnv) 
     #html { <NestedFallbackApp /> }
     var html = page.getHtml()
     const settingsActive = std::string_view("data-uni-route=\"nfb#/projects/{id}#/settings\" data-uni-route-active=\"true\"")
-    if(html.find(&settingsActive) == std::NPOS) {
+    if(html.find_or_npos(&settingsActive) == std::NPOS) {
         env.error("the nested URL child must win over the fallback")
         test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
     }
@@ -536,7 +536,7 @@ public func test_router_separate_component_outlet_ssr(env : &mut TestEnv) {
     #html { <BodyOutletApp /> }
     var html = page.getHtml()
     const slot = std::string_view("data-uni-outlet=\"true\"")
-    if(html.find(&slot) == std::NPOS) {
+    if(html.find_or_npos(&slot) == std::NPOS) {
         env.error("a layout's own <Outlet/> should SSR a relocation slot")
         test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
@@ -544,11 +544,11 @@ public func test_router_separate_component_outlet_ssr(env : &mut TestEnv) {
     // The nested wrappers are emitted after the layout (relocated client-side),
     // so deep links still server-render the child content.
     const child = std::string_view("data-uni-route=\"bo#shell#a\"")
-    if(html.find(&child) == std::NPOS) {
+    if(html.find_or_npos(&child) == std::NPOS) {
         env.error("the nested wrapper should be SSR'd for a deep link")
     }
     const layout = std::string_view("class=\"bol\"")
-    if(html.find(&layout) == std::NPOS) {
+    if(html.find_or_npos(&layout) == std::NPOS) {
         env.error("the layout component should render")
     }
 }

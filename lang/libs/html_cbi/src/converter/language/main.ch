@@ -22,16 +22,16 @@ func html_named_entity_code(name : std::string_view) : int {
 }
 
 func html_entity_numeric_code(name : std::string_view) : int {
-    if(name.size() < 2 || name.get(0) != '#') { return -1; }
+    if(name.size() < 2 || name.at(0) != '#') { return -1; }
     var hex = false;
-    if(name.get(1) == 'x' || name.get(1) == 'X') { hex = true; }
+    if(name.at(1) == 'x' || name.at(1) == 'X') { hex = true; }
     var start : size_t = 1;
     if(hex) { start = 2; }
     if(start >= name.size()) { return -1; }
     var value : int = 0;
     var i : size_t = start;
     while(i < name.size()) {
-        const c = name.get(i);
+        const c = name.at(i);
         var d : int = -1;
         if(c >= '0' && c <= '9') { d = (c as int) - 48; }
         else if(hex && c >= 'a' && c <= 'f') { d = (c as int) - 87; }
@@ -73,12 +73,12 @@ func decode_html_entities(text : std::string_view) : std::string {
     out.reserve(text.size());
     var i : size_t = 0;
     while(i < text.size()) {
-        const ch = text.get(i);
+        const ch = text.at(i);
         if(ch != '&') { out.append(ch); i++; continue; }
         var semi : size_t = i + 1;
         var maxi : size_t = i + 12;
         if(maxi > text.size()) { maxi = text.size(); }
-        while(semi < maxi && text.get(semi) != ';') { semi++; }
+        while(semi < maxi && text.at(semi) != ';') { semi++; }
         if(semi >= maxi) { out.append(ch); i++; continue; }
         const name = unsafe(std::string_view(text.data() + i + 1, semi - i - 1));
         var code = html_named_entity_code(name);
@@ -107,7 +107,7 @@ func is_table_structure_element(name : std::string_view) : bool {
 func find_attribute(element : *mut HtmlElement, name : std::string_view) : *mut HtmlAttribute {
         unsafe {
         for(var i : uint = 0; i < element.attributes.size(); i++) {
-            const attr = element.attributes.get(i);
+            const attr = element.attributes.at(i);
             if(attr.name.equals(&name)) return attr;
         }
         return null;
@@ -117,7 +117,7 @@ func find_attribute(element : *mut HtmlElement, name : std::string_view) : *mut 
 
 func append_escaped_single_quoted(out : &mut std::string, value : std::string_view) {
     for(var i : uint = 0; i < value.size(); i++) {
-        const c = value.get(i);
+        const c = value.at(i);
         switch(c) {
             '\\' => out.append_view("\\\\")
             '\'' => out.append_view("\\'")
@@ -157,7 +157,7 @@ func (converter : &mut ASTConverter) resolve_and_put_prop(element : *mut HtmlEle
                 AttributeValueKind.ChemicalValues => {
                     const val = attr.value as *mut ChemicalAttributeValues;
                     for(var i : uint = 0; i < val.values.size(); i++) {
-                        converter.put_chemical_value_in(val.values.get(i));
+                        converter.put_chemical_value_in(val.values.at(i));
                     }
                 }
             }
@@ -265,7 +265,7 @@ func collect_child_html(ch : *mut HtmlChild, childHtml : *mut std::string) {
             childHtml.append('<');
             childHtml.append_view(&el.name);
             for(var ai : uint = 0; ai < el.attributes.size(); ai++) {
-                const attr2 = el.attributes.get(ai);
+                const attr2 = el.attributes.at(ai);
                 childHtml.append(' ');
                 childHtml.append_view(&attr2.name);
                 if(attr2.value != null && attr2.value.kind == AttributeValueKind.Text) {
@@ -279,7 +279,7 @@ func collect_child_html(ch : *mut HtmlChild, childHtml : *mut std::string) {
             } else {
                 childHtml.append('>');
                 for(var ci : uint = 0; ci < el.children.size(); ci++) {
-                    collect_child_html(el.children.get(ci), childHtml);
+                    collect_child_html(el.children.at(ci), childHtml);
                 }
                 childHtml.append_view("</");
                 childHtml.append_view(&el.name);
@@ -307,7 +307,7 @@ func count_child_nodes(children : &std::vector<*mut HtmlChild>) : ubigint {
         unsafe {
         var n : ubigint = 0;
         for(var i : uint = 0; i < children.size(); i++) {
-            const ch = children.get(i);
+            const ch = children.at(i);
             if(ch.kind == HtmlChildKind.Element) n++;
             else if(ch.kind == HtmlChildKind.Text) n++;
         }
@@ -319,7 +319,7 @@ func count_child_nodes(children : &std::vector<*mut HtmlChild>) : ubigint {
 func children_are_static(children : &std::vector<*mut HtmlChild>) : bool {
         unsafe {
         for(var i : uint = 0; i < children.size(); i++) {
-            const child = children.get(i);
+            const child = children.at(i);
             if(child.kind == HtmlChildKind.Text || child.kind == HtmlChildKind.Comment) continue;
             if(child.kind == HtmlChildKind.Element) {
                 const element = child as *mut HtmlElement;
@@ -329,7 +329,7 @@ func children_are_static(children : &std::vector<*mut HtmlChild>) : bool {
                 if(element.componentSignature != null) return false;
                 if(element.name.equals(std::string_view("head"))) return false;
                 for(var a : uint = 0; a < element.attributes.size(); a++) {
-                    const attr = element.attributes.get(a);
+                    const attr = element.attributes.at(a);
                     if(attr.value != null && attr.value.kind != AttributeValueKind.Text && attr.value.kind != AttributeValueKind.Number) {
                         return false;
                     }
@@ -350,13 +350,13 @@ func append_js_string_literal(out : &mut std::string, text : std::string_view) {
     out.append('"');
     var i : size_t = 0;
     while(i < text.size()) {
-        const c = text.get(i);
+        const c = text.at(i);
         if(c == '"') out.append_view("\\\"");
         else if(c == '\\') out.append_view("\\\\");
         else if(c == '\n') out.append_view("\\n");
         else if(c == '\r') out.append_view("\\r");
         else if(c == '\t') out.append_view("\\t");
-        else if(c == '<' && i + 1 < text.size() && text.get(i + 1) == '/') out.append_view("\\u003C");
+        else if(c == '<' && i + 1 < text.size() && text.at(i + 1) == '/') out.append_view("\\u003C");
         else out.append(c);
         i++;
     }
@@ -369,7 +369,7 @@ func append_static_child_vnodes(out : &mut std::string, children : &std::vector<
         unsafe {
         var first = true;
         for(var i : uint = 0; i < children.size(); i++) {
-            const child = children.get(i);
+            const child = children.at(i);
             if(child.kind == HtmlChildKind.Comment) continue;
             if(child.kind == HtmlChildKind.Text) {
                 if(!first) out.append(',');
@@ -395,7 +395,7 @@ func append_static_child_vnodes(out : &mut std::string, children : &std::vector<
                 }
                 var afirst = true;
                 for(var a : uint = 0; a < element.attributes.size(); a++) {
-                    const attr = element.attributes.get(a);
+                    const attr = element.attributes.at(a);
                     if(!afirst) out.append(',');
                     afirst = false;
                     out.append('"');
@@ -470,7 +470,7 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
         const attrs = element.attributes.size();
         var emittedCount : uint = 0;
         for(var i : uint = 0; i < attrs; i++) {
-            const attr = element.attributes.get(i);
+            const attr = element.attributes.at(i);
             // Skip event attributes that are not function values.
             // has_non_ssr_attr_value returns true only for ValueKind.LambdaFunc
             // (the only valid event handler type in hydration JS).
@@ -509,7 +509,7 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
                         var space = std::string(" ");
                         converter.emit_append_js_from_str(&mut space)
                     }
-                    converter.put_js_value_in(valuesNode.values.get(j))
+                    converter.put_js_value_in(valuesNode.values.at(j))
                 }
                 var quote2 = std::string("\"");
                 converter.emit_append_js_from_str(&mut quote2)
@@ -536,7 +536,7 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
                 // Collect static text/element children directly into childHtml
                 var childHtml = std::string();
                 for(var ci : uint = 0; ci < element.children.size(); ci++) {
-                    collect_child_html(element.children.get(ci), &raw mut childHtml);
+                    collect_child_html(element.children.at(ci), &raw mut childHtml);
                 }
                 // Escape childHtml for JS string: replace " -> \" and \ -> \\
                 var ci2 : uint = 0;
@@ -591,7 +591,7 @@ func (converter : &mut ASTConverter) convertChildren(element : *mut HtmlElement)
         var i : uint = 0;
         var s = element.children.size();
         while(i < s) {
-            var nested_child = element.children.get(i)
+            var nested_child = element.children.at(i)
             converter.convertHtmlChild(nested_child)
             i++;
         }
@@ -616,7 +616,7 @@ func converter_script_body_is_raw(element : *mut HtmlElement) : bool {
         var i : uint = 0
         const n = element.attributes.size()
         while(i < n) {
-            const attr = element.attributes.get(i)
+            const attr = element.attributes.at(i)
             if(attr != null && html_view_iequals(attr.name, std::string_view("type"))) {
                 // A boolean `type` (no value) states no type at all, and a
                 // computed one ({type}) cannot be known here; both leave the content
@@ -665,7 +665,7 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
                     var sa : uint = 0
                     var sattrs = element.attributes.size()
                     while(sa < sattrs) {
-                        converter.convertHtmlAttribute(element.attributes.get(sa));
+                        converter.convertHtmlAttribute(element.attributes.at(sa));
                         sa++
                     }
                     if(element.isSelfClosing) {
@@ -675,7 +675,7 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
                     var sci : uint = 0
                     var scs = element.children.size()
                     while(sci < scs) {
-                        const sc = element.children.get(sci);
+                        const sc = element.children.at(sci);
                         if(sc.kind == HtmlChildKind.Text) {
                             const sct = sc as *mut HtmlText;
                             str.append_view(&sct.value);
@@ -701,7 +701,7 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
                     var i : uint = 0;
                     var s = element.children.size();
                     while(i < s) {
-                        var nested_child = element.children.get(i)
+                        var nested_child = element.children.at(i)
                         converter.convertHtmlChild(nested_child)
                         i++;
                     }
@@ -719,7 +719,7 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
                 var a : uint = 0;
                 var attrs = element.attributes.size()
                 while(a < attrs) {
-                    var attr = element.attributes.get(a)
+                    var attr = element.attributes.at(a)
                     converter.convertHtmlAttribute(attr);
                     a++
                 }
@@ -779,7 +779,7 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
                 var i : uint = 0;
                 var s = if_stmt.body.size();
                 while(i < s) {
-                    converter.convertHtmlChild(if_stmt.body.get(i))
+                    converter.convertHtmlChild(if_stmt.body.at(i))
                     i++;
                 }
                 if(!converter.str.empty()) {
@@ -790,12 +790,12 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
                 i = 0;
                 s = if_stmt.else_ifs.size();
                 while(i < s) {
-                    const elseif = if_stmt.else_ifs.get(i);
+                    const elseif = if_stmt.else_ifs.at(i);
                     converter.vec = emit_if.add_else_if(elseif.condition);
                     var j : uint = 0;
                     var sj = elseif.body.size();
                     while(j < sj) {
-                        converter.convertHtmlChild(elseif.body.get(j))
+                        converter.convertHtmlChild(elseif.body.at(j))
                         j++;
                     }
                     if(!converter.str.empty()) {
@@ -810,7 +810,7 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
                     i = 0;
                     s = if_stmt.else_body.size();
                     while(i < s) {
-                        converter.convertHtmlChild(if_stmt.else_body.get(i))
+                        converter.convertHtmlChild(if_stmt.else_body.at(i))
                         i++;
                     }
                     if(!converter.str.empty()) {
@@ -832,7 +832,7 @@ func (converter : &mut ASTConverter) convertHtmlRoot(root : *mut HtmlRoot) {
             var i = 0;
             const total = root.children.size();
             while(i < total) {
-                const child = root.children.get(i as size_t)
+                const child = root.children.at(i as size_t)
                 converter.convertHtmlChild(child);
                 i++;
             }

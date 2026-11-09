@@ -44,7 +44,7 @@ func (htmlParser : &mut HtmlParser) parseElement(parser : *mut Parser, builder :
 
             var isComponent = false;
             if (id.value.size() > 0) {
-                const first = id.value.get(0);
+                const first = id.value.at(0);
                 if (first >= 'A' && first <= 'Z') {
                     htmlParser.components.push(element);
                     isComponent = true;

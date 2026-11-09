@@ -22,7 +22,7 @@ func make_temp_test_path(name : *char) : std::string {
     // ensure a trailing separator before appending the file name
     // (POSIX returns "/tmp" without one, Windows returns "%TEMP%\" with one)
     if(out.size() > 0) {
-        var last = out.get(out.size() - 1)
+        var last = out.at(out.size() - 1)
         if(last != '/' && last != '\\') {
             out.append('/')
         }

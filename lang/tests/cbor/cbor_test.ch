@@ -101,7 +101,7 @@ func test_indefinite_and_definite_forms_agree(env : &mut TestEnv) {
     forms.push_back(string_view("83018202039f0405ff"))
     forms.push_back(string_view("9f018202039f0405ffff"))
     for(var i = 0u; i < forms.size(); i++) {
-        var d = try_decode(forms.get(i))
+        var d = try_decode(forms.at(i))
         if(d is Result.Err) {
             env.error("one of the equivalent encodings did not decode")
             continue
@@ -243,7 +243,7 @@ func test_a_webauthn_attestation_object_decodes(env : &mut TestEnv) {
     if(!cbor::map_has_text(&mut v, string_view("attStmt"))) { env.error("no attStmt key") }
     if(!cbor::map_has_text(&mut v, string_view("authData"))) { env.error("no authData key") }
     var fmt = cbor::map_text_by_text(&mut v, string_view("fmt"))
-    if(fmt.to_view().find(&string_view("none")) != 0u) { env.error("fmt is not \"none\"") }
+    if(fmt.to_view().find_or_npos(&string_view("none")) != 0u) { env.error("fmt is not \"none\"") }
     // attStmt for fmt:none is an empty MAP, not a null. Getting this wrong is
     // easy and would reject every platform authenticator.
     var stmt = cbor::map_value_by_text(&mut v, string_view("attStmt"))
@@ -259,7 +259,7 @@ func test_a_webauthn_attestation_object_decodes(env : &mut TestEnv) {
     if(ad.size() != 16u) { env.error("authData is not 16 bytes") }
     var i = 0u
     while(i < ad.size() && i < 16u) {
-        if(ad.get(i) != (i as u8)) { env.error("authData has the wrong bytes"); return }
+        if(ad.at(i) != (i as u8)) { env.error("authData has the wrong bytes"); return }
         i += 1u
     }
     // And the one-byte-length form of the same thing, which is what a COSE key's
@@ -293,7 +293,7 @@ func test_a_full_size_attestation_object_decodes(env : &mut TestEnv) {
     var Ok(v) = d else unsafe { unreachable }
     if(cbor::map_len(&mut v) as u64 != 3u64) { env.error("wrong pair count") }
     var fmt = cbor::map_text_by_text(&mut v, string_view("fmt"))
-    if(fmt.to_view().find(&string_view("none")) != 0u) { env.error("fmt is not none") }
+    if(fmt.to_view().find_or_npos(&string_view("none")) != 0u) { env.error("fmt is not none") }
     var ad = cbor::map_bytes_by_text(&mut v, string_view("authData"))
     if(ad.size() != 148u) { env.error("authData is not 148 bytes") }
 }
@@ -396,7 +396,7 @@ func hex_vec(hex : string_view) : vector<u8> {
     var out = vector<u8>()
     var i = 0u
     while(i + 1u < hex.size()) {
-        out.push_back((nibble(hex.get(i)) << 4) | nibble(hex.get(i + 1u)))
+        out.push_back((nibble(hex.at(i)) << 4) | nibble(hex.at(i + 1u)))
         i += 2u
     }
     return out
@@ -486,7 +486,7 @@ func expect_text(env : &mut TestEnv, hex : string_view, want : string_view) {
     // lifetime dependency on a value destroyed at the end of the expression.
     var owned = cbor::text_copy(&mut v)
     var got = owned.to_view()
-    if(got.size() != want.size() || got.find(&want) != 0u) {
+    if(got.size() != want.size() || got.find_or_npos(&want) != 0u) {
         fail(env, hex, "is not the expected text")
     }
 }
@@ -607,7 +607,7 @@ func expect_same_bytes(env : &mut TestEnv, label : string_view, got : vector<u8>
         return
     }
     for(var i = 0u; i < want.size(); i++) {
-        if(got.get(i) != want.get(i)) {
+        if(got.at(i) != want.at(i)) {
             fail(env, label, "has the wrong bytes")
             return
         }

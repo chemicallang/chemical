@@ -65,7 +65,7 @@ public func INT_ecdsa_import_pubkey_rejects_off_curve_point(env : &mut TestEnv) 
     var python_said_invalid = false
     var k : size_t = 0
     while(k + 5u <= py_out2.size()) {
-        if(py_out2.get(k)==79 && py_out2.get(k+1u)==70 && py_out2.get(k+2u)==70 && py_out2.get(k+3u)==61 && py_out2.get(k+4u)==48) {
+        if(py_out2.at(k)==79 && py_out2.at(k+1u)==70 && py_out2.at(k+2u)==70 && py_out2.at(k+3u)==61 && py_out2.at(k+4u)==48) {
             python_said_invalid = true
         }
         k += 1u

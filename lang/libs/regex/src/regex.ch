@@ -71,8 +71,8 @@ public namespace regex {
             if(!self.matched_flag || pos + 1u >= self.positions.size()) {
                 return std::Option.None<size_t>()
             }
-            var start = self.positions.get(pos)
-            var end = self.positions.get(pos + 1u)
+            var start = self.positions.at(pos)
+            var end = self.positions.at(pos + 1u)
             if(start < 0 || end < start) {
                 return std::Option.None<size_t>()
             }
@@ -84,8 +84,8 @@ public namespace regex {
             if(!self.matched_flag || pos + 1u >= self.positions.size()) {
                 return std::Option.None<size_t>()
             }
-            var start = self.positions.get(pos)
-            var end = self.positions.get(pos + 1u)
+            var start = self.positions.at(pos)
+            var end = self.positions.at(pos + 1u)
             if(start < 0 || end < start) {
                 return std::Option.None<size_t>()
             }
@@ -227,17 +227,17 @@ public namespace regex {
                 var found = find_captures_from(&self.states, &self.classes, self.start_state, view, pos, self.num_captures, &raw mut captures)
                 if(!found) {
                     while(pos < text_len) {
-                        result.append(view.get(pos))
+                        result.append(view.at(pos))
                         pos = pos + 1
                     }
                     break
                 }
 
-                var start_out = captures.get(0)
-                var end_out = captures.get(1)
+                var start_out = captures.at(0)
+                var end_out = captures.at(1)
 
                 while(pos < (start_out as size_t)) {
-                    result.append(view.get(pos))
+                    result.append(view.at(pos))
                     pos = pos + 1
                 }
 
@@ -245,7 +245,7 @@ public namespace regex {
                 
                 if(pos == (end_out as size_t)) {
                     if(pos < text_len) {
-                        result.append(view.get(pos))
+                        result.append(view.at(pos))
                         pos = pos + 1
                     } else {
                         break
@@ -265,7 +265,7 @@ public namespace regex {
             var i : size_t = 0
             while(i < views.size()) {
                 var part = std::string()
-                var view = views.get(i)
+                var view = views.at(i)
                 part.append_view(&view)
                 out.push(part)
                 i = i + 1
@@ -390,7 +390,7 @@ public namespace regex {
         var result = std::vector<PatchPtr>()
         var i : size_t = 0
         while(i < src.size()) {
-            result.push(src.get(i))
+            result.push(src.at(i))
             i = i + 1
         }
         return result
@@ -401,7 +401,7 @@ public namespace regex {
         unsafe {
             var i : size_t = 0
             while(i < outs.size()) {
-                var p = outs.get(i)
+                var p = outs.at(i)
                 if(p.slot == 0) {
                     states.get_ptr(p.state_idx as size_t).out1 = target
                 } else {
@@ -416,7 +416,7 @@ public namespace regex {
     internal func append_patch_list(dst : &mut std::vector<PatchPtr>, src : &std::vector<PatchPtr>) {
         var i : size_t = 0
         while(i < src.size()) {
-            dst.push(src.get(i))
+            dst.push(src.at(i))
             i = i + 1
         }
     }
@@ -433,12 +433,12 @@ public namespace regex {
 
     internal func peek_char(p : &Parser) : i64 {
         if(p.pos >= p.pattern.size()) return -1
-        return p.pattern.get(p.pos) as i64
+        return p.pattern.at(p.pos) as i64
     }
 
     internal func advance_char(p : &mut Parser) : i64 {
         if(p.pos >= p.pattern.size()) return -1
-        var c = p.pattern.get(p.pos)
+        var c = p.pattern.at(p.pos)
         p.pos = p.pos + 1
         return c as i64
     }
@@ -534,7 +534,7 @@ public namespace regex {
                     var next_pos = p.pos + 1
                     var next : i64 = -1
                     if(next_pos < p.pattern.size()) {
-                        next = p.pattern.get(next_pos) as i64
+                        next = p.pattern.at(next_pos) as i64
                     }
                     if(next >= 0 && next != ']' as i64) {
                         advance_char(p)
@@ -886,14 +886,14 @@ public namespace regex {
         var i : size_t = 0
         unsafe {
             while(i < set.size()) {
-                if(set.get(i) == sid) return
+                if(set.at(i) == sid) return
                 i = i + 1
             }
 
             set.push(sid)
         }
 
-        var s = states.get(sid as size_t)
+        var s = states.at(sid as size_t)
         if(s.kind == 1) {
             add_state(set, s.out1, states)
             add_state(set, s.out2, states)
@@ -937,7 +937,7 @@ public namespace regex {
 
             expand_non_consuming(current, states, pos, text.size())
 
-            var ch = text.get(pos) as i64
+            var ch = text.at(pos) as i64
 
             unsafe { next.clear() }
 
@@ -946,8 +946,8 @@ public namespace regex {
             unsafe { cur_size = current.size() }
             while(j < cur_size) {
                 var sid : i64 = 0
-                unsafe { sid = current.get(j) }
-                var s = states.get(sid as size_t)
+                unsafe { sid = current.at(j) }
+                var s = states.at(sid as size_t)
 
                 if(s.kind == 0) {
                     if(s.ch == ch) {
@@ -987,8 +987,8 @@ public namespace regex {
         unsafe { set_size = set.size() }
         while(k < set_size) {
             var sid : i64 = 0
-            unsafe { sid = set.get(k) }
-            if(states.get(sid as size_t).kind == 3) return true
+            unsafe { sid = set.at(k) }
+            if(states.at(sid as size_t).kind == 3) return true
             k = k + 1
         }
         return false
@@ -1002,8 +1002,8 @@ public namespace regex {
         unsafe { set_size = set.size() }
         while(i < set_size) {
             var sid : i64 = 0
-            unsafe { sid = set.get(i) }
-            var s = states.get(sid as size_t)
+            unsafe { sid = set.at(i) }
+            var s = states.at(sid as size_t)
             if(s.kind == 6) {
                 if(pos == 0) {
                     add_state(set, s.out1, states)
@@ -1024,7 +1024,7 @@ public namespace regex {
         var dst = std::vector<i64>()
         var i : size_t = 0
         while(i < src.size()) {
-            dst.push(src.get(i))
+            dst.push(src.at(i))
             i = i + 1
         }
         return dst
@@ -1034,7 +1034,7 @@ public namespace regex {
         var dst = std::vector<VisitedFrame>()
         var i : size_t = 0
         while(i < src.size()) {
-            dst.push(src.get(i))
+            dst.push(src.at(i))
             i = i + 1
         }
         return dst
@@ -1054,7 +1054,7 @@ public namespace regex {
     internal func visited_contains(path : &std::vector<VisitedFrame>, sid : i64, pos : size_t) : bool {
         var i : size_t = 0
         while(i < path.size()) {
-            var item = path.get(i)
+            var item = path.at(i)
             if(item.state_idx == sid && item.pos == pos) return true
             i = i + 1
         }
@@ -1075,13 +1075,13 @@ public namespace regex {
             path.push(VisitedFrame { state_idx : sid, pos : pos })
 
             var result = false
-            var state = states.get(sid as size_t)
+            var state = states.at(sid as size_t)
 
             if(state.kind == 3) {
                 result = pos == text_end
             } else if(state.kind == 0) {
                 if(pos < text_end) {
-                    var ch = text.get(pos) as i64
+                    var ch = text.at(pos) as i64
                     if(state.ch == ch) {
                         result = run_prog_with_captures_impl(states, classes, state.out1, text, pos + 1, text_end, positions, path)
                     }
@@ -1106,14 +1106,14 @@ public namespace regex {
                 result = run_prog_with_captures_impl(states, classes, state.out1, text, pos, text_end, positions, path)
             } else if(state.kind == 4) {
                 if(pos < text_end) {
-                    var ch = text.get(pos) as i64
+                    var ch = text.at(pos) as i64
                     if(ch != 10) {
                         result = run_prog_with_captures_impl(states, classes, state.out1, text, pos + 1, text_end, positions, path)
                     }
                 }
             } else if(state.kind == 5) {
                 if(pos < text_end) {
-                    var ch = text.get(pos) as i64
+                    var ch = text.at(pos) as i64
                     var cd = classes.get_ptr(state.class_idx as size_t)
                     if(match_class_char(cd, ch)) {
                         result = run_prog_with_captures_impl(states, classes, state.out1, text, pos + 1, text_end, positions, path)
@@ -1143,7 +1143,7 @@ public namespace regex {
     internal func append_i64_vec(dst : &mut std::vector<i64>, src : &std::vector<i64>) {
         var i : size_t = 0
         while(i < src.size()) {
-            dst.push(src.get(i))
+            dst.push(src.at(i))
             i = i + 1
         }
     }
@@ -1153,7 +1153,7 @@ public namespace regex {
             dst.clear()
             var i : size_t = 0
             while(i < src.size()) {
-                dst.push(src.get(i))
+                dst.push(src.at(i))
                 i = i + 1
             }
         }
@@ -1294,19 +1294,19 @@ public namespace regex {
 
         var i : size_t = 0
         while(i < replacement.size()) {
-            var ch = replacement.get(i)
+            var ch = replacement.at(i)
             if((ch == '$' || ch == '\\') && (i + 1) < replacement.size()) {
-                var next = replacement.get(i + 1)
+                var next = replacement.at(i + 1)
                 if(next >= '0' && next <= '9') {
                     var cap_idx = (next - '0') as size_t
                     var pos_idx = cap_idx * 2
                     if((pos_idx + 1) < captures.size()) {
-                        var start = captures.get(pos_idx)
-                        var end = captures.get(pos_idx + 1)
+                        var start = captures.at(pos_idx)
+                        var end = captures.at(pos_idx + 1)
                         if(start >= 0 && end >= start) {
                             var j = start as size_t
                             while(j < (end as size_t)) {
-                                result.append(text.get(j))
+                                result.append(text.at(j))
                                 j = j + 1
                             }
                         }

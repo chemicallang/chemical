@@ -40,9 +40,9 @@ public func test_practical_window_title_roundtrip(env : &mut TestEnv) {
     var t = window::raw::window_title(&raw mut w)
     // window_title returns a copy; check its content
     if(t.size() != 8) { env.error("title length should be 8"); return }
-    if(t.get(0) != 'M' as char) { env.error("title should start with M"); return }
-    if(t.get(1) != 'y' as char) { env.error("title[1] should be y"); return }
-    if(t.get(7) != 'e' as char) { env.error("title[7] should be e"); return }
+    if(t.at(0) != 'M' as char) { env.error("title should start with M"); return }
+    if(t.at(1) != 'y' as char) { env.error("title[1] should be y"); return }
+    if(t.at(7) != 'e' as char) { env.error("title[7] should be e"); return }
 }
 
 // ---------------------------------------------------------------------------
@@ -61,7 +61,7 @@ public func test_practical_window_set_title_after_create(env : &mut TestEnv) {
     window::raw::window_set_title(&raw mut w, "After\0" as *char)
     var t = window::raw::window_title(&raw mut w)
     if(t.size() != 5) { env.error("title should be 'After' (len 5)"); return }
-    if(t.get(0) != 'A' as char) { env.error("title should start with A"); return }
+    if(t.at(0) != 'A' as char) { env.error("title should start with A"); return }
 
     window::raw::window_destroy(&raw mut w)
 }

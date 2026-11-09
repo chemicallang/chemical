@@ -14,14 +14,14 @@ public func styled_extract_class_n(env : &mut TestEnv, html : std::string_view, 
     var i : uint = 0
     while(i <= n) {
         const marker = std::string_view("class=\"")
-        const pos = remaining.find(&marker)
+        const pos = remaining.find_or_npos(&marker)
         if(pos >= remaining.size()) {
             env.error("styled: no class attribute found in html")
             return std::string()
         }
         const start = pos + marker.size()
         const rest = remaining.skip(start)
-        const end = rest.find(std::string_view("\""))
+        const end = rest.find_or_npos(std::string_view("\""))
         if(end >= rest.size()) {
             env.error("styled: unterminated class attribute")
             return std::string()
@@ -49,7 +49,7 @@ public func styled_assert_linked(env : &mut TestEnv, html : std::string_view, cs
     if(cls.empty()) { return }
     // The generated (hash) class is the first token of the class attribute
     // (renderHtmlAttrsWithBase emits the base class first, before user classes).
-    var sp = cls.find(std::string_view(" "))
+    var sp = cls.find_or_npos(std::string_view(" "))
     var hash = cls.to_view()
     if(sp < cls.size()) {
         hash = cls.to_view().subview(0, sp)
@@ -103,7 +103,7 @@ public func styled_count_char(view : std::string_view, c : char) : uint {
     var count : uint = 0
     var i : size_t = 0
     while(i < view.size()) {
-        if(view.get(i) == c) { count = count + 1 }
+        if(view.at(i) == c) { count = count + 1 }
         i = i + 1
     }
     return count
@@ -115,7 +115,7 @@ public func styled_count_substr(view : std::string_view, needle : std::string_vi
     var count : uint = 0
     var remaining = view
     while(remaining.size() >= needle.size()) {
-        const pos = remaining.find(&needle)
+        const pos = remaining.find_or_npos(&needle)
         if(pos >= remaining.size()) { break }
         count = count + 1
         remaining = remaining.skip(pos + needle.size())
@@ -431,7 +431,7 @@ public func styled_wrap_owns_css_linked_to_element(env : &mut TestEnv) {
     }
     // The wrapper's own `margin` rule must be linked to the wrapper's generated
     // class (the second token of the class attribute).
-    var sp = cls.to_view().find(std::string_view(" "))
+    var sp = cls.to_view().find_or_npos(std::string_view(" "))
     if(sp >= cls.size()) {
         env.error("styled: wrapper generated class missing from element")
     } else {
@@ -524,10 +524,10 @@ public func styled_identical_css_dedups_class(env : &mut TestEnv) {
     var clsA = styled_extract_class_n(env, html.to_view(), 0)
     var clsB = styled_extract_class_n(env, html.to_view(), 1)
     var spc = std::string_view(" ")
-    var spA = clsA.to_view().find(&spc)
+    var spA = clsA.to_view().find_or_npos(&spc)
     var hashA = clsA.to_view()
     if(spA < clsA.size()) { hashA = clsA.to_view().subview(0, spA) }
-    var spB = clsB.to_view().find(&spc)
+    var spB = clsB.to_view().find_or_npos(&spc)
     var hashB = clsB.to_view()
     if(spB < clsB.size()) { hashB = clsB.to_view().subview(0, spB) }
     if(!hashA.equals(&hashB)) {
@@ -567,7 +567,7 @@ public func styled_many_instances_emit_css_once(env : &mut TestEnv) {
     html.append_view(page.getHtml())
     var cls = styled_extract_class(env, html.to_view())
     var spc = std::string_view(" ")
-    var sp = cls.to_view().find(&spc)
+    var sp = cls.to_view().find_or_npos(&spc)
     var hash = cls.to_view()
     if(sp < cls.size()) { hash = cls.to_view().subview(0, sp) }
     var css = std::string()
@@ -638,7 +638,7 @@ public func styled_loop_emits_css_once(env : &mut TestEnv) {
     }
     var cls = styled_extract_class(env, html.to_view())
     var spc = std::string_view(" ")
-    var sp0 = cls.to_view().find(&spc)
+    var sp0 = cls.to_view().find_or_npos(&spc)
     var hash = cls.to_view()
     if(sp0 < cls.size()) { hash = cls.to_view().subview(0, sp0) }
     var css = std::string()

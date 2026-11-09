@@ -217,7 +217,7 @@ public struct ZipWriter {
         }
         var i : size_t = 0
         while(i < name.size()) {
-            if(name.get(i) == 0 as char) {
+            if(name.at(i) == 0 as char) {
                 return Result.Err(ArchiveError.InvalidFormat(string("entry name contains NUL")))
             }
             i += 1
@@ -240,7 +240,7 @@ public struct ZipWriter {
         var out = vector<u8>()
         var i : size_t = 0
         while(i < self.inner.data.size()) {
-            out.push(self.inner.data.get(i))
+            out.push(self.inner.data.at(i))
             i += 1
         }
         return out
@@ -367,25 +367,25 @@ func archive_safe_validate_name(name : *string) : bool {
         if(name.size() == 0) {
             return false
         }
-        var first = name.get(0)
+        var first = name.at(0)
         if(first == '/' as char || first == '\\' as char) {
             return false
         }
-        if(name.size() >= 2 && name.get(1) == ':' as char) {
+        if(name.size() >= 2 && name.at(1) == ':' as char) {
             return false
         }
 
         var i : size_t = 0
         var component_start : size_t = 0
         while(i <= name.size()) {
-            var at_separator = (i == name.size()) || name.get(i) == '/' as char || name.get(i) == '\\' as char
+            var at_separator = (i == name.size()) || name.at(i) == '/' as char || name.at(i) == '\\' as char
             if(at_separator) {
                 var clen = i - component_start
-                if(clen == 2 && name.get(component_start) == '.' as char && name.get(component_start + 1) == '.' as char) {
+                if(clen == 2 && name.at(component_start) == '.' as char && name.at(component_start + 1) == '.' as char) {
                     return false
                 }
                 component_start = i + 1
-            } else if(name.get(i) == 0 as char || name.get(i) == ':' as char) {
+            } else if(name.at(i) == 0 as char || name.at(i) == ':' as char) {
                 // NUL is never a valid filename byte; ':' would allow a
                 // Windows drive/alternate-stream shape on cross-platform
                 // extraction.
@@ -418,18 +418,18 @@ func archive_safe_has_symlink(base : *string, name : *string) : bool {
         var i : size_t = 0
         var component_start : size_t = 0
         while(i <= name.size()) {
-            var at_separator = (i == name.size()) || name.get(i) == '/' as char || name.get(i) == '\\' as char
+            var at_separator = (i == name.size()) || name.at(i) == '/' as char || name.at(i) == '\\' as char
             if(at_separator) {
                 if(i > component_start) {
                     if(current.size() > 0) {
-                        var last = current.get(current.size() - 1)
+                        var last = current.at(current.size() - 1)
                         if(last != '/' as char && last != '\\' as char) {
                             current.append('/')
                         }
                     }
                     var j = component_start
                     while(j < i) {
-                        current.append(name.get(j))
+                        current.append(name.at(j))
                         j += 1
                     }
                     if(archive_safe_is_symlink(&raw current)) {
@@ -448,7 +448,7 @@ func archive_safe_join(base : *string, name : *string) : string {
     unsafe {
         var full = base.copy()
         if(full.size() > 0) {
-            var last = full.get(full.size() - 1)
+            var last = full.at(full.size() - 1)
             if(last != '/' as char && last != '\\' as char) {
                 full.append('/')
             }

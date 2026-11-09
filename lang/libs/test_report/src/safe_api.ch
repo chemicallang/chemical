@@ -256,7 +256,7 @@ func runner_name_is(name : string_view, expected : *char) : bool {
         if(name.size() != elen) { return false }
         var i : size_t = 0
         while(i < elen) {
-            if(name.get(i) != expected[i]) { return false }
+            if(name.at(i) != expected[i]) { return false }
             i += 1
         }
         return true

@@ -1,6 +1,6 @@
 func is_event_attr_name(name : std::string_view) : bool {
         unsafe {
-        return name.size() > 2 && name.get(0) == 'o' && name.get(1) == 'n';
+        return name.size() > 2 && name.at(0) == 'o' && name.at(1) == 'n';
 
         }
     }
@@ -10,7 +10,7 @@ func event_attr_to_dom_event(builder : *mut ASTBuilder, name : std::string_view)
         if(name.size() <= 2) return name;
         var eventName = std::string();
         for(var i : uint = 2; i < name.size(); i++) {
-            var c = name.get(i);
+            var c = name.at(i);
             if(c >= 'A' && c <= 'Z') {
                 c = c + 32;
             }
@@ -23,7 +23,7 @@ func event_attr_to_dom_event(builder : *mut ASTBuilder, name : std::string_view)
 
 func is_native_tag(tag : std::string_view) : bool {
         unsafe {
-        return !tag.empty() && tag.get(0) >= 'a' && tag.get(0) <= 'z';
+        return !tag.empty() && tag.at(0) >= 'a' && tag.at(0) <= 'z';
 
         }
     }
@@ -31,7 +31,7 @@ func is_native_tag(tag : std::string_view) : bool {
 func escape_html_append(out : &mut std::string, text : std::string_view) {
         unsafe {
         for(var i : uint = 0; i < text.size(); i++) {
-            const c = text.get(i);
+            const c = text.at(i);
             switch(c) {
                 '&' => out.append_view("&amp;")
                 '<' => out.append_view("&lt;")
@@ -48,8 +48,8 @@ func escape_html_append(out : &mut std::string, text : std::string_view) {
 func strip_js_string_quotes(value : std::string_view) : std::string_view {
         unsafe {
         if(value.size() >= 2) {
-            const first = value.get(0);
-            const last = value.get(value.size() - 1);
+            const first = value.at(0);
+            const last = value.at(value.size() - 1);
             if((first == '"' || first == '\'' || first == '`') && first == last) {
                 return value.subview(1, value.size() - 1);
             }
@@ -63,19 +63,19 @@ func append_css_key(out : &mut std::string, key : std::string_view) : bool {
         unsafe {
         var k = key;
         if(k.size() >= 2) {
-            const first = k.get(0);
-            const last = k.get(k.size() - 1);
+            const first = k.at(0);
+            const last = k.at(k.size() - 1);
             if((first == '"' || first == '\'' || first == '`') && first == last) {
                 k = k.subview(1, k.size() - 1);
             }
         }
         if(k.empty()) return false;
-        if(k.size() >= 2 && k.get(0) == '-' && k.get(1) == '-') {
+        if(k.size() >= 2 && k.at(0) == '-' && k.at(1) == '-') {
             out.append_view(&k);
             return true;
         }
         for(var i : uint = 0; i < k.size(); i++) {
-            var c = k.get(i);
+            var c = k.at(i);
             if(c >= 'A' && c <= 'Z') {
                 out.append('-');
                 c = c + 32;
@@ -90,7 +90,7 @@ func append_css_key(out : &mut std::string, key : std::string_view) : bool {
 func append_escaped_single_quoted(out : &mut std::string, value : std::string_view) {
         unsafe {
         for(var i : uint = 0; i < value.size(); i++) {
-            const c = value.get(i);
+            const c = value.at(i);
             switch(c) {
                 '\\' => out.append_view("\\\\")
                 '\'' => out.append_view("\\'")
@@ -134,8 +134,8 @@ func unwrap_returned_jsx_node(node : *mut JsNode) : *mut JsNode {
             const call = current as *mut JsFunctionCall;
             if(call.callee != null && call.callee.kind == JsNodeKind.Identifier) {
                 const id = call.callee as *mut JsIdentifier;
-                if(id.value.equals(view("createPortal")) && call.args.size() >= 1 && call.args.get(0) != null) {
-                    return unwrap_returned_jsx_node(call.args.get(0));
+                if(id.value.equals(view("createPortal")) && call.args.size() >= 1 && call.args.at(0) != null) {
+                    return unwrap_returned_jsx_node(call.args.at(0));
                 }
             }
         }
@@ -155,7 +155,7 @@ func is_jsx_node(node : *mut JsNode) : bool {
 func find_returned_jsx(block : *mut JsBlock) : *mut JsNode {
         unsafe {
         for(var i : uint = 0; i < block.statements.size(); i++) {
-            const stmt = block.statements.get(i);
+            const stmt = block.statements.at(i);
             if(stmt == null || stmt.kind != JsNodeKind.Return) continue;
             const ret = stmt as *mut JsReturn;
             if(ret.value == null) continue;
@@ -167,7 +167,7 @@ func find_returned_jsx(block : *mut JsBlock) : *mut JsNode {
             if(value.kind == JsNodeKind.Identifier) {
                 const id = value as *mut JsIdentifier;
                 for(var j : uint = 0; j < i; j++) {
-                    const prev = block.statements.get(j);
+                    const prev = block.statements.at(j);
                     if(prev != null && prev.kind == JsNodeKind.VarDecl) {
                         const decl = prev as *mut JsVarDecl;
                         const declValue = unwrap_returned_jsx_node(decl.value);

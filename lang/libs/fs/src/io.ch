@@ -265,8 +265,8 @@ public func read_dir(path : &Path) : Result<vector<DirEntry>, FsError> {
     var adapted : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool> = |statep|(name, name_len, is_dir) => {
         var state = statep
         var nview = unsafe(string_view(name, name_len))
-        if(nview.size() == 1 && nview.get(0) == '.') { return true }
-        if(nview.size() == 2 && nview.get(0) == '.' && nview.get(1) == '.') { return true }
+        if(nview.size() == 1 && nview.at(0) == '.') { return true }
+        if(nview.size() == 2 && nview.at(0) == '.' && nview.at(1) == '.') { return true }
         var made = std::try_from_utf8(nview)
         if(made is Result.Err) {
             unsafe { state.failed = true; state.err = FsError.InvalidInput() }

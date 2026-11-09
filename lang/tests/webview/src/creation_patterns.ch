@@ -38,7 +38,7 @@ func create_pat_cb(data : *mut void, result : *char) : void {
         return
     }
     var rv = string_view::make_no_len(result)
-    g_create_pat_ok = rv.size() == 1 && rv.find(string_view::make_no_len("5")) == 0
+    g_create_pat_ok = rv.size() == 1 && rv.find_or_npos(string_view::make_no_len("5")) == 0
     if(g_create_pat_wv != null) { webview::raw::webview_stop(g_create_pat_wv) }
 
 }
@@ -68,7 +68,7 @@ public func test_create_pattern_a_bridge(env : &mut TestEnv) {
     g_create_pat_wv = &raw mut wv
 
     webview::raw::webview_bind(&raw mut wv, (method, args) => {
-        if(method.find(string_view::make_no_len("ping")) == 0) {
+        if(method.find_or_npos(string_view::make_no_len("ping")) == 0) {
             g_create_pat_ok = true
             if(g_create_pat_wv != null) { webview::raw::webview_stop(g_create_pat_wv) }
         }
@@ -108,7 +108,7 @@ public func test_create_pattern_a_evaluate_js(env : &mut TestEnv) {
     g_create_pat_wv = &raw mut wv
 
     webview::raw::webview_bind(&raw mut wv, (method, args) => {
-        if(method.find(string_view::make_no_len("go")) == 0) {
+        if(method.find_or_npos(string_view::make_no_len("go")) == 0) {
             webview::raw::webview_evaluate_js_result(g_create_pat_wv, "2+3\0" as *char, create_pat_cb, null)
         }
         return string("")
@@ -152,7 +152,7 @@ public func test_create_pattern_b_bridge(env : &mut TestEnv) {
     g_create_pat_wv = &raw mut wv
 
     var bind_result = webview::raw::webview_bind(&raw mut wv, (method, args) => {
-        if(method.find(string_view::make_no_len("ping")) == 0) {
+        if(method.find_or_npos(string_view::make_no_len("ping")) == 0) {
             g_create_pat_ok = true
             if(g_create_pat_wv != null) { webview::raw::webview_stop(g_create_pat_wv) }
         }
@@ -195,7 +195,7 @@ public func test_create_pattern_b_evaluate_js(env : &mut TestEnv) {
     g_create_pat_wv = &raw mut wv
 
     var bind_result = webview::raw::webview_bind(&raw mut wv, (method, args) => {
-        if(method.find(string_view::make_no_len("go")) == 0) {
+        if(method.find_or_npos(string_view::make_no_len("go")) == 0) {
             webview::raw::webview_evaluate_js_result(g_create_pat_wv, "2+3\0" as *char, create_pat_cb, null)
         }
         return string("")
@@ -263,7 +263,7 @@ public func test_create_pattern_b_title_size_fields(env : &mut TestEnv) {
     webview::raw::webview_set_title(&raw mut wv, "NewTitle\0" as *char)
     webview::raw::webview_set_size(&raw mut wv, 800, 600)
 
-    if(!(string_view::make_view(&wv.title).find(string_view::make_no_len("NewTitle")) == 0)) {
+    if(!(string_view::make_view(&wv.title).find_or_npos(string_view::make_no_len("NewTitle")) == 0)) {
         env.error("Pattern B set_title did not update field")
         webview::raw::webview_destroy(&raw mut wv)
         return

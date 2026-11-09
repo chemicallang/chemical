@@ -113,7 +113,7 @@ func render_sidebar_item(item : *SummaryItem, current_path : std::string_view, d
         html.append_view("<ul>");
         var i = 0u;
         while(i < item.children.size()) {
-            var sb_item = render_sidebar_item(item.children.get(i), current_path, depth)
+            var sb_item = render_sidebar_item(item.children.at(i), current_path, depth)
             html.append_view(sb_item.to_view());
             i++;
         }
@@ -185,8 +185,8 @@ func build_toc(content : std::string_view, depth : int) : std::string {
     while(i < content.size()) {
         // find next <h2 or <h3
         var rest = content.skip(i);
-        var h2r = rest.find(&h2_needle);
-        var h3r = rest.find(&h3_needle);
+        var h2r = rest.find_or_npos(&h2_needle);
+        var h3r = rest.find_or_npos(&h3_needle);
         var h2 = (if(h2r == std::NPOS) std::NPOS else h2r + i);
         var h3 = (if(h3r == std::NPOS) std::NPOS else h3r + i);
         var next = h2;
@@ -202,18 +202,18 @@ func build_toc(content : std::string_view, depth : int) : std::string {
         }
         if(next == std::NPOS) break;
         var from_next = content.skip(next);
-        var gt_r = from_next.find(&gt_needle);
+        var gt_r = from_next.find_or_npos(&gt_needle);
         if(gt_r == std::NPOS) break;
         var close_tag = gt_r + next;
-        var end_r = content.skip(close_tag).find(&end_needle);
+        var end_r = content.skip(close_tag).find_or_npos(&end_needle);
         if(end_r == std::NPOS) break;
         var text_end = end_r + close_tag;
         // heading text region (trim whitespace)
         var start = close_tag + 1u;
-        while(start < text_end && (content.get(start) == ' ' || content.get(start) == '\n' || content.get(start) == '\r' || content.get(start) == '\t')) start++;
+        while(start < text_end && (content.at(start) == ' ' || content.at(start) == '\n' || content.at(start) == '\r' || content.at(start) == '\t')) start++;
         var end = text_end;
         while(end > start) {
-            var c = content.get(end - 1u);
+            var c = content.at(end - 1u);
             if(c == ' ' || c == '\n' || c == '\r' || c == '\t') end--;
             else break;
         }
@@ -224,7 +224,7 @@ func build_toc(content : std::string_view, depth : int) : std::string {
             var s2 = 0u;
             var last_dash = false;
             while(s2 < htext.size()) {
-                var ch = htext.get(s2);
+                var ch = htext.at(s2);
                 if((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9')) {
                     slug.append(ch);
                     last_dash = false;
@@ -263,7 +263,7 @@ func pager_html(gen : &mut HtmlGenerator, page_item : *SummaryItem, depth : int)
     var html = std::string("<nav class=\"pager\">");
     if(pos > 0) {
         var prev_idx = pos - 1;
-        var prev = gen.pages.get(prev_idx as uint);
+        var prev = gen.pages.at(prev_idx as uint);
         var pl = prev.link.copy();
         var plink = replace_extension(&pl, ".md", ".html");
         html.append_view("<a class=\"pager-prev\" href=\"");
@@ -278,7 +278,7 @@ func pager_html(gen : &mut HtmlGenerator, page_item : *SummaryItem, depth : int)
     var page_total : int = gen.pages.size() as int;
     if((pos + 1) < page_total) {
         var next_idx = pos + 1;
-        var next = gen.pages.get(next_idx as uint);
+        var next = gen.pages.at(next_idx as uint);
         var nl = next.link.copy();
         var nlink = replace_extension(&nl, ".md", ".html");
         html.append_view("<a class=\"pager-next\" href=\"");
@@ -298,7 +298,7 @@ func pager_html(gen : &mut HtmlGenerator, page_item : *SummaryItem, depth : int)
 func collect_pages(items : &std::vector<*mut SummaryItem>, out : &mut std::vector<*mut SummaryItem>) {
     var i = 0u;
     while(i < items.size()) {
-        var item = items.get(i);
+        var item = items.at(i);
         if(item.link.size() > 0) {
             out.push_back(item);
         }
@@ -314,7 +314,7 @@ func page_position(pages : &std::vector<*mut SummaryItem>, md_path : std::string
     var total : int = pages.size() as int;
     var i = 0;
     while(i < total) {
-        if(pages.get(i as uint).link.equals_view(&md_path)) return i;
+        if(pages.at(i as uint).link.equals_view(&md_path)) return i;
         i++;
     }
     return -1;
@@ -329,7 +329,7 @@ func breadcrumb_html(item : *SummaryItem, pages_root : &std::vector<*mut Summary
     // find the top-level section this page belongs to
     var i = 0u;
     while(i < pages_root.size()) {
-        var top = pages_root.get(i);
+        var top = pages_root.at(i);
         // direct page match
         var top_link_v = top.link.to_view();
         if(top.link.size() > 0 && top_link_v.equals(item.link.to_view())) {
@@ -342,7 +342,7 @@ func breadcrumb_html(item : *SummaryItem, pages_root : &std::vector<*mut Summary
         var found = false;
         var j = 0u;
         while(j < top.children.size()) {
-            var child = top.children.get(j);
+            var child = top.children.at(j);
             var child_link_v = child.link.to_view();
             if(child.link.size() > 0 && child_link_v.equals(item.link.to_view())) {
                 html.append_view("<span class=\"crumb-sep\">/</span><span class=\"crumb-here\">");
@@ -354,7 +354,7 @@ func breadcrumb_html(item : *SummaryItem, pages_root : &std::vector<*mut Summary
             // nested one more level
             var k = 0u;
             while(k < child.children.size()) {
-                var gc = child.children.get(k);
+                var gc = child.children.at(k);
                 var gc_link_v = gc.link.to_view();
                 if(gc.link.size() > 0 && gc_link_v.equals(item.link.to_view())) {
                     html.append_view("<span class=\"crumb-sep\">/</span><span class=\"crumb-here\">");
@@ -558,7 +558,7 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     // Render Sidebar
     var i = 0u;
     while(i < gen.summary.items.size()) {
-        var sb_item = render_sidebar_item(gen.summary.items.get(i), current_md_path, relative_depth)
+        var sb_item = render_sidebar_item(gen.summary.items.at(i), current_md_path, relative_depth)
         html.append_view(sb_item.to_view());
         i++;
     }
@@ -695,7 +695,7 @@ func (gen : &mut HtmlGenerator) process_item(item : *SummaryItem) {
     // Process children recursively
     var i = 0u;
     while(i < item.children.size()) {
-        gen.process_item(item.children.get(i));
+        gen.process_item(item.children.at(i));
         i++;
     }
 }
@@ -745,14 +745,14 @@ public func generate(config : DocConfig, summary : *Summary) {
     {
         var pi = 0u;
         while(pi < flat_pages.size()) {
-            gen.pages.push_back(flat_pages.get(pi));
+            gen.pages.push_back(flat_pages.at(pi));
             pi++;
         }
     }
     
     var i = 0u;
     while(i < summary.items.size()) {
-        gen.process_item(summary.items.get(i));
+        gen.process_item(summary.items.at(i));
         i++;
     }
     

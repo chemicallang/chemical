@@ -11,7 +11,7 @@ const HEX_UPPER = "0123456789ABCDEF"
 
 func url_encode_view(value : std::string_view, out : &mut std::string) {
     for(var i : size_t = 0; i < value.size(); i++) {
-        const c = value.get(i)
+        const c = value.at(i)
         if((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
            c == '-' || c == '.' || c == '_' || c == '~') {
             out.append(c)
@@ -32,7 +32,7 @@ public func build_path(patterns : &std::vector<RoutePattern>, id : std::string_v
         if(pattern.is_fallback) { return std::string("/") }
         var out = std::string()
         for(var j : size_t = 0; j < pattern.segments.size(); j++) {
-            const seg = pattern.segments.get(j)
+            const seg = pattern.segments.at(j)
             out.append('/')
             if(is_param_segment(seg)) {
                 const name = seg.subview(1, seg.size() - 1)

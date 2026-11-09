@@ -8,7 +8,7 @@ func (page : &HtmlPage) getComponentId(index : size_t) : std::string_view {
             if(count == index) {
                 var start = i + 5;
                 var end = start;
-                while(end < view.size() && view.get(end) != '"') end++;
+                while(end < view.size() && view.at(end) != '"') end++;
                 return view.subview(start, end);
             }
             count++;

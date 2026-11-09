@@ -27,15 +27,15 @@ public func test_router_runtime_has_key_symbols(env : &mut TestEnv) {
     var js = page.getJs()
     const version = std::string_view("window.$__uni_router_version = 1;")
     const activate = std::string_view("window.$__uni_activate_now")
-    if(js.find(&version) == std::NPOS) {
+    if(js.find_or_npos(&version) == std::NPOS) {
         env.error("runtime should define the version marker")
     }
-    if(js.find(&activate) == std::NPOS) {
+    if(js.find_or_npos(&activate) == std::NPOS) {
         env.error("runtime should define $__uni_activate_now")
     }
     var css = page.getCss()
     const rule = std::string_view(".chx-route[data-uni-route-active=")
-    if(css.find(&rule) == std::NPOS) {
+    if(css.find_or_npos(&rule) == std::NPOS) {
         env.error("runtime should append the route hide rule")
     }
 }
@@ -45,7 +45,7 @@ public func test_router_runtime_absent_by_default(env : &mut TestEnv) {
     var page = HtmlPage()
     var js = page.getJs()
     const marker = std::string_view("$__uni_router_version")
-    if(js.find(&marker) != std::NPOS) {
+    if(js.find_or_npos(&marker) != std::NPOS) {
         env.error("a page that never calls ensure_router_runtime must not ship the runtime")
     }
 }

@@ -29,7 +29,7 @@ public func universal_jsx_child_chemical_embed_renders_at_ssr(env : &mut TestEnv
 
     // The emitter ran at SSR time and its markup sits inside the host element.
     const emitted = std::string_view("<div class=\"pw\"><b class=\"child-emit\">CHILD-PROBE</b></div>")
-    if(html.find(&emitted) == std::NPOS) {
+    if(html.find_or_npos(&emitted) == std::NPOS) {
         env.error("a ${...} JSX child must render its server emission in place")
         test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
         return
@@ -37,12 +37,12 @@ public func universal_jsx_child_chemical_embed_renders_at_ssr(env : &mut TestEnv
 
     // No stray literal `$` child.
     const stray = std::string_view("<div class=\"pw\">$</div>")
-    if(html.find(&stray) != std::NPOS) {
+    if(html.find_or_npos(&stray) != std::NPOS) {
         env.error("a ${...} JSX child must not render a literal '$'")
         return
     }
     const strayOpen = std::string_view("class=\"pw\">$")
-    if(html.find(&strayOpen) != std::NPOS) {
+    if(html.find_or_npos(&strayOpen) != std::NPOS) {
         env.error("a ${...} JSX child must not begin with a literal '$'")
     }
 }
@@ -54,13 +54,13 @@ public func universal_jsx_child_chemical_embed_not_in_client_js(env : &mut TestE
     var js = page.getJs()
 
     // The server-only emitter must not leak into the client bundle.
-    if(js.find(&std::string_view("jsx_child_test_emit")) != std::NPOS) {
+    if(js.find_or_npos(&std::string_view("jsx_child_test_emit")) != std::NPOS) {
         env.error("a server-only ${...} JSX child must not be emitted into client JS")
         test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
         return
     }
     // The host element still hydrates on the client.
-    if(js.find(&std::string_view("\"pw\"")) == std::NPOS) {
+    if(js.find_or_npos(&std::string_view("\"pw\"")) == std::NPOS) {
         env.error("the host element of a ${...} JSX child must still emit on the client")
         test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
     }

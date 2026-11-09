@@ -155,9 +155,9 @@ public func regex_safe_split_returns_owned_strings(env : &mut TestEnv) {
         env.error("safe split should return three parts")
         return
     }
-    if(!parts.get_ref(0u).to_view().equals(string_view("a"))) { env.error("split part 0 should be a") }
-    if(!parts.get_ref(1u).to_view().equals(string_view("b"))) { env.error("split part 1 should be b") }
-    if(!parts.get_ref(2u).to_view().equals(string_view("c"))) { env.error("split part 2 should be c") }
+    if(!parts.at_ref(0u).to_view().equals(string_view("a"))) { env.error("split part 0 should be a") }
+    if(!parts.at_ref(1u).to_view().equals(string_view("b"))) { env.error("split part 1 should be b") }
+    if(!parts.at_ref(2u).to_view().equals(string_view("c"))) { env.error("split part 2 should be c") }
 
     // Owned, not borrowed: mutating the source after the split must not change
     // the returned strings.
@@ -167,7 +167,7 @@ public func regex_safe_split_returns_owned_strings(env : &mut TestEnv) {
     source.clear()
     source.append_view("changed")
     if(owned.size() != 2u) { env.error("safe split should return two parts") }
-    if(!owned.get_ref(0u).to_view().equals(string_view("x"))) {
+    if(!owned.at_ref(0u).to_view().equals(string_view("x"))) {
         env.error("safe split must copy segments, not borrow the source")
     }
 }
@@ -177,20 +177,20 @@ public func regex_safe_split_edge_cases(env : &mut TestEnv) {
     var comma = regex::compile(",")
     var empty = comma.split("")
     if(empty.size() != 1u) { env.error("empty text should split into one empty part") }
-    if(empty.size() > 0u && empty.get_ref(0u).size() != 0u) {
+    if(empty.size() > 0u && empty.at_ref(0u).size() != 0u) {
         env.error("the single empty-text part should be empty")
     }
 
     var edge = comma.split(",a,")
     if(edge.size() != 3u) { env.error("edge split should yield three parts") }
-    if(edge.size() == 3u && edge.get_ref(0u).size() != 0u) { env.error("leading part should be empty") }
-    if(edge.size() == 3u && edge.get_ref(2u).size() != 0u) { env.error("trailing part should be empty") }
+    if(edge.size() == 3u && edge.at_ref(0u).size() != 0u) { env.error("leading part should be empty") }
+    if(edge.size() == 3u && edge.at_ref(2u).size() != 0u) { env.error("trailing part should be empty") }
 
     var unicode = regex::compile(",")
     var parts = unicode.split("α,β")
     if(parts.size() != 2u) {
         env.error("unicode split should yield two parts")
-    } else if(!parts.get_ref(1u).to_view().equals(string_view("β"))) {
+    } else if(!parts.at_ref(1u).to_view().equals(string_view("β"))) {
         env.error("unicode split should preserve UTF-8 bytes")
     }
 }

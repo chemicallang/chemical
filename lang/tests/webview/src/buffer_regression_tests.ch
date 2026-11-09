@@ -77,10 +77,10 @@ func reg_run_bridge(title : *char) : bool {
     g_reg_wv = &raw mut wv
 
     webview::raw::webview_bind(&raw mut wv, (method, args) => {
-        if(method.find(string_view::make_no_len("ping")) == 0) {
+        if(method.find_or_npos(string_view::make_no_len("ping")) == 0) {
             g_reg_ok = true
             reg_stop()
-        } else if(method.find(string_view::make_no_len("stop")) == 0) {
+        } else if(method.find_or_npos(string_view::make_no_len("stop")) == 0) {
             reg_stop()
         }
         return string("{\"ok\":true}")
@@ -124,12 +124,12 @@ public func test_webview_load_html_large_page(env : &mut TestEnv) {
     g_reg_wv = &raw mut wv
 
     webview::raw::webview_bind(&raw mut wv, (method, args) => {
-        if(method.find(string_view::make_no_len("padlen")) == 0) {
+        if(method.find_or_npos(string_view::make_no_len("padlen")) == 0) {
             // The page must have executed and seen all ~90 KB of padding.
             g_reg_ok = args.contains(string_view::make_no_len("90000"))
             if(args.contains(string_view::make_no_len("ERR"))) { g_reg_ok = false }
             reg_stop()
-        } else if(method.find(string_view::make_no_len("stop")) == 0) {
+        } else if(method.find_or_npos(string_view::make_no_len("stop")) == 0) {
             reg_stop()
         }
         return string("{\"ok\":true}")
@@ -166,7 +166,7 @@ public func test_webview_evaluate_js_large_script(env : &mut TestEnv) {
     g_reg_wv = &raw mut wv
 
     webview::raw::webview_bind(&raw mut wv, (method, args) => {
-        if(method.find(string_view::make_no_len("ready")) == 0) {
+        if(method.find_or_npos(string_view::make_no_len("ready")) == 0) {
             // > 32768 chars: a long comment (so truncation loses the statement)
             // followed by the actual call that must still reach the bridge.
             var big = string("/*")
@@ -174,10 +174,10 @@ public func test_webview_evaluate_js_large_script(env : &mut TestEnv) {
             big.append_view(string_view::make_view(&pad))
             big.append_view(string_view::make_no_len("*/window.__webview__.call('evok','1');"))
             webview::raw::webview_evaluate_js(g_reg_wv, big.data() as *char)
-        } else if(method.find(string_view::make_no_len("evok")) == 0) {
+        } else if(method.find_or_npos(string_view::make_no_len("evok")) == 0) {
             g_reg_ok = true
             reg_stop()
-        } else if(method.find(string_view::make_no_len("stop")) == 0) {
+        } else if(method.find_or_npos(string_view::make_no_len("stop")) == 0) {
             reg_stop()
         }
         return string("{}")
@@ -215,10 +215,10 @@ public func test_webview_init_large_script(env : &mut TestEnv) {
     g_reg_wv = &raw mut wv
 
     webview::raw::webview_bind(&raw mut wv, (method, args) => {
-        if(method.find(string_view::make_no_len("initok")) == 0) {
+        if(method.find_or_npos(string_view::make_no_len("initok")) == 0) {
             g_reg_ok = true
             reg_stop()
-        } else if(method.find(string_view::make_no_len("stop")) == 0) {
+        } else if(method.find_or_npos(string_view::make_no_len("stop")) == 0) {
             reg_stop()
         }
         return string("{}")

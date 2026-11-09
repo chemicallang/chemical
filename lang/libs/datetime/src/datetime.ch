@@ -122,10 +122,10 @@ public namespace datetime {
             var i : size_t = 0
             var len = fmt.size()
             while(i < len) {
-                var c = fmt.get(i)
+                var c = fmt.at(i)
                 if(c == '%' && i + 1 < len) {
                     i = i + 1
-                    var spec = fmt.get(i)
+                    var spec = fmt.at(i)
                     if(spec == 'Y') {
                         result.append_integer(self.year as bigint)
                     } else if(spec == 'm') {
@@ -241,10 +241,10 @@ public namespace datetime {
             var fLen = fmt.size()
             var sLen = input.size()
             while(fi < fLen && si < sLen) {
-                var fc = fmt.get(fi)
+                var fc = fmt.at(fi)
                 if(fc == '%' && fi + 1 < fLen) {
                     fi = fi + 1
-                    var spec = fmt.get(fi)
+                    var spec = fmt.at(fi)
                     if(spec == 'Y') {
                         // parse 4-digit year
                         if(si + 4 > sLen) { return std.Result.Err<DateTime, DateTimeError>(DateTimeError.InputTooShort(si)) }
@@ -264,7 +264,7 @@ public namespace datetime {
                     }
                 } else {
                     // literal character — must match
-                    if(fc != input.get(si)) {
+                    if(fc != input.at(si)) {
                         return std.Result.Err<DateTime, DateTimeError>(DateTimeError.LiteralMismatch(si))
                     }
                     si = si + 1
@@ -381,16 +381,16 @@ public namespace datetime {
     // ---- Helper functions for parsing --------------------------------------
 
     func parse_digits_2(s : std::string_view, pos : size_t) : i64 {
-        var a = s.get(pos) as i64
-        var b = s.get(pos + 1) as i64
+        var a = s.at(pos) as i64
+        var b = s.at(pos + 1) as i64
         return (a - 48) * 10 + (b - 48)
     }
 
     func parse_digits_4(s : std::string_view, pos : size_t) : i64 {
-        var a = s.get(pos) as i64
-        var b = s.get(pos + 1) as i64
-        var c = s.get(pos + 2) as i64
-        var d = s.get(pos + 3) as i64
+        var a = s.at(pos) as i64
+        var b = s.at(pos + 1) as i64
+        var c = s.at(pos + 2) as i64
+        var d = s.at(pos + 3) as i64
         return (a - 48) * 1000 + (b - 48) * 100 + (c - 48) * 10 + (d - 48)
     }
 

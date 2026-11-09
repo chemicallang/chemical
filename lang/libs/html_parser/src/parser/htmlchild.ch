@@ -5,7 +5,7 @@
  */
 func is_whitespace_view(v : &std::string_view) : bool {
     for(var i : size_t = 0; i < v.size(); i++) {
-        const c = v.get(i);
+        const c = v.at(i);
         if(c != ' ' && c != '\t' && c != '\n' && c != '\r') {
             return false;
         }

@@ -24,7 +24,7 @@ func shared_count(hay : &std::string_view, needle : &std::string_view) : int {
     var count = 0
     var pos : size_t = 0
     while(pos + needle.size() <= hay.size()) {
-        const found = hay.subview(pos, hay.size()).find(needle)
+        const found = hay.subview(pos, hay.size()).find_or_npos(needle)
         if(found == std::NPOS) { break }
         count = count + 1
         pos = pos + found + needle.size()

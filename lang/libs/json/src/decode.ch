@@ -81,7 +81,7 @@ impl std::Decoder for JsonDecoder {
         if(self.value is JsonValue.String) {
             var String(s) = self.value else unsafe { unreachable }
             if(s.size() == 1) {
-                return std::Result.Ok(s.get(0))
+                return std::Result.Ok(s.at(0))
             }
             return std::Result.Err(se_err("expected single-char string"))
         }

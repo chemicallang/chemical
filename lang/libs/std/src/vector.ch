@@ -196,9 +196,14 @@ public struct vector<T> {
         push(value)
     }
 
-    func get(&self, index : size_t) : T where T : Copy {
+    func at(&self, index : size_t) : T where T : Copy {
         __vector_bounds_check(index, data_size)
         return unsafe(data_ptr[index]);
+    }
+
+    func get_copy(&self, index : size_t) : Option<T> where T : Copy {
+        if(index >= data_size) { return Option.None<T>() }
+        return Option.Some<T>(unsafe(data_ptr[index]))
     }
 
     func get_ptr(&self, index : size_t) : *mut T {
@@ -206,12 +211,12 @@ public struct vector<T> {
         return unsafe(&raw mut data_ptr[index]);
     }
 
-    func get_opt(&self, index : size_t) : Option<&T> {
+    func get(&self, index : size_t) : Option<&T> {
         if(index >= data_size) { return Option.None<&T>() }
         return Option.Some<&T>(unsafe(&data_ptr[index]))
     }
 
-    func get_mut_opt(&mut self, index : size_t) : Option<&mut T> {
+    func get_mut(&mut self, index : size_t) : Option<&mut T> {
         if(index >= data_size) { return Option.None<&mut T>() }
         return Option.Some<&mut T>(unsafe(&mut data_ptr[index]))
     }
@@ -237,12 +242,12 @@ public struct vector<T> {
         return Option.Some<T>(out)
     }
 
-    func get_ref(&self, index : size_t) : &T {
+    func at_ref(&self, index : size_t) : &T {
         __vector_bounds_check(index, data_size)
         return unsafe(&data_ptr[index])
     }
 
-    func get_mut(&mut self, index : size_t) : &mut T {
+    func at_mut(&mut self, index : size_t) : &mut T {
         __vector_bounds_check(index, data_size)
         return unsafe(&mut data_ptr[index])
     }

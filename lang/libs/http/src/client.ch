@@ -28,21 +28,21 @@ public struct URL {
         var u = *url_str;
         var res = URL();
 
-        if(u.size() >= 7 && (u.get(0) == 'h' || u.get(0) == 'H') &&
-           (u.get(1) == 't' || u.get(1) == 'T') &&
-           (u.get(2) == 't' || u.get(2) == 'T') &&
-           (u.get(3) == 'p' || u.get(3) == 'P')) {
-            if(u.size() >= 8 && (u.get(4) == 's' || u.get(4) == 'S') && u.get(5) == ':' && u.get(6) == '/' && u.get(7) == '/') {
+        if(u.size() >= 7 && (u.at(0) == 'h' || u.at(0) == 'H') &&
+           (u.at(1) == 't' || u.at(1) == 'T') &&
+           (u.at(2) == 't' || u.at(2) == 'T') &&
+           (u.at(3) == 'p' || u.at(3) == 'P')) {
+            if(u.size() >= 8 && (u.at(4) == 's' || u.at(4) == 'S') && u.at(5) == ':' && u.at(6) == '/' && u.at(7) == '/') {
                 res.scheme = http_lit("https");
                 res.port = 443u;
                 u = u.skip(8u);
-            } else if(u.get(4) == ':' && u.get(5) == '/' && u.get(6) == '/') {
+            } else if(u.at(4) == ':' && u.at(5) == '/' && u.at(6) == '/') {
                 res.scheme = http_lit("http");
                 u = u.skip(7u);
             }
         }
 
-        var slash = u.find("/");
+        var slash = u.find_or_npos("/");
         var host_port = string_view();
         if(slash == std::NPOS) {
             host_port = u;
@@ -50,10 +50,10 @@ public struct URL {
         } else {
             host_port = u.subview(0u, slash);
             var full_path = u.subview(slash, u.size());
-            var hash_pos = full_path.find("#");
+            var hash_pos = full_path.find_or_npos("#");
             var path_end = hash_pos;
             if(hash_pos == std::NPOS) { path_end = full_path.size() }
-            var qmark = full_path.find("?");
+            var qmark = full_path.find_or_npos("?");
             if(qmark == std::NPOS || qmark > path_end) {
                 res.path = string::view_make(full_path.subview(0u, path_end));
             } else {
@@ -65,7 +65,7 @@ public struct URL {
             }
         }
 
-        var colon = host_port.find(":");
+        var colon = host_port.find_or_npos(":");
         if(colon == std::NPOS) {
             res.host = string::view_make(&host_port);
         } else {
@@ -73,7 +73,7 @@ public struct URL {
             var pstr = host_port.subview(colon + 1u, host_port.size());
             var pval = 0u;
             for(var i=0u; i<pstr.size(); i++) {
-                var c = pstr.get(i);
+                var c = pstr.at(i);
                 if(c >= '0' && c <= '9') { pval = pval * 10u + (c as uint - '0' as uint) }
             }
             if(pval > 0u) { res.port = pval }
@@ -89,25 +89,25 @@ func http_base64(data : &[u8]) : string {
     var out = string()
     var i : size_t = 0
     while(i + 2u < data.size()) {
-        var n = ((data.get(i) as u32) << 16) | ((data.get(i + 1u) as u32) << 8) | (data.get(i + 2u) as u32)
-        out.append(table.get(((n >> 18) & 63u) as size_t))
-        out.append(table.get(((n >> 12) & 63u) as size_t))
-        out.append(table.get(((n >> 6) & 63u) as size_t))
-        out.append(table.get((n & 63u) as size_t))
+        var n = ((data.at(i) as u32) << 16) | ((data.at(i + 1u) as u32) << 8) | (data.at(i + 2u) as u32)
+        out.append(table.at(((n >> 18) & 63u) as size_t))
+        out.append(table.at(((n >> 12) & 63u) as size_t))
+        out.append(table.at(((n >> 6) & 63u) as size_t))
+        out.append(table.at((n & 63u) as size_t))
         i += 3u
     }
     var rem = data.size() - i
     if(rem == 1u) {
-        var n = (data.get(i) as u32) << 16
-        out.append(table.get(((n >> 18) & 63u) as size_t))
-        out.append(table.get(((n >> 12) & 63u) as size_t))
+        var n = (data.at(i) as u32) << 16
+        out.append(table.at(((n >> 18) & 63u) as size_t))
+        out.append(table.at(((n >> 12) & 63u) as size_t))
         out.append('=')
         out.append('=')
     } else if(rem == 2u) {
-        var n = ((data.get(i) as u32) << 16) | ((data.get(i + 1u) as u32) << 8)
-        out.append(table.get(((n >> 18) & 63u) as size_t))
-        out.append(table.get(((n >> 12) & 63u) as size_t))
-        out.append(table.get(((n >> 6) & 63u) as size_t))
+        var n = ((data.at(i) as u32) << 16) | ((data.at(i + 1u) as u32) << 8)
+        out.append(table.at(((n >> 18) & 63u) as size_t))
+        out.append(table.at(((n >> 12) & 63u) as size_t))
+        out.append(table.at(((n >> 6) & 63u) as size_t))
         out.append('=')
     }
     return out

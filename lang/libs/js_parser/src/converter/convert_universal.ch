@@ -15,7 +15,7 @@ public func convert_universal_root(root : *mut JsBlock, emitter : &mut JsNodeEmi
         unsafe {
         var i = 0u
         while(i < root.statements.size()) {
-            convert_js_node(root.statements.get(i), emitter, true)
+            convert_js_node(root.statements.at(i), emitter, true)
             i++
         }
         emitter.flush()

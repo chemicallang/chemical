@@ -29,7 +29,7 @@ func append_style_js_node_text(node : *mut JsNode, out : &mut std::string) : boo
                 const unary = node as *mut JsUnaryOp;
                 if(unary.prefix) {
                     out.append_view(&unary.operator);
-                    if(unary.operator.size() > 2 && unsafe(isalpha(unary.operator.get(0) as int))) {
+                    if(unary.operator.size() > 2 && unsafe(isalpha(unary.operator.at(0) as int))) {
                         out.append(' ');
                     }
                     return append_js_node_text(unary.operand, out);
@@ -80,7 +80,7 @@ func append_style_js_node_text(node : *mut JsNode, out : &mut std::string) : boo
                 out.append('(');
                 for(var i : uint = 0; i < call.args.size(); i++) {
                     if(i > 0) out.append_view(", ");
-                    if(!append_js_node_text(call.args.get(i), out)) return false;
+                    if(!append_js_node_text(call.args.at(i), out)) return false;
                 }
                 out.append(')');
                 return true;
@@ -90,7 +90,7 @@ func append_style_js_node_text(node : *mut JsNode, out : &mut std::string) : boo
                 out.append('[');
                 for(var i : uint = 0; i < arr.elements.size(); i++) {
                     if(i > 0) out.append_view(", ");
-                    const elem = arr.elements.get(i);
+                    const elem = arr.elements.at(i);
                     if(elem != null && !append_js_node_text(elem, out)) return false;
                 }
                 out.append(']');
@@ -101,7 +101,7 @@ func append_style_js_node_text(node : *mut JsNode, out : &mut std::string) : boo
                 out.append('{');
                 for(var i : uint = 0; i < obj.properties.size(); i++) {
                     if(i > 0) out.append_view(", ");
-                    const prop = obj.properties.get(i);
+                    const prop = obj.properties.at(i);
                     if(prop.value != null && prop.value.kind == JsNodeKind.Spread) {
                         if(!append_js_node_text(prop.value, out)) return false;
                     } else {
@@ -122,7 +122,7 @@ func append_style_js_node_text(node : *mut JsNode, out : &mut std::string) : boo
 func append_kebab_case(input: std::string_view, out: &mut std::string) {
         unsafe {
         for (var i: uint = 0; i < input.size(); i++) {
-            const c = input.get(i);
+            const c = input.at(i);
             if (c >= 'A' && c <= 'Z') {
                 // Add a hyphen if it's not the very first character
                 if (i > 0) {
@@ -148,7 +148,7 @@ func build_js_node_text_view_style_attr(builder : *mut ASTBuilder, obj : *mut Js
         var out = std::string();
         var wrote = false;
         for(var i : uint = 0; i < obj.properties.size(); i++) {
-            const prop = obj.properties.get(i);
+            const prop = obj.properties.at(i);
             if(prop.value == null || prop.value.kind == JsNodeKind.Spread) return view("");
             if(prop.value.kind != JsNodeKind.Literal) continue;
             if(wrote) out.append(';');

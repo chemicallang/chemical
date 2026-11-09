@@ -169,7 +169,7 @@ public func FULL_https_binary_roundtrip_upload_download(env : &mut TestEnv) {
     if(v2.size() != 65536u) { env.error("download length mismatch") }
     var di : size_t = 0
     while(di < v2.size()) {
-        if(v2.get(di) != ((di % 251) as char)) { env.error("download pattern mismatch"); break }
+        if(v2.at(di) != ((di % 251) as char)) { env.error("download pattern mismatch"); break }
         di += 1
     }
 
@@ -480,7 +480,7 @@ public func FULL_https_utf8_and_control_char_bodies(env : &mut TestEnv) {
     if(v1.size() != 14u) { env.error("utf8 echo length mismatch") }
     var ci : size_t = 0
     while(ci < v1.size() && ci < 14u) {
-        if((v1.get(ci) as u8) != utf8_bytes[ci]) { env.error("utf8 echo bytes mismatch"); break }
+        if((v1.at(ci) as u8) != utf8_bytes[ci]) { env.error("utf8 echo bytes mismatch"); break }
         ci += 1
     }
 

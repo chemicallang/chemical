@@ -355,7 +355,7 @@ func (converter : &mut ASTConverter) generate_css_recurse(om : *CSSNestedRule, p
         if(om.selector != null) {
             var i : uint = 0;
             while(i < om.selector.selectors.size()) {
-                 var sel = om.selector.selectors.get(i);
+                 var sel = om.selector.selectors.at(i);
                  if(css_has_ampersand_complex(sel)) {
                      if(parent_selectors.empty()) {
                          // A global block (`#css` in statement position) has no class
@@ -406,7 +406,7 @@ func (converter : &mut ASTConverter) generate_css_recurse(om : *CSSNestedRule, p
             str.append_view(" { ");
             var idx : uint = 0;
             while(idx < om.declarations.size()) {
-                 css_write_declaration_text(om.declarations.get(idx), str, converter.as_emitter());
+                 css_write_declaration_text(om.declarations.at(idx), str, converter.as_emitter());
                  idx++;
             }
             str.append_view(" }");
@@ -415,7 +415,7 @@ func (converter : &mut ASTConverter) generate_css_recurse(om : *CSSNestedRule, p
     
         var n : uint = 0;
         while(n < om.nested_rules.size()) {
-            converter.generate_css_recurse(om.nested_rules.get(n), &mut current_selectors);
+            converter.generate_css_recurse(om.nested_rules.at(n), &mut current_selectors);
             n++;
         }
 
@@ -436,7 +436,7 @@ func (converter : &mut ASTConverter) generate_css_root(om : *mut CSSOM, root_sel
              str.append_view(" { ");
              var i : uint = 0;
              while(i < om.declarations.size()) {
-                 css_write_declaration_text(om.declarations.get(i), str, converter.as_emitter());
+                 css_write_declaration_text(om.declarations.at(i), str, converter.as_emitter());
                  i++;
              }
              str.append_view(" }");
@@ -445,20 +445,20 @@ func (converter : &mut ASTConverter) generate_css_root(om : *mut CSSOM, root_sel
      
          var j : uint = 0;
          while(j < om.nested_rules.size()) {
-             converter.generate_css_recurse(om.nested_rules.get(j), &mut parents);
+             converter.generate_css_recurse(om.nested_rules.at(j), &mut parents);
              j++;
          }
      
          var m : uint = 0;
          while(m < om.media_queries.size()) {
-                converter.writeMediaRule(om.media_queries.get(m), &mut *str, root_selector);
+                converter.writeMediaRule(om.media_queries.at(m), &mut *str, root_selector);
                 if(!str.empty()) { converter.put_chain_in(); }
                 m++;
          }
 
          var k : uint = 0;
          while(k < om.keyframes.size()) {
-                converter.writeKeyframesRule(om.keyframes.get(k), &mut *str);
+                converter.writeKeyframesRule(om.keyframes.at(k), &mut *str);
                 if(!str.empty()) { converter.put_chain_in(); }
                 k++;
          }
@@ -473,15 +473,15 @@ func cssom_seed_append_nested(nr : *mut CSSNestedRule, out : &mut std::string) {
         if(nr.selector != null) {
             var p : uint = 0
             while(p < nr.selector.selectors.size()) {
-                css_serialize_complex(nr.selector.selectors.get(p), out, std::string_view("&"))
+                css_serialize_complex(nr.selector.selectors.at(p), out, std::string_view("&"))
                 out.append(';')
                 p++
             }
         }
         var d : uint = 0
-        while(d < nr.declarations.size()) { out.append_view(&nr.declarations.get(d).property.name); out.append(';'); d++ }
+        while(d < nr.declarations.size()) { out.append_view(&nr.declarations.at(d).property.name); out.append(';'); d++ }
         var n : uint = 0
-        while(n < nr.nested_rules.size()) { cssom_seed_append_nested(nr.nested_rules.get(n), out); n++ }
+        while(n < nr.nested_rules.size()) { cssom_seed_append_nested(nr.nested_rules.at(n), out); n++ }
 
         }
     }
@@ -489,9 +489,9 @@ func cssom_seed_append_nested(nr : *mut CSSNestedRule, out : &mut std::string) {
 func cssom_seed_append_media(mr : *mut CSSMediaRule, out : &mut std::string) {
         unsafe {
         var d : uint = 0
-        while(d < mr.declarations.size()) { out.append_view(&mr.declarations.get(d).property.name); out.append(';'); d++ }
+        while(d < mr.declarations.size()) { out.append_view(&mr.declarations.at(d).property.name); out.append(';'); d++ }
         var n : uint = 0
-        while(n < mr.nested_rules.size()) { cssom_seed_append_nested(mr.nested_rules.get(n), out); n++ }
+        while(n < mr.nested_rules.size()) { cssom_seed_append_nested(mr.nested_rules.at(n), out); n++ }
 
         }
     }
@@ -516,13 +516,13 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM, seed : ubigin
             if(om.dyn_values.empty()) {
                 var seedStr = std::string()
                 var si : uint = 0
-                while(si < size) { css_write_declaration_text(om.declarations.get(si), &mut seedStr, converter.as_emitter()); si++ }
+                while(si < size) { css_write_declaration_text(om.declarations.at(si), &mut seedStr, converter.as_emitter()); si++ }
                 var ni : uint = 0
-                while(ni < om.nested_rules.size()) { cssom_seed_append_nested(om.nested_rules.get(ni), &mut seedStr); ni++ }
+                while(ni < om.nested_rules.size()) { cssom_seed_append_nested(om.nested_rules.at(ni), &mut seedStr); ni++ }
                 var mi : uint = 0
-                while(mi < om.media_queries.size()) { cssom_seed_append_media(om.media_queries.get(mi), &mut seedStr); mi++ }
+                while(mi < om.media_queries.size()) { cssom_seed_append_media(om.media_queries.at(mi), &mut seedStr); mi++ }
                 var ki : uint = 0
-                while(ki < om.keyframes.size()) { seedStr.append_view(&om.keyframes.get(ki).name); seedStr.append(';'); ki++ }
+                while(ki < om.keyframes.size()) { seedStr.append_view(&om.keyframes.at(ki).name); seedStr.append(';'); ki++ }
                 if(!seedStr.empty()) { hash = fnv1a_hash_32(seedStr.data()) as uint32_t }
             }
             var ifStmt = builder.make_if_stmt(converter.make_require_random_css_hash_call(hash), converter.parent, location);
@@ -549,7 +549,7 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM, seed : ubigin
                 const rootOpen = builder.allocate_view(std::string_view(":root{"))
                 converter.put_view_chain(&rootOpen)
                 var gi : uint = 0
-                while(gi < size) { css_write_declaration_text(om.declarations.get(gi), str, converter.as_emitter()); gi++; }
+                while(gi < size) { css_write_declaration_text(om.declarations.at(gi), str, converter.as_emitter()); gi++; }
                 str.append('}')
                 converter.put_chain_in()
             }
@@ -557,14 +557,14 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM, seed : ubigin
             if(!converter.is_global_block && (size > 0 || !om.media_queries.empty() || !om.keyframes.empty())) {
                 converter.put_view_chain(&total)
                 var i : uint = 0
-                while(i < size) { css_write_declaration_text(om.declarations.get(i), str, converter.as_emitter()); i++; }
+                while(i < size) { css_write_declaration_text(om.declarations.at(i), str, converter.as_emitter()); i++; }
                 str.append('}')
                 converter.put_chain_in();
             }
 
             var k_idx : uint = 0
             while(k_idx < om.keyframes.size()) {
-                converter.writeKeyframesRule(om.keyframes.get(k_idx), &mut *str)
+                converter.writeKeyframesRule(om.keyframes.at(k_idx), &mut *str)
                 if(!str.empty()) { converter.put_chain_in(); }
                 k_idx++;
             }
@@ -581,7 +581,7 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM, seed : ubigin
 
             var n_idx : uint = 0;
             while(n_idx < om.nested_rules.size()) {
-                converter.generate_css_recurse(om.nested_rules.get(n_idx), &mut parents);
+                converter.generate_css_recurse(om.nested_rules.at(n_idx), &mut parents);
                 n_idx++;
             }
 
@@ -595,9 +595,9 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM, seed : ubigin
                     // No root class here: declarations written directly in the media
                     // query belong to :root, nested rules keep their selectors.
                     const declRoot = std::string_view(":root")
-                    converter.writeMediaRule(om.media_queries.get(j), &mut *str, std::string_view(), declRoot)
+                    converter.writeMediaRule(om.media_queries.at(j), &mut *str, std::string_view(), declRoot)
                 } else {
-                    converter.writeMediaRule(om.media_queries.get(j), &mut *str, classView)
+                    converter.writeMediaRule(om.media_queries.at(j), &mut *str, classView)
                 }
                 if(!str.empty()) { converter.put_chain_in(); }
                 j++;
@@ -608,7 +608,7 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM, seed : ubigin
 
         } else {
             var i : uint = 0
-            while(i < size) { css_write_declaration_text(om.declarations.get(i), str, converter.as_emitter()); i++; }
+            while(i < size) { css_write_declaration_text(om.declarations.at(i), str, converter.as_emitter()); i++; }
 
             const hash = fnv1a_hash_32(str.data());
             var ifStmt = builder.make_if_stmt(converter.make_require_css_hash_call(hash), converter.parent, location);

@@ -46,7 +46,7 @@ func ut_sanitize_name(name : std::string_view, builder : *mut ASTBuilder) : std:
         unsafe {
         var s = std::string("ut_render_")
         for(var i : size_t = 0; i < name.size(); i++) {
-            const c = name.get(i)
+            const c = name.at(i)
             if((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
                 s.append(c)
             } else {
@@ -63,7 +63,7 @@ func ut_collect_script_text(el : *mut HtmlElement, builder : *mut ASTBuilder) : 
         unsafe {
         var s = std::string()
         for(var i : size_t = 0; i < el.children.size(); i++) {
-            const ch = el.children.get(i)
+            const ch = el.children.at(i)
             if(ch.kind == HtmlChildKind.Text) {
                 s.append_view(&(ch as *mut HtmlText).value)
             }
@@ -141,7 +141,7 @@ func ut_parse_body(parser : *mut Parser, builder : *mut ASTBuilder, statement : 
         var steps = std::string_view()
         var i : size_t = 0
         while(i < root.children.size()) {
-            const ch = root.children.get(i)
+            const ch = root.children.at(i)
             var remove = false
             if(ch.kind == HtmlChildKind.Element) {
                 const el = ch as *mut HtmlElement

@@ -160,6 +160,13 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
         return Option.Some<&Value>(unsafe(&*ptr))
     }
 
+    func at(&self, key : &Key) : &Value {
+        const ptr = get_ptr(key)
+        if(ptr == null) { panic("map key not found") }
+        return unsafe(&*ptr)
+    }
+
+
     // `find` copies the stored value into the caller slot. Restrict it to
     // Copy values: a bitwise copy of an owning value would be destroyed twice.
     func find(&self, key : &Key, value : &mut Value) : bool where Value : Copy {

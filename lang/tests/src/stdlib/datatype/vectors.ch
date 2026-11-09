@@ -40,13 +40,13 @@ func test_vectors() {
             var v = vector<int>();
             v.push(10);
             v.push(20);
-            return v.size() == 2 && v.get(0) == 10 && v.get(1) == 20
+            return v.size() == 2 && v.at(0) == 10 && v.at(1) == 20
         })
         test("vector of longs work", () => {
             var v = vector<long>();
             v.push(10);
             v.push(20);
-            return v.size() == 2 && v.get(0) == 10 && v.get(1) == 20
+            return v.size() == 2 && v.at(0) == 10 && v.at(1) == 20
         })
         test("zero-sized vector elements work", () => {
             var v = vector<VecEmpty>();
@@ -79,14 +79,14 @@ func test_vectors() {
             v.push(10);
             v.push(20);
             v.remove_last();
-            return v.size() == 1 && v.get(0) == 10;
+            return v.size() == 1 && v.at(0) == 10;
         })
         test("can remove first element from vector", () => {
             var v = vector<int>();
             v.push(10);
             v.push(20);
             v.remove(0);
-            return v.size() == 1 && v.get(0) == 20;
+            return v.size() == 1 && v.at(0) == 20;
         })
         test("vectors work even when pushing large amount of items", () => {
             var v = vector<int>();
@@ -100,7 +100,7 @@ func test_vectors() {
             var act_sum = 0;
             i = 0;
             while(i < v.size()) {
-                act_sum += v.get(i as size_t)
+                act_sum += v.at(i as size_t)
                 i++;
             }
             return sum == act_sum;
@@ -117,14 +117,14 @@ func test_vectors() {
             v.set(2, 30);
             v.set(3, 20);
             v.set(4, 10);
-            return v.get(0) == 50 && v.get(1) == 40 && v.get(2) == 30 && v.get(3) == 20 && v.get(4) == 10;
+            return v.at(0) == 50 && v.at(1) == 40 && v.at(2) == 30 && v.at(3) == 20 && v.at(4) == 10;
         })
         test("get_mut mutates an element through a mutable vector", () => {
             var v = vector<int>();
             v.push(10);
             v.push(20);
-            *v.get_mut(0) = 99;
-            return v.get(0) == 99 && v.get(1) == 20;
+            *v.at_mut(0) = 99;
+            return v.at(0) == 99 && v.at(1) == 20;
         })
         vec_destruct_called = 0;
         test("vector set destroys the replaced destructible element", () => {

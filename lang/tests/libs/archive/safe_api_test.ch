@@ -23,7 +23,7 @@ func archive_safe_bytes_equal(v : &vector<u8>, expected : *u8, n : size_t) : boo
     if(v.size() != n) { return false }
     var i : size_t = 0
     while(i < n) {
-        if(v.get(i) != unsafe(expected[i])) { return false }
+        if(v.at(i) != unsafe(expected[i])) { return false }
         i += 1
     }
     return true
@@ -38,7 +38,7 @@ func archive_safe_build_zip(name : *char, data : *u8, n : size_t) : vector<u8> {
     var out = vector<u8>()
     var i : size_t = 0
     while(i < writer.data.size()) {
-        out.push(writer.data.get(i))
+        out.push(writer.data.at(i))
         i += 1
     }
     return out
@@ -62,7 +62,7 @@ public func archive_safe_zip_from_bytes_roundtrip(env : &mut TestEnv) {
 
     var entries = handle.entries()
     if(entries.size() != 1) { env.error("entries should have 1 item"); return }
-    if(!entries.get_ref(0).name.equals_with_len("hello.txt", 9)) { env.error("entry name mismatch") }
+    if(!entries.at_ref(0).name.equals_with_len("hello.txt", 9)) { env.error("entry name mismatch") }
 
     var read = handle.read_file("hello.txt")
     if(read is Result.Err) { env.error("read_file should succeed"); return }

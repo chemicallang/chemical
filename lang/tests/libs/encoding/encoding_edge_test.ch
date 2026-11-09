@@ -45,8 +45,8 @@ func test_hex_decode_to_vec(env : &mut TestEnv) {
     if(r is Result.Err) { env.error("hex_decode failed"); return; }
     var Ok(vec) = r else unsafe { unreachable };
     if(vec.size() != 5) { env.error("expected 5 bytes"); return; }
-    if(!(vec.get(0) == 0x48 && vec.get(1) == 0x65 && vec.get(2) == 0x6C &&
-         vec.get(3) == 0x6C && vec.get(4) == 0x6F)) {
+    if(!(vec.at(0) == 0x48 && vec.at(1) == 0x65 && vec.at(2) == 0x6C &&
+         vec.at(3) == 0x6C && vec.at(4) == 0x6F)) {
         env.error("hex_decode content wrong");
     }
 }

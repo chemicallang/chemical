@@ -141,10 +141,10 @@ public func INT_https_large_download_200k(env : &mut TestEnv) {
     if(body.size() != 200000u) { env.error("download truncated or oversized") }
 
     // Spot-check the i%251 pattern at several offsets.
-    if(body.get(0) != 0 as char) { env.error("pattern[0] mismatch") }
-    if(body.get(1000) != (1000 % 251) as char) { env.error("pattern[1000] mismatch") }
-    if(body.get(65536) != (65536 % 251) as char) { env.error("pattern[65536] mismatch") }
-    if(body.get(199999) != (199999 % 251) as char) { env.error("pattern[last] mismatch") }
+    if(body.at(0) != 0 as char) { env.error("pattern[0] mismatch") }
+    if(body.at(1000) != (1000 % 251) as char) { env.error("pattern[1000] mismatch") }
+    if(body.at(65536) != (65536 % 251) as char) { env.error("pattern[65536] mismatch") }
+    if(body.at(199999) != (199999 % 251) as char) { env.error("pattern[last] mismatch") }
 
     test_kill_port(20202u)
 }

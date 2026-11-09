@@ -22,15 +22,15 @@ func test_bcrypt_generate_salt_format(env : &mut TestEnv) {
         return
     }
     expect_uint_eq(env, salt.size(), 29u, "salt should be 29 chars")
-    if(salt.get(0) != '$') { env.error("salt[0] should be '$'") }
-    if(salt.get(1) != '2') { env.error("salt[1] should be '2'") }
-    if(salt.get(2) != 'b') { env.error("salt[2] should be 'b' for $2b$") }
-    if(salt.get(3) != '$') { env.error("salt[3] should be '$'") }
-    if(salt.get(4) != '1') { env.error("salt[4] should be '1' for cost 12") }
-    if(salt.get(5) != '2') { env.error("salt[5] should be '2' for cost 12") }
-    if(salt.get(6) != '$') { env.error("salt[6] should be '$' separator") }
+    if(salt.at(0) != '$') { env.error("salt[0] should be '$'") }
+    if(salt.at(1) != '2') { env.error("salt[1] should be '2'") }
+    if(salt.at(2) != 'b') { env.error("salt[2] should be 'b' for $2b$") }
+    if(salt.at(3) != '$') { env.error("salt[3] should be '$'") }
+    if(salt.at(4) != '1') { env.error("salt[4] should be '1' for cost 12") }
+    if(salt.at(5) != '2') { env.error("salt[5] should be '2' for cost 12") }
+    if(salt.at(6) != '$') { env.error("salt[6] should be '$' separator") }
     for(var i = 7u; i < salt.size(); i++) {
-        if(!is_valid_bcrypt_base64(salt.get(i))) {
+        if(!is_valid_bcrypt_base64(salt.at(i))) {
             env.error("invalid base64 char in salt encoding")
             break
         }
@@ -43,22 +43,22 @@ func test_bcrypt_generate_salt_cost_variations(env : &mut TestEnv) {
     var salt4 = bcrypt::generate_salt(4)
     if(salt4.empty()) { env.error("salt(4) failed"); return }
     expect_uint_eq(env, salt4.size(), 29u, "salt(4) should be 29 chars")
-    if(salt4.get(4) != '0' || salt4.get(5) != '4') { env.error("cost 4 should be encoded as '04'") }
+    if(salt4.at(4) != '0' || salt4.at(5) != '4') { env.error("cost 4 should be encoded as '04'") }
 
     // Cost exactly 10
     var salt10 = bcrypt::generate_salt(10)
     if(salt10.empty()) { env.error("salt(10) failed"); return }
-    if(salt10.get(4) != '1' || salt10.get(5) != '0') { env.error("cost 10 should be '10'") }
+    if(salt10.at(4) != '1' || salt10.at(5) != '0') { env.error("cost 10 should be '10'") }
 
     // Cost at typical value
     var salt8 = bcrypt::generate_salt(8)
     if(salt8.empty()) { env.error("salt(8) failed"); return }
-    if(salt8.get(4) != '0' || salt8.get(5) != '8') { env.error("cost 8 should be '08'") }
+    if(salt8.at(4) != '0' || salt8.at(5) != '8') { env.error("cost 8 should be '08'") }
 
     // Cost at upper range (just format, not used for hashing)
     var salt31 = bcrypt::generate_salt(31)
     if(salt31.empty()) { env.error("salt(31) failed"); return }
-    if(salt31.get(4) != '3' || salt31.get(5) != '1') { env.error("cost 31 should be '31'") }
+    if(salt31.at(4) != '3' || salt31.at(5) != '1') { env.error("cost 31 should be '31'") }
 }
 
 @test
@@ -71,7 +71,7 @@ func test_bcrypt_generate_salt_uniqueness(env : &mut TestEnv) {
     }
     var same = true
     for(var i = 7u; i < 29u; i++) {
-        if(salt1.get(i) != salt2.get(i)) {
+        if(salt1.at(i) != salt2.at(i)) {
             same = false
             break
         }
@@ -91,12 +91,12 @@ func test_bcrypt_hash_password_format(env : &mut TestEnv) {
         return
     }
     expect_uint_eq(env, hash.size(), 60u, "full bcrypt hash should be 60 chars")
-    if(hash.get(0) != '$' || hash.get(1) != '2' || hash.get(2) != 'b' || hash.get(3) != '$') {
+    if(hash.at(0) != '$' || hash.at(1) != '2' || hash.at(2) != 'b' || hash.at(3) != '$') {
         env.error("hash should start with '$2b$'")
     }
-    if(hash.get(6) != '$') { env.error("hash should have '$' after cost digits") }
+    if(hash.at(6) != '$') { env.error("hash should have '$' after cost digits") }
     for(var i = 7u; i < hash.size(); i++) {
-        if(!is_valid_bcrypt_base64(hash.get(i))) {
+        if(!is_valid_bcrypt_base64(hash.at(i))) {
             env.error("invalid base64 char in hash output")
             break
         }

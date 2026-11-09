@@ -119,7 +119,7 @@ func win_build_cmdline(args : *vector<string>) : string {
         var arg = args.get_ptr(i).to_view()
         var needs_quote = prev_was_flag
         prev_was_flag = false
-        if(arg.size() == 2 && arg.get(0) == '-' && arg.get(1) == 'c') {
+        if(arg.size() == 2 && arg.at(0) == '-' && arg.at(1) == 'c') {
             prev_was_flag = true
         }
         if(needs_quote) {
@@ -233,7 +233,7 @@ func win_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
             var found_eq = false
             var j : size_t = 0
             while(j < entry.size()) {
-                if(entry.get(j) == '=' as char) {
+                if(entry.at(j) == '=' as char) {
                     eq_pos = j
                     found_eq = true
                     break

@@ -100,12 +100,12 @@ func (converter : &mut JsConverter) next_t() : std::string {
 func (converter : &mut JsConverter) is_reactive_var(name : std::string_view) : bool {
         unsafe {
         for(var i : uint = 0; i < converter.state_vars.size(); i++) {
-            if(converter.state_vars.get(i).equals(&name)) {
+            if(converter.state_vars.at(i).equals(&name)) {
                 return true;
             }
         }
         for(var i : uint = 0; i < converter.computed_vars.size(); i++) {
-            if(converter.computed_vars.get(i).equals(&name)) {
+            if(converter.computed_vars.at(i).equals(&name)) {
                 return true;
             }
         }
@@ -200,21 +200,21 @@ func (converter : &mut JsConverter) expr_reads_reactive(node : *mut JsNode, prop
                 const call = node as *mut JsFunctionCall;
                 if(converter.expr_reads_reactive(call.callee, props_reactive)) return true;
                 for(var i : uint = 0; i < call.args.size(); i++) {
-                    if(converter.expr_reads_reactive(call.args.get(i), props_reactive)) return true;
+                    if(converter.expr_reads_reactive(call.args.at(i), props_reactive)) return true;
                 }
                 return false;
             }
             JsNodeKind.ArrayLiteral, JsNodeKind.ArrayDestructuring => {
                 const arr = node as *mut JsArrayLiteral;
                 for(var i : uint = 0; i < arr.elements.size(); i++) {
-                    if(converter.expr_reads_reactive(arr.elements.get(i), props_reactive)) return true;
+                    if(converter.expr_reads_reactive(arr.elements.at(i), props_reactive)) return true;
                 }
                 return false;
             }
             JsNodeKind.ObjectLiteral => {
                 const obj = node as *mut JsObjectLiteral;
                 for(var i : uint = 0; i < obj.properties.size(); i++) {
-                    if(converter.expr_reads_reactive(obj.properties.get(i).value, props_reactive)) return true;
+                    if(converter.expr_reads_reactive(obj.properties.at(i).value, props_reactive)) return true;
                 }
                 return false;
             }
@@ -227,7 +227,7 @@ func (converter : &mut JsConverter) expr_reads_reactive(node : *mut JsNode, prop
                 // reactive: the callback runs synchronously during recompute.
                 const arrow = node as *mut JsArrowFunction;
                 for(var i : uint = 0; i < arrow.params.size(); i++) {
-                    const def = arrow.params.get(i).default_value;
+                    const def = arrow.params.at(i).default_value;
                     if(def != null && converter.expr_reads_reactive(def, props_reactive)) return true;
                 }
                 return converter.expr_reads_reactive(arrow.body, props_reactive);
@@ -877,7 +877,7 @@ func append_js_node_text(node : *mut JsNode, out : &mut std::string) : bool {
                 const unary = node as *mut JsUnaryOp;
                 if(unary.prefix) {
                     out.append_view(&unary.operator);
-                    if(unary.operator.size() > 2 && unsafe(isalpha(unary.operator.get(0) as int))) {
+                    if(unary.operator.size() > 2 && unsafe(isalpha(unary.operator.at(0) as int))) {
                         out.append(' ');
                     }
                     return append_js_node_text(unary.operand, out);
@@ -940,7 +940,7 @@ func append_js_node_text(node : *mut JsNode, out : &mut std::string) : bool {
                 out.append('(');
                 for(var i : uint = 0; i < call.args.size(); i++) {
                     if(i > 0) out.append_view(", ");
-                    if(!append_js_node_text(call.args.get(i), out)) return false;
+                    if(!append_js_node_text(call.args.at(i), out)) return false;
                 }
                 out.append(')');
                 return true;
@@ -950,7 +950,7 @@ func append_js_node_text(node : *mut JsNode, out : &mut std::string) : bool {
                 out.append('[');
                 for(var i : uint = 0; i < arr.elements.size(); i++) {
                     if(i > 0) out.append_view(", ");
-                    const elem = arr.elements.get(i);
+                    const elem = arr.elements.at(i);
                     if(elem != null && !append_js_node_text(elem, out)) return false;
                 }
                 out.append(']');
@@ -961,7 +961,7 @@ func append_js_node_text(node : *mut JsNode, out : &mut std::string) : bool {
                 out.append('{');
                 for(var i : uint = 0; i < obj.properties.size(); i++) {
                     if(i > 0) out.append_view(", ");
-                    const prop = obj.properties.get(i);
+                    const prop = obj.properties.at(i);
                     if(prop.value != null && prop.value.kind == JsNodeKind.Spread) {
                         if(!append_js_node_text(prop.value, out)) return false;
                     } else {
@@ -1058,14 +1058,14 @@ func parse_ssr_bigint(text : std::string_view, outValue : &mut bigint) : bool {
         if(text.empty()) return false;
         var idx : uint = 0;
         var sign : bigint = 1;
-        if(text.get(0) == '-') {
+        if(text.at(0) == '-') {
             sign = -1;
             idx = 1;
             if(idx >= text.size()) return false;
         }
         var value : bigint = 0;
         while(idx < text.size()) {
-            const c = text.get(idx);
+            const c = text.at(idx);
             if(c < '0' || c > '9') return false;
             value = value * 10 + ((c - '0') as bigint);
             idx++
@@ -1101,8 +1101,8 @@ func (converter : &mut JsConverter) find_var_init_text(name : std::string_view) 
 func strip_js_quotes(v : std::string_view) : std::string_view {
         unsafe {
         if(v.size() >= 2) {
-            const q = v.get(0);
-            if((q == '"' || q == '\'' || q == '`') && v.get(v.size() - 1) == q) {
+            const q = v.at(0);
+            if((q == '"' || q == '\'' || q == '`') && v.at(v.size() - 1) == q) {
                 return v.subview(1, v.size() - 1);
             }
         }
@@ -1134,7 +1134,7 @@ func (converter : &mut JsConverter) ssr_resolve_static_string(text : std::string
         if(t.size() > upperSuffix.size() && t.subview(t.size() - upperSuffix.size(), t.size()).equals(&upperSuffix)) {
             return converter.ssr_resolve_static_string(t.subview(0, t.size() - upperSuffix.size()), depth + 1, out);
         }
-        if(t.size() >= 2 && (t.get(0) == '"' || t.get(0) == '\'' || t.get(0) == '`') && t.get(t.size() - 1) == t.get(0)) {
+        if(t.size() >= 2 && (t.at(0) == '"' || t.at(0) == '\'' || t.at(0) == '`') && t.at(t.size() - 1) == t.at(0)) {
             *out = strip_js_quotes(t);
             return true;
         }
@@ -1164,8 +1164,8 @@ func text_contains_ci(hay : std::string_view, needle : std::string_view, fold : 
         while(i + needle.size() <= hay.size()) {
             var match = true;
             for(var j : size_t = 0; j < needle.size(); j++) {
-                var a = hay.get(i + j);
-                var b = needle.get(j);
+                var a = hay.at(i + j);
+                var b = needle.at(j);
                 if(fold) { a = char_lower(a); b = char_lower(b); }
                 if(a != b) { match = false; break; }
             }
@@ -1181,8 +1181,8 @@ func text_starts_ci(hay : std::string_view, needle : std::string_view, fold : bo
         unsafe {
         if(needle.size() > hay.size()) return false;
         for(var j : size_t = 0; j < needle.size(); j++) {
-            var a = hay.get(j);
-            var b = needle.get(j);
+            var a = hay.at(j);
+            var b = needle.at(j);
             if(fold) { a = char_lower(a); b = char_lower(b); }
             if(a != b) return false;
         }
@@ -1195,8 +1195,8 @@ func text_equals_fold(a : std::string_view, b : std::string_view, fold : bool) :
         unsafe {
         if(a.size() != b.size()) return false;
         for(var j : size_t = 0; j < a.size(); j++) {
-            var x = a.get(j);
-            var y = b.get(j);
+            var x = a.at(j);
+            var y = b.at(j);
             if(fold) { x = char_lower(x); y = char_lower(y); }
             if(x != y) return false;
         }
@@ -1215,7 +1215,7 @@ func (converter : &mut JsConverter) ssr_filter_predicate(predText : std::string_
         var p = trim_js_view(predText);
         if(p.empty()) { *evaluated = true; return true; }
         // Negation
-        if(p.get(0) == '!') {
+        if(p.at(0) == '!') {
             var innerEval = false;
             const r = converter.ssr_filter_predicate(p.subview(1, p.size()), elementText, &mut innerEval);
             if(!innerEval) return false;
@@ -1292,8 +1292,8 @@ func text_ends_ci(hay : std::string_view, needle : std::string_view, fold : bool
         if(needle.size() > hay.size()) return false;
         const start = hay.size() - needle.size();
         for(var j : size_t = 0; j < needle.size(); j++) {
-            var a = hay.get(start + j);
-            var b = needle.get(j);
+            var a = hay.at(start + j);
+            var b = needle.at(j);
             if(fold) { a = char_lower(a); b = char_lower(b); }
             if(a != b) return false;
         }
@@ -1309,7 +1309,7 @@ func index_of_text(hay : std::string_view, needle : std::string_view) : size_t {
         while(i + needle.size() <= hay.size()) {
             var match = true;
             for(var j : size_t = 0; j < needle.size(); j++) {
-                if(hay.get(i + j) != needle.get(j)) { match = false; break; }
+                if(hay.at(i + j) != needle.at(j)) { match = false; break; }
             }
             if(match) return i;
             i++;
@@ -1323,7 +1323,7 @@ func last_index_of_char(hay : std::string_view, c : char) : size_t {
         unsafe {
         var idx = UINT64_MAX;
         for(var i : size_t = 0; i < hay.size(); i++) {
-            if(hay.get(i) == c) idx = i;
+            if(hay.at(i) == c) idx = i;
         }
         return idx;
 
@@ -1333,10 +1333,10 @@ func last_index_of_char(hay : std::string_view, c : char) : size_t {
 func is_identifier_text(t : std::string_view) : bool {
         unsafe {
         if(t.size() == 0) return false;
-        const c0 = t.get(0);
+        const c0 = t.at(0);
         if(!((c0 >= 'a' && c0 <= 'z') || (c0 >= 'A' && c0 <= 'Z') || c0 == '_' || c0 == '$')) return false;
         for(var i : size_t = 1; i < t.size(); i++) {
-            const c = t.get(i);
+            const c = t.at(i);
             if(!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '$')) return false;
         }
         return true;
@@ -1363,7 +1363,7 @@ func (converter : &mut JsConverter) resolve_static_array_elements(text : std::st
         }
         var elems = std::vector<std::string_view>();
         if(split_js_array_elements(t, &mut elems)) {
-            for(var i : uint = 0; i < elems.size(); i++) out.push(elems.get(i));
+            for(var i : uint = 0; i < elems.size(); i++) out.push(elems.at(i));
             return true;
         }
         const filterTok = std::string_view(".filter(");
@@ -1380,9 +1380,9 @@ func (converter : &mut JsConverter) resolve_static_array_elements(text : std::st
             if(arrowPos != UINT64_MAX) predText = predText.subview(arrowPos + 2, predText.size());
             for(var i : uint = 0; i < srcElems.size(); i++) {
                 var evaluated = false;
-                const keep = converter.ssr_filter_predicate(predText, srcElems.get(i), &mut evaluated);
+                const keep = converter.ssr_filter_predicate(predText, srcElems.at(i), &mut evaluated);
                 if(!evaluated) return false;
-                if(keep) out.push(srcElems.get(i));
+                if(keep) out.push(srcElems.at(i));
             }
             return true;
         }
@@ -1414,8 +1414,8 @@ func ssr_js_eval_from_text(text : std::string_view) : SsrJsExprEval {
         // Trim surrounding whitespace (array literals split on commas keep the
         // separating spaces, e.g. `["a", "b"]` produces `" "b"`).
         var t = text
-        while(t.size() > 0 && (t.get(0) == ' ' || t.get(0) == '\n' || t.get(0) == '\t' || t.get(0) == '\r')) t = t.skip(1)
-        while(t.size() > 0 && (t.get(t.size() - 1) == ' ' || t.get(t.size() - 1) == '\n' || t.get(t.size() - 1) == '\t' || t.get(t.size() - 1) == '\r')) t = t.subview(0, t.size() - 1)
+        while(t.size() > 0 && (t.at(0) == ' ' || t.at(0) == '\n' || t.at(0) == '\t' || t.at(0) == '\r')) t = t.skip(1)
+        while(t.size() > 0 && (t.at(t.size() - 1) == ' ' || t.at(t.size() - 1) == '\n' || t.at(t.size() - 1) == '\t' || t.at(t.size() - 1) == '\r')) t = t.subview(0, t.size() - 1)
         if(t.empty()) return ssr_js_eval_invalid();
         if(t.equals(view("true"))) return ssr_js_eval_bool(true);
         if(t.equals(view("false"))) return ssr_js_eval_bool(false);
@@ -1724,8 +1724,8 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
                         var objValues = std::vector<std::string_view>()
                         if(parse_js_object_properties(converter.ssr_bound_object_text, &mut objKeys, &mut objValues)) {
                             for(var pi : uint = 0; pi < objKeys.size(); pi++) {
-                                if(objKeys.get(pi).equals(&mem.property)) {
-                                    const propEval = ssr_js_eval_from_text(objValues.get(pi));
+                                if(objKeys.at(pi).equals(&mem.property)) {
+                                    const propEval = ssr_js_eval_from_text(objValues.at(pi));
                                     if(propEval.valid) {
                                         converter.append_ssr_eval(propEval);
                                         return;
@@ -1748,8 +1748,8 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
                             var stateValues = std::vector<std::string_view>();
                             if(parse_js_object_properties(objInitText, &mut stateKeys, &mut stateValues)) {
                                 for(var ski : uint = 0; ski < stateKeys.size(); ski++) {
-                                    if(stateKeys.get(ski).equals(&mem.property)) {
-                                        const statePropEval = ssr_js_eval_from_text(stateValues.get(ski));
+                                    if(stateKeys.at(ski).equals(&mem.property)) {
+                                        const statePropEval = ssr_js_eval_from_text(stateValues.at(ski));
                                         if(statePropEval.valid) {
                                             converter.append_ssr_eval(statePropEval);
                                             return;
@@ -1842,8 +1842,8 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
                 const call = node as *mut JsFunctionCall;
                 if(call.callee != null && call.callee.kind == JsNodeKind.Identifier) {
                     const id = call.callee as *mut JsIdentifier;
-                    if(id.value.equals(view("createPortal")) && call.args.size() >= 1 && call.args.get(0) != null) {
-                        converter.convert_jsx_ssr_expression(call.args.get(0));
+                    if(id.value.equals(view("createPortal")) && call.args.size() >= 1 && call.args.at(0) != null) {
+                        converter.convert_jsx_ssr_expression(call.args.at(0));
                         return;
                     }
                 }
@@ -1851,7 +1851,7 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
                 // callback, matching the client's initial render.
                 if(call.callee != null && call.callee.kind == JsNodeKind.MemberAccess) {
                     const mem = call.callee as *mut JsMemberAccess;
-                    if(mem.property.equals(view("map")) && call.args.size() >= 1 && call.args.get(0) != null && call.args.get(0).kind == JsNodeKind.ArrowFunction) {
+                    if(mem.property.equals(view("map")) && call.args.size() >= 1 && call.args.at(0) != null && call.args.at(0).kind == JsNodeKind.ArrowFunction) {
                         converter.emit_ssr_map_children(call);
                         return;
                     }
@@ -1933,7 +1933,7 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
                  // Actually, if it's a literal string, we should append it to HTML.
                  if(node.kind == JsNodeKind.Literal) {
                      var lit = node as *mut JsLiteral;
-                     if(lit.value.size() >= 2 && (lit.value.get(0) == '"' || lit.value.get(0) == '\'' || lit.value.get(0) == '`')) {
+                     if(lit.value.size() >= 2 && (lit.value.at(0) == '"' || lit.value.at(0) == '\'' || lit.value.at(0) == '`')) {
                          converter.str.append_view(strip_js_string_quotes(lit.value));
                          converter.put_chain_in();
                          return;
@@ -1954,23 +1954,23 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
 func split_js_array_elements(text : std::string_view, out : &mut std::vector<std::string_view>) : bool {
         unsafe {
         var start : size_t = 0
-        while(start < text.size() && (text.get(start) == ' ' || text.get(start) == '(' || text.get(start) == '\n' || text.get(start) == '\r' || text.get(start) == '\t')) start++
-        if(start >= text.size() || text.get(start) != '[') return false
+        while(start < text.size() && (text.at(start) == ' ' || text.at(start) == '(' || text.at(start) == '\n' || text.at(start) == '\r' || text.at(start) == '\t')) start++
+        if(start >= text.size() || text.at(start) != '[') return false
         var end : size_t = text.size()
-        while(end > start && (text.get(end - 1) == ' ' || text.get(end - 1) == ')' || text.get(end - 1) == '\n' || text.get(end - 1) == '\r' || text.get(end - 1) == '\t')) end--
-        if(end <= start || text.get(end - 1) != ']') return false
+        while(end > start && (text.at(end - 1) == ' ' || text.at(end - 1) == ')' || text.at(end - 1) == '\n' || text.at(end - 1) == '\r' || text.at(end - 1) == '\t')) end--
+        if(end <= start || text.at(end - 1) != ']') return false
         start++
         end--
         var i = start
         var depth : int = 0
         var curStart = start
         while(i < end) {
-            const c = text.get(i)
+            const c = text.at(i)
             if(c == '"' || c == '\'' || c == '`') {
                 const quote = c
                 i++
-                while(i < end && text.get(i) != quote) {
-                    if(text.get(i) == '\\') i++
+                while(i < end && text.at(i) != quote) {
+                    if(text.at(i) == '\\') i++
                     i++
                 }
                 if(i < end) i++
@@ -1996,8 +1996,8 @@ func trim_js_view(v : std::string_view) : std::string_view {
         unsafe {
         var s : size_t = 0
         var e : size_t = v.size()
-        while(s < e && (v.get(s) == ' ' || v.get(s) == '\n' || v.get(s) == '\r' || v.get(s) == '\t')) s++
-        while(e > s && (v.get(e - 1) == ' ' || v.get(e - 1) == '\n' || v.get(e - 1) == '\r' || v.get(e - 1) == '\t')) e--
+        while(s < e && (v.at(s) == ' ' || v.at(s) == '\n' || v.at(s) == '\r' || v.at(s) == '\t')) s++
+        while(e > s && (v.at(e - 1) == ' ' || v.at(e - 1) == '\n' || v.at(e - 1) == '\r' || v.at(e - 1) == '\t')) e--
         return v.subview(s, e)
 
         }
@@ -2009,11 +2009,11 @@ func trim_js_view(v : std::string_view) : std::string_view {
 func parse_js_object_properties(text : std::string_view, keys : &mut std::vector<std::string_view>, values : &mut std::vector<std::string_view>) : bool {
         unsafe {
         var start : size_t = 0
-        while(start < text.size() && (text.get(start) == ' ' || text.get(start) == '(' || text.get(start) == '\n' || text.get(start) == '\r' || text.get(start) == '\t')) start++
-        if(start >= text.size() || text.get(start) != '{') return false
+        while(start < text.size() && (text.at(start) == ' ' || text.at(start) == '(' || text.at(start) == '\n' || text.at(start) == '\r' || text.at(start) == '\t')) start++
+        if(start >= text.size() || text.at(start) != '{') return false
         var end : size_t = text.size()
-        while(end > start && (text.get(end - 1) == ' ' || text.get(end - 1) == ')' || text.get(end - 1) == '\n' || text.get(end - 1) == '\r' || text.get(end - 1) == '\t')) end--
-        if(end <= start || text.get(end - 1) != '}') return false
+        while(end > start && (text.at(end - 1) == ' ' || text.at(end - 1) == ')' || text.at(end - 1) == '\n' || text.at(end - 1) == '\r' || text.at(end - 1) == '\t')) end--
+        if(end <= start || text.at(end - 1) != '}') return false
         start++
         end--
         var i = start
@@ -2022,12 +2022,12 @@ func parse_js_object_properties(text : std::string_view, keys : &mut std::vector
         while(i <= end) {
             const atEnd = i == end
             if(!atEnd) {
-                const c = text.get(i)
+                const c = text.at(i)
                 if(c == '"' || c == '\'' || c == '`') {
                     const quote = c
                     i++
-                    while(i < end && text.get(i) != quote) {
-                        if(text.get(i) == '\\') i++
+                    while(i < end && text.at(i) != quote) {
+                        if(text.at(i) == '\\') i++
                         i++
                     }
                     if(i < end) i++
@@ -2036,14 +2036,14 @@ func parse_js_object_properties(text : std::string_view, keys : &mut std::vector
                 if(c == '[' || c == '{') depth++
                 else if(c == ']' || c == '}') { if(depth > 0) depth-- }
             }
-            if(atEnd || (text.get(i) == ',' && depth == 0)) {
+            if(atEnd || (text.at(i) == ',' && depth == 0)) {
                 const part = text.subview(curStart, i)
                 var colon : size_t = 0
                 var found = false
                 var pdepth : int = 0
                 var k : size_t = 0
                 while(k < part.size()) {
-                    const pc = part.get(k)
+                    const pc = part.at(k)
                     if(pc == '[' || pc == '{' || pc == '(') pdepth++
                     else if(pc == ']' || pc == '}' || pc == ')') pdepth--
                     else if(pc == ':' && pdepth == 0) { colon = k; found = true; break }
@@ -2053,7 +2053,7 @@ func parse_js_object_properties(text : std::string_view, keys : &mut std::vector
                     var keyView = trim_js_view(part.subview(0, colon))
                     const valView = trim_js_view(part.subview(colon + 1, part.size()))
                     // Strip quotes from the key (e.g. `"id":`).
-                    if(keyView.size() >= 2 && (keyView.get(0) == '"' || keyView.get(0) == '\'')) {
+                    if(keyView.size() >= 2 && (keyView.at(0) == '"' || keyView.at(0) == '\'')) {
                         keyView = keyView.subview(1, keyView.size() - 1)
                     }
                     keys.push(keyView)
@@ -2096,8 +2096,8 @@ func (converter : &mut JsConverter) build_ssr_element_value_from_text(text : std
         const support = converter.support
 
         var t = text
-        while(t.size() > 0 && (t.get(0) == ' ' || t.get(0) == '\n' || t.get(0) == '\t' || t.get(0) == '\r')) t = t.skip(1)
-        while(t.size() > 0 && (t.get(t.size() - 1) == ' ' || t.get(t.size() - 1) == '\n' || t.get(t.size() - 1) == '\t' || t.get(t.size() - 1) == '\r')) t = t.subview(0, t.size() - 1)
+        while(t.size() > 0 && (t.at(0) == ' ' || t.at(0) == '\n' || t.at(0) == '\t' || t.at(0) == '\r')) t = t.skip(1)
+        while(t.size() > 0 && (t.at(t.size() - 1) == ' ' || t.at(t.size() - 1) == '\n' || t.at(t.size() - 1) == '\t' || t.at(t.size() - 1) == '\r')) t = t.subview(0, t.size() - 1)
         if(t.empty()) return null
 
         if(t.equals(view("true"))) return converter.make_ssr_make_call(support.ssrMakeBoolValueFn, "ssrMakeBoolValue", builder.make_bool_value(true, location))
@@ -2112,7 +2112,7 @@ func (converter : &mut JsConverter) build_ssr_element_value_from_text(text : std
         }
         // Object literal element (`{id: "a", text: "Apple"}`): serialize as a Spread
         // of attributes so runtime `item.<prop>` reads resolve via ssrAttrValueProp.
-        if(t.get(0) == '{') {
+        if(t.at(0) == '{') {
             var objKeys = std::vector<std::string_view>()
             var objValues = std::vector<std::string_view>()
             if(parse_js_object_properties(t, &mut objKeys, &mut objValues) && !objKeys.empty()) {
@@ -2121,10 +2121,10 @@ func (converter : &mut JsConverter) build_ssr_element_value_from_text(text : std
                 var attrArr = builder.make_array_value(attrType, location)
                 var attrElems = attrArr.get_values()
                 for(var ki : uint = 0; ki < objKeys.size(); ki++) {
-                    const memberVal = converter.build_ssr_element_value_from_text(objValues.get(ki))
+                    const memberVal = converter.build_ssr_element_value_from_text(objValues.at(ki))
                     if(memberVal == null) continue
                     var attrStruct = builder.make_struct_value(support.ssrAttrLinkedNode, location)
-                    attrStruct.add_value(std::string_view("name"), converter.make_ssr_text(objKeys.get(ki), location))
+                    attrStruct.add_value(std::string_view("name"), converter.make_ssr_text(objKeys.at(ki), location))
                     attrStruct.add_value(std::string_view("value"), memberVal)
                     attrElems.push(attrStruct)
                 }
@@ -2160,7 +2160,7 @@ func (converter : &mut JsConverter) build_ssr_multiple_from_array_text(initText 
         var ssrAttrValArr = builder.make_array_value(attrValueType, location)
         var arrValues = ssrAttrValArr.get_values()
         for(var i : uint = 0; i < elements.size(); i++) {
-            const elemVal = converter.build_ssr_element_value_from_text(elements.get(i))
+            const elemVal = converter.build_ssr_element_value_from_text(elements.at(i))
             if(elemVal != null) arrValues.push(elemVal)
         }
         const multiAttrStructVal = builder.make_struct_value(support.multipleAttributeValueNode, location)
@@ -2185,7 +2185,7 @@ func (converter : &mut JsConverter) build_ssr_multiple_from_array_node(node : *m
         var ssrAttrValArr = builder.make_array_value(attrValueType, location)
         var arrValues = ssrAttrValArr.get_values()
         for(var i : uint = 0; i < node.elements.size(); i++) {
-            const elemNode = node.elements.get(i)
+            const elemNode = node.elements.at(i)
             var elemVal : *mut Value = null
             // Object-literal elements become Spread attribute lists (so runtime
             // `item.prop` reads resolve); everything else goes through the standard
@@ -2299,7 +2299,7 @@ func (converter : &mut JsConverter) convert_ssr_predicate_expr(node : *mut JsNod
                     var recvNode = mem.object
                     const lowerRecv = unwrap_to_lowercase_call(mem.object)
                     if(lowerRecv != null) { recvNode = lowerRecv; fold = true }
-                    var argNode = fc.args.get(0)
+                    var argNode = fc.args.at(0)
                     const lowerArg = unwrap_to_lowercase_call(argNode)
                     if(lowerArg != null) { argNode = lowerArg; fold = true }
                     if(fold) {
@@ -2330,14 +2330,14 @@ func (converter : &mut JsConverter) convert_ssr_predicate_expr(node : *mut JsNod
 func (converter : &mut JsConverter) emit_ssr_filter_map_loop(sourceVal : *mut Value, filterCall : *mut JsFunctionCall, mapArrow : *mut JsArrowFunction, indexParam : std::string_view) {
         unsafe {
         if(filterCall == null || filterCall.args.empty()) return
-        const predArg = filterCall.args.get(0)
+        const predArg = filterCall.args.at(0)
         if(predArg == null || predArg.kind != JsNodeKind.ArrowFunction) return
         const predArrow = predArg as *mut JsArrowFunction
         if(predArrow.params.empty() || predArrow.body == null) return
-        const predParam = predArrow.params.get(0).name
+        const predParam = predArrow.params.at(0).name
         if(predParam.empty()) return
         if(mapArrow == null || mapArrow.params.empty()) return
-        const mapParam = mapArrow.params.get(0).name
+        const mapParam = mapArrow.params.at(0).name
         if(mapParam.empty()) return
 
         const builder = converter.builder
@@ -2412,7 +2412,7 @@ func (converter : &mut JsConverter) emit_ssr_filter_map_loop(sourceVal : *mut Va
             if(mapArrow.body.kind == JsNodeKind.Block) {
                 const block = mapArrow.body as *mut JsBlock
                 for(var bi : uint = 0; bi < block.statements.size(); bi++) {
-                    converter.emit_ssr_single_stmt(block.statements.get(bi), null)
+                    converter.emit_ssr_single_stmt(block.statements.at(bi), null)
                 }
             } else {
                 converter.convert_jsx_ssr_expression(mapArrow.body)
@@ -2435,11 +2435,11 @@ func (converter : &mut JsConverter) emit_ssr_filter_map_loop(sourceVal : *mut Va
 func (converter : &mut JsConverter) emit_ssr_filter_count(filterCall : *mut JsFunctionCall) : bool {
         unsafe {
         if(filterCall == null || filterCall.args.empty()) return false
-        const predArg = filterCall.args.get(0)
+        const predArg = filterCall.args.at(0)
         if(predArg == null || predArg.kind != JsNodeKind.ArrowFunction) return false
         const predArrow = predArg as *mut JsArrowFunction
         if(predArrow.params.empty() || predArrow.body == null) return false
-        const predParam = predArrow.params.get(0).name
+        const predParam = predArrow.params.at(0).name
         if(predParam.empty()) return false
 
         const builder = converter.builder
@@ -2605,17 +2605,17 @@ func (converter : &mut JsConverter) emit_ssr_map_children(call : *mut JsFunction
         const mem = call.callee as *mut JsMemberAccess
         if(!mem.property.equals(view("map"))) return
         if(call.args.empty()) return
-        const arg0 = call.args.get(0)
+        const arg0 = call.args.at(0)
         if(arg0 == null || arg0.kind != JsNodeKind.ArrowFunction) return
         const arrow = arg0 as *mut JsArrowFunction
         if(arrow.params.empty()) return
-        const paramName = arrow.params.get(0).name
+        const paramName = arrow.params.at(0).name
         if(paramName.empty()) return
         // Optional second parameter (`(item, index) => ...`). Bound statically for
         // compile-time-unrolled sources, or as an SSR local for runtime loops.
         var indexParam = std::string_view("")
         if(arrow.params.size() >= 2) {
-            indexParam = arrow.params.get(1).name
+            indexParam = arrow.params.at(1).name
         }
 
         const builder = converter.builder
@@ -2689,7 +2689,7 @@ func (converter : &mut JsConverter) emit_ssr_map_children(call : *mut JsFunction
             } else if(mem.object.kind == JsNodeKind.ArrayLiteral) {
                 const arr = mem.object as *mut JsArrayLiteral
                 for(var ai : uint = 0; ai < arr.elements.size(); ai++) {
-                    staticElements.push(build_js_node_text_view(builder, arr.elements.get(ai)))
+                    staticElements.push(build_js_node_text_view(builder, arr.elements.at(ai)))
                 }
             }
         }
@@ -2707,7 +2707,7 @@ func (converter : &mut JsConverter) emit_ssr_map_children(call : *mut JsFunction
             const oldObjValid = converter.ssr_bound_object_valid
             const oldObjText = converter.ssr_bound_object_text
             for(var si : uint = 0; si < staticElements.size(); si++) {
-                const elementText = staticElements.get(si)
+                const elementText = staticElements.at(si)
                 const ev = ssr_js_eval_from_text(elementText)
                 converter.ssr_bound_object_valid = false
                 if(ev.valid) {
@@ -2743,7 +2743,7 @@ func (converter : &mut JsConverter) emit_ssr_map_children(call : *mut JsFunction
                     if(arrow.body.kind == JsNodeKind.Block) {
                         const block = arrow.body as *mut JsBlock
                         for(var bi : uint = 0; bi < block.statements.size(); bi++) {
-                            converter.emit_ssr_single_stmt(block.statements.get(bi), null)
+                            converter.emit_ssr_single_stmt(block.statements.at(bi), null)
                         }
                     } else {
                         converter.convert_jsx_ssr_expression(arrow.body)
@@ -2831,7 +2831,7 @@ func (converter : &mut JsConverter) emit_ssr_map_children(call : *mut JsFunction
             if(arrow.body.kind == JsNodeKind.Block) {
                 const block = arrow.body as *mut JsBlock
                 for(var bi : uint = 0; bi < block.statements.size(); bi++) {
-                    converter.emit_ssr_single_stmt(block.statements.get(bi), null)
+                    converter.emit_ssr_single_stmt(block.statements.at(bi), null)
                 }
             } else {
                 converter.convert_jsx_ssr_expression(arrow.body)
@@ -2895,7 +2895,7 @@ func (converter : &mut JsConverter) convert_js_expr_to_ssr_bool_value(node : *mu
 
 func is_event_attribute_name(name : std::string_view) : bool {
         unsafe {
-        return name.size() > 2 && name.get(0) == 'o' && name.get(1) == 'n';
+        return name.size() > 2 && name.at(0) == 'o' && name.at(1) == 'n';
 
         }
     }
@@ -2934,7 +2934,7 @@ func jsx_attr_normalized_name(name : std::string_view) : std::string_view {
 func (converter : &mut JsConverter) is_assigned_name(name : std::string_view) : bool {
         unsafe {
         for(var i : uint = 0; i < converter.assigned_names.size(); i++) {
-            if(converter.assigned_names.get(i).equals(&name)) return true;
+            if(converter.assigned_names.at(i).equals(&name)) return true;
         }
         return false;
 
@@ -2968,7 +2968,7 @@ func collect_assigned_names(node : *mut JsNode, out : &mut std::vector<std::stri
             }
             JsNodeKind.Block => {
                 const block = node as *mut JsBlock;
-                for(var i : uint = 0; i < block.statements.size(); i++) collect_assigned_names(block.statements.get(i), out);
+                for(var i : uint = 0; i < block.statements.size(); i++) collect_assigned_names(block.statements.at(i), out);
             }
             JsNodeKind.ExpressionStatement => {
                 collect_assigned_names((node as *mut JsExpressionStatement).expression, out);
@@ -3017,7 +3017,7 @@ func collect_assigned_names(node : *mut JsNode, out : &mut std::vector<std::stri
                 for(var ci : uint = 0; ci < st.cases.size(); ci++) {
                     const c = st.cases.get_ptr(ci);
                     collect_assigned_names(c.test, out);
-                    for(var bi : uint = 0; bi < c.body.size(); bi++) collect_assigned_names(c.body.get(bi), out);
+                    for(var bi : uint = 0; bi < c.body.size(); bi++) collect_assigned_names(c.body.at(bi), out);
                 }
             }
             JsNodeKind.TryCatch => {
@@ -3255,7 +3255,7 @@ func (converter : &mut JsConverter) find_ssr_local(name : std::string_view) : *J
 func (converter : &mut JsConverter) is_ssr_children_alias(name : std::string_view) : bool {
         unsafe {
         for(var i : uint = 0; i < converter.ssr_children_aliases.size(); i++) {
-            if(converter.ssr_children_aliases.get(i).equals(&name)) return true;
+            if(converter.ssr_children_aliases.at(i).equals(&name)) return true;
         }
         return false;
 
@@ -3540,7 +3540,7 @@ func is_return_jsx_if(ifNode : *mut JsIf) : bool {
         if(tb.kind == JsNodeKind.Block) {
             const block = tb as *mut JsBlock;
             if(block.statements.empty()) return false;
-            const last = block.statements.get(block.statements.size() - 1);
+            const last = block.statements.at(block.statements.size() - 1);
             return last != null && last.kind == JsNodeKind.Return && return_has_jsx(last as *mut JsReturn);
         }
         return false;
@@ -3565,7 +3565,7 @@ func (converter : &mut JsConverter) emit_return_jsx_body(body : *mut JsNode) {
         if(body.kind == JsNodeKind.Block) {
             const block = body as *mut JsBlock;
             for(var i : uint = 0; i < block.statements.size(); i++) {
-                converter.emit_ssr_single_stmt(block.statements.get(i), null);
+                converter.emit_ssr_single_stmt(block.statements.at(i), null);
             }
         } else {
             converter.emit_ssr_single_stmt(body, null);
@@ -3595,7 +3595,7 @@ func (converter : &mut JsConverter) emit_ssr_return_chain(ifs : &std::vector<*mu
         var chainRoot : *mut IfStatement = null
         var i : int = ifs.size() as int - 1
         while(i >= 0) {
-            const ifNode = ifs.get(i as uint)
+            const ifNode = ifs.at(i as uint)
             const cond = converter.convert_js_expr_to_ssr_bool_value(ifNode.condition)
             if(cond == null) {
                 // Cannot SSR this condition: emit the chain built so far, then the
@@ -3604,7 +3604,7 @@ func (converter : &mut JsConverter) emit_ssr_return_chain(ifs : &std::vector<*mu
                     converter.vec.push(chainRoot as *mut ASTNode)
                 }
                 for(var j : int = i; j >= 0; j--) {
-                    converter.emit_ssr_if_stmt(ifs.get(j as uint), skipReturnValue)
+                    converter.emit_ssr_if_stmt(ifs.at(j as uint), skipReturnValue)
                 }
                 if(finalReturn != null) {
                     converter.emit_ssr_return_stmt(finalReturn)
@@ -3646,7 +3646,7 @@ func (converter : &mut JsConverter) emit_ssr_body_statements(block : *mut JsBloc
         var pending = std::vector<*mut JsIf>()
         var finalRendered = false
         for(var i : uint = 0; i < block.statements.size(); i++) {
-            const stmt = block.statements.get(i);
+            const stmt = block.statements.at(i);
             if(stmt == null) continue;
             if(stmt.kind == JsNodeKind.If && is_return_jsx_if(stmt as *mut JsIf)) {
                 pending.push(stmt as *mut JsIf);
@@ -3760,8 +3760,8 @@ func (converter : &mut JsConverter) convert_ssr_attr_value_expr(node : *mut JsNo
                         var objValues = std::vector<std::string_view>();
                         if(parse_js_object_properties(converter.ssr_bound_object_text, &mut objKeys, &mut objValues)) {
                             for(var pi : uint = 0; pi < objKeys.size(); pi++) {
-                                if(objKeys.get(pi).equals(&cvMem.property)) {
-                                    const propEval = ssr_js_eval_from_text(objValues.get(pi));
+                                if(objKeys.at(pi).equals(&cvMem.property)) {
+                                    const propEval = ssr_js_eval_from_text(objValues.at(pi));
                                     if(propEval.valid) {
                                         if(propEval.kind == 1) {
                                             const boolCall = builder.make_function_call_value(builder.make_identifier("ssrMakeBoolValue", support.ssrMakeBoolValueFn, false, location), location);
@@ -3789,8 +3789,8 @@ func (converter : &mut JsConverter) convert_ssr_attr_value_expr(node : *mut JsNo
                             var svValues = std::vector<std::string_view>();
                             if(parse_js_object_properties(svInitText, &mut svKeys, &mut svValues)) {
                                 for(var svki : uint = 0; svki < svKeys.size(); svki++) {
-                                    if(svKeys.get(svki).equals(&cvMem.property)) {
-                                        const svEval = ssr_js_eval_from_text(svValues.get(svki));
+                                    if(svKeys.at(svki).equals(&cvMem.property)) {
+                                        const svEval = ssr_js_eval_from_text(svValues.at(svki));
                                         if(svEval.valid) {
                                             if(svEval.kind == 1) {
                                                 const svBool = builder.make_function_call_value(builder.make_identifier("ssrMakeBoolValue", support.ssrMakeBoolValueFn, false, location), location);
@@ -3834,13 +3834,13 @@ func (converter : &mut JsConverter) convert_ssr_attr_value_expr(node : *mut JsNo
                     var parts = std::vector<*mut Value>();
                     if(!converter.collect_ssr_concat_parts(bin as *mut JsNode, attrValConv, &mut parts)) return null;
                     if(parts.empty()) return null;
-                    if(parts.size() == 1) return parts.get(0);
+                    if(parts.size() == 1) return parts.at(0);
 
                     var attrValueType = builder.make_linked_type("SsrAttributeValue", support.ssrAttributeValueNode, location)
                     var partsArr = builder.make_array_value(attrValueType, location)
                     var partsValues = partsArr.get_values();
                     for(var i : uint = 0; i < parts.size(); i++) {
-                        partsValues.push(parts.get(i));
+                        partsValues.push(parts.at(i));
                     }
 
                     const multiStruct = builder.make_struct_value(support.multipleAttributeValueNode, location)
@@ -4148,7 +4148,7 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                         // Spread of an object literal: enumerate statically-known members
                         const obj = arg as *mut JsObjectLiteral
                         for(var p : uint = 0; p < obj.properties.size(); p++) {
-                            const prop = obj.properties.get(p)
+                            const prop = obj.properties.at(p)
                             if(prop.value != null && prop.value.kind == JsNodeKind.Spread) {
                                 // Nested dynamic spread inside the literal — cannot SSR
                                 continue

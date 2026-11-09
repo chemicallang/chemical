@@ -91,14 +91,14 @@ public func test_router_snapshot_same_name_routers_do_not_collide(env : &mut Tes
     var b = HtmlPage()
     render_snap_same_b(&mut b)
     var bHtml = b.getHtml()
-    if(aHtml.find(std::string_view("AAAA")) == std::NPOS) {
+    if(aHtml.find_or_npos(std::string_view("AAAA")) == std::NPOS) {
         env.error("router A should render its own snapshot")
     }
-    if(bHtml.find(std::string_view("BBBB")) == std::NPOS) {
+    if(bHtml.find_or_npos(std::string_view("BBBB")) == std::NPOS) {
         env.error("router B should render its own snapshot")
         test_env::ffi::log_cstr(env, LogType.Information, bHtml.data(), 0, 0)
     }
-    if(bHtml.find(std::string_view("AAAA")) != std::NPOS) {
+    if(bHtml.find_or_npos(std::string_view("AAAA")) != std::NPOS) {
         env.error("router B must not receive router A's cached bytes")
         test_env::ffi::log_cstr(env, LogType.Information, bHtml.data(), 0, 0)
     }

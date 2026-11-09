@@ -170,7 +170,7 @@ public func zip_roundtrip_works(env : &mut TestEnv) {
     var match = true
     var i : size_t = 0
     while(i < 13) {
-        if(data.get(i) != file1_data[i]) { match = false }
+        if(data.at(i) != file1_data[i]) { match = false }
         i += 1
     }
     if(!match) { env.error("file content should match") }
@@ -416,7 +416,7 @@ func build_single_file_tar(filename : string, content : *u8, content_len : size_
         // name (offset 0, 100 bytes)
         var j : size_t = 0
         while(j < filename.size() && j < 100) {
-            tar.set(j, filename.get(j) as u8)
+            tar.set(j, filename.at(j) as u8)
             j += 1
         }
         // size (offset 124, 12 bytes, octal)
@@ -433,11 +433,11 @@ func build_single_file_tar(filename : string, content : *u8, content_len : size_
         var si : size_t = size_str.size()
         while(si > 0) {
             si -= 1
-            rev.append(size_str.get(si))
+            rev.append(size_str.at(si))
         }
         var k : size_t = 0
         while(k < rev.size() && k < 11) {
-            tar.set(124 + k, rev.get(k) as u8)
+            tar.set(124 + k, rev.at(k) as u8)
             k += 1
         }
         // typeflag (offset 156): '0' = regular file
@@ -485,8 +485,8 @@ public func tar_parse_single_file(env : &mut TestEnv) {
     if(read_result is Result.Err) { env.error("should read file from TAR"); return }
     var Ok(content) = read_result else unsafe { unreachable }
     if(content.size() != 4) { env.error("file should be 4 bytes") }
-    if(content.get(0) != 0x54) { env.error("file content T") }
-    if(content.get(3) != 0x54) { env.error("file content T at end") }
+    if(content.at(0) != 0x54) { env.error("file content T") }
+    if(content.at(3) != 0x54) { env.error("file content T at end") }
 }
 
 @test

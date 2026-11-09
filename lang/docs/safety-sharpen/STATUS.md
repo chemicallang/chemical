@@ -81,11 +81,21 @@ Status values: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked.
 **Std view lifetime status:** `span<'a, T>` / `mut_span<'a, T>` (`0ea3998cf`),
 `CStr<'a>` (`63188b8bc`), the postfix-lifetime `str 'a` (`c8df07c17`), and
 `core::Pin<'a, T>` (`c01dd4da3`) now carry their borrow lifetime. The
-vector-to-span constructor is retained so MIR view escape checks fire
-(`60ff5ece7`), and `Option::take` is now the non-panicking `Option<T>` form
-with `take_unchecked` for checked callers (`6ed7d0360`). Static-lifetime escapes
-are rejected for all view shapes; TCC/LLVM main, libs, negative, safety, async,
-and web suites are green.
+vector-to-span constructor is the frozen construction form; MIR view escape
+checks fire (`60ff5ece7`). Span cursors cast the element to `*T` while reading
+split predicates so nested generic instantiations keep a concrete element type
+instead of lowering to an opaque local. `Option::take` is the non-panicking
+`Option<T>` form with `take_unchecked` for checked callers (`6ed7d0360`).
+Static-lifetime escapes are rejected for all view shapes; TCC/LLVM main, libs,
+negative, safety, async, and web suites are green.
+
+**`vector::as_span` blocker:** adding the canonical method is still not safe to
+ship. It makes every `vector<T>` instantiate `span<T>`/`span_split<T>`; under
+parallel compilation the generated `build.lab` intermittently contains a
+mismatched generic call (`error: too few arguments to function`). Serial runs
+pass, so this is a compiler generic-instantiation race, not an API bug. Until
+that is fixed, use `std::span<T>(&v)` (or `mut_span`) as the vector view
+constructor.
 
 ## Phase 1 notes
 

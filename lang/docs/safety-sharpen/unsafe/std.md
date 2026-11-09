@@ -6,38 +6,22 @@ boundary; safe callers use the facade documented in the library README/api snaps
 ## Unsafe declarations
 
 ```
+lang/libs/std/src/function.ch:52:    unsafe func make2(ptr : *mut void, cap : *mut void, destr : destructor_type, size_data : size_t, align_data : size_t) {
 lang/libs/std/src/mutex_guard.ch:96:unsafe impl<T> Send for Mutex<T> where T: Send { }
 lang/libs/std/src/mutex_guard.ch:97:unsafe impl<T> Sync for Mutex<T> where T: Send { }
 lang/libs/std/src/mutex_guard.ch:154:unsafe impl Send for Condvar { }
 lang/libs/std/src/mutex_guard.ch:155:unsafe impl Sync for Condvar { }
-lang/libs/std/src/function.ch:52:    unsafe func make2(ptr : *mut void, cap : *mut void, destr : destructor_type, size_data : size_t, align_data : size_t) {
-lang/libs/std/src/span.ch:147:    unsafe func constructor(array_ptr : *T, array_size : size_t) {
-lang/libs/std/src/span.ch:260:    unsafe impl core::iterable::Linear<T> for span<T> {
-lang/libs/std/src/span.ch:300:    unsafe func constructor(array_ptr : *mut T, array_size : size_t) {
-lang/libs/std/src/span.ch:403:    unsafe impl core::iterable::Linear<T> for mut_span<T> {
-lang/libs/std/src/cstring.ch:55:    unsafe func as_ptr(&self) : *char {
+lang/libs/std/src/box.ch:110:public unsafe func <T> box_unchecked(ptr : *mut T) : Box<T> {
+lang/libs/std/src/box.ch:116:unsafe impl<T> Send for Box<T> where T: Send { }
+lang/libs/std/src/box.ch:117:unsafe impl<T> Sync for Box<T> where T: Sync { }
+lang/libs/std/src/span.ch:148:    unsafe func constructor(array_ptr : *T, array_size : size_t) : span<'a, T> {
+lang/libs/std/src/span.ch:261:    unsafe impl core::iterable::Linear<T> for span<T> {
+lang/libs/std/src/span.ch:301:    unsafe func constructor(array_ptr : *mut T, array_size : size_t) : mut_span<'a, T> {
+lang/libs/std/src/span.ch:404:    unsafe impl core::iterable::Linear<T> for mut_span<T> {
 lang/libs/std/src/cell.ch:26:    public unsafe func get_ref(&self) : &T {
 lang/libs/std/src/maybe_uninit.ch:33:    public unsafe func assume_init(&mut self) : T {
 lang/libs/std/src/maybe_uninit.ch:43:    public unsafe func assume_init_drop(&mut self) {
 lang/libs/std/src/maybe_uninit.ch:58:unsafe impl<T> Zeroable for MaybeUninit<T> { }
-lang/libs/std/src/manually_drop.ch:28:    public unsafe func destroy(&mut self) {
-lang/libs/std/src/manually_drop.ch:35:    public unsafe func take(&mut self) : T {
-lang/libs/std/src/manually_drop.ch:45:unsafe impl<T> Zeroable for ManuallyDrop<T> where T: Zeroable { }
-lang/libs/std/src/unordered_map2.ch:395:unsafe impl<Key, Value> Send for unordered_map<Key, Value> where Key: Send, Value: Send { }
-lang/libs/std/src/unordered_map2.ch:396:unsafe impl<Key, Value> Sync for unordered_map<Key, Value> where Key: Sync, Value: Sync { }
-lang/libs/std/src/string_view.ch:26:        unsafe func constructor(value : *char, length : size_t) {
-lang/libs/std/src/string_view.ch:34:        unsafe func ref_make(value : &char, length : size_t) {
-lang/libs/std/src/string_view.ch:50:        unsafe func make_no_len(value : *char) {
-lang/libs/std/src/string_view.ch:312:        unsafe func split_views(&self, delim : char) : std::vector<std::string_view> {
-lang/libs/std/src/box.ch:110:public unsafe func <T> box_unchecked(ptr : *mut T) : Box<T> {
-lang/libs/std/src/box.ch:116:unsafe impl<T> Send for Box<T> where T: Send { }
-lang/libs/std/src/box.ch:117:unsafe impl<T> Sync for Box<T> where T: Sync { }
-lang/libs/std/src/deque.ch:163:unsafe impl<T> Send for deque<T> where T: Send { }
-lang/libs/std/src/deque.ch:164:unsafe impl<T> Sync for deque<T> where T: Sync { }
-lang/libs/std/src/vector.ch:333:    unsafe func set_len(&mut self, new_size : size_t) {
-lang/libs/std/src/vector.ch:347:    unsafe impl core::iterable::Linear<T> for vector<T> {
-lang/libs/std/src/vector.ch:380:unsafe impl<T> Send for vector<T> where T: Send { }
-lang/libs/std/src/vector.ch:381:unsafe impl<T> Sync for vector<T> where T: Sync { }
 lang/libs/std/src/rwlock_guard.ch:119:unsafe impl<T> Send for RwLock<T> where T: Send { }
 lang/libs/std/src/rwlock_guard.ch:120:unsafe impl<T> Sync for RwLock<T> where T: Send + Sync { }
 lang/libs/std/src/concurrency/threadpool.ch:62:        unsafe func spawn_native(entry:(arg : *void) => *void,arg:*void) : usize {
@@ -55,6 +39,32 @@ lang/libs/std/src/concurrency/threadpool.ch:465:        unsafe impl Send for Thr
 lang/libs/std/src/concurrency/threadpool.ch:466:        unsafe impl Sync for ThreadPool { }
 lang/libs/std/src/concurrency/threadpool.ch:669:        unsafe impl<T> Send for JoinHandle<T> where T: Send { }
 lang/libs/std/src/concurrency/threadpool.ch:670:        unsafe impl<T> Sync for JoinHandle<T> where T: Send { }
+lang/libs/std/src/deque.ch:163:unsafe impl<T> Send for deque<T> where T: Send { }
+lang/libs/std/src/deque.ch:164:unsafe impl<T> Sync for deque<T> where T: Sync { }
+lang/libs/std/src/vector.ch:333:    unsafe func set_len(&mut self, new_size : size_t) {
+lang/libs/std/src/vector.ch:347:    unsafe impl core::iterable::Linear<T> for vector<T> {
+lang/libs/std/src/vector.ch:380:unsafe impl<T> Send for vector<T> where T: Send { }
+lang/libs/std/src/vector.ch:381:unsafe impl<T> Sync for vector<T> where T: Sync { }
+lang/libs/std/src/non_null.ch:55:public unsafe func <T> non_null_unchecked(ptr : *mut T) : NonNull<T> {
+lang/libs/std/src/string_view.ch:26:        unsafe func constructor(value : *char, length : size_t) {
+lang/libs/std/src/string_view.ch:34:        unsafe func ref_make(value : &char, length : size_t) {
+lang/libs/std/src/string_view.ch:50:        unsafe func make_no_len(value : *char) {
+lang/libs/std/src/string_view.ch:312:        unsafe func split_views(&self, delim : char) : std::vector<std::string_view> {
+lang/libs/std/src/cstring.ch:55:    unsafe func as_ptr(&self) : *char {
+lang/libs/std/src/manually_drop.ch:28:    public unsafe func destroy(&mut self) {
+lang/libs/std/src/manually_drop.ch:35:    public unsafe func take(&mut self) : T {
+lang/libs/std/src/manually_drop.ch:45:unsafe impl<T> Zeroable for ManuallyDrop<T> where T: Zeroable { }
+lang/libs/std/src/unordered_map2.ch:395:unsafe impl<Key, Value> Send for unordered_map<Key, Value> where Key: Send, Value: Send { }
+lang/libs/std/src/unordered_map2.ch:396:unsafe impl<Key, Value> Sync for unordered_map<Key, Value> where Key: Sync, Value: Sync { }
+lang/libs/std/src/stream.ch:23:    unsafe func writeStr(&self, value : *char, length : ubigint) {
+lang/libs/std/src/stream.ch:27:    unsafe func writeStrNoLen(&self, value : *char) {
+lang/libs/std/src/u16_string.ch:7:public unsafe func u16_strlen(ptr : *u16) : size_t { unsafe {
+lang/libs/std/src/u16_string.ch:38:    unsafe func constructor(value : *u16, length : size_t) {
+lang/libs/std/src/u16_string.ch:55:    unsafe func constructor2(value : *u16, length : size_t, ensure : bool) {
+lang/libs/std/src/u16_string.ch:86:    unsafe func make_no_len(value : *u16) {
+lang/libs/std/src/u16_string.ch:778:unsafe impl Send for u16string { }
+lang/libs/std/src/u16_string.ch:779:unsafe impl Sync for u16string { }
+lang/libs/std/src/mem.ch:11:public unsafe func <T> zeroed_unchecked() : T {
 lang/libs/std/src/string.ch:88:    unsafe func constructor(value : *char, length : size_t) {
 lang/libs/std/src/string.ch:125:    unsafe func constructor2(value : *char, length : size_t, ensure : bool) {
 lang/libs/std/src/string.ch:156:    unsafe func make_no_len(value : *char) {
@@ -63,31 +73,21 @@ lang/libs/std/src/string.ch:938:    unsafe func writeStr(&mut self, value : *cha
 lang/libs/std/src/string.ch:942:    unsafe func writeStrNoLen(&mut self, value : *char) {
 lang/libs/std/src/string.ch:960:unsafe impl Send for string { }
 lang/libs/std/src/string.ch:961:unsafe impl Sync for string { }
-lang/libs/std/src/non_null.ch:55:public unsafe func <T> non_null_unchecked(ptr : *mut T) : NonNull<T> {
-lang/libs/std/src/mem.ch:11:public unsafe func <T> zeroed_unchecked() : T {
-lang/libs/std/src/ordered_map.ch:316:unsafe impl<Key, Value> Send for ordered_map<Key, Value> where Key: Send, Value: Send { }
-lang/libs/std/src/ordered_map.ch:317:unsafe impl<Key, Value> Sync for ordered_map<Key, Value> where Key: Sync, Value: Sync { }
-lang/libs/std/src/u16_string.ch:7:public unsafe func u16_strlen(ptr : *u16) : size_t { unsafe {
-lang/libs/std/src/u16_string.ch:38:    unsafe func constructor(value : *u16, length : size_t) {
-lang/libs/std/src/u16_string.ch:55:    unsafe func constructor2(value : *u16, length : size_t, ensure : bool) {
-lang/libs/std/src/u16_string.ch:86:    unsafe func make_no_len(value : *u16) {
-lang/libs/std/src/u16_string.ch:778:unsafe impl Send for u16string { }
-lang/libs/std/src/u16_string.ch:779:unsafe impl Sync for u16string { }
 lang/libs/std/src/alloc.ch:63:public unsafe interface Allocator {
 lang/libs/std/src/alloc.ch:197:    unsafe func dealloc(&self, ptr : *mut void, layout : Layout) {
 lang/libs/std/src/alloc.ch:208:    unsafe func grow(&self, old : *mut void, old_layout : Layout, new_size : size_t) : Result<*mut void, AllocError> {
 lang/libs/std/src/alloc.ch:227:    unsafe func shrink(&self, old : *mut void, old_layout : Layout, new_size : size_t) : Result<*mut void, AllocError> {
 lang/libs/std/src/alloc.ch:285:public unsafe func dealloc_bytes(ptr : *mut void) {
-lang/libs/std/src/stream.ch:23:    unsafe func writeStr(&self, value : *char, length : ubigint) {
-lang/libs/std/src/stream.ch:27:    unsafe func writeStrNoLen(&self, value : *char) {
-lang/libs/std/src/rc.ch:201:public unsafe func <T> rc_unchecked(inner : *mut RcInner<T>) : Rc<T> {
-lang/libs/std/src/rc.ch:207:public unsafe func <T> weak_unchecked(inner : *mut RcInner<T>) : Weak<T> {
 lang/libs/std/src/arc.ch:301:public unsafe func <T> arc_unchecked(inner : *mut ArcInner<T>) : Arc<T> {
 lang/libs/std/src/arc.ch:307:public unsafe func <T> arc_weak_unchecked(inner : *mut ArcInner<T>) : ArcWeak<T> {
 lang/libs/std/src/arc.ch:313:unsafe impl<T> Send for Arc<T> where T: Send + Sync { }
 lang/libs/std/src/arc.ch:314:unsafe impl<T> Sync for Arc<T> where T: Send + Sync { }
 lang/libs/std/src/arc.ch:316:unsafe impl<T> Send for ArcWeak<T> where T: Send + Sync { }
 lang/libs/std/src/arc.ch:317:unsafe impl<T> Sync for ArcWeak<T> where T: Send + Sync { }
+lang/libs/std/src/ordered_map.ch:316:unsafe impl<Key, Value> Send for ordered_map<Key, Value> where Key: Send, Value: Send { }
+lang/libs/std/src/ordered_map.ch:317:unsafe impl<Key, Value> Sync for ordered_map<Key, Value> where Key: Sync, Value: Sync { }
+lang/libs/std/src/rc.ch:201:public unsafe func <T> rc_unchecked(inner : *mut RcInner<T>) : Rc<T> {
+lang/libs/std/src/rc.ch:207:public unsafe func <T> weak_unchecked(inner : *mut RcInner<T>) : Weak<T> {
 ```
 
 ## Unsafe call/dereference sites (count)

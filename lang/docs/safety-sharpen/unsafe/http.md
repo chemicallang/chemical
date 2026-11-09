@@ -6,10 +6,10 @@ boundary; safe callers use the facade documented in the library README/api snaps
 ## Unsafe declarations
 
 ```
-lang/libs/http/src/types.ch:420:public unsafe func strcasecmp(a:*char, b:*char) : int {
 lang/libs/http/src/async.ch:18:public unsafe func header_get_cstr(map : &HeaderMap, name : *char) : Option<string> {
 lang/libs/http/src/async.ch:33:public unsafe func make_body(sock : net::raw::Socket,
 lang/libs/http/src/async.ch:46:public unsafe func body_read(b : *mut Body, dst : *mut u8, cap : usize) : int {
+lang/libs/http/src/types.ch:420:public unsafe func strcasecmp(a:*char, b:*char) : int {
 ```
 
 ## Unsafe call/dereference sites (count)

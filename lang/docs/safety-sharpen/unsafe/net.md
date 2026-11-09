@@ -6,9 +6,9 @@ boundary; safe callers use the facade documented in the library README/api snaps
 ## Unsafe declarations
 
 ```
-lang/libs/net/src/raw.ch:401:public unsafe func release_tcp(stream : &mut net::TcpStream) : Socket {
 lang/libs/net/win/iocp.ch:375:        public unsafe func async_iocp_recv(s : Socket, buf : *mut u8, cap : usize) : core::async::FutureHandle<int> {
 lang/libs/net/win/iocp.ch:407:        public unsafe func async_iocp_send(s : Socket, data : *char, len : int) : core::async::FutureHandle<int> {
+lang/libs/net/src/raw.ch:401:public unsafe func release_tcp(stream : &mut net::TcpStream) : Socket {
 ```
 
 ## Unsafe call/dereference sites (count)

@@ -123,7 +123,7 @@ public struct span_delim_split<T> {
     }
 }
 
-public struct span<T> {
+public struct span<'a, T> {
 
     // The pointer/length pair is the span invariant; user code uses get/size.
     internal var _data : *T
@@ -133,28 +133,28 @@ public struct span<T> {
     @constructor
     @retained
     @expand
-    comptime func make2(vec : %maybe_runtime<&vector<T>>) {
+    comptime func make2(vec : %maybe_runtime<&'a vector<T>>) : span<'a, T> {
         return unsafe(constructor<T>(vec.data(), vec.size()))
     }
 
     @implicit
     @constructor
     @expand
-    comptime func make2(array : []%maybe_runtime<T>) {
+    comptime func make2(array : []%maybe_runtime<T>) : span<'a, T> {
         return unsafe(constructor<T>(array, intrinsics::size(array)))
     }
 
     @constructor
-    unsafe func constructor(array_ptr : *T, array_size : size_t) {
-        return span<T> {
+    unsafe func constructor(array_ptr : *T, array_size : size_t) : span<'a, T> {
+        return span<'a, T> {
             _data : array_ptr,
             _size : array_size
         }
     }
 
     @constructor
-    func empty_make() {
-        return span<T> {
+    func empty_make() : span<'a, T> {
+        return span<'a, T> {
             _data : null,
             _size : 0
         }
@@ -184,7 +184,7 @@ public struct span<T> {
         return _size == 0;
     }
 
-    func subview(&self, start : size_t, end : size_t) : span<T> {
+    func subview(&self, start : size_t, end : size_t) : span<'self, T> {
         if(start > end || end > _size) {
             panic("span subview out of bounds")
         }
@@ -269,16 +269,16 @@ public struct span<T> {
 
 }
 
-impl<T> Copy for span<T> {}
+impl<'a, T> Copy for span<'a, T> {}
 
-impl<T> core::ops::Index<size_t, T> for span<T> {
+impl<'a, T> core::ops::Index<size_t, T> for span<'a, T> {
     func index(&self, loc : size_t) : &T {
         return unsafe(&*self.get(loc))
     }
 }
 
 @direct_init
-public struct mut_span<T> {
+public struct mut_span<'a, T> {
 
     internal var _data : *mut T
     internal var _size : size_t
@@ -286,28 +286,28 @@ public struct mut_span<T> {
     @implicit
     @constructor
     @expand
-    comptime func make2(vec : %maybe_runtime<&mut vector<T>>) {
+    comptime func make2(vec : %maybe_runtime<&'a mut vector<T>>) : mut_span<'a, T> {
         return unsafe(constructor<T>(vec.mutable_data(), vec.size()))
     }
 
     @implicit
     @constructor
     @expand
-    comptime func make2(array : &mut []%maybe_runtime<T>) {
+    comptime func make2(array : &'a mut []%maybe_runtime<T>) : mut_span<'a, T> {
         return unsafe(constructor<T>(array as *mut T, intrinsics::size(array)))
     }
 
     @constructor
-    unsafe func constructor(array_ptr : *mut T, array_size : size_t) {
-        return mut_span<T> {
+    unsafe func constructor(array_ptr : *mut T, array_size : size_t) : mut_span<'a, T> {
+        return mut_span<'a, T> {
             _data : array_ptr,
             _size : array_size
         }
     }
 
     @constructor
-    func empty_make() {
-        return mut_span<T> {
+    func empty_make() : span<'a, T> {
+        return mut_span<'a, T> {
             _data : null,
             _size : 0
         }
@@ -352,7 +352,7 @@ public struct mut_span<T> {
         return _size == 0;
     }
 
-    func subview(&mut self, start : size_t, end : size_t) : mut_span<T> {
+    func subview(&mut self, start : size_t, end : size_t) : mut_span<'self, T> {
         if(start > end || end > _size) {
             panic("mut_span subview out of bounds")
         }
@@ -397,7 +397,7 @@ public struct mut_span<T> {
         return as_span().split(delim)
     }
 
-    func as_span(&self) : span<T> {
+    func as_span(&self) : span<'self, T> {
         return unsafe(span<T>(_data as *T, _size))
     }
 
@@ -412,13 +412,13 @@ public struct mut_span<T> {
 
 }
 
-impl<T> core::ops::Index<size_t, T> for mut_span<T> {
+impl<'a, T> core::ops::Index<size_t, T> for mut_span<'a, T> {
     func index(&self, loc : size_t) : &T {
         return self.get_ref(loc)
     }
 }
 
-impl<T> core::ops::IndexMut<size_t, T> for mut_span<T> {
+impl<'a, T> core::ops::IndexMut<size_t, T> for mut_span<'a, T> {
     func index_mut(&mut self, loc : size_t) : &mut T {
         return self.get_mut(loc)
     }

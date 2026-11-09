@@ -89,13 +89,24 @@ instead of lowering to an opaque local. `Option::take` is the non-panicking
 Static-lifetime escapes are rejected for all view shapes; TCC/LLVM main, libs,
 negative, safety, async, and web suites are green.
 
-**Container accessor names (frozen):** `vector`, `string`, `str`, and
-`string_view` keep the checked, panicking `get`; non-panicking access is
-`get_opt` (and `vector::get_mut_opt` for mutable element views). `vector`
-additionally exposes `get_ptr` for raw address access, while maps expose
-`get_ptr` for mutable lookup and now `get(key) : Option<&Value>` for safe
-immutable lookup. `find` remains the Copy-value out-parameter form. These names
-and signatures are the release surface; later additions must not rename them.
+**Container accessor names (frozen):** `vector`, `span`, `mut_span`, `string`,
+`str`, and `string_view` now expose non-panicking `get` (`Option<&T>` for
+vector/span, `Option<char>` for strings) and checked panicking `at` forms;
+`vector` also has `get_copy`, `at_ref`, and `at_mut`, while `span`/`mut_span`
+keep explicit raw `at`/`at_ref`/`at_mut` forms. Maps expose
+`get(key) : Option<&Value>`. Raw `get_ptr` accessors remain explicitly
+allowlisted. String search is `find`/`find_last : Option<size_t>`; the explicit
+legacy `find_or_npos`/`find_last_or_npos` forms remain for in-tree migration.
+`SpanView<T>` supplies `vector::as_span`/`as_mut_span` without eager
+specialization. These names are the frozen release surface.
+
+**Compiler-blocked API follow-ups:** the consuming forms
+`Box::into_inner(self)`, `Rc::try_unwrap(self)`, `Arc::try_unwrap(self)` and
+`map::get_mut -> Option<&mut Value>` are not shipped yet. The compiler still
+copies a by-value destructor-bearing `self` at the callee and loses mutability
+when pattern-binding `Option<&mut T>` from an external generic; both need
+compiler fixes before they can be safe public API. The current `&mut self`
+extraction and map `get` surface remain stable until then.
 
 **`vector::as_span`:** the canonical methods are now provided by the generic
 `SpanView<T>` interface impl (`as_span`/`as_mut_span`). A trait impl is

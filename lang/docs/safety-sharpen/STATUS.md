@@ -37,8 +37,8 @@ Status values: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked.
 - Final LLVM gates: main 2476/2476; negative 863/863; safety 191/191; libs
   882/882; async 84/84; regexp 154/154; process 128/128; server 10/10.
 - `MIRTests`: 4749 checks. TSAN: pass. ASAN (actual instrumented compiler;
-  leak detection disabled for process-lifetime arenas): libs 870/870, process
-  127/127, server 10/10. Safety audit: no growth against
+  leak detection disabled for process-lifetime arenas): libs 882/882, process
+  128/128, server 10/10. Safety audit: no growth against
   `lang/docs/safety/audit-baseline.json` (run with `--jobs 1` until the
   parallel safety-report walk is fixed).
 - API snapshots are in `api/`, unsafe maps in `unsafe/`, and the reviewed

@@ -75,7 +75,9 @@ public struct span_split<T> {
         var segment : size_t = 0
         var i : size_t = 0
         while(i < _source.size()) {
-            var value = unsafe(*_source.get(i))
+            // `as *T` pins the element type when this cursor is itself
+            // instantiated from another generic (nested instantiation).
+            var value = unsafe(*(_source.get(i) as *T))
             if(_predicate(&value)) {
                 if(segment == index) {
                     return _source.subview(start, i)
@@ -109,7 +111,7 @@ public struct span_delim_split<T> {
         var segment : size_t = 0
         var i : size_t = 0
         while(i < _source.size()) {
-            var value = unsafe(*_source.get(i))
+            var value = unsafe(*(_source.get(i) as *T))
             if(value == _delim) {
                 if(segment == index) {
                     return _source.subview(start, i)
@@ -232,7 +234,7 @@ public struct span<'a, T> {
         var count : size_t = 1
         var i : size_t = 0
         while(i < _size) {
-            var value = unsafe(*get(i))
+            var value = unsafe(*(get(i) as *T))
             if(predicate(&value)) count += 1
             i += 1
         }
@@ -247,7 +249,7 @@ public struct span<'a, T> {
         var count : size_t = 1
         var i : size_t = 0
         while(i < _size) {
-            var value = unsafe(*get(i))
+            var value = unsafe(*(get(i) as *T))
             if(value == delim) count += 1
             i += 1
         }

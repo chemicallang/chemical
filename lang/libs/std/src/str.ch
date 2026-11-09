@@ -68,8 +68,8 @@ public func try_from_utf8(view : std::string_view) : std::Result<std::str, std::
 // non-owning view over caller storage. The method surface mirrors the useful
 // subset of `string_view` without exposing unchecked constructors.
 @direct_init
-public struct str {
-    internal var _view : std::string_view
+public struct str 'a {
+    internal var _view : std::string_view<'a>
 
     @implicit
     @constructor

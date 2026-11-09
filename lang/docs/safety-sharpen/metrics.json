@@ -1,9 +1,9 @@
 {
-  "measured_at": "2026-11-08",
+  "measured_at": "2026-11-09",
   "release_llvm_compiler_bytes": 0,
   "release_tcc_compiler_bytes": 4037816,
   "release_tcc_compiler_stripped_bytes": 4037816,
-  "safety_sample_compile_ms": 269,
-  "safety_sample_max_rss_kb": 33372,
+  "safety_sample_compile_ms": 286,
+  "safety_sample_max_rss_kb": 35120,
   "size_limit_bytes": 5000000
 }

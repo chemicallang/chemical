@@ -7,43 +7,47 @@ lang/libs/datetime/src/calendar.ch:31:    public func day_of_year(year : i64, mo
 lang/libs/datetime/src/calendar.ch:41:    public func is_valid_date(year : i64, month : i64, day : i64) : bool {
 lang/libs/datetime/src/calendar.ch:47:    public func is_valid_time(hour : i64, minute : i64, second : i64, nanos : i64) : bool {
 lang/libs/datetime/src/calendar.ch:7:    public func is_leap_year(year : i64) : bool {
-lang/libs/datetime/src/datetime.ch:143:        public func now() : DateTime {
-lang/libs/datetime/src/datetime.ch:150:        public func to_iso8601(&self) : std::string {
-lang/libs/datetime/src/datetime.ch:200:        public func parse(fmt : std::string_view, input : std::string_view) : std::Result<DateTime, std::string> {
-lang/libs/datetime/src/datetime.ch:20:        public func init() : DateTime {
-lang/libs/datetime/src/datetime.ch:253:        public func add_duration(&self, dur : &std::chrono::Duration) : DateTime {
-lang/libs/datetime/src/datetime.ch:259:        public func sub_duration(&self, dur : &std::chrono::Duration) : DateTime {
-lang/libs/datetime/src/datetime.ch:265:        public func duration_since(&self, other : &DateTime) : std::chrono::Duration {
-lang/libs/datetime/src/datetime.ch:273:        public func equals(&self, other : &DateTime) : bool {
-lang/libs/datetime/src/datetime.ch:287:        func civil_from_days(days : i64, y : *mut i64, m : *mut i64, d : *mut i64) { unsafe {
-lang/libs/datetime/src/datetime.ch:28:        public func from_components(
-lang/libs/datetime/src/datetime.ch:308:        func days_from_civil(y : i64, m : i64, d : i64) : i64 {
-lang/libs/datetime/src/datetime.ch:325:        func from_unix_components(secs : i64, nanos : i64, tz : TimeZone) : DateTime {
-lang/libs/datetime/src/datetime.ch:350:    func parse_digits_2(s : std::string_view, pos : size_t) : i64 {
-lang/libs/datetime/src/datetime.ch:356:    func parse_digits_4(s : std::string_view, pos : size_t) : i64 {
-lang/libs/datetime/src/datetime.ch:41:        public func from_system_time(st : &std::chrono::SystemTime) : DateTime {
-lang/libs/datetime/src/datetime.ch:46:        public func from_system_time_tz(st : &std::chrono::SystemTime, tz : TimeZone) : DateTime {
-lang/libs/datetime/src/datetime.ch:54:        public func to_system_time(&self) : std::chrono::SystemTime {
-lang/libs/datetime/src/datetime.ch:63:        public func year_val(&self) : i64 { return self.year }
-lang/libs/datetime/src/datetime.ch:64:        public func month_val(&self) : i64 { return self.month }
-lang/libs/datetime/src/datetime.ch:65:        public func day_val(&self) : i64 { return self.day }
-lang/libs/datetime/src/datetime.ch:66:        public func hour_val(&self) : i64 { return self.hour }
-lang/libs/datetime/src/datetime.ch:67:        public func minute_val(&self) : i64 { return self.minute }
-lang/libs/datetime/src/datetime.ch:68:        public func second_val(&self) : i64 { return self.second }
-lang/libs/datetime/src/datetime.ch:69:        public func subsec_nanos(&self) : i64 { return self.nanos }
-lang/libs/datetime/src/datetime.ch:6:    public struct DateTime {
-lang/libs/datetime/src/datetime.ch:70:        public func timezone(&self) : TimeZone { return self.tz.copy() }
-lang/libs/datetime/src/datetime.ch:74:        public func day_of_week_val(&self) : i64 {
-lang/libs/datetime/src/datetime.ch:78:        public func day_of_year_val(&self) : i64 {
-lang/libs/datetime/src/datetime.ch:82:        public func is_leap_year_val(&self) : bool {
-lang/libs/datetime/src/datetime.ch:88:        public func format(&self, fmt : std::string_view) : std::string {
+lang/libs/datetime/src/datetime.ch:100:        public func second_val(&self) : i64 { return self.second }
+lang/libs/datetime/src/datetime.ch:101:        public func subsec_nanos(&self) : i64 { return self.nanos }
+lang/libs/datetime/src/datetime.ch:102:        public func timezone(&self) : TimeZone { return self.tz.copy() }
+lang/libs/datetime/src/datetime.ch:106:        public func day_of_week_val(&self) : i64 {
+lang/libs/datetime/src/datetime.ch:110:        public func day_of_year_val(&self) : i64 {
+lang/libs/datetime/src/datetime.ch:114:        public func is_leap_year_val(&self) : bool {
+lang/libs/datetime/src/datetime.ch:120:        public func format(&self, fmt : std::string_view) : std::string {
+lang/libs/datetime/src/datetime.ch:16:    public struct DateTime {
+lang/libs/datetime/src/datetime.ch:175:        public func now() : DateTime {
+lang/libs/datetime/src/datetime.ch:182:        public func to_iso8601(&self) : std::string {
+lang/libs/datetime/src/datetime.ch:232:        public func parse(fmt : std::string_view, input : std::string_view) : std::Result<DateTime, DateTimeError> {
+lang/libs/datetime/src/datetime.ch:286:        public func add_duration(&self, dur : &std::chrono::Duration) : DateTime {
+lang/libs/datetime/src/datetime.ch:292:        public func sub_duration(&self, dur : &std::chrono::Duration) : DateTime {
+lang/libs/datetime/src/datetime.ch:298:        public func duration_since(&self, other : &DateTime) : std::chrono::Duration {
+lang/libs/datetime/src/datetime.ch:306:        public func equals(&self, other : &DateTime) : bool {
+lang/libs/datetime/src/datetime.ch:30:        public func init() : DateTime {
+lang/libs/datetime/src/datetime.ch:320:        func civil_from_days(days : i64, y : *mut i64, m : *mut i64, d : *mut i64) { unsafe {
+lang/libs/datetime/src/datetime.ch:341:        func days_from_civil(y : i64, m : i64, d : i64) : i64 {
+lang/libs/datetime/src/datetime.ch:358:        func from_unix_components(secs : i64, nanos : i64, tz : TimeZone) : DateTime {
+lang/libs/datetime/src/datetime.ch:383:    func parse_digits_2(s : std::string_view, pos : size_t) : i64 {
+lang/libs/datetime/src/datetime.ch:389:    func parse_digits_4(s : std::string_view, pos : size_t) : i64 {
+lang/libs/datetime/src/datetime.ch:40:        public func from_components(
+lang/libs/datetime/src/datetime.ch:4:    public variant DateTimeError {
+lang/libs/datetime/src/datetime.ch:54:        public func try_from_components(
+lang/libs/datetime/src/datetime.ch:73:        public func from_system_time(st : &std::chrono::SystemTime) : DateTime {
+lang/libs/datetime/src/datetime.ch:78:        public func from_system_time_tz(st : &std::chrono::SystemTime, tz : TimeZone) : DateTime {
+lang/libs/datetime/src/datetime.ch:86:        public func to_system_time(&self) : std::chrono::SystemTime {
+lang/libs/datetime/src/datetime.ch:95:        public func year_val(&self) : i64 { return self.year }
+lang/libs/datetime/src/datetime.ch:96:        public func month_val(&self) : i64 { return self.month }
+lang/libs/datetime/src/datetime.ch:97:        public func day_val(&self) : i64 { return self.day }
+lang/libs/datetime/src/datetime.ch:98:        public func hour_val(&self) : i64 { return self.hour }
+lang/libs/datetime/src/datetime.ch:99:        public func minute_val(&self) : i64 { return self.minute }
 lang/libs/datetime/src/timezone.ch:12:        public func init() : TimeZone {
 lang/libs/datetime/src/timezone.ch:16:        func copy(&self) : TimeZone {
 lang/libs/datetime/src/timezone.ch:20:        public func fixed(offset_secs : i64, name : std::string_view) : TimeZone {
 lang/libs/datetime/src/timezone.ch:26:        public func utc() : TimeZone {
 lang/libs/datetime/src/timezone.ch:30:        public func local() : TimeZone {
-lang/libs/datetime/src/timezone.ch:34:        public func offset_hours(&self) : i64 {
-lang/libs/datetime/src/timezone.ch:38:        public func offset_minutes(&self) : i64 {
-lang/libs/datetime/src/timezone.ch:44:        public func equals(&self, other : &TimeZone) : bool {
-lang/libs/datetime/src/timezone.ch:48:        public func format_utc_offset(&self) : std::string {
+lang/libs/datetime/src/timezone.ch:34:        public func offset_secs_val(&self) : i64 {
+lang/libs/datetime/src/timezone.ch:38:        public func name(&self) : std::string_view {
+lang/libs/datetime/src/timezone.ch:42:        public func offset_hours(&self) : i64 {
+lang/libs/datetime/src/timezone.ch:46:        public func offset_minutes(&self) : i64 {
+lang/libs/datetime/src/timezone.ch:52:        public func equals(&self, other : &TimeZone) : bool {
+lang/libs/datetime/src/timezone.ch:56:        public func format_utc_offset(&self) : std::string {
 lang/libs/datetime/src/timezone.ch:6:    public struct TimeZone {

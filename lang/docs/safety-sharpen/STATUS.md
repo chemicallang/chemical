@@ -28,14 +28,14 @@ Status values: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked.
 ## Current baseline (safe-API release)
 
 - Release `TCCCompiler`: **4,037,816 bytes** — under the 5,000,000-byte hard gate;
-  the 4 MB goal is missed by 37,816 bytes. `safety_sample_compile_ms` 269 ms,
-  `safety_sample_max_rss_kb` 33,372 (recorded in `metrics.json`).
+  the 4 MB goal is missed by 37,816 bytes. `safety_sample_compile_ms` 286 ms,
+  `safety_sample_max_rss_kb` 35,120 (recorded in `metrics.json`).
 - Final TCC gates: main 2478/2478; negative 863/863; removed 12/12; safety
-  191/191; async 84/84; libs 870/870; regexp 153/153; cbor 23/23; fuzz 3/3;
-  api 4/4; process 127/127; server 10/10; plugins 1305/1305; interpret
+  191/191; async 84/84; libs 882/882; regexp 154/154; cbor 23/23; fuzz 3/3;
+  api 4/4; process 128/128; server 10/10; plugins 1305/1305; interpret
   1938/1938; TLS 605/605; webview 51/51; universal 368/368.
 - Final LLVM gates: main 2476/2476; negative 863/863; safety 191/191; libs
-  870/870; async 84/84; regexp 153/153; process 127/127; server 10/10.
+  882/882; async 84/84; regexp 154/154; process 128/128; server 10/10.
 - `MIRTests`: 4749 checks. TSAN: pass. ASAN (actual instrumented compiler;
   leak detection disabled for process-lifetime arenas): libs 870/870, process
   127/127, server 10/10. Safety audit: no growth against
@@ -60,6 +60,31 @@ Status values: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked.
   per-module clear, which passes the full suite.
 - Reviewer sign-off for this release: the P2.4/P2.5/P2.6/P2.7 subagent reviews
   plus the integrated gate run above (recorded 2026-11-08).
+
+## API-freeze wave (2026-11-09)
+
+- `c24dd6175` freezes encoding/crypto/compression/archive/image/audio/font/
+  regex/json/cbor/uuid/datetime/osrand/mime: canonical safe names at module
+  level, raw pointer/out-buffer forms under `::raw`, borrowed/owned views,
+  checked constructors, and typed errors.
+- `aa68f6a7a` freezes path/fs/process/environment and net/http/tls:
+  borrowed `Path`/`PathBuf`, canonical `fs::read`/`write`/`read_dir`,
+  `Command`/`Stdio`/`Output`, owning `TcpListener`/`TcpStream`,
+  `HttpError` + private `Transport`, and safe `TlsConfig`/`Certificate`/
+  `CertificateChain`/`TlsStream` with all mbedTLS-shaped code under `tls::raw`.
+- `84dd78dbd` freezes web UI and compiler/runtime surfaces: canonical page
+  append/parameter methods with CBI raw methods, `SharedAssetsHandle`, safe
+  window timers/clipboard/monitor methods, `webview`/`window` raw namespaces,
+  private reporter/executor state, safe compiler arena allocation, and
+  `async` channel error types.
+
+**Remaining std blocker:** user-defined generic struct lifetimes are not yet
+enforced by the borrow checker. A `struct View<'a, T> { p : *T, witness : &'a u8 }`
+returned from a local owner is accepted by the current compiler, so changing
+`span`/`mut_span`/`str` to lifetime-carrying structs would not by itself make
+them sound. `string_view`/`str` and built-in `&[T]`/`&str` are enforced; the
+custom generic-view rule needs a compiler/MIR change. Until then, the std view
+surface is not frozen for a future lifetime change.
 
 ## Phase 1 notes
 

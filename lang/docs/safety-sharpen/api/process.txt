@@ -19,46 +19,84 @@ lang/libs/process/posix/posix.ch:509:func WTERMSIG(status : int) : int { return 
 lang/libs/process/posix/posix.ch:510:func WIFSTOPPED(status : int) : bool { return (status & 0xff) == 0x7f; }
 lang/libs/process/posix/posix.ch:511:func WSTOPSIG(status : int) : int { return (status >> 8) & 0xff; }
 lang/libs/process/posix/posix.ch:7:func process_cleanup(child : *mut ChildProcess) {
-lang/libs/process/src/process.ch:101:    func delete(&mut self) {
-lang/libs/process/src/process.ch:106:public type PR_Result = Result<ProcessResult, ProcessError>
-lang/libs/process/src/process.ch:107:public type CP_Result = Result<Child, ProcessError>
-lang/libs/process/src/process.ch:108:public type UT_Result = Result<UnitTy, ProcessError>
-lang/libs/process/src/process.ch:112:func pr_ok(v : &mut ProcessResult, ret : &mut PR_Result) {
-lang/libs/process/src/process.ch:115:func pr_err(e : ProcessError, ret : &mut PR_Result) {
-lang/libs/process/src/process.ch:119:public func execute(cfg : ProcessConfig) : PR_Result {
-lang/libs/process/src/process.ch:11:public struct ProcessOutput {
-lang/libs/process/src/process.ch:149:public func spawn(cfg : ProcessConfig) : CP_Result {
-lang/libs/process/src/process.ch:16:public struct ExitStatus {
-lang/libs/process/src/process.ch:181:func wait_raw(child : *mut ChildProcess) : PR_Result {
-lang/libs/process/src/process.ch:226:func kill_process_raw(child : *mut ChildProcess, signal : int) : UT_Result {
-lang/libs/process/src/process.ch:22:public struct ProcessResult {
-lang/libs/process/src/process.ch:277:func is_running_raw(child : *mut ChildProcess) : bool {
-lang/libs/process/src/process.ch:28:    public func stdout_str(&self) : string_view {
-lang/libs/process/src/process.ch:306:func write_stdin_raw(child : *mut ChildProcess, data : *u8, len : size_t) : UT_Result {
-lang/libs/process/src/process.ch:33:    public func stderr_str(&self) : string_view {
-lang/libs/process/src/process.ch:348:func close_stdin_raw(child : *mut ChildProcess) : UT_Result {
-lang/libs/process/src/process.ch:372:func try_wait_raw(child : *mut ChildProcess) : PR_Result {
-lang/libs/process/src/process.ch:38:    public func exit_code(&self) : int {
-lang/libs/process/src/process.ch:43:    public func is_success(&self) : bool {
-lang/libs/process/src/process.ch:453:public func wait(child : &mut Child) : PR_Result {
-lang/libs/process/src/process.ch:458:public func try_wait(child : &mut Child) : PR_Result {
-lang/libs/process/src/process.ch:463:public func kill_process(child : &mut Child, signal : int) : UT_Result {
-lang/libs/process/src/process.ch:468:public func is_running(child : &mut Child) : bool {
-lang/libs/process/src/process.ch:473:public func write_stdin(child : &mut Child, data : [u8]) : UT_Result {
-lang/libs/process/src/process.ch:478:public func close_stdin(child : &mut Child) : UT_Result {
-lang/libs/process/src/process.ch:483:public func child_pid(child : &mut Child) : int {
-lang/libs/process/src/process.ch:48:public struct ProcessConfig {
-lang/libs/process/src/process.ch:492:public func current_pid() : int {
-lang/libs/process/src/process.ch:501:public func sleep_ms(ms : int) {
-lang/libs/process/src/process.ch:510:func child_pid_raw(child : *mut ChildProcess) : int {
-lang/libs/process/src/process.ch:58:    func default() : ProcessConfig {
-lang/libs/process/src/process.ch:74:        struct {
-lang/libs/process/src/process.ch:83:        struct {
-lang/libs/process/src/process.ch:97:public struct Child {
-lang/libs/process/src/types.ch:13:    func message(&self) : string {
-lang/libs/process/src/types.ch:36:public struct UnitTy {}
-lang/libs/process/src/types.ch:43:public func io_error(e : ProcessError) : std::io::IoError {
-lang/libs/process/src/types.ch:6:public variant ProcessError {
+lang/libs/process/src/process.ch:105:    func arg(&mut self, arg : &str) : &mut Command {
+lang/libs/process/src/process.ch:111:    func set_argv(&mut self, args : &vector<string>) : &mut Command {
+lang/libs/process/src/process.ch:121:    func args(&mut self, values : &[&str]) : &mut Command {
+lang/libs/process/src/process.ch:12:public struct ProcessConfig {
+lang/libs/process/src/process.ch:131:    func env(&mut self, key : &str, value : &str) : &mut Command {
+lang/libs/process/src/process.ch:139:    func current_dir(&mut self, dir : &path::Path) : &mut Command {
+lang/libs/process/src/process.ch:144:    func stdin(&mut self, stdio : Stdio) : &mut Command {
+lang/libs/process/src/process.ch:149:    func stdout(&mut self, stdio : Stdio) : &mut Command {
+lang/libs/process/src/process.ch:154:    func stderr(&mut self, stdio : Stdio) : &mut Command {
+lang/libs/process/src/process.ch:160:    func stdin_push(&mut self, byte : u8) : &mut Command {
+lang/libs/process/src/process.ch:166:    func merge_stdout_stderr(&mut self, value : bool) : &mut Command {
+lang/libs/process/src/process.ch:172:    func timeout_ms(&mut self, ms : int) : &mut Command {
+lang/libs/process/src/process.ch:177:    func fill_config(&self, out : *mut ProcessConfig) {
+lang/libs/process/src/process.ch:209:    func output(&mut self) : Result<Output, ProcessError> {
+lang/libs/process/src/process.ch:226:    func status(&mut self) : Result<ExitStatus, ProcessError> {
+lang/libs/process/src/process.ch:22:    func default() : ProcessConfig {
+lang/libs/process/src/process.ch:242:    func spawn(&mut self) : Result<Child, ProcessError> {
+lang/libs/process/src/process.ch:254:public struct Child {
+lang/libs/process/src/process.ch:260:    func delete(&mut self) {
+lang/libs/process/src/process.ch:266:    func wait(&mut self) : Result<ExitStatus, ProcessError> {
+lang/libs/process/src/process.ch:283:    func wait_with_output(&mut self) : Result<Output, ProcessError> {
+lang/libs/process/src/process.ch:308:    func try_wait(&mut self) : Result<Option<ExitStatus>, ProcessError> {
+lang/libs/process/src/process.ch:328:    func kill(&mut self) : Result<UnitTy, ProcessError> {
+lang/libs/process/src/process.ch:333:    func write_stdin(&mut self, data : &[u8]) : Result<UnitTy, ProcessError> {
+lang/libs/process/src/process.ch:338:    func close_stdin(&mut self) : Result<UnitTy, ProcessError> {
+lang/libs/process/src/process.ch:343:    func id(&self) : u32 {
+lang/libs/process/src/process.ch:348:public type PR_Result = Result<ProcessResult, ProcessError>
+lang/libs/process/src/process.ch:349:public type CP_Result = Result<Child, ProcessError>
+lang/libs/process/src/process.ch:350:public type UT_Result = Result<UnitTy, ProcessError>
+lang/libs/process/src/process.ch:352:func pr_ok(v : &mut ProcessResult, ret : &mut PR_Result) {
+lang/libs/process/src/process.ch:355:func pr_err(e : ProcessError, ret : &mut PR_Result) {
+lang/libs/process/src/process.ch:359:public func execute(cfg : ProcessConfig) : PR_Result {
+lang/libs/process/src/process.ch:37:public struct ProcessResult {
+lang/libs/process/src/process.ch:389:public func spawn(cfg : ProcessConfig) : CP_Result {
+lang/libs/process/src/process.ch:429:func wait_raw(child : *mut ChildProcess) : PR_Result {
+lang/libs/process/src/process.ch:42:    func exit_code(&self) : int {
+lang/libs/process/src/process.ch:46:    func is_success(&self) : bool {
+lang/libs/process/src/process.ch:474:func try_wait_status_raw(child : *mut ChildProcess, out : *mut ExitStatus) : Result<bool, ProcessError> {
+lang/libs/process/src/process.ch:51:public struct ProcessOutput {
+lang/libs/process/src/process.ch:526:func kill_process_raw(child : *mut ChildProcess, signal : int) : UT_Result {
+lang/libs/process/src/process.ch:572:func is_running_raw(child : *mut ChildProcess) : bool {
+lang/libs/process/src/process.ch:58:        struct {
+lang/libs/process/src/process.ch:597:func write_stdin_raw(child : *mut ChildProcess, data : *u8, len : size_t) : UT_Result {
+lang/libs/process/src/process.ch:639:func close_stdin_raw(child : *mut ChildProcess) : UT_Result {
+lang/libs/process/src/process.ch:666:public func wait(child : &mut Child) : Result<ExitStatus, ProcessError> {
+lang/libs/process/src/process.ch:671:public func try_wait(child : &mut Child) : Result<Option<ExitStatus>, ProcessError> {
+lang/libs/process/src/process.ch:676:public func kill_process(child : &mut Child, signal : int) : UT_Result {
+lang/libs/process/src/process.ch:67:        struct {
+lang/libs/process/src/process.ch:681:public func is_running(child : &mut Child) : bool {
+lang/libs/process/src/process.ch:686:public func write_stdin(child : &mut Child, data : &[u8]) : UT_Result {
+lang/libs/process/src/process.ch:691:public func close_stdin(child : &mut Child) : UT_Result {
+lang/libs/process/src/process.ch:696:public func child_pid(child : &mut Child) : int {
+lang/libs/process/src/process.ch:705:public func current_pid() : int {
+lang/libs/process/src/process.ch:714:public func sleep_ms(ms : int) {
+lang/libs/process/src/process.ch:723:func child_pid_raw(child : *ChildProcess) : int {
+lang/libs/process/src/process.ch:85:public struct Command {
+lang/libs/process/src/process.ch:92:    func new(program : &str) : Command {
+lang/libs/process/src/types.ch:102:    public func stdout_size(&self) : size_t {
+lang/libs/process/src/types.ch:106:    public func stderr_size(&self) : size_t {
+lang/libs/process/src/types.ch:110:    public func stdout_bytes(&self) : [u8] {
+lang/libs/process/src/types.ch:114:    public func stderr_bytes(&self) : [u8] {
+lang/libs/process/src/types.ch:119:    public func stdout_str(&self) : Option<std::str> {
+lang/libs/process/src/types.ch:128:    public func stderr_str(&self) : Option<std::str> {
+lang/libs/process/src/types.ch:142:public func io_error(e : ProcessError) : std::io::IoError {
+lang/libs/process/src/types.ch:16:    func message(&self) : string {
+lang/libs/process/src/types.ch:39:public struct UnitTy {}
+lang/libs/process/src/types.ch:42:public variant Stdio {
+lang/libs/process/src/types.ch:49:public struct ExitStatus {
+lang/libs/process/src/types.ch:55:    public func code(&self) : Option<int> {
+lang/libs/process/src/types.ch:61:    public func success(&self) : bool {
+lang/libs/process/src/types.ch:66:    public func signaled(&self) : bool {
+lang/libs/process/src/types.ch:71:    public func signal(&self) : Option<int> {
+lang/libs/process/src/types.ch:78:public struct Output {
+lang/libs/process/src/types.ch:83:    public func status(&self) : ExitStatus {
+lang/libs/process/src/types.ch:87:    public func success(&self) : bool {
+lang/libs/process/src/types.ch:91:    public func is_success(&self) : bool {
+lang/libs/process/src/types.ch:95:    public func exit_code(&self) : int {
+lang/libs/process/src/types.ch:9:public variant ProcessError {
 lang/libs/process/win/win.ch:113:func win_build_cmdline(args : *vector<string>) : string {
 lang/libs/process/win/win.ch:139:func win_build_env_block(env : *vector<string>) : *mut void {
 lang/libs/process/win/win.ch:175:func win_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {

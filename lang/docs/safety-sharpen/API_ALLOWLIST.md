@@ -29,12 +29,14 @@ in-tree callers. They are not part of the safe surface and are counted by
 | Library | raw-pointer public funcs | public unsafe funcs/decls |
 |---|---:|---:|
 | std | 70 | 23 |
-| fs | 48 | 0 |
+| core | 0 | 0 |
+| fs | 66 | 0 |
 | path | 8 | 8 |
-| environment | 0 | 3 |
-| net | 17 | 3 |
-| http | 15 | 5 |
-| tls | 137 | 4 |
+| process | 0 | 0 |
+| environment | 0 | 6 |
+| net | 18 | 3 |
+| http | 6 | 4 |
+| tls | 143 | 7 |
 | encoding | 13 | 0 |
 | crypto | 22 | 0 |
 | compression | 4 | 0 |
@@ -42,14 +44,17 @@ in-tree callers. They are not part of the safe surface and are counted by
 | image | 33 | 0 |
 | audio | 11 | 0 |
 | font | 10 | 0 |
-| regex | 2 | 0 |
-| json | 5 | 0 |
+| regex | 2 | 2 |
+| json | 6 | 0 |
 | mime | 4 | 0 |
-| osrand | 1 | 0 |
+| datetime | 0 | 0 |
+| uuid | 0 | 0 |
+| osrand | 1 | 1 |
 | cbor | 3 | 0 |
-| window | 78 | 0 |
-| webview | 50 | 0 |
-| page | 5 | 0 |
+| window | 79 | 1 |
+| webview | 52 | 2 |
+| page | 13 | 1 |
+| components | 0 | 0 |
 | router | 2 | 0 |
 | server | 1 | 0 |
 

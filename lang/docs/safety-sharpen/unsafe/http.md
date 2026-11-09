@@ -6,17 +6,16 @@ boundary; safe callers use the facade documented in the library README/api snaps
 ## Unsafe declarations
 
 ```
-lang/libs/http/src/types.ch:134:    public unsafe func strcasecmp(a:*char, b:*char) : int {
-lang/libs/http/src/types.ch:221:        public unsafe func make_body(
-lang/libs/http/src/client.ch:257:        public unsafe func set_ca_chain(&mut self, ca: *mut tls::X509Cert) : &mut Client {
-lang/libs/http/src/parser.ch:107:    public unsafe func parse_request_from_bytes(buf:*u8, n: usize, s: net::Socket) : std::Option<Request> {
-lang/libs/http/src/parser.ch:203:    public unsafe func read_response_incremental(
+lang/libs/http/src/types.ch:420:public unsafe func strcasecmp(a:*char, b:*char) : int {
+lang/libs/http/src/async.ch:18:public unsafe func header_get_cstr(map : &HeaderMap, name : *char) : Option<string> {
+lang/libs/http/src/async.ch:33:public unsafe func make_body(sock : net::raw::Socket,
+lang/libs/http/src/async.ch:46:public unsafe func body_read(b : *mut Body, dst : *mut u8, cap : usize) : int {
 ```
 
 ## Unsafe call/dereference sites (count)
 
-- unsafe blocks: 81
-- unsafe expressions: 38
-- raw-pointer dereferences/indexing: 145
+- unsafe blocks: 113
+- unsafe expressions: 75
+- raw-pointer dereferences/indexing: 188
 
 Review rule: a safe wrapper must validate null/length/ownership before any raw call.

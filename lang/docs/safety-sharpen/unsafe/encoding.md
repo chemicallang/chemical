@@ -10,8 +10,8 @@ boundary; safe callers use the facade documented in the library README/api snaps
 
 ## Unsafe call/dereference sites (count)
 
-- unsafe blocks: 23
+- unsafe blocks: 21
 - unsafe expressions: 31
-- raw-pointer dereferences/indexing: 149
+- raw-pointer dereferences/indexing: 147
 
 Review rule: a safe wrapper must validate null/length/ownership before any raw call.

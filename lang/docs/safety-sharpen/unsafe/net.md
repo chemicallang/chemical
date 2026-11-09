@@ -6,15 +6,15 @@ boundary; safe callers use the facade documented in the library README/api snaps
 ## Unsafe declarations
 
 ```
-lang/libs/net/win/iocp.ch:374:        public unsafe func async_iocp_recv(s : Socket, buf : *mut u8, cap : usize) : core::async::FutureHandle<int> {
-lang/libs/net/win/iocp.ch:406:        public unsafe func async_iocp_send(s : Socket, data : *char, len : int) : core::async::FutureHandle<int> {
-lang/libs/net/src/safe.ch:212:public unsafe func release_raw(stream : &mut TcpStream) : Socket {
+lang/libs/net/src/raw.ch:401:public unsafe func release_tcp(stream : &mut net::TcpStream) : Socket {
+lang/libs/net/win/iocp.ch:375:        public unsafe func async_iocp_recv(s : Socket, buf : *mut u8, cap : usize) : core::async::FutureHandle<int> {
+lang/libs/net/win/iocp.ch:407:        public unsafe func async_iocp_send(s : Socket, data : *char, len : int) : core::async::FutureHandle<int> {
 ```
 
 ## Unsafe call/dereference sites (count)
 
-- unsafe blocks: 57
-- unsafe expressions: 30
-- raw-pointer dereferences/indexing: 140
+- unsafe blocks: 59
+- unsafe expressions: 37
+- raw-pointer dereferences/indexing: 155
 
 Review rule: a safe wrapper must validate null/length/ownership before any raw call.

@@ -25,3 +25,10 @@ Known limits, tracked for Phase 3:
 - Legacy raw-buffer APIs remain as reviewed migration debt. New code uses the
   additive safe surface; raw entry points that retain pointers are `unsafe`,
   and the rest are explicitly enumerated by the API audit.
+- The 2026-11-09 API-freeze wave makes the safe names canonical for data/media,
+  path/fs/process/environment, net/http/tls, web UI, and compiler/runtime
+  libraries, with legacy pointer APIs under explicit `raw`/`ffi` namespaces.
+- `span`/`mut_span`/`str` are not frozen for lifetime parameters yet: the
+  compiler does not enforce lifetimes carried by user-defined generic structs,
+  so a library-only lifetime change would be unsound. This is the remaining
+  compiler blocker for the ideal std view API.

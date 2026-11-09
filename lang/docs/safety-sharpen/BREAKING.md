@@ -60,3 +60,22 @@ ceiling. See `metrics.json`.
   `try_set`/`try_pop`, `span::get_opt`, `mut_span::get_mut_opt`, and
   `string::get_opt` are the additive safe primitive surface. Legacy raw pointer
   accessors remain allowlisted.
+
+## API-freeze wave (2026-11-09)
+
+- Data/media libraries now expose canonical safe module-level APIs; legacy
+  pointer/out-buffer/C-string functions moved under `<lib>::raw`.
+- `fs`, `path`, `process`, `environment`, `net`, `http`, and `tls` now expose
+  owning values and `Result` errors; raw descriptor/mbedTLS/platform entry
+  points moved under `::raw`.
+- Safe path APIs take `&Path`; `fs::read/write/read_dir`, `Command`/`Stdio`,
+  `TcpListener`/`TcpStream`, `HttpError`/`Transport`, and
+  `TlsConfig`/`Certificate`/`TlsStream` are the supported surfaces.
+- Web/UI safe handles are canonical; page append/parameter methods and window
+  methods are safe, while CBI/platform pointer hooks use explicit raw methods.
+- Compiler/lab/test/async safe facades are canonical; raw ABI hooks are under
+  `compiler::ffi`, `lab::raw`, `test_env::ffi`, `test_report::ffi`, and
+  `async::raw`.
+- `span`/`mut_span`/`str` lifetime normalization is **not** part of this freeze:
+  the compiler does not yet enforce lifetimes carried by user-defined generic
+  structs, so adding the parameters alone would not make the view sound.

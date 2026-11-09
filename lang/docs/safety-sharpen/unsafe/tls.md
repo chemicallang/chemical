@@ -6,16 +6,19 @@ boundary; safe callers use the facade documented in the library README/api snaps
 ## Unsafe declarations
 
 ```
-lang/libs/tls/src/ssl.ch:4610:    public unsafe func ssl_set_ca_chain(conf : *mut SSLConfig, ca : *mut X509Cert) {
-lang/libs/tls/src/ssl.ch:4820:    public unsafe func ssl_set_own_rsa_key(conf : *mut SSLConfig, rsa_key : *mut RSAContext) {
-lang/libs/tls/src/ssl.ch:4831:    public unsafe func ssl_set_alpn_protocols(conf : *mut SSLConfig, protocols : *mut *char, count : u8) {
-lang/libs/tls/src/ssl.ch:4857:    public unsafe func ssl_get_alpn_negotiated(ssl : *mut SSLContext) : *char {
+lang/libs/tls/src/safe.ch:174:    public unsafe func raw_handle(&self) : *mut raw::X509Cert {
+lang/libs/tls/src/safe.ch:178:    public unsafe func from_raw_borrowed(ptr : *mut raw::X509Cert) : CertificateChain {
+lang/libs/tls/src/safe.ch:407:    public unsafe func set_ca_chain_ptr(&mut self, ca : *mut raw::X509Cert) : Result<std::Unit, TlsError> {
+lang/libs/tls/src/raw.ch:5496:    public unsafe func ssl_set_ca_chain(conf : *mut SSLConfig, ca : *mut X509Cert) {
+lang/libs/tls/src/raw.ch:5706:    public unsafe func ssl_set_own_rsa_key(conf : *mut SSLConfig, rsa_key : *mut RSAContext) {
+lang/libs/tls/src/raw.ch:5717:    public unsafe func ssl_set_alpn_protocols(conf : *mut SSLConfig, protocols : *mut *char, count : u8) {
+lang/libs/tls/src/raw.ch:5743:    public unsafe func ssl_get_alpn_negotiated(ssl : *mut SSLContext) : *char {
 ```
 
 ## Unsafe call/dereference sites (count)
 
-- unsafe blocks: 340
-- unsafe expressions: 695
-- raw-pointer dereferences/indexing: 2770
+- unsafe blocks: 372
+- unsafe expressions: 716
+- raw-pointer dereferences/indexing: 2804
 
 Review rule: a safe wrapper must validate null/length/ownership before any raw call.

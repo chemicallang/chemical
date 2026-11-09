@@ -19,22 +19,22 @@ lang/libs/router/src/match.ch:51:public func pattern_segments(pattern : std::str
 lang/libs/router/src/match.ch:67:public func normalize_path_view(path : std::string_view, base : std::string_view) : std::string_view {
 lang/libs/router/src/match.ch:83:public func normalize_path(path : std::string_view, base : std::string_view) : std::string {
 lang/libs/router/src/match.ch:88:func split_path_segments(path : std::string_view, base : std::string_view) : std::vector<std::string_view> {
-lang/libs/router/src/params.ch:20:public func (page : &mut HtmlPage) query_param(key : std::string_view) : std::string_view {
-lang/libs/router/src/params.ch:35:public func (page : &mut HtmlPage) set_route_query(raw : std::string_view) {
-lang/libs/router/src/params.ch:69:public func (page : &mut HtmlPage) get_route_query() : std::string_view {
-lang/libs/router/src/params.ch:76:public func parse_query(raw : std::string_view, out : &mut std::unordered_map<std::string_view, std::string_view>) {
-lang/libs/router/src/params.ch:9:public func <T> get_parameter_object(page : &mut HtmlPage, key : std::string_view) : *mut T { unsafe {
-lang/libs/router/src/redirect.ch:17:public func (page : &mut HtmlPage) redirect_to(router : std::string_view, id : std::string_view,
-lang/libs/router/src/redirect.ch:29:public func (page : &mut HtmlPage) get_route_redirect() : std::string_view {
-lang/libs/router/src/request.ch:15:public func (page : &mut HtmlPage) set_request(req : &RouteRequest) {
-lang/libs/router/src/request.ch:19:public func get_request(page : &mut HtmlPage) : *mut RouteRequest {
-lang/libs/router/src/request.ch:8:public struct RouteRequest {
+lang/libs/router/src/params.ch:118:public func (page : &mut HtmlPage) get_route_query() : std::string_view {
+lang/libs/router/src/params.ch:126:public func (page : &mut HtmlPage) redirect_to(router : std::string_view, id : std::string_view,
+lang/libs/router/src/params.ch:138:public func (page : &mut HtmlPage) get_route_redirect() : std::string_view {
+lang/libs/router/src/params.ch:154:public func parse_query(raw : std::string_view, out : &mut std::unordered_map<std::string_view, std::string_view>) {
+lang/libs/router/src/params.ch:25:public struct RouteRequest {
+lang/libs/router/src/params.ch:34:public func (html_page : &mut HtmlPage) set_request(req : &RouteRequest) {
+lang/libs/router/src/params.ch:38:public func (page : &mut HtmlPage) get_request() : *mut RouteRequest {
+lang/libs/router/src/params.ch:47:public func <T> get_parameter_object(page : &mut HtmlPage, key : std::string_view) : *mut T { unsafe {
+lang/libs/router/src/params.ch:53:public func (page : &mut HtmlPage) set_route_url(path : std::string_view, base : std::string_view = "") {
+lang/libs/router/src/params.ch:59:public func (page : &mut HtmlPage) get_route_url() : std::string_view {
+lang/libs/router/src/params.ch:63:public func (page : &mut HtmlPage) get_route_base() : std::string_view {
+lang/libs/router/src/params.ch:72:public func (page : &mut HtmlPage) query_param(key : std::string_view) : std::string_view {
+lang/libs/router/src/params.ch:84:public func (page : &mut HtmlPage) set_route_query(raw : std::string_view) {
 lang/libs/router/src/safe.ch:26:public struct RequestInfo {
 lang/libs/router/src/safe.ch:32:    public func has_body(&self) : bool {
 lang/libs/router/src/safe.ch:39:public func set_request(page : &mut HtmlPage, method : &std::str, path : &std::str,
 lang/libs/router/src/safe.ch:47:func request_field(page : &HtmlPage, key : string_view) : string {
 lang/libs/router/src/safe.ch:55:public func get_request(page : &HtmlPage) : Option<RequestInfo> {
 lang/libs/router/src/safe.ch:70:public func query(html_page : &HtmlPage, key : &std::str) : Option<string> {
-lang/libs/router/src/url.ch:11:public func (page : &mut HtmlPage) get_route_url() : std::string_view {
-lang/libs/router/src/url.ch:15:public func (page : &mut HtmlPage) get_route_base() : std::string_view {
-lang/libs/router/src/url.ch:6:public func (page : &mut HtmlPage) set_route_url(path : std::string_view, base : std::string_view = "") {

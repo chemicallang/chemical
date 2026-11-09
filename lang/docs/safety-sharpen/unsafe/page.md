@@ -6,12 +6,13 @@ boundary; safe callers use the facade documented in the library README/api snaps
 ## Unsafe declarations
 
 ```
+lang/libs/page/src/shared_assets.ch:139:public unsafe func shared_assets_free(s : *mut SharedAssets) {
 ```
 
 ## Unsafe call/dereference sites (count)
 
-- unsafe blocks: 81
-- unsafe expressions: 43
-- raw-pointer dereferences/indexing: 354
+- unsafe blocks: 89
+- unsafe expressions: 44
+- raw-pointer dereferences/indexing: 373
 
 Review rule: a safe wrapper must validate null/length/ownership before any raw call.

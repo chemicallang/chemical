@@ -84,39 +84,42 @@ lang/libs/std/src/alloc.ch:71:    func shrink(&self, old : *mut void, old_layout
 lang/libs/std/src/alloc.ch:77:struct AllocRecord {
 lang/libs/std/src/alloc.ch:83:struct DebugTracker {
 lang/libs/std/src/alloc.ch:89:func debug_tracker_create() : *mut DebugTracker {
-lang/libs/std/src/arc.ch:102:    public func downgrade(&self) : ArcWeak<T> {
-lang/libs/std/src/arc.ch:119:    public func get(&self) : &T {
-lang/libs/std/src/arc.ch:126:    public func strong_count(&self) : size_t {
-lang/libs/std/src/arc.ch:140:    public func weak_count(&self) : size_t {
-lang/libs/std/src/arc.ch:155:    public func get_mut(&mut self) : Option<&mut T> {
-lang/libs/std/src/arc.ch:173:    public func try_unwrap(&mut self) : Option<T> {
+lang/libs/std/src/arc.ch:106:    public func downgrade(&self) : ArcWeak<T> {
+lang/libs/std/src/arc.ch:123:    public func get(&self) : &T {
+lang/libs/std/src/arc.ch:130:    public func strong_count(&self) : size_t {
+lang/libs/std/src/arc.ch:144:    public func weak_count(&self) : size_t {
+lang/libs/std/src/arc.ch:159:    public func get_mut(&mut self) : Option<&mut T> {
+lang/libs/std/src/arc.ch:177:    public func try_unwrap(&mut self) : Option<T> {
 lang/libs/std/src/arc.ch:18:public struct ArcInner<T> {
-lang/libs/std/src/arc.ch:207:public struct ArcWeak<T> {
-lang/libs/std/src/arc.ch:212:    func delete(&mut self) {
-lang/libs/std/src/arc.ch:233:    public func upgrade(&self) : Option<Arc<T>> {
-lang/libs/std/src/arc.ch:257:    public func strong_count(&self) : size_t {
-lang/libs/std/src/arc.ch:271:    public func weak_count(&self) : size_t {
-lang/libs/std/src/arc.ch:286:public func <T> arc(value : T) : Arc<T> {
-lang/libs/std/src/arc.ch:297:public unsafe func <T> arc_unchecked(inner : *mut ArcInner<T>) : Arc<T> {
-lang/libs/std/src/arc.ch:303:public unsafe func <T> arc_weak_unchecked(inner : *mut ArcInner<T>) : ArcWeak<T> {
+lang/libs/std/src/arc.ch:211:public struct ArcWeak<T> {
+lang/libs/std/src/arc.ch:216:    func delete(&mut self) {
+lang/libs/std/src/arc.ch:237:    public func upgrade(&self) : Option<Arc<T>> {
+lang/libs/std/src/arc.ch:261:    public func strong_count(&self) : size_t {
+lang/libs/std/src/arc.ch:275:    public func weak_count(&self) : size_t {
+lang/libs/std/src/arc.ch:290:public func <T> arc(value : T) : Arc<T> {
+lang/libs/std/src/arc.ch:301:public unsafe func <T> arc_unchecked(inner : *mut ArcInner<T>) : Arc<T> {
+lang/libs/std/src/arc.ch:307:public unsafe func <T> arc_weak_unchecked(inner : *mut ArcInner<T>) : ArcWeak<T> {
 lang/libs/std/src/arc.ch:38:public struct Arc<T> {
-lang/libs/std/src/arc.ch:45:    func delete(&mut self) {
-lang/libs/std/src/arc.ch:83:    public func clone(&self) : Arc<T> {
-lang/libs/std/src/box.ch:103:func <T> drop_erased(p : *mut void) {
-lang/libs/std/src/box.ch:121:public struct DynBox<I> {
-lang/libs/std/src/box.ch:132:    func delete(&mut self) {
-lang/libs/std/src/box.ch:139:    public func get(&self) : &dyn I {
-lang/libs/std/src/box.ch:143:    public func get_mut(&mut self) : &mut dyn I {
-lang/libs/std/src/box.ch:156:public func <T, I> dyn_box(value : T) : DynBox<I> where T: I {
+lang/libs/std/src/arc.ch:44:    public func new(value : T) : Arc<T> {
+lang/libs/std/src/arc.ch:49:    func delete(&mut self) {
+lang/libs/std/src/arc.ch:87:    public func clone(&self) : Arc<T> {
+lang/libs/std/src/box.ch:110:public unsafe func <T> box_unchecked(ptr : *mut T) : Box<T> {
+lang/libs/std/src/box.ch:125:func <T> drop_erased(p : *mut void) {
+lang/libs/std/src/box.ch:143:public struct DynBox<I> {
+lang/libs/std/src/box.ch:154:    func delete(&mut self) {
 lang/libs/std/src/box.ch:15:public struct Box<T> {
-lang/libs/std/src/box.ch:22:    func delete(&mut self) {
-lang/libs/std/src/box.ch:31:    public func get(&self) : &T {
-lang/libs/std/src/box.ch:38:    public func get_mut(&mut self) : &mut T {
-lang/libs/std/src/box.ch:45:    public func as_ptr(&self) : *T {
-lang/libs/std/src/box.ch:49:    public func as_mut_ptr(&mut self) : *mut T {
-lang/libs/std/src/box.ch:54:    public func into_inner(&mut self) : T {
-lang/libs/std/src/box.ch:68:public func <T> box(value : T) : Box<T> {
-lang/libs/std/src/box.ch:88:public unsafe func <T> box_unchecked(ptr : *mut T) : Box<T> {
+lang/libs/std/src/box.ch:161:    public func get(&self) : &dyn I {
+lang/libs/std/src/box.ch:165:    public func get_mut(&mut self) : &mut dyn I {
+lang/libs/std/src/box.ch:178:public func <T, I> dyn_box(value : T) : DynBox<I> where T: I {
+lang/libs/std/src/box.ch:21:    public func new(value : T) : Box<T> {
+lang/libs/std/src/box.ch:26:    public func try_new(value : T) : std::Result<Box<T>, std::alloc::AllocError> {
+lang/libs/std/src/box.ch:44:    func delete(&mut self) {
+lang/libs/std/src/box.ch:53:    public func get(&self) : &T {
+lang/libs/std/src/box.ch:60:    public func get_mut(&mut self) : &mut T {
+lang/libs/std/src/box.ch:67:    public func as_ptr(&self) : *T {
+lang/libs/std/src/box.ch:71:    public func as_mut_ptr(&mut self) : *mut T {
+lang/libs/std/src/box.ch:76:    public func into_inner(&mut self) : T {
+lang/libs/std/src/box.ch:90:public func <T> box(value : T) : Box<T> {
 lang/libs/std/src/cell.ch:11:public struct UnsafeCell<T> {
 lang/libs/std/src/cell.ch:16:    func make(value : T) {
 lang/libs/std/src/cell.ch:22:    public func get(&self) : *mut T {
@@ -411,7 +414,7 @@ lang/libs/std/src/os_string.ch:115:        func utf8_to_u16(utf8 : &std::string)
 lang/libs/std/src/os_string.ch:11:    public type native_char_t = char;       // native unit for OsString on POSIX (bytes)
 lang/libs/std/src/os_string.ch:12:    public type native_string_t = string;
 lang/libs/std/src/os_string.ch:143:        func u16_to_utf8(str : &std::u16string) : std::string {
-lang/libs/std/src/os_string.ch:16:struct OsString {
+lang/libs/std/src/os_string.ch:16:public struct OsString {
 lang/libs/std/src/os_string.ch:21:    func make(str : native_string_t) {
 lang/libs/std/src/os_string.ch:29:    func make2(utf8 : &std::string) {
 lang/libs/std/src/os_string.ch:42:    func from_utf8(utf8 : &std::string) : OsString { return OsString(utf8); }
@@ -432,24 +435,25 @@ lang/libs/std/src/panic.ch:11:public func __chc_panic(message : *char, file : *c
 lang/libs/std/src/panic.ch:14:public func raw_panic(message : *char, location : Location) {
 lang/libs/std/src/panic.ch:4:public struct Location {
 lang/libs/std/src/phantom.ch:18:public struct PhantomData<T> {}
-lang/libs/std/src/rc.ch:107:    public func try_unwrap(&mut self) : Option<T> {
+lang/libs/std/src/rc.ch:102:    public func get_mut(&mut self) : Option<&mut T> {
 lang/libs/std/src/rc.ch:10:public struct RcInner<T> {
-lang/libs/std/src/rc.ch:129:public struct Weak<T> {
-lang/libs/std/src/rc.ch:134:    func delete(&mut self) {
-lang/libs/std/src/rc.ch:147:    public func upgrade(&self) : Option<Rc<T>> {
-lang/libs/std/src/rc.ch:164:    public func strong_count(&self) : size_t {
-lang/libs/std/src/rc.ch:171:    public func weak_count(&self) : size_t {
-lang/libs/std/src/rc.ch:188:public func <T> rc(value : T) : Rc<T> {
-lang/libs/std/src/rc.ch:197:public unsafe func <T> rc_unchecked(inner : *mut RcInner<T>) : Rc<T> {
-lang/libs/std/src/rc.ch:203:public unsafe func <T> weak_unchecked(inner : *mut RcInner<T>) : Weak<T> {
+lang/libs/std/src/rc.ch:111:    public func try_unwrap(&mut self) : Option<T> {
+lang/libs/std/src/rc.ch:133:public struct Weak<T> {
+lang/libs/std/src/rc.ch:138:    func delete(&mut self) {
+lang/libs/std/src/rc.ch:151:    public func upgrade(&self) : Option<Rc<T>> {
+lang/libs/std/src/rc.ch:168:    public func strong_count(&self) : size_t {
+lang/libs/std/src/rc.ch:175:    public func weak_count(&self) : size_t {
+lang/libs/std/src/rc.ch:192:public func <T> rc(value : T) : Rc<T> {
+lang/libs/std/src/rc.ch:201:public unsafe func <T> rc_unchecked(inner : *mut RcInner<T>) : Rc<T> {
+lang/libs/std/src/rc.ch:207:public unsafe func <T> weak_unchecked(inner : *mut RcInner<T>) : Weak<T> {
 lang/libs/std/src/rc.ch:23:public struct Rc<T> {
-lang/libs/std/src/rc.ch:30:    func delete(&mut self) {
-lang/libs/std/src/rc.ch:46:    public func clone(&self) : Rc<T> {
-lang/libs/std/src/rc.ch:62:    public func downgrade(&self) : Weak<T> {
-lang/libs/std/src/rc.ch:76:    public func get(&self) : &T {
-lang/libs/std/src/rc.ch:83:    public func strong_count(&self) : size_t {
-lang/libs/std/src/rc.ch:90:    public func weak_count(&self) : size_t {
-lang/libs/std/src/rc.ch:98:    public func get_mut(&mut self) : Option<&mut T> {
+lang/libs/std/src/rc.ch:29:    public func new(value : T) : Rc<T> {
+lang/libs/std/src/rc.ch:34:    func delete(&mut self) {
+lang/libs/std/src/rc.ch:50:    public func clone(&self) : Rc<T> {
+lang/libs/std/src/rc.ch:66:    public func downgrade(&self) : Weak<T> {
+lang/libs/std/src/rc.ch:80:    public func get(&self) : &T {
+lang/libs/std/src/rc.ch:87:    public func strong_count(&self) : size_t {
+lang/libs/std/src/rc.ch:94:    public func weak_count(&self) : size_t {
 lang/libs/std/src/recursive_mutex.ch:14:        func delete(&mut self) {
 lang/libs/std/src/recursive_mutex.ch:2:    public struct recursive_lock_guard {
 lang/libs/std/src/recursive_mutex.ch:6:        func constructor(mtx : &mut recursive_mutex) {
@@ -595,11 +599,12 @@ lang/libs/std/src/std.ch:23:public func exit(code : int)
 lang/libs/std/src/std.ch:24:public func quick_exit(code : int)
 lang/libs/std/src/str.ch:103:    func size(&self) : size_t {
 lang/libs/std/src/str.ch:107:    func empty(&self) : bool {
-lang/libs/std/src/str.ch:111:    func get(&self, index : size_t) : char {
-lang/libs/std/src/str.ch:115:    func to_view(&self) : std::string_view {
-lang/libs/std/src/str.ch:119:    func subview(&self, start : size_t, end : size_t) : str {
-lang/libs/std/src/str.ch:123:    func starts_with(&self, other : &std::str) : bool {
-lang/libs/std/src/str.ch:127:    func ends_with(&self, other : &std::str) : bool {
+lang/libs/std/src/str.ch:111:    func get_opt(&self, index : size_t) : std::Option<char> {
+lang/libs/std/src/str.ch:115:    func get(&self, index : size_t) : char {
+lang/libs/std/src/str.ch:119:    func to_view(&self) : std::string_view {
+lang/libs/std/src/str.ch:123:    func subview(&self, start : size_t, end : size_t) : str {
+lang/libs/std/src/str.ch:127:    func starts_with(&self, other : &std::str) : bool {
+lang/libs/std/src/str.ch:131:    func ends_with(&self, other : &std::str) : bool {
 lang/libs/std/src/str.ch:60:public func try_from_utf8(view : std::string_view) : std::Result<std::str, std::string_view> {
 lang/libs/std/src/str.ch:71:public struct str {
 lang/libs/std/src/str.ch:76:    func make(value : %literal_string) : str {
@@ -696,42 +701,45 @@ lang/libs/std/src/string.ch:938:    unsafe func writeStr(&mut self, value : *cha
 lang/libs/std/src/string.ch:942:    unsafe func writeStrNoLen(&mut self, value : *char) {
 lang/libs/std/src/string.ch:946:    func writeFloat(&mut self, value : float) {
 lang/libs/std/src/string.ch:950:    func writeDouble(&mut self, value : double) {
-lang/libs/std/src/string_view.ch:102:        func ends_with(&self, other : &std::string_view) : bool {
-lang/libs/std/src/string_view.ch:108:        func starts_with(&self, other : &std::string_view) : bool {
-lang/libs/std/src/string_view.ch:113:        func trim(&self) : 'self std::string_view {
-lang/libs/std/src/string_view.ch:122:        func to_i8(&self) : std::Result<i8, std::string_view> {
-lang/libs/std/src/string_view.ch:131:        func to_i16(&self) : std::Result<i16, std::string_view> {
-lang/libs/std/src/string_view.ch:140:        func to_i32(&self) : std::Result<i32, std::string_view> {
-lang/libs/std/src/string_view.ch:149:        func to_i64(&self) : std::Result<i64, std::string_view> {
-lang/libs/std/src/string_view.ch:184:        func to_u8(&self) : std::Result<u8, std::string_view> {
+lang/libs/std/src/string_view.ch:101:        func find_last(&self, needle : &std::string_view) : size_t {
+lang/libs/std/src/string_view.ch:105:        func contains(&self, needle : &std::string_view) : bool {
+lang/libs/std/src/string_view.ch:109:        func ends_with(&self, other : &std::string_view) : bool {
+lang/libs/std/src/string_view.ch:115:        func starts_with(&self, other : &std::string_view) : bool {
+lang/libs/std/src/string_view.ch:120:        func trim(&self) : 'self std::string_view {
+lang/libs/std/src/string_view.ch:129:        func to_i8(&self) : std::Result<i8, std::string_view> {
+lang/libs/std/src/string_view.ch:138:        func to_i16(&self) : std::Result<i16, std::string_view> {
+lang/libs/std/src/string_view.ch:147:        func to_i32(&self) : std::Result<i32, std::string_view> {
+lang/libs/std/src/string_view.ch:156:        func to_i64(&self) : std::Result<i64, std::string_view> {
 lang/libs/std/src/string_view.ch:18:        func empty_make() {
-lang/libs/std/src/string_view.ch:193:        func to_u16(&self) : std::Result<u16, std::string_view> {
-lang/libs/std/src/string_view.ch:202:        func to_u32(&self) : std::Result<u32, std::string_view> {
-lang/libs/std/src/string_view.ch:211:        func to_u64(&self) : std::Result<u64, std::string_view> {
-lang/libs/std/src/string_view.ch:235:        func to_int(&self) : std::Result<int, std::string_view> {
-lang/libs/std/src/string_view.ch:241:        func to_uint(&self) : std::Result<uint, std::string_view> {
-lang/libs/std/src/string_view.ch:248:        func to_float(&self) : std::Result<float, std::string_view> {
-lang/libs/std/src/string_view.ch:267:        func to_double(&self) : std::Result<double, std::string_view> {
+lang/libs/std/src/string_view.ch:191:        func to_u8(&self) : std::Result<u8, std::string_view> {
+lang/libs/std/src/string_view.ch:200:        func to_u16(&self) : std::Result<u16, std::string_view> {
+lang/libs/std/src/string_view.ch:209:        func to_u32(&self) : std::Result<u32, std::string_view> {
+lang/libs/std/src/string_view.ch:218:        func to_u64(&self) : std::Result<u64, std::string_view> {
+lang/libs/std/src/string_view.ch:242:        func to_int(&self) : std::Result<int, std::string_view> {
+lang/libs/std/src/string_view.ch:248:        func to_uint(&self) : std::Result<uint, std::string_view> {
+lang/libs/std/src/string_view.ch:255:        func to_float(&self) : std::Result<float, std::string_view> {
 lang/libs/std/src/string_view.ch:26:        unsafe func constructor(value : *char, length : size_t) {
-lang/libs/std/src/string_view.ch:290:        func split(&self, delim : char) : std::vector<std::string> {
-lang/libs/std/src/string_view.ch:305:        unsafe func split_views(&self, delim : char) : std::vector<std::string_view> {
-lang/libs/std/src/string_view.ch:320:        func to_string(&self) : std::string {
-lang/libs/std/src/string_view.ch:327:        func stream(&self, s : &mut StringStream) {
-lang/libs/std/src/string_view.ch:334:        func hash(&self) : uint {
-lang/libs/std/src/string_view.ch:340:        func equals(&self, other : &std::string_view) : bool {
+lang/libs/std/src/string_view.ch:274:        func to_double(&self) : std::Result<double, std::string_view> {
+lang/libs/std/src/string_view.ch:297:        func split(&self, delim : char) : std::vector<std::string> {
+lang/libs/std/src/string_view.ch:312:        unsafe func split_views(&self, delim : char) : std::vector<std::string_view> {
+lang/libs/std/src/string_view.ch:327:        func to_string(&self) : std::string {
+lang/libs/std/src/string_view.ch:334:        func stream(&self, s : &mut StringStream) {
+lang/libs/std/src/string_view.ch:341:        func hash(&self) : uint {
+lang/libs/std/src/string_view.ch:348:        func equals_view(&self, other : &std::string_view) : bool {
 lang/libs/std/src/string_view.ch:34:        unsafe func ref_make(value : &char, length : size_t) {
+lang/libs/std/src/string_view.ch:352:        func equals_with_len(&self, data : *char, len : size_t) : bool {
+lang/libs/std/src/string_view.ch:357:        func equals(&self, other : &std::string_view) : bool {
 lang/libs/std/src/string_view.ch:42:        func make_view(str : &std::string) {
 lang/libs/std/src/string_view.ch:50:        unsafe func make_no_len(value : *char) {
 lang/libs/std/src/string_view.ch:57:        func data(&self) : *char {
 lang/libs/std/src/string_view.ch:5:    public struct string_view 'a {
 lang/libs/std/src/string_view.ch:61:        func size(&self) : size_t {
 lang/libs/std/src/string_view.ch:65:        func empty(&self) : bool {
-lang/libs/std/src/string_view.ch:69:        func get(&self, index : size_t) : char { unsafe {
-lang/libs/std/src/string_view.ch:76:        func subview(&self, start : size_t, end : size_t) : 'self std::string_view {
-lang/libs/std/src/string_view.ch:83:        func skip(&self, count : size_t) : 'self std::string_view {
-lang/libs/std/src/string_view.ch:90:        func find(&self, needle : &std::string_view) : size_t {
-lang/libs/std/src/string_view.ch:94:        func find_last(&self, needle : &std::string_view) : size_t {
-lang/libs/std/src/string_view.ch:98:        func contains(&self, needle : &std::string_view) : bool {
+lang/libs/std/src/string_view.ch:69:        func get_opt(&self, index : size_t) : std::Option<char> { unsafe {
+lang/libs/std/src/string_view.ch:76:        func get(&self, index : size_t) : char { unsafe {
+lang/libs/std/src/string_view.ch:83:        func subview(&self, start : size_t, end : size_t) : 'self std::string_view {
+lang/libs/std/src/string_view.ch:90:        func skip(&self, count : size_t) : 'self std::string_view {
+lang/libs/std/src/string_view.ch:97:        func find(&self, needle : &std::string_view) : size_t {
 lang/libs/std/src/time/types.ch:104:            public func equals(&self, other : &Duration) : bool {
 lang/libs/std/src/time/types.ch:108:            public func cmp(&self, other : &Duration) : int {
 lang/libs/std/src/time/types.ch:118:            public func add(&self, other : &Duration) : Duration {
@@ -851,46 +859,49 @@ lang/libs/std/src/utils.ch:10:public func <T> swap(a : &mut T, b : &mut T) {
 lang/libs/std/src/utils.ch:16:func internal_view_find(me : &std::string_view, needle : &std::string_view) : size_t {
 lang/libs/std/src/utils.ch:5:public func <T> replace(value : &mut T, repl : T) : T {
 lang/libs/std/src/utils.ch:85:func internal_view_find_last(me : &std::string_view, needle : &std::string_view) : size_t {
-lang/libs/std/src/vector.ch:116:    func try_reserve(&mut self, new_cap : size_t) : bool {
 lang/libs/std/src/vector.ch:11:public func __vector_nonempty_check(size : size_t) {
-lang/libs/std/src/vector.ch:142:    func reserve(&mut self, new_cap : size_t) {
-lang/libs/std/src/vector.ch:148:    func try_ensure_capacity_for_one_more(&mut self) : bool {
-lang/libs/std/src/vector.ch:158:    func ensure_capacity_for_one_more(&mut self) {
-lang/libs/std/src/vector.ch:164:    func try_push(&mut self, value : T) : bool {
-lang/libs/std/src/vector.ch:177:    func push(&mut self, value : T) {
+lang/libs/std/src/vector.ch:128:    func try_reserve(&mut self, new_cap : size_t) : bool {
+lang/libs/std/src/vector.ch:154:    func reserve(&mut self, new_cap : size_t) {
+lang/libs/std/src/vector.ch:160:    func try_ensure_capacity_for_one_more(&mut self) : bool {
+lang/libs/std/src/vector.ch:170:    func ensure_capacity_for_one_more(&mut self) {
+lang/libs/std/src/vector.ch:176:    func try_push(&mut self, value : T) : bool {
 lang/libs/std/src/vector.ch:17:public struct vector<T> {
-lang/libs/std/src/vector.ch:183:    func push_back(&mut self, value : T) {
-lang/libs/std/src/vector.ch:187:    func get(&self, index : size_t) : T where T : Copy {
-lang/libs/std/src/vector.ch:192:    func get_ptr(&self, index : size_t) : *mut T {
-lang/libs/std/src/vector.ch:197:    func get_opt(&self, index : size_t) : Option<&T> {
-lang/libs/std/src/vector.ch:202:    func get_mut_opt(&mut self, index : size_t) : Option<&mut T> {
-lang/libs/std/src/vector.ch:207:    func try_set(&mut self, index : size_t, value : T) : bool {
-lang/libs/std/src/vector.ch:213:    func try_pop(&mut self) : Option<T> {
-lang/libs/std/src/vector.ch:224:    func get_ref(&self, index : size_t) : &T {
-lang/libs/std/src/vector.ch:229:    func get_mut(&mut self, index : size_t) : &mut T {
-lang/libs/std/src/vector.ch:234:    func set(&mut self, index : size_t, value : T) {
-lang/libs/std/src/vector.ch:243:    func size(&self) : size_t {
-lang/libs/std/src/vector.ch:247:    func capacity(&self) : size_t {
-lang/libs/std/src/vector.ch:251:    func data(&self) : *T {
-lang/libs/std/src/vector.ch:255:    func mutable_data(&mut self) : *mut T {
-lang/libs/std/src/vector.ch:259:    func last_ptr(&self) : *mut T {
-lang/libs/std/src/vector.ch:264:    func remove(&mut self, index : size_t) {
+lang/libs/std/src/vector.ch:189:    func push(&mut self, value : T) {
+lang/libs/std/src/vector.ch:195:    func push_back(&mut self, value : T) {
+lang/libs/std/src/vector.ch:199:    func get(&self, index : size_t) : T where T : Copy {
+lang/libs/std/src/vector.ch:204:    func get_ptr(&self, index : size_t) : *mut T {
+lang/libs/std/src/vector.ch:209:    func get_opt(&self, index : size_t) : Option<&T> {
+lang/libs/std/src/vector.ch:214:    func get_mut_opt(&mut self, index : size_t) : Option<&mut T> {
+lang/libs/std/src/vector.ch:219:    func try_set(&mut self, index : size_t, value : T) : bool {
+lang/libs/std/src/vector.ch:225:    func pop(&mut self) : Option<T> {
+lang/libs/std/src/vector.ch:229:    func try_pop(&mut self) : Option<T> {
+lang/libs/std/src/vector.ch:240:    func get_ref(&self, index : size_t) : &T {
+lang/libs/std/src/vector.ch:245:    func get_mut(&mut self, index : size_t) : &mut T {
+lang/libs/std/src/vector.ch:250:    func set(&mut self, index : size_t, value : T) {
+lang/libs/std/src/vector.ch:259:    func size(&self) : size_t {
+lang/libs/std/src/vector.ch:263:    func capacity(&self) : size_t {
+lang/libs/std/src/vector.ch:267:    func data(&self) : *T {
 lang/libs/std/src/vector.ch:26:    func make() {
-lang/libs/std/src/vector.ch:277:    func erase(&mut self, index : size_t) {
-lang/libs/std/src/vector.ch:281:    func remove_last(&mut self) {
-lang/libs/std/src/vector.ch:290:    func pop_back(&mut self) {
-lang/libs/std/src/vector.ch:294:    func take_last(&mut self) : T {
-lang/libs/std/src/vector.ch:304:    func empty(&self) : bool {
-lang/libs/std/src/vector.ch:308:    func clear(&mut self) {
-lang/libs/std/src/vector.ch:317:    unsafe func set_len(&mut self, new_size : size_t) {
-lang/libs/std/src/vector.ch:322:    func delete(&mut self) {
-lang/libs/std/src/vector.ch:332:        func data(&self) : *T {
-lang/libs/std/src/vector.ch:335:        func size(&self) : size_t {
-lang/libs/std/src/vector.ch:342:func <T : core::ops::Clone> __vector_clone_value(value : *T) : T {
-lang/libs/std/src/vector.ch:353:    public func clone(&self) : vector<T> {
-lang/libs/std/src/vector.ch:44:    func make_with_capacity(init_cap : size_t) {
+lang/libs/std/src/vector.ch:271:    func mutable_data(&mut self) : *mut T {
+lang/libs/std/src/vector.ch:275:    func last_ptr(&self) : *mut T {
+lang/libs/std/src/vector.ch:280:    func remove(&mut self, index : size_t) {
+lang/libs/std/src/vector.ch:293:    func erase(&mut self, index : size_t) {
+lang/libs/std/src/vector.ch:297:    func remove_last(&mut self) {
+lang/libs/std/src/vector.ch:306:    func pop_back(&mut self) {
+lang/libs/std/src/vector.ch:310:    func take_last(&mut self) : T {
+lang/libs/std/src/vector.ch:320:    func empty(&self) : bool {
+lang/libs/std/src/vector.ch:324:    func clear(&mut self) {
+lang/libs/std/src/vector.ch:333:    unsafe func set_len(&mut self, new_size : size_t) {
+lang/libs/std/src/vector.ch:338:    func delete(&mut self) {
+lang/libs/std/src/vector.ch:348:        func data(&self) : *T {
+lang/libs/std/src/vector.ch:351:        func size(&self) : size_t {
+lang/libs/std/src/vector.ch:358:func <T : core::ops::Clone> __vector_clone_value(value : *T) : T {
+lang/libs/std/src/vector.ch:369:    public func clone(&self) : vector<T> {
+lang/libs/std/src/vector.ch:43:    public func with_capacity(init_cap : size_t) : vector<T> {
+lang/libs/std/src/vector.ch:47:    public func try_with_capacity(init_cap : size_t) : std::Result<vector<T>, std::alloc::AllocError> {
 lang/libs/std/src/vector.ch:4:public func __vector_bounds_check(index : size_t, size : size_t) {
-lang/libs/std/src/vector.ch:71:    func resize(&mut self, new_size : size_t) where T: Zeroable {
+lang/libs/std/src/vector.ch:56:    func make_with_capacity(init_cap : size_t) {
+lang/libs/std/src/vector.ch:83:    func resize(&mut self, new_size : size_t) where T: Zeroable {
 lang/libs/std/win/condvar.ch:14:public func WakeAllConditionVariable(cond : *mut u8) : void
 lang/libs/std/win/condvar.ch:20:public func SleepConditionVariableSRW(cond : *mut u8, srw : *mut u8, ms : ulong, flags : ulong) : int
 lang/libs/std/win/condvar.ch:28:    public struct CondVar {

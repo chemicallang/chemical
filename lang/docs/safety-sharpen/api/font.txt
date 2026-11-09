@@ -3,8 +3,8 @@
 
 lang/libs/font/src/safe.ch:13:public struct FontMetrics {
 lang/libs/font/src/safe.ch:23:func font_safe_from_path(path : &path::Path) : Result<Font, FontError> {
-lang/libs/font/src/safe.ch:33:func font_safe_load(data : *u8, len : size_t) : Result<Font, FontError> {
-lang/libs/font/src/safe.ch:54:func font_safe_metrics(f : &Font, font_size : float) : FontMetrics {
+lang/libs/font/src/safe.ch:32:func font_safe_load(data : *u8, len : size_t) : Result<Font, FontError> {
+lang/libs/font/src/safe.ch:53:func font_safe_metrics(f : &Font, font_size : float) : FontMetrics {
 lang/libs/font/src/ttf.ch:109:    func metrics(&self, font_size : float) : FontMetrics {
 lang/libs/font/src/ttf.ch:113:    func line_height(&self) : i32 {
 lang/libs/font/src/ttf.ch:118:    func measure_text(&self, text : &str, font_size : float) : TextMetrics {
@@ -32,8 +32,10 @@ lang/libs/font/src/ttf.ch:460:public func font_get_glyph_outline(font : *mut Fon
 lang/libs/font/src/ttf.ch:54:    func make() : Font {
 lang/libs/font/src/ttf.ch:618:public func font_get_glyph(font : *mut Font, codepoint : u32) : std::Result<u16, FontError> {
 lang/libs/font/src/ttf.ch:630:public struct TextMetrics {
-lang/libs/font/src/ttf.ch:637:public func font_measure_text(font : *mut Font, text : *char, text_len : size_t, font_size : float) : TextMetrics {
+lang/libs/font/src/ttf.ch:639:func font_utf8_advance(data : *char, len : size_t, pos : size_t) : size_t {
+lang/libs/font/src/ttf.ch:663:func font_utf8_codepoint(data : *char, len : size_t, pos : size_t) : u32 {
 lang/libs/font/src/ttf.ch:69:    func load(data : &[u8]) : std::Result<Font, FontError> {
+lang/libs/font/src/ttf.ch:701:public func font_measure_text(font : *mut Font, text : *char, text_len : size_t, font_size : float) : TextMetrics {
 lang/libs/font/src/ttf.ch:74:    func from_path(path : &path::Path) : std::Result<Font, FontError> {
 lang/libs/font/src/ttf.ch:80:    public func is_loaded(&self) : bool { return self.loaded }
 lang/libs/font/src/ttf.ch:81:    public func em_size(&self) : u16 { return self.units_per_em }

@@ -13,14 +13,20 @@ public variant Option<T> {
     }
 
     func take_or_none(&mut self) : Option<T> {
+        return take()
+    }
+
+    // Safe extraction: `None` remains `None` instead of panicking.
+    func take(&mut self) : Option<T> {
         if(self is Option.None) {
             return Option.None<T>()
         }
-        var value = self.take()
+        var value = self.take_unchecked()
         return Option.Some<T>(value)
     }
 
-    func take(&mut self) : T {
+    // Explicit panicking form for callers that already checked `is_some`.
+    func take_unchecked(&mut self) : T {
         if(self is Option.None) {
             panic("cannot take on a option that's none")
         }

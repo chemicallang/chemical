@@ -610,7 +610,7 @@ func neg_future_handle_box_borrow_escape(env : &mut TestEnv) {
 @test
 func neg_future_handle_option_take_escape(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\npublic func main() : int {\n    var out : core::async::FutureHandle<int>\n    {\n        var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n        var opt = std::Option.Some<core::async::FutureHandle<int>>(work(&s))\n        out = opt.take()\n    }\n    return 0\n}\n"
+    var ch = "async func work(x : &std::string) : int {\n    var u = await async::yield_now()\n    return x.get(0) as int\n}\npublic func main() : int {\n    var out : core::async::FutureHandle<int>\n    {\n        var s = std::string(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\")\n        var opt = std::Option.Some<core::async::FutureHandle<int>>(work(&s))\n        out = opt.take_unchecked()\n    }\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "future_option_take_escape", ch, "SAFE-LIFE-002", NEG_MOD_ASYNC_STD)
 }
 

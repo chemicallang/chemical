@@ -714,7 +714,7 @@ public func <T> blocking_poll(frame : *mut void, cx : *mut core::async::Context)
             st.m.unlock()
             return core::async::Poll.Pending<T>()
         }
-        var taken = st.value.take()
+        var taken = st.value.take_unchecked()
         st.ready = false
         st.consumed = true
         st.m.unlock()

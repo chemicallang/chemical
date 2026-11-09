@@ -176,7 +176,7 @@ public namespace std {
                     var pp = p
                     // `ready` guarantees the slot is `Some`; `take` moves the
                     // result out and leaves `None` for the promise destructor.
-                    var value = pp.val.take()
+                    var value = pp.val.take_unchecked()
                     delete p;
                     p=null;
                     return value
@@ -647,7 +647,7 @@ public namespace std {
                 if(result == null) {
                     panic("thread result is already taken")
                 }
-                var out = unsafe((*result).value.take())
+                var out = unsafe((*result).value.take_unchecked())
                 unsafe { delete result }
                 result = null
                 return out

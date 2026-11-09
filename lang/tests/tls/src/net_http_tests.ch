@@ -425,7 +425,7 @@ func test_http_patch_head(env : &mut TestEnv) {
     if(res_patch is Result.Ok) {
         var Ok(r) = res_patch else unsafe { unreachable };
         var str = r.body.read_to_string_opt()
-        var b = str.take();
+        var b = str.take_unchecked();
         if(!b.equals_view("patched")) env.error("PATCH mismatch");
     } else {
         env.error("PATCH failed");
@@ -723,7 +723,7 @@ func test_router_static_routes(env : &mut TestEnv) {
     if(r1 is Result.Ok) {
         var Ok(resp) = r1 else unsafe { unreachable };
         var str = resp.body.read_to_string_opt()
-        var body = str.take();
+        var body = str.take_unchecked();
         if(!body.equals_view("users")) { env.error("Users route mismatch"); }
     } else { env.error("Users route failed"); }
 
@@ -731,7 +731,7 @@ func test_router_static_routes(env : &mut TestEnv) {
     if(r2 is Result.Ok) {
         var Ok(resp) = r2 else unsafe { unreachable };
         var str = resp.body.read_to_string_opt()
-        var body = str.take();
+        var body = str.take_unchecked();
         if(!body.equals_view("posts")) { env.error("Posts route mismatch"); }
     } else { env.error("Posts route failed"); }
 
@@ -739,7 +739,7 @@ func test_router_static_routes(env : &mut TestEnv) {
     if(r3 is Result.Ok) {
         var Ok(resp) = r3 else unsafe { unreachable };
         var str = resp.body.read_to_string_opt()
-        var body = str.take();
+        var body = str.take_unchecked();
         if(!body.equals_view("created")) { env.error("POST users mismatch"); }
     } else { env.error("POST users failed"); }
 

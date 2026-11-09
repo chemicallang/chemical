@@ -90,7 +90,7 @@ public func <T> decode_str(text : std::string_view) : std::Result<T, std::Serial
     }
     // Option.take moves the parsed JsonValue out (opt -> None), giving an owned
     // value that stays alive for the decode call below
-    var value = opt.take()
+    var value = opt.take_unchecked()
     var d = JsonDecoder { value : &value }
     return d.decode<T>()
 }

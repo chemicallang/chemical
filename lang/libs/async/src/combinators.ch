@@ -124,7 +124,7 @@ public func <T> timeout_or_poll(frame : *mut void, cx : *mut core::async::Contex
             return core::async::Poll.Ready<T>(v)
         }
         if(std::now_milli() - st.start_ms >= st.millis) {
-            var fb = st.fallback.take()
+            var fb = st.fallback.take_unchecked()
             return core::async::Poll.Ready<T>(fb)
         }
         return core::async::Poll.Pending<T>()

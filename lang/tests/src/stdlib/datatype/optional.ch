@@ -37,16 +37,25 @@ func test_optional_type() { unsafe {
         var o = get_optional_int(false);
         return get_opt_value(o) == -1
     })
+    test("safe take returns Option and leaves None", () => {
+        var o = Option.Some<int>(7)
+        var taken = o.take()
+        if(taken is Option.None) { return false }
+        if(o !is Option.None) { return false }
+        var empty = Option.None<int>()
+        return empty.take() is Option.None
+    })
+
     test("taking the option works - 1", () => {
         var o = get_optional_int(true)
-        var result = o.take()
+        var result = o.take_unchecked()
         return result == 32 && o is Option.None
     })
     test("taking the option destructs once only", () => {
         var counter = 0
         if(counter == 0) {
             var o = Option.Some<Deletable>(Deletable { counter : &raw mut counter })
-            var taken = o.take()
+            var taken = o.take_unchecked()
             if(o !is Option.None) {
                 return false;
             }
@@ -62,7 +71,7 @@ func test_optional_type() { unsafe {
         }
         if(counter != 0) return false;
         if(counter == 0) {
-            var taken = s.take()
+            var taken = s.take_unchecked()
             // destructs here
         }
         if(counter != 1) return false;

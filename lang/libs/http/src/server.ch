@@ -277,7 +277,7 @@ public struct Server {
                          if (req_opt is Option.None) {
                              net::raw::close_socket(s); free(ctx.buffer.buf); delete ctx; return;
                          }
-                         var req = req_opt.take();
+                         var req = req_opt.take_unchecked();
                          var body_len: isize = 0;
                          var chunked = false;
                          if(req.body_len > 0u) { body_len = req.body_len as isize; }

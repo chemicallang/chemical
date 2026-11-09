@@ -88,7 +88,7 @@ func read_request_head(transport : &mut Transport, buf : *mut net::Buffer,
             var ptr = buf.as_ptr()
             var req_opt = parse_request_from_bytes(ptr, end)
             if(req_opt is Option.Some) {
-                var req_value = req_opt.take()
+                var req_value = req_opt.take_unchecked()
                 buf.consume(end)
                 var box = malloc(sizeof(Request)) as *mut Request
                 if(box == null) {

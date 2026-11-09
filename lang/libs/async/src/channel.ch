@@ -357,7 +357,7 @@ public func <T> recv_poll(frame : *mut void, cx : *mut core::async::Context) : c
         }
         s.m.lock()
         if(s.closed) {
-            var fb = st.fallback.take()
+            var fb = st.fallback.take_unchecked()
             s.m.unlock()
             return core::async::Poll.Ready<T>(fb)
         }

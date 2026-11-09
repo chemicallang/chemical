@@ -12,27 +12,42 @@ public namespace core {
 
     impl !Unpin for PhantomPinned { }
 
-    public func <T> pin(ptr : &mut T) : Pin<T> where T : Unpin {
-        return Pin<T> { ptr : unsafe(ptr as *mut T) }
+    public func <'a, T> pin(ptr : &'a mut T) : Pin<'a, T> where T : Unpin {
+        return Pin<'a, T> {
+            ptr : unsafe(ptr as *mut T),
+            owner : unsafe(&*ptr)
+        }
     }
 
-    public unsafe func <T> pin_unchecked(ptr : *mut T) : Pin<T> {
-        return Pin<T> { ptr : ptr }
+    public unsafe func <T> pin_unchecked(ptr : *mut T) : Pin<'static, T> {
+        var value = Pin<'static, T> {
+            ptr : ptr,
+            owner : unsafe(&*ptr)
+        }
+        return value
     }
 
     @direct_init
-    public struct Pin<T> {
+    public struct Pin<'a, T> {
 
         internal var ptr : *mut T
+        internal var owner : &'a T
 
         // A raw pointer does not prove that the pointee is pinned, live or
         // aligned; callers must take an explicit unsafe boundary.
-        public unsafe func from_raw(ptr : *mut T) : Pin<T> {
-            return Pin<T> { ptr : ptr }
+        public unsafe func from_raw(ptr : *mut T) : Pin<'static, T> {
+            var value = Pin<'static, T> {
+                ptr : ptr,
+                owner : unsafe(&*ptr)
+            }
+            return value
         }
 
-        public func new(ptr : &mut T) : Pin<T> where T : Unpin {
-            return Pin<T> { ptr : unsafe(ptr as *mut T) }
+        public func <'b> new(ptr : &'b mut T) : Pin<'b, T> where T : Unpin {
+            return Pin<'b, T> {
+                ptr : unsafe(ptr as *mut T),
+                owner : unsafe(&*ptr)
+            }
         }
 
         public func get_ref(&self) : &T {

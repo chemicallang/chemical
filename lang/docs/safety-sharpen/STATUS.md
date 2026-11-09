@@ -78,14 +78,11 @@ Status values: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked.
   private reporter/executor state, safe compiler arena allocation, and
   `async` channel error types.
 
-**Remaining std blocker:** `span<'a, T>` / `mut_span<'a, T>` and `CStr<'a>` now
-carry and enforce their borrow lifetime (`0ea3998cf`, `63188b8bc`), and the
-vector-to-span constructor is retained so MIR view escape checks fire
-(`60ff5ece7`). `str<'a>` is still pending: the first lifetime-carrying attempt
-exposed a C backend/generic-instantiation failure in the `lab` build script
-(`Result` instantiation mismatch / compiler segfault), so it is reverted and
-remains the one unfrozen std view. The existing `string_view`/`&[T]` checks
-remain enforced.
+**Std view lifetime status:** `span<'a, T>` / `mut_span<'a, T>` (`0ea3998cf`),
+`CStr<'a>` (`63188b8bc`), and the postfix-lifetime `str 'a` (`c8df07c17`) now
+carry their borrow lifetime. The vector-to-span constructor is retained so MIR
+view escape checks fire (`60ff5ece7`). Static-lifetime escapes are rejected for
+all three shapes, and the TCC/LLVM suites are green.
 
 ## Phase 1 notes
 

@@ -153,6 +153,13 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
         }
     }
 
+    /** Safe lookup: missing keys return `None` instead of a null pointer. */
+    public func get(&self, key : &Key) : Option<&Value> {
+        const ptr = get_ptr(key)
+        if(ptr == null) { return Option.None<&Value>() }
+        return Option.Some<&Value>(unsafe(&*ptr))
+    }
+
     // `find` copies the stored value into the caller slot. Restrict it to
     // Copy values: a bitwise copy of an owning value would be destroyed twice.
     func find(&self, key : &Key, value : &mut Value) : bool where Value : Copy {

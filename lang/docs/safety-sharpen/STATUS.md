@@ -89,6 +89,14 @@ instead of lowering to an opaque local. `Option::take` is the non-panicking
 Static-lifetime escapes are rejected for all view shapes; TCC/LLVM main, libs,
 negative, safety, async, and web suites are green.
 
+**Container accessor names (frozen):** `vector`, `string`, `str`, and
+`string_view` keep the checked, panicking `get`; non-panicking access is
+`get_opt` (and `vector::get_mut_opt` for mutable element views). `vector`
+additionally exposes `get_ptr` for raw address access, while maps expose
+`get_ptr` for mutable lookup and now `get(key) : Option<&Value>` for safe
+immutable lookup. `find` remains the Copy-value out-parameter form. These names
+and signatures are the release surface; later additions must not rename them.
+
 **`vector::as_span`:** the canonical methods are now provided by the generic
 `SpanView<T>` interface impl (`as_span`/`as_mut_span`). A trait impl is
 instantiated only when called; putting the same methods directly on

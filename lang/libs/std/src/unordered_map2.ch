@@ -168,6 +168,13 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
         }
     }
 
+    /** Safe lookup: missing keys return `None` instead of a null pointer. */
+    public func get(&self, key : &Key) : Option<&Value> {
+        const ptr = get_ptr(key)
+        if(ptr == null) { return Option.None<&Value>() }
+        return Option.Some<&Value>(unsafe(&*ptr))
+    }
+
     // The node address is stable across later inserts/resizes; callers may keep
     // the returned key pointer for the map's lifetime. Used by page-owned
     // parameter storage, which needs a key view that outlives the caller.

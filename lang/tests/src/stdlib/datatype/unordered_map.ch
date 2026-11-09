@@ -37,6 +37,16 @@ func test_unordered_map() {
             map.find(50, &mut fourth)
             return !map.contains(10) && first == 200 && second == 300 && third == 400 && fourth == 500
         })
+        test("unordered_map get is Option", () => {
+            var key = 1
+            var missing = 2
+            var map = std::unordered_map<int, int>()
+            map.insert(key, 10)
+            var found = map.get(&key)
+            if(found is Option.None) { return false }
+            var Some(value) = found else unsafe { unreachable }
+            return *value == 10 && map.get(&missing) is Option.None
+        })
         test("unordered_map works with integer keys - 2", () => {
             var map = std::unordered_map<int, int>()
             map.insert(10, 200)

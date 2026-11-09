@@ -382,30 +382,31 @@ lang/libs/std/src/option.ch:7:    func is_some(&self) : bool {
 lang/libs/std/src/ordered_map.ch:100:    func insert(&mut self, key : Key, value : Value) {
 lang/libs/std/src/ordered_map.ch:13:public struct ordered_map<Key : Hashable + Eq, Value> {
 lang/libs/std/src/ordered_map.ch:141:    func get_ptr(&self, key : &Key) : *mut Value {
-lang/libs/std/src/ordered_map.ch:158:    func find(&self, key : &Key, value : &mut Value) : bool where Value : Copy {
-lang/libs/std/src/ordered_map.ch:168:    func contains(&self, key : &Key) : bool {
-lang/libs/std/src/ordered_map.ch:172:    func erase(&mut self, key : &Key) : bool {
-lang/libs/std/src/ordered_map.ch:211:    func clear(&mut self) : void {
-lang/libs/std/src/ordered_map.ch:229:    func size(&self) : size_t {
+lang/libs/std/src/ordered_map.ch:157:    public func get(&self, key : &Key) : Option<&Value> {
+lang/libs/std/src/ordered_map.ch:165:    func find(&self, key : &Key, value : &mut Value) : bool where Value : Copy {
+lang/libs/std/src/ordered_map.ch:175:    func contains(&self, key : &Key) : bool {
+lang/libs/std/src/ordered_map.ch:179:    func erase(&mut self, key : &Key) : bool {
+lang/libs/std/src/ordered_map.ch:218:    func clear(&mut self) : void {
 lang/libs/std/src/ordered_map.ch:22:    func hash_now(&self, key : &Key) : size_t {
-lang/libs/std/src/ordered_map.ch:233:    func empty(&self) : bool {
-lang/libs/std/src/ordered_map.ch:237:    func isEmpty(&self) : bool {
-lang/libs/std/src/ordered_map.ch:241:    func iterator(&self) : ordered_map_iterator<Key, Value> {
-lang/libs/std/src/ordered_map.ch:249:        func begin(&self) : ordered_map_iterator<Key, Value> {
-lang/libs/std/src/ordered_map.ch:253:        func valid(&self, c : ordered_map_iterator<Key, Value>) : bool {
-lang/libs/std/src/ordered_map.ch:257:        func current(&self, c : ordered_map_iterator<Key, Value>) : &ordered_map_node<Key, Value> {
-lang/libs/std/src/ordered_map.ch:261:        func next(&self, c : ordered_map_iterator<Key, Value>) : ordered_map_iterator<Key, Value> {
+lang/libs/std/src/ordered_map.ch:236:    func size(&self) : size_t {
+lang/libs/std/src/ordered_map.ch:240:    func empty(&self) : bool {
+lang/libs/std/src/ordered_map.ch:244:    func isEmpty(&self) : bool {
+lang/libs/std/src/ordered_map.ch:248:    func iterator(&self) : ordered_map_iterator<Key, Value> {
+lang/libs/std/src/ordered_map.ch:256:        func begin(&self) : ordered_map_iterator<Key, Value> {
+lang/libs/std/src/ordered_map.ch:260:        func valid(&self, c : ordered_map_iterator<Key, Value>) : bool {
+lang/libs/std/src/ordered_map.ch:264:        func current(&self, c : ordered_map_iterator<Key, Value>) : &ordered_map_node<Key, Value> {
+lang/libs/std/src/ordered_map.ch:268:        func next(&self, c : ordered_map_iterator<Key, Value>) : ordered_map_iterator<Key, Value> {
 lang/libs/std/src/ordered_map.ch:26:    func hash_with_capacity(&self, key : &Key) : size_t {
-lang/libs/std/src/ordered_map.ch:270:        func rbegin(&self) : ordered_map_iterator<Key, Value> {
-lang/libs/std/src/ordered_map.ch:276:        func previous(&self, c : ordered_map_iterator<Key, Value>) : ordered_map_iterator<Key, Value> {
-lang/libs/std/src/ordered_map.ch:282:        func count(&self) : size_t {
-lang/libs/std/src/ordered_map.ch:289:public struct ordered_map_iterator<Key, Value> {
-lang/libs/std/src/ordered_map.ch:293:    func next(&mut self) {
-lang/libs/std/src/ordered_map.ch:298:    func prev(&mut self) {
-lang/libs/std/src/ordered_map.ch:303:    public func key(&self) : &Key {
-lang/libs/std/src/ordered_map.ch:306:    public func value(&self) : &Value {
-lang/libs/std/src/ordered_map.ch:309:    public func valid(&self) : bool {
+lang/libs/std/src/ordered_map.ch:277:        func rbegin(&self) : ordered_map_iterator<Key, Value> {
+lang/libs/std/src/ordered_map.ch:283:        func previous(&self, c : ordered_map_iterator<Key, Value>) : ordered_map_iterator<Key, Value> {
+lang/libs/std/src/ordered_map.ch:289:        func count(&self) : size_t {
+lang/libs/std/src/ordered_map.ch:296:public struct ordered_map_iterator<Key, Value> {
+lang/libs/std/src/ordered_map.ch:300:    func next(&mut self) {
+lang/libs/std/src/ordered_map.ch:305:    func prev(&mut self) {
 lang/libs/std/src/ordered_map.ch:30:    func compare_now(key : &Key, key2 : &Key) : bool {
+lang/libs/std/src/ordered_map.ch:310:    public func key(&self) : &Key {
+lang/libs/std/src/ordered_map.ch:313:    public func value(&self) : &Value {
+lang/libs/std/src/ordered_map.ch:316:    public func valid(&self) : bool {
 lang/libs/std/src/ordered_map.ch:34:    func resize(&mut self) : void {
 lang/libs/std/src/ordered_map.ch:3:public struct ordered_map_node<Key : Hashable + Eq, Value> {
 lang/libs/std/src/ordered_map.ch:69:    func make() {
@@ -828,32 +829,33 @@ lang/libs/std/src/unordered_map2.ch:101:    func delete(&self) {
 lang/libs/std/src/unordered_map2.ch:120:    func insert(&mut self, key : Key, value : Value) {
 lang/libs/std/src/unordered_map2.ch:156:    func get_ptr(&self, key : &Key) : *mut Value {
 lang/libs/std/src/unordered_map2.ch:15:public struct unordered_map<Key : Hashable + Eq, Value> {
-lang/libs/std/src/unordered_map2.ch:174:    func get_key_ptr(&self, key : &Key) : *mut Key {
-lang/libs/std/src/unordered_map2.ch:192:    func find(&self, key : &Key, value : &mut Value) : bool where Value : Copy {
-lang/libs/std/src/unordered_map2.ch:202:    func contains(&self, key : &Key) : bool {
-lang/libs/std/src/unordered_map2.ch:207:    func erase(&mut self, key : &Key) : bool {
+lang/libs/std/src/unordered_map2.ch:172:    public func get(&self, key : &Key) : Option<&Value> {
+lang/libs/std/src/unordered_map2.ch:181:    func get_key_ptr(&self, key : &Key) : *mut Key {
+lang/libs/std/src/unordered_map2.ch:199:    func find(&self, key : &Key, value : &mut Value) : bool where Value : Copy {
+lang/libs/std/src/unordered_map2.ch:209:    func contains(&self, key : &Key) : bool {
+lang/libs/std/src/unordered_map2.ch:214:    func erase(&mut self, key : &Key) : bool {
 lang/libs/std/src/unordered_map2.ch:22:    func hash_now(&self, key : &Key) : size_t {
-lang/libs/std/src/unordered_map2.ch:235:    func clear(&mut self) : void {
-lang/libs/std/src/unordered_map2.ch:254:    func size(&self) : size_t {
-lang/libs/std/src/unordered_map2.ch:259:    func empty(&self) : bool {
-lang/libs/std/src/unordered_map2.ch:264:    func isEmpty(&self) : bool {
-lang/libs/std/src/unordered_map2.ch:268:    func iterator(&self) : unordered_map_iterator<Key, Value> {
+lang/libs/std/src/unordered_map2.ch:242:    func clear(&mut self) : void {
+lang/libs/std/src/unordered_map2.ch:261:    func size(&self) : size_t {
+lang/libs/std/src/unordered_map2.ch:266:    func empty(&self) : bool {
 lang/libs/std/src/unordered_map2.ch:26:    func hash_with_capacity(&self, key : &Key) : size_t {
-lang/libs/std/src/unordered_map2.ch:291:        func begin(&self) : unordered_map_iterator<Key, Value> {
-lang/libs/std/src/unordered_map2.ch:295:        func valid(&self, c : unordered_map_iterator<Key, Value>) : bool {
-lang/libs/std/src/unordered_map2.ch:299:        func current(&self, c : unordered_map_iterator<Key, Value>) : &unordered_map_node<Key, Value> {
-lang/libs/std/src/unordered_map2.ch:303:        func next(&self, c : unordered_map_iterator<Key, Value>) : unordered_map_iterator<Key, Value> {
+lang/libs/std/src/unordered_map2.ch:271:    func isEmpty(&self) : bool {
+lang/libs/std/src/unordered_map2.ch:275:    func iterator(&self) : unordered_map_iterator<Key, Value> {
+lang/libs/std/src/unordered_map2.ch:298:        func begin(&self) : unordered_map_iterator<Key, Value> {
+lang/libs/std/src/unordered_map2.ch:302:        func valid(&self, c : unordered_map_iterator<Key, Value>) : bool {
+lang/libs/std/src/unordered_map2.ch:306:        func current(&self, c : unordered_map_iterator<Key, Value>) : &unordered_map_node<Key, Value> {
 lang/libs/std/src/unordered_map2.ch:30:    func compare_now(key : &Key, key2 : &Key) : bool {
-lang/libs/std/src/unordered_map2.ch:313:        func rbegin(&self) : unordered_map_iterator<Key, Value> {
-lang/libs/std/src/unordered_map2.ch:323:        func previous(&self, c : unordered_map_iterator<Key, Value>) : unordered_map_iterator<Key, Value> {
-lang/libs/std/src/unordered_map2.ch:340:        func count(&self) : size_t {
-lang/libs/std/src/unordered_map2.ch:347:public struct unordered_map_iterator<Key, Value> {
-lang/libs/std/src/unordered_map2.ch:353:    func next(&mut self) {
+lang/libs/std/src/unordered_map2.ch:310:        func next(&self, c : unordered_map_iterator<Key, Value>) : unordered_map_iterator<Key, Value> {
+lang/libs/std/src/unordered_map2.ch:320:        func rbegin(&self) : unordered_map_iterator<Key, Value> {
+lang/libs/std/src/unordered_map2.ch:330:        func previous(&self, c : unordered_map_iterator<Key, Value>) : unordered_map_iterator<Key, Value> {
+lang/libs/std/src/unordered_map2.ch:347:        func count(&self) : size_t {
+lang/libs/std/src/unordered_map2.ch:354:public struct unordered_map_iterator<Key, Value> {
 lang/libs/std/src/unordered_map2.ch:35:    func resize(&mut self) : void {
-lang/libs/std/src/unordered_map2.ch:379:    public func key(&self) : &Key {
-lang/libs/std/src/unordered_map2.ch:382:    public func value(&self) : &Value {
-lang/libs/std/src/unordered_map2.ch:385:    public func valid(&self) : bool {
-lang/libs/std/src/unordered_map2.ch:388:    public func size(&self) : size_t {
+lang/libs/std/src/unordered_map2.ch:360:    func next(&mut self) {
+lang/libs/std/src/unordered_map2.ch:386:    public func key(&self) : &Key {
+lang/libs/std/src/unordered_map2.ch:389:    public func value(&self) : &Value {
+lang/libs/std/src/unordered_map2.ch:392:    public func valid(&self) : bool {
+lang/libs/std/src/unordered_map2.ch:395:    public func size(&self) : size_t {
 lang/libs/std/src/unordered_map2.ch:3:public struct unordered_map_node<Key : Hashable + Eq, Value> {
 lang/libs/std/src/unordered_map2.ch:86:    func make() {
 lang/libs/std/src/utils.ch:10:public func <T> swap(a : &mut T, b : &mut T) {

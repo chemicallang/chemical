@@ -78,13 +78,14 @@ Status values: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked.
   private reporter/executor state, safe compiler arena allocation, and
   `async` channel error types.
 
-**Remaining std blocker:** user-defined generic struct lifetimes are not yet
-enforced by the borrow checker. A `struct View<'a, T> { p : *T, witness : &'a u8 }`
-returned from a local owner is accepted by the current compiler, so changing
-`span`/`mut_span`/`str` to lifetime-carrying structs would not by itself make
-them sound. `string_view`/`str` and built-in `&[T]`/`&str` are enforced; the
-custom generic-view rule needs a compiler/MIR change. Until then, the std view
-surface is not frozen for a future lifetime change.
+**Remaining std blocker:** `span<'a, T>` / `mut_span<'a, T>` and `CStr<'a>` now
+carry and enforce their borrow lifetime (`0ea3998cf`, `63188b8bc`), and the
+vector-to-span constructor is retained so MIR view escape checks fire
+(`60ff5ece7`). `str<'a>` is still pending: the first lifetime-carrying attempt
+exposed a C backend/generic-instantiation failure in the `lab` build script
+(`Result` instantiation mismatch / compiler segfault), so it is reverted and
+remains the one unfrozen std view. The existing `string_view`/`&[T]` checks
+remain enforced.
 
 ## Phase 1 notes
 

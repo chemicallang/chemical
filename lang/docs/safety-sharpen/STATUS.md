@@ -89,13 +89,15 @@ instead of lowering to an opaque local. `Option::take` is the non-panicking
 Static-lifetime escapes are rejected for all view shapes; TCC/LLVM main, libs,
 negative, safety, async, and web suites are green.
 
-**`vector::as_span` blocker:** adding the canonical method is still not safe to
-ship. It makes every `vector<T>` instantiate `span<T>`/`span_split<T>`; under
-parallel compilation the generated `build.lab` intermittently contains a
-mismatched generic call (`error: too few arguments to function`). Serial runs
-pass, so this is a compiler generic-instantiation race, not an API bug. Until
-that is fixed, use `std::span<T>(&v)` (or `mut_span`) as the vector view
-constructor.
+**`vector::as_span`:** the canonical methods are now provided by the generic
+`SpanView<T>` interface impl (`as_span`/`as_mut_span`). A trait impl is
+instantiated only when called; putting the same methods directly on
+`vector<T>` made every vector instantiation eagerly specialize `span<T>` and
+`span_split<T>`, growing the safety sample by ~14% compile time and ~3 MB RSS.
+The trait form keeps the API while restoring the prior metrics. The C backend
+also recovers a concrete sret return from the callee symbol when a nested
+generic call reaches MIR with an opaque return type, preventing `void*`
+result locals and missing hidden result pointers in generated C.
 
 ## Phase 1 notes
 

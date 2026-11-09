@@ -102,6 +102,20 @@ func test_slices() {
         var view : [int] = &values
         return view.size() == 2 && view[1] == 2
     })
+    test("vector.as_span views elements without owning them", () => {
+        var values = std::vector<int>()
+        values.push(4)
+        values.push(5)
+        var view = values.as_span()
+        return view.size() == 2 && unsafe(*view.get(1)) == 5
+    })
+    test("vector.as_mut_span mutates elements", () => {
+        var values = std::vector<int>()
+        values.push(1)
+        var view = values.as_mut_span()
+        view.set(0, 9)
+        return values.get(0) == 9
+    })
     test("vector<T> owns its elements and supports indexing", () => {
         var owned = std::vector<int>()
         owned.push(5)

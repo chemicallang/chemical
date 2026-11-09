@@ -365,6 +365,21 @@ func <T : core::ops::Clone> __vector_clone_value(value : *T) : T {
     return out
 }
 
+public interface SpanView<T> {
+    func as_span(&self) : span<'self, T>
+    func as_mut_span(&mut self) : mut_span<'self, T>
+}
+
+impl<T> SpanView<T> for vector<T> {
+    public func as_span(&self) : span<'self, T> {
+        return unsafe(span<T>(self.data_ptr, self.data_size))
+    }
+
+    public func as_mut_span(&mut self) : mut_span<'self, T> {
+        return unsafe(mut_span<T>(self.data_ptr, self.data_size))
+    }
+}
+
 impl<T : core::ops::Clone> core::ops::Clone for vector<T> {
     public func clone(&self) : vector<T> {
         var out = vector<T>()

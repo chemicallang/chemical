@@ -167,6 +167,20 @@ func neg_static_span_lifetime(env : &mut TestEnv) {
 }
 
 @test
+func neg_vector_as_mut_span_static_escape(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func bad() : std::mut_span<'static, int> {\n    var v = std::vector<int>()\n    v.push(1)\n    return v.as_mut_span()\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "borrow_vector_as_mut_span_static", ch, "SAFE-LIFE-004", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_vector_as_span_escape(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func bad() : [int] {\n    var v = std::vector<int>()\n    v.push(1)\n    return v.as_span()\n}\npublic func main() : int {\n    var s = bad()\n    return unsafe(*s.get(0)) - 1\n}\n"
+    expect_compile_error_with_mod(env, "borrow_vector_as_span_escape", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_direct_reference_field_return_region(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // Returning the reference field itself goes through field_params.

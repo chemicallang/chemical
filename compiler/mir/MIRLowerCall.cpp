@@ -9303,6 +9303,29 @@ bool MIRLowerer::append_receiver_arg(MIRExprResult recv, BaseType* recv_type,
 MIRExprResult MIRLowerer::emit_resolved_call(SymbolId sym, TypeId ret_type,
                                              std::vector<MIROperand>& args, size_t cmark,
                                              std::string& error) {
+    // A call expression nested in a generic body can reach MIR with an opaque
+    // return type while the callee's finalized signature already returns an
+    // aggregate through a hidden sret pointer. Recover the concrete return
+    // from the symbol signature so the call emits that pointer instead of
+    // treating the result as `void*`.
+    if (ret_type != MIR_INVALID_ID && ret_type < module_.types.size() &&
+        module_.types.get(ret_type).kind == MIRTypeKind::Opaque &&
+        sym != MIR_INVALID_ID && sym < module_.symbols.size()) {
+        const MIRSymbolRecord& rec = module_.symbols.get(sym);
+        if (rec.type != MIR_INVALID_ID && rec.type < module_.types.size()) {
+            const MIRTypeRecord& ft = module_.types.get(rec.type);
+            if (ft.kind == MIRTypeKind::Function &&
+                module_.types.get(ft.element).kind == MIRTypeKind::Void &&
+                ft.data_count >= 1) {
+                const TypeId first = module_.types.data_at(ft.data_offset);
+                const MIRTypeRecord& pr = module_.types.get(first);
+                if (pr.kind == MIRTypeKind::Pointer &&
+                    abi::needs_sret(module_, pr.element)) {
+                    ret_type = pr.element;
+                }
+            }
+        }
+    }
     if (is_void_type(module_, ret_type)) {
         builder_->call_scalar(sym, ret_type, args.data(), static_cast<uint32_t>(args.size()));
         destroy_call_temps_from(cmark, error);

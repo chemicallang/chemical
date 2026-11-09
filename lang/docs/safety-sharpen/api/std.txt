@@ -539,54 +539,55 @@ lang/libs/std/src/serialization.ch:94:    func decode_bytes(&self) : std::Result
 lang/libs/std/src/serialization.ch:96:    func array(&self) : std::Result<ArrayDecoder, SerializationError>
 lang/libs/std/src/serialization.ch:98:    func object(&self) : std::Result<ObjectDecoder, SerializationError>
 lang/libs/std/src/serialization.ch:9:public struct SerializationError {
-lang/libs/std/src/span.ch:102:    func empty(&self) : bool {
-lang/libs/std/src/span.ch:106:    func get(&self, index : size_t) : span<T> where T: Copy + core::ops::PartialEq {
+lang/libs/std/src/span.ch:100:    func size(&self) : size_t {
+lang/libs/std/src/span.ch:104:    func empty(&self) : bool {
+lang/libs/std/src/span.ch:108:    func get(&self, index : size_t) : span<T> where T: Copy + core::ops::PartialEq {
 lang/libs/std/src/span.ch:10:public struct mut_slice_pair<T> {
-lang/libs/std/src/span.ch:126:public struct span<'a, T> {
-lang/libs/std/src/span.ch:148:    unsafe func constructor(array_ptr : *T, array_size : size_t) : span<'a, T> {
-lang/libs/std/src/span.ch:156:    func empty_make() : span<'a, T> {
-lang/libs/std/src/span.ch:163:    func data(&self) : *T {
-lang/libs/std/src/span.ch:167:    func get_opt(&self, loc : size_t) : Option<&T> {
+lang/libs/std/src/span.ch:128:public struct span<'a, T> {
+lang/libs/std/src/span.ch:150:    unsafe func constructor(array_ptr : *T, array_size : size_t) : span<'a, T> {
+lang/libs/std/src/span.ch:158:    func empty_make() : span<'a, T> {
+lang/libs/std/src/span.ch:165:    func data(&self) : *T {
+lang/libs/std/src/span.ch:169:    func get_opt(&self, loc : size_t) : Option<&T> {
 lang/libs/std/src/span.ch:16:public struct span_windows<T> {
-lang/libs/std/src/span.ch:172:    func get(&self, loc : size_t) : *T {
-lang/libs/std/src/span.ch:179:    func size(&self) : size_t {
-lang/libs/std/src/span.ch:183:    func empty(&self) : bool {
-lang/libs/std/src/span.ch:187:    func subview(&self, start : size_t, end : size_t) : span<'self, T> {
-lang/libs/std/src/span.ch:198:    func split_at(&self, at : size_t) : slice_pair<T> {
+lang/libs/std/src/span.ch:174:    func get(&self, loc : size_t) : *T {
+lang/libs/std/src/span.ch:181:    func size(&self) : size_t {
+lang/libs/std/src/span.ch:185:    func empty(&self) : bool {
+lang/libs/std/src/span.ch:189:    func subview(&self, start : size_t, end : size_t) : span<'self, T> {
+lang/libs/std/src/span.ch:200:    func split_at(&self, at : size_t) : slice_pair<T> {
 lang/libs/std/src/span.ch:20:    func size(&self) : size_t {
-lang/libs/std/src/span.ch:216:    func windows(&self, width : size_t) : span_windows<T> {
-lang/libs/std/src/span.ch:223:    func chunks(&self, width : size_t) : span_chunks<T> {
-lang/libs/std/src/span.ch:231:    func split_by(&self, predicate : (value:&T)=>bool) : span_split<T> where T: Copy {
-lang/libs/std/src/span.ch:246:    func split(&self, delim : T) : span_delim_split<T> where T: Copy + core::ops::PartialEq {
+lang/libs/std/src/span.ch:218:    func windows(&self, width : size_t) : span_windows<T> {
+lang/libs/std/src/span.ch:225:    func chunks(&self, width : size_t) : span_chunks<T> {
+lang/libs/std/src/span.ch:233:    func split_by(&self, predicate : (value:&T)=>bool) : span_split<T> where T: Copy {
+lang/libs/std/src/span.ch:248:    func split(&self, delim : T) : span_delim_split<T> where T: Copy + core::ops::PartialEq {
 lang/libs/std/src/span.ch:25:    func empty(&self) : bool {
-lang/libs/std/src/span.ch:262:        func data(&self) : *T {
-lang/libs/std/src/span.ch:265:        func size(&self) : size_t {
-lang/libs/std/src/span.ch:275:    func index(&self, loc : size_t) : &T {
-lang/libs/std/src/span.ch:281:public struct mut_span<'a, T> {
+lang/libs/std/src/span.ch:264:        func data(&self) : *T {
+lang/libs/std/src/span.ch:267:        func size(&self) : size_t {
+lang/libs/std/src/span.ch:277:    func index(&self, loc : size_t) : &T {
+lang/libs/std/src/span.ch:283:public struct mut_span<'a, T> {
 lang/libs/std/src/span.ch:29:    func get(&self, index : size_t) : span<T> {
-lang/libs/std/src/span.ch:301:    unsafe func constructor(array_ptr : *mut T, array_size : size_t) : mut_span<'a, T> {
-lang/libs/std/src/span.ch:309:    func empty_make() : span<'a, T> {
-lang/libs/std/src/span.ch:316:    func data(&self) : *mut T {
-lang/libs/std/src/span.ch:320:    func get(&self, loc : size_t) : *mut T {
-lang/libs/std/src/span.ch:327:    func get_ref(&self, loc : size_t) : &T {
-lang/libs/std/src/span.ch:331:    func get_mut(&mut self, loc : size_t) : &mut T {
-lang/libs/std/src/span.ch:335:    func get_mut_opt(&mut self, loc : size_t) : Option<&mut T> {
-lang/libs/std/src/span.ch:340:    func set(&mut self, loc : size_t, value : T) {
-lang/libs/std/src/span.ch:347:    func size(&self) : size_t {
-lang/libs/std/src/span.ch:351:    func empty(&self) : bool {
-lang/libs/std/src/span.ch:355:    func subview(&mut self, start : size_t, end : size_t) : mut_span<'self, T> {
-lang/libs/std/src/span.ch:366:    func split_at(&mut self, at : size_t) : mut_slice_pair<T> {
+lang/libs/std/src/span.ch:303:    unsafe func constructor(array_ptr : *mut T, array_size : size_t) : mut_span<'a, T> {
+lang/libs/std/src/span.ch:311:    func empty_make() : span<'a, T> {
+lang/libs/std/src/span.ch:318:    func data(&self) : *mut T {
+lang/libs/std/src/span.ch:322:    func get(&self, loc : size_t) : *mut T {
+lang/libs/std/src/span.ch:329:    func get_ref(&self, loc : size_t) : &T {
+lang/libs/std/src/span.ch:333:    func get_mut(&mut self, loc : size_t) : &mut T {
+lang/libs/std/src/span.ch:337:    func get_mut_opt(&mut self, loc : size_t) : Option<&mut T> {
+lang/libs/std/src/span.ch:342:    func set(&mut self, loc : size_t, value : T) {
+lang/libs/std/src/span.ch:349:    func size(&self) : size_t {
+lang/libs/std/src/span.ch:353:    func empty(&self) : bool {
+lang/libs/std/src/span.ch:357:    func subview(&mut self, start : size_t, end : size_t) : mut_span<'self, T> {
+lang/libs/std/src/span.ch:368:    func split_at(&mut self, at : size_t) : mut_slice_pair<T> {
 lang/libs/std/src/span.ch:36:public struct span_chunks<T> {
-lang/libs/std/src/span.ch:384:    func windows(&self, width : size_t) : span_windows<T> {
-lang/libs/std/src/span.ch:388:    func chunks(&self, width : size_t) : span_chunks<T> {
-lang/libs/std/src/span.ch:392:    func split_by(&self, predicate : (value:&T)=>bool) : span_split<T> where T: Copy {
-lang/libs/std/src/span.ch:396:    func split(&self, delim : T) : span_delim_split<T> where T: Copy + core::ops::PartialEq {
-lang/libs/std/src/span.ch:400:    func as_span(&self) : span<'self, T> {
-lang/libs/std/src/span.ch:405:        func data(&self) : *T {
-lang/libs/std/src/span.ch:408:        func size(&self) : size_t {
+lang/libs/std/src/span.ch:386:    func windows(&self, width : size_t) : span_windows<T> {
+lang/libs/std/src/span.ch:390:    func chunks(&self, width : size_t) : span_chunks<T> {
+lang/libs/std/src/span.ch:394:    func split_by(&self, predicate : (value:&T)=>bool) : span_split<T> where T: Copy {
+lang/libs/std/src/span.ch:398:    func split(&self, delim : T) : span_delim_split<T> where T: Copy + core::ops::PartialEq {
+lang/libs/std/src/span.ch:402:    func as_span(&self) : span<'self, T> {
+lang/libs/std/src/span.ch:407:        func data(&self) : *T {
 lang/libs/std/src/span.ch:40:    func size(&self) : size_t {
-lang/libs/std/src/span.ch:416:    func index(&self, loc : size_t) : &T {
-lang/libs/std/src/span.ch:422:    func index_mut(&mut self, loc : size_t) : &mut T {
+lang/libs/std/src/span.ch:410:        func size(&self) : size_t {
+lang/libs/std/src/span.ch:418:    func index(&self, loc : size_t) : &T {
+lang/libs/std/src/span.ch:424:    func index_mut(&mut self, loc : size_t) : &mut T {
 lang/libs/std/src/span.ch:45:    func empty(&self) : bool {
 lang/libs/std/src/span.ch:49:    func get(&self, index : size_t) : span<T> {
 lang/libs/std/src/span.ch:4:public struct slice_pair<T> {
@@ -594,8 +595,7 @@ lang/libs/std/src/span.ch:59:public struct span_split<T> {
 lang/libs/std/src/span.ch:64:    func size(&self) : size_t {
 lang/libs/std/src/span.ch:68:    func empty(&self) : bool {
 lang/libs/std/src/span.ch:72:    func get(&self, index : size_t) : span<T> where T: Copy {
-lang/libs/std/src/span.ch:93:public struct span_delim_split<T> {
-lang/libs/std/src/span.ch:98:    func size(&self) : size_t {
+lang/libs/std/src/span.ch:95:public struct span_delim_split<T> {
 lang/libs/std/src/std.ch:23:public func exit(code : int)
 lang/libs/std/src/std.ch:24:public func quick_exit(code : int)
 lang/libs/std/src/str.ch:103:    func size(&self) : size_t {
@@ -897,7 +897,12 @@ lang/libs/std/src/vector.ch:338:    func delete(&mut self) {
 lang/libs/std/src/vector.ch:348:        func data(&self) : *T {
 lang/libs/std/src/vector.ch:351:        func size(&self) : size_t {
 lang/libs/std/src/vector.ch:358:func <T : core::ops::Clone> __vector_clone_value(value : *T) : T {
-lang/libs/std/src/vector.ch:369:    public func clone(&self) : vector<T> {
+lang/libs/std/src/vector.ch:368:public interface SpanView<T> {
+lang/libs/std/src/vector.ch:369:    func as_span(&self) : span<'self, T>
+lang/libs/std/src/vector.ch:370:    func as_mut_span(&mut self) : mut_span<'self, T>
+lang/libs/std/src/vector.ch:374:    public func as_span(&self) : span<'self, T> {
+lang/libs/std/src/vector.ch:378:    public func as_mut_span(&mut self) : mut_span<'self, T> {
+lang/libs/std/src/vector.ch:384:    public func clone(&self) : vector<T> {
 lang/libs/std/src/vector.ch:43:    public func with_capacity(init_cap : size_t) : vector<T> {
 lang/libs/std/src/vector.ch:47:    public func try_with_capacity(init_cap : size_t) : std::Result<vector<T>, std::alloc::AllocError> {
 lang/libs/std/src/vector.ch:4:public func __vector_bounds_check(index : size_t, size : size_t) {

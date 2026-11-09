@@ -150,6 +150,16 @@ func neg_aggregate_return_local_field(env : &mut TestEnv) {
 }
 
 @test
+func neg_vector_span_escape(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A vector-derived span is a borrow view. Returning it from a function
+    // whose owner is local must be rejected, even though the span stores the
+    // pointer/length pair rather than a reference field.
+    var ch = "func bad() : [int] {\n    var v = std::vector<int>()\n    v.push(1)\n    return std::span<int>(&v)\n}\npublic func main() : int {\n    var s = bad()\n    return unsafe(*s.get(0)) - 1\n}\n"
+    expect_compile_error_with_mod(env, "borrow_vector_span_escape", ch, "SAFE-LIFE-001", NEG_MOD_STD_CORE)
+}
+
+@test
 func neg_direct_reference_field_return_region(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     // Returning the reference field itself goes through field_params.

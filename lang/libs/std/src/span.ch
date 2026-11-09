@@ -131,6 +131,7 @@ public struct span<T> {
 
     @implicit
     @constructor
+    @retained
     @expand
     comptime func make2(vec : %maybe_runtime<&vector<T>>) {
         return unsafe(constructor<T>(vec.data(), vec.size()))

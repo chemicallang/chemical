@@ -60,6 +60,8 @@ option(ENABLE_TSAN "Enable ThreadSanitizer for Debug builds to catch data races"
 option(DISABLE_RTTI_EXCEPTIONS "Disable RTTI and exceptions for our own targets where safe" ON)
 option(CHEMICAL_MUSL "The compiler is built for/run on musl libc. Used to select musl-specific behaviour (e.g. pthread type sizes)." OFF)
 option(MIR_OPS_COUNTERS "Instrument MIR lowering with operation/phase counters (profiling builds only; zero cost when OFF). Print with MIR_OPS=1." OFF)
+option(CHEM_DEBUG_FAULT_REPORT "Report compiler faults with a symbolized stack (Windows only; extra output for crash debugging, zero cost when OFF). See utils/FaultReporter.h." OFF)
+option(CHEM_DEBUG_AST_POISON "Make released AST arena blocks unreadable so an AST use-after-free faults deterministically (Windows only; slower, zero cost when OFF). See ast/base/BatchAllocator.h." OFF)
 
 # Compile-time musl flag. When a target triple is given to the compiler at
 # runtime it takes precedence (see prepare_target_data / init_target_data).
@@ -71,6 +73,17 @@ endif()
 # it is a profiling build, so define the macro for every target in this dir.
 if (MIR_OPS_COUNTERS)
     add_compile_definitions(MIR_OPS_COUNTERS)
+endif()
+
+# Compiler-crash diagnostics (see utils/FaultReporter.h, ast/base/BatchAllocator.h).
+# Both are debug-only aids: when enabled the build is slower/bigger and reports
+# more, when disabled they compile away entirely. Enable them when chasing a
+# crash, then reconfigure with OFF before committing.
+if (CHEM_DEBUG_FAULT_REPORT)
+    add_compile_definitions(CHEM_DEBUG_FAULT_REPORT)
+endif()
+if (CHEM_DEBUG_AST_POISON)
+    add_compile_definitions(CHEM_DEBUG_AST_POISON)
 endif()
 
 # Debug builds error messages that are more helpful

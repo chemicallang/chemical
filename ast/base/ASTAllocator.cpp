@@ -4,7 +4,63 @@
 #include <mutex>
 #include <cassert>
 #include "cstring"
+#ifdef CHEM_DEBUG_AST_POISON
+#include <new>
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
 #include "libtcc.h"
+
+#ifdef CHEM_DEBUG_AST_POISON
+/*
+ * AST arena poison mode — a *build-time* diagnostic for AST lifetime bugs, off
+ * unless `CHEM_DEBUG_AST_POISON` is defined:
+ *
+ *     cmake -S . -B cmake-build-debug -DCHEM_DEBUG_AST_POISON=ON
+ *     ./scripts/build.sh --tcc
+ *
+ * `clear()` normally releases every block but the first and lets the CRT reuse
+ * them, so a dangling pointer into a released block usually reads
+ * plausible-looking garbage: a use-after-free of AST nodes then only crashes when
+ * the block happens to be unmapped or recycled, which makes the bug appear
+ * intermittently (it produced random `RUNTIME ERROR: invalid memory access`
+ * aborts in the lab build script).
+ *
+ * Here every block is a dedicated `VirtualAlloc` region, and `clear()` decommits
+ * it and leaves it reserved with `PAGE_NOACCESS` instead of handing it back, and
+ * the arena starts from a fresh block. A stale read then faults deterministically
+ * instead of reading garbage; combine with `-DCHEM_DEBUG_FAULT_REPORT=ON` to get a
+ * symbolized stack for the offending use. Costs nothing when not defined (see
+ * `heap_block_sizes` in BatchAllocator.h).
+ */
+static char* poison_allocate_block(std::size_t size) {
+    // a dedicated region per block, so retiring it can never hand the pages to
+    // another allocation
+    auto* block = static_cast<char*>(
+            VirtualAlloc(nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
+    if (block == nullptr) {
+        throw std::bad_alloc();
+    }
+    return block;
+}
+
+static void poison_retire_block(char* block, std::size_t size) {
+    // keep the reservation so no later allocation can reuse the address, and
+    // make every access fault
+    VirtualFree(block, size, MEM_DECOMMIT);
+    DWORD previous = 0;
+    VirtualProtect(block, size, PAGE_NOACCESS, &previous);
+}
+
+static void poison_release_block(char* block) {
+    VirtualFree(block, 0, MEM_RELEASE);
+}
+#endif
 
 BatchAllocator::BatchAllocator(std::size_t heapBatchSize) : heap_offset(heapBatchSize), heap_batch_size(heapBatchSize), initial_heap_batch_size(heapBatchSize) {
     if(heapBatchSize > 0) {
@@ -25,7 +81,11 @@ ASTAllocator::ASTAllocator(
 
 BatchAllocator::BatchAllocator(
         BatchAllocator&& other
-) noexcept : heap_memory(std::move(other.heap_memory)), heap_batch_size(other.heap_batch_size), initial_heap_batch_size(other.initial_heap_batch_size), heap_offset(other.heap_offset),
+) noexcept : heap_memory(std::move(other.heap_memory)),
+#ifdef CHEM_DEBUG_AST_POISON
+    heap_block_sizes(std::move(other.heap_block_sizes)),
+#endif
+    heap_batch_size(other.heap_batch_size), initial_heap_batch_size(other.initial_heap_batch_size), heap_offset(other.heap_offset),
     allocator_mutex(std::move(other.allocator_mutex))
 {
     other.heap_offset = 0;
@@ -43,6 +103,9 @@ BatchAllocator& BatchAllocator::operator =(BatchAllocator&& other) noexcept {
     this->~BatchAllocator();
 
     heap_memory = std::move(other.heap_memory);
+#ifdef CHEM_DEBUG_AST_POISON
+    heap_block_sizes = std::move(other.heap_block_sizes);
+#endif
     heap_batch_size = other.heap_batch_size;
     initial_heap_batch_size = other.initial_heap_batch_size;
     heap_offset = other.heap_offset;
@@ -64,6 +127,17 @@ void ASTAllocator::clear() {
     std::lock_guard<std::mutex> lock(*allocator_mutex);
     destruct_ptr_storage();
     destruct_cleanup_storage();
+#ifdef CHEM_DEBUG_AST_POISON
+    // diagnostic build: retire every block instead of releasing it, so a dangling
+    // pointer faults instead of reading recycled memory
+    for (size_t i = 0; i < heap_memory.size(); i++) {
+        poison_retire_block(heap_memory[i], heap_block_sizes[i]);
+    }
+    heap_memory.clear();
+    heap_block_sizes.clear();
+    heap_offset = heap_batch_size;
+    heap_batch_size = initial_heap_batch_size;
+#else
     if(heap_memory.empty()) {
         // force heap allocation
         heap_offset = heap_batch_size;
@@ -80,12 +154,21 @@ void ASTAllocator::clear() {
         // which was allocated with the original batch size
         heap_batch_size = initial_heap_batch_size;
     }
+#endif
 }
 
 void BatchAllocator::destroy_memory() {
     for (const auto heap_ptr: heap_memory) {
+#ifdef CHEM_DEBUG_AST_POISON
+        poison_release_block(heap_ptr);
+#else
         ::operator delete(heap_ptr);
+#endif
     }
+#ifdef CHEM_DEBUG_AST_POISON
+    heap_memory.clear();
+    heap_block_sizes.clear();
+#endif
 }
 
 BatchAllocator::~BatchAllocator() {
@@ -114,7 +197,12 @@ ASTAllocator::~ASTAllocator() {
 
 char* BatchAllocator::reserve_heap_storage() {
     // reserving a heap pointer with stack size
+#ifdef CHEM_DEBUG_AST_POISON
+    const auto heap_pointer = poison_allocate_block(heap_batch_size);
+    heap_block_sizes.emplace_back(heap_batch_size);
+#else
     const auto heap_pointer = static_cast<char*>(::operator new(heap_batch_size));
+#endif
     heap_memory.emplace_back(heap_pointer);
     // resetting heap storage
     heap_offset = 0;

@@ -363,39 +363,54 @@ void ASTProcessor::sym_res_generic_instantiation_file(
     }
 }
 
+/**
+ * Generates the implicit functions of every container declared in `scope` — the
+ * default constructor (`make`) and/or destructor (`delete`) a container needs —
+ * into `allocator`.
+ *
+ * `allocator` must be the job allocator, never the module allocator. The
+ * containers visited here are top-level declarations, which are allocated in
+ * the job allocator and therefore outlive their module, and their generated
+ * functions are reached from *other* modules (`has_destructor`,
+ * `implicit_constructor_for`, ...). Generating them into the module allocator
+ * (which `LabBuildCompiler` releases after each module) leaves the container
+ * pointing at freed nodes, and the resulting read is a use-after-free that only
+ * faults when the released block is unmapped or recycled.
+ *
+ * Choosing the allocator per container would not be enough: generation is
+ * recursive and a container is generated once, by whichever container reaches
+ * it first (`MembersContainer::generate_automatic_functions`), so a `protected`
+ * struct with a public struct as a field would generate that public struct's
+ * functions into the module allocator.
+ */
 static void generate_automatic_functions_in_scope(
         Scope& scope,
-        ASTAllocator& pub_allocator,
-        ASTAllocator& mod_allocator,
+        ASTAllocator& allocator,
         ASTDiagnoser& diagnoser
 ) {
     for(auto node : scope.nodes) {
         switch(node->kind()) {
             case ASTNodeKind::StructDecl: {
                 auto sd = (StructDefinition*)node;
-                auto& alloc = sd->specifier() == AccessSpecifier::Public ? pub_allocator : mod_allocator;
-                sd->generate_automatic_functions(alloc, diagnoser, sd);
+                sd->generate_automatic_functions(allocator, diagnoser, sd);
                 break;
             }
             case ASTNodeKind::VariantDecl: {
                 auto vd = (VariantDefinition*)node;
-                auto& alloc = vd->specifier() == AccessSpecifier::Public ? pub_allocator : mod_allocator;
-                vd->generate_automatic_functions(alloc, diagnoser, vd);
+                vd->generate_automatic_functions(allocator, diagnoser, vd);
                 break;
             }
             case ASTNodeKind::GenericStructDecl: {
                 auto gsd = (GenericStructDecl*)node;
                 if(gsd->master_impl) {
-                    auto& alloc = gsd->master_impl->specifier() == AccessSpecifier::Public ? pub_allocator : mod_allocator;
-                    gsd->master_impl->generate_automatic_functions(alloc, diagnoser, gsd);
+                    gsd->master_impl->generate_automatic_functions(allocator, diagnoser, gsd);
                 }
                 break;
             }
             case ASTNodeKind::GenericVariantDecl: {
                 auto gvd = (GenericVariantDecl*)node;
                 if(gvd->master_impl) {
-                    auto& alloc = gvd->master_impl->specifier() == AccessSpecifier::Public ? pub_allocator : mod_allocator;
-                    gvd->master_impl->generate_automatic_functions(alloc, diagnoser, gvd);
+                    gvd->master_impl->generate_automatic_functions(allocator, diagnoser, gvd);
                 }
                 break;
             }
@@ -403,7 +418,7 @@ static void generate_automatic_functions_in_scope(
                 auto ns = (Namespace*)node;
                 Scope ns_scope(ns, 0);
                 ns_scope.nodes = ns->nodes;
-                generate_automatic_functions_in_scope(ns_scope, pub_allocator, mod_allocator, diagnoser);
+                generate_automatic_functions_in_scope(ns_scope, allocator, diagnoser);
                 break;
             }
             default:
@@ -414,13 +429,12 @@ static void generate_automatic_functions_in_scope(
 
 static void generate_automatic_functions_for_module(
         LabModule* module,
-        ASTAllocator& pub_allocator,
-        ASTAllocator& mod_allocator,
+        ASTAllocator& allocator,
         ASTDiagnoser& diagnoser
 ) {
     for(auto& file_ptr : module->direct_files) {
         auto& file = *file_ptr.result;
-        generate_automatic_functions_in_scope(file.unit.scope.body, pub_allocator, mod_allocator, diagnoser);
+        generate_automatic_functions_in_scope(file.unit.scope.body, allocator, diagnoser);
     }
 }
 
@@ -652,7 +666,9 @@ int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
     // before generic instantiation — this single recursive pass ensures every container
     // gets its automatic functions generated exactly once, with correct depth-first
     // order so member type destructors exist before dependent container destructors.
-    generate_automatic_functions_for_module(module, *resolver->ast_allocator, *resolver->mod_allocator, *resolver);
+    // the job allocator: generated functions live as long as the containers they
+    // are inserted into (see generate_automatic_functions_in_scope)
+    generate_automatic_functions_for_module(module, *resolver->ast_allocator, *resolver);
 
     // generic instantiation pass in parallel
     for(auto& file_ptr : module->direct_files) {

@@ -2,6 +2,7 @@
 
 #include "rang.hpp"
 #include "LabBuildCompiler.h"
+#include "utils/FaultReporter.h"
 #include "ast/types/LinkedType.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/structures/FunctionDeclaration.h"
@@ -85,6 +86,17 @@ std::ostream& operator<<(std::ostream& os, const LabModule& mod) {
         os << mod.scope_name << ':' << mod.name;
     }
     return os;
+}
+
+/**
+ * TinyCC installs its own vectored exception handler when a JIT state is
+ * prepared, and vectored handlers run last-installed-first. Re-register the
+ * compiler's fault reporter right before calling into JIT-hosted code so a fault
+ * is reported with a stack instead of exiting through TinyCC's handler. It is a
+ * no-op unless the build enables CHEM_DEBUG_FAULT_REPORT (utils/FaultReporter.h).
+ */
+static void prepare_jit_fault_reporting() {
+    chem::fault_reporter::refresh();
 }
 
 TCCMode to_tcc_mode(OutputMode mode, bool debug_info) {
@@ -1511,6 +1523,7 @@ int LabBuildCompiler::tcc_run_invocation(
     prepare_tcc_state_for_jit(state);
 
     // run the main method
+    prepare_jit_fault_reporting();
     const auto status = tcc_run(state, argc, argv);
 
     // delete the tcc state
@@ -2396,6 +2409,7 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
         }
 
         // call the root build.lab build's function
+        prepare_jit_fault_reporting();
         const auto modPtr = build(&context, job);
 
         if (modPtr) {
@@ -3410,6 +3424,7 @@ int LabBuildCompiler::build_lab_file_no_alloc(
     context.storage.clear();
 
     // call the root build.lab build's function
+    prepare_jit_fault_reporting();
     const auto out_job = build(&context);
     out_run_job = out_job;
 
@@ -3509,6 +3524,7 @@ int LabBuildCompiler::build_module_build_file_no_alloc(
     }
 
     // call the root chemical.mod build's function
+    prepare_jit_fault_reporting();
     const auto main_module = build(&context, final_job);
     if(main_module == nullptr) {
         return 1;
@@ -4203,6 +4219,7 @@ int LabBuildCompiler::local_or_remote_project_to_module(
         context.storage.clear();
 
         // call the root chemical.mod build's function
+        prepare_jit_fault_reporting();
         const auto main_module = build(&context, job);
         if(main_module == nullptr) {
             return 1;

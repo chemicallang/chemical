@@ -500,11 +500,12 @@ session 4. The earlier `fatal: llvm_pointer called on bare Value` abort is gone.
 > body).
 >
 > **Diagnosing aids (kept).** `core/targets/Compiler.cpp` installs a **vectored**
-> exception handler behind `CHEM_CRASH_BT=1` that symbolicates any *non-JIT* crash
-> via dbghelp (TinyCC's JIT fault handler preempts it, so it does not fire for a
-> JIT-hosted fault); the reported PC can be resolved offline against the PDB with
-> `llvm-pdbutil dump -symbols cmake-build-debug/Compiler.pdb` (section `.text`
-> starts at RVA `0x1000`); and `--emit-c` plus counting `memset` in
+> exception handler when the compiler is configured with
+> `-DCHEM_DEBUG_FAULT_REPORT=ON` (off by default; see `utils/FaultReporter.h` and
+> the `building` skill) that symbolicates a crash via dbghelp, including
+> JIT-hosted frames; the reported PC can also be resolved offline against the PDB
+> with `llvm-pdbutil dump -symbols cmake-build-debug/Compiler.pdb` (section
+> `.text` starts at RVA `0x1000`); and `--emit-c` plus counting `memset` in
 > `lang/tests/build/chemical-tests.dir/Translated.c` is the C1 metric.
 
 

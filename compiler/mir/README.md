@@ -3065,6 +3065,67 @@ Diagnosis method that worked: run the compiler under lldb
 -o run -o "bt 30" -- ./cmake-build-debug/TCCCompiler.exe ...`) until the
 `Exception 0x80000003` fired at `std::vector<unsigned int>::operator[]`.
 
+### 1b. The other intermittent JIT crash: generated functions in the module arena — FIXED
+
+Same symptom (a `TCCCompiler lang/tests/build.lab ...` run aborting roughly one
+time in six with `0x…: at ???: RUNTIME ERROR: invalid memory access`, no test
+exe), different cause: **an AST use-after-free, not a JIT/MIR bug.**
+
+`ASTAllocator::clear()` releases every block of the module allocator except the
+first after each module (`LabBuildCompiler::process_module_tcc`), while
+top-level declarations are allocated in the *job* allocator and therefore
+outlive their module. `generate_automatic_functions_in_scope`
+(`compiler/ASTProcessor.cpp`) generated a container's implicit `make`/`delete`
+into `mod_allocator` when the container's specifier was not `Public` — but the
+generated functions are inserted into the job-lifetime container
+(`MembersContainer::insert_func`) and are reached from *later* modules through
+`has_destructor` / `implicit_constructor_for`. The read then hits released
+memory: usually it still looks like plausible garbage (so the build passes), and
+occasionally the block is unmapped or recycled, which is the crash.
+
+Generation is recursive and runs **once per container**, from whichever
+container reaches it first
+(`MembersContainer::generate_automatic_functions`), so choosing the allocator
+per container is not enough: `lang/libs/window/src/safe.ch`'s `protected struct
+WindowState` has a `window::Window` field, and generating `WindowState` first
+generated `Window`'s destructor (and `ensure_constructor`'s rewritten
+`LinkedType` return type) into the module arena. Reproduced deterministically
+with the diagnostics below, then fixed by generating every automatic function
+into the job allocator (`resolver->ast_allocator`); the two observed fault sites
+(`NonGenFuncIterator::skip_invalid` from `destructor_func`/
+`implicit_constructor_func`, and `MIRTypeBuilder::map` on the poisoned `make`
+return type) are gone, and 15/15 + 12/12 clean builds.
+
+**Invariant:** anything stored in a job-lifetime container (all top-level
+declarations, their members and their generated functions) must be allocated in
+the job allocator. Only function *bodies* and other strictly per-module nodes may
+live in `mod_allocator`, and nothing outside the module may reach them.
+
+Diagnostics used (both are **build-time** switches, off by default, and compile
+away entirely when off — no dbghelp dependency, no extra allocator work):
+
+```bash
+# turn them on for a debugging build
+cmake -S . -B cmake-build-debug -DCHEM_DEBUG_FAULT_REPORT=ON -DCHEM_DEBUG_AST_POISON=ON
+./scripts/build.sh --tcc
+# ... then reconfigure with =OFF and rebuild before committing
+```
+
+- `CHEM_DEBUG_FAULT_REPORT` (`utils/FaultReporter.h`, wired in
+  `core/targets/Compiler.cpp` and re-registered by the lab before each JIT call)
+  installs a *vectored* exception handler that prints the faulting instruction, the
+  access kind (read/write/execute) and a dbghelp-symbolized stack of the faulting
+  thread — including JIT frames, which TinyCC's own handler reports as `???`.
+  TinyCC installs a vectored handler too and handlers run last-installed-first,
+  which is why the reporter re-registers itself after a JIT state exists.
+- `CHEM_DEBUG_AST_POISON` (`ast/base/BatchAllocator.h` + `ASTAllocator.cpp`) gives
+  every arena block its own `VirtualAlloc` region and makes `clear()` decommit +
+  `PAGE_NOACCESS` it instead of returning it to the CRT, so the *first* stale read
+  faults deterministically instead of reading recycled memory. All suite builds are
+  clean under it (`main`, `libs`, `plugins`, `async`, `server`, `regexp`,
+  `process`, `safety`, `negative`, `interpret`, `cbor`, `universal`), which is
+  the regression check for this class of bug.
+
 ### 2. The legacy 2c visitor is deleted
 
 The C codegen is fully MIR. Function *bodies*, **static

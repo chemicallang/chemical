@@ -67,6 +67,16 @@ protected:
      * memory, this way we batch heap calls
      */
     std::vector<char*> heap_memory;
+#ifdef CHEM_DEBUG_AST_POISON
+    /**
+     * Exact size of each block in `heap_memory`, needed to make a retired block
+     * unreadable. The batch size can grow over the life of an allocator (a
+     * single oversized object raises it), so the current batch size is not the
+     * size of blocks reserved earlier. Compiled in only for the diagnostic build
+     * below; release builds do not pay for it.
+     */
+    std::vector<std::size_t> heap_block_sizes;
+#endif
     /**
      * heap batch size is the memory allocated on the heap when stack memory ends
      */
@@ -104,3 +114,7 @@ protected:
     char* object_heap_pointer(std::size_t obj_size, std::size_t alignment);
 
 };
+
+#if defined(CHEM_DEBUG_AST_POISON) && !defined(_WIN32)
+#error "CHEM_DEBUG_AST_POISON needs VirtualAlloc/VirtualProtect; it is a Windows-only diagnostic"
+#endif

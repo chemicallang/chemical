@@ -514,9 +514,26 @@ allocator is immediately reusable. This is the per-pass reset mechanism.
 | Allocator | Lifetime | Purpose |
 |-----------|----------|---------|
 | `global_allocator` | Whole compiler session | Shared types built once in `TypeBuilder`, `nullValue`, `unresolvedDecl` |
-| `job_allocator` | One build job | Job-scoped AST |
-| `mod_allocator` | One module | Module-level declarations |
+| `job_allocator` | One build job | Job-scoped AST: **every top-level declaration**, its members and its generated functions |
+| `mod_allocator` | One module | Function bodies and other strictly per-module nodes; released by `ASTAllocator::clear()` after each module |
 | `file_allocator` | One file | Per-file temporary nodes; cleared/reused between files |
+
+**Arena lifetime invariant.** Anything reachable from a job-lifetime container must
+live in the job allocator. Top-level declarations (a struct/variant/interface, its
+members, their types) are parsed into `global_allocator`/`job_allocator` and outlive
+their module, so *nodes generated later for them* must too — implicitly generated
+`make`/`delete` functions (`ASTProcessor::generate_automatic_functions_in_scope`),
+rewritten constructor return types (`FunctionDeclaration::ensure_constructor`), etc.
+While `mod_allocator` still holds a module's memory the mistake is invisible; after
+`clear()` a later module reads released memory, which usually still looks like
+plausible garbage (silently wrong codegen) and only sometimes faults — see
+`compiler/mir/README.md` §1b for the intermittent lab-build crash this caused.
+Generation is recursive and happens **once per container**, from whichever container
+reaches it first, so never pick the allocator from the container being generated:
+pass the job allocator down. To prove a change did not break the invariant, build
+with `-DCHEM_DEBUG_AST_POISON=ON` (arena blocks become unreadable when released, so
+the first stale read faults) plus `-DCHEM_DEBUG_FAULT_REPORT=ON` (symbolized stack);
+both are off by default and documented in the `building` skill.
 
 The parser receives `global_allocator` and `mod_allocator` plus the `TypeBuilder`
 (`parser/Parser.h:391-401`, constructor `:416-427`), and every parse helper takes an
@@ -740,7 +757,9 @@ ASTNode
    Do not pass it to `visit(ASTNode*)` or assume `kind()` exists.
 9. **Do not mix allocation lifetimes.** A `Value*` allocated on `file_allocator` must not
    survive past that file's processing; move data onto `mod_allocator`/`global_allocator`
-   if it must outlive the file.
+   if it must outlive the file. Anything reachable from a **top-level declaration** must be
+   on the job allocator, including nodes generated after parsing (see the arena lifetime
+   invariant above) — `mod_allocator` is released after every module.
 10. **Never put a rare payload in a hot node's field.** A `std::vector` field on
    `VariableIdentifier` (added for the `ident<int>` generic-function-reference fix) grew
    *every* identifier by 24 bytes — `sizeof(VariableIdentifier)` went 96 → 72 when it was

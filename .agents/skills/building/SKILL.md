@@ -185,6 +185,38 @@ cmake-build-debug/TCCCompiler "lang/tests/build.lab" -o lang/tests/build/tests-t
 cmake-build-debug/Compiler "lang/tests/build.lab" -o lang/tests/build/tests.exe --mode debug_complete --no-cache
 ```
 
+### Diagnosing a crash *in the compiler process*
+
+An intermittent failure that prints `0x…: at ???: RUNTIME ERROR: invalid memory
+access` (or `… breakpoint/single-step exception`) and exits without producing the
+test executable is the **compiler** faulting, not the test. Note that TinyCC
+installs its own vectored exception handler for JIT-hosted code, which reports
+JIT frames as `???` and exits — so the message alone says nothing about where
+the bug is.
+
+Two **build-time** diagnostics exist for this, both off by default and compiled
+away entirely when off (no dbghelp dependency, no extra allocator work). Enable
+them only while chasing a crash, then reconfigure with `OFF` and rebuild:
+
+```bash
+cmake -S . -B cmake-build-debug -DCHEM_DEBUG_FAULT_REPORT=ON -DCHEM_DEBUG_AST_POISON=ON
+./scripts/build.sh --tcc
+# reproduce the crash; the compiler prints a fault report by itself
+cmake -S . -B cmake-build-debug -DCHEM_DEBUG_FAULT_REPORT=OFF -DCHEM_DEBUG_AST_POISON=OFF
+./scripts/build.sh --tcc
+```
+
+| Switch | What it does | Use when |
+|--------|--------------|----------|
+| `CHEM_DEBUG_FAULT_REPORT` | `utils/FaultReporter.h`: a vectored exception handler prints the exception code, access kind (read/write/execute), the faulting address/instruction and a dbghelp-symbolized stack of the faulting thread, including JIT frames | **any** compiler crash, especially one reported as a bare `RUNTIME ERROR: invalid memory access` with `???` |
+| `CHEM_DEBUG_AST_POISON` | `ast/base/BatchAllocator.h`: each AST arena block gets a `VirtualAlloc` region; `clear()` decommits it and leaves it `PAGE_NOACCESS` instead of returning it to the CRT | a **use-after-free of AST nodes** — the first stale read faults deterministically instead of reading recycled memory, so an intermittent crash becomes reproducible |
+
+Both are Windows-only. `CHEM_DEBUG_AST_POISON` makes builds slower and leaks the
+retired address ranges on purpose; never ship it. For a lifetime bug, the fix must
+honour the arena invariant documented in the `ast_framework` skill (anything
+reachable from a top-level declaration lives in the job allocator). See
+`compiler/mir/README.md` §1b for a worked example.
+
 ### Interpretation Tests
 
 ```bash

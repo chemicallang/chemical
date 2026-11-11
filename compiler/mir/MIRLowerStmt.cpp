@@ -299,7 +299,13 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     field_path.push_back(fname);
                     const ConstantId fc = module_.constants.add_string(
                         MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
-                    MIRExprResult r = lower_expr(as->value, error);
+                    // The field's type may have an implicit constructor for the
+                    // source (a capturing lambda into `std::function<T>`, a string
+                    // literal into `std::string`, ...); the constructor is built at
+                    // the assignment because a field store has nowhere else to put
+                    // it. Same conversion a local initializer applies.
+                    MIRExprResult r = lower_arg_converted(
+                        as->value, chain->values.back()->getType(), error);
                     if (!r.ok()) return false;
                     if (r.kind == MIRExprKind::Value &&
                         as->assOp != Operation::Assignment) {
@@ -435,7 +441,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 auto* d = lhs->as_dereference_value_unsafe();
                 MIRExprResult p = lower_expr(d->getValue(), error);
                 if (!p.ok()) return false;
-                MIRExprResult r = lower_expr(as->value, error);
+                // the pointee type may construct the source implicitly
+                MIRExprResult r = lower_arg_converted(as->value, lhs->getType(), error);
                 if (!r.ok()) return false;
                 const TypeId et = types_.map(lhs->getType());
                 if (r.kind == MIRExprKind::Place) {
@@ -1266,7 +1273,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                             error = "index operator did not return an address";
                             return false;
                         }
-                        MIRExprResult r = lower_expr(as->value, error);
+                        // the element type may construct the source implicitly
+                        MIRExprResult r = lower_arg_converted(as->value, io->getType(), error);
                         if (!r.ok()) return false;
                         const TypeId et = types_.map(io->getType());
                         ValueId rv = MIR_NULL;
@@ -1284,7 +1292,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         builder_->store_indirect(static_cast<ValueId>(ref.id), rv);
                         return true;
                 }
-                MIRExprResult r = lower_expr(as->value, error);
+                // the element type may construct the source implicitly
+                MIRExprResult r = lower_arg_converted(as->value, io->getType(), error);
                 if (!r.ok()) return false;
                 const TypeId et = types_.map(io->getType());
                 if (r.kind == MIRExprKind::Place) {
@@ -1398,7 +1407,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     error = "variant payload assignment target is not addressable";
                     return false;
                 }
-                MIRExprResult r = lower_expr(as->value, error);
+                // the payload type may construct the source implicitly
+                MIRExprResult r = lower_arg_converted(as->value, id->getType(), error);
                 if (!r.ok()) return false;
                 const TypeId et = types_.map(id->getType());
                 ValueId rv = MIR_NULL;
@@ -1465,7 +1475,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     const TypeId vt = types_.map(id->getType());
                     const TypeId ptrt = types_.pointer_type(vt, true);
                     const ValueId addr = builder_->global_addr(gs, ptrt);
-                    MIRExprResult r = lower_expr(as->value, error);
+                    // the global's type may construct the source implicitly
+                    MIRExprResult r = lower_arg_converted(as->value, id->getType(), error);
                     if (!r.ok()) return false;
                     return store_global(addr, vt, r);
                 }
@@ -1475,7 +1486,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     const TypeId vt = types_.map(id->getType());
                     const TypeId ptrt = types_.pointer_type(vt, true);
                     const ValueId addr = builder_->global_addr(gs, ptrt);
-                    MIRExprResult r = lower_expr(as->value, error);
+                    // the global's type may construct the source implicitly
+                    MIRExprResult r = lower_arg_converted(as->value, id->getType(), error);
                     if (!r.ok()) return false;
                     return store_global(addr, vt, r);
                 }

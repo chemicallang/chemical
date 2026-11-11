@@ -509,14 +509,20 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error,
             const SymbolId gs = intern_global(vi);
             const TypeId vt = types_.map(id->getType());
             const TypeId ptrt = types_.pointer_type(vt, false);
-            return MIRExprResult::address(builder_->global_addr(gs, ptrt), ptrt);
+            // `&raw global` evaluates to the global's address, exactly like
+            // `&raw local` above: report it as a value, not as an address-of-place.
+            // An `Address` result means "this is a place; the expression's value
+            // is the pointee", which made every store of `&raw global` into a
+            // pointer destination write the *dereferenced* global instead (the
+            // C backend then emitted `*(&g)` where the field type is `T*`).
+            return MIRExprResult::value(builder_->global_addr(gs, ptrt), ptrt);
         }
         const std::string gname(id->value.data(), id->value.size());
         if (!gname.empty()) {
             const SymbolId gs = intern_named_global(gname);
             const TypeId vt = types_.map(id->getType());
             const TypeId ptrt = types_.pointer_type(vt, false);
-            return MIRExprResult::address(builder_->global_addr(gs, ptrt), ptrt);
+            return MIRExprResult::value(builder_->global_addr(gs, ptrt), ptrt);
         }
     }
     MIRExprResult in = lower_expr(inner, error);

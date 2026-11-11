@@ -29,123 +29,6 @@ public struct ServerConfig {
     }
 }
 
-if(def.windows) {
-    @retained
-    func http_iocp_on_recv(ctx : *mut net::iocp::AsyncContext, bytes : u32, ok : bool) {
-        unsafe {
-        var conn = ctx.user_data as *mut http_iocp_conn
-        if(conn == null) { return }
-        var s = conn.s
-        var server = conn.server
-        if(!ok || bytes == 0) {
-            net::raw::close_socket(s);
-            free(ctx.buffer.buf);
-            delete ctx; free(conn as *mut void);
-            return;
-        }
-        var input_ptr = ctx.buffer.buf as *u8;
-        var k = 0u;
-        while(k < bytes) {
-            ctx.accumulated.push_back(input_ptr[k]);
-            k = k + 1u;
-        }
-        var found = false;
-        var crlfpos = 0u;
-        var j = ctx.read_pos;
-        var abuf = &mut ctx.accumulated;
-        if(abuf.size() >= 4) {
-             while(j + 3 < abuf.size()) {
-                 if(abuf.at(j) == '\r' as u8 && abuf.at(j+1u) == '\n' as u8 &&
-                    abuf.at(j+2u) == '\r' as u8 && abuf.at(j+3u) == '\n' as u8) {
-                     found = true;
-                     crlfpos = j + 4u;
-                     break;
-                 }
-                 j++;
-             }
-        }
-        if (!found) {
-            if (abuf.size() > 65536) {
-                net::raw::close_socket(s); free(ctx.buffer.buf); delete ctx; free(conn as *mut void); return;
-            }
-            ctx.overlapped.Internal = 0;
-            ctx.overlapped.InternalHigh = 0;
-            unsafe {
-                ctx.overlapped.Offset = 0;
-                ctx.overlapped.OffsetHigh = 0;
-            }
-            net::iocp::async_recv(s, ctx);
-            return;
-        }
-        var ptr = abuf.data();
-        var req_opt = http::parse_request_from_bytes(ptr, crlfpos);
-        if (req_opt is Option.None) {
-            net::raw::close_socket(s); free(ctx.buffer.buf); delete ctx; free(conn as *mut void); return;
-        }
-        var req = req_opt.take_unchecked();
-        var body_len: isize = 0;
-        var chunked = false;
-        if(req.body_len > 0u) { body_len = req.body_len as isize; }
-        var te_opt = req.headers.get("Transfer-Encoding");
-        if(te_opt is Option.Some) {
-           var Some(te) = te_opt else unsafe { unreachable };
-           if(te.equals(string_view("chunked"))) { chunked = true; body_len = -1; }
-        }
-        var leftovers_sz = abuf.size() - crlfpos;
-        var body_buf = new net::Buffer();
-        if(leftovers_sz > 0) {
-            body_buf.append_bytes((ptr + crlfpos) as *u8, leftovers_sz);
-        }
-        var transport_box = http::transport_box_plain(s)
-        std::replace(&mut req.body, http::Body.make_borrowed(transport_box, body_buf, body_len, chunked, 30, 1024u*1024u*10u));
-        var params = std.vector<std::pair<string, string>>();
-        var route = server.router.match_route(&req.method, &req.path, &raw mut params);
-        var resw = http::ResponseWriter(transport_box, &req.method);
-        if (route != null) {
-            std::replace(&mut req.route_params, params);
-            route.handler(&mut req, &mut resw);
-        } else {
-            resw.status = 404u;
-            resw.set_header(http::http_lit("Content-Type"), http::http_lit("text/plain; charset=utf-8"));
-            resw.write_string(http::http_lit("Not Found\n"));
-        }
-        delete body_buf;
-        var ka = true;
-        var c_opt = req.headers.get("Connection");
-        if(c_opt is Option.Some) {
-            var Some(cv) = c_opt else unsafe { unreachable };
-            if(cv.equals(string_view("close"))) { ka = false; }
-        }
-        // The Transport owns `s`; detach it before the IOCP
-        // path takes over the descriptor again.
-        var _ = transport_box.detach()
-        if(ka) {
-            ctx.accumulated.clear();
-            ctx.read_pos = 0u;
-            ctx.overlapped.Internal = 0;
-            ctx.overlapped.InternalHigh = 0;
-            unsafe {
-                ctx.overlapped.Offset = 0;
-                ctx.overlapped.OffsetHigh = 0;
-            }
-            net::iocp::async_recv(s, ctx);
-        } else {
-            net::raw::close_socket(s);
-            free(ctx.buffer.buf);
-            delete ctx; free(conn as *mut void);
-        }
-        }
-    }
-
-    /// One accepted IOCP connection: the completion callback is a plain
-    /// function pointer, so the socket and server it needs travel through
-    /// `AsyncContext::user_data` instead of a capturing closure.
-    struct http_iocp_conn {
-        var s : net::raw::Socket
-        var server : *mut Server
-    }
-}
-
 public struct Server {
     internal var cfg: ServerConfig;
     internal var pool: std.concurrent.ThreadPool;
@@ -242,8 +125,8 @@ public struct Server {
             var fd = unsafe(net::raw::release_tcp(&mut tcp))
             // The listener is non-blocking, and an accepted socket can inherit
             // that mode: `handle_conn` reads the request body with blocking
-            // reads bounded by a timeout, so a non-blocking descriptor would
-            // fail the very first body read with WSAEWOULDBLOCK instead.
+            // reads bounded by a timeout, so a non-blocking descriptor would fail
+            // the very first body read with WSAEWOULDBLOCK instead.
             net::raw::set_blocking(fd)
             var s = S
             unsafe(S.pool.submit_void(|s, fd|() => {
@@ -327,9 +210,15 @@ public struct Server {
             if(cp == null) { panic("http server: failed to allocate completion port") }
             unsafe { new (cp) net::iocp::CompletionPort(self.cfg.worker_count) };
             var i = 0u;
+            // The poll tasks live in this server's pool, and a pool destructor
+            // joins its workers. An endless poll loop would therefore hang
+            // process teardown forever, so each task stops when the server does.
+            var selfp : *mut Server = unsafe(self as *mut Server)
             while(i < self.cfg.worker_count) {
-                unsafe(self.pool.submit_void(|cp|() => {
-                    while(true) { cp.poll(500); }
+                unsafe(self.pool.submit_void(|cp, selfp|() => {
+                    unsafe {
+                    while(selfp.run) { cp.poll(500); }
+                    }
                 }));
                 i = i + 1u;
             }
@@ -353,18 +242,105 @@ public struct Server {
                          continue;
                      }
                      new (ctx) net::iocp::AsyncContext(buf, buf_sz);
-                     new (ctx) net::iocp::AsyncContext(buf, buf_sz);
-                     var conn = malloc(sizeof(http_iocp_conn)) as *mut http_iocp_conn
-                     if(conn == null) {
-                         free(buf);
-                         free(ctx);
-                         net::raw::close_socket(s);
-                         continue;
-                     }
-                     conn.s = s
-                     conn.server = unsafe(self as *mut Server)
-                     ctx.user_data = conn as *mut void
-                     ctx.callback = http_iocp_on_recv
+                     ctx.callback = |s, self, buf_sz|(ctx, bytes, ok) => {
+                         if(!ok || bytes == 0) {
+                             net::raw::close_socket(s);
+                             free(ctx.buffer.buf);
+                             delete ctx;
+                             return;
+                         }
+                         var input_ptr = ctx.buffer.buf as *u8;
+                         var k = 0u;
+                         while(k < bytes) {
+                             ctx.accumulated.push_back(input_ptr[k]);
+                             k = k + 1u;
+                         }
+                         var found = false;
+                         var crlfpos = 0u;
+                         var j = ctx.read_pos;
+                         var abuf = &mut ctx.accumulated;
+                         if(abuf.size() >= 4) {
+                              while(j + 3 < abuf.size()) {
+                                  if(abuf.at(j) == '\r' as u8 && abuf.at(j+1u) == '\n' as u8 &&
+                                     abuf.at(j+2u) == '\r' as u8 && abuf.at(j+3u) == '\n' as u8) {
+                                      found = true;
+                                      crlfpos = j + 4u;
+                                      break;
+                                  }
+                                  j++;
+                              }
+                         }
+                         if (!found) {
+                             if (abuf.size() > 65536) {
+                                 net::raw::close_socket(s); free(ctx.buffer.buf); delete ctx; return;
+                             }
+                             ctx.overlapped.Internal = 0;
+                             ctx.overlapped.InternalHigh = 0;
+                             unsafe {
+                                 ctx.overlapped.Offset = 0;
+                                 ctx.overlapped.OffsetHigh = 0;
+                             }
+                             net::iocp::async_recv(s, ctx);
+                             return;
+                         }
+                         var ptr = abuf.data();
+                         var req_opt = http::parse_request_from_bytes(ptr, crlfpos);
+                         if (req_opt is Option.None) {
+                             net::raw::close_socket(s); free(ctx.buffer.buf); delete ctx; return;
+                         }
+                         var req = req_opt.take_unchecked();
+                         var body_len: isize = 0;
+                         var chunked = false;
+                         if(req.body_len > 0u) { body_len = req.body_len as isize; }
+                         var te_opt = req.headers.get("Transfer-Encoding");
+                         if(te_opt is Option.Some) {
+                            var Some(te) = te_opt else unsafe { unreachable };
+                            if(te.equals(string_view("chunked"))) { chunked = true; body_len = -1; }
+                         }
+                         var leftovers_sz = abuf.size() - crlfpos;
+                         var body_buf = new net::Buffer();
+                         if(leftovers_sz > 0) {
+                             body_buf.append_bytes((ptr + crlfpos) as *u8, leftovers_sz);
+                         }
+                         var transport_box = http::transport_box_plain(s)
+                         std::replace(&mut req.body, http::Body.make_borrowed(transport_box, body_buf, body_len, chunked, 30, 1024u*1024u*10u));
+                         var params = std.vector<std::pair<string, string>>();
+                         var route = self.router.match_route(&req.method, &req.path, &raw mut params);
+                         var resw = http::ResponseWriter(transport_box, &req.method);
+                         if (route != null) {
+                             std::replace(&mut req.route_params, params);
+                             route.handler(&mut req, &mut resw);
+                         } else {
+                             resw.status = 404u;
+                             resw.set_header(http::http_lit("Content-Type"), http::http_lit("text/plain; charset=utf-8"));
+                             resw.write_string(http::http_lit("Not Found\n"));
+                         }
+                         delete body_buf;
+                         var ka = true;
+                         var c_opt = req.headers.get("Connection");
+                         if(c_opt is Option.Some) {
+                             var Some(cv) = c_opt else unsafe { unreachable };
+                             if(cv.equals(string_view("close"))) { ka = false; }
+                         }
+                         // The Transport owns `s`; detach it before the IOCP
+                         // path takes over the descriptor again.
+                         var _ = transport_box.detach()
+                         if(ka) {
+                             ctx.accumulated.clear();
+                             ctx.read_pos = 0u;
+                             ctx.overlapped.Internal = 0;
+                             ctx.overlapped.InternalHigh = 0;
+                             unsafe {
+                                 ctx.overlapped.Offset = 0;
+                                 ctx.overlapped.OffsetHigh = 0;
+                             }
+                             net::iocp::async_recv(s, ctx);
+                         } else {
+                             net::raw::close_socket(s);
+                             free(ctx.buffer.buf);
+                             delete ctx;
+                         }
+                     };
                      net::iocp::async_recv(s, ctx);
                 } else {
                     net::raw::close_socket(s);

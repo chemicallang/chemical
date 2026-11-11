@@ -30,15 +30,7 @@ public namespace net {
         public struct AsyncContext {
             var overlapped: OVERLAPPED;
             var buffer: WSABUF;
-            /**
-             * Completion callback. A plain function pointer plus `user_data`
-             * instead of an owning `std::function`: the context is allocated with
-             * `malloc` and placement-constructed, so an owning callable inside it
-             * would need real copy/move/drop glue that this raw storage does not
-             * provide.
-             */
-            var callback: (ctx: *mut AsyncContext, bytes: u32, ok: bool) => void = null;
-            var user_data: *mut void = null;
+            var callback: std::function<(ctx: *mut AsyncContext, bytes: u32, ok: bool) => void>;
             var accumulated: std::vector<u8>;
             var read_pos: usize;
 
@@ -57,8 +49,7 @@ public namespace net {
                         buf : buf,
                         len : len
                     }
-                    callback : null
-                    user_data : null
+                    callback : () => {}
                     accumulated : std::vector<u8>()
                     read_pos : 0u
                 }
@@ -108,9 +99,7 @@ public namespace net {
                     var ctx = ov_ptr as *mut AsyncContext;
 
                     // Pass ctx to callback so it can manage itself
-                    if(ctx.callback != null) {
-                        ctx.callback(ctx, bytes, ok != 0);
-                    }
+                    ctx.callback(ctx, bytes, ok != 0);
 
                     return true;
                 }

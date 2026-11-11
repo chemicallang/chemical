@@ -122,6 +122,7 @@ static void ct_stat_decl(const char* tag, FunctionDeclaration* d) {
 #include <unordered_set>
 #include "compiler/async/AwaitNormalizePass.h"
 #include "compiler/mir/MIREmitter.h"
+#include "compiler/mir/MIRDump.h"
 #include "compiler/safety/SafetyReport.h"
 #include "compiler/mir/MIRDeclEmitter.h"
 #include "compiler/mir/MIRVtable.h"
@@ -1997,11 +1998,22 @@ void mir_collect_owned_globals(const std::vector<ASTNode*>& nodes,
 // MIR translation of a file's top-level nodes: eligible functions are lowered
 // and their C bodies emitted from MIR; other nodes still go through the legacy
 // visitor (declarations and not-yet-ported constructs) for now.
-// Lower one function through MIR and fill `task.out` with its C; the driver
-// appends `task.out` at the function's source-order slot. This is the C-path
-// body of `lower_and_emit`, extracted so a parallel worker can run it against
-// its own task context. Returns false on ineligibility or a lowering/emission
-// failure (the caller then takes the inline path, which reports the diagnostic).
+//
+// `MIR_C_DUMP=<substring>` prints the lowered MIR of every function whose
+// mangled name contains `<substring>` (empty = all) just before the C backend
+// consumes it. This is the C-path counterpart of `MIR_LLVM_DUMP`: the MIR is
+// the only artifact a backend reads, so it is what a codegen bug must be
+// reproduced against.
+static void mir_dump_for_debug(const mir::MIRFunction& fn, mir::MIRModule& module) {
+    const char* filter = std::getenv("MIR_C_DUMP");
+    if (filter == nullptr) return;
+    if (fn.symbol >= module.symbols.size()) return;
+    const std::string name = module.symbols.mangled_name(module.symbols.get(fn.symbol));
+    if (filter[0] != '\0' && name.find(filter) == std::string::npos) return;
+    std::cerr << "==== MIR " << name << " ====\n";
+    mir::dump_function(fn, module, std::cerr);
+}
+
 static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& module,
                                     FunctionDeclaration* decl, bool llvm_collect,
                                     std::string& error) {
@@ -2195,6 +2207,7 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
         lowerer.clear_lambda_defs();
         return false;
     }
+    mir_dump_for_debug(fn, module);
     flush_lambdas();
     task.out.append(task.body);
     return true;

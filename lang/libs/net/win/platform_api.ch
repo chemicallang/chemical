@@ -127,4 +127,13 @@ public namespace net {
         return unsafe(shutdown(s as uintptr_t, how))
     }
 
+    // `net` re-exports the POSIX names its cross-platform users call
+    // (`http`'s `send_file` seeks the opened file through `net::lseek`). The
+    // CRT exports the underscore-prefixed spelling on Windows.
+    @extern protected func _lseek(fd : int, offset : longlong, whence : int) : longlong
+
+    public func lseek(fd : int, offset : longlong, whence : int) : longlong {
+        return unsafe(_lseek(fd, offset, whence))
+    }
+
 }

@@ -2,6 +2,12 @@ public namespace net {
 
     public namespace iocp {
         using net::raw::Socket;
+        // Socket constants live in `net::raw`; `net::iocp` is a sibling, so they
+        // are not in scope unqualified (this file only compiles on Windows,
+        // which is why the gap survived the POSIX gates).
+        using net::raw::AF_INET;
+        using net::raw::SOCK_STREAM;
+        using net::raw::IPPROTO_TCP;
         public struct OVERLAPPED {
             var Internal: usize;
             var InternalHigh: usize;
@@ -24,7 +30,15 @@ public namespace net {
         public struct AsyncContext {
             var overlapped: OVERLAPPED;
             var buffer: WSABUF;
-            var callback: std::function<(ctx: *mut AsyncContext, bytes: u32, ok: bool) => void>;
+            /**
+             * Completion callback. A plain function pointer plus `user_data`
+             * instead of an owning `std::function`: the context is allocated with
+             * `malloc` and placement-constructed, so an owning callable inside it
+             * would need real copy/move/drop glue that this raw storage does not
+             * provide.
+             */
+            var callback: (ctx: *mut AsyncContext, bytes: u32, ok: bool) => void = null;
+            var user_data: *mut void = null;
             var accumulated: std::vector<u8>;
             var read_pos: usize;
 
@@ -43,7 +57,8 @@ public namespace net {
                         buf : buf,
                         len : len
                     }
-                    callback : () => {}
+                    callback : null
+                    user_data : null
                     accumulated : std::vector<u8>()
                     read_pos : 0u
                 }
@@ -70,7 +85,13 @@ public namespace net {
         unsafe {
                 if(handle == 0) { return false }
                 var res = CreateIoCompletionPort(s as uintptr_t, handle, key, 0);
-                return res == handle;
+                if(res == handle) { return true }
+                // A socket can be associated with a completion port exactly once.
+                // Every async operation re-registers its socket, so the second
+                // and later calls report ERROR_INVALID_PARAMETER (87): the socket
+                // is already on this process-wide port, which is what we want, so
+                // treat it as success instead of failing the operation.
+                return GetLastError() == 87 as DWORD;
 
         }}
 
@@ -87,7 +108,9 @@ public namespace net {
                     var ctx = ov_ptr as *mut AsyncContext;
 
                     // Pass ctx to callback so it can manage itself
-                    ctx.callback(ctx, bytes, ok != 0);
+                    if(ctx.callback != null) {
+                        ctx.callback(ctx, bytes, ok != 0);
+                    }
 
                     return true;
                 }

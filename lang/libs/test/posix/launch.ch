@@ -93,7 +93,9 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
                 unsafe { kill(pid, 9) }; // SIGKILL
                 var log = TestLog()
                 log.type = LogType.Error
-                log.message.append_view("Test timed out after 10s")
+                log.message.append_view("Test timed out after ")
+                append_integer(&mut log.message, timeout_ms as int)
+                log.message.append_view(" ms")
                 state.logs.push(log)
                 state.has_failed = true
                 timed_out = true

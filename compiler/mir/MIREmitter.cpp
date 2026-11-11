@@ -2296,9 +2296,8 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const bool c_abi = callee_rec.c_abi_type != MIR_INVALID_ID &&
                                    callee_rec.c_abi_type < module.types.size() &&
                                    module.types.get(callee_rec.c_abi_type).kind == MIRTypeKind::Function;
-                const MIRTypeRecord* int_fn = &module.types.get(callee_rec.type);
-                const uint32_t int_base = sret ? 1 : 0;
-
+                const MIRTypeRecord* c_fn =
+                    c_abi ? &module.types.get(callee_rec.c_abi_type) : nullptr;
                 std::string call;
                 append_symbol_name(module, callee->id, call);
                 call += "(";
@@ -2311,14 +2310,10 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     if (printed != 0 || (sret && !c_abi)) call += ", ";
                     const MIROperand* operand = operand_at(function, inst, a);
                     TypeId ipt = MIR_INVALID_ID;
-                    if (c_abi && int_base + printed < int_fn->data_count) {
-                        ipt = module.types.data_at(int_fn->data_offset + int_base + printed);
-                        if (ipt < module.types.size() &&
-                            module.types.get(ipt).kind == MIRTypeKind::Pointer) {
-                            const TypeId pointee = module.types.get(ipt).element;
-                            if (pointee < module.types.size() &&
-                                abi::is_aggregate(module, pointee)) ipt = pointee;
-                        }
+                    if (c_fn != nullptr && printed < c_fn->data_count) {
+                        // The C ABI signature has no hidden sret parameter, so
+                        // the printed index maps directly onto its data.
+                        ipt = module.types.data_at(c_fn->data_offset + printed);
                     }
                     const bool c_aggregate = ipt != MIR_INVALID_ID &&
                         abi::is_aggregate(module, ipt);

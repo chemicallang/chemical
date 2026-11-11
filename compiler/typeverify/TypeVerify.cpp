@@ -1593,6 +1593,61 @@ static bool zeroable_explicit_impl(
     return false;
 }
 
+/**
+ * Zeroability of a member list (a struct/union body or an anonymous
+ * struct/union member). Anonymous `struct { }` / `union { }` members are
+ * storage, not values, so they are recursed into instead of being asked for a
+ * type. Every other member must have a Zeroable type.
+ */
+static bool zeroable_members_satisfied(
+    TypeVerifier& verifier,
+    const std::vector<BaseDefMember*>& members,
+    InterfaceDefinition* zeroable_iface,
+    std::unordered_set<MembersContainer*>& visiting
+) {
+    for (BaseDefMember* member : members) {
+        if (member == nullptr) continue;
+        switch (member->kind()) {
+            case ASTNodeKind::StructMember: {
+                auto* field = member->as_struct_member_unsafe();
+                BaseType* field_type = const_cast<BaseType*>(field->type.getType());
+                std::unordered_set<MembersContainer*> nested = visiting;
+                if (!zeroable_type_satisfied(verifier, field_type, zeroable_iface, nested)) {
+                    return false;
+                }
+                break;
+            }
+            case ASTNodeKind::UnnamedStruct: {
+                std::unordered_set<MembersContainer*> nested = visiting;
+                if (!zeroable_members_satisfied(
+                        verifier, member->as_unnamed_struct_unsafe()->variables(),
+                        zeroable_iface, nested)) {
+                    return false;
+                }
+                break;
+            }
+            case ASTNodeKind::UnnamedUnion: {
+                std::unordered_set<MembersContainer*> nested = visiting;
+                if (!zeroable_members_satisfied(
+                        verifier, member->as_unnamed_union_unsafe()->variables(),
+                        zeroable_iface, nested)) {
+                    return false;
+                }
+                break;
+            }
+            default: {
+                BaseType* member_type = member->known_type();
+                std::unordered_set<MembersContainer*> nested = visiting;
+                if (!zeroable_type_satisfied(verifier, member_type, zeroable_iface, nested)) {
+                    return false;
+                }
+                break;
+            }
+        }
+    }
+    return true;
+}
+
 static bool zeroable_container_satisfied(
     TypeVerifier& verifier,
     MembersContainer* container,
@@ -1609,27 +1664,10 @@ static bool zeroable_container_satisfied(
     if (container->get_first_user_defined_constructor() != nullptr) return false;
     if (container->has_destructor()) return false;
     if (!visiting.insert(container).second) return true;
-    for (BaseDefMember* member : container->variables()) {
-        if (member == nullptr) continue;
-        if (member->kind() == ASTNodeKind::StructMember) {
-            auto* field = member->as_struct_member_unsafe();
-            BaseType* field_type = const_cast<BaseType*>(field->type.getType());
-            std::unordered_set<MembersContainer*> nested = visiting;
-            if (!zeroable_type_satisfied(verifier, field_type, zeroable_iface, nested)) {
-                visiting.erase(container);
-                return false;
-            }
-        } else {
-            BaseType* member_type = member->known_type();
-            std::unordered_set<MembersContainer*> nested = visiting;
-            if (!zeroable_type_satisfied(verifier, member_type, zeroable_iface, nested)) {
-                visiting.erase(container);
-                return false;
-            }
-        }
-    }
+    const bool satisfied = zeroable_members_satisfied(
+        verifier, container->variables(), zeroable_iface, visiting);
     visiting.erase(container);
-    return true;
+    return satisfied;
 }
 
 static bool zeroable_type_satisfied(
@@ -1670,6 +1708,7 @@ static bool zeroable_type_satisfied(
             return zeroable_type_satisfied(verifier, elem, zeroable_iface, visiting);
         }
         case BaseTypeKind::Struct:
+        case BaseTypeKind::Union:
         case BaseTypeKind::Linked:
         case BaseTypeKind::Generic: {
             auto* container = canonical->get_members_container();

@@ -87,13 +87,16 @@ comptime const INVALID_HANDLE_VALUE : HANDLE = (0xFFFFFFFF as usize) as HANDLE;
 /// Open NUL: (Windows /dev/null equivalent) so un-captured output doesn't
 /// leak to the parent's console.
 func win_open_nul() : HANDLE {
+    unsafe {
     var h = CreateFileA("NUL", FILE_WRITE_DATA, 0, null, OPEN_EXISTING, 0, null)
     if(h == INVALID_HANDLE_VALUE) { return GetStdHandle(STD_OUTPUT_HANDLE) }
     return h
+    }
 }
 
 /// Read all data from a handle until EOF.
 func win_read_all(h : HANDLE, data : *mut vector<u8>) : bool {
+    unsafe {
     var buf : [4096]u8;
     while(true) {
         var bytes_read : DWORD = 0
@@ -107,10 +110,43 @@ func win_read_all(h : HANDLE, data : *mut vector<u8>) : bool {
         }
     }
     return true
+    }
+}
+
+/// Append whatever is currently buffered on a pipe without blocking, appending
+/// it to `data`. Sets `open` to false once the write end is gone (the child
+/// exited), which is how the wait loop learns the stream reached EOF.
+func win_drain_available(h : HANDLE, data : *mut vector<u8>, open : *mut bool) {
+    unsafe {
+    var buf : [4096]u8
+    while(true) {
+        var avail : DWORD = 0
+        if(PeekNamedPipe(h, null, 0, null, &raw mut avail, null) == 0) {
+            // ERROR_BROKEN_PIPE (109): the child closed the write end.
+            open[0] = false
+            return
+        }
+        if(avail == 0) { return }
+        var to_read : DWORD = avail
+        if(to_read > 4096 as DWORD) { to_read = 4096 as DWORD }
+        var bytes_read : DWORD = 0
+        if(ReadFile(h, &raw mut buf[0], to_read, &raw mut bytes_read, null) == 0) {
+            open[0] = false
+            return
+        }
+        if(bytes_read == 0) { return }
+        var i : DWORD = 0
+        while(i < bytes_read) {
+            data.push(buf[i as size_t] as u8)
+            i += 1
+        }
+    }
+    }
 }
 
 /// Build a command line string from args with "cmd /c" wrapper.
 func win_build_cmdline(args : *vector<string>) : string {
+    unsafe {
     var cmd = string("cmd /c ")
     var i : size_t = 0
     var prev_was_flag = false
@@ -132,11 +168,13 @@ func win_build_cmdline(args : *vector<string>) : string {
         i += 1
     }
     return cmd
+    }
 }
 
 /// Build a Windows environment block from a vector of "KEY=VALUE" strings.
 /// The block is a sequence of null-terminated strings followed by an extra null.
 func win_build_env_block(env : *vector<string>) : *mut void {
+    unsafe {
     if(env.size() == 0) { return null }
     // Calculate total size
     var total : size_t = 0
@@ -166,6 +204,7 @@ func win_build_env_block(env : *vector<string>) : *mut void {
     }
     block[pos] = 0 // final double-null
     return block_raw
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -173,6 +212,7 @@ func win_build_env_block(env : *vector<string>) : *mut void {
 // ---------------------------------------------------------------------------
 
 func win_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
+    unsafe {
     if(cfg.args.size() == 0) { return false }
 
     var stdout_read : HANDLE = null
@@ -321,52 +361,47 @@ func win_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
 
     var stdout_data = vector<u8>()
     var stderr_data = vector<u8>()
-    var wait_ms : DWORD = INFINITE
-    if(cfg.timeout_ms > 0) {
-        wait_ms = cfg.timeout_ms as DWORD
-    }
     var timed_out = false
 
-    if(cfg.timeout_ms > 0) {
-        // With timeout: wait first with timeout, then read output.
-        // This avoids win_read_all blocking forever when the child hangs.
-        var wait_rc = WaitForSingleObject(pi.hProcess, wait_ms)
-        if(wait_rc == WAIT_TIMEOUT) {
-            timed_out = true
-            TerminateProcess(pi.hProcess, 1)
-            WaitForSingleObject(pi.hProcess, INFINITE)
-            // Do NOT read stdout/stderr — orphaned child processes (cmd→sh→sleep)
-            // may still hold the write end open, causing win_read_all to block.
-            // Close the read handles instead.
-            if(cfg.capture_stdout || cfg.merge_stdout_stderr) {
-                CloseHandle(stdout_read)
-            }
-            if(cfg.capture_stderr && !cfg.merge_stdout_stderr) {
-                CloseHandle(stderr_read)
-            }
-        } else {
-            // Process exited normally — read its output
-            if(cfg.capture_stdout || cfg.merge_stdout_stderr) {
-                win_read_all(stdout_read, &raw mut stdout_data)
-                CloseHandle(stdout_read)
-            }
-            if(cfg.capture_stderr && !cfg.merge_stdout_stderr) {
-                win_read_all(stderr_read, &raw mut stderr_data)
-                CloseHandle(stderr_read)
-            }
+    // Drain both pipes *while* the child runs. Waiting for the process first
+    // deadlocks as soon as it writes more than one pipe buffer — the compiler
+    // emits tens of kilobytes of warnings, fills the pipe, blocks on write and
+    // never exits, so a compile invoked through `Command::output()` would sit
+    // until the timeout fired and report the terminated exit code.
+    var stdout_open = cfg.capture_stdout || cfg.merge_stdout_stderr
+    var stderr_open = cfg.capture_stderr && !cfg.merge_stdout_stderr
+    var start = std::chrono::Instant::now()
+    while(true) {
+        var exited = WaitForSingleObject(pi.hProcess, 0) == 0 as DWORD // WAIT_OBJECT_0
+        if(stdout_open) {
+            win_drain_available(stdout_read, &raw mut stdout_data, &raw mut stdout_open)
         }
-    } else {
-        // No timeout: read output, then wait
-        if(cfg.capture_stdout || cfg.merge_stdout_stderr) {
-            win_read_all(stdout_read, &raw mut stdout_data)
-            CloseHandle(stdout_read)
+        if(stderr_open) {
+            win_drain_available(stderr_read, &raw mut stderr_data, &raw mut stderr_open)
         }
-        if(cfg.capture_stderr && !cfg.merge_stdout_stderr) {
-            win_read_all(stderr_read, &raw mut stderr_data)
-            CloseHandle(stderr_read)
+        // Both streams are drained to EOF and the child is gone: done. A child
+        // that exits without closing its pipes (an orphan grandchild holding the
+        // write end) is bounded by the timeout below instead.
+        if(exited && !stdout_open && !stderr_open) {
+            break
         }
-        WaitForSingleObject(pi.hProcess, INFINITE)
+        if(cfg.timeout_ms > 0) {
+            var elapsed_ms = start.elapsed().as_millis()
+            if(elapsed_ms >= cfg.timeout_ms as i64) {
+                timed_out = true
+                TerminateProcess(pi.hProcess, 1)
+                WaitForSingleObject(pi.hProcess, INFINITE)
+                break
+            }
+        } else if(exited) {
+            // no timeout: the streams are closed when the child (and every
+            // process that inherited the write end) exited
+            if(!stdout_open && !stderr_open) { break }
+        }
+        Sleep(1)
     }
+    if(stdout_open) { CloseHandle(stdout_read); stdout_open = false }
+    if(stderr_open) { CloseHandle(stderr_read); stderr_open = false }
 
     // Get exit code
     var exit_code : DWORD = 0
@@ -383,6 +418,7 @@ func win_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
     out.status._signal = 0
     out.success = (exit_code == 0 && !timed_out)
     return true
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -390,6 +426,7 @@ func win_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
 // ---------------------------------------------------------------------------
 
 func win_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
+    unsafe {
     if(cfg.args.size() == 0) { return false }
 
     var stdout_read : HANDLE = null
@@ -504,6 +541,7 @@ func win_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
     child.win.pid = pi.dwProcessId as int
     child.is_running = true
     return true
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -511,6 +549,7 @@ func win_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
 // ---------------------------------------------------------------------------
 
 func win_wait(child : *mut ChildProcess, out : *mut ProcessResult) : bool {
+    unsafe {
     var stdout_data = vector<u8>()
     var stderr_data = vector<u8>()
 
@@ -568,6 +607,7 @@ func win_wait(child : *mut ChildProcess, out : *mut ProcessResult) : bool {
     out.status._signal = 0
     out.success = (exit_code == 0)
     return true
+    }
 }
 
 } // end namespace process

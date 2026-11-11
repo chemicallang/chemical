@@ -1539,7 +1539,13 @@ public:
 
                 // timeout
                 const auto timeArgs = controller.get_args(node.node, "test.timeout");
-                unsigned timeout = 1000 * 60 * 1; // 60 seconds
+                // Default 3 minutes: a test may drive a whole compiler (the
+                // negative suite compiles a module per case, and a plugin case
+                // rebuilds the CBI plugin too), and the compiler itself uses
+                // every core, so a heavy case launched alongside the rest of the
+                // suite's pool can take far longer than it does on its own.
+                // Override per test with `@test.timeout(<milliseconds>)`.
+                unsigned timeout = 1000 * 60 * 3; // 180 seconds
                 if(timeArgs && !timeArgs->empty() && (*timeArgs)[0]->kind() == ValueKind::IntN) {
                     timeout = (*timeArgs)[0]->as_int_num_value_unsafe()->value;
                 }

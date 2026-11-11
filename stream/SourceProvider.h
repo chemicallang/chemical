@@ -44,6 +44,23 @@ private:
      */
     unsigned int lineCharacterNumber = 0;
 
+    /**
+     * Source files written by Windows editors frequently begin with a UTF-8
+     * byte order mark. It is not part of the program text, so it must not
+     * become the first token (which showed up as "local statement at top
+     * level"). Skipping it before any character is read keeps line 0 /
+     * character 0 pointing at the first real character.
+     */
+    void skip_utf8_bom() noexcept {
+        if (size_ >= 3 &&
+            static_cast<unsigned char>(data_[0]) == 0xEF &&
+            static_cast<unsigned char>(data_[1]) == 0xBB &&
+            static_cast<unsigned char>(data_[2]) == 0xBF) {
+            data_ += 3;
+            size_ -= 3;
+        }
+    }
+
 public:
 
     /**
@@ -79,14 +96,14 @@ public:
      * create a source provider with a stream
      */
     explicit SourceProvider(InputSource& stream) : data_(stream.data()), size_(stream.size()), end_(stream.data() + stream.size()) {
-
+        skip_utf8_bom();
     }
 
     /**
      * create a source provider with a stream
      */
     explicit SourceProvider(const char* data, std::size_t size) : data_(data), size_(size), end_(data + size) {
-
+        skip_utf8_bom();
     }
 
     /**

@@ -31,6 +31,11 @@
 #include <queue>
 #include <chrono>
 
+// Pool threads need an explicit stack size (see `threads[i]` below); the
+// wrapper lives in `utils/` because the compiler targets cannot add a source
+// file to their explicit lists, so it is header-only.
+#include "utils/LargeStack.h"
+
 
 
 // thread pool to run user's functors with signature
@@ -91,10 +96,10 @@ namespace ctpl {
         // from a non-worker thread; when called from one of this pool's workers
         // it waits for all *other* work (the caller's own frame is not counted).
         void wait_idle() {
-            const auto self = std::this_thread::get_id();
+            const chem::thread* self = chem::thread::current();
             bool worker = false;
             for (auto& t : this->threads) {
-                if (t && t->get_id() == self) { worker = true; break; }
+                if (t && self != nullptr && t.get() == self) { worker = true; break; }
             }
             while (true) {
                 {
@@ -107,7 +112,7 @@ namespace ctpl {
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
         }
-        std::thread & get_thread(int i) { return *this->threads[i]; }
+        chem::thread & get_thread(int i) { return *this->threads[i]; }
 
         // change the number of threads in the pool
         // should be called from one thread, otherwise be careful to not interleave, also with this->stop()
@@ -254,12 +259,17 @@ namespace ctpl {
                         return;  // if the queue is empty and this->isDone == true or *flag then return
                 }
             };
-            this->threads[i].reset(new std::thread(f)); // compiler may not support std::make_unique()
+            // A compiler worker thread recurses deeply (MIR lowering, comptime
+            // evaluation), so it is created with an explicit large stack: a
+            // Windows process defaults to 1 MiB, and the comptime recursion
+            // guard keeps the last 512 KiB of a thread's stack for reporting,
+            // which would fire on a legitimate compile of a large module.
+            this->threads[i].reset(new chem::thread(f));
         }
 
         void init() { this->nWaiting = 0; this->isStop = false; this->isDone = false; }
 
-        std::vector<std::unique_ptr<std::thread>> threads;
+        std::vector<std::unique_ptr<chem::thread>> threads;
         std::vector<std::shared_ptr<std::atomic<bool>>> flags;
         detail::Queue<std::function<void(int id)> *> q;
         std::atomic<bool> isDone;

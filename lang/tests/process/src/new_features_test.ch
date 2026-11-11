@@ -131,6 +131,10 @@ public func test_environment_current_dir(env : &mut TestEnv) {
 
 @test
 public func test_window_clipboard_roundtrip(env : &mut TestEnv) {
+    // The clipboard is one OS-global resource, so the roundtrip and the
+    // empty-value case live in a single test: the suite launches tests in
+    // parallel processes, and two of them touching the clipboard at once read
+    // each other's content (the roundtrip then reports a mismatch).
     var text = string_view("clipboard_test_content")
     var ok = window::raw::window_set_clipboard(text)
     if(!ok) { env.error("window_set_clipboard failed"); return }
@@ -141,13 +145,10 @@ public func test_window_clipboard_roundtrip(env : &mut TestEnv) {
         env.error("clipboard roundtrip failed")
         return
     }
-}
-
-@test
-public func test_window_clipboard_empty(env : &mut TestEnv) {
-    // Set empty string, should still succeed
-    var ok = window::raw::window_set_clipboard(string_view(""))
-    if(!ok) { env.error("set_clipboard empty should succeed"); return }
+    // An empty value must still be accepted.
+    if(!window::raw::window_set_clipboard(string_view(""))) {
+        env.error("set_clipboard empty should succeed")
+    }
 }
 
 // ===========================================================================

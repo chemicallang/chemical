@@ -569,6 +569,14 @@ public:
      */
     void prime_constructor_fact(FunctionDeclaration* fn);
 
+    /**
+     * Format an encoded source location for a lowering diagnostic, as
+     * `" at <file>:<line>:<column>"`. Empty when the location cannot be
+     * resolved (no provider, or an unknown file), so callers can append it
+     * unconditionally.
+     */
+    std::string format_source_loc(uint64_t encoded_location) const;
+
 private:
     MIRExprResult lower_expr(Value* value, std::string& error);
     bool lower_stmt(ASTNode* node, std::string& error);

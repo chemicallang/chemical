@@ -113,58 +113,65 @@ public struct OsString {
 
         // Helper: convert UTF-8 -> std::u16string using Win32 API
         func utf8_to_u16(utf8 : &std::string) : std::u16string {
+            unsafe {
             if (utf8.empty()) return std::u16string();
 
-            // Get required length (in wchar_t units)
-            var req = unsafe(MultiByteToWideChar(CP_UTF8, 0, utf8.data(), utf8.size() as int, NULL, 0));
-            if (req == 0) {
+            // Required length in UTF-16 units
+            var req = MultiByteToWideChar(CP_UTF8, 0, utf8.data(), utf8.size() as int, null, 0);
+            if (req <= 0) {
                 // TODO: return a result
                 // throw std::runtime_error("utf8_to_u16: MultiByteToWideChar failed")
                 return std::u16string()
             };
 
-            // Fill a temporary std::u16string (wchar_t is 16-bit on Windows)
-            var tmp = std::u16string();
-            tmp.reserve(req as uint)
-            var res = unsafe(MultiByteToWideChar(CP_UTF8, 0, utf8.data(), utf8.size() as int, tmp.data() as LPWSTR, req));
+            // Convert into a temporary buffer and append it: the Chemical
+            // `u16string` has no uninitialized writable storage, so reserving
+            // and writing through `data()` would leave the length at zero (an
+            // empty string that reports a null native pointer).
+            var buf = malloc((req as size_t) * 2) as *mut u16
+            if (buf == null) { return std::u16string() }
+            var res = MultiByteToWideChar(CP_UTF8, 0, utf8.data(), utf8.size() as int, buf as LPWSTR, req);
             if (res == 0) {
-                // TODO: return a result
                 // throw std::runtime_error("utf8_to_u16: MultiByteToWideChar failed second pass");
+                dealloc buf
                 return std::u16string()
             }
 
-            // Convert std::u16string -> std::u16string by narrowing/widening char type
             var out = std::u16string();
-            out.append_with_len(tmp.data(), tmp.size())
+            out.append_with_len(buf, res as size_t)
+            dealloc buf
             return out;
+            }
         }
 
         // Helper: convert std::u16string -> UTF-8 using Win32 API
         func u16_to_utf8(str : &std::u16string) : std::string {
+            unsafe {
             if (str.empty()) return std::string();
 
-            // Copy into std::u16string (wchar_t 16-bit on Windows)
-            var tmp = std::u16string();
-            tmp.append_with_len(str.data(), str.size())
-
             // Get required length in bytes
-            var req = unsafe(WideCharToMultiByte(CP_UTF8, 0, tmp.data(), tmp.size() as int, NULL, 0, NULL, NULL));
-            if (req == 0) {
-                // TODO: return a result
+            var req = WideCharToMultiByte(CP_UTF8, 0, str.data(), str.size() as int, null, 0, null, null);
+            if (req <= 0) {
                 // throw std::runtime_error("u16_to_utf8: WideCharToMultiByte failed")
                 return std::string()
             };
 
-            var out = std::string();
-            out.reserve(req as uint)
-            var res = unsafe(WideCharToMultiByte(CP_UTF8, 0, tmp.data(), tmp.size() as int, out.data() as LPSTR, req, NULL, NULL));
+            // Same as `utf8_to_u16`: convert into a buffer, then append it so the
+            // returned string carries the converted length.
+            var buf = malloc(req as size_t) as *mut char
+            if (buf == null) { return std::string() }
+            var res = WideCharToMultiByte(CP_UTF8, 0, str.data(), str.size() as int, buf as LPSTR, req, null, null);
             if (res == 0) {
-                // TODO: return a result
                 // throw std::runtime_error("u16_to_utf8: WideCharToMultiByte failed second pass")
+                dealloc buf
                 return std::string()
             }
 
+            var out = std::string();
+            out.append_with_len(buf, res as size_t)
+            dealloc buf
             return out;
+            }
         }
 
     }

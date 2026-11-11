@@ -47,16 +47,16 @@ public func var(name : &str) : Result<string, EnvError> {
     }
     var Ok(cname) = made else unsafe { unreachable }
     comptime if(def.windows) {
-        var needed = GetEnvironmentVariableA(unsafe(cname.as_ptr()), null, 0)
+        var needed = unsafe(GetEnvironmentVariableA(unsafe(cname.as_ptr()), null, 0))
         if(needed == 0) {
             return Result.Err(EnvError.NotFound())
         }
         var buf : [4096]char
-        var got = GetEnvironmentVariableA(unsafe(cname.as_ptr()), &raw mut buf[0], 4096)
+        var got = unsafe(GetEnvironmentVariableA(unsafe(cname.as_ptr()), &raw mut buf[0], 4096))
         if(got == 0 || got >= 4096) {
             return Result.Err(EnvError.NotFound())
         }
-        return Result.Ok(string.make_no_len(&raw mut buf[0]))
+        return Result.Ok(unsafe(string.make_no_len(&raw mut buf[0])))
     } else {
         var ptr = unsafe(getenv(unsafe(cname.as_ptr())))
         if(ptr == null) {
@@ -86,7 +86,7 @@ public unsafe func set_var(name : &str, value : &str) : Result<UnitTy, EnvError>
     var Ok(cname) = n else unsafe { unreachable }
     var Ok(cvalue) = v else unsafe { unreachable }
     comptime if(def.windows) {
-        var r = SetEnvironmentVariableA(unsafe(cname.as_ptr()), unsafe(cvalue.as_ptr()))
+        var r = unsafe(SetEnvironmentVariableA(unsafe(cname.as_ptr()), unsafe(cvalue.as_ptr())))
         if(r == 0) { return Result.Err(EnvError.OperationFailed(string("SetEnvironmentVariableA failed"))) }
         return Result.Ok(UnitTy{})
     } else {
@@ -102,7 +102,7 @@ public unsafe func remove_var(name : &str) : Result<UnitTy, EnvError> {
     if(n is Result.Err) { var Err(e) = n else unsafe { unreachable }; return Result.Err(e) }
     var Ok(cname) = n else unsafe { unreachable }
     comptime if(def.windows) {
-        var r = SetEnvironmentVariableA(unsafe(cname.as_ptr()), null)
+        var r = unsafe(SetEnvironmentVariableA(unsafe(cname.as_ptr()), null))
         if(r == 0) { return Result.Err(EnvError.OperationFailed(string("SetEnvironmentVariableA failed"))) }
         return Result.Ok(UnitTy{})
     } else {
@@ -147,7 +147,7 @@ public func user_name() : Option<string> {
 public func current_dir() : Result<PathBuf, EnvError> {
     comptime if(def.windows) {
         var buf : [4096]char
-        var len = GetCurrentDirectoryA(4096, &raw mut buf[0])
+        var len = unsafe(GetCurrentDirectoryA(4096, &raw mut buf[0]))
         if(len == 0 || len >= 4096) {
             return Result.Err(EnvError.OperationFailed(string("GetCurrentDirectoryA failed")))
         }
@@ -172,7 +172,7 @@ public unsafe func set_current_dir(dir : &Path) : Result<UnitTy, EnvError> {
         return Result.Err(EnvError.InvalidInput())
     }
     comptime if(def.windows) {
-        var r = SetCurrentDirectoryW(native as LPCWSTR)
+        var r = unsafe(SetCurrentDirectoryW(native))
         if(r == 0) { return Result.Err(EnvError.OperationFailed(string("SetCurrentDirectoryW failed"))) }
         return Result.Ok(UnitTy{})
     } else {
@@ -269,7 +269,7 @@ func push_arg(out : *mut vector<string>, view : string_view) : Result<UnitTy, En
 public func args() : Result<vector<string>, EnvError> {
     var out = vector<string>()
     comptime if(def.windows) {
-        var cmd = GetCommandLineA()
+        var cmd = unsafe(GetCommandLineA())
         if(cmd == null) {
             return Result.Ok(out)
         }
@@ -281,7 +281,10 @@ public func args() : Result<vector<string>, EnvError> {
         while(i <= len) {
             if(i == len || view.at(i) == ' ' || view.at(i) == '\t') {
                 if(i > start) {
-                    var r = push_arg(&raw mut out, view.subview(start, i - start))
+                    // `subview(start, end)` takes an absolute end offset, not a
+                    // length: passing `i - start` made later arguments ask for a
+                    // range that ends before it starts (an out-of-bounds panic).
+                    var r = push_arg(&raw mut out, view.subview(start, i))
                     if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(e) }
                 }
                 start = i + 1

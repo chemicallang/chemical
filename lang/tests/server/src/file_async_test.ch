@@ -32,6 +32,9 @@ func write_server_fixture() : bool {
 }
 
 // Issue one async GET, retrying briefly so the accept loop has time to bind.
+// A failed attempt still returns a box (status 0), so the retry waits for a box
+// carrying a response: returning the first failure would report the bind race as
+// a wrong status.
 func server_async_get(url_str : string_view) : *mut http::HttpResult {
     var client = http::Client()
     var n = 0
@@ -39,11 +42,19 @@ func server_async_get(url_str : string_view) : *mut http::HttpResult {
     while(n < 200) {
         var u = url_str
         box = async::block_on<*mut http::HttpResult>(http::raw::get_async(&raw mut client, &raw mut u))
-        if(box != null) { return box }
+        unsafe {
+            if(box != null && box.is_ok()) { return box }
+            if(box != null) {
+                delete box
+                box = null
+            }
+        }
         std::concurrent.sleep_ms(5u)
         n = n + 1
     }
-    return box
+    // Last attempt: hand back the failure so the caller reports its reason.
+    var u = url_str
+    return async::block_on<*mut http::HttpResult>(http::raw::get_async(&raw mut client, &raw mut u))
 }
 
 @test

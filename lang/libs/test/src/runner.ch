@@ -156,7 +156,10 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
                         const fn_state = state.tests.get_ptr(ind)
                         const test_id = test_start.id;
                         const test_retry = test_start.retry as int
-                        var timeout_ms = 60000;
+                        // 3 minutes by default — see the note in the parallel
+                        // dispatch path below: one test can drive a whole
+                        // compiler, which saturates the machine on its own.
+                        var timeout_ms = 180000;
                         if(test_start.timeout > 0) { timeout_ms = test_start.timeout as int }
                         launch_test_with_retries(exe_path, test_id, unsafe(&mut *fn_state), test_retry, timeout_ms as uint);
                         if(reporter != null) {
@@ -213,8 +216,11 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
                 const test_retry = test_start.retry as int
 
                 // timeout in milliseconds
-                // by default 60 seconds
-                var timeout_ms = 60000;
+                // by default 3 minutes: a test may spawn a full compiler (the
+                // negative suite does, once per case) and that compiler uses
+                // every core itself, so a heavy case running alongside the rest
+                // of the pool can take far longer than it does on its own.
+                var timeout_ms = 180000;
                 if(test_start.timeout > 0) {
                     // assuming test_start.timeout is in milliseconds
                     // if it's in seconds, we should multiply by 1000

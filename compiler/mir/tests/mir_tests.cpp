@@ -2486,9 +2486,14 @@ static bool test_move_check() {
     const SymbolId ctor = module.symbols.add(drec, "make_owned", 10,
                                              "make_owned", 10);
 
+    // The arena backs `fn.blocks`/`fn.instructions` (MIRArray is a non-owning
+    // arena-backed view), so it must outlive every function the test inspects:
+    // a per-call arena here left the block table dangling, which reads back as
+    // poison (0xDD on an MSVC debug heap) instead of the built blocks.
+    MIRArena arena;
+
     auto build = [&](MIRFunction& fn, auto&& body) {
         fn.function_type = i32;
-        MIRArena arena;
         MIRBuilder b(arena, module, fn);
         const BlockId entry = b.create_block();
         fn.entry_block = entry;

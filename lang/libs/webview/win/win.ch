@@ -1501,8 +1501,8 @@ func webview_json_parse(msg : std::string_view, key : std::string_view) : string
     needle.append('"')
     needle.append(':')
     var nv = std::string_view::constructor(needle.data(), needle.size())
-    var pos = msg.find(&nv)
-    if(pos >= msg.size()) {
+    var pos = msg.find_or_npos(&nv)
+    if(pos == std::NPOS || pos >= msg.size()) {
         return string("")
     }
     var vstart : size_t = pos + needle.size()

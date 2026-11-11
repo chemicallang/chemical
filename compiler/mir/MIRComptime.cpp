@@ -630,6 +630,11 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
     std::fprintf(stderr, "[CTSTAT] DECLINE %s: %s\n", fd && fd->name_str().size() ? fd->name_str().c_str() : "?", reason); } \
     return nullptr; } while (0)
     if (!ctx.host || !ctx.allocator || !ctx.type_builder || !ctx.scope) return nullptr;
+    // The driver interns its own MIR types, so it must lay them out for the
+    // job's target: a fresh MIRModule defaults to a SysV/64-bit layout, which
+    // makes `sizeof(long)` 8 in comptime on Windows (LLP64: 4). Mirror the live
+    // lowerer's module layout before anything is interned.
+    impl_->module.layout = ctx.host->module().layout;
     if (!fd || !fd->body.has_value()) return nullptr;
     if (!fd->is_comptime()) return nullptr;
     // a template (an `@expand` splice, or a marker-parameter template) is
@@ -1009,6 +1014,9 @@ bool MIRComptime::evaluate_block(const MIRComptimeContext& ctx, ComptimeBlock* b
         error = "comptime block has no lowering context";
         return false;
     }
+    // Same target layout mirror as `evaluate` — comptime blocks run on the same
+    // engine and must lay out `sizeof`/`alignof` for the job's target.
+    impl_->module.layout = ctx.host->module().layout;
     // A comptime block runs in its own scope: it must not read the enclosing
     // function's runtime locals, so model it as a synthetic void function.
     auto* fd = new (ctx.allocator->allocate<FunctionDeclaration>())

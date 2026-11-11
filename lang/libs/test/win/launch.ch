@@ -125,7 +125,9 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
             TerminateProcess(pi.hProcess, 1)
             var l = TestLog()
             l.type = LogType.Error
-            l.message.append_view("Test timed out after 10s")
+            l.message.append_view("Test timed out after ")
+            append_integer(&mut l.message, timeout_ms as int)
+            l.message.append_view(" ms")
             state.logs.push(l)
             state.has_failed = true
             state.exitCode = 1 // dummy exit code for timeout
@@ -194,7 +196,9 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
             TerminateProcess(pi.hProcess, 1)
             var l = TestLog()
             l.type = LogType.Error
-            l.message.append_view("Test timed out after 10s")
+            l.message.append_view("Test timed out after ")
+            append_integer(&mut l.message, timeout_ms as int)
+            l.message.append_view(" ms")
             state.logs.push(l)
             state.has_failed = true
             state.exitCode = 1 // dummy exit code for timeout

@@ -1437,7 +1437,8 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     // a void comptime call whose evaluation produced no value
                     // (e.g. an inline-asm fence) is a no-op
                     if (is_void_type(module_, type)) return MIRExprResult::void_result();
-                    error = "comptime call to '" + fd->name_str() + "' could not be evaluated";
+                    error = "comptime call to '" + fd->name_str() + "' could not be evaluated" +
+                            format_source_loc(call->encoded_location().encoded);
                     return MIRExprResult::error();
                 }
                 return lower_expr(evaluated, error);

@@ -704,7 +704,7 @@ public func child_pid(child : &mut Child) : int {
 /// Get the current process ID.
 public func current_pid() : int {
     comptime if(def.windows) {
-        return GetCurrentProcessId() as int
+        return unsafe(GetCurrentProcessId()) as int
     } else {
         return unsafe(getpid())
     }
@@ -713,7 +713,7 @@ public func current_pid() : int {
 /// Sleep for the given number of milliseconds.
 public func sleep_ms(ms : int) {
     comptime if(def.windows) {
-        Sleep(ms as u32)
+        unsafe { Sleep(ms as u32) }
     } else {
         unsafe { usleep(ms * 1000) }
     }

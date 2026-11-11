@@ -100,6 +100,27 @@ TCCState* tcc_new_state(const char* exe_path, const char* debug_file_name, TCCMo
 
 }
 
+/**
+ * Link-time defaults for a produced executable (never for JIT/objects).
+ *
+ * POSIX: set the RPATH so the binary finds its shared libraries next to itself.
+ * Windows: a PE image reserves 1 MB of stack while a POSIX main thread gets
+ * 8 MB, so a program that is portable on Linux (a large stack array, or deep
+ * recursion) overflows on Windows only. Reserve the same 8 MB here; the pages
+ * are committed on demand, so this costs address space, not memory.
+ */
+static void tcc_apply_executable_link_defaults(TCCState* s) {
+#if defined(__linux__)
+    // -Wl passes the rpath flag to the internal linker
+    tcc_set_options(s, "-Wl,-rpath,$ORIGIN");
+    tcc_set_options(s, "-Wl,--enable-new-dtags");
+#elif defined(__APPLE__)
+    tcc_set_options(s, "-Wl,-rpath,@executable_path");
+#elif defined(_WIN32)
+    tcc_set_options(s, "-Wl,--stack=8388608");
+#endif
+}
+
 bool tcc_set_output_for_extension(TCCState* s, const std::string& outputFileName) {
     int outputType = TCC_OUTPUT_EXE;
     if (!outputFileName.empty()) {
@@ -112,14 +133,7 @@ bool tcc_set_output_for_extension(TCCState* s, const std::string& outputFileName
         }
     }
     if (outputType == TCC_OUTPUT_EXE) {
-        // Set RPATH for compiled binaries (non-JIT)
-#if defined(__linux__)
-        // -Wl passes the rpath flag to the internal linker
-        tcc_set_options(s, "-Wl,-rpath,$ORIGIN");
-        tcc_set_options(s, "-Wl,--enable-new-dtags");
-#elif defined(__APPLE__)
-        tcc_set_options(s, "-Wl,-rpath,@executable_path");
-#endif
+        tcc_apply_executable_link_defaults(s);
     }
     const auto outputRes = tcc_set_output_type(s, outputType);
     if (outputRes == -1) {
@@ -197,14 +211,7 @@ TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, boo
     }
 
     if (outputType == TCC_OUTPUT_EXE) {
-        // Set RPATH for compiled binaries (non-JIT)
-#if defined(__linux__)
-        // -Wl passes the rpath flag to the internal linker
-        tcc_set_options(s, "-Wl,-rpath,$ORIGIN");
-        tcc_set_options(s, "-Wl,--enable-new-dtags");
-#elif defined(__APPLE__)
-        tcc_set_options(s, "-Wl,-rpath,@executable_path");
-#endif
+        tcc_apply_executable_link_defaults(s);
     }
 
     return s;

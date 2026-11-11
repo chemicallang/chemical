@@ -103,8 +103,10 @@ public struct File {
         if(native != null) {
             return raw::file_open_native(native, unsafe(*opts))
         }
+        // No cached native form: hand the raw UTF-8 bytes to the portable
+        // wrapper, which converts to the platform form (UTF-16 on Windows).
         var text = path.as_string()
-        return raw::file_open_native(text.c_str(), unsafe(*opts))
+        return raw::file_open(text.c_str(), unsafe(*opts))
     }
 
     /// Create or truncate a file for writing.

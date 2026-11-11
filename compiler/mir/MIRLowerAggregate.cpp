@@ -196,6 +196,21 @@ bool MIRLowerer::function_body_is_readable(FunctionDeclaration* fn) {
            current_module_file_scopes_->find(file_scope) != current_module_file_scopes_->end();
 }
 
+std::string MIRLowerer::format_source_loc(uint64_t encoded_location) const {
+    if (!source_loc_provider_) return std::string();
+    MIRSourceLoc loc;
+    if (!source_loc_provider_(encoded_location, loc)) return std::string();
+    std::string out(" at ");
+    if (loc.file < module_.source_files.size() && !module_.source_files[loc.file].empty()) {
+        out += module_.source_files[loc.file];
+        out += ':';
+    }
+    out += std::to_string(loc.line);
+    out += ':';
+    out += std::to_string(loc.column);
+    return out;
+}
+
 void MIRLowerer::prime_constructor_fact(FunctionDeclaration* fn) {
     if (!fn || !fn->is_constructor_fn()) return;
     // The `ctor_writes_whole_value` fact is cached on the (shared) declaration, so

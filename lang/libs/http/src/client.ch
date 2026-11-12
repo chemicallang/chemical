@@ -256,7 +256,13 @@ public struct Client {
     internal var default_timeout_secs: long;
     internal var max_response_header_bytes: usize;
     var max_body_len: usize;
-    internal var ca_chain: *mut tls::raw::X509Cert;
+    // Owned trust store. `has_ca` selects the caller's chain over the lazily
+    // loaded system bundle. Both are owned so a borrowed chain cannot die
+    // between configuration and the handshake.
+    internal var ca_chain: tls::CertificateChain;
+    internal var has_ca: bool;
+    internal var system_ca: tls::CertificateChain;
+    internal var has_system_ca: bool;
     internal var tls_skip_verify: bool;
     internal var proxy_host: string;
     internal var proxy_port: uint;
@@ -266,7 +272,10 @@ public struct Client {
             default_timeout_secs = 10,
             max_response_header_bytes = 64u * 1024u,
             max_body_len = DEFAULT_MAX_BODY_LEN,
-            ca_chain = null,
+            ca_chain = tls::CertificateChain(),
+            has_ca = false,
+            system_ca = tls::CertificateChain(),
+            has_system_ca = false,
             tls_skip_verify = false,
             proxy_host = string(),
             proxy_port = 0u
@@ -274,10 +283,28 @@ public struct Client {
     }
 
     /// Use a specific CA chain for HTTPS verification instead of the system
-    /// bundle. The chain must outlive every request made with this client.
-    public func set_ca_chain(&mut self, chain : &tls::CertificateChain) : &mut Client {
-        ca_chain = unsafe(chain.raw_handle())
+    /// bundle. The client takes ownership of the chain and keeps it alive for
+    /// every request.
+    public func set_ca_chain(&mut self, chain : tls::CertificateChain) : &mut Client {
+        self.ca_chain = chain
+        self.has_ca = true
         return self;
+    }
+
+    /// Load and cache the system CA bundle (once per client).
+    func ensure_ca(&mut self) : Result<std::Unit, HttpError> {
+        if(self.has_ca || self.has_system_ca) {
+            return Result.Ok(std::Unit { })
+        }
+        var ca = tls::load_system_ca_bundle()
+        if(ca is Result.Err) {
+            var Err(e) = ca else unsafe { unreachable }
+            return Result.Err(HttpError.Tls(e))
+        }
+        var Ok(chain) = ca else unsafe { unreachable }
+        self.system_ca = std::replace(&mut chain, tls::CertificateChain())
+        self.has_system_ca = true
+        return Result.Ok(std::Unit { })
     }
 
     public func insecure_skip_verify(&mut self, skip : bool = true) : &mut Client {
@@ -293,20 +320,14 @@ public struct Client {
 
     func tls_config(&self, host : &str) : Result<tls::TlsConfig, HttpError> {
         var cfg = tls::TlsConfig.client()
-        if(self.ca_chain != null) {
-            var set = unsafe(cfg.set_ca_chain_ptr(self.ca_chain))
-            if(set is Result.Err) {
-                var Err(e) = set else unsafe { unreachable }
-                return Result.Err(HttpError.Tls(e))
+        // Verification-disabled configs need no trust store at all.
+        if(!self.tls_skip_verify) {
+            var set : Result<std::Unit, tls::TlsError>
+            if(self.has_ca) {
+                set = cfg.set_ca_chain(&self.ca_chain)
+            } else {
+                set = cfg.set_ca_chain(&self.system_ca)
             }
-        } else {
-            var ca = tls::load_system_ca_bundle()
-            if(ca is Result.Err) {
-                var Err(e) = ca else unsafe { unreachable }
-                return Result.Err(HttpError.Tls(e))
-            }
-            var Ok(chain) = ca else unsafe { unreachable }
-            var set = cfg.set_ca_chain(&chain)
             if(set is Result.Err) {
                 var Err(e) = set else unsafe { unreachable }
                 return Result.Err(HttpError.Tls(e))
@@ -321,10 +342,19 @@ public struct Client {
         return Result.Ok(cfg)
     }
 
-    public func request(&self, req_builder : &RequestBuilder) : Result<Response, HttpError> {
+    public func request(&mut self, req_builder : &RequestBuilder) : Result<Response, HttpError> {
         var host_str = std::str.make_view(req_builder.url.host.to_view())
         var is_https = req_builder.url.scheme.equals_with_len("https", 5)
         var use_proxy = proxy_host.size() > 0u && proxy_port > 0u
+        // Plain HTTP never touches the trust store; load it only for a TLS hop
+        // that verifies the peer.
+        if(is_https && !self.tls_skip_verify) {
+            var ca_ready = self.ensure_ca()
+            if(ca_ready is Result.Err) {
+                var Err(e) = ca_ready else unsafe { unreachable }
+                return Result.Err(e)
+            }
+        }
         var transport_box : *mut Transport = null
 
         if(use_proxy) {
@@ -467,12 +497,12 @@ public struct Client {
         return Result.Ok(res)
     }
 
-    public func get(&self, url_str: &str) : Result<Response, HttpError> {
+    public func get(&mut self, url_str: &str) : Result<Response, HttpError> {
         var sv = unsafe(string_view(url_str.data(), url_str.size()))
         return self.get_view(&sv)
     }
 
-    public func get_view(&self, url_str: &string_view) : Result<Response, HttpError> {
+    public func get_view(&mut self, url_str: &string_view) : Result<Response, HttpError> {
         var u_opt = URL::parse(url_str);
         if(u_opt is Option.None) { return Result.Err(HttpError.InvalidUrl()) }
         var Some(u) = u_opt else unsafe { unreachable };
@@ -481,12 +511,12 @@ public struct Client {
         return self.request(&rb);
     }
 
-    public func post(&self, url_str: &str, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
+    public func post(&mut self, url_str: &str, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
         var sv = unsafe(string_view(url_str.data(), url_str.size()))
         return self.post_view(&sv, body, content_type)
     }
 
-    public func post_view(&self, url_str: &string_view, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
+    public func post_view(&mut self, url_str: &string_view, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
         var u_opt = URL::parse(url_str);
         if(u_opt is Option.None) { return Result.Err(HttpError.InvalidUrl()) }
         var Some(u) = u_opt else unsafe { unreachable };
@@ -496,12 +526,12 @@ public struct Client {
         return self.request(&rb);
     }
 
-    public func put(&self, url_str: &str, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
+    public func put(&mut self, url_str: &str, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
         var sv = unsafe(string_view(url_str.data(), url_str.size()))
         return self.put_view(&sv, body, content_type)
     }
 
-    public func put_view(&self, url_str: &string_view, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
+    public func put_view(&mut self, url_str: &string_view, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
         var u_opt = URL::parse(url_str);
         if(u_opt is Option.None) { return Result.Err(HttpError.InvalidUrl()) }
         var Some(u) = u_opt else unsafe { unreachable };
@@ -511,12 +541,12 @@ public struct Client {
         return self.request(&rb);
     }
 
-    public func patch(&self, url_str: &str, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
+    public func patch(&mut self, url_str: &str, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
         var sv = unsafe(string_view(url_str.data(), url_str.size()))
         return self.patch_view(&sv, body, content_type)
     }
 
-    public func patch_view(&self, url_str: &string_view, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
+    public func patch_view(&mut self, url_str: &string_view, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
         var u_opt = URL::parse(url_str);
         if(u_opt is Option.None) { return Result.Err(HttpError.InvalidUrl()) }
         var Some(u) = u_opt else unsafe { unreachable };
@@ -526,12 +556,12 @@ public struct Client {
         return self.request(&rb);
     }
 
-    public func delete(&self, url_str: &str) : Result<Response, HttpError> {
+    public func delete(&mut self, url_str: &str) : Result<Response, HttpError> {
         var sv = unsafe(string_view(url_str.data(), url_str.size()))
         return self.delete_view(&sv)
     }
 
-    public func delete_view(&self, url_str: &string_view) : Result<Response, HttpError> {
+    public func delete_view(&mut self, url_str: &string_view) : Result<Response, HttpError> {
         var u_opt = URL::parse(url_str);
         if(u_opt is Option.None) { return Result.Err(HttpError.InvalidUrl()) }
         var Some(u) = u_opt else unsafe { unreachable };
@@ -540,12 +570,12 @@ public struct Client {
         return self.request(&rb);
     }
 
-    public func head(&self, url_str: &str) : Result<Response, HttpError> {
+    public func head(&mut self, url_str: &str) : Result<Response, HttpError> {
         var sv = unsafe(string_view(url_str.data(), url_str.size()))
         return self.head_view(&sv)
     }
 
-    public func head_view(&self, url_str: &string_view) : Result<Response, HttpError> {
+    public func head_view(&mut self, url_str: &string_view) : Result<Response, HttpError> {
         var u_opt = URL::parse(url_str);
         if(u_opt is Option.None) { return Result.Err(HttpError.InvalidUrl()) }
         var Some(u) = u_opt else unsafe { unreachable };

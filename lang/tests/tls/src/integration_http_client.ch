@@ -344,7 +344,7 @@ public func INT_https_verified_with_custom_ca(env : &mut TestEnv) {
 
     var client = Client()
     var root_chain = unsafe(tls::CertificateChain.from_raw_borrowed(root))
-    client.set_ca_chain(&root_chain)
+    client.set_ca_chain(root_chain)
 
     var res = client.get_view(string_view("https://localhost:20209/hello"))
     if(res is Result.Err) {
@@ -383,7 +383,7 @@ public func INT_https_untrusted_ca_fails(env : &mut TestEnv) {
 
     var client = Client()
     var wrong_root_chain = unsafe(tls::CertificateChain.from_raw_borrowed(wrong_root))
-    client.set_ca_chain(&wrong_root_chain)
+    client.set_ca_chain(wrong_root_chain)
 
     var res = client.get_view(string_view("https://localhost:20210/hello"))
     if(res is Result.Ok) {
@@ -416,7 +416,7 @@ public func INT_https_hostname_mismatch_fails_verification(env : &mut TestEnv) {
 
     var client = Client()
     var root_chain = unsafe(tls::CertificateChain.from_raw_borrowed(root))
-    client.set_ca_chain(&root_chain)
+    client.set_ca_chain(root_chain)
 
     var res = client.get_view(string_view("https://127.0.0.1:20211/hello"))
     if(res is Result.Ok) {

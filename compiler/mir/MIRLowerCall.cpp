@@ -9167,7 +9167,25 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
     }
     MIRArgScope _recv_scope(*this);
     std::vector<MIROperand>& recv_args = _recv_scope.v;
-    if (!append_receiver_arg(recv, recv_type, fd, recv_args, error)) {
+    // The receiver expression is the method access chain without its trailing
+    // member name (`o.inner.consume` -> `o.inner`). The by-value receiver move
+    // needs it to clear the exact field/element drop flag.
+    Value* recv_ast = nullptr;
+    std::unique_ptr<AccessChain> recv_chain;
+    if (call->parent_val != nullptr &&
+        call->parent_val->val_kind() == ValueKind::AccessChain) {
+        auto* pc = call->parent_val->as_access_chain_unsafe();
+        if (pc->values.size() == 2) {
+            recv_ast = pc->values[0];
+        } else if (pc->values.size() > 2) {
+            std::vector<Value*> prefix(pc->values.begin(), pc->values.end() - 1);
+            BaseType* prefix_type = pc->values[pc->values.size() - 2]->getType();
+            recv_chain = std::make_unique<AccessChain>(
+                std::move(prefix), prefix_type, ZERO_LOC);
+            recv_ast = recv_chain.get();
+        }
+    }
+    if (!append_receiver_arg(recv, recv_type, fd, recv_args, error, recv_ast)) {
         return MIRExprResult::error();
     }
     MIRArgScope _final_scope(*this);
@@ -9182,7 +9200,7 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
 
 bool MIRLowerer::append_receiver_arg(MIRExprResult recv, BaseType* recv_type,
                                      FunctionDeclaration* fd, std::vector<MIROperand>& args,
-                                     std::string& error) {
+                                     std::string& error, Value* recv_value) {
     // the self parameter (methods and extension functions)
     FunctionParam* self = fd->get_self_param();
     if (!self && fd->isExtensionFn() && !fd->params.empty()) self = fd->params[0];
@@ -9223,14 +9241,81 @@ bool MIRLowerer::append_receiver_arg(MIRExprResult recv, BaseType* recv_type,
 
     if (by_value) {
         if (recv.kind == MIRExprKind::Place) {
-            const TypeId rt = builder_->function().places[recv.id].type;
+            const PlaceId pid = static_cast<PlaceId>(recv.id);
+            const TypeId rt = builder_->function().places[pid].type;
             if (abi::is_aggregate(module_, rt)) {
-                // an aggregate `self` is passed as a hidden pointer
+                // A by-value aggregate `self` is moved into the callee, which
+                // owns and destroys it. The caller must relinquish its own
+                // drop, otherwise both sides run the destructor (double free).
+                const MIRTypeRecord& cr = module_.types.get(rt);
+                const bool copied = mir_type_is_copy(module_.types, rt) &&
+                                    (cr.flags & TF_HAS_CONSTRUCTOR) == 0 &&
+                                    !module_.types.name_of(rt).empty();
                 const TypeId ptrt = types_.pointer_type(rt, true);
-                args.push_back(MIROperand::value(builder_->address_of(recv.id, ptrt), ptrt));
+                const ValueId addr = builder_->address_of(pid, ptrt);
+                if (!copied) {
+                    builder_->emit(MIROpcode::MoveOut, MIR_NULL,
+                                   {MIROperand::place(pid, rt)});
+                    mark_moved(pid);
+                    // A receiver temporary is destroyed at statement end, not
+                    // through `destructibles_`; cancel that schedule too.
+                    cancel_stmt_temp(pid);
+                    for (size_t i = 0; i < call_temps_.size(); ++i) {
+                        if (call_temps_[i].first == pid) {
+                            call_temps_.erase(call_temps_.begin() +
+                                              static_cast<long>(i));
+                            break;
+                        }
+                    }
+                }
+                args.push_back(MIROperand::value(addr, ptrt));
             } else {
-                args.push_back(MIROperand::value(builder_->load(recv.id, rt), rt));
+                args.push_back(MIROperand::value(builder_->load(pid, rt), rt));
             }
+        } else if (recv.kind == MIRExprKind::Address) {
+            // A projected receiver (field / array element / dereference) is
+            // passed by address. Field and element moves clear the exact drop
+            // flag; a dereference or other expression base is rejected rather
+            // than left to double-destroy.
+            const TypeId rt = recv.type;
+            if (recv_value != nullptr && rt != MIR_INVALID_ID &&
+                rt < module_.types.types.size() && recv_type != nullptr &&
+                destructor_symbol(recv_type) != MIR_INVALID_ID &&
+                !mir_type_is_copy(module_.types, rt)) {
+                Value* probe = recv_value;
+                for (int guard = 0; guard < 4 && probe; ++guard) {
+                    if (probe->val_kind() == ValueKind::AccessChain &&
+                        probe->as_access_chain_unsafe()->values.size() == 1) {
+                        probe = probe->as_access_chain_unsafe()->values[0];
+                        continue;
+                    }
+                    if (probe->val_kind() == ValueKind::UnsafeValue) {
+                        auto* uv = static_cast<UnsafeValue*>(probe);
+                        if (uv->getValue() != nullptr) {
+                            probe = uv->getValue();
+                            continue;
+                        }
+                    }
+                    break;
+                }
+                const bool element_shape =
+                    probe != nullptr &&
+                    probe->val_kind() == ValueKind::IndexOperator;
+                const bool field_shape = probe != nullptr &&
+                    probe->val_kind() == ValueKind::AccessChain &&
+                    probe->as_access_chain_unsafe()->values.size() >= 2;
+                if (!element_shape && !field_shape) {
+                    error =
+                        "SAFE-MOVE-004: cannot move a by-value self with a "
+                        "destructor out of a pointer/reference or temporary "
+                        "expression; bind the value to a local or take self by "
+                        "reference";
+                    return false;
+                }
+                if (!mark_field_moved(recv_value, recv, error)) return false;
+            }
+            args.push_back(MIROperand::value(static_cast<ValueId>(recv.id),
+                                             recv.type));
         } else {
             args.push_back(MIROperand::value(static_cast<ValueId>(recv.id), recv.type));
         }

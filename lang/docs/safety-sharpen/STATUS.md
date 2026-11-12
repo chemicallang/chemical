@@ -135,13 +135,48 @@ function that takes/returns the `Native*` platform type).
   immediate `--no-run` rebuild plus direct `tests-tcc.exe` run was clean. Treat
   it as the known intermittent parallel-symres deadlock, not a suite failure.)
 
+**Server / ownership wave (2026-11-13).** First slice of the http/net shape
+wave, in the planned order.
+
+- **C1 - consuming `self` is a move (compiler).** `MIRLowerer::append_receiver_arg`
+  now emits `MoveOut` + `mark_moved` for a by-value aggregate receiver (Copy
+  exempt) and rejects a move out of a pointer/reference projection with
+  `SAFE-MOVE-004`. Before the fix, `func consume(self)` destroyed the receiver
+  twice (callee copy + caller copy), a silent double free in a safe program. A
+  receiver that is a field/element (`o.inner.consume()`) or a call temporary
+  (`make().consume()`) now clears the exact parent/element/statement drop flag,
+  so the parent never destroys the moved subobject. Tests: `lang/tests/safety`
+  (local/temporary/field single-drop, field hand-off) and
+  `lang/tests/negative/src/move_semantics.ch` (pointer shape rejected, by-value
+  accepted). This unblocks `Box::into_inner(self)`,
+  `Rc/Arc::try_unwrap(self)`, `TlsStream::into_box(self)`, and a consuming
+  `Server::serve(self)`.
+- **C2 - `http::Client` owns its trust store (http/tls).** `set_ca_chain` takes
+  the chain by value; the system bundle is loaded and cached once per client
+  (`ensure_ca`), and only for TLS hops that verify the peer. The old
+  `Client::tls_config` attached a *local* chain and returned the config, freeing
+  the CA chain before the handshake: a use-after-free on every HTTPS request
+  that used the system bundle. `Client` request methods now take `&mut self`.
+  This also removes the per-request system-bundle read/PEM parse.
+- Verified: main 2485/2485, libs 882/882, server 10/10, safety 193/193,
+  negative 869/869; tls/http/http-client modules compile (`lang/tests/tls`
+  needs the POSIX/python harness and is not run on this host).
+- Compiler gaps found while doing C2 (repro + impact in `BLOCKED.md`):
+  `Option<&'a Struct>` cannot instantiate (blocks a lifetime-typed
+  `TlsConfig<'a>`; the trust store was made owned instead), `&'a self` receivers
+  are rejected, async interface methods lose their future (blocks
+  `AsyncRead`/`AsyncWrite`, i.e. C7), and `using` names are unresolved inside
+  generic instantiation.
+
 **Compiler-blocked API follow-ups:** the consuming forms
 `Box::into_inner(self)`, `Rc::try_unwrap(self)`, `Arc::try_unwrap(self)` and
-`map::get_mut -> Option<&mut Value>` are not shipped yet. The compiler still
-copies a by-value destructor-bearing `self` at the callee and loses mutability
-when pattern-binding `Option<&mut T>` from an external generic; both need
-compiler fixes before they can be safe public API. The current `&mut self`
-extraction and map `get` surface remain stable until then.
+`map::get_mut -> Option<&mut Value>` are not shipped yet. The receiver copy is
+fixed (C1 above), but pattern-binding `Option<&mut T>` from an external generic
+still loses mutability, so `map::get_mut` needs the compiler fix first. The
+library-level consuming methods (`Image.load`-style builders and the TLS
+`into_box`/owner-transfer helpers) can now be migrated to `self` consumers; the
+`&mut self` wrappers stay until each call site is updated. The current `&mut
+self` extraction and map `get` surface remain stable until then.
 
 **`vector::as_span`:** the canonical methods are now provided by the generic
 `SpanView<T>` interface impl (`as_span`/`as_mut_span`). A trait impl is

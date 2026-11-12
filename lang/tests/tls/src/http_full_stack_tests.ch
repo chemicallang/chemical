@@ -748,7 +748,7 @@ public func FULL_https_two_level_ca_chain_verification(env : &mut TestEnv) {
 
     var client = Client()
     var root_chain = unsafe(tls::CertificateChain.from_raw_borrowed(root))
-    client.set_ca_chain(&root_chain)
+    client.set_ca_chain(root_chain)
 
     var res = client.get_view(string_view("https://localhost:20313/hello"))
     if(res is Result.Err) {

@@ -3,6 +3,24 @@
 This release is allowed to break. The migration mapping is in
 [`REMOVED.md`](REMOVED.md) and will be expanded per Phase 2 library job.
 
+## Server / ownership wave (2026-11-13)
+
+- **A by-value `self` parameter is a move.** `func consume(self)` transfers
+  ownership to the callee, which destroys it exactly once; the caller no longer
+  drops its own copy. Before the fix every consuming method double-freed its
+  receiver. Moving a by-value `self` out of a pointer/reference is rejected
+  (`SAFE-MOVE-004`). This unblocks `Box::into_inner`/`Rc::try_unwrap`/
+  `Arc::try_unwrap`-shaped APIs and a consuming `Server::serve(self)`.
+- **`http::Client` owns its trust store.** `set_ca_chain` now takes the chain by
+  value (`client.set_ca_chain(chain)`), and the system CA bundle is loaded once
+  per client instead of per request. Previously the config kept a raw pointer to
+  a chain that had already been freed before the handshake (use-after-free on
+  every HTTPS request that used the system bundle).
+- **`http::Client` request methods take `&mut self`** (`get`, `post`, `put`,
+  `patch`, `delete`, `head`, and their `_view` forms) because the first request
+  may load and cache the CA bundle. `var client = Client()` call sites are
+  unchanged.
+
 ## Safe by default (2026-11-12)
 
 Every public library name is now the **safe** form. There is no parallel

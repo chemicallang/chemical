@@ -1294,7 +1294,7 @@ private:
     /** Append the receiver operand for a method/extension call to `args`. */
     bool append_receiver_arg(MIRExprResult recv, BaseType* recv_type,
                              FunctionDeclaration* fd, std::vector<MIROperand>& args,
-                             std::string& error);
+                             std::string& error, Value* recv_value = nullptr);
     /** Emit a resolved scalar/sret call and destroy the argument temporaries. */
     MIRExprResult emit_resolved_call(SymbolId sym, TypeId ret_type,
                                      std::vector<MIROperand>& args, size_t cmark,

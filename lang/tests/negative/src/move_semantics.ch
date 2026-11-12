@@ -226,7 +226,7 @@ func constant_array_index_in_bounds_is_allowed(env : &mut TestEnv) {
     expect_compile_success(env, "array_in_bounds", ch)
 }
 
-// ── partial initialization (S3.1c) ──────────────────────────────────────────
+// â”€â”€ partial initialization (S3.1c) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @test
 func partial_owned_field_init_is_allowed(env : &mut TestEnv) {
@@ -435,3 +435,19 @@ func scalar_field_init_of_owned_free_local_is_allowed(env : &mut TestEnv) {
 }
 
 
+@test
+func consuming_self_through_a_pointer_is_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A by-value `self` is a move. Moving it out of a borrowed place would let
+    // the pointee's owner destroy it later as well, so the shape is rejected
+    // instead of double-dropping at runtime.
+    var ch = "struct S {\n    var id : int\n    @delete func delete(&self) { }\n    func consume(self) : int { return self.id }\n}\npublic func main() : int {\n    unsafe {\n        var s = S { id : 1 }\n        var p = &raw mut s\n        return (*p).consume()\n    }\n}\n"
+    expect_compile_error(env, "consuming_self_through_pointer", ch, "destructible struct")
+}
+
+@test
+func consuming_self_by_value_binding_is_allowed(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "struct S {\n    var id : int\n    @delete func delete(&self) { }\n    func consume(self) : int { return self.id }\n}\npublic func main() : int {\n    unsafe {\n        var s = S { id : 1 }\n        return s.consume()\n    }\n}\n"
+    expect_compile_success(env, "consuming_self_by_value_ok", ch)
+}

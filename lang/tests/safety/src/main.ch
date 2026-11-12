@@ -2255,3 +2255,34 @@ func field_move_from_three_dimensional_expanded_tree(env : &mut TestEnv) {
         env.error("3D expanded-tree field move failed")
     }
 }
+
+// ---------------------------------------------------------------------------
+// Consuming `self`
+// ---------------------------------------------------------------------------
+// A by-value `self` parameter is a move: the callee owns the value and runs
+// its destructor exactly once. Before the fix the caller dropped its own copy
+// too, so every consuming method double-freed its receiver.
+
+@test
+func consuming_self_moves_the_receiver(env : &mut TestEnv) {
+    safety_init_work_dir()
+    // Every consuming shape must destroy the receiver exactly once: a local, a
+    // temporary call result, and a field moved out of its parent.
+    var ch = "@thread_local var drops : int = 0\nstruct S {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n    func consume(self) : int { return self.id }\n    func borrow(&self) : int { return self.id }\n}\nstruct Outer {\n    var inner : S\n    var tag : int\n}\nfunc make_s(n : int) : S { return S { id : n } }\npublic func main() : int {\n    unsafe {\n        var s = S { id : 5 }\n        if(s.consume() != 5) { return 10 }\n        var t = S { id : 6 }\n        if(t.borrow() != 6) { return 11 }\n        if(make_s(7).consume() != 7) { return 12 }\n        var o = Outer { inner : S { id : 8 }, tag : 1 }\n        if(o.inner.consume() != 8) { return 13 }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "consuming_self_moves_the_receiver", ch, &mut out)
+    if(rc != 4) {
+        env.error("by-value self must destroy each receiver exactly once (local/temporary/field)")
+    }
+}
+
+@test
+func consuming_self_field_move_returns_once(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "@thread_local var drops : int = 0\nstruct S {\n    var id : int\n    @delete func delete(&self) { drops = drops + 1 }\n}\nstruct Boxish {\n    var inner : S\n    func into_inner(self) : S { return self.inner }\n}\npublic func main() : int {\n    unsafe {\n        var b = Boxish { inner : S { id : 9 } }\n        var got = b.into_inner()\n        if(got.id != 9) { return 10 }\n    }\n    return drops\n}\n"
+    var out = string()
+    var rc = safety_compile_and_run(env, "consuming_self_field_move_returns_once", ch, &mut out)
+    if(rc != 1) {
+        env.error("consuming self must hand the field to the caller without double-dropping")
+    }
+}

@@ -13,7 +13,7 @@ struct BridgeTestState {
     var last_result : string
     var bridge_ok : bool
     var error_msg : string
-    var wv_ptr : *mut webview::WebView
+    var wv_ptr : *mut webview::NativeWebView
 }
 
 var g_state_ptr : *mut BridgeTestState = null
@@ -71,7 +71,7 @@ func run_bridge_test(
     unsafe {
 
     reset_state()
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     webview::raw::webview_set_size(&raw mut wv, 480, 360)
 
     var r = webview::raw::webview_create(&raw mut wv)

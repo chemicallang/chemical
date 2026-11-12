@@ -5,16 +5,14 @@
 // returns a raw pointer. Those stay for existing callers. The functions here
 // are the normal-use surface:
 //
-//   * `router::safe::set_request(page, method, path, query, body)` copies the
+//   * `router::set_request(page, method, path, query, body)` copies the
 //     request into page-owned storage;
-//   * `router::safe::get_request(page)` returns an owned `RequestInfo` (or
+//   * `router::get_request(page)` returns an owned `RequestInfo` (or
 //     `None`), never a raw pointer;
-//   * `router::safe::query(page, key)` returns the decoded query value as an
+//   * `router::query(page, key)` returns the decoded query value as an
 //     owned string.
 
 public namespace router {
-
-public namespace safe {
 
 using std::Option;
 using std::string;
@@ -84,7 +82,5 @@ public func query(html_page : &HtmlPage, key : &std::str) : Option<string> {
     out.append_view(&view)
     return Option.Some<string>(out)
 }
-
-} // namespace safe
 
 } // namespace router

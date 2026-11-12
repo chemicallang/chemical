@@ -24,7 +24,7 @@ var g_eval_ok : bool
 var g_alpha : bool
 var g_beta : bool
 var g_gamma : bool
-var g_wv : *mut webview::WebView
+var g_wv : *mut webview::NativeWebView
 
 // Result callback for webview_evaluate_js_result: records that JS evaluation
 // produced "5" (2 + 3) and stops the run loop.
@@ -46,7 +46,7 @@ func eval_cb(data : *mut void, result : *char) : void {
 @test
 public func test_webview_bind_before_init(env : &mut TestEnv) {
     // Binding before the webview is initialized (web_view == null) must fail.
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     var res = webview::raw::webview_bind(&raw mut wv, (m, a) => string(""))
     if(res is std::Result.Ok) {
         env.error("webview_bind should fail when the webview is not initialized")
@@ -58,7 +58,7 @@ public func test_webview_bind_before_init(env : &mut TestEnv) {
 public func test_webview_noop_on_uninitialized(env : &mut TestEnv) {
     // Every operation that touches a native window must be a safe no-op (and not
     // crash) when the webview was never initialized.
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     webview::raw::webview_load_html(&raw mut wv, "x\0" as *char)
     webview::raw::webview_load_url(&raw mut wv, "about:blank\0" as *char)
     webview::raw::webview_show(&raw mut wv)
@@ -77,7 +77,7 @@ public func test_webview_bind_roundtrip(env : &mut TestEnv) {
     g_args_ok = false
     g_wv = null
 
-    var wv_result = webview::create("WebView Bind Test\0" as *char, 400, 300)
+    var wv_result = webview::create_native("WebView Bind Test\0" as *char, 400, 300)
     if(wv_result is std::Result.Err) {
         env.error("webview::create failed (is a display available?)")
         return
@@ -130,7 +130,7 @@ public func test_webview_bind_result_delivery(env : &mut TestEnv) {
     g_result_ok = false
     g_wv = null
 
-    var wv_result = webview::create("WebView Result Test\0" as *char, 400, 300)
+    var wv_result = webview::create_native("WebView Result Test\0" as *char, 400, 300)
     if(wv_result is std::Result.Err) {
         env.error("webview::create failed (is a display available?)")
         return
@@ -179,7 +179,7 @@ public func test_webview_bind_method_routing(env : &mut TestEnv) {
     g_gamma = false
     g_wv = null
 
-    var wv_result = webview::create("WebView Routing Test\0" as *char, 400, 300)
+    var wv_result = webview::create_native("WebView Routing Test\0" as *char, 400, 300)
     if(wv_result is std::Result.Err) {
         env.error("webview::create failed (is a display available?)")
         return
@@ -230,7 +230,7 @@ public func test_webview_evaluate_js_result(env : &mut TestEnv) {
     g_eval_ok = false
     g_wv = null
 
-    var wv_result = webview::create("WebView Eval Test\0" as *char, 400, 300)
+    var wv_result = webview::create_native("WebView Eval Test\0" as *char, 400, 300)
     if(wv_result is std::Result.Err) {
         env.error("webview::create failed (is a display available?)")
         return
@@ -271,7 +271,7 @@ public func test_webview_set_title_size_live(env : &mut TestEnv) {
     // On a live (created) webview, set_title / set_size must update the struct
     // fields (the display-independent path is covered by webview_test.ch; here
     // we exercise the created-window path).
-    var wv_result = webview::create("TitleSize Test\0" as *char, 640, 480)
+    var wv_result = webview::create_native("TitleSize Test\0" as *char, 640, 480)
     if(wv_result is std::Result.Err) {
         env.error("webview::create failed (is a display available?)")
         return

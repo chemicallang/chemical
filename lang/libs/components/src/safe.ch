@@ -11,8 +11,6 @@
 
 public namespace components {
 
-public namespace safe {
-
 using std::string;
 using std::string_view;
 
@@ -32,7 +30,5 @@ public func escape_text(value : &std::str) : string {
 public func escape_attr(value : &std::str) : string {
     return escape_html_view(value.to_view())
 }
-
-} // namespace safe
 
 } // namespace components

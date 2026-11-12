@@ -7,14 +7,14 @@ using std::string_view
 // These tests verify that both WebView creation patterns work correctly:
 //
 //   Pattern A ("stack-local"):
-//       var wv = webview::WebView.make()
+//       var wv = webview::NativeWebView.make()
 //       webview::raw::webview_set_title(&raw mut wv, ...)
 //       webview::raw::webview_set_size(&raw mut wv, ...)
 //       webview::raw::webview_create(&raw mut wv)
 //       // wv lives on this stack frame — user data pointers stay valid
 //
 //   Pattern B ("by-value via webview::create"):
-//       var wv_result = webview::create(title, w, h)  // returns Result<WebView, ...>
+//       var wv_result = webview::create_native(title, w, h)  // returns Result<WebView, ...>
 //       var Ok(wv) = wv_result
 //       // wv is a copy — HWND user data pointed to create()'s stack frame,
 //       // but webview_rebind() corrects it automatically in show/run/set_size
@@ -27,7 +27,7 @@ using std::string_view
 // ---- shared state ----
 
 var g_create_pat_ok : bool
-var g_create_pat_wv : *mut webview::WebView
+var g_create_pat_wv : *mut webview::NativeWebView
 
 func create_pat_cb(data : *mut void, result : *char) : void {
     unsafe {
@@ -57,7 +57,7 @@ public func test_create_pattern_a_bridge(env : &mut TestEnv) {
     g_create_pat_ok = false
     g_create_pat_wv = null
 
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     webview::raw::webview_set_title(&raw mut wv, "PatA Bridge\0" as *char)
     webview::raw::webview_set_size(&raw mut wv, 400, 300)
     var cr = webview::raw::webview_create(&raw mut wv)
@@ -97,7 +97,7 @@ public func test_create_pattern_a_evaluate_js(env : &mut TestEnv) {
     g_create_pat_ok = false
     g_create_pat_wv = null
 
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     webview::raw::webview_set_title(&raw mut wv, "PatA Eval\0" as *char)
     webview::raw::webview_set_size(&raw mut wv, 400, 300)
     var cr = webview::raw::webview_create(&raw mut wv)
@@ -129,21 +129,21 @@ public func test_create_pattern_a_evaluate_js(env : &mut TestEnv) {
 }
 
 // ---------------------------------------------------------------------------
-// Pattern B — webview::create() by-value return (tests webview_rebind)
+// Pattern B — webview::create_native() by-value return (tests webview_rebind)
 // ---------------------------------------------------------------------------
 
 @test
 public func test_create_pattern_b_bridge(env : &mut TestEnv) {
     unsafe {
 
-    // Pattern B: webview::create() returns Result<WebView, ...>.
+    // Pattern B: webview::create_native() returns Result<WebView, ...>.
     // The WebView is extracted from the Result (by-value copy), but
     // webview_rebind() inside webview_show/webview_run fixes the stale
     // HWND user data pointers automatically.
     g_create_pat_ok = false
     g_create_pat_wv = null
 
-    var wv_result = webview::create("PatB Bridge\0" as *char, 400, 300)
+    var wv_result = webview::create_native("PatB Bridge\0" as *char, 400, 300)
     if(wv_result is std::Result.Err) {
         env.error("webview::create failed (Pattern B)")
         return
@@ -186,7 +186,7 @@ public func test_create_pattern_b_evaluate_js(env : &mut TestEnv) {
     g_create_pat_ok = false
     g_create_pat_wv = null
 
-    var wv_result = webview::create("PatB Eval\0" as *char, 400, 300)
+    var wv_result = webview::create_native("PatB Eval\0" as *char, 400, 300)
     if(wv_result is std::Result.Err) {
         env.error("webview::create failed (Pattern B eval)")
         return
@@ -224,7 +224,7 @@ public func test_create_pattern_b_evaluate_js(env : &mut TestEnv) {
 public func test_create_pattern_b_set_size_live(env : &mut TestEnv) {
     // Pattern B: verify set_size triggers webview_rebind before MoveWindow,
     // so the resize callback reads the correct WebView pointer.
-    var wv_result = webview::create("PatB Size\0" as *char, 640, 480)
+    var wv_result = webview::create_native("PatB Size\0" as *char, 640, 480)
     if(wv_result is std::Result.Err) {
         env.error("webview::create failed (Pattern B size)")
         return
@@ -253,7 +253,7 @@ public func test_create_pattern_b_title_size_fields(env : &mut TestEnv) {
 
     // Pattern B: verify set_title and set_size update struct fields on
     // a by-value webview.
-    var wv_result = webview::create("PatB Fields\0" as *char, 400, 300)
+    var wv_result = webview::create_native("PatB Fields\0" as *char, 400, 300)
     if(wv_result is std::Result.Err) {
         env.error("webview::create failed (Pattern B fields)")
         return

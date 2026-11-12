@@ -333,11 +333,11 @@ func win_set_layered_alpha(hwnd : HWND, alpha : BYTE) {
 comptime const CF_TEXT : UINT = 1 as UINT
 
 // ===========================================================================
-// the Window struct
+// the NativeWindow struct
 // ===========================================================================
 
 @direct_init
-public struct Window {
+public struct NativeWindow {
     // native handle (null until created)
     var hwnd : HWND
 
@@ -378,9 +378,9 @@ public struct Window {
     var command_cb : CommandCallback
 
     @make
-    func make() : Window {
+    func make() : NativeWindow {
         unsafe {
-        return Window {
+        return NativeWindow {
             hwnd : null,
             title : string(""),
             width : 800,
@@ -482,7 +482,7 @@ func cursor_for_kind(kind : int) : HCURSOR {
 // window procedure
 // ===========================================================================
 
-func deliver_key(w : *mut Window, kind : int, key : int) {
+func deliver_key(w : *mut NativeWindow, kind : int, key : int) {
         unsafe {
     if(w.event_cb == null) {
         return
@@ -495,7 +495,7 @@ func deliver_key(w : *mut Window, kind : int, key : int) {
 
         }}
 
-func deliver_char(w : *mut Window, ch : int) {
+func deliver_char(w : *mut NativeWindow, ch : int) {
         unsafe {
     if(w.event_cb == null) {
         return
@@ -508,7 +508,7 @@ func deliver_char(w : *mut Window, ch : int) {
 
         }}
 
-func deliver_mouse(w : *mut Window, kind : int, button : int, lp : LPARAM) {
+func deliver_mouse(w : *mut NativeWindow, kind : int, button : int, lp : LPARAM) {
         unsafe {
     if(w.event_cb == null) {
         return
@@ -532,10 +532,10 @@ var g_msg_loop_active : bool = false
 
 func win_window_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT {
         unsafe {
-    var w = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut Window
+    var w = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut NativeWindow
     if(msg == WM_NCCREATE) {
         var cs = lp as *mut CREATESTRUCTW
-        w = cs.lpCreateParams as *mut Window
+        w = cs.lpCreateParams as *mut NativeWindow
         w.hwnd = hwnd
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, w as LONG_PTR)
         EnableNonClientDpiScaling(hwnd)
@@ -665,10 +665,10 @@ func win_window_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESUL
 // public API
 // ===========================================================================
 
-// Raw platform API. Canonical handle: `window::safe::Window`.
+// Raw platform API: `window::NativeWindow` (platform state) + `window::raw`. The safe handle is `window::Window`.
 public namespace raw {
 
-public func window_create(w : *mut Window) : std::Result<std::Unit, WindowError> {
+public func window_create(w : *mut NativeWindow) : std::Result<std::Unit, WindowError> {
         unsafe {
     if(w.created) {
         return std.Result.Err(WindowError.InvalidState(string("window_create: window already created")))
@@ -740,7 +740,7 @@ public func window_create(w : *mut Window) : std::Result<std::Unit, WindowError>
 
         }}
 
-public func window_destroy(w : *mut Window) {
+public func window_destroy(w : *mut NativeWindow) {
         unsafe {
     if(w.hwnd != null) {
         DestroyWindow(w.hwnd)
@@ -751,7 +751,7 @@ public func window_destroy(w : *mut Window) {
 
         }}
 
-public func window_is_created(w : *mut Window) : bool {
+public func window_is_created(w : *mut NativeWindow) : bool {
         unsafe {
     return w.created && w.hwnd != null
 
@@ -759,13 +759,13 @@ public func window_is_created(w : *mut Window) : bool {
 
 // --- title ---
 
-public func window_title(w : *mut Window) : string {
+public func window_title(w : *mut NativeWindow) : string {
         unsafe {
     return w.title.copy()
 
         }}
 
-public func window_set_title(w : *mut Window, title : *char) {
+public func window_set_title(w : *mut NativeWindow, title : *char) {
         unsafe {
     w.title = string("")
     w.title.append_char_ptr(title)
@@ -779,14 +779,14 @@ public func window_set_title(w : *mut Window, title : *char) {
 
 // --- size / position (logical units) ---
 
-public func window_size(w : *mut Window) : Size {
+public func window_size(w : *mut NativeWindow) : Size {
         unsafe {
     return Size.make(w.width, w.height)
 
         }}
 
 // Physical client size (for native layout/rendering code).
-public func window_client_size(w : *mut Window) : Size {
+public func window_client_size(w : *mut NativeWindow) : Size {
         unsafe {
     if(w.hwnd != null) {
         var rc : RECT
@@ -798,7 +798,7 @@ public func window_client_size(w : *mut Window) : Size {
 
         }}
 
-public func window_set_size(w : *mut Window, width : int, height : int) {
+public func window_set_size(w : *mut NativeWindow, width : int, height : int) {
         unsafe {
     w.width = width
     w.height = height
@@ -827,7 +827,7 @@ public func window_set_size(w : *mut Window, width : int, height : int) {
 
         }}
 
-public func window_position(w : *mut Window) : Position {
+public func window_position(w : *mut NativeWindow) : Position {
         unsafe {
     if(w.hwnd != null) {
         var rc : RECT
@@ -839,7 +839,7 @@ public func window_position(w : *mut Window) : Position {
 
         }}
 
-public func window_set_position(w : *mut Window, x : int, y : int) {
+public func window_set_position(w : *mut NativeWindow, x : int, y : int) {
         unsafe {
     w.x = x
     w.y = y
@@ -851,19 +851,19 @@ public func window_set_position(w : *mut Window, x : int, y : int) {
 
 // --- min / max size (logical units) ---
 
-public func window_min_size(w : *mut Window) : Size {
+public func window_min_size(w : *mut NativeWindow) : Size {
         unsafe {
     return Size.make(w.min_w, w.min_h)
 
         }}
 
-public func window_max_size(w : *mut Window) : Size {
+public func window_max_size(w : *mut NativeWindow) : Size {
         unsafe {
     return Size.make(w.max_w, w.max_h)
 
         }}
 
-public func window_set_min_size(w : *mut Window, width : int, height : int) {
+public func window_set_min_size(w : *mut NativeWindow, width : int, height : int) {
         unsafe {
     w.min_w = width
     w.min_h = height
@@ -871,7 +871,7 @@ public func window_set_min_size(w : *mut Window, width : int, height : int) {
 
         }}
 
-public func window_set_max_size(w : *mut Window, width : int, height : int) {
+public func window_set_max_size(w : *mut NativeWindow, width : int, height : int) {
         unsafe {
     w.max_w = width
     w.max_h = height
@@ -881,7 +881,7 @@ public func window_set_max_size(w : *mut Window, width : int, height : int) {
 
 // --- state ---
 
-public func window_set_fullscreen(w : *mut Window, fullscreen : bool) {
+public func window_set_fullscreen(w : *mut NativeWindow, fullscreen : bool) {
         unsafe {
     if(w.hwnd == null || fullscreen == w.fullscreen) {
         return
@@ -919,13 +919,13 @@ public func window_set_fullscreen(w : *mut Window, fullscreen : bool) {
 
         }}
 
-public func window_is_fullscreen(w : *mut Window) : bool {
+public func window_is_fullscreen(w : *mut NativeWindow) : bool {
         unsafe {
     return w.fullscreen
 
         }}
 
-public func window_maximize(w : *mut Window) {
+public func window_maximize(w : *mut NativeWindow) {
         unsafe {
     if(w.hwnd != null) {
         ShowWindow(w.hwnd, SW_MAXIMIZE)
@@ -933,7 +933,7 @@ public func window_maximize(w : *mut Window) {
 
         }}
 
-public func window_minimize(w : *mut Window) {
+public func window_minimize(w : *mut NativeWindow) {
         unsafe {
     if(w.hwnd != null) {
         ShowWindow(w.hwnd, SW_MINIMIZE)
@@ -941,7 +941,7 @@ public func window_minimize(w : *mut Window) {
 
         }}
 
-public func window_restore(w : *mut Window) {
+public func window_restore(w : *mut NativeWindow) {
         unsafe {
     if(w.hwnd != null) {
         ShowWindow(w.hwnd, SW_RESTORE)
@@ -949,7 +949,7 @@ public func window_restore(w : *mut Window) {
 
         }}
 
-public func window_show(w : *mut Window) {
+public func window_show(w : *mut NativeWindow) {
         unsafe {
     w.visible = true
     if(w.hwnd != null) {
@@ -959,7 +959,7 @@ public func window_show(w : *mut Window) {
 
         }}
 
-public func window_hide(w : *mut Window) {
+public func window_hide(w : *mut NativeWindow) {
         unsafe {
     w.visible = false
     if(w.hwnd != null) {
@@ -968,7 +968,7 @@ public func window_hide(w : *mut Window) {
 
         }}
 
-public func window_focus(w : *mut Window) {
+public func window_focus(w : *mut NativeWindow) {
         unsafe {
     if(w.hwnd != null) {
         SetForegroundWindow(w.hwnd)
@@ -977,7 +977,7 @@ public func window_focus(w : *mut Window) {
 
         }}
 
-public func window_close(w : *mut Window) {
+public func window_close(w : *mut NativeWindow) {
         unsafe {
     if(w.hwnd != null) {
         SendMessageW(w.hwnd, WM_CLOSE, 0, 0)
@@ -987,14 +987,14 @@ public func window_close(w : *mut Window) {
 
 // --- visual ---
 
-public func window_set_cursor(w : *mut Window, cursor : int) {
+public func window_set_cursor(w : *mut NativeWindow, cursor : int) {
         unsafe {
     w.cursor = cursor
     SetCursor(cursor_for_kind(cursor))
 
         }}
 
-public func window_set_icon(w : *mut Window, path : *char) {
+public func window_set_icon(w : *mut NativeWindow, path : *char) {
         unsafe {
     if(w.hwnd == null) {
         return
@@ -1016,7 +1016,7 @@ public func window_set_icon(w : *mut Window, path : *char) {
 
         }}
 
-public func window_set_opacity(w : *mut Window, opacity : double) {
+public func window_set_opacity(w : *mut NativeWindow, opacity : double) {
         unsafe {
     w.opacity = opacity
     if(w.hwnd == null) {
@@ -1034,7 +1034,7 @@ public func window_set_opacity(w : *mut Window, opacity : double) {
 
         }}
 
-public func window_set_always_on_top(w : *mut Window, on_top : bool) {
+public func window_set_always_on_top(w : *mut NativeWindow, on_top : bool) {
         unsafe {
     w.always_on_top = on_top
     if(w.hwnd != null) {
@@ -1047,7 +1047,7 @@ public func window_set_always_on_top(w : *mut Window, on_top : bool) {
 
         }}
 
-public func window_set_decorated(w : *mut Window, decorated : bool) {
+public func window_set_decorated(w : *mut NativeWindow, decorated : bool) {
         unsafe {
     if(decorated == w.decorated) {
         return
@@ -1069,7 +1069,7 @@ public func window_set_decorated(w : *mut Window, decorated : bool) {
 
 // --- DPI / scale ---
 
-public func window_dpi(w : *mut Window) : int {
+public func window_dpi(w : *mut NativeWindow) : int {
         unsafe {
     if(w.hwnd != null) {
         var dpi = GetDpiForWindow(w.hwnd) as int
@@ -1081,7 +1081,7 @@ public func window_dpi(w : *mut Window) : int {
 
         }}
 
-public func window_scale_factor(w : *mut Window) : double {
+public func window_scale_factor(w : *mut NativeWindow) : double {
         unsafe {
     return (window_dpi(w) as double) / 96.0
 
@@ -1134,43 +1134,43 @@ public func window_monitor_scale(index : int) : double {
 
 // --- callbacks ---
 
-public func window_set_user_data(w : *mut Window, data : *mut void) {
+public func window_set_user_data(w : *mut NativeWindow, data : *mut void) {
         unsafe {
     w.user_data = data
 
         }}
 
-public func window_set_resize_callback(w : *mut Window, cb : ResizeCallback) {
+public func window_set_resize_callback(w : *mut NativeWindow, cb : ResizeCallback) {
         unsafe {
     w.resize_cb = cb
 
         }}
 
-public func window_set_close_callback(w : *mut Window, cb : CloseCallback) {
+public func window_set_close_callback(w : *mut NativeWindow, cb : CloseCallback) {
         unsafe {
     w.close_cb = cb
 
         }}
 
-public func window_set_focus_callback(w : *mut Window, cb : FocusCallback) {
+public func window_set_focus_callback(w : *mut NativeWindow, cb : FocusCallback) {
         unsafe {
     w.focus_cb = cb
 
         }}
 
-public func window_set_event_callback(w : *mut Window, cb : EventCallback) {
+public func window_set_event_callback(w : *mut NativeWindow, cb : EventCallback) {
         unsafe {
     w.event_cb = cb
 
         }}
 
-public func window_set_drop_callback(w : *mut Window, cb : DropCallback) {
+public func window_set_drop_callback(w : *mut NativeWindow, cb : DropCallback) {
         unsafe {
     w.drop_cb = cb
 
         }}
 
-public func window_set_command_callback(w : *mut Window, cb : CommandCallback) {
+public func window_set_command_callback(w : *mut NativeWindow, cb : CommandCallback) {
         unsafe {
     w.command_cb = cb
 
@@ -1181,7 +1181,7 @@ public func window_set_command_callback(w : *mut Window, cb : CommandCallback) {
 // Returns the platform native handle: an HWND on Windows, a GtkWidget* on
 // Linux. Use with platform-specific code; the handle stays valid while the
 // window is created.
-public func window_native_handle(w : *mut Window) : *mut void {
+public func window_native_handle(w : *mut NativeWindow) : *mut void {
         unsafe {
     return w.hwnd as *mut void
 

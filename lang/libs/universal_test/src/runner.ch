@@ -33,7 +33,7 @@ comptime func ut_all() : []UTFunction {
     return intrinsics::get_universal_tests<UTFunction>() as []UTFunction
 }
 
-@thread_local var g_wv : *mut webview::WebView = null
+@thread_local var g_wv : *mut webview::NativeWebView = null
 @thread_local @never_destructed var g_results : vector<UTResult>
 
 // ── Host-side watchdog ──────────────────────────────────────────────────────
@@ -243,7 +243,7 @@ func ut_execute(tests : *mut *mut UTFunction, count : size_t, headed : bool) {
         return
     }
 
-    var wv_res = webview::create("universal tests\0" as *char, 900, 700)
+    var wv_res = webview::create_native("universal tests\0" as *char, 900, 700)
     if(wv_res is std::Result.Err) {
         unsafe { printf("universal_test: failed to create webview (is a display available?)\n") }
         return

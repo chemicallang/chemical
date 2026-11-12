@@ -7,32 +7,32 @@ using std::string;
 // transformation methods. Legacy `*mut Image` functions remain covered by
 // the existing test files.
 
-func image_safe_temp_pathbuf(name : *char) : path::PathBuf {
+func image_temp_pathbuf(name : *char) : path::PathBuf {
     var s = make_temp_test_path(name)
     return path::PathBuf.from(std::str.make_view(s.to_view()))
 }
 
-func image_safe_view(v : &vector<u8>) : [u8] {
+func image_view_of(v : &vector<u8>) : [u8] {
     return unsafe(std::span<u8>(v.data(), v.size()))
 }
 
-func image_safe_fixed_view(p : *u8, n : size_t) : [u8] {
+func image_fixed_view(p : *u8, n : size_t) : [u8] {
     return unsafe(std::span<u8>(p, n))
 }
 
-func image_safe_new(width : int, height : int, channels : int) : image::Image {
+func image_new_image(width : int, height : int, channels : int) : image::Image {
     var created = image::Image.new(width, height, channels)
     var Ok(img) = created else unsafe { unreachable }
     return img
 }
 
-func image_safe_new_rgba(width : int, height : int) : image::Image {
+func image_new_rgba_image(width : int, height : int) : image::Image {
     var created = image::Image.new_rgba(width, height)
     var Ok(img) = created else unsafe { unreachable }
     return img
 }
 
-func image_safe_new_rgb(width : int, height : int) : image::Image {
+func image_new_rgb_image(width : int, height : int) : image::Image {
     var created = image::Image.new_rgb(width, height)
     var Ok(img) = created else unsafe { unreachable }
     return img
@@ -43,8 +43,8 @@ func image_safe_new_rgb(width : int, height : int) : image::Image {
 // ═══════════════════════════════════════════════════════════════
 
 @test
-public func image_safe_png_roundtrip(env : &mut TestEnv) {
-    var img = image_safe_new_rgba(4, 3)
+public func image_api_png_roundtrip(env : &mut TestEnv) {
+    var img = image_new_rgba_image(4, 3)
     var red = image::RGBA8.make(255, 0, 0, 255)
     var set = img.set(1, 1, red)
     if(set is Result.Err) { env.error("set should succeed"); return }
@@ -53,7 +53,7 @@ public func image_safe_png_roundtrip(env : &mut TestEnv) {
     if(png is Result.Err) { env.error("encode_png should succeed"); return }
     var Ok(bytes) = png else unsafe { unreachable }
 
-    var loaded_result = image::Image.from_png(image_safe_view(&bytes))
+    var loaded_result = image::Image.from_png(image_view_of(&bytes))
     if(loaded_result is Result.Err) { env.error("from_png should succeed"); return }
     var Ok(loaded) = loaded_result else unsafe { unreachable }
 
@@ -71,8 +71,8 @@ public func image_safe_png_roundtrip(env : &mut TestEnv) {
 }
 
 @test
-public func image_safe_pixel_views(env : &mut TestEnv) {
-    var img = image_safe_new_rgba(2, 1)
+public func image_api_pixel_views(env : &mut TestEnv) {
+    var img = image_new_rgba_image(2, 1)
     var view = img.pixels_view()
     if(view.size() != 8) { env.error("pixel view should have 8 bytes") }
 
@@ -84,9 +84,9 @@ public func image_safe_pixel_views(env : &mut TestEnv) {
 }
 
 @test
-public func image_safe_pixel_get_set_all_channel_counts(env : &mut TestEnv) {
+public func image_api_pixel_get_set_all_channel_counts(env : &mut TestEnv) {
     // 1 channel: RGB are synthesized from the gray value, alpha is 255.
-    var gray = image_safe_new(2, 1, 1)
+    var gray = image_new_image(2, 1, 1)
     if(gray.set(0, 0, image::RGBA8.make(10, 20, 30, 40)) is Result.Err) { env.error("gray set should succeed") }
     var gp = gray.pixel(0, 0)
     if(gp is Result.Err) { env.error("gray get should succeed"); return }
@@ -94,7 +94,7 @@ public func image_safe_pixel_get_set_all_channel_counts(env : &mut TestEnv) {
     if(gcol.r != 10 || gcol.g != 10 || gcol.b != 10 || gcol.a != 255) { env.error("gray expansion") }
 
     // 2 channels: gray + alpha.
-    var ga = image_safe_new(2, 1, 2)
+    var ga = image_new_image(2, 1, 2)
     if(ga.set(0, 0, image::RGBA8.make(50, 60, 70, 80)) is Result.Err) { env.error("GA set should succeed") }
     var gap = ga.pixel(0, 0)
     if(gap is Result.Err) { env.error("GA get should succeed"); return }
@@ -102,7 +102,7 @@ public func image_safe_pixel_get_set_all_channel_counts(env : &mut TestEnv) {
     if(gacol.r != 50 || gacol.g != 50 || gacol.b != 50 || gacol.a != 80) { env.error("GA expansion") }
 
     // 3 channels: RGB with synthesized opaque alpha.
-    var rgb = image_safe_new(2, 1, 3)
+    var rgb = image_new_image(2, 1, 3)
     if(rgb.set(0, 0, image::RGBA8.make(1, 2, 3, 4)) is Result.Err) { env.error("RGB set should succeed") }
     var rp = rgb.pixel(0, 0)
     if(rp is Result.Err) { env.error("RGB get should succeed"); return }
@@ -110,7 +110,7 @@ public func image_safe_pixel_get_set_all_channel_counts(env : &mut TestEnv) {
     if(rcol.r != 1 || rcol.g != 2 || rcol.b != 3 || rcol.a != 255) { env.error("RGB expansion") }
 
     // 4 channels: exact RGBA.
-    var rgba = image_safe_new(2, 1, 4)
+    var rgba = image_new_image(2, 1, 4)
     if(rgba.set(0, 0, image::RGBA8.make(9, 8, 7, 6)) is Result.Err) { env.error("RGBA set should succeed") }
     var vap = rgba.pixel(0, 0)
     if(vap is Result.Err) { env.error("RGBA get should succeed"); return }
@@ -119,13 +119,13 @@ public func image_safe_pixel_get_set_all_channel_counts(env : &mut TestEnv) {
 }
 
 @test
-public func image_safe_bmp_and_ppm_roundtrip(env : &mut TestEnv) {
-    var img = image_safe_new_rgb(3, 2)
+public func image_api_bmp_and_ppm_roundtrip(env : &mut TestEnv) {
+    var img = image_new_rgb_image(3, 2)
 
     var bmp = img.encode_bmp()
     if(bmp is Result.Err) { env.error("encode_bmp should succeed"); return }
     var Ok(bmp_bytes) = bmp else unsafe { unreachable }
-    var bmp_loaded = image::Image.from_bmp(image_safe_view(&bmp_bytes))
+    var bmp_loaded = image::Image.from_bmp(image_view_of(&bmp_bytes))
     if(bmp_loaded is Result.Err) { env.error("from_bmp should succeed"); return }
     var Ok(bmp_img) = bmp_loaded else unsafe { unreachable }
     if(bmp_img.width() != 3 || bmp_img.height() != 2) { env.error("BMP roundtrip dimensions") }
@@ -133,35 +133,35 @@ public func image_safe_bmp_and_ppm_roundtrip(env : &mut TestEnv) {
     var ppm = img.encode_ppm()
     if(ppm is Result.Err) { env.error("encode_ppm should succeed"); return }
     var Ok(ppm_bytes) = ppm else unsafe { unreachable }
-    var ppm_loaded = image::Image.from_ppm(image_safe_view(&ppm_bytes))
+    var ppm_loaded = image::Image.from_ppm(image_view_of(&ppm_bytes))
     if(ppm_loaded is Result.Err) { env.error("from_ppm should succeed"); return }
     var Ok(ppm_img) = ppm_loaded else unsafe { unreachable }
     if(ppm_img.width() != 3 || ppm_img.channels() != 3) { env.error("PPM roundtrip dimensions") }
 }
 
 @test
-public func image_safe_from_bytes_sniffs_formats(env : &mut TestEnv) {
-    var img = image_safe_new_rgba(2, 2)
+public func image_api_from_bytes_sniffs_formats(env : &mut TestEnv) {
+    var img = image_new_rgba_image(2, 2)
     var png = img.encode_png()
     if(png is Result.Err) { env.error("encode_png"); return }
     var Ok(png_bytes) = png else unsafe { unreachable }
-    var sniffed = image::Image.from_bytes(image_safe_view(&png_bytes))
+    var sniffed = image::Image.from_bytes(image_view_of(&png_bytes))
     if(sniffed is Result.Err) { env.error("from_bytes should detect PNG") }
 
     var bmp = img.encode_bmp()
     if(bmp is Result.Err) { env.error("encode_bmp"); return }
     var Ok(bmp_bytes) = bmp else unsafe { unreachable }
-    var sniffed_bmp = image::Image.from_bytes(image_safe_view(&bmp_bytes))
+    var sniffed_bmp = image::Image.from_bytes(image_view_of(&bmp_bytes))
     if(sniffed_bmp is Result.Err) { env.error("from_bytes should detect BMP") }
 }
 
 @test
-public func image_safe_load_and_save_png(env : &mut TestEnv) {
-    var img = image_safe_new_rgba(5, 4)
+public func image_api_load_and_save_png(env : &mut TestEnv) {
+    var img = image_new_rgba_image(5, 4)
     var green = image::RGBA8.make(0, 255, 0, 255)
     var _ = img.set(2, 2, green)
 
-    var p = image_safe_temp_pathbuf("p24_safe_image.png")
+    var p = image_temp_pathbuf("p24_safe_image.png")
     var saved = img.save(&p.as_path())
     if(saved is Result.Err) { env.error("save(.png) should succeed"); return }
 
@@ -177,8 +177,8 @@ public func image_safe_load_and_save_png(env : &mut TestEnv) {
 }
 
 @test
-public func image_safe_crop_flip_and_blit(env : &mut TestEnv) {
-    var img = image_safe_new_rgba(4, 4)
+public func image_api_crop_flip_and_blit(env : &mut TestEnv) {
+    var img = image_new_rgba_image(4, 4)
     var blue = image::RGBA8.make(0, 0, 255, 255)
     var _ = img.set(0, 0, blue)
 
@@ -201,7 +201,7 @@ public func image_safe_crop_flip_and_blit(env : &mut TestEnv) {
     if(img.flip(true) is Result.Err) { env.error("flip(true) should succeed") }
     if(img.flip_v() is Result.Err) { env.error("flip_v should succeed") }
 
-    var dst = image_safe_new_rgba(4, 4)
+    var dst = image_new_rgba_image(4, 4)
     var blitted = dst.blit(&cropped, 1, 1)
     if(blitted is Result.Err) { env.error("blit should succeed") }
 }
@@ -211,40 +211,40 @@ public func image_safe_crop_flip_and_blit(env : &mut TestEnv) {
 // ═══════════════════════════════════════════════════════════════
 
 @test
-public func image_safe_bad_png_rejected(env : &mut TestEnv) {
+public func image_api_bad_png_rejected(env : &mut TestEnv) {
     var garbage : [12]u8 = [0x89, 0x50, 0x4E, 0x47, 1, 2, 3, 4, 5, 6, 7, 8]
-    var view = image_safe_fixed_view(&raw garbage[0], 12)
+    var view = image_fixed_view(&raw garbage[0], 12)
     var result = image::Image.from_png(view)
     if(result is Result.Ok) { env.error("truncated PNG must be rejected") }
 }
 
 @test
-public func image_safe_bad_bmp_rejected(env : &mut TestEnv) {
+public func image_api_bad_bmp_rejected(env : &mut TestEnv) {
     var garbage : [2]u8 = [0x42, 0x4D]
-    var view = image_safe_fixed_view(&raw garbage[0], 2)
+    var view = image_fixed_view(&raw garbage[0], 2)
     var result = image::Image.from_bmp(view)
     if(result is Result.Ok) { env.error("truncated BMP must be rejected") }
 }
 
 @test
-public func image_safe_bad_ppm_rejected(env : &mut TestEnv) {
+public func image_api_bad_ppm_rejected(env : &mut TestEnv) {
     var garbage : [3]u8 = [0x50, 0x39, 0x0A]
-    var view = image_safe_fixed_view(&raw garbage[0], 3)
+    var view = image_fixed_view(&raw garbage[0], 3)
     var result = image::Image.from_ppm(view)
     if(result is Result.Ok) { env.error("P9 PPM must be rejected") }
 }
 
 @test
-public func image_safe_unknown_bytes_rejected(env : &mut TestEnv) {
+public func image_api_unknown_bytes_rejected(env : &mut TestEnv) {
     var garbage : [4]u8 = [1, 2, 3, 4]
-    var view = image_safe_fixed_view(&raw garbage[0], 4)
+    var view = image_fixed_view(&raw garbage[0], 4)
     var result = image::Image.from_bytes(view)
     if(result is Result.Ok) { env.error("unknown format must be rejected") }
 }
 
 @test
-public func image_safe_invalid_crop_and_pixel(env : &mut TestEnv) {
-    var img = image_safe_new_rgba(4, 4)
+public func image_api_invalid_crop_and_pixel(env : &mut TestEnv) {
+    var img = image_new_rgba_image(4, 4)
 
     var bad_crop = img.crop(0, 0, 99, 99)
     if(bad_crop is Result.Ok) { env.error("out-of-range crop must fail") }
@@ -257,15 +257,15 @@ public func image_safe_invalid_crop_and_pixel(env : &mut TestEnv) {
 }
 
 @test
-public func image_safe_unsupported_save_extension(env : &mut TestEnv) {
-    var img = image_safe_new_rgba(2, 2)
-    var p = image_safe_temp_pathbuf("p24_safe_image.xyz")
+public func image_api_unsupported_save_extension(env : &mut TestEnv) {
+    var img = image_new_rgba_image(2, 2)
+    var p = image_temp_pathbuf("p24_safe_image.xyz")
     var result = img.save(&p.as_path())
     if(result is Result.Ok) { env.error("unknown extension should fail") }
 }
 
 @test
-public func image_safe_new_rejects_invalid_dimensions(env : &mut TestEnv) {
+public func new_image_rejects_invalid_dimensions(env : &mut TestEnv) {
     var zero_width = image::Image.new(0, 4, 4)
     if(zero_width is Result.Ok) { env.error("zero width must be rejected") }
 

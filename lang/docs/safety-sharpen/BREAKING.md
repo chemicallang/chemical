@@ -3,6 +3,49 @@
 This release is allowed to break. The migration mapping is in
 [`REMOVED.md`](REMOVED.md) and will be expanded per Phase 2 library job.
 
+## Safe by default (2026-11-12)
+
+Every public library name is now the **safe** form. There is no parallel
+`*_safe` / `safe_*` / `::safe::` spelling of the same operation; raw-pointer and
+FFI forms live under an explicit `raw`/`ffi` namespace (or, where a platform
+file already owns that namespace, a `*_native` free function whose signature
+uses the `Native*` type).
+
+| Old | New |
+|---|---|
+| `image::parse_png(*u8, size_t)` | `image::raw::parse_png(...)` |
+| `image::image_width(*mut Image)` | `image::raw::image_width(...)` (prefer `img.width()`) |
+| `image::load_png(*char)` | `image::raw::load_png(...)` (prefer `Image.load(&Path)`) |
+| internal `image_safe_*` helpers | `image` private `decode_*` / `encode_*_bytes` |
+| `audio::audio_volume(*mut Audio, f)` | `audio::raw::audio_volume(...)` (prefer `audio.volume(f)`) |
+| `font::font_load(*char)`, `font::font_ascent(*mut Font)` | `font::raw::*` (prefer `Font.from_path`, `font.metrics(size)`) |
+| `page::safe_page_escape_js` | `page::escape_js` |
+| `page::safe_page_escape_json` | `page::escape_json` |
+| `page::safe_page_append_html` | `page.append_html` |
+| `page::safe_page_append_js` | `page.append_js` |
+| `page::safe_page_append_html_escaped` | `page::append_html_escaped` |
+| `page::safe_page_append_js_escaped` | `page::append_js_escaped` |
+| `page::safe_page_set_parameter` | `page::set_parameter` (or `page.add_parameter<T>`) |
+| `page::safe_page_get_parameter_safe` | `page::get_parameter_owned` |
+| `page::SafePageParam` | `page::PageParam` |
+| `window::safe::Window` | `window::Window` |
+| `window::Window` (platform state) | `window::NativeWindow` |
+| `webview::safe::WebView` | `webview::WebView` |
+| `webview::WebView` (platform state) | `webview::NativeWebView` |
+| `webview::create/open_url/open_html` | `webview::create_native/open_url_native/open_html_native` |
+| `router::safe::*` | `router::*` (`RequestInfo`, `set_request`, `get_request`, `query`) |
+| `server::safe::*` | `server::*` (`serve_static`, `serve_static_async`) |
+| `components::safe::*` | `components::*` (`theme_scope`, `escape_text`, `escape_attr`) |
+| `test_env::safe::TestEnvHandle` | `test_env::TestEnvHandle` (`handle(env)`, `env.handle()`) |
+| `test_env::safe_handle()` | `env.handle()` |
+| `test_report::safe::*` / `SafeTestOutcome` | `test_report::*` / `test_report::TestOutcomeSnapshot` |
+| `lab::safe::*`, `lab::safe_new_module` | `lab::*` (`run`, `new_module`, `ModuleId`, `LabError`) |
+| `osrand::random_u32_safe` / `random_u64_safe` | `osrand::random_u32` / `random_u64` |
+
+Rule going forward: a new public safe API takes the plain module-level or
+method name; the raw counterpart goes into `<lib>::raw`/`<lib>::ffi` and is
+documented as unchecked. Do not add a `safe` qualifier to a library name again.
+
 ## Phase 1 (language surface)
 
 - Associated types and associated-type equality constraints are removed.

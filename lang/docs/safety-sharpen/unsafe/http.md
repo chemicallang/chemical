@@ -6,16 +6,12 @@ boundary; safe callers use the facade documented in the library README/api snaps
 ## Unsafe declarations
 
 ```
-lang/libs/http/src/async.ch:18:public unsafe func header_get_cstr(map : &HeaderMap, name : *char) : Option<string> {
-lang/libs/http/src/async.ch:33:public unsafe func make_body(sock : net::raw::Socket,
-lang/libs/http/src/async.ch:46:public unsafe func body_read(b : *mut Body, dst : *mut u8, cap : usize) : int {
-lang/libs/http/src/types.ch:420:public unsafe func strcasecmp(a:*char, b:*char) : int {
 ```
 
 ## Unsafe call/dereference sites (count)
 
-- unsafe blocks: 113
-- unsafe expressions: 75
-- raw-pointer dereferences/indexing: 188
+- unsafe blocks: 0
+- unsafe expressions: 0
+- raw-pointer dereferences/indexing: 0
 
 Review rule: a safe wrapper must validate null/length/ownership before any raw call.

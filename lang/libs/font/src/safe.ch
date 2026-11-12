@@ -20,16 +20,16 @@ public struct FontMetrics {
 
 // ── loading ───────────────────────────────────────────────────────────────
 
-func font_safe_from_path(path : &path::Path) : Result<Font, FontError> {
+func load_from_path(path : &path::Path) : Result<Font, FontError> {
     var read = fs::read(path)
     if(read is Result.Err) {
         return Result.Err(FontError.FileNotFound())
     }
     var Ok(data) = read else unsafe { unreachable }
-    return font_safe_load(data.data(), data.size())
+    return decode_font(data.data(), data.size())
 }
 
-func font_safe_load(data : *u8, len : size_t) : Result<Font, FontError> {
+func decode_font(data : *u8, len : size_t) : Result<Font, FontError> {
     var parsed = Font.make()
     unsafe {
         var i : size_t = 0
@@ -50,7 +50,7 @@ func font_safe_load(data : *u8, len : size_t) : Result<Font, FontError> {
 
 // ── metrics ───────────────────────────────────────────────────────────────
 
-func font_safe_metrics(f : &Font, font_size : float) : FontMetrics {
+func metrics_scaled(f : &Font, font_size : float) : FontMetrics {
     var scale : float = 0.0f
     if(f.units_per_em > 0) {
         scale = font_size / (f.units_per_em as float)
@@ -59,7 +59,7 @@ func font_safe_metrics(f : &Font, font_size : float) : FontMetrics {
         units_per_em : f.units_per_em,
         ascent : (f.ascent as float * scale) as i32,
         descent : (-f.descent as float * scale) as i32,
-        line_height : (font_line_height(unsafe(f as *mut Font)) as float * scale) as i32,
+        line_height : (raw::font_line_height(unsafe(f as *mut Font)) as float * scale) as i32,
         num_glyphs : f.num_glyphs
     }
 }

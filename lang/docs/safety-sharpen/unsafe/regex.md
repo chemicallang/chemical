@@ -6,14 +6,12 @@ boundary; safe callers use the facade documented in the library README/api snaps
 ## Unsafe declarations
 
 ```
-lang/libs/regex/src/regex.ch:285:        public unsafe func find_raw(re : &Regex, text : std::string_view, start_pos : *mut i64, end_pos : *mut i64) : bool {
-lang/libs/regex/src/regex.ch:306:        public unsafe func split_raw(re : &Regex, text : std::string_view, out : *mut std::vector<std::string_view>) {
 ```
 
 ## Unsafe call/dereference sites (count)
 
-- unsafe blocks: 27
+- unsafe blocks: 0
 - unsafe expressions: 0
-- raw-pointer dereferences/indexing: 34
+- raw-pointer dereferences/indexing: 0
 
 Review rule: a safe wrapper must validate null/length/ownership before any raw call.

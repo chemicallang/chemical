@@ -25,7 +25,7 @@ using std::string_view
 
 // Shared state (non-destructible, like the rest of the suite).
 var g_reg_ok : bool
-var g_reg_wv : *mut webview::WebView
+var g_reg_wv : *mut webview::NativeWebView
 
 func reg_stop() {
     unsafe {
@@ -68,7 +68,7 @@ func reg_run_bridge(title : *char) : bool {
     unsafe {
 
     g_reg_ok = false
-    var wv_result = webview::create(title, 400, 300)
+    var wv_result = webview::create_native(title, 400, 300)
     if(wv_result is std::Result.Err) {
         g_reg_wv = null
         return false
@@ -115,7 +115,7 @@ public func test_webview_load_html_large_page(env : &mut TestEnv) {
     html.append_view(string_view::make_view(&pad))
     html.append_view(string_view::make_no_len("</div></body></html>"))
 
-    var wv_result = webview::create("Large HTML\0" as *char, 480, 360)
+    var wv_result = webview::create_native("Large HTML\0" as *char, 480, 360)
     if(wv_result is std::Result.Err) {
         env.error("webview::create failed (is a display available?)")
         return
@@ -157,7 +157,7 @@ public func test_webview_evaluate_js_large_script(env : &mut TestEnv) {
     g_reg_ok = false
     g_reg_wv = null
 
-    var wv_result = webview::create("Large Eval\0" as *char, 480, 360)
+    var wv_result = webview::create_native("Large Eval\0" as *char, 480, 360)
     if(wv_result is std::Result.Err) {
         env.error("webview::create failed (is a display available?)")
         return
@@ -206,7 +206,7 @@ public func test_webview_init_large_script(env : &mut TestEnv) {
     g_reg_ok = false
     g_reg_wv = null
 
-    var wv_result = webview::create("Large Init\0" as *char, 480, 360)
+    var wv_result = webview::create_native("Large Init\0" as *char, 480, 360)
     if(wv_result is std::Result.Err) {
         env.error("webview::create failed (is a display available?)")
         return

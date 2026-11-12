@@ -20,11 +20,11 @@ lang/libs/environment/src/environment.ch:256:func push_arg(out : *mut vector<str
 lang/libs/environment/src/environment.ch:269:public func args() : Result<vector<string>, EnvError> {
 lang/libs/environment/src/environment.ch:29:func env_value(value : &str) : Result<std::CString, EnvError> {
 lang/libs/environment/src/environment.ch:33:func pathbuf_from(s : &string) : PathBuf {
-lang/libs/environment/src/environment.ch:340:public func get(name : &str) : Option<string> {
-lang/libs/environment/src/environment.ch:348:public func get_or(name : &str, default_val : string_view) : string {
-lang/libs/environment/src/environment.ch:358:public unsafe func set(name : &str, value : &str) : Result<UnitTy, EnvError> {
-lang/libs/environment/src/environment.ch:363:public unsafe func unset(name : &str) : Result<UnitTy, EnvError> {
-lang/libs/environment/src/environment.ch:371:public struct UnitTy {}
+lang/libs/environment/src/environment.ch:343:public func get(name : &str) : Option<string> {
+lang/libs/environment/src/environment.ch:351:public func get_or(name : &str, default_val : string_view) : string {
+lang/libs/environment/src/environment.ch:361:public unsafe func set(name : &str, value : &str) : Result<UnitTy, EnvError> {
+lang/libs/environment/src/environment.ch:366:public unsafe func unset(name : &str) : Result<UnitTy, EnvError> {
+lang/libs/environment/src/environment.ch:374:public struct UnitTy {}
 lang/libs/environment/src/environment.ch:42:public func var(name : &str) : Result<string, EnvError> {
 lang/libs/environment/src/environment.ch:70:public func var_os(name : &str) : Option<std::OsString> {
 lang/libs/environment/src/environment.ch:81:public unsafe func set_var(name : &str, value : &str) : Result<UnitTy, EnvError> {

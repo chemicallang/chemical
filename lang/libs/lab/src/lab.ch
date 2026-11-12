@@ -1,4 +1,4 @@
-// Typed safe handles are canonical (`lab::safe::ModuleId` / `lab::safe::JobId`);
+// Typed safe handles are canonical (`lab::ModuleId` / `lab::JobId`);
 // the raw build interfaces stay at module scope for the CBI ABI, and raw
 // pointer helpers live under `lab::raw`.
 

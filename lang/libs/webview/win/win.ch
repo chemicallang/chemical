@@ -876,7 +876,7 @@ public const g_perm_vtbl : ICoreWebView2PermissionRequestedEventHandlerVtbl = IC
 // Retry creating a WebView2 environment.
 func handler_try_create_environment(h : *mut Webview2ComHandler) {
         unsafe {
-    // WebView creation fails with HRESULT_FROM_WIN32(ERROR_INVALID_STATE) if a
+    // NativeWebView creation fails with HRESULT_FROM_WIN32(ERROR_INVALID_STATE) if a
     // running instance using the same user data folder exists, and the
     // Environment objects have different EnvironmentOptions.
     if(h.attempts < h.max_attempts) {
@@ -902,11 +902,11 @@ func handler_try_create_environment(h : *mut Webview2ComHandler) {
 // ===========================================================================
 
 @direct_init
-public struct WebView {
+public struct NativeWebView {
     // --- top-level window (standalone mode), owned by the window library
     //     (lang/libs/window). The webview widget fills its client area; the
     //     app can mix native UI with the webview through this window. ---
-    var win : window::Window
+    var win : window::NativeWindow
 
     // --- WebView2 backend state (pure-C port) ---
     var widget : HWND
@@ -916,13 +916,13 @@ public struct WebView {
     var loader_lib : HMODULE
 
     // --- embed mode (webview_attach): the webview lives in a section of an
-    //     app-owned window::Window instead of creating its own top-level
+    //     app-owned window::NativeWindow instead of creating its own top-level
     //     window. wv.win stays uncreated; wv.widget is a child of the parent's
     //     native handle positioned at `bounds` in the parent's client
     //     coordinates. The parent window is subclassed (wv_embed_proc) so the
     //     section tracks parent resizes. ---
     var attached : bool
-    var parent : *mut window::Window
+    var parent : *mut window::NativeWindow
     var parent_wndproc : LONG_PTR // original parent wndproc, restored on teardown
     var bounds : RECT
 
@@ -950,12 +950,12 @@ public struct WebView {
     var dispatch_count : int
 
     @make
-    func make() : WebView {
+    func make() : NativeWebView {
         unsafe {
-        var wv : WebView
-        memset(&raw mut wv, 0, sizeof(WebView))
-        wv.win = window::Window.make()
-        wv.title = string("Chemical WebView")
+        var wv : NativeWebView
+        memset(&raw mut wv, 0, sizeof(NativeWebView))
+        wv.win = window::NativeWindow.make()
+        wv.title = string("Chemical NativeWebView")
         wv.width = 800
         wv.height = 600
         wv.pending_js_call = string("")
@@ -968,10 +968,10 @@ public struct WebView {
 
 func wv_widget_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT {
         unsafe {
-    var wv = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut WebView
+    var wv = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut NativeWebView
     if(msg == WM_NCCREATE) {
         var cs = lp as *mut CREATESTRUCTW
-        wv = cs.lpCreateParams as *mut WebView
+        wv = cs.lpCreateParams as *mut NativeWebView
         wv.widget = hwnd
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, wv as LONG_PTR)
         return 1
@@ -1025,7 +1025,7 @@ func wv_widget_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT
 
 func wv_win_resize_cb(data : *mut void, width : int, height : int) {
         unsafe {
-    var wv = data as *mut WebView
+    var wv = data as *mut NativeWebView
     if(wv != null && wv.widget != null) {
         MoveWindow(wv.widget, 0, 0, width, height, 1)
         wv_resize_webview(wv)
@@ -1035,7 +1035,7 @@ func wv_win_resize_cb(data : *mut void, width : int, height : int) {
 
 func wv_win_focus_cb(data : *mut void, focused : bool) {
         unsafe {
-    var wv = data as *mut WebView
+    var wv = data as *mut NativeWebView
     if(wv != null && focused && wv.controller != null) {
         wv.controller.lpVtbl.MoveFocus(wv.controller, MOVE_FOCUS_REASON_PROGRAMMATIC)
     }
@@ -1044,7 +1044,7 @@ func wv_win_focus_cb(data : *mut void, focused : bool) {
 
 // ---- embed mode: subclassing the app-owned parent window ----
 
-// Window property used to associate a WebView with the parent window it is
+// Window property used to associate a NativeWebView with the parent window it is
 // embedded into. The name must stay valid for the lifetime of the window
 // (SetPropW does not copy it), so it lives in a module-level buffer that is
 // filled once before the first attach.
@@ -1066,7 +1066,7 @@ func wv_ensure_embed_prop_name() {
 // the webview property before forwarding the message.
 func wv_embed_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT {
         unsafe {
-    var wv = GetPropW(hwnd, &raw g_embed_prop_name[0]) as *mut WebView
+    var wv = GetPropW(hwnd, &raw g_embed_prop_name[0]) as *mut NativeWebView
     if(wv == null) {
         return DefWindowProcW(hwnd, msg, wp, lp)
     }
@@ -1108,7 +1108,7 @@ func wv_embed_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT 
 
         }}
 
-func wv_attach_subclass(wv : *mut WebView) {
+func wv_attach_subclass(wv : *mut NativeWebView) {
         unsafe {
     wv_ensure_embed_prop_name()
     var parent_hwnd = wv.parent.hwnd
@@ -1121,7 +1121,7 @@ func wv_attach_subclass(wv : *mut WebView) {
 // ---- embed context + callbacks ----
 
 public struct EmbedCtx {
-    var wv : *mut WebView
+    var wv : *mut NativeWebView
     var handler : *mut Webview2ComHandler
     var userDataFolder : [260]ushort
     var done : int
@@ -1190,7 +1190,7 @@ func widen_alloc(utf8 : *char) : *mut ushort {
 
         }}
 
-func wv_embed(wv : *mut WebView, debug : int) : int {
+func wv_embed(wv : *mut NativeWebView, debug : int) : int {
         unsafe {
     var ec = zeroed<EmbedCtx>()
     ec.wv = wv
@@ -1277,7 +1277,7 @@ func wv_embed(wv : *mut WebView, debug : int) : int {
 
         }}
 
-func wv_resize_webview(wv : *mut WebView) {
+func wv_resize_webview(wv : *mut NativeWebView) {
         unsafe {
     if(wv.widget != null && wv.controller != null) {
         var bounds : RECT
@@ -1410,7 +1410,7 @@ public struct JsBindHolder {
 // via add_WebMessageReceived; freed when the webview is destroyed.
 public struct WebMessageHandler {
     var vtbl : *ICoreWebView2WebMessageReceivedEventHandlerVtbl
-    var wv : *mut WebView
+    var wv : *mut NativeWebView
     var ref_count : ULONG
 }
 
@@ -1629,7 +1629,7 @@ public const g_wmh_vtbl : ICoreWebView2WebMessageReceivedEventHandlerVtbl = ICor
 // Inject the JS<->native bridge stub into every page the webview loads.
 // Uses AddScriptToExecuteOnDocumentCreated so the script runs before any
 // page script executes. It is harmless when no handler is bound yet.
-func wv_inject_bridge(wv : *mut WebView) {
+func wv_inject_bridge(wv : *mut NativeWebView) {
         unsafe {
     if(wv.webview == null) {
         return
@@ -1644,10 +1644,10 @@ func wv_inject_bridge(wv : *mut WebView) {
 // public API (matches posix/linux.ch exactly)
 // ===========================================================================
 
-// Raw platform API. Canonical handle: `webview::safe::WebView`.
+// Raw platform API: `webview::NativeWebView` (platform state) + `webview::raw`. The safe handle is `webview::WebView`.
 public namespace raw {
 
-public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewError> {
+public func webview_create(wv : *mut NativeWebView) : std::Result<std::Unit, WebViewError> {
         unsafe {
     var err = wv_init(wv, 0)
     if(err != 0) {
@@ -1680,7 +1680,7 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
 // public API: embed the webview into a section of an existing app window
 // ===========================================================================
 
-// Attach the webview to an app-owned window::Window instead of creating its
+// Attach the webview to an app-owned window::NativeWindow instead of creating its
 // own top-level window. The webview occupies the section (x, y, width, height)
 // in the parent window's client coordinates; native UI can live in the rest of
 // the window (add controls to the parent window through the window library).
@@ -1693,8 +1693,8 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
 // webview to the same window would overwrite the first's property and break
 // its resize pinning.
 public func webview_attach(
-    wv : *mut WebView,
-    parent : *mut window::Window,
+    wv : *mut NativeWebView,
+    parent : *mut window::NativeWindow,
     x : int,
     y : int,
     width : int,
@@ -1729,7 +1729,7 @@ public func webview_attach(
 
 // Move/resize the webview section inside the attached parent window (in the
 // parent's client coordinates). No-op in standalone mode.
-public func webview_set_bounds(wv : *mut WebView, x : int, y : int, width : int, height : int) {
+public func webview_set_bounds(wv : *mut NativeWebView, x : int, y : int, width : int, height : int) {
         unsafe {
     if(!wv.attached) {
         return
@@ -1743,10 +1743,10 @@ public func webview_set_bounds(wv : *mut WebView, x : int, y : int, width : int,
         }}
 
 // Returns 0 on success, negative error code otherwise.
-// NOTE: `wv` is expected to be created via WebView.make(), so all fields are
+// NOTE: `wv` is expected to be created via NativeWebView.make(), so all fields are
 // already initialized (a memset here would wipe the title/width/height fields
 // set by make()).
-func wv_init(wv : *mut WebView, debug : int) : int {
+func wv_init(wv : *mut NativeWebView, debug : int) : int {
         unsafe {
     // Verify the WebView2 runtime is available (via the loader).
     var version_info : LPWSTR = null
@@ -1851,12 +1851,12 @@ func wv_init(wv : *mut WebView, debug : int) : int {
 
         }}
 
-// Re-store the current WebView pointer as user data on both HWNDs.
+// Re-store the current NativeWebView pointer as user data on both HWNDs.
 // Must be called before any operation that can trigger window messages
-// (show, run, set_size) when the WebView was created via webview::create()
+// (show, run, set_size) when the NativeWebView was created via webview::create()
 // which returns the struct by value — the HWNDs still hold a pointer to the
 // original stack frame inside create() which becomes stale after the return.
-public func webview_rebind(wv : *mut WebView) {
+public func webview_rebind(wv : *mut NativeWebView) {
         unsafe {
     if(!wv.initialized) { return }
     // Re-store the Window pointer on the top-level HWND so that
@@ -1866,15 +1866,15 @@ public func webview_rebind(wv : *mut WebView) {
         SetWindowLongPtrW(wv.win.hwnd, GWLP_USERDATA, &raw mut wv.win as LONG_PTR)
     }
     window::raw::window_set_user_data(&raw mut wv.win, wv as *mut void)
-    // Re-store the WebView pointer on the widget HWND so that
-    // wv_widget_proc reads the correct WebView.
+    // Re-store the NativeWebView pointer on the widget HWND so that
+    // wv_widget_proc reads the correct NativeWebView.
     if(wv.widget != null) {
         SetWindowLongPtrW(wv.widget, GWLP_USERDATA, wv as LONG_PTR)
     }
 
         }}
 
-public func webview_run(wv : *mut WebView) {
+public func webview_run(wv : *mut NativeWebView) {
         unsafe {
     webview_rebind(wv)
     window::raw::window_run()
@@ -1883,26 +1883,26 @@ public func webview_run(wv : *mut WebView) {
 
 // Like webview_run, but the message loop also drives the async executor, so
 // tasks submitted with `async::raw::spawn_local` are polled on the UI thread.
-public func webview_run_async(wv : *mut WebView) {
+public func webview_run_async(wv : *mut NativeWebView) {
         unsafe {
     webview_rebind(wv)
     window::window_run_async()
 
         }}
 
-public func webview_stop(wv : *mut WebView) {
+public func webview_stop(wv : *mut NativeWebView) {
         unsafe {
     window::raw::window_quit()
 
         }}
 
-public func webview_title(wv : *mut WebView) : string {
+public func webview_title(wv : *mut NativeWebView) : string {
         unsafe {
     return wv.title.copy()
 
         }}
 
-public func webview_set_title(wv : *mut WebView, title : *char) {
+public func webview_set_title(wv : *mut NativeWebView, title : *char) {
         unsafe {
     wv.title = string("")
     wv.title.append_char_ptr(title)
@@ -1912,7 +1912,7 @@ public func webview_set_title(wv : *mut WebView, title : *char) {
 
         }}
 
-func wv_set_size(wv : *mut WebView, width : int, height : int, hints : int) {
+func wv_set_size(wv : *mut NativeWebView, width : int, height : int, hints : int) {
         unsafe {
     if(wv.attached) {
         // embed mode: the section size is managed via webview_set_bounds
@@ -1936,7 +1936,7 @@ func wv_set_size(wv : *mut WebView, width : int, height : int, hints : int) {
 
         }}
 
-public func webview_set_size(wv : *mut WebView, width : int, height : int) {
+public func webview_set_size(wv : *mut NativeWebView, width : int, height : int) {
         unsafe {
     wv.width = width
     wv.height = height
@@ -1945,7 +1945,7 @@ public func webview_set_size(wv : *mut WebView, width : int, height : int) {
 
         }}
 
-public func webview_show(wv : *mut WebView) {
+public func webview_show(wv : *mut NativeWebView) {
         unsafe {
     webview_rebind(wv)
     if(wv.attached) {
@@ -1964,7 +1964,7 @@ public func webview_show(wv : *mut WebView) {
 
         }}
 
-public func webview_hide(wv : *mut WebView) {
+public func webview_hide(wv : *mut NativeWebView) {
         unsafe {
     wv.visible = false
     if(wv.attached) {
@@ -1977,7 +1977,7 @@ public func webview_hide(wv : *mut WebView) {
 
         }}
 
-public func webview_load_url(wv : *mut WebView, url : *char) {
+public func webview_load_url(wv : *mut NativeWebView, url : *char) {
         unsafe {
     if(wv.webview == null) {
         return
@@ -1991,7 +1991,7 @@ public func webview_load_url(wv : *mut WebView, url : *char) {
 
         }}
 
-public func webview_evaluate_js(wv : *mut WebView, js : *char) {
+public func webview_evaluate_js(wv : *mut NativeWebView, js : *char) {
         unsafe {
     if(wv.webview == null) {
         return
@@ -2013,7 +2013,7 @@ public func webview_evaluate_js(wv : *mut WebView, js : *char) {
 // On evaluation failure `result` is null. The callback runs on the UI thread
 // (inside the message loop), so it must not block.
 public func webview_evaluate_js_result(
-    wv : *mut WebView,
+    wv : *mut NativeWebView,
     js : *char,
     cb : JsResultCallback,
     user_data : *mut void
@@ -2052,7 +2052,7 @@ public func webview_evaluate_js_result(
 
         }}
 
-public func webview_load_html(wv : *mut WebView, html : *char) {
+public func webview_load_html(wv : *mut NativeWebView, html : *char) {
         unsafe {
     if(wv.webview == null) {
         return
@@ -2068,7 +2068,7 @@ public func webview_load_html(wv : *mut WebView, html : *char) {
 
         }}
 
-public func webview_destroy(wv : *mut WebView) {
+public func webview_destroy(wv : *mut NativeWebView) {
         unsafe {
     wv.initialized = false
     wv.visible = false
@@ -2123,7 +2123,7 @@ public func webview_destroy(wv : *mut WebView) {
 // mode it is the parent window the webview was attached to. Use it to mix
 // native UI with the webview: add controls, handle callbacks, set title/size,
 // etc. — all through the window library's API.
-public func webview_window(wv : *mut WebView) : *mut window::Window {
+public func webview_window(wv : *mut NativeWebView) : *mut window::NativeWindow {
         unsafe {
     if(wv.attached && wv.parent != null) {
         return wv.parent
@@ -2138,7 +2138,7 @@ public func webview_window(wv : *mut WebView) : *mut window::Window {
 //
 // On Windows this uses chrome.webview.postMessage() / WebMessageReceived —
 // the standard WebView2 bidirectional messaging API (no prompt() dialogs).
-public func webview_bind(wv : *mut WebView, handler : JsBindHandler) : std::Result<std::Unit, WebViewError> {
+public func webview_bind(wv : *mut NativeWebView, handler : JsBindHandler) : std::Result<std::Unit, WebViewError> {
         unsafe {
     if(wv.webview == null) {
         return std.Result.Err(WebViewError.InitFailed(string("webview_bind: webview is not initialized")))
@@ -2181,7 +2181,7 @@ public func webview_bind(wv : *mut WebView, handler : JsBindHandler) : std::Resu
 
 // Schedule a function to run on the UI thread. Thread-safe: can be called
 // from any thread. The function runs inside the next message-loop iteration.
-public func webview_dispatch(wv : *mut WebView, fn : DispatchCallback, arg : *mut void) {
+public func webview_dispatch(wv : *mut NativeWebView, fn : DispatchCallback, arg : *mut void) {
         unsafe {
     if(wv.widget == null || wv.dispatch_count >= 16) { return }
     var idx = wv.dispatch_count
@@ -2193,7 +2193,7 @@ public func webview_dispatch(wv : *mut WebView, fn : DispatchCallback, arg : *mu
         }}
 
 // Set window size with a hint controlling how width/height are interpreted.
-public func webview_set_size_hints(wv : *mut WebView, width : int, height : int, hint : int) {
+public func webview_set_size_hints(wv : *mut NativeWebView, width : int, height : int, hint : int) {
         unsafe {
     wv.width = width
     wv.height = height
@@ -2204,7 +2204,7 @@ public func webview_set_size_hints(wv : *mut WebView, width : int, height : int,
 
 // Inject JavaScript that runs on every page load (before window.onload).
 // Unlike evaluate_js which runs once, init scripts persist across navigations.
-public func webview_init(wv : *mut WebView, js : *char) {
+public func webview_init(wv : *mut NativeWebView, js : *char) {
         unsafe {
     if(wv.webview == null) { return }
     // Exact-sized buffer: init scripts can be arbitrarily large (e.g. a bundled
@@ -2218,7 +2218,7 @@ public func webview_init(wv : *mut WebView, js : *char) {
         }}
 
 // Remove a binding previously created with webview_bind.
-public func webview_unbind(wv : *mut WebView, name : *char) {
+public func webview_unbind(wv : *mut NativeWebView, name : *char) {
         unsafe {
     if(wv.webview == null) { return }
     if(wv.bind_ctx != null) {
@@ -2235,7 +2235,7 @@ public func webview_unbind(wv : *mut WebView, name : *char) {
         }}
 
 // Respond to an async binding call from the JS side.
-public func webview_return(wv : *mut WebView, id : *char, status : int, result : *char) {
+public func webview_return(wv : *mut NativeWebView, id : *char, status : int, result : *char) {
         unsafe {
     if(wv.webview == null) { return }
     var id_len : size_t = 0
@@ -2264,7 +2264,7 @@ public func webview_return(wv : *mut WebView, id : *char, status : int, result :
         }}
 
 // Get a native handle by kind.
-public func webview_get_native_handle(wv : *mut WebView, kind : int) : *mut void {
+public func webview_get_native_handle(wv : *mut NativeWebView, kind : int) : *mut void {
         unsafe {
     if(kind == NATIVE_HANDLE_WINDOW) {
         if(wv.attached && wv.parent != null) {

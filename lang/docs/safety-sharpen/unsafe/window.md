@@ -6,14 +6,12 @@ boundary; safe callers use the facade documented in the library README/api snaps
 ## Unsafe declarations
 
 ```
-lang/libs/window/win/win.ch:106:unsafe impl Zeroable for WNDCLASSEXW { }
-lang/libs/window/src/safe.ch:379:    public unsafe func native_handle(&self) : *mut void {
 ```
 
 ## Unsafe call/dereference sites (count)
 
-- unsafe blocks: 238
-- unsafe expressions: 23
-- raw-pointer dereferences/indexing: 363
+- unsafe blocks: 0
+- unsafe expressions: 0
+- raw-pointer dereferences/indexing: 0
 
 Review rule: a safe wrapper must validate null/length/ownership before any raw call.

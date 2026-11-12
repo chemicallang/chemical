@@ -1,9 +1,9 @@
-// test_env::safe — additive safe facade over the raw `TestEnv` CBI.
+// test_env — additive safe facade over the raw `TestEnv` CBI.
 //
 // The existing `TestEnv` interface and its `*char` extension methods stay
 // available unchanged. This file adds:
 //
-//   * `test_env::safe::TestEnvHandle<'a>` — a borrowing handle with no public
+//   * `test_env::TestEnvHandle<'a>` — a borrowing handle with no public
 //     raw pointers and `&str` message methods.
 //   * `*_str` extension methods on `&mut TestEnv` for one-line migration.
 //
@@ -12,8 +12,6 @@
 // fallback instead of truncating silently.
 
 public namespace test_env {
-
-public namespace safe {
 
 /**
  * A safe, borrowing view of the test environment.
@@ -102,51 +100,49 @@ public func <'a> handle(env : &'a mut TestEnv) : TestEnvHandle<'a> {
     return TestEnvHandle<'a> { env : env }
 }
 
-} // namespace safe
-
 // -------------------------------------------------------------------------
 // Method-call convenience aliases (additive; raw `info`/`error`/... remain).
 // -------------------------------------------------------------------------
 
 public func (env : &mut TestEnv) info_str(message : &str) {
-    safe::handle(env).info(message)
+    handle(env).info(message)
 }
 
 public func (env : &mut TestEnv) warning_str(message : &str) {
-    safe::handle(env).warning(message)
+    handle(env).warning(message)
 }
 
 public func (env : &mut TestEnv) warn_str(message : &str) {
-    safe::handle(env).warn(message)
+    handle(env).warn(message)
 }
 
 public func (env : &mut TestEnv) success_str(message : &str) {
-    safe::handle(env).success(message)
+    handle(env).success(message)
 }
 
 public func (env : &mut TestEnv) error_str(message : &str) {
-    safe::handle(env).error(message)
+    handle(env).error(message)
 }
 
 public func (env : &mut TestEnv) panic_str(message : &str) {
-    safe::handle(env).panic(message)
+    handle(env).panic(message)
 }
 
 public func (env : &mut TestEnv) log_str(type : LogType, message : &str) {
-    safe::handle(env).log_at(type, message, 0, 0)
+    handle(env).log_at(type, message, 0, 0)
 }
 
 public func (env : &mut TestEnv) quit_current_group_str(reason : &str) {
-    safe::handle(env).quit_current_group(reason)
+    handle(env).quit_current_group(reason)
 }
 
 public func (env : &mut TestEnv) quit_all_tests_str(reason : &str) {
-    safe::handle(env).quit_all_tests(reason)
+    handle(env).quit_all_tests(reason)
 }
 
-/// Borrow this environment as a safe handle: `env.safe_handle().error("...")`.
-public func <'a> (env : &'a mut TestEnv) safe_handle() : safe::TestEnvHandle<'a> {
-    return safe::handle(env)
+/// Borrow this environment as a safe handle: `env.handle().error("...")`.
+public func <'a> (env : &'a mut TestEnv) handle() : TestEnvHandle<'a> {
+    return handle(env)
 }
 
 /// Raw CBI message/quit hooks. Normal tests use the `&str` methods above.

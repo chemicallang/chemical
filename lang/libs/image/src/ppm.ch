@@ -4,13 +4,13 @@ using std::Result;
 using std::string;
 using std::vector;
 
-public func load_ppm(path : *char) : std::Result<Image, ImageError> {
+func impl_load_ppm(path : *char) : std::Result<Image, ImageError> {
     var read_result = fs::raw::read_entire_file(path)
     if(read_result is Result.Err) {
         return std.Result.Err(ImageError.FileNotFound())
     }
     var Ok(data) = read_result else unsafe { unreachable }
-    return parse_ppm(data.data(), data.size())
+    return impl_parse_ppm(data.data(), data.size())
 }
 
 func is_digit(c : u8) : bool {
@@ -41,7 +41,7 @@ func parse_ppm_number(data : *u8, pos : *mut size_t, data_len : size_t) : std::R
         }
     }
 
-public func parse_ppm(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
+func impl_parse_ppm(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
         unsafe {
         if(data_len < 3) {
             return std.Result.Err(ImageError.InvalidFormat(string("PPM file too small")))
@@ -116,7 +116,7 @@ public func parse_ppm(data : *u8, data_len : size_t) : std::Result<Image, ImageE
     }
 
 // encode_ppm — encode Image to in-memory PPM bytes (no file I/O).
-public func encode_ppm(img : *mut Image) : std::Result<vector<u8>, ImageError> {
+func impl_encode_ppm(img : *mut Image) : std::Result<vector<u8>, ImageError> {
         unsafe {
         if(img.img_channels != 3) {
             return std.Result.Err(ImageError.InvalidFormat(string("PPM requires 3 channels (RGB)")))
@@ -144,7 +144,7 @@ public func encode_ppm(img : *mut Image) : std::Result<vector<u8>, ImageError> {
             i += 1
         }
 
-        var pix_bytes = image_total_bytes(img)
+        var pix_bytes = raw::image_total_bytes(img)
         var pix_ptr = img.pixel_data.data()
         var j : size_t = 0
         while(j < pix_bytes) {
@@ -157,7 +157,7 @@ public func encode_ppm(img : *mut Image) : std::Result<vector<u8>, ImageError> {
         }
     }
 
-public func save_ppm(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
+func impl_save_ppm(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
         unsafe {
         if(img.img_channels != 3) {
             return std.Result.Err(ImageError.InvalidFormat(string("PPM requires 3 channels (RGB)")))
@@ -185,7 +185,7 @@ public func save_ppm(img : *mut Image, path : *char) : std::Result<std::Unit, Im
             i += 1
         }
 
-        var pix_bytes = image_total_bytes(img)
+        var pix_bytes = raw::image_total_bytes(img)
         var pix_ptr = img.pixel_data.data()
         var j : size_t = 0
         while(j < pix_bytes) {

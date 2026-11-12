@@ -6,21 +6,12 @@ boundary; safe callers use the facade documented in the library README/api snaps
 ## Unsafe declarations
 
 ```
-lang/libs/path/src/path.ch:18:public unsafe func basename(p : *char, out : *mut char, out_len : size_t) : Result<size_t, PathError> {
-lang/libs/path/src/path.ch:55:public unsafe func dirname(p : *char, out : *mut char, out_len : size_t) : Result<size_t, PathError> {
-lang/libs/path/src/path.ch:103:public unsafe func extension(p : *char, out : *mut char, out_len : size_t) : Result<size_t, PathError> {
-lang/libs/path/src/path.ch:138:public unsafe func stem(p : *char, out : *mut char, out_len : size_t) : Result<size_t, PathError> {
-lang/libs/path/src/path.ch:178:public unsafe func join(a : *char, b : *char, out : *mut char, out_len : size_t) : Result<size_t, PathError> {
-lang/libs/path/src/path.ch:214:public unsafe func normalize(p : *char, out : *mut char, out_len : size_t) : Result<size_t, PathError> {
-lang/libs/path/src/path.ch:297:public unsafe func is_absolute(p : *char) : bool {
-lang/libs/path/src/path.ch:313:public unsafe func has_root(p : *char) : bool {
-lang/libs/path/src/path.ch:327:unsafe func find_last_separator(data : *char, data_len : size_t) : int {
 ```
 
 ## Unsafe call/dereference sites (count)
 
-- unsafe blocks: 29
-- unsafe expressions: 8
-- raw-pointer dereferences/indexing: 99
+- unsafe blocks: 0
+- unsafe expressions: 0
+- raw-pointer dereferences/indexing: 0
 
 Review rule: a safe wrapper must validate null/length/ownership before any raw call.

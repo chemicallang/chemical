@@ -6,14 +6,12 @@ boundary; safe callers use the facade documented in the library README/api snaps
 ## Unsafe declarations
 
 ```
-lang/libs/webview/src/safe.ch:244:    public unsafe func dispatch(&self, fn : webview::DispatchCallback, arg : *mut void) {
-lang/libs/webview/src/safe.ch:254:    public unsafe func native_handle(&self, kind : int) : *mut void {
 ```
 
 ## Unsafe call/dereference sites (count)
 
-- unsafe blocks: 185
-- unsafe expressions: 25
-- raw-pointer dereferences/indexing: 600
+- unsafe blocks: 0
+- unsafe expressions: 0
+- raw-pointer dereferences/indexing: 0
 
 Review rule: a safe wrapper must validate null/length/ownership before any raw call.

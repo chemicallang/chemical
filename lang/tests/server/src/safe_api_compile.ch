@@ -6,6 +6,6 @@
 // arguments and without any raw pointer in caller code.
 
 func p25_safe_server_api_typechecks() {
-    var _rc = server::safe::serve_static(".", 0u, "127.0.0.1")
-    var _future = server::safe::serve_static_async(".", 0u, "127.0.0.1")
+    var _rc = server::serve_static(".", 0u, "127.0.0.1")
+    var _future = server::serve_static_async(".", 0u, "127.0.0.1")
 }

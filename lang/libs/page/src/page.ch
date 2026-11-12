@@ -432,8 +432,8 @@ public struct HtmlPage {
     // value is formatted and copied into page-owned storage. Because Chemical
     // cannot infer a generic method's type parameter from the argument, the
     // type argument must be written explicitly (or use the free function
-    // `safe_page_set_parameter`, which infers).
-    public func <T : SafePageParam> add_parameter(&mut self, key : &std::str, value : &T) {
+    // `page::set_parameter`, which infers).
+    public func <T : PageParam> add_parameter(&mut self, key : &std::str, value : &T) {
         var text = value.to_page_param()
         add_parameter_owned(key.to_view(), text.to_view())
     }

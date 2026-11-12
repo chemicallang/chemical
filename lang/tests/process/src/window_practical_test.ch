@@ -12,7 +12,7 @@ using std::Result;
 
 @test
 public func test_practical_window_create_and_destroy(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     w.title = string("Test Create")
     w.width = 640
     w.height = 480
@@ -35,7 +35,7 @@ public func test_practical_window_create_and_destroy(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_title_roundtrip(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     window::raw::window_set_title(&raw mut w, "My Title\0" as *char)
     var t = window::raw::window_title(&raw mut w)
     // window_title returns a copy; check its content
@@ -51,7 +51,7 @@ public func test_practical_window_title_roundtrip(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_set_title_after_create(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     w.title = string("Before")
     var res = window::raw::window_create(&raw mut w)
     if(res is Result.Err) { return } // headless
@@ -72,7 +72,7 @@ public func test_practical_window_set_title_after_create(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_size_after_create(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     w.width = 1024
     w.height = 768
     var res = window::raw::window_create(&raw mut w)
@@ -97,7 +97,7 @@ public func test_practical_window_size_after_create(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_show_hide(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     w.title = string("ShowHide Test")
     var res = window::raw::window_create(&raw mut w)
     if(res is Result.Err) { return } // headless
@@ -121,7 +121,7 @@ public func test_practical_window_show_hide(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_show_and_destroy(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     w.title = string("ShowDestroy Test")
     w.width = 400
     w.height = 300
@@ -142,7 +142,7 @@ public func test_practical_window_show_and_destroy(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_position_before_create(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     window::raw::window_set_position(&raw mut w, 100, 200)
     var pos = window::raw::window_position(&raw mut w)
     if(pos.x != 100) { env.error("x should be 100"); return }
@@ -155,7 +155,7 @@ public func test_practical_window_position_before_create(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_position_after_create(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     w.title = string("Position Test")
     var res = window::raw::window_create(&raw mut w)
     if(res is Result.Err) { return } // headless
@@ -176,7 +176,7 @@ public func test_practical_window_position_after_create(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_constraints(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     window::raw::window_set_min_size(&raw mut w, 200, 150)
     window::raw::window_set_max_size(&raw mut w, 1200, 900)
     var minsz = window::raw::window_min_size(&raw mut w)
@@ -193,7 +193,7 @@ public func test_practical_window_constraints(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_always_on_top(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     w.title = string("Topmost Test")
     var res = window::raw::window_create(&raw mut w)
     if(res is Result.Err) { return } // headless
@@ -213,7 +213,7 @@ public func test_practical_window_always_on_top(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_opacity(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     w.title = string("Opacity Test")
     var res = window::raw::window_create(&raw mut w)
     if(res is Result.Err) { return } // headless
@@ -233,7 +233,7 @@ public func test_practical_window_opacity(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_cursor_after_create(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     w.title = string("Cursor Test")
     var res = window::raw::window_create(&raw mut w)
     if(res is Result.Err) { return } // headless
@@ -253,7 +253,7 @@ public func test_practical_window_cursor_after_create(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_dpi_after_create(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     w.title = string("DPI Test")
     var res = window::raw::window_create(&raw mut w)
     if(res is Result.Err) { return } // headless
@@ -272,7 +272,7 @@ public func test_practical_window_dpi_after_create(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_focus_callback(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     w.title = string("Focus CB Test")
     var res = window::raw::window_create(&raw mut w)
     if(res is Result.Err) { return } // headless
@@ -291,7 +291,7 @@ public func test_practical_window_focus_callback(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_event_callback(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     w.title = string("Event CB Test")
     var res = window::raw::window_create(&raw mut w)
     if(res is Result.Err) { return } // headless
@@ -308,7 +308,7 @@ public func test_practical_window_event_callback(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_close_callback(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     w.title = string("Close CB Test")
     var res = window::raw::window_create(&raw mut w)
     if(res is Result.Err) { return } // headless
@@ -324,7 +324,7 @@ public func test_practical_window_close_callback(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_user_data(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     w.title = string("UserData Test")
     var res = window::raw::window_create(&raw mut w)
     if(res is Result.Err) { return } // headless
@@ -343,14 +343,14 @@ public func test_practical_window_user_data(env : &mut TestEnv) {
 
 @test
 public func test_practical_two_windows(env : &mut TestEnv) {
-    var w1 = window::Window.make()
+    var w1 = window::NativeWindow.make()
     w1.title = string("Window 1")
     w1.width = 400
     w1.height = 300
     var r1 = window::raw::window_create(&raw mut w1)
     if(r1 is Result.Err) { return } // headless
 
-    var w2 = window::Window.make()
+    var w2 = window::NativeWindow.make()
     w2.title = string("Window 2")
     w2.width = 500
     w2.height = 400
@@ -399,7 +399,7 @@ public func test_practical_window_monitor_info(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_create_twice_fails(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     w.title = string("Twice Test")
     var r1 = window::raw::window_create(&raw mut w)
     if(r1 is Result.Err) { return } // headless
@@ -416,7 +416,7 @@ public func test_practical_window_create_twice_fails(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_destroy_twice(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     w.title = string("Destroy Twice")
     var res = window::raw::window_create(&raw mut w)
     if(res is Result.Err) { return } // headless
@@ -433,7 +433,7 @@ public func test_practical_window_destroy_twice(env : &mut TestEnv) {
 
 @test
 public func test_practical_window_client_size(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     w.width = 800
     w.height = 600
     var res = window::raw::window_create(&raw mut w)

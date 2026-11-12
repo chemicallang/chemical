@@ -32,9 +32,9 @@ lang/libs/router/src/params.ch:59:public func (page : &mut HtmlPage) get_route_u
 lang/libs/router/src/params.ch:63:public func (page : &mut HtmlPage) get_route_base() : std::string_view {
 lang/libs/router/src/params.ch:72:public func (page : &mut HtmlPage) query_param(key : std::string_view) : std::string_view {
 lang/libs/router/src/params.ch:84:public func (page : &mut HtmlPage) set_route_query(raw : std::string_view) {
-lang/libs/router/src/safe.ch:26:public struct RequestInfo {
-lang/libs/router/src/safe.ch:32:    public func has_body(&self) : bool {
-lang/libs/router/src/safe.ch:39:public func set_request(page : &mut HtmlPage, method : &std::str, path : &std::str,
-lang/libs/router/src/safe.ch:47:func request_field(page : &HtmlPage, key : string_view) : string {
-lang/libs/router/src/safe.ch:55:public func get_request(page : &HtmlPage) : Option<RequestInfo> {
-lang/libs/router/src/safe.ch:70:public func query(html_page : &HtmlPage, key : &std::str) : Option<string> {
+lang/libs/router/src/safe.ch:24:public struct RequestInfo {
+lang/libs/router/src/safe.ch:30:    public func has_body(&self) : bool {
+lang/libs/router/src/safe.ch:37:public func set_request(page : &mut HtmlPage, method : &std::str, path : &std::str,
+lang/libs/router/src/safe.ch:45:func request_field(page : &HtmlPage, key : string_view) : string {
+lang/libs/router/src/safe.ch:53:public func get_request(page : &HtmlPage) : Option<RequestInfo> {
+lang/libs/router/src/safe.ch:68:public func query(html_page : &HtmlPage, key : &std::str) : Option<string> {

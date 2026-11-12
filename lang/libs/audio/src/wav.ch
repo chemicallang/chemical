@@ -37,16 +37,16 @@ func write_u32_le(out : *mut u8, offset : size_t, val : u32) {
         }
     }
 
-public func load_wav(path : *char) : std::Result<Audio, AudioError> {
+func impl_load_wav(path : *char) : std::Result<Audio, AudioError> {
     var read_result = fs::raw::read_entire_file(path)
     if(read_result is Result.Err) {
         return std.Result.Err(AudioError.FileNotFound())
     }
     var Ok(data) = read_result else unsafe { unreachable }
-    return parse_wav(data.data(), data.size())
+    return impl_parse_wav(data.data(), data.size())
 }
 
-public func parse_wav(data : *u8, data_len : size_t) : std::Result<Audio, AudioError> {
+func impl_parse_wav(data : *u8, data_len : size_t) : std::Result<Audio, AudioError> {
         unsafe {
         if(data_len < 44) {
             return std.Result.Err(AudioError.InvalidFormat(string("WAV file too small")))
@@ -125,7 +125,7 @@ public func parse_wav(data : *u8, data_len : size_t) : std::Result<Audio, AudioE
     }
 
 // encode_wav — encode Audio to in-memory WAV bytes (no file I/O).
-public func encode_wav(audio : *mut Audio) : std::Result<vector<u8>, AudioError> {
+func impl_encode_wav(audio : *mut Audio) : std::Result<vector<u8>, AudioError> {
         unsafe {
         var bytes_per_sample = (audio.bit_depth / 8) as u32
         var data_size = (audio.sample_data.size() as u32) * bytes_per_sample
@@ -184,7 +184,7 @@ public func encode_wav(audio : *mut Audio) : std::Result<vector<u8>, AudioError>
         }
     }
 
-public func save_wav(audio : *mut Audio, path : *char) : std::Result<std::Unit, AudioError> {
+func impl_save_wav(audio : *mut Audio, path : *char) : std::Result<std::Unit, AudioError> {
         unsafe {
         var bytes_per_sample = (audio.bit_depth / 8) as u32
         var data_size = (audio.sample_data.size() as u32) * bytes_per_sample
@@ -248,7 +248,7 @@ public func save_wav(audio : *mut Audio, path : *char) : std::Result<std::Unit, 
         }
     }
 
-public func audio_duration_ms(audio : *mut Audio) : double {
+func impl_audio_duration_ms(audio : *mut Audio) : double {
         unsafe {
         if(audio.sample_rate_hz == 0) { return 0.0 }
         return (audio.frame_total as double) * 1000.0 / (audio.sample_rate_hz as double)
@@ -256,19 +256,19 @@ public func audio_duration_ms(audio : *mut Audio) : double {
         }
     }
 
-public func audio_trim(audio : *mut Audio, start_ms : double, end_ms : double) : Audio {
+func impl_audio_trim(audio : *mut Audio, start_ms : double, end_ms : double) : Audio {
         unsafe {
         // Empty input (or a malformed channel count/rate) is an identity copy:
         // never underflow `frame_total - 1` and never divide by zero.
         if(audio.sample_rate_hz == 0 || audio.channel_count == 0 || audio.frame_total == 0) {
-            return audio_copy(audio)
+            return impl_audio_copy(audio)
         }
 
         var ch = audio.channel_count as size_t
         var available_frames = audio.sample_data.size() / ch
         var total_frames = audio.frame_total
         if(total_frames > available_frames) { total_frames = available_frames }
-        if(total_frames == 0) { return audio_copy(audio) }
+        if(total_frames == 0) { return impl_audio_copy(audio) }
 
         var clamped_start_ms = start_ms
         if(clamped_start_ms < 0.0) { clamped_start_ms = 0.0 }
@@ -305,7 +305,7 @@ public func audio_trim(audio : *mut Audio, start_ms : double, end_ms : double) :
         }
     }
 
-public func audio_volume(audio : *mut Audio, factor : float) {
+func impl_audio_volume(audio : *mut Audio, factor : float) {
         unsafe {
         var sptr = audio.sample_data.data() as *mut i16
         var i : size_t = 0
@@ -320,7 +320,7 @@ public func audio_volume(audio : *mut Audio, factor : float) {
         }
     }
 
-public func audio_mix(a : *mut Audio, b : *mut Audio) : std::Result<Audio, AudioError> {
+func impl_audio_mix(a : *mut Audio, b : *mut Audio) : std::Result<Audio, AudioError> {
         unsafe {
         if(a.sample_rate_hz != b.sample_rate_hz) {
             return std.Result.Err(AudioError.InvalidFormat(string("sample rate mismatch")))
@@ -364,7 +364,7 @@ public func audio_mix(a : *mut Audio, b : *mut Audio) : std::Result<Audio, Audio
         }
     }
 
-public func audio_append(a : *mut Audio, b : *mut Audio) : std::Result<Audio, AudioError> {
+func impl_audio_append(a : *mut Audio, b : *mut Audio) : std::Result<Audio, AudioError> {
         unsafe {
         if(a.sample_rate_hz != b.sample_rate_hz) {
             return std.Result.Err(AudioError.InvalidFormat(string("sample rate mismatch")))
@@ -401,10 +401,10 @@ public func audio_append(a : *mut Audio, b : *mut Audio) : std::Result<Audio, Au
         }
     }
 
-public func audio_resample(audio : *mut Audio, target_rate : u32) : Audio {
+func impl_audio_resample(audio : *mut Audio, target_rate : u32) : Audio {
         unsafe {
         if(audio.channel_count == 0) {
-            return audio_copy(audio)
+            return impl_audio_copy(audio)
         }
 
         var ch = audio.channel_count as size_t
@@ -428,7 +428,7 @@ public func audio_resample(audio : *mut Audio, target_rate : u32) : Audio {
         }
 
         if(audio.sample_rate_hz == target_rate) {
-            return audio_copy(audio)
+            return impl_audio_copy(audio)
         }
 
         var ratio = (target_rate as double) / (audio.sample_rate_hz as double)
@@ -464,7 +464,7 @@ public func audio_resample(audio : *mut Audio, target_rate : u32) : Audio {
         }
     }
 
-public func audio_copy(audio : *mut Audio) : Audio {
+func impl_audio_copy(audio : *mut Audio) : Audio {
         unsafe {
         var result = Audio.make()
         result.sample_rate_hz = audio.sample_rate_hz
@@ -483,5 +483,53 @@ public func audio_copy(audio : *mut Audio) : Audio {
 
         }
     }
+
+// Raw byte/pointer entry points. Safe code uses `Audio.load`/`Audio.from_*`
+// and `Audio.save`; these take C strings and `*mut Audio` handles.
+public namespace raw {
+public func load_wav(path : *char) : std::Result<Audio, AudioError> {
+    return impl_load_wav(path)
+}
+
+public func parse_wav(data : *u8, data_len : size_t) : std::Result<Audio, AudioError> {
+    return impl_parse_wav(data, data_len)
+}
+
+public func encode_wav(audio : *mut Audio) : std::Result<vector<u8>, AudioError> {
+    return impl_encode_wav(audio)
+}
+
+public func save_wav(audio : *mut Audio, path : *char) : std::Result<std::Unit, AudioError> {
+    return impl_save_wav(audio, path)
+}
+
+public func audio_duration_ms(audio : *mut Audio) : double {
+    return impl_audio_duration_ms(audio)
+}
+
+public func audio_trim(audio : *mut Audio, start_ms : double, end_ms : double) : Audio {
+    return impl_audio_trim(audio, start_ms, end_ms)
+}
+
+public func audio_volume(audio : *mut Audio, factor : float) {
+    impl_audio_volume(audio, factor)
+}
+
+public func audio_mix(a : *mut Audio, b : *mut Audio) : std::Result<Audio, AudioError> {
+    return impl_audio_mix(a, b)
+}
+
+public func audio_append(a : *mut Audio, b : *mut Audio) : std::Result<Audio, AudioError> {
+    return impl_audio_append(a, b)
+}
+
+public func audio_resample(audio : *mut Audio, target_rate : u32) : Audio {
+    return impl_audio_resample(audio, target_rate)
+}
+
+public func audio_copy(audio : *mut Audio) : Audio {
+    return impl_audio_copy(audio)
+}
+} // end namespace raw
 
 } // end namespace audio

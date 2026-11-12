@@ -107,15 +107,15 @@ lang/libs/fs/src/path.ch:13:public func native_path(path : &Path) : Result<path_
 lang/libs/fs/src/path.ch:6:public type path_ptr = if(def.windows) *u16 else *char
 lang/libs/fs/src/path.ch:8:public type mut_path_ptr = if(def.windows) *mut u16 else *mut char
 lang/libs/fs/src/types.ch:100:    func open(path : &Path, opts : &OpenOptions) : Result<File, FsError> {
-lang/libs/fs/src/types.ch:111:    func create(path : &Path) : Result<File, FsError> {
-lang/libs/fs/src/types.ch:124:    func metadata(&self) : Result<Metadata, FsError> {
-lang/libs/fs/src/types.ch:129:    func delete(&mut self) {
-lang/libs/fs/src/types.ch:144:public struct DirEntry {
-lang/libs/fs/src/types.ch:148:    func delete(&mut self) {
-lang/libs/fs/src/types.ch:156:    func path(&self) : PathBuf {
-lang/libs/fs/src/types.ch:160:    func file_name(&self) : string {
-lang/libs/fs/src/types.ch:164:    func is_dir(&self) : bool {
-lang/libs/fs/src/types.ch:168:    func metadata(&self) : Result<Metadata, FsError> {
+lang/libs/fs/src/types.ch:113:    func create(path : &Path) : Result<File, FsError> {
+lang/libs/fs/src/types.ch:126:    func metadata(&self) : Result<Metadata, FsError> {
+lang/libs/fs/src/types.ch:131:    func delete(&mut self) {
+lang/libs/fs/src/types.ch:146:public struct DirEntry {
+lang/libs/fs/src/types.ch:150:    func delete(&mut self) {
+lang/libs/fs/src/types.ch:158:    func path(&self) : PathBuf {
+lang/libs/fs/src/types.ch:162:    func file_name(&self) : string {
+lang/libs/fs/src/types.ch:166:    func is_dir(&self) : bool {
+lang/libs/fs/src/types.ch:170:    func metadata(&self) : Result<Metadata, FsError> {
 lang/libs/fs/src/types.ch:23:    func message(&self) : std::string {
 lang/libs/fs/src/types.ch:49:public struct Metadata {
 lang/libs/fs/src/types.ch:61:public struct OpenOptions {

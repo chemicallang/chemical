@@ -86,17 +86,16 @@ public func image_create(w : int, h : int, ch : int) : Image {
     }
 
 public func image_create_rgba(w : int, h : int) : Image {
-    return raw::image_create(w, h, 4)
+    return image_create(w, h, 4)
 }
 
 public func image_create_rgb(w : int, h : int) : Image {
-    return raw::image_create(w, h, 3)
+    return image_create(w, h, 3)
 }
 
 public func image_create_gray(w : int, h : int) : Image {
-    return raw::image_create(w, h, 1)
+    return image_create(w, h, 1)
 }
-} // end namespace raw
 
 public func image_width(img : *mut Image) : int {
         unsafe {
@@ -466,5 +465,56 @@ public func image_fill_circle(img : *mut Image, cx : int, cy : int, radius : int
         y += 1
     }
 }
+
+// Raw byte/pointer codec entry points. Safe code uses `Image.load`/`Image.from_*`
+// and `Image.save` instead; these take C strings and raw pixel buffers.
+public func load_bmp(path : *char) : std::Result<Image, ImageError> {
+    return impl_load_bmp(path)
+}
+
+public func parse_bmp(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
+    return impl_parse_bmp(data, data_len)
+}
+
+public func encode_bmp(img : *mut Image) : std::Result<vector<u8>, ImageError> {
+    return impl_encode_bmp(img)
+}
+
+public func save_bmp(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
+    return impl_save_bmp(img, path)
+}
+
+public func load_png(path : *char) : std::Result<Image, ImageError> {
+    return impl_load_png(path)
+}
+
+public func parse_png(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
+    return impl_parse_png(data, data_len)
+}
+
+public func encode_png(img : *mut Image) : std::Result<vector<u8>, ImageError> {
+    return impl_encode_png(img)
+}
+
+public func save_png(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
+    return impl_save_png(img, path)
+}
+
+public func load_ppm(path : *char) : std::Result<Image, ImageError> {
+    return impl_load_ppm(path)
+}
+
+public func parse_ppm(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
+    return impl_parse_ppm(data, data_len)
+}
+
+public func encode_ppm(img : *mut Image) : std::Result<vector<u8>, ImageError> {
+    return impl_encode_ppm(img)
+}
+
+public func save_ppm(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
+    return impl_save_ppm(img, path)
+}
+} // end namespace raw
 
 } // end namespace image

@@ -21,7 +21,7 @@ var g_params_count : int
 var g_promise_chain_ok : bool
 var g_promise_chain_count : int
 var g_eval_reliable_ok : bool
-var g_wv_params : *mut webview::WebView
+var g_wv_params : *mut webview::NativeWebView
 
 // ---- helpers ----
 
@@ -114,7 +114,7 @@ public func test_bridge_params_array_unwrap(env : &mut TestEnv) {
     // extract the tool field from the array-wrapped params.
     reset_params_state()
 
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     webview::raw::webview_set_size(&raw mut wv, 480, 360)
     var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {
@@ -196,7 +196,7 @@ public func test_bridge_params_multi_field(env : &mut TestEnv) {
     // stringified JSON object with multiple fields.
     reset_params_state()
 
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     webview::raw::webview_set_size(&raw mut wv, 480, 360)
     var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {
@@ -269,7 +269,7 @@ public func test_bridge_promise_chain_long(env : &mut TestEnv) {
     // onReply to execute, even with many calls in succession.
     reset_params_state()
 
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     webview::raw::webview_set_size(&raw mut wv, 480, 360)
     var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {
@@ -377,7 +377,7 @@ public func test_bridge_evaluate_js_reliable(env : &mut TestEnv) {
     // never executed because a single gtk_main_iteration() wasn't enough.
     reset_params_state()
 
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     webview::raw::webview_set_size(&raw mut wv, 480, 360)
     var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {
@@ -442,7 +442,7 @@ public func test_bridge_params_nested_json(env : &mut TestEnv) {
     // stringified JSON object with nested structures.
     reset_params_state()
 
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     webview::raw::webview_set_size(&raw mut wv, 480, 360)
     var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {

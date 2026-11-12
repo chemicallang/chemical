@@ -4,5 +4,5 @@
 lang/libs/osrand/src/main.ch:17:        public unsafe func random_fill(buf : *mut u8, len : size_t) : int {
 lang/libs/osrand/src/main.ch:48:    public func fill(buf : &mut [u8]) : std::Result<size_t, std::io::IoError> {
 lang/libs/osrand/src/main.ch:55:    public func random_bytes(len : size_t) : std::Result<std::vector<u8>, std::io::IoError> {
-lang/libs/osrand/src/main.ch:70:    public func random_u32_safe() : std::Result<u32, std::io::IoError> {
-lang/libs/osrand/src/main.ch:84:    public func random_u64_safe() : std::Result<u64, std::io::IoError> {
+lang/libs/osrand/src/main.ch:70:    public func random_u32() : std::Result<u32, std::io::IoError> {
+lang/libs/osrand/src/main.ch:84:    public func random_u64() : std::Result<u64, std::io::IoError> {

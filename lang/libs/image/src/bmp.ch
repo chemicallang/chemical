@@ -6,16 +6,16 @@ using std::vector;
 using fs::File;
 using fs::OpenOptions;
 
-public func load_bmp(path : *char) : std::Result<Image, ImageError> {
+func impl_load_bmp(path : *char) : std::Result<Image, ImageError> {
     var read_result = fs::raw::read_entire_file(path)
     if(read_result is Result.Err) {
         return std.Result.Err(ImageError.FileNotFound())
     }
     var Ok(data) = read_result else unsafe { unreachable }
-    return parse_bmp(data.data(), data.size())
+    return impl_parse_bmp(data.data(), data.size())
 }
 
-public func parse_bmp(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
+func impl_parse_bmp(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
         unsafe {
         if(data_len < 54) {
             return std.Result.Err(ImageError.InvalidFormat(string("BMP file too small")))
@@ -106,7 +106,7 @@ public func parse_bmp(data : *u8, data_len : size_t) : std::Result<Image, ImageE
     }
 
 // encode_bmp — encode Image to in-memory BMP bytes (no file I/O).
-public func encode_bmp(img : *mut Image) : std::Result<vector<u8>, ImageError> {
+func impl_encode_bmp(img : *mut Image) : std::Result<vector<u8>, ImageError> {
         unsafe {
         var bpp : int
         if(img.img_channels == 4) {
@@ -168,7 +168,7 @@ public func encode_bmp(img : *mut Image) : std::Result<vector<u8>, ImageError> {
         }
     }
 
-public func save_bmp(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
+func impl_save_bmp(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
         unsafe {
         var bpp : int
         if(img.img_channels == 4) {

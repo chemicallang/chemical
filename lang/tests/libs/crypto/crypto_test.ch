@@ -196,8 +196,8 @@ func test_osrand_random_fill_different(env : &mut TestEnv) {
 
 @test
 func test_osrand_random_u32_nonzero(env : &mut TestEnv) {
-    var val = osrand::random_u32_safe()
-    if(val is Result.Err) { env.error("random_u32_safe failed"); return }
+    var val = osrand::random_u32()
+    if(val is Result.Err) { env.error("random_u32 failed"); return }
     var Ok(random_val) = val else unsafe { unreachable }
     // random_u32 should return some value (0xDEADBEEF is the error sentinel)
     // We just verify it doesn't crash and returns a u32
@@ -210,8 +210,8 @@ func test_osrand_random_u32_nonzero(env : &mut TestEnv) {
 
 @test
 func test_osrand_random_u64_nonzero(env : &mut TestEnv) {
-    var val = osrand::random_u64_safe()
-    if(val is Result.Err) { env.error("random_u64_safe failed"); return }
+    var val = osrand::random_u64()
+    if(val is Result.Err) { env.error("random_u64 failed"); return }
     var Ok(random_val) = val else unsafe { unreachable }
     // Verify it doesn't crash and returns a u64
     var buf : [8]u8

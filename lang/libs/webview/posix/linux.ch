@@ -147,26 +147,26 @@ public struct JsEvalHandler {
 }
 
 // ---------------------------------------------------------------------------
-// WebView struct (Linux)
+// NativeWebView struct (Linux)
 // ---------------------------------------------------------------------------
 
 @direct_init
-public struct WebView {
+public struct NativeWebView {
     // --- top-level window (standalone mode), owned by the window library
     //     (lang/libs/window). The webview fills the window; native UI can be
     //     mixed in through the window library. ---
-    var win : window::Window
+    var win : window::NativeWindow
 
     var web_view : *mut GtkWidget
     var box : *mut GtkWidget
 
     // --- embed mode (webview_attach): the webview lives in a section of an
-    //     existing app window::Window instead of its own top-level window.
+    //     existing app window::NativeWindow instead of its own top-level window.
     //     `fixed` is a GtkFixed (added to the app's window) that holds the
     //     webview at the section (bounds_x/y/w/h); native UI can live in the
     //     rest of the app's window. ---
     var attached : bool
-    var parent_win : *mut window::Window
+    var parent_win : *mut window::NativeWindow
     var fixed : *mut GtkWidget
     var bounds_x : int
     var bounds_y : int
@@ -188,9 +188,9 @@ public struct WebView {
     var bind_handler_set : bool
 
     @make
-    func make() : WebView {
-        return WebView {
-            win : window::Window.make(),
+    func make() : NativeWebView {
+        return NativeWebView {
+            win : window::NativeWindow.make(),
             web_view : null,
             box : null,
             attached : false,
@@ -200,7 +200,7 @@ public struct WebView {
             bounds_y : 0,
             bounds_w : 0,
             bounds_h : 0,
-            title : string("Chemical WebView"),
+            title : string("Chemical NativeWebView"),
             width : 800,
             height : 600,
             visible : false,
@@ -219,10 +219,10 @@ func linux_on_window_destroy(widget : *mut GtkWidget, data : *mut void) {
 func linux_on_navigation_complete(web_view : *mut WebKitWebView, event : int, data : *mut void) {
 }
 
-// Raw platform API. Canonical handle: `webview::safe::WebView`.
+// Raw platform API: `webview::NativeWebView` (platform state) + `webview::raw`. The safe handle is `webview::WebView`.
 public namespace raw {
 
-public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewError> {
+public func webview_create(wv : *mut NativeWebView) : std::Result<std::Unit, WebViewError> {
     unsafe {
 
     // WebKit's JavaScriptCore reads the process environment through glibc's
@@ -285,7 +285,7 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
 // be registered on the user content manager BEFORE the page loads so that
 // window.webkit.messageHandlers.__webview__ exists when the injected script runs
 // (it executes at document start). The signal is connected once per webview.
-func webview_inject_bridge(wv : *mut WebView) {
+func webview_inject_bridge(wv : *mut NativeWebView) {
     if(wv == null) {
         return
     }
@@ -334,7 +334,7 @@ func linux_on_script_message(
     if(js_result == null || data == null) {
         return
     }
-    var wv = data as *mut WebView
+    var wv = data as *mut NativeWebView
     if(!wv.bind_handler_set || wv.bind_ctx == null) {
         return
     }
@@ -480,7 +480,7 @@ var g_lr_ready : bool = false
 // avoids both the re-entrancy hazard (re-entering the main loop from inside a
 // signal handler) and idle-source starvation under a busy loop (e.g. an app
 // that polls the bridge on a timer while downloads render).
-func linux_run_js(wv : *mut WebView, script : *char) {
+func linux_run_js(wv : *mut NativeWebView, script : *char) {
     unsafe {
 
     if(wv.web_view != null) {
@@ -574,7 +574,7 @@ func linux_json_int_field(params_view : std::string_view, key : *char) : size_t 
 // sequence of scripts — init accumulator, push each chunk, then resolve — on
 // the normal main loop. No re-entrant loop pumping, so it is safe to call
 // directly from the script-message-received signal handler.
-func linux_deliver_large_result(wv : *mut WebView, call_id : std::string_view) {
+func linux_deliver_large_result(wv : *mut NativeWebView, call_id : std::string_view) {
     unsafe {
 
     // 1. Init accumulator
@@ -615,7 +615,7 @@ func linux_deliver_large_result(wv : *mut WebView, call_id : std::string_view) {
 // Process an incoming bridge message (JSON from JS). Parses {id, method,
 // params}, calls the bound handler, and sends the result back via
 // window.__webview__.onReply(id, 0, result).
-func linux_on_message(wv : *mut WebView, msg : *char) {
+func linux_on_message(wv : *mut NativeWebView, msg : *char) {
     unsafe {
 
     var msg_view = std::string_view::make_no_len(msg)
@@ -691,8 +691,8 @@ func linux_on_message(wv : *mut WebView, msg : *char) {
 // Bind a native handler to the JS window.webview_bridge.call(method, args).
 // The handler runs on the GTK main loop; it must not block for long. The
 // script-message-received signal is connected here, after the caller owns the
-// final WebView address returned by create().
-public func webview_bind(wv : *mut WebView, handler : JsBindHandler) : std::Result<std::Unit, WebViewError> {
+// final NativeWebView address returned by create().
+public func webview_bind(wv : *mut NativeWebView, handler : JsBindHandler) : std::Result<std::Unit, WebViewError> {
     unsafe {
 
     if(wv.web_view == null) {
@@ -742,14 +742,14 @@ func gtk_container_add(container : *mut GtkContainer, child : *mut GtkWidget)
 // public API: embed the webview into a section of an existing app window
 // ===========================================================================
 
-// Attach the webview to an app-owned window::Window instead of creating its
+// Attach the webview to an app-owned window::NativeWindow instead of creating its
 // own top-level window. The webview occupies the section (x, y, width, height)
 // inside a GtkFixed that is added to the app's window; native UI can live in
 // the rest of the app's window. Move the section with webview_set_bounds. The
 // parent must already be created via window::raw::window_create.
 public func webview_attach(
-    wv : *mut WebView,
-    parent : *mut window::Window,
+    wv : *mut NativeWebView,
+    parent : *mut window::NativeWindow,
     x : int,
     y : int,
     width : int,
@@ -819,7 +819,7 @@ public func webview_attach(
 
 // Move/resize the webview section inside the attached parent window (in the
 // parent's coordinate space). No-op in standalone mode.
-public func webview_set_bounds(wv : *mut WebView, x : int, y : int, width : int, height : int) {
+public func webview_set_bounds(wv : *mut NativeWebView, x : int, y : int, width : int, height : int) {
     unsafe {
 
     if(!wv.attached) {
@@ -837,7 +837,7 @@ public func webview_set_bounds(wv : *mut WebView, x : int, y : int, width : int,
 }
 }
 
-public func webview_destroy(wv : *mut WebView) {
+public func webview_destroy(wv : *mut NativeWebView) {
     unsafe {
 
     wv.initialized = false
@@ -895,7 +895,7 @@ public func webview_destroy(wv : *mut WebView) {
 }
 }
 
-public func webview_load_url(wv : *mut WebView, url : *char) {
+public func webview_load_url(wv : *mut NativeWebView, url : *char) {
     unsafe {
 
     if(wv.web_view != null) {
@@ -905,7 +905,7 @@ public func webview_load_url(wv : *mut WebView, url : *char) {
 }
 }
 
-public func webview_load_html(wv : *mut WebView, html : *char) {
+public func webview_load_html(wv : *mut NativeWebView, html : *char) {
     unsafe {
 
     if(wv.web_view != null) {
@@ -915,7 +915,7 @@ public func webview_load_html(wv : *mut WebView, html : *char) {
 }
 }
 
-public func webview_evaluate_js(wv : *mut WebView, script : *char) {
+public func webview_evaluate_js(wv : *mut NativeWebView, script : *char) {
     unsafe {
 
     if(wv.web_view != null) {
@@ -976,7 +976,7 @@ func linux_js_callback(web_view : *mut WebKitWebView, res : *mut void, user_data
 }
 
 public func webview_evaluate_js_result(
-    wv : *mut WebView,
+    wv : *mut NativeWebView,
     script : *char,
     cb : JsResultCallback,
     user_data : *mut void
@@ -1003,7 +1003,7 @@ public func webview_evaluate_js_result(
 }
 }
 
-public func webview_title(wv : *mut WebView) : string {
+public func webview_title(wv : *mut NativeWebView) : string {
     unsafe {
 
     if(wv.web_view != null) {
@@ -1025,7 +1025,7 @@ public func webview_title(wv : *mut WebView) : string {
 }
 }
 
-public func webview_set_title(wv : *mut WebView, title : *char) {
+public func webview_set_title(wv : *mut NativeWebView, title : *char) {
     unsafe {
 
     wv.title = string("")
@@ -1037,7 +1037,7 @@ public func webview_set_title(wv : *mut WebView, title : *char) {
 }
 }
 
-public func webview_set_size(wv : *mut WebView, width : int, height : int) {
+public func webview_set_size(wv : *mut NativeWebView, width : int, height : int) {
     unsafe {
 
     wv.width = width
@@ -1049,7 +1049,7 @@ public func webview_set_size(wv : *mut WebView, width : int, height : int) {
 }
 }
 
-public func webview_show(wv : *mut WebView) {
+public func webview_show(wv : *mut NativeWebView) {
     unsafe {
 
     if(wv.attached) {
@@ -1067,7 +1067,7 @@ public func webview_show(wv : *mut WebView) {
 }
 }
 
-public func webview_hide(wv : *mut WebView) {
+public func webview_hide(wv : *mut NativeWebView) {
     unsafe {
 
     wv.visible = false
@@ -1082,7 +1082,7 @@ public func webview_hide(wv : *mut WebView) {
 }
 }
 
-public func webview_run(wv : *mut WebView) {
+public func webview_run(wv : *mut NativeWebView) {
     unsafe {
 
     if(!wv.attached) {
@@ -1100,7 +1100,7 @@ public func webview_run(wv : *mut WebView) {
 }
 }
 
-public func webview_stop(wv : *mut WebView) {
+public func webview_stop(wv : *mut NativeWebView) {
     window::raw::window_quit()
 }
 
@@ -1108,7 +1108,7 @@ public func webview_stop(wv : *mut WebView) {
 // (`window_run_async`), so tasks submitted with `async::raw::spawn_local` are polled
 // on the UI thread. Use this when the app's bridge handlers await background
 // work and must touch the webview in the continuation.
-public func webview_run_async(wv : *mut WebView) {
+public func webview_run_async(wv : *mut NativeWebView) {
     unsafe {
 
     if(!wv.attached) {
@@ -1133,7 +1133,7 @@ public func webview_run_async(wv : *mut WebView) {
 // mode it is the parent window the webview was attached to. Use it to mix
 // native UI with the webview — add controls, handle callbacks, set
 // title/size, etc. — all through the window library's API.
-public func webview_window(wv : *mut WebView) : *mut window::Window {
+public func webview_window(wv : *mut NativeWebView) : *mut window::NativeWindow {
     unsafe {
 
     if(wv.attached && wv.parent_win != null) {
@@ -1171,7 +1171,7 @@ func linux_dispatch_idle(data : *mut void) : i32 {
 }
 
 // Schedule a function to run on the GTK main loop. Thread-safe.
-public func webview_dispatch(wv : *mut WebView, fn : DispatchCallback, arg : *mut void) {
+public func webview_dispatch(wv : *mut NativeWebView, fn : DispatchCallback, arg : *mut void) {
     unsafe {
 
     if(fn == null) {
@@ -1189,7 +1189,7 @@ public func webview_dispatch(wv : *mut WebView, fn : DispatchCallback, arg : *mu
 }
 
 // Set window size with a hint (none / min / max / fixed).
-public func webview_set_size_hints(wv : *mut WebView, width : int, height : int, hint : int) {
+public func webview_set_size_hints(wv : *mut NativeWebView, width : int, height : int, hint : int) {
     unsafe {
 
     wv.width = width
@@ -1216,7 +1216,7 @@ public func webview_set_size_hints(wv : *mut WebView, width : int, height : int,
 }
 
 // Inject JavaScript that runs on every page load.
-public func webview_init(wv : *mut WebView, js : *char) {
+public func webview_init(wv : *mut NativeWebView, js : *char) {
     unsafe {
 
     if(wv.web_view == null) {
@@ -1240,7 +1240,7 @@ public func webview_init(wv : *mut WebView, js : *char) {
 }
 
 // Remove a binding (single global handler on this backend).
-public func webview_unbind(wv : *mut WebView, name : *char) {
+public func webview_unbind(wv : *mut NativeWebView, name : *char) {
     unsafe {
 
     var was_bound = wv.bind_handler_set
@@ -1265,7 +1265,7 @@ public func webview_unbind(wv : *mut WebView, name : *char) {
 }
 
 // Respond to an async binding call (used by handlers invoked from other threads).
-public func webview_return(wv : *mut WebView, id : *char, status : int, result : *char) {
+public func webview_return(wv : *mut NativeWebView, id : *char, status : int, result : *char) {
     unsafe {
 
     if(wv.web_view == null) {
@@ -1314,7 +1314,7 @@ public func webview_return(wv : *mut WebView, id : *char, status : int, result :
 }
 
 // Get a native handle by kind.
-public func webview_get_native_handle(wv : *mut WebView, kind : int) : *mut void {
+public func webview_get_native_handle(wv : *mut NativeWebView, kind : int) : *mut void {
     unsafe {
 
     if(wv.web_view == null) {

@@ -137,7 +137,7 @@ func run_async_quit_cb(data : *mut void) {
 public func test_window_run_async_drives_executor(env : &mut TestEnv) {
     unsafe {
 
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     w.title = string("window async test")
     w.width = 200
     w.height = 120

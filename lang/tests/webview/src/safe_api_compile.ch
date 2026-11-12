@@ -2,8 +2,8 @@
 //
 // These functions are intentionally NOT annotated `@test`: creating a native
 // window/webview needs a graphical display, so the `--webview` suite only
-// compiles them. They type-check every method of `window::safe::Window` and
-// `webview::safe::WebView` (including callback registration/unregistration and
+// compiles them. They type-check every method of `window::Window` and
+// `webview::WebView` (including callback registration/unregistration and
 // the JS bridge) without ever running.
 
 using std::Option;
@@ -11,7 +11,7 @@ using std::string;
 using std::string_view;
 
 func p25_safe_window_api_typechecks() {
-    var created = window::safe::Window.new("P2.5 window", 640, 480)
+    var created = window::Window.new("P2.5 window", 640, 480)
     if(created is std::Result.Ok) {
         var Ok(w) = created else unsafe { unreachable }
         w.set_title("title")
@@ -63,7 +63,7 @@ func p25_safe_window_api_typechecks() {
 }
 
 func p25_safe_webview_api_typechecks() {
-    var created = webview::safe::WebView.new("P2.5 webview", 800, 600)
+    var created = webview::WebView.new("P2.5 webview", 800, 600)
     if(created is std::Result.Ok) {
         var Ok(w) = created else unsafe { unreachable }
         w.load_url("https://example.com")

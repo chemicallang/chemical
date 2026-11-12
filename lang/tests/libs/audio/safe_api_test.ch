@@ -5,20 +5,20 @@ using std::string;
 // Focused tests for the additive safe audio surface: `Audio::load`,
 // `from_wav`, `encode_wav`, `save`, sample views, and transformations.
 
-func audio_safe_temp_pathbuf(name : *char) : path::PathBuf {
+func audio_temp_pathbuf(name : *char) : path::PathBuf {
     var s = make_temp_test_path(name)
     return path::PathBuf.from(std::str.make_view(s.to_view()))
 }
 
-func audio_safe_view(v : &vector<u8>) : [u8] {
+func audio_view_of(v : &vector<u8>) : [u8] {
     return unsafe(std::span<u8>(v.data(), v.size()))
 }
 
-func audio_safe_fixed_view(p : *u8, n : size_t) : [u8] {
+func audio_fixed_view(p : *u8, n : size_t) : [u8] {
     return unsafe(std::span<u8>(p, n))
 }
 
-func audio_safe_make_tone(rate : u32, sample_count : int) : audio::Audio {
+func audio_make_tone(rate : u32, sample_count : int) : audio::Audio {
     var samples = vector<i16>()
     var i : int = 0
     while(i < sample_count) {
@@ -35,15 +35,15 @@ func audio_safe_make_tone(rate : u32, sample_count : int) : audio::Audio {
 // ═══════════════════════════════════════════════════════════════
 
 @test
-public func audio_safe_wav_roundtrip(env : &mut TestEnv) {
-    var a = audio_safe_make_tone(8000, 8)
+public func audio_api_wav_roundtrip(env : &mut TestEnv) {
+    var a = audio_make_tone(8000, 8)
 
     var encoded = a.encode_wav()
     if(encoded is Result.Err) { env.error("encode_wav should succeed"); return }
     var Ok(bytes) = encoded else unsafe { unreachable }
     if(bytes.size() < 44) { env.error("WAV should have a header"); return }
 
-    var parsed = audio::Audio.from_wav(audio_safe_view(&bytes))
+    var parsed = audio::Audio.from_wav(audio_view_of(&bytes))
     if(parsed is Result.Err) { env.error("from_wav should succeed"); return }
     var Ok(loaded) = parsed else unsafe { unreachable }
 
@@ -56,8 +56,8 @@ public func audio_safe_wav_roundtrip(env : &mut TestEnv) {
 }
 
 @test
-public func audio_safe_sample_views_are_mutable(env : &mut TestEnv) {
-    var a = audio_safe_make_tone(44100, 4)
+public func audio_api_sample_views_are_mutable(env : &mut TestEnv) {
+    var a = audio_make_tone(44100, 4)
     var view = a.samples_mut_view()
     view.set(0, 1234)
     view.set(1, -5678)
@@ -66,9 +66,9 @@ public func audio_safe_sample_views_are_mutable(env : &mut TestEnv) {
 }
 
 @test
-public func audio_safe_load_and_save(env : &mut TestEnv) {
-    var a = audio_safe_make_tone(16000, 6)
-    var p = audio_safe_temp_pathbuf("p24_safe_audio.wav")
+public func audio_api_load_and_save(env : &mut TestEnv) {
+    var a = audio_make_tone(16000, 6)
+    var p = audio_temp_pathbuf("p24_safe_audio.wav")
 
     var saved = a.save(&p.as_path())
     if(saved is Result.Err) { env.error("save should succeed"); return }
@@ -81,8 +81,8 @@ public func audio_safe_load_and_save(env : &mut TestEnv) {
 }
 
 @test
-public func audio_safe_transformations(env : &mut TestEnv) {
-    var a = audio_safe_make_tone(8000, 8)
+public func audio_api_transformations(env : &mut TestEnv) {
+    var a = audio_make_tone(8000, 8)
     var before = a.samples()[7]
     a.volume(0.5f)
     var after = a.samples()[7]
@@ -91,7 +91,7 @@ public func audio_safe_transformations(env : &mut TestEnv) {
     var trimmed = a.trim(0.0, 0.25)
     if(trimmed.samples().size() > a.samples().size()) { env.error("trim should not grow audio") }
 
-    var b = audio_safe_make_tone(8000, 8)
+    var b = audio_make_tone(8000, 8)
     var mixed = a.mix(&b)
     if(mixed is Result.Err) { env.error("mix should succeed") }
 
@@ -109,34 +109,34 @@ public func audio_safe_transformations(env : &mut TestEnv) {
 // ═══════════════════════════════════════════════════════════════
 
 @test
-public func audio_safe_bad_magic_rejected(env : &mut TestEnv) {
+public func audio_api_bad_magic_rejected(env : &mut TestEnv) {
     var garbage : [16]u8
     var i : size_t = 0
     while(i < 16) { garbage[i] = 0xAA; i += 1 }
-    var view = audio_safe_fixed_view(&raw garbage[0], 16)
+    var view = audio_fixed_view(&raw garbage[0], 16)
     var result = audio::Audio.from_wav(view)
     if(result is Result.Ok) { env.error("bad WAV magic must be rejected") }
 }
 
 @test
-public func audio_safe_truncated_rejected(env : &mut TestEnv) {
+public func audio_api_truncated_rejected(env : &mut TestEnv) {
     var tiny : [4]u8 = [0x52, 0x49, 0x46, 0x46]
-    var view = audio_safe_fixed_view(&raw tiny[0], 4)
+    var view = audio_fixed_view(&raw tiny[0], 4)
     var result = audio::Audio.from_wav(view)
     if(result is Result.Ok) { env.error("truncated WAV must be rejected") }
 }
 
 @test
-public func audio_safe_riff_without_wave_rejected(env : &mut TestEnv) {
+public func audio_api_riff_without_wave_rejected(env : &mut TestEnv) {
     var riff : [12]u8 = [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x41, 0x42, 0x43, 0x44]
-    var view = audio_safe_fixed_view(&raw riff[0], 12)
+    var view = audio_fixed_view(&raw riff[0], 12)
     var result = audio::Audio.from_bytes(view)
     if(result is Result.Ok) { env.error("RIFF without WAVE must be rejected") }
 }
 
 @test
-public func audio_safe_load_nonexistent(env : &mut TestEnv) {
-    var p = audio_safe_temp_pathbuf("p24_does_not_exist.wav")
+public func audio_api_load_nonexistent(env : &mut TestEnv) {
+    var p = audio_temp_pathbuf("p24_does_not_exist.wav")
     var result = audio::Audio.load(&p.as_path())
     if(result is Result.Ok) { env.error("missing file must fail") }
 }

@@ -100,6 +100,41 @@ legacy `find_or_npos`/`find_last_or_npos` forms remain for in-tree migration.
 `SpanView<T>` supplies `vector::as_span`/`as_mut_span` without eager
 specialization. These names are the frozen release surface.
 
+**Safe-by-default naming wave (2026-11-12).** The public surface no longer
+exposes a parallel `*_safe` / `safe_*` / `::safe::` spelling: the plain name is
+the safe API and raw-pointer/FFI forms moved under `raw` (or a `*_native` free
+function that takes/returns the `Native*` platform type).
+- `image`, `audio`, `font`: module-level raw codec/accessor functions moved to
+  `image::raw` / `audio::raw` / `font::raw`; the private `*_safe_*` helpers were
+  renamed to `decode_*` / `encode_*_bytes` / `save_to_path`. The canonical
+  surface is `Image.load/from_*/save`, `Audio.load/from_*/save`, and
+  `Font.from_path/load/metrics`.
+- `page`: `safe_page_*` aliases removed; `escape_js`, `escape_json`,
+  `append_html_escaped`, `append_js_escaped`, `set_parameter`,
+  `get_parameter_owned`, and `PageParam` are the canonical names.
+- `window`/`webview`: the safe owning handles are `window::Window` /
+  `webview::WebView`; the platform state structs are `NativeWindow` /
+  `NativeWebView`, and the raw `webview::create/open_url/open_html` helpers are
+  `*_native`.
+- `router`, `server`, `components`, `test_env`, `test_report`, `lab`: the
+  `safe` sub-namespace was folded into the module namespace (`router::set_request`,
+  `server::serve_static`, `test_env::TestEnvHandle`, `test_report::TestOutcomeSnapshot`,
+  `lab::run`, ...).
+- `osrand::random_u32_safe`/`random_u64_safe` -> `random_u32`/`random_u64`.
+- Audit tooling: `scripts/safety-sharpen-api-audit.sh` now reports
+  `RAW_NONRAW` (public raw-pointer functions declared outside a
+  `raw`/`ffi`/`sys` namespace) with a string/char-literal-aware brace scanner.
+  `image`, `audio`, `font`, `fs`, `path`, `archive`, `encoding`, `crypto`,
+  `compression`, `json`, `mime`, `cbor`, and `router` are at zero; the
+  remaining nonzero entries are the reviewed allowlist. The snapshot script now
+  fails closed when `rg` is missing instead of silently emitting empty files.
+- Gates: main 2485/2485, libs 882/882, process 127/127 (window, Windows
+  host), server 10/10, api 4/4, safety 191/191, negative 867/867, plugins
+  1305/1305; webview test module, universal_webview, and `universal_test`
+  compile-check clean. (One repeat main-suite compile hung in symres; an
+  immediate `--no-run` rebuild plus direct `tests-tcc.exe` run was clean. Treat
+  it as the known intermittent parallel-symres deadlock, not a suite failure.)
+
 **Compiler-blocked API follow-ups:** the consuming forms
 `Box::into_inner(self)`, `Rc::try_unwrap(self)`, `Arc::try_unwrap(self)` and
 `map::get_mut -> Option<&mut Value>` are not shipped yet. The compiler still

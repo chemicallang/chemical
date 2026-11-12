@@ -6,18 +6,12 @@ boundary; safe callers use the facade documented in the library README/api snaps
 ## Unsafe declarations
 
 ```
-lang/libs/environment/src/environment.ch:81:public unsafe func set_var(name : &str, value : &str) : Result<UnitTy, EnvError> {
-lang/libs/environment/src/environment.ch:100:public unsafe func remove_var(name : &str) : Result<UnitTy, EnvError> {
-lang/libs/environment/src/environment.ch:169:public unsafe func set_current_dir(dir : &Path) : Result<UnitTy, EnvError> {
-lang/libs/environment/src/environment.ch:186:public unsafe func all() : vector<string> {
-lang/libs/environment/src/environment.ch:358:public unsafe func set(name : &str, value : &str) : Result<UnitTy, EnvError> {
-lang/libs/environment/src/environment.ch:363:public unsafe func unset(name : &str) : Result<UnitTy, EnvError> {
 ```
 
 ## Unsafe call/dereference sites (count)
 
-- unsafe blocks: 23
-- unsafe expressions: 22
-- raw-pointer dereferences/indexing: 32
+- unsafe blocks: 0
+- unsafe expressions: 0
+- raw-pointer dereferences/indexing: 0
 
 Review rule: a safe wrapper must validate null/length/ownership before any raw call.

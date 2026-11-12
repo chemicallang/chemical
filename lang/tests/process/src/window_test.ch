@@ -13,7 +13,7 @@ using std::Result;
 
 @test
 public func test_window_make_defaults(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     if(w.width != 800) { env.error("default width should be 800"); return }
     if(w.height != 600) { env.error("default height should be 600"); return }
     if(w.x != 0) { env.error("default x should be 0"); return }
@@ -37,14 +37,14 @@ public func test_window_make_defaults(env : &mut TestEnv) {
 
 @test
 public func test_window_title_default(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     var t = window::raw::window_title(&raw mut w)
     if(t.size() != 0) { env.error("default title should be empty"); return }
 }
 
 @test
 public func test_window_set_title(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     window::raw::window_set_title(&raw mut w, "Hello World\0" as *char)
     var t = window::raw::window_title(&raw mut w)
     if(t.size() != 11) { env.error("title length should be 11"); return }
@@ -57,7 +57,7 @@ public func test_window_set_title(env : &mut TestEnv) {
 
 @test
 public func test_window_size_default(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     var sz = window::raw::window_size(&raw mut w)
     if(sz.width != 800) { env.error("default size width should be 800"); return }
     if(sz.height != 600) { env.error("default size height should be 600"); return }
@@ -65,7 +65,7 @@ public func test_window_size_default(env : &mut TestEnv) {
 
 @test
 public func test_window_set_size(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     window::raw::window_set_size(&raw mut w, 1024, 768)
     // Before creation, set_size stores the values.
     if(w.width != 1024) { env.error("width should be 1024 after set_size"); return }
@@ -81,7 +81,7 @@ public func test_window_set_size(env : &mut TestEnv) {
 
 @test
 public func test_window_client_size_before_create(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     var csz = window::raw::window_client_size(&raw mut w)
     if(csz.width != 800) { env.error("client_size width before create should be 800"); return }
     if(csz.height != 600) { env.error("client_size height before create should be 600"); return }
@@ -93,7 +93,7 @@ public func test_window_client_size_before_create(env : &mut TestEnv) {
 
 @test
 public func test_window_position_default(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     var pos = window::raw::window_position(&raw mut w)
     if(pos.x != 0) { env.error("default position x should be 0"); return }
     if(pos.y != 0) { env.error("default position y should be 0"); return }
@@ -101,7 +101,7 @@ public func test_window_position_default(env : &mut TestEnv) {
 
 @test
 public func test_window_set_position(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     window::raw::window_set_position(&raw mut w, 100, 200)
     if(w.x != 100) { env.error("x should be 100 after set_position"); return }
     if(w.y != 200) { env.error("y should be 200 after set_position"); return }
@@ -116,7 +116,7 @@ public func test_window_set_position(env : &mut TestEnv) {
 
 @test
 public func test_window_min_max_size_default(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     var minsz = window::raw::window_min_size(&raw mut w)
     if(minsz.width != 0) { env.error("default min_w should be 0"); return }
     if(minsz.height != 0) { env.error("default min_h should be 0"); return }
@@ -127,7 +127,7 @@ public func test_window_min_max_size_default(env : &mut TestEnv) {
 
 @test
 public func test_window_set_min_max_size(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     window::raw::window_set_min_size(&raw mut w, 200, 150)
     window::raw::window_set_max_size(&raw mut w, 1920, 1080)
     var minsz = window::raw::window_min_size(&raw mut w)
@@ -144,7 +144,7 @@ public func test_window_set_min_max_size(env : &mut TestEnv) {
 
 @test
 public func test_window_fullscreen(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     if(window::raw::window_is_fullscreen(&raw mut w)) { env.error("should not be fullscreen by default"); return }
     // Before creation, set_fullscreen returns early (no widget), so we only
     // verify the default state.
@@ -152,7 +152,7 @@ public func test_window_fullscreen(env : &mut TestEnv) {
 
 @test
 public func test_window_opacity(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     if(w.opacity != 1.0) { env.error("default opacity should be 1.0"); return }
     window::raw::window_set_opacity(&raw mut w, 0.5)
     if(w.opacity != 0.5) { env.error("opacity should be 0.5 after set"); return }
@@ -160,7 +160,7 @@ public func test_window_opacity(env : &mut TestEnv) {
 
 @test
 public func test_window_always_on_top(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     if(w.always_on_top) { env.error("default always_on_top should be false"); return }
     window::raw::window_set_always_on_top(&raw mut w, true)
     if(!w.always_on_top) { env.error("always_on_top should be true after set"); return }
@@ -170,7 +170,7 @@ public func test_window_always_on_top(env : &mut TestEnv) {
 
 @test
 public func test_window_decorated(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     if(!w.decorated) { env.error("default decorated should be true"); return }
     window::raw::window_set_decorated(&raw mut w, false)
     if(w.decorated) { env.error("decorated should be false after set"); return }
@@ -180,7 +180,7 @@ public func test_window_decorated(env : &mut TestEnv) {
 
 @test
 public func test_window_cursor(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     if(w.cursor != window::CURSOR_ARROW) { env.error("default cursor should be CURSOR_ARROW"); return }
     window::raw::window_set_cursor(&raw mut w, window::CURSOR_IBEAM)
     if(w.cursor != window::CURSOR_IBEAM) { env.error("cursor should be CURSOR_IBEAM after set"); return }
@@ -192,14 +192,14 @@ public func test_window_cursor(env : &mut TestEnv) {
 
 @test
 public func test_window_dpi_default(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     var dpi = window::raw::window_dpi(&raw mut w)
     if(dpi != 96) { env.error("default dpi should be 96"); return }
 }
 
 @test
 public func test_window_scale_factor(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     var sf = window::raw::window_scale_factor(&raw mut w)
     // scale_factor = dpi / 96.0; default dpi = 96, so scale = 1.0
     if(sf != 1.0) { env.error("default scale_factor should be 1.0"); return }
@@ -239,13 +239,13 @@ public func test_window_monitor_scale(env : &mut TestEnv) {
 
 @test
 public func test_window_is_created_before_create(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     if(window::raw::window_is_created(&raw mut w)) { env.error("should not be created before window_create"); return }
 }
 
 @test
 public func test_window_native_handle_before_create(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     var h = window::raw::window_native_handle(&raw mut w)
     if(h != null) { env.error("native handle should be null before creation"); return }
 }

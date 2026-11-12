@@ -187,7 +187,7 @@ public func test_process_no_stderr_capture(env : &mut TestEnv) {
 
 @test
 public func test_window_maximize_minimize_restore(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     // These should not crash when called before creation
     window::raw::window_maximize(&raw mut w)
     window::raw::window_minimize(&raw mut w)
@@ -196,7 +196,7 @@ public func test_window_maximize_minimize_restore(env : &mut TestEnv) {
 
 @test
 public func test_window_show_hide_before_create(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     window::raw::window_show(&raw mut w)
     if(!w.visible) { env.error("visible should be true after show"); return }
     window::raw::window_hide(&raw mut w)
@@ -226,7 +226,7 @@ public func test_window_error_messages(env : &mut TestEnv) {
 
 @test
 public func test_window_user_data_before_create(env : &mut TestEnv) {
-    var w = window::Window.make()
+    var w = window::NativeWindow.make()
     var marker : int = 99
     window::raw::window_set_user_data(&raw mut w, &raw mut marker as *mut void)
     // Should not crash — no handle to verify from public API

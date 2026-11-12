@@ -416,7 +416,7 @@ lang/libs/std/src/os_string.ch:104:    func to_utf8(&self) : std::string {
 lang/libs/std/src/os_string.ch:115:        func utf8_to_u16(utf8 : &std::string) : std::u16string {
 lang/libs/std/src/os_string.ch:11:    public type native_char_t = char;       // native unit for OsString on POSIX (bytes)
 lang/libs/std/src/os_string.ch:12:    public type native_string_t = string;
-lang/libs/std/src/os_string.ch:143:        func u16_to_utf8(str : &std::u16string) : std::string {
+lang/libs/std/src/os_string.ch:148:        func u16_to_utf8(str : &std::u16string) : std::string {
 lang/libs/std/src/os_string.ch:16:public struct OsString {
 lang/libs/std/src/os_string.ch:21:    func make(str : native_string_t) {
 lang/libs/std/src/os_string.ch:29:    func make2(utf8 : &std::string) {

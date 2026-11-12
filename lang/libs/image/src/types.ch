@@ -138,23 +138,23 @@ public struct Image {
     }
 
     func load(path : &path::Path) : std::Result<Image, ImageError> {
-        return image_safe_load(path)
+        return load_from_path(path)
     }
 
     func from_bytes(data : &[u8]) : std::Result<Image, ImageError> {
-        return image_safe_from_bytes(data.data(), data.size())
+        return decode_any(data.data(), data.size())
     }
 
     func from_png(data : &[u8]) : std::Result<Image, ImageError> {
-        return image_safe_from_png(data.data(), data.size())
+        return decode_png(data.data(), data.size())
     }
 
     func from_bmp(data : &[u8]) : std::Result<Image, ImageError> {
-        return image_safe_from_bmp(data.data(), data.size())
+        return decode_bmp(data.data(), data.size())
     }
 
     func from_ppm(data : &[u8]) : std::Result<Image, ImageError> {
-        return image_safe_from_ppm(data.data(), data.size())
+        return decode_ppm(data.data(), data.size())
     }
 
     // ── safe metadata ────────────────────────────────────────────────────
@@ -221,7 +221,7 @@ public struct Image {
     func pixel(&self, x : int, y : int) : std::Result<RGBA8, ImageError> {
         var check = self.validate()
         if(check is std::Result.Err) { var Err(e) = check else unsafe { unreachable }; return std::Result.Err<RGBA8, ImageError>(e) }
-        return image_get_rgba(unsafe(self as *mut Image), x, y)
+        return raw::image_get_rgba(unsafe(self as *mut Image), x, y)
     }
 
     func get(&self, x : int, y : int) : std::Result<RGBA8, ImageError> {
@@ -234,13 +234,13 @@ public struct Image {
     func set(&mut self, x : int, y : int, color : RGBA8) : std::Result<std::Unit, ImageError> {
         var check = self.validate()
         if(check is std::Result.Err) { return check }
-        return image_set_rgba(unsafe(self as *mut Image), x, y, color)
+        return raw::image_set_rgba(unsafe(self as *mut Image), x, y, color)
     }
 
     func crop(&self, x : int, y : int, w : int, h : int) : std::Result<Image, ImageError> {
         var check = self.validate()
         if(check is std::Result.Err) { var Err(e) = check else unsafe { unreachable }; return std::Result.Err<Image, ImageError>(e) }
-        return image_crop(unsafe(self as *mut Image), x, y, w, h)
+        return raw::image_crop(unsafe(self as *mut Image), x, y, w, h)
     }
 
     /// Mirror left/right. Returns `Err` instead of silently doing nothing when
@@ -248,7 +248,7 @@ public struct Image {
     func flip_h(&mut self) : std::Result<std::Unit, ImageError> {
         var check = self.validate()
         if(check is std::Result.Err) { return check }
-        image_flip_h(unsafe(self as *mut Image))
+        raw::image_flip_h(unsafe(self as *mut Image))
         return std::Result.Ok<std::Unit, ImageError>(std::Unit{})
     }
 
@@ -257,7 +257,7 @@ public struct Image {
     func flip_v(&mut self) : std::Result<std::Unit, ImageError> {
         var check = self.validate()
         if(check is std::Result.Err) { return check }
-        image_flip_v(unsafe(self as *mut Image))
+        raw::image_flip_v(unsafe(self as *mut Image))
         return std::Result.Ok<std::Unit, ImageError>(std::Unit{})
     }
 
@@ -266,9 +266,9 @@ public struct Image {
         var check = self.validate()
         if(check is std::Result.Err) { return check }
         if(horizontal) {
-            image_flip_h(unsafe(self as *mut Image))
+            raw::image_flip_h(unsafe(self as *mut Image))
         } else {
-            image_flip_v(unsafe(self as *mut Image))
+            raw::image_flip_v(unsafe(self as *mut Image))
         }
         return std::Result.Ok<std::Unit, ImageError>(std::Unit{})
     }
@@ -278,26 +278,26 @@ public struct Image {
         if(check is std::Result.Err) { return check }
         var src_check = src.validate()
         if(src_check is std::Result.Err) { return src_check }
-        return image_blit(unsafe(self as *mut Image), unsafe(src as *mut Image), dx, dy)
+        return raw::image_blit(unsafe(self as *mut Image), unsafe(src as *mut Image), dx, dy)
     }
 
     // ── safe encoding / saving ───────────────────────────────────────────
 
     func encode_png(&self) : std::Result<vector<u8>, ImageError> {
-        return image_safe_encode_png(self)
+        return encode_png_bytes(self)
     }
 
     func encode_bmp(&self) : std::Result<vector<u8>, ImageError> {
-        return image_safe_encode_bmp(self)
+        return encode_bmp_bytes(self)
     }
 
     func encode_ppm(&self) : std::Result<vector<u8>, ImageError> {
-        return image_safe_encode_ppm(self)
+        return encode_ppm_bytes(self)
     }
 
     // Save using the extension of `path` (`.png`, `.bmp`, or `.ppm`).
     func save(&self, path : &path::Path) : std::Result<std::Unit, ImageError> {
-        return image_safe_save(self, path)
+        return save_to_path(self, path)
     }
 }
 

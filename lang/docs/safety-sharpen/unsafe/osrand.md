@@ -6,13 +6,12 @@ boundary; safe callers use the facade documented in the library README/api snaps
 ## Unsafe declarations
 
 ```
-lang/libs/osrand/src/main.ch:17:        public unsafe func random_fill(buf : *mut u8, len : size_t) : int {
 ```
 
 ## Unsafe call/dereference sites (count)
 
-- unsafe blocks: 9
-- unsafe expressions: 5
-- raw-pointer dereferences/indexing: 7
+- unsafe blocks: 0
+- unsafe expressions: 0
+- raw-pointer dereferences/indexing: 0
 
 Review rule: a safe wrapper must validate null/length/ownership before any raw call.

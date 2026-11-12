@@ -67,12 +67,12 @@ public struct Font {
 
     // Parse a TrueType/OpenType font from memory.
     func load(data : &[u8]) : std::Result<Font, FontError> {
-        return font_safe_load(data.data(), data.size())
+        return decode_font(data.data(), data.size())
     }
 
     // Read and parse a font from a filesystem path.
     func from_path(path : &path::Path) : std::Result<Font, FontError> {
-        return font_safe_from_path(path)
+        return load_from_path(path)
     }
 
     // ── safe metrics ─────────────────────────────────────────────────────
@@ -107,16 +107,16 @@ public struct Font {
     }
 
     func metrics(&self, font_size : float) : FontMetrics {
-        return font_safe_metrics(self, font_size)
+        return metrics_scaled(self, font_size)
     }
 
     func line_height(&self) : i32 {
-        return font_line_height(unsafe(self as *mut Font))
+        return impl_font_line_height(unsafe(self as *mut Font))
     }
 
     // Measure a UTF-8 text run at `font_size` pixels.
     func measure_text(&self, text : &str, font_size : float) : TextMetrics {
-        return font_measure_text(unsafe(self as *mut Font), text.data(), text.size(), font_size)
+        return impl_font_measure_text(unsafe(self as *mut Font), text.data(), text.size(), font_size)
     }
 
     // ── safe glyph lookup ────────────────────────────────────────────────
@@ -124,19 +124,19 @@ public struct Font {
     func glyph(&self, codepoint : u32) : std::Result<u16, FontError> {
         var check = self.validate()
         if(check is std::Result.Err) { var Err(e) = check else unsafe { unreachable }; return std::Result.Err<u16, FontError>(e) }
-        return font_get_glyph(unsafe(self as *mut Font), codepoint)
+        return impl_font_get_glyph(unsafe(self as *mut Font), codepoint)
     }
 
     func glyph_metrics(&self, glyph_id : u16) : std::Result<GlyphMetrics, FontError> {
         var check = self.validate()
         if(check is std::Result.Err) { var Err(e) = check else unsafe { unreachable }; return std::Result.Err<GlyphMetrics, FontError>(e) }
-        return font_get_glyph_metrics(unsafe(self as *mut Font), glyph_id)
+        return impl_font_get_glyph_metrics(unsafe(self as *mut Font), glyph_id)
     }
 
     func glyph_outline(&self, glyph_id : u16) : std::Result<GlyphOutline, FontError> {
         var check = self.validate()
         if(check is std::Result.Err) { var Err(e) = check else unsafe { unreachable }; return std::Result.Err<GlyphOutline, FontError>(e) }
-        return font_get_glyph_outline(unsafe(self as *mut Font), glyph_id)
+        return impl_font_get_glyph_outline(unsafe(self as *mut Font), glyph_id)
     }
 }
 
@@ -148,7 +148,7 @@ public struct FontTable {
 
 impl Copy for FontTable {}
 
-public func font_load(path : *char) : std::Result<Font, FontError> {
+func impl_font_load(path : *char) : std::Result<Font, FontError> {
         unsafe {
         var read_result = fs::raw::read_entire_file(path)
         if(read_result is Result.Err) {
@@ -254,35 +254,35 @@ func find_table(font : *mut Font, tag : u32) : std::Result<FontTable, FontError>
         }
     }
 
-public func font_units_per_em(font : *mut Font) : u16 {
+func impl_font_units_per_em(font : *mut Font) : u16 {
         unsafe {
         return font.units_per_em
 
         }
     }
 
-public func font_ascent(font : *mut Font) : i16 {
+func impl_font_ascent(font : *mut Font) : i16 {
         unsafe {
         return font.ascent
 
         }
     }
 
-public func font_descent(font : *mut Font) : i16 {
+func impl_font_descent(font : *mut Font) : i16 {
         unsafe {
         return font.descent
 
         }
     }
 
-public func font_num_glyphs(font : *mut Font) : u16 {
+func impl_font_num_glyphs(font : *mut Font) : u16 {
         unsafe {
         return font.num_glyphs
 
         }
     }
 
-public func font_line_height(font : *mut Font) : i32 {
+func impl_font_line_height(font : *mut Font) : i32 {
         unsafe {
         return (font.ascent as i32) - (font.descent as i32)
 
@@ -408,7 +408,7 @@ func cmap_format4_lookup(font : *mut Font, base : size_t, codepoint : u32) : u16
 // Glyph metrics from 'hmtx' table
 // ---------------------------------------------------------------------------
 
-public func font_get_glyph_metrics(font : *mut Font, glyph_id : u16) : std::Result<GlyphMetrics, FontError> {
+func impl_font_get_glyph_metrics(font : *mut Font, glyph_id : u16) : std::Result<GlyphMetrics, FontError> {
         unsafe {
         var hmtx_result = find_table(font, 0x686D7478u32) // 'hmtx'
         if(hmtx_result is Result.Err) {
@@ -457,7 +457,7 @@ public func font_get_glyph_metrics(font : *mut Font, glyph_id : u16) : std::Resu
 // Glyph outline from 'glyf' table
 // ---------------------------------------------------------------------------
 
-public func font_get_glyph_outline(font : *mut Font, glyph_id : u16) : std::Result<GlyphOutline, FontError> {
+func impl_font_get_glyph_outline(font : *mut Font, glyph_id : u16) : std::Result<GlyphOutline, FontError> {
         unsafe {
         var glyf_result = find_table(font, 0x676C7966u32) // 'glyf'
         if(glyf_result is Result.Err) {
@@ -615,7 +615,7 @@ public func font_get_glyph_outline(font : *mut Font, glyph_id : u16) : std::Resu
         }
     }
 
-public func font_get_glyph(font : *mut Font, codepoint : u32) : std::Result<u16, FontError> {
+func impl_font_get_glyph(font : *mut Font, codepoint : u32) : std::Result<u16, FontError> {
     var glyph_id = cmap_lookup(font, codepoint)
     if(glyph_id == 0 && codepoint != 0) {
         return std.Result.Err(FontError.GlyphNotFound(codepoint))
@@ -698,7 +698,7 @@ func font_utf8_codepoint(data : *char, len : size_t, pos : size_t) : u32 {
         }
     }
 
-public func font_measure_text(font : *mut Font, text : *char, text_len : size_t, font_size : float) : TextMetrics {
+func impl_font_measure_text(font : *mut Font, text : *char, text_len : size_t, font_size : float) : TextMetrics {
         unsafe {
         var scale = font_size / (font.units_per_em as float)
         var total_width : i32 = 0
@@ -710,10 +710,10 @@ public func font_measure_text(font : *mut Font, text : *char, text_len : size_t,
             // measure each continuation byte as a separate glyph.
             var cp = font_utf8_codepoint(text, text_len, i)
             var step = font_utf8_advance(text, text_len, i)
-            var glyph_result = font_get_glyph(font, cp)
+            var glyph_result = impl_font_get_glyph(font, cp)
             if(glyph_result is Result.Ok) {
                 var Ok(glyph_id) = glyph_result else unsafe { unreachable }
-                var metrics_result = font_get_glyph_metrics(font, glyph_id)
+                var metrics_result = impl_font_get_glyph_metrics(font, glyph_id)
                 if(metrics_result is Result.Ok) {
                     var Ok(metrics) = metrics_result else unsafe { unreachable }
                     total_width += (metrics.advance_width as float * scale) as i32
@@ -733,5 +733,49 @@ public func font_measure_text(font : *mut Font, text : *char, text_len : size_t,
 
         }
     }
+
+// Raw byte/pointer entry points. Safe code uses `Font.from_path`/`Font.load`
+// and the `Font` accessors; these take C strings and `*mut Font` handles.
+public namespace raw {
+public func font_load(path : *char) : std::Result<Font, FontError> {
+    return impl_font_load(path)
+}
+
+public func font_units_per_em(font : *mut Font) : u16 {
+    return impl_font_units_per_em(font)
+}
+
+public func font_ascent(font : *mut Font) : i16 {
+    return impl_font_ascent(font)
+}
+
+public func font_descent(font : *mut Font) : i16 {
+    return impl_font_descent(font)
+}
+
+public func font_num_glyphs(font : *mut Font) : u16 {
+    return impl_font_num_glyphs(font)
+}
+
+public func font_line_height(font : *mut Font) : i32 {
+    return impl_font_line_height(font)
+}
+
+public func font_get_glyph_metrics(font : *mut Font, glyph_id : u16) : std::Result<GlyphMetrics, FontError> {
+    return impl_font_get_glyph_metrics(font, glyph_id)
+}
+
+public func font_get_glyph_outline(font : *mut Font, glyph_id : u16) : std::Result<GlyphOutline, FontError> {
+    return impl_font_get_glyph_outline(font, glyph_id)
+}
+
+public func font_get_glyph(font : *mut Font, codepoint : u32) : std::Result<u16, FontError> {
+    return impl_font_get_glyph(font, codepoint)
+}
+
+public func font_measure_text(font : *mut Font, text : *char, text_len : size_t, font_size : float) : TextMetrics {
+    return impl_font_measure_text(font, text, text_len, font_size)
+}
+} // end namespace raw
 
 } // end namespace font

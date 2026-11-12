@@ -4,7 +4,7 @@
 // `webview_evaluate_js_result(..., *mut void)`, `webview_bind`, …) lives under
 // `webview::raw`. This file is the canonical normal-use surface:
 //
-//   * `webview::safe::WebView` is an owning handle created with
+//   * `webview::WebView` is an owning handle created with
 //     `WebView.new(&str, width, height)`;
 //   * every text argument is a `&str`; results are owned `std::Option<string>`;
 //   * `evaluate_result` takes a `std::function` callback (owned captures), no
@@ -13,8 +13,6 @@
 //     moves, and its private raw state pointer makes it `!Send`/`!Sync`.
 
 public namespace webview {
-
-public namespace safe {
 
 using std::Option;
 using std::Result;
@@ -51,7 +49,7 @@ func eval_result_trampoline(data : *mut void, result : *char) { unsafe {
 
 @direct_init
 protected struct WebViewState {
-    var inner : webview::WebView
+    var inner : webview::NativeWebView
     var destroyed : bool
 }
 
@@ -70,7 +68,7 @@ public struct WebView {
                 return Result.Err(WebViewError.InitFailed(string("webview: out of memory")))
             }
             memset(st as *mut void, 0, sizeof(WebViewState))
-            st.inner = webview::WebView.make()
+            st.inner = webview::NativeWebView.make()
             st.inner.title = string()
             st.inner.title.append_view(title.to_view())
             st.inner.width = width
@@ -276,6 +274,4 @@ public struct WebView {
 // A webview handle owns native UI thread state. Its private raw state pointer
 // makes it structurally !Send/!Sync (the webview module does not import core's
 // auto-trait names for an explicit negative impl).
-} // namespace safe
-
 } // namespace webview

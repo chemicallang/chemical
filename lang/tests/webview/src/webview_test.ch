@@ -8,7 +8,7 @@ using std::string_view;
 
 @test
 public func test_webview_defaults(env : &mut TestEnv) {
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     if(wv.width != 800) { env.error("default width should be 800"); return }
     if(wv.height != 600) { env.error("default height should be 600"); return }
     if(!string_eq(&raw wv.title, string_view("Chemical WebView"))) {
@@ -20,7 +20,7 @@ public func test_webview_defaults(env : &mut TestEnv) {
 
 @test
 public func test_webview_set_title_size(env : &mut TestEnv) {
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     webview::raw::webview_set_title(&raw mut wv, "My App")
     if(!string_eq(&raw wv.title, string_view("My App"))) {
         env.error("set_title did not update title");

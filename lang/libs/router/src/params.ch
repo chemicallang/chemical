@@ -30,7 +30,7 @@ public struct RouteRequest {
 }
 
 // Store a caller-owned request pointer on the page. The struct must outlive
-// the render; use `router::safe::set_request` for page-owned copies.
+// the render; use `router::set_request` for page-owned copies.
 public func (html_page : &mut HtmlPage) set_request(req : &RouteRequest) {
     html_page.add_parameter_object_raw(std::string_view("__request"), req as *mut void)
 }
@@ -68,7 +68,7 @@ public func (page : &mut HtmlPage) get_route_base() : std::string_view {
 
 // Reads a server query value stored under the `__query_<key>` namespace. The
 // returned view is valid for the rest of the render only; use
-// `router::safe::query` for an owned copy.
+// `router::query` for an owned copy.
 public func (page : &mut HtmlPage) query_param(key : std::string_view) : std::string_view {
     var full = std::string("__query_")
     full.append_view(&key)

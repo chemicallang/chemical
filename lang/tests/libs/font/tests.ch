@@ -117,7 +117,7 @@ public func text_metrics_struct_works(env : &mut TestEnv) {
 @test
 public func font_load_nonexistent_file(env : &mut TestEnv) {
     var font_path = make_temp_test_path("nonexistent_font_file.ttf")
-    var result = font::font_load(font_path.data())
+    var result = font::raw::font_load(font_path.data())
     if(result is Result.Ok) { env.error("should fail on nonexistent file") }
 }
 
@@ -130,7 +130,7 @@ public func font_load_garbage_data(env : &mut TestEnv) {
     var write_result = fs::raw::write_text_file(font_path.data(), &raw garbage[0], 20)
     if(write_result is Result.Err) { env.error("should write temp file"); return }
 
-    var result = font::font_load(font_path.data())
+    var result = font::raw::font_load(font_path.data())
     if(result is Result.Ok) { env.error("should fail on garbage data") }
 }
 
@@ -141,7 +141,7 @@ public func font_load_too_small(env : &mut TestEnv) {
     var write_result = fs::raw::write_text_file(font_path.data(), &raw tiny[0], 4)
     if(write_result is Result.Err) { env.error("should write temp file"); return }
 
-    var result = font::font_load(font_path.data())
+    var result = font::raw::font_load(font_path.data())
     if(result is Result.Ok) { env.error("should fail on <12 byte file") }
 }
 
@@ -155,7 +155,7 @@ public func font_load_bad_sfnt_version(env : &mut TestEnv) {
     var write_result = fs::raw::write_text_file(font_path.data(), &raw data[0], 12)
     if(write_result is Result.Err) { env.error("should write temp file"); return }
 
-    var result = font::font_load(font_path.data())
+    var result = font::raw::font_load(font_path.data())
     if(result is Result.Ok) { env.error("should fail on bad sfVersion") }
 }
 

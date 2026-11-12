@@ -492,6 +492,14 @@ Design/assessment: [`async-await-design.md`](lang/docs/async-await-design.md),
 
 ## Conventions
 
+- **Safe by default.** The plain public name of a library function/method is the
+  safe one (`Image.load`, `page.escape_js`, `window::Window`, `lab::run`).
+  Never publish two spellings of the same operation (`foo_load` + `foo_safe_load`,
+  or a `safe`/`ffi` sub-namespace on top of a raw one). Raw-pointer/FFI forms go
+  under `<lib>::raw` / `<lib>::ffi` (or a `*_native` free function whose
+  signature uses the `Native*` platform type); their names must not contain
+  `safe`.
+
 - **No backend may read the AST — every backend works from MIR.** The AST is a front-end artifact (parser, symres, type-check, `MIRLowerer`); no code generator may touch it. Every backend (`MIREmitter` for C, `compiler/CodegenMir.cpp` for LLVM, and any JVM/JS/WASM backend later) is a dispatcher over MIR only: types and layout from `MIRTypeTable`/`MIRLayout`, calling convention from `MIRABI`, per-function facts from `MIRFacts`, names/mangling/linkage and constants from the MIR module, declarations from MIR declaration tables (`MIRDeclPrinter` + `MIRGlobal` today; `MIRTypeDecl`/`MIRPrototype` as they land). No `ast/` include, no `ASTNode*`/`BaseType*`/`StructDefinition*`/`FunctionDeclaration*` parameter, no source-node walk, no re-deriving layout/ABI/declarations/destructor rules/lifetime from source form. A fact a backend needs that MIR does not publish is **added to MIR**, never fetched from the AST — that is what keeps a new target a thin dispatcher + printer instead of another front end. Only the lowering boundary (`MIRTypeBuilder`, `MIRLowerer`) and the front-end declaration collection pass may see the AST. Statements: `lang/docs/mir-implementation-plan.md` §0 rule 9, `lang/docs/mir-design.md` §16, `compiler/mir/README.md`.
 - Custom strings: `chem::string` (SSO, no `std::string`).
 - Name mangling: scoped → `scope_name` prefix, generics → `__cgs__N`/`__cfg__N` suffix.

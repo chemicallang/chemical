@@ -7,9 +7,9 @@ public namespace webview {
 using std::Result;
 using std::string;
 
-// Create a new WebView with the given title, width, and height.
-public func create(title : *char, width : int, height : int) : std::Result<WebView, WebViewError> {
-    var wv = WebView.make()
+// Raw platform construction: allocate a `NativeWebView` from a C title. The
+public func create_native(title : *char, width : int, height : int) : std::Result<NativeWebView, WebViewError> {
+    var wv = NativeWebView.make()
     wv.title = string("")
     wv.title.append_char_ptr(title)
     wv.width = width
@@ -24,9 +24,9 @@ public func create(title : *char, width : int, height : int) : std::Result<WebVi
     return std.Result.Ok(wv)
 }
 
-// Convenience: create, load URL, and show
-public func open_url(url : *char, title : *char, width : int, height : int) : std::Result<std::Unit, WebViewError> {
-    var wv_result = create(title, width, height)
+// Raw convenience: create a native handle, load a URL, show, and run.
+public func open_url_native(url : *char, title : *char, width : int, height : int) : std::Result<std::Unit, WebViewError> {
+    var wv_result = create_native(title, width, height)
     if(wv_result is Result.Err) {
         return std.Result.Err(WebViewError.InitFailed(string("failed to create webview")))
     }
@@ -38,9 +38,9 @@ public func open_url(url : *char, title : *char, width : int, height : int) : st
     return std.Result.Ok(std::Unit{})
 }
 
-// Convenience: create, load HTML, and show
-public func open_html(html : *char, title : *char, width : int, height : int) : std::Result<std::Unit, WebViewError> {
-    var wv_result = create(title, width, height)
+// Raw convenience: create a native handle, load HTML, show, and run.
+public func open_html_native(html : *char, title : *char, width : int, height : int) : std::Result<std::Unit, WebViewError> {
+    var wv_result = create_native(title, width, height)
     if(wv_result is Result.Err) {
         return std.Result.Err(WebViewError.InitFailed(string("failed to create webview")))
     }

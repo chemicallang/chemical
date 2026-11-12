@@ -3,6 +3,10 @@
 # The snapshot is deliberately textual: a reviewable diff is the gate.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if ! command -v rg >/dev/null 2>&1; then
+    echo "error: ripgrep (rg) is required to generate API snapshots" >&2
+    exit 2
+fi
 OUT="$ROOT/lang/docs/safety-sharpen/api"
 mkdir -p "$OUT"
 

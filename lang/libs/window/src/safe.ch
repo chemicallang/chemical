@@ -4,7 +4,7 @@
 // setters with `*mut void` user data) lives under `window::raw`. This file is
 // the canonical normal-use surface:
 //
-//   * `window::safe::Window` is an owning handle created with `Window.new(&str)`
+//   * `window::Window` is an owning handle created with `Window.new(&str)`
 //     and destroyed by its `@delete` destructor or `close()`;
 //   * every text argument is a `&str`, every query returns an owned/typed value;
 //   * callbacks are `std::function` values stored by the handle, with explicit
@@ -17,8 +17,6 @@
 // in a `Result`, a struct, or returned by value.
 
 public namespace window {
-
-public namespace safe {
 
 using std::Option;
 using std::Result;
@@ -71,7 +69,7 @@ func empty_command_handler() : CommandHandler {
 
 @direct_init
 protected struct WindowState {
-    var inner : window::Window
+    var inner : window::NativeWindow
     var closed : bool
     var has_resize : bool
     var resize_fn : ResizeHandler
@@ -155,7 +153,7 @@ public struct Window {
             }
             memset(st as *mut void, 0, sizeof(WindowState))
 
-            st.inner = window::Window.make()
+            st.inner = window::NativeWindow.make()
             st.inner.title = string()
             st.inner.title.append_view(title.to_view())
             st.inner.width = width
@@ -564,7 +562,5 @@ public struct Window {
 // A window handle owns native UI thread state; it must never cross threads.
 impl !Send for Window { }
 impl !Sync for Window { }
-
-} // namespace safe
 
 } // namespace window

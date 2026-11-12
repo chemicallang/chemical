@@ -97,34 +97,35 @@ lang/libs/net/src/safe.ch:68:    func constructor() {
 lang/libs/net/src/safe.ch:73:    func delete(&mut self) {
 lang/libs/net/src/safe.ch:81:    func bind(addr : &str, port : u16) : Result<TcpListener, NetError> {
 lang/libs/net/src/safe.ch:95:    func accept(&mut self) : Result<TcpStream, NetError> {
-lang/libs/net/win/iocp.ch:107:        public func async_send(s: Socket, ctx: *mut AsyncContext) : int {
-lang/libs/net/win/iocp.ch:13:        public struct WSABUF {
-lang/libs/net/win/iocp.ch:151:        public struct IocpOp {
-lang/libs/net/win/iocp.ch:169:        public func iocp_op_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<int> {
-lang/libs/net/win/iocp.ch:190:        public func iocp_op_drop(frame : *mut void) {
-lang/libs/net/win/iocp.ch:222:        func iocp_op_free(op : *mut IocpOp) {
-lang/libs/net/win/iocp.ch:237:        func iocp_op_complete(op : *mut IocpOp, bytes : u32, ok : bool) {
-lang/libs/net/win/iocp.ch:24:        public struct AsyncContext {
-lang/libs/net/win/iocp.ch:283:        func async_iocp_dispatch_entry(arg : *mut void) : *mut void {
-lang/libs/net/win/iocp.ch:301:        public func async_iocp_port() : *mut CompletionPort {
-lang/libs/net/win/iocp.ch:317:        func iocp_op_make(s : Socket, kind : int) : *mut IocpOp {
-lang/libs/net/win/iocp.ch:32:            func constructor(buf: *mut char, len: u32) {
-lang/libs/net/win/iocp.ch:354:        func iocp_op_failed(s : Socket, kind : int) : *mut IocpOp {
-lang/libs/net/win/iocp.ch:366:        func iocp_op_handle(op : *mut IocpOp) : core::async::FutureHandle<int> {
-lang/libs/net/win/iocp.ch:375:        public unsafe func async_iocp_recv(s : Socket, buf : *mut u8, cap : usize) : core::async::FutureHandle<int> {
-lang/libs/net/win/iocp.ch:407:        public unsafe func async_iocp_send(s : Socket, data : *char, len : int) : core::async::FutureHandle<int> {
-lang/libs/net/win/iocp.ch:436:        public func async_iocp_accept(listen_s : Socket) : core::async::FutureHandle<int> {
-lang/libs/net/win/iocp.ch:54:        public struct CompletionPort {
-lang/libs/net/win/iocp.ch:58:            func constructor(threads: u32) {
-lang/libs/net/win/iocp.ch:5:        public struct OVERLAPPED {
-lang/libs/net/win/iocp.ch:69:            func register(&self, s: Socket, key: usize) : bool {
-lang/libs/net/win/iocp.ch:77:            func poll(&self, timeout_ms: u32) : bool {
-lang/libs/net/win/iocp.ch:99:        public func async_recv(s: Socket, ctx: *mut AsyncContext) : int {
+lang/libs/net/win/iocp.ch:111:        public func async_recv(s: Socket, ctx: *mut AsyncContext) : int {
+lang/libs/net/win/iocp.ch:119:        public func async_send(s: Socket, ctx: *mut AsyncContext) : int {
+lang/libs/net/win/iocp.ch:11:        public struct OVERLAPPED {
+lang/libs/net/win/iocp.ch:163:        public struct IocpOp {
+lang/libs/net/win/iocp.ch:181:        public func iocp_op_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<int> {
+lang/libs/net/win/iocp.ch:19:        public struct WSABUF {
+lang/libs/net/win/iocp.ch:202:        public func iocp_op_drop(frame : *mut void) {
+lang/libs/net/win/iocp.ch:234:        func iocp_op_free(op : *mut IocpOp) {
+lang/libs/net/win/iocp.ch:249:        func iocp_op_complete(op : *mut IocpOp, bytes : u32, ok : bool) {
+lang/libs/net/win/iocp.ch:295:        func async_iocp_dispatch_entry(arg : *mut void) : *mut void {
+lang/libs/net/win/iocp.ch:30:        public struct AsyncContext {
+lang/libs/net/win/iocp.ch:313:        public func async_iocp_port() : *mut CompletionPort {
+lang/libs/net/win/iocp.ch:329:        func iocp_op_make(s : Socket, kind : int) : *mut IocpOp {
+lang/libs/net/win/iocp.ch:366:        func iocp_op_failed(s : Socket, kind : int) : *mut IocpOp {
+lang/libs/net/win/iocp.ch:378:        func iocp_op_handle(op : *mut IocpOp) : core::async::FutureHandle<int> {
+lang/libs/net/win/iocp.ch:387:        public unsafe func async_iocp_recv(s : Socket, buf : *mut u8, cap : usize) : core::async::FutureHandle<int> {
+lang/libs/net/win/iocp.ch:38:            func constructor(buf: *mut char, len: u32) {
+lang/libs/net/win/iocp.ch:419:        public unsafe func async_iocp_send(s : Socket, data : *char, len : int) : core::async::FutureHandle<int> {
+lang/libs/net/win/iocp.ch:448:        public func async_iocp_accept(listen_s : Socket) : core::async::FutureHandle<int> {
+lang/libs/net/win/iocp.ch:60:        public struct CompletionPort {
+lang/libs/net/win/iocp.ch:64:            func constructor(threads: u32) {
+lang/libs/net/win/iocp.ch:75:            func register(&self, s: Socket, key: usize) : bool {
+lang/libs/net/win/iocp.ch:89:            func poll(&self, timeout_ms: u32) : bool {
 lang/libs/net/win/platform_api.ch:101:    func sock_set_nonblocking(s: usize) {
 lang/libs/net/win/platform_api.ch:108:    func sock_set_blocking(s: usize) {
 lang/libs/net/win/platform_api.ch:116:    func sock_local_addr(s : usize, out : *mut raw::sockaddr_in) : int {
 lang/libs/net/win/platform_api.ch:121:    func sock_peer_addr(s : usize, out : *mut raw::sockaddr_in) : int {
 lang/libs/net/win/platform_api.ch:126:    func sock_shutdown(s : usize, how : int) : int {
+lang/libs/net/win/platform_api.ch:135:    public func lseek(fd : int, offset : longlong, whence : int) : longlong {
 lang/libs/net/win/platform_api.ch:41:    func startup() {
 lang/libs/net/win/platform_api.ch:48:    func cleanup() {
 lang/libs/net/win/platform_api.ch:53:    func sock_socket(af:int, typ:int, proto:int) : usize {

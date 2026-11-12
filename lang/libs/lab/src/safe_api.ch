@@ -1,4 +1,4 @@
-// lab::safe — additive safe facade over the raw build API.
+// lab — additive safe facade over the raw build API.
 //
 // The `BuildContext`/`LabJob`/`Module` interfaces and their raw-pointer
 // extension helpers stay available unchanged for `build.lab` scripts. This
@@ -15,13 +15,6 @@
 // compiles today.
 
 public namespace lab {
-
-// Canonical typed handles (the raw types stay at module scope for the CBI ABI).
-public type ModuleId = safe::ModuleId;
-public type JobId = safe::JobId;
-public type LabError = safe::LabError;
-
-public namespace safe {
 
 using std::Result;
 using std::string;
@@ -304,22 +297,6 @@ public func run(command : &str) : Result<string, LabError> {
         return Result.Err<string, LabError>(LabError.CommandFailed(status))
     }
     return Result.Ok<string, LabError>(output)
-}
-
-} // namespace safe
-
-// -------------------------------------------------------------------------
-// Top-level aliases (the documented `lab::run` / `lab::new_module` spellings)
-// -------------------------------------------------------------------------
-
-/** Safe command runner; see `lab::safe::run`. */
-public func run(command : &str) : std::Result<std::string, safe::LabError> {
-    return safe::run(command)
-}
-
-/** Saturated module, see `lab::safe::new_module`. */
-public func safe_new_module(ctx : &BuildContext, type : ModuleType, scope_name : &str, name : &str, dependencies : std::span<safe::ModuleId>) : std::Result<safe::ModuleId, safe::LabError> {
-    return safe::new_module(ctx, type, scope_name, name, dependencies)
 }
 
 } // namespace lab

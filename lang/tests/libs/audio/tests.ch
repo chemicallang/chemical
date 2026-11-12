@@ -36,21 +36,21 @@ public func audio_create_empty_works(env : &mut TestEnv) {
 @test
 public func audio_duration_ms_works(env : &mut TestEnv) {
     var a = audio_test_new(44100, 1, 16, 44100)
-    var dur = audio::audio_duration_ms(&raw mut a)
+    var dur = audio::raw::audio_duration_ms(&raw mut a)
     if(dur < 999.0 || dur > 1001.0) { env.error("1 second of audio") }
 }
 
 @test
 public func audio_duration_zero_samples(env : &mut TestEnv) {
     var a = audio_test_new(44100, 1, 16, 0)
-    var dur = audio::audio_duration_ms(&raw mut a)
+    var dur = audio::raw::audio_duration_ms(&raw mut a)
     if(dur != 0.0) { env.error("zero samples = 0 duration") }
 }
 
 @test
 public func audio_duration_stereo(env : &mut TestEnv) {
     var a = audio_test_new(44100, 2, 16, 22050)
-    var dur = audio::audio_duration_ms(&raw mut a)
+    var dur = audio::raw::audio_duration_ms(&raw mut a)
     if(dur < 499.0 || dur > 501.0) { env.error("0.5 seconds stereo") }
 }
 
@@ -65,7 +65,7 @@ public func audio_volume_works(env : &mut TestEnv) {
         var sptr = a.samples_mut().data() as *mut i16
         sptr[0] = 10000
         sptr[1] = -10000
-        audio::audio_volume(&raw mut a, 0.5f)
+        audio::raw::audio_volume(&raw mut a, 0.5f)
         if(a.samples()[0] != 5000i16) { env.error("volume 0.5 halves amplitude") }
         if(a.samples()[1] != -5000i16) { env.error("volume 0.5 halves negative") }
 
@@ -79,7 +79,7 @@ public func audio_volume_factor_one(env : &mut TestEnv) {
         var sptr = a.samples_mut().data() as *mut i16
         sptr[0] = 12345
         sptr[1] = -6789
-        audio::audio_volume(&raw mut a, 1.0f)
+        audio::raw::audio_volume(&raw mut a, 1.0f)
         if(a.samples()[0] != 12345i16) { env.error("volume 1.0 unchanged") }
         if(a.samples()[1] != -6789i16) { env.error("volume 1.0 unchanged neg") }
 
@@ -92,7 +92,7 @@ public func audio_volume_factor_zero(env : &mut TestEnv) {
         var a = audio_test_new_sized(44100, 1, 16, 3, (3) / (1 as size_t))
         var sptr = a.samples_mut().data() as *mut i16
         sptr[0] = 9999
-        audio::audio_volume(&raw mut a, 0.0f)
+        audio::raw::audio_volume(&raw mut a, 0.0f)
         if(a.samples()[0] != 0i16) { env.error("volume 0.0 should silence") }
 
         }
@@ -104,7 +104,7 @@ public func audio_volume_clipping(env : &mut TestEnv) {
         var a = audio_test_new_sized(44100, 1, 16, 3, (3) / (1 as size_t))
         var sptr = a.samples_mut().data() as *mut i16
         sptr[0] = 30000
-        audio::audio_volume(&raw mut a, 2.0f)
+        audio::raw::audio_volume(&raw mut a, 2.0f)
         if(a.samples()[0] != 32767i16) { env.error("should clip to max") }
 
         }
@@ -116,7 +116,7 @@ public func audio_volume_negative_clipping(env : &mut TestEnv) {
         var a = audio_test_new_sized(44100, 1, 16, 3, (3) / (1 as size_t))
         var sptr = a.samples_mut().data() as *mut i16
         sptr[0] = -30000
-        audio::audio_volume(&raw mut a, 2.0f)
+        audio::raw::audio_volume(&raw mut a, 2.0f)
         if(a.samples()[0] != -32768i16) { env.error("should clip to min") }
 
         }
@@ -132,7 +132,7 @@ public func audio_append_works(env : &mut TestEnv) {
 
     var b = audio_test_new_sized(44100, 1, 16, 3, 3)
 
-    var result = audio::audio_append(&raw mut a, &raw mut b)
+    var result = audio::raw::audio_append(&raw mut a, &raw mut b)
     if(result is Result.Err) { env.error("append should succeed"); return }
     var Ok(r) = result else unsafe { unreachable }
     if(r.num_samples() != 8) { env.error("appended should have 8 samples") }
@@ -144,7 +144,7 @@ public func audio_append_rate_mismatch(env : &mut TestEnv) {
 
     var b = audio_test_new(22050, 1, 16, 0)
 
-    var result = audio::audio_append(&raw mut a, &raw mut b)
+    var result = audio::raw::audio_append(&raw mut a, &raw mut b)
     if(result is Result.Ok) { env.error("append with rate mismatch should fail") }
 }
 
@@ -154,7 +154,7 @@ public func audio_append_channel_mismatch(env : &mut TestEnv) {
 
     var b = audio_test_new(44100, 1, 16, 0)
 
-    var result = audio::audio_append(&raw mut a, &raw mut b)
+    var result = audio::raw::audio_append(&raw mut a, &raw mut b)
     if(result is Result.Ok) { env.error("append with channel mismatch should fail") }
 }
 
@@ -166,7 +166,7 @@ public func audio_append_channel_mismatch(env : &mut TestEnv) {
 public func audio_trim_works(env : &mut TestEnv) {
     var a = audio_test_new_sized(44100, 1, 16, 44100, 44100)
 
-    var trimmed = audio::audio_trim(&raw mut a, 500.0, 1500.0)
+    var trimmed = audio::raw::audio_trim(&raw mut a, 500.0, 1500.0)
     if(trimmed.num_samples() != 22050) { env.error("trimmed sample count") }
 }
 
@@ -174,7 +174,7 @@ public func audio_trim_works(env : &mut TestEnv) {
 public func audio_trim_from_start(env : &mut TestEnv) {
     var a = audio_test_new_sized(44100, 1, 16, 44100, 44100)
 
-    var trimmed = audio::audio_trim(&raw mut a, 0.0, 1000.0)
+    var trimmed = audio::raw::audio_trim(&raw mut a, 0.0, 1000.0)
     if(trimmed.num_samples() != 44100) { env.error("trim from 0 should keep all samples (1000ms = 44100 @ 44100)") }
 }
 
@@ -182,7 +182,7 @@ public func audio_trim_from_start(env : &mut TestEnv) {
 public func audio_trim_beyond_end(env : &mut TestEnv) {
     var a = audio_test_new_sized(44100, 1, 16, 44100, 44100)
 
-    var trimmed = audio::audio_trim(&raw mut a, 1000.0, 10000.0)
+    var trimmed = audio::raw::audio_trim(&raw mut a, 1000.0, 10000.0)
     // Should clamp end to num_samples
     if(trimmed.num_samples() > 40000) { env.error("trim beyond end should clamp") }
 }
@@ -195,7 +195,7 @@ public func audio_trim_beyond_end(env : &mut TestEnv) {
 public func audio_resample_works(env : &mut TestEnv) {
     var a = audio_test_new_sized(44100, 1, 16, 44100, 44100)
 
-    var resampled = audio::audio_resample(&raw mut a, 22050)
+    var resampled = audio::raw::audio_resample(&raw mut a, 22050)
     if(resampled.sample_rate() != 22050) { env.error("resampled rate") }
     if(resampled.num_samples() != 22050) { env.error("resampled count") }
 }
@@ -204,7 +204,7 @@ public func audio_resample_works(env : &mut TestEnv) {
 public func audio_resample_same_rate(env : &mut TestEnv) {
     var a = audio_test_new_sized(44100, 1, 16, 100, 100)
 
-    var resampled = audio::audio_resample(&raw mut a, 44100)
+    var resampled = audio::raw::audio_resample(&raw mut a, 44100)
     if(resampled.sample_rate() != 44100) { env.error("same rate: sample rate") }
     if(resampled.num_samples() != 100) { env.error("same rate: num samples") }
 }
@@ -213,7 +213,7 @@ public func audio_resample_same_rate(env : &mut TestEnv) {
 public func audio_resample_higher_rate(env : &mut TestEnv) {
     var a = audio_test_new_sized(22050, 1, 16, 22050, 22050)
 
-    var resampled = audio::audio_resample(&raw mut a, 44100)
+    var resampled = audio::raw::audio_resample(&raw mut a, 44100)
     if(resampled.sample_rate() != 44100) { env.error("upsampled rate") }
     if(resampled.num_samples() != 44100) { env.error("upsampled num samples") }
 }
@@ -229,7 +229,7 @@ public func audio_copy_works(env : &mut TestEnv) {
         var sptr = a.samples_mut().data() as *mut i16
         sptr[0] = 12345
 
-        var copy = audio::audio_copy(&raw mut a)
+        var copy = audio::raw::audio_copy(&raw mut a)
         if(copy.sample_rate() != 22050) { env.error("copy sample rate") }
         if(copy.channels() != 2) { env.error("copy channels") }
         if(copy.num_samples() != 100) { env.error("copy num samples") }
@@ -245,7 +245,7 @@ public func audio_copy_independent(env : &mut TestEnv) {
         var sptr = a.samples_mut().data() as *mut i16
         sptr[0] = 7777
 
-        var copy = audio::audio_copy(&raw mut a)
+        var copy = audio::raw::audio_copy(&raw mut a)
         // Modify original
         sptr[0] = 0
         if(copy.samples()[0] != 7777i16) { env.error("copy should be independent") }
@@ -268,7 +268,7 @@ public func audio_mix_works(env : &mut TestEnv) {
         var bptr = b.samples_mut().data() as *mut i16
         bptr[0] = 6000
 
-        var result = audio::audio_mix(&raw mut a, &raw mut b)
+        var result = audio::raw::audio_mix(&raw mut a, &raw mut b)
         if(result is Result.Err) { env.error("mix should succeed"); return }
         var Ok(r) = result else unsafe { unreachable }
         if(r.samples()[0] != 8000i16) { env.error("mix average") }
@@ -285,7 +285,7 @@ public func audio_mix_silence(env : &mut TestEnv) {
         var bptr = b.samples_mut().data() as *mut i16
         bptr[0] = 8000
 
-        var result = audio::audio_mix(&raw mut a, &raw mut b)
+        var result = audio::raw::audio_mix(&raw mut a, &raw mut b)
         if(result is Result.Err) { env.error("mix with silence should succeed"); return }
         var Ok(r) = result else unsafe { unreachable }
         if(r.samples()[0] != 4000i16) { env.error("mix silence + signal") }
@@ -300,7 +300,7 @@ public func audio_mix_rate_mismatch(env : &mut TestEnv) {
 
     var b = audio_test_new(22050, 1, 16, 0)
 
-    var result = audio::audio_mix(&raw mut a, &raw mut b)
+    var result = audio::raw::audio_mix(&raw mut a, &raw mut b)
     if(result is Result.Ok) { env.error("mix with rate mismatch should fail") }
 }
 
@@ -310,7 +310,7 @@ public func audio_mix_channel_mismatch(env : &mut TestEnv) {
 
     var b = audio_test_new(44100, 1, 16, 0)
 
-    var result = audio::audio_mix(&raw mut a, &raw mut b)
+    var result = audio::raw::audio_mix(&raw mut a, &raw mut b)
     if(result is Result.Ok) { env.error("mix with channel mismatch should fail") }
 }
 
@@ -417,7 +417,7 @@ public func audio_wav_parse_16bit_mono(env : &mut TestEnv) {
         sptr[50] = -16000
 
         var wav = build_test_wav(&raw mut samples, 1, 44100)
-        var result = audio::parse_wav(wav.data(), wav.size())
+        var result = audio::raw::parse_wav(wav.data(), wav.size())
         if(result is Result.Err) { env.error("parse 16-bit mono WAV"); return }
         var Ok(a) = result else unsafe { unreachable }
         if(a.sample_rate() != 44100) { env.error("sample rate") }
@@ -439,7 +439,7 @@ public func audio_wav_parse_16bit_stereo(env : &mut TestEnv) {
         sptr[0] = 100; sptr[1] = 200
 
         var wav = build_test_wav(&raw mut samples, 2, 44100)
-        var result = audio::parse_wav(wav.data(), wav.size())
+        var result = audio::raw::parse_wav(wav.data(), wav.size())
         if(result is Result.Err) { env.error("parse 16-bit stereo WAV"); return }
         var Ok(a) = result else unsafe { unreachable }
         if(a.channels() != 2) { env.error("stereo channels") }
@@ -459,10 +459,10 @@ public func audio_wav_save_roundtrip(env : &mut TestEnv) {
         sptr[1] = -6789
 
         var wav_path = make_temp_test_path("test_roundtrip.wav")
-        var save_result = audio::save_wav(&raw mut a, wav_path.data())
+        var save_result = audio::raw::save_wav(&raw mut a, wav_path.data())
         if(save_result is Result.Err) { env.error("save WAV failed"); return }
 
-        var load_result = audio::load_wav(wav_path.data())
+        var load_result = audio::raw::load_wav(wav_path.data())
         if(load_result is Result.Err) { env.error("load WAV failed"); return }
         var Ok(loaded) = load_result else unsafe { unreachable }
         if(loaded.sample_rate() != 22050) { env.error("roundtrip sample rate") }
@@ -514,7 +514,7 @@ public func audio_wav_parse_8bit(env : &mut TestEnv) {
             i += 1
         }
 
-        var result = audio::parse_wav(file_data.data(), file_data.size())
+        var result = audio::raw::parse_wav(file_data.data(), file_data.size())
         if(result is Result.Err) { env.error("parse 8-bit WAV should succeed"); return }
         var Ok(a) = result else unsafe { unreachable }
         if(a.bits_per_sample() != 8) { env.error("bits per sample") }
@@ -531,7 +531,7 @@ public func audio_wav_parse_8bit(env : &mut TestEnv) {
 @test
 public func audio_wav_too_small(env : &mut TestEnv) {
     var data : [10]u8
-    var result = audio::parse_wav(&raw data[0], 10)
+    var result = audio::raw::parse_wav(&raw data[0], 10)
     if(result is Result.Ok) { env.error("should fail on <44 byte data") }
 }
 
@@ -539,7 +539,7 @@ public func audio_wav_too_small(env : &mut TestEnv) {
 public func audio_wav_not_riff(env : &mut TestEnv) {
     var data : [44]u8
     data[0] = 'N'; data[1] = 'O'; data[2] = 'P'; data[3] = 'E'
-    var result = audio::parse_wav(&raw data[0], 44)
+    var result = audio::raw::parse_wav(&raw data[0], 44)
     if(result is Result.Ok) { env.error("should fail on non-RIFF") }
 }
 
@@ -548,7 +548,7 @@ public func audio_wav_not_wave(env : &mut TestEnv) {
     var data : [44]u8
     data[0] = 'R'; data[1] = 'I'; data[2] = 'F'; data[3] = 'F'
     data[8] = 'N'; data[9] = 'A'; data[10] = 'T'; data[11] = 'V'  // Not WAVE
-    var result = audio::parse_wav(&raw data[0], 44)
+    var result = audio::raw::parse_wav(&raw data[0], 44)
     if(result is Result.Ok) { env.error("should fail on non-WAVE") }
 }
 
@@ -581,7 +581,7 @@ public func audio_wav_non_pcm_format(env : &mut TestEnv) {
         var i : size_t = 0
         while(i < data_size as size_t) { fptr[44 + i] = 0; i += 1 }
 
-        var result = audio::parse_wav(file_data.data(), file_data.size())
+        var result = audio::raw::parse_wav(file_data.data(), file_data.size())
         if(result is Result.Ok) { env.error("should fail on non-PCM format") }
 
         }
@@ -608,7 +608,7 @@ public func audio_wav_no_data_chunk(env : &mut TestEnv) {
         write_u16_le_wav(fptr, 34, 16)
         // No 'data' chunk
 
-        var result = audio::parse_wav(file_data.data(), file_data.size())
+        var result = audio::raw::parse_wav(file_data.data(), file_data.size())
         if(result is Result.Ok) { env.error("should fail without data chunk") }
 
         }
@@ -617,7 +617,7 @@ public func audio_wav_no_data_chunk(env : &mut TestEnv) {
 @test
 public func audio_load_wav_nonexistent(env : &mut TestEnv) {
     var wav_path = make_temp_test_path("nonexistent_audio_file.wav")
-    var result = audio::load_wav(wav_path.data())
+    var result = audio::raw::load_wav(wav_path.data())
     if(result is Result.Ok) { env.error("should fail on nonexistent file") }
 }
 
@@ -634,7 +634,7 @@ public func audio_encode_wav_roundtrip(env : &mut TestEnv) {
         sptr[10] = -10000
 
         // Encode to in-memory bytes
-        var encode_result = audio::encode_wav(&raw mut a)
+        var encode_result = audio::raw::encode_wav(&raw mut a)
         if(encode_result is Result.Err) { env.error("encode_wav should succeed"); return }
         var Ok(bytes) = encode_result else unsafe { unreachable }
 
@@ -645,7 +645,7 @@ public func audio_encode_wav_roundtrip(env : &mut TestEnv) {
         }
 
         // Parse back
-        var parse_result = audio::parse_wav(bytes.data(), bytes.size())
+        var parse_result = audio::raw::parse_wav(bytes.data(), bytes.size())
         if(parse_result is Result.Err) { env.error("parse encoded WAV should succeed"); return }
         var Ok(parsed) = parse_result else unsafe { unreachable }
 
@@ -669,11 +669,11 @@ public func audio_encode_wav_stereo_roundtrip(env : &mut TestEnv) {
         sptr[2] = -300  // left
         sptr[3] = -400  // right
 
-        var encode_result = audio::encode_wav(&raw mut a)
+        var encode_result = audio::raw::encode_wav(&raw mut a)
         if(encode_result is Result.Err) { env.error("encode_wav stereo should succeed"); return }
         var Ok(bytes) = encode_result else unsafe { unreachable }
 
-        var parse_result = audio::parse_wav(bytes.data(), bytes.size())
+        var parse_result = audio::raw::parse_wav(bytes.data(), bytes.size())
         if(parse_result is Result.Err) { env.error("parse encoded stereo WAV should succeed"); return }
         var Ok(parsed) = parse_result else unsafe { unreachable }
 

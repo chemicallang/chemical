@@ -4,6 +4,9 @@ This release is the first safe-API release. It keeps the Phase 1 language
 removals and adds the safe library surfaces:
 
 - One I/O error boundary (`std::io::IoError`) and `Read`/`Write`/`Seek`.
+- **Safe by default:** every public library name is the safe form; raw-pointer
+  and FFI entry points live under `<lib>::raw` / `<lib>::ffi` (no `*_safe` /
+  `safe_*` / `::safe::` spellings). See `BREAKING.md` for the rename table.
 - Owning handles and RAII for files, processes, TCP streams, and TLS streams.
 - Safe path values (`path::PathBuf`), safe `CString`/`CStr`, and fallible
   vector operations.

@@ -97,19 +97,20 @@ lang/libs/process/src/types.ch:87:    public func success(&self) : bool {
 lang/libs/process/src/types.ch:91:    public func is_success(&self) : bool {
 lang/libs/process/src/types.ch:95:    public func exit_code(&self) : int {
 lang/libs/process/src/types.ch:9:public variant ProcessError {
-lang/libs/process/win/win.ch:113:func win_build_cmdline(args : *vector<string>) : string {
-lang/libs/process/win/win.ch:139:func win_build_env_block(env : *vector<string>) : *mut void {
-lang/libs/process/win/win.ch:175:func win_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
+lang/libs/process/win/win.ch:119:func win_drain_available(h : HANDLE, data : *mut vector<u8>, open : *mut bool) {
+lang/libs/process/win/win.ch:148:func win_build_cmdline(args : *vector<string>) : string {
+lang/libs/process/win/win.ch:176:func win_build_env_block(env : *vector<string>) : *mut void {
+lang/libs/process/win/win.ch:214:func win_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
 lang/libs/process/win/win.ch:33:public func TerminateProcess(hProcess : HANDLE, uExitCode : UINT) : BOOL;
 lang/libs/process/win/win.ch:36:public func WaitForSingleObject(hHandle : HANDLE, dwMilliseconds : DWORD) : DWORD;
-lang/libs/process/win/win.ch:392:func win_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
 lang/libs/process/win/win.ch:39:public func GetCurrentProcessId() : DWORD;
+lang/libs/process/win/win.ch:428:func win_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
 lang/libs/process/win/win.ch:42:public func Sleep(dwMilliseconds : DWORD) : void;
 lang/libs/process/win/win.ch:45:public func CreatePipe(
-lang/libs/process/win/win.ch:513:func win_wait(child : *mut ChildProcess, out : *mut ProcessResult) : bool {
 lang/libs/process/win/win.ch:53:public func SetHandleInformation(hObject : HANDLE, dwMask : DWORD, dwFlags : DWORD) : BOOL;
+lang/libs/process/win/win.ch:551:func win_wait(child : *mut ChildProcess, out : *mut ProcessResult) : bool {
 lang/libs/process/win/win.ch:56:func SetEnvironmentVariableA(name : *char, value : *char) : int;
 lang/libs/process/win/win.ch:59:func CreateFileA(
 lang/libs/process/win/win.ch:89:func win_open_nul() : HANDLE {
-lang/libs/process/win/win.ch:96:func win_read_all(h : HANDLE, data : *mut vector<u8>) : bool {
+lang/libs/process/win/win.ch:98:func win_read_all(h : HANDLE, data : *mut vector<u8>) : bool {
 lang/libs/process/win/win.ch:9:func process_cleanup(child : *mut ChildProcess) {

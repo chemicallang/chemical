@@ -45,7 +45,7 @@ public struct GdkRectangle {
     var height : int
 }
 
-// Mirror of the Windows backend's RECT (used by the shared Window struct's
+// Mirror of the Windows backend's RECT (used by the shared NativeWindow struct's
 // fullscreen-restore state; kept for layout parity across platforms).
 public struct RECT {
     var left : int
@@ -220,11 +220,11 @@ const GDK_ACTION_COPY = 2
 @extern public func g_free(mem : *mut void)
 
 // ===========================================================================
-// the Window struct
+// the NativeWindow struct
 // ===========================================================================
 
 @direct_init
-public struct Window {
+public struct NativeWindow {
     // native handle (null until created)
     var widget : *mut GtkWidget
 
@@ -265,8 +265,8 @@ public struct Window {
     var command_cb : CommandCallback
 
     @make
-    func make() : Window {
-        return Window {
+    func make() : NativeWindow {
+        return NativeWindow {
             widget : null,
             title : string(""),
             width : 800,
@@ -321,7 +321,7 @@ func cursor_name_for_kind(kind : int) : *char {
     }
 }
 
-func apply_cursor(w : *mut Window) {
+func apply_cursor(w : *mut NativeWindow) {
         unsafe {
         if(w.widget == null) {
             return
@@ -346,9 +346,9 @@ func apply_cursor(w : *mut Window) {
 // ---------------------------------------------------------------------------
 // Stable per-widget callback context.
 //
-// GTK signal handlers must NOT capture the caller's Window* as user data:
-// the webview library embeds a window::Window inside its WebView and returns
-// the WebView by value, so the embedded Window can be relocated after
+// GTK signal handlers must NOT capture the caller's NativeWindow* as user data:
+// the webview library embeds a window::NativeWindow inside its WebView and returns
+// the WebView by value, so the embedded NativeWindow can be relocated after
 // window_create() returns — leaving signal handlers pointing at dead stack
 // memory (SIGSEGV on the first emitted signal).
 //
@@ -362,8 +362,8 @@ func apply_cursor(w : *mut Window) {
 public struct WindowCtx {
     // The context is attached to the widget via g_object_set_data_full (keyed
     // on the GtkWidget), so handlers look it up by widget and never need to
-    // dereference a Window* that may have been relocated by a by-value move.
-    var window : *mut Window
+    // dereference a NativeWindow* that may have been relocated by a by-value move.
+    var window : *mut NativeWindow
     var user_data : *mut void
     var resize_cb : ResizeCallback
     var close_cb : CloseCallback
@@ -423,9 +423,9 @@ func window_ctx_get(widget : *mut GtkWidget) : *mut WindowCtx {
     return unsafe(g_object_get_data(widget as *mut void, win_ctx_key())) as *mut WindowCtx
 }
 
-// Sync the caller's Window callback fields into the stable context (called by
+// Sync the caller's NativeWindow callback fields into the stable context (called by
 // every window_set_*_callback / window_set_user_data).
-func window_ctx_sync(w : *mut Window) {
+func window_ctx_sync(w : *mut NativeWindow) {
         unsafe {
         if(w == null || w.widget == null) {
             return
@@ -462,7 +462,7 @@ var g_quit_by_destroy : int = 0
 func linux_on_destroy(widget : *mut GtkWidget, data : *mut void) {
         unsafe {
         // NOTE: never write through ctx.window here. webview::create() embeds a
-        // window::Window in its WebView and returns it by value, relocating the
+        // window::NativeWindow in its WebView and returns it by value, relocating the
         // struct after window_create() — a context captured during create() then
         // points at stack memory that has since been reused, and writing to it
         // corrupts live data. State is cleared by the caller's own teardown:
@@ -663,10 +663,10 @@ func linux_on_drag_data_received(
 // public API
 // ===========================================================================
 
-// Raw platform API. Canonical handle: `window::safe::Window`.
+// Raw platform API: `window::NativeWindow` (platform state) + `window::raw`. The safe handle is `window::Window`.
 public namespace raw {
 
-public func window_create(w : *mut Window) : std::Result<std::Unit, WindowError> {
+public func window_create(w : *mut NativeWindow) : std::Result<std::Unit, WindowError> {
         unsafe {
         if(w.created) {
             return std.Result.Err(WindowError.InvalidState(string("window_create: window already created")))
@@ -726,8 +726,8 @@ public func window_create(w : *mut Window) : std::Result<std::Unit, WindowError>
             unsafe { gtk_window_set_geometry_hints(w.widget as *mut GtkWindow, null, &raw mut geom, flags) }
         }
 
-        // stable per-widget callback context: handlers look the live Window up by
-        // widget, so they survive the Window struct being relocated (e.g. by-value
+        // stable per-widget callback context: handlers look the live NativeWindow up by
+        // widget, so they survive the NativeWindow struct being relocated (e.g. by-value
         // WebView moves in webview::create). Freed automatically at widget
         // finalize via g_object_set_data_full.
         var ctx = unsafe(malloc(sizeof(WindowCtx))) as *mut WindowCtx
@@ -769,7 +769,7 @@ public func window_create(w : *mut Window) : std::Result<std::Unit, WindowError>
         }
     }
 
-public func window_destroy(w : *mut Window) {
+public func window_destroy(w : *mut NativeWindow) {
         unsafe {
         if(g_quit_by_destroy != 0) {
             // The window was already destroyed by the user (the main loop quit
@@ -790,14 +790,14 @@ public func window_destroy(w : *mut Window) {
         }
     }
 
-public func window_is_created(w : *mut Window) : bool {
+public func window_is_created(w : *mut NativeWindow) : bool {
         unsafe {
         return w.created && w.widget != null
 
         }
     }
 
-public func window_title(w : *mut Window) : string {
+public func window_title(w : *mut NativeWindow) : string {
         unsafe {
         // copy() — returning w.title by value would be a shallow copy whose
         // destructor frees the same heap buffer as w.title (double free).
@@ -806,7 +806,7 @@ public func window_title(w : *mut Window) : string {
         }
     }
 
-public func window_set_title(w : *mut Window, title : *char) {
+public func window_set_title(w : *mut NativeWindow, title : *char) {
         unsafe {
         w.title = string("")
         w.title.append_char_ptr(title)
@@ -817,14 +817,14 @@ public func window_set_title(w : *mut Window, title : *char) {
         }
     }
 
-public func window_size(w : *mut Window) : Size {
+public func window_size(w : *mut NativeWindow) : Size {
         unsafe {
         return Size.make(w.width, w.height)
 
         }
     }
 
-public func window_client_size(w : *mut Window) : Size {
+public func window_client_size(w : *mut NativeWindow) : Size {
         unsafe {
         if(w.widget != null) {
             var width : int = 0
@@ -837,7 +837,7 @@ public func window_client_size(w : *mut Window) : Size {
         }
     }
 
-public func window_set_size(w : *mut Window, width : int, height : int) {
+public func window_set_size(w : *mut NativeWindow, width : int, height : int) {
         unsafe {
         w.width = width
         w.height = height
@@ -853,7 +853,7 @@ public func window_set_size(w : *mut Window, width : int, height : int) {
         }
     }
 
-public func window_position(w : *mut Window) : Position {
+public func window_position(w : *mut NativeWindow) : Position {
         unsafe {
         if(w.widget != null) {
             var x : int = 0
@@ -866,7 +866,7 @@ public func window_position(w : *mut Window) : Position {
         }
     }
 
-public func window_set_position(w : *mut Window, x : int, y : int) {
+public func window_set_position(w : *mut NativeWindow, x : int, y : int) {
         unsafe {
         w.x = x
         w.y = y
@@ -877,21 +877,21 @@ public func window_set_position(w : *mut Window, x : int, y : int) {
         }
     }
 
-public func window_min_size(w : *mut Window) : Size {
+public func window_min_size(w : *mut NativeWindow) : Size {
         unsafe {
         return Size.make(w.min_w, w.min_h)
 
         }
     }
 
-public func window_max_size(w : *mut Window) : Size {
+public func window_max_size(w : *mut NativeWindow) : Size {
         unsafe {
         return Size.make(w.max_w, w.max_h)
 
         }
     }
 
-public func window_set_min_size(w : *mut Window, width : int, height : int) {
+public func window_set_min_size(w : *mut NativeWindow, width : int, height : int) {
         unsafe {
         w.min_w = width
         w.min_h = height
@@ -907,7 +907,7 @@ public func window_set_min_size(w : *mut Window, width : int, height : int) {
         }
     }
 
-public func window_set_max_size(w : *mut Window, width : int, height : int) {
+public func window_set_max_size(w : *mut NativeWindow, width : int, height : int) {
         unsafe {
         w.max_w = width
         w.max_h = height
@@ -923,7 +923,7 @@ public func window_set_max_size(w : *mut Window, width : int, height : int) {
         }
     }
 
-public func window_set_fullscreen(w : *mut Window, fullscreen : bool) {
+public func window_set_fullscreen(w : *mut NativeWindow, fullscreen : bool) {
         unsafe {
         if(w.widget == null) {
             return
@@ -938,14 +938,14 @@ public func window_set_fullscreen(w : *mut Window, fullscreen : bool) {
         }
     }
 
-public func window_is_fullscreen(w : *mut Window) : bool {
+public func window_is_fullscreen(w : *mut NativeWindow) : bool {
         unsafe {
         return w.fullscreen
 
         }
     }
 
-public func window_maximize(w : *mut Window) {
+public func window_maximize(w : *mut NativeWindow) {
         unsafe {
         if(w.widget != null) {
             unsafe { gtk_window_maximize(w.widget as *mut GtkWindow) }
@@ -954,7 +954,7 @@ public func window_maximize(w : *mut Window) {
         }
     }
 
-public func window_minimize(w : *mut Window) {
+public func window_minimize(w : *mut NativeWindow) {
         unsafe {
         if(w.widget != null) {
             unsafe { gtk_window_iconify(w.widget as *mut GtkWindow) }
@@ -963,7 +963,7 @@ public func window_minimize(w : *mut Window) {
         }
     }
 
-public func window_restore(w : *mut Window) {
+public func window_restore(w : *mut NativeWindow) {
         unsafe {
         if(w.widget != null) {
             unsafe { gtk_window_unmaximize(w.widget as *mut GtkWindow) }
@@ -973,7 +973,7 @@ public func window_restore(w : *mut Window) {
         }
     }
 
-public func window_show(w : *mut Window) {
+public func window_show(w : *mut NativeWindow) {
         unsafe {
         if(w.widget != null) {
             unsafe { gtk_widget_show_all(w.widget) }
@@ -983,7 +983,7 @@ public func window_show(w : *mut Window) {
         }
     }
 
-public func window_hide(w : *mut Window) {
+public func window_hide(w : *mut NativeWindow) {
         unsafe {
         if(w.widget != null) {
             unsafe { gtk_widget_hide(w.widget) }
@@ -993,7 +993,7 @@ public func window_hide(w : *mut Window) {
         }
     }
 
-public func window_focus(w : *mut Window) {
+public func window_focus(w : *mut NativeWindow) {
         unsafe {
         if(w.widget != null) {
             unsafe { gtk_window_present(w.widget as *mut GtkWindow) }
@@ -1002,7 +1002,7 @@ public func window_focus(w : *mut Window) {
         }
     }
 
-public func window_close(w : *mut Window) {
+public func window_close(w : *mut NativeWindow) {
         unsafe {
         if(w.widget != null) {
             unsafe { gtk_widget_destroy(w.widget) }
@@ -1011,7 +1011,7 @@ public func window_close(w : *mut Window) {
         }
     }
 
-public func window_set_cursor(w : *mut Window, cursor : int) {
+public func window_set_cursor(w : *mut NativeWindow, cursor : int) {
         unsafe {
         w.cursor = cursor
         apply_cursor(w)
@@ -1019,7 +1019,7 @@ public func window_set_cursor(w : *mut Window, cursor : int) {
         }
     }
 
-public func window_set_icon(w : *mut Window, path : *char) {
+public func window_set_icon(w : *mut NativeWindow, path : *char) {
         unsafe {
         if(w.widget == null) {
             return
@@ -1030,7 +1030,7 @@ public func window_set_icon(w : *mut Window, path : *char) {
         }
     }
 
-public func window_set_opacity(w : *mut Window, opacity : double) {
+public func window_set_opacity(w : *mut NativeWindow, opacity : double) {
         unsafe {
         w.opacity = opacity
         if(w.widget != null) {
@@ -1040,7 +1040,7 @@ public func window_set_opacity(w : *mut Window, opacity : double) {
         }
     }
 
-public func window_set_always_on_top(w : *mut Window, on_top : bool) {
+public func window_set_always_on_top(w : *mut NativeWindow, on_top : bool) {
         unsafe {
         w.always_on_top = on_top
         if(w.widget != null) {
@@ -1054,7 +1054,7 @@ public func window_set_always_on_top(w : *mut Window, on_top : bool) {
         }
     }
 
-public func window_set_decorated(w : *mut Window, decorated : bool) {
+public func window_set_decorated(w : *mut NativeWindow, decorated : bool) {
         unsafe {
         w.decorated = decorated
         if(w.widget != null) {
@@ -1068,14 +1068,14 @@ public func window_set_decorated(w : *mut Window, decorated : bool) {
         }
     }
 
-public func window_dpi(w : *mut Window) : int {
+public func window_dpi(w : *mut NativeWindow) : int {
         unsafe {
         return w.dpi
 
         }
     }
 
-public func window_scale_factor(w : *mut Window) : double {
+public func window_scale_factor(w : *mut NativeWindow) : double {
         unsafe {
         return (w.dpi as double) / 96.0
 
@@ -1109,7 +1109,7 @@ public func window_monitor_scale(index : int) : double {
     return scale as double
 }
 
-public func window_set_user_data(w : *mut Window, data : *mut void) {
+public func window_set_user_data(w : *mut NativeWindow, data : *mut void) {
         unsafe {
         w.user_data = data
         window_ctx_sync(w)
@@ -1117,7 +1117,7 @@ public func window_set_user_data(w : *mut Window, data : *mut void) {
         }
     }
 
-public func window_set_resize_callback(w : *mut Window, cb : ResizeCallback) {
+public func window_set_resize_callback(w : *mut NativeWindow, cb : ResizeCallback) {
         unsafe {
         w.resize_cb = cb
         window_ctx_sync(w)
@@ -1125,7 +1125,7 @@ public func window_set_resize_callback(w : *mut Window, cb : ResizeCallback) {
         }
     }
 
-public func window_set_close_callback(w : *mut Window, cb : CloseCallback) {
+public func window_set_close_callback(w : *mut NativeWindow, cb : CloseCallback) {
         unsafe {
         w.close_cb = cb
         window_ctx_sync(w)
@@ -1133,7 +1133,7 @@ public func window_set_close_callback(w : *mut Window, cb : CloseCallback) {
         }
     }
 
-public func window_set_focus_callback(w : *mut Window, cb : FocusCallback) {
+public func window_set_focus_callback(w : *mut NativeWindow, cb : FocusCallback) {
         unsafe {
         w.focus_cb = cb
         window_ctx_sync(w)
@@ -1141,7 +1141,7 @@ public func window_set_focus_callback(w : *mut Window, cb : FocusCallback) {
         }
     }
 
-public func window_set_event_callback(w : *mut Window, cb : EventCallback) {
+public func window_set_event_callback(w : *mut NativeWindow, cb : EventCallback) {
         unsafe {
         w.event_cb = cb
         window_ctx_sync(w)
@@ -1149,7 +1149,7 @@ public func window_set_event_callback(w : *mut Window, cb : EventCallback) {
         }
     }
 
-public func window_set_drop_callback(w : *mut Window, cb : DropCallback) {
+public func window_set_drop_callback(w : *mut NativeWindow, cb : DropCallback) {
         unsafe {
         w.drop_cb = cb
         window_ctx_sync(w)
@@ -1159,7 +1159,7 @@ public func window_set_drop_callback(w : *mut Window, cb : DropCallback) {
 
 // On GTK, native menu/button activation is wired by the app through its own
 // signal handlers, so command_cb is stored for API parity but not invoked.
-public func window_set_command_callback(w : *mut Window, cb : CommandCallback) {
+public func window_set_command_callback(w : *mut NativeWindow, cb : CommandCallback) {
         unsafe {
         w.command_cb = cb
         window_ctx_sync(w)
@@ -1167,7 +1167,7 @@ public func window_set_command_callback(w : *mut Window, cb : CommandCallback) {
         }
     }
 
-public func window_native_handle(w : *mut Window) : *mut void {
+public func window_native_handle(w : *mut NativeWindow) : *mut void {
         unsafe {
         return w.widget as *mut void
 

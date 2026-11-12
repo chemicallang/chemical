@@ -510,7 +510,7 @@ const PNG_RGBA = 6
 // parse_png — decompress + reconstruct from raw byte data
 // ---------------------------------------------------------------------------
 
-public func parse_png(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
+func impl_parse_png(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
         unsafe {
         // validate signature
         if(data_len < 8) {
@@ -704,13 +704,13 @@ public func parse_png(data : *u8, data_len : size_t) : std::Result<Image, ImageE
 // load_png / save_png
 // ---------------------------------------------------------------------------
 
-public func load_png(path : *char) : std::Result<Image, ImageError> {
+func impl_load_png(path : *char) : std::Result<Image, ImageError> {
     var read_result = fs::raw::read_entire_file(path)
     if(read_result is Result.Err) {
         return std.Result.Err(ImageError.FileNotFound())
     }
     var Ok(data) = read_result else unsafe { unreachable }
-    return parse_png(data.data(), data.size())
+    return impl_parse_png(data.data(), data.size())
 }
 
 func png_write_chunk(out : *mut u8, pos : *mut size_t, chunk_type : u32, data : *u8, data_len : size_t) {
@@ -794,7 +794,7 @@ func png_store_deflate(raw : *u8, raw_len : size_t, out : *mut u8, out_capacity 
     }
 
 // encode_png — encode an Image to in-memory PNG bytes (no file I/O).
-public func encode_png(img : *mut Image) : std::Result<vector<u8>, ImageError> {
+func impl_encode_png(img : *mut Image) : std::Result<vector<u8>, ImageError> {
         unsafe {
         // build raw scanline data with filter byte 0 (no filter) per row
         var bpp = img.img_channels
@@ -873,7 +873,7 @@ public func encode_png(img : *mut Image) : std::Result<vector<u8>, ImageError> {
         }
     }
 
-public func save_png(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
+func impl_save_png(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
         unsafe {
         // build raw scanline data with filter byte 0 (no filter) per row
         var bpp = img.img_channels

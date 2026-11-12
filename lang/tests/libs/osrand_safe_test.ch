@@ -9,8 +9,8 @@ func test_osrand_safe_surface(env : &mut TestEnv) {
         var Ok(b) = bytes else unsafe { unreachable }
         if(b.size() != 16u) { env.error("osrand::random_bytes size") }
     }
-    var u = osrand::random_u32_safe()
-    if(u is Result.Err) { env.error("osrand::random_u32_safe failed") }
+    var u = osrand::random_u32()
+    if(u is Result.Err) { env.error("osrand::random_u32 failed") }
     var empty : [1]u8 = [0u8]
     var view : &mut [u8] = &mut empty
     var f = osrand::fill(view)

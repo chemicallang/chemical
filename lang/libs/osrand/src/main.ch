@@ -67,7 +67,7 @@ public namespace osrand {
         return std::Result.Ok(out)
     }
 
-    public func random_u32_safe() : std::Result<u32, std::io::IoError> {
+    public func random_u32() : std::Result<u32, std::io::IoError> {
         var v = random_bytes(4u)
         if(v is std::Result.Err) {
             var Err(e) = v else unsafe { unreachable }
@@ -81,7 +81,7 @@ public namespace osrand {
         return std::Result.Ok(out)
     }
 
-    public func random_u64_safe() : std::Result<u64, std::io::IoError> {
+    public func random_u64() : std::Result<u64, std::io::IoError> {
         var v = random_bytes(8u)
         if(v is std::Result.Err) {
             var Err(e) = v else unsafe { unreachable }

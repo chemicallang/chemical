@@ -1,16 +1,14 @@
-// test_report::safe — additive safe facade over the raw reporting structs.
+// test_report — additive safe facade over the raw reporting structs.
 //
 // The raw `TestOutcome` deliberately carries borrowed views plus a raw
 // `logs_ptr` so a runner can stream a test without allocating. This file adds
 // checked accessors (`Option`, `&T`), `&str`-facing reporter methods, and an
-// owned snapshot (`SafeTestOutcome`) for callers that want to keep a result
+// owned snapshot (`TestOutcomeSnapshot`) for callers that want to keep a result
 // past the synchronous `on_test` call.
 //
 // Nothing here changes or replaces the raw surface.
 
 public namespace test_report {
-
-public namespace safe {
 
 using std::Option;
 using std::string;
@@ -78,7 +76,7 @@ public func log_at(outcome : &TestOutcome, index : size_t) : Option<&TestLog> {
 // -------------------------------------------------------------------------
 
 /** Owned copy of one structured log line. */
-public struct SafeTestLog {
+public struct TestLogSnapshot {
     public var type : LogType
     public var message : string
     public var line : ubigint
@@ -91,7 +89,7 @@ public struct SafeTestLog {
  * Safe to keep after `TestReporter::on_test` returns; it owns every string and
  * the log list and exposes no raw pointer.
  */
-public struct SafeTestOutcome {
+public struct TestOutcomeSnapshot {
     public var runner : string
     public var name : string
     public var group : string
@@ -101,7 +99,7 @@ public struct SafeTestOutcome {
     public var skipped : bool
     public var exit_code : int
     public var duration_ms : ubigint
-    public var logs : vector<SafeTestLog>
+    public var logs : vector<TestLogSnapshot>
 }
 
 func copy_view(view : std::string_view) : string {
@@ -113,15 +111,15 @@ func copy_view(view : std::string_view) : string {
 }
 
 /// Copy an outcome (and every attached log) into owned storage.
-public func snapshot(outcome : &TestOutcome) : SafeTestOutcome {
-    var logs = vector<SafeTestLog>()
+public func snapshot(outcome : &TestOutcome) : TestOutcomeSnapshot {
+    var logs = vector<TestLogSnapshot>()
     const count = log_count(outcome)
     var i : size_t = 0
     while(i < count) {
         var entry = log_at(outcome, i)
         if(entry is Option.Some) {
             var Some(log) = entry else unsafe { unreachable }
-            logs.push(SafeTestLog {
+            logs.push(TestLogSnapshot {
                 type : log.type,
                 message : copy_view(log.message.to_view()),
                 line : log.line,
@@ -131,7 +129,7 @@ public func snapshot(outcome : &TestOutcome) : SafeTestOutcome {
         i += 1
     }
 
-    return SafeTestOutcome {
+    return TestOutcomeSnapshot {
         runner : copy_view(outcome.runner_name()),
         name : copy_view(outcome.test_name()),
         group : copy_view(outcome.group_name()),
@@ -169,30 +167,28 @@ public func finish(reporter : &mut TestReporter) : int {
     return reporter.finish()
 }
 
-} // namespace safe
-
 // -------------------------------------------------------------------------
 // Method-call convenience aliases (additive; raw fields remain public).
 // -------------------------------------------------------------------------
 
 /// Owned, raw-pointer-free snapshot of this outcome.
-public func (outcome : &TestOutcome) snapshot() : safe::SafeTestOutcome {
-    return safe::snapshot(outcome)
+public func (outcome : &TestOutcome) snapshot() : TestOutcomeSnapshot {
+    return snapshot(outcome)
 }
 
 /// Configure a reporter from an owned display config.
 public func (reporter : &mut TestReporter) configure_owned(display : TestDisplayConfig) {
-    safe::configure(reporter, display)
+    configure(reporter, display)
 }
 
 /// Start a runner from a `&str` name.
 public func (reporter : &mut TestReporter) begin_runner_str(name : &str) {
-    safe::begin_runner(reporter, name)
+    begin_runner(reporter, name)
 }
 
 /// Stream one outcome by reference.
 public func (reporter : &mut TestReporter) on_test_ref(outcome : &TestOutcome) {
-    safe::on_test(reporter, outcome)
+    on_test(reporter, outcome)
 }
 
 public namespace ffi {

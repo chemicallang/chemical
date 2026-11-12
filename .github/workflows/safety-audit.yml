@@ -49,6 +49,9 @@ jobs:
       - name: Run whole-tree safety audit
         run: ./scripts/safety-audit.sh
 
+      - name: Run public-API audit (safe-by-default gate)
+        run: ./scripts/safety-sharpen-api-audit.sh
+
       - name: Run safety regression suites
         run: |
           ./scripts/test.sh --tcc --no-build --negative -j "$(nproc)"

@@ -22,7 +22,7 @@ public func test_webview_version(env : &mut TestEnv) {
 @test
 public func test_webview_get_native_handle_uninitialized(env : &mut TestEnv) {
     // get_native_handle on an uninitialized webview should return null for all kinds
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     var hwnd = webview::raw::webview_get_native_handle(&raw mut wv, webview::NATIVE_HANDLE_WINDOW)
     var w_widget = webview::raw::webview_get_native_handle(&raw mut wv, webview::NATIVE_HANDLE_WIDGET)
     var w_ctrl = webview::raw::webview_get_native_handle(&raw mut wv, webview::NATIVE_HANDLE_BROWSER_CONTROLLER)
@@ -45,7 +45,7 @@ public func test_webview_get_native_handle_uninitialized(env : &mut TestEnv) {
 @test
 public func test_webview_get_native_handle_initialized(env : &mut TestEnv) {
     // get_native_handle on an initialized webview should return non-null Window handle
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {
         env.error("webview_create failed (is a display available?)")
@@ -77,7 +77,7 @@ public func test_webview_get_native_handle_initialized(env : &mut TestEnv) {
 @test
 public func test_webview_set_size_hints(env : &mut TestEnv) {
     // set_size_hints should update the struct fields (display-independent check)
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     webview::raw::webview_set_size_hints(&raw mut wv, 1024, 768, webview::SIZE_HINT_NONE)
     if(wv.width != 1024) {
         env.error("set_size_hints did not update width")
@@ -92,7 +92,7 @@ public func test_webview_set_size_hints(env : &mut TestEnv) {
 @test
 public func test_webview_set_size_hints_live(env : &mut TestEnv) {
     // set_size_hints on an initialized webview should not crash
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {
         env.error("webview_create failed (is a display available?)")
@@ -117,7 +117,7 @@ public func test_webview_set_size_hints_live(env : &mut TestEnv) {
 @test
 public func test_webview_init_script(env : &mut TestEnv) {
     // webview_init should not crash on an initialized webview
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {
         env.error("webview_create failed (is a display available?)")
@@ -133,7 +133,7 @@ public func test_webview_init_script(env : &mut TestEnv) {
 public func test_webview_dispatch(env : &mut TestEnv) {
     // webview_dispatch should not crash on an initialized webview
     // (dispatch requires a running message loop, so we just verify it doesn't crash)
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {
         env.error("webview_create failed (is a display available?)")
@@ -149,7 +149,7 @@ public func test_webview_dispatch(env : &mut TestEnv) {
 @test
 public func test_webview_dispatch_queue_limit(env : &mut TestEnv) {
     // webview_dispatch should handle multiple dispatches without crashing
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {
         env.error("webview_create failed (is a display available?)")
@@ -167,7 +167,7 @@ public func test_webview_dispatch_queue_limit(env : &mut TestEnv) {
 @test
 public func test_webview_unbind(env : &mut TestEnv) {
     // unbind should not crash when no binding exists
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {
         env.error("webview_create failed (is a display available?)")
@@ -182,7 +182,7 @@ public func test_webview_unbind(env : &mut TestEnv) {
 @test
 public func test_webview_return(env : &mut TestEnv) {
     // return should not crash when webview is initialized
-    var wv = webview::WebView.make()
+    var wv = webview::NativeWebView.make()
     var cr = webview::raw::webview_create(&raw mut wv)
     if(cr is std::Result.Err) {
         env.error("webview_create failed (is a display available?)")

@@ -155,6 +155,15 @@ void FunctionCall::infer_generic_args(ASTAllocator& allocator, ASTDiagnoser& dia
         const auto linked = parent_val->linked_node();
         if(linked->kind() == ASTNodeKind::VariantMember) {
             const auto member = linked->as_variant_member_unsafe();
+            // A generic variant's payload parameters are owned by the generic
+            // declaration, not by its master implementation. Inference checks
+            // that the parameter belongs to the node it is given, so hand it
+            // the declaration (otherwise an untyped `Option.Some(value)` inside
+            // a generic body could not infer its argument).
+            const auto master = member->parent();
+            auto* params_node = master->generic_parent != nullptr
+                                    ? static_cast<ASTNode*>(master->generic_parent)
+                                    : static_cast<ASTNode*>(master);
             const auto values_size = values.size();
             auto i = 0;
             while(i < values_size) {
@@ -162,7 +171,7 @@ void FunctionCall::infer_generic_args(ASTAllocator& allocator, ASTDiagnoser& dia
                 const auto arg_type_loc = values[i]->encoded_location();
                 const auto arg_type = values[i]->getType();
                 if(arg_type) {
-                    infer_types_by_args(diagnoser, member->parent(), generic_list.size(), param_type, {arg_type, arg_type_loc}, inferred, this);
+                    infer_types_by_args(diagnoser, params_node, generic_list.size(), param_type, {arg_type, arg_type_loc}, inferred, this);
                 }
                 i++;
             }
@@ -310,8 +319,18 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
         }
         case ASTNodeKind::VariantMember:{
             const auto mem = linked->as_variant_member_unsafe();
-            const auto mem_gen = mem->parent()->generic_parent;
+            const auto mem_parent = mem->parent();
+            const auto mem_gen = mem_parent->generic_parent;
             if(mem_gen != nullptr) {
+                if (mem_parent->generic_instantiation >= 0) {
+                    // The member already belongs to a concrete instantiation
+                    // (the body was relinked to it while the instantiation was
+                    // finalized), so the payload types are already substituted
+                    // and there is nothing left to instantiate. Re-instantiating
+                    // here would try to infer the declaration's parameters from
+                    // the substituted payload and fail.
+                    return true;
+                }
                 const auto new_link = mem_gen->as_gen_variant_decl_unsafe()->instantiate_call(genApi, this, expected_type, requirement);
                 if(!new_link) {
                     return false;

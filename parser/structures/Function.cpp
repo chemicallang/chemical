@@ -325,7 +325,18 @@ bool Parser::parseParameterList(
             } else if(t.type == TokenType::AmpersandSym) {
                 token++;
                 auto ampersand = &t;
+                // an explicit lifetime may follow the '&' (`func f(&'a self)`)
+                chem::string_view lifetime;
+                if(token->type == TokenType::Lifetime) {
+                    lifetime = allocate_view(allocator, token->value);
+                    token++;
+                }
                 auto is_mutable = consumeToken(TokenType::MutKw); // optional mut keyword
+                if(lifetime.empty() && token->type == TokenType::Lifetime) {
+                    // also accept `&mut 'a self`
+                    lifetime = allocate_view(allocator, token->value);
+                    token++;
+                }
                 auto id = consumeIdentifierOrKeyword();
                 if (id) {
                     BaseType* child_type;
@@ -336,7 +347,7 @@ bool Parser::parseParameterList(
                         // implicit parameter
                         child_type = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, id->value), nullptr);
                     }
-                    const auto ref_to_linked  = new (allocator.allocate<ReferenceType>()) ReferenceType(child_type, is_mutable);
+                    const auto ref_to_linked  = new (allocator.allocate<ReferenceType>()) ReferenceType(child_type, is_mutable, lifetime);
                     auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), TypeLoc(ref_to_linked, loc_single(id)), index, nullptr, true, parent_node, loc(ampersand, id));
 #ifdef LSP_BUILD
                     id->linked = param;

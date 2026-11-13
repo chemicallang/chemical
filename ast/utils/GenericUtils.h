@@ -84,3 +84,13 @@ bool check_inferred_generic_args(
         std::vector<GenericTypeParameter*>& generic_params,
         SourceLocation location
 );
+
+/**
+ * True when `type` (or a type nested in it) still refers to a generic type
+ * parameter. An argument like that makes a generic type *partially applied*
+ * (`Box<T>` written inside the body of a generic that declares `T`); such a
+ * type must stay deferred to the generic instantiation pass. A fully concrete
+ * instantiation (`Box<int>`) contains no generic parameter and can be
+ * materialized immediately.
+ */
+bool type_mentions_generic_param(const BaseType* type);

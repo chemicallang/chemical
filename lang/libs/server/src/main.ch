@@ -49,21 +49,23 @@ public func main(argc : int, argv : **char) : int { unsafe {
     printf("Serving directory: %s\n", root.c_str());
     printf("Listening on: %s:%d\n", addr.c_str(), port);
 
-    var fs_server = http.create_file_server(root.c_str());
+    var fs_server = std::arc(http.create_file_server(root.c_str()));
+    var fs_server_root = fs_server.clone();
     var cfg = server.ServerConfig();
     cfg.addr = addr;
 
     var S = server.Server(cfg);
 
-    // Add catch-all route for static files. The callback borrows the local
-    // file server by reference; its lifetime is confined to this function.
+    // The router stores handlers for the server's lifetime, so a handler must
+    // own its capture and prove `Send + Sync + 'static` (SAFE-SEND-002 rejects a
+    // borrowed `&fs_server`). Share the file server through an `Arc` instead.
     unsafe {
-        S.router.add("GET", "/:path*", |&fs_server|(req, res) => {
-            fs_server.serve_http(req, res);
+        S.router.add("GET", "/:path*", |fs_server|(req, res) => {
+            fs_server.get().serve_http(req, res);
         });
         // Also root
-        S.router.add("GET", "/", |&fs_server|(req, res) => {
-            fs_server.serve_http(req, res);
+        S.router.add("GET", "/", |fs_server_root|(req, res) => {
+            fs_server_root.get().serve_http(req, res);
         });
     }
 

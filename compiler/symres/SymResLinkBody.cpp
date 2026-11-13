@@ -157,6 +157,13 @@ void visit_generic_decl_only(SymResLinkBody& visitor, ASTNode* node) {
         case ASTNodeKind::GenericImplDecl:
             visitor.visit(node);
             return;
+        case ASTNodeKind::UsingStmt:
+            // `using` imports apply to the generic bodies in this file too: this
+            // pass links those bodies before the full body pass, so the imports
+            // must be declared here as well (otherwise an unqualified name the
+            // file imports is unresolved inside every generic declaration).
+            visitor.visit(node);
+            return;
         case ASTNodeKind::NamespaceDecl: {
             const auto ns = node->as_namespace_unsafe();
             visit_namespace_start(visitor, ns);
@@ -2816,18 +2823,55 @@ instantiate_block:
     const auto func_type = visitor.current_func_type;
     const auto curr_func = func_type->as_function();
     if ((curr_func && curr_func->generic_parent != nullptr) || visitor.generic_context) {
-        // since current function has a generic parent (it is generic), we do not want to instantiate this call here
-        // this call will be instantiated by the generic instantiator, even if this calls itself (recursion), instantiator checks that
-        // changing back to generic decl, since instantiator needs access to it
-        if(gen_decl) {
-            parent_id->linked = gen_decl;
-            call->setType(gen_decl->master_impl->returnType);
-        } else {
-            if(gen_var_decl) {
-                call->setType(gen_var_decl->known_type());
+        // A constructor call whose generic arguments are all concrete can be
+        // materialized right here, exactly like a fully-concrete `Box<int>`
+        // type written in a generic body. Deferring it would leave the call
+        // typed as the generic declaration itself, so anything that reads the
+        // payload type of a destructuring pattern (`var Some(v) = opt`) would
+        // see the declaration's own parameter (`T`) instead of the argument.
+        bool materialize_concrete = false;
+        if (gen_var_decl) {
+            std::vector<TypeLoc> resolved_args;
+            if (gen_var_decl->resolve_call_generic_args(
+                    visitor.generic_instantiator, call, expected_type, resolved_args)) {
+                materialize_concrete = true;
+                for (const auto& arg : resolved_args) {
+                    if (type_mentions_generic_param(arg.getType())) {
+                        materialize_concrete = false;
+                        break;
+                    }
+                }
+            }
+            // The arguments themselves must be concrete too: materializing while an
+            // argument is still typed by the enclosing generic (`T`) would check it
+            // against the substituted payload of the instantiation and report a
+            // false mismatch. Those calls stay deferred and are fixed up when the
+            // enclosing function is instantiated.
+            if (materialize_concrete) {
+                for (auto* arg_value : call->values) {
+                    if (arg_value == nullptr) continue;
+                    BaseType* arg_type = arg_value->getType();
+                    if (arg_type == nullptr || type_mentions_generic_param(arg_type)) {
+                        materialize_concrete = false;
+                        break;
+                    }
+                }
             }
         }
-        return true;
+        if (!materialize_concrete) {
+            // since current function has a generic parent (it is generic), we do not want to instantiate this call here
+            // this call will be instantiated by the generic instantiator, even if this calls itself (recursion), instantiator checks that
+            // changing back to generic decl, since instantiator needs access to it
+            if(gen_decl) {
+                parent_id->linked = gen_decl;
+                call->setType(gen_decl->master_impl->returnType);
+            } else {
+                if(gen_var_decl) {
+                    call->setType(gen_var_decl->known_type());
+                }
+            }
+            return true;
+        }
     }
     if(gen_decl) {
         auto new_link = gen_decl->instantiate_call(visitor.generic_instantiator, call, expected_type, InstantiationRequirement::SignatureFinalization);
@@ -2994,58 +3038,6 @@ void SymResLinkBody::VisitFunctionType(FunctionType* type) {
     type->data.signature_resolved = true;
 }
 
-// True when `type` (or a type nested in it) still refers to a generic type
-// parameter. An argument like that makes a generic type *partially applied*
-// (`Box<T>` written inside the body of a generic that declares `T`); such a
-// type must stay deferred to the generic instantiation pass. A fully concrete
-// instantiation (`Box<int>`) contains no generic parameter and can be
-// materialized immediately.
-static bool type_mentions_generic_param(const BaseType* type) {
-    if(type == nullptr) {
-        return false;
-    }
-    auto* t = const_cast<BaseType*>(type);
-    switch(t->kind()) {
-        case BaseTypeKind::Linked: {
-            const auto linked = t->as_linked_type_unsafe()->linked;
-            return linked != nullptr && linked->kind() == ASTNodeKind::GenericTypeParam;
-        }
-        case BaseTypeKind::Generic: {
-            for(const auto& arg : t->as_generic_type_unsafe()->types) {
-                if(type_mentions_generic_param(arg.getType())) {
-                    return true;
-                }
-            }
-            return false;
-        }
-        case BaseTypeKind::Pointer:
-            return type_mentions_generic_param(t->as_pointer_type_unsafe()->type);
-        case BaseTypeKind::Reference:
-            return type_mentions_generic_param(t->as_reference_type_unsafe()->type);
-        case BaseTypeKind::Array:
-            return type_mentions_generic_param(t->as_array_type_unsafe()->elem_type);
-        case BaseTypeKind::Function: {
-            const auto* fn = t->as_function_type_unsafe();
-            for(const auto param : fn->params) {
-                if(type_mentions_generic_param(param->type.getType())) {
-                    return true;
-                }
-            }
-            return type_mentions_generic_param(fn->returnType);
-        }
-        case BaseTypeKind::CapturingFunction: {
-            const auto* cf = t->as_capturing_func_type_unsafe();
-            return type_mentions_generic_param(cf->func_type)
-                || type_mentions_generic_param(cf->instance_type);
-        }
-        case BaseTypeKind::MaybeRuntime:
-            return type_mentions_generic_param(t->as_maybe_runtime_type_unsafe()->underlying);
-        case BaseTypeKind::Runtime:
-            return type_mentions_generic_param(t->as_runtime_type_unsafe()->underlying);
-        default:
-            return false;
-    }
-}
 
 // Number of generic parameters declared by the generic declaration `gen_type`
 // refers to (0 for a non-generic declaration).
@@ -4534,6 +4526,31 @@ void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {
         return;
     }
     visit(expression, dummy_ref);
+    if (expression != nullptr) {
+        // A `GenericType` payload in a generic body may not be materialized yet
+        // (a field's declared type is materialized when its declaration is
+        // visited, which can be later than this pattern). Materialize it when
+        // its arguments are already concrete; otherwise `var Some(v) = opt`
+        // binds the declaration's own parameter (`T`) instead of the argument.
+        BaseType* t = expression->getType();
+        if (t != nullptr && t->kind() == BaseTypeKind::Generic) {
+            auto* gen = t->as_generic_type_unsafe();
+            ASTNode* gen_linked = gen->referenced != nullptr ? gen->referenced->linked : nullptr;
+            if (gen_linked != nullptr && gen_linked->kind() == ASTNodeKind::GenericVariantDecl) {
+                bool concrete = true;
+                for (const auto& arg : gen->types) {
+                    if (type_mentions_generic_param(arg.getType())) {
+                        concrete = false;
+                        break;
+                    }
+                }
+                if (concrete) {
+                    gen->instantiate(generic_instantiator, expr->encoded_location(),
+                                     InstantiationRequirement::SignatureFinalization);
+                }
+            }
+        }
+    }
     const auto child_member = expr->find_member_from_expr(getAstAllocator(), diagnoser);
     if(!child_member) {
         return;

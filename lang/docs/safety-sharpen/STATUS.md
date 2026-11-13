@@ -159,14 +159,65 @@ wave, in the planned order.
   that used the system bundle. `Client` request methods now take `&mut self`.
   This also removes the per-request system-bundle read/PEM parse.
 - Verified: main 2485/2485, libs 882/882, server 10/10, safety 193/193,
-  negative 869/869; tls/http/http-client modules compile (`lang/tests/tls`
-  needs the POSIX/python harness and is not run on this host).
-- Compiler gaps found while doing C2 (repro + impact in `BLOCKED.md`):
-  `Option<&'a Struct>` cannot instantiate (blocks a lifetime-typed
-  `TlsConfig<'a>`; the trust store was made owned instead), `&'a self` receivers
-  are rejected, async interface methods lose their future (blocks
-  `AsyncRead`/`AsyncWrite`, i.e. C7), and `using` names are unresolved inside
-  generic instantiation.
+  plugins 1305/1305, async 84/84, negative 875/875 (with the 6 new regressions);
+  tls/http/http-client modules compile (`lang/tests/tls` needs the POSIX/python
+  harness and is not run on this host).
+- Compiler gaps found while doing C2 are **fixed** (details in `BLOCKED.md`,
+  each with a regression test in `lang/tests/negative/src/generic_bodies.ch`):
+  - `using`-imported names are declared when a generic declaration's body is
+    linked (`SymResLinkBody::visit_generic_decl_only`), so unqualified
+    `Option`/`string`/`vector`/`Result` resolve inside generic bodies.
+  - A generic variant constructor call with concrete arguments *and* concrete
+    argument types is materialized at body-link time, so
+    `var Some(v) = opt` binds the argument type instead of the declaration's
+    `T`; variant-constructor inference now resolves the generic declaration
+    (and never re-instantiates an already-concrete member).
+  - `FunctionTypeBody::inner_return_type` unwraps a `FutureHandle<T>` that is
+    still linked to the generic declaration, so an async interface method
+    awaited through a `R : ARead` bound keeps its future
+    (`AsyncRead`/`AsyncWrite` are unblocked).
+  - The parser accepts `&'a self` / `&'a mut self` receivers and records the
+    lifetime on the reference type.
+  - A generic variant's declared default type wins over inference from an
+    argument literal (`Variant<T = ulong>.Some(10)` → `ulong`).
+  This means a lifetime-typed `TlsConfig<'a>` is now expressible; the trust
+  store is nevertheless kept owned by `Client` (C2) because it is simpler and
+  removes the per-request bundle load.
+- Remaining known gap (recorded in `BLOCKED.md`): a *generic variant
+  instantiation* parameter on a generic-struct method is still emitted as
+  `void*` by the C backend. Reference parameters work; passing such a variant by
+  value needs a MIR type-mapping fix.
+
+**C3 - Send-checked stored handlers (handler model, part 1).**
+
+- **`std::send_sync_function<T>`** is the stored-callback witness:
+  `%capture<T, default_function_instance, SendSyncStaticCapture>`. It proves the
+  capture environment is `Send + Sync + 'static` when the callback is created, so
+  a non-generic API can store it and invoke it concurrently without naming the
+  concrete capture type. `std::send_function<T>` remains the `Send`-only witness.
+  Verification is `SAFE-SEND-002` at the creation/assignment site (Send, Sync and
+  `'static` are all checked against the real capture environment).
+- **Auto-trait derivation now follows callback type aliases** and honours the
+  compiler-known capture markers (`SendStaticCapture` → `Send`, `SendSyncStaticCapture`
+  → `Send + Sync`, `ScopedSendCapture`/`FnMutCapture`/`FnOnceCapture` → neither).
+  Before this, a callback written through an alias (`std::send_function<T>`) was
+  judged by the erased instance struct's raw pointers and satisfied *neither*
+  bound, so `where T : Send` rejected a `send_function`.
+- **`web::Handler` is a stored `send_sync_function`** (the router is shared by the
+  worker pool), and the static file server now shares its `FileServer` through
+  `std::arc(...)` instead of capturing `&fs_server`. `web::Middleware` and
+  `Router::use_middleware`/`apply_middlewares` were removed: middleware needs an
+  owned-composition design to keep the witness (follow-up).
+- Tests: `lang/tests/negative/src/safety_diagnostics.ch`
+  (`send_sync_function_is_sync_and_send` plus four rejection shapes: `Cell`
+  capture → not `Sync`, `Rc` capture → not `Send`, borrowed capture → not
+  `'static`, erased witness). Gates: safety 193/193, libs 882/882, plugins
+  1305/1305, async 84/84, server 10/10, main 2485/2485, negative 880 tests
+  (879 pass + `neg_universal_unsupported_attribute_value_is_diagnosed`, which
+  passes in isolation and only times out under full parallel load).
+- Next: the C5 handler *shape* change (`Handler = (req : Request) => Response`,
+  framework owns the socket and writes the response) and then C4's `Stream` enum
+  over the transport box.
 
 **Compiler-blocked API follow-ups:** the consuming forms
 `Box::into_inner(self)`, `Rc::try_unwrap(self)`, `Arc::try_unwrap(self)` and

@@ -339,6 +339,50 @@ func neg_send_function_is_not_sync(env : &mut TestEnv) {
     expect_compile_error_with_mod(env, "send_function_not_sync", ch, "does not satisfy where clause constraint 'T : Sync'", NEG_MOD_STD_CORE)
 }
 
+// `std::send_sync_function<T>` is the stored-callback witness: Send + Sync +
+// 'static. Unlike `send_function`, it can be shared across threads.
+@test
+func send_sync_function_is_sync_and_send(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Pass the callback by reference twice: the point is the bound check, and a
+    // by-value callback cannot be moved into two calls.
+    var ch = "func <T> needs_sync(v : T) : int where T : Sync { return 0 }\nfunc <T> needs_send(v : T) : int where T : Send { return 0 }\nfunc take(f : std::send_sync_function<() => int>) : int {\n    var a = needs_sync(&f)\n    var b = needs_send(&f)\n    return a + b\n}\npublic func main() : int { return take(||() => { return 1 }) }\n"
+    expect_compile_success_with_mod(env, "send_sync_function_sync", ch, NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_send_sync_function_non_sync_capture_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // `std::Cell` is Send but !Sync (interior mutability), so it can be moved to
+    // another thread but not shared with one.
+    var ch = "func take(f : std::send_sync_function<() => int>) : int { return f() }\npublic func main() : int {\n    var c = std::Cell.make(5)\n    return take(|c|() => { return c.get() })\n}\n"
+    expect_compile_error_with_mod(env, "send_sync_function_cell", ch, "SAFE-SEND-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_send_sync_function_rc_capture_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func take(f : std::send_sync_function<() => int>) : int { return f() }\npublic func main() : int {\n    var r = std::rc(5)\n    return take(|r|() => { return *r.get() })\n}\n"
+    expect_compile_error_with_mod(env, "send_sync_function_rc", ch, "SAFE-SEND-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_send_sync_function_borrowed_capture_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A stored handler outlives the registration call, so it cannot borrow a
+    // local; this is the shape the static file server used before the router
+    // switched to a shared `Arc<FileServer>` capture.
+    var ch = "func take(f : std::send_sync_function<() => int>) : int { return f() }\npublic func main() : int {\n    var x = 1\n    return take(|&x|() => { return *x })\n}\n"
+    expect_compile_error_with_mod(env, "send_sync_function_borrow", ch, "SAFE-SEND-002", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_send_sync_function_erased_capture_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func take(f : std::send_sync_function<() => int>) : int { return f() }\nfunc pass(f : std::function<() => int>) : int { return take(f) }\npublic func main() : int { return pass(||() => { return 1 }) }\n"
+    expect_compile_error_with_mod(env, "send_sync_function_erased", ch, "SAFE-SEND-002", NEG_MOD_STD_CORE)
+}
+
 @test
 func neg_scoped_send_function_needs_contract(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }

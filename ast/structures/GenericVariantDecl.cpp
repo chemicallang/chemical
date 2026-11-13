@@ -156,16 +156,42 @@ VariantDefinition* GenericVariantDecl::instantiate_call(
     InstantiationRequirement requirement
 ) {
 
+    std::vector<TypeLoc> generic_args;
+    if(!resolve_call_generic_args(instantiator, call, expected_type, generic_args)) {
+        return nullptr;
+    }
+
+    // registers the generic args
+    return register_generic_args(instantiator, generic_args, requirement);
+
+}
+
+bool GenericVariantDecl::resolve_call_generic_args(
+    GenericInstantiatorAPI& instantiator,
+    FunctionCall* call,
+    BaseType* expected_type,
+    std::vector<TypeLoc>& generic_args
+) {
+
     auto& allocator = instantiator.getAllocator();
     auto& diagnoser = instantiator.getDiagnoser();
 
     const auto total = generic_params.size();
-    std::vector<TypeLoc> generic_args;
 
     // initialize the generic args
     const auto success = initialize_generic_args(diagnoser, generic_args, generic_params, call->generic_list);
     if(!success) {
-        return nullptr;
+        return false;
+    }
+
+    // Parameters that declare a default type are filled *before* inference: the
+    // default is the type the caller asked for by not naming one, so inferring
+    // from an argument literal must not override it
+    // (`Variant<T = ulong>.Some(10)` must instantiate with `ulong`).
+    for(size_t i = 0; i < generic_args.size(); i++) {
+        if(generic_args[i] == nullptr && generic_params[i]->def_type != nullptr) {
+            generic_args[i] = generic_params[i]->def_type;
+        }
     }
 
     // infer args, if user gave less args than expected
@@ -187,12 +213,6 @@ VariantDefinition* GenericVariantDecl::instantiate_call(
     }
 
     // check all types have been inferred
-    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, generic_params, call->encoded_location());
-    if(!success2) {
-        return nullptr;
-    }
-
-    // registers the generic args
-    return register_generic_args(instantiator, generic_args, requirement);
+    return check_inferred_generic_args(diagnoser, generic_args, generic_params, call->encoded_location());
 
 }

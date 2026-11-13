@@ -20,6 +20,27 @@ This release is allowed to break. The migration mapping is in
   `patch`, `delete`, `head`, and their `_view` forms) because the first request
   may load and cache the CA bundle. `var client = Client()` call sites are
   unchanged.
+- **A route handler is a stored `Send + Sync + 'static` callback.** `web::Handler`
+  is now `std.send_sync_function<(req : &mut http.Request, res : &mut
+  http.ResponseWriter) => void>`. Registering a handler whose capture is a
+  borrow, an `Rc`, or other non-`Send`/non-`Sync` state is rejected with
+  `SAFE-SEND-002`, because the router keeps the handler for the server's
+  lifetime and may invoke it concurrently from the worker pool.
+  Migration: share state through `std::arc(...)` (and `.clone()` per handler),
+  or capture owned values.
+- **`web::Middleware`, `Router.use_middleware` and `Router.apply_middlewares`
+  are removed.** A middleware returned a new handler capturing the previous one,
+  which cannot preserve an owned `Send + Sync` witness. Handler composition
+  (middleware) needs an owned-composition design and is a follow-up; register
+  the composed behaviour as one handler for now.
+- **New `std::send_sync_function<T>`**, the stored-callback witness
+  (`%capture<T, default_function_instance, SendSyncStaticCapture>`). It proves
+  `Send + Sync + 'static` at creation, so it satisfies `T : Send` and
+  `T : Sync` bounds; `std::send_function<T>` stays `Send`-but-not-`Sync`
+  (it may contain interior mutability that is safe to move but not to share).
+  Auto-trait derivation now follows callback type aliases, so both types report
+  their real bounds (before, an aliased callback was judged by the erased
+  instance struct with its raw pointers and satisfied neither bound).
 
 ## Safe by default (2026-11-12)
 

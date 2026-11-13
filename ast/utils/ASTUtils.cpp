@@ -16,6 +16,9 @@
 #include "ast/types/GenericType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
+#include "ast/types/ArrayType.h"
+#include "ast/types/MaybeRuntimeType.h"
+#include "ast/types/RuntimeType.h"
 #include "GenericUtils.h"
 #include "compiler/SymbolResolver.h"
 
@@ -266,17 +269,33 @@ std::pair<int16_t, bool> register_generic_usage(
 }
 
 bool is_node_parent_of(ASTNode* params_node, GenericTypeParameter* param) {
+    if (params_node == nullptr || param == nullptr) {
+        return false;
+    }
     const auto parent = param->parent();
     if(parent == params_node) {
         return true;
-    } else {
-        switch(parent->kind()) {
-            case ASTNodeKind::FunctionDecl:
-                return parent->as_function_unsafe()->generic_parent == params_node;
-            default:
-                return false;
-        }
     }
+    if(parent->kind() == ASTNodeKind::FunctionDecl) {
+        return parent->as_function_unsafe()->generic_parent == params_node;
+    }
+    // A container member's payload parameters are owned by the generic
+    // declaration, while inference is handed the member itself (a variant
+    // payload parameter is the case that needs this).
+    ASTNode* container_node = nullptr;
+    switch(params_node->kind()) {
+        case ASTNodeKind::VariantMember:
+        case ASTNodeKind::StructMember:
+            container_node = params_node->parent();
+            break;
+        default:
+            break;
+    }
+    if(container_node == nullptr) {
+        return false;
+    }
+    auto* container = container_node->get_members_container();
+    return container != nullptr && (ASTNode*) container->generic_parent == parent;
 }
 
 bool are_linked_same(ASTNode* param_node, ASTNode* arg_node) {
@@ -514,4 +533,51 @@ bool check_inferred_generic_args(
         i++;
     }
     return true;
+}
+
+bool type_mentions_generic_param(const BaseType* type) {
+    if(type == nullptr) {
+        return false;
+    }
+    auto* t = const_cast<BaseType*>(type);
+    switch(t->kind()) {
+        case BaseTypeKind::Linked: {
+            const auto linked = t->as_linked_type_unsafe()->linked;
+            return linked != nullptr && linked->kind() == ASTNodeKind::GenericTypeParam;
+        }
+        case BaseTypeKind::Generic: {
+            for(const auto& arg : t->as_generic_type_unsafe()->types) {
+                if(type_mentions_generic_param(arg.getType())) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        case BaseTypeKind::Pointer:
+            return type_mentions_generic_param(t->as_pointer_type_unsafe()->type);
+        case BaseTypeKind::Reference:
+            return type_mentions_generic_param(t->as_reference_type_unsafe()->type);
+        case BaseTypeKind::Array:
+            return type_mentions_generic_param(t->as_array_type_unsafe()->elem_type);
+        case BaseTypeKind::Function: {
+            const auto* fn = t->as_function_type_unsafe();
+            for(const auto param : fn->params) {
+                if(type_mentions_generic_param(param->type.getType())) {
+                    return true;
+                }
+            }
+            return type_mentions_generic_param(fn->returnType);
+        }
+        case BaseTypeKind::CapturingFunction: {
+            const auto* cf = t->as_capturing_func_type_unsafe();
+            return type_mentions_generic_param(cf->func_type)
+                || type_mentions_generic_param(cf->instance_type);
+        }
+        case BaseTypeKind::MaybeRuntime:
+            return type_mentions_generic_param(t->as_maybe_runtime_type_unsafe()->underlying);
+        case BaseTypeKind::Runtime:
+            return type_mentions_generic_param(t->as_runtime_type_unsafe()->underlying);
+        default:
+            return false;
+    }
 }

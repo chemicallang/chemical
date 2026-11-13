@@ -4076,6 +4076,13 @@ static bool is_send_static_capture_marker(BaseType* type) {
     return is_capture_marker(type, "SendStaticCapture");
 }
 
+// `std::send_sync_function<T>`: the stored-callback witness. It proves the
+// capture environment is `Send + Sync + 'static`, so the callback may be stored
+// in a shared table and invoked from several threads at once.
+static bool is_send_sync_static_capture_marker(BaseType* type) {
+    return is_capture_marker(type, "SendSyncStaticCapture");
+}
+
 static bool is_scoped_send_capture_marker(BaseType* type) {
     return is_capture_marker(type, "ScopedSendCapture");
 }
@@ -4265,12 +4272,16 @@ static void require_unsafe_for_capture(
     if (!is_capturing_function_type(target_type)) return;
 
     // `std::send_function<T>` keeps a verified Send + 'static guarantee after
-    // the concrete capture type is erased. Check the real witness whenever the
-    // value is created/assigned, including outside an unsafe block: the marker
-    // is a safe type and must not be forgeable by an unsafe-created callback.
+    // the concrete capture type is erased, and `std::send_sync_function<T>`
+    // additionally a Sync one. Check the real witness whenever the value is
+    // created/assigned, including outside an unsafe block: the marker is a safe
+    // type and must not be forgeable by an unsafe-created callback.
     const bool send_static_marker = is_send_static_capture_marker(target_type);
     const bool scoped_marker = is_scoped_send_capture_marker(target_type);
-    if (send_static_marker || scoped_marker) {
+    const bool send_sync_marker = is_send_sync_static_capture_marker(target_type);
+    if (send_static_marker || scoped_marker || send_sync_marker) {
+        const char* marker_name = send_sync_marker ? "std::send_sync_function"
+                                                   : "std::send_function";
         TypeLoc witness = capture_witness_of_value(value);
         BaseType* witness_type = witness ? witness->canonical() : nullptr;
         if (witness_type == nullptr) {
@@ -4287,15 +4298,28 @@ static void require_unsafe_for_capture(
                                        (ASTNode*) verifier.coreNodes.sync_interface,
                                        &auto_trait_context)) {
             verifier.diagnoser.error(location).with_code("SAFE-SEND-002")
-                << "cannot store this callback in std::send_function: the values "
+                << "cannot store this callback in " << marker_name << ": the values "
                    "it captures are not Send";
             return;
         }
-        if (send_static_marker) {
+        if (send_sync_marker) {
+            std::unordered_set<MembersContainer*> sync_visiting;
+            if (!type_satisfies_auto_trait(witness_type, AutoTraitKind::Sync,
+                                           sync_visiting, &verifier.index,
+                                           (ASTNode*) verifier.coreNodes.send_interface,
+                                           (ASTNode*) verifier.coreNodes.sync_interface,
+                                           &auto_trait_context)) {
+                verifier.diagnoser.error(location).with_code("SAFE-SEND-002")
+                    << "cannot store this callback in " << marker_name << ": the values "
+                       "it captures are not Sync, so it cannot be shared between threads";
+                return;
+            }
+        }
+        if (send_static_marker || send_sync_marker) {
             std::unordered_set<MembersContainer*> static_visiting;
             if (!type_satisfies_static_bound(witness_type, static_visiting)) {
                 verifier.diagnoser.error(location).with_code("SAFE-SEND-002")
-                    << "cannot store this callback in std::send_function: it captures "
+                    << "cannot store this callback in " << marker_name << ": it captures "
                        "a non-'static borrow";
                 return;
             }

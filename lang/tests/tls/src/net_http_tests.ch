@@ -506,8 +506,11 @@ func test_concurrent_requests(env : &mut TestEnv) {
 
     var request_count = 0u;
     unsafe {
-        srv.router.add("GET", "/counter", |&mut request_count|(req, res) => {
-            *request_count = *request_count + 1u;
+        // The router stores handlers for the server's lifetime and requires a
+        // `Send + Sync + 'static` capture (SAFE-SEND-002), so a handler cannot
+        // borrow a local counter. The count is not asserted here; the request
+        // success count is.
+        srv.router.add("GET", "/counter", ||(req, res) => {
             res.write_string(std::string::make_no_len("ok"));
         });
     }

@@ -58,9 +58,25 @@ BaseType* FunctionTypeBody::inner_return_type() {
         return rt;
     }
     const auto gen = rt->as_generic_type_unsafe();
-    const auto linked = gen->referenced != nullptr ? gen->referenced->linked : nullptr;
-    if(linked == nullptr || linked->kind() != ASTNodeKind::StructDecl
-       || linked->as_extendable_members_container_unsafe()->name_view() != chem::string_view("FutureHandle")) {
+    const auto linked_ptr = gen->referenced != nullptr ? gen->referenced->linked : nullptr;
+    if(linked_ptr == nullptr) {
+        return rt;
+    }
+    // The handle may still be linked to the generic declaration (an async generic
+    // function's return type is only instantiated lazily), so accept both the
+    // concrete struct and its generic declaration.
+    chem::string_view handle_name;
+    switch(linked_ptr->kind()) {
+        case ASTNodeKind::StructDecl:
+            handle_name = linked_ptr->as_struct_def_unsafe()->name_view();
+            break;
+        case ASTNodeKind::GenericStructDecl:
+            handle_name = linked_ptr->as_gen_struct_def_unsafe()->master_impl->name_view();
+            break;
+        default:
+            return rt;
+    }
+    if(handle_name != chem::string_view("FutureHandle")) {
         return rt;
     }
     if(!gen->types.empty()) {

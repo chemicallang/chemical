@@ -1,7 +1,10 @@
-// ===== Router + middleware =====
+// ===== Router =====
 public namespace web {
-    public type Handler = std.function<(req: &mut http.Request, res: &mut http.ResponseWriter) => void>
-    public type Middleware = std.function<(next: Handler) => Handler>
+    // A stored request handler. The witness type proves the capture environment
+    // is `Send + Sync + 'static` at registration, so a router can be shared by a
+    // worker pool and the handler invoked concurrently. Handlers receive the
+    // request and the response writer; the framework owns the socket.
+    public type Handler = std.send_sync_function<(req: &mut http.Request, res: &mut http.ResponseWriter) => void>
 
     public struct Route {
         var method: std::string;
@@ -11,12 +14,10 @@ public namespace web {
 
     public struct Router {
         var routes: std::vector<Route>;
-        var middlewares: std::vector<Middleware>;
 
         @constructor func constructor() {
             return Router {
-                routes = std::vector<Route>(),
-                middlewares = std::vector<Middleware>()
+                routes = std::vector<Route>()
             }
         }
 
@@ -27,8 +28,6 @@ public namespace web {
 
         }
 }
-
-        func use_middleware(&mut self, m: Middleware) { middlewares.push_back(m) }
 
         func match_route(&self, method: &std::string, path: &std::string, params_out: *mut std::vector<std::pair<std::string,std::string>>) : *Route {
             unsafe {
@@ -46,17 +45,6 @@ public namespace web {
             return null
 
         }
-}
-
-        func apply_middlewares(&self, base: Handler) : Handler {
-            var h = base;
-            var i = (middlewares.size());
-            while(i > 0u) {
-                i = i - 1u;
-                var m = middlewares.at_ref(i);
-                h = m(h);
-            }
-            return h;
         }
     }
 

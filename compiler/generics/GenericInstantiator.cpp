@@ -471,6 +471,25 @@ void GenericInstantiator::VisitPatternMatchExpr(PatternMatchExpr* value) {
         return;
     }
 
+    // A concrete `GenericType` payload must resolve to its instantiation: leaving
+    // it linked to the generic declaration binds the payload's own parameter
+    // (`T`) instead of the argument, so `var Some(v) = opt` would type `v` as the
+    // declaration parameter. Only concrete argument lists are materialized; a
+    // partially applied type (`Option<T>` inside a generic) stays deferred.
+    if (value->expression != nullptr) {
+        BaseType* expression_type = value->expression->getType();
+        if (expression_type != nullptr && expression_type->kind() == BaseTypeKind::Generic) {
+            auto* gen = expression_type->as_generic_type_unsafe();
+            ASTNode* gen_linked = gen->referenced != nullptr ? gen->referenced->linked : nullptr;
+            if (gen_linked != nullptr && gen_linked->kind() == ASTNodeKind::GenericVariantDecl &&
+                !type_mentions_generic_param(gen)) {
+                auto instantiator = newGenericInstantiatorFrom(*this);
+                GenericInstantiatorAPI genApi(&instantiator);
+                gen->instantiate(genApi, value->encoded_location(),
+                                 InstantiationRequirement::SignatureFinalization);
+            }
+        }
+    }
     const auto member = value->find_member_from_expr(getAllocator(), diagnoser);
     if(member == nullptr) {
         return;
@@ -711,6 +730,8 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
     for(auto& t : type->types) {
         visit(t);
     }
+
+
 
     // NOTE: visiting the referenced type in this case would lead to a problem
     // the problem is that LinkedType visiting method, currently checks for linkage with a generic decl
@@ -982,6 +1003,7 @@ void GenericInstantiator::Clear() {
 }
 
 void GenericInstantiator::activateIteration(BaseGenericDecl* gen_decl, size_t itr) {
+
     // lock to prevent concurrent modification of the container's internal
     // hash map / vectors while we read the instantiation types
     std::lock_guard<std::recursive_mutex> lock(registration_mutex);

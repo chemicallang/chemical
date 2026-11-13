@@ -104,6 +104,20 @@ public:
         InstantiationRequirement requirement
     );
 
+    /**
+     * Resolves the generic arguments a constructor call would instantiate with
+     * (explicit arguments, then inference, then the expected type). Returns
+     * false when they cannot all be determined. Body linking uses this to
+     * materialize a constructor call whose arguments are already concrete
+     * instead of deferring it to the generic instantiation pass.
+     */
+    bool resolve_call_generic_args(
+        GenericInstantiatorAPI& instantiator,
+        FunctionCall* call,
+        BaseType* expected_type,
+        std::vector<TypeLoc>& generic_args
+    );
+
 
 };
 

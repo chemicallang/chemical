@@ -159,6 +159,23 @@ public type send_function<T> = %capture<T, default_function_instance, SendStatic
 
 /**
  * Type-level marker for a callback whose capture environment was proven
+ * `Send + Sync + 'static` when it was created. `send_function<T>` only proves
+ * `Send` (it may contain interior mutability that is fine to move but not to
+ * share); this marker additionally proves the capture can be *shared* between
+ * threads, so the callback may be stored in a long-lived table and invoked
+ * concurrently (a server router on a worker pool).
+ *
+ * Like the other markers it is empty and carries no runtime data; the
+ * guarantee comes from verifying the real capture environment when the value
+ * is created.
+ */
+public struct SendSyncStaticCapture { }
+
+@partial_instantiate
+public type send_sync_function<T> = %capture<T, default_function_instance, SendSyncStaticCapture>;
+
+/**
+ * Type-level marker for a callback whose capture environment was proven
  * `Send` but may borrow caller storage. It is deliberately not `Send` itself:
  * it may only be handed to a join-before-return scoped API, never to an
  * unscoped thread submission that could outlive the borrowed values.

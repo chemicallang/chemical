@@ -17,6 +17,8 @@
 #include "ast/types/CapturingFunctionType.h"
 #include "ast/types/DynamicType.h"
 #include "ast/types/LinkedType.h"
+#include "ast/statements/Typealias.h"
+#include "ast/structures/GenericTypeDecl.h"
 #include "compiler/symres/ImplementationsIndex.h"
 
 /**
@@ -221,6 +223,38 @@ inline bool type_satisfies_auto_trait(
 ) {
     if(type == nullptr) return true;
     {
+        // A type alias of a callback (`std::send_function<T>`,
+        // `std::send_sync_function<T>`) expands to a `%capture<...>` whose
+        // members container is the *erased instance struct* (raw pointers), so
+        // the structural walk below would judge the wrong type. Follow the alias
+        // and let the `CapturingFunction` case derive from the capture witness.
+        BaseType* alias_target = type;
+        for(unsigned guard = 0; guard < 8; guard++) {
+            ASTNode* alias_linked = alias_target->get_direct_linked_node();
+            if(alias_linked == nullptr) {
+                break;
+            }
+            BaseType* actual = nullptr;
+            if(alias_linked->kind() == ASTNodeKind::TypealiasStmt) {
+                actual = alias_linked->as_typealias_unsafe()->actual_type;
+            } else if(alias_linked->kind() == ASTNodeKind::GenericTypeDecl) {
+                auto* master_impl = alias_linked->as_gen_type_decl_unsafe()->master_impl;
+                actual = master_impl != nullptr ? master_impl->actual_type : nullptr;
+            } else {
+                break;
+            }
+            if(actual == nullptr || actual == alias_target) {
+                break;
+            }
+            alias_target = actual;
+        }
+        if(alias_target != type && alias_target->kind() == BaseTypeKind::CapturingFunction) {
+            return type_satisfies_auto_trait(
+                alias_target, kind, visiting, index,
+                send_interface, sync_interface, context);
+        }
+    }
+    {
         bool is_view = false;
         const bool view_decision = auto_trait_std_view_decision(
             type, kind, visiting, index, send_interface, sync_interface,
@@ -277,6 +311,46 @@ inline bool type_satisfies_auto_trait(
             // neither Send nor Sync.
             auto* cap = type->as_capturing_func_type_unsafe();
             if (!cap->capture_env) return false;
+            // The compiler-known capture markers pin the thread-safety contract
+            // directly. Deciding them structurally would depend on the
+            // implementation index being available for the negative impls, and
+            // the erased instance struct's raw pointers would otherwise make a
+            // `Send`-proving marker look like a plain aggregate.
+            if (BaseType* env = cap->capture_env->canonical()) {
+                chem::string_view marker;
+                if (MembersContainer* marker_container = env->get_members_container()) {
+                    if (marker_container->kind() == ASTNodeKind::StructDecl) {
+                        marker = marker_container->as_struct_def_unsafe()->name_view();
+                    }
+                }
+                if (marker.empty()) {
+                    // An instantiated alias can leave the marker as an unlinked
+                    // named type; its spelling is the stable identity then (the
+                    // same fallback the capture-marker checks use).
+                    const std::string spelling = env->representation();
+                    if (spelling.find("SendSyncStaticCapture") != std::string::npos) {
+                        marker = "SendSyncStaticCapture";
+                    } else if (spelling.find("SendStaticCapture") != std::string::npos) {
+                        marker = "SendStaticCapture";
+                    } else if (spelling.find("ScopedSendCapture") != std::string::npos) {
+                        marker = "ScopedSendCapture";
+                    } else if (spelling.find("FnMutCapture") != std::string::npos) {
+                        marker = "FnMutCapture";
+                    } else if (spelling.find("FnOnceCapture") != std::string::npos) {
+                        marker = "FnOnceCapture";
+                    }
+                }
+                if (marker == "SendSyncStaticCapture") {
+                    return true;
+                }
+                if (marker == "SendStaticCapture") {
+                    return kind == AutoTraitKind::Send;
+                }
+                if (marker == "ScopedSendCapture" || marker == "FnMutCapture" ||
+                    marker == "FnOnceCapture") {
+                    return false;
+                }
+            }
             bool capres = type_satisfies_auto_trait(
                 cap->capture_env, kind, visiting, index,
                 send_interface, sync_interface, context);

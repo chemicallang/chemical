@@ -1,6 +1,6 @@
-// Tier 3: async HTTP over a coroutine server. Starts the coroutine accept loop
-// (`server::serve_coro`), issues a request with the async client
-// (`http::raw::get_async`) and checks the response, then shuts the server down.
+// Tier 3: HTTP over a coroutine server. Binds the coroutine server through
+// `Server.bind` + `serve_async` (its worker pool), issues a request with the
+// buffered `http::Client` and checks the response, then shuts the server down.
 //
 // Port 19891 is this test's own; it used to share 19878 with INT_x25519_handshake
 // in e2e.ch. Tests here run in parallel, so a shared port meant one test's
@@ -14,38 +14,46 @@ public func INT_http_async_loopback(env : &mut TestEnv) {
 
     var cfg = server::ServerConfig();
     cfg.addr = std::string::make_no_len("127.0.0.1:19891");
-    var srv = server::Server(cfg);
-    srv.router.add("GET", "/hello", ||(req, res) => {
-        res.write_string(std::string::make_no_len("world"));
+
+    var bound = server::Server.bind(cfg);
+    if(bound is std::Result.Err) { env.error("bind failed on 19891"); return }
+    var Ok(bound_server) = bound else unsafe { unreachable }
+    var srv : server::Server = bound_server;
+
+    srv.router.add("GET", "/hello", ||(req) => {
+        return http::response_text(200u, "world")
     });
 
-    var server_f = unsafe(async::raw::spawn<int>(server::serve_coro(&raw mut srv, 19891u)));
-    // Let the server bind + start accepting before the client dials.
-    var unit = async::block_on<core::async::Unit>(async::yield_now());
+    var stop = srv.handle();
+    var thread = srv.serve_async();
+    // Let the server start accepting before the client dials.
+    std::concurrent::sleep_ms(100u);
 
+    // The async client entry points were removed together with the raw HTTP
+    // namespace; `http::Client` already buffers the whole response, so the
+    // loopback check is identical while the server keeps serving on its pool.
     var client = http::Client();
-    var url = std::string_view("http://127.0.0.1:19891/hello");
-    var box = async::block_on<*mut http::HttpResult>(http::raw::get_async(&raw mut client, &raw mut url));
-    if(box == null || !box.is_ok()) {
+    var res = client.get("http://127.0.0.1:19891/hello");
+    if(res is std::Result.Err) {
         env.error("async http request failed")
     } else {
-        if(box.status_code() != 200u) {
+        var Ok(r) = res else unsafe { unreachable }
+        if(r.status != 200u) {
             env.error("async http status mismatch")
         }
-        var body = box.body_view();
-        if(body.size() != 5u) {
-            env.error("async http body size mismatch")
+        var body = r.body.text();
+        if(body is std::Option.None) {
+            env.error("async http body missing")
+        } else {
+            var Some(bv) = body else unsafe { unreachable }
+            if(bv.size() != 5u) {
+                env.error("async http body size mismatch")
+            }
         }
     }
-    if(box != null) {
-        delete box
-    }
 
-    srv.shutdown();
-    var r = async::block_on<int>(server_f);
-    if(r != 0) {
-        env.error("serve_coro returned non-zero")
-    }
+    stop.shutdown();
+    thread.join();
 
 }
 }

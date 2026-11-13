@@ -5,6 +5,41 @@ This release is allowed to break. The migration mapping is in
 
 ## Server / ownership wave (2026-11-13)
 
+- **`http::Transport` is gone; a connection is `http::Stream`.** A `variant` over
+  `Tcp`/`TlsClient`/`TlsServer` that owns the stream by value. The old shape was
+  a tagged struct of three nullable pointers behind `*mut Transport`, aliased by
+  the request body *and* the response writer. There is now one owner and one
+  destructor; `transport_box_plain`/`transport_box_tls`/`transport_box_tls_server`
+  are removed. `Stream` implements `std::io::Read`/`Write`.
+- **`http::ResponseWriter` no longer appears in the handler contract.** A handler
+  receives the request and returns a response; the framework owns the connection
+  and encodes it. `Handler` is
+  `std.send_sync_function<(req : http.Request) => http.Response>` — the request is
+  moved into the handler, so the callback carries no lifetime and no raw pointer.
+  Now enforced in one place instead of being re-derived per driver:
+  `Content-Length` is always exact, a second write cannot desynchronise the
+  framing, the status line carries the real reason phrase (`404 Not Found`, not
+  `404 OK`), and keep-alive/pipelining is decided per message instead of always
+  emitting `Connection: close`.
+- **`http::Body` was split by direction.** `http::RequestBody` is a buffered
+  reader the handler consumes (`size`, `remaining`, `view`, `text`, `read`,
+  `read_to_end`, `read_to_string`); `http::ResponseBody` is a payload the
+  framework writes (`Empty`/`Bytes`/`Text`/`File`), with `File` streaming from
+  disk without copying. Request bodies are framed and buffered *before* dispatch,
+  bounded by `ServerConfig.max_body_bytes`; a streaming variant is additive
+  later. This is what makes `Handler` lifetime-free.
+- **`server::Server` is bound explicitly and consumed by serving.**
+  `Server.bind(cfg) -> Result<Server, NetError>` reports a bind failure at the
+  call site (it used to be swallowed inside `start`), `local_addr()` returns the
+  address actually bound (so tests can use port 0), `serve(self)`/`serve_async(self)`
+  consume the server, and `handle()` returns a `ShutdownHandle` that stays valid
+  after the server is consumed. `serve(port)`/`serve_async(port)`/`shutdown()`
+  are removed: the port lives in `cfg.addr`, and stopping goes through the
+  handle. The stop flag is private.
+- **`ServerConfig` gained `body_timeout_secs`** (default 30). A body may be large
+  and slow while a head must arrive quickly, so the body deadline is no longer
+  derived from `header_timeout_secs`. A peer that stalls longer is rejected with
+  `400`.
 - **A by-value `self` parameter is a move.** `func consume(self)` transfers
   ownership to the callee, which destroys it exactly once; the caller no longer
   drops its own copy. Before the fix every consuming method double-freed its
@@ -16,10 +51,34 @@ This release is allowed to break. The migration mapping is in
   per client instead of per request. Previously the config kept a raw pointer to
   a chain that had already been freed before the handshake (use-after-free on
   every HTTPS request that used the system bundle).
-- **`http::Client` request methods take `&mut self`** (`get`, `post`, `put`,
-  `patch`, `delete`, `head`, and their `_view` forms) because the first request
-  may load and cache the CA bundle. `var client = Client()` call sites are
-  unchanged.
+- **`http::Client` request methods take `&self`** (`get`, `post`, `put`,
+  `patch`, `delete`, `head`, and their `_view` forms). The trust store lives
+  behind a `Mutex`, so one client can be shared by a worker pool without
+  `Arc<Mutex<Client>>`. Responses are buffered, so `res.body.text()` /
+  `res.body.size()` replace the streaming reader. `var client = Client()` call
+  sites are unchanged.
+- **`http::HttpResult` and the whole `http::raw` async surface are deleted**
+  (`get_async`/`post_async`/`put_async`/`patch_async`/`delete_async`/`head_async`/
+  `request_async`, `serve_coro`, `make_body`, `body_read`, `read_chunk_async`,
+  `body_read_async`, `read_to_string_async`, `header_get_cstr`). They returned
+  caller-owned `*mut HttpResult` boxes and were `spawn_blocking` behind an
+  `async` keyword. Real async client/server I/O arrives with
+  `AsyncRead`/`AsyncWrite`. `http` also no longer depends on the `json` library
+  (`response_json_text` takes pre-serialized text).
+- **`HeaderMap` is a real table**: `insert` replaces instead of duplicating,
+  `append` is the explicit multi-value form, and `len`/`contains`/`remove`/
+  `clear`/`iter()` exist (a client can finally enumerate response headers).
+  `QueryMap::get` returns `Option<string_view>`, so `?a=` is distinguishable from
+  an absent parameter.
+- **`std::atomic` operations take `&self`** (`load`, `store`, `fetch_*`,
+  `compare_exchange_*`). An atomic that required `&mut self` could not be used
+  for shared state at all, which is the only reason to have one.
+- **`net`'s owning socket API is public**: `TcpListener.bind`/`accept` and
+  `TcpStream.connect`/`read_bytes`/`write_bytes` were package-private, which is
+  why `http` had to hand-roll a transport over `net::raw` descriptors.
+  `net::Buffer` gained `append(&[u8])`/`view()`/`take()`/`reserve()` and a bulk
+  copy (it appended byte by byte). `SocketAddr` renders octets in the right
+  order.
 - **A route handler is a stored `Send + Sync + 'static` callback.** `web::Handler`
   is now `std.send_sync_function<(req : &mut http.Request, res : &mut
   http.ResponseWriter) => void>`. Registering a handler whose capture is a

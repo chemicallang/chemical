@@ -112,20 +112,9 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 }
             }
             if (vi->value) {
-                // moving a destructible value out of another local/param
-                {
-                    Value* iv = vi->value;
-                    if (iv->val_kind() == ValueKind::AccessChain) {
-                        auto* c = iv->as_access_chain_unsafe();
-                        if (c->values.size() == 1) iv = c->values[0];
-                    }
-                    if (iv->val_kind() == ValueKind::Identifier) {
-                        auto* iid = iv->as_identifier_unsafe();
-                        PlaceId src = place_for_linked(iid->linked);
-                        if (src == MIR_INVALID_ID) src = place_for_name(iid->value);
-                        if (src != MIR_INVALID_ID) mark_moved(src);
-                    }
-                }
+                // moving a destructible value out of another local/param (or out
+                // of a variant through a pattern binding)
+                mark_moved_value(vi->value);
                 // convert to the declared type first (implicit constructors, e.g.
                 // `var s : std::string = \`...\``)
                 // Temporary lifetime extension (S4.2/S1.2): a call result
@@ -377,19 +366,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     if (r.kind == MIRExprKind::Place) {
                         // a move from a local clears the source's drop flag so it
                         // isn't destroyed again after being moved into the field
-                        {
-                            Value* rv = as->value;
-                            if (rv && rv->val_kind() == ValueKind::AccessChain) {
-                                auto* c = rv->as_access_chain_unsafe();
-                                if (c->values.size() == 1) rv = c->values[0];
-                            }
-                            if (rv && rv->val_kind() == ValueKind::Identifier) {
-                                auto* rid = rv->as_identifier_unsafe();
-                                PlaceId src = place_for_linked(rid->linked);
-                                if (src == MIR_INVALID_ID) src = place_for_name(rid->value);
-                                if (src != MIR_INVALID_ID) mark_moved(src);
-                            }
-                        }
+                        mark_moved_value(as->value);
                         if (!have_ptr) {
                             builder_->field_store_place(cur_place, fc,
                                                         static_cast<PlaceId>(r.id));
@@ -1515,19 +1492,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 return rr.ok();
             }
             // a move from a local clears the source's drop flag
-            {
-                Value* rv = as->value;
-                if (rv && rv->val_kind() == ValueKind::AccessChain) {
-                    auto* c = rv->as_access_chain_unsafe();
-                    if (c->values.size() == 1) rv = c->values[0];
-                }
-                if (rv && rv->val_kind() == ValueKind::Identifier) {
-                    auto* rid = rv->as_identifier_unsafe();
-                    PlaceId src = place_for_linked(rid->linked);
-                    if (src == MIR_INVALID_ID) src = place_for_name(rid->value);
-                    if (src != MIR_INVALID_ID) mark_moved(src);
-                }
-            }
+            mark_moved_value(as->value);
             // convert to the target's declared type first (implicit constructors,
             // e.g. `s = \`...\``)
             MIRExprResult r = as->lhs->getType()
@@ -1776,28 +1741,9 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     }
                     break;
                 }
-                // A pattern-bound payload is an alias into its source variant.
-                // Returning it (directly or as a variant-constructor argument)
-                // moves the payload out, so clear the source's drop flag too.
-                if (rv->val_kind() == ValueKind::FunctionCall) {
-                    auto* fc = rv->as_func_call_unsafe();
-                    ASTNode* leaf = nullptr;
-                    if (fc->parent_val) {
-                        if (fc->parent_val->val_kind() == ValueKind::AccessChain) {
-                            auto* ch = fc->parent_val->as_access_chain_unsafe();
-                            if (!ch->values.empty()) leaf = ch->values.back()->linked_node();
-                        } else {
-                            leaf = fc->parent_val->linked_node();
-                        }
-                    }
-                    if (leaf != nullptr && leaf->kind() == ASTNodeKind::VariantMember) {
-                        for (Value* arg : fc->values) {
-                            clear_moved_ref(arg);
-                        }
-                    }
-                } else {
-                    clear_moved_ref(rv);
-                }
+                // A pattern-bound payload (or a value nested in a constructor)
+                // is moved out of its source; clear the source's drop flag.
+                mark_moved_value(rv);
                 if (rv->val_kind() == ValueKind::Identifier) {
                     auto* id = rv->as_identifier_unsafe();
                     PlaceId rp = place_for_linked(id->linked);

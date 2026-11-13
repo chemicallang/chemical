@@ -10,7 +10,7 @@ func test_temp_path(name : string_view) : string {
         var dir_opt = environment_get_temp()
         var result = string()
         if(dir_opt != null) {
-            result = string(dir_opt)
+            result = unsafe(string(dir_opt))
         } else {
             result = string("C:\\Windows\\Temp\\")
         }
@@ -26,7 +26,7 @@ func test_temp_path(name : string_view) : string {
 
 func environment_get_temp() : *char {
     comptime if(def.windows) {
-        return getenv("TEMP")
+        return unsafe(getenv("TEMP"))
     } else {
         return unsafe(getenv("TMPDIR"))
     }
@@ -72,7 +72,7 @@ func test_random_bytes(buf : *mut u8, len : size_t) {
 // the tests' literal "/tmp/..." paths work unchanged on both platforms.
 func test_ensure_tmp_dir() {
     comptime if(def.windows) {
-        system("if not exist \\tmp mkdir \\tmp")
+        unsafe(system("if not exist \\tmp mkdir \\tmp"))
     }
 }
 
@@ -162,7 +162,7 @@ func test_kill_port(port : int) {
         var cmd = string("for /f \"tokens=5\" %a in ('netstat -aon ^| findstr \":")
         cmd.append_integer(port)
         cmd.append_view(" \" ^| findstr LISTENING') do @taskkill /F /PID %a >nul 2>&1")
-        system(cmd.data())
+        unsafe(system(cmd.data()))
     } else {
         var cmd = string("fuser -k ")
         cmd.append_integer(port)
@@ -186,13 +186,13 @@ func test_cat_file(path : string_view) {
         var win_path = string()
         var i : size_t = 0
         while(i < path.size()) {
-            var c = path.get(i)
+            var c = path.at(i)
             if(c == '/') { win_path.append('\\') } else { win_path.append(c) }
             i += 1
         }
         var cmd = string("type ")
         cmd.append_view(win_path.to_view())
-        system(cmd.data())
+        unsafe(system(cmd.data()))
     } else {
         var cmd = string("cat ")
         cmd.append_view(&path)
@@ -284,7 +284,7 @@ func test_port_listening(port : u16) : bool {
         var cmd = string("netstat -aon | findstr \":")
         cmd.append_uinteger(port as ubigint)
         cmd.append_view(" \" | findstr LISTENING >nul")
-        return system(cmd.data()) == 0
+        return unsafe(system(cmd.data())) == 0
     } else {
         if(!test_fuser_available()) { return false }
         var cmd = string("fuser -s ")
@@ -459,7 +459,7 @@ func test_python_run_script_file(py_path : *char) : vector<u8> {
         cmd.append_view(" > ")
         cmd.append_view(out_path.to_view())
         cmd.append_view(" 2>nul")
-        system(cmd.data())
+        unsafe(system(cmd.data()))
     } else {
         var cmd = test_py_interp()
         cmd.append_view(string_view(py_path))

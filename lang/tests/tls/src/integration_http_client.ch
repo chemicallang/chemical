@@ -65,7 +65,7 @@ public func INT_https_get_200_body_headers(env : &mut TestEnv) {
     }
     var Ok(r) = res else unsafe { unreachable };
     if(r.status != 200u) { env.error("expected 200") }
-    var body_opt = r.body.read_to_string_opt()
+    var body_opt = r.body.text()
     if(body_opt is std.Option.None) { env.error("body read failed"); return }
     var Some(body) = body_opt else unsafe { unreachable };
     if(!body.equals_view("world")) { env.error("body mismatch") }
@@ -105,7 +105,7 @@ public func INT_https_post_echo_roundtrip(env : &mut TestEnv) {
     var Ok(r) = res else unsafe { unreachable };
     if(r.status != 200u) { env.error("expected 200") }
 
-    var body_opt = r.body.read_to_string_opt()
+    var body_opt = r.body.text()
     if(body_opt is std.Option.None) { env.error("body read failed"); return }
     var Some(body) = body_opt else unsafe { unreachable };
     if(body.size() != 8192u) { env.error("echo length mismatch") }
@@ -135,7 +135,7 @@ public func INT_https_large_download_200k(env : &mut TestEnv) {
     var Ok(r) = res else unsafe { unreachable };
     if(r.status != 200u) { env.error("expected 200") }
 
-    var body_opt = r.body.read_to_string_opt()
+    var body_opt = r.body.text()
     if(body_opt is std.Option.None) { env.error("body read failed"); return }
     var Some(body) = body_opt else unsafe { unreachable };
     if(body.size() != 200000u) { env.error("download truncated or oversized") }
@@ -201,7 +201,7 @@ public func INT_https_query_params_reach_server(env : &mut TestEnv) {
     if(res is Result.Err) { env.error("query request failed"); return }
     var Ok(r) = res else unsafe { unreachable };
 
-    var body_opt = r.body.read_to_string_opt()
+    var body_opt = r.body.text()
     if(body_opt is std::Option.None) { env.error("body read failed"); return }
     var Some(body) = body_opt else unsafe { unreachable };
     // The python server echoes the raw query string it received.
@@ -229,7 +229,7 @@ public func INT_https_custom_request_headers(env : &mut TestEnv) {
     if(res is Result.Err) { env.error("headers request failed"); return }
     var Ok(r) = res else unsafe { unreachable };
 
-    var body_opt = r.body.read_to_string_opt()
+    var body_opt = r.body.text()
     if(body_opt is std::Option.None) { env.error("body read failed"); return }
     var Some(body) = body_opt else unsafe { unreachable };
     // Server echoes "X-Test|User-Agent".
@@ -273,7 +273,7 @@ public func INT_https_put_patch_delete_work(env : &mut TestEnv) {
     var r1 = client.put_view(uput.to_view(), string_view("data1"), "text/plain")
     if(r1 is Result.Err) { env.error("PUT failed") } else {
         var Ok(x) = r1 else unsafe { unreachable };
-        var b1 = x.body.read_to_string_opt()
+        var b1 = x.body.text()
         if(b1 is std.Option.None) { env.error("PUT body missing") } else {
             var Some(bb) = b1 else unsafe { unreachable };
             if(!bb.equals_view("put:data1")) { env.error("PUT echo mismatch") }
@@ -291,7 +291,7 @@ public func INT_https_put_patch_delete_work(env : &mut TestEnv) {
     var r3 = client.delete_view(udel.to_view())
     if(r3 is Result.Err) { env.error("DELETE failed") } else {
         var Ok(x3) = r3 else unsafe { unreachable };
-        var b3 = x3.body.read_to_string_opt()
+        var b3 = x3.body.text()
         if(b3 is std.Option.None) { env.error("DELETE body missing") } else {
             var Some(bb3) = b3 else unsafe { unreachable };
             if(!bb3.equals_view("deleted")) { env.error("DELETE body mismatch") }
@@ -315,9 +315,15 @@ public func INT_https_chunked_response_parsed(env : &mut TestEnv) {
     if(res is Result.Err) { env.error("chunked request failed"); return }
     var Ok(r) = res else unsafe { unreachable };
     if(r.status != 200u) { env.error("chunked expected 200") }
-    if(!r.body.is_chunked()) { env.error("response should be flagged chunked") }
+    // The framing flag is gone; the client reassembles chunks before returning,
+    // so the wire framing is asserted via the visible response header.
+    var te = r.headers.get("Transfer-Encoding")
+    if(te is std.Option.None) { env.error("response should be flagged chunked") } else {
+        var Some(tev) = te else unsafe { unreachable };
+        if(!tev.equals_view("chunked")) { env.error("response should be flagged chunked") }
+    }
 
-    var body_opt = r.body.read_to_string_opt()
+    var body_opt = r.body.text()
     if(body_opt is std::Option.None) { env.error("chunked body read failed"); return }
     var Some(body) = body_opt else unsafe { unreachable };
     // The python server splits 'chunked-body-data' into two chunks.
@@ -356,7 +362,7 @@ public func INT_https_verified_with_custom_ca(env : &mut TestEnv) {
     var Ok(r) = res else unsafe { unreachable };
     if(r.status != 200u) { env.error("expected 200") }
 
-    var body_opt = r.body.read_to_string_opt()
+    var body_opt = r.body.text()
     if(body_opt is std.Option.None) { env.error("body read failed"); cert_chain_free(root); return }
     var Some(body) = body_opt else unsafe { unreachable };
     if(!body.equals_view("world")) { env.error("body mismatch on verified connection") }
@@ -478,7 +484,7 @@ public func INT_http_plain_and_https_same_client(env : &mut TestEnv) {
     if(r_tls is Result.Err) { env.error("https request through shared client failed") } else {
         var Ok(t1) = r_tls else unsafe { unreachable };
         if(t1.status != 200u) { env.error("https expected 200") }
-        var b_opt = t1.body.read_to_string_opt()
+        var b_opt = t1.body.text()
         if(b_opt is std::Option.None) { env.error("https body read failed") } else {
             var Some(bd) = b_opt else unsafe { unreachable };
             if(!bd.equals_view("world")) { env.error("https body mismatch") }

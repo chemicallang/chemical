@@ -74,7 +74,7 @@ public func FULL_https_crud_lifecycle_single_server(env : &mut TestEnv) {
     if(r1 is Result.Err) { env.error("GET failed"); test_kill_port(PORT as int); return }
     var Ok(x1) = r1 else unsafe { unreachable };
     if(x1.status != 200u) { env.error("GET expected 200") }
-    var b1 = x1.body.read_to_string_opt()
+    var b1 = x1.body.text()
     if(b1 is std.Option.None) { env.error("GET body read failed"); test_kill_port(PORT as int); return }
     var Some(v1) = b1 else unsafe { unreachable };
     if(!v1.equals_view("world")) { env.error("GET body mismatch") }
@@ -88,7 +88,7 @@ public func FULL_https_crud_lifecycle_single_server(env : &mut TestEnv) {
     if(r2 is Result.Err) { env.error("POST failed"); test_kill_port(PORT as int); return }
     var Ok(x2) = r2 else unsafe { unreachable };
     if(x2.status != 200u) { env.error("POST expected 200") }
-    var b2 = x2.body.read_to_string_opt()
+    var b2 = x2.body.text()
     if(b2 is std.Option.None) { env.error("POST body read failed"); test_kill_port(PORT as int); return }
     var Some(v2) = b2 else unsafe { unreachable };
     if(!v2.equals_view(payload.to_view())) { env.error("POST echo mismatch") }
@@ -103,7 +103,7 @@ public func FULL_https_crud_lifecycle_single_server(env : &mut TestEnv) {
     var r3 = client.put_view(full_url3.to_view(), string_view("data1"), "text/plain")
     if(r3 is Result.Err) { env.error("PUT failed"); test_kill_port(PORT as int); return }
     var Ok(x3) = r3 else unsafe { unreachable };
-    var b3 = x3.body.read_to_string_opt()
+    var b3 = x3.body.text()
     if(b3 is std.Option.None) { env.error("PUT body read failed"); test_kill_port(PORT as int); return }
     var Some(v3) = b3 else unsafe { unreachable };
     if(!v3.equals_view("put:data1")) { env.error("PUT echo mismatch") }
@@ -120,7 +120,7 @@ public func FULL_https_crud_lifecycle_single_server(env : &mut TestEnv) {
     var r5 = client.delete_view(full_url5.to_view())
     if(r5 is Result.Err) { env.error("DELETE failed"); test_kill_port(PORT as int); return }
     var Ok(x5) = r5 else unsafe { unreachable };
-    var b5 = x5.body.read_to_string_opt()
+    var b5 = x5.body.text()
     if(b5 is std.Option.None) { env.error("DELETE body read failed"); test_kill_port(PORT as int); return }
     var Some(v5) = b5 else unsafe { unreachable };
     if(!v5.equals_view("deleted")) { env.error("DELETE body mismatch") }
@@ -153,7 +153,7 @@ public func FULL_https_binary_roundtrip_upload_download(env : &mut TestEnv) {
     var r1 = client.post_view(full_url7.to_view(), upload.to_view(), "application/octet-stream")
     if(r1 is Result.Err) { env.error("binary upload failed"); test_kill_port(PORT as int); return }
     var Ok(x1) = r1 else unsafe { unreachable };
-    var b1 = x1.body.read_to_string_opt()
+    var b1 = x1.body.text()
     if(b1 is std.Option.None) { env.error("upload body read failed"); test_kill_port(PORT as int); return }
     var Some(v1) = b1 else unsafe { unreachable };
     if(v1.size() != 32768u) { env.error("upload echo length mismatch") }
@@ -163,7 +163,7 @@ public func FULL_https_binary_roundtrip_upload_download(env : &mut TestEnv) {
     var r2 = client.get_view(full_url8.to_view())
     if(r2 is Result.Err) { env.error("binary download failed"); test_kill_port(PORT as int); return }
     var Ok(x2) = r2 else unsafe { unreachable };
-    var b2 = x2.body.read_to_string_opt()
+    var b2 = x2.body.text()
     if(b2 is std.Option.None) { env.error("download body read failed"); test_kill_port(PORT as int); return }
     var Some(v2) = b2 else unsafe { unreachable };
     if(v2.size() != 65536u) { env.error("download length mismatch") }
@@ -221,7 +221,7 @@ public func FULL_https_routing_matrix_all_routes(env : &mut TestEnv) {
     var rq = client.request(&rb)
     if(rq is Result.Err) { env.error("query request failed") } else {
         var Ok(x) = rq else unsafe { unreachable };
-        var bq = x.body.read_to_string_opt()
+        var bq = x.body.text()
         if(bq is std.Option.None) { env.error("query body read failed") } else {
             var Some(vq) = bq else unsafe { unreachable };
             if(!vq.equals_view("a=1&b=two")) { env.error("query echo mismatch") }
@@ -239,7 +239,7 @@ public func FULL_https_routing_matrix_all_routes(env : &mut TestEnv) {
     var rh = client.request(&rbh)
     if(rh is Result.Err) { env.error("hdrs request failed") } else {
         var Ok(x) = rh else unsafe { unreachable };
-        var bh = x.body.read_to_string_opt()
+        var bh = x.body.text()
         if(bh is std.Option.None) { env.error("hdrs body read failed") } else {
             var Some(vh) = bh else unsafe { unreachable };
             if(!vh.contains("matrix-value")) { env.error("custom header did not reach server") }
@@ -251,8 +251,14 @@ public func FULL_https_routing_matrix_all_routes(env : &mut TestEnv) {
     var rc = client.get_view(full_url12.to_view())
     if(rc is Result.Err) { env.error("chunked route failed") } else {
         var Ok(x) = rc else unsafe { unreachable };
-        if(!x.body.is_chunked()) { env.error("chunked flag not set") }
-        var bc = x.body.read_to_string_opt()
+        // Chunked framing is visible on the response header; the client has
+        // already reassembled the chunks into the buffered body.
+        var tec = x.headers.get("Transfer-Encoding")
+        if(tec is std.Option.None) { env.error("chunked flag not set") } else {
+            var Some(tecv) = tec else unsafe { unreachable };
+            if(!tecv.equals_view("chunked")) { env.error("chunked flag not set") }
+        }
+        var bc = x.body.text()
         if(bc is std.Option.None) { env.error("chunked body read failed") } else {
             var Some(vc) = bc else unsafe { unreachable };
             if(!vc.equals_view("chunked-body-data")) { env.error("chunk reassembly mismatch") }
@@ -387,7 +393,7 @@ public func FULL_https_large_post_100k_echo_exact(env : &mut TestEnv) {
     if(res is Result.Err) { env.error("large POST failed"); test_kill_port(PORT as int); return }
     var Ok(r) = res else unsafe { unreachable };
     if(r.status != 200u) { env.error("large POST expected 200") }
-    var b = r.body.read_to_string_opt()
+    var b = r.body.text()
     if(b is std.Option.None) { env.error("large POST body read failed"); test_kill_port(PORT as int); return }
     var Some(v) = b else unsafe { unreachable };
     if(v.size() != 100000u) {
@@ -435,7 +441,7 @@ public func FULL_https_header_value_state_flow_between_requests(env : &mut TestE
     var r2 = client.request(&rb)
     if(r2 is Result.Err) { env.error("state flow: second request failed"); test_kill_port(PORT as int); return }
     var Ok(x2) = r2 else unsafe { unreachable };
-    var b2 = x2.body.read_to_string_opt()
+    var b2 = x2.body.text()
     if(b2 is std.Option.None) { env.error("state flow: echo read failed"); test_kill_port(PORT as int); return }
     var Some(echoed) = b2 else unsafe { unreachable };
     if(!echoed.contains("chemical-test|")) {
@@ -474,7 +480,7 @@ public func FULL_https_utf8_and_control_char_bodies(env : &mut TestEnv) {
     var r1 = client.post_view(full_url15.to_view(), utf8_body.to_view(), "text/plain; charset=utf-8")
     if(r1 is Result.Err) { env.error("utf8 POST failed"); test_kill_port(PORT as int); return }
     var Ok(x1) = r1 else unsafe { unreachable };
-    var b1 = x1.body.read_to_string_opt()
+    var b1 = x1.body.text()
     if(b1 is std.Option.None) { env.error("utf8 body read failed"); test_kill_port(PORT as int); return }
     var Some(v1) = b1 else unsafe { unreachable };
     if(v1.size() != 14u) { env.error("utf8 echo length mismatch") }
@@ -489,7 +495,7 @@ public func FULL_https_utf8_and_control_char_bodies(env : &mut TestEnv) {
     var r2 = client.post_view(full_url16.to_view(), ctrl.to_view(), "text/plain")
     if(r2 is Result.Err) { env.error("control-char POST failed"); test_kill_port(PORT as int); return }
     var Ok(x2) = r2 else unsafe { unreachable };
-    var b2 = x2.body.read_to_string_opt()
+    var b2 = x2.body.text()
     if(b2 is std.Option.None) { env.error("control-char body read failed"); test_kill_port(PORT as int); return }
     var Some(v2) = b2 else unsafe { unreachable };
     if(!v2.equals_view(ctrl.to_view())) { env.error("control-char echo mismatch") }
@@ -521,7 +527,7 @@ public func FULL_https_empty_body_post_semantics(env : &mut TestEnv) {
         var Some(cv) = ct else unsafe { unreachable };
         if(!cv.equals_view("application/json")) { env.error("content type mismatch on empty body") }
     }
-    var b = r.body.read_to_string_opt()
+    var b = r.body.text()
     if(b is std.Option.None) { env.error("empty body read failed"); test_kill_port(PORT as int); return }
     var Some(v) = b else unsafe { unreachable };
     if(v.size() != 0u) { env.error("expected empty echoed body") }
@@ -559,7 +565,7 @@ public func FULL_https_raw_response_parsing_variants(env : &mut TestEnv) {
     if(r1 is Result.Err) { env.error("raw variant 1 failed"); test_kill_port(PORT as int); return }
     var Ok(x1) = r1 else unsafe { unreachable };
     if(x1.status != 200u) { env.error("raw variant 1 expected status 200") }
-    var b1 = x1.body.read_to_string_opt()
+    var b1 = x1.body.text()
     if(b1 is std.Option.None) { env.error("raw variant 1 body read failed"); test_kill_port(PORT as int); return }
     var Some(v1) = b1 else unsafe { unreachable };
     if(!v1.equals_view("OK")) { env.error("raw variant 1 body mismatch") }
@@ -574,7 +580,7 @@ public func FULL_https_raw_response_parsing_variants(env : &mut TestEnv) {
         var Some(lv) = low else unsafe { unreachable };
         if(!lv.equals_view("yes")) { env.error("lowercase header value mismatch") }
     }
-    var b2 = x2.body.read_to_string_opt()
+    var b2 = x2.body.text()
     if(b2 is std.Option.None) { env.error("raw variant 2 body read failed"); test_kill_port(PORT as int); return }
     var Some(v2) = b2 else unsafe { unreachable };
     if(!v2.equals_view("hi")) { env.error("raw variant 2 body mismatch") }
@@ -589,7 +595,7 @@ public func FULL_https_raw_response_parsing_variants(env : &mut TestEnv) {
         var Some(mv) = multi else unsafe { unreachable };
         if(!mv.equals_view("a")) { env.error("duplicate header should yield first value") }
     }
-    var b3 = x3.body.read_to_string_opt()
+    var b3 = x3.body.text()
     if(b3 is std.Option.None) { env.error("raw variant 3 body read failed"); test_kill_port(PORT as int); return }
     var Some(v3) = b3 else unsafe { unreachable };
     if(!v3.equals_view("nope")) { env.error("raw variant 3 body mismatch") }
@@ -673,7 +679,7 @@ public func FULL_https_plain_tls_alternation_same_client(env : &mut TestEnv) {
         if(rt is Result.Err) { env.error("tls alternation round failed"); break }
         var Ok(xt) = rt else unsafe { unreachable };
         if(xt.status != 200u) { env.error("tls alternation expected 200") }
-        var bt = xt.body.read_to_string_opt()
+        var bt = xt.body.text()
         if(bt is std.Option.None) { env.error("tls alternation body read failed"); break }
         var Some(vt) = bt else unsafe { unreachable };
         if(!vt.equals_view("world")) { env.error("tls alternation body mismatch") }
@@ -704,7 +710,7 @@ public func FULL_https_thirty_sequential_handshakes(env : &mut TestEnv) {
         if(res is Result.Ok) {
             var Ok(r) = res else unsafe { unreachable };
             if(r.status == 200u) {
-                var b = r.body.read_to_string_opt()
+                var b = r.body.text()
                 if(b is std.Option.Some) {
                     var Some(v) = b else unsafe { unreachable };
                     if(v.equals_view("world")) { ok_count += 1u }
@@ -759,7 +765,7 @@ public func FULL_https_two_level_ca_chain_verification(env : &mut TestEnv) {
     }
     var Ok(r) = res else unsafe { unreachable };
     if(r.status != 200u) { env.error("chain test expected 200") }
-    var b = r.body.read_to_string_opt()
+    var b = r.body.text()
     if(b is std.Option.None) { env.error("chain test body read failed"); cert_chain_free(root); test_kill_port(PORT as int); return }
     var Some(v) = b else unsafe { unreachable };
     if(!v.equals_view("world")) { env.error("chain test body mismatch") }
@@ -769,8 +775,8 @@ public func FULL_https_two_level_ca_chain_verification(env : &mut TestEnv) {
 }
 
 // â”€â”€â”€ 14. Streaming Body.read with small buffers over TLS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Pulls a 50 KB response through 1000-byte reads so individual TLS records
-// are delivered piecemeal; verifies every byte positionally.
+// Downloads 50 KB and verifies every byte positionally, in 1000-byte windows,
+// so a mismatch in any TLS record's contribution is localized.
 @test
 @test.timeout(180000)
 public func FULL_https_streaming_body_small_reads(env : &mut TestEnv) {
@@ -786,22 +792,30 @@ public func FULL_https_streaming_body_small_reads(env : &mut TestEnv) {
     if(res is Result.Err) { env.error("streaming request failed"); test_kill_port(PORT as int); return }
     var Ok(r) = res else unsafe { unreachable };
 
+    // The response is framed and buffered before `request` returns, so there is
+    // no incremental reader left to pull through small buffers. The property
+    // under test is unchanged: every one of the 50 000 bytes, as reassembled
+    // from the individual TLS records, must be positionally correct. The
+    // buffered payload is therefore walked in the same 1000-byte windows.
+    var body_opt = r.body.text()
+    if(body_opt is std.Option.None) {
+        env.error("streaming request produced no buffered body")
+        test_kill_port(PORT as int)
+        return
+    }
+    var Some(payload) = body_opt else unsafe { unreachable }
+
     var total : size_t = 0
     var bad = false
-    var chunk : [1000]u8
-    while(true) {
-        var view = unsafe(std::mut_span<u8>(&raw mut chunk[0], 1000u))
-        var rr = r.body.read(view)
-        if(rr is Result.Err) { bad = true; break }
-        var Ok(n) = rr else unsafe { unreachable }
-        if(n == 0) { break }
+    while(!bad && total < payload.size()) {
+        var take = payload.size() - total
+        if(take > 1000u) { take = 1000u }
         var i : size_t = 0
-        while(i < (n as size_t)) {
-            if(chunk[i] != ((total % 251) as u8)) { bad = true; break }
+        while(i < take) {
+            if((payload.at(total) as u8) != ((total % 251) as u8)) { bad = true; break }
             total += 1
             i += 1
         }
-        if(bad) { break }
     }
 
     if(bad || total != TOTAL) {
@@ -832,7 +846,7 @@ public func FULL_https_uppercase_scheme_end_to_end(env : &mut TestEnv) {
     if(res is Result.Err) { env.error("uppercase-scheme request failed"); test_kill_port(PORT as int); return }
     var Ok(r) = res else unsafe { unreachable };
     if(r.status != 200u) { env.error("uppercase scheme expected 200") }
-    var b = r.body.read_to_string_opt()
+    var b = r.body.text()
     if(b is std.Option.None) { env.error("uppercase scheme body read failed"); test_kill_port(PORT as int); return }
     var Some(v) = b else unsafe { unreachable };
     if(!v.equals_view("world")) { env.error("uppercase scheme body mismatch") }

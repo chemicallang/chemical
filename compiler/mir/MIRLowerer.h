@@ -714,6 +714,10 @@ private:
      * destination now owns.
      */
     void clear_moved_ref(Value* value);
+
+    // Clear the drop flag of the local/param a value is moved *out of*. For a
+    // pattern-bound payload this resolves to the owning variant.
+    void mark_moved_value(Value* value);
     PlaceId resolve_place(Value* v, std::string& error);
     /**
      * `resolve_place` for a caller that only needs the yes/no answer and

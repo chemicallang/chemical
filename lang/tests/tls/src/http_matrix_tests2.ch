@@ -51,7 +51,7 @@ public func MATRIX_redirect_location_header_flow(env : &mut TestEnv) {
     if(loc is std.Option.None) { env.error("Location header missing on 301"); test_kill_port(PORT as int); return }
     var Some(lv) = loc else unsafe { unreachable };
     if(!lv.equals_view("/r2")) { env.error("Location value mismatch") }
-    var b1 = x1.body.read_to_string_opt()
+    var b1 = x1.body.text()
     if(b1 is std.Option.None) { env.error("301 body read failed") } else {
         var Some(v1) = b1 else unsafe { unreachable };
         if(v1.size() != 0u) { env.error("301 body should be empty (CL:0)") }
@@ -63,7 +63,7 @@ public func MATRIX_redirect_location_header_flow(env : &mut TestEnv) {
     if(r2 is Result.Err) { env.error("redirect target request failed"); test_kill_port(PORT as int); return }
     var Ok(x2) = r2 else unsafe { unreachable };
     if(x2.status != 200u) { env.error("target expected 200") }
-    var b2 = x2.body.read_to_string_opt()
+    var b2 = x2.body.text()
     if(b2 is std.Option.None) { env.error("target body read failed"); test_kill_port(PORT as int); return }
     var Some(v2) = b2 else unsafe { unreachable };
     if(!v2.equals_view("final-target")) { env.error("target body mismatch") }
@@ -97,7 +97,7 @@ public func MATRIX_options_method_and_fragment_stripping(env : &mut TestEnv) {
     var r1 = client.request(&rb)
     if(r1 is Result.Err) { env.error("OPTIONS request failed"); test_kill_port(PORT as int); return }
     var Ok(x1) = r1 else unsafe { unreachable };
-    var b1 = x1.body.read_to_string_opt()
+    var b1 = x1.body.text()
     if(b1 is std.Option.None) { env.error("OPTIONS body read failed"); test_kill_port(PORT as int); return }
     var Some(v1) = b1 else unsafe { unreachable };
     if(!v1.equals_view("OPTIONS /opts")) { env.error("OPTIONS echo mismatch") }
@@ -112,7 +112,7 @@ public func MATRIX_options_method_and_fragment_stripping(env : &mut TestEnv) {
     var r2 = client.get_view(frag_url.to_view())
     if(r2 is Result.Err) { env.error("fragment request failed"); test_kill_port(PORT as int); return }
     var Ok(x2) = r2 else unsafe { unreachable };
-    var b2 = x2.body.read_to_string_opt()
+    var b2 = x2.body.text()
     if(b2 is std.Option.None) { env.error("fragment body read failed"); test_kill_port(PORT as int); return }
     var Some(v2) = b2 else unsafe { unreachable };
     if(!v2.equals_view("GET /p")) { env.error("fragment reached the server or path corrupted") }
@@ -326,7 +326,7 @@ public func MATRIX_parallel_upload_download_streams(env : &mut TestEnv) {
                 continue
             }
             var Ok(r) = res else unsafe { unreachable };
-            var b = r.body.read_to_string_opt()
+            var b = r.body.text()
             if(b is std.Option.None) {
                 s.lock.lock(); s.fails = s.fails + 1u; s.lock.unlock()
                 continue
@@ -352,7 +352,7 @@ public func MATRIX_parallel_upload_download_streams(env : &mut TestEnv) {
                 continue
             }
             var Ok(r) = res else unsafe { unreachable };
-            var b = r.body.read_to_string_opt()
+            var b = r.body.text()
             if(b is std.Option.None) {
                 s.lock.lock(); s.fails = s.fails + 1u; s.lock.unlock()
                 continue

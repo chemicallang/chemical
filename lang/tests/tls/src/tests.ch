@@ -2207,11 +2207,15 @@ public func https_tls_handshake_on_plain_server_fails(env : &mut TestEnv) {
     // The TLS handshake should fail because the server doesn't speak TLS
     var cfg = server::ServerConfig()
     cfg.addr = std::string::make_no_len("127.0.0.1:49998")
-    var srv = server::Server(cfg)
-    srv.router.add("GET", "/", ||(req, res) => {
-        res.write_string(std::string::make_no_len("plain-text"))
+    var bound = server::Server.bind(cfg)
+    if(bound is std.Result.Err) { env.error("bind failed on 49998"); return }
+    var Ok(bound_server) = bound else unsafe { unreachable }
+    var srv : server::Server = bound_server
+    srv.router.add("GET", "/", ||(req) => {
+        return http::response_text(200u, "plain-text")
     })
-    var thread = srv.serve_async(49998u)
+    var stop = srv.handle()
+    var thread = srv.serve_async()
     std.concurrent.sleep_ms(100u)
 
     var client = http::Client()
@@ -2220,7 +2224,7 @@ public func https_tls_handshake_on_plain_server_fails(env : &mut TestEnv) {
         env.error("https request to plain server should fail")
     }
 
-    srv.shutdown()
+    stop.shutdown()
     thread.join()
 
 }
@@ -2279,11 +2283,15 @@ public func https_mixed_http_and_https_requests_work(env : &mut TestEnv) {
     // Start a plain HTTP server
     var cfg = server::ServerConfig()
     cfg.addr = std::string::make_no_len("127.0.0.1:49994")
-    var srv = server::Server(cfg)
-    srv.router.add("GET", "/hello", ||(req, res) => {
-        res.write_string(std::string::make_no_len("http-world"))
+    var bound = server::Server.bind(cfg)
+    if(bound is std.Result.Err) { env.error("bind failed on 49994"); return }
+    var Ok(bound_server) = bound else unsafe { unreachable }
+    var srv : server::Server = bound_server
+    srv.router.add("GET", "/hello", ||(req) => {
+        return http::response_text(200u, "http-world")
     })
-    var thread = srv.serve_async(49994u)
+    var stop = srv.handle()
+    var thread = srv.serve_async()
     std.concurrent.sleep_ms(100u)
 
     // HTTP request should succeed
@@ -2313,7 +2321,7 @@ public func https_mixed_http_and_https_requests_work(env : &mut TestEnv) {
         }
     }
 
-    srv.shutdown()
+    stop.shutdown()
     thread.join()
 
 }
@@ -4540,49 +4548,106 @@ public func tls_init_is_idempotent(env : &mut TestEnv) {
 
 
 // ═══════════════════════════════════════════════════════════════
-// HTTP wrapper safety: raw-pointer and null handling
+// HTTP request-body reader: empty-body edge cases
 // ═══════════════════════════════════════════════════════════════
+//
+// The raw body reader (make_body + body_read, which took a caller-owned
+// `*mut net::Buffer` plus a null-checked destination pointer) was removed with
+// the old HTTP framing: the framework now frames and reads the whole request
+// body before dispatch, so a handler only ever sees a safe
+// `http::RequestBody`. The old null-pointer edge cases have a safe analogue on
+// an empty body — reads must report "no bytes" instead of failing, and the
+// exact reader must fail closed.
+//
+// The old "copies the initial buffer" case has no safe equivalent: a body with
+// content can only be produced by the framework (the append hooks are internal
+// to the http module), so that assertion was dropped rather than weakened.
 
 @test
-public func http_body_read_rejects_null_buffer(env : &mut TestEnv) {
-    unsafe {
-        var body = http::raw::make_body(0 as net::raw::Socket, null as *mut net::Buffer, 0, false, 0, 0, false)
-        if(http::raw::body_read(&raw mut body, null, 1) != -1) {
-            env.error("Body.read(null, 1) must fail closed")
-        }
-        if(http::raw::body_read(&raw mut body, null, 0) != 0) {
-            env.error("Body.read(null, 0) must be a no-op")
-        }
+public func http_request_body_empty_reads_succeed(env : &mut TestEnv) {
+    var body = http::RequestBody()
+    if(body.size() != 0u) { env.error("fresh RequestBody size must be 0") }
+    if(body.remaining() != 0u) { env.error("fresh RequestBody remaining must be 0") }
+    if(body.view().size() != 0u) { env.error("fresh RequestBody view must be empty") }
+
+    // Reading past the end (nothing left) is Ok(0), never a failure.
+    var scratch : [4]u8
+    var dst = unsafe(std::mut_span<u8>(&raw mut scratch[0], 4 as size_t))
+    var r = body.read(dst)
+    if(r is std::Result.Err) {
+        env.error("RequestBody.read on an empty body must not fail")
+    } else {
+        var Ok(n) = r else unsafe { unreachable }
+        if(n != 0u) { env.error("RequestBody.read on an empty body must return 0") }
     }
+
+    // A zero-length destination is a no-op and still Ok(0).
+    var zero = unsafe(std::mut_span<u8>(&raw mut scratch[0], 0 as size_t))
+    var rz = body.read(zero)
+    if(rz is std::Result.Err) {
+        env.error("RequestBody.read with a zero-length destination must not fail")
+    } else {
+        var Ok(nz) = rz else unsafe { unreachable }
+        if(nz != 0u) { env.error("RequestBody.read with a zero-length destination must return 0") }
+    }
+
+    // `read_exact` refuses to invent bytes that never arrived.
+    var dst2 = unsafe(std::mut_span<u8>(&raw mut scratch[0], 4 as size_t))
+    var rex = body.read_exact(dst2)
+    if(rex is std::Result.Ok) {
+        env.error("RequestBody.read_exact on an empty body must fail closed")
+    }
+
+    // The owned conversions report an empty payload, not an error.
+    var text = body.read_to_string()
+    if(text is std::Result.Err) {
+        env.error("RequestBody.read_to_string on an empty body must not fail")
+    } else {
+        var Ok(s) = text else unsafe { unreachable }
+        if(s.size() != 0u) { env.error("RequestBody.read_to_string on an empty body must be empty") }
+    }
+
+    var sink = vector<u8>()
+    var rte = body.read_to_end(&mut sink)
+    if(rte is std::Result.Err) {
+        env.error("RequestBody.read_to_end on an empty body must not fail")
+    } else {
+        var Ok(ne) = rte else unsafe { unreachable }
+        if(ne != 0u) { env.error("RequestBody.read_to_end on an empty body must return 0") }
+    }
+    if(sink.size() != 0u) { env.error("RequestBody.read_to_end must not append bytes to an empty body") }
 }
 
 @test
-public func http_body_copies_initial_buffer(env : &mut TestEnv) {
-    unsafe {
-        var src = net::Buffer()
-        var bytes : [3]u8 = [65u8, 66u8, 67u8]
-        src.append_bytes(&raw mut bytes[0], 3)
-        var body = http::raw::make_body(0 as net::raw::Socket, &mut src as *mut net::Buffer, 3, false, 0, 0, false)
-        // Drop/replace the source buffer: Body must have copied the bytes.
-        src = net::Buffer()
-        var out : [3]u8
-        var n = http::raw::body_read(&raw mut body, &raw mut out[0], 3)
-        if(n != 3) { env.error("Body must read the copied initial bytes"); return }
-        if(out[0] != 65u8 || out[1] != 66u8 || out[2] != 67u8) {
-            env.error("Body copied the wrong initial bytes")
-        }
-    }
-}
+public func http_header_lookup_is_case_insensitive(env : &mut TestEnv) {
+    // `http::strcasecmp` was removed with the raw-pointer helper surface; the
+    // behaviour it guaranteed (case-insensitive header-name comparison) lives in
+    // `http.HeaderMap.get`, which is what this now pins: lookups ignore the case
+    // of both the stored name and the queried name, and a miss is `None`.
+    var map = http::HeaderMap()
+    var key = string_view("X-Test-Header")
+    var val = string_view("value")
+    map.insert_view(&key, &val)
 
-@test
-public func http_strcasecmp_handles_null(env : &mut TestEnv) {
-    unsafe {
-        if(http::strcasecmp(null as *char, null as *char) != 0) {
-            env.error("strcasecmp(null, null) must be equal")
-        }
-        if(http::strcasecmp(null as *char, "x") == 0) {
-            env.error("strcasecmp(null, non-null) must not be equal")
-        }
+    var exact = map.get("X-Test-Header")
+    if(exact is std.Option.None) {
+        env.error("exact-case header lookup must find the header")
+    }
+    var lower = map.get("x-test-header")
+    if(lower is std.Option.None) {
+        env.error("lowercase header lookup must find the same header")
+    } else {
+        var Some(lv) = lower else unsafe { unreachable }
+        if(!lv.equals_view("value")) { env.error("case-insensitive lookup returned the wrong value") }
+    }
+    var upper = map.get("X-TEST-HEADER")
+    if(upper is std.Option.None) {
+        env.error("uppercase header lookup must find the same header")
+    }
+    // A different name must still miss: case folding must not collapse distinct
+    // headers together.
+    if(map.get("X-Other") is std.Option.Some) {
+        env.error("lookup must not match an unrelated header name")
     }
 }
 

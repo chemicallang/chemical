@@ -31,8 +31,10 @@ public namespace net {
             var overlapped: OVERLAPPED;
             var buffer: WSABUF;
             var callback: std::function<(ctx: *mut AsyncContext, bytes: u32, ok: bool) => void>;
-            var accumulated: std::vector<u8>;
-            var read_pos: usize;
+            // Bytes received but not yet consumed by the HTTP pipeline. A
+            // `Buffer` (not a raw vector) so the request reader can consume a
+            // header block and leave the body / next pipelined request in place.
+            var accumulated: Buffer;
 
             @constructor
             func constructor(buf: *mut char, len: u32) {
@@ -50,8 +52,7 @@ public namespace net {
                         len : len
                     }
                     callback : () => {}
-                    accumulated : std::vector<u8>()
-                    read_pos : 0u
+                    accumulated : Buffer()
                 }
 
         }}

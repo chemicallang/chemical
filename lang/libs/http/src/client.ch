@@ -3,6 +3,7 @@ public namespace http {
 
 using std::Option;
 using std::Result;
+using std::Unit;
 using std::string;
 using std::string_view;
 using std::vector;
@@ -22,6 +23,16 @@ public struct URL {
             path = http_lit("/"),
             query = string()
         }
+    }
+
+    public func is_https(&self) : bool {
+        return self.scheme.equals_with_len("https", 5)
+    }
+
+    /// Whether the port differs from the scheme default (and must be emitted).
+    public func has_explicit_port(&self) : bool {
+        if(self.is_https()) { return self.port != 443u }
+        return self.port != 80u
     }
 
     public func parse(url_str: &string_view) : Option<URL> {
@@ -65,23 +76,48 @@ public struct URL {
             }
         }
 
-        var colon = host_port.find_or_npos(":");
-        if(colon == std::NPOS) {
-            res.host = string::view_make(&host_port);
-        } else {
-            res.host = string::view_make(host_port.subview(0u, colon));
-            var pstr = host_port.subview(colon + 1u, host_port.size());
-            var pval = 0u;
-            for(var i=0u; i<pstr.size(); i++) {
-                var c = pstr.at(i);
-                if(c >= '0' && c <= '9') { pval = pval * 10u + (c as uint - '0' as uint) }
+        // Split host/port. An IPv6 literal is bracketed: [::1]:8080.
+        if(host_port.size() > 0u && host_port.at(0u) == '[') {
+            var close = host_port.find_or_npos("]");
+            if(close != std::NPOS) {
+                res.host = string::view_make(host_port.subview(1u, close));
+                if(close + 1u < host_port.size() && host_port.at(close + 1u) == ':') {
+                    var pv = url_port(host_port.subview(close + 2u, host_port.size()));
+                    if(pv is Option.None) { return Option.None<URL>() }
+                    var Some(p) = pv else unsafe { unreachable }
+                    res.port = p as uint;
+                }
             }
-            if(pval > 0u) { res.port = pval }
+        } else {
+            var colon = host_port.find_last_or_npos(":");
+            if(colon == std::NPOS) {
+                res.host = string::view_make(&host_port);
+            } else {
+                res.host = string::view_make(host_port.subview(0u, colon));
+                var pv = url_port(host_port.subview(colon + 1u, host_port.size()));
+                if(pv is Option.None) { return Option.None<URL>() }
+                var Some(p) = pv else unsafe { unreachable }
+                res.port = p as uint;
+            }
         }
 
         if(res.host.empty()) { return Option.None<URL>() }
         return Option.Some<URL>(res);
     }
+}
+
+func url_port(v : string_view) : Option<u16> {
+    if(v.empty()) { return Option.None<u16>() }
+    var p : u32 = 0u
+    var i = 0u
+    while(i < v.size()) {
+        var c = v.at(i)
+        if(c < '0' || c > '9') { return Option.None<u16>() }
+        p = p * 10u + ((c as u32) - ('0' as u32))
+        if(p > 65535u) { return Option.None<u16>() }
+        i += 1u
+    }
+    return Option.Some<u16>(p as u16)
 }
 
 func http_base64(data : &[u8]) : string {
@@ -144,12 +180,8 @@ public struct RequestBuilder {
         return self;
     }
 
-    public func header_str(&mut self, k : &str, v : &str) : &mut RequestBuilder {
-        return self.header(k, v)
-    }
-
     public func header_view(&mut self, k : &string_view, v : &string_view) : &mut RequestBuilder {
-        headers.insert(string::view_make(k), string::view_make(v));
+        headers.insert_view(k, v);
         return self;
     }
 
@@ -199,6 +231,10 @@ public struct RequestBuilder {
         return self;
     }
 
+    public func is_head(&self) : bool {
+        return self.method.equals_with_len("HEAD", 4);
+    }
+
     public func build(&self, absolute: bool = false) : string {
         var out = string();
         out.append_string(&method);
@@ -207,7 +243,7 @@ public struct RequestBuilder {
             out.append_string(&url.scheme);
             out.append_view("://");
             out.append_string(&url.host);
-            if((url.scheme.equals_with_len("http", 4) && url.port != 80u) || (url.scheme.equals_with_len("https", 5) && url.port != 443u)) {
+            if(url.has_explicit_port()) {
                 out.append(':');
                 out.append_uinteger(url.port);
             }
@@ -219,7 +255,7 @@ public struct RequestBuilder {
         }
         out.append_view(" HTTP/1.1\r\nHost: ");
         out.append_string(&url.host);
-        if((url.scheme.equals_with_len("http", 4) && url.port != 80u) || (url.scheme.equals_with_len("https", 5) && url.port != 443u)) {
+        if(url.has_explicit_port()) {
             out.append(':');
             out.append_uinteger(url.port);
         }
@@ -235,14 +271,13 @@ public struct RequestBuilder {
             out.append_view("User-Agent: chemical-client/0.1\r\n");
         }
 
-        var i = 0u;
-        while(i < headers.headers.size()) {
-            var p = headers.headers.get_ptr(i);
-            unsafe { out.append_string(&p.first); }
+        var iter = headers.iter()
+        while(iter.valid()) {
+            out.append_view(iter.name());
             out.append_view(": ");
-            unsafe { out.append_string(&p.second); }
+            out.append_view(iter.value());
             out.append_view("\r\n");
-            i++;
+            iter.next()
         }
         out.append_view("Connection: close\r\n\r\n");
         if(body.size() > 0u) {
@@ -252,17 +287,29 @@ public struct RequestBuilder {
     }
 }
 
-public struct Client {
-    internal var default_timeout_secs: long;
-    internal var max_response_header_bytes: usize;
-    var max_body_len: usize;
-    // Owned trust store. `has_ca` selects the caller's chain over the lazily
-    // loaded system bundle. Both are owned so a borrowed chain cannot die
-    // between configuration and the handshake.
+// Trust material. Owned by the client and only ever read after configuration,
+// which is why it can live behind a `Mutex` and be shared by concurrent
+// requests. Public only because it is a field type of the public `Client`;
+// its fields are internal, so safe code cannot construct or inspect one.
+public struct TrustStore {
     internal var ca_chain: tls::CertificateChain;
     internal var has_ca: bool;
     internal var system_ca: tls::CertificateChain;
     internal var has_system_ca: bool;
+}
+
+// A parsed certificate chain is an immutable heap handle (exactly what a server
+// already shares across its workers), so moving it between threads and reading
+// it concurrently is sound. All mutation goes through `Mutex<TrustStore>`.
+unsafe impl Send for TrustStore { }
+unsafe impl Sync for TrustStore { }
+
+public struct Client {
+    internal var default_timeout_secs: long;
+    internal var max_response_header_bytes: usize;
+    var max_body_len: usize;
+    // Owned trust store, guarded so `&self` request methods can read it.
+    internal var trusted: std::Mutex<TrustStore>;
     internal var tls_skip_verify: bool;
     internal var proxy_host: string;
     internal var proxy_port: uint;
@@ -272,10 +319,12 @@ public struct Client {
             default_timeout_secs = 10,
             max_response_header_bytes = 64u * 1024u,
             max_body_len = DEFAULT_MAX_BODY_LEN,
-            ca_chain = tls::CertificateChain(),
-            has_ca = false,
-            system_ca = tls::CertificateChain(),
-            has_system_ca = false,
+            trusted : std::new_mutex(TrustStore {
+                ca_chain : tls::CertificateChain(),
+                has_ca : false,
+                system_ca : tls::CertificateChain(),
+                has_system_ca : false
+            }),
             tls_skip_verify = false,
             proxy_host = string(),
             proxy_port = 0u
@@ -286,15 +335,19 @@ public struct Client {
     /// bundle. The client takes ownership of the chain and keeps it alive for
     /// every request.
     public func set_ca_chain(&mut self, chain : tls::CertificateChain) : &mut Client {
-        self.ca_chain = chain
-        self.has_ca = true
+        var guard = self.trusted.lock()
+        var store = guard.get()
+        store.ca_chain = chain
+        store.has_ca = true
         return self;
     }
 
     /// Load and cache the system CA bundle (once per client).
-    func ensure_ca(&mut self) : Result<std::Unit, HttpError> {
-        if(self.has_ca || self.has_system_ca) {
-            return Result.Ok(std::Unit { })
+    func ensure_ca(&self) : Result<Unit, HttpError> {
+        var guard = self.trusted.lock()
+        var store = guard.get()
+        if(store.has_ca || store.has_system_ca) {
+            return Result.Ok(Unit { })
         }
         var ca = tls::load_system_ca_bundle()
         if(ca is Result.Err) {
@@ -302,9 +355,9 @@ public struct Client {
             return Result.Err(HttpError.Tls(e))
         }
         var Ok(chain) = ca else unsafe { unreachable }
-        self.system_ca = std::replace(&mut chain, tls::CertificateChain())
-        self.has_system_ca = true
-        return Result.Ok(std::Unit { })
+        store.system_ca = std::replace(&mut chain, tls::CertificateChain())
+        store.has_system_ca = true
+        return Result.Ok(Unit { })
     }
 
     public func insecure_skip_verify(&mut self, skip : bool = true) : &mut Client {
@@ -322,11 +375,13 @@ public struct Client {
         var cfg = tls::TlsConfig.client()
         // Verification-disabled configs need no trust store at all.
         if(!self.tls_skip_verify) {
-            var set : Result<std::Unit, tls::TlsError>
-            if(self.has_ca) {
-                set = cfg.set_ca_chain(&self.ca_chain)
+            var set : Result<Unit, tls::TlsError>
+            var guard = self.trusted.lock()
+            var store = guard.get()
+            if(store.has_ca) {
+                set = cfg.set_ca_chain(&store.ca_chain)
             } else {
-                set = cfg.set_ca_chain(&self.system_ca)
+                set = cfg.set_ca_chain(&store.system_ca)
             }
             if(set is Result.Err) {
                 var Err(e) = set else unsafe { unreachable }
@@ -342,21 +397,11 @@ public struct Client {
         return Result.Ok(cfg)
     }
 
-    public func request(&mut self, req_builder : &RequestBuilder) : Result<Response, HttpError> {
-        var host_str = std::str.make_view(req_builder.url.host.to_view())
-        var is_https = req_builder.url.scheme.equals_with_len("https", 5)
-        var use_proxy = proxy_host.size() > 0u && proxy_port > 0u
-        // Plain HTTP never touches the trust store; load it only for a TLS hop
-        // that verifies the peer.
-        if(is_https && !self.tls_skip_verify) {
-            var ca_ready = self.ensure_ca()
-            if(ca_ready is Result.Err) {
-                var Err(e) = ca_ready else unsafe { unreachable }
-                return Result.Err(e)
-            }
-        }
-        var transport_box : *mut Transport = null
-
+    /// Open the connection for one request: a fresh socket, a proxy tunnel, or a
+    /// TLS client over either. Returned by value so the caller never declares an
+    /// uninitialized `Stream`.
+    func open_connection(&self, req_builder : &RequestBuilder, host_str : std::str,
+                         is_https : bool, use_proxy : bool) : Result<Stream, HttpError> {
         if(use_proxy) {
             var proxy_host_str = std::str.make_view(proxy_host.to_view())
             var tcp_r = net::TcpStream.connect(proxy_host_str, proxy_port as u16)
@@ -364,82 +409,44 @@ public struct Client {
                 return Result.Err(HttpError.Connect(http_make_string("failed to connect to proxy")))
             }
             var Ok(tcp) = tcp_r else unsafe { unreachable }
-            if(is_https) {
-                var connect_req = string()
-                connect_req.append_view("CONNECT ")
-                connect_req.append_string(&req_builder.url.host)
-                connect_req.append(':')
-                connect_req.append_uinteger(req_builder.url.port)
-                connect_req.append_view(" HTTP/1.1\r\nHost: ")
-                connect_req.append_string(&req_builder.url.host)
-                connect_req.append(':')
-                connect_req.append_uinteger(req_builder.url.port)
-                connect_req.append_view("\r\n\r\n")
-                var wr = tcp.write_all(unsafe(std::span<u8>(connect_req.data() as *u8, connect_req.size())))
-                if(wr is Result.Err) {
-                    return Result.Err(HttpError.Connect(http_make_string("proxy CONNECT write failed")))
-                }
-                // Read and validate the CONNECT response head.
-                var cbuf = net::Buffer()
-                var connect_ok = false
-                var reads = 0
-                while(true) {
-                    var i = 0u
-                    var hdr_end = 0u
-                    var found = false
-                    while(i + 3u < cbuf.len()) {
-                        if(cbuf.get_byte(i) == '\r' as u8 && cbuf.get_byte(i+1u) == '\n' as u8 &&
-                           cbuf.get_byte(i+2u) == '\r' as u8 && cbuf.get_byte(i+3u) == '\n' as u8) {
-                            found = true
-                            hdr_end = i
-                            break
-                        }
-                        i = i + 1u
-                    }
-                    if(found) {
-                        var j = 0u
-                        while(j < hdr_end && cbuf.get_byte(j) != '\r' as u8) { j = j + 1u }
-                        var sp = 0u
-                        while(sp < j && cbuf.get_byte(sp) != ' ' as u8) { sp = sp + 1u }
-                        sp = sp + 1u
-                        var code = 0u
-                        while(sp < j && cbuf.get_byte(sp) >= '0' as u8 && cbuf.get_byte(sp) <= '9' as u8) {
-                            code = code * 10u + (cbuf.get_byte(sp) as uint - '0' as uint)
-                            sp = sp + 1u
-                        }
-                        if(code >= 200u && code < 300u) { connect_ok = true }
-                        break
-                    }
-                    var tmp : [1024]u8
-                    var n = tcp.read(unsafe(std::mut_span<u8>(&raw mut tmp[0], 1024 as size_t)))
-                    if(n is Result.Err) { break }
-                    var Ok(got) = n else unsafe { unreachable }
-                    if(got == 0u) { break }
-                    cbuf.append_bytes(&raw mut tmp[0], got)
-                    reads = reads + 1
-                    if(reads > 128) { break }
-                }
-                if(!connect_ok) {
-                    return Result.Err(HttpError.Connect(http_make_string("proxy CONNECT failed")))
-                }
-                var cfg = self.tls_config(host_str)
-                if(cfg is Result.Err) {
-                    var Err(e) = cfg else unsafe { unreachable }
-                    return Result.Err(e)
-                }
-                var Ok(tcfg) = cfg else unsafe { unreachable }
-                var tls_r = tls::TlsStream.wrap(tcp, &tcfg)
-                if(tls_r is Result.Err) {
-                    var Err(e) = tls_r else unsafe { unreachable }
-                    return Result.Err(HttpError.Tls(e))
-                }
-                var Ok(ts) = tls_r else unsafe { unreachable }
-                transport_box = transport_box_tls(tls::TlsStream.into_box(&mut ts))
-            } else {
-                var pfd = unsafe(net::raw::release_tcp(&mut tcp))
-                transport_box = transport_box_plain(pfd)
+            if(!is_https) {
+                return Result.Ok(Stream.Tcp(tcp))
             }
-        } else if(is_https) {
+            var connect_req = string()
+            connect_req.append_view("CONNECT ")
+            connect_req.append_string(&req_builder.url.host)
+            connect_req.append(':')
+            connect_req.append_uinteger(req_builder.url.port)
+            connect_req.append_view(" HTTP/1.1\r\nHost: ")
+            connect_req.append_string(&req_builder.url.host)
+            connect_req.append(':')
+            connect_req.append_uinteger(req_builder.url.port)
+            connect_req.append_view("\r\n\r\n")
+            var tunnel = Stream.Tcp(tcp)
+            var wr = tunnel.write_all_bytes(unsafe(std::span<u8>(connect_req.data() as *u8, connect_req.size())))
+            if(wr is Result.Err) {
+                return Result.Err(HttpError.Connect(http_make_string("proxy CONNECT write failed")))
+            }
+            if(!proxy_tunnel_ok(&mut tunnel)) {
+                return Result.Err(HttpError.Connect(http_make_string("proxy CONNECT failed")))
+            }
+            var cfg = self.tls_config(host_str)
+            if(cfg is Result.Err) {
+                var Err(e) = cfg else unsafe { unreachable }
+                return Result.Err(e)
+            }
+            var Ok(tcfg) = cfg else unsafe { unreachable }
+            var owned = tunnel.detach()
+            var tcp2 = net::raw::stream_from_fd(owned)
+            var tls_r = tls::TlsStream.wrap(tcp2, &tcfg)
+            if(tls_r is Result.Err) {
+                var Err(e) = tls_r else unsafe { unreachable }
+                return Result.Err(HttpError.Tls(e))
+            }
+            var Ok(ts) = tls_r else unsafe { unreachable }
+            return Result.Ok(Stream.TlsClient(ts))
+        }
+        if(is_https) {
             var cfg = self.tls_config(host_str)
             if(cfg is Result.Err) {
                 var Err(e) = cfg else unsafe { unreachable }
@@ -452,137 +459,189 @@ public struct Client {
                 return Result.Err(HttpError.Tls(e))
             }
             var Ok(ts) = tls_r else unsafe { unreachable }
-            transport_box = transport_box_tls(tls::TlsStream.into_box(&mut ts))
-        } else {
-            var tcp_r = net::TcpStream.connect(host_str, req_builder.url.port as u16)
-            if(tcp_r is Result.Err) {
-                return Result.Err(HttpError.Connect(http_make_string("failed to connect")))
+            return Result.Ok(Stream.TlsClient(ts))
+        }
+        var tcp_r = net::TcpStream.connect(host_str, req_builder.url.port as u16)
+        if(tcp_r is Result.Err) {
+            return Result.Err(HttpError.Connect(http_make_string("failed to connect")))
+        }
+        var Ok(tcp) = tcp_r else unsafe { unreachable }
+        return Result.Ok(Stream.Tcp(tcp))
+    }
+
+    /// Perform one request on a fresh connection. `&self`, so one client can be
+    /// shared by a worker pool; the trust store is read under its own lock.
+    public func request(&self, req_builder : &RequestBuilder) : Result<Response, HttpError> {
+        var host_str = std::str.make_view(req_builder.url.host.to_view())
+        var is_https = req_builder.url.is_https()
+        var use_proxy = proxy_host.size() > 0u && proxy_port > 0u
+        // Plain HTTP never touches the trust store; load it only for a TLS hop
+        // that verifies the peer.
+        if(is_https && !self.tls_skip_verify) {
+            var ca_ready = self.ensure_ca()
+            if(ca_ready is Result.Err) {
+                var Err(e) = ca_ready else unsafe { unreachable }
+                return Result.Err(e)
             }
-            var Ok(tcp) = tcp_r else unsafe { unreachable }
-            var tfd = unsafe(net::raw::release_tcp(&mut tcp))
-            transport_box = transport_box_plain(tfd)
         }
 
+        var opened = self.open_connection(req_builder, host_str, is_https, use_proxy)
+        if(opened is Result.Err) {
+            var Err(oe) = opened else unsafe { unreachable }
+            return Result.Err(oe)
+        }
+        var Ok(stream) = opened else unsafe { unreachable }
+
         var req_data = req_builder.build(use_proxy && !is_https)
-        var wr = unsafe(transport_box.write_all_bytes(unsafe(std::span<u8>(req_data.data() as *u8, req_data.size()))))
+        var wr = stream.write_all_bytes(unsafe(std::span<u8>(req_data.data() as *u8, req_data.size())))
         if(wr is Result.Err) {
             return Result.Err(HttpError.Io(http_io_error()))
         }
 
-        var buf_ptr = new net::Buffer()
-        var transport_ref = unsafe(&mut *transport_box)
-        var head = read_response_head(transport_ref, buf_ptr, req_builder.timeout_secs,
-                                       self.max_response_header_bytes)
+        var buf = net::Buffer()
+        var head = read_response_head(&mut stream, &mut buf, req_builder.timeout_secs,
+                                      self.max_response_header_bytes)
         if(head is Result.Err) {
-            unsafe { delete buf_ptr }
             var Err(e) = head else unsafe { unreachable }
             return Result.Err(e)
         }
         var Ok(res) = head else unsafe { unreachable }
-        var is_head = req_builder.method.equals_with_len("HEAD", 4)
-        var body_len : isize = 0
-        var chunked = false
-        if(!is_head) {
-            body_len = -1
-            if(res.body_len > 0u) { body_len = res.body_len as isize }
-            var te = res.headers.get("Transfer-Encoding")
-            if(te is Option.Some) {
-                var Some(tv) = te else unsafe { unreachable }
-                if(tv.equals(string_view("chunked"))) { chunked = true; body_len = -1 }
+        if(req_builder.is_head()) {
+            res.body = ResponseBody.Empty()
+        } else {
+            var body_r = read_response_body(&mut stream, &mut buf, &mut res,
+                                            self.max_body_len,
+                                            (req_builder.timeout_secs * 4 * 1000) as u64)
+            if(body_r is Result.Err) {
+                var Err(e) = body_r else unsafe { unreachable }
+                return Result.Err(e)
             }
         }
-        std::replace(&mut res.body, Body.make_owned(transport_box, buf_ptr, body_len, chunked,
-                                   req_builder.timeout_secs * 4, self.max_body_len))
-        unsafe { delete buf_ptr }
+        var _ = stream.shutdown()
         return Result.Ok(res)
     }
 
-    public func get(&mut self, url_str: &str) : Result<Response, HttpError> {
+    // -----------------------------------------------------------------------
+    // Convenience methods
+    // -----------------------------------------------------------------------
+
+    public func get(&self, url_str: &str) : Result<Response, HttpError> {
         var sv = unsafe(string_view(url_str.data(), url_str.size()))
         return self.get_view(&sv)
     }
 
-    public func get_view(&mut self, url_str: &string_view) : Result<Response, HttpError> {
-        var u_opt = URL::parse(url_str);
-        if(u_opt is Option.None) { return Result.Err(HttpError.InvalidUrl()) }
-        var Some(u) = u_opt else unsafe { unreachable };
-        var rb = RequestBuilder("GET", std::replace(&mut u, URL()));
-        rb.timeout(self.default_timeout_secs);
-        return self.request(&rb);
+    public func get_view(&self, url_str: &string_view) : Result<Response, HttpError> {
+        var parsed = URL.parse(url_str)
+        if(parsed is Option.None) { return Result.Err(HttpError.InvalidUrl()) }
+        var Some(url) = parsed else unsafe { unreachable }
+        var rb = RequestBuilder("GET", url)
+        rb.timeout_secs = self.default_timeout_secs
+        return self.request(&rb)
     }
 
-    public func post(&mut self, url_str: &str, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
+    public func post(&self, url_str: &str, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
         var sv = unsafe(string_view(url_str.data(), url_str.size()))
         return self.post_view(&sv, body, content_type)
     }
 
-    public func post_view(&mut self, url_str: &string_view, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
-        var u_opt = URL::parse(url_str);
-        if(u_opt is Option.None) { return Result.Err(HttpError.InvalidUrl()) }
-        var Some(u) = u_opt else unsafe { unreachable };
-        var rb = RequestBuilder("POST", std::replace(&mut u, URL()));
-        rb.set_body(body, content_type);
-        rb.timeout(self.default_timeout_secs);
-        return self.request(&rb);
+    public func post_view(&self, url_str: &string_view, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
+        return self.with_body("POST", url_str, body, content_type)
     }
 
-    public func put(&mut self, url_str: &str, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
+    public func put(&self, url_str: &str, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
         var sv = unsafe(string_view(url_str.data(), url_str.size()))
         return self.put_view(&sv, body, content_type)
     }
 
-    public func put_view(&mut self, url_str: &string_view, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
-        var u_opt = URL::parse(url_str);
-        if(u_opt is Option.None) { return Result.Err(HttpError.InvalidUrl()) }
-        var Some(u) = u_opt else unsafe { unreachable };
-        var rb = RequestBuilder("PUT", std::replace(&mut u, URL()));
-        rb.set_body(body, content_type);
-        rb.timeout(self.default_timeout_secs);
-        return self.request(&rb);
+    public func put_view(&self, url_str: &string_view, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
+        return self.with_body("PUT", url_str, body, content_type)
     }
 
-    public func patch(&mut self, url_str: &str, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
+    public func patch(&self, url_str: &str, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
         var sv = unsafe(string_view(url_str.data(), url_str.size()))
         return self.patch_view(&sv, body, content_type)
     }
 
-    public func patch_view(&mut self, url_str: &string_view, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
-        var u_opt = URL::parse(url_str);
-        if(u_opt is Option.None) { return Result.Err(HttpError.InvalidUrl()) }
-        var Some(u) = u_opt else unsafe { unreachable };
-        var rb = RequestBuilder("PATCH", std::replace(&mut u, URL()));
-        rb.set_body(body, content_type);
-        rb.timeout(self.default_timeout_secs);
-        return self.request(&rb);
+    public func patch_view(&self, url_str: &string_view, body: &string_view, content_type: &str = "text/plain") : Result<Response, HttpError> {
+        return self.with_body("PATCH", url_str, body, content_type)
     }
 
-    public func delete(&mut self, url_str: &str) : Result<Response, HttpError> {
+    public func delete(&self, url_str: &str) : Result<Response, HttpError> {
         var sv = unsafe(string_view(url_str.data(), url_str.size()))
         return self.delete_view(&sv)
     }
 
-    public func delete_view(&mut self, url_str: &string_view) : Result<Response, HttpError> {
-        var u_opt = URL::parse(url_str);
-        if(u_opt is Option.None) { return Result.Err(HttpError.InvalidUrl()) }
-        var Some(u) = u_opt else unsafe { unreachable };
-        var rb = RequestBuilder("DELETE", std::replace(&mut u, URL()));
-        rb.timeout(self.default_timeout_secs);
-        return self.request(&rb);
+    public func delete_view(&self, url_str: &string_view) : Result<Response, HttpError> {
+        return self.simple("DELETE", url_str)
     }
 
-    public func head(&mut self, url_str: &str) : Result<Response, HttpError> {
+    public func head(&self, url_str: &str) : Result<Response, HttpError> {
         var sv = unsafe(string_view(url_str.data(), url_str.size()))
         return self.head_view(&sv)
     }
 
-    public func head_view(&mut self, url_str: &string_view) : Result<Response, HttpError> {
-        var u_opt = URL::parse(url_str);
-        if(u_opt is Option.None) { return Result.Err(HttpError.InvalidUrl()) }
-        var Some(u) = u_opt else unsafe { unreachable };
-        var rb = RequestBuilder("HEAD", std::replace(&mut u, URL()));
-        rb.timeout(self.default_timeout_secs);
-        return self.request(&rb);
+    public func head_view(&self, url_str: &string_view) : Result<Response, HttpError> {
+        return self.simple("HEAD", url_str)
     }
+
+    func simple(&self, method : &str, url_str : &string_view) : Result<Response, HttpError> {
+        var parsed = URL.parse(url_str)
+        if(parsed is Option.None) { return Result.Err(HttpError.InvalidUrl()) }
+        var Some(url) = parsed else unsafe { unreachable }
+        var m = http_make_string(method)
+        var rb = RequestBuilder(unsafe(m.c_str()), url)
+        rb.timeout_secs = self.default_timeout_secs
+        return self.request(&rb)
+    }
+
+    func with_body(&self, method : &str, url_str : &string_view, body : &string_view, content_type : &str) : Result<Response, HttpError> {
+        var parsed = URL.parse(url_str)
+        if(parsed is Option.None) { return Result.Err(HttpError.InvalidUrl()) }
+        var Some(url) = parsed else unsafe { unreachable }
+        var m = http_make_string(method)
+        var rb = RequestBuilder(unsafe(m.c_str()), url)
+        rb.timeout_secs = self.default_timeout_secs
+        rb.set_body(body, content_type)
+        return self.request(&rb)
+    }
+}
+
+// Read a proxy CONNECT response head and return whether it was 2xx.
+func proxy_tunnel_ok(tunnel : &mut Stream) : bool {
+    var buf = net::Buffer()
+    var reads = 0
+    while(true) {
+        var i = 0u
+        var n = buf.len()
+        while(i + 3u < n) {
+            if(buf.get_byte(i) == '\r' as u8 && buf.get_byte(i+1u) == '\n' as u8 &&
+               buf.get_byte(i+2u) == '\r' as u8 && buf.get_byte(i+3u) == '\n' as u8) {
+                // Status line: HTTP/1.1 200 ...
+                var j = 0u
+                while(j < i && buf.get_byte(j) != '\r' as u8) { j = j + 1u }
+                var sp = 0u
+                while(sp < j && buf.get_byte(sp) != ' ' as u8) { sp = sp + 1u }
+                sp = sp + 1u
+                var code : u32 = 0u
+                while(sp < j && buf.get_byte(sp) >= '0' as u8 && buf.get_byte(sp) <= '9' as u8) {
+                    code = code * 10u + ((buf.get_byte(sp) as u32) - ('0' as u32))
+                    sp = sp + 1u
+                }
+                return code >= 200u && code < 300u
+            }
+            i = i + 1u
+        }
+        var tmp : [1024]u8
+        var view = unsafe(std::mut_span<u8>(&raw mut tmp[0], 1024 as size_t))
+        var r = tunnel.read_bytes(view)
+        if(r is Result.Err) { return false }
+        var Ok(got) = r else unsafe { unreachable }
+        if(got == 0u) { return false }
+        buf.append(unsafe(std::span<u8>(&raw mut tmp[0], got)))
+        reads = reads + 1
+        if(reads > 128) { return false }
+    }
+    return false
 }
 
 } // namespace http

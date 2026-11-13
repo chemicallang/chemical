@@ -143,6 +143,29 @@ bool MIRLowerer::lower_call_args_for(FunctionDeclaration* fd, bool self_included
             }
         }
         {
+            // A by-value argument that is a pattern-bound payload is moved out
+            // of its source variant, so the variant's destructor must skip it.
+            // (Aggregate payloads lower to an Address, which the field-move
+            // check below does not cover.)
+            const bool by_value_arg =
+                !(param_type && (param_type->kind() == BaseTypeKind::Reference ||
+                                 param_type->kind() == BaseTypeKind::Pointer));
+            if (by_value_arg && values[i]) {
+                Value* a0 = values[i];
+                if (a0->val_kind() == ValueKind::AccessChain) {
+                    auto* c = a0->as_access_chain_unsafe();
+                    if (c->values.size() == 1) a0 = c->values[0];
+                }
+                if (a0->val_kind() == ValueKind::Identifier) {
+                    auto* aid = a0->as_identifier_unsafe();
+                    if (aid->linked &&
+                        aid->linked->kind() == ASTNodeKind::PatternMatchId) {
+                        clear_moved_ref(a0);
+                    }
+                }
+            }
+        }
+        {
             // A by-value field/aggregate argument is moved into the callee.
             BaseType* at = values[i] ? values[i]->getType() : nullptr;
             BaseType* ac = at ? at->canonical() : nullptr;

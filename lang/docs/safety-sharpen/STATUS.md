@@ -219,6 +219,51 @@ wave, in the planned order.
   framework owns the socket and writes the response) and then C4's `Stream` enum
   over the transport box.
 
+**C4 + C5 - owning streams and the response-returning handler model.**
+
+- **`http::Stream`** replaces `http::Transport` + `transport_box_*`. A `variant`
+  owning `Tcp`/`TlsClient`/`TlsServer` by value: one owner, one destructor, no
+  descriptor or TLS context duplicated by copying a handle, and no `*mut
+  Transport` in any public signature. It implements `std::io::Read`/`Write`, so
+  the future `AsyncRead`/`AsyncWrite` work has one type to extend.
+- **`Handler = std.send_sync_function<(req : http.Request) => http.Response>`.**
+  The framework owns the connection; a handler is given the request by value and
+  returns the response. This is the shape change that motivated the wave: with
+  `ResponseWriter` gone, `Content-Length` is computed from a body that is already
+  known, so it is exact, a second write cannot desynchronise the framing, the
+  status line carries the real reason phrase, and keep-alive/pipelining is
+  decidable per message. `Request`/`Response` are plain owned values, so
+  `Handler` has no lifetime parameter.
+- **Bodies split by direction**: `http::RequestBody` (buffered reader, filled by
+  the framework before dispatch, bounded by `max_body_bytes`) and
+  `http::ResponseBody` (`Empty`/`Bytes`/`Text`/`File`, with `File` streamed from
+  disk). Buffering is what removes the shared-socket aliasing; a streaming
+  request variant is additive later.
+- **`Server`**: `bind(cfg) -> Result<Server, NetError>` (bind failures are no
+  longer swallowed), `local_addr()`, consuming `serve(self)`/`serve_async(self)`,
+  and a `ShutdownHandle` (`Arc<Mutex<bool>>`) that outlives the consumed server.
+  The stop flag is private. One `serve_ready` pipeline is shared by the blocking,
+  IOCP and coroutine drivers; before this each driver had its own drifted copy.
+  `ServerConfig.body_timeout_secs` is a separate knob from
+  `header_timeout_secs`, because a body may be large and slow while a head must
+  arrive quickly.
+- **`Client`** requests take `&self` (trust store behind a `Mutex`), responses are
+  buffered, and `HttpResult` plus the whole `http::raw` async surface are deleted.
+- **Two compiler bugs found by building this**, both fixed in the move machinery
+  (`MIRLowerer::mark_moved_value`, used by `var`, assignment, struct-field init,
+  call arguments and `return`):
+  1. moving a destructible payload out of a variant (`var Ok(v) = r` then moving
+     `v`) left the parent's destructor live, so the payload was freed twice
+     (heap corruption on the first request);
+  2. a nested constructor (`return Ok(Ctor(x))`) did not mark `x` moved, so the
+     temporary closed the socket the constructed value now owned.
+  Plus a parser bug worked around rather than fixed: a `variant` body accepts
+  `public` on its first function only; later ones are misparsed as members.
+- Gates: server 10/10, libs 882/882, async 84/84, safety 193/193, plugins
+  1305/1305, main 2485/2485, negative 880/880, and the whole `tls` module
+  (including every HTTP/TLS test) passes `--check` after fixing six Windows-only
+  `unsafe`/view issues in its helper file.
+
 **Compiler-blocked API follow-ups:** the consuming forms
 `Box::into_inner(self)`, `Rc::try_unwrap(self)`, `Arc::try_unwrap(self)` and
 `map::get_mut -> Option<&mut Value>` are not shipped yet. The receiver copy is

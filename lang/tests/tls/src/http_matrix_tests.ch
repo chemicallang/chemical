@@ -73,7 +73,7 @@ public func MATRIX_download_size_boundaries(env : &mut TestEnv) {
         }
         var Ok(r) = res else unsafe { unreachable };
         if(r.status != 200u) { env.error("download expected 200") }
-        var b = r.body.read_to_string_opt()
+        var b = r.body.text()
         if(b is std.Option.None) {
             env.error("download body read failed")
             var m2 = string("size=")
@@ -120,7 +120,7 @@ public func MATRIX_upload_size_boundaries(env : &mut TestEnv) {
     var r0 = client.post_view(u0.to_view(), string_view(""), "text/plain")
     if(r0 is Result.Err) { env.error("empty POST failed"); test_kill_port(PORT as int); return }
     var Ok(x0) = r0 else unsafe { unreachable };
-    var b0 = x0.body.read_to_string_opt()
+    var b0 = x0.body.text()
     if(b0 is std.Option.None) { env.error("empty POST body read failed"); test_kill_port(PORT as int); return }
     var Some(v0) = b0 else unsafe { unreachable };
     if(v0.size() != 0u) { env.error("empty POST should echo empty") }
@@ -148,7 +148,7 @@ public func MATRIX_upload_size_boundaries(env : &mut TestEnv) {
             return
         }
         var Ok(r) = res else unsafe { unreachable };
-        var b = r.body.read_to_string_opt()
+        var b = r.body.text()
         if(b is std.Option.None) {
             env.error("upload echo read failed")
             var m2 = string("size=")
@@ -189,7 +189,7 @@ public func MATRIX_full_byte_cycle_roundtrip(env : &mut TestEnv) {
     var res = client.post_view(u.to_view(), payload.to_view(), "application/octet-stream")
     if(res is Result.Err) { env.error("byte-cycle POST failed"); test_kill_port(PORT as int); return }
     var Ok(r) = res else unsafe { unreachable };
-    var b = r.body.read_to_string_opt()
+    var b = r.body.text()
     if(b is std.Option.None) { env.error("byte-cycle echo read failed"); test_kill_port(PORT as int); return }
     var Some(v) = b else unsafe { unreachable };
     if(v.size() != 65536u) { env.error("byte-cycle length mismatch") }
@@ -290,7 +290,7 @@ public func MATRIX_large_query_string_roundtrip(env : &mut TestEnv) {
     expected.append_string(&big)
     expected.append_view("&tail=end")
 
-    var b = r.body.read_to_string_opt()
+    var b = r.body.text()
     if(b is std.Option.None) { env.error("large query body read failed"); test_kill_port(PORT as int); return }
     var Some(v) = b else unsafe { unreachable };
     if(!v.equals_view(expected.to_view())) {

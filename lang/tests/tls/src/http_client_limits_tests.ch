@@ -23,7 +23,7 @@ func lim_url(port : uint, path : string_view) : string {
 }
 
 // â”€â”€â”€ 1. max_body_len caps how much body the client will deliver â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// A 64 KB download with a 32 KB cap must stop delivering (read error) while a
+// A 64 KB download with a 1 KB cap must be rejected (request error) while a
 // default client reads the same resource fully.
 @test
 @test.timeout(180000)
@@ -40,11 +40,14 @@ public func LIMIT_max_body_len_enforced(env : &mut TestEnv) {
     capped.max_body_len = 1024u
 
     var r1 = capped.get(u.to_view())
-    if(r1 is Result.Err) { env.error("capped request should still receive headers"); test_kill_port(PORT as int); return }
-    var Ok(x1) = r1 else unsafe { unreachable };
-    var b1 = x1.body.read_to_string_opt()
-    if(b1 is std.Option.Some) {
+    // The client now buffers the whole body before returning, so breaching
+    // `max_body_len` is reported as a request error instead of a body-read
+    // error after a successful head. Either way the cap must hold: an
+    // oversized body may never be handed to the caller.
+    if(r1 is Result.Ok) {
+        var Ok(x1) = r1 else unsafe { unreachable };
         env.error("body read must fail once max_body_len is exceeded")
+        if(x1.body.size() > 1024u) { env.error("capped client handed over more than max_body_len") }
     }
 
     // Control: a default client downloads the full resource.
@@ -53,7 +56,7 @@ public func LIMIT_max_body_len_enforced(env : &mut TestEnv) {
     var r2 = full.get(u.to_view())
     if(r2 is Result.Err) { env.error("control download failed"); test_kill_port(PORT as int); return }
     var Ok(x2) = r2 else unsafe { unreachable };
-    var b2 = x2.body.read_to_string_opt()
+    var b2 = x2.body.text()
     if(b2 is std.Option.None) { env.error("control body read failed"); test_kill_port(PORT as int); return }
     var Some(v2) = b2 else unsafe { unreachable };
     if(v2.size() != 65536u) {
@@ -164,7 +167,7 @@ public func LIMIT_request_timeout_short_fails_long_succeeds(env : &mut TestEnv) 
     if(r2 is Result.Err) { env.error("10s timeout should tolerate the 3s delay"); test_kill_port(PORT as int); return }
     var Ok(x2) = r2 else unsafe { unreachable };
     if(x2.status != 200u) { env.error("slow request expected 200") }
-    var b = x2.body.read_to_string_opt()
+    var b = x2.body.text()
     if(b is std.Option.None) { env.error("slow request body read failed"); test_kill_port(PORT as int); return }
     var Some(v) = b else unsafe { unreachable };
     if(!v.equals_view("late-ok")) { env.error("slow request body mismatch") }
@@ -173,8 +176,8 @@ public func LIMIT_request_timeout_short_fails_long_succeeds(env : &mut TestEnv) 
 }
 
 // â”€â”€â”€ 4. Server declares Content-Length but closes early â†’ read error â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// The response parses fine (headers arrive), but read_to_string must surface
-// the truncation instead of silently returning short data.
+// The client frames and reads the whole body before returning the response, so
+// the truncation must surface as an error instead of as silently short data.
 @test
 @test.timeout(180000)
 public func LIMIT_truncated_body_detected(env : &mut TestEnv) {
@@ -192,14 +195,12 @@ public func LIMIT_truncated_body_detected(env : &mut TestEnv) {
 
     var u = lim_url(PORT, "/truncated")
     var res = client.post_view(u.to_view(), string_view("0123456789ABCDEF"), "text/plain")
-    if(res is Result.Err) { env.error("truncated request should parse headers"); test_kill_port(PORT as int); return }
-    var Ok(r) = res else unsafe { unreachable };
-    if(r.status != 200u) { env.error("expected 200 status despite later truncation") }
-
-    var b = r.body.read_to_string_opt()
-    if(b is std.Option.Some) {
-        var Some(v) = b else unsafe { unreachable };
-        if(v.size() >= 1000u) {
+    // The body is framed and read in full before the response is returned, so a
+    // truncation now surfaces as a request error rather than as a short body
+    // after a successful head. Short data must still never be delivered.
+    if(res is Result.Ok) {
+        var Ok(r) = res else unsafe { unreachable };
+        if(r.body.size() >= 1000u) {
             env.error("server only sent 400 bytes; full 1000 cannot have arrived")
         } else {
             env.error("truncation must be reported as a read failure, not short data")

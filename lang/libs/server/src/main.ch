@@ -49,34 +49,41 @@ public func main(argc : int, argv : **char) : int { unsafe {
     printf("Serving directory: %s\n", root.c_str());
     printf("Listening on: %s:%d\n", addr.c_str(), port);
 
-    var fs_server = std::arc(http.create_file_server(root.c_str()));
+    var root_view = std::str.make_view(root.to_view());
+    var fs_server = std::arc(http.create_file_server(root_view));
     var fs_server_root = fs_server.clone();
     var cfg = server.ServerConfig();
     cfg.addr = addr;
 
-    var S = server.Server(cfg);
+    var bound = server.Server.bind(cfg);
+    if(bound is std.Result.Err) {
+        printf("Failed to bind %s\n", addr.c_str());
+        return 1;
+    }
+    var Ok(bound_server) = bound else unsafe { unreachable }
+    var S : Server = bound_server
 
     // The router stores handlers for the server's lifetime, so a handler must
     // own its capture and prove `Send + Sync + 'static` (SAFE-SEND-002 rejects a
     // borrowed `&fs_server`). Share the file server through an `Arc` instead.
-    unsafe {
-        S.router.add("GET", "/:path*", |fs_server|(req, res) => {
-            fs_server.get().serve_http(req, res);
-        });
-        // Also root
-        S.router.add("GET", "/", |fs_server_root|(req, res) => {
-            fs_server_root.get().serve_http(req, res);
-        });
-    }
+    S.router.add("GET", "/:path*", |fs_server|(req) => {
+        return fs_server.get().serve_http(&req);
+    });
+    // Also root
+    S.router.add("GET", "/", |fs_server_root|(req) => {
+        return fs_server_root.get().serve_http(&req);
+    });
 
     if(async_mode) {
-        // Tier 6: drive the file server from the coroutine accept loop. The
-        // synchronous `serve` path stays the default for compatibility.
-        async::block_on<int>(serve_files_async(&raw mut S, root.c_str(), port));
+        // Drive the file server from a background thread, then wait for it.
+        var stop = S.handle();
+        var t = serve_files_async(S, root_view);
+        var _ = stop;
+        t.join();
         return 0;
     }
 
-    S.serve(port);
+    S.serve();
 
     return 0;
  }}

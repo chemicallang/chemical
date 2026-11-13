@@ -39,13 +39,15 @@ public struct SocketAddr {
 func socket_addr_from_raw(raw_addr : &raw::sockaddr_in) : SocketAddr {
     var value = raw_addr.sin_addr.s_addr
     var ip = std::string()
-    ip.append_uinteger(((value >> 24) & 0xFFu) as ubigint)
-    ip.append('.')
-    ip.append_uinteger(((value >> 16) & 0xFFu) as ubigint)
+    // `s_addr` is in network byte order; on a little-endian host the first octet
+    // is the low byte of the integer.
+    ip.append_uinteger((value & 0xFFu) as ubigint)
     ip.append('.')
     ip.append_uinteger(((value >> 8) & 0xFFu) as ubigint)
     ip.append('.')
-    ip.append_uinteger((value & 0xFFu) as ubigint)
+    ip.append_uinteger(((value >> 16) & 0xFFu) as ubigint)
+    ip.append('.')
+    ip.append_uinteger(((value >> 24) & 0xFFu) as ubigint)
     var port = raw_addr.sin_port
     return SocketAddr {
         ip : std::replace(&mut ip, std::string()),
@@ -78,7 +80,7 @@ public struct TcpListener {
     }
 
     /// Bind and listen on `addr:port`. No panic on bind/listen failure.
-    func bind(addr : &str, port : u16) : Result<TcpListener, NetError> {
+    public func bind(addr : &str, port : u16) : Result<TcpListener, NetError> {
         var made = std::cstring_make(addr)
         if(made is Result.Err) {
             return Result.Err(NetError.Kind(std::io::IoErrorKind.InvalidInput()))
@@ -92,7 +94,7 @@ public struct TcpListener {
     }
 
     /// Accept one connection, blocking until a peer arrives.
-    func accept(&mut self) : Result<TcpStream, NetError> {
+    public func accept(&mut self) : Result<TcpStream, NetError> {
         if(self.fd == 0 as raw::Socket) {
             return Result.Err(NetError.Kind(std::io::IoErrorKind.InvalidInput()))
         }
@@ -154,7 +156,7 @@ public struct TcpStream {
     }
 
     /// Dial `addr:port` with a blocking connect.
-    func connect(addr : &str, port : u16) : Result<TcpStream, NetError> {
+    public func connect(addr : &str, port : u16) : Result<TcpStream, NetError> {
         var made = std::cstring_make(addr)
         if(made is Result.Err) {
             return Result.Err(NetError.Kind(std::io::IoErrorKind.InvalidInput()))
@@ -168,7 +170,7 @@ public struct TcpStream {
     }
 
     /// Read up to `buf.size()` bytes. Returns 0 on EOF.
-    func read_bytes(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
+    public func read_bytes(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
         if(self.fd == 0 as raw::Socket) {
             return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind.InvalidInput()))
         }
@@ -183,7 +185,7 @@ public struct TcpStream {
     }
 
     /// Write bytes, retrying short writes until all bytes are sent.
-    func write_bytes(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
+    public func write_bytes(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
         if(self.fd == 0 as raw::Socket) {
             return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind.InvalidInput()))
         }

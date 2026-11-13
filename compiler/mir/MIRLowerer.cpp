@@ -606,6 +606,58 @@ void MIRLowerer::clear_moved_ref(Value* value) {
     if (sp != MIR_INVALID_ID) mark_moved(sp);
 }
 
+void MIRLowerer::mark_moved_value(Value* value) {
+    Value* t = value;
+    for (int guard = 0; guard < 4 && t; ++guard) {
+        if (t->val_kind() == ValueKind::AccessChain) {
+            auto* c = t->as_access_chain_unsafe();
+            if (c->values.size() == 1) { t = c->values[0]; continue; }
+            return;
+        }
+        if (t->val_kind() == ValueKind::UnsafeValue) {
+            auto* u = static_cast<UnsafeValue*>(t);
+            if (u->getValue()) { t = u->getValue(); continue; }
+            return;
+        }
+        break;
+    }
+    if (!t) return;
+    if (t->val_kind() == ValueKind::FunctionCall) {
+        // A variant constructor (`Stream.Tcp(x)`, `Result.Ok(x)`) takes its
+        // arguments by value, so every argument is moved into the constructed
+        // value. Without this, the temporary's destructor runs at the end of the
+        // statement and frees what the constructed value now owns (a closed
+        // socket, a freed string, ...). Recurse for nested constructors.
+        auto* fc = t->as_func_call_unsafe();
+        ASTNode* leaf = nullptr;
+        if (fc->parent_val) {
+            if (fc->parent_val->val_kind() == ValueKind::AccessChain) {
+                auto* ch = fc->parent_val->as_access_chain_unsafe();
+                if (!ch->values.empty()) leaf = ch->values.back()->linked_node();
+            } else {
+                leaf = fc->parent_val->linked_node();
+            }
+        }
+        if (leaf != nullptr && leaf->kind() == ASTNodeKind::VariantMember) {
+            for (Value* arg : fc->values) mark_moved_value(arg);
+        }
+        return;
+    }
+    if (t->val_kind() != ValueKind::Identifier) return;
+    auto* id = t->as_identifier_unsafe();
+    if (id->linked && id->linked->kind() == ASTNodeKind::PatternMatchId) {
+        // A pattern-bound payload is an alias into its source variant, so the
+        // value being moved into a new local/field is already "in" the variant:
+        // clear the *source's* drop flag, or the variant's destructor frees the
+        // payload a second time after it has been moved out.
+        clear_moved_ref(id);
+        return;
+    }
+    PlaceId src = place_for_linked(id->linked);
+    if (src == MIR_INVALID_ID) src = place_for_name(id->value);
+    if (src != MIR_INVALID_ID) mark_moved(src);
+}
+
 void MIRLowerer::emit_drops() {
     // local/parameter scope destruction is reverse order of initialization
     // (mir-design.md §7.4); emit_drops_from already iterates innermost-first

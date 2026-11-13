@@ -1,5 +1,10 @@
 public namespace net {
 
+    /// The pending socket error for the calling thread (POSIX `errno`).
+    public func socket_last_error() : int {
+        return get_errno()
+    }
+
     // POSIX declarations
     @extern protected func socket(af:int, typ:int, protocol:int): int;
     @extern protected func bind(s: int, name:*char, namelen:int): int;

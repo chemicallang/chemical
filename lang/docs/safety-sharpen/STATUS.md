@@ -257,8 +257,23 @@ wave, in the planned order.
      (heap corruption on the first request);
   2. a nested constructor (`return Ok(Ctor(x))`) did not mark `x` moved, so the
      temporary closed the socket the constructed value now owned.
-  Plus a parser bug worked around rather than fixed: a `variant` body accepts
-  `public` on its first function only; later ones are misparsed as members.
+  3. a by-value `self` receiver that is a pattern-bound payload (`var Ok(v) = r`
+     then `v.serve()`) was rejected with `SAFE-MOVE-004`. It is a movable place
+     inside the variant and the source's drop flag is cleared, so the two-step
+     `var srv : Server = v` workaround is no longer needed (removed from every
+     call site).
+- **Two more root causes fixed rather than worked around**:
+  - `variant` bodies had no access-specifier case in the parser, so `public` on a
+    non-first method was parsed as a *member name*. `public`/`internal`/
+    `protected`/`private` now work on every variant member, and as a section
+    specifier (`public:`), exactly as in a struct body.
+  - `net::io_error()` collapsed every socket failure to
+    `IoErrorKind.Other()`, so callers could not tell "no data yet" from a reset
+    peer. It now maps the real platform code (Winsock codes on Windows, `errno`
+    on POSIX) onto the shared taxonomy — `connect` to a closed port reports
+    `ConnectionRefused`. The HTTP reader uses that to retry only
+    `WouldBlock`/`TimedOut`/`Interrupted` and to propagate a real failure
+    immediately, instead of retrying everything until the deadline.
 - Gates: server 10/10, libs 882/882, async 84/84, safety 193/193, plugins
   1305/1305, main 2485/2485, negative 880/880, and the whole `tls` module
   (including every HTTP/TLS test) passes `--check` after fixing six Windows-only

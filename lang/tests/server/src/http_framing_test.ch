@@ -229,8 +229,7 @@ public func FRAM_request_without_content_length_answers_immediately(env : &mut T
         env.error("could not bind 127.0.0.1:19890")
         return
     }
-    var Ok(b) = bound else unsafe { unreachable }
-    var srv : server.Server = b
+    var Ok(srv) = bound else unsafe { unreachable }
     srv.router.add("POST", "/echo", ||(req) => { return framing_handler(req) })
     var stop = srv.handle()
     var thread = srv.serve_async()
@@ -263,8 +262,7 @@ public func FRAM_request_with_zero_content_length_answers_immediately(env : &mut
         env.error("could not bind 127.0.0.1:19891")
         return
     }
-    var Ok(b) = bound else unsafe { unreachable }
-    var srv : server.Server = b
+    var Ok(srv) = bound else unsafe { unreachable }
     srv.router.add("POST", "/echo", ||(req) => { return framing_handler(req) })
     var stop = srv.handle()
     var thread = srv.serve_async()
@@ -302,8 +300,7 @@ public func FRAM_bodyless_request_is_framed_empty_not_unknown(env : &mut TestEnv
         env.error("could not bind 127.0.0.1:19897")
         return
     }
-    var Ok(b) = bound else unsafe { unreachable }
-    var srv : server.Server = b
+    var Ok(srv) = bound else unsafe { unreachable }
     srv.router.add("GET", "/remaining", ||(req) => { return framing_remaining_handler(req) })
     srv.router.add("POST", "/remaining", ||(req) => { return framing_remaining_handler(req) })
     var stop = srv.handle()
@@ -365,8 +362,7 @@ public func FRAM_request_with_body_is_unaffected(env : &mut TestEnv) {
         env.error("could not bind 127.0.0.1:19892")
         return
     }
-    var Ok(b) = bound else unsafe { unreachable }
-    var srv : server.Server = b
+    var Ok(srv) = bound else unsafe { unreachable }
     srv.router.add("POST", "/echo", ||(req) => { return framing_handler(req) })
     var stop = srv.handle()
     var thread = srv.serve_async()
@@ -413,8 +409,7 @@ public func FRAM_chunked_terminator_with_fewer_than_four_trailing_bytes(env : &m
         env.error("could not bind 127.0.0.1:19893")
         return
     }
-    var Ok(b) = bound else unsafe { unreachable }
-    var srv : server.Server = b
+    var Ok(srv) = bound else unsafe { unreachable }
     srv.router.add("POST", "/echo", ||(req) => { return framing_handler(req) })
     var stop = srv.handle()
     var thread = srv.serve_async()
@@ -482,8 +477,7 @@ public func FRAM_truncated_chunked_body_terminates_at_body_timeout(env : &mut Te
         env.error("could not bind 127.0.0.1:19896")
         return
     }
-    var Ok(b) = bound else unsafe { unreachable }
-    var srv : server.Server = b
+    var Ok(srv) = bound else unsafe { unreachable }
     srv.router.add("POST", "/echo", ||(req) => { return framing_handler(req) })
     var stop = srv.handle()
     var thread = srv.serve_async()
@@ -529,8 +523,7 @@ public func FRAM_chunked_body_with_trailer_delivers_payload(env : &mut TestEnv) 
         env.error("could not bind 127.0.0.1:19894")
         return
     }
-    var Ok(b) = bound else unsafe { unreachable }
-    var srv : server.Server = b
+    var Ok(srv) = bound else unsafe { unreachable }
     srv.router.add("POST", "/echo", ||(req) => { return framing_handler(req) })
     var stop = srv.handle()
     var thread = srv.serve_async()
@@ -563,8 +556,7 @@ public func FRAM_chunked_terminator_split_across_segments(env : &mut TestEnv) {
         env.error("could not bind 127.0.0.1:19895")
         return
     }
-    var Ok(b) = bound else unsafe { unreachable }
-    var srv : server.Server = b
+    var Ok(srv) = bound else unsafe { unreachable }
     srv.router.add("POST", "/echo", ||(req) => { return framing_handler(req) })
     var stop = srv.handle()
     var thread = srv.serve_async()

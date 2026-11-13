@@ -304,24 +304,17 @@ public struct Server {
     /// Windows: the socket is registered with a completion port and every
     /// completion runs one message through the shared pipeline.
     func serve_iocp(&mut self) {
-        // The whole body is Windows-only: the `net::iocp` module does not exist
-        // on other targets, and a comptime-false branch is never resolved. The
-        // values a pool task needs are declared in the *function* scope, as
-        // `*void`, because a closure cannot capture out of a `comptime if` scope.
-        var cpv : *void = null
-        var selfp : *Server = &raw mut self
+        // The whole body is Windows-only: `net::iocp` does not exist on other
+        // targets, and a comptime-false branch is never resolved.
         comptime if(def.windows) { unsafe {
+        var selfp : *Server = &raw mut self
         var cp = unsafe(malloc(sizeof(net::iocp::CompletionPort))) as *mut net::iocp::CompletionPort
         if(cp == null) { return }
         unsafe { new (cp) net::iocp::CompletionPort(self.cfg.worker_count) }
-        cpv = cp as *void
         var i = 0u;
         while(i < self.cfg.worker_count) {
-            unsafe(self.pool.submit_void(|cpv, selfp|() => {
-                unsafe {
-                    var task_cp = cpv as *mut net::iocp::CompletionPort
-                    while(selfp.is_running()) { task_cp.poll(500); }
-                }
+            unsafe(self.pool.submit_void(|cp, selfp|() => {
+                unsafe { while(selfp.is_running()) { cp.poll(500); } }
             }))
             i = i + 1u;
         }

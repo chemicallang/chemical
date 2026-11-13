@@ -34,12 +34,12 @@ public variant ResponseBody {
         }
     }
 
-    func is_empty(&self) : bool {
+    public func is_empty(&self) : bool {
         return self.size() == 0u
     }
 
     /// The payload as text, when it lives in memory.
-    func text(&self) : Option<std::string_view> {
+    public func text(&self) : Option<std::string_view> {
         switch(self) {
             Text(t) => { return Option.Some<std::string_view>(t.to_view()) }
             Bytes(d) => { return Option.Some<std::string_view>(unsafe(std::string_view(d.data() as *char, d.size()))) }
@@ -48,7 +48,7 @@ public variant ResponseBody {
     }
 
     /// The payload as bytes, when it lives in memory.
-    func data(&self) : Option<std::span<'self, u8>> {
+    public func data(&self) : Option<std::span<'self, u8>> {
         switch(self) {
             Bytes(d) => { return Option.Some<std::span<'self, u8>>(d.as_span()) }
             Text(t) => { return Option.Some<std::span<'self, u8>>(unsafe(std::span<u8>(t.data() as *u8, t.size()))) }
@@ -85,14 +85,14 @@ public struct RequestBody {
     /// Bytes still unread.
     public func remaining(&self) : size_t { return self.buf.len() }
 
-    func is_empty(&self) : bool { return self.buf.len() == 0u }
+    public func is_empty(&self) : bool { return self.buf.len() == 0u }
 
     /// The unread bytes, without consuming them.
     public func view(&self) : std::span<'self, u8> { return self.buf.view() }
 
     /// The unread bytes interpreted as text (no UTF-8 validation; use
     /// `read_to_string` when you need a checked `string`).
-    func text(&self) : std::string_view {
+    public func text(&self) : std::string_view {
         var v = self.buf.view()
         return unsafe(std::string_view(v.data() as *char, v.size()))
     }

@@ -29,7 +29,7 @@ public variant Stream {
         }
     }
 
-    func write_bytes(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
+    public func write_bytes(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
         switch(self) {
             Tcp(s) => { return s.write_bytes(buf) }
             TlsClient(s) => { return s.write_bytes(buf) }
@@ -38,13 +38,17 @@ public variant Stream {
         }
     }
 
-    /// Write the whole slice, retrying short writes.
-    func write_all_bytes(&mut self, buf : &[u8]) : Result<std::Unit, std::io::IoError> {
+    /// Write the whole slice, retrying short writes. The underlying error is
+    /// propagated as-is so callers can distinguish a slow peer from a dead one.
+    public func write_all_bytes(&mut self, buf : &[u8]) : Result<std::Unit, std::io::IoError> {
         var pos : size_t = 0
         while(pos < buf.size()) {
             var sub : [u8] = buf.subview(pos, buf.size())
             var r = self.write_bytes(sub)
-            if(r is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::BrokenPipe())) }
+            if(r is Result.Err) {
+                var Err(e) = r else unsafe { unreachable }
+                return Result.Err(e)
+            }
             var Ok(n) = r else unsafe { unreachable }
             if(n == 0) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::BrokenPipe())) }
             pos += n
@@ -52,12 +56,15 @@ public variant Stream {
         return Result.Ok(std::Unit { })
     }
 
-    func read_exact_bytes(&mut self, buf : &mut [u8]) : Result<std::Unit, std::io::IoError> {
+    public func read_exact_bytes(&mut self, buf : &mut [u8]) : Result<std::Unit, std::io::IoError> {
         var pos : size_t = 0
         while(pos < buf.size()) {
             var sub = unsafe(std::mut_span<u8>(unsafe(buf.data() + pos), buf.size() - pos))
             var r = self.read_bytes(sub)
-            if(r is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())) }
+            if(r is Result.Err) {
+                var Err(e) = r else unsafe { unreachable }
+                return Result.Err(e)
+            }
             var Ok(n) = r else unsafe { unreachable }
             if(n == 0) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::UnexpectedEof())) }
             pos += n
@@ -65,7 +72,7 @@ public variant Stream {
         return Result.Ok(std::Unit { })
     }
 
-    func set_read_timeout(&mut self, ms : u64) : Result<std::Unit, std::io::IoError> {
+    public func set_read_timeout(&mut self, ms : u64) : Result<std::Unit, std::io::IoError> {
         switch(self) {
             Tcp(s) => { return s.set_read_timeout(ms) }
             TlsClient(s) => { return s.set_read_timeout(ms) }
@@ -75,7 +82,7 @@ public variant Stream {
     }
 
     /// Half-close politely: TLS sends `close_notify`, TCP shuts both directions.
-    func shutdown(&mut self) : Result<std::Unit, std::io::IoError> {
+    public func shutdown(&mut self) : Result<std::Unit, std::io::IoError> {
         switch(self) {
             Tcp(s) => { return s.shutdown(net::Shutdown.Both()) }
             TlsClient(s) => { return s.close_notify() }
@@ -84,7 +91,7 @@ public variant Stream {
         }
     }
 
-    func is_tls(&self) : bool {
+    public func is_tls(&self) : bool {
         switch(self) {
             Tcp(_) => { return false }
             default => { return true }
@@ -116,7 +123,10 @@ impl std::io::Read for Stream {
     }
     func read_exact(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
         var r = self.read_exact_bytes(buf)
-        if(r is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::UnexpectedEof())) }
+        if(r is Result.Err) {
+            var Err(e) = r else unsafe { unreachable }
+            return Result.Err(e)
+        }
         return Result.Ok(buf.size())
     }
     func try_read_to_end(&mut self, out : &mut std::vector<u8>) : Result<size_t, std::io::IoError> {
@@ -125,7 +135,10 @@ impl std::io::Read for Stream {
         loop {
             var view = unsafe(std::mut_span<u8>(&raw mut chunk[0], 8192 as size_t))
             var r = self.read_bytes(view)
-            if(r is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::Other())) }
+            if(r is Result.Err) {
+                var Err(e) = r else unsafe { unreachable }
+                return Result.Err(e)
+            }
             var Ok(n) = r else unsafe { unreachable }
             if(n == 0) { return Result.Ok(total) }
             var i : size_t = 0
@@ -147,7 +160,10 @@ impl std::io::Write for Stream {
     }
     func write_all(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
         var r = self.write_all_bytes(buf)
-        if(r is Result.Err) { return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::BrokenPipe())) }
+        if(r is Result.Err) {
+            var Err(e) = r else unsafe { unreachable }
+            return Result.Err(e)
+        }
         return Result.Ok(buf.size())
     }
     func flush(&mut self) : Result<std::Unit, std::io::IoError> {

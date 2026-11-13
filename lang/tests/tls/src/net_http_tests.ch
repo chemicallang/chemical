@@ -103,8 +103,7 @@ func test_http_get(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8081"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("GET", "/hello", ||(req) => {
         return http::response_text(200u, "world")
@@ -149,8 +148,7 @@ func test_http_post(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8082"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("POST", "/echo", ||(req) => {
         var rq = req
@@ -201,8 +199,7 @@ func test_http_404(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8083"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     var stop = srv.handle();
     var thread = srv.serve_async();
@@ -236,8 +233,7 @@ func test_http_headers(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8084"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("GET", "/headers", ||(req) => {
         var val = req.headers.get("X-Test-Header");
@@ -293,8 +289,7 @@ func test_http_put_delete(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8085"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("PUT", "/update", ||(req) => {
         return http::response_text(200u, "updated")
@@ -352,8 +347,7 @@ func test_http_query_params_builder(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8086"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("GET", "/query", ||(req) => {
         var q = req.query.get("q");
@@ -404,8 +398,7 @@ func test_http_large_body(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8087"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("POST", "/large", ||(req) => {
         var rq = req
@@ -456,8 +449,7 @@ func test_http_patch_head(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8088"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("PATCH", "/patch", ||(req) => {
         return http::response_text(200u, "patched")
@@ -529,8 +521,7 @@ func test_server_shutdown_during_request(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8089"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("GET", "/slow", ||(req) => {
         std::concurrent::sleep_ms(500u);
@@ -568,8 +559,7 @@ func test_concurrent_requests(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8090"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     // The router stores handlers for the server's lifetime and requires a
     // `Send + Sync + 'static` capture (SAFE-SEND-002), so a handler cannot
@@ -608,8 +598,7 @@ func test_empty_body_response(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8091"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("GET", "/empty", ||(req) => {
         return http::response_text(200u, "")
@@ -644,8 +633,7 @@ func test_multiple_headers(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8092"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("GET", "/multi-headers", ||(req) => {
         var h1 = req.headers.get("X-Header-1");
@@ -733,8 +721,7 @@ func test_query_param_encoding(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8093"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("GET", "/encoded", ||(req) => {
         var q = req.query.get("q");
@@ -786,8 +773,7 @@ func test_router_static_routes(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8094"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("GET", "/users", ||(req) => {
         return http::response_text(200u, "users")
@@ -856,8 +842,7 @@ func test_router_param_routes(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8095"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("GET", "/users/:id", ||(req) => {
         return http::response_text(200u, "user")
@@ -891,8 +876,7 @@ func test_response_status_codes(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8096"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("GET", "/ok", ||(req) => {
         return http::response_text(200u, "ok")
@@ -943,8 +927,7 @@ func test_binary_body(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8097"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("POST", "/binary", ||(req) => {
         var rq = req
@@ -991,8 +974,7 @@ func test_special_characters_in_body(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8098"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("POST", "/special", ||(req) => {
         var rq = req
@@ -1039,8 +1021,7 @@ func test_reuse_client_for_multiple_requests(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8099"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("GET", "/a", ||(req) => { return http::response_text(200u, "a") });
     srv.router.add("GET", "/b", ||(req) => { return http::response_text(200u, "b") });
@@ -1075,8 +1056,7 @@ func test_high_concurrency_stress(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8100"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("GET", "/ping", ||(req) => {
         return http::response_text(200u, "pong")
@@ -1122,8 +1102,7 @@ func test_multiple_clients_concurrent(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8101"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("GET", "/echo/:id", ||(req) => {
         return http::response_text(200u, "ok")
@@ -1201,8 +1180,7 @@ func test_route_params_basic(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8102"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     // Handler that checks if route_params is accessible
     srv.router.add("GET", "/test/:id", ||(req) => {
@@ -1241,8 +1219,7 @@ func test_route_params_wildcard(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 8103"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable };
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     // Use :path* syntax for wildcard (colon + name + asterisk)
     srv.router.add("GET", "/files/:path*", ||(req) => {

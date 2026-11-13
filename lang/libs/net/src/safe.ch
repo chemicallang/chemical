@@ -9,8 +9,51 @@ using std::Result;
 
 public type NetError = std::io::IoError;
 
+/// The socket error currently pending on this thread, mapped onto the shared
+/// `IoErrorKind` taxonomy. Callers can now distinguish "no data yet"
+/// (`WouldBlock`/`TimedOut`) from a peer that reset or refused the connection,
+/// which is what lets the HTTP reader retry a slow peer without also retrying a
+/// dead one.
 public func io_error() : std::io::IoError {
-    return std::io::IoError.Kind(std::io::IoErrorKind.Other())
+    return io_error_from(socket_last_error())
+}
+
+/// Map a platform socket/`errno` code onto `IoErrorKind`.
+public func io_error_from(code : int) : std::io::IoError {
+    comptime if(def.windows) {
+        switch(code) {
+            WSAEWOULDBLOCK => { return std::io::IoError.Kind(std::io::IoErrorKind.WouldBlock()) }
+            WSAEINPROGRESS => { return std::io::IoError.Kind(std::io::IoErrorKind.WouldBlock()) }
+            WSAETIMEDOUT => { return std::io::IoError.Kind(std::io::IoErrorKind.TimedOut()) }
+            WSAEINTR => { return std::io::IoError.Kind(std::io::IoErrorKind.Interrupted()) }
+            WSAECONNRESET => { return std::io::IoError.Kind(std::io::IoErrorKind.ConnectionReset()) }
+            WSAECONNABORTED => { return std::io::IoError.Kind(std::io::IoErrorKind::BrokenPipe()) }
+            WSAECONNREFUSED => { return std::io::IoError.Kind(std::io::IoErrorKind.ConnectionRefused()) }
+            WSAEADDRINUSE => { return std::io::IoError.Kind(std::io::IoErrorKind.AddrInUse()) }
+            WSAEADDRNOTAVAIL => { return std::io::IoError.Kind(std::io::IoErrorKind.AddrNotAvailable()) }
+            WSAEACCES => { return std::io::IoError.Kind(std::io::IoErrorKind.PermissionDenied()) }
+            WSAENAMETOOLONG => { return std::io::IoError.Kind(std::io::IoErrorKind.PathTooLong()) }
+            WSAENOTSOCK => { return std::io::IoError.Kind(std::io::IoErrorKind.InvalidInput()) }
+            WSAEAFNOSUPPORT => { return std::io::IoError.Kind(std::io::IoErrorKind.Unsupported()) }
+            WSAEINVAL => { return std::io::IoError.Kind(std::io::IoErrorKind.InvalidInput()) }
+            default => { return std::io::IoError.Kind(std::io::IoErrorKind.Other()) }
+        }
+    } else {
+        switch(code) {
+            EWOULDBLOCK => { return std::io::IoError.Kind(std::io::IoErrorKind.WouldBlock()) }
+            EINPROGRESS => { return std::io::IoError.Kind(std::io::IoErrorKind.WouldBlock()) }
+            ETIMEDOUT => { return std::io::IoError.Kind(std::io::IoErrorKind.TimedOut()) }
+            EINTR => { return std::io::IoError.Kind(std::io::IoErrorKind.Interrupted()) }
+            ECONNRESET => { return std::io::IoError.Kind(std::io::IoErrorKind.ConnectionReset()) }
+            EPIPE => { return std::io::IoError.Kind(std::io::IoErrorKind.BrokenPipe()) }
+            ECONNREFUSED => { return std::io::IoError.Kind(std::io::IoErrorKind.ConnectionRefused()) }
+            EADDRINUSE => { return std::io::IoError.Kind(std::io::IoErrorKind.AddrInUse()) }
+            EADDRNOTAVAIL => { return std::io::IoError.Kind(std::io::IoErrorKind.AddrNotAvailable()) }
+            EACCES => { return std::io::IoError.Kind(std::io::IoErrorKind.PermissionDenied()) }
+            ENAMETOOLONG => { return std::io::IoError.Kind(std::io::IoErrorKind.PathTooLong()) }
+            default => { return std::io::IoError.Kind(std::io::IoErrorKind.Other()) }
+        }
+    }
 }
 
 /// A resolved IPv4 address value. `to_string()` renders `a.b.c.d:port`.

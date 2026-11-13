@@ -17,8 +17,7 @@ public func INT_http_async_loopback(env : &mut TestEnv) {
 
     var bound = server::Server.bind(cfg);
     if(bound is std::Result.Err) { env.error("bind failed on 19891"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable }
-    var srv : server::Server = bound_server;
+    var Ok(srv) = bound else unsafe { unreachable }
 
     srv.router.add("GET", "/hello", ||(req) => {
         return http::response_text(200u, "world")

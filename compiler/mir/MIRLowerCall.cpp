@@ -9327,7 +9327,17 @@ bool MIRLowerer::append_receiver_arg(MIRExprResult recv, BaseType* recv_type,
                 const bool field_shape = probe != nullptr &&
                     probe->val_kind() == ValueKind::AccessChain &&
                     probe->as_access_chain_unsafe()->values.size() >= 2;
-                if (!element_shape && !field_shape) {
+                // A pattern-bound payload (`var Ok(v) = r` then moving `v`) is a
+                // place inside the source variant. Moving it out is sound as long
+                // as the variant relinquishes its own drop, which is exactly what
+                // `clear_moved_ref` does.
+                const bool pattern_shape =
+                    probe != nullptr &&
+                    probe->val_kind() == ValueKind::Identifier &&
+                    probe->as_identifier_unsafe()->linked != nullptr &&
+                    probe->as_identifier_unsafe()->linked->kind() ==
+                        ASTNodeKind::PatternMatchId;
+                if (!element_shape && !field_shape && !pattern_shape) {
                     error =
                         "SAFE-MOVE-004: cannot move a by-value self with a "
                         "destructor out of a pointer/reference or temporary "
@@ -9335,7 +9345,11 @@ bool MIRLowerer::append_receiver_arg(MIRExprResult recv, BaseType* recv_type,
                         "reference";
                     return false;
                 }
-                if (!mark_field_moved(recv_value, recv, error)) return false;
+                if (pattern_shape) {
+                    clear_moved_ref(probe);
+                } else if (!mark_field_moved(recv_value, recv, error)) {
+                    return false;
+                }
             }
             args.push_back(MIROperand::value(static_cast<ValueId>(recv.id),
                                              recv.type));

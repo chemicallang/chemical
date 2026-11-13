@@ -85,12 +85,10 @@ func find_header_end(buf : &net::Buffer) : size_t {
 
 // Pull one more chunk from the stream into `buf`. Returns bytes read (0 = EOF).
 //
-// A read error is retried until `budget_ms` of wall-clock time is exhausted: the
-// socket timeout and a non-blocking descriptor both surface as an
-// undifferentiated error at this layer, and a peer may legitimately take its
-// time between segments (a chunked body split across writes, a slow client).
-// The budget is the caller's read deadline, measured on the monotonic clock so
-// the sleep granularity cannot inflate it.
+// `WouldBlock`, `TimedOut` and `Interrupted` mean "no data yet" (a non-blocking
+// descriptor, an `SO_RCVTIMEO` expiry, a signal); those are retried until the
+// caller's deadline. Every other error is a real failure of the connection and
+// is propagated immediately, so a reset peer is not mistaken for a slow one.
 func fill(stream : &mut Stream, buf : &mut net::Buffer, budget_ms : long) : Result<size_t, HttpError> {
     var tmp : [DEFAULT_READ_BUF]u8
     var view = unsafe(std::mut_span<u8>(&raw mut tmp[0], DEFAULT_READ_BUF as size_t))
@@ -102,12 +100,25 @@ func fill(stream : &mut Stream, buf : &mut net::Buffer, budget_ms : long) : Resu
             if(n > 0u) { buf.append(unsafe(std::span<u8>(&raw mut tmp[0], n))) }
             return Result.Ok(n)
         }
+        var Err(e) = r else unsafe { unreachable }
+        if(!is_transient(e)) {
+            return Result.Err(HttpError.Io(e))
+        }
         if((started.elapsed().as_millis() as long) >= budget_ms) {
             return Result.Err(HttpError.Timeout())
         }
         std.concurrent.sleep_ms(1u)
     }
     return Result.Err(HttpError.Timeout())
+}
+
+/// Whether a socket error means "try again" rather than "this connection failed".
+func is_transient(e : std::io::IoError) : bool {
+    var kind = e.kind()
+    if(kind is std::io::IoErrorKind.WouldBlock) { return true }
+    if(kind is std::io::IoErrorKind.TimedOut) { return true }
+    if(kind is std::io::IoErrorKind.Interrupted) { return true }
+    return false
 }
 
 // Read one CRLF-terminated line (without the CRLF). `None` on EOF before the
@@ -126,7 +137,10 @@ func take_line(stream : &mut Stream, buf : &mut net::Buffer, limit : usize, budg
         }
         if(n > limit) { return Result.Err(HttpError.HeaderTooLarge()) }
         var filled = fill(stream, buf, budget_ms)
-        if(filled is Result.Err) { return Result.Err(HttpError.Timeout()) }
+        if(filled is Result.Err) {
+            var Err(fe) = filled else unsafe { unreachable }
+            return Result.Err(fe)
+        }
         var Ok(got) = filled else unsafe { unreachable }
         if(got == 0u) { return Result.Ok(Option.None<string>()) }
     }
@@ -168,6 +182,8 @@ func take_bytes(stream : &mut Stream, buf : &mut net::Buffer, body : *mut Reques
         var view = unsafe(std::mut_span<u8>(&raw mut tmp[0], DEFAULT_READ_BUF as size_t))
         var r = stream.read_bytes(view)
         if(r is Result.Err) {
+            var Err(e) = r else unsafe { unreachable }
+            if(!is_transient(e)) { return Result.Err(HttpError.Io(e)) }
             if((started.elapsed().as_millis() as long) >= budget_ms) {
                 return Result.Err(HttpError.Timeout())
             }
@@ -254,7 +270,10 @@ func read_request_head(stream : &mut Stream, buf : &mut net::Buffer,
             return Result.Err(HttpError.HeaderTooLarge())
         }
         var filled = fill(stream, buf, header_timeout_secs * 1000)
-        if(filled is Result.Err) { return Result.Err(HttpError.Io(http_io_error())) }
+        if(filled is Result.Err) {
+            var Err(fe) = filled else unsafe { unreachable }
+            return Result.Err(fe)
+        }
         var Ok(n) = filled else unsafe { unreachable }
         if(n == 0u) { return Result.Err(HttpError.Protocol(http_lit("connection closed"))) }
     }
@@ -317,7 +336,10 @@ func read_response_head(stream : &mut Stream, buf : &mut net::Buffer,
             return Result.Err(HttpError.HeaderTooLarge())
         }
         var filled = fill(stream, buf, timeout_secs * 1000)
-        if(filled is Result.Err) { return Result.Err(HttpError.Io(http_io_error())) }
+        if(filled is Result.Err) {
+            var Err(fe) = filled else unsafe { unreachable }
+            return Result.Err(fe)
+        }
         var Ok(n) = filled else unsafe { unreachable }
         if(n == 0u) {
             return Result.Err(HttpError.Protocol(http_make_string("connection closed before response")))

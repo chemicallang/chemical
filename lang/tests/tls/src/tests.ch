@@ -2209,8 +2209,7 @@ public func https_tls_handshake_on_plain_server_fails(env : &mut TestEnv) {
     cfg.addr = std::string::make_no_len("127.0.0.1:49998")
     var bound = server::Server.bind(cfg)
     if(bound is std.Result.Err) { env.error("bind failed on 49998"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable }
-    var srv : server::Server = bound_server
+    var Ok(srv) = bound else unsafe { unreachable }
     srv.router.add("GET", "/", ||(req) => {
         return http::response_text(200u, "plain-text")
     })
@@ -2285,8 +2284,7 @@ public func https_mixed_http_and_https_requests_work(env : &mut TestEnv) {
     cfg.addr = std::string::make_no_len("127.0.0.1:49994")
     var bound = server::Server.bind(cfg)
     if(bound is std.Result.Err) { env.error("bind failed on 49994"); return }
-    var Ok(bound_server) = bound else unsafe { unreachable }
-    var srv : server::Server = bound_server
+    var Ok(srv) = bound else unsafe { unreachable }
     srv.router.add("GET", "/hello", ||(req) => {
         return http::response_text(200u, "http-world")
     })

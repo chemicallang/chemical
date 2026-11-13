@@ -60,8 +60,7 @@ public func main(argc : int, argv : **char) : int { unsafe {
         printf("Failed to bind %s\n", addr.c_str());
         return 1;
     }
-    var Ok(bound_server) = bound else unsafe { unreachable }
-    var S : Server = bound_server
+    var Ok(S) = bound else unsafe { unreachable }
 
     // The router stores handlers for the server's lifetime, so a handler must
     // own its capture and prove `Send + Sync + 'static` (SAFE-SEND-002 rejects a

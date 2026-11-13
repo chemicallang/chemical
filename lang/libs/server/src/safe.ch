@@ -34,8 +34,7 @@ public func serve_static(root : &std::str, port : uint = 8080u, addr : &std::str
     if(bound is std.Result.Err) {
         return 1
     }
-    var Ok(bound_server) = bound else unsafe { unreachable }
-    var srv : Server = bound_server
+    var Ok(srv) = bound else unsafe { unreachable }
     var root_view = std::str.make_view(root_text.to_view())
     install_static_routes(&mut srv, root_view)
     srv.serve()
@@ -61,8 +60,7 @@ public func serve_static_async(root : &std::str, port : uint = 8080u,
     if(bound is std.Result.Err) {
         return std.thread.spawn_void(noop_thread, 0)
     }
-    var Ok(bound_server) = bound else unsafe { unreachable }
-    var srv : Server = bound_server
+    var Ok(srv) = bound else unsafe { unreachable }
     var root_view = std::str.make_view(root_text.to_view())
     return serve_files_async(srv, root_view)
 }

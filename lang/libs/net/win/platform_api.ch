@@ -1,5 +1,26 @@
 public namespace net {
 
+    // Winsock error codes (only the ones `io_error` maps).
+    public comptime const WSAEWOULDBLOCK = 10035
+    public comptime const WSAEINPROGRESS = 10036
+    public comptime const WSAEINTR = 10004
+    public comptime const WSAECONNRESET = 10054
+    public comptime const WSAECONNABORTED = 10053
+    public comptime const WSAECONNREFUSED = 10061
+    public comptime const WSAETIMEDOUT = 10060
+    public comptime const WSAEADDRINUSE = 10048
+    public comptime const WSAEADDRNOTAVAIL = 10049
+    public comptime const WSAEACCES = 10013
+    public comptime const WSAENAMETOOLONG = 10063
+    public comptime const WSAENOTSOCK = 10038
+    public comptime const WSAEAFNOSUPPORT = 10047
+    public comptime const WSAEINVAL = 10022
+
+    /// The pending socket error for the calling thread.
+    public func socket_last_error() : int {
+        return unsafe(WSAGetLastError())
+    }
+
     // WinSock2 minimal declarations. You might need to link -lws2_32 when building.
     @dllimport @stdcall @extern protected func WSAStartup(wVersionRequested: ushort, lpWSAData: *mut char): int;
     @dllimport @stdcall @extern protected func WSACleanup(): int;

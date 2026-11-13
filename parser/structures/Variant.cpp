@@ -132,6 +132,22 @@ bool Parser::parseAnyVariantMember(ASTAllocator& allocator, ASTAllocator& body_a
             }
             break;
         }
+        case TokenType::PublicKw:
+        case TokenType::InternalKw:
+        case TokenType::ProtectedKw:
+        case TokenType::PrivateKw: {
+            // An access specifier applies to the declaration that follows it
+            // (`public func size(...)`), or to the rest of the body when written
+            // as a section (`public:`). Both are valid inside a variant, exactly
+            // as inside a struct.
+            const auto spec = get_specifier_from(token->type);
+            token++;
+            if(token->type == TokenType::ColonSym) {
+                token++;
+                return true;
+            }
+            return parseAnyVariantMember(allocator, body_allocator, def, spec, comptime);
+        }
         default:
             auto variantMember = parseVariantMember(allocator, def);
             if(variantMember) {

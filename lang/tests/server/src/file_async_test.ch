@@ -108,8 +108,7 @@ public func INT_server_async_file_get(env : &mut TestEnv) {
         env.error("could not bind 127.0.0.1:19881")
         return
     }
-    var Ok(b) = bound else unsafe { unreachable }
-    var srv : server.Server = b
+    var Ok(srv) = bound else unsafe { unreachable }
     // `serve_files_async` consumes the server, so the stop handle must be taken
     // first; the accept loop then runs on its own thread.
     var root_view = std::str.make_view(root.to_view())
@@ -183,8 +182,7 @@ public func INT_server_async_404(env : &mut TestEnv) {
         env.error("could not bind 127.0.0.1:19882")
         return
     }
-    var Ok(b) = bound else unsafe { unreachable }
-    var srv : server.Server = b
+    var Ok(srv) = bound else unsafe { unreachable }
     var root_view = std::str.make_view(root.to_view())
     var stop = srv.handle()
     var server_thread = server::serve_files_async(srv, root_view)

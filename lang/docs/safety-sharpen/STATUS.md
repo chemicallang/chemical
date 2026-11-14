@@ -355,6 +355,12 @@ with compile-time-validated format specs.
   path that let a hook read the sink as an unrelated struct. Still unsupported
   (next step): `Option`/`Result`/variants, `vector`/arrays/slices, and raw
   pointers — these need loop/pattern generation in the intrinsic.
+- **`std::string(`...`)` is the diagnostic idiom.** An expressive string
+  converts to an owned `std::string`, which converts implicitly to the `&str`
+  a reporter takes, so `env.error(std::string(`the int ${x} was wrong`))` and
+  `env.info(...)` work (format specs included). Pinned by
+  `print_dynamic_diagnostic_from_expressive_string`; `print_test.ch`'s failure
+  helper uses the same shape, so a rendering regression reports what it saw.
 - **Faithful number rendering.** The old conversion clamped `1.0/3.0` to
   `0.333` (3 digits in `string`, 6 on the console — the *sink* chose the
   precision), rendered `1e30` as `9223372036854775.807` (integer part overflowed

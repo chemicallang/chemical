@@ -19,9 +19,9 @@ struct PrintFixture {
 
 func expect_render(env : &mut TestEnv, actual : &string, expected : &string_view) {
     if(!actual.to_view().equals(expected)) {
-        env.error("unexpected rendering (see the got/want lines above)")
-        println(`  got  [${actual}]`)
-        println(`  want [${expected}]`)
+        // An expressive string converts to `std::string`, which converts to the
+        // `&str` a reporter takes — the idiom for a dynamic diagnostic.
+        env.error(std::string(`unexpected rendering: got [${actual}] want [${expected}]`))
     }
 }
 
@@ -249,4 +249,16 @@ func print_checked_write_reports_success(env : &mut TestEnv) {
     if(ok is std::Result.Err) {
         env.error("try_println failed on a healthy console")
     }
+}
+@test
+func print_dynamic_diagnostic_from_expressive_string(env : &mut TestEnv) {
+    // The idiom a test (or any diagnostic) uses for a dynamic message:
+    // `std::string(`...`)` converts an expressive string to an owned string,
+    // which converts implicitly to the `&str` the reporter takes. Pinned here
+    // so the conversion chain keeps working.
+    var count = 7
+    var ratio = 1.0 / 3.0
+    var name = std::string_view("nodes")
+    var hex : u64 = 255u64
+    env.info(std::string(`reporting ${count} ${name}, ratio ${ratio:.2f}, mask ${hex:#06x}`))
 }

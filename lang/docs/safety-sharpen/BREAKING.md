@@ -16,6 +16,12 @@ This release is allowed to break. The migration mapping is in
 - **`eprint`/`eprintln` added.** There was no way to write to standard error
   from safe code (only `unsafe { fprintf(stderr, ...) }`). Both spell a line
   into a `std::string` and write it once.
+- **Console writes report failure.** `write_stdout`/`write_stderr` return
+  `Result<std::Unit, std::io::IoError>` (a short `fwrite` is no longer silently
+  dropped), `std::io::error_from_errno` maps the platform code onto
+  `IoErrorKind`, and `try_print`/`try_println`/`try_eprint`/`try_eprintln` are
+  the checked forms. `print`/`println` stay best-effort (they discard the
+  result).
 - **A console line is one write, flushed immediately, in program order.**
   Rendering into a `std::string` first means a line cannot be split by another
   thread, and output is visible while the process runs instead of only at exit.
@@ -31,11 +37,20 @@ This release is allowed to break. The migration mapping is in
   `string_view`, `str` or `string` (`var s = "x"` becomes `var s =
   std::string_view("x")`). A string *literal* is still fine (`${"x"}`), because
   its length is known at compile time.
+- **Format specs: `${expr:spec}`.** `${n:x}`, `${n:X}`, `${n:#b}`, `${n:o}`,
+  `${n:08}`, `${n:+.5}`, `${s:<8}`, `${s:^8}`, `${s:*>8}`, `${d:.2f}`,
+  `${d:10.2f}`, `${d:.3e}`, `${d:g}`, `${d:08.2f}` and string precision
+  (`${s:.3}`, truncating) are supported. The spec is validated at compile time
+  (invalid flags/types and width/precision > 254 are errors), packed into one
+  `u64` constant, and decoded by `std::decode_format_spec`; `spec == 0` is the
+  unchanged plain path. The `stream` hook receives the spec:
+  `func stream(&self, s : &mut std::StringStream, spec : u64)` — a two-parameter
+  hook still compiles but cannot be given a spec.
 - **`bool` prints; unsupported types say so.** `std::println(`...${flag}`)`
   used to fail at codegen with `unknown value being used in expressive string`.
   `bool` renders `true`/`false` via `Stream::writeBool`, references format as
   their referent, and any other unsupported type is a compile error naming the
-  supported kinds and the `stream(&self, s : &mut std::StringStream)` hook.
+  supported kinds and the `stream` hook.
 - **Doubles and floats render faithfully.** The old conversion produced
   `0.333` for `1.0/3.0` (three digits, and a different constant in each sink:
   3 in `string`, 6 on the console), `9223372036854775.807` for `1e30`, `0.000`
@@ -47,9 +62,8 @@ This release is allowed to break. The migration mapping is in
   `precision` fraction digits; `precision < 0` selects the shortest form.
   **Output changes**: `pi value : 3.140` becomes `pi value : 3.14`.
 - **One formatter.** `CommandLineStream` no longer carries a second, divergent
-  double/float conversion; it delegates to `std::string` (`writeFloat`/
-  `writeDouble` are documented as a direct-to-stdout sink, `print`/`println` no
-  longer use it).
+  double/float conversion; it delegates to `std::string` for both the plain and
+  the formatted path.
 
 ## Server / ownership wave (2026-11-13)
 

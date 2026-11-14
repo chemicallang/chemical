@@ -2104,12 +2104,16 @@ public:
             ASTNode* function_node,
             chem::string_view function_name,
             ASTNode* parent_node,
-            SourceLocation loc
+            SourceLocation loc,
+            Value* spec_arg = nullptr
     ) {
         const auto child_type = function_node->known_type();
         const auto chain = new (allocator.allocate<AccessChain>()) AccessChain(child_type, loc);
         const auto write_call = new (allocator.allocate<FunctionCall>()) FunctionCall(chain, typeBuilder.getVoidType(), loc);
         write_call->values.emplace_back(selfId);
+        if(spec_arg) {
+            write_call->values.emplace_back(spec_arg);
+        }
         chain->values.emplace_back(argument);
         const auto childId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(
                 function_name, child_type, loc
@@ -2134,7 +2138,8 @@ public:
         chem::string_view function_name,
         ASTNode* parent_node,
         SourceLocation loc,
-        Value* second_arg = nullptr
+        Value* second_arg = nullptr,
+        Value* third_arg = nullptr
     ) {
         const auto child_type = function_node->known_type();
         const auto chain = new (allocator.allocate<AccessChain>()) AccessChain(child_type, loc);
@@ -2142,6 +2147,9 @@ public:
         write_call->values.emplace_back(argument);
         if(second_arg) {
             write_call->values.emplace_back(second_arg);
+        }
+        if(third_arg) {
+            write_call->values.emplace_back(third_arg);
         }
         chain->values.emplace_back(selfId);
         const auto childId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(
@@ -2158,6 +2166,161 @@ public:
         return trusted;
     }
 
+    // Bit-packed format spec shared with `std::decode_format_spec`:
+    //   0..7 width | 8..15 precision+1 | 16..23 fill | 24..25 align
+    //   26..29 base | 30 upper | 31 alt | 32 zero | 33 plus | 34..41 style
+    static bool spec_is_align(char c) {
+        return c == '<' || c == '>' || c == '^';
+    }
+
+    // Parse the `spec` of `${expr:spec}` and validate it against the value's
+    // type. Returns false with `why` set for an invalid/!applicable spec.
+    static bool parse_spec(chem::string_view spec, BaseType* t, uint64_t& out, std::string& why) {
+        const char* s = spec.data();
+        const size_t n = spec.size();
+        size_t i = 0;
+        unsigned width = 0;
+        int precision = -1;
+        unsigned fill = 0;
+        unsigned align = 0;
+        // 1 = decimal, 2 = hex, 3 = binary, 4 = octal (a four-bit field cannot
+        // hold the base itself: 16 does not fit)
+        unsigned base_code = 1;
+        bool upper = false, alt = false, zero = false, plus = false;
+        char style = 0;
+
+        // [fill]align
+        if(n >= 2 && spec_is_align(s[1])) {
+            fill = (unsigned char) s[0];
+            align = s[1] == '<' ? 1u : (s[1] == '>' ? 2u : 3u);
+            i = 2;
+        } else if(n >= 1 && spec_is_align(s[0])) {
+            align = s[0] == '<' ? 1u : (s[0] == '>' ? 2u : 3u);
+            i = 1;
+        }
+
+        // flags (any order, before the width)
+        for(; i < n; i++) {
+            const char c = s[i];
+            if(c == '+') { plus = true; continue; }
+            if(c == '#') { alt = true; continue; }
+            if(c == '0') { zero = true; continue; }
+            break;
+        }
+
+        // width
+        while(i < n && s[i] >= '0' && s[i] <= '9') {
+            width = width * 10 + (unsigned) (s[i] - '0');
+            if(width > 255) {
+                why = "the width in a format spec cannot exceed 255";
+                return false;
+            }
+            i++;
+        }
+
+        // .precision
+        if(i < n && s[i] == '.') {
+            i++;
+            int p = 0;
+            bool digits = false;
+            while(i < n && s[i] >= '0' && s[i] <= '9') {
+                digits = true;
+                p = p * 10 + (s[i] - '0');
+                if(p > 254) {
+                    why = "the precision in a format spec cannot exceed 254";
+                    return false;
+                }
+                i++;
+            }
+            if(!digits) {
+                why = "expected digits after '.' in a format spec";
+                return false;
+            }
+            precision = p;
+        }
+
+        // style
+        if(i < n) {
+            style = s[i];
+            i++;
+        }
+        if(i < n) {
+            why = "unexpected characters after the format spec type";
+            return false;
+        }
+
+        const bool is_float = t->kind() == BaseTypeKind::Float || t->kind() == BaseTypeKind::Double;
+        bool is_char = false;
+        if(t->kind() == BaseTypeKind::IntN) {
+            const auto k = t->as_intn_type_unsafe()->IntNKind();
+            is_char = k == IntNTypeKind::Char || k == IntNTypeKind::UChar;
+        }
+        const bool is_bool = t->kind() == BaseTypeKind::Bool;
+        const bool is_int = t->kind() == BaseTypeKind::IntN && !is_char;
+
+        if(is_float) {
+            if(style == 0) style = 'g';
+            if(style != 'f' && style != 'F' && style != 'e' && style != 'E' &&
+               style != 'g' && style != 'G') {
+                why = std::string("format spec type '") + style +
+                      "' is not valid for a floating point value (use f, e or g)";
+                return false;
+            }
+        } else if(is_int) {
+            switch(style) {
+                case 0: case 'd': case 'i': case 'u':
+                    base_code = 1;
+                    break;
+                case 'x':
+                    base_code = 2;
+                    break;
+                case 'X':
+                    base_code = 2;
+                    upper = true;
+                    break;
+                case 'b':
+                    base_code = 3;
+                    break;
+                case 'o':
+                    base_code = 4;
+                    break;
+                default:
+                    why = std::string("format spec type '") + style +
+                          "' is not valid for an integer (use d, x, X, b or o)";
+                    return false;
+            }
+        } else if(is_char || is_bool || t->isStringType()) {
+            if(style != 0 && style != 's') {
+                why = std::string("format spec type '") + style +
+                      "' is not valid here (use no type, or 's')";
+                return false;
+            }
+            style = 's';
+        } else {
+            // A type that renders through its own `stream` hook receives the
+            // packed spec and can apply width/precision itself (the std string
+            // types forward it to `writeStr`).
+            if(style != 0 && style != 's') {
+                why = std::string("format spec type '") + style +
+                      "' is not valid here (use no type, or 's')";
+                return false;
+            }
+            style = 's';
+        }
+
+        out = static_cast<uint64_t>(width & 0xFFu)
+              | (static_cast<uint64_t>((precision + 1) & 0xFF) << 8)
+              | (static_cast<uint64_t>(fill & 0xFFu) << 16)
+              | (static_cast<uint64_t>(align & 0x3u) << 24)
+              | (static_cast<uint64_t>(base_code & 0xFu) << 26)
+              | (static_cast<uint64_t>(upper ? 1 : 0) << 30)
+              | (static_cast<uint64_t>(alt ? 1 : 0) << 31)
+              | (static_cast<uint64_t>(zero ? 1 : 0) << 32)
+              | (static_cast<uint64_t>(plus ? 1 : 0) << 33)
+              | (static_cast<uint64_t>((unsigned char) style) << 34);
+        return true;
+    }
+
     ASTNode* process_value(
             MembersContainer* container,
             TypeBuilder& typeBuilder,
@@ -2166,7 +2329,8 @@ public:
             ASTAllocator& allocator,
             ASTNode* parent_node,
             SourceLocation loc,
-            std::string& why
+            std::string& why,
+            chem::string_view spec = chem::string_view()
     ) {
         if(implsIndex == nullptr || coreNodes == nullptr) return nullptr;
         BaseType* t = val->getType()->canonical();
@@ -2174,13 +2338,23 @@ public:
         if(t->kind() == BaseTypeKind::Reference) {
             t = t->as_reference_type_unsafe()->type->canonical();
         }
+        // `:spec` of `${expr:spec}` is validated here, at compile time, and
+        // passed on as one packed constant
+        uint64_t packed_spec = 0;
+        if(!spec.empty()) {
+            if(!parse_spec(spec, t, packed_spec, why)) {
+                return nullptr;
+            }
+        }
+        const auto specValue = new (allocator.allocate<IntNumValue>()) IntNumValue(
+                packed_spec, typeBuilder.getU64Type(), loc);
         if(t->isStringType()) {
             if(val->kind() == ValueKind::String) {
                 const auto str = val->as_string_unsafe();
                 const auto sizeVal = new (allocator.allocate<IntNumValue>()) IntNumValue(str->length, typeBuilder.getU64Type(), loc);
                 const auto impl = implsIndex->get_stream_write_str_impl(*coreNodes, container);
                 if(!impl) return nullptr;
-                return write_call(typeBuilder, allocator, selfId, val, impl, "writeStr", parent_node, loc, sizeVal);
+                return write_call(typeBuilder, allocator, selfId, val, impl, "writeStr", parent_node, loc, sizeVal, specValue);
             } else {
                 // A raw `*char` has no length. Rendering it would mean calling
                 // `strlen` on a pointer the compiler cannot bound, which lets
@@ -2196,37 +2370,37 @@ public:
                 case BaseTypeKind::Bool: {
                     const auto impl = implsIndex->get_stream_write_bool_impl(*coreNodes, container);
                     if(!impl) return nullptr;
-                    return write_call(typeBuilder, allocator, selfId, val, impl, "writeBool", parent_node, loc);
+                    return write_call(typeBuilder, allocator, selfId, val, impl, "writeBool", parent_node, loc, specValue);
                 }
                 case BaseTypeKind::IntN: {
                     const auto intKind = t->as_intn_type_unsafe()->IntNKind();
                     if(intKind == IntNTypeKind::Char) {
                         const auto impl = implsIndex->get_stream_write_char_impl(*coreNodes, container);
                         if(!impl) return nullptr;
-                        return write_call(typeBuilder, allocator, selfId, val, impl, "writeChar", parent_node, loc);
+                        return write_call(typeBuilder, allocator, selfId, val, impl, "writeChar", parent_node, loc, specValue);
                     } else if(intKind == IntNTypeKind::UChar) {
                         const auto impl = implsIndex->get_stream_write_uchar_impl(*coreNodes, container);
                         if(!impl) return nullptr;
-                        return write_call(typeBuilder, allocator, selfId, val, impl, "writeUChar", parent_node, loc);
+                        return write_call(typeBuilder, allocator, selfId, val, impl, "writeUChar", parent_node, loc, specValue);
                     } else if(IntNType::is_unsigned(intKind)) {
                         const auto impl = implsIndex->get_stream_write_unsigned_impl(*coreNodes, container);
                         if(!impl) return nullptr;
-                        return write_call(typeBuilder, allocator, selfId, val, impl, "writeUnsigned", parent_node, loc);
+                        return write_call(typeBuilder, allocator, selfId, val, impl, "writeUnsigned", parent_node, loc, specValue);
                     } else {
                         const auto impl = implsIndex->get_stream_write_signed_impl(*coreNodes, container);
                         if(!impl) return nullptr;
-                        return write_call(typeBuilder, allocator, selfId, val, impl, "writeSigned", parent_node, loc);
+                        return write_call(typeBuilder, allocator, selfId, val, impl, "writeSigned", parent_node, loc, specValue);
                     }
                 }
                 case BaseTypeKind::Float: {
                     const auto impl = implsIndex->get_stream_write_float_impl(*coreNodes, container);
                     if(!impl) return nullptr;
-                    return write_call(typeBuilder, allocator, selfId, val, impl, "writeFloat", parent_node, loc);
+                    return write_call(typeBuilder, allocator, selfId, val, impl, "writeFloat", parent_node, loc, specValue);
                 }
                 case BaseTypeKind::Double: {
                     const auto impl = implsIndex->get_stream_write_double_impl(*coreNodes, container);
                     if(!impl) return nullptr;
-                    return write_call(typeBuilder, allocator, selfId, val, impl, "writeDouble", parent_node, loc);
+                    return write_call(typeBuilder, allocator, selfId, val, impl, "writeDouble", parent_node, loc, specValue);
                 }
                 case BaseTypeKind::Linked:
                 case BaseTypeKind::Generic: {
@@ -2238,7 +2412,7 @@ public:
                     const auto child = node->child("stream");
                     if(!child) {
                         why = "this type cannot be formatted: it has no "
-                              "'stream(&self, s : &mut std::StringStream)' method";
+                              "'stream(&self, s : &mut std::StringStream, spec : u64)' method";
                         return nullptr;
                     }
                     // Verify the hook instead of trusting its name. The generated
@@ -2253,12 +2427,12 @@ public:
                     unsigned int nonSelf = 0;
                     for(auto* p : hook->params) {
                         if(!p || (hook->has_self_param() && p == hook->get_self_param())) continue;
-                        streamParam = p;
+                        if(nonSelf == 0) streamParam = p;
                         nonSelf++;
                     }
-                    if(nonSelf != 1 || !hook->has_self_param() || streamParam == nullptr) {
+                    if(!hook->has_self_param() || streamParam == nullptr || nonSelf > 2) {
                         why = "the 'stream' hook must be declared as "
-                              "'func stream(&self, s : &mut std::StringStream)'";
+                              "'func stream(&self, s : &mut std::StringStream, spec : u64)'";
                         return nullptr;
                     }
                     BaseType* sinkType = streamParam->type;
@@ -2278,12 +2452,17 @@ public:
                               "being rendered into ('&mut std::StringStream')";
                         return nullptr;
                     }
-                    return write_obj_call(typeBuilder, allocator, selfId, val, child, "stream", parent_node, loc);
+                    if(packed_spec != 0 && nonSelf == 1) {
+                        why = "this type's 'stream' hook does not accept a format spec; "
+                              "declare it as 'func stream(&self, s : &mut std::StringStream, spec : u64)'";
+                        return nullptr;
+                    }
+                    return write_obj_call(typeBuilder, allocator, selfId, val, child, "stream", parent_node, loc, specValue);
                 }
                 default:
                     why = "values of this type cannot be formatted; the supported kinds are "
                           "bool, char, integers, floats, string, string_view, str, and types with a "
-                          "'stream(&self, s : &mut std::StringStream)' method";
+                          "'stream(&self, s : &mut std::StringStream, spec : u64)' method";
                     return nullptr;
             }
         }
@@ -2354,9 +2533,10 @@ public:
         std::string why;
         if(second->kind() == ValueKind::ExpressiveString) {
             const auto str = second->as_expressive_str_unsafe();
-            for (const auto val: str->values) {
+            for (size_t i = 0; i < str->values.size(); i++) {
+                const auto val = str->values[i];
                 why.clear();
-                const auto wrapper = process_value(container, typeBuilder, val, initId, allocator, parent_node, loc, why);
+                const auto wrapper = process_value(container, typeBuilder, val, initId, allocator, parent_node, loc, why, str->spec_at(i));
                 if(wrapper == nullptr) {
                     report_value_error(call_scope, why, val);
                 } else {

@@ -122,8 +122,8 @@ public struct str 'a {
 
     // Expressive-string hook: `println(`${name}`)` renders a `str` without
     // re-validating its bytes (a `str` is already known to be UTF-8).
-    func stream(&self, s : &mut StringStream) {
-        unsafe { s.writeStr(_view.data(), _view.size()) }
+    func stream(&self, s : &mut StringStream, spec : u64) {
+        unsafe { s.writeStr(_view.data(), _view.size(), spec) }
     }
 
     func subview(&self, start : size_t, end : size_t) : str {

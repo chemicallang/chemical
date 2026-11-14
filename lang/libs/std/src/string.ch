@@ -786,6 +786,297 @@ public struct string {
         append_double_impl(value as double, precision, true)
     }
 
+    // --- format spec rendering -------------------------------------------
+
+    /// Append `body` (already rendered) honoring width, fill and alignment.
+    /// Used for text-shaped values: strings, chars and bools. A precision
+    /// truncates to that many *bytes* (a grapheme-aware truncation is a
+    /// follow-up: the formatter works on UTF-8 bytes, not code points).
+    unsafe func append_spec_body(&mut self, body : *char, len : size_t, f : FormatSpec) {
+        var n = len
+        if(f.style == 's' && f.precision >= 0 && (f.precision as size_t) < n) {
+            n = f.precision as size_t
+        }
+        var pad : size_t = 0
+        if(f.width > 0 && (f.width as size_t) > n) {
+            pad = (f.width as size_t) - n
+        }
+        var before : size_t = 0
+        var after : size_t = 0
+        if(pad > 0) {
+            if(f.align == 1) {
+                after = pad
+            } else if(f.align == 3) {
+                before = pad / 2u
+                after = pad - before
+            } else {
+                before = pad
+            }
+        }
+        var i : size_t = 0
+        while(i < before) {
+            append(f.fill)
+            i = i + 1
+        }
+        append_with_len(body, n)
+        i = 0
+        while(i < after) {
+            append(f.fill)
+            i = i + 1
+        }
+    }
+
+    /// Append a signed integer honoring the spec's base, prefix, sign, width,
+    /// fill and zero padding.
+    func append_signed_spec(&mut self, value : bigint, f : FormatSpec) {
+        if(value < 0) {
+            // INT64_MIN safe magnitude
+            var tmp = value + 1
+            var mag : ubigint = 0
+            if(tmp < 0) {
+                mag = (-(tmp)) as ubigint
+                mag = mag + 1
+            } else {
+                mag = 1
+            }
+            append_uint_spec(mag, true, f)
+        } else {
+            append_uint_spec(value as ubigint, false, f)
+        }
+    }
+
+    func append_uint_spec(&mut self, magnitude : ubigint, negative : bool, f : FormatSpec) {
+        // digits in `f.base`, least significant first
+        var digits : [72]char
+        var count : int = 0
+        var m = magnitude
+        if(m == 0) {
+            digits[0] = '0'
+            count = 1
+        } else {
+            const base_value = f.base as ubigint
+            while(m != 0) {
+                const d = (m % base_value) as int
+                var c : int = 0
+                if(d < 10) {
+                    c = ('0' as int) + d
+                } else if(f.upper) {
+                    c = ('A' as int) + (d - 10)
+                } else {
+                    c = ('a' as int) + (d - 10)
+                }
+                digits[count] = c as char
+                count = count + 1
+                m = m / base_value
+            }
+        }
+        var zeros : int = 0
+        if(f.precision > count) {
+            zeros = f.precision - count
+        }
+        var sign : char = '\0'
+        if(negative) {
+            sign = '-'
+        } else if(f.plus) {
+            sign = '+'
+        }
+        var prefix : [2]char
+        var prefix_len : int = 0
+        if(f.alt) {
+            if(f.base == 16) {
+                prefix[0] = '0'
+                prefix[1] = 'x'
+                prefix_len = 2
+            } else if(f.base == 2) {
+                prefix[0] = '0'
+                prefix[1] = 'b'
+                prefix_len = 2
+            } else if(f.base == 8) {
+                prefix[0] = '0'
+                prefix_len = 1
+            }
+        }
+        var sign_len : size_t = 0
+        if(sign != '\0') {
+            sign_len = 1
+        }
+        const total = sign_len + (prefix_len as size_t) + (zeros as size_t) + (count as size_t)
+        var pad : size_t = 0
+        if(f.width > 0 && (f.width as size_t) > total) {
+            pad = (f.width as size_t) - total
+        }
+        var before : size_t = 0
+        var after : size_t = 0
+        var zero_inside : size_t = 0
+        if(pad > 0) {
+            if(f.zero && f.align == 0) {
+                zero_inside = pad
+            } else if(f.align == 1) {
+                after = pad
+            } else if(f.align == 3) {
+                before = pad / 2u
+                after = pad - before
+            } else {
+                before = pad
+            }
+        }
+        var i : size_t = 0
+        while(i < before) {
+            append(f.fill)
+            i = i + 1
+        }
+        if(sign != '\0') {
+            append(sign)
+        }
+        i = 0
+        while(i < (prefix_len as size_t)) {
+            append(prefix[i])
+            i = i + 1
+        }
+        i = 0
+        while(i < zero_inside) {
+            append('0')
+            i = i + 1
+        }
+        i = 0
+        while(i < (zeros as size_t)) {
+            append('0')
+            i = i + 1
+        }
+        var j : int = count - 1
+        while(j >= 0) {
+            append(digits[j])
+            j = j - 1
+        }
+        i = 0
+        while(i < after) {
+            append(f.fill)
+            i = i + 1
+        }
+    }
+
+    /// Scientific form of a non-negative value with `sig` significant digits.
+    func append_double_scientific_abs(&mut self, v : double, sig : int) {
+        var digits = sig
+        if(digits < 1) {
+            digits = 1
+        }
+        if(digits > 18) {
+            digits = 18
+        }
+        const e = decimal_exponent(v)
+        var divisor : double = 1.0
+        if(e > 0) {
+            var i : int = 0
+            while(i < e) {
+                divisor = divisor * 10.0
+                i = i + 1
+            }
+            append_double_scientific(v / divisor, e, digits)
+        } else {
+            var j : int = 0
+            while(j < -e) {
+                divisor = divisor * 10.0
+                j = j + 1
+            }
+            append_double_scientific(v * divisor, e, digits)
+        }
+    }
+
+    /// Append a double honoring the spec's style (`f`, `e`, `g`), precision,
+    /// sign, width, fill and zero padding.
+    func append_double_spec(&mut self, value : double, f : FormatSpec) {
+        var negative = false
+        var body = std::string()
+        if(dbl_is_nan(value)) {
+            body.append_view("nan")
+        } else if(dbl_is_inf(value)) {
+            negative = dbl_is_neg(value)
+            body.append_view("inf")
+        } else {
+            var v = value
+            if(dbl_is_neg(v)) {
+                negative = true
+                v = -v
+            }
+            if(f.style == 'e' || f.style == 'E') {
+                var sig = f.precision + 1
+                if(f.precision < 0) {
+                    sig = 7
+                }
+                body.append_double_scientific_abs(v, sig)
+            } else if(f.style == 'f' || f.style == 'F') {
+                var precision = f.precision
+                if(precision < 0) {
+                    precision = 6
+                }
+                if(decimal_exponent(v) >= 15) {
+                    // no room for a fixed integer part: stay faithful
+                    body.append_double_scientific_abs(v, precision + 1)
+                } else {
+                    body.append_double_fixed(v, precision, false)
+                }
+            } else {
+                body.append_double(v, -1)
+            }
+        }
+        var sign : char = '\0'
+        if(negative) {
+            sign = '-'
+        } else if(f.plus) {
+            sign = '+'
+        }
+        append_padded_signed(sign, &body, f)
+    }
+
+    /// Emit `body` with `sign` in front, putting zero padding after the sign so
+    /// `{:08.2f}` of `-1.5` is `-0001.50`.
+    func append_padded_signed(&mut self, sign : char, body : &string, f : FormatSpec) {
+        var sign_len : size_t = 0
+        if(sign != '\0') {
+            sign_len = 1
+        }
+        const total = sign_len + body.size()
+        var pad : size_t = 0
+        if(f.width > 0 && (f.width as size_t) > total) {
+            pad = (f.width as size_t) - total
+        }
+        var before : size_t = 0
+        var after : size_t = 0
+        var zero_inside : size_t = 0
+        if(pad > 0) {
+            if(f.zero && f.align == 0) {
+                zero_inside = pad
+            } else if(f.align == 1) {
+                after = pad
+            } else if(f.align == 3) {
+                before = pad / 2u
+                after = pad - before
+            } else {
+                before = pad
+            }
+        }
+        var i : size_t = 0
+        while(i < before) {
+            append(f.fill)
+            i = i + 1
+        }
+        if(sign != '\0') {
+            append(sign)
+        }
+        i = 0
+        while(i < zero_inside) {
+            append('0')
+            i = i + 1
+        }
+        append_string(body)
+        i = 0
+        while(i < after) {
+            append(f.fill)
+            i = i + 1
+        }
+    }
+
     func copy(&self) : string {
         return substring(0, size())
     }
@@ -1080,8 +1371,8 @@ public struct string {
     // TODO: unstable, no interface involved, signature not stable
     // TODO: no verification of signature
     // TODO: hardcoded type StringStream, generic function support required
-    func stream(&self, s : &mut StringStream) {
-        unsafe { s.writeStr(data(), size()) }
+    func stream(&self, s : &mut StringStream, spec : u64) {
+        unsafe { s.writeStr(data(), size(), spec) }
     }
 
     @delete
@@ -1102,42 +1393,132 @@ public struct StringStream {
 
 }
 
+/// Decoded form of the packed `:spec` of `${expr:spec}`. The compiler validates
+/// the spec (rejecting invalid flags/types and clamping width/precision), so
+/// decoding only has to unpack; the defaults below match `spec == 0`.
+public struct FormatSpec {
+    var width : int = 0
+    var precision : int = -1
+    var fill : char = ' '
+    var align : int = 0      // 0 default, 1 left, 2 right, 3 center
+    var base : int = 10
+    var upper : bool = false
+    var alt : bool = false
+    var zero : bool = false
+    var plus : bool = false
+    var style : char = 0
+}
+
+public func decode_format_spec(packed : u64) : FormatSpec {
+    var f = FormatSpec()
+    f.width = (packed & 255u64) as int
+    f.precision = (((packed >> 8u) & 255u64) as int) - 1
+    const fill_value = ((packed >> 16u) & 255u64) as int
+    if(fill_value != 0) {
+        f.fill = fill_value as char
+    }
+    f.align = ((packed >> 24u) & 3u64) as int
+    const base_code = ((packed >> 26u) & 15u64) as int
+    if(base_code == 2) {
+        f.base = 16
+    } else if(base_code == 3) {
+        f.base = 2
+    } else if(base_code == 4) {
+        f.base = 8
+    } else {
+        f.base = 10
+    }
+    f.upper = ((packed >> 30u) & 1u64) != 0u64
+    f.alt = ((packed >> 31u) & 1u64) != 0u64
+    f.zero = ((packed >> 32u) & 1u64) != 0u64
+    f.plus = ((packed >> 33u) & 1u64) != 0u64
+    f.style = (((packed >> 34u) & 255u64) as int) as char
+    return f
+}
+
 impl core::stream::Stream for StringStream {
 
-    func writeChar(&mut self, value : char) {
-        str.append(value)
-    }
-
-    func writeUChar(&mut self, value : uchar) {
-        str.append(value as char)
-    }
-
-    func writeSigned(&mut self, value : bigint) {
-        str.append_integer(value)
-    }
-
-    func writeUnsigned(&mut self, value : ubigint) {
-        str.append_uinteger(value)
-    }
-
-    func writeBool(&mut self, value : bool) {
-        if(value) {
-            str.append_view("true")
-        } else {
-            str.append_view("false")
+    func writeChar(&mut self, value : char, spec : u64) {
+        if(spec == 0u64) {
+            str.append(value)
+            return
         }
+        var body : [1]char
+        body[0] = value
+        unsafe { str.append_spec_body(&raw mut body[0], 1u, decode_format_spec(spec)) }
     }
 
-    unsafe func writeStr(&mut self, value : *char, length : ubigint) {
-        str.append_with_len(value, length)
+    func writeUChar(&mut self, value : uchar, spec : u64) {
+        if(spec == 0u64) {
+            str.append(value as char)
+            return
+        }
+        var body : [1]char
+        body[0] = value as char
+        unsafe { str.append_spec_body(&raw mut body[0], 1u, decode_format_spec(spec)) }
     }
 
-    func writeFloat(&mut self, value : float) {
-        str.append_float(value, -1)
+    func writeSigned(&mut self, value : bigint, spec : u64) {
+        if(spec == 0u64) {
+            str.append_integer(value)
+            return
+        }
+        str.append_signed_spec(value, decode_format_spec(spec))
     }
 
-    func writeDouble(&mut self, value : double) {
-        str.append_double(value, -1)
+    func writeUnsigned(&mut self, value : ubigint, spec : u64) {
+        if(spec == 0u64) {
+            str.append_uinteger(value)
+            return
+        }
+        str.append_uint_spec(value, false, decode_format_spec(spec))
+    }
+
+    func writeBool(&mut self, value : bool, spec : u64) {
+        var body : [5]char
+        var len : size_t = 4u
+        if(value) {
+            body[0] = 't'
+            body[1] = 'r'
+            body[2] = 'u'
+            body[3] = 'e'
+        } else {
+            body[0] = 'f'
+            body[1] = 'a'
+            body[2] = 'l'
+            body[3] = 's'
+            body[4] = 'e'
+            len = 5u
+        }
+        if(spec == 0u64) {
+            unsafe { str.append_with_len(&raw mut body[0], len) }
+            return
+        }
+        unsafe { str.append_spec_body(&raw mut body[0], len, decode_format_spec(spec)) }
+    }
+
+    unsafe func writeStr(&mut self, value : *char, length : ubigint, spec : u64) {
+        if(spec == 0u64) {
+            str.append_with_len(value, length)
+            return
+        }
+        unsafe { str.append_spec_body(value, length as size_t, decode_format_spec(spec)) }
+    }
+
+    func writeFloat(&mut self, value : float, spec : u64) {
+        if(spec == 0u64) {
+            str.append_float(value, -1)
+            return
+        }
+        str.append_double_spec(value as double, decode_format_spec(spec))
+    }
+
+    func writeDouble(&mut self, value : double, spec : u64) {
+        if(spec == 0u64) {
+            str.append_double(value, -1)
+            return
+        }
+        str.append_double_spec(value, decode_format_spec(spec))
     }
 
 }

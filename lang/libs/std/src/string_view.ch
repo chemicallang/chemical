@@ -343,8 +343,8 @@ public namespace std {
         // TODO: unstable, no interface involved, signature not stable
         // TODO: no verification of signature
         // TODO: hardcoded type StringStream, generic function support required
-        func stream(&self, s : &mut StringStream) {
-            unsafe { s.writeStr(_data, _size) }
+        func stream(&self, s : &mut StringStream, spec : u64) {
+            unsafe { s.writeStr(_data, _size, spec) }
         }
 
     }

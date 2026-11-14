@@ -301,7 +301,8 @@ result locals and missing hidden result pointers in generated C.
 
 ## Printing / formatting wave (2026-11-14)
 
-The console API was non-functional and unsafe; it is now the only formatting path.
+The console API was non-functional and unsafe; it is now the only formatting path,
+with compile-time-validated format specs.
 
 - **`std::print`/`println` produced no output at all.** Root cause: `MIRTypeBuilder`
   maps `BaseType::Any` to `void` ("`any` is spelled `void`"), so an `@expand`
@@ -317,6 +318,10 @@ The console API was non-functional and unsafe; it is now the only formatting pat
   `fwrite` + `fflush`, so a line is atomic across threads and `println` and
   `append_expr` cannot disagree about formatting. `eprint`/`eprintln` are new:
   safe code had no way to write to stderr.
+- **Console writes are checkable.** `write_stdout`/`write_stderr` return
+  `Result<std::Unit, std::io::IoError>`; a short `fwrite` (EPIPE/ENOSPC) is
+  reported instead of dropped, `std::io::error_from_errno` maps the platform
+  code, and `try_print*` are the checked affordances.
 - **Ordering with `printf` fixed on Windows.** `get_stdout()` builds a *second*
   CRT stream over the process handle via `_open_osfhandle`/`_fdopen`, so
   `printf`'s buffer and ours reached the handle in the wrong order
@@ -329,12 +334,27 @@ The console API was non-functional and unsafe; it is now the only formatting pat
   subview printed 5 bytes). `Stream::writeStrNoLen` is removed; a bare `*char`
   is a compile error naming `string_view`/`str`/`string`. String literals keep
   their compile-time length.
+- **Format specs `${expr:spec}`.** Flags/fill/align/width/precision and the
+  type (`d x X b o f e g s`) are parsed and validated **at compile time**
+  (invalid type/flags, width > 255, precision > 254 are diagnostics), packed
+  into one `u64` constant and decoded by `std::decode_format_spec`; the spec is
+  threaded to the sink (`Stream::*` take `spec : u64`, `spec == 0` is the plain
+  path) and to the `stream` hook
+  (`func stream(&self, s : &mut std::StringStream, spec : u64)`). Rendering:
+  integer bases with `#` prefixes, sign handling, zero padding that stays after
+  the sign (`{:08.2f}` of `-1.5` is `-0001.50`), left/right/center alignment,
+  arbitrary fill, fixed/scientific/general float styles, and string
+  truncation/precision. The lexer tracks `${}` nesting depth, so a struct
+  literal inside an interpolation is not mistaken for the end of the
+  expression, and `:` only starts a spec at depth 0.
 - **Type coverage.** `bool` added (`Stream::writeBool`), references format as
   their referent, `str` gained a `stream` hook, and unsupported types now report
-  *why* (naming the supported kinds and the `stream(&self, s : &mut
-  std::StringStream)` hook) instead of `unknown value being used in expressive
-  string`. Still unsupported (next step): `Option`/`Result`/variants,
-  `vector`/arrays/slices, pointers, and format specs (`{:.2}`, `{:>8}`).
+  *why* (naming the supported kinds and the hook) instead of `unknown value
+  being used in expressive string`. The hook is **signature-verified** (its sink
+  parameter must be the stream being rendered into), closing a type-confusion
+  path that let a hook read the sink as an unrelated struct. Still unsupported
+  (next step): `Option`/`Result`/variants, `vector`/arrays/slices, and raw
+  pointers — these need loop/pattern generation in the intrinsic.
 - **Faithful number rendering.** The old conversion clamped `1.0/3.0` to
   `0.333` (3 digits in `string`, 6 on the console — the *sink* chose the
   precision), rendered `1e30` as `9223372036854775.807` (integer part overflowed
@@ -344,10 +364,12 @@ The console API was non-functional and unsafe; it is now the only formatting pat
   trailing zeros are trimmed, scientific notation is used only outside
   `[1e-4, 1e15)`, `-0.0` keeps its sign, and `nan`/`inf` spell themselves.
   `CommandLineStream` no longer carries a duplicate formatter.
-- Gates: main 2485/2485, libs 893/893 (+11 new `print_*` tests), plugins
-  1305/1305, safety 193/193, negative 882/882 (+2 new), server 10/10, async
-  84/84, interpretation 1938/1938, LLVM `--libs` green, whole `tls` module
-  `--check` clean.
+- Gates: main 2485/2485, libs 903/903 (+21 new `print_*` tests), plugins
+  1305/1305, safety 193/193, negative 884/884 (+4 new), server 10/10, async
+  84/84, interpretation 1938/1938, LLVM print subset green, whole `tls` module
+  `--check` clean. (The 64x64 generated field-move safety tests remain
+  load-sensitive under a full parallel run and pass individually — pre-existing,
+  unrelated to this wave.)
 
 ## Phase 1 notes
 

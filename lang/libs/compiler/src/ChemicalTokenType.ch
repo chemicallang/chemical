@@ -244,6 +244,9 @@ public enum ChemicalTokenType {
     // `..` slice/range syntax, appended after the keyword range
     DotDotSym,
 
+    // the `:spec` part of `${expr:spec}` inside an expressive string
+    FormatSpec,
+
     IndexKwStart = ForKw,
     IndexKwEnd = ConstKw,
 

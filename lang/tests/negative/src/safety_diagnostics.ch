@@ -2252,7 +2252,7 @@ func neg_union_field_access_requires_unsafe(env : &mut TestEnv) {
 @test
 func neg_command_line_stream_raw_write_requires_unsafe(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
-    var ch = "using namespace std;\npublic func main() : int {\n    var s = CommandLineStream {}\n    s.writeStr(null, 0)\n    return 0\n}\n"
+    var ch = "using namespace std;\npublic func main() : int {\n    var s = CommandLineStream {}\n    s.writeStr(null, 0, 0u64)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "command_line_stream_raw_write", ch, "SAFE-UNSAFE-002", NEG_MOD_STD_CORE)
 }
 
@@ -2555,4 +2555,18 @@ func neg_print_unsupported_type(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "using namespace std;\npublic func main() : int {\n    var v = vector<int>()\n    println(`${v}`)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "print_unsupported_type", ch, "cannot be formatted", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_printf_spec_invalid_type(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "using namespace std;\npublic func main() : int {\n    var n = 42\n    println(`${n:q}`)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "printf_spec_invalid_type", ch, "is not valid for an integer", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_printf_spec_on_hook_without_spec_param(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "using namespace std;\npublic struct P {\n    var x : int\n    func stream(&self, s : &mut StringStream) {\n        s.writeSigned(self.x as bigint, 0u64)\n    }\n}\npublic func main() : int {\n    var p = P { x : 1 }\n    println(`${p:>8}`)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "printf_spec_hook_no_spec", ch, "does not accept a format spec", NEG_MOD_STD_CORE)
 }

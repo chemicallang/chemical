@@ -782,9 +782,19 @@ Token Lexer::getNextToken() {
         case '\0':
             return Token(TokenType::EndOfFile, { "", 0 }, pos);
         case '{':
+            if(str_expr) {
+                // a brace inside `${...}` (a struct literal) nests: it is not
+                // the end of the expression
+                str_expr_depth++;
+            }
             return Token(TokenType::LBrace, view_str(LBraceCStr), pos);
         case '}':
             if(str_expr) {
+                if(str_expr_depth > 0) {
+                    str_expr_depth--;
+                    return Token(TokenType::RBrace, view_str(RBraceCStr), pos);
+                }
+                str_expr_depth = 0;
                 auto ended_ = read_backtick_string(provider);
                 if(ended_.has_value()) {
                     if(ended_.value()) {
@@ -803,12 +813,24 @@ Token Lexer::getNextToken() {
                 return Token(TokenType::RBrace, view_str(RBraceCStr), pos);
             }
         case '(':
+            if(str_expr) {
+                str_expr_depth++;
+            }
             return Token(TokenType::LParen, view_str(LParenCStr), pos);
         case ')':
+            if(str_expr && str_expr_depth > 0) {
+                str_expr_depth--;
+            }
             return Token(TokenType::RParen, view_str(RParenCStr), pos);
         case '[':
+            if(str_expr) {
+                str_expr_depth++;
+            }
             return Token(TokenType::LBracket, view_str(LBracketCStr), pos);
         case ']':
+            if(str_expr && str_expr_depth > 0) {
+                str_expr_depth--;
+            }
             return Token(TokenType::RBracket, view_str(RBracketCStr), pos);
         case '+':
             if(provider.peek() == '+') {
@@ -949,6 +971,18 @@ Token Lexer::getNextToken() {
                 return Token(TokenType::PipeSym, view_str(BitwiseOrOpCStr), pos);
             }
         case ':':
+            // Inside `${expr}` at nesting depth 0, a colon starts the format
+            // spec (`${x:.2f}`). The spec is plain text up to the closing brace,
+            // so it is scanned raw instead of being lexed as tokens.
+            if(str_expr && str_expr_depth == 0) {
+                const auto spec_start = provider.current_data();
+                while(!provider.eof() && provider.peek() != '}') {
+                    provider.increment();
+                }
+                const auto spec_end = provider.current_data();
+                return Token(TokenType::FormatSpec,
+                             chem::string_view(spec_start, spec_end - spec_start), pos);
+            }
             if(provider.increment(':')) {
                 return Token(TokenType::DoubleColonSym, view_str(ScopeResOpCStr), pos);
             } else {
@@ -997,6 +1031,7 @@ Token Lexer::getNextToken() {
                             diagnoser.diagnostic("nested string expressions aren't allowed", chem::string_view(file_path), pos, provider.position(), DiagSeverity::Error);
                         } else {
                             str_expr = true;
+                            str_expr_depth = 0;
                         }
                         return Token(TokenType::StringExprStart, view_str(LBraceCStr), pos);
                     }
@@ -1016,6 +1051,7 @@ Token Lexer::getNextToken() {
                                 diagnoser.diagnostic("nested string expressions aren't allowed", chem::string_view(file_path), pos, provider.position(), DiagSeverity::Error);
                             } else {
                                 str_expr = true;
+                                str_expr_depth = 0;
                             }
                         }
                     } else {

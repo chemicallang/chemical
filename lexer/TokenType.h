@@ -252,6 +252,11 @@ enum class TokenType {
     // `..` slice/range syntax, appended after the keyword range
     DotDotSym,
 
+    // the `:spec` part of `${expr:spec}` inside an expressive string. Carries
+    // the raw spec text. Appended at the end so no existing token value shifts
+    // (CBI plugins mirror this enum in ChemicalTokenType.ch).
+    FormatSpec,
+
     IndexKwStart = ForKw,
     IndexKwEnd = ConstKw,
 

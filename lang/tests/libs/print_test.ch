@@ -10,10 +10,10 @@ struct PrintFixture {
     var x : int
     var label : str
 
-    func stream(&self, s : &mut StringStream) {
-        unsafe { s.writeStr(label.data(), label.size()) }
-        s.writeChar('=')
-        s.writeSigned(x as bigint)
+    func stream(&self, s : &mut StringStream, spec : u64) {
+        unsafe { s.writeStr(label.data(), label.size(), 0u64) }
+        s.writeChar('=', 0u64)
+        s.writeSigned(x as bigint, 0u64)
     }
 }
 
@@ -156,4 +156,97 @@ func print_console_functions_emit(env : &mut TestEnv) {
     // The lines below are expected in the suite output.
     println(`print-smoke ${1} + ${2} = ${3}`)
     eprintln(`eprint-smoke ${4}`)
+}
+
+@test
+func print_spec_integer_bases(env : &mut TestEnv) {
+    var v : u64 = 255u64
+    var s = string()
+    s.append_expr(`hex=${v:x} HEX=${v:X} alt=${v:#x} bin=${v:#b} oct=${v:o} dec=${v:d}`)
+    const expected = string_view("hex=ff HEX=FF alt=0xff bin=0b11111111 oct=377 dec=255")
+    expect_render(env, &s, &expected)
+}
+
+@test
+func print_spec_width_and_alignment(env : &mut TestEnv) {
+    var n : int = 42
+    var neg : int = -42
+    var s = string()
+    s.append_expr(`[${n:6}] [${n:<6}] [${n:>6}] [${n:^6}] [${n:*>6}] [${neg:06}]`)
+    const expected = string_view("[    42] [42    ] [    42] [  42  ] [****42] [-00042]")
+    expect_render(env, &s, &expected)
+}
+
+@test
+func print_spec_integer_precision_and_sign(env : &mut TestEnv) {
+    var n : int = 42
+    var s = string()
+    s.append_expr(`${n:.5} ${n:+d} ${n:+.5}`)
+    const expected = string_view("00042 +42 +00042")
+    expect_render(env, &s, &expected)
+}
+
+@test
+func print_spec_float_styles(env : &mut TestEnv) {
+    var third = 1.0 / 3.0
+    var s = string()
+    s.append_expr(`[${third:.2f}] [${third:f}] [${third:.3e}] [${third:g}] [${third:10.2f}]`)
+    const expected = string_view("[0.33] [0.333333] [3.333e-1] [0.333333333333333] [      0.33]")
+    expect_render(env, &s, &expected)
+}
+
+@test
+func print_spec_float_zero_pad_keeps_sign(env : &mut TestEnv) {
+    var v = -1.5
+    var s = string()
+    s.append_expr(`[${v:08.2f}]`)
+    const expected = string_view("[-0001.50]")
+    expect_render(env, &s, &expected)
+}
+
+@test
+func print_spec_string_truncate_and_pad(env : &mut TestEnv) {
+    var name = std::string_view("abcdef")
+    var owned = std::string("xy")
+    var safe = std::str("z")
+    var s = string()
+    s.append_expr(`[${name:.3}] [${name:<8}] [${name:>8}] [${owned}] [${safe:^3}]`)
+    const expected = string_view("[abc] [abcdef  ] [  abcdef] [xy] [ z ]")
+    expect_render(env, &s, &expected)
+}
+
+@test
+func print_spec_bool_and_char(env : &mut TestEnv) {
+    var flag = true
+    var c : char = 'Q'
+    var s = string()
+    s.append_expr(`[${flag:>6}] [${c:^3}]`)
+    const expected = string_view("[  true] [ Q ]")
+    expect_render(env, &s, &expected)
+}
+
+@test
+func print_spec_inside_nested_braces(env : &mut TestEnv) {
+    // the lexer must not treat a struct literal's `}` as the end of `${}`
+    var s = string()
+    s.append_expr(`${PrintFixture { x : 7, label : str("n") }}`)
+    const expected = string_view("n=7")
+    expect_render(env, &s, &expected)
+}
+@test
+func print_spec_combined_alt_zero_pad(env : &mut TestEnv) {
+    var v = 7
+    var d = 2.5
+    var s = string()
+    s.append_expr(`[${v:#010x}] [${d:6.2f}]`)
+    const expected = string_view("[0x00000007] [  2.50]")
+    expect_render(env, &s, &expected)
+}
+
+@test
+func print_checked_write_reports_success(env : &mut TestEnv) {
+    var ok = try_println(`checked output ${1}`)
+    if(ok is std::Result.Err) {
+        env.error("try_println failed on a healthy console")
+    }
 }

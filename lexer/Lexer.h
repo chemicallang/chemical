@@ -45,6 +45,13 @@ struct LexerState {
      */
     bool str_expr = false;
 
+    /**
+     * nesting depth of `(`/`[`/`{` while `str_expr` is true, so `:` at depth 0
+     * starts the format spec of `${expr:spec}` and a `}` inside a struct
+     * literal does not end the expression
+     */
+    int str_expr_depth = 0;
+
 };
 
 /**

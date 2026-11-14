@@ -20,7 +20,9 @@ flat tuple destructuring, flat fixed-array exact/rest destructuring, fixed-array
 
 | Removed | Migration |
 |---|---|
-| `core::stream::Stream::writeStrNoLen(&self, *char)` | a formatter always knows the extent it renders; print a `string_view`/`str`/`string` instead, or read the length yourself and use `writeStr(ptr, len)` |
+| `core::stream::Stream::writeStrNoLen(&self, *char)` | a formatter always knows the extent it renders; print a `string_view`/`str`/`string` instead, or read the length yourself and use `writeStr(ptr, len, spec)` |
+| `core::stream::Stream::write*(value)` without a spec | the eight `Stream` methods take `spec : u64` (`0` = plain); the intrinsic passes it |
+| `func stream(&self, s : &mut std::StringStream)` (two parameters) | `func stream(&self, s : &mut std::StringStream, spec : u64)` if you want format specs applied to your type; a two-parameter hook still compiles but rejects `${x:spec}` |
 | `std::print`/`println` returning `any` | they return nothing (a console write is a statement) |
 | `CommandLineStream::double_to_chars` / `float_to_chars` (internal) | `std::string::append_double` / `append_float` are the one double/float formatter |
 

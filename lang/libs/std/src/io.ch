@@ -57,6 +57,30 @@ public variant SeekFrom {
     End(offset : i64)
 }
 
+/// Map a platform `errno` value onto the shared taxonomy, so a failed write is
+/// reportable instead of silently dropped. Socket-specific codes (`WSA*`) go
+/// through `net::io_error_from`, which delegates here for POSIX.
+public func error_from_errno(code : int) : IoError {
+    switch(code) {
+        EAGAIN => { return IoError.Kind(IoErrorKind.WouldBlock()) }
+        EWOULDBLOCK => { return IoError.Kind(IoErrorKind.WouldBlock()) }
+        EINTR => { return IoError.Kind(IoErrorKind.Interrupted()) }
+        EPIPE => { return IoError.Kind(IoErrorKind.BrokenPipe()) }
+        ECONNRESET => { return IoError.Kind(IoErrorKind.ConnectionReset()) }
+        ECONNREFUSED => { return IoError.Kind(IoErrorKind.ConnectionRefused()) }
+        ETIMEDOUT => { return IoError.Kind(IoErrorKind.TimedOut()) }
+        ENOENT => { return IoError.Kind(IoErrorKind.NotFound()) }
+        EACCES => { return IoError.Kind(IoErrorKind.PermissionDenied()) }
+        EEXIST => { return IoError.Kind(IoErrorKind.AlreadyExists()) }
+        ENAMETOOLONG => { return IoError.Kind(IoErrorKind.PathTooLong()) }
+        ENOSPC => { return IoError.Kind(IoErrorKind.Other()) }
+        EIO => { return IoError.Kind(IoErrorKind.Other()) }
+        EBADF => { return IoError.Kind(IoErrorKind.InvalidInput()) }
+        EINVAL => { return IoError.Kind(IoErrorKind.InvalidInput()) }
+        default => { return IoError.Kind(IoErrorKind.Other()) }
+    }
+}
+
 public interface Read {
     func read(&mut self, buf : &mut [u8]) : Result<size_t, IoError>
     func read_exact(&mut self, buf : &mut [u8]) : Result<size_t, IoError>

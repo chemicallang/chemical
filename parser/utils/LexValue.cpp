@@ -191,8 +191,16 @@ void parseStringExpr(Parser& parser, ASTAllocator& allocator, ExpressiveString* 
         if(t.type == TokenType::StringExprStart) {
             parser.token++;
             const auto expr = parser.parseExpression(allocator, true);
+            chem::string_view spec;
+            if(parser.token->type == TokenType::FormatSpec) {
+                // token text points into the source buffer, which does not
+                // outlive parsing: the spec is read again during lowering
+                spec = parser.allocate_view(allocator, parser.token->value);
+                parser.token++;
+            }
             if(expr) {
                 str->values.emplace_back(expr);
+                str->specs.emplace_back(spec);
             } else {
                 parser.error("expected expression between the braces");
             }
@@ -208,6 +216,7 @@ void parseStringExpr(Parser& parser, ASTAllocator& allocator, ExpressiveString* 
                 str->values.emplace_back(
                         new(allocator.allocate<StringValue>()) StringValue(escaped_view(allocator, parser, view), parser.typeBuilder.getStringType(), parser.loc_single(t))
                 );
+                str->specs.emplace_back(chem::string_view());
             }
         } else {
             break;
@@ -227,6 +236,7 @@ ExpressiveString* Parser::parseExpressiveString(ASTAllocator& allocator) {
         str->values.emplace_back(
                 new (allocator.allocate<StringValue>()) StringValue(allocated, parser.typeBuilder.getStringType(), parser.loc_single(f))
         );
+        str->specs.emplace_back(chem::string_view());
         parseStringExpr(parser, allocator, str);
         return str;
     } else if(f.type == TokenType::StringExprStart) {

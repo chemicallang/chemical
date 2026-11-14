@@ -1513,6 +1513,9 @@ private:
         TypeId result_type = MIR_INVALID_ID;
         size_t dmark = 0; // destructibles_ size at inline start
         bool void_result = false;
+        // the template being inlined, so re-entry can be reported instead of
+        // recursing until the stack faults
+        FunctionDeclaration* fn = nullptr;
     };
     std::vector<ComptimeInlineFrame> inline_frames_;
     /**

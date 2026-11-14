@@ -377,6 +377,28 @@ with compile-time-validated format specs.
   load-sensitive under a full parallel run and pass individually — pre-existing,
   unrelated to this wave.)
 
+- **`env.error(`...`)` takes the message directly, and three compiler bugs are
+  fixed.** `%expressive_string` parameters now accept a string literal as well as
+  a backtick template, so `env.error("literal")` and
+  `env.error(`the int ${x} is wrong`)` both reach the reporter with no
+  `std::string` wrapper (the runtime `str`/`string`/`string_view` call sites were
+  migrated to interpolation). Getting there exposed and fixed:
+  - `InterpretExprStrBlockValue::call` assumed `current_func_type` is non-null,
+    but the C backend evaluates the intrinsic for a *module-level* expression
+    (a global initializer) where it is null — an access violation that scaled
+    with the module count (adding one trivial module flipped it);
+  - `ExternalFunctionCall`-style folding had no bound: a template that forwards
+    its `%expressive_string` to another template folded until the stack faulted
+    (which the host reports as a bare `RUNTIME ERROR`), now a bounded diagnostic
+    in both the AST folder and MIR template splicing;
+  - the `ctpl` worker called its task with no exception guard, so any compiler
+    exception became `std::terminate` with no message; it is now reported.
+  The reporter methods themselves must *not* forward to a shared `@expand`
+  helper — that nested form is the stack overflow above — so the six methods
+  carry the body; the reason is commented in `test_env.ch`.
+- Gates: main 2485/2485, libs 904/904, plugins 1305/1305, safety 193/193,
+  negative 884/884, server 10/10, async 84/84, interpretation 1938/1938.
+
 ## Phase 1 notes
 
 - `dyn`/`DynBox`, tuple structs, unit tuple, core tuples, flat destructuring, slices/`str`, and generic impls stay.

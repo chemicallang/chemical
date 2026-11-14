@@ -19,6 +19,7 @@
 #include "MIRBuilder.h"
 #include "MIRABI.h"
 
+#include "utils/StackSpace.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/Scope.h"
@@ -116,6 +117,27 @@ MIRExprResult MIRLowerer::inline_comptime_template(FunctionDeclaration* fd, MIRE
                                                    FunctionCall* call,
                                                    const std::vector<Value*>& call_values,
                                                    std::string& error) {
+    // A template splices into the caller, so a template that (directly or
+    // through the value it is given) reaches itself lowers without bound. Bail
+    // out with a diagnostic instead of overflowing the stack: a guard-page
+    // violation is reported by the host as a bare "invalid memory access".
+    if (!fd || !fd->body.has_value()) {
+        error = "comptime template has no body";
+        return MIRExprResult::error();
+    }
+    for (const ComptimeInlineFrame& frame : inline_frames_) {
+        if (frame.fn == fd) {
+            error = "comptime template '" + fd->name_str() +
+                    "' is already being inlined here, so it expands without bound" +
+                    format_source_loc(call ? call->encoded_location().encoded : 0);
+            return MIRExprResult::error();
+        }
+    }
+    if (chem::comptime_stack_exhausted()) {
+        chem::mark_comptime_stack_failed();
+        error = chem::comptime_stack_error_message();
+        return MIRExprResult::error();
+    }
     // Templates splice into the caller's scope and publish/fold through the
     // shared comptime scope. Parallel lowering workers must not interleave
     // their binding journals / intrinsic folds (span's implicit constructor
@@ -313,6 +335,7 @@ MIRExprResult MIRLowerer::inline_comptime_template(FunctionDeclaration* fd, MIRE
         frame.result_type = ret;
         frame.void_result = is_void;
         frame.dmark = dmark;
+        frame.fn = fd;
         if (!is_void) {
             frame.result_place = builder_->alloca(ret, MIRStorageClass::Temporary);
             if (frame.result_place == MIR_INVALID_ID) {

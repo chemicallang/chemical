@@ -35,7 +35,7 @@ public func test_router_redirect_to_records_path(env : &mut TestEnv) {
     page.redirect_to("main", "dashboard", "/dashboard")
     if(!page.get_route_redirect().equals(std::string_view("/dashboard"))) {
         env.error("get_route_redirect should return the target path")
-        env.info(page.get_route_redirect())
+        env.info("get_route_redirect returned an unexpected path")
     }
     // The path also drives the matcher, so an in-place render follows it.
     if(!page.get_route_url().equals(std::string_view("/dashboard"))) {

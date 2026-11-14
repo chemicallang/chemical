@@ -82,7 +82,7 @@ public func test_router_set_route_query_stores_decoded_params(env : &mut TestEnv
     }
     if(!page.query_param("b").equals(std::string_view("hello world"))) {
         env.error("a query value should be percent-decoded")
-        env.info(page.query_param("b"))
+        env.info("a query value should be percent-decoded")
     }
     if(!page.get_route_query().equals(std::string_view("a=1&b=hello%20world"))) {
         env.error("get_route_query should return the raw query")
@@ -101,7 +101,7 @@ public func test_router_set_route_query_plus_stays_literal(env : &mut TestEnv) {
     page.set_route_query("q=a+b")
     if(!page.query_param("q").equals(std::string_view("a+b"))) {
         env.error("`+` must stay a literal in a query value")
-        env.info(page.query_param("q"))
+        env.info("the query value should be percent-decoded")
     }
 }
 

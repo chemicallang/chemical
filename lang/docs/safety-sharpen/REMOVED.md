@@ -24,6 +24,7 @@ flat tuple destructuring, flat fixed-array exact/rest destructuring, fixed-array
 | `core::stream::Stream::write*(value)` without a spec | the eight `Stream` methods take `spec : u64` (`0` = plain); the intrinsic passes it |
 | `func stream(&self, s : &mut std::StringStream)` (two parameters) | `func stream(&self, s : &mut std::StringStream, spec : u64)` if you want format specs applied to your type; a two-parameter hook still compiles but rejects `${x:spec}` |
 | `std::print`/`println` returning `any` | they return nothing (a console write is a statement) |
+| `env.error(&str)` / `info` / `warning` / `warn` / `success` / `panic` | the message is an `%expressive_string`: pass a template or a literal directly (`env.error(`x is ${v}`)`, `env.error("boom")`); interpolate a runtime `str`/`string`/`string_view` (`${value}`) |
 | `CommandLineStream::double_to_chars` / `float_to_chars` (internal) | `std::string::append_double` / `append_float` are the one double/float formatter |
 
 `println(`...${rawPointer}`)` is now a compile error: a bare `*char` has no

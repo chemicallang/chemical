@@ -2333,7 +2333,14 @@ public:
             chem::string_view spec = chem::string_view()
     ) {
         if(implsIndex == nullptr || coreNodes == nullptr) return nullptr;
-        BaseType* t = val->getType()->canonical();
+        BaseType* value_type = val->getType();
+        if(value_type == nullptr) {
+            // an unresolved value (a call whose type never linked) has no type to
+            // dispatch on; report it instead of dereferencing
+            why = "this value has no resolved type, so it cannot be formatted";
+            return nullptr;
+        }
+        BaseType* t = value_type->canonical();
         // a reference formats as its referent: `&string` renders like `string`
         if(t->kind() == BaseTypeKind::Reference) {
             t = t->as_reference_type_unsafe()->type->canonical();
@@ -2498,9 +2505,19 @@ public:
         const auto first = first_eval->copy(allocator);
         const auto second = second_eval->copy(allocator);
 
+        // The intrinsic can be evaluated outside a function body (a module-level
+        // initializer translated by the C backend), where there is no current
+        // function type; fall back to the sink's own declaration as the owner of
+        // the generated block.
+        ASTNode* parent_node = nullptr;
         const auto parent_type = call_scope->global->current_func_type;
-        const auto func = parent_type->as_function();
-        ASTNode* parent_node = func ? func : parent_type->get_parent();
+        if(parent_type != nullptr) {
+            const auto func = parent_type->as_function();
+            parent_node = func ? (ASTNode*) func : parent_type->get_parent();
+        }
+        if(parent_node == nullptr && first->getType() != nullptr) {
+            parent_node = first->getType()->get_direct_linked_canonical_node();
+        }
         const auto blkValue = new (allocator.allocate<BlockValue>()) BlockValue(parent_node, loc);
 
         // returning a integer value
@@ -2512,7 +2529,7 @@ public:
             return blkValue;
         }
 
-        const auto node = first->getType()->get_direct_linked_canonical_node();
+        const auto node = first->getType() ? first->getType()->get_direct_linked_canonical_node() : nullptr;
         if(!node) {
             call_scope->error("couldn't evaluate the self argument in intrinsics::expr_str_block_value", first);
             return blkValue;

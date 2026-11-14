@@ -21,6 +21,8 @@
 #define __ctpl_stl_thread_pool_H__
 
 #include <functional>
+#include <cstdio>
+#include <exception>
 #include <thread>
 #include <atomic>
 #include <vector>
@@ -243,7 +245,17 @@ namespace ctpl {
                     while (isPop) {  // if there is anything in the queue
                         std::unique_ptr<std::function<void(int id)>> func(_f); // at return, delete the function even if an exception occurred
                         ++this->active;
-                        (*_f)(i);
+                        // An exception escaping a pool thread terminates the
+                        // process (std::terminate) with no message. Report it and
+                        // keep the pool alive instead: the job that threw has
+                        // already recorded whatever it could.
+                        try {
+                            (*_f)(i);
+                        } catch (const std::exception& e) {
+                            std::fprintf(stderr, "[compiler] internal error in a worker thread: %s\n", e.what());
+                        } catch (...) {
+                            std::fprintf(stderr, "[compiler] internal error in a worker thread (unknown exception)\n");
+                        }
                         --this->active;
                         if (_flag)
                             return;  // the thread is wanted to stop, return even if the queue is not empty yet

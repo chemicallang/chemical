@@ -13,6 +13,15 @@ This release is allowed to break. The migration mapping is in
   comptime template for its side effects (the general fix), and the console
   functions are plain statement-shaped templates again. `std::print` no longer
   returns `any` — nothing is returned.
+- **`env.info`/`env.error`/`env.warning`/`env.warn`/`env.success`/`env.panic`
+  take an expressive string directly.** A message no longer needs a
+  `std::string` wrapper: `env.error(`the int ${x} is wrong`)` works, and so does
+  `env.error("literal")` — `%expressive_string` parameters accept a backtick
+  template *or* a string literal (whose type is `String`). Only those two kinds
+  are accepted at the type level, so the parameter cannot shadow a precise
+  constructor overload. A message that *is* a runtime `str`/`string`/`string_view`
+  is written by interpolating it (`env.info(`${value}`)`); the three in-tree
+  call sites that passed one directly were migrated.
 - **`eprint`/`eprintln` added.** There was no way to write to standard error
   from safe code (only `unsafe { fprintf(stderr, ...) }`). Both spell a line
   into a `std::string` and write it once.

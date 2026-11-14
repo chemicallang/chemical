@@ -1,6 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "FunctionCall.h"
+#include "utils/StackSpace.h"
 #include "ast/types/FunctionType.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/VariableIdentifier.h"
@@ -410,6 +411,12 @@ Value* interpret_value_with_evaluated_parent(FunctionCall* call, InterpretScope 
     return scope.global->typeBuilder.getNullValue();
 }
 
+// Nesting depth of comptime call folding on this thread. A template that
+// forwards its own parameter re-enters the folder, so a cycle here would
+// otherwise recurse until the stack faults.
+static thread_local unsigned int folding_depth = 0;
+static constexpr unsigned int FOLDING_DEPTH_LIMIT = 256;
+
 Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent) {
     auto func = call->safe_linked_func();
     if(!func) {
@@ -424,11 +431,23 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
             parent = foundThis;
         }
     }
+    // Folding a call re-enters through the callee's body, and a comptime
+    // template that forwards its own parameter (`error(msg)` -> `log(msg)`)
+    // folds forever. A cycle here used to overflow the stack, which the host
+    // reports as a bare "invalid memory access"; bound the nesting and report.
+    if(folding_depth >= FOLDING_DEPTH_LIMIT || chem::comptime_stack_exhausted()) {
+        scope.error("this comptime call nests too deeply while being evaluated "
+                    "(a template that forwards its own parameter to itself is the most likely cause)", call);
+        return scope.global->typeBuilder.getNullValue();
+    }
     // A compiler intrinsic carries its own `call` override. A declaration with a
     // body folds only when that body is a single `return <expr>`; a body with
     // statements is evaluated by the MIR engine instead.
     if(func->body.has_value() || func->is_compiler_decl()) {
-        return func->call(&scope, scope.allocator, call, parent);
+        ++folding_depth;
+        Value* result = func->call(&scope, scope.allocator, call, parent);
+        --folding_depth;
+        return result;
     }
     scope.error("(function call) calling a function that is not found or has no body", call);
     return scope.global->typeBuilder.getNullValue();

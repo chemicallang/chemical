@@ -55,27 +55,44 @@ public interface TestEnv {
 
 // Canonical message methods take `&str`; the raw `*char` CBI entry point is
 // `test_env::ffi::log_cstr` / `quit_*_cstr` below.
-public func (env : &mut TestEnv) info(msg : &str) {
-    test_env::log_message(env, LogType.Information, msg, 0, 0)
+@expand
+public comptime func (env : &mut TestEnv) info(msg : %expressive_string) {
+    var text = std::string()
+    intrinsics::expr_str_block_value(std::StringStream { str : &mut text }, msg)
+    env.logIt(LogType.Information, text.data(), 0, 0)
 }
 
-public func (env : &mut TestEnv) warning(msg : &str) {
-    test_env::log_message(env, LogType.Warning, msg, 0, 0)
+@expand
+public comptime func (env : &mut TestEnv) warning(msg : %expressive_string) {
+    var text = std::string()
+    intrinsics::expr_str_block_value(std::StringStream { str : &mut text }, msg)
+    env.logIt(LogType.Warning, text.data(), 0, 0)
 }
 
-public func (env : &mut TestEnv) warn(msg : &str) {
-    test_env::log_message(env, LogType.Warning, msg, 0, 0)
+@expand
+public comptime func (env : &mut TestEnv) warn(msg : %expressive_string) {
+    var text = std::string()
+    intrinsics::expr_str_block_value(std::StringStream { str : &mut text }, msg)
+    env.logIt(LogType.Warning, text.data(), 0, 0)
 }
 
-public func (env : &mut TestEnv) success(msg : &str) {
-    test_env::log_message(env, LogType.Success, msg, 0, 0)
+@expand
+public comptime func (env : &mut TestEnv) success(msg : %expressive_string) {
+    var text = std::string()
+    intrinsics::expr_str_block_value(std::StringStream { str : &mut text }, msg)
+    env.logIt(LogType.Success, text.data(), 0, 0)
 }
 
-public func (env : &mut TestEnv) error(msg : &str) {
-    test_env::log_message(env, LogType.Error, msg, 0, 0)
+@expand
+public comptime func (env : &mut TestEnv) error(msg : %expressive_string) {
+    var text = std::string()
+    intrinsics::expr_str_block_value(std::StringStream { str : &mut text }, msg)
+    env.logIt(LogType.Error, text.data(), 0, 0)
 }
 
-public func (env : &mut TestEnv) panic(msg : &str) {
-    test_env::log_message(env, LogType.Panic, msg, 0, 0)
-    // TODO destruct everything
+@expand
+public comptime func (env : &mut TestEnv) panic(msg : %expressive_string) {
+    var text = std::string()
+    intrinsics::expr_str_block_value(std::StringStream { str : &mut text }, msg)
+    env.logIt(LogType.Panic, text.data(), 0, 0)
 }

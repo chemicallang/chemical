@@ -20,24 +20,30 @@ impl core::stream::Stream for CommandLineStream {
         unsafe { fwrite(&raw buf[0], 1, len, get_stdout()) };
     }
 
+    func writeBool(&self, value : bool) {
+        if(value) {
+            unsafe { fwrite("true" as *void, 1, 4, get_stdout()) };
+        } else {
+            unsafe { fwrite("false" as *void, 1, 5, get_stdout()) };
+        }
+    }
+
     unsafe func writeStr(&self, value : *char, length : ubigint) {
         unsafe { fwrite(value, 1, length, get_stdout()) };
     }
 
-    unsafe func writeStrNoLen(&self, value : *char) {
-        unsafe { fwrite(value, 1, unsafe(strlen(value)), get_stdout()) };
-    }
-
     func writeFloat(&self, value : float) {
-        var buf : [128]char;
-        var len = self.float_to_chars(&raw mut buf[0], value, 6);
-        unsafe { fwrite(&raw buf[0], 1, len, get_stdout()) };
+        // one formatter: delegate to `std::string`'s float rendering instead of
+        // keeping a second, divergent conversion here
+        var s = std::string()
+        s.append_float(value, -1)
+        unsafe { fwrite(s.data(), 1, s.size(), get_stdout()) };
     }
 
     func writeDouble(&self, value : double) {
-        var buf : [256]char;
-        var len = self.double_to_chars(&raw mut buf[0], value, 6);
-        unsafe { fwrite(&raw buf[0], 1, len, get_stdout()) };
+        var s = std::string()
+        s.append_double(value, -1)
+        unsafe { fwrite(s.data(), 1, s.size(), get_stdout()) };
     }
 }
 
@@ -105,162 +111,78 @@ public struct CommandLineStream {
         }
     }
 
-    // convert double to ASCII into out_buf, return length written
-    // not full IEEE formatting, but fast and uses integer rounding of fractional part
-    internal func double_to_chars(&self, out_buf : *mut char, value : double, precision : int) : size_t {
-        unsafe {
-            // clamp precision
-            if(precision < 0) {
-                precision = 6;
-            } else if(precision > 18) {
-                precision = 18;
-            }
+}
 
-            // NaN
-            if(std::dbl_is_nan(value)) {
-                out_buf[0] = 'n'; out_buf[1] = 'a'; out_buf[2] = 'n';
-                return 3;
-            }
+// --- console output ------------------------------------------------------
+//
+// Every console function renders into a `std::string` first, through the same
+// `StringStream` path `string.append_expr` uses, and then performs a single
+// `fwrite`. Doing it this way means:
+//
+//   * one rendering implementation for every sink, so `println` and
+//     `append_expr` can never disagree about how a value is formatted;
+//   * a line is one write, so two threads cannot interleave inside a line;
+//   * the write happens exactly where the statement is, and is flushed
+//     immediately, so a long-running process shows its output.
 
-            // infinities (use bit-pattern comparisons like your example)
-            if(std::dbl_is_inf(value)) {
-                if(std::dbl_is_neg(value)) {
-                    out_buf[0] = '-'; out_buf[1] = 'i'; out_buf[2] = 'n'; out_buf[3] = 'f';
-                    return 4;
-                } else {
-                    out_buf[0] = 'i'; out_buf[1] = 'n'; out_buf[2] = 'f';
-                    return 3;
-                }
-            }
+@expand
+public comptime func print(expr : %expressive_string) {
+    var line = std::string()
+    intrinsics::expr_str_block_value(std::StringStream { str : &mut line }, expr)
+    write_stdout(&line)
+}
 
-            var dst_i : size_t = 0;
-            var v = value;
-            if(v < 0.0) {
-                out_buf[dst_i] = '-';
-                dst_i = dst_i + 1;
-                v = -v;
-            }
+@expand
+public comptime func println(expr : %expressive_string) {
+    var line = std::string()
+    intrinsics::expr_str_block_value(std::StringStream { str : &mut line }, expr, '\n')
+    write_stdout(&line)
+}
 
-            // integer part
-            var int_part = (v as bigint);
+@expand
+public comptime func eprint(expr : %expressive_string) {
+    var line = std::string()
+    intrinsics::expr_str_block_value(std::StringStream { str : &mut line }, expr)
+    write_stderr(&line)
+}
 
-            // write integer part into tmp then copy to out_buf
-            var tmp_int : [32]char;
-            var int_len = self.i64_to_chars(&raw mut tmp_int[0], int_part);
-            // copy integer chars
-            var ci : size_t = 0;
-            while(ci < int_len) {
-                out_buf[dst_i + ci] = tmp_int[ci];
-                ci = ci + 1;
-            }
-            dst_i = dst_i + int_len;
+@expand
+public comptime func eprintln(expr : %expressive_string) {
+    var line = std::string()
+    intrinsics::expr_str_block_value(std::StringStream { str : &mut line }, expr, '\n')
+    write_stderr(&line)
+}
 
-            if(precision == 0) {
-                return dst_i;
-            }
+/// Write `line` to standard output as one write, then flush.
+@retained
+public func write_stdout(line : &std::string) {
+    write_console_line(get_stdout(), line)
+}
 
-            // append decimal point
-            out_buf[dst_i] = '.';
-            dst_i = dst_i + 1;
+/// Write `line` to standard error as one write, then flush.
+@retained
+public func write_stderr(line : &std::string) {
+    write_console_line(get_stderr(), line)
+}
 
-            // fractional scaling
-            var frac = v - (int_part as double);
-            var pow10_d : double = 1.0;
-            var pow10_u : ubigint = 1;
-            var pi : int = 0;
-            while(pi < precision) {
-                pow10_d = pow10_d * 10.0;
-                pow10_u = pow10_u * 10;
-                pi = pi + 1;
-            }
-
-            // scaled fractional with rounding
-            var scaled = (frac * pow10_d + 0.5) as ubigint;
-
-            // if rounding carried into integer part
-            if(scaled >= pow10_u) {
-                // compute new integer = int_part + 1
-                var new_int = int_part + 1;
-
-                // convert new_int into tmp_int
-                var new_int_len = self.i64_to_chars(&raw mut tmp_int[0], new_int);
-
-                // overwrite the integer part at the start of out_buf (handle sign)
-                var offset_sign = 0;
-                if(value < 0.0) { offset_sign = 1; } // sign already in out_buf[0]
-                // shift: replace characters from offset_sign..(offset_sign+int_len-1)
-                var k : size_t = 0;
-                while(k < new_int_len) {
-                    out_buf[offset_sign + k] = tmp_int[k];
-                    k = k + 1;
-                }
-                // adjust dst_i to after the new integer
-                dst_i = (offset_sign + new_int_len) as size_t;
-                // append '.' again
-                out_buf[dst_i] = '.';
-                dst_i = dst_i + 1;
-                // fractional became zero after carry
-                scaled = 0;
-                // make sure leading zeros logic below will print zeros
-                int_len = new_int_len;
-            }
-
-            // write fractional digits with zero-padding
-            if(scaled == 0) {
-                var z = 0;
-                while(z < precision) {
-                    out_buf[dst_i] = '0';
-                    dst_i = dst_i + 1;
-                    z = z + 1;
-                }
-                return dst_i;
-            }
-
-            // convert scaled to digits reversed
-            var revf : [20]char;
-            var rfi : int = 0;
-            var tmpf = scaled;
-            while(tmpf != 0) {
-                const d = (tmpf % 10) as uint;
-                revf[rfi] = ('0' as int + d as int) as char;
-                rfi = rfi + 1;
-                tmpf = tmpf / 10;
-            }
-
-            // leading zeros needed
-            var leading = precision - rfi;
-            var zz = 0;
-            while(zz < leading) {
-                out_buf[dst_i] = '0';
-                dst_i = dst_i + 1;
-                zz = zz + 1;
-            }
-
-            // append reversed digits in proper order
-            var fj : int = 0;
-            while(fj < rfi) {
-                out_buf[dst_i] = revf[rfi - 1 - fj];
-                dst_i = dst_i + 1;
-                fj = fj + 1;
-            }
-
-            return dst_i;
-    
+@retained
+func write_console_line(file : *mut FILE, line : &std::string) {
+    unsafe {
+        const data = line.data()
+        const len = line.size()
+        comptime if(def.windows) {
+            // On Windows `get_stdout`/`get_stderr` open a second CRT stream over
+            // the process handle, so `printf`'s buffer and ours are different
+            // files. Flush the CRT around our write, or the two streams reach
+            // the handle in the wrong order and our bytes only appear at exit.
+            fflush(null)
+            fwrite(data, 1, len, file)
+            fflush(null)
+        } else {
+            // POSIX hands back the real `stdout`/`stderr`, so a single buffer is
+            // shared with `printf` and ordering is automatic.
+            fwrite(data, 1, len, file)
+            fflush(file)
         }
     }
-
-    internal func float_to_chars(&self, out_buf : *mut char, value : float, precision : int) : size_t {
-        return self.double_to_chars(out_buf, (value as double), precision);
-    }
-
-}
-
-@expand
-public comptime func print(expr : %expressive_string) : any {
-    return intrinsics::expr_str_block_value(CommandLineStream{}, expr)
-}
-
-@expand
-public comptime func println(expr : %expressive_string) : any {
-    return intrinsics::expr_str_block_value(CommandLineStream{}, expr, '\n')
 }

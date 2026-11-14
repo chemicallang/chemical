@@ -245,7 +245,7 @@ public:
     FunctionDeclaration* get_stream_write_signed_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
     FunctionDeclaration* get_stream_write_unsigned_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
     FunctionDeclaration* get_stream_write_str_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
-    FunctionDeclaration* get_stream_write_str_no_len_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
+    FunctionDeclaration* get_stream_write_bool_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
     FunctionDeclaration* get_stream_write_float_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
     FunctionDeclaration* get_stream_write_double_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
     FunctionDeclaration* get_stream_write_char_impl(const CoreNodes& coreNodes, MembersContainer* container) const;

@@ -2165,10 +2165,15 @@ public:
             VariableIdentifier* selfId,
             ASTAllocator& allocator,
             ASTNode* parent_node,
-            SourceLocation loc
+            SourceLocation loc,
+            std::string& why
     ) {
         if(implsIndex == nullptr || coreNodes == nullptr) return nullptr;
-        const auto t = val->getType()->canonical();
+        BaseType* t = val->getType()->canonical();
+        // a reference formats as its referent: `&string` renders like `string`
+        if(t->kind() == BaseTypeKind::Reference) {
+            t = t->as_reference_type_unsafe()->type->canonical();
+        }
         if(t->isStringType()) {
             if(val->kind() == ValueKind::String) {
                 const auto str = val->as_string_unsafe();
@@ -2177,12 +2182,22 @@ public:
                 if(!impl) return nullptr;
                 return write_call(typeBuilder, allocator, selfId, val, impl, "writeStr", parent_node, loc, sizeVal);
             } else {
-                const auto impl = implsIndex->get_stream_write_str_no_len_impl(*coreNodes, container);
-                if(!impl) return nullptr;
-                return write_call(typeBuilder, allocator, selfId, val, impl, "writeStrNoLen", parent_node, loc);
+                // A raw `*char` has no length. Rendering it would mean calling
+                // `strlen` on a pointer the compiler cannot bound, which lets
+                // safe formatting code read past the end of the buffer. The
+                // caller must present a type that carries its length.
+                why =
+                        "a raw '*char' has no length and cannot be formatted; "
+                        "use a 'string_view', 'str' or 'string' instead";
+                return nullptr;
             }
         } else {
             switch(t->kind()) {
+                case BaseTypeKind::Bool: {
+                    const auto impl = implsIndex->get_stream_write_bool_impl(*coreNodes, container);
+                    if(!impl) return nullptr;
+                    return write_call(typeBuilder, allocator, selfId, val, impl, "writeBool", parent_node, loc);
+                }
                 case BaseTypeKind::IntN: {
                     const auto intKind = t->as_intn_type_unsafe()->IntNKind();
                     if(intKind == IntNTypeKind::Char) {
@@ -2216,15 +2231,69 @@ public:
                 case BaseTypeKind::Linked:
                 case BaseTypeKind::Generic: {
                     const auto node = t->get_direct_linked_canonical_node();
-                    if(!node) return nullptr;
+                    if(!node) {
+                        why = "this value's type is not resolved, so it cannot be formatted";
+                        return nullptr;
+                    }
                     const auto child = node->child("stream");
-                    if(!child) return nullptr;
-                    // TODO: verify the method signature at some point
+                    if(!child) {
+                        why = "this type cannot be formatted: it has no "
+                              "'stream(&self, s : &mut std::StringStream)' method";
+                        return nullptr;
+                    }
+                    // Verify the hook instead of trusting its name. The generated
+                    // call passes *this* sink, so a hook declared to take another
+                    // stream type would read the sink as an unrelated struct.
+                    if(child->kind() != ASTNodeKind::FunctionDecl) {
+                        why = "'stream' on this type is not a function";
+                        return nullptr;
+                    }
+                    auto* hook = child->as_function_unsafe();
+                    FunctionParam* streamParam = nullptr;
+                    unsigned int nonSelf = 0;
+                    for(auto* p : hook->params) {
+                        if(!p || (hook->has_self_param() && p == hook->get_self_param())) continue;
+                        streamParam = p;
+                        nonSelf++;
+                    }
+                    if(nonSelf != 1 || !hook->has_self_param() || streamParam == nullptr) {
+                        why = "the 'stream' hook must be declared as "
+                              "'func stream(&self, s : &mut std::StringStream)'";
+                        return nullptr;
+                    }
+                    BaseType* sinkType = streamParam->type;
+                    if(sinkType == nullptr) {
+                        why = "the 'stream' hook's sink parameter has no type";
+                        return nullptr;
+                    }
+                    sinkType = sinkType->canonical();
+                    if(sinkType->kind() == BaseTypeKind::Reference) {
+                        sinkType = sinkType->as_reference_type_unsafe()->type->canonical();
+                    }
+                    if(sinkType->kind() == BaseTypeKind::Pointer) {
+                        sinkType = sinkType->as_pointer_type_unsafe()->type->canonical();
+                    }
+                    if(sinkType->get_direct_linked_canonical_node() != (ASTNode*) container) {
+                        why = "the 'stream' hook's sink parameter must be the stream "
+                              "being rendered into ('&mut std::StringStream')";
+                        return nullptr;
+                    }
                     return write_obj_call(typeBuilder, allocator, selfId, val, child, "stream", parent_node, loc);
                 }
                 default:
+                    why = "values of this type cannot be formatted; the supported kinds are "
+                          "bool, char, integers, floats, string, string_view, str, and types with a "
+                          "'stream(&self, s : &mut std::StringStream)' method";
                     return nullptr;
             }
+        }
+    }
+
+    static void report_value_error(InterpretScope* scope, const std::string& why, Value* val) {
+        if(why.empty()) {
+            scope->error("unsupported value in an expressive string", val);
+        } else {
+            scope->error(why.c_str(), val);
         }
     }
 
@@ -2282,20 +2351,23 @@ public:
         initId->setType(init->known_type());
 
         // creating the method calls by going over each value
+        std::string why;
         if(second->kind() == ValueKind::ExpressiveString) {
             const auto str = second->as_expressive_str_unsafe();
             for (const auto val: str->values) {
-                const auto wrapper = process_value(container, typeBuilder, val, initId, allocator, parent_node, loc);
+                why.clear();
+                const auto wrapper = process_value(container, typeBuilder, val, initId, allocator, parent_node, loc, why);
                 if(wrapper == nullptr) {
-                    call_scope->error("unknown value being used in expressive string", val);
+                    report_value_error(call_scope, why, val);
                 } else {
                     blkValue->scope.nodes.emplace_back(wrapper);
                 }
             }
         } else {
-            const auto wrapper = process_value(container, typeBuilder, second, initId, allocator, parent_node, loc);
+            why.clear();
+            const auto wrapper = process_value(container, typeBuilder, second, initId, allocator, parent_node, loc, why);
             if(wrapper == nullptr) {
-                call_scope->error("unknown value being used in expressive string", second);
+                report_value_error(call_scope, why, second);
             } else {
                 blkValue->scope.nodes.emplace_back(wrapper);
             }
@@ -2306,9 +2378,10 @@ public:
         const auto end = call->values.data() + call->values.size();
         while(start != end) {
             const auto value = *start;
-            const auto wrapper = process_value(container, typeBuilder, value, initId, allocator, parent_node, loc);
+            why.clear();
+            const auto wrapper = process_value(container, typeBuilder, value, initId, allocator, parent_node, loc, why);
             if(wrapper == nullptr) {
-                call_scope->error("unknown value being used in expressive string", value);
+                report_value_error(call_scope, why, value);
             } else {
                 blkValue->scope.nodes.emplace_back(wrapper);
             }

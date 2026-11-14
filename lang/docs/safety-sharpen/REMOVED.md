@@ -16,4 +16,16 @@ Kept: `dyn`/`DynBox`/dynamic calls, tuple structs, unit tuple, core tuples,
 flat tuple destructuring, flat fixed-array exact/rest destructuring, fixed-array
 `[T]`/`&[T]`/`&mut [T]`/`&str` views, generic impls, and trait impls.
 
+## Library removals (no code, compiler error or missing symbol)
+
+| Removed | Migration |
+|---|---|
+| `core::stream::Stream::writeStrNoLen(&self, *char)` | a formatter always knows the extent it renders; print a `string_view`/`str`/`string` instead, or read the length yourself and use `writeStr(ptr, len)` |
+| `std::print`/`println` returning `any` | they return nothing (a console write is a statement) |
+| `CommandLineStream::double_to_chars` / `float_to_chars` (internal) | `std::string::append_double` / `append_float` are the one double/float formatter |
+
+`println(`...${rawPointer}`)` is now a compile error: a bare `*char` has no
+length, so rendering it would scan memory the compiler cannot bound. See the
+printing/formatting entry in [`BREAKING.md`](BREAKING.md).
+
 Tests: `./scripts/test.sh --tcc --removed`.

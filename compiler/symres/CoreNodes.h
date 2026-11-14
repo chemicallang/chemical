@@ -97,7 +97,7 @@ public:
     FunctionDeclaration* stream_write_signed = nullptr;
     FunctionDeclaration* stream_write_unsigned = nullptr;
     FunctionDeclaration* stream_write_str = nullptr;
-    FunctionDeclaration* stream_write_str_no_len = nullptr;
+    FunctionDeclaration* stream_write_bool = nullptr;
     FunctionDeclaration* stream_write_float = nullptr;
     FunctionDeclaration* stream_write_double = nullptr;
     FunctionDeclaration* stream_write_char = nullptr;

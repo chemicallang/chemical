@@ -3,6 +3,54 @@
 This release is allowed to break. The migration mapping is in
 [`REMOVED.md`](REMOVED.md) and will be expanded per Phase 2 library job.
 
+## Printing / formatting wave (2026-11-14)
+
+- **`print`/`println` now work, and they render through `string`.** They used to
+  compile to nothing at all: `@expand` templates that `return`ed an
+  `intrinsics::expr_str_block_value(...)` block held an `any` return type, and
+  `any` maps to `void` in MIR, so the whole generated block was discarded as a
+  "void return". The compiler now evaluates `return <expr>` in a void-returning
+  comptime template for its side effects (the general fix), and the console
+  functions are plain statement-shaped templates again. `std::print` no longer
+  returns `any` — nothing is returned.
+- **`eprint`/`eprintln` added.** There was no way to write to standard error
+  from safe code (only `unsafe { fprintf(stderr, ...) }`). Both spell a line
+  into a `std::string` and write it once.
+- **A console line is one write, flushed immediately, in program order.**
+  Rendering into a `std::string` first means a line cannot be split by another
+  thread, and output is visible while the process runs instead of only at exit.
+  On Windows `get_stdout`/`get_stderr` open a *second* CRT stream over the
+  process handle, so the CRT is flushed around each line; otherwise `printf`
+  and `println` output reached the handle in the wrong order.
+- **A raw `*char` cannot be formatted.** `${cstr}` used to call `strlen` on a
+  pointer of unknown length, *inside an `UnsafeBlock` the compiler generated
+  itself* — a safe formatting call could read past the end of the buffer (a
+  one-byte `str` subview rendered the whole underlying string). `core::stream::
+  Stream::writeStrNoLen` is removed and the intrinsic rejects a bare `*char`.
+  Migration: bind what you are printing to something that carries its length:
+  `string_view`, `str` or `string` (`var s = "x"` becomes `var s =
+  std::string_view("x")`). A string *literal* is still fine (`${"x"}`), because
+  its length is known at compile time.
+- **`bool` prints; unsupported types say so.** `std::println(`...${flag}`)`
+  used to fail at codegen with `unknown value being used in expressive string`.
+  `bool` renders `true`/`false` via `Stream::writeBool`, references format as
+  their referent, and any other unsupported type is a compile error naming the
+  supported kinds and the `stream(&self, s : &mut std::StringStream)` hook.
+- **Doubles and floats render faithfully.** The old conversion produced
+  `0.333` for `1.0/3.0` (three digits, and a different constant in each sink:
+  3 in `string`, 6 on the console), `9223372036854775.807` for `1e30`, `0.000`
+  for `1e-20`, and `0.000` for `-0.0`. Now: the shortest form that reproduces
+  the value exactly (at most 15 significant digits for a double, 9 for a
+  float, so `3.14f` prints `3.14`), trailing zeros trimmed, scientific
+  notation only outside `[1e-4, 1e15)`, `-0.0` keeps its sign, and `nan`/`inf`
+  spell themselves. `append_double(value, precision)` still prints exactly
+  `precision` fraction digits; `precision < 0` selects the shortest form.
+  **Output changes**: `pi value : 3.140` becomes `pi value : 3.14`.
+- **One formatter.** `CommandLineStream` no longer carries a second, divergent
+  double/float conversion; it delegates to `std::string` (`writeFloat`/
+  `writeDouble` are documented as a direct-to-stdout sink, `print`/`println` no
+  longer use it).
+
 ## Server / ownership wave (2026-11-13)
 
 - **`http::Transport` is gone; a connection is `http::Stream`.** A `variant` over

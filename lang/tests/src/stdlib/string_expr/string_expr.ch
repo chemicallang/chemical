@@ -1,5 +1,5 @@
 func test_string_append_expr() : bool {
-    var world = "World"
+    var world = std::string_view("World")
     var greeting = std::string()
     greeting.append_expr(`Hello ${world}!`)
     var expected = std::string("Hello World!")
@@ -7,7 +7,7 @@ func test_string_append_expr() : bool {
 }
 
 func test_string_make_from_expr() : bool {
-    var world = "World"
+    var world = std::string_view("World")
     var greeting = std::string(`Hello ${world}!`)
     var expected = std::string("Hello World!")
     return greeting.equals(&expected)
@@ -17,7 +17,7 @@ func test_string_make_from_expr() : bool {
 
 // var-init with explicit type annotation
 func test_implicit_string_expr_var_init() : bool {
-    var world = "World"
+    var world = std::string_view("World")
     var greeting : std::string = `Hello ${world}!`
     var expected = std::string("Hello World!")
     return greeting.equals(&expected)
@@ -25,7 +25,7 @@ func test_implicit_string_expr_var_init() : bool {
 
 // const var-init with explicit type annotation
 func test_implicit_string_expr_const_var_init() : bool {
-    var world = "World"
+    var world = std::string_view("World")
     const greeting : std::string = `Hello ${world}!`
     var expected = std::string("Hello World!")
     return greeting.equals(&expected)
@@ -34,7 +34,7 @@ func test_implicit_string_expr_const_var_init() : bool {
 // assignment to an already-typed variable
 func test_implicit_string_expr_assignment() : bool {
     var greeting = std::string()
-    var world = "World"
+    var world = std::string_view("World")
     greeting = `Hello ${world}!`
     var expected = std::string("Hello World!")
     return greeting.equals(&expected)
@@ -47,17 +47,17 @@ func takes_std_string(s : std::string) : bool {
 
 // function argument
 func test_implicit_string_expr_func_arg() : bool {
-    var world = "World"
+    var world = std::string_view("World")
     return takes_std_string(`Hello ${world}!`)
 }
 
 // return value
-func make_greeting_from_expr(world : *char) : std::string {
+func make_greeting_from_expr(world : std::string_view) : std::string {
     return `Hello ${world}!`
 }
 
 func test_implicit_string_expr_return() : bool {
-    var g = make_greeting_from_expr("World")
+    var g = make_greeting_from_expr(std::string_view("World"))
     var expected = std::string("Hello World!")
     return g.equals(&expected)
 }
@@ -73,7 +73,7 @@ variant StringExprVariant {
 
 // variant call
 func test_implicit_string_expr_variant() : bool {
-    var world = "World"
+    var world = std::string_view("World")
     var v = StringExprVariant.SomeValue(`Hello ${world}!`)
     return v.len() == 12
 }
@@ -86,7 +86,7 @@ func greet_default(s : std::string = `Hello ${"World"}!`) : bool {
 // default parameter value
 func test_implicit_string_expr_default_arg() : bool {
     if(!greet_default()) { return false }
-    var world = "Universe"
+    var world = std::string_view("Universe")
     return greet_default(`Hello ${world}!`) == false
 }
 
@@ -96,7 +96,7 @@ struct StringExprFieldContainer {
 
 // struct field init
 func test_implicit_string_expr_struct_field() : bool {
-    var world = "World"
+    var world = std::string_view("World")
     var c = StringExprFieldContainer { s : `Hello ${world}!` }
     var expected = std::string("Hello World!")
     return c.s.equals(&expected)
@@ -104,7 +104,7 @@ func test_implicit_string_expr_struct_field() : bool {
 
 // array element
 func test_implicit_string_expr_array() : bool {
-    var world = "World"
+    var world = std::string_view("World")
     var arr : [2]std::string = [ `Hello ${world}!`, `Bye ${world}!` ]
     var exp1 = std::string("Hello World!")
     var exp2 = std::string("Bye World!")

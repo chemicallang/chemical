@@ -299,6 +299,56 @@ also recovers a concrete sret return from the callee symbol when a nested
 generic call reaches MIR with an opaque return type, preventing `void*`
 result locals and missing hidden result pointers in generated C.
 
+## Printing / formatting wave (2026-11-14)
+
+The console API was non-functional and unsafe; it is now the only formatting path.
+
+- **`std::print`/`println` produced no output at all.** Root cause: `MIRTypeBuilder`
+  maps `BaseType::Any` to `void` ("`any` is spelled `void`"), so an `@expand`
+  comptime template declared `: any` was treated as void-returning, and
+  `MIRLowerStmt`'s inline-frame `return` skipped lowering the returned
+  expression entirely — discarding the whole `expr_str_block_value` block
+  (every `write*` call). Fixed at the root in `MIRLowerStmt.cpp`: `return
+  <expr>` now always evaluates `<expr>` and only discards the value; the console
+  functions also dropped `: any` and are statement-shaped like `append_expr`.
+  Verified on TCC/C and LLVM/Clang.
+- **One rendering path.** `print`/`println`/`eprint`/`eprintln` render into a
+  `std::string` through `StringStream` (the `append_expr` path) and perform one
+  `fwrite` + `fflush`, so a line is atomic across threads and `println` and
+  `append_expr` cannot disagree about formatting. `eprint`/`eprintln` are new:
+  safe code had no way to write to stderr.
+- **Ordering with `printf` fixed on Windows.** `get_stdout()` builds a *second*
+  CRT stream over the process handle via `_open_osfhandle`/`_fdopen`, so
+  `printf`'s buffer and ours reached the handle in the wrong order
+  (`printf("A"); writeChar('B'); printf("C"); writeChar('D')` printed `ACBD`) and
+  our bytes only appeared at exit. The console writer now flushes the CRT
+  around each line on Windows; POSIX already shares the real `stdout`.
+- **`*char` soundness hole closed.** `process_value` mapped a bare `*char` to
+  `writeStrNoLen` → `strlen`, wrapped by the compiler in a generated
+  `UnsafeBlock` — so safe code could read past a value's bounds (a 1-byte `str`
+  subview printed 5 bytes). `Stream::writeStrNoLen` is removed; a bare `*char`
+  is a compile error naming `string_view`/`str`/`string`. String literals keep
+  their compile-time length.
+- **Type coverage.** `bool` added (`Stream::writeBool`), references format as
+  their referent, `str` gained a `stream` hook, and unsupported types now report
+  *why* (naming the supported kinds and the `stream(&self, s : &mut
+  std::StringStream)` hook) instead of `unknown value being used in expressive
+  string`. Still unsupported (next step): `Option`/`Result`/variants,
+  `vector`/arrays/slices, pointers, and format specs (`{:.2}`, `{:>8}`).
+- **Faithful number rendering.** The old conversion clamped `1.0/3.0` to
+  `0.333` (3 digits in `string`, 6 on the console — the *sink* chose the
+  precision), rendered `1e30` as `9223372036854775.807` (integer part overflowed
+  while scaling), `1e-20` as `0.000`, and dropped the sign of `-0.0`. Now the
+  shortest representation that reproduces the value exactly is used (≤15
+  significant digits for a double, ≤9 for a float, so `3.14f` prints `3.14`),
+  trailing zeros are trimmed, scientific notation is used only outside
+  `[1e-4, 1e15)`, `-0.0` keeps its sign, and `nan`/`inf` spell themselves.
+  `CommandLineStream` no longer carries a duplicate formatter.
+- Gates: main 2485/2485, libs 893/893 (+11 new `print_*` tests), plugins
+  1305/1305, safety 193/193, negative 882/882 (+2 new), server 10/10, async
+  84/84, interpretation 1938/1938, LLVM `--libs` green, whole `tls` module
+  `--check` clean.
+
 ## Phase 1 notes
 
 - `dyn`/`DynBox`, tuple structs, unit tuple, core tuples, flat destructuring, slices/`str`, and generic impls stay.

@@ -2543,3 +2543,16 @@ func static_span_element_borrow_not_static(env : &mut TestEnv) {
                                   "does not satisfy where clause constraint 'T : 'static'",
                                   NEG_MOD_STD_CORE)
 }
+@test
+func neg_print_raw_char_has_no_length(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "using namespace std;\npublic func main() : int {\n    var v = string_view(\"hello\")\n    var p : *char = v.data()\n    println(`${p}`)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "print_raw_char_no_length", ch, "has no length", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_print_unsupported_type(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "using namespace std;\npublic func main() : int {\n    var v = vector<int>()\n    println(`${v}`)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "print_unsupported_type", ch, "cannot be formatted", NEG_MOD_STD_CORE)
+}

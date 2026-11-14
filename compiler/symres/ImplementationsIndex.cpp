@@ -232,8 +232,8 @@ FunctionDeclaration* ImplementationsIndex::get_stream_write_str_impl(const CoreN
     return implementation_of(*this, coreNodes.stream.stream_write_str, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_stream_write_str_no_len_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
-    return implementation_of(*this, coreNodes.stream.stream_write_str_no_len, (ASTAny*) container);
+FunctionDeclaration* ImplementationsIndex::get_stream_write_bool_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
+    return implementation_of(*this, coreNodes.stream.stream_write_bool, (ASTAny*) container);
 }
 
 FunctionDeclaration* ImplementationsIndex::get_stream_write_float_impl(const CoreNodes& coreNodes, MembersContainer* container) const {

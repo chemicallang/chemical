@@ -1649,9 +1649,20 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 // across that call left `frame` dangling (garbage result_place).
                 ComptimeInlineFrame frame = inline_frames_.back();
                 MIRExprResult r = MIRExprResult::void_result();
-                if (!frame.void_result && rs->value) {
+                // `return <expr>` evaluates `<expr>` even when the template is
+                // void-returning, exactly as in a void function: the expression
+                // may have side effects (an expressive-string block's write
+                // calls are the motivating case). `any` maps to `void` in MIR,
+                // so `: any` templates take this path.
+                if (rs->value) {
                     r = lower_expr(rs->value, error);
                     if (!r.ok()) return false;
+                    if (frame.void_result) {
+                        // the returned value is discarded; release any temporary
+                        // the call created
+                        destroy_call_temp(rs->value, r);
+                        r = MIRExprResult::void_result();
+                    }
                 }
                 // a returned local destructible is *moved out* of the splice, not
                 // dropped: clear its drop flag before the scope drops run (as the

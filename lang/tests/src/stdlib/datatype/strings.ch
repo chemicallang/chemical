@@ -75,7 +75,7 @@ func test_strings() {
         })
         test("appending expressive string into std::string, *char - 3", () => {
             var first = string("")
-            var my_str = "something of value"
+            var my_str = std::string_view("something of value")
             first.append_expr(`start: ${my_str} end`)
             var second = string("start: something of value end")
             return first.equals(&second);
@@ -92,7 +92,7 @@ func test_strings() {
             var pi = 3.14f
             first.append_expr(`pi value : ${pi} end`)
             unsafe { printf("%s\n", first.data()) }
-            var second = string("pi value : 3.140 end")
+            var second = string("pi value : 3.14 end")
             return first.equals(&second);
         })
         test("appending expressive string into std::string, double - 6", () => {
@@ -100,7 +100,7 @@ func test_strings() {
             var pi = 3.14
             first.append_expr(`pi value : ${pi} end`)
             unsafe { printf("%s\n", first.data()) }
-            var second = string("pi value : 3.140 end")
+            var second = string("pi value : 3.14 end")
             return first.equals(&second);
         })
         test("appending expressive string into std::string, u32 - 6", () => {

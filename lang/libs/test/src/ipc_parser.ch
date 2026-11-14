@@ -213,7 +213,7 @@ func process_message(state : &mut TestFunctionState, msg : *char) {
     // Must start with '$' to be one of ours
     if (!read_char(&raw mut msg, '$')) {
         unsafe { printf("failed message parsing : expected '$' in start\n") };
-        state.failed_msg_parse.append_expr(`must start with a $, instead received ${msg}`);
+        state.failed_msg_parse.append_expr(`must start with a $, instead received ${unsafe(std::string_view.make_no_len(msg))}`);
         return;
     }
 
@@ -229,7 +229,7 @@ func process_message(state : &mut TestFunctionState, msg : *char) {
             const parseMessage = parseLog(&raw mut msg, &mut l);
             if(parseMessage != null) {
                 unsafe { printf("failed message parsing : %s\n", parseMessage) };
-                state.failed_msg_parse.append_expr(`${parseMessage}`)
+                state.failed_msg_parse.append_expr(`${unsafe(std::string_view.make_no_len(parseMessage))}`)
             }
             if(l.type !in LogType.Information, LogType.Warning, LogType.Success) {
                 state.has_failed = true;

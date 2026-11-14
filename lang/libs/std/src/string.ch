@@ -538,73 +538,252 @@ public struct string {
         }
     }
 
-    // Simple, fast (but not fully IEEE-perfect) conversion that supports a
-    // configurable precision. Uses integer rounding of fractional part.
-    func append_double(&mut self, value : double, precision : int) {
-        // clamp precision to reasonable bounds
-        if(precision < 0) {
-            precision = 6;
-        } else if(precision > 18) {
-            precision = 18;
+    // Render a non-negative finite double with `frac_digits` fraction digits.
+    // With `trim`, trailing zeros (and a trailing '.') are dropped, so `1.500`
+    // becomes `1.5` and `1.000` becomes `1`. `v` must be below 1e15 so the
+    // integer part fits a 64-bit integer; the caller picks the form.
+    func append_double_fixed(&mut self, v : double, frac_digits : int, trim : bool) {
+        var scale : bigint = 1
+        var i : int = 0
+        while(i < frac_digits) {
+            scale = scale * 10
+            i = i + 1
         }
+        var int_part = (v as bigint)
+        const frac = v - (int_part as double)
+        var scaled = (frac * (scale as double) + 0.5) as bigint
+        if(scaled >= scale) {
+            // rounding carried into the integer part
+            int_part = int_part + 1
+            scaled = 0
+        }
+        append_integer(int_part)
+        if(scaled == 0) {
+            if(!trim) {
+                append('.')
+                var z : int = 0
+                while(z < frac_digits) {
+                    append('0')
+                    z = z + 1
+                }
+            }
+            return
+        }
+        if(trim) {
+            while(frac_digits > 0 && scaled % 10 == 0) {
+                scaled = scaled / 10
+                frac_digits = frac_digits - 1
+            }
+        }
+        append('.')
+        var buf : [24]char
+        var bi : int = frac_digits
+        while(bi > 0) {
+            bi = bi - 1
+            buf[bi] = (('0' as int) + (scaled % 10) as int) as char
+            scaled = scaled / 10
+        }
+        var k : int = 0
+        while(k < frac_digits) {
+            append(buf[k])
+            k = k + 1
+        }
+    }
 
-        // handle NaN
+    // The decimal exponent of a positive finite double: `v = m * 10^e` with
+    // `m` in [1, 10).
+    internal func decimal_exponent(v : double) : int {
+        var e : int = 0
+        var m = v
+        while(m >= 10.0) {
+            m = m / 10.0
+            e = e + 1
+        }
+        while(m < 1.0) {
+            m = m * 10.0
+            e = e - 1
+        }
+        return e
+    }
+
+    // `mantissa * 10^exponent` with `sig` significant digits, trailing zeros
+    // trimmed: `1.5e30`, `4.94065645841247e-324`.
+    func append_double_scientific(&mut self, mantissa : double, exponent : int, sig : int) {
+        // the scale keeps `sig` significant digits in an integer
+        var scale : bigint = 1
+        var i = 1
+        while(i < sig) {
+            scale = scale * 10
+            i = i + 1
+        }
+        var scaled = (mantissa * (scale as double) + 0.5) as bigint
+        const carry = scale * 10
+        if(scaled >= carry) {
+            // rounding carried into the next power of ten
+            scaled = scaled / 10
+            exponent = exponent + 1
+        }
+        append_integer(scaled / scale)
+        var rest = scaled % scale
+        if(rest != 0) {
+            append('.')
+            var buf : [20]char
+            var frac_digits = sig - 1
+            var bi : int = frac_digits
+            while(bi > 0) {
+                bi = bi - 1
+                buf[bi] = (('0' as int) + (rest % 10) as int) as char
+                rest = rest / 10
+            }
+            var len : int = frac_digits
+            while(len > 0 && buf[len - 1] == '0') {
+                len = len - 1
+            }
+            var k : int = 0
+            while(k < len) {
+                append(buf[k])
+                k = k + 1
+            }
+        }
+        append('e')
+        if(exponent < 0) {
+            append('-')
+            append_integer((-exponent) as bigint)
+        } else {
+            append_integer(exponent as bigint)
+        }
+    }
+
+    // `10^k` as a double, for the exponent range a double can hold.
+    internal func pow10_double(k : int) : double {
+        var p : double = 1.0
+        var i : int = 0
+        while(i < k) {
+            p = p * 10.0
+            i = i + 1
+        }
+        return p
+    }
+
+    // Round `v` to `sig` significant decimal digits, given its decimal
+    // exponent `e`.
+    internal func round_significant(v : double, sig : int, e : int) : double {
+        const k = sig - 1 - e
+        if(k >= 0) {
+            const p = pow10_double(k)
+            return (((v * p + 0.5) as bigint) as double) / p
+        } else {
+            const p = pow10_double(-k)
+            return ((((v / p + 0.5) as bigint) as double)) * p
+        }
+    }
+
+    // The fewest significant digits that reproduce `v` exactly (as a `float`
+    // when `as_float`, so `3.14f` renders as `3.14` rather than as the widened
+    // double's digits). Never more than 15 for a double, 9 for a float.
+    internal func shortest_significant(v : double, e : int, as_float : bool) : int {
+        var max_sig : int = 15
+        if(as_float) {
+            max_sig = 9
+        }
+        var sig : int = 1
+        while(sig < max_sig) {
+            const m = round_significant(v, sig, e)
+            if(as_float) {
+                if((m as float) == (v as float)) {
+                    return sig
+                }
+            } else if(m == v) {
+                return sig
+            }
+            sig = sig + 1
+        }
+        return max_sig
+    }
+
+    /// Format `value` as a `double`.
+    ///
+    /// `precision >= 0` prints exactly that many fraction digits. `precision <
+    /// 0` prints the shortest form that reproduces the value exactly (at most
+    /// fifteen significant digits); scientific notation is used only outside
+    /// `[1e-4, 1e15)`. `nan`, `inf` and `-inf` render as such, and a negative
+    /// value keeps its sign (including `-0.0`).
+    func append_double(&mut self, value : double, precision : int) {
+        append_double_impl(value, precision, false)
+    }
+
+    func append_double_impl(&mut self, value : double, precision : int, as_float : bool) {
         if(dbl_is_nan(value)) {
             append_view("nan")
-            return;
+            return
         }
 
-        // handle infinities
         if(dbl_is_inf(value)) {
             if(dbl_is_neg(value)) {
                 append_view("-inf")
             } else {
                 append_view("inf")
             }
-            return;
+            return
         }
 
-        var v = value;
-        if(v < 0.0) {
-            append('-');
-            v = -v;
+        if(precision > 18) {
+            precision = 18
         }
 
-        // Scale and round to `precision` fractional digits up front, so we never
-        // have to mutate already-appended characters (which breaks the SSO layout).
-        var scale : bigint = 1;
-        var pi : int = 0;
-        while(pi < precision) {
-            scale = scale * 10;
-            pi = pi + 1;
+        var v = value
+        if(dbl_is_neg(v)) {
+            append('-')
+            v = -v
         }
 
-        var scaled = (v * (scale as double) + 0.5) as bigint;
-        var int_part = scaled / scale;
-        var frac_part = scaled - int_part * scale;
-
-        append_integer(int_part);
-
-        if(precision > 0) {
-            append('.');
-            // Write frac_part zero-padded to exactly `precision` digits.
-            var frac_buf : [24]char;
-            var fbi : int = 0;
-            while(fbi < precision) {
-                frac_buf[precision - 1 - fbi] = (('0' as int) + (frac_part % 10) as int) as char;
-                frac_part = frac_part / 10;
-                fbi = fbi + 1;
+        if(v == 0.0) {
+            append('0')
+            var z : int = 0
+            while(z < precision) {
+                if(z == 0) {
+                    append('.')
+                }
+                append('0')
+                z = z + 1
             }
-            var fj : int = 0;
-            while(fj < precision) {
-                append(frac_buf[fj]);
-                fj = fj + 1;
+            return
+        }
+
+        if(precision >= 0) {
+            append_double_fixed(v, precision, false)
+            return
+        }
+
+        const e = decimal_exponent(v)
+        const sig = shortest_significant(v, e, as_float)
+        if(e >= 15 || e < -4) {
+            // one division/multiplication keeps the mantissa as close to exact
+            // as the double representation allows
+            var divisor : double = 1.0
+            if(e > 0) {
+                var i : int = 0
+                while(i < e) {
+                    divisor = divisor * 10.0
+                    i = i + 1
+                }
+                append_double_scientific(v / divisor, e, sig)
+            } else {
+                var j : int = 0
+                while(j < -e) {
+                    divisor = divisor * 10.0
+                    j = j + 1
+                }
+                append_double_scientific(v * divisor, e, sig)
             }
+        } else {
+            // `sig` significant digits, minus the digits before the point
+            append_double_fixed(v, sig - 1 - e, true)
         }
     }
 
     func append_float(&mut self, value : float, precision : int) {
-        append_double(value as double, precision);
+        append_double_impl(value as double, precision, true)
     }
 
     func copy(&self) : string {
@@ -941,20 +1120,24 @@ impl core::stream::Stream for StringStream {
         str.append_uinteger(value)
     }
 
+    func writeBool(&mut self, value : bool) {
+        if(value) {
+            str.append_view("true")
+        } else {
+            str.append_view("false")
+        }
+    }
+
     unsafe func writeStr(&mut self, value : *char, length : ubigint) {
         str.append_with_len(value, length)
     }
 
-    unsafe func writeStrNoLen(&mut self, value : *char) {
-        str.append_with_len(value, unsafe(strlen(value)))
-    }
-
     func writeFloat(&mut self, value : float) {
-        str.append_double(value as double, 3)
+        str.append_float(value, -1)
     }
 
     func writeDouble(&mut self, value : double) {
-        str.append_double(value as double, 3)
+        str.append_double(value, -1)
     }
 
 }

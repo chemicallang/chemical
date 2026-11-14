@@ -185,7 +185,7 @@ void SymbolResolver::link_core_nodes() {
     coreNodes.stream.stream_write_signed = func_of_interface(streamNode, "Stream", "writeSigned");
     coreNodes.stream.stream_write_unsigned = func_of_interface(streamNode, "Stream", "writeUnsigned");
     coreNodes.stream.stream_write_str = func_of_interface(streamNode, "Stream", "writeStr");
-    coreNodes.stream.stream_write_str_no_len = func_of_interface(streamNode, "Stream", "writeStrNoLen");
+    coreNodes.stream.stream_write_bool = func_of_interface(streamNode, "Stream", "writeBool");
     coreNodes.stream.stream_write_float = func_of_interface(streamNode, "Stream", "writeFloat");
     coreNodes.stream.stream_write_double = func_of_interface(streamNode, "Stream", "writeDouble");
     coreNodes.stream.stream_write_char = func_of_interface(streamNode, "Stream", "writeChar");

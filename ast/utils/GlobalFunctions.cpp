@@ -2486,8 +2486,17 @@ public:
             return new (allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), loc);
         }
 
-        const auto first = call->values[0]->evaluated_value(*call_scope)->copy(allocator);
-        const auto second = call->values[1]->evaluated_value(*call_scope)->copy(allocator);
+        const auto first_eval = call->values[0]->evaluated_value(*call_scope);
+        const auto second_eval = call->values[1]->evaluated_value(*call_scope);
+        if(first_eval == nullptr || second_eval == nullptr) {
+            // the sink or the value could not be resolved to something the
+            // formatter can walk (a nested comptime template, an unsupported
+            // value shape): report instead of dereferencing null
+            call_scope->error("couldn't resolve the value being formatted", call->values[1]);
+            return new (allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), loc);
+        }
+        const auto first = first_eval->copy(allocator);
+        const auto second = second_eval->copy(allocator);
 
         const auto parent_type = call_scope->global->current_func_type;
         const auto func = parent_type->as_function();

@@ -1,8 +1,8 @@
-# Web application stack — master plan (v2)
+# Web application stack — master plan (v3)
 
-**Status:** proposed for approval · **Date:** 2026-11-15 · **Supersedes:** v1 of this file
+**Status:** approved; **v1 scope frozen** (§3.20) · **Date:** 2026-11-15 · **Supersedes:** v1/v2 of this file
 **Scope:** make `#html` / `#css` / `#js` / `#universal` / `router` / `page` a production
-stack for large, multi-platform applications (timeline, 123mind), with the
+stack for large, multi-platform applications (timeline, 123mind, sketchable), with the
 **JavaScript backend as job #1**.
 **Companions:** [`proposals/0007-javascript-backend.md`](proposals/0007-javascript-backend.md) (approved),
 [`proposals/0008-web-dom-types.md`](proposals/0008-web-dom-types.md),
@@ -11,13 +11,36 @@ stack for large, multi-platform applications (timeline, 123mind), with the
 [`universal-router-design.md`](universal-router-design.md),
 [`language-goals.md`](language-goals.md).
 
+## How this plan changes
+
+This document started as a rough draft and stays a **living design**. A discovered fact that
+buys safety, compile-time performance, or a better public API is allowed to reshape it — the
+gate is that the change is argued in the text and lands in §3, not in a reviewer's head.
+
+Two invariants govern how it may change:
+
+1. **The public surface freezes at v1; the internals stay fluid.** Anything a user writes —
+   `chemical.mod` shape, module names, function signatures, `@props`, build flags, chunk naming,
+   the manifest format — is final when v1 ships. Everything behind it (the chunking algorithm,
+   minifier quality, emitter optimisations, compile speed, runtime size) may change in any later
+   release without notice. §3.20 draws that line explicitly.
+2. **v1 is the minimum a real app can be built on**, not the whole plan. Later releases are
+   additive and performance-only: no user is asked to re-migrate. §3.20 lists what is in v1 and
+   what is explicitly deferred.
+
+**Changes since v2 (the approval round):** v1 scope frozen with a public/internal freeze line
+(§3.20); **skills + migration are a v1 deliverable** and the four apps are built by other agents,
+not by this plan (§3.21); the JS backend is scoped to *minimal but real* (§3.7); all 196
+components get typed props in this release; client network calls use a completion-handler API that
+survives async; assets are embedded by default.
+
 **Changes from v1:** no `@server`/`@client` annotations (three real modules, `shared`/`server`/`client`);
 an in-memory app/serve model instead of "build an executable that dumps a site"; **three delivery
 modes** (static / shell+slots / full SSR) with frozen-shell slot injection for server-time
 performance (§3.12); **derived per-route payload tiers** (§3.13); **`--static` MPA builds that share
 JS across pages** (§3.14); **typed `#universal` props + hydration-safety analysis** (§3.15);
-compilation-performance foundations (§3.16); the explicit breaking-change list (§3.17); the four
-acceptance apps as a requirement matrix (§3.18); and **probes with pass criteria** (§3.19).
+compilation-performance foundations (§3.16); the explicit breaking-change list (§3.17); the
+capability matrix (§3.18); and **probes with pass criteria** (§3.19).
 Plus: corrected measurements; the JS-backend ABI decided before the emitter; the review's cheap
 wins moved earlier; a cut list.
 
@@ -313,6 +336,37 @@ a per-opcode gate: `MIRTargetSupport` marks which symbols/types are available on
 (`MIRPortability` today has no call sites and classifies `Call`/`Load`/`Store` as
 `NativeOnly`, so it cannot be used as-is).
 
+**v1 backend surface — "minimal but real" (approved).** In scope for the first release:
+
+| in v1 | deferred (later release, additive) |
+|---|---|
+| scalars with masked ints, control flow, `switch` on ints/variants | async/await lowering (MIR coroutine → JS state machine) |
+| functions, recursion, structs, fixed arrays, unions, variants | `i64`/`u64` via `BigInt` — v1 *rejects* them in client code with a diagnostic |
+| `string` / `string_view` / `&str`, tuples, `vector`, maps, `for-in` | `dyn`/vtable-heavy generic patterns beyond simple interface dispatch |
+| closures (`std::function`, capturing lambdas) | generators/iterators beyond `for-in` |
+| interfaces/`dyn` with static dispatch; ESM emission; source maps | destructor semantics / `@dispose` (JS is GC; drop glue is a no-op) |
+
+The rule for the boundary is *demonstrable need*: a capability is added to the backend when a real
+v1 app cannot express it any other way — never speculatively. Anything missing must be reachable
+through the `#js` escape hatch (wrapped in a typed Chemical function, §3.21), so no app is blocked
+by the subset.
+
+**Client network without async (approved).** v1 client code has no `await`, so the network API is
+completion-handler based from day one, and it is designed so async can be added *without changing a
+single call site*:
+
+```chemical
+// client/todos.ch
+web::Client.get_json<TodoList>("/api/todos", |res| {
+    if(res is Result.Err) { return report_client_error(res) }
+    var Ok(list) = res else { return }
+    render_todos(list)
+})
+```
+
+Later, `var todos = web::Client.get_json<TodoList>("/api/todos")?` is added as an *additional*
+awaitable form; the handler form stays. This avoids a v1-only API that would have to be migrated.
+
 ### 3.8 Production output pipeline (bundler outside the compiler)
 
 The compiler keeps only the **emitter** (it needs MIR). The bundle graph, manifest, hashing,
@@ -351,12 +405,23 @@ chunk ≤ 50 KB min; zero duplicate units; every dev chunk has a source map.
 ### 3.10 Data path (no annotations)
 
 - The client calls ordinary HTTP endpoints the server defines; typed wrappers come from
-  **shared models** (`#json`) and a small `web::Client` (`get_json`, `post_json`, retry,
-  abort, timeout).
+  **shared models** (`#json`) and `web::Client`. In v1 the call shape is a **completion handler**
+  (§3.7), which is the permanent shape and gains an awaitable sibling when async lands:
+
+  ```chemical
+  web::Client.get_json<TodoList>("/api/todos", |res| { /* Result<TodoList, HttpError> */ })
+  web::Client.post_json<Todo, Created>("/api/todos", &draft, |res| { /* ... */ })
+  ```
+
+  `get_json`/`post_json` carry retry, abort and timeout; the handler always receives a `Result`,
+  never a panic. `web::Client` is the *only* sanctioned client transport — hand-rolled `fetch`
+  through `#js` is an audit finding, not a pattern.
 - Optional typed endpoints without annotations: a **route table in `shared/`** declares
   `path + request + response`; `server/` registers handlers against it; `client/` gets a
-  generated stub. This is opt-in and never required.
+  generated stub. This is opt-in and never required (deferred out of v1, §3.20).
 - Forms work without JS (progressive enhancement); `web::Form` validates with shared code.
+- Sessions: cookies + CSRF are **in v1** (moved up from Phase 7) because no real app ships
+  without them; `web::Session` wraps the cookie jar and a server-side store interface.
 
 ### 3.11 Dev loop
 
@@ -369,7 +434,7 @@ Three modes, one render pipeline, chosen per route:
 
 | mode | when the HTML is produced | per-request cost | use |
 |---|---|---|---|
-| **static** | at build (`chemical build --static`) | none (served from cache) | marketing, docs, blog, help |
+| **static** | at build (`chemical build --web --static`) | none (served from cache) | marketing, docs, blog, help |
 | **shell + slots** | once per route, at build or first use | one alloc + N splices | personalised pages, dashboards, app shells |
 | **full SSR** | per request | full component walk | data-dependent structure |
 
@@ -592,32 +657,35 @@ Deliberately **not** broken: `HtmlPage` itself, `#html`/`#css`/`#js` syntax, CSS
 routes, `#universal` body syntax (only the props declaration changes), and every non-web library
 API.
 
-### 3.18 Acceptance matrix: the four target apps
+### 3.18 Capability matrix: what the stack must make expressible
 
-The apps are the acceptance suite, not demos. Requirement → state → phase.
+This is the matrix the **skills publish** (§3.21) so an app agent knows what it can write today,
+what it must reach for an escape hatch for, and what is coming. The four target apps motivate the
+rows; they are built by **other agents using these skills**, not by this plan.
 
-| requirement | needed by | today | phase |
+| requirement | needed by | v1 | later |
 |---|---|---|---|
 | SSR + hydration of a large component tree | all | yes | — |
-| route splitting, shared runtime/vendor chunks | all | no | 2, 4 |
-| shell + slot injection for per-request content | all (auth bar, counts, badges) | no | 4 |
-| typed client modules (Chemical → JS) | timeline editor, mind map, canvas | no | 1, 3 |
-| `dom` types: `Element`/`Event`/`fetch`/`localStorage` | all | no | 3, 7 |
-| canvas 2D, pointer events, `requestAnimationFrame` | sketchable, 123mind | no | 7 |
-| file upload (multipart) + image encode (PNG) | sketchable, timeline | no — `image` decodes only, no multipart parser | 7 |
-| **realtime transport**: WebSocket/SSE client + server, reconnect/backoff | timeline sync, 123mind live | no — no WS client, no SSE | 6 |
-| typed realtime messages over shared models | timeline, 123mind | yes once 6 lands (`#json` exists) | 6 |
+| route splitting, shared runtime/vendor chunks | all | yes | — |
+| shell + slot injection for per-request content | all (auth bar, counts, badges) | yes | — |
+| typed client modules (Chemical → JS, sync subset) | timeline editor, mind map, canvas | yes (§3.7) | async, `i64`, `dyn` forms |
+| `dom` types: `Element`/`Event`/`localStorage`/`URL` | all | minimal slice | full 0008 |
+| client → server calls | all | `web::Client` + completion handler | awaitable sibling |
+| auth/session/cookies + CSRF | timeline, easytodo | **yes** (moved up) | richer session stores |
+| forms with progressive enhancement | easytodo | yes | — |
+| canvas 2D, pointer events, `requestAnimationFrame` | sketchable, 123mind | **escape hatch**: typed wrapper over `#js` | typed surface |
+| file upload (multipart) + PNG encode | sketchable, timeline | escape hatch / server-side only | typed surface |
+| offline/local cache | easytodo | `localStorage` via `dom` | cache API |
+| **realtime transport** (WS/SSE, reconnect) | timeline sync, 123mind live | no — escape hatch via `#js` WS | `web::Realtime` |
+| typed realtime messages over shared models | timeline, 123mind | with the transport | — |
 | conflict resolution (CRDT/OT) | timeline sync | — | **not the stack's job**: a `sync` library, its own proposal |
-| large-document rendering (virtual lists, streaming SSR) | notion-like editor | no | 8 |
-| auth/session/cookies + CSRF | timeline, easytodo | no — no cookie API | 7 |
-| forms with progressive enhancement | easytodo | partial | 6 |
-| offline/local cache | easytodo | no | 7 |
-| perf budgets (per-route bytes, LCP/TBT) | all | no | 0, 5 |
+| large-document rendering (virtual lists, streaming SSR) | notion-like editor | no | release 3 |
+| perf budgets (per-route bytes, LCP/TBT) | all | yes (probe) | tighter budgets |
 
 Two consequences: the stack must own **transport** (WS/SSE) and **types** (props, DOM), but must
 **not** own a sync algorithm — CRDT belongs in a library so it can evolve without touching the
 compiler or the bundler. And "insane performance" is only credible once the §3.19 harness exists
-before the apps are built.
+before apps are written against it.
 
 ### 3.19 Probes and regression tests
 
@@ -632,16 +700,86 @@ Probes are *measurements with pass criteria*, run in CI; each becomes a durable 
 | **cache efficiency** | second page of the same app: bytes from cache vs fresh | shared tiers only, 0 duplicated component bytes |
 | **server time** | req/s and p50/p99 for static, shell, full SSR on one route | shell ≥ 5× SSR; static ≥ 50× SSR |
 | **compile time / RSS** | per suite (`--tcc`, `--llvm`, client job) | no regression > 3% without a note |
-| **app E2E** | `components-e2e`: route navigation, typing in the editor, drawing a stroke, todo round-trip | green, 0 console errors |
-| **API quality** | negative tests: unknown prop, wrong prop type, `shared` importing `client`, DOM typo, unhandled `Result` in client | each fails with the documented diagnostic |
+| **reference app** | the example app *shipped inside the skill* (§3.21): build, serve, browser E2E | green, 0 console errors |
+| **skill conformance** | every code block in the skills compiles; the skill's API list matches the compiler's actual diagnostics | 0 drift |
+| **API quality** | negative tests: unknown prop, wrong prop type, `shared` importing `client`, DOM typo, unhandled `Result` in client, `i64` in client code | each fails with the documented diagnostic |
 | **WebView** | `#universal_test` suite | unchanged |
 
-The harness (`scripts/web-probe.sh` + fixture apps) lands in Phase 0, before any of it can
-regress; each later phase adds its probe there instead of to an ad-hoc script.
+The harness (`scripts/web-probe.sh` + fixtures) lands in Phase 0, before any of it can regress;
+each later phase adds its probe there instead of to an ad-hoc script. App-side conformance is the
+same harness: an app team runs `scripts/web-probe.sh` in their repo, so "app quality" is measured
+with the toolchain's own criteria rather than by taste.
+
+### 3.20 v1 scope and the freeze line (approved)
+
+**What ships in v1** — the minimum on which a real app can be built, with a public surface that
+will not change afterwards:
+
+| in v1 | from phase |
+|---|---|
+| probe harness, fixtures, per-instance hydration ids | 0 |
+| props JSON manifest; **typed props on all 196 components**; typed `Head`; frozen + content-hashed shared assets; hydration-safety analysis | 2 |
+| **JS backend, "minimal but real"** (§3.7) + ESM emission + source maps + C-vs-JS differential | 1 |
+| `shared`/`server`/`client` modules, `server`/`client`/`js` flags, `chemical build --web`, `MIRTargetSupport`, minimal `dom`, `chemical serve` + dev overlay, `web::Client` completion handlers | 3 |
+| `web_build` graph, `web::App`/`Bundle`, `web::Shell` + slots, embedded assets, CSS chunks, closure/cache checks | 4 |
+| JS + CSS minifier, hashed names, `--static` MPA with cross-page sharing, `--profile` | 5 |
+| sessions/cookies + CSRF, `web::Session`, `web::Form` | 5 (pulled forward from 7) |
+| **skills + migration kit + the one-sentence bootstrap prompt** (§3.21) | 5 |
+
+**Deferred, additive only** (no v1 API changes this forces): async/await lowering, `BigInt` for
+`i64/u64`, `dyn`-heavy client patterns, `web::Realtime` (WS/SSE), canvas/pointer/rAF types,
+multipart + PNG encode, route-table typed endpoints, streaming SSR, virtual lists, i18n/RTL, HMR,
+brotli, islands, SPA shell mode, multi-app vendor sharing, SRI.
+
+**The freeze line.**
+
+| frozen at v1 (users write it) | fluid forever (internals) |
+|---|---|
+| `chemical.mod` shape, module names `shared`/`server`/`client` | chunking algorithm, vendor threshold, budget numbers |
+| `web::App`, `web::Bundle`, `web::Shell`, `web::SlotFills`, `web::Client`, `web::Session`, `web::Form`, `web::Static` signatures | minifier quality, mangling scheme, runtime size |
+| `@props` syntax, `#universal` declaration form, hydration manifest **format** | props payload encoding details, id allocation strategy |
+| build flags `--web`, `--static`, `--out`, `server`/`client`/`js` target flags | emitter optimisations, compile-time performance, cache layout |
+| chunk **naming scheme** (`runtime.<h>.js`, `route/<id>.<h>.js`) and asset URL shape | which unit lands in which tier |
+| `dom` module name and its v1 member set (additions are additive) | DOM handle representation |
+
+If a v1 gap is discovered after release, the answer is an **additive** API (new function, new
+module, new flag) — never a rename. That is the whole point of taking the §3.17 breaks now.
+
+### 3.21 Adoption: skills, migration kit, and the bootstrap prompt (v1 deliverable)
+
+The four apps are built by other agents, and the release is only as good as their ability to use it
+correctly. So v1 ships **documentation as an executable artifact**: skills in `.agents/skills/` that
+are compiled and tested like code.
+
+**Skills to write (or rewrite):**
+
+| skill | contents |
+|---|---|
+| `web_app` (rewrite of `design_web_app`) | the module split, `web::App`/`Bundle`/`Shell`, typed props, `web::Client` completion handlers, `--web`/`--static`, dev loop, **capability matrix + escape hatches** (§3.18), perf rules (what makes a page slow), and a complete reference app |
+| `web_migration` (new) | old → new API table (§3.17 items 1–10), before/after diffs, "error message → what to do" index, the `#js` → typed-wrapper pattern, and the `string_view`/`unsafe` rules from `release-readiness.md` |
+| `web_client` (new, thin) | `dom` v1 members, `web::Client`, `localStorage`, event handlers, and the wrapper-over-`#js` pattern for canvas/WS until they are typed |
+| `universal` (update) | typed props, per-instance ids, no dispatch globals, slot rules (no component inside a slot fill) |
+| `components_e2e` (update) | how an app team runs the shared probe harness against their app |
+| `testing` (update) | the new fixtures/probes and how a suite asserts bundle budgets |
+| `AGENTS.md` | `@props` in the annotation table, the three-module shape, `web`/`web_build` in the architecture map |
+
+**The bootstrap prompt** — the exact single sentence to hand an agent that will work on one of the
+apps:
+
+> Read the `web_app`, `web_migration`, and `web_client` skills before writing any code, then migrate this app to the new web stack — typed `#universal` props, `shared`/`server`/`client` modules, `web::App`/`Bundle`/`Shell`, `web::Client` completion handlers, `--check`-clean typed `dom` — using only the documented escape hatches where v1 has no typed surface, and keep `scripts/web-probe.sh` green.
+
+**Why this is in the plan and not an afterthought:** the migration kit is the mechanism that makes
+"public stuff stable on day 1" testable. `skill conformance` (§3.19) compiles every snippet in the
+skills, so a skill that drifts from the compiler fails CI — the doc cannot rot. The reference app
+inside `web_app` doubles as the fourth §3.19 fixture, so the path an app agent follows is the path
+the release is tested on.
 
 ---
 
 ## 4. Phases
+
+**Phases 0–5 are v1** (§3.20). Phases 6–8 are post-v1 and must be additive only. Phase 2 runs in
+parallel with Phase 1; everything else is ordered.
 
 ### Phase 0 — Truth, fixtures, and the probe harness  *(S)*
 
@@ -757,7 +895,7 @@ compiled to JS, and works in the browser with source maps and a terminal-reporte
 runtime + vendor; each route loads only its chunk; a personalised route is served from a slot shell
 byte-identically to full SSR; no inline `<script>`.
 
-### Phase 5 — Production output and static sites  *(M)*
+### Phase 5 — Production output, static sites, sessions, and the skills kit  *(M)* — **last v1 phase**
 
 1. Minifier (whitespace + emitter identifier mangling), CSS minifier, tree-shaking, gzip
    precompression or CDN delegation, budgets from Phase 0 enforced on minified bytes, `--profile`
@@ -765,43 +903,55 @@ byte-identically to full SSR; no inline `<script>`.
 2. **`--static` MPA build** (§3.14): shared chunks across all pages, zero-JS pages stay zero-JS,
    `base_path`, `sitemap.xml`/`robots.txt`, optional hover prefetch, `web::Static.build` replacing
    `writeToDirectory` (deprecated shim for one release).
+3. **Sessions** (pulled forward from Phase 7): cookie jar, `Set-Cookie` parsing, `web::Session`
+   with a server-side store interface, CSRF tokens for state-changing endpoints, same-origin
+   default. No real app ships without these, so they gate v1.
+4. **Skills + migration kit** (§3.21): `web_app` (rewrite), `web_migration`, `web_client` (new),
+   updates to `universal`/`components_e2e`/`testing`/`AGENTS.md`, the reference app inside
+   `web_app`, and the one-sentence bootstrap prompt. Wire `skill conformance` into CI so every
+   snippet in the skills compiles.
 
-**Exit:** budgets green; `chemical build --web` emits a deployable directory *or* an embedded
-`assets.ch`; `--static` output shares the runtime + component units across pages (probe-verified);
-`chemical build --web --static` is the documented path for the marketing/docs site.
+**Exit (v1 gate):** budgets green; `chemical build --web` emits a deployable directory *or* an
+embedded `assets.ch`; `--static` output shares runtime + component units across pages
+(probe-verified); a form-based flow with sessions and CSRF works without JS; every skill snippet
+compiles in CI; the reference app builds, serves and passes the browser E2E. **This is the
+release.**
 
-### Phase 6 — SPA behaviour, data, and realtime transport  *(L)*
+### Phase 6 — SPA behaviour and realtime *(L, post-v1)*
 
 1. Route-level `import()` + prefetch (port the existing `remote`-route fragment machinery and its
-   race handling, rather than reinventing), typed `Head` output (`meta`/canonical), `web::Client` +
-   shared models, optional route-table typed endpoints, progressive forms, client-side navigation
-   without document reload.
+   race handling, rather than reinventing), typed `Head` output (`meta`/canonical), optional
+   route-table typed endpoints, client-side navigation without document reload.
 2. **Realtime transport** (`web::Realtime`): WebSocket client + server upgrade, SSE as the
    fallback, reconnect with backoff, typed messages via `#json` on `shared` models. No sync
    algorithm in-tree — CRDT/OT stays a library (§3.18).
+3. **Async lowering** in the JS backend, so `web::Client` gains its awaitable sibling and the
+   completion-handler form keeps working.
 
 **Exit:** route change loads one chunk, updates head, fetches typed data, no reload; a two-client
-WebSocket echo/sync example runs on server and client with typed messages.
+WebSocket sync example runs on server and client with typed messages; the same client code runs
+with `await` and with handlers.
 
-### Phase 7 — Full DOM types, canvas, uploads, security defaults  *(L)*
+### Phase 7 — Full DOM types, canvas, uploads  *(L, post-v1)*
 
 1. Complete proposal 0008 (`dom` submodules, host-handle borrow rule — a language change, not a
    library), DOM event typing in `#universal`, `--check` rejects unknown DOM members.
 2. Canvas/pointer surface: `CanvasRenderingContext2D`, `PointerEvent`, `requestAnimationFrame`,
-   `ImageData`, transforms — the sketchable/123mind requirement.
+   `ImageData`, transforms — the sketchable/123mind requirement; the typed wrapper that apps wrote
+   over `#js` in v1 becomes a thin alias, so no call-site migration.
 3. Uploads: multipart parsing in `http`, `image` PNG **encode** (today it decodes only).
-4. Security defaults: same-origin by default, CSRF tokens for state-changing endpoints, cookies
-   (absent from `http` today), CSP-friendly output, secrets from env at build/serve time.
+4. `BigInt` for `i64/u64` in client code; `dyn`-heavy patterns.
 
-**Exit:** a drawing surface and a note editor are written in Chemical, not `#js`.
+**Exit:** a drawing surface and a note editor are written in Chemical, not `#js`; every v1-era
+wrapper over `#js` still compiles.
 
-### Phase 8 — Hardening and the acceptance apps  *(M, ongoing)*
+### Phase 8 — Hardening  *(M, ongoing)*
 
 Streaming SSR and virtual lists for large documents; sampled hydration-mismatch reporting (needs
 the error endpoint); `http::FileServer` cache headers/ETag (needed by disk mode); a11y linting;
 i18n/l10n + RTL (design in Phase 6 so the manifest can reserve a locale dimension); perf budgets
-(LCP/TBT) in `components-e2e`; and the §3.18 acceptance apps (timeline, 123mind, easytodo,
-sketchable) run as E2E fixtures — each app must pass the §3.19 probes, not just its own tests.
+(LCP/TBT) in `components-e2e`; `--check`-integrated audit of escape-hatch usage across the app
+corpus (a `#js` block without a typed wrapper is a lint finding).
 
 ---
 
@@ -823,8 +973,10 @@ sketchable) run as E2E fixtures — each app must pass the §3.19 probes, not ju
 | DOM | `lang/libs/dom/*` (per 0008), incl. canvas/pointer/rAF |
 | Realtime | `lang/libs/web/src/realtime.ch` (WS/SSE client+server), `lang/libs/http/src/server.ch` (upgrade) |
 | Static | `lang/libs/web/src/static_build.ch`, sitemap/robots, `base_path` |
+| Sessions | `lang/libs/http/src/types.ch` (cookie jar, `Set-Cookie`), `lang/libs/web/src/session.ch`, CSRF middleware |
 | Dev | `compiler/core/main/*` (`serve`), `lang/libs/web_build/dev.*`, error-ingestion endpoint |
 | Probes | `scripts/web-probe.sh`, `lang/tests/web/*`, `compiler_plugins/universal/*`, `components-e2e` |
+| Skills | `.agents/skills/web_app/*` (rewrite), `.agents/skills/web_migration/*` (new), `.agents/skills/web_client/*` (new), updates to `universal`, `components_e2e`, `testing`, and `AGENTS.md` |
 
 ---
 
@@ -843,9 +995,11 @@ sketchable) run as E2E fixtures — each app must pass the §3.19 probes, not ju
 | Server time | shell ≥ 5× full SSR; static ≥ 50× full SSR (same route, p50) |
 | CSP | production output contains no inline `<script>` |
 | Static | `--static` output shares runtime + vendor chunks across pages; `#html`-only pages emit 0 JS |
-| Props | unknown/missing/mistyped prop = compile error with the declared prop set |
+| Props | unknown/missing/mistyped prop = compile error with the declared prop set; **all 196 components typed** (a grep-based count in CI) |
+| Sessions | a form flow with cookies + CSRF works with JavaScript disabled |
+| Skills | every code block in `.agents/skills/web_*` compiles in CI; the skill's API list matches the compiler's diagnostics (0 drift); the reference app builds, serves and passes browser E2E |
 | Determinism | render body reading time/random/DOM state = compile error; hydration-mismatch overlay green in E2E |
-| Browser | `components-e2e`: route split, in-memory serving, head update, typed client, assets, canvas stroke |
+| Browser | `components-e2e`: route split, in-memory serving, head update, typed client, assets |
 | Engine | `#universal_test` WebView suite unchanged |
 | Compiler | ≤ 5 MB release, per-PR size delta; compile-time/RSS deltas for `--tcc` and `--llvm`; per-phase timing for the client job; no `ast/` include in `MIREmitterJs`/`web_build` |
 
@@ -859,92 +1013,106 @@ sketchable) run as E2E fixtures — each app must pass the §3.19 probes, not ju
 - **No brotli/deflate in-tree**; `.gz` at most, CDN for the rest.
 - **No sync algorithm in-tree.** CRDT/OT for timeline is a `sync` library with its own proposal;
   the stack only supplies transport (WS/SSE) + typed messages + `shared` models.
-- **HMR cut** (reload-only dev server); revisit after the stack is stable.
-- **Async in the JS backend deferred** (stubbed with a diagnostic) — not needed for SSR,
-  routing, or client DOM code.
-- **`BigInt` for `i64/u64` deferred**: reject in client code initially.
+- **No HMR** (reload-only dev server); revisit after the stack is stable.
+- **No async in the v1 JS backend.** The completion-handler form of `web::Client` is the permanent
+  API; async is added later as an awaitable sibling, never as a replacement (Phase 6).
+- **No `BigInt` for `i64/u64` in v1**: rejected in client code with a diagnostic (Phase 7).
+- **No typed canvas/pointer/WS in v1.** Apps use a typed Chemical wrapper over `#js`; the typed
+  surface arrives in Phase 7 and the wrapper becomes an alias, so call sites never migrate.
 - **No `@dispose`**; destructors are no-ops on JS.
 - **No islands, SPA shell mode, multi-app vendor sharing, SRI, service worker/PWA** in v1.
-- **No image transcoding** (PNG/BMP/PPM only; PNG *encode* lands in Phase 7 because sketchable
-  needs a save path) or WOFF2 in-tree.
+- **No image transcoding** (PNG/BMP/PPM only; PNG *encode* lands in Phase 7) or WOFF2 in-tree.
 - **No React compatibility layer.**
 - **No streaming SSR** until Phase 8.
 - **No ownership-on-GC decision** made here: proposals 0006/0004 own it.
 - **No user-facing "chunk config".** Placement is derived and measured; if it needs hand-tuning,
   the derivation is wrong.
+- **No v1-only convenience APIs.** If a design is temporary, it does not ship: it either becomes
+  permanent or it is cut. This is the discipline that makes "stable on day 1" mean something.
 
 ---
 
-## 8. Decisions needed for approval
+## 8. Decisions
 
-Settled by this revision (from the design review), listed so they can be vetoed:
+**Answered in the approval round** (2026-11-15), and now part of the plan:
 
-1. ~~`@server`/`@client` annotations~~ → **real modules** `shared`/`server`/`client`, each with
-   its own `chemical.mod`; `shared` is pure logic only (no `page`/`dom`/macros).
-2. **Route → bundle closures are derived by rendering each route once** (build or first start)
-   and freezing the result, not by a native route table (which has no render function).
-3. **`assets.ch` uses one string literal per text chunk** (base64 for binary) and a
+| # | question | answer |
+|---|---|---|
+| 1 | JS backend scope in v1 | **Minimal but real** — sync subset only; async/`BigInt`/`dyn` deferred (§3.7). No v1 API taken on a bet. |
+| 2 | Who builds the four apps | **Not this plan.** v1 ships **skills + migration kit + a one-sentence bootstrap prompt** so app agents adopt the stack correctly (§3.21). |
+| 3 | Typed props rollout | **All 196 components typed in this release**; untyped props are a compile error from day 1. |
+| 4 | Client network API without async | **Completion-handler `web::Client`**, designed so the awaitable form is added later without changing a call site (§3.10). |
+| 5 | Asset delivery default | **Embedded by default**, disk supported (`--out dist`, `--static`). |
+
+Settled earlier (kept so they can still be vetoed):
+
+6. **Real modules** `shared`/`server`/`client`, each with its own `chemical.mod`; `shared` is pure
+   logic only (no `page`/`dom`/macros). No `@server`/`@client` annotations.
+7. **Route → bundle closures are derived by rendering each route once** and freezing the result.
+8. **`assets.ch` uses one string literal per text chunk** (base64 for binary) and a
    **two-phase build**; no byte-array modules.
-4. **Three delivery modes** (static / shell+slots / full SSR), chosen per route, one pipeline.
-   Slot fills are plain HTML — no component may render into a slot — and structural variation is
-   a per-variant shell.
-5. **Props become typed (`@props` struct) in this release**, together with the JSON props payload
-   replacing dispatch text. This is the largest breaking change and it is taken now, not later.
-6. **Chunk placement is derived, never configured.** Users declare routes; the build measures.
+9. **Three delivery modes** (static / shell+slots / full SSR), per route, one pipeline. Slot fills
+   are plain HTML; structural variation is a per-variant shell.
+10. **Props typed via `@props`**, with the JSON props payload replacing dispatch text.
+11. **Chunk placement is derived, never configured.**
+12. **Sessions/cookies/CSRF are v1**, pulled forward from Phase 7.
 
-Still open:
+Still open, to be settled during implementation (none block starting):
 
-7. **ABI route** (A) emulated heap vs (B) place→value promotion — Phase 1 step 0 decides with a
-   spike; approve the spike as the gate.
-8. **Embedded assets by default** (`assets.ch` in the binary) vs disk-first. Recommendation:
-   embedded default, disk supported.
-9. **Bundler location**: `web_build` library/build script (recommended) vs inside the compiler.
-10. **Runtime mangling scope**: budget 45 KB min until a shared JS parser lands.
-11. **Typed endpoint route table** (optional convenience) in or out of v1.
-12. **Realtime transport scope**: WS + SSE both in Phase 6, or WS only with SSE later.
-13. **`--static` default**: is `chemical build --web` static-by-default for apps without
-    `server/`, or always two jobs? Recommendation: infer from the module set.
+13. **ABI route** (A) emulated heap vs (B) place→value promotion — Phase 1 step 0 decides with a
+    spike; the spike is the gate.
+14. **Bundler location**: `web_build` library/build script (recommended) vs inside the compiler.
+15. **Runtime mangling scope**: budget 45 KB min until a shared JS parser lands.
+16. **`--static` inference**: static-by-default when there is no `server/` module, or always two
+    jobs. Recommendation: infer from the module set.
 
 ---
 
 ## 9. Sequencing
 
 ```
-Phase 0  truth + fixtures + probe harness + useId fix      (S)
-Phase 1  JS backend: ABI spike → emitter → conformance     (XL, critical path)
-Phase 2  manifest + typed props + freeze/hash  (M, parallel)  ← can start immediately
-Phase 3  module split + client modules + maps + serve      (L, needs Phase 1 ABI)
-Phase 4  bundle graph + web::App + shell/slots + runtime    (L, needs 2+3)
-Phase 5  minify/tree-shake/budgets + --static MPA          (M)
-Phase 6  SPA routes/prefetch/head/data + realtime transport (L)
-Phase 7  full DOM + canvas/pointer + uploads + security     (L)
-Phase 8  hardening + the four acceptance apps               (M)
+── v1 ──────────────────────────────────────────────────────────────
+Phase 0  truth + fixtures + probe harness + useId fix        (S)
+Phase 1  JS backend (minimal): ABI spike → emitter → diff     (XL, critical path)
+Phase 2  manifest + typed props (196) + freeze/hash  (M, parallel)  ← starts immediately
+Phase 3  module split + client modules + maps + serve         (L, needs Phase 1 ABI)
+Phase 4  bundle graph + web::App + shell/slots + runtime      (L, needs 2+3)
+Phase 5  minify + --static MPA + sessions + skills kit        (M)   ← release gate
+── post-v1 (additive) ──────────────────────────────────────────────
+Phase 6  SPA routes/prefetch/head + realtime + async           (L)
+Phase 7  full DOM + canvas/pointer + uploads + i64            (L)
+Phase 8  hardening + streaming + a11y + escape-hatch audit     (M)
 ```
 
 Phase 2 is independent of Phase 1 and delivers the headline sharing and typing wins in one
-workstream while the backend is built in the other. Phase 5's `--static` and Phase 6's transport
-are where the "static site" and "realtime app" user stories respectively become real.
+workstream while the backend is built in the other. If a phase slips, the *cut* is always taken
+from a later release, never by weakening the v1 public surface: a half-designed API shipping in v1
+is worse than a feature shipping a release late.
 
 ---
 
 ## 10. How we will know it worked
 
-- Two pages sharing components: runtime + vendor + 63 components load **once**; duplicate
-  unit count = 0 (measured by `web-probe.sh`, not by eye).
+**v1 — the release bar:**
+
+- Two pages sharing components: runtime + vendor + 63 components load **once**; duplicate unit
+  count = 0 (measured by `web-probe.sh`, not by eye).
 - A page's initial JS ≤ 50 KB min; runtime ≤ 45 KB min (35 KB after runtime mangling).
 - A personalised route is served from a frozen shell in one allocation plus one `memcpy` per slot,
   byte-identical to full SSR, and ≥ 5× faster (measured).
-- `chemical build --web --static` produces a site whose pages share runtime and component units,
-  where `#html`-only pages ship 0 bytes of JS, with a `base_path`, a sitemap, and hashed assets.
-- Route change loads only that route's chunk, updates the head, fetches typed data, no reload.
-- Client logic is Chemical in `client/`; a typo'd DOM member, a bad prop, or a nondeterministic
-  read in a render body is a compile error, not a browser-console message.
-- Realtime: two browsers sync a note over WS/SSE with typed messages, built from `shared` models.
-- `chemical build --web` yields either one embedded binary or a hashed `dist/` with a manifest;
-  `web::App` serves both, and the same graph drives both.
+- All 196 components have typed props; a typo'd prop, a typo'd DOM member, a nondeterministic read
+  in a render body, and an `i64` in client code are all compile errors with a fix.
+- A form flow with sessions and CSRF works with JavaScript disabled; the same flow works with
+  client modules when JS is on.
+- `chemical build --web` yields one embedded binary; `chemical build --web --static` yields a site
+  whose pages share runtime and component units, where `#html`-only pages ship 0 bytes of JS, with
+  a `base_path`, a sitemap, and hashed assets.
 - Same program under `--tcc` and `--js` produces identical output (differential gate).
-- Dev: edit → reload < 1 s on the components app; every chunk has a source map; a client error
-  appears in the terminal with a Chemical source location.
-- The four acceptance apps (timeline, 123mind, easytodo, sketchable) pass the §3.19 probes, which
-  means a regression in HTML/JS soundness, bundle quality, server time, or API ergonomics fails CI
-  before a user sees it.
+- Dev: edit → reload < 1 s; every chunk has a source map; a client error appears in the terminal
+  with a Chemical source location.
+- **An agent that has never seen this repo can take the one-sentence prompt (§3.21), load the
+  skills, and migrate a real page to the new API without asking a question** — and every snippet
+  it copied still compiles, because CI compiles the skills.
+
+**Evidence that later releases stayed additive:** after v1, no user-visible rename, no changed
+signature, no changed `chemical.mod` shape. A later release that needs one is a bug in this plan.

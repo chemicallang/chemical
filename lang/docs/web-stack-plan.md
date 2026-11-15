@@ -581,25 +581,39 @@ Phase 5 is automatic per-page chunks, minification and cross-page vendor computa
 
 Four pieces; the first two need no JS backend.
 
-**(a) Typed `#universal` props (breaking, Phase 2).** Props are untyped today, so a typo becomes
-`undefined` in the browser. Change the declaration:
+**(a) Typed `#universal` props (landed: declaration + name validation).** Props are untyped today,
+so a typo becomes `undefined` in the browser. The declaration now names a struct:
 
 ```chemical
-@props
 public struct CardProps {
-    var title : string_view
-    var count : int = 0
+    var title : std::string_view
+    var count : int
 }
 
-#universal Card(props : CardProps) { /* ... */ }
+#universal Card(props : CardProps) { /* props.title, props.count */ }
 ```
 
-`<Card title={x} counts={3} />` then fails to compile (`unknown prop 'counts'`, `missing prop
-'title'`, `int does not satisfy string_view`). The props serializer is **generated from the
-struct** instead of the ad-hoc string building used today, which removes the documented escaping
-footguns (single quotes and backslashes in string props, struct/vector props producing corrupt
-output) by construction: the payload becomes JSON, escaped for a
-`<script type="application/json">` block.
+`<Card title="ok" counts={3} />` fails to compile with
+`unknown prop 'counts' for component 'Card'; declared props: title, count` (both the `#html` path and
+the JSX-inside-`#universal` path). Implicit props are always accepted: `children`, `class`,
+`className`, `key`, `ref`, `style`, and `on*`. A props annotation whose type is missing or not a
+struct is reported at the call site and at the component.
+
+**Disambiguation rule (permanent):** a props annotation starting with an **uppercase** letter names
+a type (`props : CardProps`); a **lowercase** one keeps the pre-typed meaning of naming required
+props (`props : title`, `props : a, b?`). This keeps the existing required-prop diagnostic
+(`missing required prop 'title' on <Good>`) working without a new keyword.
+
+Still to land for typed props (Phase 2 remainder):
+
+- **Value types** — check each attribute value against the field type (`title={123}` must fail).
+  Needs a `BaseType` inspection surface (only `getKind()` exists in the CBI today).
+- **Required vs defaulted** — a field is required unless it has an initializer in the props struct;
+  needs a `has_default`/default-value accessor on the member binding so the call site can both
+  enforce and inject the default.
+- **Serializer from the type** — replace the ad-hoc prop payload building with generated JSON, which
+  removes the documented escaping footguns (single quotes/backslashes, struct/vector props)
+  by construction.
 
 **(b) Hydration-safety analysis (Phase 2).** SSR and the client must agree, so render bodies may
 not read nondeterministic or browser-only state: time/random intrinsics, `document`/`window`,
@@ -662,7 +676,7 @@ behaviour-only.
 
 | # | change | why now | migration |
 |---|---|---|---|
-| 1 | `#universal` props typed via an `@props` struct; unknown/missing/mistyped props are errors | biggest error class, and it changes the component signature | compiler lists the declared prop set |
+| 1 | `#universal` props typed via a props struct; unknown props are errors — **declaration + name validation landed**, value-type/required checks next | biggest error class, and it changes the component signature | compiler lists the declared prop set |
 | 2 | props payload becomes a JSON `<script type="application/json">` manifest; `window.$__uni_dispatch` and the global queue are removed | 42% of a page is dispatch text, and the global contract blocks ESM | automatic |
 | 3 | hydration ids become per-instance counters (`useId`) — **landed**; the emitted dispatch is now `document.getElementById('u' + <n>)` | two instances of one node collided before | automatic |
 | 4 | `SharedAssets`/`attach_shared` and manual `shared.js() + getHtml() + local_js()` assembly replaced by `web::App`/`web::Bundle` | the manual warm pass is the step that never happens | one `app.page(...)` per route |
@@ -860,18 +874,20 @@ Then, in order:
 core suite subset passes in Node; `--plugins` and all other suites unchanged; compile
 time/peak RSS for other backends unchanged.
 
-### Phase 2 — Cheap wins + typed props, no dependency on Phase 1  *(M, parallel)*
+### Phase 2 — Cheap wins + typed props, no dependency on Phase 1  *(M, parallel)* — **in progress**
 
 The whole phase can run in a second workstream while Phase 1 is in progress, and it carries three
 of the breaking changes in §3.17.
 
-1. **Hydration manifest** (§3.6): replaces dispatch text; ~42% smaller pages; removes
+1. [ ] **Hydration manifest** (§3.6): replaces dispatch text; ~41% smaller pages; removes
    `window[fnName]` and the global queue; props serialized once.
-2. **`SharedAssets` freeze + content-hashed names + ETag + `toStringJsOnly`**: the shared-bundle
+2. [ ] **`SharedAssets` freeze + content-hashed names + ETag + `toStringJsOnly`**: the shared-bundle
    design's Phase 4. This alone makes two pages share the runtime and the 63 components today.
-3. **Typed `#universal` props** (§3.15a): `@props` struct, unknown/missing/mistyped props are
-   compile errors, and the props payload + escaping is generated from the type.
-4. **Hydration-safety analysis** (§3.15b): nondeterministic or browser-only reads in render
+3. [~] **Typed `#universal` props** (§3.15a): declaration form, struct resolution, and attribute-name
+   validation are **landed** on both the `#html` and JSX paths, with negative tests
+   (`unknown prop … declared props: …`, props type not found / not a struct) and a positive test.
+   Remaining: value-type checking, required-vs-defaulted, serializer generated from the type.
+4. [ ] **Hydration-safety analysis** (§3.15b): nondeterministic or browser-only reads in render
    position are build errors.
 
 **Exit:** page 2 of a two-page app ships no runtime and no shared component bytes; the closure check

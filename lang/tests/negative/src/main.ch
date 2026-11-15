@@ -653,6 +653,24 @@ public func neg_universal_missing_prop_names_the_component(env : &mut TestEnv) {
     expect_compile_error_with_mod(env, "universal_missing_prop", ch, "missing required prop 'title' on <Good>", NEG_MOD_UNIVERSAL)
 }
 
+// Typed props: `#universal Card(props : CardProps)` declares the prop surface, and
+// an attribute the struct does not declare is a compile error that names the
+// component and lists what it does accept — instead of becoming `undefined` in
+// the browser.
+@test
+public func neg_universal_unknown_prop_lists_declared_props(env : &mut TestEnv) {
+    var ch = "public struct CardProps {\n    var title : std::string_view\n    var count : int\n}\n#universal Card(props : CardProps) {\n    return <div>{props.title}</div>\n}\n#universal Host(props) {\n    return <Card title=\"ok\" counts={1} />\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "universal_unknown_prop", ch, "unknown prop 'counts' for component 'Card'; declared props: title, count", NEG_MOD_UNIVERSAL)
+}
+
+// A props annotation naming a type that does not exist must say so at the
+// component, not silently fall back to treating it as a prop name.
+@test
+public func neg_universal_props_type_not_found(env : &mut TestEnv) {
+    var ch = "#universal Card(props : CardProbs) {\n    return <div>{props.title}</div>\n}\n#universal Host(props) {\n    return <Card title=\"ok\" />\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "universal_props_type_missing", ch, "props type 'CardProbs' of component 'Card' was not found", NEG_MOD_UNIVERSAL)
+}
+
 @test
 public func neg_html_unsupported_value_type_is_diagnosed(env : &mut TestEnv) {
     // A struct with no `writeToPageHtml` cannot be embedded in `#html`; it used

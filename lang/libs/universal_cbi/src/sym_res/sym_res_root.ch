@@ -1,3 +1,81 @@
+// Attribute names every component accepts regardless of its declared props.
+func is_implicit_jsx_prop_name(name : &std::string_view) : bool {
+    if(name.equals(std::string_view("children"))) return true
+    if(name.equals(std::string_view("class"))) return true
+    if(name.equals(std::string_view("className"))) return true
+    if(name.equals(std::string_view("key"))) return true
+    if(name.equals(std::string_view("ref"))) return true
+    if(name.equals(std::string_view("style"))) return true
+    return name.size() > 2 && name.at(0) == 'o' && name.at(1) == 'n'
+}
+
+// Typed props, JSX path: reject attributes the component's props struct does not
+// declare. The struct is resolved from `propsTypeName` here rather than read from
+// `signature.propsStruct`, because a call site may be visited before the
+// declaring component's own symres pass has run.
+func append_unknown_prop_errors(resolver : *mut SymbolResolver, diagnoser : *mut ASTDiagnoser, signature : *mut ComponentSignature, element : *mut JsJSXElement, compName : &std::string_view, ok : &mut bool) {
+        unsafe {
+        if(signature.propsTypeName.size() == 0) return
+        var propsTypeName = signature.propsTypeName
+        const propsNode = resolver.resolve(&propsTypeName)
+        if(propsNode == null) {
+            var msg = std::string("props type '")
+            msg.append_view(&propsTypeName)
+            msg.append_view("' of component '")
+            msg.append_view(compName)
+            msg.append_view("' was not found")
+            diagnoser.error(msg.to_view(), element.loc)
+            *ok = false
+            return
+        }
+        if(propsNode.getKind() != ASTNodeKind.StructDecl) {
+            var msg = std::string("props type '")
+            msg.append_view(&propsTypeName)
+            msg.append_view("' of component '")
+            msg.append_view(compName)
+            msg.append_view("' must be a struct")
+            diagnoser.error(msg.to_view(), element.loc)
+            *ok = false
+            return
+        }
+        const propsStruct = propsNode as *mut StructDefinition
+        signature.propsStruct = propsStruct
+        const members = propsStruct.getMembers()
+        if(members == null) return
+        const count : uint = members.size()
+
+        for(var i : uint = 0; i < element.opening.attributes.size(); i += 1) {
+            const attrNode = element.opening.attributes.at(i)
+            if(attrNode.kind != JsNodeKind.JSXAttribute) continue
+            const attr = attrNode as *mut JsJSXAttribute
+            if(is_implicit_jsx_prop_name(&attr.name)) continue
+            var found : bool = false
+            for(var j : uint = 0; j < count; j += 1) {
+                const member = members.get(j)
+                if(member.getName().equals(&attr.name)) { found = true; break }
+            }
+            if(found) continue
+
+            var msg = std::string("unknown prop '")
+            msg.append_view(&attr.name)
+            msg.append_view("' for component '")
+            msg.append_view(compName)
+            msg.append_view("'")
+            if(count > 0) {
+                msg.append_view("; declared props: ")
+                for(var j : uint = 0; j < count; j += 1) {
+                    if(j > 0) { msg.append_view(", ") }
+                    const member = members.get(j)
+                    msg.append_view(&member.getName())
+                }
+            }
+            diagnoser.error(msg.to_view(), element.loc)
+            *ok = false
+        }
+
+        }
+}
+
 func sym_res_components(
     components : &mut std::vector<*mut JsJSXElement>,
     resolver : *mut SymbolResolver,
@@ -76,8 +154,7 @@ func sym_res_components(
                 }
                 if (!found) missing.push(param.name);
             }
-            if (!missing.empty()) {
-                var msg = std::string("missing required ")
+            if (!missing.empty()) {                var msg = std::string("missing required ")
                 if (missing.size() == 1) {
                     msg.append_view("prop '")
                     msg.append_view(&missing.at(0))
@@ -97,6 +174,10 @@ func sym_res_components(
                 diagnoser.error(msg.to_view(), element.loc);
                 ok = false;
             }
+
+            // Typed props: an attribute the component's props struct does not
+            // declare is an error here (JSX path), matching the #html path.
+            append_unknown_prop_errors(resolver, diagnoser, signature, element, &name, &mut ok);
         }
         return ok;
 

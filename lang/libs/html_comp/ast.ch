@@ -16,6 +16,12 @@ public struct ComponentSignature {
     var name : std::string_view
     var propsName : std::string_view
     var params : std::vector<ComponentParam>
+    // Typed props (§3.15a). `#universal Card(props : CardProps)` names a struct;
+    // the name is resolved to `propsStruct` at symres so call sites can validate
+    // attribute names against the declared fields. Empty/null when a component
+    // keeps untyped props (the pre-v1 form).
+    var propsTypeName : std::string_view
+    var propsStruct : *mut StructDefinition = null
     var functionNode : *mut FunctionDeclaration = null
     // The parsed JS/JSX body of a `#universal` component, back-pointed so the
     // router (a consumer) can validate `props.X` reads / `dangerouslySetInnerHTML`

@@ -243,6 +243,61 @@ func (converter : &mut ASTConverter) build_ssr_children(element : *mut HtmlEleme
         }
     }
 
+// Attribute names every component accepts regardless of its declared props:
+// the universal conventions plus the entities any JSX element may carry.
+func is_implicit_prop_name(name : std::string_view) : bool {
+    if(name.equals(std::string_view("children"))) return true
+    if(name.equals(std::string_view("class"))) return true
+    if(name.equals(std::string_view("className"))) return true
+    if(name.equals(std::string_view("key"))) return true
+    if(name.equals(std::string_view("ref"))) return true
+    if(name.equals(std::string_view("style"))) return true
+    return is_event_attribute_name(name)
+}
+
+// Validates a component invocation's attribute names against its declared props
+// struct (`#universal Card(props : CardProps)`). This is the check that stops a
+// prop typo from becoming `undefined` in the browser, which is the error class
+// the JSX stack used to leave to the browser console.
+func (converter : &mut ASTConverter) validate_props(element : *mut HtmlElement, signature : *mut ComponentSignature) {
+        unsafe {
+        const propsStruct = signature.propsStruct
+        if(propsStruct == null) return
+        if(converter.diagnoser == null) return
+        const members = propsStruct.getMembers()
+        const memberCount : uint = if(members == null) 0u else members.size()
+
+        for(var i : uint = 0; i < element.attributes.size(); i++) {
+            const attr = element.attributes.at(i)
+            if(is_implicit_prop_name(attr.name)) continue
+            var found : bool = false
+            for(var j : uint = 0; j < memberCount; j++) {
+                const member : *mut BaseDefMember = members.get(j)
+                if(member.getName().equals(&attr.name)) { found = true; break }
+            }
+            if(found) continue
+
+            var msg = std::string("unknown prop '")
+            msg.append_view(&attr.name)
+            msg.append_view("' for component '")
+            msg.append_view(&signature.name)
+            msg.append_view("'")
+            if(memberCount > 0) {
+                msg.append_view("; declared props: ")
+                for(var j : uint = 0; j < memberCount; j++) {
+                    if(j > 0) { msg.append_view(", ") }
+                    const member : *mut BaseDefMember = members.get(j)
+                    msg.append_view(&member.getName())
+                }
+            } else {
+                msg.append_view("; the props struct declares no fields")
+            }
+            converter.diagnoser.error(msg.to_view(), element.loc)
+        }
+
+        }
+}
+
 func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlElement) {
         unsafe {
         // 0. Flush any pending HTML
@@ -251,6 +306,9 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         const builder = converter.builder
         const location = intrinsics::get_raw_location()
         const signature = element.componentSignature
+
+        // 0. Typed props: reject attribute names the component does not declare.
+        converter.validate_props(element, signature)
 
         // 1. Generate the hash based on component name
         const hash = signature.functionNode.getEncodedLocation()

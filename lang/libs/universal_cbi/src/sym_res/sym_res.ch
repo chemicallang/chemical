@@ -21,6 +21,31 @@ public unsafe func universal_symResNode(visitor : *mut SymResLinkBody, node : *m
             resolver.error(std::string_view("could not find HtmlPage"), loc);
         }
 
+        // Typed props: resolve `#universal X(props : PropsStruct)` to the struct so
+        // call sites can validate attribute names. A missing or non-struct type is
+        // reported here, at the component, not at every call site.
+        if(root.signature.propsTypeName.size() > 0) {
+            var propsTypeName = root.signature.propsTypeName
+            const propsNode = resolver.resolve(&propsTypeName);
+            if(propsNode == null) {
+                var msg = std::string("props type '");
+                msg.append_view(&propsTypeName);
+                msg.append_view("' of component '");
+                msg.append_view(&root.signature.name);
+                msg.append_view("' was not found");
+                resolver.error(msg.to_view(), loc);
+            } else if(propsNode.getKind() != ASTNodeKind.StructDecl) {
+                var msg = std::string("props type '");
+                msg.append_view(&propsTypeName);
+                msg.append_view("' of component '");
+                msg.append_view(&root.signature.name);
+                msg.append_view("' must be a struct");
+                resolver.error(msg.to_view(), loc);
+            } else {
+                root.signature.propsStruct = propsNode as *mut StructDefinition;
+            }
+        }
+
         var builder = resolver.getJobBuilder()
 
         // creating the component function

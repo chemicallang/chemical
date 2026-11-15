@@ -22,6 +22,16 @@ public unsafe func cross_mod_sym_decl_proxy_fn(obj : *mut void, node : *mut Embe
         }
     }
 
+// A props annotation beginning with an uppercase letter names a type
+// (`props : CardProps`); a lowercase one names a required prop
+// (`props : title`), the pre-typed form. Keeping the two distinct by case makes
+// the syntax unambiguous without a new keyword.
+func starts_uppercase(view : std::string_view) : bool {
+    if(view.size() == 0) return false
+    const c = view.at(0)
+    return c >= 'A' && c <= 'Z'
+}
+
 @no_mangle
 public unsafe func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder, spec : AccessSpecifier) : *mut ASTNode {
         unsafe {
@@ -51,28 +61,38 @@ public unsafe func universal_parseMacroNode(parser : *mut Parser, builder : *mut
         }
 
         var params = std::vector<ComponentParam>();
+        var propsTypeName = std::string_view();
         if(parser.increment_if(JsTokenType.Colon as int)) {
+            // Two forms share the colon slot:
+            //   props : CardProps      -> typed props (a struct; uppercase initial)
+            //   props : title, tag?    -> required prop names (legacy; lowercase)
+            // The case rule makes the two unambiguous without a new keyword: a
+            // type name is capitalised, a prop name is not.
+            var names = std::vector<std::string_view>();
+            var anyOptional = false;
             while(true) {
                 const t = parser.getToken();
-                if(t.type == JsTokenType.Identifier as int) {
-                        var paramName = builder.allocate_view(&t.value);
-                        parser.increment();
-
-                        var is_optional = false;
-                        if(parser.getToken().type == JsTokenType.Question as int) {
-                            is_optional = true;
-                            parser.increment();
-                        }
-
-                        params.push(ComponentParam { name : paramName, is_optional : is_optional });
-                } else {
-                        parser.error("expected identifier param");
-                        break;
+                if(t.type != JsTokenType.Identifier as int) {
+                    parser.error("expected identifier after ':'");
+                    break;
+                }
+                names.push(builder.allocate_view(&t.value));
+                parser.increment();
+                if(parser.getToken().type == JsTokenType.Question as int) {
+                    anyOptional = true;
+                    parser.increment();
                 }
                 if(parser.getToken().type == JsTokenType.Comma as int) {
-                        parser.increment();
+                    parser.increment();
                 } else {
-                        break;
+                    break;
+                }
+            }
+            if(names.size() == 1 && !anyOptional && starts_uppercase(names.at(0))) {
+                propsTypeName = names.at(0);
+            } else {
+                for(var i : uint = 0; i < names.size(); i++) {
+                    params.push(ComponentParam { name : names.at(i), is_optional : anyOptional });
                 }
             }
         }
@@ -88,6 +108,7 @@ public unsafe func universal_parseMacroNode(parser : *mut Parser, builder : *mut
                 name : name,
                 propsName : propsName,
                 params : params,
+                propsTypeName : propsTypeName,
                 functionNode : null,
                 mountStrategy : MountStrategy.Universal, // Important: Set mount strategy
                 access : spec,

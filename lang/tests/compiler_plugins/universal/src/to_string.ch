@@ -22,6 +22,49 @@ func (page : &HtmlPage) getComponentId(index : size_t) : std::string_view {
     return <span>Hello</span>
 }
 
+// Typed props: declaring the surface keeps every implicit prop working and makes
+// a typo a compile error (see the negative suite). The declaration form is
+// `props : Name` with a capitalised struct name.
+public struct GreetingCardProps {
+    var title : std::string_view
+    var count : int
+}
+
+#universal GreetingCard(props : GreetingCardProps) {
+    return <span>{props.title}</span>
+}
+
+func has_sub(hay : std::string_view, needle : std::string_view) : bool {
+    if(needle.size() > hay.size()) return false
+    var i : size_t = 0
+    while(i + needle.size() <= hay.size()) {
+        if(hay.subview(i, i + needle.size()).equals(&needle)) return true
+        i++;
+    }
+    return false
+}
+
+@test
+public func universal_typed_props_render_and_accept_implicit_props(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <GreetingCard title="hello" count={2} className="extra" />
+    }
+    const html = page.getHtml()
+    // typed props: the declared value reaches SSR. (`className` is accepted but
+    // not rendered here — the component decides what to spread onto its markup;
+    // the assertion that matters is that passing it does not fail to compile.)
+    if(!has_sub(html, std::string_view("hello"))) {
+        env.error("typed props: declared prop value missing from SSR output")
+        return
+    }
+    // the marker (and therefore an id) is still emitted
+    if(!has_sub(html, std::string_view("id=\"u"))) {
+        env.error("typed props: hydration marker missing")
+        return
+    }
+}
+
 @test
 public func universal_element_in_html_works(env : &mut TestEnv) {
     var page = HtmlPage()

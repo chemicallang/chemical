@@ -213,6 +213,16 @@ bool contains_reference(const MIRModule& module, TypeId type, uint32_t depth = 0
     return false;
 }
 
+/** Struct/union/variant/array: a value that can carry a reference payload. */
+bool is_aggregate_kind(const MIRModule& module, TypeId type) {
+    if (type == MIR_INVALID_ID || type >= module.types.types.size()) {
+        return false;
+    }
+    const MIRTypeKind kind = module.types.types[type].kind;
+    return kind == MIRTypeKind::Struct || kind == MIRTypeKind::Union ||
+           kind == MIRTypeKind::Variant || kind == MIRTypeKind::Array;
+}
+
 /** A destructor-bearing aggregate that stores a reference (dropck-relevant). */
 bool observes_borrow(const MIRModule& module, TypeId type) {
     if (type == MIR_INVALID_ID || type >= module.types.types.size()) {
@@ -1916,8 +1926,15 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                                 }
                             }
                             returns_view = is_borrow_view_type(module, result_type);
+                            // Aggregates only. A *direct* reference result is
+                            // the `returns_reference` path; routing it here too
+                            // would double-track callees whose function type
+                            // does not spell the reference (e.g.
+                            // `SourceProvider::current_data`) and turn a
+                            // branch-local escaped loan into a false conflict.
                             returns_reference_aggregate =
                                 !returns_view && !returns_reference &&
+                                is_aggregate_kind(module, result_type) &&
                                 contains_reference(module, result_type);
                         }
                     }
@@ -1953,6 +1970,7 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                     returns_view = is_borrow_view_type(module, result_type);
                     returns_reference_aggregate =
                         !returns_view && !returns_reference &&
+                        is_aggregate_kind(module, result_type) &&
                         contains_reference(module, result_type);
                 }
                 struct RefArg {

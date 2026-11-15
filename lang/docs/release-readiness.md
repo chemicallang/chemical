@@ -159,6 +159,16 @@ Fixed in this release:
 
 Open (documented, not silent):
 
+- **A call returning a *direct* reference is only tracked when the callee's
+  function type spells the reference in return position.** `returns_reference`
+  reads the function-type element; `compiler::SourceProvider::current_data()`
+  returns `&char` but is not classified, so that borrow is untracked. The new
+  aggregate rule is therefore scoped to `Struct`/`Union`/`Variant`/`Array`
+  results (`is_aggregate_kind`) — routing direct references through it as well
+  produced a false `SAFE-BORROW-001` in the html tokenizer, because an escaped
+  loan in one `return` branch is not path-sensitive and conflicted with a
+  `&mut` in a later branch. Fixing the direct-reference case needs the escaped
+  loan to be path-scoped first.
 - **A by-value `self` method on a variant segfaults the compiler.**
   ```chemical
   public variant Q<T> { Has(v : T)  Empty()

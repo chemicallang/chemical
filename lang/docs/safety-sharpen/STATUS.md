@@ -447,7 +447,12 @@ were namespace-level bare `func`, i.e. internal.
 **Findings recorded (not fixed).** A by-value `self` method on a *variant*
 segfaults the compiler (struct methods are fine); `[no_panic]` on `main` is
 ignored and breaks the entry symbol; a misspelled qualified name can fall
-through to an imported C function. Details and the additive-gap analysis
+through to an imported C function. A call returning a *direct* reference is
+only tracked when the callee's function type spells the reference in return
+position (`SourceProvider::current_data()` returns `&char` and is not), so the
+aggregate rule is deliberately scoped to `Struct`/`Union`/`Variant`/`Array`
+results; fixing the direct case needs path-scoped escaped loans first.
+Details and the additive-gap analysis
 (`&[N]T → &[T]` coercion, `[no_panic]` callee coverage, `Result`/`Option`
 combinators, `?`, `regex` text-type mix, fallible `string` allocation) are in
 [`../release-readiness.md`](../release-readiness.md).

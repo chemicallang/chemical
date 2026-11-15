@@ -25,3 +25,11 @@ utils/Version.h
 .freebuff
 .bench-data
 .bench-work
+
+# Test/build scratch output (per-suite build dirs, generated app output)
+lang/tests/*/*/build/
+lang/tests/web/fixtures/*/output/
+
+lang/tests/web/fixtures/*/*.exe
+lang/tests/web/fixtures/*/*.def
+

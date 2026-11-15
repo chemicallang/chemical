@@ -287,6 +287,24 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
 
             const idLoc = element.loc
 
+            // Allocate this instance's hydration id once, here: the marker (emitted
+            // after the children) and the client dispatch (emitted now) must carry
+            // the same value, and nested components allocate ids in between.
+            var hidNameStr = std::string("hid_");
+            hidNameStr.append_uinteger(idLoc);
+            var hidName = builder.allocate_view(hidNameStr.to_view());
+
+            var hidPageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+            const nextHidFn = converter.support.pageNode.child(std::string_view("next_hydration_id"));
+            var hidNextId = builder.make_identifier(std::string_view("next_hydration_id"), nextHidFn, false, location);
+            const nextHidCall = builder.make_function_call_value(
+                builder.make_access_chain(&std::span<*mut Value>([ hidPageId as *mut Value, hidNextId ]), location),
+                location
+            );
+            var hidVar = builder.make_varinit_stmt(false, false, &hidName, builder.get_u64_type(), nextHidCall, AccessSpecifier.Internal, converter.parent, location);
+            converter.vec.push(hidVar as *mut ASTNode);
+            var hidIdent = builder.make_identifier(&hidName, hidVar as *mut ASTNode, false, location);
+
             // Emit the hydration dispatch BEFORE compiling the children. The
             // dispatch is a client-side statement, and child components nested in
             // this element's children are compiled (and get their own dispatch)
@@ -299,10 +317,8 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
             // boundary and let the client hydrate the component's own root element.
             const markerBoundary = converter.in_table_context;
 
-            var hostIdEarly = std::string("u");
-            hostIdEarly.append_uinteger(idLoc);
             if(!converter.suppress_child_dispatch) {
-                converter.emit_universal_queue(element, signature, &hostIdEarly, markerBoundary);
+                converter.emit_universal_queue(element, signature, hidIdent, markerBoundary);
             }
 
             // `signature.className` carries the generated class name for a styled
@@ -320,18 +336,14 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
 
             if(markerBoundary) {
                 // Comment boundary: valid in any HTML context (including <tr>).
-                converter.str.append_view("<!--u");
-                converter.str.append_uinteger(idLoc);
-                converter.str.append_view("-->");
                 converter.put_chain_in();
+                converter.emit_page_stmt_with_value(std::string_view("begin_hydration_comment"), hidIdent);
                 converter.vec.push(compCall as *mut ASTNode)
                 converter.put_chain_in();
             } else {
-                // 2. Emit <span id="u" data-chx-i>  (inline-safe hydration boundary)
-                converter.str.append_view("<span id=\"u");
-                converter.str.append_uinteger(idLoc);
-                converter.str.append_view("\" data-chx-i>");
+                // 2. Emit <span id="u<id>" data-chx-i>  (inline-safe boundary)
                 converter.put_chain_in();
+                converter.emit_page_stmt_with_value(std::string_view("begin_hydration_marker"), hidIdent);
 
                 converter.vec.push(compCall as *mut ASTNode)
                 converter.put_chain_in(); // Flush any pending HTML before </div>

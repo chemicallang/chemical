@@ -181,6 +181,38 @@ public struct HtmlPage {
     // pages that never call ensure_router_runtime).
     private var router_runtime_emitted : bool = false
 
+    // ── Per-instance hydration ids ───────────────────────────────────────────
+    // Hydration ids used to be the encoded source location of the JSX tag, a
+    // compile-time constant, so two instances of one component call site shared
+    // an id and the second dispatch re-hydrated the first element. They are now
+    // allocated from this counter at render time, which makes them unique per
+    // *instance*; a frozen shell keeps the same ids across requests, which is
+    // what lets its prebuilt bytes stay valid.
+    private var hydration_seq : ubigint = 0
+
+    /// Allocate the next per-instance hydration id. The caller keeps it in a
+    /// local and passes it to the marker and the client dispatch, so both name
+    /// the same element even when nested components allocate in between.
+    func next_hydration_id(&mut self) : ubigint {
+        hydration_seq = hydration_seq + 1
+        return hydration_seq
+    }
+
+    /// Open an inline hydration boundary: `<span id="u<id>" data-chx-i>`.
+    func begin_hydration_marker(&mut self, id : ubigint) {
+        pageHtml.append_view("<span id=\"u")
+        pageHtml.append_uinteger(id)
+        pageHtml.append_view("\" data-chx-i>")
+    }
+
+    /// Open a comment hydration boundary (`<!--u<id>-->`), valid inside table
+    /// structure where a wrapper element would be foster-parented away.
+    func begin_hydration_comment(&mut self, id : ubigint) {
+        pageHtml.append_view("<!--u")
+        pageHtml.append_uinteger(id)
+        pageHtml.append_view("-->")
+    }
+
     func getHead(&self) : std::string_view {
         return pageHead.to_view()
     }

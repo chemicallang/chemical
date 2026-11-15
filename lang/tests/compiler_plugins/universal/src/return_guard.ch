@@ -15,7 +15,7 @@ public func universal_return_guard_fetch_js(env : &mut TestEnv) {
         <ReturnGuardFetch />
     }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_ReturnGuardFetch(props) { if(window.$__uni_value(props.cond)) return; fetch(); return $_ur.createElement("span", {}, ${"`ok`"}); }\nwindow.$__uni_dispatch('universal_lib_test_ReturnGuardFetch', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    str.append_expr(`function universal_lib_test_ReturnGuardFetch(props) { if(window.$__uni_value(props.cond)) return; fetch(); return $_ur.createElement("span", {}, ${"`ok`"}); }\nwindow.$__uni_dispatch('universal_lib_test_ReturnGuardFetch', document.getElementById('u' + ${page.getComponentId(0)}), {});\n`)
     view_equals(env, page.getJs(), str.to_view())
 }
 
@@ -33,7 +33,7 @@ public func universal_return_guard_state_assign_js(env : &mut TestEnv) {
         <ReturnGuardStateAssign />
     }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_ReturnGuardStateAssign(props) { const x = $_us(0); if(window.$__uni_value(props.cond)) return; x.value = 1; return $_ur.createElement("span", {}, x); }\nwindow.$__uni_dispatch('universal_lib_test_ReturnGuardStateAssign', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    str.append_expr(`function universal_lib_test_ReturnGuardStateAssign(props) { const x = $_us(0); if(window.$__uni_value(props.cond)) return; x.value = 1; return $_ur.createElement("span", {}, x); }\nwindow.$__uni_dispatch('universal_lib_test_ReturnGuardStateAssign', document.getElementById('u' + ${page.getComponentId(0)}), {});\n`)
     view_equals(env, page.getJs(), str.to_view())
 }
 
@@ -62,6 +62,6 @@ public func universal_func_scope_not_pollute_js(env : &mut TestEnv) {
         <FuncScopeDoesNotPolluteComputedVars />
     }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_FuncScopeDoesNotPolluteComputedVars(props) { const editItem = $_us(null); var fnA = () => { var item = editItem.value.id; return item; }; var fnB = (e) => { var item = e.target.value; return item; }; return $_ur.createElement("span", {}, fnA(), fnB({target: {value: "hi"}})); }\nwindow.$__uni_dispatch('universal_lib_test_FuncScopeDoesNotPolluteComputedVars', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    str.append_expr(`function universal_lib_test_FuncScopeDoesNotPolluteComputedVars(props) { const editItem = $_us(null); var fnA = () => { var item = editItem.value.id; return item; }; var fnB = (e) => { var item = e.target.value; return item; }; return $_ur.createElement("span", {}, fnA(), fnB({target: {value: "hi"}})); }\nwindow.$__uni_dispatch('universal_lib_test_FuncScopeDoesNotPolluteComputedVars', document.getElementById('u' + ${page.getComponentId(0)}), {});\n`)
     view_equals(env, page.getJs(), str.to_view())
 }

@@ -436,7 +436,7 @@ func append_static_child_vnodes(out : &mut std::string, children : &std::vector<
         }
     }
 
-func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlElement, signature : *mut ComponentSignature, idStr : &std::string, markerBoundary : bool = false) {
+func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlElement, signature : *mut ComponentSignature, idValue : *mut Value, markerBoundary : bool = false) {
         unsafe {
         var js = std::string();
         js.append_view("window.$__uni_dispatch('");
@@ -456,15 +456,20 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
         if(markerBoundary) {
             // Table-context components have no wrapper element; the id names a
             // comment boundary resolved at hydration time.
-            js.append_view("', window.$__uni_boundary('");
+            js.append_view("', window.$__uni_boundary('u' + ");
         } else {
-            js.append_view("', document.getElementById('");
+            js.append_view("', document.getElementById('u' + ");
         }
-        js.append_view(idStr.view());
-        js.append_view("'), {");
         // Dispatch statements are page-specific: keep them on the page, never in
         // an attached shared JS sink (see HtmlPage.begin_local_js).
         converter.emit_page_stmt(std::string_view("begin_local_js"));
+        converter.emit_append_js_from_str(&mut js);
+        // The id is a render-time counter value, not a compile-time constant, so
+        // it is written into the JS buffer as a number.
+        converter.vec.push(converter.make_js_uinteger_value_call(idValue) as *mut ASTNode);
+        js.append_view("), {");
+        // Flush immediately: the attribute/children emitters below reuse `js`, and
+        // a component with no attributes never reaches their flush point.
         converter.emit_append_js_from_str(&mut js);
 
         const attrs = element.attributes.size();
@@ -581,6 +586,25 @@ func (converter : &mut ASTConverter) emit_page_stmt(method : std::string_view) {
         var id = builder.make_identifier(&method, fnNode, false, location)
         const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
         const call = builder.make_function_call_node(chain, converter.parent, location)
+        converter.vec.push(call as *mut ASTNode)
+
+        }
+    }
+
+/// Like `emit_page_stmt`, but passes one value: `page.<method>(value)`.
+/// Used where a value is produced at render time (e.g. a per-instance
+/// hydration id) rather than known at conversion time.
+func (converter : &mut ASTConverter) emit_page_stmt_with_value(method : std::string_view, value : *mut Value) {
+        unsafe {
+        const builder = converter.builder
+        const location = intrinsics::get_raw_location()
+        const fnNode = converter.support.pageNode.child(&method)
+        if(fnNode == null) { return }
+        var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
+        var id = builder.make_identifier(&method, fnNode, false, location)
+        const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
+        const call = builder.make_function_call_node(chain, converter.parent, location)
+        call.get_args().push(value)
         converter.vec.push(call as *mut ASTNode)
 
         }

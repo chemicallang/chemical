@@ -15,9 +15,9 @@ public func universal_entity_decoded_in_js(env : &mut TestEnv) {
     expected.append_view("\\u{2192}")
     expected.append_view(" Test")
     expected.append('`')
-    expected.append_view("); }\nwindow.$__uni_dispatch('universal_lib_test_JsxEntityDecode', document.getElementById('u")
+    expected.append_view("); }\nwindow.$__uni_dispatch('universal_lib_test_JsxEntityDecode', document.getElementById('u' + ")
     expected.append_view(page.getComponentId(0))
-    expected.append_view("'), {});\n")
+    expected.append_view("), {});\n")
     view_equals(env, page.getJs(), expected.to_view())
 }
 

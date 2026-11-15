@@ -38,7 +38,7 @@ public func universal_element_in_html_works_js(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <Greeting /> }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_Greeting(props) { return $_ur.createElement("span", {}, ${"`Hello`"}); }\nwindow.$__uni_dispatch('universal_lib_test_Greeting', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    str.append_expr(`function universal_lib_test_Greeting(props) { return $_ur.createElement("span", {}, ${"`Hello`"}); }\nwindow.$__uni_dispatch('universal_lib_test_Greeting', document.getElementById('u' + ${page.getComponentId(0)}), {});\n`)
     view_equals(env, page.getJs(), str.to_view());
 }
 
@@ -51,7 +51,7 @@ public func universal_component_child(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <ComponentChild /> }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_Greeting(props) { return $_ur.createElement("span", {}, ${"`Hello`"}); }\nfunction universal_lib_test_ComponentChild(props) { return $_ur.createElement("div", {}, $_uc_c(universal_lib_test_Greeting, {})); }\nwindow.$__uni_dispatch('universal_lib_test_ComponentChild', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    str.append_expr(`function universal_lib_test_Greeting(props) { return $_ur.createElement("span", {}, ${"`Hello`"}); }\nfunction universal_lib_test_ComponentChild(props) { return $_ur.createElement("div", {}, $_uc_c(universal_lib_test_Greeting, {})); }\nwindow.$__uni_dispatch('universal_lib_test_ComponentChild', document.getElementById('u' + ${page.getComponentId(0)}), {});\n`)
     view_equals(env, page.getJs(), str.to_view());
 }
 
@@ -93,7 +93,7 @@ public func universal_class_merge(env : &mut TestEnv) {
     view_equals(env, page.getHtml(), html.to_view())
     
     var js = std::string()
-    js.append_expr(`function universal_lib_test_ClassMerge(props) { return $_ur.createElement("div", $_um(window.$__uni_value(props), {"class": "base-class"})); }\nwindow.$__uni_dispatch('universal_lib_test_ClassMerge', document.getElementById('u${page.getComponentId(0)}'), {"class":"extra"});\n`)
+    js.append_expr(`function universal_lib_test_ClassMerge(props) { return $_ur.createElement("div", $_um(window.$__uni_value(props), {"class": "base-class"})); }\nwindow.$__uni_dispatch('universal_lib_test_ClassMerge', document.getElementById('u' + ${page.getComponentId(0)}), {"class":"extra"});\n`)
     view_equals(env, page.getJs(), js.to_view())
 }
 
@@ -152,7 +152,7 @@ public func universal_state_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <StateTest /> }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_StateTest(props) { const count = $_us(0); return $_ur.createElement("button", {"onClick": () => count.value++}, count); }\nwindow.$__uni_dispatch('universal_lib_test_StateTest', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    str.append_expr(`function universal_lib_test_StateTest(props) { const count = $_us(0); return $_ur.createElement("button", {"onClick": () => count.value++}, count); }\nwindow.$__uni_dispatch('universal_lib_test_StateTest', document.getElementById('u' + ${page.getComponentId(0)}), {});\n`)
     view_equals(env, page.getJs(), str.to_view());
 }
 
@@ -194,7 +194,7 @@ public func universal_conditional_render_js(env : &mut TestEnv) {
     #html { <ConditionalRender show={true} /> }
     
     var js = std::string()
-    js.append_expr(`function universal_lib_test_ConditionalRender(props) { return $_ur.createElement("div", {}, $_ucs(() => (window.$__uni_value(props.show) ? $_ur.createElement("span", {}, ${"`Show`"}) : $_ur.createElement("span", {}, ${"`Hide`"})))); }\nwindow.$__uni_dispatch('universal_lib_test_ConditionalRender', document.getElementById('u${page.getComponentId(0)}'), {"show":1});\n`)
+    js.append_expr(`function universal_lib_test_ConditionalRender(props) { return $_ur.createElement("div", {}, $_ucs(() => (window.$__uni_value(props.show) ? $_ur.createElement("span", {}, ${"`Show`"}) : $_ur.createElement("span", {}, ${"`Hide`"})))); }\nwindow.$__uni_dispatch('universal_lib_test_ConditionalRender', document.getElementById('u' + ${page.getComponentId(0)}), {"show":1});\n`)
     view_equals(env, page.getJs(), js.to_view())
 }
 
@@ -208,7 +208,7 @@ public func universal_dollar_identifier_test(env : &mut TestEnv) {
     #html { <DollarIdentifierTest /> }
 
     var js = std::string()
-    js.append_expr(`function universal_lib_test_DollarIdentifierTest(props) { return $_ur.createElement("div", {}, (window.$flag ? window.$title : window.$fallback)); }\nwindow.$__uni_dispatch('universal_lib_test_DollarIdentifierTest', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    js.append_expr(`function universal_lib_test_DollarIdentifierTest(props) { return $_ur.createElement("div", {}, (window.$flag ? window.$title : window.$fallback)); }\nwindow.$__uni_dispatch('universal_lib_test_DollarIdentifierTest', document.getElementById('u' + ${page.getComponentId(0)}), {});\n`)
     view_equals(env, page.getJs(), js.to_view())
 }
 
@@ -222,7 +222,7 @@ public func universal_strict_typeof_check_test(env : &mut TestEnv) {
     #html { <StrictTypeofCheck /> }
 
     var js = std::string()
-    js.append_expr(`function universal_lib_test_StrictTypeofCheck(store) { return $_ur.createElement("div", {}, $_ucs(() => (!window.$__uni_value(store) || typeof window.$__uni_value(store) !== "object" ? "bad" : "ok"))); }\nwindow.$__uni_dispatch('universal_lib_test_StrictTypeofCheck', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    js.append_expr(`function universal_lib_test_StrictTypeofCheck(store) { return $_ur.createElement("div", {}, $_ucs(() => (!window.$__uni_value(store) || typeof window.$__uni_value(store) !== "object" ? "bad" : "ok"))); }\nwindow.$__uni_dispatch('universal_lib_test_StrictTypeofCheck', document.getElementById('u' + ${page.getComponentId(0)}), {});\n`)
     view_equals(env, page.getJs(), js.to_view())
 }
 #universal BacktickText(props) {
@@ -234,7 +234,7 @@ public func universal_backtick_in_text(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <BacktickText /> }
     var js = std::string()
-    js.append_expr(`function universal_lib_test_BacktickText(props) { return $_ur.createElement("p", {}, ${"`The code is \\`sync.status\\` and \\`lastSyncedAt\\`.`"}); }\nwindow.$__uni_dispatch('universal_lib_test_BacktickText', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    js.append_expr(`function universal_lib_test_BacktickText(props) { return $_ur.createElement("p", {}, ${"`The code is \\`sync.status\\` and \\`lastSyncedAt\\`.`"}); }\nwindow.$__uni_dispatch('universal_lib_test_BacktickText', document.getElementById('u' + ${page.getComponentId(0)}), {});\n`)
     view_equals(env, page.getJs(), js.to_view())
 }
 #universal ParenthesizedTernaryLabel(item) {
@@ -247,7 +247,7 @@ public func universal_parenthesized_ternary_with_member_access_test(env : &mut T
     #html { <ParenthesizedTernaryLabel /> }
 
     var js = std::string()
-    js.append_expr(`function universal_lib_test_ParenthesizedTernaryLabel(item) { return $_ur.createElement("div", {}, $_ucs(() => ((window.$__uni_value(item.checked) ? "[x] " : "[ ] ")) + window.$__uni_value(item.text))); }\nwindow.$__uni_dispatch('universal_lib_test_ParenthesizedTernaryLabel', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    js.append_expr(`function universal_lib_test_ParenthesizedTernaryLabel(item) { return $_ur.createElement("div", {}, $_ucs(() => ((window.$__uni_value(item.checked) ? "[x] " : "[ ] ")) + window.$__uni_value(item.text))); }\nwindow.$__uni_dispatch('universal_lib_test_ParenthesizedTernaryLabel', document.getElementById('u' + ${page.getComponentId(0)}), {});\n`)
     view_equals(env, page.getJs(), js.to_view())
 }
 
@@ -366,7 +366,7 @@ public func universal_prop_value_sugar_js(env : &mut TestEnv) {
     #html { <PropValueSugar /> }
 
     var js = std::string()
-    js.append_expr(`function universal_lib_test_PropValueSugar(props) { return $_ur.createElement("div", {}, props.user.user.name); }\nwindow.$__uni_dispatch('universal_lib_test_PropValueSugar', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    js.append_expr(`function universal_lib_test_PropValueSugar(props) { return $_ur.createElement("div", {}, props.user.user.name); }\nwindow.$__uni_dispatch('universal_lib_test_PropValueSugar', document.getElementById('u' + ${page.getComponentId(0)}), {});\n`)
     view_equals(env, page.getJs(), js.to_view())
 }
 
@@ -380,7 +380,7 @@ public func universal_prop_array_sugar_js(env : &mut TestEnv) {
     #html { <PropArraySugar /> }
 
     var js = std::string()
-    js.append_expr(`function universal_lib_test_PropArraySugar(props) { return $_ur.createElement("ul", {}, $_ucs(() => window.$__uni_value(props.items).map((item) => $_ur.createElement("li", {}, item.label)))); }\nwindow.$__uni_dispatch('universal_lib_test_PropArraySugar', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    js.append_expr(`function universal_lib_test_PropArraySugar(props) { return $_ur.createElement("ul", {}, $_ucs(() => window.$__uni_value(props.items).map((item) => $_ur.createElement("li", {}, item.label)))); }\nwindow.$__uni_dispatch('universal_lib_test_PropArraySugar', document.getElementById('u' + ${page.getComponentId(0)}), {});\n`)
     view_equals(env, page.getJs(), js.to_view())
 }
 
@@ -709,7 +709,7 @@ public func universal_use_effect_deps(env : &mut TestEnv) {
     #html { <UseEffectDepsTest /> }
     var js = std::string()
     js.append_expr(`function universal_lib_test_UseEffectDepsTest(props) { const count = $_us(0); $_r.useEffect(() => { if(count.value > 5) { count.value = 0; } }, [count]); return $_ur.createElement("span", {}, count); }
-window.$__uni_dispatch('universal_lib_test_UseEffectDepsTest', document.getElementById('u${page.getComponentId(0)}'), {});
+window.$__uni_dispatch('universal_lib_test_UseEffectDepsTest', document.getElementById('u' + ${page.getComponentId(0)}), {});
 `)
     view_equals(env, page.getJs(), js.to_view());
 }

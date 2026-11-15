@@ -53,24 +53,30 @@ with `#html` static markup, compile-time-scoped `#css`, hydration via `#universa
 server-rendered, lazy-hydrating router. Static sites and server-rendered apps are served well.
 
 It is not yet a stack for large client-heavy apps. Measured on the real
-`lang/compiled/components` app (two pages, same component library), content-based:
+`lang/compiled/components` app (two pages, same component library) by
+`scripts/web-probe.sh` — *Phase 0, 2026-11-15; re-run it, do not trust these numbers if
+the emitter changed*:
 
 | measurement | `components.js` | `try.js` | note |
 |---|---|---|---|
-| total | 320,163 B | 180,659 B | one page bundle each |
-| hydration runtime | 92,887 B (**29%**) | 92,887 B (**51%**) | byte-identical copy per page |
-| per-instance dispatch text | 133,073 B (**42%**, 805 calls) | 28,280 B (**16%**, 177 calls) | `window.$__uni_dispatch(..., props)` + `getElementById` |
-| shared component defs | 63 names, **61 byte-identical**, 45,744 B | same | re-sent per page |
+| total | 320,163 B (56,467 gzip) | 180,659 B (37,234 gzip) | one page bundle each |
+| component definitions | 111 defs, 91,700 B (**28.6%**) | 96 defs | one `function X(props)` per line |
+| hydration runtime | 57,145 B (**17.8%**) | 57,145 B (**31.6%**) | byte-identical copy per page |
+| per-instance dispatch text | 131,403 B (**41.0%**), 805 calls | 27,866 B (**15.4%**), 177 calls | `window.$__uni_dispatch(..., getElementById('u<encoded source location>'))` |
+| duplicated bytes across the two pages | — | **142,227 B = 78.7% of page B** | runtime + 63 defs + shared page script |
+| shared component defs | 63 common, **63 byte-identical**, 46,670 B | same | re-sent per page |
 | `import` / `export` / `import()` | 0 / 0 / 0 | 0 / 0 | one concatenated script |
 | source maps | none | none | |
-| asset names | fixed (`components.js`) | fixed | no content hash |
-| minify headroom (comments+whitespace) | −15% raw / −24% gzip | −26% raw / −35% gzip | no minifier exists |
-| `attach_shared` used by this app | no | no | the default path duplicates everything |
+| asset names | `components.js` (unhashed) | `try.js` (unhashed) | 3 unhashed assets per page |
+| minify headroom (comments + whitespace, exact) | **8.0%** raw | **14.2%** raw | no minifier exists; identifier mangling is on top |
+| inline `<script>` | 1 (author `#js`) | 1 (author `#js`) | violates the CSP rule in §3.19 |
 
-Corrections to v1 of this plan: the two pages are *not* "sharing nothing" — they share
-byte-identical content at different offsets; the runtime is 92,887 B (not ~32 KB); the
-minifier numbers above are headroom, not retained size. The dominant cost is **per-instance
-dispatch text (42%)**, which the hydration manifest removes without any JS backend.
+Corrections this measurement forced on the plan: the runtime is **57,145 B** in the page
+bundle (the earlier 92,887 B figure counted the head/router bootstrap region as runtime); the
+dominant cost is **per-instance dispatch text (41%)**, which the hydration manifest removes
+without any JS backend; and the honest whitespace/comment minify headroom is 8–14% raw, not
+the 15–26% estimated from a cruder regex. The second page duplicates **78.7%** of its bytes —
+that number is the case for the shared chunk graph, expressed in one line.
 
 The real gaps are structural:
 
@@ -341,10 +347,24 @@ a per-opcode gate: `MIRTargetSupport` marks which symbols/types are available on
 | in v1 | deferred (later release, additive) |
 |---|---|
 | scalars with masked ints, control flow, `switch` on ints/variants | async/await lowering (MIR coroutine → JS state machine) |
-| functions, recursion, structs, fixed arrays, unions, variants | `i64`/`u64` via `BigInt` — v1 *rejects* them in client code with a diagnostic |
+| functions, recursion, structs, fixed arrays, unions, variants | exact 64-bit arithmetic beyond 2^53 (`BigInt`), a representation change only |
 | `string` / `string_view` / `&str`, tuples, `vector`, maps, `for-in` | `dyn`/vtable-heavy generic patterns beyond simple interface dispatch |
 | closures (`std::function`, capturing lambdas) | generators/iterators beyond `for-in` |
-| interfaces/`dyn` with static dispatch; ESM emission; source maps | destructor semantics / `@dispose` (JS is GC; drop glue is a no-op) |
+| interfaces/`dyn` with static dispatch; ESM emission; source maps | atomics, inline asm, `DynamicCall`, `Throw` (diagnostic in v1) |
+| `u64`/`i64`/`size_t` as `number`, exact to 2^53 (the stdlib is built on 64-bit `size_t`) | `@dispose`/`@ref` — note destructors still *run* on JS (§ below) |
+
+**ABI decided: Route A, emulated linear memory** — see [`js-backend-abi.md`](js-backend-abi.md).
+The JS emitter executes MIR against a `Uint8Array` heap addressed by the *same* byte offsets the C
+backend uses (native LP64 profile), so the stdlib compiles unchanged, `sizeof`/`offsetof`/unions/
+variants/`memcpy` all work by construction, and **differential C-vs-JS conformance needs no
+exclusions**. Route B (place→value promotion + JS objects for aggregates) was rejected on evidence:
+unions put N field names at one offset, `packed`/`sizeof` are observable, lifetime is tracked per
+place, and there is no MIR-to-MIR pass framework to build promotion on.
+
+Two plan corrections this decision forced: (a) `i64`/`u64` **cannot** be rejected in v1 — `size_t`
+is 64-bit and `vector`/`map` are built on it; they lower to `number` with a documented 2^53 bound and
+a `--check` warning where the bound is reachable; (b) destructors are **not** no-ops on JS —
+`std::string` frees in `@delete`, so drop glue is emitted exactly as on C.
 
 The rule for the boundary is *demonstrable need*: a capability is added to the backend when a real
 v1 app cannot express it any other way — never speculatively. Anything missing must be reachable
@@ -797,36 +817,33 @@ parallel with Phase 1; everything else is ordered.
 
 ### Phase 1 — **JavaScript backend** (job #1)  *(XL)*
 
-**Step 0 (blocking, before any emitter code): ABI spike.** Decide how MIR's address-based
-core maps to JS: MIR's core ops (`Alloca/Load/Store/Gep/FieldAddr/IndexAddr`) are
-`NativeOnly` and layout is byte-offset (`MIRLayout`), and `std::string` is an SSO tagged
-union over `malloc/realloc/free`. Two viable routes:
+**Step 0 (blocking, before any emitter code): ABI spike — DECIDED.** Route **A, emulated linear
+memory**, with the evidence table and the spike's acceptance criteria in
+[`js-backend-abi.md`](js-backend-abi.md). The JS emitter executes MIR against a `Uint8Array` heap
+using the native LP64 byte offsets, so the stdlib, unions, variants, `sizeof` and `memcpy` work by
+construction and C-vs-JS conformance needs no exclusions. Route B was rejected: unions put N field
+names at one offset, lifetime is per-place, and no MIR-to-MIR pass framework exists to promote on.
 
-- **(A) emulated linear memory**: a `Uint8Array` heap + `DataView`, offsets from `MIRLayout`,
-  `sizeof` meaningful, stdlib compiles unchanged. Larger runtime, slower, but mechanical.
-- **(B) place→value promotion**: a MIR pass (places with `place_escaped == 0` → SSA values,
-  aggregates → JS objects) + `@runtime_provided(js)` type facts so `string`/`vector`/maps map
-  to native JS. Much better output, needs a new pass and a std surface per target.
-
-Deliverable: `lang/docs/js-backend-abi.md` + a hand-written spike of one real module
-(struct + `string` + `vector` + a variant) emitted to JS and run, with measured bytes.
-**Do not write the emitter before this is decided.**
+The remaining step-0 work is the **hand-written spike** (§9 of that doc): one module with
+`struct` + `string` (real SSO→heap path) + `vector` + a `variant`, printing identical bytes under
+`--tcc` and hand-written JS, ≤ 8 KB of JS. If the stdlib's `malloc` path cannot run on the emulated
+heap, stop.
 
 Then, in order:
 
 1. Emitter skeleton `compiler/mir/MIREmitterJs.{h,cpp}`: opcode → JS over the shared MIR
    traversal; no AST access; declaration printing extracted from `MIRDeclPrinter` behind a
    printer interface (so backend #3 does not copy 529 lines).
-2. Value model from the spike: scalars (`number`, masked ints), `BigInt` **not** in v1
-   (`i64/u64` rejected in client code with a clear diagnostic until an app forces it),
-   strings/vectors/maps per the chosen ABI, structs/variants, `Option`/`Result`.
+2. Value model per §4 of the ABI doc: scalars (`number`, masked on store), pointers as offsets,
+   aggregates as heap bytes, `u64`/`i64` as `number` with the 2^53 bound, strings/vectors/maps
+   unchanged from `std`, closures over the existing `function` struct's `fn_data_ptr`.
 3. Surface: scalars, control flow, `switch` on variants/ints, functions, recursion, structs,
    fixed arrays, unions, variants, `string`/`string_view`/`&str`, tuples, vectors/maps,
    `for-in`, closures (`std::function`, capturing lambdas).
-4. Ownership on GC: destructors are no-ops on JS (no `@dispose` yet); borrow checking stays;
-   the *semantic* decision for GC targets is owned by proposals 0006/0004, not by this plan.
-5. Interfaces/vtables/`dyn`; async is **stubbed with a diagnostic** (the MIR coroutine form is
-   a state machine; mapping it to `async/await` is a re-lowering — its own phase).
+4. Destructors/drop glue emitted as on C (`std::string` frees); borrow checking unchanged; the
+   *ownership* decision for GC targets is still owned by proposals 0006/0004.
+5. Interfaces/vtables/`dyn`; async, atomics, inline asm, `DynamicCall`, `Throw` are **diagnostics**
+   through `MIRTargetSupport`, reporting the callee/type and the Chemical source location.
 6. ESM emission: one module per Chemical module; shared mangling.
 7. Test harness: differential **C-vs-JS conformance** (same program, identical stdout) + a
    Node runner path (the current runner spawns child processes over Win32 pipes and prints
@@ -1016,10 +1033,13 @@ corpus (a `#js` block without a typed wrapper is a lint finding).
 - **No HMR** (reload-only dev server); revisit after the stack is stable.
 - **No async in the v1 JS backend.** The completion-handler form of `web::Client` is the permanent
   API; async is added later as an awaitable sibling, never as a replacement (Phase 6).
-- **No `BigInt` for `i64/u64` in v1**: rejected in client code with a diagnostic (Phase 7).
+- **No exact 64-bit arithmetic in v1.** `u64`/`i64`/`size_t` are `number`s, exact to 2^53 — the
+  stdlib needs them and `BigInt` would slow every length/index operation. Values past 2^53 are the
+  one documented soundness bound, surfaced by a `--check` warning where reachable (Phase 7 adds
+  exactness).
 - **No typed canvas/pointer/WS in v1.** Apps use a typed Chemical wrapper over `#js`; the typed
   surface arrives in Phase 7 and the wrapper becomes an alias, so call sites never migrate.
-- **No `@dispose`**; destructors are no-ops on JS.
+- **No `@dispose`**, but destructors **do** run on the JS target (`std::string` frees heap memory).
 - **No islands, SPA shell mode, multi-app vendor sharing, SRI, service worker/PWA** in v1.
 - **No image transcoding** (PNG/BMP/PPM only; PNG *encode* lands in Phase 7) or WOFF2 in-tree.
 - **No React compatibility layer.**
@@ -1059,8 +1079,8 @@ Settled earlier (kept so they can still be vetoed):
 
 Still open, to be settled during implementation (none block starting):
 
-13. **ABI route** (A) emulated heap vs (B) place→value promotion — Phase 1 step 0 decides with a
-    spike; the spike is the gate.
+13. ~~**ABI route**~~ → **decided: Route A, emulated linear memory** (`js-backend-abi.md`).
+    The remaining gate is the hand-written spike (§9 of that doc), not a choice.
 14. **Bundler location**: `web_build` library/build script (recommended) vs inside the compiler.
 15. **Runtime mangling scope**: budget 45 KB min until a shared JS parser lands.
 16. **`--static` inference**: static-by-default when there is no `server/` module, or always two

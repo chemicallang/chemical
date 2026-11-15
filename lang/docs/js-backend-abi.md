@@ -1,0 +1,163 @@
+# JavaScript backend — ABI decision
+
+**Status:** decided · **Date:** 2026-11-15 · **Phase:** 1, step 0 (the gate before any emitter code)
+**Plan:** [`web-stack-plan.md`](web-stack-plan.md) §3.7 · **Proposal:** [`proposals/0007-javascript-backend.md`](proposals/0007-javascript-backend.md)
+
+---
+
+## 1. Decision
+
+**Route A — emulated linear memory.** The JS backend emits JavaScript that executes MIR against a
+`Uint8Array` heap addressed by byte offsets taken from `MIRLayout`. Type layout, field offsets,
+union/variant storage, `sizeof`/`alignof`/`offsetof`, `memcpy`/`memset` and every aggregate rule
+are the *same* rules the C backend uses; only the instruction encoding changes.
+
+Route B (promote non-escaping places to JS values, map aggregates to JS objects,
+`@runtime_provided(js)` std types) is **rejected for v1** and should not be revisited without new
+information. It is not a matter of effort: the MIR it would have to consume is address-shaped in
+ways that a value model cannot represent without changing MIR itself.
+
+### Why (evidence, not preference)
+
+| fact | source | consequence for B |
+|---|---|---|
+| Unions store every field at offset 0; variants are `bases + int tag + union of payloads`. LLVM needs `MIRAggregatePlan` overlap groups to emit them. | `MIRLayout.h:97-160`, `:177-298` | A "struct = JS object with named fields" cannot represent N field names at one offset, nor the inactive variant case. |
+| `packed`, `explicit_alignment`, `sizeof`/`offsetof`/`alignof` are observable through MIR opcodes and are emitted as constants. | `MIRTypeTable.h:92-101`, `MIRInstruction.h:58-60` | Promoted values would have to reproduce byte-identical layout anyway — i.e. emulate memory, while also being objects. |
+| `place_escaped` fires on **any** use other than a direct operand (`MIRFacts.cpp:208-221`), including passing a place as a call argument. | `MIRFacts.h:106-120` | Most places are "escaped" in practice, so promotion would help a minority of code. |
+| Lifetime is tracked **per place** (`init_state`, `field_wise_drop`, `SetDrop`/`Drop`/`Destroy`, move paths). | `MIRFunction.h:39-72`, `MIRInstruction.h:40-50` | A value model has nowhere to hang per-place drop flags. |
+| `MemCpy`/`MemSet` are raw byte ops; atomics and `InlineAsm` are address-based by construction. | `MIRInstruction.h:49-50`, `:113-123` | They cannot be expressed over JS values at all. |
+| There is **no MIR-to-MIR pass framework**; no pass rewrites any opcode. | `compiler/mir/` (no `*Pass`) | Route B needs a new pass first, plus emitter support for whatever it cannot promote. |
+| `MIRInterpreter` (2,240 lines) already executes MIR on an address-based engine, missing only 4 async ops + `InlineAsm`. | `MIRInterpreter.cpp` | Route A has a working reference implementation of every opcode's semantics, in-repo. |
+| `std::string` is an SSO tagged union over `malloc/realloc/free`; `vector`/`map` are `{ptr,size,cap}` structs. | `std/src/string.ch:52-72`, `vector.ch:17-23` | Under Route A the **entire stdlib compiles unchanged**. Under B every std type needs a second implementation. |
+
+The deciding sentence: Route A makes the stdlib, layout, unions, variants, drop flags, `sizeof` and
+`memcpy` *work by construction*; Route B makes them each a project. For a v1 that must be reliable
+on day 1, that settles it.
+
+## 2. Target profile
+
+The JS job uses the **native LP64 layout**, deliberately:
+
+- `is64Bit = true`, `pointer_size = 8`, alignment/offsets from the same `MIRModuleLayout`
+  (`MIRLayout.h:44-52`) the native job uses, filled from the same `TargetData`.
+- Therefore `sizeof`/`alignof`/`offsetof` printed by a program are **identical** under `--tcc` and
+  `--js`. Differential C-vs-JS conformance then needs no exclusions — the strongest possible gate,
+  and it costs nothing at runtime.
+- Cost: more heap bytes per struct than a 32-bit profile. Irrelevant at page sizes, and it buys
+  conformance.
+
+## 3. Memory model
+
+```
+JS:  const HEAP = new Uint8Array(INITIAL_BYTES);   // grown by replacement
+     const DV   = new DataView(HEAP.buffer);
+     pointers are JS numbers (byte offsets); 0 == null
+```
+
+| MIR | JS |
+|---|---|
+| `Alloca` | bump-allocate `size` bytes in the current frame region; `StorageLive`/`StorageDead` are no-ops (frame reset at return) |
+| `Load` / `Store` | `DV.getInt32/getUint8/...` at `addr + offset`, sized by the type record |
+| `FieldAddr` / `IndexAddr` | `addr + MIRFieldInfo.offset` / `addr + i * elem_size` |
+| `Gep` | same arithmetic (builder-API only today, no emitter case) |
+| `AddressOf` | the place's address (a number) |
+| `MemCpy` / `MemSet` | `HEAP.copyWithin` / `HEAP.fill` |
+| `SizeOf`/`AlignOf`/`OffsetOf` | constant-folded from the type tables |
+| `Copy`/`Move`/`Init`/`Assign`/`Drop`/`Destroy`/`SetDrop` | byte copy + `@delete` call; on a GC target `Drop` still runs destructors (they matter for `std::string`: `free`), so drop glue is **not** a no-op — see §6 |
+| `Call` / `CallIndirect` | direct call / function-table index; aggregates passed as pointers exactly as MIR already encodes them |
+| `Call` with sret | nothing special: the sret pointer is an ordinary operand (MIR prepends it) |
+| `Switch` | `switch` on the tag (not yet lowered by MIR — CondBr chains today) |
+| `DynamicCall` | **diagnostic** (fat pointer, `MIRInstruction.h:100-103`), v1 |
+| `Async*` (4 ops) | **diagnostic**, v1 (own phase, `web-stack-plan.md` §4 Phase 6) |
+| `Atomic*`, `InlineAsm`, `Throw` | **diagnostic**, v1 |
+
+Allocator: bump allocator for allocas (frame-scoped), and `malloc`/`realloc`/`free` implemented over
+the same heap in the runtime shim, because `std` calls them. A free-list is a Phase-5+ optimisation;
+v1 correctness only needs grow-never-free + frame reset. Bounds: every `DV` access goes through a
+checked helper in development builds (`--web-checks`), and unchecked in production.
+
+## 4. Value representation
+
+| Chemical type | JS representation | notes |
+|---|---|---|
+| `bool`, `u8`/`i8` … `u32`/`i32` | `number` | masked on narrowing stores (`& 0xFF`, `\| 0`) |
+| `u64`/`i64`/`size_t`/`usize` | `number` | **exact to 2^53**, stored as 8 bytes; see §5 |
+| `f32`/`f64` | `number` | `Math.fround` on f32 stores |
+| pointers | `number` (byte offset, `0` = null) | |
+| structs/unions/variants/arrays | heap bytes | never JS objects |
+| `string`/`string_view`/`&str` | heap bytes (a struct) | views are `{ptr,len}` in the heap, as today |
+| functions | JS functions | one per MIR function, named by the mangled symbol |
+| closures (`std::function`) | object with a function + captured environment pointer | existing `function` struct already carries `fn_data_ptr`; the shim turns it into a call |
+
+## 5. The 64-bit integer bound (a correction to the plan)
+
+`size_t` is 64-bit (`cstd/src/common/std_types.ch:22-28`), and `vector`/`unordered_map` are built on
+it. Any policy that "rejects `i64`/`u64` in client code" would reject the standard library itself,
+so the v1 plan text is corrected here:
+
+- `u64`/`i64` are **supported**, lowered to `number`, and stored as 8 bytes.
+- Arithmetic is exact for values up to `2^53` (f64 mantissa). Beyond that, a `u64` silently loses
+  precision. This is the one documented soundness bound in the JS backend.
+- It is not a hidden trap: `--web --check` warns on `i64`/`u64` **values read from the outside
+  world** (JSON numbers, `Date.now`, user input), where the bound can actually be hit; sizes,
+  lengths, counters and durations never reach it.
+- Exact 64-bit arithmetic (`BigInt`) remains a later, additive change (§3.20 deferred), and it will
+  be a representation change only — no source migration.
+
+## 6. Destructors are not a no-op
+
+The plan's earlier "destructors are no-ops on JS" line is also corrected: `std::string` frees heap
+memory in `@delete`. Dropping that glue would leak on every string. So `Drop`/`Destroy`/`SetDrop`
+emit real calls on the JS target, exactly as on C. Ownership and borrow checking stay identical;
+GC only removes the *need* to free, it does not remove the code that does.
+
+## 7. Modules, names, and the boundary to native
+
+- One Chemical module → one ESM module. Exports are the mangled symbol names
+  (`MIRSymbolTable::mangled_view`), so `shared` logic compiled for both jobs exposes the same names.
+- `@extern` declarations whose symbol is a browser global (`document`, `window`, `fetch`,
+  `localStorage`) are emitted as references to that global, not as imports. The `dom` module
+  declares them; `MIRTargetSupport` records which symbols are available per target.
+- `@extern` to a C symbol cannot be satisfied in JS: `MIRTargetSupport` must reject it at the call
+  site with the symbol name and its source location. This is what stops a `shared` module from
+  accidentally depending on a native-only library (the `shared` restriction in the plan's §3.1 is
+  enforced by this, not by convention).
+
+## 8. Diagnostics
+
+`MIRTargetSupport` (new, `compiler/mir/MIRTargetSupport.{h,cpp}`) holds per-target facts:
+symbol availability, type availability, opcode availability. `MIRPortability` is not usable (zero
+call sites; it classifies `Call`/`Load`/`Store` as `NativeOnly`).
+
+Rules:
+- Check **before** emitting a function, so the output is all-or-nothing (the C emitter's
+  `emit_function_c` already returns `false` + message transactionally; mirror that).
+- Report the *first* unsupported construct with the MIR instruction, the callee/type name, and the
+  MIR source index → Chemical source location. "async is not supported" alone is useless to an
+  agent; "`await fetch_user` at client/api.ch:42: the `Async*` form is not supported by the JS
+  backend in v1" is actionable.
+
+## 9. The spike (what must exist before the emitter)
+
+A hand-written JavaScript file that implements §3 for one real module, and a C-vs-JS diff:
+
+1. `struct Point { x, y : int }`, a `vector<Point>`, a `string` built with the real `std::string`
+   code path (SSO → heap), and a `variant` with two cases.
+2. The program prints: `sizeof(Point)`, `sizeof(vector<Point>)`, the string, a vector sum, and the
+   variant's tag + payload. It must print **identical bytes** under `--tcc` and the hand-written JS.
+3. Measure: bytes of hand-written JS (target ≤ 8 KB for the spike), and confirm the same heap
+   model works for `std::string`'s `malloc` path without modifying `std`.
+
+Exit criteria for the spike: the diff is empty and the JS is < 8 KB. If the spike cannot get the
+stdlib's `malloc` path working against the emulated heap, the ABI is wrong and we stop before
+writing the emitter.
+
+## 10. What this means for the emitter's shape
+
+- `MIREmitterJs.{h,cpp}` is a dispatcher over MIR exactly like `MIREmitter.cpp`, sharing the
+  **AST-free** `MIRDeclPrinter` (529 lines) behind a printer interface; it must not use
+  `MIRDeclEmitter` (630 lines, AST-based).
+- Expected size, from the C emitter's breakdown: ~2,300 lines of body emission (60 opcodes minus the
+  ~10 diagnosed ones), ~350 of type/declarator printing (JS-shaped, so much simpler: no declarator
+  syntax, just `{size, align, fields[]}` descriptors), ~60 of constants, ~100 of naming.
+- No AST access anywhere; no re-derivation of layout or ABI (that is the whole point of Route A).

@@ -664,7 +664,7 @@ behaviour-only.
 |---|---|---|---|
 | 1 | `#universal` props typed via an `@props` struct; unknown/missing/mistyped props are errors | biggest error class, and it changes the component signature | compiler lists the declared prop set |
 | 2 | props payload becomes a JSON `<script type="application/json">` manifest; `window.$__uni_dispatch` and the global queue are removed | 42% of a page is dispatch text, and the global contract blocks ESM | automatic |
-| 3 | hydration ids become per-instance counters (`useId`) | two instances of one node collide today | automatic |
+| 3 | hydration ids become per-instance counters (`useId`) — **landed**; the emitted dispatch is now `document.getElementById('u' + <n>)` | two instances of one node collided before | automatic |
 | 4 | `SharedAssets`/`attach_shared` and manual `shared.js() + getHtml() + local_js()` assembly replaced by `web::App`/`web::Bundle` | the manual warm pass is the step that never happens | one `app.page(...)` per route |
 | 5 | head metadata becomes a typed `Head { title, meta, canonical, noindex }` instead of ad-hoc title strings | the head is part of the frozen shell and the manifest | mechanical |
 | 6 | `http::Server` normalised: `Server.bind(cfg)`, public listener-free `dispatch`, `handle(app)`, one constructor | routing, assets and serving must be one pipeline | constructor rename |
@@ -801,19 +801,26 @@ the release is tested on.
 **Phases 0–5 are v1** (§3.20). Phases 6–8 are post-v1 and must be additive only. Phase 2 runs in
 parallel with Phase 1; everything else is ordered.
 
-### Phase 0 — Truth, fixtures, and the probe harness  *(S)*
+### Phase 0 — Truth, fixtures, and the probe harness  *(S)* — **in progress**
 
-- Re-measure output with **content-based** metrics (runtime bytes/share, dispatch-text bytes,
-  duplicate-unit bytes) and publish the table in §0 as the baseline.
-- Add `scripts/web-probe.sh` implementing the §3.19 probes that can run today (generation
-  soundness, bundle quality, cache efficiency, compile time/RSS) and 4 golden fixture apps:
-  `static` (pure `#html`), `universal` (components, no client modules), `router` (multi-route
-  MPA), `shell` (one route with slots).
-- Fix hydration ids to instance counters (today they are source-location based, so two instances
-  of one node share an id — a correctness bug independent of everything else).
-- Take the router's cheap wins: `noindex` on missing/fallback routes; typed `Head`; keep the
-  existing static-export route manifest.
-- **Gate:** golden HTML/JS/CSS for the 4 fixtures + the probe harness green and wired into CI.
+- [x] **Probe harness**: `scripts/web-probe.py` + `scripts/web-probe.sh` measure per-page totals,
+      component-definition bytes, hydration-runtime bytes, dispatch-text bytes/calls, exact
+      comment+whitespace minify headroom, cross-page duplicated bytes, ESM/source-map presence,
+      inline `<script>` count, unhashed assets; `--strict` gates the invariants that already hold.
+      The §0 baseline is its output.
+- [x] **Per-instance hydration ids**: `HtmlPage` carries a render-time counter
+      (`next_hydration_id`, `begin_hydration_marker`, `begin_hydration_comment`); `html_cbi`
+      allocates one id per instance and writes it into both the marker and the dispatch
+      (`document.getElementById('u' + <n>)`). Five instances of three call sites now get u1…u5;
+      all 1305 plugin tests pass. *Known gap: `route_snapshot_append` replays cached bytes without
+      re-running the counter — Phase 2's manifest owns id allocation and removes that path.*
+- [x] **First fixture**: `lang/tests/web/fixtures/universal` (5 instances from 3 call sites).
+- [ ] Remaining fixtures: `static` (pure `#html`, asserts 0 JS bytes), `router` (2 routes),
+      `shell` (one route with slots), plus golden HTML/JS/CSS snapshots for all four.
+- [ ] Router cheap wins: `noindex` on missing/fallback routes; typed `Head`; keep the existing
+      static-export route manifest.
+- [ ] Wire the probe into CI (a `web-probe` job) so a bundle regression fails the build.
+- **Gate:** golden files for the 4 fixtures + the probe green in CI.
 
 ### Phase 1 — **JavaScript backend** (job #1)  *(XL)*
 
